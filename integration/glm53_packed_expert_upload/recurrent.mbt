@@ -60,6 +60,7 @@ pub fn recurrent_block_plan(
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.RecurrentBlockPrecision raise {
   @precision_ir.RecurrentBlockPrecision::new(
     recurrent_compute_plan(
@@ -82,5 +83,6 @@ pub fn recurrent_block_plan(
     hidden_width=spec.hidden_size(),
     control_rank=spec.linear_head_dimension(),
     output_normalization_epsilon=spec.rms_norm_epsilon(),
+    projection_law=matrix_law,
   )
 }

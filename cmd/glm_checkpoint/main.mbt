@@ -124,6 +124,8 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let tiled = mode.has_suffix("-tiled-grouped")
+  let mode = if tiled { mode[:mode.length() - 14].to_owned() } else { mode }
   let chunk = mode.has_suffix("-chunk-kda")
   let mode = if chunk { mode[:mode.length() - 10].to_owned() } else { mode }
   // Reject mode/arguments before opening checkpoint payloads.
@@ -163,6 +165,7 @@ async fn main {
       } else {
         OrderedTokenFloat32
       },
+      matrix_law=if tiled { MatrixFloat32 } else { ScalarFloat32 },
     )
   }
   for ordinal, range in startup.placement.stages() {
@@ -174,6 +177,10 @@ async fn main {
   println(
     "recurrent_evaluation=" +
     (if chunk { "chunk-triangular-f32" } else { "ordered-token-f32" }),
+  )
+  println(
+    "matrix_evaluation=" +
+    (if tiled { "bf16-matrix-f32-grouped" } else { "scalar-f32" }),
   )
   match mode {
     "export" => {

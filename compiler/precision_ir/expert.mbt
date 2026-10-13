@@ -40,6 +40,7 @@ pub struct ExpertMlpPrecision {
   priv routing_placement : ExpertRoutingPlacement
   priv activation_quantization : (QuantizationPlan, QuantizationPlan)?
   priv scaled_dot_law : ScaledDotReductionLaw
+  priv dot_law : DenseDotLaw
   priv quantized_bytes : (Int64, Int64)
   priv offsets : ReadOnlyArray[Int64]
   priv stride : Int64
@@ -71,6 +72,7 @@ pub fn ExpertMlpPrecision::new(
   routing_placement? : ExpertRoutingPlacement = AfterDownOutputRound,
   activation_quantization? : (QuantizationPlan, QuantizationPlan),
   scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
+  dot_law? : DenseDotLaw = ScalarFloat32,
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
   if memory_ceiling < 0L ||
@@ -86,6 +88,13 @@ pub fn ExpertMlpPrecision::new(
     raise MissingAccuracyContract
   }
   let weights = [gate, up, down]
+  if dot_law == MatrixFloat32 &&
+    (
+      activation_quantization is Some(_) ||
+      scaled_dot_law != DecodeOperandsFloat32
+    ) {
+    raise NoImplementation
+  }
   for weight in weights {
     if weight.role() != Weight ||
       weight.placement() != DecodeInOperandTile ||
@@ -205,6 +214,7 @@ pub fn ExpertMlpPrecision::new(
     routing_placement,
     activation_quantization,
     scaled_dot_law,
+    dot_law,
     quantized_bytes,
     offsets: ReadOnlyArray::from_array(offsets),
     stride,
@@ -213,6 +223,11 @@ pub fn ExpertMlpPrecision::new(
     weighted_bytes,
     total_bytes,
   }
+}
+
+///|
+pub fn ExpertMlpPrecision::dot_law(self : Self) -> DenseDotLaw {
+  self.dot_law
 }
 
 ///|

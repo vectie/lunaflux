@@ -13,9 +13,10 @@ priv struct ExpertBuffers {
 fn MoeProgram::expert_buffers(
   self : Self,
   context : @device.Context,
-  plan : @precision.ExpertMlpPrecision,
+  source : @source.PackedExpertMlpCudaSource,
 ) -> ExpertBuffers raise @device.DeviceError {
-  let sizes = expert_workspace_sizes(plan)
+  let plan = source.plan()
+  let sizes = expert_workspace_sizes(source)
   let map = self.allocate(context, sizes[0])
   let activation = self.allocate(context, sizes[1])
   let weighted = self.allocate(context, sizes[2])
@@ -204,8 +205,8 @@ fn MoeProgram::bind_experts(
   let finalize_functions = self.load_functions(aot_module, [
     self.combine.symbol(),
   ])
-  let routed = self.expert_buffers(context, self.routed.plan())
-  let shared = self.expert_buffers(context, self.shared.plan())
+  let routed = self.expert_buffers(context, self.routed)
+  let shared = self.expert_buffers(context, self.shared)
   let shared_indices = self.allocate(context, rows.to_int64() * 4L)
   let shared_weights = self.allocate(context, rows.to_int64() * 4L)
   initialize_shared_route(

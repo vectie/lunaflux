@@ -1,0 +1,170 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-tiled-grouped-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_ROOT")
+  }
+  @fs.mkdir(root)
+  let node = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+    ]).output(max_output_bytes=16777216)
+  }
+  async fn record(name : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU busy") }
+  for
+    (pkg, variable, file) in [
+      (
+        "kernels/tiled_matrix_cuda_source", "LUNA_EXPORT_TILED_MATRIX", "projection.cuh",
+      ),
+      (
+        "kernels/selected_expert_mlp_cuda_source", "LUNA_EXPORT_GROUPED_MATRIX",
+        "grouped.cuh",
+      ),
+    ] {
+    let output = @shell.Cmd("env", [
+      variable + "=1",
+      "moon",
+      "test",
+      pkg,
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=16777216)
+    record(file + "-export", output)
+    let builder = StringBuilder()
+    let mut capture = false
+    for line in output.stdout().split("\n") {
+      if line.has_prefix("LUNA_SOURCE_BEGIN") {
+        capture = true
+        continue
+      }
+      if line.has_prefix("LUNA_SOURCE_END") {
+        capture = false
+        continue
+      }
+      if capture {
+        builder.write_string(line.to_owned())
+        builder.write_string("\n")
+      }
+    }
+    guard !builder.to_string().is_empty() else { fail("no actual source") }
+    @fs.write_file(
+      root + "/" + file,
+      builder.to_string(),
+      create_mode=CreateNew,
+    )
+  }
+  record("mkdir", remote("mkdir " + root))
+  for
+    (path, name) in [
+      (root + "/projection.cuh", "projection.cuh"),
+      (root + "/grouped.cuh", "grouped.cuh"),
+      ("tests/packed_moe_execution/grouped_matrix_probe.cu", "grouped.cu"),
+      (
+        "tests/packed_moe_execution/glm_projection_counter_probe.cu", "projection.cu",
+      ),
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      path,
+      node + ":" + root + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let unit = root[5:].to_owned()
+  for name in ["projection", "grouped"] {
+    record(
+      "compile-" + name,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-compile-" +
+        name +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 -DPROJECTION_GRID=128 -DPROJECTION_THREADS=128 -DPROJECTION_TAILS " +
+        root +
+        "/" +
+        name +
+        ".cu -lcublas -o " +
+        root +
+        "/" +
+        name,
+      ),
+    )
+  }
+  for
+    (label, command) in [
+      ("grouped", root + "/grouped"),
+      ("projection-r1", root + "/projection 1 timing"),
+      ("projection-r16", root + "/projection 16 timing"),
+      ("projection-tail", root + "/projection 16 tails"),
+    ] {
+    record(
+      label,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-" +
+        label +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+        command,
+      ),
+    )
+  }
+  for name in ["grouped", "projection", "projection-tail"] {
+    for sanitizer in ["memcheck", "racecheck", "synccheck"] {
+      let command = "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+        sanitizer +
+        (if sanitizer == "memcheck" { " --leak-check full" } else { "" }) +
+        " " +
+        root +
+        "/" +
+        (if name.has_prefix("projection") { "projection" } else { name }) +
+        (if name == "projection" { " 16 native" } else if name == "projection-tail" { " 16 tails" } else { "" })
+      record(
+        name + "-" + sanitizer,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          unit +
+          "-" +
+          name +
+          "-" +
+          sanitizer +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 " +
+          command,
+        ),
+      )
+    }
+  }
+}

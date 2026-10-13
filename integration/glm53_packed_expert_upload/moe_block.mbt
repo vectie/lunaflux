@@ -13,6 +13,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -25,6 +26,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
     cache_slots~,
     maximum_state_bytes~,
     evaluation~,
+    matrix_law~,
   )
   {
     spec,
@@ -34,7 +36,12 @@ pub fn GlmRecurrentLayer::with_moe_block(
     hyper: branch.hyper,
     ffn: Some(
       make_moe_ffn(
-        spec, layer_index, maximum_rows, maximum_expert_bytes, accuracy,
+        spec,
+        layer_index,
+        maximum_rows,
+        maximum_expert_bytes,
+        accuracy,
+        matrix_law~,
       ),
     ),
     status: Fresh,
@@ -50,6 +57,7 @@ fn make_moe_ffn(
   maximum_rows : Int,
   maximum_expert_bytes : Int64,
   accuracy : @precision_ir.Accuracy,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> GlmFfn raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -60,12 +68,14 @@ fn make_moe_ffn(
     maximum_rows~,
     memory_ceiling=maximum_expert_bytes,
     accuracy~,
+    matrix_law~,
   )
   let shared = shared_expert_compute_plan(
     layer_index~,
     maximum_rows~,
     memory_ceiling=maximum_expert_bytes,
     accuracy~,
+    matrix_law~,
   )
   guard routed.bank_bytes() <= maximum_expert_bytes &&
     shared.bank_bytes() <= maximum_expert_bytes - routed.bank_bytes() else {

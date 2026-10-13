@@ -118,3 +118,28 @@ test "explicit chunk numerical policy reaches both dense and MoE recurrent owner
     assert_true(source.contains("glm_sparse_3_"))
   }
 }
+
+///|
+test "matrix law reaches recurrent projection and sparse/recurrent expert owners" {
+  let stage = @glm53_packed_expert_upload.GlmDecoderStage::new(
+    @glm53_spec.Glm53FlashSpec::official(),
+    @pipeline.DecoderStageRange::new(layer_count=45, first_layer=0, end_layer=5),
+    maximum_rows=16,
+    maximum_history=64,
+    index_layer_norm_epsilon=1.0e-5,
+    maximum_layer_state_bytes=100000000L,
+    maximum_layer_workspace_bytes=100000000L,
+    maximum_layer_expert_bytes=5000000000L,
+    maximum_text_workspace_bytes=10000000L,
+    accuracy=@precision_ir.Accuracy::new(absolute=0.125, relative=0.125),
+    matrix_law=MatrixFloat32,
+  )
+  defer stage.close()
+  let source = @utf8.decode(stage.source_bytes())
+  assert_true(source.contains("mma_sync"))
+  for layer in [3, 4] {
+    assert_true(source.contains("glm_routed_\{layer}_group("))
+    assert_true(source.contains("glm_shared_\{layer}_group("))
+  }
+  assert_false(source.contains("_delta_solve"))
+}

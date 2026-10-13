@@ -19,6 +19,7 @@ pub struct RecurrentBlockCudaSource {
 pub fn RecurrentBlockCudaSource::convolution(Self) -> @causal_convolution_execution_cuda_source.CausalConvolutionCudaSource
 pub fn RecurrentBlockCudaSource::delta(Self) -> @recurrent_delta_execution_cuda_source.RecurrentDeltaCudaSource
 pub fn RecurrentBlockCudaSource::plan(Self) -> @precision_ir.RecurrentBlockPrecision
+pub fn RecurrentBlockCudaSource::projection_launch(Self, Int, Int) -> (Int, Int) raise
 pub fn RecurrentBlockCudaSource::source_bytes(Self) -> Bytes
 pub fn RecurrentBlockCudaSource::symbol(Self, Int) -> String
 

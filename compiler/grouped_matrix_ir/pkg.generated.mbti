@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/grouped_matrix_ir"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct ExpertGroupingPlan {
+  // private fields
+}
+pub fn ExpertGroupingPlan::maximum_groups(Self) -> Int
+pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn ExpertGroupingPlan::rows_per_group(Self) -> Int
+pub fn ExpertGroupingPlan::storage_bytes(Self) -> Int64
+
+pub struct MatrixTilePlan {
+  // private fields
+}
+pub fn MatrixTilePlan::geometry(Self) -> (Int, Int, Int)
+pub fn MatrixTilePlan::new(rows~ : Int, columns~ : Int, inner~ : Int, law~ : @precision_ir.DenseDotLaw) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixTilePlan::tile(Self) -> (Int, Int, Int)
+pub fn MatrixTilePlan::tile_count(Self) -> Int
+
+// Type aliases
+
+// Traits

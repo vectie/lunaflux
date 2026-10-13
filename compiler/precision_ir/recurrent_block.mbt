@@ -9,6 +9,7 @@ pub struct RecurrentBlockPrecision {
   priv rank : Int
   priv epsilon : Double
   priv frame_bytes : Int64
+  priv projection_law : DenseDotLaw
 }
 
 ///|
@@ -18,6 +19,7 @@ pub fn RecurrentBlockPrecision::new(
   hidden_width~ : Int,
   control_rank~ : Int,
   output_normalization_epsilon~ : Double,
+  projection_law? : DenseDotLaw = ScalarFloat32,
 ) -> Self raise PrecisionPlanError {
   let (heads, keys, values) = delta.geometry()
   let (channels, _) = convolution.geometry()
@@ -73,7 +75,13 @@ pub fn RecurrentBlockPrecision::new(
     rank: control_rank,
     epsilon: output_normalization_epsilon,
     frame_bytes,
+    projection_law,
   }
+}
+
+///|
+pub fn RecurrentBlockPrecision::projection_law(self : Self) -> DenseDotLaw {
+  self.projection_law
 }
 
 ///|

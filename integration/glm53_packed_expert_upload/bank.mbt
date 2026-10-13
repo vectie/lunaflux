@@ -7,6 +7,7 @@ pub fn expert_compute_plan(
   maximum_rows~ : Int,
   memory_ceiling~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.ExpertMlpPrecision raise {
   let family = @glm53_weights.nvfp4_expert_weights(
     layer_index~,
@@ -32,6 +33,7 @@ pub fn expert_compute_plan(
     selected_experts=8,
     maximum_rows~,
     clamp=10.0,
+    dot_law=matrix_law,
     memory_ceiling~,
   )
 }

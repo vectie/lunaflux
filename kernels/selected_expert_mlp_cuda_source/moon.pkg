@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
+  "vectie/lunaflux/kernels/tiled_matrix_cuda_source" @tiled,
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
   "vectie/lunaflux/compiler/precision_ir",

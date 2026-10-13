@@ -16,13 +16,16 @@ pub struct MoeProgram {
 }
 
 ///|
-fn expert_workspace_sizes(plan : @precision.ExpertMlpPrecision) -> Array[Int64] {
+fn expert_workspace_sizes(
+  source : @source.PackedExpertMlpCudaSource,
+) -> Array[Int64] {
+  let plan = source.plan()
   let (rows, hidden, _, experts, _) = plan.geometry()
-  let (activation, weighted) = plan.workspace_bytes()
+  let weighted = plan.workspace_bytes().1
   let (qx, qa) = plan.quantized_workspace_bytes()
   [
     experts.to_int64() * 4L,
-    activation,
+    source.activation_bytes(),
     weighted,
     rows.to_int64() * hidden.to_int64() * 4L,
     qx,
@@ -71,8 +74,8 @@ pub fn MoeProgram::new(
   guard !symbols.contains(combine.symbol()) else {
     raise @device.DeviceError::InvalidArgument(FunctionLoad)
   }
-  let sizes = expert_workspace_sizes(routed.plan())
-  sizes.append(expert_workspace_sizes(shared.plan()))
+  let sizes = expert_workspace_sizes(routed)
+  sizes.append(expert_workspace_sizes(shared))
   // The shared map is included above; these are its unit indices and scores.
   sizes.push(rows.to_int64() * 8L)
   if routing is Some(router) {

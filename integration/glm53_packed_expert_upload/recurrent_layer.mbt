@@ -31,6 +31,7 @@ pub fn GlmRecurrentLayer::new(
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> Self raise {
   let plan = recurrent_block_plan(
     spec,
@@ -40,6 +41,7 @@ pub fn GlmRecurrentLayer::new(
     cache_slots~,
     maximum_state_bytes~,
     evaluation~,
+    matrix_law~,
   )
   let source = @block.recurrent_block_source(
     plan,

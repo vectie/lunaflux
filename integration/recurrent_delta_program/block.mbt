@@ -182,22 +182,15 @@ fn append_block_projection(
 ) -> Unit raise @device.DeviceError {
   let (rows, _, _) = source.plan().delta().capacity()
   let out_cells = rows.to_int64() * output_width.to_int64()
-  append_block_launch(
-    owner,
-    aot,
-    source,
-    launches,
-    stage,
-    ((out_cells + 255L) / 256L).to_int(),
-    1,
-    256,
-    [
-      region(counts, 20L, 4L),
-      region(input, rows.to_int64() * input_width.to_int64() * 2L, 2L),
-      region(weight, output_width.to_int64() * input_width.to_int64() * 2L, 2L),
-      region(output, out_cells * 2L, 2L),
-    ],
-  )
+  let (grid, threads) = source.projection_launch(input_width, output_width) catch {
+    _ => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+  }
+  append_block_launch(owner, aot, source, launches, stage, grid, 1, threads, [
+    region(counts, 20L, 4L),
+    region(input, rows.to_int64() * input_width.to_int64() * 2L, 2L),
+    region(weight, output_width.to_int64() * input_width.to_int64() * 2L, 2L),
+    region(output, out_cells * 2L, 2L),
+  ])
 }
 
 ///|

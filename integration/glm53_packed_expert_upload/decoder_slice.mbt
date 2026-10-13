@@ -36,6 +36,7 @@ pub fn GlmDecoderSlice::new(
   maximum_layer_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> Self raise {
   guard first_layer >= 0 &&
     end_layer > first_layer &&
@@ -58,6 +59,7 @@ pub fn GlmDecoderSlice::new(
                 cache_slots~,
                 maximum_state_bytes=maximum_layer_state_bytes,
                 evaluation=recurrent_evaluation,
+                matrix_law~,
               ),
             )
           RoutedMixtureOfExperts =>
@@ -72,6 +74,7 @@ pub fn GlmDecoderSlice::new(
                 maximum_expert_bytes=maximum_layer_expert_bytes,
                 accuracy~,
                 evaluation=recurrent_evaluation,
+                matrix_law~,
               ),
             )
         }
@@ -90,6 +93,7 @@ pub fn GlmDecoderSlice::new(
             maximum_workspace_bytes=maximum_layer_workspace_bytes,
             maximum_expert_bytes=maximum_layer_expert_bytes,
             accuracy~,
+            matrix_law~,
           ),
         )
       }

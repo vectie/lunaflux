@@ -8,7 +8,12 @@ import {
 ///|
 async fn main {
   guard @env.args() is [_, root] else { fail("COLLECTED_COUNTER_ROOT") }
-  for route in ["native", "vendor"] {
+  let routes = if root.has_prefix("/tmp/lunaflux-glm-tiled-grouped-") {
+    ["native"]
+  } else {
+    ["native", "vendor"]
+  }
+  for route in routes {
     let lines = @fs.read_file(root + "/" + route + "-raw.csv")
       .text()
       .split("\n")

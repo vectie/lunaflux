@@ -4,6 +4,7 @@ pub fn shared_expert_compute_plan(
   maximum_rows~ : Int,
   memory_ceiling~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.ExpertMlpPrecision raise {
   let operands = @glm53_weights.shared_expert_weights(layer_index~).map(weight => {
     @precision_ir.plan_operand(
@@ -25,6 +26,7 @@ pub fn shared_expert_compute_plan(
     selected_experts=1,
     maximum_rows~,
     clamp=10.0,
+    dot_law=matrix_law,
     memory_ceiling~,
   )
 }

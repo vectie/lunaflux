@@ -46,14 +46,26 @@ pub fn recurrent_block_source(
   }
   let mut source = convolution.source_bytes() + b"\n" + delta.source_bytes()
   for index, (input_width, output_width) in shapes {
-    source = source +
-      b"\n" +
+    let symbol = symbol_prefix + "_" + indices[index].to_string()
+    let projection = if plan.projection_law() == MatrixFloat32 {
+      @tiled.dense_source(
+        @matrix.MatrixTilePlan::new(
+          rows~,
+          columns=output_width,
+          inner=input_width,
+          law=plan.projection_law(),
+        ),
+        symbol~,
+      )
+    } else {
       @projection.dense_projection_bf16_source(
         input_width~,
         output_width~,
         maximum_rows=rows,
-        function_symbol=symbol_prefix + "_" + indices[index].to_string(),
+        function_symbol=symbol,
       ).source_bytes()
+    }
+    source = source + b"\n" + projection
   }
   source = source +
     b"\n" +
@@ -108,6 +120,26 @@ pub fn recurrent_block_source(
     source: source + b"\n" + @utf8.encode(text),
     delta,
     convolution,
+  }
+}
+
+///|
+pub fn RecurrentBlockCudaSource::projection_launch(
+  self : Self,
+  input_width : Int,
+  output_width : Int,
+) -> (Int, Int) raise {
+  let (rows, _, _) = self.plan.delta().capacity()
+  if self.plan.projection_law() == MatrixFloat32 {
+    let tile = @matrix.MatrixTilePlan::new(
+      rows~,
+      columns=output_width,
+      inner=input_width,
+      law=self.plan.projection_law(),
+    )
+    (tile.tile_count(), 128)
+  } else {
+    (((rows.to_int64() * output_width.to_int64() + 255L) / 256L).to_int(), 256)
   }
 }
 

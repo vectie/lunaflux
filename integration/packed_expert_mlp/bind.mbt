@@ -44,7 +44,8 @@ pub fn bind(
   let (rows, hidden, _, experts, selected) = p.geometry()
   let jobs = rows.to_int64() * selected.to_int64()
   let cells = rows.to_int64() * hidden.to_int64()
-  let (activation_bytes, weighted_bytes) = p.workspace_bytes()
+  let activation_bytes = source.activation_bytes()
+  let weighted_bytes = p.workspace_bytes().1
   let c = region(counts, 20L, 4L)
   let x = region(input, cells * 2L, 2L)
   let ix = region(selected_indices, jobs * 4L, 4L)
@@ -60,6 +61,11 @@ pub fn bind(
     gate.push(sw)
   }
   let arguments = [gate, [c, a, ix, sw, em, w, b], [c, ix, b, y]]
+  let arguments = if p.dot_law() == MatrixFloat32 {
+    [[c, ix, a], arguments[0], arguments[1], arguments[2]]
+  } else {
+    arguments
+  }
   let arguments = if p.activation_quantization() is Some(_) {
     guard quantized_input is Some(qx) &&
       quantized_activation is Some(qa) &&

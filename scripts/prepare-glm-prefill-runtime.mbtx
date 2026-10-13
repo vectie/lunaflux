@@ -109,10 +109,13 @@ async fn main {
     build.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail("NEW_COMPLETED_BUILD_ROOT ROWS")
   }
-  guard options.is_empty() || options is ["--chunk-kda"] else {
+  guard options.is_empty() ||
+    options is ["--chunk-kda"] ||
+    options is ["--tiled-grouped"] else {
     fail("unknown arithmetic option")
   }
-  let chunk = !options.is_empty()
+  let chunk = options is ["--chunk-kda"]
+  let tiled = options is ["--tiled-grouped"]
   let rows = @string.parse_int(row_text)
   guard rows > 0 && rows <= 32 else { fail("bounded row capacity required") }
   let name = build[5:].to_owned()
@@ -147,7 +150,13 @@ async fn main {
       export_unit +
       " --property=RemainAfterExit=yes --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 " +
       executable +
-      (if chunk { " export-chunk-kda " } else { " export " }) +
+      (if chunk {
+        " export-chunk-kda "
+      } else if tiled {
+        " export-tiled-grouped "
+      } else {
+        " export "
+      }) +
       "/tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 " +
       original +
       "/SHARDS.sha256 \{rows} 64 103079215104 103079215104 2147483648 " +
@@ -169,6 +178,14 @@ async fn main {
         text.contains("_delta_solve") &&
         text.contains("_delta_publish") else {
         fail("chunk stages did not reach AOT")
+      }
+    }
+    if tiled {
+      let text = @fs.read_file(source).text()
+      guard text.contains("mma_sync") &&
+        text.contains("_group(") &&
+        text.contains("groups+=(matched+15)/16") else {
+        fail("matrix/group plan did not reach AOT")
       }
     }
     if last {

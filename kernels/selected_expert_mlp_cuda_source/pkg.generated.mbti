@@ -24,6 +24,7 @@ pub(all) suberror SelectedExpertMlpCudaSourceError {
 pub struct PackedExpertMlpCudaSource {
   // private fields
 }
+pub fn PackedExpertMlpCudaSource::activation_bytes(Self) -> Int64
 pub fn PackedExpertMlpCudaSource::launches(Self) -> ReadOnlyArray[(Int, Int)]
 pub fn PackedExpertMlpCudaSource::plan(Self) -> @precision_ir.ExpertMlpPrecision
 pub fn PackedExpertMlpCudaSource::source_bytes(Self) -> Bytes

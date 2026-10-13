@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/tiled_matrix_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/grouped_matrix_ir",
+}
+
+// Values
+pub fn dense_source(@grouped_matrix_ir.MatrixTilePlan, symbol~ : String) -> Bytes
+
+pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

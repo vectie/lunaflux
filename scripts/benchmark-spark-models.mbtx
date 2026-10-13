@@ -63,6 +63,9 @@ fn binary(glm : Bool, runtime : String) -> String {
 
 ///|
 fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
+  if options is [.. base, "--tiled-grouped"] {
+    return runtime_selection(glm, base)
+  }
   if options is [.. base, "--chunk-kda"] {
     return runtime_selection(glm, base)
   }
@@ -83,6 +86,9 @@ fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
 
 ///|
 fn row_selection(glm : Bool, options : ArrayView[String]) -> Int raise {
+  if options is [.. base, "--tiled-grouped"] {
+    return row_selection(glm, base)
+  }
   if options is [.. base, "--chunk-kda"] {
     return row_selection(glm, base)
   }
@@ -244,6 +250,10 @@ async fn main {
   }
   let glm = family == "glm"
   let chunk = options.last() is Some("--chunk-kda")
+  let tiled = options.last() is Some("--tiled-grouped")
+  guard !tiled || glm else {
+    fail("tiled grouped profile currently bound through GLM")
+  }
   guard !chunk || glm else { fail("chunk KDA requires a recurrent model") }
   let runtime = runtime_selection(glm, options)
   let executable = binary(glm, runtime)
@@ -256,7 +266,8 @@ async fn main {
     "\naot=" +
     aot +
     "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n" +
-    (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" })
+    (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
+    (if tiled { "matrix_evaluation=bf16-matrix-f32-grouped\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -488,7 +499,14 @@ async fn main {
       } else {
         ""
       }
-      let command = command + (if chunk { "-chunk-kda" } else { "" })
+      let command = command +
+        (if chunk {
+          "-chunk-kda"
+        } else if tiled {
+          "-tiled-grouped"
+        } else {
+          ""
+        })
       record(
         root,
         role + "-start",

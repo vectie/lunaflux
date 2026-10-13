@@ -5,6 +5,7 @@ extern "C" fn live_resources() -> Int = "lunaflux_device_worker_fake_live_childr
 fn program_fixture(
   routing? : @router.MoeRoutingCudaSource,
   complete_local? : Bool = false,
+  dot_law? : @precision.DenseDotLaw = ScalarFloat32,
 ) -> (@moe.MoeProgram, Int64, Int64) raise {
   let operand = @precision.plan_operand(
     role=Weight,
@@ -23,6 +24,7 @@ fn program_fixture(
     local_experts=if complete_local { [3, 1, 0, 2] } else { [3, 1] },
     selected_experts=2,
     maximum_rows=2,
+    dot_law~,
     memory_ceiling=100000L,
   )
   let shared = @precision.ExpertMlpPrecision::new(
@@ -33,6 +35,7 @@ fn program_fixture(
     local_experts=[0],
     selected_experts=1,
     maximum_rows=2,
+    dot_law~,
     memory_ceiling=100000L,
   )
   (
@@ -53,6 +56,59 @@ fn program_fixture(
     routed.bank_bytes(),
     shared.bank_bytes(),
   )
+}
+
+///|
+test "grouped MoE owns bounded metadata and binds nine reusable launches" {
+  let baseline = live_resources()
+  let context = @device.open_context(0)
+  defer (context.close() catch { _ => () })
+  let stream = context.create_stream()
+  defer (stream.close() catch { _ => () })
+  let module = context.load_module(b"fake\x00")
+  defer (module.close() catch { _ => () })
+  let (program, routed, shared) = program_fixture(dot_law=MatrixFloat32)
+  defer (program.close() catch { _ => () })
+  assert_eq(program.workspace_bytes(), 1732L)
+  let buffers = [20L, 128L, 16L, 16L, routed, shared, 128L].map(n => {
+    context.allocate(n)
+  })
+  defer (for b in buffers.rev() {
+    b.close() catch {
+      _ => ()
+    }
+  })
+  program.prepare(
+    context,
+    module,
+    stream,
+    maximum_workspace_bytes=1732L,
+    counts=buffers[0],
+    input=buffers[1],
+    selected_indices=buffers[2],
+    selected_weights=buffers[3],
+    routed_bank=buffers[4],
+    shared_bank=buffers[5],
+    output=buffers[6],
+  )
+  let before = enqueues()
+  begin_allocations()
+  for seq in 1UL..<4UL {
+    program.submit(live_rows=1, plan_sequence=seq, global_sequence=seq)
+    while !program.poll() {
+      ()
+    }
+  }
+  assert_eq(end_allocations(), 0UL)
+  assert_eq(enqueues() - before, 27UL)
+  program.close()
+  for b in buffers.rev() {
+    b.close()
+  }
+  module.close()
+  stream.close()
+  context.close()
+  assert_eq(live_resources(), baseline)
 }
 
 ///|

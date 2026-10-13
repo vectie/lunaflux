@@ -32,6 +32,7 @@ pub fn GlmDecoderStage::new(
   maximum_text_workspace_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
     maximum_history >= maximum_rows else {
@@ -61,6 +62,7 @@ pub fn GlmDecoderStage::new(
       maximum_layer_expert_bytes~,
       accuracy~,
       recurrent_evaluation~,
+      matrix_law~,
     ),
     text: GlmTextIo::new(
       spec,

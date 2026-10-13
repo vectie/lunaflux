@@ -9,6 +9,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
   cache_slots~ : Int,
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> Self raise {
   let branch = GlmRecurrentLayer::new(
     spec,
@@ -18,6 +19,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
     cache_slots~,
     maximum_state_bytes~,
     evaluation~,
+    matrix_law~,
   )
   let plan = @precision_ir.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_streams(),

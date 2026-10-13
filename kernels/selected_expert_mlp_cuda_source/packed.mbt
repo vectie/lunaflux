@@ -44,6 +44,9 @@ pub fn packed_expert_mlp_source(
   if plan.scaled_dot_law() != DecodeOperandsFloat32 {
     return block_scaled_expert_source(plan, symbol~)
   }
+  if plan.dot_law() == MatrixFloat32 {
+    return grouped_expert_source(plan, symbol~)
+  }
   let (maximum_rows, hidden, intermediate, expert_count, selected) = plan.geometry()
   let jobs = maximum_rows.to_int64() * selected.to_int64()
   let grids = [

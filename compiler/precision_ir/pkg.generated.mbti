@@ -157,6 +157,14 @@ pub fn Conversion::equal(Self, Self) -> Bool
 pub fn Conversion::not_equal(Self, Self) -> Bool
 pub fn Conversion::to_repr(Self) -> @debug.Repr
 
+pub(all) enum DenseDotLaw {
+  ScalarFloat32
+  MatrixFloat32
+} derive(Eq, @debug.Debug)
+pub fn DenseDotLaw::equal(Self, Self) -> Bool
+pub fn DenseDotLaw::not_equal(Self, Self) -> Bool
+pub fn DenseDotLaw::to_repr(Self) -> @debug.Repr
+
 pub(all) enum DenseSwiGluExpression {
   ProjectionUpdate
   ProjectionPublish
@@ -210,12 +218,13 @@ pub fn ExpertMlpPrecision::activation_quantization(Self) -> (QuantizationPlan, Q
 pub fn ExpertMlpPrecision::activation_rounding(Self) -> ExpertActivationRounding
 pub fn ExpertMlpPrecision::bank_bytes(Self) -> Int64
 pub fn ExpertMlpPrecision::clamp(Self) -> Double?
+pub fn ExpertMlpPrecision::dot_law(Self) -> DenseDotLaw
 pub fn ExpertMlpPrecision::expert_map(Self) -> ReadOnlyArray[Int]
 pub fn ExpertMlpPrecision::expert_stride(Self) -> Int64
 pub fn ExpertMlpPrecision::expression(Self, ExpertExpression) -> NumericExpression raise PrecisionPlanError
 pub fn ExpertMlpPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn ExpertMlpPrecision::local_experts(Self) -> ReadOnlyArray[Int]
-pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, activation_rounding? : ExpertActivationRounding, routing_placement? : ExpertRoutingPlacement, activation_quantization? : (QuantizationPlan, QuantizationPlan), scaled_dot_law? : ScaledDotReductionLaw, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, activation_rounding? : ExpertActivationRounding, routing_placement? : ExpertRoutingPlacement, activation_quantization? : (QuantizationPlan, QuantizationPlan), scaled_dot_law? : ScaledDotReductionLaw, dot_law? : DenseDotLaw, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
 pub fn ExpertMlpPrecision::quantized_workspace_bytes(Self) -> (Int64, Int64)
 pub fn ExpertMlpPrecision::routing_placement(Self) -> ExpertRoutingPlacement
 pub fn ExpertMlpPrecision::scaled_dot_law(Self) -> ScaledDotReductionLaw
@@ -736,9 +745,10 @@ pub struct RecurrentBlockPrecision {
 pub fn RecurrentBlockPrecision::convolution(Self) -> CausalConvolutionPrecision
 pub fn RecurrentBlockPrecision::delta(Self) -> RecurrentDeltaPrecision
 pub fn RecurrentBlockPrecision::frame_bytes(Self) -> Int64
-pub fn RecurrentBlockPrecision::new(RecurrentDeltaPrecision, CausalConvolutionPrecision, hidden_width~ : Int, control_rank~ : Int, output_normalization_epsilon~ : Double) -> Self raise PrecisionPlanError
+pub fn RecurrentBlockPrecision::new(RecurrentDeltaPrecision, CausalConvolutionPrecision, hidden_width~ : Int, control_rank~ : Int, output_normalization_epsilon~ : Double, projection_law? : DenseDotLaw) -> Self raise PrecisionPlanError
 pub fn RecurrentBlockPrecision::normalization_epsilon(Self) -> Double
 pub fn RecurrentBlockPrecision::projection_geometry(Self) -> (Int, Int)
+pub fn RecurrentBlockPrecision::projection_law(Self) -> DenseDotLaw
 
 pub(all) enum RecurrentChunkExpression {
   GatePrefix

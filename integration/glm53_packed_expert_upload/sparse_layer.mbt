@@ -26,6 +26,7 @@ pub fn GlmSparseLayer::new(
   maximum_workspace_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> Self raise {
   let projection = @sparse_model.flash_sparse_projection_plan(
     spec,
@@ -52,7 +53,12 @@ pub fn GlmSparseLayer::new(
     maximum_workspace_bytes~,
   )
   let ffn = make_moe_ffn(
-    spec, layer_index, maximum_queries, maximum_expert_bytes, accuracy,
+    spec,
+    layer_index,
+    maximum_queries,
+    maximum_expert_bytes,
+    accuracy,
+    matrix_law~,
   )
   let decoder = @sparse_frame.IndexedSparseDecoderFrame::new(
     @sparse_source.indexed_sparse_decoder_source(
