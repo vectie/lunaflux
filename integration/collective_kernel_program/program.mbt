@@ -30,7 +30,7 @@ priv enum State {
 
 ///|
 pub struct CollectiveKernelProgram {
-  priv queue : @device.OrderedKernelExecutor
+  priv queues : ReadOnlyArray[@device.OrderedKernelExecutor]
   priv stream : @device.Stream
   priv owner : @device.TensorCollectiveOwner
   priv boundaries : ReadOnlyArray[ReductionBoundary]
@@ -55,6 +55,8 @@ pub fn CollectiveKernelProgram::new(
   generation~ : UInt64,
   maximum_rows~ : Int,
   retirement? : @parallel.RetirementPolicy = EachCollective,
+  replay? : @parallel.ReplayPolicy = Eager,
+  replay_budget_bytes? : Int64 = 0L,
 ) -> Self raise @device.DeviceError {
   guard !boundaries.is_empty() && !launches.is_empty() && maximum_rows > 0 else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -64,6 +66,7 @@ pub fn CollectiveKernelProgram::new(
     kernel_count=launches.length(),
     boundaries.map(b => b.before_kernel),
     retirement~,
+    replay~,
   ) catch {
     _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
@@ -89,8 +92,37 @@ pub fn CollectiveKernelProgram::new(
   if retirement == WholeFrame {
     owner.prepare_deferred()
   }
+  let reserve = plan.replay_reserve_bytes(
+    bytes_per_kernel=16384L,
+    bytes_per_interval=65536L,
+  ) catch {
+    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  guard reserve <= replay_budget_bytes else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  let queues : Array[@device.OrderedKernelExecutor] = []
+  errdefer (for queue in queues.rev() {
+    queue.close() catch {
+      _ => ()
+    }
+  })
+  if replay == CaptureIntervals {
+    for i in 0..<plan.interval_count() {
+      let (first, end) = plan.interval(i)
+      queues.push(
+        context.create_ordered_kernel_executor(
+          stream,
+          launches[first:end],
+          policy=OrderedKernelCaptureRequired,
+        ),
+      )
+    }
+  } else {
+    queues.push(context.create_ordered_kernel_executor(stream, launches))
+  }
   {
-    queue: context.create_ordered_kernel_executor(stream, launches),
+    queues: ReadOnlyArray::from_array(queues),
     stream,
     owner,
     boundaries: ReadOnlyArray::from_array(boundaries),
@@ -107,13 +139,28 @@ pub fn CollectiveKernelProgram::new(
 }
 
 ///|
-fn CollectiveKernelProgram::enqueue_until(
+fn CollectiveKernelProgram::enqueue_interval(
   self : Self,
-  end : Int,
+  interval : Int,
 ) -> Unit raise @device.DeviceError {
+  let first = self.plan.interval_start(interval)
+  let end = self.plan.interval_end(interval)
+  guard self.next_kernel == first else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+  }
+  if self.plan.replay_policy() == CaptureIntervals {
+    let queue = self.queues[interval]
+    queue.launch_captured()
+    queue.record_completion()
+    self.next_kernel = end
+    return
+  }
   while self.next_kernel < end {
-    self.queue.enqueue(self.next_kernel)
+    self.queues[0].enqueue(self.next_kernel)
     self.next_kernel += 1
+  }
+  if interval == self.plan.interval_count() - 1 {
+    self.queues[0].record_completion()
   }
 }
 
@@ -155,7 +202,7 @@ pub fn CollectiveKernelProgram::submit(
   self.global_sequence = global_sequence
   self.site = 0
   self.next_kernel = 0
-  self.enqueue_until(self.plan.interval(0).1)
+  self.enqueue_interval(0)
   self.reduce()
 }
 
@@ -182,11 +229,7 @@ pub fn CollectiveKernelProgram::poll(
     if !submitted {
       return false
     }
-    let end = self.plan.interval(self.site + 1).1
-    self.enqueue_until(end)
-    if self.site + 1 == self.boundaries.length() {
-      self.queue.record_completion()
-    }
+    self.enqueue_interval(self.site + 1)
     if self.plan.retirement_policy() == WholeFrame {
       self.site += 1
       self.global_sequence += 1UL
@@ -214,8 +257,17 @@ pub fn CollectiveKernelProgram::poll(
     }
     self.state = Tail
   }
-  if self.queue.poll_completion() {
-    self.queue.reset()
+  if self.queues[self.queues.length() - 1].poll_completion() {
+    // The last event follows every same-stream graph and collective. No
+    // segment is rearmed early, including on request cancellation.
+    for i in 0..<self.queues.length() {
+      if !self.queues[i].poll_completion() {
+        return false
+      }
+    }
+    for i in 0..<self.queues.length() {
+      self.queues[i].reset()
+    }
     self.state = Idle
     true
   } else {
@@ -233,7 +285,9 @@ pub fn CollectiveKernelProgram::close(
   guard self.state == Idle else {
     raise @device.DeviceError::Busy(OrderedExecutorClose)
   }
-  self.queue.close()
+  for queue in self.queues.rev() {
+    queue.close()
+  }
   self.state = Closed
 }
 
@@ -246,7 +300,18 @@ pub fn CollectiveKernelProgram::abort(
   }
   self.state = Failed
   self.owner.abort()
-  self.queue.abort()
-  self.queue.close()
+  for queue in self.queues.rev() {
+    queue.abort()
+    queue.close()
+  }
   self.state = Closed
+}
+
+///|
+pub fn CollectiveKernelProgram::replay_graph_count(self : Self) -> Int {
+  if self.plan.replay_policy() == CaptureIntervals {
+    self.queues.length()
+  } else {
+    0
+  }
 }

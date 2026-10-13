@@ -41,7 +41,24 @@ may silently claim replay performance.
 
 ## Results
 
-Pending implementation and separate physical measurements. Retained baseline:
+Retained baseline:
 9.756/10.189 s summed completion across six sequential requests; vLLM 3.163588 s.
 Native uses BF16 KV; the reference uses FP8 MLA KV and breakable CUDA graphs.
 These are not identical numerical implementations or a correctness oracle.
+
+Queued submission implementation `712b6fec` passes 189 affected tests and the
+native ASan/UBSan lifecycle gate, including delayed submission, pending GPU
+completion, retained operands and async failure. Its first actual six-prompt
+run at `/tmp/lunaflux-model-bench-glm-tp-queued-20261013-v3` completes in
+8.897 s: 8.8% below the retained 9.756 s cohort, still 2.8123x the vLLM cohort.
+All 35 emitted IDs match the old native run. Both ranks exit 0, task swap is
+zero and minimum host available memory is 23.0006 GiB. Repeat pending.
+Earlier v1/v2 preparation attempts are preserved: missing staged binary, then
+an AOT symlink rejected by the existing file loader before GPU execution.
+
+The graph-stage allocation regression caught tuple-return and iterator boxing
+in the new host loop. Scalar IR accessors and indexed traversal remove it;
+122 packed execution tests pass, including zero-allocation eager/queued/graph
+loops and explicit in-flight abort. Graph capture uses the existing device
+executor, one captured compute interval per collective cut, with no new CUDA
+kernel or NCCL capture dependency. Physical graph results are pending.

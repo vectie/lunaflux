@@ -7,6 +7,7 @@ priv struct Startup {
   planned_bytes : Array[Int64]
   expert_tensor_parallel : Bool
   retirement : @parallel.RetirementPolicy
+  replay : @parallel.ReplayPolicy
   rows : Int
   history : Int
   budgets : Array[Int64]
@@ -97,6 +98,7 @@ fn inspect_startup(
   expert_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_tensor_parallel? : Bool = false,
   retirement? : @parallel.RetirementPolicy = EachCollective,
+  replay? : @parallel.ReplayPolicy = Eager,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -211,6 +213,7 @@ fn inspect_startup(
     },
     expert_tensor_parallel,
     retirement,
+    replay,
     rows,
     history,
     budgets,

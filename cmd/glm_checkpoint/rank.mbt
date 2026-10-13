@@ -31,9 +31,14 @@ fn prepare_rank(
       limits=startup.limits,
       collective?,
       retirement=startup.retirement,
+      replay=startup.replay,
+      replay_budget_bytes=startup.reserve / 4L,
     )
   })
   stage.bind_rank(rank, context)
+  println(
+    "rank=\{ordinal} prepared_replay_graphs=\{stage.replay_graph_count()}",
+  )
 }
 
 ///|

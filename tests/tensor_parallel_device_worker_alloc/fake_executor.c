@@ -94,7 +94,7 @@ void *lunaflux_tp_alloc_fake_ordered_executor_create(
   if (status == NULL) return executor;
   int32_t kernels = functions == NULL ? 0 : Moonbit_array_length(functions);
   int32_t arguments = allocations == NULL ? 0 : Moonbit_array_length(allocations);
-  if (context == NULL || stream == NULL || policy != 0 ||
+  if (context == NULL || stream == NULL || (policy != 0 && policy != 1) ||
       kernels <= 0 || arguments <= 0 ||
       dimensions == NULL || argument_starts == NULL || offsets == NULL ||
       byte_counts == NULL || alignments == NULL ||
@@ -124,7 +124,7 @@ void *lunaflux_tp_alloc_fake_ordered_executor_create(
   executor->byte_counts = byte_counts;
   executor->alignments = alignments;
   executor->kernel_count = kernels;
-  executor->execution_mode = 0;
+  executor->execution_mode = policy == 1 ? 1 : 0;
   executor->phase = TP_EXECUTOR_IDLE;
   executor->live = 1;
   live_executors += 1;
@@ -132,11 +132,18 @@ void *lunaflux_tp_alloc_fake_ordered_executor_create(
   return executor;
 }
 
+int32_t lunaflux_tp_alloc_fake_ordered_executor_enqueue(tp_fake_executor *, int32_t);
+
 int32_t lunaflux_tp_alloc_fake_ordered_executor_launch_captured(
   tp_fake_executor *executor
 ) {
   if (executor == NULL || executor->live == 0) return -3;
-  return -2;
+  if (executor->execution_mode != 1 || executor->phase != TP_EXECUTOR_IDLE) return -2;
+  for (int32_t i = 0; i < executor->kernel_count; ++i) {
+    int32_t status = lunaflux_tp_alloc_fake_ordered_executor_enqueue(executor, i);
+    if (status != 0) return status;
+  }
+  return 0;
 }
 
 int32_t lunaflux_tp_alloc_fake_ordered_executor_mode(

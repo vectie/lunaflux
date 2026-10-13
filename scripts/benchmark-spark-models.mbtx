@@ -294,7 +294,10 @@ async fn main {
   let options = if timeline { options[:options.length() - 1] } else { options }
   let warmup = options.last() is Some("--warmup")
   let options = if warmup { options[:options.length() - 1] } else { options }
+  let replay = options.last() is Some("--graph-tp")
+  let options = if replay { options[:options.length() - 1] } else { options }
   let queued = options.last() is Some("--queued-tp")
+  guard !replay || queued else { fail("graph replay requires queued TP") }
   let options = if queued { options[:options.length() - 1] } else { options }
   let low_bit = options.last() is Some("--low-bit")
   let options = if low_bit { options[:options.length() - 1] } else { options }
@@ -331,7 +334,8 @@ async fn main {
     (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" }) +
     (if warmup { "warmup_requests=1\n" } else { "" }) +
     (if timeline { "timeline=true\n" } else { "" }) +
-    (if queued { "tp_submission_queued=true\n" } else { "" })
+    (if queued { "tp_submission_queued=true\n" } else { "" }) +
+    (if replay { "tp_graph_replay=true\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -581,7 +585,8 @@ async fn main {
         }) +
         (if expert_tp { "-expert-tp" } else { "" }) +
         (if low_bit { "-low-bit" } else { "" }) +
-        (if queued { "-queued-tp" } else { "" })
+        (if queued { "-queued-tp" } else { "" }) +
+        (if replay { "-graph-tp" } else { "" })
       record(
         root,
         role + "-start",

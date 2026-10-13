@@ -23,3 +23,27 @@ test "submission fences preserve every compute interval and collective cut" {
     }
   }
 }
+
+///|
+test "replay budgeting is explicit and overflow checked" {
+  let plan = OrderedSubmissionPlan::new(
+    kernel_count=7,
+    [1, 3, 6],
+    retirement=WholeFrame,
+    replay=CaptureIntervals,
+  )
+  assert_eq(
+    plan.replay_reserve_bytes(bytes_per_kernel=100L, bytes_per_interval=10L),
+    740L,
+  )
+  try
+    plan.replay_reserve_bytes(
+      bytes_per_kernel=9223372036854775807L,
+      bytes_per_interval=1L,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("overflowed graph reserve")
+  }
+}

@@ -1,5 +1,9 @@
 ///|
-fn run_collective_program(queued : Bool) -> Unit raise {
+fn run_collective_program(
+  queued : Bool,
+  replay? : Bool = false,
+  cancel? : Bool = false,
+) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
@@ -109,8 +113,11 @@ fn run_collective_program(queued : Bool) -> Unit raise {
     generation=1UL,
     maximum_rows=2,
     retirement=if queued { WholeFrame } else { EachCollective },
+    replay=if replay { CaptureIntervals } else { Eager },
+    replay_budget_bytes=1048576L,
   )
   defer (queue.abort() catch { _ => () })
+  assert_eq(queue.replay_graph_count(), if replay { 3 } else { 0 })
   let before = enqueues()
   let syncs = blocking_syncs()
   begin_allocations()
@@ -134,6 +141,24 @@ fn run_collective_program(queued : Bool) -> Unit raise {
   assert_eq(allocations, 0UL)
   assert_eq(enqueues() - before, 80UL)
   assert_eq(blocking_syncs() - syncs, 0UL)
+  if cancel {
+    queue.submit(live_rows=1, plan_sequence=17UL, global_sequence=33UL)
+    ignore(queue.poll())
+    try queue.close() catch {
+      _ => ()
+    } noraise {
+      _ => fail("active queue closed")
+    }
+    try owner.close() catch {
+      _ => ()
+    } noraise {
+      _ => fail("pending collective closed")
+    }
+    queue.abort()
+    owner.abort()
+    buffer.close()
+    return
+  }
   queue.close()
   owner.close()
 }
@@ -146,4 +171,15 @@ test "decoder queue splices multiple tensor reductions before consumers without 
 ///|
 test "queued decoder retains operands through one terminal retirement without allocation" {
   run_collective_program(true)
+}
+
+///|
+test "captured intervals preserve collective cuts and replay with zero allocation" {
+  run_collective_program(true, replay=true)
+}
+
+///|
+test "queued and captured cancellation retain live work until explicit abort" {
+  run_collective_program(true, cancel=true)
+  run_collective_program(true, replay=true, cancel=true)
 }

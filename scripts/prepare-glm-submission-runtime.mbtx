@@ -1,0 +1,31 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, build, root, previous] &&
+    [build, root, previous].all(p => p.has_prefix("/tmp/lunaflux-") &&
+      !p.contains("..") && p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-'))) else {
+    fail("BUILD_ROOT NEW_RUNTIME RETAINED_RUNTIME")
+  }
+  let hosts = ["wlc003s@192.168.2.178", "wlc004s@192.168.2.179"]
+  let sockets = ["/tmp/lunaflux-checkpoint-live-20261010.sock", "/tmp/lunaflux-checkpoint-live179-20261010.sock"]
+  @fs.mkdir(root)
+  @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + sockets[0],
+    hosts[0] + ":" + build + "/source/_build/native/release/build/cmd/glm_checkpoint/glm_checkpoint.exe", root + "/glm_checkpoint.exe"]).output().check()
+  for rank in 0..<2 {
+    for command in ["mkdir " + root, "cp -a " + previous + "/aot " + root + "/aot",
+      "cp -a " + previous + "/nccl " + root + "/nccl"] {
+      @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", sockets[rank], hosts[rank], command]).output().check()
+    }
+    @shell.Cmd("scp", ["-o", "BatchMode=yes", "-o", "ControlPath=" + sockets[rank],
+      root + "/glm_checkpoint.exe", hosts[rank] + ":" + root + "/glm_checkpoint.exe"]).output().check()
+  }
+  @fs.write_file(root + "/runtime.txt", "build=" + build + "\nretained_aot=" + previous + "/aot\npayload_hashing=false\n", create_mode=CreateNew)
+  println("prepared " + root)
+}
