@@ -11,8 +11,8 @@ async fn main {
   guard @env.args() is [_, root, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-grouped-performance-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    mode is ("prepare" | "run" | "collect-counters") else {
-    fail("NEW_ROOT prepare|run|collect-counters")
+    mode is ("prepare" | "run" | "collect-counters" | "collect-matrix") else {
+    fail("NEW_ROOT prepare|run|collect-counters|collect-matrix")
   }
   let host = "wlc004s@192.168.2.179"
   let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
@@ -108,7 +108,12 @@ async fn main {
       )
     }
   } else {
-    for route in ["matrix", "scalar"] {
+    for
+      route in (if mode == "collect-matrix" {
+        ["matrix"]
+      } else {
+        ["matrix", "scalar"]
+      }) {
       let report = root + "/" + route + ".ncu-rep"
       guard !@fs.exists(report) else { fail("already collected") }
       @shell.Cmd("scp", [

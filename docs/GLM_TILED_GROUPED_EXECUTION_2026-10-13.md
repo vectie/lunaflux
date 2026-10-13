@@ -129,3 +129,21 @@ Roots v1/v2/v3 retain all measurements and generated sources. Physical fixture
 v7 additionally checks vector decode on all codes, multiple local/global scales,
 unaligned payloads, all existing tails and idle/expert cases; all nine sanitizer
 campaigns pass. No payload hashes, tolerance changes, or full-bank expansion.
+
+Final v3 NCU gate/up (same geometry/data as v1/v2): 3.202304 ms, 482,006,528
+warp instructions versus 828,175,872 initially; global load requests
+55,631,872 -> 7,135,232; local load/store sectors both zero. Tensor activity
+0.713% -> 5.111%; long-scoreboard average contribution 47.65 -> 5.47 cycles.
+Remaining load waits are 43.8% of average warp latency; barriers, shared layout
+and low useful-row occupancy remain. This is the generated expert leaf, not a
+matched vLLM hardware-counter comparison. NCU replay timing is separate from
+the unprofiled five-trial chain medians above.
+
+The refreshed reference container logs select `FLASHINFER_CUTLASS` NVFP4 MoE.
+Its installed `vllm/model_executor/layers/fused_moe/experts/flashinfer_cutlass_moe.py`
+passes packed weights and input/weight scales to the backend, matching the local
+source reviewed under `../vlm`. Our current alternative remains decoded-BF16
+MMA, not native NVFP4 W4A4. Achieving that backend's performance cannot be assumed
+from adding grouping alone. Any activation-quantized matrix alternative must
+declare its quantization/numeric contract in IR and be tested as such; comparisons
+remain an external diagnostic, never compiler semantics or a correctness oracle.

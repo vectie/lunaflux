@@ -109,3 +109,53 @@ test "a tile scratch plan cannot lower to a whole-tensor conversion kernel" {
     _ => fail("whole tensor output escaped tile scratch budget")
   }
 }
+
+///|
+test "packed vector loading retains scalar scale stages and rejects partial vectors" {
+  let layout = @physical.OperandLayout::new(
+    columns=32,
+    vector=8,
+    rotations=1,
+    row_group=1,
+  ).unwrap()
+  let region = @physical.OperandStorage::new(layout, [1], owners=32, stages=1)
+    .unwrap()
+    .region(0)
+    .unwrap()
+  for
+    (format, columns, supported) in [
+      (@format.Format::NvFp4, 64, true),
+      (MxFp4, 64, true),
+      (Fp4E2M1, 64, true),
+      (NvFp4, 33, false),
+      (Bf16, 64, false),
+    ] {
+    let tile = @precision.plan_operand(
+      role=Weight,
+      representation=@format.Representation::new(format~, rows=2, columns~),
+      placement=DecodeInOperandTile,
+      supported_placements=[DecodeInOperandTile],
+      accuracy=@precision.Accuracy::new(absolute=0.1, relative=0.1),
+      tile_elements=32,
+      memory_ceiling=10000L,
+    )
+    // The vector helper is a terminal load rewrite, not an arithmetic policy.
+    let scalar = @luna_cuda_precision.tile_load_source(
+      tile.refine_region(region),
+      symbol="scalar",
+    )
+    assert_false(scalar.contains("const float v[8]"))
+    let vector = @luna_cuda_precision.tile_load_vector_source(
+      tile.refine_region(region),
+      symbol="vector",
+    )
+    assert_eq(vector is Some(_), supported)
+    if vector is Some(code) {
+      assert_true(code.contains("make_uint4"))
+      if format == NvFp4 {
+        assert_true(code.contains("v0=__fmul_rn(v0,s)"))
+        assert_true(code.contains("v0=__fmul_rn(v0,g)"))
+      }
+    }
+  }
+}

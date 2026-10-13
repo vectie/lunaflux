@@ -7,9 +7,14 @@ import {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root] else { fail("COLLECTED_COUNTER_ROOT") }
+  guard @env.args() is [_, root, .. rest] &&
+    (rest.is_empty() || rest == ["--matrix-only"]) else {
+    fail("COLLECTED_COUNTER_ROOT [--matrix-only]")
+  }
   let grouped = root.has_prefix("/tmp/lunaflux-glm-grouped-performance-")
-  let routes = if grouped {
+  let routes = if rest == ["--matrix-only"] {
+    ["matrix"]
+  } else if grouped {
     ["matrix", "scalar"]
   } else if root.has_prefix("/tmp/lunaflux-glm-tiled-grouped-") {
     ["native"]

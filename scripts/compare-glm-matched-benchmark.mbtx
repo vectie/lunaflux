@@ -45,8 +45,8 @@ test "literal comma and line separated IDs agree without tokenizing text" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, previous] else {
-    fail("NEW_NATIVE_ROOT PREVIOUS_MATCHED_COMPARISON_JSON")
+  guard @env.args() is [_, root, previous, .. rest] && rest.length() <= 1 else {
+    fail("NEW_NATIVE_ROOT PREVIOUS_MATCHED_COMPARISON_JSON [FRESH_VLLM_ROOT]")
   }
   guard @json.parse(@fs.read_file(previous).text()) is Object(report) &&
     report.get("rows") is Some(Array(rows)) &&
@@ -76,13 +76,45 @@ async fn main {
   let mut ref_total = 0.0
   for i, row in rows {
     guard row is Object(fields) &&
-      fields.get("native_seconds") is Some(Number(old, ..)) &&
-      fields.get("reference_seconds") is Some(Number(reference, ..)) else {
+      fields.get("native_seconds") is Some(Number(old, ..)) else {
       fail("missing timing")
     }
     let input = token_ids(root + "/input-\{i}-tokens.txt")
     guard fields.get("input_ids") == Some(input) else {
       fail("input tokens changed; not matched")
+    }
+    if rest is [reference_root] {
+      guard @json.parse(
+          @fs.read_file(reference_root + "/request-\{i}.json").text(),
+        )
+        is Object(request) &&
+        request.get("prompt") == Some(input) else {
+        fail("reference prompt IDs changed")
+      }
+      guard @json.parse(
+          @fs.read_file(reference_root + "/response-\{i}.json").text(),
+        )
+        is { "choices": Array([Object(choice)]), "usage": Object(usage), .. } &&
+        usage.get("completion_tokens") is Some(Number(count, ..)) else {
+        fail("missing completed vLLM response")
+      }
+      let seconds = metric(
+        @fs.read_file(reference_root + "/request-\{i}-timing.stdout")
+        .text()
+        .trim(),
+        "total_seconds",
+      )
+      fields["reference_seconds"] = Json(seconds)
+      fields["reference_text"] = choice.get("text").unwrap()
+      fields["reference_finish"] = choice.get("finish_reason").unwrap()
+      fields["reference_output_tokens"] = Json(count)
+      fields["reference_output_ids"] = choice.get("token_ids").unwrap_or(null)
+      fields["reference_output_tokens_per_request_second"] = Json(
+        count / seconds,
+      )
+    }
+    guard fields.get("reference_seconds") is Some(Number(reference, ..)) else {
+      fail("missing reference time")
     }
     let ids = token_ids(root + "/output-\{i}-tokens.txt")
     guard ids is Array(outputs) else { fail("output IDs") }
@@ -133,6 +165,23 @@ async fn main {
     }
   }
   report["native_root"] = Json(root)
+  if rest is [reference_root] {
+    report["reference_root"] = Json(reference_root)
+    let mut ref_minimum = 1.0e20
+    for
+      line in @fs.read_file(reference_root + "/memory-watch.txt")
+      .text()
+      .split("\n") {
+      if line.has_prefix("MemAvailable:") {
+        let fields = line.split(" ").filter(s => !s.is_empty()).to_array()
+        guard fields is [_, value, "kB"] else { fail("reference memory units") }
+        ref_minimum = ref_minimum.min(@string.parse_double(value))
+      }
+    }
+    report["reference_minimum_host_available_gib"] = Json(
+      ref_minimum / 1048576.0,
+    )
+  }
   report["previous_comparison"] = Json(previous)
   report["native_total_seconds"] = Json(total)
   report["previous_native_total_seconds"] = Json(old_total)
