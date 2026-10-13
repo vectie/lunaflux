@@ -93,7 +93,7 @@ and identical stop IDs. Each row is one timing sample, not a confidence interval
 
 Completion time falls 21.4456% (1.2730x throughput for this fixed workload).
 The remaining completion-time ratio is **5.25066x**, not parity. Aggregate
-output tokens per request-second including prefill: 2.12005 native versus
+output tokens per request-second including prefill: 2.12006 native versus
 11.13169 reference. These are **not decode-only token rates**. Four native
 token sequences are unchanged; Chinese and JSON differ after the explicit
 matrix projection selection. Chinese now matches the retained reference text;
@@ -145,4 +145,88 @@ The broader sparse integration filter is 3/6: the same previously documented
 25-vs-23, 1312-vs-1184 and 41-vs-37 fixture expectations fail. No warning
 suppression, fixture waiver or unrelated migration was committed.
 
-Selected-route trace results are pending below.
+Final source-package follow-up tests pass 5/5. The selected native run and
+profile both retire their GPU owners; both Sparks are idle after the last
+counter capture. Nonzero pre-existing host swap is not process swap: all
+task units retain a zero swap limit and reported zero process swap.
+
+## Selected-route trace: where the gain actually occurred
+
+The new profile is
+`/tmp/lunaflux-model-bench-glm-sparse-profile-20261013-v1`, using the same
+committed `918c64a0` runtime and AOT as the six-prompt run. The comparison is
+the retained `/tmp/lunaflux-model-bench-glm-repaired-profile-20261013-v1`.
+Both profiles execute 16 input tokens and two output tokens, summed over both
+PP stages. These are recorded GPU kernel durations, not end-to-end wall time
+or a vLLM kernel comparison. `kernel-families.txt` and `sparse-breakdown.txt`
+are produced from the actual ingress/egress Nsight Systems reports.
+
+| Selected family | Before ms | After ms |
+| --- | ---: | ---: |
+| Sparse input projections | 168.478912 | 31.071392 |
+| Sparse output projection | 142.951744 | 20.960800 |
+| Sparse index | 57.272672 | 1.387168 |
+| Sparse pooling | 1.824064 | 1.815104 |
+| Sparse attention core | 3.932320 | 3.889600 |
+| Sparse normalization/split | .515168 | .461728 |
+| Sparse history/other | 4.365408 | 4.258400 |
+| **Sparse chain total** | **379.340288** | **63.844192** |
+| Routed experts | 433.743904 | 431.838400 |
+| KDA projections | 156.117120 | 158.824512 |
+| Dense FFN | 129.339616 | 130.058464 |
+| Shared experts | 78.322208 | 77.698048 |
+| **All recorded kernels** | **1319.028832** | **1003.280928** |
+
+The sparse chain saves **315.496096 ms**, accounting for almost all of the
+**315.747904 ms** reduction in summed kernel time. Thus the implemented matrix
+projection and retained-score plans reach the executed path; the improvement
+is not inferred from source presence or the much larger index microbenchmark
+speedup. The attention core itself is essentially unchanged.
+
+Routed experts now occupy **43.04%** of recorded native GPU kernel time, followed
+by KDA projections (15.83%), dense FFN (12.96%), shared experts (7.74%) and the
+sparse chain (6.36%). The small expert time difference between these captures
+is not evidence of an expert optimization; its implementation is unchanged.
+These percentages do not allocate the full 5.25x end-to-end vLLM gap: that
+requires matched reference family durations and collective/overlap accounting.
+
+## Matched one-row expert hardware counters
+
+The final baseline capture is
+`/tmp/lunaflux-glm-grouped-performance-20261013-v9/matrix.ncu-rep`. It explicitly
+executes the preserved **v3 baseline binary**, with arguments `1 matrix`.
+The rejected larger-K capture is `v7/matrix.ncu-rep`, also `1 matrix`. Both
+observe `matrix_gate_up` with grid 4096 and block 128 on Spark .179. The earlier
+v3 counter report used 16 rows and is not the comparator here. Captures run
+serially under scoped administrator Nsight, with a 2 GiB/no-swap limit; no
+driver setting changes or payload hashes are involved.
+
+| Counter | Retained N64/K32 | Rejected N64/K128 |
+| --- | ---: | ---: |
+| Profiled gate/up duration, ms | 1.209856 | 1.644544 |
+| Warp instructions | 120,527,872 | 109,151,744 |
+| Global-load sectors | 9,332,736 | 4,515,840 |
+| Local-load/store sectors | 0 / 0 | 0 / 0 |
+| Static shared memory, KB/block | 18.43 | 49.15 |
+| Shared-memory block limit/SM | 5 | 2 |
+| Registers/thread | 48 | 48 |
+| Achieved occupancy | 36.85% | 15.50% |
+| Tensor activity | 3.384951% | 2.481178% |
+| Memory throughput | 25.57% | 24.54% |
+| Long-scoreboard sampled stalls | 41,936 | 40,613 |
+| Barrier sampled stalls | 13,002 | 3,296 |
+
+The larger-K variant reduces instructions, sectors and barrier samples, yet
+increases execution time. Its larger shared allocation reduces concurrent
+resident work and its observed occupancy/tensor activity fall. This supports
+the resource-pressure explanation for this rejected candidate; it does not
+prove every expert bottleneck is occupancy. PC sample counts are not percentages
+of average warp latency, and replayed kernel duration is not the unprofiled
+gate/up/down/combination chain time in the earlier table.
+
+The remaining implementation gap is substantive: packed NVFP4 matrix consumption
+and useful small-group ownership, rather than another unbounded N/K knob search.
+That arithmetic requires explicit activation-quantization semantics. In parallel,
+true layer-wise TP needs the partition/collective/state plan described above.
+Neither is claimed complete by this sparse-chain change. The finite experiment
+budget is closed with all three slower expert alternatives preserved and rejected.
