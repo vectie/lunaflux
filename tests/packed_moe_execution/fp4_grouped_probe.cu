@@ -7,6 +7,11 @@
 #include <vector>
 #include <cstring>
 #include "matrix.cuh"
+#ifdef LUNA_PARTIAL
+using Weighted = float;
+#else
+using Weighted = __nv_bfloat16;
+#endif
 static void ck(cudaError_t e) {if(e!=cudaSuccess) {fprintf(stderr,"%s\n",cudaGetErrorString(e));exit(2);}}
 template<class T> static T *gpu(const std::vector<T>& v) {T *p;ck(cudaMalloc(&p,v.size()*sizeof(T)));ck(cudaMemcpy(p,v.data(),v.size()*sizeof(T),cudaMemcpyHostToDevice));return p;}
 static float bf(float x) {return __bfloat162float(__float2bfloat16_rn(x));}
@@ -31,16 +36,22 @@ int main() {
   const int widths[3]={64,64,128},outs[3]={128,128,64};const int so[3]={low_scale0,low_scale1,low_scale2},go[3]={low_global0,low_global1,low_global2};
   for(int e=0;e<2;e++) for(int s=0;s<3;s++) {auto *p=bank.data()+e*low_stride+low_offsets[s];for(int r=0;r<outs[s];r++) {for(int k=0;k<widths[s];k++) p[(r*widths[s]+k)/2]|=((r*3+k*5+e+s)&15)<<(4*(k%2));for(int k=0;k<widths[s]/16;k++) p[so[s]+r*(widths[s]/16)+k]=32+((r+k+e+s)%3)*8;}float global=1.f/32;memcpy(p+go[s],&global,4);}
   std::vector<__nv_bfloat16> x(17*64),act(low_activation_bytes/2);for(int i=0;i<17*64;i++) x[i]=__float2bfloat16_rn(((i*7)%29-14)/32.f);
-  std::vector<int> counts(5),indices(34),map{0,1},error(1);std::vector<float> routing(34),output(17*64);std::vector<__nv_bfloat16> weighted(34*64);
+  std::vector<int> counts(5),indices(34),map{0,1},error(1);std::vector<float> routing(34),output(17*64);std::vector<Weighted> weighted(34*64);
   for(int r=0;r<17;r++) {indices[r*2]=r%2;indices[r*2+1]=1-r%2;routing[r*2]=.25f;routing[r*2+1]=.75f;}
-  auto *db=gpu(bank),*dxq=gpu(std::vector<unsigned char>(q0_bytes)),*daq=gpu(std::vector<unsigned char>(q1_bytes));auto *dx=gpu(x),*da=gpu(act),*dw=gpu(weighted);auto *dc=gpu(counts),*di=gpu(indices),*dm=gpu(map),*de=gpu(error);auto *ds=gpu(routing),*dy=gpu(output);
+  auto *db=gpu(bank),*dxq=gpu(std::vector<unsigned char>(q0_bytes)),*daq=gpu(std::vector<unsigned char>(q1_bytes));auto *dx=gpu(x),*da=gpu(act);auto *dw=gpu(weighted);auto *dc=gpu(counts),*di=gpu(indices),*dm=gpu(map),*de=gpu(error);auto *ds=gpu(routing),*dy=gpu(output);
   int wrong=0;
   for(int rows: {1,3,16,17,0,1}) {
     counts[3]=rows;ck(cudaMemcpy(dc,counts.data(),20,cudaMemcpyHostToDevice));
     low_group<<<1,128>>>(dc,di,da);low_quantize_0_global<<<1,256>>>(dc,dx,dxq,de);low_quantize_0_pack<<<9,128>>>(dc,dx,dxq,de);
     low_gate_up<<<136,128>>>(dc,dxq,di,dm,db,da);
     low_quantize_1_global<<<1,256>>>(dc,da,daq,de);low_quantize_1_pack<<<34,128>>>(dc,da,daq,de);
-    low_down<<<68,128>>>(dc,daq,di,ds,dm,db,dw,da);low_combine<<<5,256>>>(dc,di,dw,dy);ck(cudaGetLastError());ck(cudaDeviceSynchronize());
+    low_down<<<68,128>>>(dc,daq,di,ds,dm,db,dw,da);
+#ifdef LUNA_PARTIAL
+    low_combine<<<5,256>>>(dc,di,dw,dy,ds);
+#else
+    low_combine<<<5,256>>>(dc,di,dw,dy);
+#endif
+    ck(cudaGetLastError());ck(cudaDeviceSynchronize());
     if(!rows) continue;
     auto qx=quant(x,rows,64,q0_bytes,q0_scale,q0_global);std::vector<unsigned char> actual(q0_bytes);ck(cudaMemcpy(actual.data(),dxq,q0_bytes,cudaMemcpyDeviceToHost));
     for(int i=0;i<rows*32;i++) if(qx[i]!=actual[i]) wrong++;for(int i=0;i<rows*4;i++) if(qx[q0_scale+i]!=actual[q0_scale+i]) wrong++;if(memcmp(qx.data()+q0_global,actual.data()+q0_global,4)) wrong++;

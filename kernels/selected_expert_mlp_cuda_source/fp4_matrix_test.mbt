@@ -44,6 +44,11 @@ test "native low-bit matrix fragment export" {
     dot_law=MatrixFloat32,
     scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
     activation_quantization=(quant[0], quant[1]),
+    down_publication=if @env.get_env_var("LUNA_FP4_PARTIAL") == Some("1") {
+      ReduceFloat32BeforeRound
+    } else {
+      LocalBFloat16
+    },
     memory_ceiling=1000000L,
   )
   let generated = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
@@ -53,6 +58,9 @@ test "native low-bit matrix fragment export" {
   assert_eq(generated.symbols().length(), 8)
   if @env.get_env_var("LUNA_EXPORT_FP4_MATRIX") == Some("1") {
     println("LUNA_SOURCE_BEGIN fp4-matrix")
+    if p.down_publication() == ReduceFloat32BeforeRound {
+      println("#define LUNA_PARTIAL 1")
+    }
     println(source)
     println(@utf8.decode(generated.source_bytes()))
     println(

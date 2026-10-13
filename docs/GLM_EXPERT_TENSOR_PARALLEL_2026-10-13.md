@@ -226,3 +226,18 @@ timing from that attempt is valid. A runtime-primary-context alternative and a
 small real-ABI two-rank context A/B probe are implemented; the context explanation
 is a hypothesis until that identical-communicator experiment runs. Retain/release
 ownership is explicit, with no primary-context reset or driver configuration change.
+
+The subsequent real-ABI context A/B confirms this cause. Pinned `1f75a105` uses
+the same NCCL library and four 32-element F32 all-reduces in both modes:
+`/tmp/lunaflux-tensor-context-private-20261013-v1` reproduces CUDA error 400 at
+the first collective on both ranks; `/tmp/lunaflux-tensor-context-runtime-20261013-v1`
+exits successfully, all 32 outputs exact in all four repetitions on both ranks.
+Runtime-context peak memory is 1,814,523,904 / 1,815,592,960 bytes, below the
+2 GiB per-rank diagnostic limit, with task swap disabled. The full model is
+still pending; the A/B is not a throughput result.
+
+The independent grouped fixture also passes the F32-partial/deferred-publication
+variant in `/tmp/lunaflux-native-fp4-partial-20261013-v1` at the same six row/reuse
+states with all sanitizers clean. This tests the actual generated partial path,
+not a complete two-rank matrix comparison. Latest affected native tests pass
+162/162; warning-denied native check and both benchmark runner checks pass.
