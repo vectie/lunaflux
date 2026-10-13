@@ -109,7 +109,9 @@ async fn main {
     build.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail("NEW_COMPLETED_BUILD_ROOT ROWS")
   }
-  guard options.is_empty() || options is ["--chunk-kda"] else { fail("unknown arithmetic option") }
+  guard options.is_empty() || options is ["--chunk-kda"] else {
+    fail("unknown arithmetic option")
+  }
   let chunk = !options.is_empty()
   let rows = @string.parse_int(row_text)
   guard rows > 0 && rows <= 32 else { fail("bounded row capacity required") }
@@ -163,7 +165,11 @@ async fn main {
     }
     if chunk {
       let text = @fs.read_file(source).text()
-      guard text.contains("_delta_prepare") && text.contains("_delta_solve") && text.contains("_delta_publish") else { fail("chunk stages did not reach AOT") }
+      guard text.contains("_delta_prepare") &&
+        text.contains("_delta_solve") &&
+        text.contains("_delta_publish") else {
+        fail("chunk stages did not reach AOT")
+      }
     }
     if last {
       copy(true, source, node(true) + ":" + source)

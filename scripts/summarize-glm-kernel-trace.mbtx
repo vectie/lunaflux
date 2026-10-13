@@ -9,17 +9,33 @@ import {
 ///|
 fn family(name : String) -> String {
   if name.has_prefix("glm_recurrent_") {
-    if name.contains("_delta") { return "KDA recurrence" }
+    if name.contains("_delta") {
+      return "KDA recurrence"
+    }
     let suffix = name.split("_").to_array().last().unwrap()
-    if suffix is ("0"|"1"|"2"|"3"|"4"|"5"|"8"|"9"|"15") { return "KDA projections" }
+    if suffix is ("0" | "1" | "2" | "3" | "4" | "5" | "8" | "9" | "15") {
+      return "KDA projections"
+    }
     return "KDA convolution/controls/norm"
   }
-  if name.has_prefix("glm_routed_") { return "routed experts" }
-  if name.has_prefix("glm_shared_") { return "shared experts" }
-  if name.has_prefix("glm_dense_ffn_") { return "dense FFN" }
-  if name.has_prefix("glm_hyper_") { return "hyper connections" }
-  if name.has_prefix("glm_sparse_") { return "sparse attention chain" }
-  if name.has_prefix("glm_text_") { return "text head/sampling" }
+  if name.has_prefix("glm_routed_") {
+    return "routed experts"
+  }
+  if name.has_prefix("glm_shared_") {
+    return "shared experts"
+  }
+  if name.has_prefix("glm_dense_ffn_") {
+    return "dense FFN"
+  }
+  if name.has_prefix("glm_hyper_") {
+    return "hyper connections"
+  }
+  if name.has_prefix("glm_sparse_") {
+    return "sparse attention chain"
+  }
+  if name.has_prefix("glm_text_") {
+    return "text head/sampling"
+  }
   "other"
 }
 
@@ -32,20 +48,31 @@ async fn main {
     let text = @fs.read_file(root + "/" + role + "-stats.stdout").text()
     for line in text.split("\n") {
       let cols = line.split(",").to_array()
-      if cols.length()==9 && cols[8].has_prefix("glm_") {
+      if cols.length() == 9 && cols[8].has_prefix("glm_") {
         let ns = @string.parse_int64(cols[1])
         let key = family(cols[8].to_owned())
-        totals[key] = totals.get(key).unwrap_or(0L)+ns
+        totals[key] = totals.get(key).unwrap_or(0L) + ns
         total += ns
       }
     }
   }
   let out = StringBuilder()
-  out <+ "scope=profiled16input2output_kernel_sums_both_PP_stages\ntotal_ns=\{total}\n"
-  for key in ["KDA recurrence","KDA projections","KDA convolution/controls/norm","routed experts","shared experts","dense FFN","hyper connections","sparse attention chain","text head/sampling","other"] {
-    let ns=totals.get(key).unwrap_or(0L)
-    out <+ "\{key}: ms=\{ns.to_double()/1000000.0} percent=\{100.0*ns.to_double()/total.to_double()}\n"
+  out <+
+    "scope=profiled16input2output_kernel_sums_both_PP_stages\ntotal_ns=\{total}\n"
+  for
+    key in [
+      "KDA recurrence", "KDA projections", "KDA convolution/controls/norm", "routed experts",
+      "shared experts", "dense FFN", "hyper connections", "sparse attention chain",
+      "text head/sampling", "other",
+    ] {
+    let ns = totals.get(key).unwrap_or(0L)
+    out <+
+      "\{key}: ms=\{ns.to_double()/1000000.0} percent=\{100.0*ns.to_double()/total.to_double()}\n"
   }
-  @fs.write_file(root+"/kernel-families.txt",out.to_string(),create_mode=CreateNew)
+  @fs.write_file(
+    root + "/kernel-families.txt",
+    out.to_string(),
+    create_mode=CreateNew,
+  )
   println(out.to_string())
 }

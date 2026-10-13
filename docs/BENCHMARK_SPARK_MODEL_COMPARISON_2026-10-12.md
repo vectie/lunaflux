@@ -409,3 +409,23 @@ The offline reporter test and existing native/reference runner tests pass
 (1 + 2 + 5 tests); formatting is checked only for the new script. Production
 compiler/runtime source and unrelated dirty toolchain/TLS files were untouched
 in this benchmark turn. No new full-suite or quality-pass claim is made.
+
+## 2026-10-13: chunk-KDA experiment and current bottleneck correction
+
+The later parallel-control/16-row-prefill baseline totals 32.981 seconds for
+the same six prompts. The explicit chunk-KDA experiment at commit `7bed340c`
+totals 33.227 seconds, versus retained vLLM 3.160961 seconds: no speedup,
+10.512x completion-time ratio, all six native output vectors unchanged.
+The experimental algorithm remains nondefault. Memory ceilings/reserve were
+retained, both ranks closed, and process swap peaks were zero.
+
+New two-rank Systems attribution for 16 input/2 output tokens shows KDA
+recurrence is only 0.105% of summed native kernel time, whereas its projections
+are 40.404%, routed experts 30.388%, and the sparse-attention chain 14.451%.
+These supersede any inference that token-sequential recurrence alone explains
+the current gap. An exact selected projection-source control is 22.4x slower
+than same-shape cuBLAS GEMM at 16 rows; Compute captures show 132x L1/global-load
+sectors, 28x warp instructions, zero Tensor Core activity, and dominant LG
+instruction-queue throttling. This is not DRAM traffic or an executed vLLM
+kernel comparison. Full details, caveats, token/timing tables and retained roots:
+[GLM chunk-KDA experiment](GLM_CHUNK_KDA_2026-10-13.md).

@@ -1,40 +1,98 @@
 ///|
 import {
- "moonbitlang/async@0.21.3",
- "moonbitlang/async@0.21.3/fs",
- "moonbitlang/async@0.21.3/shell",
- "moonbitlang/core/env",
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
 }
 
 ///|
 async fn main {
- guard @env.args() is [_, root, source] && root.has_prefix("/tmp/lunaflux-glm-projection-counters-") && root.iter().all(c=>c is ('a'..='z'|'0'..='9'|'/'|'-')) else { fail("NEW_ROOT ACTUAL_SELECTED_STAGE_SOURCE") }
- let host="wlc004s@192.168.2.179"
- let socket="/tmp/lunaflux-checkpoint-live179-20261010.sock"
- async fn remote(command : String)->@shell.Output {
-  @shell.Cmd("ssh",["-o","BatchMode=yes","-S",socket,host,command]).output(max_output_bytes=16777216)
- }
- async fn record(name : String, o : @shell.Output)->Unit {
-  @fs.write_file(root+"/"+name+".stdout",o.stdout(),create_mode=CreateNew)
-  @fs.write_file(root+"/"+name+".stderr",o.stderr(),create_mode=CreateNew)
-  o.check()
- }
- @fs.mkdir(root)
- let owners=remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
- owners.check();guard owners.stdout().trim().is_empty() else { fail("GPU reserved") }
- let text=@fs.read_file(source).text()
- let start="extern \"C\" __global__ void glm_recurrent_25_0("
- guard text.split(start).to_array() is [_,suffix] && suffix.split("\n}\n").to_array().get(0) is Some(body) else { fail("selected source not unique") }
- let leaf="#include <cuda_bf16.h>\n#include <stdint.h>\n"+start+body.to_owned()+"\n}\n"
- guard leaf.contains("inner < 4096") && leaf.contains("row_count > 16") && leaf.contains("row_count * 8192ULL") else { fail("unexpected workload geometry") }
- @fs.write_file(root+"/projection.cuh",leaf,create_mode=CreateNew)
- record("mkdir",remote("mkdir "+root))
- for (input,name) in [(root+"/projection.cuh","projection.cuh"),("tests/packed_moe_execution/glm_projection_counter_probe.cu","probe.cu")] {
-  @shell.Cmd("scp",["-o","ControlPath="+socket,input,host+":"+root+"/"+name]).output().check()
- }
- let unit=root[5:].to_owned()
- record("compile",remote("systemd-run --user --wait --pipe --unit="+unit+"-compile --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 "+root+"/probe.cu -lcublas -o "+root+"/probe"))
- for rows in [1,16] {
-  record("timing-\{rows}",remote("systemd-run --user --wait --pipe --unit="+unit+"-r\{rows} --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 "+root+"/probe \{rows} timing"))
- }
+  guard @env.args() is [_, root, source] &&
+    root.has_prefix("/tmp/lunaflux-glm-projection-counters-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_ROOT ACTUAL_SELECTED_STAGE_SOURCE")
+  }
+  let host = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(name : String, o : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      o.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      o.stderr(),
+      create_mode=CreateNew,
+    )
+    o.check()
+  }
+  @fs.mkdir(root)
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU reserved") }
+  let text = @fs.read_file(source).text()
+  let start = "extern \"C\" __global__ void glm_recurrent_25_0("
+  guard text.split(start).to_array() is [_, suffix] &&
+    suffix.split("\n}\n").to_array().get(0) is Some(body) else {
+    fail("selected source not unique")
+  }
+  let leaf = "#include <cuda_bf16.h>\n#include <stdint.h>\n" +
+    start +
+    body.to_owned() +
+    "\n}\n"
+  guard leaf.contains("inner < 4096") &&
+    leaf.contains("row_count > 16") &&
+    leaf.contains("row_count * 8192ULL") else {
+    fail("unexpected workload geometry")
+  }
+  @fs.write_file(root + "/projection.cuh", leaf, create_mode=CreateNew)
+  record("mkdir", remote("mkdir " + root))
+  for
+    (input, name) in [
+      (root + "/projection.cuh", "projection.cuh"),
+      ("tests/packed_moe_execution/glm_projection_counter_probe.cu", "probe.cu"),
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      input,
+      host + ":" + root + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let unit = root[5:].to_owned()
+  record(
+    "compile",
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      unit +
+      "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+      root +
+      "/probe.cu -lcublas -o " +
+      root +
+      "/probe",
+    ),
+  )
+  for rows in [1, 16] {
+    record(
+      "timing-\{rows}",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-r\{rows} --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 " +
+        root +
+        "/probe \{rows} timing",
+      ),
+    )
+  }
 }

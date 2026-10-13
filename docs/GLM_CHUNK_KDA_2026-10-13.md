@@ -105,3 +105,104 @@ Its bounded dyadic diagnostic inputs give identical BF16 outputs. This is a
 CUDA-library hardware/control experiment, **not** an executed vLLM kernel or
 model-output comparison. Hardware counters and the selected vLLM source must
 be distinguished from this microbenchmark.
+
+The same-shape native/vendor Compute reports are downloaded as
+`native.ncu-rep` and `vendor.ncu-rep` in that root. Scoped administrator capture
+did not change driver settings. The observed library kernel is
+`cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_128x2_tn_align8`.
+
+| Metric, one 16-row invocation | Native selected source | Library control |
+|---|---:|---:|
+| Executed warp instructions | 106,037,248 | 3,781,120 |
+| Global-load requests | 33,558,528 | 262,144 |
+| L1/global-load sectors | 553,652,224 | 4,194,304 |
+| Tensor pipe activity | 0% | 2.616% |
+| Achieved occupancy | 79.45% | 10.06% |
+
+The native projection issues narrow loads at `column*4096+inner`: adjacent
+lanes read different weight rows, 8 KiB apart. The profiler reports only
+2 useful bytes per 32-byte sector. Each input row repeats this traversal;
+the generated schedule has no shared tiled matrix reuse. Its **LG instruction
+queue throttle contributes 77.3% of average warp latency**, rather than a
+barrier or bank-conflict bottleneck. Warp instructions are 28.04x and load
+sectors 132.0x the library control. Sectors include cache hits: these are NOT
+DRAM-byte measurements. Raw DRAM-byte counters were not present in this capture.
+The faster control itself is 95.4% long-scoreboard-bound by average warp latency;
+stall percentages and occupancy alone are not elapsed-time comparisons.
+
+The inspected vLLM Kimi-GDN implementation merges Q/K/V plus narrow controls
+in `_KimiGDNMergedColumnParallelLinear` and invokes its configured GEMM method;
+its unquantized method dispatches GEMM, while our actual KDA owner still emits
+separate scalar projections. It independently chooses chunk prefill and fused
+recurrent decode. Neither this source inspection nor the cuBLAS control proves
+which exact GEMM ran in the previously frozen vLLM full-model request.
+
+## Full-model experiment: no improvement, do not promote
+
+Implementation commit `7bed340c`, clean ARM build and fresh two-rank AOT:
+`/tmp/lunaflux-checkpoint-build-glm-chunk-kda-20261013-v1`.
+Export and execution both explicitly select `chunk-triangular-f32`; the AOT
+contains prepare/solve/publish, and the prepared executor loads all three
+functions with their launch metadata and owned scratch. There is no old delta
+kernel fallback in this experimental bundle.
+
+Unprofiled root `/tmp/lunaflux-model-bench-glm-chunk-kda-20261013-v1`,
+`comparison.json` retains input/output token vectors and timing boundaries.
+The same-day vLLM reference is reused, not rerun or retuned.
+
+| Prompt | Input/output tokens | Ordered native s | Chunk native s | vLLM s |
+|---|---:|---:|---:|---:|
+| Fact | 22/4 | 4.350 | 4.376 | 0.384751 |
+| Arithmetic | 23/4 | 4.504 | 4.536 | 0.388855 |
+| Chinese | 22/8 | 5.717 | 5.770 | 0.653645 |
+| JSON | 23/8 | 5.932 | 5.976 | 0.664909 |
+| Code | 24/8 | 6.050 | 6.101 | 0.670385 |
+| Retrieval | 36/3 | 6.428 | 6.468 | 0.398416 |
+| Sum | 150/35 | 32.981 | 33.227 | 3.160961 |
+
+The observed sum is **0.746% slower**, not a speedup (single sample; no
+statistical significance claim). Completion time is still **10.512x vLLM**.
+All six new native token vectors exactly equal the prior native vectors.
+Four texts match vLLM after excluding the native stop marker; Chinese/JSON
+still differ, and vLLM output IDs are null. This does not establish model parity.
+Native PP2/TP1 uses BF16 expanded KV; vLLM TP2/PP1 uses FP8 compressed MLA KV.
+Native CLI and buffered HTTP timing boundaries and warmup differ. These are
+short prompts only, not a long-context conclusion.
+
+Both ranks exit zero and explicitly close their CUDA contexts. Process swap
+peaks are zero and observed host reserve stays at least **22.577 GiB**, above
+the 16 GiB floor. Device/process ceilings remain 96 GiB. No payload hashes.
+
+Decision: preserve the generic chunk algorithm, storage plan, effect ownership
+and explicit diagnostic route, but keep it nondefault. Matching vLLM performance
+is NOT achieved. The next performance implementation should lower the hot
+projection families to tiled matrix execution and group the routed-expert work,
+with explicit numerical laws and model-quality checks outside the compiler.
+Adding more IR names, tuning the recurrence alone, or raising occupancy cannot
+remove the measured major costs. The 40.4%/30.4% shares are our kernel-time
+composition, not an additive decomposition of the vLLM wall-clock gap.
+
+## Validation and retained limits
+
+The final committed generator was exported/compiled again at
+`/tmp/lunaflux-chunk-delta-20261013-v3`, after adding the generic local-storage
+budget and large-geometry fallback. All five shapes pass the independent oracle
+and all 15 memory/leak/race/sync campaigns, with zero errors/hazards/leaks,
+explicit device release, 2 GiB caps and zero process swap. Final paired medians
+are 0.04893/0.09225 ms ordered/chunk at 16 rows and 0.08959/0.20195 ms at
+32 rows. These confirm the non-win; they do not replace the retained v1/v2 data.
+
+Affected native tests pass (96 tests), the checkpoint target passes warning-
+denied check with the existing migration-warning exclusions, and the clean
+commit-pinned ARM build succeeds. `moon info` has 936 existing migration warnings
+and no errors. Both unexcluded full native check and test were attempted and
+stop on existing warning-79/related migration errors outside this change; there
+is no new full-suite-pass claim or suppression. Unrelated toolchain/TLS work is
+not staged. Comparison helpers, counter reports and prompt outputs are external
+diagnostics; no payload hashing, runtime profiler dependencies or reference
+substitutions were introduced.
+
+Remaining chunk work is specifically matrix/tiled lowering of the causal
+products and transformed-value/state contractions, plus measured dispatch
+between prefill chunks and recurrent decode. The implemented triangular
+algorithm should not be described as the complete optimized vLLM schedule.

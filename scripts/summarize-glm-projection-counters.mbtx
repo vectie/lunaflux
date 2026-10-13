@@ -1,0 +1,45 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COLLECTED_COUNTER_ROOT") }
+  for route in ["native", "vendor"] {
+    let lines = @fs.read_file(root + "/" + route + "-raw.csv")
+      .text()
+      .split("\n")
+      .to_array()
+    guard lines.length() >= 3 else { fail("missing NCU rows") }
+    let names = lines[0].split("\",\"").to_array()
+    let units = lines[1].split("\",\"").to_array()
+    let values = lines[2].split("\",\"").to_array()
+    let out = StringBuilder()
+    out <+ "route=\{route}\n"
+    for index, name in names {
+      if name
+        is ("Kernel Name"
+        | "gpu__time_duration.sum"
+        | "smsp__inst_executed.sum"
+        | "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed"
+        | "l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum"
+        | "l1tex__t_requests_pipe_lsu_mem_global_op_ld.sum") ||
+        name.contains("long_scoreboard") ||
+        name.contains("dram__bytes") ||
+        name.contains("lts__t_bytes") ||
+        name.contains("pcsamp_warps_issue_stalled") ||
+        name.contains("smsp__warps_issue_stalled_long") {
+        out <+ "\{name}=\{values[index]} [\{units[index]}]\n"
+      }
+    }
+    @fs.write_file(
+      root + "/" + route + "-selected.txt",
+      out.to_string(),
+      create_mode=CreateNew,
+    )
+    println(out.to_string())
+  }
+}

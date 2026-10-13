@@ -125,26 +125,33 @@ async fn main {
         root + "/probe \{shape} check"
       } else {
         "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 97 --tool " +
-        mode + (if mode == "memcheck" { " --leak-check full" } else { "" }) +
-        " " + root + "/probe \{shape} check"
+        mode +
+        (if mode == "memcheck" { " --leak-check full" } else { "" }) +
+        " " +
+        root +
+        "/probe \{shape} check"
       }
-      record(root, mode + "-\{shape}", remote(
-        "systemd-run --user --wait --pipe --unit=" + unit + "-" + mode + "-\{shape}" +
-        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 " + command,
-      ))
+      record(
+        root,
+        mode + "-\{shape}",
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          unit +
+          "-" +
+          mode +
+          "-\{shape}" +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 " +
+          command,
+        ),
+      )
     }
     idle()
     record(
       root,
-      mode + "-terminal",
-      remote(
-        "systemctl --user show " +
-        unit +
-        "-" +
-        mode +
-        "-4.service -p ActiveState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
-      ),
+      mode + "-idle-after",
+      // Transient units retire after --wait. Their actual exit/memory results
+      // are already in each shape's wrapper stderr, not a missing-unit query.
+      remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader"),
     )
   }
 }
-

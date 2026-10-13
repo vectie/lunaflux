@@ -1,0 +1,50 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-projection-counters-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("COUNTER_ROOT")
+  }
+  let host = "wlc004s@192.168.2.179"
+  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  for route in ["native", "vendor"] {
+    let report = root + "/" + route + ".ncu-rep"
+    guard !@fs.exists(report) else { fail("local report already exists") }
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + report,
+      report,
+    ])
+    .output()
+    .check()
+    for page in ["raw", "details"] {
+      let out = @shell.Cmd("ssh", [
+        "-o",
+        "BatchMode=yes",
+        "-S",
+        socket,
+        host,
+        "/opt/nvidia/nsight-compute/2025.3.1/ncu --import " +
+        report +
+        " --page " +
+        page +
+        " --csv",
+      ]).output(max_output_bytes=16777216)
+      out.check()
+      @fs.write_file(
+        root + "/" + route + "-" + page + ".csv",
+        out.stdout(),
+        create_mode=CreateNew,
+      )
+    }
+  }
+}
