@@ -205,7 +205,9 @@ fn available_kib(text : String) -> Int64 raise {
 
 ///|
 fn sample_label(index : Int, warmup : Bool, prefix : String) -> String {
-  if warmup && index == 0 { "warmup" } else {
+  if warmup && index == 0 {
+    "warmup"
+  } else {
     prefix + (index - (if warmup { 1 } else { 0 })).to_string()
   }
 }
@@ -288,6 +290,8 @@ async fn main {
     )
   }
   let glm = family == "glm"
+  let timeline = options.last() is Some("--timeline")
+  let options = if timeline { options[:options.length() - 1] } else { options }
   let warmup = options.last() is Some("--warmup")
   let options = if warmup { options[:options.length() - 1] } else { options }
   let low_bit = options.last() is Some("--low-bit")
@@ -322,7 +326,8 @@ async fn main {
     (if tiled { "matrix_evaluation=bf16-matrix-f32-grouped\n" } else { "" }) +
     "expert_tensor_parallel=\{expert_tp}\n" +
     (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" }) +
-    (if warmup { "warmup_requests=1\n" } else { "" })
+    (if warmup { "warmup_requests=1\n" } else { "" }) +
+    (if timeline { "timeline=true\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -553,7 +558,7 @@ async fn main {
       } else {
         "generate-sequence-reference-dspark"
       }
-      let profile_prefix = if profile {
+      let profile_prefix = if profile || timeline {
         // Whole process: fixed wall-time delays miss inference after loading
         // speed changes. Separate loading copies from model kernels in reports.
         "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda --force-overwrite=false --kill=none --output=" +
@@ -666,7 +671,7 @@ async fn main {
     guard journal.stdout().contains("context_closed=true") else {
       fail("missing explicit release")
     }
-    if profile {
+    if profile || timeline {
       copy(
         last,
         host(last) + ":" + root + "/timeline.nsys-rep",

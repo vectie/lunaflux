@@ -1,6 +1,11 @@
 # Grouped experts and tensor parallelism
 
-**Latest completed full-model result:** non-expert TP plus the explicit native
+**Newer operand-supply optimization:** see
+[GLM_FP4_OPERAND_SUPPLY_2026-10-13.md](GLM_FP4_OPERAND_SUPPLY_2026-10-13.md)
+for selected-kernel counters, retained failed experiments and the refreshed
+full-model comparison. The results below preserve the preceding TP milestone.
+
+**Completed TP milestone:** non-expert TP plus the explicit native
 FP4 expert path and a 64-row AOT envelope completes the six matched prompts in
 **10.197 s**, versus a fresh vLLM **3.151630 s** (**3.235×** completion-time ratio).
 The retained LunaFlux PP2 cohort was 16.509 s. The new run has one excluded

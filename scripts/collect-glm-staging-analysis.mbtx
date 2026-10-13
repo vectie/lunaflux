@@ -1,0 +1,90 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-staging-analysis-") else {
+    fail("NEW_ROOT")
+  }
+  @fs.mkdir(root)
+  let trace = "/tmp/lunaflux-model-bench-glm-lowbit-tp-trace-20261013-v1"
+  let failed = "/tmp/lunaflux-model-bench-glm-fp4-counters-rows64-20261014-v1"
+  for
+    (rank, host, socket, role) in [
+      (
+        0, "wlc003s@192.168.2.178", "/tmp/lunaflux-checkpoint-live-20261010.sock",
+        "ingress",
+      ),
+      (
+        1, "wlc004s@192.168.2.179", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+        "egress",
+      ),
+    ] {
+    async fn record(name : String, cmd : String) -> Unit {
+      let out = @shell.Cmd("ssh", [
+        "-S", socket, "-o", "BatchMode=yes", host, cmd,
+      ]).output(max_output_bytes=16777216)
+      @fs.write_file(
+        root + "/\{rank}-" + name + ".stdout",
+        out.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/\{rank}-" + name + ".stderr",
+        out.stderr(),
+        create_mode=CreateNew,
+      )
+      out.check()
+    }
+    record(
+      "failed-trace-journal",
+      "journalctl --user -u " +
+      failed[5:].to_owned() +
+      "-" +
+      role +
+      ".service --no-pager",
+    )
+    record(
+      "failed-trace-state",
+      "systemctl --user show " +
+      failed[5:].to_owned() +
+      "-" +
+      role +
+      ".service -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak -p ActiveState",
+    )
+    record(
+      "gpu", "nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader",
+    )
+    let sql = "WITH ordered AS (SELECT k.start,k.end,s.value AS name,lag(k.end) over (order by k.start) AS previous_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON k.shortName=s.id) SELECT CASE WHEN name LIKE '%nccl%' THEN 'collective' ELSE 'compute' END AS family,count(*) AS calls,sum(end-start)/1e6 AS summed_ms,sum(max(0,start-previous_end))/1e6 AS preceding_gaps_ms FROM ordered GROUP BY family;"
+    record(
+      "gaps",
+      "sqlite3 -header -csv " + trace + "/timeline.sqlite \"" + sql + "\"",
+    )
+    let spans = "WITH heads AS (SELECT k.start,k.end,lag(k.end) over (order by k.start) AS previous_head FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON k.shortName=s.id WHERE s.value='glm_text_io_head') SELECT start,end,(end-previous_head)/1e6 AS head_to_head_ms FROM heads;"
+    record(
+      "heads",
+      "sqlite3 -header -csv " + trace + "/timeline.sqlite \"" + spans + "\"",
+    )
+    // One embedding-to-head interval per model step. Gaps are kernel-free
+    // intervals, not proven idle time: copies/host work may occupy them.
+    let steps = "WITH kernels AS (SELECT k.start,k.end,s.value AS name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON k.shortName=s.id), embeds AS (SELECT start,row_number() over (order by start) AS step FROM kernels WHERE name='glm_text_io_embed'), ranges AS (SELECT step,start,(SELECT min(end) FROM kernels WHERE name='glm_text_io_head' AND kernels.start>=embeds.start) AS finish FROM embeds), ordered AS (SELECT r.step,k.start,k.end,k.name,lag(k.end) over (partition by r.step order by k.start) AS previous_end FROM ranges r JOIN kernels k ON k.start>=r.start AND k.end<=r.finish) SELECT step,CASE WHEN name LIKE '%nccl%' THEN 'collective' ELSE 'compute' END AS family,count(*) AS calls,sum(end-start)/1e6 AS summed_ms,sum(max(0,start-previous_end))/1e6 AS preceding_kernel_free_ms FROM ordered GROUP BY step,family;"
+    record(
+      "step-gaps",
+      "sqlite3 -header -csv " + trace + "/timeline.sqlite \"" + steps + "\"",
+    )
+    if rank == 1 {
+      record(
+        "paired-counters", "/opt/nvidia/nsight-compute/2025.3.1/ncu --import /tmp/lunaflux-glm-fp4-performance-staged-20261014-v2/paired.ncu-rep --page details",
+      )
+      record(
+        "paired-raw", "/opt/nvidia/nsight-compute/2025.3.1/ncu --import /tmp/lunaflux-glm-fp4-performance-staged-20261014-v2/paired.ncu-rep --page raw --csv",
+      )
+    }
+  }
+}

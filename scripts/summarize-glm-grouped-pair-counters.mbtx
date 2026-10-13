@@ -28,40 +28,45 @@ test "quoted counter records preserve comma-containing geometry and empty units"
 
 ///|
 async fn main {
-  guard @env.args() is [_, root] else { fail("PAIRED_ROOT") }
-  for name in ["baseline", "candidate"] {
-    let lines = @fs.read_file(root + "/" + name + "-raw.csv")
+  let inputs = match @env.args() {
+    [_, root] => [root + "/baseline-raw.csv", root + "/candidate-raw.csv"]
+    [_, "--file", path] => [path]
+    _ => fail("PAIRED_ROOT | --file MULTI_KERNEL_RAW_CSV")
+  }
+  for path in inputs {
+    let lines = @fs.read_file(path)
       .text()
       .split("\n")
       .filter(s => !s.is_empty())
       .to_array()
-    guard lines.length() == 3 else {
-      fail("expected exactly one profiled kernel")
-    }
+    guard lines.length() >= 3 else { fail("expected profiled kernels") }
     let header = fields(lines[0])
     let units = fields(lines[1])
-    let values = fields(lines[2])
-    guard header.length() == values.length() &&
-      units.length() == values.length() else {
-      fail("truncated CSV")
-    }
-    println(name)
-    for index, key in header {
-      if key == "Kernel Name" ||
-        key == "Block Size" ||
-        key == "Grid Size" ||
-        key == "gpu__time_duration.sum" ||
-        key == "smsp__inst_executed.sum" ||
-        key == "launch__registers_per_thread" ||
-        key == "launch__shared_mem_per_block" ||
-        key == "sm__warps_active.avg.pct_of_peak_sustained_active" ||
-        key == "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed" ||
-        key == "smsp__average_warp_latency_per_inst_issued.ratio" ||
-        key.has_prefix("smsp__average_warps_issue_stalled_") ||
-        key == "l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum" ||
-        key == "dram__bytes_read.sum" ||
-        key == "lts__t_sectors_op_read.sum" {
-        println("\{key}=\{values[index]} \{units[index]}")
+    for line in lines[2:] {
+      let values = fields(line)
+      guard header.length() == values.length() &&
+        units.length() == values.length() else {
+        fail("truncated CSV")
+      }
+      println(path)
+      for index, key in header {
+        if key == "Kernel Name" ||
+          key == "Block Size" ||
+          key == "Grid Size" ||
+          key == "gpu__time_duration.sum" ||
+          key == "smsp__inst_executed.sum" ||
+          key == "launch__registers_per_thread" ||
+          key == "launch__shared_mem_per_block" ||
+          key == "sm__warps_active.avg.pct_of_peak_sustained_active" ||
+          key ==
+          "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed" ||
+          key == "smsp__average_warp_latency_per_inst_issued.ratio" ||
+          key.has_prefix("smsp__average_warps_issue_stalled_") ||
+          key == "l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum" ||
+          key == "dram__bytes_read.sum" ||
+          key == "lts__t_sectors_op_read.sum" {
+          println("\{key}=\{values[index]} \{units[index]}")
+        }
       }
     }
   }

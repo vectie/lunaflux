@@ -71,6 +71,30 @@ fn visible_completion(text : String, stopped : Bool) -> String {
 }
 
 ///|
+fn measured(values : Array[Double], warmup : Bool) -> Array[Double] raise {
+  let skip = if warmup { 1 } else { 0 }
+  guard values.length() == 6 + skip else {
+    fail("six observations plus declared warmup required")
+  }
+  values[skip:].to_owned()
+}
+
+///|
+test "declared warmup is excluded without discarding the first measured request" {
+  assert_eq(measured([9.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0], true), [
+    1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+  ])
+  assert_eq(measured([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], false), [
+    1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
+  ])
+  try measured([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], true) catch {
+    _ => ()
+  } noraise {
+    _ => fail("undeclared missing warmup accepted")
+  }
+}
+
+///|
 test "observation parsing does not conflate completion with decode timing" {
   assert_eq(metrics("journal: generation_millis=1234\n", "generation_millis"), [
     1234.0,
@@ -97,13 +121,20 @@ async fn main {
     _ => fail("expected optional --previous NATIVE_BASELINE")
   }
   let journal = @fs.read_file(native + "/ingress-journal.stdout").text()
-  let native_times = metrics(journal, "generation_millis")
-  let epochs = metrics(journal, "next_epoch")
-  let first_tokens = metrics(journal, "first_token_millis")
+  let selection = @fs.read_file(native + "/selected.txt").text()
+  let warmup = selection.contains("warmup_requests=1")
+  let native_times = measured(metrics(journal, "generation_millis"), warmup)
+  let all_epochs = metrics(journal, "next_epoch")
+  let initial_epoch = if warmup { all_epochs[0] } else { 1.0 }
+  let epochs = measured(all_epochs, warmup)
+  let first_tokens = measured(metrics(journal, "first_token_millis"), warmup)
   let previous_times = if previous is Some(root) {
-    metrics(
-      @fs.read_file(root + "/ingress-journal.stdout").text(),
-      "generation_millis",
+    measured(
+      metrics(
+        @fs.read_file(root + "/ingress-journal.stdout").text(),
+        "generation_millis",
+      ),
+      @fs.read_file(root + "/selected.txt").text().contains("warmup_requests=1"),
     )
   } else {
     []
@@ -111,10 +142,11 @@ async fn main {
   guard previous is None || previous_times.length() == 6 else {
     fail("six previous timings required")
   }
-  let frames = ids(
+  let all_frames = ids(
     @fs.read_file(native + "/frame-counts.txt").text(),
     delimiter=",",
   )
+  let frames = if warmup { all_frames[1:].to_owned() } else { all_frames }
   guard native_times.length() == 6 &&
     epochs.length() == 6 &&
     frames.length() == 6 else {
@@ -162,7 +194,8 @@ async fn main {
       fail("missing successful reference timing")
     }
     let native_seconds = native_times[i] / 1000.0
-    let native_steps = epochs[i] - (if i == 0 { 1.0 } else { epochs[i - 1] })
+    let native_steps = epochs[i] -
+      (if i == 0 { initial_epoch } else { epochs[i - 1] })
     guard native_steps == (frames[i] + native_output.length() - 1).to_double() else {
       fail("unexpected prefill-chunk plus decode model-step count")
     }
@@ -235,9 +268,17 @@ async fn main {
     "reference_timing_boundary": "buffered HTTP completion including client/server overhead",
     "correctness_or_parity_claim": false,
     "decode_only_throughput": false,
-    "native_first_request_cold": true,
+    "native_first_request_cold": Json(!warmup),
+    "native_excluded_warmup_requests": Json(if warmup { 1 } else { 0 }),
     "reference_excluded_warmup_requests": 1,
-    "native_topology": "PP2/TP1/BF16 KV; actual prefill chunks reported per request",
+    "native_topology": Json(
+      if selection.contains("expert_tensor_parallel=true") {
+        "PP1/TP2/BF16 KV; actual prefill chunks reported per request"
+      } else {
+        "PP2/TP1/BF16 KV; actual prefill chunks reported per request"
+      },
+    ),
+    "native_selection": Json(selection),
     "reference_topology": "PP1/TP2/FP8 MLA KV",
     "payload_hashing": false,
     "native_total_seconds": Json(native_total),
