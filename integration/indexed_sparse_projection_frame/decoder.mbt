@@ -113,14 +113,15 @@ pub fn IndexedSparseDecoderFrame::prepare(
   let (hidden_width, _, _) = plan.projection().geometry()
   let (rows, _) = plan.projection().attention().capacity()
   let out_bytes = rows.to_int64() * hidden_width.to_int64() * 2L
+  let (output_grid, output_block) = self.source.output_launch()
   self.launches.push(
     @device.OrderedKernelLaunch::new(
       function,
       @device.KernelLaunchDimensions::new(
-        grid_x=((out_bytes / 2L + 255L) / 256L).to_int(),
+        grid_x=output_grid,
         grid_y=1,
         grid_z=1,
-        block_x=256,
+        block_x=output_block,
         block_y=1,
         block_z=1,
         shared_memory_bytes=0,

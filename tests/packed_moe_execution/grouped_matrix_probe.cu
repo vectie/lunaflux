@@ -55,10 +55,10 @@ static void run(bool packed,int rows){
  ck(cudaMemcpy(db,bank.data(),bank.size(),cudaMemcpyHostToDevice));ck(cudaMemcpy(dx,x.data(),x.size()*2,cudaMemcpyHostToDevice));ck(cudaMemcpy(di,ix.data(),J*4,cudaMemcpyHostToDevice));ck(cudaMemcpy(ds,sw.data(),J*4,cudaMemcpyHostToDevice));ck(cudaMemcpy(dm,em,sizeof(em),cudaMemcpyHostToDevice));ck(cudaMemcpy(dc,counts,sizeof(counts),cudaMemcpyHostToDevice));
  ck(cudaMemset(a,0x55,J*I*2));ck(cudaMemset(am,0x55,4492));ck(cudaMemset(b,0x55,J*H*2));ck(cudaMemset(bm,0x55,J*H*2));ck(cudaMemset(y,0x55,R*H*4));ck(cudaMemset(ym,0x55,R*H*4));
  auto launch=[&](bool matrix){
-  if(packed){if(matrix){nv_matrix_group<<<1,128>>>(dc,di,am);nv_matrix_gate_up<<<34,128>>>(dc,dx,di,dm,db,am);nv_matrix_down<<<34,128>>>(dc,am,di,ds,dm,db,bm);nv_matrix_combine<<<5,256>>>(dc,di,bm,ym);}
-   else{nv_scalar_gate_up<<<272,128>>>(dc,dx,di,dm,db,a);nv_scalar_down<<<544,128>>>(dc,a,di,ds,dm,db,b);nv_scalar_combine<<<5,256>>>(dc,di,b,y);}}
-  else{if(matrix){bf_matrix_group<<<1,128>>>(dc,di,am);bf_matrix_gate_up<<<34,128>>>(dc,dx,di,dm,db,am);bf_matrix_down<<<34,128>>>(dc,am,di,ds,dm,db,bm);bf_matrix_combine<<<5,256>>>(dc,di,bm,ym);}
-   else{bf_scalar_gate_up<<<272,128>>>(dc,dx,di,dm,db,a);bf_scalar_down<<<544,128>>>(dc,a,di,ds,dm,db,b);bf_scalar_combine<<<5,256>>>(dc,di,b,y);}}
+  if(packed){if(matrix){nv_matrix_group<<<nv_matrix_grid0,nv_matrix_block0>>>(dc,di,am);nv_matrix_gate_up<<<nv_matrix_grid1,nv_matrix_block1>>>(dc,dx,di,dm,db,am);nv_matrix_down<<<nv_matrix_grid2,nv_matrix_block2>>>(dc,am,di,ds,dm,db,bm);nv_matrix_combine<<<nv_matrix_grid3,nv_matrix_block3>>>(dc,di,bm,ym);}
+   else{nv_scalar_gate_up<<<scalar_grid0,scalar_block0>>>(dc,dx,di,dm,db,a);nv_scalar_down<<<scalar_grid1,scalar_block1>>>(dc,a,di,ds,dm,db,b);nv_scalar_combine<<<scalar_grid2,scalar_block2>>>(dc,di,b,y);}}
+  else{if(matrix){bf_matrix_group<<<bf_matrix_grid0,bf_matrix_block0>>>(dc,di,am);bf_matrix_gate_up<<<bf_matrix_grid1,bf_matrix_block1>>>(dc,dx,di,dm,db,am);bf_matrix_down<<<bf_matrix_grid2,bf_matrix_block2>>>(dc,am,di,ds,dm,db,bm);bf_matrix_combine<<<bf_matrix_grid3,bf_matrix_block3>>>(dc,di,bm,ym);}
+   else{bf_scalar_gate_up<<<scalar_grid0,scalar_block0>>>(dc,dx,di,dm,db,a);bf_scalar_down<<<scalar_grid1,scalar_block1>>>(dc,a,di,ds,dm,db,b);bf_scalar_combine<<<scalar_grid2,scalar_block2>>>(dc,di,b,y);}}
   ck(cudaGetLastError());
  };
  launch(false);launch(true);ck(cudaDeviceSynchronize());

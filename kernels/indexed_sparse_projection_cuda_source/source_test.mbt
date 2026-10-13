@@ -31,6 +31,23 @@ test "projection chain preserves low-rank RMSNorm and affine index LayerNorm" {
   assert_eq(source.launch(2), (1, 256))
   assert_eq(source.launch(6), (1, 256))
   assert_eq(source.plan().workspace_bytes(), 1184L)
+  let matrix = @indexed_sparse_projection_cuda_source.indexed_sparse_projection_source(
+    @precision.IndexedSparseProjectionPrecision::new(
+      attention,
+      hidden_width=8,
+      query_rank=4,
+      key_value_rank=2,
+      rms_epsilon=1.0e-5,
+      index_layer_norm_epsilon=1.0e-5,
+      maximum_workspace_bytes=1312L,
+      projection_law=MatrixFloat32,
+    ),
+    symbol_prefix="matrix_projection",
+  )
+  assert_eq(matrix.plan().projection_law(), MatrixFloat32)
+  assert_eq(matrix.launch(2), (1, 128))
+  assert_eq(matrix.launch(6), source.launch(6))
+  assert_true(@utf8.decode(matrix.source_bytes()).contains("mma_sync"))
   if @env.get_env_var("LUNA_EXPORT_SPARSE_PROJECTION") is Some("1") {
     println("LUNA_SOURCE_BEGIN projection")
     println(@utf8.decode(source.source_bytes()))

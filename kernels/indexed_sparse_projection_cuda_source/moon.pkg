@@ -1,5 +1,7 @@
 import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
+  "vectie/lunaflux/kernels/tiled_matrix_cuda_source" @tiled,
   "vectie/lunaflux/kernels/decoder_projection_cuda_source" @projection,
   "vectie/lunaflux/kernels/prefix_rms_norm_cuda_source" @rms,
   "vectie/lunaflux/kernels/affine_layer_norm_cuda_source" @norm,

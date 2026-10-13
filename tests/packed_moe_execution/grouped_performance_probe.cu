@@ -29,8 +29,8 @@ int main(int argc,char**argv){
  auto a=alloc<unsigned char>(matrix_activation);auto b=alloc<__nv_bfloat16>(J*H);auto y=alloc<float>(R*H);
  auto ab=(__nv_bfloat16*)a;
  auto run=[&](bool matrix){
-  if(matrix){matrix_group<<<1,128>>>(counts,indices,ab);matrix_gate_up<<<4096,128>>>(counts,x,indices,map,bank,ab);matrix_down<<<8192,128>>>(counts,ab,indices,weights,map,bank,b);matrix_combine<<<256,256>>>(counts,indices,b,y);}
-  else{scalar_gate_up<<<65536,128>>>(counts,x,indices,map,bank,ab);scalar_down<<<131072,128>>>(counts,ab,indices,weights,map,bank,b);scalar_combine<<<256,256>>>(counts,indices,b,y);}
+  if(matrix){matrix_group<<<matrix_grid0,matrix_block0>>>(counts,indices,ab);matrix_gate_up<<<matrix_grid1,matrix_block1>>>(counts,x,indices,map,bank,ab);matrix_down<<<matrix_grid2,matrix_block2>>>(counts,ab,indices,weights,map,bank,b);matrix_combine<<<matrix_grid3,matrix_block3>>>(counts,indices,b,y);}
+  else{scalar_gate_up<<<scalar_grid0,scalar_block0>>>(counts,x,indices,map,bank,ab);scalar_down<<<scalar_grid1,scalar_block1>>>(counts,ab,indices,weights,map,bank,b);scalar_combine<<<scalar_grid2,scalar_block2>>>(counts,indices,b,y);}
   ck(cudaGetLastError());
  };
  if(!strcmp(mode,"matrix")||!strcmp(mode,"scalar")){run(!strcmp(mode,"matrix"));ck(cudaDeviceSynchronize());}
@@ -39,7 +39,7 @@ int main(int argc,char**argv){
   run(false);ck(cudaMemcpy(ref.data(),y,rows*H*4,cudaMemcpyDeviceToHost));
   run(true);ck(cudaMemcpy(actual.data(),y,rows*H*4,cudaMemcpyDeviceToHost));
   if(memcmp(ref.data(),actual.data(),rows*H*4)){fprintf(stderr,"dyadic output mismatch\n");return 3;}
-  for(bool matrix:{false,true})for(int trial=0;trial<5;++trial){
+  for(int trial=0;trial<5;++trial)for(bool matrix:{false,true}){
    cudaEvent_t begin,end;ck(cudaEventCreate(&begin));ck(cudaEventCreate(&end));
    ck(cudaEventRecord(begin));for(int i=0;i<5;++i)run(matrix);ck(cudaEventRecord(end));ck(cudaEventSynchronize(end));float ms;ck(cudaEventElapsedTime(&ms,begin,end));
    printf("rows=%d route=%s trial=%d milliseconds=%.9f\n",rows,matrix?"matrix":"scalar",trial,ms/5);

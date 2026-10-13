@@ -36,6 +36,17 @@ pub fn indexed_sparse_projection_source(
   let sources : Array[Bytes] = Array::make(12, b"")
   let launches : Array[(Int, Int)] = Array::make(12, (rows, 256))
   for (input, output, stage) in dense {
+    if plan.projection_law() == MatrixFloat32 {
+      let tile = @matrix.MatrixTilePlan::new(
+        rows~,
+        columns=output,
+        inner=input,
+        law=plan.projection_law(),
+      )
+      sources[stage] = @tiled.dense_source(tile, symbol=symbols[stage])
+      launches[stage] = (tile.tile_count(), 128)
+      continue
+    }
     sources[stage] = @projection.dense_projection_bf16_source(
       input_width=input,
       output_width=output,

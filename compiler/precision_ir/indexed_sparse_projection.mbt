@@ -12,6 +12,7 @@ pub struct IndexedSparseProjectionPrecision {
   priv frame_sizes : ReadOnlyArray[Int64]
   priv weight_sizes : ReadOnlyArray[Int64]
   priv workspace : Int64
+  priv projection_law : DenseDotLaw
 }
 
 ///|
@@ -23,6 +24,7 @@ pub fn IndexedSparseProjectionPrecision::new(
   rms_epsilon~ : Double,
   index_layer_norm_epsilon~ : Double,
   maximum_workspace_bytes~ : Int64,
+  projection_law? : DenseDotLaw = ScalarFloat32,
 ) -> Self raise PrecisionPlanError {
   guard hidden_width > 0 &&
     hidden_width <= 65536 &&
@@ -85,7 +87,15 @@ pub fn IndexedSparseProjectionPrecision::new(
     frame_sizes: ReadOnlyArray::from_array(sizes),
     weight_sizes: ReadOnlyArray::from_array(weights.map(size => size * 2L)),
     workspace,
+    projection_law,
   }
+}
+
+///|
+pub fn IndexedSparseProjectionPrecision::projection_law(
+  self : Self,
+) -> DenseDotLaw {
+  self.projection_law
 }
 
 ///|

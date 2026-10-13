@@ -1,14 +1,15 @@
 ///|
 /// CUDA lowering of a generic projected sparse attention plan. The arithmetic
 /// remains the existing ordered BF16/F32 law. Attention distributes independent
-/// query/head/score/value work and materializes scores once; pooling and index
-/// selection keep their existing schedules.
+/// query/head/score/value work. Index candidates retain each ordered dot once;
+/// attention subsequently reuses its scratch under the ordered effect plan.
 pub struct IndexedSparseAttentionCudaSource {
   priv plan : @precision.IndexedSparseAttentionPrecision
   priv symbols : ReadOnlyArray[String]
   priv source : Bytes
   priv order : ReadOnlyArray[Int]
   priv attention : @attention.SelectedSparseCudaSource
+  priv index : @index_physical.RetainedIndexPlan
 }
 
 ///|
@@ -16,7 +17,7 @@ pub fn indexed_sparse_attention_source(
   plan : @precision.IndexedSparseAttentionPrecision,
   symbol_prefix~ : String,
 ) -> IndexedSparseAttentionCudaSource raise {
-  let (ih, id, pool_size, top_k, tail) = plan.index_geometry()
+  let (_, id, pool_size, _, _) = plan.index_geometry()
   let (qh, kvh, qkd, vd) = plan.attention_geometry()
   let (queries, history) = plan.capacity()
   let program = plan.program()
@@ -44,16 +45,8 @@ pub fn indexed_sparse_attention_source(
     maximum_tokens=history,
     function_symbol=symbols[0],
   )
-  let index = @index.projected_index_score_stable_topk_bf16_source(
-    head_count=ih,
-    head_dimension=id,
-    top_k~,
-    pool_size~,
-    append_incomplete_tail=tail,
-    maximum_tokens=history,
-    maximum_queries=queries,
-    function_symbol=symbols[1],
-  )
+  let index = @index_physical.RetainedIndexPlan::new(plan)
+  let index_source = retained_index_source(plan, index, symbols[1])
   let attention = @attention.selected_sparse_source(
     query_heads=qh,
     kv_heads=kvh,
@@ -68,10 +61,11 @@ pub fn indexed_sparse_attention_source(
     plan,
     order,
     attention,
+    index,
     symbols: ReadOnlyArray::from_array(symbols),
     source: pool.source_bytes() +
     b"\n" +
-    index.source_bytes() +
+    index_source +
     b"\n" +
     attention.source_bytes(),
   }
@@ -79,7 +73,7 @@ pub fn indexed_sparse_attention_source(
 
 ///|
 pub fn IndexedSparseAttentionCudaSource::scratch_bytes(self : Self) -> Int64 {
-  self.attention.scratch_bytes()
+  Int64::max(self.attention.scratch_bytes(), self.index.scratch_bytes())
 }
 
 ///|
@@ -89,6 +83,8 @@ pub fn IndexedSparseAttentionCudaSource::launch(
 ) -> (Int, Int) {
   if stage == 2 {
     self.attention.launch()
+  } else if stage == 1 {
+    (self.index.geometry().0, 128)
   } else {
     (1, 1)
   }

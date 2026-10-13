@@ -10,6 +10,7 @@ pub fn flash_sparse_projection_plan(
   index_layer_norm_epsilon~ : Double,
   maximum_attention_workspace_bytes~ : Int64,
   maximum_projection_workspace_bytes~ : Int64,
+  projection_law? : @precision.DenseDotLaw = ScalarFloat32,
 ) -> @precision.IndexedSparseProjectionPrecision raise {
   guard spec.attention_kind(layer_index) is DeepSeekSparseAttention &&
     spec.qk_rope_head_dimension() == 0 &&
@@ -38,5 +39,6 @@ pub fn flash_sparse_projection_plan(
     rms_epsilon=spec.rms_norm_epsilon(),
     index_layer_norm_epsilon~,
     maximum_workspace_bytes=maximum_projection_workspace_bytes,
+    projection_law~,
   )
 }

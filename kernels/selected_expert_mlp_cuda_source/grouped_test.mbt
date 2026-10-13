@@ -71,6 +71,12 @@ test "export full-width grouped expert performance fixture" {
     )
     println("LUNA_SOURCE_BEGIN")
     println(@utf8.decode(source.source_bytes()))
+    for i in 0..<source.symbols().length() {
+      let (grid, block) = source.launches()[i]
+      println(
+        "static constexpr int \{name}_grid\{i}=\{grid},\{name}_block\{i}=\{block};",
+      )
+    }
     println(
       "static constexpr size_t \{name}_stride=\{plan.expert_stride()}ULL;",
     )
@@ -112,6 +118,12 @@ test "grouped expert actual source and bounded startup scratch" {
       if @env.get_env_var("LUNA_EXPORT_GROUPED_MATRIX") == Some("1") {
         println("LUNA_SOURCE_BEGIN \{name}")
         println(text)
+        for i in 0..<source.symbols().length() {
+          let (grid, block) = source.launches()[i]
+          println(
+            "static constexpr int \{name}_grid\{i}=\{grid},\{name}_block\{i}=\{block};",
+          )
+        }
         println(
           "static constexpr size_t \{name}_stride=\{plan.expert_stride()}ULL;",
         )

@@ -6,7 +6,9 @@ pub struct IndexedSparseDecoderCudaSource {
   priv history : @sparse.IndexedSparseHistoryCudaSource
   priv attention : @sparse.IndexedSparseAttentionCudaSource
   priv envelope : @hyper.HyperConnectionCudaSource
-  priv output : @projection.DecoderProjectionCudaSource
+  priv output : Bytes
+  priv output_symbol : String
+  priv output_launch : (Int, Int)
 }
 
 ///|
@@ -19,6 +21,26 @@ pub fn indexed_sparse_decoder_source(
   let (heads, _, _, values) = attention.attention_geometry()
   let (hidden, _, _) = projection.geometry()
   let (rows, _) = attention.capacity()
+  let output_symbol = symbol_prefix + "_output"
+  let (output, output_launch) = if projection.projection_law() == MatrixFloat32 {
+    let tile = @matrix.MatrixTilePlan::new(
+      rows~,
+      columns=hidden,
+      inner=heads * values,
+      law=projection.projection_law(),
+    )
+    (@tiled.dense_source(tile, symbol=output_symbol), (tile.tile_count(), 128))
+  } else {
+    (
+      @projection.dense_projection_bf16_source(
+        input_width=heads * values,
+        output_width=hidden,
+        maximum_rows=rows,
+        function_symbol=output_symbol,
+      ).source_bytes(),
+      (((rows.to_int64() * hidden.to_int64() + 255L) / 256L).to_int(), 256),
+    )
+  }
   {
     plan,
     projection: indexed_sparse_projection_source(
@@ -37,12 +59,9 @@ pub fn indexed_sparse_decoder_source(
       plan.envelope(),
       symbol_prefix=symbol_prefix + "_hyper",
     ),
-    output: @projection.dense_projection_bf16_source(
-      input_width=heads * values,
-      output_width=hidden,
-      maximum_rows=rows,
-      function_symbol=symbol_prefix + "_output",
-    ),
+    output,
+    output_symbol,
+    output_launch,
   }
 }
 
@@ -83,7 +102,12 @@ pub fn IndexedSparseDecoderCudaSource::envelope(
 
 ///|
 pub fn IndexedSparseDecoderCudaSource::output_symbol(self : Self) -> String {
-  self.output.function_symbol()
+  self.output_symbol
+}
+
+///|
+pub fn IndexedSparseDecoderCudaSource::output_launch(self : Self) -> (Int, Int) {
+  self.output_launch
 }
 
 ///|
@@ -96,5 +120,5 @@ pub fn IndexedSparseDecoderCudaSource::source_bytes(self : Self) -> Bytes {
   b"\n" +
   self.envelope.source_bytes() +
   b"\n" +
-  self.output.source_bytes()
+  self.output
 }

@@ -36,6 +36,7 @@ pub fn GlmSparseLayer::new(
     index_layer_norm_epsilon~,
     maximum_attention_workspace_bytes=maximum_workspace_bytes,
     maximum_projection_workspace_bytes=maximum_workspace_bytes,
+    projection_law=matrix_law,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(
     stream_count=spec.hyper_connection_streams(),

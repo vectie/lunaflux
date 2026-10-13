@@ -135,6 +135,7 @@ pub fn IndexedSparseAttentionFrame::prepare(
       region(buffers[3], sizes[3], 4L),
       region(history_valid, h * 4L, 4L),
       selected,
+      region(buffers[5], self.source.scratch_bytes(), 4L),
     ],
     self.attention_arguments(
       query_counts,

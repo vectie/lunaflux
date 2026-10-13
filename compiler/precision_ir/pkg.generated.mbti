@@ -367,8 +367,9 @@ pub struct IndexedSparseProjectionPrecision {
 pub fn IndexedSparseProjectionPrecision::attention(Self) -> IndexedSparseAttentionPrecision
 pub fn IndexedSparseProjectionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn IndexedSparseProjectionPrecision::geometry(Self) -> (Int, Int, Int)
-pub fn IndexedSparseProjectionPrecision::new(IndexedSparseAttentionPrecision, hidden_width~ : Int, query_rank~ : Int, key_value_rank~ : Int, rms_epsilon~ : Double, index_layer_norm_epsilon~ : Double, maximum_workspace_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn IndexedSparseProjectionPrecision::new(IndexedSparseAttentionPrecision, hidden_width~ : Int, query_rank~ : Int, key_value_rank~ : Int, rms_epsilon~ : Double, index_layer_norm_epsilon~ : Double, maximum_workspace_bytes~ : Int64, projection_law? : DenseDotLaw) -> Self raise PrecisionPlanError
 pub fn IndexedSparseProjectionPrecision::normalization(Self) -> (Double, Double)
+pub fn IndexedSparseProjectionPrecision::projection_law(Self) -> DenseDotLaw
 pub fn IndexedSparseProjectionPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn IndexedSparseProjectionPrecision::workspace_bytes(Self) -> Int64
 

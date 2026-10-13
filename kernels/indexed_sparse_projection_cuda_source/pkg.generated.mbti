@@ -21,6 +21,7 @@ pub struct IndexedSparseDecoderCudaSource {
 pub fn IndexedSparseDecoderCudaSource::attention(Self) -> @indexed_sparse_attention_execution_cuda_source.IndexedSparseAttentionCudaSource
 pub fn IndexedSparseDecoderCudaSource::envelope(Self) -> @hyper_connection_execution_cuda_source.HyperConnectionCudaSource
 pub fn IndexedSparseDecoderCudaSource::history(Self) -> @indexed_sparse_attention_execution_cuda_source.IndexedSparseHistoryCudaSource
+pub fn IndexedSparseDecoderCudaSource::output_launch(Self) -> (Int, Int)
 pub fn IndexedSparseDecoderCudaSource::output_symbol(Self) -> String
 pub fn IndexedSparseDecoderCudaSource::plan(Self) -> @precision_ir.IndexedSparseDecoderPrecision
 pub fn IndexedSparseDecoderCudaSource::projection(Self) -> IndexedSparseProjectionCudaSource
