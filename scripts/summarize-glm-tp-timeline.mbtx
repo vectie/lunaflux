@@ -1,0 +1,89 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn family(name : String) -> String {
+  if name.contains("nccl") {
+    "collective"
+  } else if name.contains("glm_routed_") {
+    if name.contains("quantize") {
+      "expert_quantization"
+    } else if name.contains("gate_up") || name.has_suffix("_down") {
+      "expert_matrix"
+    } else {
+      "expert_group_or_combine"
+    }
+  } else if name.contains("glm_shared_") {
+    "shared_expert"
+  } else if name.contains("glm_dense_ffn_") {
+    "dense_ffn"
+  } else if name.contains("glm_recurrent_") {
+    "recurrent_projection_and_attention"
+  } else if name.contains("sparse") {
+    "sparse_attention_chain"
+  } else if name.contains("head") {
+    "head"
+  } else {
+    "other"
+  }
+}
+
+///|
+test "families separate quantization, matrix, and communication work" {
+  assert_eq(family("glm_routed_3_quantize_0_global"), "expert_quantization")
+  assert_eq(family("glm_routed_3_gate_up"), "expert_matrix")
+  assert_eq(family("ncclDevKernel_AllReduce_Sum_f32_RING_LL"), "collective")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] else { fail("COLLECTED_NATIVE_TRACE_ROOT") }
+  for role in ["ingress", "egress"] {
+    let sums : Map[String, Double] = Map([])
+    let counts : Map[String, Int] = Map([])
+    let mut total = 0.0
+    let mut kernels = false
+    for
+      line in @fs.read_file(root + "/" + role + "-stats.stdout")
+      .text()
+      .split("\n") {
+      if line.has_prefix("Time (%),Total Time (ns),Instances,") {
+        kernels = true
+        continue
+      }
+      if !kernels {
+        continue
+      }
+      if line.trim().is_empty() {
+        break
+      }
+      let fields = line.split(",").to_array()
+      guard fields.length() >= 9 else { fail("truncated kernel stats") }
+      let ns = @string.parse_double(fields[1])
+      let category = family(fields[8:].join(","))
+      sums[category] = sums.get(category).unwrap_or(0.0) + ns
+      counts[category] = counts.get(category).unwrap_or(0) +
+        @string.parse_int(fields[2])
+      total += ns
+    }
+    println(
+      "\{role}: summed_kernel_ms=\{total/1000000.0}; per-rank duration sum, not critical-path attribution",
+    )
+    for
+      category in [
+        "collective", "expert_quantization", "expert_matrix", "expert_group_or_combine",
+        "shared_expert", "dense_ffn", "recurrent_projection_and_attention", "sparse_attention_chain",
+        "head", "other",
+      ] {
+      let ns = sums.get(category).unwrap_or(0.0)
+      println(
+        "\{category}: ms=\{ns/1000000.0} percent=\{100.0*ns/total} calls=\{counts.get(category).unwrap_or(0)}",
+      )
+    }
+  }
+}

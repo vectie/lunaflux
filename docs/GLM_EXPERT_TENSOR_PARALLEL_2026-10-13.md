@@ -1,5 +1,15 @@
 # Grouped experts and tensor parallelism
 
+**Latest completed full-model result:** non-expert TP plus the explicit native
+FP4 expert path and a 64-row AOT envelope completes the six matched prompts in
+**10.197 s**, versus a fresh vLLM **3.151630 s** (**3.235×** completion-time ratio).
+The retained LunaFlux PP2 cohort was 16.509 s. The new run has one excluded
+warmup; the old cohort included its first request. All six output counts match
+the fresh reference, but only four rendered responses match. This is neither
+full-model numerical parity nor production-quality qualification. Implementation
+and numerical comparison remain separate. Details and limitations follow at
+the end of this chronological report.
+
 The measured starting point is 16.509 s for the six GLM prompts, versus
 3.144176 s for the retained vLLM run. LunaFlux uses PP2/TP1; vLLM uses TP2/PP1.
 This is not an equivalent distribution of work. Routed experts account for
@@ -241,3 +251,121 @@ variant in `/tmp/lunaflux-native-fp4-partial-20261013-v1` at the same six row/re
 states with all sanitizers clean. This tests the actual generated partial path,
 not a complete two-rank matrix comparison. Latest affected native tests pass
 162/162; warning-denied native check and both benchmark runner checks pass.
+
+### Completed full-model comparisons (TP and native FP4)
+
+Implementation is pinned to `1f75a105`; the clean ARM build is
+`/tmp/lunaflux-checkpoint-build-glm-fp4tp-20261013-v1`. All successful native
+cohorts log both selected arithmetic and all 132 collective sites, exit zero,
+and report explicit context closure on both ranks. The old default arithmetic
+is unchanged; the native FP4 numerical program is explicit, not an automatic
+replacement based on agreement with another framework.
+
+| Runtime and artifact | Six completion times, seconds | Sum |
+| --- | --- | ---: |
+| Retained PP2, BF16-activation grouped experts | 2.100, 2.099, 3.226, 3.293, 3.324, 2.467 | 16.509 |
+| TP2, BF16-activation experts, rows16, one warmup | 1.493, 1.307, 2.467, 2.575, 2.593, 1.912 | 12.347 |
+| TP2, native FP4 experts, rows16, one warmup | 2.170, 1.502, 2.386, 2.426, 2.418, 1.660 | 12.562 |
+| TP2, native FP4 experts, rows64, one warmup | 1.240, 1.256, 2.124, 2.179, 2.191, 1.207 | **10.197** |
+| Fresh vLLM TP2, one warmup | 0.385795, 0.393984, 0.651295, 0.669784, 0.672840, 0.377932 | **3.151630** |
+
+The input-token vector is `[22,23,22,23,24,36]`, identical literal IDs across
+engines. New FP4 and reference output-count vectors are `[4,4,8,8,8,3]`.
+The BF16 TP control instead produces three tokens on the second prompt, so its
+34-token total is **not equal work** to the 35-token FP4/reference totals.
+For the three equal-length eight-token requests, FP4/rows16 is approximately
+3.3%, 5.8%, and 6.7% faster than the BF16 TP control. The table does not establish
+a large independent FP4 end-to-end gain. Numerical changes affect autoregressive
+outputs; they must remain visible rather than being hidden by timing totals.
+
+The 64-row profile uses the same compiler and numerical choices but fits each
+prompt in one prefill pass, rather than two or three. Its six first-token times
+are `[0.548,0.567,0.550,0.586,0.593,0.739]` seconds. It is 38.2% less completion
+time than the retained PP2 cohort (1.619× speed), but still 3.235× vLLM's time.
+It represents 3.43 output tokens/request-second including prefill, versus 11.11
+for vLLM; these are **not decode-only throughput**. These are individual cohorts,
+not confidence intervals. The BF16 KV / reference FP8-MLA KV distinction remains;
+native recurrence is the explicit ordered-token profile in these runs, not a
+claim that every possible optimization/profile has been enabled.
+
+The native rows64 cold warmup itself takes 4.733 s (first token 4.044 s). Both
+engines exclude one warmup, and the external runner retains it separately.
+`compare-glm-matched-benchmark.mbtx` now records actual TP topology, numerical
+profile, warmup count, and output-count matches. No comparison is imported by
+compiler selection. The original cold TP/FP4 cohort remains at
+`/tmp/lunaflux-model-bench-glm-lowbit-tp-20261013-v1`, not overwritten or relabeled.
+
+Completed roots:
+
+- `/tmp/lunaflux-model-bench-glm-bf16-tp-warm-20261013-v3`
+- `/tmp/lunaflux-model-bench-glm-lowbit-tp-warm-20261013-v2`
+- `/tmp/lunaflux-model-bench-glm-lowbit-tp-rows64-20261013-v1`
+- `/tmp/lunaflux-reference-bench-vllm-glm-fp4tp-20261013-v1`
+
+The BF16 control v2 failed before loading with `Address already in use`; its
+logs and zero-swap release are retained. The v3 retry uses a fresh directory
+after the socket clears. vLLM completes all six HTTP requests, then the requested
+paired stop exits ingress normally and terminates headless rank1 with status137.
+The watcher reports that nonzero teardown; this is not recorded as a clean
+vLLM shutdown or an inference failure. Both GPUs are verified released before
+the next native run. Minimum observed reference host-available memory is
+17.405 GiB; no watchdog memory-floor breach occurs.
+
+The rows64 native plan is 98,252,360,500 / 99,521,773,364 bytes (both below
+100 GiB). Its systemd memory peaks are 59,306,721,280 / 59,637,116,928 bytes;
+task swap peaks are zero and minimum host-available memory is 23.047 GiB.
+Cgroup accounting and planned GPU residency are distinct measurements, not
+additive or interchangeable. There is no overlapping GPU workload or payload
+hash/integrity scan.
+
+### Remaining measured costs, not a claim of vLLM parity
+
+The fresh two-rank Nsight Systems trace is
+`/tmp/lunaflux-model-bench-glm-lowbit-tp-trace-20261013-v1`. It is a **rows16**
+diagnostic with two requests (one warmup), two model steps each; it is not the
+rows64 end-to-end timing above. Actual kernel names show native grouped matrix,
+quantization, and NCCL execution. Per-rank sums are:
+
+| Kernel family | Ingress | Egress |
+| --- | ---: | ---: |
+| All kernels | 1614.321 ms | 1626.269 ms |
+| 528 all-reduces (132 × 4 steps) | 517.732 ms / 32.1% | 416.539 ms / 25.6% |
+| Routed expert matrix kernels | 352.832 ms / 21.9% | 357.126 ms / 22.0% |
+| Expert activation quantization | 20.578 ms / 1.27% | 21.180 ms / 1.30% |
+| Expert grouping and combination | 32.723 ms / 2.03% | 33.513 ms / 2.06% |
+| Shared experts | 129.244 ms / 8.01% | 133.102 ms / 8.18% |
+
+These are duration sums, not an additive explanation of the completion-time gap.
+Collective kernel duration includes peer-readiness waiting; it is not pure CX7
+wire time. The two ranks overlap and must not be summed as serial execution.
+The next measured targets are collective submission/readiness and native FP4
+matrix scheduling, not activation packing alone. A smaller kernel instruction
+set or another IR layer does not establish equal performance.
+
+The retained .nsys-rep files, generated SQLite/CSV and the external
+`summarize-glm-tp-timeline.mbtx` reproduce these categories. No new Nsight Compute
+instruction-counter claim is made from this timeline. The actual numerical
+programs, representative kernel sanitizers, ABI lifecycle checks, full-model
+completion, text comparisons and throughput remain separate validation levels.
+
+### Final capacity and build-cache checks
+
+The actual-source FP4 deferred-publication fixture was also exported with
+capacity64, matching the final AOT envelope. In
+`/tmp/lunaflux-native-fp4-partial64-20261013-v1`, live rows 1, 3, 16, 17, 64,
+zero rows and reuse match the independent scalar packed-arithmetic oracle;
+memcheck/full-leak, racecheck and synccheck report zero errors. The fixture has
+hidden64/intermediate128/two experts, so this is capacity/ownership coverage,
+not an independent full-model accuracy proof.
+
+The first final full native suite stopped with a SIGSEGV in the NCCL collective
+white-box fixture. LLDB located the null function call at
+`collective_interop.c:364`. The fixture object was still dated Oct12, before the
+Oct13 CUDA ABI table change, while the linked resources/interop objects were
+new. A clean separate target directory passed all 27 CUDA/NCCL tests without
+source changes. The mixed cached CUDA/NCCL package directories were moved to
+`/tmp/lunaflux-glm-tp-clean-abi-20261013-v1/stale-debug-packages`, preserving the
+failure for inspection, and the full suite was restarted after rebuilding them.
+This is an incremental native-header dependency/cache failure, not a reason to
+change collective arithmetic or suppress a test. Source-pinned Spark builds
+and the physical runs above were clean builds.

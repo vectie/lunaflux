@@ -35,27 +35,27 @@ int main() {
   std::vector<unsigned char> bank(low_stride*2);
   const int widths[3]={64,64,128},outs[3]={128,128,64};const int so[3]={low_scale0,low_scale1,low_scale2},go[3]={low_global0,low_global1,low_global2};
   for(int e=0;e<2;e++) for(int s=0;s<3;s++) {auto *p=bank.data()+e*low_stride+low_offsets[s];for(int r=0;r<outs[s];r++) {for(int k=0;k<widths[s];k++) p[(r*widths[s]+k)/2]|=((r*3+k*5+e+s)&15)<<(4*(k%2));for(int k=0;k<widths[s]/16;k++) p[so[s]+r*(widths[s]/16)+k]=32+((r+k+e+s)%3)*8;}float global=1.f/32;memcpy(p+go[s],&global,4);}
-  std::vector<__nv_bfloat16> x(17*64),act(low_activation_bytes/2);for(int i=0;i<17*64;i++) x[i]=__float2bfloat16_rn(((i*7)%29-14)/32.f);
-  std::vector<int> counts(5),indices(34),map{0,1},error(1);std::vector<float> routing(34),output(17*64);std::vector<Weighted> weighted(34*64);
-  for(int r=0;r<17;r++) {indices[r*2]=r%2;indices[r*2+1]=1-r%2;routing[r*2]=.25f;routing[r*2+1]=.75f;}
+  std::vector<__nv_bfloat16> x(low_rows*64),act(low_activation_bytes/2);for(int i=0;i<low_rows*64;i++) x[i]=__float2bfloat16_rn(((i*7)%29-14)/32.f);
+  std::vector<int> counts(5),indices(low_rows*2),map{0,1},error(1);std::vector<float> routing(low_rows*2),output(low_rows*64);std::vector<Weighted> weighted(low_rows*2*64);
+  for(int r=0;r<low_rows;r++) {indices[r*2]=r%2;indices[r*2+1]=1-r%2;routing[r*2]=.25f;routing[r*2+1]=.75f;}
   auto *db=gpu(bank),*dxq=gpu(std::vector<unsigned char>(q0_bytes)),*daq=gpu(std::vector<unsigned char>(q1_bytes));auto *dx=gpu(x),*da=gpu(act);auto *dw=gpu(weighted);auto *dc=gpu(counts),*di=gpu(indices),*dm=gpu(map),*de=gpu(error);auto *ds=gpu(routing),*dy=gpu(output);
   int wrong=0;
-  for(int rows: {1,3,16,17,0,1}) {
+  for(int rows: {1,3,16,17,low_rows,0,1}) {
     counts[3]=rows;ck(cudaMemcpy(dc,counts.data(),20,cudaMemcpyHostToDevice));
-    low_group<<<1,128>>>(dc,di,da);low_quantize_0_global<<<1,256>>>(dc,dx,dxq,de);low_quantize_0_pack<<<9,128>>>(dc,dx,dxq,de);
-    low_gate_up<<<136,128>>>(dc,dxq,di,dm,db,da);
-    low_quantize_1_global<<<1,256>>>(dc,da,daq,de);low_quantize_1_pack<<<34,128>>>(dc,da,daq,de);
-    low_down<<<68,128>>>(dc,daq,di,ds,dm,db,dw,da);
+    low_group<<<1,128>>>(dc,di,da);low_quantize_0_global<<<1,256>>>(dc,dx,dxq,de);low_quantize_0_pack<<<(low_rows+1)/2,128>>>(dc,dx,dxq,de);
+    low_gate_up<<<low_rows*8,128>>>(dc,dxq,di,dm,db,da);
+    low_quantize_1_global<<<1,256>>>(dc,da,daq,de);low_quantize_1_pack<<<low_rows*2,128>>>(dc,da,daq,de);
+    low_down<<<low_rows*4,128>>>(dc,daq,di,ds,dm,db,dw,da);
 #ifdef LUNA_PARTIAL
-    low_combine<<<5,256>>>(dc,di,dw,dy,ds);
+    low_combine<<<(low_rows+3)/4,256>>>(dc,di,dw,dy,ds);
 #else
-    low_combine<<<5,256>>>(dc,di,dw,dy);
+    low_combine<<<(low_rows+3)/4,256>>>(dc,di,dw,dy);
 #endif
     ck(cudaGetLastError());ck(cudaDeviceSynchronize());
     if(!rows) continue;
     auto qx=quant(x,rows,64,q0_bytes,q0_scale,q0_global);std::vector<unsigned char> actual(q0_bytes);ck(cudaMemcpy(actual.data(),dxq,q0_bytes,cudaMemcpyDeviceToHost));
     for(int i=0;i<rows*32;i++) if(qx[i]!=actual[i]) wrong++;for(int i=0;i<rows*4;i++) if(qx[q0_scale+i]!=actual[q0_scale+i]) wrong++;if(memcmp(qx.data()+q0_global,actual.data()+q0_global,4)) wrong++;
-    std::vector<__nv_bfloat16> reference(34*128);
+    std::vector<__nv_bfloat16> reference(low_rows*2*128);
     for(int job=0;job<rows*2;job++) for(int n=0;n<128;n++) {int e=indices[job];float gate=bf(dot(qx.data(),job/2,bank.data()+e*low_stride+low_offsets[0],n,64,q0_scale,q0_global,so[0],go[0]));float up=bf(dot(qx.data(),job/2,bank.data()+e*low_stride+low_offsets[1],n,64,q0_scale,q0_global,so[1],go[1]));reference[job*128+n]=__float2bfloat16_rn(bf(gate/(1+expf(-gate)))*up);}
     ck(cudaMemcpy(act.data(),da,act.size()*2,cudaMemcpyDeviceToHost));for(int i=0;i<rows*2*128;i++) if(memcmp(&act[i],&reference[i],2)) {if(wrong<8) printf("product mismatch %d %.9g %.9g\n",i,(float)act[i],(float)reference[i]);wrong++;}
     auto qa=quant(reference,rows*2,128,q1_bytes,q1_scale,q1_global);actual.resize(q1_bytes);ck(cudaMemcpy(actual.data(),daq,q1_bytes,cudaMemcpyDeviceToHost));for(int i=0;i<rows*2*64;i++) if(qa[i]!=actual[i]) wrong++;for(int i=0;i<rows*2*8;i++) if(qa[q1_scale+i]!=actual[q1_scale+i]) wrong++;

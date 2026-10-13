@@ -1,5 +1,6 @@
 ///|
 test "native low-bit matrix fragment export" {
+  let rows = if @env.get_env_var("LUNA_FP4_CAPACITY") == Some("64") { 64 } else { 17 }
   let source = @luna_cuda_precision.e2m1_scaled_matrix_helper(
     symbol="native_fp4",
   )
@@ -19,7 +20,7 @@ test "native low-bit matrix fragment export" {
       tile_elements=32,
     )
   })
-  let quant = [(17, 64), (34, 128)].map(s => {
+  let quant = [(rows, 64), (rows * 2, 128)].map(s => {
     @precision_ir.plan_operand(
       role=Activation,
       representation=@format.Representation::new(
@@ -40,7 +41,7 @@ test "native low-bit matrix fragment export" {
     expert_count=2,
     local_experts=[0, 1],
     selected_experts=2,
-    maximum_rows=17,
+    maximum_rows=rows,
     dot_law=MatrixFloat32,
     scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
     activation_quantization=(quant[0], quant[1]),
@@ -58,6 +59,7 @@ test "native low-bit matrix fragment export" {
   assert_eq(generated.symbols().length(), 8)
   if @env.get_env_var("LUNA_EXPORT_FP4_MATRIX") == Some("1") {
     println("LUNA_SOURCE_BEGIN fp4-matrix")
+    println("static constexpr int low_rows=\{rows};")
     if p.down_publication() == ReduceFloat32BeforeRound {
       println("#define LUNA_PARTIAL 1")
     }
