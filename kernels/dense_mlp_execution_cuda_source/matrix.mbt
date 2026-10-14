@@ -1,5 +1,9 @@
 ///|
 pub fn DenseMlpCudaSource::launch(self : Self, stage : Int) -> (Int, Int) raise {
+  guard stage is (0 | 1) ||
+    (stage == 2 && self.plan.publication() == ReduceFloat32BeforeRound) else {
+    raise @precision.PrecisionPlanError::IllegalPlacement
+  }
   let (hidden, intermediate, rows) = self.plan.geometry()
   let (inner, columns) = if stage == 0 {
     (hidden, intermediate)

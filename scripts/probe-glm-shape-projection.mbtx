@@ -1,0 +1,155 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn leaf(text : String) -> String raise {
+  let start = "extern \"C\" __global__ void glm_recurrent_25_0("
+  guard text.split(start).to_array() is [_, suffix] else {
+    fail("unique selected projection required")
+  }
+  let body = start + suffix.to_owned()
+  let mut depth = 0
+  let mut began = false
+  for i in 0..<body.length() {
+    if body[i] == '{' {
+      depth += 1
+      began = true
+    }
+    if body[i] == '}' {
+      depth -= 1
+      if began && depth == 0 {
+        return "#include <cuda_bf16.h>\n#include <mma.h>\n" +
+          body[:i + 1].to_owned() +
+          "\n"
+      }
+    }
+  }
+  fail("unterminated selected source")
+}
+
+///|
+test "balanced extraction includes nested decode loops" {
+  assert_true(
+    leaf(
+      "extern \"C\" __global__ void glm_recurrent_25_0(int x) {if(x){while(x){--x;}}}\nnext",
+    ).has_suffix("}}}\n"),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode, .. sources] &&
+    root.has_prefix("/tmp/lunaflux-glm-shape-leaf-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode is ("prepare" | "run") else {
+    fail("NEW_ROOT prepare OLD_SOURCE NEW_SOURCE | run")
+  }
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+  )
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, host, command]).output(
+      max_output_bytes=1048576,
+    )
+  }
+  async fn record(name : String, r : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      r.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+  }
+  let unit = root[5:].to_owned()
+  if mode == "prepare" {
+    guard sources is [old, fresh] else {
+      fail("two actual selected sources required")
+    }
+    @fs.mkdir(root)
+    record("mkdir", remote("mkdir " + root))
+    for (source, name, grid) in [(old, "old", 256), (fresh, "new", 1024)] {
+      let code = leaf(@fs.read_file(source).text())
+      guard code.contains("live_rows>64") && code.contains("*4096") else {
+        fail("not selected TP geometry")
+      }
+      @fs.write_file(root + "/" + name + ".cuh", code, create_mode=CreateNew)
+      record("mkdir-" + name, remote("mkdir " + root + "/" + name))
+      for
+        (local_path, target) in [
+          (root + "/" + name + ".cuh", "projection.cuh"),
+          (
+            "tests/packed_moe_execution/glm_projection_counter_probe.cu", "probe.cu",
+          ),
+        ] {
+        @shell.Cmd("scp", [
+          "-o",
+          "ControlPath=" + socket,
+          local_path,
+          host + ":" + root + "/" + name + "/" + target,
+        ])
+        .output()
+        .check()
+      }
+      record(
+        "compile-" + name,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          unit +
+          "-compile-" +
+          name +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 -arch=sm_121 -DPROJECTION_COLUMNS=4096 -DPROJECTION_GRID=\{grid} -DPROJECTION_THREADS=128 " +
+          root +
+          "/" +
+          name +
+          "/probe.cu -lcublas -o " +
+          root +
+          "/" +
+          name +
+          "/probe",
+        ),
+      )
+    }
+  } else {
+    guard sources.is_empty() else { fail("unexpected arguments") }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU reserved") }
+    record(
+      "memory",
+      remote(
+        "awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo",
+      ),
+    )
+    for rows in [1, 16] {
+      for name in ["old", "new"] {
+        record(
+          name + "-r\{rows}",
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            unit +
+            "-" +
+            name +
+            "-r\{rows} --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 " +
+            root +
+            "/" +
+            name +
+            "/probe \{rows} timing",
+          ),
+        )
+      }
+    }
+  }
+}

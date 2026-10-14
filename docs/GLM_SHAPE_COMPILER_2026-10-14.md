@@ -48,3 +48,21 @@ These bounded fixtures are not full-model numerical quality or speed evidence.
 
 Full-model benchmarking is still pending. Comparison stays outside the compiler;
 neither agreement nor speed permits an undeclared numerical rewrite.
+
+Implementation `0633d85a` is pushed. The warning-denied native check passes with
+the repository's existing migration exclusions, and the full native suite passes
+**5,150/5,150**. Targeted `moon info` reports 1,084 existing migration warnings and
+zero errors. A clean commit-pinned ARM build completed at
+`/tmp/lunaflux-checkpoint-build-glm-shape-20261014-v1`; both actual AOT stages at
+`/tmp/lunaflux-glm-expert-tp-shape-aware-20261014-v1` compile for sm121a. Export
+selects the new numerical alternative with 98,252,360,500/99,521,773,364 planned
+bytes, below the independent 100 GiB ceiling. GPU benchmark admission additionally
+retains the 16 GiB host reserve; the plan's 2 GiB device overhead reserve is not a
+replacement for that host floor.
+
+The installed vLLM implementation remains an external implementation reference:
+`reference-glm-kda.py` in the retained diagnosis root merges Q/K/V/beta/f_a/g_a
+into one projection; `reference-model.py` uses merged gate/up and a parallel
+language head. This change removes selected serial/padded work but does not yet
+merge those six KDA operators or replace every matrix prefill schedule. No
+complete performance-parity claim follows from connecting the shape classifier.

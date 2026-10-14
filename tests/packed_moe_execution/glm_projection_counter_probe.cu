@@ -10,6 +10,9 @@
 #define PROJECTION_GRID 512
 #define PROJECTION_THREADS 256
 #endif
+#ifndef PROJECTION_COLUMNS
+#define PROJECTION_COLUMNS 8192
+#endif
 static void ck(cudaError_t e){if(e!=cudaSuccess){fprintf(stderr,"%s\n",cudaGetErrorString(e));exit(1);}}
 static void cb(cublasStatus_t e){if(e!=CUBLAS_STATUS_SUCCESS){fprintf(stderr,"cublas=%d\n",int(e));exit(2);}}
 template<class T>T* alloc(size_t n){T*p;ck(cudaMalloc(&p,n*sizeof(T)));return p;}
@@ -35,7 +38,7 @@ int main(int argc,char**argv){
  if(!strcmp(mode,"tails")){tails();ck(cudaDeviceReset());puts("released=true");return 0;}
 #endif
  if(rows!=1&&rows!=16)return 3;
- const int k=4096,n=8192;
+ const int k=4096,n=PROJECTION_COLUMNS;
  std::vector<__nv_bfloat16>x(rows*k),w(size_t(n)*k);
  for(size_t i=0;i<x.size();++i)x[i]=__float2bfloat16((int(i%31)-15)*.03125f);
  for(size_t i=0;i<w.size();++i)w[i]=__float2bfloat16((int(i%37)-18)*.015625f);

@@ -340,7 +340,11 @@ async fn main {
     "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n" +
     (if shape_aware { "matrix_evaluation=shape-aware-f32\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
-    (if tiled { "matrix_evaluation=bf16-matrix-f32-grouped\n" } else { "" }) +
+    (if tiled && !shape_aware {
+      "matrix_evaluation=bf16-matrix-f32-grouped\n"
+    } else {
+      ""
+    }) +
     "expert_tensor_parallel=\{expert_tp}\n" +
     (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" }) +
     (if warmup { "warmup_requests=1\n" } else { "" }) +
