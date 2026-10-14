@@ -13,6 +13,7 @@ fn grouped_fp4_source(
   let grouping = @matrix.ExpertGroupingPlan::new(
     maximum_rows=rows,
     selected_experts=selected,
+    shared_input_staging=true,
   )
   let jobs = grouping.maximum_groups()
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
@@ -47,6 +48,44 @@ fn grouped_fp4_source(
         $|for(int i=0;i<4;++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
       ),
     )
+  }
+  // Reuse the logical input owner across two independent ordered reductions.
+  // This changes physical staging only, not either projection's arithmetic.
+  let gate_up = if grouping.shared_input_staging() {
+    let x = operands[0]
+    let declarations = [0, 1]
+      .map(stage => {
+        (
+          $|float d\{stage}[4]={0,0,0,0};
+          $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
+        )
+      })
+      .join("\n")
+    let publication = [0, 1]
+      .map(stage => {
+        (
+          $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{layouts[stage].global_scale_offset().unwrap()}ULL));
+          $|for(int i=0;i<4;++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
+        )
+      })
+      .join("\n")
+    declarations +
+    "\n" +
+    fp4_fragment_pipeline(
+      0,
+      hidden,
+      intermediate,
+      selected,
+      x.scales_offset().unwrap(),
+      layouts[0].scales_offset().unwrap(),
+      symbol,
+      work_tile="work_tile",
+      paired_weight_scales=layouts[1].scales_offset().unwrap(),
+    ) +
+    "\n" +
+    publication
+  } else {
+    bodies[0] + "\n" + bodies[1]
   }
   fn expr(
     op : @precision_ir.ExpertExpression,
@@ -107,8 +146,7 @@ fn grouped_fp4_source(
       $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{ng})*32+(threadIdx.x/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
-      $|  \{bodies[0]}
-      $|  \{bodies[1]}
+      $|  \{gate_up}
       $|  for(int i=0;i<4;++i) {int job=job_ids[g+(i/2)*8],out=column+t*2+i%2;if(job<0||out>=\{intermediate}) continue;
       $|    __nv_bfloat16 gate=__float2bfloat16_rn(d0[i]),up=__float2bfloat16_rn(d1[i]);\{clamp}
       $|    float g=__bfloat162float(gate),product=\{expr(Product,["g","up"])};\{route}

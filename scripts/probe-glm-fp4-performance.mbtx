@@ -17,7 +17,7 @@ async fn main {
   let mode = args[2]
   guard root.has_prefix("/tmp/lunaflux-glm-fp4-performance-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    mode is ("prepare" | "run" | "collect-counters" | "sanitize") else {
+    mode is ("freeze" | "prepare" | "run" | "run-diverse" | "collect-counters" | "sanitize" | "sanitize-diverse") else {
     fail("NEW_ROOT prepare|run|collect-counters|sanitize")
   }
   if baseline is Some(path) {
@@ -27,7 +27,9 @@ async fn main {
     }
   }
   let host = "wlc004s@192.168.2.179"
-  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-checkpoint-live179-20261010.sock")
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+  )
   async fn remote(command : String) -> @shell.Output {
     @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
       max_output_bytes=16777216,
@@ -46,7 +48,7 @@ async fn main {
     )
     out.check()
   }
-  if mode == "prepare" {
+  if mode is ("freeze" | "prepare") {
     @fs.mkdir(root)
     let variant = if baseline is Some(_) { "next" } else { "1" }
     let exported = @shell.Cmd("env", [
@@ -76,6 +78,7 @@ async fn main {
       parts[1].split("LUNA_SOURCE_END").to_array()[0].to_owned(),
       create_mode=CreateNew,
     )
+    if mode == "freeze" { return }
     record("mkdir", remote("mkdir " + root))
     for
       (source, name) in [
@@ -120,8 +123,14 @@ async fn main {
         "/probe",
       ),
     )
-  } else if mode == "run" {
-    record("reserve", remote("awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo"))
+  } else if mode is ("run" | "run-diverse") {
+    let suffix = if mode == "run-diverse" { "-diverse" } else { "" }
+    record(
+      "reserve" + suffix,
+      remote(
+        "awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo",
+      ),
+    )
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -130,22 +139,28 @@ async fn main {
     for rows in [1, 3, 22, 64] {
       for variant in ["capacity", "trimmed"] {
         record(
-          "r\{rows}-" + variant,
+          "r\{rows}-" + variant + suffix,
           remote(
             "systemd-run --user --wait --pipe --unit=" +
             root[5:].to_owned() +
             "-r\{rows}-" +
-            variant +
+            variant + suffix +
             " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=120 " +
             root +
             "/probe \{rows} " +
-            variant,
+            variant + (if mode == "run-diverse" { " diverse" } else { "" }),
           ),
         )
       }
     }
-  } else if mode == "sanitize" {
-    record("sanitize-reserve", remote("awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo"))
+  } else if mode is ("sanitize" | "sanitize-diverse") {
+    let suffix = if mode == "sanitize-diverse" { "-diverse" } else { "" }
+    record(
+      "sanitize-reserve" + suffix,
+      remote(
+        "awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo",
+      ),
+    )
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -153,22 +168,27 @@ async fn main {
     guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
     for sanitizer in ["memcheck", "racecheck", "synccheck"] {
       let leak = if sanitizer == "memcheck" { " --leak-check full" } else { "" }
-      let grid = if sanitizer == "memcheck" { "capacity" } else { "trimmed" }
+      let grid = if sanitizer == "memcheck" || mode == "sanitize-diverse" {
+        "capacity"
+      } else {
+        "trimmed"
+      }
+      let rows = if mode == "sanitize-diverse" { 3 } else { 1 }
       record(
-        sanitizer,
+        sanitizer + suffix,
         remote(
           "systemd-run --user --wait --pipe --unit=" +
           root[5:].to_owned() +
           "-" +
-          sanitizer +
+          sanitizer + suffix +
           " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
           sanitizer +
           leak +
           " " +
           root +
-          "/probe 1 " +
+          "/probe \{rows} " +
           grid +
-          " once",
+          " once" + (if mode == "sanitize-diverse" { " diverse" } else { "" }),
         ),
       )
     }

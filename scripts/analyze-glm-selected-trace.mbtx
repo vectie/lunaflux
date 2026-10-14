@@ -31,6 +31,11 @@ fn queries() -> Array[(String, String)] {
       "SELECT step,name,(end-start)/1e6 AS gpu_ms,gridX,gridY,gridZ,blockX,blockY,blockZ,registersPerThread,staticSharedMemory,dynamicSharedMemory,graphNodeId FROM selected ORDER BY step,start;",
     ),
     (
+      "expert-role",
+      prefix() +
+      ", roles AS (SELECT *,substr(name,instr(substr(name,12),'_')+12) AS role FROM selected WHERE name GLOB 'glm_routed_*') SELECT step,role,count(*) AS calls,sum(end-start)/1e6 AS gpu_ms,min(gridX) AS min_grid,max(gridX) AS max_grid FROM roles GROUP BY step,role ORDER BY step,gpu_ms DESC;",
+    ),
+    (
       "step-time",
       prefix() +
       ", ordered AS (SELECT *,max(end) OVER (PARTITION BY step ORDER BY start ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS previous_end FROM selected) SELECT step,(max(end)-min(start))/1e6 AS span_ms,sum(end-start)/1e6 AS kernel_sum_ms,sum(max(0,start-previous_end))/1e6 AS kernel_free_ms,sum(CASE WHEN name LIKE '%nccl%' THEN end-start ELSE 0 END)/1e6 AS collective_ms FROM ordered GROUP BY step;",

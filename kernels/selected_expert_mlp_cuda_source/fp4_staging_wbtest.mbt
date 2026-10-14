@@ -43,3 +43,33 @@ test "FP4 staging tails keep unaligned scale rows out of async copies" {
     assert_true(source.contains("__syncthreads();\n}\n}"))
   }
 }
+
+///|
+test "paired FP4 owners stage left once without joining reduction chains" {
+  for inner in [64, 128, 192, 256, 320, 384, 1024, 4096] {
+    let source = fp4_fragment_pipeline(
+      0,
+      inner,
+      1024,
+      8,
+      65536L,
+      131072L,
+      "paired",
+      work_tile="work_tile",
+      paired_weight_scales=262144L,
+    )
+    assert_true(source.contains("unsigned char tile[11520]"))
+    assert_eq(source.split("for(int base_k=").count(), 2)
+    assert_eq(source.split("cp.async.wait_group 0").count(), 2)
+    assert_eq(source.split("paired_mma(d0").count(), 2)
+    assert_eq(source.split("paired_mma(d1").count(), 2)
+    assert_true(
+      source.contains("w0+131072ULL") || source.contains("w0[131072ULL"),
+    )
+    assert_true(
+      source.contains("w1+262144ULL") || source.contains("w1[262144ULL"),
+    )
+    assert_true(source.contains("tile+11008+wr*16+kk/16"))
+    assert_true(source.contains("__syncthreads();\n}\n}"))
+  }
+}

@@ -17,7 +17,8 @@ template<class T> static T *gpu(const std::vector<T>& v) {T *p;ck(cudaMalloc(&p,
 int main(int argc,char **argv) {
   int rows=argc>1?atoi(argv[1]):1;
   bool trimmed=argc>2&&strcmp(argv[2],"trimmed")==0;
-  bool once=argc>3&&strcmp(argv[3],"once")==0;
+  bool once=false,diverse=false;
+  for(int arg=3;arg<argc;arg++){once|=strcmp(argv[arg],"once")==0;diverse|=strcmp(argv[arg],"diverse")==0;}
   if(rows<1||rows>R) return 3;
   std::vector<unsigned char> bank(stride*S);
   const int widths[3]={H,H,I},outs[3]={I,I,H};
@@ -32,14 +33,21 @@ int main(int argc,char **argv) {
   }
   std::vector<__nv_bfloat16> x(R*H);for(int i=0;i<R*H;i++) x[i]=__float2bfloat16_rn(((i*7)%29-14)/32.f);
   std::vector<int> counts{0,0,0,rows,0},indices(R*S),map(288,-1);
-  for(int j=0;j<R*S;j++) indices[j]=j%S;for(int e=0;e<S;e++) map[e]=e;
+  // A separate route-diversity control changes group occupancy, not weights:
+  // 64 logical experts share eight synthetic banks. This does not reproduce
+  // the real checkpoint's weight-cache footprint.
+  for(int j=0;j<R*S;j++) indices[j]=diverse?((j/S)*7+j%S)%64:j%S;
+  for(int e=0;e<(diverse?64:S);e++) map[e]=e%S;
   auto *db=gpu(bank),*qx=gpu(std::vector<unsigned char>(qb0)),*qa=gpu(std::vector<unsigned char>(qb1));
   auto *dx=gpu(x),*a=gpu(std::vector<__nv_bfloat16>(activation_bytes/2));
   auto *c=gpu(counts),*idx=gpu(indices),*em=gpu(map),*err=gpu(std::vector<int>(1));
   auto *routes=gpu(std::vector<float>(R*S,.125f)),*w=gpu(std::vector<float>(R*S*H)),*out=gpu(std::vector<float>(R*H));
   // Host-trimmed grid is a diagnostic intervention with known synthetic routes,
   // not a proposed production CPU readback or dynamic launch mechanism.
-  int groups=S*((rows+15)/16),gg=trimmed?groups*((I+31)/32):grid3,gd=trimmed?groups*((H+31)/32):grid6;
+  int group_counts[288]={};for(int j=0;j<rows*S;j++)group_counts[indices[j]]++;
+  int groups=0;for(int e=0;e<288;e++)groups+=(group_counts[e]+15)/16;
+  int gg=trimmed?groups*((I+31)/32):grid3,gd=trimmed?groups*((H+31)/32):grid6;
+  printf("logical_experts=%d unique_weight_banks=%d live_groups=%d\n",diverse?64:S,S,groups);
   auto run=[&](bool fresh=false){
 #ifdef LUNA_PAIRED
     if(fresh) {

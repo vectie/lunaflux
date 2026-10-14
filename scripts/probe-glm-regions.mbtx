@@ -8,49 +8,129 @@ import {
 
 ///|
 async fn main {
-  guard @env.args() is [_,root,mode] &&
+  guard @env.args() is [_, root, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-regions-") &&
-    root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) &&
-    mode is ("prepare"|"run"|"sanitize") else { fail("NEW_ROOT prepare|run|sanitize") }
-  let socket=@env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-checkpoint-live179-20261010.sock")
-  let host="wlc004s@192.168.2.179"
-  async fn remote(command:String)->@shell.Output {
-    @shell.Cmd("ssh",["-o","BatchMode=yes","-S",socket,host,command]).output(max_output_bytes=16777216)
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode is ("prepare" | "run" | "sanitize") else {
+    fail("NEW_ROOT prepare|run|sanitize")
   }
-  async fn record(name:String,out:@shell.Output)->Unit {
-    @fs.write_file(root+"/"+name+".stdout",out.stdout(),create_mode=CreateNew)
-    @fs.write_file(root+"/"+name+".stderr",out.stderr(),create_mode=CreateNew)
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+  )
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-o", "BatchMode=yes", "-S", socket, host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(name : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
     out.check()
   }
-  let bounded="systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --unit="+root[5:].to_owned()
-  if mode=="prepare" {
+  let bounded = "systemd-run --user --wait --pipe --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 --unit=" +
+    root[5:].to_owned()
+  if mode == "prepare" {
     @fs.mkdir(root)
-    let source=StringBuilder()
-    for pkg in ["tiled_matrix_cuda_source","coalesced_sum_cuda_source"] {
-      let out=@shell.Cmd("env",["LUNA_EXPORT_REGIONS=1","moon","test","kernels/"+pkg,"--target","native","--deny-warn","--warn-list","-20-25-29-35-79-92"]).output(max_output_bytes=16777216)
-      record(pkg,out)
-      let mut capture=false
+    let source = StringBuilder()
+    for pkg in ["tiled_matrix_cuda_source", "coalesced_sum_cuda_source"] {
+      let out = @shell.Cmd("env", [
+        "LUNA_EXPORT_REGIONS=1",
+        "moon",
+        "test",
+        "kernels/" + pkg,
+        "--target",
+        "native",
+        "--deny-warn",
+        "--warn-list",
+        "-20-25-29-35-79-92",
+      ]).output(max_output_bytes=16777216)
+      record(pkg, out)
+      let mut capture = false
       for line in out.stdout().split("\n") {
-        if line.has_prefix("LUNA_SOURCE_BEGIN") {capture=true;continue}
-        if line.has_prefix("LUNA_SOURCE_END") {capture=false;continue}
-        if capture {source.write_string(line.to_owned());source.write_string("\n")}
+        if line.has_prefix("LUNA_SOURCE_BEGIN") {
+          capture = true
+          continue
+        }
+        if line.has_prefix("LUNA_SOURCE_END") {
+          capture = false
+          continue
+        }
+        if capture {
+          source.write_string(line.to_owned())
+          source.write_string("\n")
+        }
       }
     }
-    @fs.write_file(root+"/regions.cuh",source.to_string(),create_mode=CreateNew)
-    record("mkdir",remote("mkdir "+root))
-    for (path,name) in [(root+"/regions.cuh","regions.cuh"),("tests/packed_moe_execution/region_fusion_probe.cu","probe.cu")] {
-      @shell.Cmd("scp",["-o","ControlPath="+socket,path,host+":"+root+"/"+name]).output().check()
+    @fs.write_file(
+      root + "/regions.cuh",
+      source.to_string(),
+      create_mode=CreateNew,
+    )
+    record("mkdir", remote("mkdir " + root))
+    for
+      (path, name) in [
+        (root + "/regions.cuh", "regions.cuh"),
+        ("tests/packed_moe_execution/region_fusion_probe.cu", "probe.cu"),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        path,
+        host + ":" + root + "/" + name,
+      ])
+      .output()
+      .check()
     }
-    record("compile",remote(bounded+"-compile /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 "+root+"/probe.cu -o "+root+"/probe"))
+    record(
+      "compile",
+      remote(
+        bounded +
+        "-compile /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
   } else {
-    let owners=remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
     owners.check()
-    guard owners.stdout().trim().is_empty() else {fail("GPU reserved")}
-    record(mode+"-reserve",remote("awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo"))
-    if mode=="run" {record("run",remote(bounded+"-run "+root+"/probe"))}
-    else {
-      for sanitizer in ["memcheck","racecheck","synccheck"] {
-        record(sanitizer,remote(bounded+"-"+sanitizer+" /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool "+sanitizer+(if sanitizer=="memcheck" {" --leak-check full"}else{""})+" "+root+"/probe once"))
+    guard owners.stdout().trim().is_empty() else { fail("GPU reserved") }
+    record(
+      mode + "-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo",
+      ),
+    )
+    if mode == "run" {
+      record("run", remote(bounded + "-run " + root + "/probe"))
+    } else {
+      for sanitizer in ["memcheck", "racecheck", "synccheck"] {
+        record(
+          sanitizer,
+          remote(
+            bounded +
+            "-" +
+            sanitizer +
+            " /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+            sanitizer +
+            (if sanitizer == "memcheck" { " --leak-check full" } else { "" }) +
+            " " +
+            root +
+            "/probe once",
+          ),
+        )
       }
     }
   }
