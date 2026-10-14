@@ -21,6 +21,8 @@ pub struct TextIoCudaSource {
   // private fields
 }
 pub fn TextIoCudaSource::egress_order(Self) -> ReadOnlyArray[Int]
+pub fn TextIoCudaSource::greedy_threads(Self) -> Int
+pub fn TextIoCudaSource::head_launch(Self) -> (Int, Int)
 pub fn TextIoCudaSource::plan(Self) -> @precision_ir.TextIoPrecision
 pub fn TextIoCudaSource::source_bytes(Self) -> Bytes
 pub fn TextIoCudaSource::symbol(Self, Int) -> String raise @precision_ir.PrecisionPlanError

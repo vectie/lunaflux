@@ -5,6 +5,8 @@ import {
   "vectie/lunaflux/kernels/luna_cuda_pointwise_aot" @literal,
   "vectie/lunaflux/kernels/decoder_hyper_connection_cuda_source" @head,
   "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/kernels/tiled_matrix_cuda_source" @tiled,
+  "vectie/lunaflux/kernels/luna_sampling_strategy" @sampling,
 }
 
 import {

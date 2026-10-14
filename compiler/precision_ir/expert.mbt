@@ -126,7 +126,7 @@ pub fn ExpertMlpPrecision::new(
     ) {
     raise NoImplementation
   }
-  if dot_law == MatrixFloat32 &&
+  if dot_law != ScalarFloat32 &&
     !packed_matrix &&
     (
       activation_quantization is Some(_) ||

@@ -6,6 +6,34 @@
 #include <cmath>
 #include <cstring>
 #include "grouped.cuh"
+static constexpr int scalar_grid0=bf_scalar_grid0,scalar_grid1=bf_scalar_grid1,scalar_grid2=bf_scalar_grid2;
+static constexpr int scalar_block0=bf_scalar_block0,scalar_block1=bf_scalar_block1,scalar_block2=bf_scalar_block2;
+#ifdef SHAPE_AWARE
+#define nv_matrix_group nv_shape_group
+#define nv_matrix_gate_up nv_shape_gate_up
+#define nv_matrix_down nv_shape_down
+#define nv_matrix_combine nv_shape_combine
+#define nv_matrix_grid0 nv_shape_grid0
+#define nv_matrix_grid1 nv_shape_grid1
+#define nv_matrix_grid2 nv_shape_grid2
+#define nv_matrix_grid3 nv_shape_grid3
+#define nv_matrix_block0 nv_shape_block0
+#define nv_matrix_block1 nv_shape_block1
+#define nv_matrix_block2 nv_shape_block2
+#define nv_matrix_block3 nv_shape_block3
+#define bf_matrix_group bf_shape_group
+#define bf_matrix_gate_up bf_shape_gate_up
+#define bf_matrix_down bf_shape_down
+#define bf_matrix_combine bf_shape_combine
+#define bf_matrix_grid0 bf_shape_grid0
+#define bf_matrix_grid1 bf_shape_grid1
+#define bf_matrix_grid2 bf_shape_grid2
+#define bf_matrix_grid3 bf_shape_grid3
+#define bf_matrix_block0 bf_shape_block0
+#define bf_matrix_block1 bf_shape_block1
+#define bf_matrix_block2 bf_shape_block2
+#define bf_matrix_block3 bf_shape_block3
+#endif
 static void ck(cudaError_t e){if(e!=cudaSuccess){fprintf(stderr,"%s\n",cudaGetErrorString(e));exit(1);}}
 template<class T>static T* alloc(size_t n){T*p;ck(cudaMalloc(&p,n*sizeof(T)));return p;}
 static float bf(float v){return __bfloat162float(__float2bfloat16_rn(v));}

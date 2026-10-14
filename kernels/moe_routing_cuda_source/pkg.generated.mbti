@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn routing_source(@precision_ir.MoeRoutingPrecision, symbol~ : String) -> MoeRoutingCudaSource raise
+pub fn routing_source(@precision_ir.MoeRoutingPrecision, symbol~ : String, parallel_selection? : Bool) -> MoeRoutingCudaSource raise
 
 // Errors
 

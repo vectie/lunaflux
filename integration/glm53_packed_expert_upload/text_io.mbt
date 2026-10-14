@@ -7,6 +7,7 @@ pub fn flash_text_io_plan(
   maximum_output_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
   boundary? : @precision_ir.TextBoundary = Complete,
+  head_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.TextIoPrecision raise {
   @precision_ir.TextIoPrecision::new(
     vocabulary_size=spec.vocabulary_size(),
@@ -17,6 +18,7 @@ pub fn flash_text_io_plan(
     normalization_epsilon=spec.rms_norm_epsilon(),
     maximum_workspace_bytes~,
     boundary~,
+    head_law~,
   )
 }
 
@@ -79,6 +81,7 @@ pub fn GlmTextIo::new(
   maximum_output_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
   boundary? : @precision_ir.TextBoundary = Complete,
+  head_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> Self raise {
   let plan = flash_text_io_plan(
     spec,
@@ -86,6 +89,7 @@ pub fn GlmTextIo::new(
     maximum_output_rows~,
     maximum_workspace_bytes~,
     boundary~,
+    head_law~,
   )
   {
     spec,

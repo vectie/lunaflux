@@ -160,6 +160,7 @@ pub fn Conversion::to_repr(Self) -> @debug.Repr
 pub(all) enum DenseDotLaw {
   ScalarFloat32
   MatrixFloat32
+  ShapeAwareFloat32
 } derive(Eq, @debug.Debug)
 pub fn DenseDotLaw::equal(Self, Self) -> Bool
 pub fn DenseDotLaw::not_equal(Self, Self) -> Bool
@@ -175,9 +176,10 @@ pub(all) enum DenseSwiGluExpression {
 pub struct DenseSwiGluPrecision {
   // private fields
 }
+pub fn DenseSwiGluPrecision::dot_law(Self) -> DenseDotLaw
 pub fn DenseSwiGluPrecision::expression(Self, DenseSwiGluExpression) -> NumericExpression raise PrecisionPlanError
 pub fn DenseSwiGluPrecision::geometry(Self) -> (Int, Int, Int)
-pub fn DenseSwiGluPrecision::new(hidden_width~ : Int, intermediate_width~ : Int, maximum_rows~ : Int, publication? : ProjectionPublication) -> Self raise PrecisionPlanError
+pub fn DenseSwiGluPrecision::new(hidden_width~ : Int, intermediate_width~ : Int, maximum_rows~ : Int, publication? : ProjectionPublication, dot_law? : DenseDotLaw) -> Self raise PrecisionPlanError
 pub fn DenseSwiGluPrecision::product_bytes(Self) -> Int64
 pub fn DenseSwiGluPrecision::program(Self) -> @parallel_ir.Program raise PrecisionPlanError
 pub fn DenseSwiGluPrecision::projection_fold(Self, down~ : Bool) -> OrderedNumericFold raise PrecisionPlanError
@@ -1084,9 +1086,10 @@ pub fn TextIoPrecision::egress_program(Self) -> @parallel_ir.Program raise Preci
 pub fn TextIoPrecision::expression(Self, TextExpression) -> NumericExpression raise PrecisionPlanError
 pub fn TextIoPrecision::fold(Self, TextExpression) -> OrderedNumericFold raise PrecisionPlanError
 pub fn TextIoPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn TextIoPrecision::head_law(Self) -> DenseDotLaw
 pub fn TextIoPrecision::logits_bytes(Self) -> Int64
 pub fn TextIoPrecision::logits_law(Self) -> TextLogitsLaw
-pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64, boundary? : TextBoundary, normalization_law? : TextNormalizationLaw, logits_law? : TextLogitsLaw) -> Self raise PrecisionPlanError
+pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64, boundary? : TextBoundary, normalization_law? : TextNormalizationLaw, logits_law? : TextLogitsLaw, head_law? : DenseDotLaw) -> Self raise PrecisionPlanError
 pub fn TextIoPrecision::normalization_epsilon(Self) -> Double
 pub fn TextIoPrecision::normalization_law(Self) -> TextNormalizationLaw
 pub fn TextIoPrecision::normalized_bytes(Self) -> Int64

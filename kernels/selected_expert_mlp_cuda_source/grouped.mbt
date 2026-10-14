@@ -26,6 +26,7 @@ fn grouped_expert_source(
     @matrix.ExpertGroupingPlan::new(
       maximum_rows=rows,
       selected_experts=selected,
+      shared_input_staging=plan.dot_law() == ShapeAwareFloat32,
     ),
   )
   guard grouping.maximum_groups().to_int64() ==
@@ -207,6 +208,24 @@ fn grouped_expert_source(
   let combine_symbol = symbol + "_combine"
   let n_gate = (intermediate + 63) / 64
   let n_down = (hidden + 63) / 64
+  guard plan.dot_law()!=ShapeAwareFloat32 ||
+    (selected.to_int64()*intermediate.to_int64()<=2147483644L &&
+     selected.to_int64()*hidden.to_int64()<=2147483644L) else {
+    raise @precision_ir.PrecisionPlanError::ArithmeticOverflow
+  }
+  let (decode_gate, decode_down) = if plan.dot_law() == ShapeAwareFloat32 {
+    shape_expert_decode(
+      plan,
+      symbol~,
+      addresses~,
+      product~,
+      clamp~,
+      route~,
+      zero~,
+    )
+  } else {
+    ("", "")
+  }
   guard jobs.to_int64() * n_gate.to_int64() <= 2147483647L &&
     jobs.to_int64() * n_down.to_int64() <= 2147483647L else {
     raise @precision_ir.PrecisionPlanError::ArithmeticOverflow
@@ -236,6 +255,7 @@ fn grouped_expert_source(
       $|  meta[0]=groups;
       $|}
       $|extern "C" __global__ void \{gate_symbol}(const int *counts,const __nv_bfloat16 *input,const int *selected_indices,const int *expert_map,const unsigned char *bank,__nv_bfloat16 *activation\{routing_arg}) {
+      $|  \{decode_gate}
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
       $|  const int group=blockIdx.x/\{n_gate},column_base=(blockIdx.x%\{n_gate})*64;
       $|  if(group>=meta[0]) return;
@@ -255,6 +275,7 @@ fn grouped_expert_source(
       $|  }
       $|}
       $|extern "C" __global__ void \{down_symbol}(const int *counts,const __nv_bfloat16 *activation,const int *selected_indices,const float *selected_weights,const int *expert_map,const unsigned char *bank,\{weighted_type} *weighted) {
+      $|  \{decode_down}
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
       $|  const int group=blockIdx.x/\{n_down},column_base=(blockIdx.x%\{n_down})*64;
       $|  if(group>=meta[0]) return;
@@ -291,8 +312,22 @@ fn grouped_expert_source(
     ]),
     launches: ReadOnlyArray::from_array([
       (1, 128),
-      (jobs * n_gate, 128),
-      (jobs * n_down, 128),
+      (
+        if plan.dot_law() == ShapeAwareFloat32 {
+          (jobs * n_gate).max((selected * intermediate + 3) / 4)
+        } else {
+          jobs * n_gate
+        },
+        128,
+      ),
+      (
+        if plan.dot_law() == ShapeAwareFloat32 {
+          (jobs * n_down).max((selected * hidden + 3) / 4)
+        } else {
+          jobs * n_down
+        },
+        128,
+      ),
       (((rows.to_int64() * hidden.to_int64() + 255L) / 256L).to_int(), 256),
     ]),
   }

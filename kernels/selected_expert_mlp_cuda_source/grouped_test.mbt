@@ -111,6 +111,7 @@ test "grouped expert actual source and bounded startup scratch" {
       (law, suffix) in [
         (@precision_ir.DenseDotLaw::ScalarFloat32, "scalar"),
         (MatrixFloat32, "matrix"),
+        (ShapeAwareFloat32, "shape"),
       ] {
       let plan = grouped_fixture(format, law)
       let name = name + "_" + suffix
@@ -119,7 +120,7 @@ test "grouped expert actual source and bounded startup scratch" {
         symbol=name,
       )
       let text = @utf8.decode(source.source_bytes())
-      if law == MatrixFloat32 {
+      if law != ScalarFloat32 {
         assert_eq(source.symbols().length(), 4)
         assert_eq(source.activation_bytes(), 4492L)
         assert_true(text.contains("mma_sync"))
@@ -128,7 +129,8 @@ test "grouped expert actual source and bounded startup scratch" {
       } else {
         assert_eq(source.activation_bytes(), 2176L)
       }
-      if @env.get_env_var("LUNA_EXPORT_GROUPED_MATRIX") == Some("1") {
+      if @env.get_env_var("LUNA_EXPORT_GROUPED_MATRIX") == Some("1") ||
+        @env.get_env_var("LUNA_EXPORT_SHAPE_AWARE") == Some("1") {
         println("LUNA_SOURCE_BEGIN \{name}")
         println(text)
         for i in 0..<source.symbols().length() {

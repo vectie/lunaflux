@@ -9,8 +9,16 @@ import {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, build, .. args] &&
-    (
+  guard @env.args() is [_, root, build, .. supplied] else {
+    fail("NEW_RUNTIME_ROOT COMMITTED_BUILD_ROOT")
+  }
+  let shape_aware = supplied.last() == Some("--shape-aware")
+  let args = if shape_aware {
+    supplied[:supplied.length() - 1]
+  } else {
+    supplied
+  }
+  guard (
       args is [] ||
       args is ["--low-bit"] ||
       args is ["--rows", _] ||
@@ -30,7 +38,12 @@ async fn main {
   }
   guard rows is (16 | 32 | 64) else { fail("supported capacities: 16, 32, 64") }
   let sockets = [
-    "/tmp/lunaflux-checkpoint-live-20261010.sock", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+      "/tmp/lunaflux-checkpoint-live-20261010.sock",
+    ),
+    @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    ),
   ]
   async fn remote(rank : Int, cmd : String) -> @shell.Output {
     @shell.Cmd("ssh", [
@@ -164,6 +177,7 @@ async fn main {
       binary +
       " export-tiled-grouped-expert-tp" +
       (if low_bit { "-low-bit" } else { "" }) +
+      (if shape_aware { "-shape-aware" } else { "" }) +
       " /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 \{rows} 64 107374182400 107374182400 2147483648 " +
       aot,
     ),
@@ -227,7 +241,7 @@ async fn main {
   }
   @fs.write_file(
     root + "/PREPARED.txt",
-    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nno_hashing=true\n",
+    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nshape_aware=\{shape_aware}\nno_hashing=true\n",
     create_mode=CreateNew,
   )
   println("CPU-only expert TP preparation complete; full model has not run")

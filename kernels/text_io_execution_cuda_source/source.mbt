@@ -51,9 +51,13 @@ pub fn text_io_source(
   }
   let stream_seed = seed(StreamUpdate)
   let square_seed = seed(SquareUpdate)
-  let head_seed = seed(HeadUpdate)
+  let head_seed = if plan.head_law() == ScalarFloat32 {
+    seed(HeadUpdate)
+  } else {
+    "0.0f"
+  }
   let square_extent = plan.fold(SquareUpdate).extent.to_string()
-  let head_extent = plan.fold(HeadUpdate).extent.to_string()
+  let head_extent = hidden.to_string()
   let stream_update = expression(StreamUpdate, [
     "sum",
     "residual[((unsigned long long)input_row*\{s}ULL+stream)*\{h}ULL+c]",
@@ -70,7 +74,7 @@ pub fn text_io_source(
   ])
   let logits = expression(Logits, ["sum"])
   let order = ordered_text_stages(plan.egress_program())
-  let source = "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
+  let prefix_source = "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
     symbol_prefix +
     "_embed(" +
@@ -153,8 +157,8 @@ pub fn text_io_source(
     h +
     "ULL+c]=" +
     weight +
-    ";\n  }\n}\n" +
-    "extern \"C\" __global__ void " +
+    ";\n  }\n}\n"
+  let ordered_head = "extern \"C\" __global__ void " +
     symbol_prefix +
     "_head(" +
     "const int32_t* output_count, const __nv_bfloat16* hidden, const __nv_bfloat16* weight, float* logits) {\n" +
@@ -194,7 +198,33 @@ pub fn text_io_source(
     ";++word) { const float value=logits[(unsigned long long)row*" +
     v +
     "ULL+word]; if(!isfinite(value)) { tokens[row]=-1; return; } if(token<0 || value>best) {best=value;token=word;} } tokens[row]=token;\n}\n"
+  let source = if plan.head_law() == ShapeAwareFloat32 {
+    prefix_source +
+    parallel_head_source(plan, symbol_prefix) +
+    parallel_greedy_source(plan, symbol_prefix)
+  } else {
+    prefix_source + ordered_head
+  }
   { plan, prefix: symbol_prefix, bytes: @utf8.encode(source), order, }
+}
+
+///|
+pub fn TextIoCudaSource::head_launch(self : Self) -> (Int, Int) {
+  let (vocabulary, _, _, _, outputs) = self.plan.geometry()
+  if self.plan.head_law() == ShapeAwareFloat32 {
+    ((vocabulary + 3) / 4, 128)
+  } else {
+    (((outputs.to_int64() * vocabulary.to_int64() + 255L) / 256L).to_int(), 256)
+  }
+}
+
+///|
+pub fn TextIoCudaSource::greedy_threads(self : Self) -> Int {
+  if self.plan.head_law() == ShapeAwareFloat32 {
+    256
+  } else {
+    1
+  }
 }
 
 ///|

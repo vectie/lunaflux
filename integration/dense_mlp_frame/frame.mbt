@@ -73,7 +73,7 @@ pub fn DenseMlpFrame::prepare(
   }
   self.status = Failed
   let plan = self.source.plan()
-  let (hidden, intermediate, rows) = plan.geometry()
+  let (hidden, _, rows) = plan.geometry()
   let product = context.allocate(plan.product_bytes())
   self.product = Some(product)
   let input_bytes = rows.to_int64() * hidden.to_int64() * 2L
@@ -115,15 +115,15 @@ pub fn DenseMlpFrame::prepare(
   for stage in self.source.execution_order() {
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
     self.functions.push(function)
-    let width = if stage == 0 { intermediate } else { hidden }
+    let (grid, threads) = self.source.launch(stage)
     self.launches.push(
       @device.OrderedKernelLaunch::new(
         function,
         @device.KernelLaunchDimensions::new(
-          grid_x=((rows.to_int64() * width.to_int64() + 255L) / 256L).to_int(),
+          grid_x=grid,
           grid_y=1,
           grid_z=1,
-          block_x=256,
+          block_x=threads,
           block_y=1,
           block_z=1,
           shared_memory_bytes=0,

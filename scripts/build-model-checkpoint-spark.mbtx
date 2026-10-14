@@ -34,7 +34,9 @@ async fn main {
     fail("invalid isolated build arguments")
   }
   let node = "wlc003s@192.168.2.178"
-  let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+    "/tmp/lunaflux-checkpoint-live-20261010.sock",
+  )
   @fs.mkdir(local_directory)
   let archive = local_directory + "/source-" + commit + ".tar.gz"
   @fs.write_file(archive, b"", create_mode=CreateNew)

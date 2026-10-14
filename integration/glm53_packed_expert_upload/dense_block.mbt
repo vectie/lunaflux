@@ -37,6 +37,11 @@ pub fn GlmRecurrentLayer::with_dense_block(
     mix_law=RoundedBf16ControlsAndProducts,
   )
   let mlp = @precision_ir.DenseSwiGluPrecision::new(
+    dot_law=if matrix_law == ShapeAwareFloat32 {
+      ShapeAwareFloat32
+    } else {
+      ScalarFloat32
+    },
     hidden_width=spec.hidden_size(),
     intermediate_width=partition_width(
       spec.dense_intermediate_size(),

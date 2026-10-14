@@ -1,12 +1,15 @@
 import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/kernels/gated_mlp_cuda_source" @lowering,
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
+  "vectie/lunaflux/kernels/tiled_matrix_cuda_source" @tiled,
+  "vectie/lunaflux/kernels/luna_cuda_precision" @arithmetic,
+  "moonbitlang/core/encoding/utf8",
 }
 
 supported_targets = "native"
 
 import {
-  "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/env",
   "moonbitlang/async",
   "moonbitlang/async/fs",

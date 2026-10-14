@@ -34,7 +34,12 @@ pub fn expert_compute_plan(
     selected_experts=8,
     maximum_rows~,
     clamp=10.0,
-    dot_law=matrix_law,
+    // Packed low-bit experts retain their explicitly scaled matrix law.
+    dot_law=if matrix_law == ShapeAwareFloat32 {
+      MatrixFloat32
+    } else {
+      matrix_law
+    },
     scaled_dot_law=expert_scaled_dot_law,
     activation_quantization?=if expert_scaled_dot_law
       is BlockScaledMatrixFloat32(..) {

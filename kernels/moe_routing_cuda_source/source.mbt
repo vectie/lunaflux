@@ -11,6 +11,7 @@ pub struct MoeRoutingCudaSource {
 pub fn routing_source(
   plan : @precision.MoeRoutingPrecision,
   symbol~ : String,
+  parallel_selection? : Bool = false,
 ) -> MoeRoutingCudaSource raise {
   let (rows, _, experts, selected) = plan.geometry()
   let (groups, group_topk, selected_groups) = plan.grouping()
@@ -29,7 +30,17 @@ pub fn routing_source(
         function_symbol=symbol + "_choose",
         selected_sum_law=plan.selected_sum_law(),
       )
-      (@utf8.decode(choose.source_bytes()), [symbol + "_choose"], [(rows, 1)])
+      (
+        @utf8.decode(
+          if parallel_selection {
+            choose.parallel_source_bytes()
+          } else {
+            choose.source_bytes()
+          },
+        ),
+        [symbol + "_choose"],
+        [(rows, if parallel_selection { 128 } else { 1 })],
+      )
     }
     TokenHash(vocabulary_size~) => {
       let lookup = @hash.token_hash_lookup_i32_source(

@@ -37,6 +37,7 @@ pub fn GroupedRoutingCudaSource::maximum_rows(Self) -> Int
 pub fn GroupedRoutingCudaSource::normalize(Self) -> Bool
 pub fn GroupedRoutingCudaSource::numerical_contract(Self) -> GroupedRoutingNumericalContract
 pub fn GroupedRoutingCudaSource::operation(Self) -> GroupedRoutingCudaOperation
+pub fn GroupedRoutingCudaSource::parallel_source_bytes(Self) -> Bytes
 pub fn GroupedRoutingCudaSource::routed_expert_count(Self) -> Int
 pub fn GroupedRoutingCudaSource::scaling(Self) -> Double
 pub fn GroupedRoutingCudaSource::selected_group_count(Self) -> Int

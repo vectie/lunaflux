@@ -23,6 +23,7 @@ pub struct MatrixTilePlan {
   // private fields
 }
 pub fn MatrixTilePlan::geometry(Self) -> (Int, Int, Int)
+pub fn MatrixTilePlan::law(Self) -> @precision_ir.DenseDotLaw
 pub fn MatrixTilePlan::new(rows~ : Int, columns~ : Int, inner~ : Int, law~ : @precision_ir.DenseDotLaw) -> Self raise @precision_ir.PrecisionPlanError
 pub fn MatrixTilePlan::tile(Self) -> (Int, Int, Int)
 pub fn MatrixTilePlan::tile_count(Self) -> Int

@@ -49,7 +49,7 @@ pub fn recurrent_block_source(
     let symbol = symbol_prefix + "_" + indices[index].to_string()
     let partial = indices[index] == 15 &&
       plan.publication() == ReduceFloat32BeforeRound
-    let projection = if plan.projection_law() == MatrixFloat32 {
+    let projection = if plan.projection_law() != ScalarFloat32 {
       @tiled.dense_source(
         @matrix.MatrixTilePlan::new(
           rows~,
@@ -149,7 +149,7 @@ pub fn RecurrentBlockCudaSource::projection_launch(
   output_width : Int,
 ) -> (Int, Int) raise {
   let (rows, _, _) = self.plan.delta().capacity()
-  if self.plan.projection_law() == MatrixFloat32 {
+  if self.plan.projection_law() != ScalarFloat32 {
     let tile = @matrix.MatrixTilePlan::new(
       rows~,
       columns=output_width,

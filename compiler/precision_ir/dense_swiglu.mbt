@@ -11,6 +11,7 @@ pub struct DenseSwiGluPrecision {
   priv product_bytes : Int64
   priv publication : ProjectionPublication
   priv partial_bytes : Int64
+  priv dot_law : DenseDotLaw
 }
 
 ///|
@@ -19,6 +20,7 @@ pub fn DenseSwiGluPrecision::new(
   intermediate_width~ : Int,
   maximum_rows~ : Int,
   publication? : ProjectionPublication = LocalBFloat16,
+  dot_law? : DenseDotLaw = ScalarFloat32,
 ) -> Self raise PrecisionPlanError {
   guard hidden_width > 0 && intermediate_width > 0 && maximum_rows > 0 else {
     raise IllegalPlacement
@@ -56,6 +58,7 @@ pub fn DenseSwiGluPrecision::new(
     product_bytes,
     publication,
     partial_bytes,
+    dot_law,
   }
 }
 
@@ -82,4 +85,9 @@ pub fn DenseSwiGluPrecision::product_bytes(self : Self) -> Int64 {
 ///|
 pub fn DenseSwiGluPrecision::publication(self : Self) -> ProjectionPublication {
   self.publication
+}
+
+///|
+pub fn DenseSwiGluPrecision::dot_law(self : Self) -> DenseDotLaw {
+  self.dot_law
 }

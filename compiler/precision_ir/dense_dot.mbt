@@ -6,6 +6,10 @@
 pub(all) enum DenseDotLaw {
   ScalarFloat32
   MatrixFloat32
+  // Explicitly permits a deterministic partitioned F32 reduction for vector
+  // shapes and matrix accumulation for multiple rows. Publication is unchanged.
+  // This is a different numerical program, not a rewrite of ScalarFloat32.
+  ShapeAwareFloat32
 } derive(Debug, Eq)
 
 ///|

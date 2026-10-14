@@ -129,6 +129,12 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let shape_aware = mode.has_suffix("-shape-aware")
+  let mode = if shape_aware {
+    mode[:mode.length() - 12].to_owned()
+  } else {
+    mode
+  }
   let replay = mode.has_suffix("-graph-tp")
   let mode = if replay { mode[:mode.length() - 9].to_owned() } else { mode }
   let queued = mode.has_suffix("-queued-tp")
@@ -184,7 +190,13 @@ async fn main {
       } else {
         OrderedTokenFloat32
       },
-      matrix_law=if tiled { MatrixFloat32 } else { ScalarFloat32 },
+      matrix_law=if shape_aware {
+        ShapeAwareFloat32
+      } else if tiled {
+        MatrixFloat32
+      } else {
+        ScalarFloat32
+      },
       expert_scaled_dot_law=if low_bit {
         BlockScaledMatrixFloat32(block_columns=16)
       } else {
@@ -214,7 +226,13 @@ async fn main {
   )
   println(
     "matrix_evaluation=" +
-    (if tiled { "bf16-matrix-f32-grouped" } else { "scalar-f32" }),
+    (if shape_aware {
+      "shape-aware-f32"
+    } else if tiled {
+      "bf16-matrix-f32-grouped"
+    } else {
+      "scalar-f32"
+    }),
   )
   match mode {
     "export" => {

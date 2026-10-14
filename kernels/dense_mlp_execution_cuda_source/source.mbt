@@ -30,13 +30,17 @@ pub fn dense_mlp_source(
     plan,
     order,
     prefix: symbol_prefix,
-    source: @lowering.staged_separate_swiglu_bf16_source(
-      hidden_size=hidden,
-      intermediate_size=intermediate,
-      maximum_rows=rows,
-      function_prefix=symbol_prefix,
-      publication=plan.publication(),
-    ),
+    source: if plan.dot_law() != ScalarFloat32 {
+      matrix_mlp_source(plan, symbol_prefix)
+    } else {
+      @lowering.staged_separate_swiglu_bf16_source(
+        hidden_size=hidden,
+        intermediate_size=intermediate,
+        maximum_rows=rows,
+        function_prefix=symbol_prefix,
+        publication=plan.publication(),
+      )
+    },
   }
 }
 

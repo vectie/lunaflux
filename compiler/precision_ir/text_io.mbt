@@ -40,6 +40,7 @@ pub struct TextIoPrecision {
   priv table_bytes : Int64
   priv normalization_law : TextNormalizationLaw
   priv logits_law : TextLogitsLaw
+  priv head_law : DenseDotLaw
 }
 
 ///|
@@ -54,6 +55,7 @@ pub fn TextIoPrecision::new(
   boundary? : TextBoundary = Complete,
   normalization_law? : TextNormalizationLaw = Bf16NormalizeThenWeight,
   logits_law? : TextLogitsLaw = Bf16Round,
+  head_law? : DenseDotLaw = ScalarFloat32,
 ) -> Self raise PrecisionPlanError {
   guard vocabulary_size > 0 &&
     hidden_width > 0 &&
@@ -67,6 +69,7 @@ pub fn TextIoPrecision::new(
     !normalization_epsilon.is_inf() else {
     raise IllegalPlacement
   }
+  guard head_law != MatrixFloat32 else { raise NoImplementation }
   let residual_bytes = expert_checked_mul(
     expert_checked_mul(maximum_rows.to_int64(), hidden_width.to_int64()),
     expert_checked_mul(stream_count.to_int64(), 2L),
@@ -109,6 +112,7 @@ pub fn TextIoPrecision::new(
     table_bytes,
     normalization_law,
     logits_law,
+    head_law,
   }
 }
 
@@ -156,4 +160,9 @@ pub fn TextIoPrecision::normalization_law(self : Self) -> TextNormalizationLaw {
 ///|
 pub fn TextIoPrecision::logits_law(self : Self) -> TextLogitsLaw {
   self.logits_law
+}
+
+///|
+pub fn TextIoPrecision::head_law(self : Self) -> DenseDotLaw {
+  self.head_law
 }

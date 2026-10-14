@@ -8,6 +8,7 @@ pub struct MatrixTilePlan {
   priv tile_rows : Int
   priv tile_columns : Int
   priv tile_inner : Int
+  priv law : @precision.DenseDotLaw
 }
 
 ///|
@@ -17,7 +18,7 @@ pub fn MatrixTilePlan::new(
   inner~ : Int,
   law~ : @precision.DenseDotLaw,
 ) -> Self raise @precision.PrecisionPlanError {
-  guard law == MatrixFloat32 &&
+  guard law != ScalarFloat32 &&
     rows > 0 &&
     rows <= 1048576 &&
     columns > 0 &&
@@ -30,7 +31,15 @@ pub fn MatrixTilePlan::new(
     2147483647L else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
-  { rows, columns, inner, tile_rows: 16, tile_columns: 64, tile_inner: 32, }
+  {
+    rows,
+    columns,
+    inner,
+    tile_rows: 16,
+    tile_columns: 64,
+    tile_inner: 32,
+    law,
+  }
 }
 
 ///|
@@ -45,7 +54,17 @@ pub fn MatrixTilePlan::tile(self : Self) -> (Int, Int, Int) {
 
 ///|
 pub fn MatrixTilePlan::tile_count(self : Self) -> Int {
-  (self.rows + 15) / 16 * ((self.columns + 63) / 64)
+  let matrix = (self.rows + 15) / 16 * ((self.columns + 63) / 64)
+  if self.law == ShapeAwareFloat32 {
+    Int::max(matrix, (self.columns + 3) / 4)
+  } else {
+    matrix
+  }
+}
+
+///|
+pub fn MatrixTilePlan::law(self : Self) -> @precision.DenseDotLaw {
+  self.law
 }
 
 ///|

@@ -54,7 +54,7 @@ pub fn packed_expert_mlp_source(
     }
     return block_scaled_expert_source(plan, symbol~)
   }
-  if plan.dot_law() == MatrixFloat32 {
+  if plan.dot_law() != ScalarFloat32 {
     return grouped_expert_source(plan, symbol~, grouping?)
   }
   guard grouping is None else {

@@ -66,7 +66,7 @@ pub fn bind(
     combine.push(sw)
   }
   let arguments = [gate, [c, a, ix, sw, em, w, b], combine]
-  let arguments = if p.dot_law() == MatrixFloat32 {
+  let arguments = if p.dot_law() != ScalarFloat32 {
     [[c, ix, a], arguments[0], arguments[1], arguments[2]]
   } else {
     arguments

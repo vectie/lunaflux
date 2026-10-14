@@ -77,6 +77,9 @@ pub fn TextIoPrecision::fold(
   self : Self,
   operation : TextExpression,
 ) -> OrderedNumericFold raise PrecisionPlanError {
+  guard !(operation is HeadUpdate) || self.head_law() == ScalarFloat32 else {
+    raise NoImplementation
+  }
   OrderedNumericFold::new(
     extent=match operation {
       StreamUpdate => self.streams

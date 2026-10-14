@@ -61,6 +61,11 @@ pub fn GlmDecoderStage::new(
     maximum_output_rows=1,
     maximum_workspace_bytes=maximum_text_workspace_bytes,
     boundary~,
+    head_law=if matrix_law == ShapeAwareFloat32 {
+      ShapeAwareFloat32
+    } else {
+      ScalarFloat32
+    },
   )
   {
     range,
@@ -83,6 +88,11 @@ pub fn GlmDecoderStage::new(
       tensor_group?,
     ),
     text: GlmTextIo::new(
+      head_law=if matrix_law == ShapeAwareFloat32 {
+        ShapeAwareFloat32
+      } else {
+        ScalarFloat32
+      },
       spec,
       maximum_rows~,
       maximum_output_rows=1,

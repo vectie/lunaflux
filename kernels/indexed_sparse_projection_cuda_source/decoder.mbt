@@ -23,7 +23,7 @@ pub fn indexed_sparse_decoder_source(
   let (rows, _) = attention.capacity()
   let output_symbol = symbol_prefix + "_output"
   let partial = plan.publication() == ReduceFloat32BeforeRound
-  let (output, output_launch) = if projection.projection_law() == MatrixFloat32 {
+  let (output, output_launch) = if projection.projection_law() != ScalarFloat32 {
     let tile = @matrix.MatrixTilePlan::new(
       rows~,
       columns=hidden,

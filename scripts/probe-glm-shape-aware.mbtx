@@ -1,0 +1,166 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-shape-probe-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_ROOT")
+  }
+  @fs.mkdir(root)
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+  )
+  let node = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+    ]).output(max_output_bytes=16777216)
+  }
+  async fn record(name : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU busy") }
+  // Numerical probes are bounded to 2 GiB; retain the independent 16 GiB host reserve.
+  record(
+    "memory",
+    remote(
+      "awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo",
+    ),
+  )
+  for
+    (pkg, name) in [
+      ("tiled_matrix_cuda_source", "projection"),
+      ("dense_mlp_execution_cuda_source", "dense"),
+      ("text_io_execution_cuda_source", "text"),
+      ("grouped_routing_cuda_source", "routing"),
+      ("selected_expert_mlp_cuda_source", "grouped"),
+    ] {
+    let out = @shell.Cmd("env", [
+      "LUNA_EXPORT_SHAPE_AWARE=1",
+      "moon",
+      "test",
+      "kernels/" + pkg,
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=33554432)
+    record(name + "-export", out)
+    let builder = StringBuilder()
+    let mut capture = false
+    for line in out.stdout().split("\n") {
+      if line.has_prefix("LUNA_SOURCE_BEGIN") {
+        capture = true
+        continue
+      }
+      if line.has_prefix("LUNA_SOURCE_END") {
+        capture = false
+        continue
+      }
+      if capture {
+        builder.write_string(line.to_owned())
+        builder.write_string("\n")
+      }
+    }
+    guard !builder.to_string().is_empty() else {
+      fail("missing generated source")
+    }
+    @fs.write_file(
+      root + "/" + name + ".cuh",
+      builder.to_string(),
+      create_mode=CreateNew,
+    )
+  }
+  record("mkdir", remote("mkdir " + root))
+  for
+    (source, name) in [
+      (root + "/projection.cuh", "projection.cuh"),
+      (root + "/dense.cuh", "dense.cuh"),
+      (root + "/text.cuh", "text.cuh"),
+      (root + "/routing.cuh", "routing.cuh"),
+      (root + "/grouped.cuh", "grouped.cuh"),
+      ("tests/packed_moe_execution/shape_aware_probe.cu", "shape.cu"),
+      ("tests/packed_moe_execution/grouped_matrix_probe.cu", "grouped.cu"),
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      source,
+      node + ":" + root + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let unit = root[5:].to_owned()
+  for name in ["shape", "grouped"] {
+    record(
+      name + "-compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-compile-" +
+        name +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 -DSHAPE_AWARE " +
+        root +
+        "/" +
+        name +
+        ".cu -o " +
+        root +
+        "/" +
+        name,
+      ),
+    )
+    for tool in ["native", "memcheck", "racecheck", "synccheck"] {
+      let command = (if tool == "native" {
+          ""
+        } else {
+          "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+          tool +
+          (if tool == "memcheck" { " --leak-check full " } else { " " })
+        }) +
+        root +
+        "/" +
+        name
+      record(
+        name + "-" + tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          unit +
+          "-" +
+          name +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 " +
+          command,
+        ),
+      )
+    }
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "actual-source correctness and sanitizers complete; no full-model quality or speed claim\n",
+    create_mode=CreateNew,
+  )
+}

@@ -5,6 +5,7 @@ pub fn routing_compute_plan(
   maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.MoeRoutingPrecision raise {
   let profile = @glm53_spec.Glm53FlashSpec::official()
   let representation = @precision_format.Representation::new(
@@ -22,6 +23,17 @@ pub fn routing_compute_plan(
       memory_ceiling=representation.payload_bytes(),
     ),
     maximum_rows~,
+    projection_law=if matrix_law == ShapeAwareFloat32 {
+      GroupedVectorFloat32(
+        groups=1,
+        partitions=32,
+        vector_width=1,
+        publication_partitions=1,
+        multiply_add=FusedMultiplyAdd,
+      )
+    } else {
+      OrderedFloat32
+    },
     group_count=profile.expert_group_count(),
     group_score_topk=profile.expert_group_score_topk(),
     selected_group_count=profile.selected_expert_group_count(),

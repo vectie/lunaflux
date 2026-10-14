@@ -32,7 +32,7 @@ fn TextIoFrame::bind_egress(
   tokens : @device.KernelArgument,
 ) -> Unit raise {
   let plan = self.source.plan()
-  let (vocabulary, _, _, _, outputs) = plan.geometry()
+  let (_, _, _, _, outputs) = plan.geometry()
   self.buffers.push(context.allocate(plan.normalized_bytes()))
   self.buffers.push(context.allocate(plan.logits_bytes()))
   let normalized = region(self.buffers[0], plan.normalized_bytes(), 2L)
@@ -47,12 +47,12 @@ fn TextIoFrame::bind_egress(
         self.launch(
           aot,
           2,
-          (outputs.to_int64() * vocabulary.to_int64() + 255L) / 256L,
-          256,
+          self.source.head_launch().0.to_int64(),
+          self.source.head_launch().1,
           [output_count, normalized, head, logits],
         )
       2 =>
-        self.launch(aot, 3, outputs.to_int64(), 1, [
+        self.launch(aot, 3, outputs.to_int64(), self.source.greedy_threads(), [
           counts, output_count, selected, logits, tokens,
         ])
       _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)

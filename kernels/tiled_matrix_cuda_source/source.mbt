@@ -105,11 +105,25 @@ pub fn dense_source(
   } else {
     "__float2bfloat16_rn(result[i])"
   }
+  let decode = if plan.law() == ShapeAwareFloat32 {
+    let body = shape_decode_body(
+      inner~,
+      columns~,
+      maximum_rows=rows,
+      left="__bfloat162float(input[inner])",
+      right="__bfloat162float(weight[(unsigned long long)column*\{inner}+inner])",
+      publish="output[column]=\{if partial_float32 { "value" } else { "__float2bfloat16_rn(value)" }};",
+    )
+    "if(live_rows==1) { \{body}\n return; }"
+  } else {
+    ""
+  }
   let text =
     $|#include <cuda_bf16.h>
     $|#include <mma.h>
     $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output) {
     $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows}) return;
+    $|  \{decode}
     $|  const int row_base=(blockIdx.x/\{blocks_n})*16,column_base=(blockIdx.x%\{blocks_n})*64;
     $|  if(row_base>=live_rows) return;
     $|  __shared__ __align__(32) float result[1024];

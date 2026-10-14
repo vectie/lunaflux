@@ -60,6 +60,7 @@ pub fn DenseSwiGluPrecision::projection_fold(
   self : Self,
   down~ : Bool,
 ) -> OrderedNumericFold raise PrecisionPlanError {
+  guard self.dot_law() == ScalarFloat32 else { raise NoImplementation }
   OrderedNumericFold::new(
     extent=if down { self.intermediate } else { self.hidden },
     initial_bits=0U,

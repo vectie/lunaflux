@@ -148,11 +148,13 @@ fn make_moe_ffn(
     ),
     routing=@router_source.routing_source(
       routing_compute_plan(
+        matrix_law~,
         maximum_rows~,
         maximum_workspace_bytes=maximum_expert_bytes,
         accuracy~,
       ),
       symbol="glm_router_" + layer_index.to_string(),
+      parallel_selection=matrix_law == ShapeAwareFloat32,
     ),
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(
