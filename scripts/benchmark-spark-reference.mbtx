@@ -41,6 +41,16 @@ fn host(last : Bool) -> String {
 
 ///|
 fn socket(last : Bool) -> String {
+  if @env.get_env_var(
+      if last {
+        "LUNAFLUX_SPARK_179_SOCKET"
+      } else {
+        "LUNAFLUX_SPARK_178_SOCKET"
+      },
+    )
+    is Some(path) {
+    return path
+  }
   if last {
     "/tmp/lunaflux-checkpoint-live179-20261010.sock"
   } else {
@@ -111,14 +121,19 @@ fn checkpoint(glm : Bool, last : Bool) -> String {
 }
 
 ///|
-fn payload(tokens : Array[Int], glm : Bool, sglang : Bool) -> Json {
+fn payload(
+  tokens : Array[Int],
+  glm : Bool,
+  sglang : Bool,
+  output? : Int = 8,
+) -> Json {
   let stops : Array[Json] = [Json(if glm { 154827 } else { 1 })]
   if sglang {
     {
       "input_ids": Json(tokens.map(t => Json(t))),
       "sampling_params": {
         "temperature": 0,
-        "max_new_tokens": 8,
+        "max_new_tokens": Json(output),
         "stop_token_ids": Json(stops),
       },
       "stream": false,
@@ -128,11 +143,23 @@ fn payload(tokens : Array[Int], glm : Bool, sglang : Bool) -> Json {
       "model": "matched-model",
       "prompt": Json(tokens.map(t => Json(t))),
       "temperature": 0,
-      "max_tokens": 8,
+      "max_tokens": Json(output),
       "stop_token_ids": Json(stops),
       "stream": false,
     }
   }
+}
+
+///|
+test "profile payload uses the literal two-token diagnostic, ordinary requests stay eight" {
+  assert_true(
+    payload([1, 2], true, false, output=2)
+    .stringify()
+    .contains("\"max_tokens\":2"),
+  )
+  assert_true(
+    payload([1, 2], true, false).stringify().contains("\"max_tokens\":8"),
+  )
 }
 
 ///|
@@ -240,6 +267,9 @@ async fn main {
     engine is ("vllm" | "sglang") &&
     mode
     is ("prepare"
+    | "prepare-profile"
+    | "start-profile"
+    | "query-profile"
     | "start"
     | "status"
     | "query"
@@ -255,6 +285,10 @@ async fn main {
   let sg = engine == "sglang"
   let image = reference_image(glm, sg)
   let tag = root[5:].to_owned()
+  let profile = mode is ("prepare-profile" | "start-profile" | "query-profile")
+  guard !profile || (glm && !sg) else {
+    fail("bounded profile is GLM/vLLM only")
+  }
   if mode == "watch" {
     let observations = StringBuilder()
     for tick in 0..<1500 {
@@ -342,7 +376,7 @@ async fn main {
     }
     return
   }
-  if mode == "prepare" {
+  if mode is ("prepare" | "prepare-profile") {
     guard rest is [corpus] && corpus.has_prefix("/tmp/lunaflux-model-bench-") else {
       fail("prepared literal corpus required")
     }
@@ -358,7 +392,7 @@ async fn main {
         remote(last, "mkdir " + root),
       )
     }
-    for i in 0..<6 {
+    for i in 0..<(if profile { 1 } else { 6 }) {
       let text = @fs.read_file(corpus + "/input-\{i}-tokens.txt").text().trim()
       let tokens : Array[Int] = []
       for item in text.split(",") {
@@ -370,7 +404,7 @@ async fn main {
       let path = root + "/request-\{i}.json"
       @fs.write_file(
         path,
-        payload(tokens, glm, sg).stringify(),
+        payload(tokens, glm, sg, output=if profile { 2 } else { 8 }).stringify(),
         create_mode=CreateNew,
       )
       copy(false, path, host(false) + ":" + path)
@@ -383,8 +417,15 @@ async fn main {
       family +
       "\nengine=" +
       engine +
-      "\ntp=2\npp=1\ncontext=256\nconcurrency=1\nmax_output=8\nspeculation=false\nprefix_cache=false\ncorpus=" +
+      "\ntp=2\npp=1\ncontext=256\nconcurrency=1\nmax_output=" +
+      (if profile { "2" } else { "8" }) +
+      "\nspeculation=false\nprefix_cache=false\ncorpus=" +
       corpus +
+      (if profile {
+        "\nprofile=cuda-profiler-api\nprofile_output=2\nprofile_requests=1\n"
+      } else {
+        ""
+      }) +
       (if sg { "\nsglang_options=" + sglang_options(glm) } else { "" }) +
       "\n",
       create_mode=CreateNew,
@@ -422,7 +463,7 @@ async fn main {
     }
     return
   }
-  if mode == "query" {
+  if mode is ("query" | "query-profile") {
     let readiness = StringBuilder()
     let mut ready = false
     for attempt in 0..<180 {
@@ -452,6 +493,9 @@ async fn main {
       create_mode=CreateNew,
     )
     guard ready else {
+      if profile {
+        stop_pair(tag)
+      }
       fail("reference did not become ready; no benchmark result")
     }
     record(
@@ -480,7 +524,16 @@ async fn main {
       host(false) + ":" + root + "/warmup-response.json",
       root + "/warmup-response.json",
     )
-    for i in 0..<6 {
+    if profile {
+      let start = remote(
+        false, "curl --fail --silent --show-error --max-time 30 -X POST http://127.0.0.1:28880/start_profile",
+      )
+      if start.exit_code() != 0 {
+        stop_pair(tag)
+      }
+      record(root, "start-profile", start)
+    }
+    for i in 0..<(if profile { 1 } else { 6 }) {
       record(
         root,
         "request-\{i}-timing",
@@ -500,9 +553,44 @@ async fn main {
         root + "/response-\{i}.json",
       )
     }
+    if profile {
+      let stop = remote(
+        false, "curl --fail --silent --show-error --max-time 60 -X POST http://127.0.0.1:28880/stop_profile",
+      )
+      if stop.exit_code() != 0 {
+        stop_pair(tag)
+      }
+      record(root, "stop-profile", stop)
+      // Reports are finalized before model shutdown; retain a failed capture.
+      for last in [false, true] {
+        let mut ready = false
+        for _ in 0..<60 {
+          let state = remote(last, "test -s " + root + "/timeline.nsys-rep")
+          if state.exit_code() == 0 {
+            ready = true
+            break
+          }
+          @async.sleep(1000)
+        }
+        if !ready {
+          stop_pair(tag)
+          fail("profile report not finalized; stopped pair")
+        }
+        copy(
+          last,
+          host(last) + ":" + root + "/timeline.nsys-rep",
+          root + (if last { "/egress.nsys-rep" } else { "/ingress.nsys-rep" }),
+        )
+      }
+    }
     stop_pair(tag)
     println(
-      "six literal requests collected; paired stop requested, verify release",
+      (if profile {
+        "one profiled literal request"
+      } else {
+        "six literal requests"
+      }) +
+      " collected; paired stop requested, verify release",
     )
     return
   }
@@ -560,6 +648,8 @@ async fn main {
       (if glm { " --language-model-only" } else { "" }) +
       (if last { " --headless" } else { "" })
     }
+    let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"
+    let profile_args = " profile --trace=cuda,nvtx --sample=none --cpuctxsw=none --cuda-graph-trace=node --capture-range=cudaProfilerApi --capture-range-end=stop --output=/run-result/timeline vllm "
     record(
       root,
       "start-" + rank,
@@ -578,6 +668,11 @@ async fn main {
         ":/model:ro -v " +
         root +
         ":/run-result" +
+        (if profile {
+          " -v /opt/nvidia/nsight-systems/2025.3.2:/opt/nvidia/nsight-systems/2025.3.2:ro"
+        } else {
+          ""
+        }) +
         " -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 -e VLLM_HOST_IP=" +
         ip +
         " -e NCCL_SOCKET_IFNAME=" +
@@ -599,11 +694,17 @@ async fn main {
         " -e NCCL_IB_HCA=" +
         hca +
         " -e NCCL_IB_DISABLE=0 -e HF_HOME=/run-result/hf --entrypoint " +
-        (if sg { "python3" } else { "vllm" }) +
+        (if profile { nsys } else if sg { "python3" } else { "vllm" }) +
         " " +
         image +
         " " +
-        command[if sg { 8 } else { 5 }:].to_owned(),
+        (if profile { profile_args } else { "" }) +
+        command[if sg { 8 } else { 5 }:].to_owned() +
+        (if profile {
+          " --profiler-config '{\"profiler\":\"cuda\"}'"
+        } else {
+          ""
+        }),
       ),
     )
   }

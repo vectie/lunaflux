@@ -45,8 +45,10 @@ test "literal comma and line separated IDs agree without tokenizing text" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, previous, .. rest] && rest.length() <= 1 else {
-    fail("NEW_NATIVE_ROOT PREVIOUS_MATCHED_COMPARISON_JSON [FRESH_VLLM_ROOT]")
+  guard @env.args() is [_, root, previous, .. rest] && rest.length() <= 2 else {
+    fail(
+      "NEW_NATIVE_ROOT PREVIOUS_MATCHED_COMPARISON_JSON [FRESH_VLLM_ROOT [NEW_REPORT_PATH]]",
+    )
   }
   guard @json.parse(@fs.read_file(previous).text()) is Object(report) &&
     report.get("rows") is Some(Array(rows)) &&
@@ -99,7 +101,7 @@ async fn main {
     guard fields.get("input_ids") == Some(input) else {
       fail("input tokens changed; not matched")
     }
-    if rest is [reference_root] {
+    if rest is [reference_root, ..] {
       guard @json.parse(
           @fs.read_file(reference_root + "/request-\{i}.json").text(),
         )
@@ -191,7 +193,7 @@ async fn main {
     }
   }
   report["native_root"] = Json(root)
-  if rest is [reference_root] {
+  if rest is [reference_root, ..] {
     report["reference_root"] = Json(reference_root)
     let mut ref_minimum = 1.0e20
     for
@@ -209,6 +211,11 @@ async fn main {
     )
   }
   report["previous_comparison"] = Json(previous)
+  report["previous_native_selection"] = report
+    .get("native_selection")
+    .unwrap_or(null)
+  report["native_selection"] = Json(selection)
+  report["native_excluded_warmup_requests"] = Json(if warmup { 1 } else { 0 })
   report["native_total_seconds"] = Json(total)
   report["previous_native_total_seconds"] = Json(old_total)
   report["speedup_over_previous_native"] = Json(old_total / total)
@@ -238,7 +245,11 @@ async fn main {
     },
   )
   @fs.write_file(
-    root + "/comparison.json",
+    if rest is [_, output] {
+      output
+    } else {
+      root + "/comparison.json"
+    },
     Json(report).stringify(indent=2) + "\n",
     create_mode=CreateNew,
   )

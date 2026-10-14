@@ -1,0 +1,83 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// External diagnosis only. The final greedy kernel is part of the step;
+// ending at the vocabulary projection silently omits its serial scan.
+
+///|
+fn prefix() -> String {
+  "WITH k AS (SELECT k.*,s.value AS name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON k.shortName=s.id), e AS (SELECT start,lead(start) OVER (ORDER BY start) AS finish,row_number() OVER (ORDER BY start) AS step FROM k WHERE name='glm_text_io_embed'), r AS (SELECT step,start,coalesce(finish,(SELECT max(end)+1 FROM k)) AS finish FROM e), selected AS (SELECT r.step,k.* FROM r JOIN k ON k.start>=r.start AND k.start<r.finish) "
+}
+
+///|
+fn queries() -> Array[(String, String)] {
+  let family = "CASE WHEN name LIKE '%nccl%' THEN 'collective' WHEN name GLOB 'glm_router_*' THEN 'router' WHEN name GLOB 'glm_routed_*' THEN 'routed' WHEN name GLOB 'glm_moe_*' THEN 'combine' WHEN name GLOB 'glm_shared_*' THEN 'shared' WHEN name GLOB 'glm_recurrent_*' THEN 'recurrent' WHEN name GLOB 'glm_sparse_*' THEN 'sparse' WHEN name GLOB 'glm_dense_*' THEN 'dense' WHEN name GLOB 'glm_hyper_*' THEN 'hyper' WHEN name GLOB 'glm_text_io_*' THEN 'text' ELSE 'other' END"
+  [
+    (
+      "families",
+      prefix() +
+      "SELECT step," +
+      family +
+      " AS family,count(*) calls,sum(end-start)/1e6 AS gpu_ms FROM selected GROUP BY step,family ORDER BY step,gpu_ms DESC;",
+    ),
+    (
+      "leaves",
+      prefix() +
+      "SELECT step,name,(end-start)/1e6 AS gpu_ms,gridX,gridY,gridZ,blockX,blockY,blockZ,registersPerThread,staticSharedMemory,dynamicSharedMemory,graphNodeId FROM selected ORDER BY step,start;",
+    ),
+    (
+      "step-time",
+      prefix() +
+      ", ordered AS (SELECT *,max(end) OVER (PARTITION BY step ORDER BY start ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS previous_end FROM selected) SELECT step,(max(end)-min(start))/1e6 AS span_ms,sum(end-start)/1e6 AS kernel_sum_ms,sum(max(0,start-previous_end))/1e6 AS kernel_free_ms,sum(CASE WHEN name LIKE '%nccl%' THEN end-start ELSE 0 END)/1e6 AS collective_ms FROM ordered GROUP BY step;",
+    ),
+    (
+      "enqueue",
+      prefix() +
+      ", apis AS (SELECT a.*,s.value AS name FROM CUPTI_ACTIVITY_KIND_RUNTIME a JOIN StringIds s ON a.nameId=s.id), launches AS (SELECT k.step,min(a.start) AS first_launch,max(a.end) AS last_launch,max(CASE WHEN k.name LIKE '%nccl%' THEN a.end END) AS last_collective_enqueue,count(CASE WHEN k.name LIKE '%nccl%' THEN 1 END) AS collective_launches FROM selected k JOIN apis a ON a.correlationId=k.correlationId GROUP BY k.step) SELECT step,collective_launches,(last_collective_enqueue-first_launch)/1e6 AS host_enqueue_ms,(SELECT count(*) FROM apis WHERE name='cuStreamQuery' AND start>=first_launch AND start<last_collective_enqueue) AS stream_queries_before_last_collective,(SELECT count(*) FROM apis WHERE name='cuGraphLaunch' AND start>=first_launch AND start<=last_launch) AS graph_launches FROM launches;",
+    ),
+    (
+      "projection-role",
+      prefix() +
+      ", roles AS (SELECT *,CASE WHEN name GLOB 'glm_recurrent_*' THEN substr(name,instr(substr(name,15),'_')+15) WHEN name GLOB 'glm_sparse_*' THEN substr(name,instr(substr(name,12),'_')+12) ELSE name END AS role FROM selected WHERE name GLOB 'glm_recurrent_*' OR name GLOB 'glm_sparse_*') SELECT step,CASE WHEN name GLOB 'glm_recurrent_*' THEN 'recurrent' ELSE 'sparse' END AS family,role,count(*) calls,sum(end-start)/1e6 AS gpu_ms FROM roles GROUP BY step,family,role ORDER BY step,family,gpu_ms DESC;",
+    ),
+  ]
+}
+
+///|
+test "complete steps retain sampling and exact wildcard roles" {
+  assert_true(!prefix().contains("glm_text_io_head"))
+  assert_true(prefix().contains("max(end)+1"))
+  assert_true(queries()[0].1.contains("GLOB 'glm_router_*'"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, database, output] else {
+    fail("TRACE_SQLITE NEW_OUTPUT_DIRECTORY")
+  }
+  @fs.mkdir(output)
+  for (label, sql) in queries() {
+    let result = @shell.Cmd("sqlite3", ["-header", "-csv", database, sql]).output(
+      max_output_bytes=8388608,
+    )
+    @fs.write_file(
+      output + "/" + label + ".csv",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      output + "/" + label + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    if label != "leaves" {
+      println(label + "\n" + result.stdout())
+    }
+  }
+}

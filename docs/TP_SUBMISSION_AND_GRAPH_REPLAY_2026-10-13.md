@@ -191,6 +191,14 @@ The same `aed93d05` binary with per-collective retirement produces
 | Egress compute-kernel sum (profiled ms) | 181.816 | 183.961 | 182.985 |
 | Egress host enqueue span (profiled ms) | 505.457 | 258.775 | 243.612 |
 
+Subsequent full-step accounting found that this analyzer ended egress at the
+vocabulary head and omitted the following greedy kernel. The graph trace's
+complete final-decode compute sum is **193.504 ms**, including **10.518 ms**
+greedy, rather than 182.985 ms. The table above retains the original endpoint
+for historical mode comparison; it is not the complete token-step compute
+cost. Unprofiled completion results are unchanged. See
+[the remaining-gap diagnosis](GLM_REMAINING_GAP_2026-10-14.md).
+
 The invariant compute work and eliminated pre-final stream queries establish
 the targeted dispatch change. The old trace records 1,524,636 egress stream
 queries over four steps (475.272 ms *inside the API calls alone*); tracing those
