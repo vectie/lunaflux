@@ -17,7 +17,7 @@ async fn main {
   let mode = args[2]
   guard root.has_prefix("/tmp/lunaflux-glm-fp4-performance-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    mode is ("freeze" | "prepare" | "run" | "run-diverse" | "collect-counters" | "sanitize" | "sanitize-diverse") else {
+    mode is ("freeze" | "prepare" | "run" | "run-diverse" | "collect-counters" | "collect-paired" | "sanitize" | "sanitize-diverse") else {
     fail("NEW_ROOT prepare|run|collect-counters|sanitize")
   }
   if baseline is Some(path) {
@@ -193,7 +193,7 @@ async fn main {
       )
     }
   } else {
-    for variant in ["capacity", "trimmed"] {
+    for variant in (if mode == "collect-paired" { ["paired"] } else { ["capacity", "trimmed"] }) {
       let report = root + "/" + variant + ".ncu-rep"
       if !@fs.exists(report) {
         @shell.Cmd("scp", [

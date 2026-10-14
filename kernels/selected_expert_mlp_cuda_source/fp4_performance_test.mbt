@@ -55,7 +55,46 @@ test "full-width native FP4 expert performance export" {
   let generated = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
     p,
     symbol=if variant == Some("next") { "next" } else { "perf" },
+    grouping=@matrix.ExpertGroupingPlan::new(
+      maximum_rows=rows,
+      selected_experts=selected,
+      shared_input_staging=variant == Some("next"),
+    ),
   )
+  let alternate = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+    p,
+    symbol="alternate",
+    grouping=@matrix.ExpertGroupingPlan::new(
+      maximum_rows=rows,
+      selected_experts=selected,
+      shared_input_staging=true,
+    ),
+  )
+  assert_true(@utf8.decode(alternate.source_bytes()).contains("tile[11520]"))
+  let ordinary = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+    p,
+    symbol="ordinary",
+  )
+  assert_true(!@utf8.decode(ordinary.source_bytes()).contains("tile[11520]"))
+  for i in 0..<ordinary.launches().length() {
+    assert_eq(ordinary.launches()[i], alternate.launches()[i])
+  }
+  try
+    @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+      p,
+      symbol="bad",
+      grouping=@matrix.ExpertGroupingPlan::new(
+        maximum_rows=rows - 1,
+        selected_experts=selected,
+        shared_input_staging=true,
+      ),
+    )
+  catch {
+    @precision_ir.PrecisionPlanError::NoImplementation => ()
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("mismatched indirect capacity accepted")
+  }
   if variant is Some(_) {
     println("LUNA_SOURCE_BEGIN fp4-performance")
     println(@utf8.decode(generated.source_bytes()))

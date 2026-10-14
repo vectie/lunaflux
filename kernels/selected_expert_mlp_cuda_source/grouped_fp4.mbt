@@ -4,17 +4,23 @@
 fn grouped_fp4_source(
   plan : @precision_ir.ExpertMlpPrecision,
   symbol~ : String,
+  grouping? : @matrix.ExpertGroupingPlan,
 ) -> PackedExpertMlpCudaSource raise {
   guard plan.scaled_dot_law() is BlockScaledMatrixFloat32(block_columns=16) &&
     plan.activation_quantization() is Some((qx, qa)) else {
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   let (rows, hidden, intermediate, experts, selected) = plan.geometry()
-  let grouping = @matrix.ExpertGroupingPlan::new(
-    maximum_rows=rows,
-    selected_experts=selected,
-    shared_input_staging=true,
+  let grouping = grouping.unwrap_or(
+    @matrix.ExpertGroupingPlan::new(
+      maximum_rows=rows,
+      selected_experts=selected,
+    ),
   )
+  guard grouping.maximum_groups().to_int64() ==
+    rows.to_int64() * selected.to_int64() else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
+  }
   let jobs = grouping.maximum_groups()
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
   let prefix = @luna_cuda_precision.e2m1_scaled_matrix_helper(symbol~)

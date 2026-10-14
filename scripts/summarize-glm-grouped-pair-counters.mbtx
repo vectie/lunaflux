@@ -62,6 +62,8 @@ async fn main {
           "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed" ||
           key == "smsp__average_warp_latency_per_inst_issued.ratio" ||
           key.has_prefix("smsp__average_warps_issue_stalled_") ||
+          key.has_prefix("smsp__warp_issue_stalled_") ||
+          key == "l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum" ||
           key == "l1tex__t_sectors_pipe_lsu_mem_global_op_ld.sum" ||
           key == "dram__bytes_read.sum" ||
           key == "lts__t_sectors_op_read.sum" {

@@ -172,6 +172,92 @@ returns 137; the watcher flags the failed unit, but no reserve breach occurred
 and both GPU owners retired. Preserve that shutdown result rather than
 misreporting it as a clean rank-one exit or an OOM.
 
+Implementation `158d80ed` is pushed. Full local warning-denied native tests pass
+5,157/5,157 with existing migration exclusions unchanged; `moon info` reports
+561 existing warnings and zero errors for the selected package closure.
+Scoped administrator NCU capture of the R22 diverse fixture is retained and
+downloaded as `paired.ncu-rep` in the probe root. It does not modify driver
+permissions. Both selected kernels use grid512/block128 and identical operands:
+
+| Counter | Separate staging | Shared left staging |
+|---|---:|---:|
+| Replayed kernel duration, ms | 1.857632 | 1.121632 |
+| Warp instructions | 39,944,192 | 27,113,472 |
+| Registers/thread | 71 | 56 |
+| Actual allocated shared bytes/block (including overhead) | 14,848 | 12,544 |
+| Active-warps percentage | 43.77% | 60.41% |
+| Barrier stall percentage per active warp | 20.84% | 15.25% |
+| Long-scoreboard stall percentage per active warp | 73.36% | 52.23% |
+| Hardware shared-load bank-conflict counter | 524,793 | 263,318 |
+
+These are same-fixture native kernel counters, not vLLM counters or independent
+additive stall-time components. NCU replay timings differ from warmed complete
+chain timings. The counters substantiate less supporting work and waiting;
+the full-model measurement must establish the practical benefit. Bank counts
+are not zero and are not treated as the objective. Requested DRAM-byte data
+was not present in this exported report; no byte-traffic claim is inferred.
+
+## Full-model decision and restored-workload interference
+
+The pinned `158d80ed` candidate runs at
+`/tmp/lunaflux-model-bench-glm-paired-20261014-v1` and
+`/tmp/lunaflux-model-bench-glm-paired-repeat-20261014-v1` selected the new AOT
+on both ranks (42 paired expert sources/rank, 34 fused KDA sources/rank).
+Both native ranks closed their contexts and exited zero; all generated IDs
+remain identical to the retained native baseline. The first cohort completed
+before the external workload reappeared. The repeat is **not an uncontaminated
+performance sample** (see timestamps below).
+
+| Prompt | Input tokens | Native / vLLM output tokens | Retained native repeat s | Paired first s | Paired repeat s, contaminated | Fresh vLLM s |
+|---|---:|---:|---:|---:|---:|---:|
+| Fact | 22 | 4 / 4 | .608 | .612 | .584 | .540517 |
+| Arithmetic | 23 | 3 / 4 | .534 | .538 | .522 | .392749 |
+| Chinese | 22 | 8 / 8 | .950 | .963 | .931 | .652727 |
+| Logic | 23 | 8 / 8 | .973 | .990 | .957 | .669396 |
+| Code | 24 | 8 / 8 | .983 | .999 | .962 | .672864 |
+| Retrieval | 36 | 3 / 3 | .652 | .665 | .648 | .376539 |
+| Total (unequal output work) | | 34 / 35 | 4.700 | 4.767 | 4.604 | 3.304792 |
+
+First-run TTFT seconds: .333/.346/.338/.359/.368/.471. Repeat TTFT:
+.324/.337/.326/.346/.356/.460, retained with the same interference caveat.
+One warmup was excluded from each cohort. Retained-native repetitions total
+4.679/4.700 s, versus the preceding shape-aware repeat 4.865 s: about 3.4–3.8%
+less completion time, not performance parity. With equal output counts only,
+the retained five-prompt sum is 4.152/4.166 s versus vLLM 2.912043 s:
+**42.6–43.1% longer**. Native CLI and reference buffered HTTP timing boundaries
+and BF16 versus FP8 KV remain different. This is a short-prompt latency cohort,
+not decode-only throughput, long-context coverage or quality certification.
+
+The first paired run is 1.43% slower than the retained 4.700 s repeat. Therefore
+shared FP4 staging remains an explicit `ExpertGroupingPlan` schedule option,
+**not the default**. Compiler legality does not depend on the reference or
+benchmark; measured scheduling decisions stay outside the numerical contract.
+The ordinary live-grid lowering is retained. Full native tests after this
+selection decision pass 5,157/5,157; the alternative and mismatched-capacity
+rejection are regression tested. Component success is not silently promoted.
+
+The original deployment UID `691da90e-1724-4272-8910-93327a105a53` was restored
+to one replica by an external actor/controller before this task restored it.
+Its new pod `qwen3-llm-db96595dc-l7tgq` (UID
+`3ee090b1-332d-4925-8a0e-2bed255f251f`) was created at 2026-10-14 06:36:11 UTC,
+during the second native cohort. It restarted three times; the previous
+container exited 1 at 06:38:30 and the current container started 06:38:54.
+The second native cohort retired at 06:39:03. Thus the faster 4.604 s result
+cannot establish an exclusive-host gain, even though its host reserve stayed
+above 22.51 GiB and native task swap remained zero. The first paired cohort
+retired at 06:34:32, before the new pod existed.
+
+The final candidate trace root
+`/tmp/lunaflux-model-bench-glm-paired-trace-20261014-v1` failed its prelaunch
+GPU-owner check: PID 3601274 (`VLLM::EngineCore`, started 06:39:22) belongs to
+that Kubernetes pod's cgroup. **No candidate trace was launched**, and there
+is no full-model selected-kernel timing attribution for this last schedule.
+Its unused local watcher was terminated. The workload was left at the user's
+requested one replica, not stopped again. At the 06:42:41 UTC check it was
+Running but not Ready (startup health port not yet listening); this is not a
+service-readiness success claim. No deployment resources, manifests, payloads
+or unrelated files were changed during that restoration check.
+
 The user requested restoration of `qwen3-llm` to one replica after the final
 benchmark/profiling owner has retired. Do not restore concurrently with a
 benchmark; record actual restoration and readiness separately.
