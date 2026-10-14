@@ -127,7 +127,10 @@ fn make_moe_ffn(
     raise @precision_ir.PrecisionPlanError::MemoryBudgetExceeded
   }
   let program = @packed_expert_mlp.MoeProgram::new(
-    coalesce_reductions=false,
+    // Two-rank F32 sums keep exactly the same pair of operands per lane;
+    // broader topologies require their own reduction-order validation.
+    coalesce_reductions=matrix_law == ShapeAwareFloat32 &&
+      tensor_group is Some((_, 2)),
     @expert_source.packed_expert_mlp_source(
       routed,
       symbol="glm_routed_" + layer_index.to_string(),

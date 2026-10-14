@@ -1,5 +1,5 @@
 ///|
-test "shape-aware GLM binds fused inputs and live expert tiles before collective ablation" {
+test "shape-aware GLM binds fused inputs and independent concatenated TP2 reductions" {
   for rank in 0..<2 {
     let stage = @glm53_packed_expert_upload.GlmDecoderStage::new(
       @glm53_spec.Glm53FlashSpec::official(),
@@ -27,14 +27,13 @@ test "shape-aware GLM binds fused inputs and live expert tiles before collective
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       ),
     )
-    // First ablation leaves collective batching unselected.
-    assert_eq(contract.site_count(), 132)
+    assert_eq(contract.site_count(), 90)
     let code = @utf8.decode(stage.source_bytes())
     assert_true(code.contains("void glm_recurrent_0_inputs("))
     assert_false(code.contains("void glm_recurrent_0_0("))
     assert_true(code.contains("void glm_recurrent_0_4("))
-    assert_false(code.contains("void glm_moe_combine_3_collective_pack("))
-    assert_false(code.contains("void glm_moe_combine_3_collective_unpack("))
+    assert_true(code.contains("void glm_moe_combine_3_collective_pack("))
+    assert_true(code.contains("void glm_moe_combine_3_collective_unpack("))
     assert_true(code.contains("work_tile+=gridDim.x"))
   }
 }
