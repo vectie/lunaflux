@@ -213,7 +213,7 @@ performance sample** (see timestamps below).
 | Fact | 22 | 4 / 4 | .608 | .612 | .584 | .540517 |
 | Arithmetic | 23 | 3 / 4 | .534 | .538 | .522 | .392749 |
 | Chinese | 22 | 8 / 8 | .950 | .963 | .931 | .652727 |
-| Logic | 23 | 8 / 8 | .973 | .990 | .957 | .669396 |
+| JSON | 23 | 8 / 8 | .973 | .990 | .957 | .669396 |
 | Code | 24 | 8 / 8 | .983 | .999 | .962 | .672864 |
 | Retrieval | 36 | 3 / 3 | .652 | .665 | .648 | .376539 |
 | Total (unequal output work) | | 34 / 35 | 4.700 | 4.767 | 4.604 | 3.304792 |
@@ -257,6 +257,14 @@ requested one replica, not stopped again. At the 06:42:41 UTC check it was
 Running but not Ready (startup health port not yet listening); this is not a
 service-readiness success claim. No deployment resources, manifests, payloads
 or unrelated files were changed during that restoration check.
+
+Final bounded readiness check: Qwen's logs show model weights loaded (28.43 GiB),
+graph compilation completed, and initial profiling/warmup completed. A subsequent
+45-second Kubernetes Ready wait timed out; deployment replicas remain one and
+readyReplicas is still absent. Restoration of the desired replica count is
+verified, **service readiness is still pending**. No further GPU benchmarks or
+background benchmark watchers remain. The retained source decision is committed
+as `605673b8`; unrelated dirty migration/TLS files remain untouched.
 
 The user requested restoration of `qwen3-llm` to one replica after the final
 benchmark/profiling owner has retired. Do not restore concurrently with a
