@@ -58,6 +58,14 @@ pub fn BufferLifetime::first_use(Self) -> Int?
 pub fn BufferLifetime::last_use(Self) -> Int?
 pub fn BufferLifetime::users(Self) -> ReadOnlyArray[Int]
 
+pub struct CoalescedSumPlan {
+  // private fields
+}
+pub fn CoalescedSumPlan::geometry(Self) -> (Int, Int, Int)
+pub fn CoalescedSumPlan::new(maximum_rows~ : Int, left_width~ : Int, right_width~ : Int) -> Self raise ParallelError
+pub fn CoalescedSumPlan::storage_bytes(Self) -> Int64
+pub fn CoalescedSumPlan::width(Self) -> Int
+
 pub struct Collective {
   // private fields
 }

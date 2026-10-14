@@ -14,6 +14,7 @@ pub struct MoeProgram {
   priv mut executor : MoeExecutor?
   priv mut closed : Bool
   priv mut shared_tensor_boundary : ExpertTensorBoundary?
+  priv collective_region : @parallel.CoalescedSumPlan?
 }
 
 ///|
@@ -45,6 +46,7 @@ pub fn MoeProgram::new(
   shared : @source.PackedExpertMlpCudaSource,
   combine : @combine.MoeCombineSource,
   routing? : @router.MoeRoutingCudaSource,
+  coalesce_reductions? : Bool = false,
 ) -> Self raise @device.DeviceError {
   let (rows, hidden, _, experts, selected) = routed.plan().geometry()
   let (sr, sh, _, se, ss) = shared.plan().geometry()
@@ -80,6 +82,23 @@ pub fn MoeProgram::new(
     raise @device.DeviceError::InvalidArgument(FunctionLoad)
   }
   let sizes = expert_workspace_sizes(routed)
+  let collective_region = if coalesce_reductions {
+    guard shared.plan().down_publication() == ReduceFloat32BeforeRound &&
+      routed.plan().down_publication() == ReduceFloat32BeforeRound else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+    let region = @parallel.CoalescedSumPlan::new(
+      maximum_rows=rows,
+      left_width=hidden * selected,
+      right_width=hidden,
+    ) catch {
+      _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+    sizes.push(region.storage_bytes())
+    Some(region)
+  } else {
+    None
+  }
   sizes.append(expert_workspace_sizes(shared))
   // The shared map is included above; these are its unit indices and scores.
   sizes.push(rows.to_int64() * 8L)
@@ -106,6 +125,7 @@ pub fn MoeProgram::new(
     executor: None,
     closed: false,
     shared_tensor_boundary: None,
+    collective_region,
   }
 }
 
@@ -122,7 +142,13 @@ pub fn MoeProgram::source_bytes(self : Self) -> Bytes raise {
     "\n" +
     @utf8.decode(self.shared.source_bytes()) +
     "\n" +
-    self.combine.source(),
+    self.combine.source() +
+    (match self.collective_region {
+      None => ""
+      Some(region) =>
+        "\n" +
+        @coalesced.source(region, symbol=self.combine.symbol() + "_collective")
+    }),
   )
 }
 
@@ -131,6 +157,11 @@ pub fn MoeProgram::source_bytes(self : Self) -> Bytes raise {
 /// input/output/routing. Can be included in a whole-model startup memory plan.
 pub fn MoeProgram::workspace_bytes(self : Self) -> Int64 {
   self.workspace_bytes
+}
+
+///|
+pub fn MoeProgram::coalesced_tensor_width(self : Self) -> Int? {
+  self.collective_region.map(region => region.width())
 }
 
 ///|

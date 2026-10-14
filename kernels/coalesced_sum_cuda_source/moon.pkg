@@ -1,0 +1,9 @@
+import {
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
+}
+
+supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+} for "test"

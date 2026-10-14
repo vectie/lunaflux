@@ -11,6 +11,7 @@ pub fn matrix_tile_body(
   input_vector? : String,
   weight_vector? : String,
   vector_guard? : String = "true",
+  external_scratch? : Bool = false,
 ) -> String {
   let (_, _, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
@@ -44,9 +45,14 @@ pub fn matrix_tile_body(
       )
     None => scalar_b
   }
+  let scratch = if external_scratch {
+    ""
+  } else {
+    "__shared__ __align__(32) __nv_bfloat16 tile_a[\{m*k}], tile_b[\{n*k}];"
+  }
   (
     $|{
-    $|  __shared__ __align__(32) __nv_bfloat16 tile_a[\{m*k}], tile_b[\{n*k}];
+    $|  \{scratch}
     $|  nvcuda::wmma::fragment<nvcuda::wmma::accumulator,16,16,16,float> accumulator;
     $|  nvcuda::wmma::fill_fragment(accumulator,0.0f);
     $|  const int warp=threadIdx.x/32;
@@ -76,10 +82,25 @@ pub fn dense_source(
   symbol~ : String,
   partial_float32? : Bool = false,
 ) -> Bytes {
+  @utf8.encode(
+    dense_render(plan, symbol~, partial_float32~, device_region=false),
+  )
+}
+
+///|
+fn dense_render(
+  plan : @matrix.MatrixTilePlan,
+  symbol~ : String,
+  partial_float32~ : Bool,
+  device_region~ : Bool,
+) -> String {
   let (rows, columns, inner) = plan.geometry()
+  let tile_id = if device_region { "tile_id" } else { "blockIdx.x" }
+  let tile_count = if device_region { "tile_count" } else { "gridDim.x" }
   let blocks_n = (columns + 63) / 64
   let body = matrix_tile_body(
     plan,
+    external_scratch=device_region,
     input="(row_base+matrix_row<live_rows?input[(unsigned long long)(row_base+matrix_row)*\{inner}+matrix_inner]:__float2bfloat16_rn(0.0f))",
     weight="(column_base+matrix_column<\{columns}?weight[(unsigned long long)(column_base+matrix_column)*\{inner}+matrix_inner]:__float2bfloat16_rn(0.0f))",
     result="result",
@@ -110,6 +131,8 @@ pub fn dense_source(
       inner~,
       columns~,
       maximum_rows=rows,
+      tile_id~,
+      tile_count~,
       left="__bfloat162float(input[inner])",
       right="__bfloat162float(weight[(unsigned long long)column*\{inner}+inner])",
       publish="output[column]=\{if partial_float32 { "value" } else { "__float2bfloat16_rn(value)" }};",
@@ -118,20 +141,35 @@ pub fn dense_source(
   } else {
     ""
   }
+  let qualifier = if device_region {
+    "__device__ __forceinline__"
+  } else {
+    "extern \"C\" __global__"
+  }
+  let coordinates = if device_region {
+    "int tile_id,int tile_count,__nv_bfloat16 *tile_a,__nv_bfloat16 *tile_b,float *result,"
+  } else {
+    ""
+  }
+  let result_scratch = if device_region {
+    ""
+  } else {
+    "__shared__ __align__(32) float result[1024];"
+  }
   let text =
     $|#include <cuda_bf16.h>
     $|#include <mma.h>
-    $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output) {
+    $|\{qualifier} void \{symbol}(\{coordinates}const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output) {
     $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows}) return;
     $|  \{decode}
-    $|  const int row_base=(blockIdx.x/\{blocks_n})*16,column_base=(blockIdx.x%\{blocks_n})*64;
+    $|  const int row_base=(\{tile_id}/\{blocks_n})*16,column_base=(\{tile_id}%\{blocks_n})*64;
     $|  if(row_base>=live_rows) return;
-    $|  __shared__ __align__(32) float result[1024];
+    $|  \{result_scratch}
     $|  \{body}
     $|  for(int i=threadIdx.x;i<1024;i+=128) {
     $|    int row=row_base+i/64,column=column_base+i%64;
     $|    if(row<live_rows&&column<\{columns}) output[(unsigned long long)row*\{columns}+column]=\{output_value};
     $|  }
     $|}
-  @utf8.encode(text)
+  text
 }

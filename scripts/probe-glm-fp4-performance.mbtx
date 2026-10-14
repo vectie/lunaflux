@@ -27,7 +27,7 @@ async fn main {
     }
   }
   let host = "wlc004s@192.168.2.179"
-  let socket = "/tmp/lunaflux-checkpoint-live179-20261010.sock"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-checkpoint-live179-20261010.sock")
   async fn remote(command : String) -> @shell.Output {
     @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
       max_output_bytes=16777216,
@@ -121,6 +121,7 @@ async fn main {
       ),
     )
   } else if mode == "run" {
+    record("reserve", remote("awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo"))
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )
@@ -144,6 +145,7 @@ async fn main {
       }
     }
   } else if mode == "sanitize" {
+    record("sanitize-reserve", remote("awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo"))
     let owners = remote(
       "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
     )

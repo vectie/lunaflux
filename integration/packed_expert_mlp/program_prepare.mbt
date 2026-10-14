@@ -265,6 +265,42 @@ fn MoeProgram::bind_experts(
     shared=shared.output,
     output~,
   )
+  if self.collective_region is Some(region_plan) {
+    let joined = self.allocate(context, region_plan.storage_bytes())
+    let functions = self.load_functions(aot_module, [
+      self.combine.symbol() + "_collective_pack",
+      self.combine.symbol() + "_collective_unpack",
+    ])
+    let arguments = @device.KernelArguments::new([
+      region(counts, 20L, 4L),
+      region(routed.weighted, self.routed.plan().workspace_bytes().1, 4L),
+      region(shared.weighted, self.shared.plan().workspace_bytes().1, 4L),
+      region(joined, region_plan.storage_bytes(), 4L),
+    ])
+    let dimensions = @device.KernelLaunchDimensions::new(
+      grid_x=((region_plan.storage_bytes() / 4L + 255L) / 256L).to_int(),
+      grid_y=1,
+      grid_z=1,
+      block_x=256,
+      block_y=1,
+      block_z=1,
+      shared_memory_bytes=0,
+    )
+    // Neither consumer runs until both partial producers and the single
+    // concatenated reduction complete. No sum crosses the region boundary.
+    let routed_publish = routed_launches.pop().unwrap()
+    let shared_publish = shared_launches.pop().unwrap()
+    routed_launches.append(shared_launches)
+    routed_launches.push(
+      @device.OrderedKernelLaunch::new(functions[0], dimensions, arguments),
+    )
+    let consumers = [
+      @device.OrderedKernelLaunch::new(functions[1], dimensions, arguments),
+      routed_publish,
+      shared_publish,
+    ]
+    return (routed_launches, consumers, finalize, joined)
+  }
   if self.shared.plan().down_publication() == ReduceFloat32BeforeRound {
     let (_, hidden, _, _, _) = self.shared.plan().geometry()
     self.shared_tensor_boundary = Some({

@@ -9,6 +9,8 @@ pub fn shape_decode_body(
   right~ : String,
   publish~ : String,
   prepare? : String = "",
+  tile_id? : String = "blockIdx.x",
+  tile_count? : String = "gridDim.x",
 ) -> String {
   let dispatch = try! @strategy.plan_projection_dispatch(
     @strategy.ProjectionShape::new(
@@ -43,7 +45,7 @@ pub fn shape_decode_body(
   (
     $|// Existing projection strategy: decode GEMV; immutable scalar fold.
     $|const int lane=threadIdx.x%32,warp=threadIdx.x/32;
-    $|for(int column=blockIdx.x*4+warp;column<\{columns};column+=gridDim.x*4) {
+    $|for(int column=\{tile_id}*4+warp;column<\{columns};column+=\{tile_count}*4) {
     $|  \{prepare}
     $|  float value=0.0f;
     $|  for(int inner=\{start};inner<\{inner};inner+=\{workers}) {

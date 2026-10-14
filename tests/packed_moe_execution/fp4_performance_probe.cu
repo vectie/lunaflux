@@ -43,13 +43,13 @@ int main(int argc,char **argv) {
   auto run=[&](bool fresh=false){
 #ifdef LUNA_PAIRED
     if(fresh) {
-      candidate::next_group<<<grid0,block0>>>(c,idx,a);
+      candidate::next_group<<<candidate::grid0,candidate::block0>>>(c,idx,a);
       candidate::next_quantize_0_global<<<grid1,block1>>>(c,dx,qx,err);
       candidate::next_quantize_0_pack<<<grid2,block2>>>(c,dx,qx,err);
-      candidate::next_gate_up<<<gg,block3>>>(c,qx,idx,em,db,a);
+      candidate::next_gate_up<<<trimmed?gg:candidate::grid3,candidate::block3>>>(c,qx,idx,em,db,a);
       candidate::next_quantize_1_global<<<grid4,block4>>>(c,a,qa,err);
       candidate::next_quantize_1_pack<<<grid5,block5>>>(c,a,qa,err);
-      candidate::next_down<<<gd,block6>>>(c,qa,idx,routes,em,db,w,a);
+      candidate::next_down<<<trimmed?gd:candidate::grid6,candidate::block6>>>(c,qa,idx,routes,em,db,w,a);
       candidate::next_combine<<<grid7,block7>>>(c,idx,w,out,routes);
       return;
     }

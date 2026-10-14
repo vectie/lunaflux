@@ -127,6 +127,7 @@ fn make_moe_ffn(
     raise @precision_ir.PrecisionPlanError::MemoryBudgetExceeded
   }
   let program = @packed_expert_mlp.MoeProgram::new(
+    coalesce_reductions=false,
     @expert_source.packed_expert_mlp_source(
       routed,
       symbol="glm_routed_" + layer_index.to_string(),

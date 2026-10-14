@@ -6,7 +6,11 @@ fn GlmFfn::is_tensor_parallel(self : Self) -> Bool {
 ///|
 fn GlmFfn::tensor_width(self : Self) -> Int? {
   match self.branch {
-    Moe(moe) => moe.tensor_partition.map(p => p.collective_width())
+    Moe(moe) =>
+      match moe.program.coalesced_tensor_width() {
+        Some(width) => Some(width)
+        None => moe.tensor_partition.map(p => p.collective_width())
+      }
     Dense(mlp) => mlp.tensor_width()
   }
 }
@@ -51,7 +55,9 @@ fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int, Int)] {
   }
   if ffn is Some(ffn) && ffn.tensor_width() is Some(width) {
     widths.push((1, width))
-    if ffn.branch is Moe(moe) && moe.shared_partition is Some(partition) {
+    if ffn.branch is Moe(moe) &&
+      moe.shared_partition is Some(partition) &&
+      moe.program.coalesced_tensor_width() is None {
       widths.push((2, partition.collective_width()))
     }
   }

@@ -5,6 +5,7 @@ pub struct RecurrentBlockCudaSource {
   priv source : Bytes
   priv delta : @delta.RecurrentDeltaCudaSource
   priv convolution : @convolution.CausalConvolutionCudaSource
+  priv input_region : @matrix.SegmentedMatrixPlan?
 }
 
 ///|
@@ -13,6 +14,7 @@ pub struct RecurrentBlockCudaSource {
 pub fn recurrent_block_source(
   plan : @precision.RecurrentBlockPrecision,
   symbol_prefix~ : String,
+  fuse_input_projections? : Bool = false,
 ) -> RecurrentBlockCudaSource raise {
   // The recurrent renderer validates the prefix as a CUDA identifier.
   let delta = @delta.recurrent_delta_source(
@@ -39,6 +41,22 @@ pub fn recurrent_block_source(
     (channels, hidden),
   ]
   let indices = [0, 1, 2, 3, 4, 5, 8, 9, 15]
+  let input_region = if fuse_input_projections {
+    Some(
+      @matrix.SegmentedMatrixPlan::new(
+        [channels, channels, channels, rank, heads, rank].map(columns => {
+          @matrix.MatrixTilePlan::new(
+            rows~,
+            columns~,
+            inner=hidden,
+            law=plan.projection_law(),
+          )
+        }),
+      ),
+    )
+  } else {
+    None
+  }
   for (_, output_width) in shapes {
     guard rows.to_int64() * output_width.to_int64() <= 2147483647L * 256L else {
       raise @precision.PrecisionPlanError::NoImplementation
@@ -46,6 +64,9 @@ pub fn recurrent_block_source(
   }
   let mut source = convolution.source_bytes() + b"\n" + delta.source_bytes()
   for index, (input_width, output_width) in shapes {
+    if input_region is Some(_) && indices[index] is (0 | 1 | 2 | 3 | 5 | 8) {
+      continue
+    }
     let symbol = symbol_prefix + "_" + indices[index].to_string()
     let partial = indices[index] == 15 &&
       plan.publication() == ReduceFloat32BeforeRound
@@ -76,6 +97,11 @@ pub fn recurrent_block_source(
       ).source_bytes()
     }
     source = source + b"\n" + projection
+  }
+  if input_region is Some(region) {
+    source = source +
+      b"\n" +
+      @tiled.segmented_source(region, symbol=symbol_prefix + "_inputs")
   }
   if plan.publication() == ReduceFloat32BeforeRound {
     source = source +
@@ -139,6 +165,7 @@ pub fn recurrent_block_source(
     source: source + b"\n" + @utf8.encode(text),
     delta,
     convolution,
+    input_region,
   }
 }
 
@@ -190,5 +217,10 @@ pub fn RecurrentBlockCudaSource::convolution(
 
 ///|
 pub fn RecurrentBlockCudaSource::symbol(self : Self, stage : Int) -> String {
-  self.prefix + "_" + stage.to_string()
+  self.prefix + "_" + (if stage == 17 { "inputs" } else { stage.to_string() })
+}
+
+///|
+pub fn RecurrentBlockCudaSource::input_region_tiles(self : Self) -> Int? {
+  self.input_region.map(region => region.tile_count())
 }

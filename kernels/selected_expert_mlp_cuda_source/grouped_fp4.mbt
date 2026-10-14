@@ -42,7 +42,7 @@ fn grouped_fp4_source(
       (
         $|float d\{stage}[4]={0,0,0,0};
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
-        $|\{fp4_fragment_pipeline(stage,k,n,selected,x.scales_offset().unwrap(),w.scales_offset().unwrap(),symbol)}
+        $|\{fp4_fragment_pipeline(stage,k,n,selected,x.scales_offset().unwrap(),w.scales_offset().unwrap(),symbol,work_tile="work_tile")}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
         $|for(int i=0;i<4;++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
       ),
@@ -85,6 +85,14 @@ fn grouped_fp4_source(
   ])
   let ng = (intermediate + 31) / 32
   let nd = (hidden + 31) / 32
+  let gate_tiles = @matrix.IndirectMatrixTraversal::new(
+    capacity_groups=jobs,
+    column_tiles=ng,
+  )
+  let down_tiles = @matrix.IndirectMatrixTraversal::new(
+    capacity_groups=jobs,
+    column_tiles=nd,
+  )
   guard jobs.to_int64() * ng.to_int64() <= 2147483647L &&
     jobs.to_int64() * nd.to_int64() <= 2147483647L else {
     raise @precision_ir.PrecisionPlanError::ArithmeticOverflow
@@ -94,8 +102,9 @@ fn grouped_fp4_source(
     grouping_kernel(symbol + "_group", rows, selected, metadata) +
     (
       $|extern "C" __global__ void \{symbol}_gate_up(const int *counts,const unsigned char *input,const int *indices,const int *expert_map,const unsigned char *bank,__nv_bfloat16 *activation\{if before {",const float *selected_weights"} else {""}}) {
-      $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);int group=blockIdx.x/\{ng};if(group>=meta[0]) return;
-      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(blockIdx.x%\{ng})*32+(threadIdx.x/32)*8;
+      $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
+      $|  for(int work_tile=blockIdx.x;work_tile<meta[0]*\{ng};work_tile+=gridDim.x) { int group=work_tile/\{ng};
+      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{ng})*32+(threadIdx.x/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{bodies[0]}
@@ -105,14 +114,17 @@ fn grouped_fp4_source(
       $|    float g=__bfloat162float(gate),product=\{expr(Product,["g","up"])};\{route}
       $|    activation[(unsigned long long)job*\{intermediate}+out]=local<0?__float2bfloat16_rn(0.0f):__float2bfloat16_rn(product);
       $|  }
+      $|  }
       $|}
       $|extern "C" __global__ void \{symbol}_down(const int *counts,const unsigned char *input,const int *indices,const float *selected_weights,const int *expert_map,const unsigned char *bank,\{wt} *weighted,const __nv_bfloat16 *activation) {
-      $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);int group=blockIdx.x/\{nd};if(group>=meta[0]) return;
-      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(blockIdx.x%\{nd})*32+(threadIdx.x/32)*8;
+      $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
+      $|  for(int work_tile=blockIdx.x;work_tile<meta[0]*\{nd};work_tile+=gridDim.x) { int group=work_tile/\{nd};
+      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{nd})*32+(threadIdx.x/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{bodies[2]}
       $|  for(int i=0;i<4;++i) {int job=job_ids[g+(i/2)*8],out=column+t*2+i%2;if(job>=0&&out<\{hidden}) weighted[(unsigned long long)job*\{hidden}+out]=\{down};}
+      $|  }
       $|}
       $|extern "C" __global__ void \{symbol}_combine(const int *counts,const int *indices,const \{wt} *weighted,float *output\{if partial {",const float *selected_weights"} else {""}}) {
       $|  int rows=counts[3];if(rows<=0||rows>\{rows}) return;unsigned long long cell=(unsigned long long)blockIdx.x*256+threadIdx.x;if(cell>=(unsigned long long)rows*\{hidden}) return;
@@ -137,13 +149,13 @@ fn grouped_fp4_source(
       (1, 128),
       (1, 256),
       (((rows.to_int64() * hidden.to_int64() + 127L) / 128L).to_int(), 128),
-      (jobs * ng, 128),
+      (gate_tiles.workers(), 128),
       (1, 256),
       (
         ((jobs.to_int64() * intermediate.to_int64() + 127L) / 128L).to_int(),
         128,
       ),
-      (jobs * nd, 128),
+      (down_tiles.workers(), 128),
       (((rows.to_int64() * hidden.to_int64() + 255L) / 256L).to_int(), 256),
     ]),
   }

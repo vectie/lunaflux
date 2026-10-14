@@ -79,5 +79,10 @@ pub fn MoeProgram::prepare_routed_tensor_frame(
   self.launches.append(routed)
   self.launches.append(shared)
   self.launches.push(finalize)
-  { before_kernel: routed.length() - 1, partials, width: hidden * selected, }
+  {
+    before_kernel: routed.length() -
+    (if self.collective_region is Some(_) { 0 } else { 1 }),
+    partials,
+    width: self.coalesced_tensor_width().unwrap_or(hidden * selected),
+  }
 }

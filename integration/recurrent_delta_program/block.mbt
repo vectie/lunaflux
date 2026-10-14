@@ -38,7 +38,7 @@ pub fn RecurrentDeltaProgram::with_block(
     maximum_rows: base.maximum_rows,
     cache_bytes: base.cache_bytes,
     owned_bytes: base.owned_bytes + extra,
-    launch_count: 15 +
+    launch_count: (if block.input_region_tiles() is Some(_) { 10 } else { 15 }) +
     block.delta().stage_count() +
     (if block.plan().publication() == ReduceFloat32BeforeRound { 1 } else { 0 }),
     status: Fresh,
@@ -222,7 +222,35 @@ fn append_block_prefix(
   let (heads, _, _) = plan.delta().geometry()
   let (channels, _) = plan.convolution().geometry()
   let (rows, _, _) = plan.delta().capacity()
+  if source.input_region_tiles() is Some(tiles) {
+    let arguments = [
+      region(counts, 20L, 4L),
+      region(hidden, rows.to_int64() * hidden_width.to_int64() * 2L, 2L),
+    ]
+    for
+      (weight, index, width) in [
+        (weights.query, 0, channels),
+        (weights.key, 1, channels),
+        (weights.value, 2, channels),
+        (weights.forget_low, 3, rank),
+        (weights.beta, 5, heads),
+        (weights.gate_low, 8, rank),
+      ] {
+      arguments.push(
+        region(weight, width.to_int64() * hidden_width.to_int64() * 2L, 2L),
+      )
+      arguments.push(
+        region(frame[index], rows.to_int64() * width.to_int64() * 2L, 2L),
+      )
+    }
+    append_block_launch(
+      owner, aot, source, launches, 17, tiles, 1, 128, arguments,
+    )
+  }
   for index, weight in [weights.query, weights.key, weights.value] {
+    if source.input_region_tiles() is Some(_) {
+      continue
+    }
     append_block_projection(
       owner,
       aot,
@@ -237,19 +265,21 @@ fn append_block_prefix(
       channels,
     )
   }
-  append_block_projection(
-    owner,
-    aot,
-    source,
-    launches,
-    3,
-    counts,
-    hidden,
-    weights.forget_low,
-    frame[3],
-    hidden_width,
-    rank,
-  )
+  if source.input_region_tiles() is None {
+    append_block_projection(
+      owner,
+      aot,
+      source,
+      launches,
+      3,
+      counts,
+      hidden,
+      weights.forget_low,
+      frame[3],
+      hidden_width,
+      rank,
+    )
+  }
   append_block_projection(
     owner,
     aot,
@@ -263,19 +293,21 @@ fn append_block_prefix(
     rank,
     channels,
   )
-  append_block_projection(
-    owner,
-    aot,
-    source,
-    launches,
-    5,
-    counts,
-    hidden,
-    weights.beta,
-    frame[5],
-    hidden_width,
-    heads,
-  )
+  if source.input_region_tiles() is None {
+    append_block_projection(
+      owner,
+      aot,
+      source,
+      launches,
+      5,
+      counts,
+      hidden,
+      weights.beta,
+      frame[5],
+      hidden_width,
+      heads,
+    )
+  }
   let beta_bytes = rows.to_int64() * heads.to_int64() * 2L
   append_block_launch(
     owner,
@@ -310,19 +342,21 @@ fn append_block_prefix(
       region(frame[7], full * 2L, 4L),
     ],
   )
-  append_block_projection(
-    owner,
-    aot,
-    source,
-    launches,
-    8,
-    counts,
-    hidden,
-    weights.gate_low,
-    frame[8],
-    hidden_width,
-    rank,
-  )
+  if source.input_region_tiles() is None {
+    append_block_projection(
+      owner,
+      aot,
+      source,
+      launches,
+      8,
+      counts,
+      hidden,
+      weights.gate_low,
+      frame[8],
+      hidden_width,
+      rank,
+    )
+  }
   append_block_projection(
     owner,
     aot,

@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/coalesced_sum_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/parallel_ir",
+}
+
+// Values
+pub fn source(@parallel_ir.CoalescedSumPlan, symbol~ : String) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

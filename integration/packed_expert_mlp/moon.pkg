@@ -1,4 +1,6 @@
 import {
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
+  "vectie/lunaflux/kernels/coalesced_sum_cuda_source" @coalesced,
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/device",
   "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @source,

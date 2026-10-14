@@ -8,7 +8,7 @@ import {
 // Values
 pub fn dense_source(@grouped_matrix_ir.MatrixTilePlan, symbol~ : String, partial_float32? : Bool) -> Bytes
 
-pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String) -> String
+pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String, external_scratch? : Bool) -> String
 
 pub fn paired_matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weights~ : (String, String), results~ : (String, String), input_vector? : String, weight_vectors? : (String, String), vector_guard? : String) -> String
 
@@ -16,7 +16,9 @@ pub fn publication_source(rows~ : Int, width~ : Int, symbol~ : String) -> Bytes
 
 pub fn scalar_partial_source(rows~ : Int, columns~ : Int, inner~ : Int, symbol~ : String) -> Bytes
 
-pub fn shape_decode_body(inner~ : Int, columns~ : Int, maximum_rows~ : Int, left~ : String, right~ : String, publish~ : String, prepare? : String) -> String
+pub fn segmented_source(@grouped_matrix_ir.SegmentedMatrixPlan, symbol~ : String) -> Bytes
+
+pub fn shape_decode_body(inner~ : Int, columns~ : Int, maximum_rows~ : Int, left~ : String, right~ : String, publish~ : String, prepare? : String, tile_id? : String, tile_count? : String) -> String
 
 // Errors
 

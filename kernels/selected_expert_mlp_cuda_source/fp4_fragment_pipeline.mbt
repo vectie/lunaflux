@@ -10,6 +10,7 @@ fn fp4_fragment_pipeline(
   input_scales : Int64,
   weight_scales : Int64,
   symbol : String,
+  work_tile? : String = "blockIdx.x",
 ) -> String {
   let layout = @physical_tile_ir.OperandLayout::new(
     columns=128,
@@ -55,7 +56,9 @@ fn fp4_fragment_pipeline(
       index +
       ";bool valid=job>=0&&local>=0;"
     } else {
-      "int source_row=(blockIdx.x%" +
+      "int source_row=(" +
+      work_tile +
+      "%" +
       ((columns + 31) / 32).to_string() +
       ")*32+row;bool valid=local>=0&&source_row<" +
       columns.to_string() +

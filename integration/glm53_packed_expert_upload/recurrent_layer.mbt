@@ -49,6 +49,7 @@ pub fn GlmRecurrentLayer::new(
   let source = @block.recurrent_block_source(
     plan,
     symbol_prefix="glm_recurrent_" + layer_index.to_string(),
+    fuse_input_projections=matrix_law == ShapeAwareFloat32,
   )
   {
     spec,
