@@ -1,6 +1,7 @@
 # GLM HC fusion and vocabulary tensor partition experiment
 
-Status: isolated kernels validated; full-model ablations pending. No claim
+Status: isolated kernels and first full-model ablations validated; repeated
+full-model and refreshed reference measurements are in progress. No claim
 that the remaining end-to-end gap has closed.
 
 The starting point is commit `214ad93f`, with shared-column 32 and explicit
@@ -108,3 +109,125 @@ Implementation pins: `ef6f2c4e` introduces explicit HC/vocabulary alternatives;
 clean ARM release build passes in37seconds, peak700.3MiB, zero swap. The complete
 local native suite subsequently passes **5199/5199**, using the repository's
 unchanged warning exclusions; unrelated dirty migration files are preserved.
+
+## Independent full-model ablations
+
+These are source-pinned `74f1212e` native executions, not sums of isolated
+kernel predictions. The same six literal prompts, one excluded warmup, TP2,
+64-row capacity, low-bit experts, shared-column32/branch overlap and interval
+graph policy are retained. Native input and output token IDs are identical in
+all four runs. The post/square diagnostic remains disabled.
+
+| First run | Six requests, ms | Sum of native first-token times, ms | After first tokens, ms | Five equal-output-count requests, ms |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline | 3995 | 1575 | 2420 | 3242 |
+| HC controls only | 3902 | 1555 | 2347 | 3169 |
+| Vocabulary TP only | 3842 | 1546 | 2296 | 3117 |
+| Both | 3813 | 1533 | 2280 | 3093 |
+
+Root prefix `/tmp/lunaflux-model-bench-glm-hc-vocab-`; suffixes
+`base-20261018-v1`, `hc-only-20261018-v1`, `vocab-only-20261018-v1` and
+`both-20261018-v1`. Raw journals, outputs, memory observations and
+`comparison.json` are retained. The reference in those initial JSON files is
+the frozen earlier comparison, not the fresh reference being collected now.
+
+Single-run six-request completion reductions are 2.3%, 3.8%, and 4.6%.
+They are not additive; repetition is needed before attributing a small
+interaction to scheduling. Native output counts are `[8,4,8,8,8,3]`, whereas
+the frozen vLLM counts are `[4,4,8,8,8,3]`. Therefore the five-request cohort
+indices1–5 (31 output tokens) remains the primary cross-engine timing
+comparison. Equal counts do not establish identical generated content or
+quality. Native resident generation timing and vLLM buffered HTTP timing
+remain distinct boundaries. The six-request comparison measures changes
+within LunaFlux, where actual token work is unchanged.
+
+Both ranks log `fused_hc_controls=true` and `vocabulary_tp=true` for the
+combined run, with92 prepared interval graphs rather than91. Each vocabulary
+rank plans100373434160bytes (93.48GiB) under100GiB. All four runs terminate
+normally and explicitly close CUDA; swap is zero and minimum observed
+host-available memory is21.76GiB, above16GiB. Selected-kernel trace verification
+is separate from these unprofiled timings.
+
+The reverse-order repeat (combined then baseline) gives3837/3988ms, retaining
+every native ID. Thus baseline six-request mean3991.5ms versus combined3825ms
+is a4.17% reduction; the equal-count cohort means3238/3098ms improve4.32%.
+Baseline first-token sum mean1570ms becomes1543.5ms (1.69% less); after-first
+time mean2421.5ms becomes2281.5ms (5.78% less). There are33 after-first tokens
+in these six native requests, giving13.63 versus14.46tokens/s over that
+after-first interval. This is not saturated multi-request serving throughput.
+
+Repeating both individual ablations gives the following complete native
+sample set. No prompt output IDs change, and all eight runs exit0 with
+explicit CUDA release, zero swap and host reserve above21.75GiB.
+
+| Variant | Six-request run1 / run2, ms | Six-request mean, ms | Mean time reduction | Equal-count five-request mean, ms |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline | 3995 / 3988 | 3991.5 | — | 3238 |
+| HC controls only | 3902 / 3948 | 3925 | 1.67% | 3186.5 |
+| Vocabulary TP only | 3842 / 3889 | 3865.5 | 3.16% | 3131.5 |
+| Both | 3813 / 3837 | 3825 | 4.17% | 3098 |
+
+Run2 roots use the same suffix pattern ending `-v2`. Execution order is
+baseline1, HC1, vocabulary1, both1, both2, baseline2, separate instrumented
+combined capture, HC2, vocabulary2. The combined mean is40.5ms (1.05%) below
+the vocabulary-only mean. This is a modest incremental whole-model HC benefit,
+not the isolated52–54% component saving applied to the whole model. The
+combined166.5ms saving is less than the192.5ms sum of individual mean savings;
+with two repetitions we cannot attribute that26ms interaction to a particular
+cache/clock/scheduling cause or claim a statistical confidence interval.
+
+## Selected full-model execution, not just emitted source
+
+The combined trace root is
+`/tmp/lunaflux-model-bench-glm-hc-vocab-both-node-20261018-v1`.
+Both rank reports/SQLite databases are retained. Analysis roots are
+`/tmp/lunaflux-glm-hc-vocab-{ingress,egress}-trace-20261018-v1`, produced by
+`scripts/analyze-glm-selected-trace.mbtx`. The literal16-input/2-output probe
+follows a warmup; steps3/4 are the measured prefill/decode. This is a different
+workload and a heavily instrumented execution, not the unprofiled cohort.
+
+Both ranks execute the19360-CTA half-head, local greedy, candidate all-gather
+and final greedy join. Egress prefill/decode head times are2.842880/2.814784ms;
+ingress2.819584/2.788480ms. Egress gather takes0.107168/0.061568ms, and join
+0.003936/0.002240ms. Head, local greedy and join have nonzero graph-node IDs.
+The head is no longer egress-only or a full38720-CTA table. Ninety ordinary
+layer collectives plus one candidate gather are observed per step, with92
+interval graph launches. No stream query occurs before the final collective
+enqueue in the analyzed window.
+
+HC executes360 rather than450 calls per step, including90 actual
+`*_hyper_tail_function_tree_tiles_v1` entries and zero standalone Sinkhorn
+entries. The fused tails sum1.571008/1.568448ms prefill/decode, with graph-node
+IDs present. This verifies source → owner → rewritten execution plan → graph
+propagation. The arithmetic/numerical probes remain separate correctness
+evidence; selection counts alone do not prove correctness.
+
+| Egress summed kernel scope | Previous baseline prefill / decode, ms | Combined prefill / decode, ms |
+| --- | ---: | ---: |
+| HC, exclusive attribution | 5.797280 / 4.755360 | 4.728288 / 3.561024 |
+| Embedding/head/norm/greedy, excluding collectives | 5.864224 / 5.786080 | 3.095712 / 3.058912 |
+| New candidate gather | absent | 0.107168 / 0.061568 |
+
+The previous trace is the same node/all-API mode at
+`/tmp/lunaflux-model-bench-glm-columns32-overlap-node-20261018-v1`.
+Shared/routed overlap is retained: union intersections66.246144/11.980608ms
+on egress and66.420640/11.649312ms on ingress. Overlapping kernel sums must
+not be added to those overlap durations as an extra speedup.
+
+All-API instrumentation still inflates the complete decode span to177.25ms
+and egress collective residency to48.72ms. Those numbers are **not** native
+production latency or pure network-transfer time. They cannot be subtracted
+from the older vLLM trace to manufacture a remaining-gap budget. Unprofiled
+repetitions supply the acceptance time; this trace establishes execution and
+the changed local work.
+
+The installed vLLM source snapshot's model.py lines443 onward defer HC post
+into the following pre, and lines934–939 construct `ParallelLMHead`.
+Snapshot root `/tmp/lunaflux-glm-installed-trace-sources-20261017-v2` corresponds
+to the installed reference, unlike the newer local `../vlm` checkout.
+The prior actual vLLM trace has181 HC calls and a3.396544ms vocabulary shard.
+We have removed the full-vocabulary work deficit, but360 HC calls are still
+not vLLM's181-call deferred post/pre path. The rejected post/square fusion
+shows why deleting a boundary without retaining parallelism is not enough.
+This comparison motivates further work; it is not a claim that all HC
+rounding/effect constraints are interchangeable between the implementations.
