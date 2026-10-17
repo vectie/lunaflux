@@ -74,3 +74,34 @@ test "collective-inclusive replay requires whole-frame retirement" {
     330L,
   )
 }
+
+///|
+test "collective buckets distinguish decode from prefill with bounded storage" {
+  let p = OrderedSubmissionPlan::new(
+    kernel_count=3,
+    [1, 2],
+    retirement=WholeFrame,
+    replay=CaptureBucketedCollectives,
+  )
+  assert_eq(p.collective_row_buckets(64), [1, 64])
+  assert_eq(p.collective_row_buckets(1), [1])
+  assert_eq(p.collective_bucket(1), 0)
+  assert_eq(p.collective_bucket(2), 1)
+  assert_eq(p.collective_bucket(64), 1)
+  assert_eq(
+    p.replay_reserve_bytes(bytes_per_kernel=100L, bytes_per_interval=10L),
+    660L,
+  )
+  try
+    OrderedSubmissionPlan::new(
+      kernel_count=3,
+      [1, 2],
+      retirement=EachCollective,
+      replay=CaptureBucketedCollectives,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("bucket graphs require a whole-frame retirement fence")
+  }
+}

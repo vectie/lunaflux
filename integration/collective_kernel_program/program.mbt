@@ -44,6 +44,7 @@ pub struct CollectiveKernelProgram {
   priv mut rows : Int
   priv mut plan_sequence : UInt64
   priv mut global_sequence : UInt64
+  priv mut graph_index : Int
 }
 
 ///|
@@ -107,14 +108,29 @@ pub fn CollectiveKernelProgram::new(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   let queues : Array[@device.OrderedKernelExecutor] = []
-  errdefer (for queue in queues.rev() {
-    queue.abort() catch {
-      _ => ()
+  let graph_rows = plan.collective_row_buckets(maximum_rows) catch {
+    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  errdefer {
+    if !graph_rows.is_empty() {
+      for queue in queues.rev() {
+        queue.discard_effect_graph() catch {
+          _ => ()
+        }
+      }
+      owner.abort() catch {
+        _ => ()
+      }
     }
-    queue.close() catch {
-      _ => ()
+    for queue in queues.rev() {
+      queue.abort() catch {
+        _ => ()
+      }
+      queue.close() catch {
+        _ => ()
+      }
     }
-  })
+  }
   if replay == CaptureIntervals {
     for i in 0..<plan.interval_count() {
       let (first, end) = plan.interval(i)
@@ -126,17 +142,21 @@ pub fn CollectiveKernelProgram::new(
         ),
       )
     }
+  } else if !graph_rows.is_empty() {
+    for _ in graph_rows {
+      queues.push(context.create_ordered_kernel_executor(stream, launches))
+    }
   } else {
     queues.push(context.create_ordered_kernel_executor(stream, launches))
   }
-  if replay == CapturePaddedCollectives {
+  for i, rows in graph_rows {
     capture_collective_frame(
-      queues[0],
+      queues[i],
       stream,
       boundaries,
       owner,
       generation,
-      maximum_rows,
+      rows,
       launches.length(),
       capture_timeout_millis,
     )
@@ -155,6 +175,7 @@ pub fn CollectiveKernelProgram::new(
     rows: 0,
     plan_sequence: 0UL,
     global_sequence: 0UL,
+    graph_index: 0,
   }
 }
 
@@ -222,10 +243,12 @@ pub fn CollectiveKernelProgram::submit(
   self.global_sequence = global_sequence
   self.site = 0
   self.next_kernel = 0
-  if self.plan.replay_policy() == CapturePaddedCollectives {
+  if self.plan.replay_policy()
+    is (CapturePaddedCollectives | CaptureBucketedCollectives) {
+    self.graph_index = self.plan.collective_bucket(live_rows)
     self.owner.begin_graph(self.generation, plan_sequence, global_sequence)
-    self.queues[0].launch_captured()
-    self.queues[0].record_completion()
+    self.queues[self.graph_index].launch_captured()
+    self.queues[self.graph_index].record_completion()
     self.state = Graph
     return
   }
@@ -243,13 +266,13 @@ pub fn CollectiveKernelProgram::poll(
     errdefer {
       self.state = Failed
     }
-    if !self.queues[0].poll_completion() {
+    if !self.queues[self.graph_index].poll_completion() {
       return false
     }
     if !self.owner.complete_graph() {
       return false
     }
-    self.queues[0].reset()
+    self.queues[self.graph_index].reset()
     self.state = Idle
     return true
   }
@@ -329,7 +352,8 @@ pub fn CollectiveKernelProgram::close(
   for queue in self.queues.rev() {
     queue.close()
   }
-  if self.plan.replay_policy() == CapturePaddedCollectives {
+  if self.plan.replay_policy()
+    is (CapturePaddedCollectives | CaptureBucketedCollectives) {
     self.owner.release_graph()
   }
   self.state = Closed
@@ -343,7 +367,8 @@ pub fn CollectiveKernelProgram::abort(
     return
   }
   self.state = Failed
-  if self.plan.replay_policy() == CapturePaddedCollectives {
+  if self.plan.replay_policy()
+    is (CapturePaddedCollectives | CaptureBucketedCollectives) {
     for queue in self.queues.rev() {
       queue.discard_effect_graph()
     }

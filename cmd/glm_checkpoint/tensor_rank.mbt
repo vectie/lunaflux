@@ -112,7 +112,12 @@ async fn run_tensor_egress(
   let (bootstrap, _) = rendezvous.accept()
   defer bootstrap.close()
   let collective = connect_tensor_group(context, stage, bootstrap, rank=1)
-  defer collective.abort()
+  // Graphs borrow the communicator. Drop worker/graph leases before consuming it.
+  defer {
+    rank.close()
+    stage.close()
+    collective.abort()
+  }
   prepare_rank(startup, 1, context, aot, stream, root, rank, stage, collective~)
   println("expert TP rank=1 loaded; both ranks execute each decoder step")
   let clock = @clock.MonotonicClock::system()

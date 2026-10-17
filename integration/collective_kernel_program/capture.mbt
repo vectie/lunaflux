@@ -26,17 +26,9 @@ fn capture_collective_frame(
     )
   }
   queue.begin_effect_capture()
-  errdefer {
-    queue.discard_effect_graph() catch {
-      _ => ()
-    }
-    owner.abort() catch {
-      _ => ()
-    }
-    queue.abort() catch {
-      _ => ()
-    }
-  }
+  errdefer (queue.discard_effect_graph() catch { _ => () })
+  // The enclosing owner destroys ALL previously captured bucket graphs
+  // before aborting the shared communicator and draining operand leases.
   let mut next = 0
   for site, boundary in boundaries {
     while next < boundary.before_kernel {

@@ -286,7 +286,11 @@ async fn run_ingress(
   } else {
     None
   }
-  defer (if collective is Some(owner) { owner.abort() })
+  defer (if collective is Some(owner) {
+    rank.close()
+    stage.close()
+    owner.abort()
+  })
   prepare_rank(startup, 0, context, aot, stream, root, rank, stage, collective?)
   let edge = if startup.expert_tensor_parallel {
     None

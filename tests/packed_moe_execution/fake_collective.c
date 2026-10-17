@@ -6,14 +6,17 @@ int32_t lunaflux_packed_graph_seal(tp_fake_communicator *c, uint64_t previous, i
       c->previous_plan_sequence != previous + 1 || c->next_collective_sequence != (uint64_t)sites + 1) return -2;
   c->previous_plan_sequence = previous;
   c->next_collective_sequence = 1;
+  c->graph_sites = sites;
+  c->graph_lease_count += c->deferred_count;
+  c->deferred_count = 0;
   inflight = NULL;
   return 0;
 }
 int32_t lunaflux_packed_graph_begin(tp_fake_communicator *c, uint64_t generation, uint64_t plan, uint64_t first) {
-  if (!c || !c->live || c->phase != TP_COMM_LIVE || c->deferred_count <= 0) return -4;
+  if (!c || !c->live || c->phase != TP_COMM_LIVE || c->graph_sites <= 0 || c->deferred_count) return -4;
   if (generation != c->generation || plan != c->previous_plan_sequence + 1 || first != c->next_collective_sequence) return -7;
   c->previous_plan_sequence = plan;
-  c->next_collective_sequence += c->deferred_count;
+  c->next_collective_sequence += c->graph_sites;
   c->phase = TP_COMM_IN_FLIGHT;
   c->submission_polls = 2;
   inflight = c;
@@ -27,6 +30,7 @@ int32_t lunaflux_packed_graph_complete(tp_fake_communicator *c) {
 }
 int32_t lunaflux_packed_graph_release(tp_fake_communicator *c) {
   if (!c || !c->live || c->phase != TP_COMM_LIVE) return -4;
-  c->deferred_count = 0;
+  c->graph_sites = 0;
+  c->graph_lease_count = 0;
   return 0;
 }

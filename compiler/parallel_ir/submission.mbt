@@ -15,6 +15,8 @@ pub(all) enum ReplayPolicy {
   // Independent-row sums at capacity; active row count remains a device input.
   // Consumers must ignore inactive rows. Padding is not valid for all-gather.
   CapturePaddedCollectives
+  // One-row decode and capacity-bounded prefill retain separate effect graphs.
+  CaptureBucketedCollectives
 } derive(Eq)
 
 ///|
@@ -37,7 +39,8 @@ pub fn OrderedSubmissionPlan::new(
   replay? : ReplayPolicy = Eager,
 ) -> Self raise ParallelError {
   guard kernel_count > 0 && !collective_cuts.is_empty() else { raise Capacity }
-  guard replay != CapturePaddedCollectives || retirement == WholeFrame else {
+  guard !(replay is (CapturePaddedCollectives | CaptureBucketedCollectives)) ||
+    retirement == WholeFrame else {
     raise Capacity
   }
   for i, cut in collective_cuts {
@@ -90,6 +93,33 @@ pub fn OrderedSubmissionPlan::replay_policy(self : Self) -> ReplayPolicy {
 }
 
 ///|
+pub fn OrderedSubmissionPlan::collective_row_buckets(
+  self : Self,
+  capacity : Int,
+) -> Array[Int] raise ParallelError {
+  guard capacity > 0 else { raise Capacity }
+  match self.replay {
+    CapturePaddedCollectives => [capacity]
+    CaptureBucketedCollectives =>
+      if capacity == 1 {
+        [1]
+      } else {
+        [1, capacity]
+      }
+    _ => []
+  }
+}
+
+///|
+pub fn OrderedSubmissionPlan::collective_bucket(self : Self, live : Int) -> Int {
+  if self.replay == CaptureBucketedCollectives && live > 1 {
+    1
+  } else {
+    0
+  }
+}
+
+///|
 /// Caller-supplied backend estimates; no CUDA constants in this IR.
 pub fn OrderedSubmissionPlan::replay_reserve_bytes(
   self : Self,
@@ -107,5 +137,11 @@ pub fn OrderedSubmissionPlan::replay_reserve_bytes(
     (9223372036854775807L - kernels * bytes_per_kernel) / intervals else {
     raise Capacity
   }
-  kernels * bytes_per_kernel + intervals * bytes_per_interval
+  let reserve = kernels * bytes_per_kernel + intervals * bytes_per_interval
+  if self.replay == CaptureBucketedCollectives {
+    guard reserve <= 4611686018427387903L else { raise Capacity }
+    reserve * 2L
+  } else {
+    reserve
+  }
 }

@@ -71,3 +71,36 @@ here must be distinguished from an artificially short polling budget.
 Fusion is
 collapse plus normalization, preserving the BF16 intermediate; it is not yet
 vLLM's cross-layer post/pre fusion.
+
+## Separate full-model ablations and capture repair
+
+HC-only runs `glm-parallel-hc-20261017-v1/v2` are repeatable, but change the
+generated token IDs for three prompts. The three unchanged-output requests
+improve from 885/902/545 ms to 779/812/505 ms in repeat two (7–12%). Aggregate
+time is misleading: the first answer now emits eight tokens rather than four.
+The tree arithmetic remains an explicit alternative, not a quality-approved
+default. Both ranks close cleanly, zero swap, with the host reserve respected.
+
+The longer startup timeout permits capture without adding a warmup. The
+capacity-only graph run `glm-collective-graph-20261017-v2` completes inference
+but regresses: an eight-token case rises from 902 to 1,307 ms, and a three-token
+case from 545 to 672 ms. It communicates 64 rows at every decode site instead
+of one. These are provisional request timings from a lifecycle-failed run,
+not a successful benchmark gate.
+
+The egress rank then stalls in NCCL teardown. A scoped debugger backtrace
+finds `commDestroySync -> ncclCommPollCallbacks -> ncclIntruQueueMpscDequeueAll`:
+the checkpoint caller's reverse-order defer aborts its communicator before
+closing its graph-owning stage. The exact task unit was terminated after TERM
+failed; original service containers and NFS were not modified. Failure logs
+are retained in that experiment root. The caller now closes rank/stage before
+aborting the communicator, including error paths.
+
+The second schedule is a pure parallel-IR row-bucket plan: one-row decode and
+capacity-bounded prefill. Both graphs are prepared at startup. NCCL retains
+each graph's operand leases separately from transient submissions; each replay
+advances only the logical site count, never the total captured lease count.
+Graph references retire before communicator abort. No runtime allocation,
+clock, capture or change to kernel arithmetic is added to replay. Alternating
+bucket replay/cancellation and native reference-balance/ASan/UBSan tests cover
+both graph lifetimes. Full-model validation of this repair is pending.

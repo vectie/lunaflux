@@ -409,7 +409,7 @@ int32_t lunaflux_nccl_defer_submitted(lf_nccl_communicator *c) {
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_nccl_poll_deferred(lf_nccl_communicator *c) {
   if (c == NULL) return LF_NCCL_INVALID_ARGUMENT;
-  if (c->graph_bound) return LF_NCCL_BUSY;
+  if (c->graph_in_flight) return LF_NCCL_BUSY;
   if (atomic_load(&c->state) != LF_NCCL_RESOURCE_LIVE) return LF_NCCL_CLOSED;
   if (c->phase == LF_NCCL_PHASE_FAILED) return LF_NCCL_FAILED;
   if (c->phase != LF_NCCL_PHASE_READY) return LF_NCCL_BUSY;

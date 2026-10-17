@@ -115,6 +115,8 @@ pub fn Lane::not_equal(Self, Self) -> Bool
 pub struct OrderedSubmissionPlan {
   // private fields
 }
+pub fn OrderedSubmissionPlan::collective_bucket(Self, Int) -> Int
+pub fn OrderedSubmissionPlan::collective_row_buckets(Self, Int) -> Array[Int] raise ParallelError
 pub fn OrderedSubmissionPlan::interval(Self, Int) -> (Int, Int)
 pub fn OrderedSubmissionPlan::interval_count(Self) -> Int
 pub fn OrderedSubmissionPlan::interval_end(Self, Int) -> Int
@@ -149,6 +151,7 @@ pub(all) enum ReplayPolicy {
   Eager
   CaptureIntervals
   CapturePaddedCollectives
+  CaptureBucketedCollectives
 } derive(Eq)
 pub fn ReplayPolicy::equal(Self, Self) -> Bool
 pub fn ReplayPolicy::not_equal(Self, Self) -> Bool

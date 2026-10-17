@@ -253,12 +253,23 @@ int32_t lunaflux_nccl_test_collectives(int32_t cycles) {
           lf_device_interop_managed_probe_queue(&device)) != LF_NCCL_OK ||
           lunaflux_nccl_defer_submitted(communicator) != 1) return 23;
     }
-    queries = lf_device_interop_managed_probe_query_calls(&device);
-    int32_t calls = state.all_reduce_calls;
     if (lunaflux_nccl_graph_seal(communicator, 0U, 2) != LF_NCCL_OK ||
-        lunaflux_nccl_poll_deferred(communicator) != LF_NCCL_BUSY ||
+        lunaflux_nccl_poll_deferred(communicator) != 1 ||
         lf_nccl_communicator_close(communicator) != LF_NCCL_BUSY ||
         lunaflux_nccl_graph_begin(communicator, 1U, 2U, 1U) != LF_NCCL_SEQUENCE_MISMATCH) return 24;
+    for (int site = 0; site < 2; ++site) {
+      if (lf_nccl_communicator_submit_typed(communicator, 4, 1U, 1U, 1U + site, site, 1,
+          lf_device_interop_managed_probe_context(&device), lf_device_interop_managed_probe_send(&device), 0, 24,
+          lf_device_interop_managed_probe_receive(&device), 0, 24,
+          lf_device_interop_managed_probe_queue(&device)) != LF_NCCL_OK ||
+          lunaflux_nccl_defer_submitted(communicator) != 1 ||
+          lunaflux_nccl_graph_release(communicator) != LF_NCCL_BUSY) return 27;
+    }
+    if (lunaflux_nccl_graph_seal(communicator, 0U, 2) != LF_NCCL_OK ||
+        communicator->graph_sites != 2 || communicator->graph_lease_count != 4 ||
+        communicator->deferred_count != 0) return 28;
+    queries = lf_device_interop_managed_probe_query_calls(&device);
+    int32_t calls = state.all_reduce_calls;
     for (int frame = 0; frame < 3; ++frame) {
       if (lunaflux_nccl_graph_begin(communicator, 1U, frame + 1U, frame * 2U + 1U) != LF_NCCL_OK ||
           lunaflux_nccl_graph_release(communicator) != LF_NCCL_BUSY ||

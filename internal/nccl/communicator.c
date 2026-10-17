@@ -51,7 +51,7 @@ static int32_t lf_nccl_consume(
     return LF_NCCL_FAILED;
   }
   if (use_abort == 0 && (communicator->phase != LF_NCCL_PHASE_READY ||
-                        communicator->deferred_count != 0)) {
+                        communicator->deferred_count != 0 || communicator->graph_bound)) {
     atomic_store(&communicator->state, LF_NCCL_RESOURCE_LIVE);
     atomic_store(&communicator->operation_lock, 0);
     return LF_NCCL_BUSY;
@@ -72,6 +72,7 @@ static int32_t lf_nccl_consume(
   communicator->handle = NULL;
   atomic_store(&communicator->state, LF_NCCL_RESOURCE_CLOSED);
   lf_nccl_release_in_flight(communicator);
+  lf_nccl_release_graph_leases(communicator);
   free(communicator->deferred_leases);
   communicator->deferred_leases = NULL;
   communicator->deferred_capacity = 0;
@@ -313,7 +314,7 @@ int32_t lf_nccl_collective_begin(
     status = LF_NCCL_CLOSED;
   } else if (atomic_load(&communicator->failed) != 0) {
     status = LF_NCCL_FAILED;
-  } else if (communicator->graph_bound || communicator->phase != LF_NCCL_PHASE_READY) {
+  } else if (communicator->graph_in_flight || communicator->phase != LF_NCCL_PHASE_READY) {
     status = LF_NCCL_BUSY;
   } else if (generation != communicator->generation) {
     atomic_store(&communicator->failed, 1);

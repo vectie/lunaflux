@@ -18,6 +18,8 @@ typedef struct {
   int32_t submission_polls;
   int32_t deferred_capacity;
   int32_t deferred_count;
+  int32_t graph_sites;
+  int32_t graph_lease_count;
   void *stream;
   int32_t live;
 } tp_fake_communicator;
@@ -191,7 +193,7 @@ int32_t lunaflux_tp_alloc_fake_communicator_close(
 ) {
   if (communicator == NULL) return -2;
   if (communicator->live == 0) return 0;
-  if (communicator->phase != TP_COMM_LIVE || communicator->deferred_count != 0) return -4;
+  if (communicator->phase != TP_COMM_LIVE || communicator->deferred_count != 0 || communicator->graph_lease_count != 0) return -4;
   communicator->phase = TP_COMM_CLOSED;
   communicator->live = 0;
   live_communicators -= 1;
