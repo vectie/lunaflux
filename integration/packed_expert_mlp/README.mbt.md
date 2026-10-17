@@ -21,6 +21,16 @@ BF16 finalization without heap allocation in submit/poll. close releases the
 queue before its functions and intermediate buffers; abort cancels active work.
 Retain the owner on a preparation error and close it to release partial storage.
 
+An explicitly selected tiled-bank source also permutes the compact weight bank
+in place during prepare. The caller lends that newly uploaded bank exclusively:
+it must not concurrently bind another program or reuse the permuted bytes with
+a row-major source. The startup-only AOT preparation and copy-back functions
+reuse one expert's scratch, preserve every payload/scale byte, synchronize
+before returning, and release scratch and the startup stream before submission.
+Preparation is once per fresh program/bank; retry after failure requires a fresh
+upload. Workspace planning includes this temporary storage. Ordinary sources
+do not transform their banks. There is no request-path preparation or hashing.
+
 With an optional MoeRoutingCudaSource, prepare_routed instead owns the logits,
 scores, corrected choice scores, expert IDs and selected weights. The queue is
 projection -> score/correction -> group/top-k -> routed experts -> optional F32

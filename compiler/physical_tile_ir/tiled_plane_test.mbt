@@ -31,3 +31,44 @@ test "contiguous tile permutation preserves every byte and row-local vector" {
     }
   }
 }
+
+///|
+test "tile plane rejects incomplete or padded domains and bounded address overflow" {
+  let layout = @physical_tile_ir.OperandLayout::new(
+    columns=128,
+    vector=16,
+    rotations=8,
+    row_group=1,
+  ).unwrap()
+  for
+    (rows, columns, tile_rows) in [
+      (0, 128, 16),
+      (16, 0, 16),
+      (16, 128, 0),
+      (17, 128, 16),
+      (16, 129, 16),
+      (16, 128, 4),
+      (16777216, 128, 16),
+    ] {
+    assert_true(
+      @physical_tile_ir.TiledPlane::new(rows~, columns~, tile_rows~, layout~)
+      is None,
+    )
+  }
+  let padded = @physical_tile_ir.OperandLayout::new(
+    columns=128,
+    vector=16,
+    rotations=8,
+    row_group=1,
+    row_stride=144,
+  ).unwrap()
+  assert_true(
+    @physical_tile_ir.TiledPlane::new(
+      rows=16,
+      columns=128,
+      tile_rows=16,
+      layout=padded,
+    )
+    is None,
+  )
+}
