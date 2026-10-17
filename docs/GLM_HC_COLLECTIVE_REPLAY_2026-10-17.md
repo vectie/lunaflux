@@ -140,3 +140,103 @@ owner. This changes schedule, not HC or any other numerical operation. Keep
 the two losing policies available explicitly for reproducibility; only the
 diagnostic `-collective-graph` option chooses the revised policy. Validation
 and the new paired measurement are required before a performance claim.
+
+## Selected-kernel and timeline evidence
+
+The separate two-token Nsight run
+`/tmp/lunaflux-model-bench-glm-trace-hc-collective-graph-20261017-v3`
+selects both experimental paths. Its decode has one graph launch containing
+90 collective kernel nodes, versus 91 compute graph launches in the retained
+baseline. There are no whole-stream queries before the last collective enqueue.
+
+Including sparse-layer HC names (not only the `glm_hyper_*` family), the warmed
+egress traces show:
+
+| Region | Previous | Parallel HC + bucketed graph |
+|---|---:|---:|
+| Prefill HC, all 90 sites | 19.897 ms / 540 calls | 5.836 ms / 450 calls |
+| Decode HC, all 90 sites | 14.765 ms / 540 calls | 4.775 ms / 450 calls |
+| Prefill collective kernel time | 32.999 ms | 57.371 ms |
+| Decode collective kernel time | 36.543 ms | 3.980 ms |
+| Decode kernel-free intervals, instrumented | 43.572 ms | 0.687 ms |
+
+The removed 90 launches are the legally fused normalization publications. The
+remaining HC kernels use the selected 256-partition tree. In contrast, routed
+gate/up and down decode time is essentially unchanged: 7.230/3.530 ms versus
+7.349/3.498 ms. KDA input/output projection remains 16.412/5.804 ms in the new
+trace. This work did not optimize those other regions.
+
+Do **not** convert the profiled gap/collective reductions into a promised
+unprofiled speedup. The profile records every CUDA API and graph node; changing
+91 host graph submissions into one changes its instrumentation burden. The
+unprofiled graph-only after-prefill total improves by just 26 ms across all six
+requests, not the tens of milliseconds per decode step suggested by naive
+subtraction of these traces. The trace proves selected structure and the HC
+kernel gain; the unprofiled ablations decide request performance.
+
+Raw analysis is in
+`/tmp/lunaflux-glm-hc-graph-trace-egress-analysis-20261017-v4` and
+`/tmp/lunaflux-glm-bulk-tiles-trace-egress-analysis-20261017-v3`.
+The existing external analyzer now includes all `*hyper*` names to avoid
+silently excluding sparse-layer HC from the comparison; its regression passes.
+
+## Final unprofiled comparison
+
+Clean source-pinned `b2a1538b` builds on ARM and selects the revised policy in
+`glm-collective-graph-20261017-v5` and `glm-hc-collective-graph-20261017-v5`.
+Both ranks report 92 prepared graphs: one collective-inclusive decode graph
+plus the existing 91 compute intervals used for prefill. All benchmark ranks
+exit successfully and explicitly close their CUDA contexts. Graph-only
+preserves all baseline token IDs; combined preserves all HC-only token IDs.
+
+The fixed workload is TP2/PP1, C1, input lengths 22/23/22/23/24/36, output cap
+8, one excluded warmup, native capacity/history 64, no prefix reuse or
+speculation. Reuse the same-day frozen vLLM run
+`/tmp/lunaflux-reference-bench-vllm-glm-bulk-tiles-20261017-v1`; no reference
+rebuild or payload integrity work was performed. vLLM is
+`0.1.dev20051+g487ecf187`, modelopt NVFP4 on the same checkpoint, TP2/PP1,
+context cap 256 and 512 MiB KV allocation. Timing boundaries remain native
+resident CLI versus buffered reference HTTP; native KV is BF16 versus the
+reference's FP8 MLA path. This is a short-request comparison, not long-context,
+concurrency, accuracy, or throughput-parity qualification.
+
+| Prompt | Native output tokens: old → HC (vLLM) | Old ms | HC-only repeat 2 ms | HC + revised graph ms | vLLM ms |
+|---|---:|---:|---:|---:|---:|
+| Fact, 22 input | 4 → 8 (4) | 565 | 791 | 823 | 387.121 |
+| Arithmetic, 23 input | 3 → 4 (4) | 483 | 512 | 517 | 392.841 |
+| Chinese, 22 input | 8 → 8 (8) | 885 | 779 | 792 | 657.336 |
+| JSON, 23 input | 8 → 8 (8) | 902 | 803 | 818 | 670.561 |
+| Code, 24 input | 8 → 8 (8) | 902 | 812 | 823 | 680.855 |
+| Retrieval, 36 input | 3 → 3 (3) | 545 | 505 | 510 | 379.882 |
+
+Only Chinese/code/retrieval retain identical **native output IDs** across all
+numerical variants. On that common cohort, total completion time is 2,332 ms
+old, 2,096 ms HC-only (**10.12% less time**), 2,125 ms combined (**8.88% less**),
+and 1,718.073 ms vLLM. HC-only remains **22.00% longer than vLLM**; combined
+remains **23.69% longer**. The graph-only revised policy totals 4,247 ms across
+all six unchanged-output requests versus 4,282 ms old (−0.82%), so no robust
+additional graph speedup is established. The best measured variant is HC-only
+with existing interval graphs. Do not add the profiled HC and gap reductions.
+
+On all five latest output-count-matched requests, HC-only is 3.411 s versus
+vLLM 2.781475 s (22.63% longer), and combined is 3.460 s (24.39% longer).
+This five-request cohort differs from the old baseline's five-request cohort;
+do not subtract those headline percentages as a paired improvement. The raw
+six-request combined total is almost unchanged, but it now emits five more
+tokens; reporting that as zero optimization would also be misleading.
+
+The two prior combined capacity-prefill runs, v3/v4, are retained: totals
+4.436/4.396 s with identical HC token IDs. They are slower than the revised
+4.283 s schedule. Correctness of the explicit tree program is established by
+its independent arithmetic oracle and GPU sanitizer controls; **model quality
+is not established** by these short truncated outputs. In particular, fact,
+arithmetic and JSON change token sequences. Neither the tree nor the replay
+experiments are promoted to ordinary serving defaults.
+
+Final revised runs retain at least 21.797/21.845 GiB host MemAvailable,
+respectively, with zero swap and 100 GiB process/device caps. Combined process
+peaks are 62,563,627,008 / 61,945,716,736 bytes. Comparisons and trace analysis
+are offline `.mbtx`; runtime replay does not hash, capture, allocate MoonBit
+objects, read clocks, or render diagnostic evidence. The final mixed-path
+native tests also exercise both graph and prefill cancellation; native
+ASan/UBSan and explicit reference-balance checks pass.

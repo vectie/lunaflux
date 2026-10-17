@@ -22,6 +22,11 @@ fn queries() -> Array[(String, String)] {
   let family = "CASE WHEN name LIKE '%nccl%' THEN 'collective' WHEN name GLOB 'glm_router_*' THEN 'router' WHEN name GLOB 'glm_routed_*' THEN 'routed' WHEN name GLOB 'glm_moe_*' THEN 'combine' WHEN name GLOB 'glm_shared_*' THEN 'shared' WHEN name GLOB 'glm_recurrent_*' THEN 'recurrent' WHEN name GLOB 'glm_sparse_*' THEN 'sparse' WHEN name GLOB 'glm_dense_*' THEN 'dense' WHEN name GLOB 'glm_hyper_*' THEN 'hyper' WHEN name GLOB 'glm_text_io_*' THEN 'text' ELSE 'other' END"
   [
     (
+      "hyper-regions",
+      prefix() +
+      "SELECT step,count(*) calls,sum(end-start)/1e6 AS gpu_ms FROM selected WHERE name GLOB '*hyper*' GROUP BY step ORDER BY step;",
+    ),
+    (
       "families",
       prefix() +
       "SELECT step," +
@@ -60,7 +65,8 @@ fn queries() -> Array[(String, String)] {
 test "complete steps retain sampling and exact wildcard roles" {
   assert_true(!prefix().contains("glm_text_io_head"))
   assert_true(prefix().contains("max(end)+1"))
-  assert_true(queries()[0].1.contains("GLOB 'glm_router_*'"))
+  assert_true(queries()[1].1.contains("GLOB 'glm_router_*'"))
+  assert_true(queries()[0].1.contains("GLOB '*hyper*'"))
 }
 
 ///|
