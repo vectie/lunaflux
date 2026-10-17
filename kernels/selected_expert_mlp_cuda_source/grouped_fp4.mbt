@@ -15,7 +15,6 @@ fn grouped_fp4_source(
     @matrix.ExpertGroupingPlan::new(
       maximum_rows=rows,
       selected_experts=selected,
-      column_tile=64,
     ),
   )
   guard grouping.maximum_groups().to_int64() ==

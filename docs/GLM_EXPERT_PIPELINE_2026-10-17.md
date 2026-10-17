@@ -328,3 +328,62 @@ installed hybrid model requires 0.14 GiB. No trace was captured and both
 owners retired. The runner now reserves 256 MiB for compact diagnostic traces,
 with a regression preserving the ordinary 256-position/512-MiB baseline.
 No live-serving kernel identity is claimed from the three unsuccessful traces.
+
+## Wider ownership: full-model decision
+
+The `15adf788` 64-column candidate was actually exported, compiled and selected
+on both Sparks, with the retained six literal prompt ID vectors, row/history
+capacity 64, TP2, queued graph replay and one excluded warmup. Both runs exit
+zero, release CUDA and preserve all six native output-token sequences. The
+retained 32-column binary was rechecked between the two candidate runs.
+
+| Cohort | Six completion times, seconds | Sum | TTFT sum |
+|---|---|---:|---:|
+| 64-column first | .569 / .501 / .913 / .955 / 1.256 / .586 | 4.780 | 2.154 |
+| Retained 32-column recheck | .577 / .507 / .935 / .949 / .954 / .585 | 4.507 | 1.992 |
+| 64-column repeat | .572 / .539 / .911 / .929 / .937 / .586 | 4.474 | 1.993 |
+
+The repeat is only 0.73% faster overall than the fresh retained run and its
+arithmetic prompt is slower; the first run regresses, dominated by one code
+prompt. Its cause is not established by these unprofiled measurements. Do not
+discard that result or declare a reliable improvement from the best run.
+The five equal-output-count sums are 4.279 / 4.000 / 3.935 s, respectively,
+against the same-day vLLM 2.761700 s. Retained completion remains 44.84% above
+vLLM; this campaign has not closed the gap. Both engines' different timing
+boundaries and KV policies, and the unequal arithmetic completion length,
+remain as documented above.
+
+Decision: **restore 32-column default**. The typed 64/128-column alternatives
+remain explicit offline experiments, not a production winner. Instruction
+reduction did not establish a dependable full-model latency reduction, and
+gate/up's long-scoreboard frontier remains. This is not a completed repair of
+the major matrix pipeline bottleneck. Comparison stays outside the compiler.
+
+Roots: `/tmp/lunaflux-model-bench-glm-columns64-20261017-v1`,
+`/tmp/lunaflux-model-bench-glm-retained32-recheck-20261017-v1`, and
+`/tmp/lunaflux-model-bench-glm-columns64-repeat-20261017-v1`; each contains
+literal IDs, source/runtime selection, per-request outputs, terminal/release
+logs, independent host-memory observations and `comparison.json`.
+
+The installed component's exact schedule is
+`MainloopSm120ArrayTmaWarpSpecializedBlockScaled<2,3,...>` with
+`KernelPtrArrayTmaWarpSpecializedCooperativeBlockScaledSm120<3>`.
+In the image's `flashinfer/data/cutlass/include/cutlass/gemm/dispatch_policy.hpp`
+1494–1505, those parameters mean two mainloop stages and three scheduler
+pipeline stages, **not** three MMA stages. The cooperative kernel header
+`kernel/sm90_gemm_array_tma_warpspecialized_cooperative.hpp` 456–460 defines
+one producer warp group and two cooperating consumer groups; 626–902 and
+904–1074 separate producer and consumer execution. Its collective
+`collective/sm120_blockscaled_mma_array_tma.hpp` uses `PipelineTmaAsync` at 168,
+producer acquire at 753, TMA copies of A/B/SFA/SFB at 763–767, and consumer
+wait/release at 934–977.
+
+Our selected lowering still emits each chunk's `cp.async` requests followed
+immediately by `wait_group 0`, a CTA publication barrier, MMA, and a reader
+barrier before the next chunk. Column ownership does not change that
+sequence. This is a concrete transport/role-scheduling difference, not proof
+that copying the reference tile size or adding IR layers alone will accelerate
+the full model. A future independent producer/consumer transport plan must
+preserve operand/scaling arithmetic and reader lifetimes; TMA descriptor/warp
+details belong only in CUDA lowering. Do not infer a quantitative full-model
+gain from this source difference before an executable paired measurement.
