@@ -22,6 +22,11 @@ fn queries() -> Array[(String, String)] {
   let family = "CASE WHEN name LIKE '%nccl%' THEN 'collective' WHEN name GLOB 'glm_router_*' THEN 'router' WHEN name GLOB 'glm_routed_*' THEN 'routed' WHEN name GLOB 'glm_moe_*' THEN 'combine' WHEN name GLOB 'glm_shared_*' THEN 'shared' WHEN name GLOB 'glm_recurrent_*' THEN 'recurrent' WHEN name GLOB 'glm_sparse_*' THEN 'sparse' WHEN name GLOB 'glm_dense_*' THEN 'dense' WHEN name GLOB 'glm_hyper_*' THEN 'hyper' WHEN name GLOB 'glm_text_io_*' THEN 'text' ELSE 'other' END"
   [
     (
+      "aligned-categories",
+      prefix() +
+      "SELECT step,CASE WHEN name LIKE '%nccl%' THEN 'collective' WHEN name GLOB '*hyper*' THEN 'hyper_connection' WHEN name GLOB 'glm_recurrent_*' THEN 'kda' WHEN name GLOB 'glm_sparse_*' THEN 'sparse_without_hc' WHEN name GLOB 'glm_shared_*' THEN 'shared_expert' WHEN name GLOB 'glm_router_*' OR name GLOB 'glm_routed_*' OR name GLOB 'glm_moe_*' THEN 'router_routed_glue' WHEN name GLOB 'glm_dense_*' THEN 'dense_ffn' WHEN name GLOB 'glm_text_io_*' THEN 'embedding_head_sampling' ELSE 'other' END category,count(*) calls,sum(end-start)/1e6 summed_ms FROM selected GROUP BY step,category ORDER BY step,category;",
+    ),
+    (
       "hyper-regions",
       prefix() +
       "SELECT step,count(*) calls,sum(end-start)/1e6 AS gpu_ms FROM selected WHERE name GLOB '*hyper*' GROUP BY step ORDER BY step;",
@@ -65,8 +70,13 @@ fn queries() -> Array[(String, String)] {
 test "complete steps retain sampling and exact wildcard roles" {
   assert_true(!prefix().contains("glm_text_io_head"))
   assert_true(prefix().contains("max(end)+1"))
-  assert_true(queries()[1].1.contains("GLOB 'glm_router_*'"))
-  assert_true(queries()[0].1.contains("GLOB '*hyper*'"))
+  assert_true(queries()[2].1.contains("GLOB 'glm_router_*'"))
+  assert_true(queries()[1].1.contains("GLOB '*hyper*'"))
+  assert_true(
+    queries()[0].1.contains(
+      "THEN 'hyper_connection' WHEN name GLOB 'glm_recurrent_*'",
+    ),
+  )
 }
 
 ///|

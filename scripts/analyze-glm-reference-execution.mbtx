@@ -1,0 +1,280 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline attribution of the installed GLM trace. No model inference, hashing,
+// compiler input or performance selector. Require observed GPU bounds, not
+// CPU NVTX execute-model bounds: GPU work can outlive that CPU call.
+
+///|
+struct Kernel {
+  start : Int64
+  end : Int64
+  stream : Int64
+  name : String
+  full_name : String
+}
+
+///|
+fn union_ns(events : Array[Kernel]) -> Int64 {
+  let sorted = events.copy()
+  sorted.sort_by((a, b) => a.start.compare(b.start))
+  for e in sorted; right = 0L, total = 0L {
+    continue right.max(e.end), total + (e.end - e.start.max(right)).max(0L)
+  } nobreak {
+    total
+  }
+}
+
+///|
+fn matrix(e : Kernel) -> Bool {
+  e.name is ("kernel" | "Kernel2" | "gemmSN_NN_kernel" | "splitKreduce_kernel")
+}
+
+///|
+fn base_kind(e : Kernel) -> String? {
+  if e.name.contains("nccl") {
+    Some("collective")
+  } else if e.name.contains("mhc_") || e.name.contains("hc_prenorm") {
+    Some("hyper_connection")
+  } else {
+    None
+  }
+}
+
+///|
+fn summary(events : Array[Kernel]) -> Json {
+  let sum = events.fold(init=0L, (n, e) => n + e.end - e.start)
+  let union = union_ns(events)
+  {
+    "calls": events.length(),
+    "summed_ms": sum.to_double() / 1000000.0,
+    "union_ms": union.to_double() / 1000000.0,
+    "within_category_overlap_ms": (sum - union).to_double() / 1000000.0,
+  }
+}
+
+///|
+test "coverage does not sum nested or overlapping graph nodes" {
+  fn event(a : Int64, b : Int64) -> Kernel {
+    { start: a, end: b, stream: 1, name: "kernel", full_name: "kernel", }
+  }
+  assert_eq(
+    union_ns([event(5, 8), event(0, 10), event(9, 15), event(20, 22)]),
+    17L,
+  )
+  assert_eq(base_kind(event(0, 1)), None)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output, first, last] else {
+    fail("SQLITE NEW_OUTPUT OBSERVED_MODEL_START_NS OBSERVED_MODEL_END_NS")
+  }
+  let begin = @string.parse_int64(first)
+  let end = @string.parse_int64(last)
+  guard begin >= 0 && end > begin else { fail("invalid window") }
+  let owner_check = @shell.Cmd("sqlite3", [
+    "-json",
+    db,
+    "SELECT DISTINCT deviceId,contextId,globalPid FROM CUPTI_ACTIVITY_KIND_KERNEL WHERE start>=\{begin} AND end<=\{end};",
+  ]).output(max_output_bytes=65536)
+  owner_check.check()
+  guard @json.parse(owner_check.stdout()) is Array([_]) else {
+    fail("select one GPU context/process; stream IDs alone are not global")
+  }
+  let sql = "SELECT k.start,k.end,k.streamId stream,s.value name,d.value full_name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName JOIN StringIds d ON d.id=k.demangledName WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;"
+  let raw = @shell.Cmd("sqlite3", ["-json", db, sql]).output(
+    max_output_bytes=16777216,
+  )
+  raw.check()
+  guard @json.parse(raw.stdout()) is Array(rows) else { fail("rows") }
+  let events = rows.map(row => {
+    guard row
+      is {
+        "start": Number(a, ..),
+        "end": Number(b, ..),
+        "stream": Number(s, ..),
+        "name": String(name),
+        "full_name": String(full_name),
+        ..
+      } else {
+      fail("kernel row")
+    }
+    Kernel::{
+      start: a.to_int64(),
+      end: b.to_int64(),
+      stream: s.to_int64(),
+      name,
+      full_name,
+    }
+  })
+  let anchors = events.filter(e => {
+    e.name == "mhc_pre_big_fuse_with_norm_tilelang_kernel"
+  })
+  guard anchors.length() == 90 else {
+    fail("expected exactly 45 pairs of observed HC pre boundaries")
+  }
+  let final_posts = events.filter(e => e.name == "mhc_post_tilelang_kernel")
+  guard final_posts is [final_post] else {
+    fail("one final HC publication required")
+  }
+  let categories : Map[String, Array[Kernel]] = Map([])
+  let classified : Array[Json] = []
+  let regions : Array[Json] = []
+  let add = fn(kind : String, e : Kernel, region : Int) {
+    if !categories.contains(kind) {
+      categories[kind] = []
+    }
+    categories[kind].push(e)
+    classified.push({
+      "kind": kind,
+      "region": region,
+      "start": e.start,
+      "end": e.end,
+      "stream": e.stream,
+      "name": e.name,
+      "full_name": e.full_name,
+    })
+  }
+  // Classify global HC/collectives separately. Before first HC is embedding;
+  // after final HC publication is the head/sampling tail.
+  for e in events {
+    if base_kind(e) is Some(kind) {
+      add(kind, e, -1)
+    } else if e.start < anchors[0].start {
+      add("embedding", e, -1)
+    } else if e.start >= final_post.start {
+      add(
+        if matrix(e) {
+          "vocabulary_projection"
+        } else {
+          "head_sampling_tail"
+        },
+        e,
+        -1,
+      )
+    }
+  }
+  for index, anchor in anchors {
+    let finish = if index + 1 < anchors.length() {
+      anchors[index + 1].start
+    } else {
+      final_post.start
+    }
+    let region_events = events.filter(e => {
+      e.start >= anchor.start && e.start < finish && base_kind(e) is None
+    })
+    let is_attention = index % 2 == 0
+    let is_kda = region_events.any(e => {
+      e.name.contains("kda") || e.name.contains("delta_rule")
+    })
+    let family = if is_attention {
+      if is_kda {
+        "kda"
+      } else {
+        "sparse"
+      }
+    } else if index / 2 < 3 {
+      "dense_ffn"
+    } else {
+      "moe"
+    }
+    let matrices = region_events.filter(matrix)
+    if is_kda && matrices.length() != 4 {
+      fail("KDA must have exactly four observed matrix launches")
+    }
+    let quant = region_events.filter(e => e.name == "cvt_fp16_to_fp4")
+    if family == "moe" && quant.length() != 1 {
+      fail("one routed quantization boundary required")
+    }
+    let mut device_index = 0
+    for e in region_events {
+      let kind = if is_attention {
+        if matrix(e) {
+          family + "_projection"
+        } else {
+          family + "_other"
+        }
+      } else if family == "dense_ffn" {
+        family
+      } else if e.stream != anchor.stream {
+        "shared_expert"
+      } else if e.start < quant[0].start {
+        "router"
+      } else if e.name == "device_kernel" {
+        let result = if device_index == 0 {
+          "routed_gate_up"
+        } else {
+          "routed_down"
+        }
+        device_index += 1
+        result
+      } else {
+        "routed_glue"
+      }
+      add(kind, e, index)
+    }
+    if family == "moe" && device_index != 2 {
+      fail("exactly two routed matrix kernels required")
+    }
+    regions.push({
+      "index": index,
+      "layer": index / 2,
+      "family": family,
+      "start": anchor.start,
+      "end": finish,
+      "non_hc_non_collective": summary(region_events),
+    })
+  }
+  guard classified.length() == events.length() else {
+    fail("every kernel must be attributed exactly once")
+  }
+  let totals : Map[String, Json] = Map([])
+  let without_shared : Array[Kernel] = []
+  for kind, group in categories {
+    totals[kind] = summary(group)
+    if kind != "shared_expert" {
+      for e in group {
+        without_shared.push(e)
+      }
+    }
+  }
+  let shared_union = union_ns(categories["shared_expert"])
+  let shared_overlap = shared_union +
+    union_ns(without_shared) -
+    union_ns(events)
+  let result : Json = {
+    "window_start": begin,
+    "window_end": end,
+    "window_ms": (end - begin).to_double() / 1000000.0,
+    "all_kernels": summary(events),
+    "categories": Json(totals),
+    "shared_expert_overlap_with_other_kernels_ms": shared_overlap.to_double() /
+    1000000.0,
+    "shared_expert_without_other_kernel_ms": (shared_union - shared_overlap).to_double() /
+    1000000.0,
+    "category_sums_are_not_critical_path": true,
+    "attribution": "Observed HC pairs, alternating attention/FFN, first three dense FFNs; shared stream differs from routed anchor. Symbol and sequence rules reject unsupported traces.",
+  }
+  @fs.mkdir(output)
+  for
+    (name, data) in [
+      ("summary", result),
+      ("regions", Json(regions)),
+      ("classified", Json(classified)),
+    ] {
+    @fs.write_file(
+      output + "/" + name + ".json",
+      data.stringify(indent=2),
+      create_mode=CreateNew,
+    )
+  }
+  println(result.stringify(indent=2))
+}

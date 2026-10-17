@@ -326,3 +326,68 @@ attribute internal node time. Its interval decode has 82/91 graph calls
 returned before GPU start; the full graph starts before its API returns.
 The supposed 60–70 ms removable gap is **not an unprofiled budget**. Fresh
 unprofiled full-model comparisons remain the acceptance criterion.
+
+### Full-model propagation and first paired observations
+
+Implementation `9e3b009e` is pushed and builds cleanly on ARM at
+`/tmp/lunaflux-checkpoint-build-glm-shared-vector-20261017-v1`.
+The regenerated runtime `/tmp/lunaflux-glm-expert-tp-shared-vector-20261017-v1`
+contains all 126 shared-expert vector helpers per rank (42 layers, three
+weights each); execution logs select this exact new runtime/AOT. Memory plans
+remain 99,738,719,500 / 101,008,132,364 bytes. No hashing is performed.
+Full native tests pass **5187/5187**, affected packages 103/103, benchmark
+runner 4/4, graph analyzer 1/1. Warning-denied native check uses the existing
+migration exclusions; targeted info has 563 existing warnings and zero errors.
+Unrelated dirty toolchain/TLS files are not included in the commit.
+
+Fresh old interval replay is `glm-gap-interval-run-20261017-v1`; new interval
+and collective-inclusive roots are `glm-shared-vector-next-20261017-v1` and
+`glm-shared-vector-next-graph-20261017-v1`, all under
+`/tmp/lunaflux-model-bench-`. All six literal input and native output ID arrays
+are unchanged between these runs. No new numerical policy is being accepted
+through agreement with vLLM. The prior HC alternative stays experimental.
+
+| Prompt | Old interval ms | BF16 vector interval ms | BF16 vector collective graph ms | Retained vLLM ms |
+| --- | ---: | ---: | ---: | ---: |
+| Fact | 775 | 780 | 817 | 387.121 |
+| Arithmetic | 504 | 494 | 499 | 392.841 |
+| Chinese | 784 | 771 | 781 | 657.336 |
+| JSON | 812 | 784 | 799 | 670.561 |
+| Code | 821 | 793 | 796 | 680.855 |
+| Retrieval | 509 | 493 | 485 | 379.882 |
+
+Native-only totals are 4205→4115 ms (2.14% less time), with TTFT sum
+1693→1631 ms (3.66% less). Post-first-token sum changes 2512→2484 ms;
+component decode measurements do not establish a decode-kernel gain, and that
+small whole-model movement must not be attributed solely to the loader.
+The six-request vLLM total is **not equal native token work**: fact emits
+8 versus 4 tokens. For the historical Chinese/code/retrieval cohort, native
+2114→2057 ms versus vLLM 1718.073 ms changes the gap 23.04%→19.73%.
+These remain short inputs (22–36 tokens), C1, at most eight output tokens;
+they are not long-context, concurrent-serving or quality-parity results.
+
+Collective-inclusive graph replay totals 4177 ms, 1.51% longer than new
+interval replay, with the same native IDs. Its common cohort is 2062 ms,
+20.02% above reference. It is not a demonstrated winner. The functional
+`OrderedSubmissionPlan` intentionally preserves the ordered device effects;
+capture changes submission, not the compute/communication dependency graph.
+The vLLM source's shared-expert runner has guarded auxiliary-stream overlap,
+while our ordered schedule keeps those branches sequential. Source capability
+does not prove that overlap was selected in the retained reference request.
+Likewise, capturing the same 90 collective sites does not reduce their payload
+or change their numerical reduction order. These remain distinct experiments,
+not assumed percentages of the residual gap.
+
+The earlier dual-profiler capture failed its host reserve and is retained.
+The later **egress-only actual vLLM serving trace succeeded** without relaxing
+the reserve. It shows shared/routed overlap, selected BF16 head sharding and
+fused HC; neither system overlaps compute with NCCL in the observed window.
+Decode is 73.752 vs68.102 ms, with full exclusive-category and overlap-union
+accounting. Native KDA and routed expert chains are faster in that sample;
+HC/head/branch serialization lose time. It does not imply that the short
+instrumented decode ratio equals the unprofiled whole-request gap.
+
+See [executed-work and wait report](GLM_EXECUTION_WORK_AND_WAITS_2026-10-17.md)
+for the new actual-source trace, SASS wait attribution, repeated old/new
+full-model results (~1.99% gain; all five equal-output-count prompts still
+19.90–20.55% above reference), failures, and confirmed original GLM restoration.
