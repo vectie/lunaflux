@@ -26,10 +26,13 @@ fn capture_collective_frame(
   }
   queue.begin_effect_capture()
   errdefer {
-    queue.abort() catch {
+    queue.discard_effect_graph() catch {
       _ => ()
     }
     owner.abort() catch {
+      _ => ()
+    }
+    queue.abort() catch {
       _ => ()
     }
   }

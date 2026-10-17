@@ -344,6 +344,9 @@ async fn main {
     fail("expert TP is currently bound through GLM")
   }
   guard !queued || expert_tp else { fail("queued mode requires TP") }
+  guard (!parallel_hc || glm) && (!collective_graph || (glm && queued && expert_tp)) else {
+    fail("HC requires GLM; collective capture requires queued GLM TP")
+  }
   guard !tiled || glm else {
     fail("tiled grouped profile currently bound through GLM")
   }
@@ -378,7 +381,9 @@ async fn main {
     (if warmup { "warmup_requests=1\n" } else { "" }) +
     (if timeline { "timeline=true\n" } else { "" }) +
     (if queued { "tp_submission_queued=true\n" } else { "" }) +
-    (if replay { "tp_graph_replay=true\n" } else { "" })
+    (if replay { "tp_graph_replay=true\n" } else { "" }) +
+    (if parallel_hc { "hc_parallel_tree=true\nhc_collapse_norm_fused=true\n" } else { "" }) +
+    (if collective_graph { "tp_collective_inclusive_graph=true\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")

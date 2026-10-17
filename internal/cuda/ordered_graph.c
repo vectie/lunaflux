@@ -172,6 +172,17 @@ MOONBIT_FFI_EXPORT int32_t lunaflux_cuda_ordered_capture_end(lf_ordered_executor
   return status;
 }
 
+/* Drop graph references before NCCL abort: NCCL may otherwise wait for its
+ * graph user objects. Keep kernel/operand/stream leases until explicit drain. */
+MOONBIT_FFI_EXPORT int32_t lunaflux_cuda_ordered_capture_discard(lf_ordered_executor *e) {
+  int32_t status = lf_ordered_operation_begin(e);
+  if (status != LF_OK) return status;
+  status = lf_ordered_graph_destroy(e);
+  if (status == LF_OK) e->execution_mode = LF_ORDERED_MODE_EAGER;
+  lf_ordered_operation_end(e);
+  return status;
+}
+
 MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_ordered_executor_launch_captured(
   lf_ordered_executor *executor

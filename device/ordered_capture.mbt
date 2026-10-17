@@ -17,3 +17,15 @@ pub fn OrderedKernelExecutor::end_effect_capture(
   }
   self.mode = OrderedKernelCaptured
 }
+
+///|
+/// Terminal teardown only: discard graph references without releasing operands.
+/// Abort inserted effects next, then drain/close this executor.
+pub fn OrderedKernelExecutor::discard_effect_graph(
+  self : Self,
+) -> Unit raise DeviceError {
+  self.raw.discard_effect_graph() catch {
+    e => raise error_from_cuda(e)
+  }
+  self.mode = OrderedKernelEager
+}

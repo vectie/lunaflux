@@ -39,4 +39,25 @@ same containers afterwards through successful health/model responses. Each
 task owner stays within 100 GiB and zero swap; independently maintain at least
 16 GiB host MemAvailable on each Spark. No concurrent benchmark GPU owners.
 
-Status: implementation and physical validation in progress; no new result yet.
+## Validation before full-model ablations
+
+Implementation `1251a565` propagates both alternatives through the plans,
+lowering, frame binding and explicit checkpoint CLI. Defaults are unchanged.
+The clean ARM build peaks at 797.4 MiB with zero swap. The HC experiment
+`/tmp/lunaflux-glm-hyper-tree-20261017-v1` passes all four geometry cases and
+live-row/tail/identity controls bitwise against an independent staged renderer
+of the **same tree arithmetic**. Full GPU memcheck/leak, racecheck and synccheck
+report zero errors. This is not bitwise equivalence to ordered reduction or a
+vLLM quality claim. Its serial tree oracle is not a production speed baseline.
+
+The first full native suite was 5,182/5,183: the new cancellation fixture lacked
+capture API redirects and incorrectly passed fake handles to the real ABI.
+The repaired fixture's collective and cancellation tests pass 6/6. Native
+ordered-executor and NCCL graph lease/sequence/cancellation ASan/UBSan gates
+also pass. Graph teardown now discards executable/raw graph references before
+NCCL abort, retaining operand leases until stream drain and executor close;
+otherwise NCCL abort can wait for references owned by the graph itself.
+
+Full-model timing and actual collective capture are still pending. Fusion is
+collapse plus normalization, preserving the BF16 intermediate; it is not yet
+vLLM's cross-layer post/pre fusion.

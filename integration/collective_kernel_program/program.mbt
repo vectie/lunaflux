@@ -338,6 +338,11 @@ pub fn CollectiveKernelProgram::abort(
     return
   }
   self.state = Failed
+  if self.plan.replay_policy() == CapturePaddedCollectives {
+    for queue in self.queues.rev() {
+      queue.discard_effect_graph()
+    }
+  }
   self.owner.abort()
   for queue in self.queues.rev() {
     queue.abort()

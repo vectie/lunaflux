@@ -144,6 +144,10 @@ static int32_t lf_close_ordered_executor(lf_ordered_executor *executor) {
 
 static void lf_finalize_ordered_executor(void *object) {
   lf_ordered_executor *executor = (lf_ordered_executor *)object;
+  if (executor->capture_active && lf_ordered_capture_cancel(executor) != LF_OK) {
+    lf_finalize_failure();
+    return;
+  }
   int32_t phase = atomic_load(&executor->phase);
   if (phase == LF_ORDERED_ENQUEUED || phase == LF_ORDERED_RECORDED) {
     if (lf_context_current(executor->context) != LF_OK ||

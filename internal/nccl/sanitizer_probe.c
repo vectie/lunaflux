@@ -7,6 +7,7 @@
 
 #include "communicator.c"
 #include "collectives.c"
+#include "graph.c"
 
 static void (*probe_finalizer)(void *) = NULL;
 static int32_t probe_increfs = 0;
@@ -293,6 +294,33 @@ static void test_hostile_interop(lf_device_interop_probe *device) {
   lf_device_context_lease_release(&context_lease);
 }
 
+static void test_graph(lf_nccl_api *api, int cancel) {
+  lf_device_interop_probe device;
+  lf_device_interop_probe_init(&device);
+  lf_nccl_communicator *c = create_ready(api, &device, 1);
+  assert(lunaflux_nccl_prepare_deferred(c, 2) == LF_NCCL_OK);
+  for (int i = 0; i < 2; ++i) {
+    assert(lf_nccl_communicator_submit_typed(c, 4, 1, 1, i + 1, i, 1,
+      lf_device_interop_probe_context(&device), lf_device_interop_probe_send(&device), 0, 16,
+      lf_device_interop_probe_receive(&device), 0, 16,
+      lf_device_interop_probe_queue(&device)) == LF_NCCL_OK);
+    assert(lunaflux_nccl_defer_submitted(c) == 1);
+  }
+  assert(lunaflux_nccl_graph_seal(c, 0, 1) == LF_NCCL_INVALID_ARGUMENT);
+  assert(lunaflux_nccl_graph_seal(c, 0, 2) == LF_NCCL_OK);
+  assert(lf_nccl_communicator_close(c) == LF_NCCL_BUSY);
+  assert(lunaflux_nccl_graph_begin(c, 2, 1, 1) == LF_NCCL_SEQUENCE_MISMATCH);
+  assert(lunaflux_nccl_graph_begin(c, 1, 1, 1) == LF_NCCL_OK);
+  assert(lunaflux_nccl_graph_release(c) == LF_NCCL_BUSY);
+  if (!cancel) {
+    assert(lunaflux_nccl_graph_complete(c) == 1);
+    assert(lunaflux_nccl_graph_release(c) == LF_NCCL_OK);
+    assert(lf_nccl_communicator_close(c) == LF_NCCL_OK);
+  }
+  destroy_communicator(c);
+  assert(lf_device_interop_probe_active_count(&device) == 0);
+}
+
 int main(void) {
   lf_nccl_api api;
   initialize_api(&api);
@@ -305,6 +333,9 @@ int main(void) {
   moonbit_decref(lf_device_interop_probe_capture_region(&hostile));
   moonbit_decref(lf_device_interop_probe_capture_queue(&hostile));
   assert(probe_collective_calls == 4);
+  test_graph(&api, 0);
+  test_graph(&api, 1);
+  assert(probe_collective_calls == 8);
   assert(probe_increfs == probe_decrefs);
   return 0;
 }

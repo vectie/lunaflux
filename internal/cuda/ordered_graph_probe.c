@@ -16,6 +16,8 @@
 #define LF_GRAPH_EXEC ((void *)(uintptr_t)0x6700)
 #define LF_GRAPH_ALLOCATION ((CUdeviceptr)0x6800)
 
+extern int32_t lunaflux_cuda_ordered_capture_discard(lf_ordered_executor *);
+
 typedef struct lf_graph_probe_state {
   int32_t begin_captures;
   int32_t end_captures;
@@ -390,6 +392,11 @@ static int32_t lf_run_graph_probe(int32_t mode) {
       lunaflux_cuda_ordered_executor_enqueue(executor, 0) != LF_OK) {
       result = 203;
     }
+    if (result == 0 && mode == 10 &&
+        (lunaflux_cuda_ordered_capture_discard(executor) != LF_OK ||
+         executor->graph_exec != NULL ||
+         atomic_load(&stream->active_operations) == 0 ||
+         atomic_load(&allocation->active_operations) == 0)) result = 221;
     if (result == 0 &&
       (lunaflux_cuda_ordered_executor_record(executor) != LF_OK ||
        lunaflux_cuda_ordered_executor_wait(executor) != LF_OK ||

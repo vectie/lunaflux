@@ -176,6 +176,7 @@ type OrderedKernelExecutor
 pub fn OrderedKernelExecutor::abort(Self) -> Unit raise CudaError
 pub fn OrderedKernelExecutor::begin_effect_capture(Self) -> Unit raise CudaError
 pub fn OrderedKernelExecutor::close(Self) -> Unit raise CudaError
+pub fn OrderedKernelExecutor::discard_effect_graph(Self) -> Unit raise CudaError
 pub fn OrderedKernelExecutor::end_effect_capture(Self) -> Unit raise CudaError
 pub fn OrderedKernelExecutor::enqueue(Self, Int) -> Unit raise CudaError
 pub fn OrderedKernelExecutor::execution_mode(Self) -> OrderedExecutorMode raise CudaError

@@ -300,6 +300,7 @@ pub struct OrderedKernelExecutor {
 pub fn OrderedKernelExecutor::abort(Self) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::begin_effect_capture(Self) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::close(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::discard_effect_graph(Self) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::end_effect_capture(Self) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::enqueue(Self, Int) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::execution_mode(Self) -> OrderedKernelExecutionMode

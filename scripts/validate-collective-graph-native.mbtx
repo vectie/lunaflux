@@ -1,0 +1,18 @@
+import { "moonbitlang/async@0.21.3", "moonbitlang/async@0.21.3/fs", "moonbitlang/async@0.21.3/shell", "moonbitlang/core/env" }
+async fn main {
+  guard @env.args() is [_, root] && root.has_prefix("/tmp/lunaflux-collective-graph-asan-") else { fail("NEW_ROOT") }
+  @fs.mkdir(root)
+  let compile = @shell.Cmd("/usr/bin/clang", [
+    "-std=c11", "-Wall", "-Wextra", "-Werror", "-g", "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+    "-I" + @env.get_env_var("MOON_HOME").unwrap_or("/Users/kq/.moon") + "/include",
+    "internal/nccl/sanitizer_probe.c", "internal/cuda/collective_interop.c", "internal/cuda/collective_interop_probe_runtime.c",
+    "internal/cuda/regions.c", "internal/cuda/resources.c", "-o", root + "/probe",
+  ]).output()
+  @fs.write_file(root + "/compile.stderr", compile.stderr(), create_mode=CreateNew)
+  compile.check()
+  let run = @shell.Cmd(root + "/probe", [], env={ "ASAN_OPTIONS": "detect_leaks=0:fast_unwind_on_malloc=0" }).output()
+  @fs.write_file(root + "/run.stdout", run.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/run.stderr", run.stderr(), create_mode=CreateNew)
+  run.check()
+  println("capture leases/replay sequences/cancellation ASan+UBSan passed; explicit ownership balance passed")
+}
