@@ -20,6 +20,7 @@ async fn main {
     "LUNA_GLM_BUFFERED_MATRICES": "1", "LUNA_GLM_PARALLEL_HC": "1",
     "LUNA_GLM_SHARED_COLUMNS": columns, "LUNA_GLM_OVERLAP_EXPERTS": overlap,
     "LUNA_BENCH_GRAPH_TRACE": "node",
+    "LUNA_BENCH_TELEMETRY": "1",
   }
   for mode in ["prepare","start","watch","collect"] {
     let out=@shell.Cmd("moon",[

@@ -19,6 +19,9 @@ fn summarize(text : String) -> Array[Json] raise {
   let columns = [
     "Kernel Name", "Block Size", "Grid Size", "gpu__time_duration.sum", "launch__registers_per_thread",
     "launch__shared_mem_per_block_static", "launch__shared_mem_per_block_dynamic",
+    "launch__shared_mem_per_block_allocated", "launch__shared_mem_per_block_driver",
+    "launch__shared_mem_config_size", "launch__occupancy_limit_shared_mem",
+    "device__attribute_max_shared_memory_per_multiprocessor",
     "smsp__inst_executed.sum", "sm__warps_active.avg.pct_of_peak_sustained_active",
     "smsp__warp_issue_stalled_barrier_per_warp_active.pct", "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct",
     "lts__t_sectors_op_read.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active",

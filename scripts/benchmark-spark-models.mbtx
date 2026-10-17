@@ -421,6 +421,13 @@ async fn main {
         let available = available_kib(memory.stdout())
         observations <+ "tick=\{tick} role=\{role} available_kib=\{available}\n"
         observations <+ "\{status.stdout()}"
+        if @env.get_env_var("LUNA_BENCH_TELEMETRY") == Some("1") {
+          let telemetry = remote(last,
+            "nvidia-smi --query-gpu=timestamp,clocks.current.sm,clocks.current.memory,temperature.gpu,power.draw,utilization.gpu --format=csv,noheader,nounits",
+          )
+          observations <+ "gpu_telemetry=\{telemetry.stdout()}"
+          observations <+ "gpu_telemetry_stderr=\{telemetry.stderr()}"
+        }
         if available < 16777216L {
           for stop_last in [false, true] {
             let stop_role = if stop_last { "egress" } else { "ingress" }

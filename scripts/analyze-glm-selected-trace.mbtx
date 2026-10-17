@@ -63,6 +63,23 @@ fn queries() -> Array[(String, String)] {
       prefix() +
       ", roles AS (SELECT *,CASE WHEN name GLOB 'glm_recurrent_*' THEN substr(name,instr(substr(name,15),'_')+15) WHEN name GLOB 'glm_sparse_*' THEN substr(name,instr(substr(name,12),'_')+12) ELSE name END AS role FROM selected WHERE name GLOB 'glm_recurrent_*' OR name GLOB 'glm_sparse_*') SELECT step,CASE WHEN name GLOB 'glm_recurrent_*' THEN 'recurrent' ELSE 'sparse' END AS family,role,count(*) calls,sum(end-start)/1e6 AS gpu_ms FROM roles GROUP BY step,family,role ORDER BY step,family,gpu_ms DESC;",
     ),
+    (
+      "shared-routed-overlap",
+      // Union intersections: graph timestamps can slightly overlap within a
+      // branch. Summing pairs would double-count those intervals.
+      prefix() +
+      ", intersections AS (SELECT a.step,max(a.start,b.start) start,min(a.end,b.end) end FROM selected a JOIN selected b ON a.step=b.step AND a.streamId!=b.streamId AND a.start<b.end AND b.start<a.end WHERE a.name GLOB 'glm_shared_*' AND (b.name GLOB 'glm_router_*' OR b.name GLOB 'glm_routed_*' OR b.name GLOB 'glm_moe_*')), ordered AS (SELECT *,max(end) OVER (PARTITION BY step ORDER BY start,end ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) previous_end FROM intersections), overlap AS (SELECT step,count(*) pairs,sum(max(0,end-max(start,coalesce(previous_end,start))))/1e6 overlap_ms FROM ordered GROUP BY step) SELECT r.step,coalesce(o.pairs,0) pairs,coalesce(o.overlap_ms,0) shared_routed_overlap_ms FROM r LEFT JOIN overlap o ON r.step=o.step ORDER BY r.step;",
+    ),
+    (
+      "step-bounds",
+      prefix() +
+      "SELECT step,min(start) start_ns,max(end) end_ns,count(DISTINCT streamId) streams FROM selected GROUP BY step ORDER BY step;",
+    ),
+    (
+      "expert-compute-union",
+      prefix() +
+      ", expert AS (SELECT * FROM selected WHERE name GLOB 'glm_shared_*' OR name GLOB 'glm_routed_*' OR name GLOB 'glm_router_*' OR name GLOB 'glm_moe_*'), ordered AS (SELECT *,max(end) OVER (PARTITION BY step ORDER BY start,end ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) previous_end FROM expert) SELECT step,sum(max(0,end-max(start,coalesce(previous_end,start))))/1e6 compute_union_ms FROM ordered GROUP BY step ORDER BY step;",
+    ),
   ]
 }
 
@@ -77,6 +94,10 @@ test "complete steps retain sampling and exact wildcard roles" {
       "THEN 'hyper_connection' WHEN name GLOB 'glm_recurrent_*'",
     ),
   )
+  assert_true(queries()[8].1.contains("a.start<b.end AND b.start<a.end"))
+  assert_true(queries()[8].1.contains("a.streamId!=b.streamId"))
+  assert_true(queries()[8].1.contains("end-max(start,coalesce(previous_end,start))"))
+  assert_true(queries()[9].1.contains("count(DISTINCT streamId)"))
 }
 
 ///|
