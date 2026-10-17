@@ -1,5 +1,10 @@
 # GLM: executed work, handoff waits, and graph bubbles
 
+Follow-up implementation and fresh measurements of narrower shared-expert
+prefill ownership plus shared/routed overlap are recorded in
+[the October18 report](GLM_PREFILL_AND_BRANCH_OVERLAP_2026-10-18.md).
+The serial-queue measurements below describe the retained pre-change version.
+
 ## Scope and corrections
 
 This investigation separates (1) mathematical/padded work, (2) executed
