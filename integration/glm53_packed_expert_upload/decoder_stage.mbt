@@ -36,6 +36,7 @@ pub fn GlmDecoderStage::new(
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
+  expert_fragment_slots? : Int = 1,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
@@ -89,6 +90,7 @@ pub fn GlmDecoderStage::new(
       matrix_staging~,
       expert_scaled_dot_law~,
       expert_transport~,
+      expert_fragment_slots~,
       tensor_group?,
     ),
     text: GlmTextIo::new(

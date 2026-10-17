@@ -88,6 +88,7 @@ pub struct ExpertGroupingPlan {
   priv shared_input_staging : Bool
   priv column_tile : Int
   priv transport : ExpertTransport
+  priv fragment_slots : Int
 }
 
 ///|
@@ -111,7 +112,11 @@ pub fn ExpertGroupingPlan::new(
   shared_input_staging? : Bool = false,
   column_tile? : Int = 32,
   transport? : ExpertTransport = IndexedRows,
+  fragment_slots? : Int = 1,
 ) -> Self raise @precision.PrecisionPlanError {
+  guard fragment_slots is (1 | 2) else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
   let jobs = maximum_rows.to_int64() * selected_experts.to_int64()
   guard maximum_rows > 0 &&
     selected_experts > 0 &&
@@ -120,7 +125,20 @@ pub fn ExpertGroupingPlan::new(
     column_tile <= 1024 else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
-  { jobs: jobs.to_int(), shared_input_staging, column_tile, transport, }
+  {
+    jobs: jobs.to_int(),
+    shared_input_staging,
+    column_tile,
+    transport,
+    fragment_slots,
+  }
+}
+
+///|
+/// Read-ahead ownership inside a published operand epoch, independent of the
+/// global-to-local transport and the accumulator's ascending numerical fold.
+pub fn ExpertGroupingPlan::fragment_slots(self : Self) -> Int {
+  self.fragment_slots
 }
 
 ///|

@@ -14,6 +14,7 @@ async fn main {
   }
   let shape_aware = supplied.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
+  let lookahead = @env.get_env_var("LUNA_GLM_EXPERT_LOOKAHEAD") == Some("1")
   guard !buffered || shape_aware else {
     fail("buffered matrices require shape-aware")
   }
@@ -144,6 +145,7 @@ async fn main {
   )
   let binary = root + "/glm_checkpoint.exe"
   let low_bit = !args.is_empty() && args[0] == "--low-bit"
+  guard !lookahead || low_bit else { fail("expert lookahead requires native low-bit experts") }
   let aot = root + "/aot"
   for rank in 0..<2 {
     record("mkdir-\{rank}", remote(rank, "mkdir " + root))
@@ -197,6 +199,7 @@ async fn main {
       } else {
         ""
       }) +
+      (if lookahead { "-lookahead-experts" } else { "" }) +
       (if buffered { "-buffered-matrices" } else { "" }) +
       " /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 \{rows} 64 107374182400 107374182400 2147483648 " +
       aot,
@@ -261,7 +264,7 @@ async fn main {
   }
   @fs.write_file(
     root + "/PREPARED.txt",
-    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nshape_aware=\{shape_aware}\nexpert_transport=\{transport}\nbuffered_matrices=\{buffered}\nno_hashing=true\n",
+    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nshape_aware=\{shape_aware}\nexpert_transport=\{transport}\nbuffered_matrices=\{buffered}\nexpert_fragment_slots=\{if lookahead {2} else {1}}\nno_hashing=true\n",
     create_mode=CreateNew,
   )
   println("CPU-only expert TP preparation complete; full model has not run")

@@ -307,6 +307,7 @@ async fn main {
   let options = if warmup { options[:options.length() - 1] } else { options }
   let shape_aware = options.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
+  let lookahead = @env.get_env_var("LUNA_GLM_EXPERT_LOOKAHEAD") == Some("1")
   guard !buffered || (glm && shape_aware) else {
     fail("buffered matrices require GLM shape-aware")
   }
@@ -321,6 +322,7 @@ async fn main {
   guard !replay || queued else { fail("graph replay requires queued TP") }
   let options = if queued { options[:options.length() - 1] } else { options }
   let low_bit = options.last() is Some("--low-bit")
+  guard !lookahead || (glm && low_bit) else { fail("expert lookahead requires GLM low-bit") }
   guard transport == "indexed" || low_bit else {
     fail("packed transport requires low-bit")
   }
@@ -359,6 +361,7 @@ async fn main {
     }) +
     (if shape_aware { "matrix_evaluation=shape-aware-f32\n" } else { "" }) +
     (if buffered { "matrix_staging=buffered-k32\n" } else { "" }) +
+    (if lookahead { "expert_fragment_slots=2\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled && !shape_aware {
       "matrix_evaluation=bf16-matrix-f32-grouped\n"
@@ -659,6 +662,7 @@ async fn main {
         } else {
           ""
         }) +
+        (if lookahead { "-lookahead-experts" } else { "" }) +
         (if buffered { "-buffered-matrices" } else { "" })
       record(
         root,

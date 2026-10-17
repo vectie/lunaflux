@@ -17,6 +17,7 @@ fn fp4_fragment_pipeline(
   pipeline? : @physical_tile_ir.ProducerConsumerPipeline,
   buffered? : Bool = false,
   borrowed_ring? : String,
+  fragment_slots? : Int = 1,
 ) -> String {
   let layout = @physical_tile_ir.OperandLayout::new(
     columns=128,
@@ -149,12 +150,37 @@ fn fp4_fragment_pipeline(
       $|}
     )
   }
-  let consume_chunk =
-    $|for(int kk=0;kk<256&&base_k+kk<\{inner};kk+=64) {
-    $|  const unsigned *a0p=(const unsigned *)(tile+\{left}+g*128);
-    $|  const unsigned *a1p=(const unsigned *)(tile+\{left}+(g+8)*128);
-    $|  \{fragments}
-    $|}
+  let consume_chunk = if fragment_slots > 1 {
+    fp4_fragment_reads(
+      stage,
+      inner,
+      tile_columns,
+      left,
+      right,
+      scales,
+      symbol,
+      if pipeline is Some(_) {
+        "(threadIdx.x%128)"
+      } else {
+        "threadIdx.x"
+      },
+      paired_weight_scales is Some(_),
+      if paired_weight_scales is Some(_) {
+        storage.region(2).unwrap().geometry().0
+      } else {
+        0
+      },
+      fragment_slots,
+    )
+  } else {
+    (
+      $|for(int kk=0;kk<256&&base_k+kk<\{inner};kk+=64) {
+      $|  const unsigned *a0p=(const unsigned *)(tile+\{left}+g*128);
+      $|  const unsigned *a1p=(const unsigned *)(tile+\{left}+(g+8)*128);
+      $|  \{fragments}
+      $|}
+    )
+  }
   if buffered {
     let slot_bytes = scales + 256 + (count - 1) * tile_columns * 16
     let declaration = match borrowed_ring {

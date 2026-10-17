@@ -68,6 +68,11 @@ test "full-width native FP4 expert performance export" {
       maximum_rows=rows,
       selected_experts=selected,
       column_tile~,
+      fragment_slots=if @env.get_env_var("LUNA_FP4_FRAGMENT_SLOTS") == Some("2") {
+        2
+      } else {
+        1
+      },
       transport=match @env.get_env_var("LUNA_FP4_TRANSPORT") {
         Some("buffered") => IndexedBuffered
         Some("packed") => PackedRows
@@ -107,6 +112,21 @@ test "full-width native FP4 expert performance export" {
   let ordinary = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
     p,
     symbol="ordinary",
+  )
+  let ahead = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+    p,
+    symbol="read_ahead_check",
+    grouping=@matrix.ExpertGroupingPlan::new(
+      maximum_rows=rows,
+      selected_experts=selected,
+      fragment_slots=2,
+    ),
+  )
+  assert_eq(ahead.activation_bytes(), ordinary.activation_bytes())
+  let ahead_source = @utf8.decode(ahead.source_bytes())
+  assert_true(ahead_source.contains("ordered-operand-reads-v1;items=4;slots=2"))
+  assert_false(
+    @utf8.decode(ordinary.source_bytes()).contains("ordered-operand-reads-v1"),
   )
   let buffered = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
     p,

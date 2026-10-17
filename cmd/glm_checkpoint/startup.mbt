@@ -17,6 +17,7 @@ priv struct Startup {
   matrix_staging : @matrix.MatrixStaging
   expert_scaled_dot_law : @precision.ScaledDotReductionLaw
   expert_transport : @matrix.ExpertTransport
+  expert_fragment_slots : Int
 }
 
 ///|
@@ -73,6 +74,7 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
     matrix_staging=startup.matrix_staging,
     expert_scaled_dot_law=startup.expert_scaled_dot_law,
     expert_transport=startup.expert_transport,
+    expert_fragment_slots=startup.expert_fragment_slots,
     tensor_group?=if startup.expert_tensor_parallel {
       Some((ordinal, 2))
     } else {
@@ -102,6 +104,7 @@ fn inspect_startup(
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
+  expert_fragment_slots? : Int = 1,
   expert_tensor_parallel? : Bool = false,
   retirement? : @parallel.RetirementPolicy = EachCollective,
   replay? : @parallel.ReplayPolicy = Eager,
@@ -173,6 +176,7 @@ fn inspect_startup(
     matrix_staging~,
     expert_scaled_dot_law~,
     expert_transport~,
+    expert_fragment_slots~,
   )
   defer decoder.close()
   let text = @glm.GlmTextIo::new(
@@ -231,6 +235,7 @@ fn inspect_startup(
     matrix_staging,
     expert_scaled_dot_law,
     expert_transport,
+    expert_fragment_slots,
   }
   // Recheck the executable owners, not only the planner's layer estimates.
   for ordinal in 0..<2 {

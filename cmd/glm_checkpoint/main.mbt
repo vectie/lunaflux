@@ -131,6 +131,8 @@ async fn main {
   // Ordinary commands retain ordered recurrence; no request-path selection.
   let buffered = mode.has_suffix("-buffered-matrices")
   let mode = if buffered { mode[:mode.length() - 18].to_owned() } else { mode }
+  let lookahead = mode.has_suffix("-lookahead-experts")
+  let mode = if lookahead { mode[:mode.length() - 18].to_owned() } else { mode }
   let expert_transport : @matrix.ExpertTransport = if mode.has_suffix(
       "-expert-pipeline",
     ) {
@@ -165,6 +167,9 @@ async fn main {
   }
   let mode = if queued { mode[:mode.length() - 10].to_owned() } else { mode }
   let low_bit = mode.has_suffix("-low-bit")
+  guard !lookahead || low_bit else {
+    fail("fragment lookahead requires native low-bit experts")
+  }
   guard expert_transport == IndexedRows || low_bit else {
     fail("packed expert transport requires the explicit low-bit path")
   }
@@ -234,6 +239,7 @@ async fn main {
         Synchronous
       },
       expert_transport~,
+      expert_fragment_slots=if lookahead { 2 } else { 1 },
       retirement=if queued { WholeFrame } else { EachCollective },
       replay=if replay { CaptureIntervals } else { Eager },
     )
@@ -254,6 +260,7 @@ async fn main {
     PackedRows => "packed"
     PackedPipeline => "pipeline"
   }
+  println("expert_fragment_slots=\{if lookahead { 2 } else { 1 }}")
   println("expert_operand_transport=\{transport_name}")
   for ordinal, range in startup.ranges {
     let (first, end) = range.layer_range()

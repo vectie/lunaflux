@@ -1,11 +1,14 @@
 ///|
 test "packed transport reaches recurrent and sparse GLM experts and startup budget" {
   let stages = [
-    @matrix.IndexedRows,
-    PackedRows,
-    PackedPipeline,
-    IndexedBuffered,
-  ].map(transport => {
+    (@matrix.IndexedRows, 1),
+    (PackedRows, 1),
+    (PackedPipeline, 1),
+    (IndexedBuffered, 1),
+    (IndexedRows, 2),
+    (IndexedBuffered, 2),
+  ].map(entry => {
+    let (transport, slots) = entry
     @glm53_packed_expert_upload.GlmDecoderStage::new(
       @glm53_spec.Glm53FlashSpec::official(),
       @pipeline.DecoderStageRange::new(
@@ -24,6 +27,7 @@ test "packed transport reaches recurrent and sparse GLM experts and startup budg
       matrix_law=ShapeAwareFloat32,
       expert_scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
       expert_transport=transport,
+      expert_fragment_slots=slots,
       tensor_group=(0, 2),
     )
   })
@@ -44,6 +48,10 @@ test "packed transport reaches recurrent and sparse GLM experts and startup budg
     }
     assert_eq(source.contains("mbarrier.try_wait.parity"), i == 2)
     assert_eq(source.contains("mbarrier.inval"), i == 2)
-    assert_eq(source.contains("cooperative operand ring=2"), i == 3)
+    assert_eq(source.contains("cooperative operand ring=2"), i is (3 | 5))
+    assert_eq(
+      source.contains("ordered-operand-reads-v1;items=4;slots=2"),
+      i is (4 | 5),
+    )
   }
 }

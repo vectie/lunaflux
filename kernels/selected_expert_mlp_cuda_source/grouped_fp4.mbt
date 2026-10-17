@@ -119,7 +119,7 @@ fn grouped_fp4_source(
       (
         $|float d\{stage}[\{accumulators}]={0};
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
-        $|\{fp4_fragment_pipeline(stage,k,n,selected,packed_rows.map(p => p.plane(stage==2).2).unwrap_or(x.scales_offset().unwrap()),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~,packed_input=packed_rows is Some(_),pipeline?,buffered=grouping.transport()==IndexedBuffered,borrowed_ring?=if stage<2&&!shared_ring.is_empty() {Some("gate_up_operands")} else {None})}
+        $|\{fp4_fragment_pipeline(stage,k,n,selected,packed_rows.map(p => p.plane(stage==2).2).unwrap_or(x.scales_offset().unwrap()),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~,packed_input=packed_rows is Some(_),pipeline?,buffered=grouping.transport()==IndexedBuffered,borrowed_ring?=if stage<2&&!shared_ring.is_empty() {Some("gate_up_operands")} else {None},fragment_slots=grouping.fragment_slots())}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
         $|\{unroll}
         $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
@@ -165,6 +165,7 @@ fn grouped_fp4_source(
       packed_input=packed_rows is Some(_),
       pipeline?,
       buffered=grouping.transport() == IndexedBuffered,
+      fragment_slots=grouping.fragment_slots(),
     ) +
     "\n" +
     publication

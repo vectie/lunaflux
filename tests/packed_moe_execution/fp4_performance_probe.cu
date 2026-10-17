@@ -14,6 +14,10 @@
 namespace candidate {
 #include "candidate.cuh"
 }
+static_assert(candidate::R == R && candidate::H == H && candidate::I == I && candidate::S == S,
+              "paired expert probes require identical logical geometry");
+static_assert(candidate::stride == stride && candidate::qb0 == qb0 && candidate::qb1 == qb1,
+              "paired expert probes require identical weight and quantized storage contracts");
 #endif
 static void ck(cudaError_t e) {if(e!=cudaSuccess){fprintf(stderr,"%s\n",cudaGetErrorString(e));exit(2);}}
 template<class T> static T *gpu(const std::vector<T>& v) {T *p;ck(cudaMalloc(&p,v.size()*sizeof(T)));ck(cudaMemcpy(p,v.data(),v.size()*sizeof(T),cudaMemcpyHostToDevice));return p;}

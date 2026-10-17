@@ -33,7 +33,9 @@ fn grouped_expert_source(
     ),
   )
   guard grouping.maximum_groups().to_int64() ==
-    rows.to_int64() * selected.to_int64() else {
+    rows.to_int64() * selected.to_int64() &&
+    grouping.fragment_slots() == 1 &&
+    grouping.transport() == IndexedRows else {
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   let jobs = grouping.maximum_groups()
