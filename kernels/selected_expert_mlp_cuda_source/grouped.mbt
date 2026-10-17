@@ -39,18 +39,21 @@ fn grouped_expert_source(
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   let jobs = grouping.maximum_groups()
+  let columns = grouping.matrix_columns()
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
   let gate_plan = @matrix.MatrixTilePlan::new(
     rows=16,
     columns=intermediate,
     inner=hidden,
     law=plan.dot_law(),
+    tile_columns=columns,
   )
   let down_plan = @matrix.MatrixTilePlan::new(
     rows=16,
     columns=hidden,
     inner=intermediate,
     law=plan.dot_law(),
+    tile_columns=columns,
   )
   let layout = @physical_tile_ir.OperandLayout::new(
     columns=32,
@@ -211,8 +214,8 @@ fn grouped_expert_source(
   let gate_symbol = symbol + "_gate_up"
   let down_symbol = symbol + "_down"
   let combine_symbol = symbol + "_combine"
-  let n_gate = (intermediate + 63) / 64
-  let n_down = (hidden + 63) / 64
+  let n_gate = (intermediate + columns - 1) / columns
+  let n_down = (hidden + columns - 1) / columns
   guard plan.dot_law()!=ShapeAwareFloat32 ||
     (selected.to_int64()*intermediate.to_int64()<=2147483644L &&
      selected.to_int64()*hidden.to_int64()<=2147483644L) else {
@@ -262,17 +265,17 @@ fn grouped_expert_source(
       $|extern "C" __global__ void \{gate_symbol}(const int *counts,const __nv_bfloat16 *input,const int *selected_indices,const int *expert_map,const unsigned char *bank,__nv_bfloat16 *activation\{routing_arg}) {
       $|  \{decode_gate}
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
-      $|  const int group=blockIdx.x/\{n_gate},column_base=(blockIdx.x%\{n_gate})*64;
+      $|  const int group=blockIdx.x/\{n_gate},column_base=(blockIdx.x%\{n_gate})*\{columns};
       $|  if(group>=meta[0]) return;
       $|  const int expert=meta[1+group]; int local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;
       $|  if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{addresses[0]}
       $|  \{addresses[1]}
-      $|  __shared__ __align__(32) float result0[1024],result1[1024];
+      $|  __shared__ __align__(32) float result0[\{16*columns}],result1[\{16*columns}];
       $|  \{pair_body}
-      $|  for(int i=threadIdx.x;i<1024;i+=128) {
-      $|    int job=job_ids[i/64],column=column_base+i%64;
+      $|  for(int i=threadIdx.x;i<\{16*columns};i+=128) {
+      $|    int job=job_ids[i/\{columns}],column=column_base+i%\{columns};
       $|    if(job<0||column>=\{intermediate}) continue;
       $|    __nv_bfloat16 gate=__float2bfloat16_rn(result0[i]),up=__float2bfloat16_rn(result1[i]); \{clamp}
       $|    float g=__bfloat162float(gate),product=\{product}; \{route}
@@ -282,16 +285,16 @@ fn grouped_expert_source(
       $|extern "C" __global__ void \{down_symbol}(const int *counts,const __nv_bfloat16 *activation,const int *selected_indices,const float *selected_weights,const int *expert_map,const unsigned char *bank,\{weighted_type} *weighted) {
       $|  \{decode_down}
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
-      $|  const int group=blockIdx.x/\{n_down},column_base=(blockIdx.x%\{n_down})*64;
+      $|  const int group=blockIdx.x/\{n_down},column_base=(blockIdx.x%\{n_down})*\{columns};
       $|  if(group>=meta[0]) return;
       $|  const int expert=meta[1+group]; int local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;
       $|  if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{addresses[2]}
-      $|  __shared__ __align__(32) float result[1024];
+      $|  __shared__ __align__(32) float result[\{16*columns}];
       $|  \{down_body}
-      $|  for(int i=threadIdx.x;i<1024;i+=128) {
-      $|    int job=job_ids[i/64],column=column_base+i%64;
+      $|  for(int i=threadIdx.x;i<\{16*columns};i+=128) {
+      $|    int job=job_ids[i/\{columns}],column=column_base+i%\{columns};
       $|    if(job>=0&&column<\{hidden}) weighted[(unsigned long long)job*\{hidden}+column]=local<0?\{zero}:\{publish};
       $|  }
       $|}

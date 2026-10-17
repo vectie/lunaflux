@@ -129,6 +129,24 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let overlap_experts = mode.has_suffix("-overlap-experts")
+  let mode = if overlap_experts {
+    mode[:mode.length() - 16].to_owned()
+  } else {
+    mode
+  }
+  let shared_matrix_columns = if mode.has_suffix("-shared32") {
+    32
+  } else if mode.has_suffix("-shared16") {
+    16
+  } else {
+    64
+  }
+  let mode = if shared_matrix_columns != 64 {
+    mode[:mode.length() - 9].to_owned()
+  } else {
+    mode
+  }
   let collective_graph = mode.has_suffix("-collective-graph")
   let mode = if collective_graph {
     mode[:mode.length() - 17].to_owned()
@@ -267,6 +285,8 @@ async fn main {
         Eager
       },
       hc_reduction=if parallel_hc { Tree(partitions=256) } else { Ordered },
+      shared_matrix_columns~,
+      overlap_experts~,
     )
   }
   println(
@@ -277,6 +297,9 @@ async fn main {
   )
   println("tp_submission_queued=\{queued} tp_graph_replay=\{replay}")
   println("tp_collective_inclusive_graph=\{collective_graph}")
+  println(
+    "shared_matrix_columns=\{shared_matrix_columns} independent_expert_branches=\{overlap_experts}",
+  )
   println(
     "hc_parallel_tree=\{parallel_hc} hc_collapse_norm_fused=\{parallel_hc}",
   )

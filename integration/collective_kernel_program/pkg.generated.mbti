@@ -16,7 +16,7 @@ pub struct CollectiveKernelProgram {
 }
 pub fn CollectiveKernelProgram::abort(Self) -> Unit raise @device.DeviceError
 pub fn CollectiveKernelProgram::close(Self) -> Unit raise @device.DeviceError
-pub fn CollectiveKernelProgram::new(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[ReductionBoundary], owner~ : @device.TensorCollectiveOwner, generation~ : UInt64, maximum_rows~ : Int, retirement? : @parallel_ir.RetirementPolicy, replay? : @parallel_ir.ReplayPolicy, replay_budget_bytes? : Int64, capture_timeout_millis? : UInt64) -> Self raise @device.DeviceError
+pub fn CollectiveKernelProgram::new(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], ArrayView[ReductionBoundary], owner~ : @device.TensorCollectiveOwner, generation~ : UInt64, maximum_rows~ : Int, retirement? : @parallel_ir.RetirementPolicy, replay? : @parallel_ir.ReplayPolicy, replay_budget_bytes? : Int64, capture_timeout_millis? : UInt64, forks? : ArrayView[@parallel_ir.ForkJoinSpan]) -> Self raise @device.DeviceError
 pub fn CollectiveKernelProgram::poll(Self) -> Bool raise @device.DeviceError
 pub fn CollectiveKernelProgram::replay_graph_count(Self) -> Int
 pub fn CollectiveKernelProgram::submit(Self, live_rows~ : Int, plan_sequence~ : UInt64, global_sequence~ : UInt64) -> Unit raise @device.DeviceError

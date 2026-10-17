@@ -31,6 +31,7 @@ pub fn GlmSparseLayer::new(
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
+  shared_matrix_columns? : Int = 64,
   expert_fragment_slots? : Int = 1,
   tensor_group? : (Int, Int),
 ) -> Self raise {
@@ -77,6 +78,7 @@ pub fn GlmSparseLayer::new(
     matrix_law~,
     expert_scaled_dot_law~,
     expert_transport~,
+    shared_matrix_columns~,
     expert_fragment_slots~,
     tensor_group?,
   )

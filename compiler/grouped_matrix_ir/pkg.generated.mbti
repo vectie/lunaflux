@@ -17,8 +17,9 @@ pub struct ExpertGroupingPlan {
 pub fn ExpertGroupingPlan::column_tile(Self) -> Int
 pub fn ExpertGroupingPlan::consumer_teams(Self) -> Int
 pub fn ExpertGroupingPlan::fragment_slots(Self) -> Int
+pub fn ExpertGroupingPlan::matrix_columns(Self) -> Int
 pub fn ExpertGroupingPlan::maximum_groups(Self) -> Int
-pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int, transport? : ExpertTransport, fragment_slots? : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int, transport? : ExpertTransport, fragment_slots? : Int, matrix_columns? : Int) -> Self raise @precision_ir.PrecisionPlanError
 pub fn ExpertGroupingPlan::persistent_workers(Self) -> Int?
 pub fn ExpertGroupingPlan::rows_per_group(Self) -> Int
 pub fn ExpertGroupingPlan::shared_input_staging(Self) -> Bool
@@ -58,7 +59,7 @@ pub struct MatrixTilePlan {
 }
 pub fn MatrixTilePlan::geometry(Self) -> (Int, Int, Int)
 pub fn MatrixTilePlan::law(Self) -> @precision_ir.DenseDotLaw
-pub fn MatrixTilePlan::new(rows~ : Int, columns~ : Int, inner~ : Int, law~ : @precision_ir.DenseDotLaw, staging? : MatrixStaging) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixTilePlan::new(rows~ : Int, columns~ : Int, inner~ : Int, law~ : @precision_ir.DenseDotLaw, staging? : MatrixStaging, tile_columns? : Int) -> Self raise @precision_ir.PrecisionPlanError
 pub fn MatrixTilePlan::operand_slots(Self) -> Int
 pub fn MatrixTilePlan::staging(Self) -> MatrixStaging
 pub fn MatrixTilePlan::tile(Self) -> (Int, Int, Int)

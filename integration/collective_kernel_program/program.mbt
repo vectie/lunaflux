@@ -31,7 +31,7 @@ priv enum State {
 
 ///|
 pub struct CollectiveKernelProgram {
-  priv queues : ReadOnlyArray[@device.OrderedKernelExecutor]
+  priv queues : ReadOnlyArray[PreparedQueue]
   priv stream : @device.Stream
   priv owner : @device.TensorCollectiveOwner
   priv boundaries : ReadOnlyArray[ReductionBoundary]
@@ -60,6 +60,7 @@ pub fn CollectiveKernelProgram::new(
   replay? : @parallel.ReplayPolicy = Eager,
   replay_budget_bytes? : Int64 = 0L,
   capture_timeout_millis? : UInt64 = 60000UL,
+  forks? : ArrayView[@parallel.ForkJoinSpan] = [],
 ) -> Self raise @device.DeviceError {
   guard !boundaries.is_empty() &&
     !launches.is_empty() &&
@@ -74,6 +75,9 @@ pub fn CollectiveKernelProgram::new(
     retirement~,
     replay~,
   ) catch {
+    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  plan.validate_forks(forks) catch {
     _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   for i, boundary in boundaries {
@@ -104,10 +108,10 @@ pub fn CollectiveKernelProgram::new(
   ) catch {
     _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  guard reserve <= replay_budget_bytes else {
+  guard reserve + forks.length().to_int64() * 65536L <= replay_budget_bytes else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  let queues : Array[@device.OrderedKernelExecutor] = []
+  let queues : Array[PreparedQueue] = []
   let graph_rows = plan.collective_row_buckets(maximum_rows) catch {
     _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
@@ -132,21 +136,35 @@ pub fn CollectiveKernelProgram::new(
     }
   }
   for _ in graph_rows {
-    queues.push(context.create_ordered_kernel_executor(stream, launches))
+    queues.push(PreparedQueue::new(context, stream, launches, forks))
   }
   if plan.captures_interval_graphs() {
     for i in 0..<plan.interval_count() {
       let (first, end) = plan.interval(i)
+      let local_forks = forks.filter_map(span => {
+        let (start, _, join) = span.range()
+        if start >= first && join <= end {
+          Some(
+            span.shift(-first) catch {
+              _ => abort("validated fork coordinate")
+            },
+          )
+        } else {
+          None
+        }
+      })
       queues.push(
-        context.create_ordered_kernel_executor(
+        PreparedQueue::new(
+          context,
           stream,
           launches[first:end],
-          policy=OrderedKernelCaptureRequired,
+          local_forks,
+          capture=true,
         ),
       )
     }
   } else if graph_rows.is_empty() {
-    queues.push(context.create_ordered_kernel_executor(stream, launches))
+    queues.push(PreparedQueue::new(context, stream, launches, forks))
   }
   for i, rows in graph_rows {
     capture_collective_frame(
@@ -199,6 +217,7 @@ fn CollectiveKernelProgram::enqueue_interval(
     self.queues[0].enqueue(self.next_kernel)
     self.next_kernel += 1
   }
+  self.queues[0].join_before(end)
   if interval == self.plan.interval_count() - 1 {
     self.queues[0].record_completion()
   }

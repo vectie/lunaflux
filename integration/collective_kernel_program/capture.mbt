@@ -4,7 +4,7 @@
 /// rows; no consumer may observe padding. Initialize once before capture so
 /// inactive operands are defined. Runtime counts still mask model/KV writes.
 fn capture_collective_frame(
-  queue : @device.OrderedKernelExecutor,
+  queue : PreparedQueue,
   stream : @device.Stream,
   boundaries : ArrayView[ReductionBoundary],
   owner : @device.TensorCollectiveOwner,
@@ -35,6 +35,7 @@ fn capture_collective_frame(
       queue.enqueue(next)
       next += 1
     }
+    queue.join_before(next)
     owner.submit(
       generation~,
       plan_sequence=1UL,

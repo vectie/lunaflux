@@ -31,6 +31,24 @@ test "export selected BF16 shared expert transport fixture" {
   let source = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
     plan,
     symbol=name,
+    grouping?=match @env.get_env_var("LUNA_SHARED_COLUMNS") {
+      None => None
+      Some(value) =>
+        Some(
+          @matrix.ExpertGroupingPlan::new(
+            maximum_rows=64,
+            selected_experts=1,
+            shared_input_staging=true,
+            matrix_columns=if value == "16" {
+              16
+            } else if value == "32" {
+              32
+            } else {
+              64
+            },
+          ),
+        )
+    },
   )
   println("LUNA_SOURCE_BEGIN")
   println(@utf8.decode(source.source_bytes()))

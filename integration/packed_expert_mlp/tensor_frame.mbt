@@ -34,6 +34,13 @@ pub fn MoeProgram::shared_tensor_boundary(
 }
 
 ///|
+/// Independent producer coordinates are valid only for the coalesced frame;
+/// bind_experts owns distinct writable scratch for the two branches.
+pub fn MoeProgram::producer_fork(self : Self) -> @parallel.ForkJoinSpan? {
+  self.producer_fork
+}
+
+///|
 pub fn MoeProgram::prepare_routed_tensor_frame(
   self : Self,
   context : @device.Context,

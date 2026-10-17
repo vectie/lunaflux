@@ -38,6 +38,7 @@ pub fn GlmDecoderStage::new(
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   expert_fragment_slots? : Int = 1,
+  shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
@@ -93,6 +94,7 @@ pub fn GlmDecoderStage::new(
       expert_scaled_dot_law~,
       expert_transport~,
       expert_fragment_slots~,
+      shared_matrix_columns~,
       tensor_group?,
     ),
     text: GlmTextIo::new(
@@ -168,6 +170,7 @@ pub fn GlmDecoderStage::prepare(
   retirement? : @parallel.RetirementPolicy = EachCollective,
   replay? : @parallel.ReplayPolicy = Eager,
   replay_budget_bytes? : Int64 = 0L,
+  overlap_experts? : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -238,6 +241,7 @@ pub fn GlmDecoderStage::prepare(
     retirement~,
     replay~,
     replay_budget_bytes~,
+    overlap_experts~,
   )
   self.counts = Some(counts)
   self.status = Ready

@@ -292,6 +292,18 @@ fn MoeProgram::bind_experts(
     // concatenated reduction complete. No sum crosses the region boundary.
     let routed_publish = routed_launches.pop().unwrap()
     let shared_publish = shared_launches.pop().unwrap()
+    // Distinct branch scratch/partial outputs; counts/input are shared reads.
+    // The immutable schedule can issue shared work concurrently, but serial
+    // lowering retains the exact prior order. Pack joins both before F32 TP.
+    self.producer_fork = Some(
+      @parallel.ForkJoinSpan::new(
+        first=0,
+        split=routed_launches.length(),
+        join=routed_launches.length() + shared_launches.length(),
+      ) catch {
+        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      },
+    )
     routed_launches.append(shared_launches)
     routed_launches.push(
       @device.OrderedKernelLaunch::new(functions[0], dimensions, arguments),

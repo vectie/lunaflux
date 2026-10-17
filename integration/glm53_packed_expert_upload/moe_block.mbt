@@ -18,6 +18,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
+  shared_matrix_columns? : Int = 64,
   expert_fragment_slots? : Int = 1,
   tensor_group? : (Int, Int),
 ) -> Self raise {
@@ -55,6 +56,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
         matrix_law~,
         expert_scaled_dot_law~,
         expert_transport~,
+        shared_matrix_columns~,
         expert_fragment_slots~,
         tensor_group?,
       ),
@@ -76,6 +78,7 @@ fn make_moe_ffn(
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
+  shared_matrix_columns? : Int = 64,
   expert_fragment_slots? : Int = 1,
   tensor_group? : (Int, Int),
 ) -> GlmFfn raise {
@@ -164,6 +167,18 @@ fn make_moe_ffn(
     @expert_source.packed_expert_mlp_source(
       shared,
       symbol="glm_shared_" + layer_index.to_string(),
+      grouping?=if shared_matrix_columns == 64 {
+        None
+      } else {
+        Some(
+          @matrix.ExpertGroupingPlan::new(
+            maximum_rows~,
+            selected_experts=1,
+            shared_input_staging=true,
+            matrix_columns=shared_matrix_columns,
+          ),
+        )
+      },
     ),
     @combine_source.moe_combine_source(
       @precision_ir.MoeCombinePrecision::new(

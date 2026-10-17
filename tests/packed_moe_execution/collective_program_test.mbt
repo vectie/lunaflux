@@ -7,6 +7,7 @@ fn run_collective_program(
   decode_graph? : Bool = false,
   cancel? : Bool = false,
   cancel_rows? : Int = 1,
+  fork? : Bool = false,
 ) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
@@ -129,6 +130,11 @@ fn run_collective_program(
       Eager
     },
     replay_budget_bytes=1048576L,
+    forks=if fork {
+      [@parallel.ForkJoinSpan::new(first=1, split=2, join=3)]
+    } else {
+      []
+    },
   )
   defer (queue.abort() catch { _ => () })
   assert_eq(
@@ -200,6 +206,12 @@ fn run_collective_program(
 ///|
 test "decoder queue splices multiple tensor reductions before consumers without allocation" {
   run_collective_program(false)
+}
+
+///|
+test "independent producer submission and cancellation retain both lanes without allocation" {
+  run_collective_program(true, fork=true)
+  run_collective_program(true, fork=true, cancel=true)
 }
 
 ///|

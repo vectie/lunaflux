@@ -1,0 +1,31 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+async fn main {
+  for root in @env.args()[1:] {
+    let groups : Map[String, Array[Double]] = Map([])
+    for line in @fs.read_file(root+"/timing.stdout").text().split("\n") {
+      if line.contains(" trial=") {
+        let fields = line.split(" ").to_array()
+        let key = "\{fields[0]} \{fields[2]} \{fields[3]}"
+        let values = groups.get_or_init(key, () => [])
+        values.push(@string.parse_double(fields[4].split("=").to_array()[1]))
+      }
+    }
+    println(root)
+    for rows in [1,16,22,32,64] {
+      for part in [1,2] {
+        let medians = [0,1].map(next => {
+          let values=groups["rows=\{rows} next=\{next} part=\{part}"]
+          values.sort()
+          values[values.length()/2]
+        })
+        println("rows=\{rows} part=\{part} old_ms=\{medians[0]} next_ms=\{medians[1]} ratio=\{medians[1]/medians[0]}")
+      }
+    }
+  }
+}

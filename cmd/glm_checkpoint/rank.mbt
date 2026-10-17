@@ -33,6 +33,7 @@ fn prepare_rank(
       retirement=startup.retirement,
       replay=startup.replay,
       replay_budget_bytes=startup.reserve / 4L,
+      overlap_experts=startup.overlap_experts,
     )
   })
   stage.bind_rank(rank, context)

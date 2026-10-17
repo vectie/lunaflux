@@ -19,6 +19,7 @@ pub fn MatrixTilePlan::new(
   inner~ : Int,
   law~ : @precision.DenseDotLaw,
   staging? : MatrixStaging = Synchronous,
+  tile_columns? : Int = 64,
 ) -> Self raise @precision.PrecisionPlanError {
   guard law != ScalarFloat32 &&
     rows > 0 &&
@@ -29,7 +30,16 @@ pub fn MatrixTilePlan::new(
     inner <= 1073741760 else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
-  guard (rows.to_int64() + 15L) / 16L * ((columns.to_int64() + 63L) / 64L) <=
+  guard tile_columns is (16 | 32 | 64) &&
+    (tile_columns == 64 || staging == Synchronous) else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
+  guard (rows.to_int64() + 15L) /
+    16L *
+    (
+      (columns.to_int64() + tile_columns.to_int64() - 1L) /
+      tile_columns.to_int64()
+    ) <=
     2147483647L else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
@@ -47,7 +57,7 @@ pub fn MatrixTilePlan::new(
     columns,
     inner,
     tile_rows: 16,
-    tile_columns: 64,
+    tile_columns,
     tile_inner,
     law,
     staging,
@@ -66,7 +76,9 @@ pub fn MatrixTilePlan::tile(self : Self) -> (Int, Int, Int) {
 
 ///|
 pub fn MatrixTilePlan::tile_count(self : Self) -> Int {
-  let matrix = (self.rows + 15) / 16 * ((self.columns + 63) / 64)
+  let matrix = (self.rows + 15) /
+    16 *
+    ((self.columns + self.tile_columns - 1) / self.tile_columns)
   if self.law == ShapeAwareFloat32 {
     Int::max(matrix, (self.columns + 3) / 4)
   } else {
@@ -89,6 +101,7 @@ pub struct ExpertGroupingPlan {
   priv column_tile : Int
   priv transport : ExpertTransport
   priv fragment_slots : Int
+  priv matrix_columns : Int
 }
 
 ///|
@@ -115,8 +128,11 @@ pub fn ExpertGroupingPlan::new(
   column_tile? : Int = 32,
   transport? : ExpertTransport = IndexedRows,
   fragment_slots? : Int = 1,
+  matrix_columns? : Int = 64,
 ) -> Self raise @precision.PrecisionPlanError {
-  guard fragment_slots is (1 | 2) else {
+  guard fragment_slots is (1 | 2) &&
+    matrix_columns is (16 | 32 | 64) &&
+    (matrix_columns == 64 || transport == IndexedRows) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   let column_tile = match transport {
@@ -146,7 +162,15 @@ pub fn ExpertGroupingPlan::new(
     column_tile,
     transport,
     fragment_slots,
+    matrix_columns,
   }
+}
+
+///|
+/// Independent output-column ownership for the indexed BF16 matrix schedule.
+/// It changes parallel work distribution, not any dot-product reduction order.
+pub fn ExpertGroupingPlan::matrix_columns(self : Self) -> Int {
+  self.matrix_columns
 }
 
 ///|

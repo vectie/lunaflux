@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
   "vectie/lunaflux/device",
   "vectie/lunaflux/integration/packed_expert_mlp" @moe,
   "vectie/lunaflux/integration/collective_kernel_program" @collective_program,

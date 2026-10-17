@@ -1,4 +1,29 @@
 ///|
+fn GlmDecoderLayer::producer_fork(
+  self : Self,
+) -> @parallel.ForkJoinSpan? raise @device.DeviceError {
+  let ffn = match self {
+    Recurrent(layer) => layer.ffn
+    Sparse(layer) => Some(layer.ffn)
+  }
+  if ffn is Some(ffn) &&
+    ffn.branch is Moe(moe) &&
+    moe.program.producer_fork() is Some(span) {
+    Some(
+      span.shift(
+        self.launches().length() -
+        ffn.launches.length() +
+        ffn.envelope.prefix().length(),
+      ) catch {
+        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      },
+    )
+  } else {
+    None
+  }
+}
+
+///|
 fn GlmFfn::is_tensor_parallel(self : Self) -> Bool {
   self.tensor_width() is Some(_)
 }

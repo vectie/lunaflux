@@ -5,3 +5,8 @@ import {
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/core/env",
+  "vectie/lunaflux/runtime/approved_fs",
+} for "wbtest"

@@ -16,6 +16,7 @@ pub struct MoeProgram {
   priv mut closed : Bool
   priv mut shared_tensor_boundary : ExpertTensorBoundary?
   priv collective_region : @parallel.CoalescedSumPlan?
+  priv mut producer_fork : @parallel.ForkJoinSpan?
 }
 
 ///|
@@ -133,6 +134,7 @@ pub fn MoeProgram::new(
     closed: false,
     shared_tensor_boundary: None,
     collective_region,
+    producer_fork: None,
   }
 }
 

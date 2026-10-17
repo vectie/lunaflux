@@ -58,6 +58,7 @@ pub fn paired_matrix_tile_body(
     $|    \{load_a}
     $|    \{load_b}
     $|    __syncthreads();
+    $|    if(warp<\{n/16}) {
     $|    #pragma unroll
     $|    for(int kk=0;kk<\{k};kk+=16) {
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a,16,16,16,__nv_bfloat16,nvcuda::wmma::row_major> a;
@@ -68,10 +69,13 @@ pub fn paired_matrix_tile_body(
     $|      nvcuda::wmma::mma_sync(acc0,a,b0,acc0);
     $|      nvcuda::wmma::mma_sync(acc1,a,b1,acc1);
     $|    }
+    $|    }
     $|    __syncthreads();
     $|  }
-    $|  nvcuda::wmma::store_matrix_sync(\{results.0}+warp*16,acc0,\{n},nvcuda::wmma::mem_row_major);
-    $|  nvcuda::wmma::store_matrix_sync(\{results.1}+warp*16,acc1,\{n},nvcuda::wmma::mem_row_major);
+    $|  if(warp<\{n/16}) {
+    $|    nvcuda::wmma::store_matrix_sync(\{results.0}+warp*16,acc0,\{n},nvcuda::wmma::mem_row_major);
+    $|    nvcuda::wmma::store_matrix_sync(\{results.1}+warp*16,acc1,\{n},nvcuda::wmma::mem_row_major);
+    $|  }
     $|  __syncthreads();
     $|}
   )

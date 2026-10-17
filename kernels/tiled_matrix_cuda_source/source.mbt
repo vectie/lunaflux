@@ -65,6 +65,7 @@ pub fn matrix_tile_body(
     $|    \{load_a}
     $|    \{load_b}
     $|    __syncthreads();
+    $|    if(warp<\{n/16}) {
     $|    #pragma unroll
     $|    for(int kk=0;kk<\{k};kk+=16) {
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a,16,16,16,__nv_bfloat16,nvcuda::wmma::row_major> a;
@@ -73,9 +74,10 @@ pub fn matrix_tile_body(
     $|      nvcuda::wmma::load_matrix_sync(b,tile_b+warp*16*\{k}+kk,\{k});
     $|      nvcuda::wmma::mma_sync(accumulator,a,b,accumulator);
     $|    }
+    $|    }
     $|    __syncthreads();
     $|  }
-    $|  nvcuda::wmma::store_matrix_sync(\{result}+warp*16,accumulator,\{n},nvcuda::wmma::mem_row_major);
+    $|  if(warp<\{n/16}) nvcuda::wmma::store_matrix_sync(\{result}+warp*16,accumulator,\{n},nvcuda::wmma::mem_row_major);
     $|  __syncthreads();
     $|}
   )
@@ -100,6 +102,9 @@ fn dense_render(
   device_region~ : Bool,
 ) -> String raise @precision.PrecisionPlanError {
   let (rows, columns, inner) = plan.geometry()
+  guard plan.tile().1 == 64 else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
   let tile_id = if device_region { "tile_id" } else { "blockIdx.x" }
   let tile_count = if device_region { "tile_count" } else { "gridDim.x" }
   let blocks_n = (columns + 63) / 64

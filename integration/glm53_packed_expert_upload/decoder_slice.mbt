@@ -47,6 +47,7 @@ pub fn GlmDecoderSlice::new(
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   expert_fragment_slots? : Int = 1,
+  shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard first_layer >= 0 &&
@@ -93,6 +94,7 @@ pub fn GlmDecoderSlice::new(
                 matrix_staging~,
                 expert_scaled_dot_law~,
                 expert_transport~,
+                shared_matrix_columns~,
                 expert_fragment_slots~,
                 tensor_group?,
               ),
@@ -117,6 +119,7 @@ pub fn GlmDecoderSlice::new(
             matrix_law~,
             expert_scaled_dot_law~,
             expert_transport~,
+            shared_matrix_columns~,
             expert_fragment_slots~,
             tensor_group?,
           ),
@@ -227,6 +230,7 @@ pub fn GlmDecoderSlice::prepare(
   retirement? : @parallel.RetirementPolicy = EachCollective,
   replay? : @parallel.ReplayPolicy = Eager,
   replay_budget_bytes? : Int64 = 0L,
+  overlap_experts? : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -251,6 +255,7 @@ pub fn GlmDecoderSlice::prepare(
   }
   let launches = prefix_launches.to_owned()
   let boundaries = []
+  let forks = []
   for index, layer in self.layers {
     let input = if index == 0 { hidden } else { self.buffers[(index - 1) % 2] }
     let next = if index == self.layers.length() - 1 {
@@ -284,6 +289,13 @@ pub fn GlmDecoderSlice::prepare(
         ),
       )
     }
+    if overlap_experts && layer.producer_fork() is Some(span) {
+      forks.push(
+        span.shift(launches.length()) catch {
+          _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        },
+      )
+    }
     launches.append(layer.launches())
     if layer is Sparse(sparse) {
       self.descriptors.push(sparse.append_descriptor())
@@ -308,6 +320,7 @@ pub fn GlmDecoderSlice::prepare(
           retirement~,
           replay~,
           replay_budget_bytes~,
+          forks~,
         ),
       )
       self.collective_count = boundaries.length()

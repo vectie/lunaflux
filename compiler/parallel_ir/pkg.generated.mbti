@@ -99,6 +99,13 @@ pub(all) enum ElementType {
 pub fn ElementType::equal(Self, Self) -> Bool
 pub fn ElementType::not_equal(Self, Self) -> Bool
 
+pub struct ForkJoinSpan {
+  // private fields
+}
+pub fn ForkJoinSpan::new(first~ : Int, split~ : Int, join~ : Int) -> Self raise ParallelError
+pub fn ForkJoinSpan::range(Self) -> (Int, Int, Int)
+pub fn ForkJoinSpan::shift(Self, Int) -> Self raise ParallelError
+
 pub struct Group {
   // private fields
 }
@@ -129,6 +136,7 @@ pub fn OrderedSubmissionPlan::replay_collectives(Self, Int) -> Bool
 pub fn OrderedSubmissionPlan::replay_policy(Self) -> ReplayPolicy
 pub fn OrderedSubmissionPlan::replay_reserve_bytes(Self, bytes_per_kernel~ : Int64, bytes_per_interval~ : Int64) -> Int64 raise ParallelError
 pub fn OrderedSubmissionPlan::retirement_policy(Self) -> RetirementPolicy
+pub fn OrderedSubmissionPlan::validate_forks(Self, ArrayView[ForkJoinSpan]) -> Unit raise ParallelError
 
 pub(all) enum Policy {
   Ordered

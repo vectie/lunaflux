@@ -309,6 +309,9 @@ async fn main {
   let shape_aware = options.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
   let parallel_hc = @env.get_env_var("LUNA_GLM_PARALLEL_HC") == Some("1")
+  let shared_columns = @env.get_env_var("LUNA_GLM_SHARED_COLUMNS").unwrap_or("64")
+  guard shared_columns is ("16" | "32" | "64") else { fail("shared columns") }
+  let overlap_experts = @env.get_env_var("LUNA_GLM_OVERLAP_EXPERTS") == Some("1")
   let collective_graph = @env.get_env_var("LUNA_GLM_COLLECTIVE_GRAPH") ==
     Some("1")
   let lookahead = @env.get_env_var("LUNA_GLM_EXPERT_LOOKAHEAD") == Some("1")
@@ -389,7 +392,9 @@ async fn main {
     } else {
       ""
     }) +
-    (if collective_graph { "tp_collective_inclusive_graph=true\n" } else { "" })
+    (if collective_graph { "tp_collective_inclusive_graph=true\n" } else { "" }) +
+    (if shared_columns != "64" { "shared_matrix_columns=\{shared_columns}\n" } else { "" }) +
+    (if overlap_experts { "independent_expert_branches=true\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
       fail("runtime must match the explicitly prepared executable and AOT")
@@ -681,7 +686,9 @@ async fn main {
         (if lookahead { "-lookahead-experts" } else { "" }) +
         (if buffered { "-buffered-matrices" } else { "" }) +
         (if parallel_hc { "-parallel-hc" } else { "" }) +
-        (if collective_graph { "-collective-graph" } else { "" })
+        (if collective_graph { "-collective-graph" } else { "" }) +
+        (if shared_columns != "64" { "-shared" + shared_columns } else { "" }) +
+        (if overlap_experts { "-overlap-experts" } else { "" })
       record(
         root,
         role + "-start",
