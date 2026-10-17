@@ -4,6 +4,8 @@ test "full-width native FP4 expert performance export" {
   let hidden = 4096
   let intermediate = 1024
   let selected = 8
+  let full_bank = @env.get_env_var("LUNA_FP4_FULL_BANK") == Some("1")
+  let bank_count = if full_bank { 288 } else { 8 }
   let weights = [
     (intermediate, hidden),
     (intermediate, hidden),
@@ -42,14 +44,14 @@ test "full-width native FP4 expert performance export" {
     up=weights[1],
     down=weights[2],
     expert_count=288,
-    local_experts=[0, 1, 2, 3, 4, 5, 6, 7],
+    local_experts=Array::makei(bank_count, i => i),
     selected_experts=selected,
     maximum_rows=rows,
     dot_law=MatrixFloat32,
     scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
     activation_quantization=(quant[0], quant[1]),
     down_publication=ReduceFloat32BeforeRound,
-    memory_ceiling=268435456L,
+    memory_ceiling=if full_bank { 4294967296L } else { 268435456L },
   )
   let variant = @env.get_env_var("LUNA_EXPORT_FP4_PERFORMANCE")
   let generated = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
@@ -58,7 +60,8 @@ test "full-width native FP4 expert performance export" {
     grouping=@matrix.ExpertGroupingPlan::new(
       maximum_rows=rows,
       selected_experts=selected,
-      shared_input_staging=variant == Some("next"),
+      shared_input_staging=variant == Some("next") &&
+        @env.get_env_var("LUNA_FP4_INDEPENDENT_INPUT") != Some("1"),
     ),
   )
   let alternate = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
@@ -97,6 +100,7 @@ test "full-width native FP4 expert performance export" {
   }
   if variant is Some(_) {
     println("LUNA_SOURCE_BEGIN fp4-performance")
+    println("#define LUNA_FP4_BANK_COUNT \{bank_count}")
     println(@utf8.decode(generated.source_bytes()))
     println(
       "static constexpr int R=\{rows},H=\{hidden},I=\{intermediate},S=\{selected};",

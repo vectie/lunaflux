@@ -17,6 +17,7 @@ pub fn ExpertGroupingPlan::maximum_groups(Self) -> Int
 pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool) -> Self raise @precision_ir.PrecisionPlanError
 pub fn ExpertGroupingPlan::rows_per_group(Self) -> Int
 pub fn ExpertGroupingPlan::shared_input_staging(Self) -> Bool
+pub fn ExpertGroupingPlan::stable_assignment(Self) -> StableAssignmentPlan
 pub fn ExpertGroupingPlan::storage_bytes(Self) -> Int64
 
 pub struct IndirectMatrixTraversal {
@@ -43,6 +44,13 @@ pub fn SegmentedMatrixPlan::offsets(Self) -> ArrayView[Int]
 pub fn SegmentedMatrixPlan::scratch_elements(Self) -> (Int, Int, Int)
 pub fn SegmentedMatrixPlan::segments(Self) -> ArrayView[MatrixTilePlan]
 pub fn SegmentedMatrixPlan::tile_count(Self) -> Int
+
+pub struct StableAssignmentPlan {
+  // private fields
+}
+pub fn StableAssignmentPlan::capacity(Self) -> Int
+pub fn StableAssignmentPlan::rows_per_group(Self) -> Int
+pub fn StableAssignmentPlan::scratch_elements(Self) -> Int
 
 // Type aliases
 

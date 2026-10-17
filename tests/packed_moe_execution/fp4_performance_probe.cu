@@ -7,6 +7,9 @@
 #include <cstring>
 #include <cmath>
 #include "performance.cuh"
+#ifndef LUNA_FP4_BANK_COUNT
+#define LUNA_FP4_BANK_COUNT S
+#endif
 #ifdef LUNA_PAIRED
 namespace candidate {
 #include "candidate.cuh"
@@ -20,10 +23,11 @@ int main(int argc,char **argv) {
   bool once=false,diverse=false;
   for(int arg=3;arg<argc;arg++){once|=strcmp(argv[arg],"once")==0;diverse|=strcmp(argv[arg],"diverse")==0;}
   if(rows<1||rows>R) return 3;
-  std::vector<unsigned char> bank(stride*S);
+  constexpr int banks=LUNA_FP4_BANK_COUNT;
+  std::vector<unsigned char> bank(stride*banks);
   const int widths[3]={H,H,I},outs[3]={I,I,H};
   const size_t scales[3]={ws0,ws1,ws2},globals[3]={wg0,wg1,wg2};
-  for(int e=0;e<S;e++) for(int s=0;s<3;s++) {
+  for(int e=0;e<banks;e++) for(int s=0;s<3;s++) {
     auto *p=bank.data()+e*stride+offsets[s];
     for(int r=0;r<outs[s];r++) {
       for(int k=0;k<widths[s];k+=2) {unsigned a=(r*3+k*5+e+s)&15,b=(r*3+(k+1)*5+e+s)&15;p[(r*widths[s]+k)/2]=a|(b<<4);}
@@ -36,8 +40,9 @@ int main(int argc,char **argv) {
   // A separate route-diversity control changes group occupancy, not weights:
   // 64 logical experts share eight synthetic banks. This does not reproduce
   // the real checkpoint's weight-cache footprint.
-  for(int j=0;j<R*S;j++) indices[j]=diverse?((j/S)*7+j%S)%64:j%S;
-  for(int e=0;e<(diverse?64:S);e++) map[e]=e%S;
+  int logical=diverse?(banks>S?banks:64):S;
+  for(int j=0;j<R*S;j++) indices[j]=diverse?((j/S)*7+j%S)%logical:j%S;
+  for(int e=0;e<logical;e++) map[e]=e%banks;
   auto *db=gpu(bank),*qx=gpu(std::vector<unsigned char>(qb0)),*qa=gpu(std::vector<unsigned char>(qb1));
   auto *dx=gpu(x),*a=gpu(std::vector<__nv_bfloat16>(activation_bytes/2));
   auto *c=gpu(counts),*idx=gpu(indices),*em=gpu(map),*err=gpu(std::vector<int>(1));
@@ -47,7 +52,7 @@ int main(int argc,char **argv) {
   int group_counts[288]={};for(int j=0;j<rows*S;j++)group_counts[indices[j]]++;
   int groups=0;for(int e=0;e<288;e++)groups+=(group_counts[e]+15)/16;
   int gg=trimmed?groups*((I+31)/32):grid3,gd=trimmed?groups*((H+31)/32):grid6;
-  printf("logical_experts=%d unique_weight_banks=%d live_groups=%d\n",diverse?64:S,S,groups);
+  printf("logical_experts=%d unique_weight_banks=%d live_groups=%d\n",logical,banks,groups);
   auto run=[&](bool fresh=false){
 #ifdef LUNA_PAIRED
     if(fresh) {
@@ -75,7 +80,7 @@ int main(int argc,char **argv) {
   auto snapshot=[&](){
     std::vector<unsigned char> bytes;
     auto add=[&](const void *p,size_t n){size_t start=bytes.size();bytes.resize(start+n);ck(cudaMemcpy(bytes.data()+start,p,n,cudaMemcpyDeviceToHost));};
-    add(out,rows*H*4);add(w,rows*S*H*4);add(a,rows*S*I*2);add(qx,qb0);add(qa,qb1);
+    add(out,rows*H*4);add(w,rows*S*H*4);add(a,activation_bytes);add(qx,qb0);add(qa,qb1);
     return bytes;
   };
   run(false);ck(cudaDeviceSynchronize());auto reference=snapshot();

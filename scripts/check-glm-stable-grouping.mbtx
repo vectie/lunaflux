@@ -1,0 +1,94 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-fp4-performance-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("PREPARED_PAIRED_ROOT")
+  }
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap()
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=4194304,
+    )
+  }
+  async fn record(name : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/grouping-" + name + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/grouping-" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  record(
+    "reserve",
+    remote(
+      "awk '/MemAvailable:/ {if ($2<18874368) exit 9; print}' /proc/meminfo",
+    ),
+  )
+  @shell.Cmd("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    "tests/packed_moe_execution/stable_grouping_probe.cu",
+    host + ":" + root + "/grouping.cu",
+  ])
+  .output()
+  .check()
+  let unit = root[5:].to_owned() + "-grouping"
+  let bounded = " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 "
+  record(
+    "compile",
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      unit +
+      "-compile" +
+      bounded +
+      "/usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo --generate-code arch=compute_121a,code=sm_121a -std=c++17 " +
+      root +
+      "/grouping.cu -o " +
+      root +
+      "/grouping",
+    ),
+  )
+  for mode in ["plain", "memcheck", "racecheck", "synccheck"] {
+    let prefix = if mode == "plain" {
+      ""
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+      mode +
+      (if mode == "memcheck" { " --leak-check full" } else { "" }) +
+      " "
+    }
+    record(
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-" +
+        mode +
+        bounded +
+        prefix +
+        root +
+        "/grouping",
+      ),
+    )
+  }
+}
