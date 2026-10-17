@@ -434,3 +434,39 @@ performance change would need an independent producer/consumer transport
 schedule and a memory-feasible actual-serving capture; it is not implemented
 or benchmark-proven in this phase. No integrity scans or payload hashes were
 performed.
+
+Further read-only inspection of the **installed** FlashInfer
+`data/csrc/fused_moe/cutlass_backend/cutlass_fused_moe_kernels.cuh` narrows the
+transport prerequisite: `expandInputRowsKernel` at 1430–1524 duplicates and
+permutes original activation rows; the normal path invokes it at 3899 and
+then sets up TMA-specialized inputs. At 4128 its GEMM input is the permuted
+buffer. Our `fp4_fragment_pipeline.mbt` instead resolves `job_ids[row]` and
+the original source row inside each operand loader. A TMA schedule cannot
+simply replace that indirect gather with a rectangular copy.
+
+The next experiment therefore needs to cost **row/scales materialization +
+grouped matrix execution**, not only the matrix kernel. A pure physical plan
+can choose an indexed view or expert-contiguous temporary with explicit
+workspace, producer/consumer ownership and retirement; CUDA alone binds TMA
+descriptors and warp roles. Preserve quantized payload/scales and stable
+publication order, and compare the complete chain. This is an identified
+source-level prerequisite, not proof of the selected serving route or a
+quantified explanation of the entire 44.84% completion gap. No such transport
+implementation was promoted in this phase.
+
+## Final restoration after the CUTLASS follow-up
+
+All follow-up benchmark/profiler owners retired before restoration. The same
+original worker was restarted at 14:37:25 CST and head at 14:37:26; neither
+container was recreated or reconfigured. At 14:45:35 the health endpoint
+returns HTTP 200; at 14:45:46 `/v1/models` lists `GLM-5.3-Flash-EXL3` with its
+original 850,000-token maximum. The full Docker IDs still match those recorded
+above, both are running without OOM, and `glm53-nfs` stayed running throughout.
+Only the original vLLM GPU processes remain; no benchmark runs alongside them.
+
+This restoration's snapshot is 102,162/102,164 MiB GPU allocation and
+9,505,516/11,628,808 KiB available host RAM (about 9.1/11.1 GiB). GPU allocation
+is below 100 GiB at this snapshot, but the unchanged original service **does
+not meet the 16 GiB benchmark host reserve**. Restoration of the requested
+original configuration is not a memory-compliant benchmark result. No engine
+replacement or original service configuration change was performed.
