@@ -7,6 +7,19 @@ import {
 }
 
 ///|
+fn retained_source(source : String) -> String {
+  source.replace_all(old="next_", new="perf_")
+}
+
+///|
+test "retained export renames every symbol but not local expert ordering" {
+  assert_eq(
+    retained_source("void next_group(); void next_down(); int next=0;"),
+    "void perf_group(); void perf_down(); int next=0;",
+  )
+}
+
+///|
 async fn main {
   let args = @env.args()
   let baseline = if args.length() == 4 { Some(args[3]) } else { None }
@@ -21,12 +34,14 @@ async fn main {
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
     mode
     is ("freeze"
+    | "freeze-retained"
     | "prepare"
     | "run"
     | "run-diverse"
     | "collect-counters"
     | "collect-paired"
     | "sanitize"
+    | "profile-matrices"
     | "sanitize-diverse") else {
     fail("NEW_ROOT prepare|run|collect-counters|sanitize")
   }
@@ -57,6 +72,29 @@ async fn main {
       create_mode=CreateNew,
     )
     out.check()
+  }
+  if mode == "freeze-retained" {
+    guard baseline is Some(path) else {
+      fail("retained candidate root required")
+    }
+    @fs.mkdir(root)
+    let source = @fs.read_file(path + "/candidate.cuh").text()
+    guard source.contains("void next_group") &&
+      source.contains("first[job]=leader") else {
+      fail("expected retained stable-grouping source")
+    }
+    @fs.write_file(
+      root + "/performance.cuh",
+      retained_source(source),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/BASELINE.txt",
+      path +
+      "/candidate.cuh; identifier-only next_ to perf_; no arithmetic change\n",
+      create_mode=CreateNew,
+    )
+    return
   }
   if mode is ("freeze" | "prepare") {
     @fs.mkdir(root)
@@ -171,6 +209,52 @@ async fn main {
         )
       }
     }
+  } else if mode == "profile-matrices" {
+    record(
+      "matrix-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo",
+      ),
+    )
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    let name = root[5:].to_owned() + "-matrix"
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    record(
+      "matrix-profile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        name +
+        " --property=RuntimeMaxSec=480 docker run --name " +
+        name +
+        " --gpus all --network none --memory=12g --memory-swap=12g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+        root +
+        ":" +
+        root +
+        " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+        ncu +
+        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base demangled --kernel-name 'regex:(perf|next)_(gate_up|down)' --launch-count 4 --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active --export " +
+        root +
+        "/matrix " +
+        root +
+        "/probe 22 capacity once diverse",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/matrix.ncu-rep",
+      root + "/matrix.ncu-rep",
+    ])
+    .output()
+    .check()
+    record(
+      "matrix-raw",
+      remote(ncu + " --import " + root + "/matrix.ncu-rep --page raw --csv"),
+    )
   } else if mode is ("sanitize" | "sanitize-diverse") {
     let suffix = if mode == "sanitize-diverse" { "-diverse" } else { "" }
     record(

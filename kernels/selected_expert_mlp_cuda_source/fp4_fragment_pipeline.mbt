@@ -12,6 +12,7 @@ fn fp4_fragment_pipeline(
   symbol : String,
   work_tile? : String = "blockIdx.x",
   paired_weight_scales? : Int64,
+  tile_columns? : Int = 32,
 ) -> String {
   let layout = @physical_tile_ir.OperandLayout::new(
     columns=128,
@@ -22,9 +23,9 @@ fn fp4_fragment_pipeline(
   let storage = @physical_tile_ir.OperandStorage::new(
     layout,
     if paired_weight_scales is Some(_) {
-      [16, 32, 32]
+      [16, tile_columns, tile_columns]
     } else {
-      [16, 32]
+      [16, tile_columns]
     },
     owners=128,
     stages=1,
@@ -39,9 +40,9 @@ fn fp4_fragment_pipeline(
     let is_left = owner == 0
     let is_scale = operand >= count
     let width = if is_scale { 16 } else { 128 }
-    let rows = if is_left { 16 } else { 32 }
+    let rows = if is_left { 16 } else { tile_columns }
     let base = if is_scale {
-      scales + (if is_left { 0 } else { 256 + (owner - 1) * 512 })
+      scales + (if is_left { 0 } else { 256 + (owner - 1) * tile_columns * 16 })
     } else {
       storage.region(owner).unwrap().geometry().0
     }
@@ -70,8 +71,10 @@ fn fp4_fragment_pipeline(
       "int source_row=(" +
       work_tile +
       "%" +
-      ((columns + 31) / 32).to_string() +
-      ")*32+row;bool valid=local>=0&&source_row<" +
+      ((columns + tile_columns - 1) / tile_columns).to_string() +
+      ")*" +
+      tile_columns.to_string() +
+      "+row;bool valid=local>=0&&source_row<" +
       columns.to_string() +
       ";"
     }
@@ -106,27 +109,30 @@ fn fp4_fragment_pipeline(
       let second_right = storage.region(2).unwrap().geometry().0
       (
         $|const unsigned *bp1=(const unsigned *)(tile+\{second_right}+wr*128);
-        $|unsigned sb1=*(const unsigned *)(tile+\{scales+768}+wr*16+kk/16);
-        $|\{symbol}_mma(d\{stage+1},a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp1[lo],bp1[hi],sa,sb1);
+        $|unsigned sb1=*(const unsigned *)(tile+\{scales+256+tile_columns*16}+wr*16+kk/16);
+        $|\{symbol}_mma(d\{stage+1}+fragment*4,a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp1[lo],bp1[hi],sa,sb1);
       )
     }
   }
   (
     $|{ // \{layout.canonical()}; ordered K chunks, explicit producer/reader lifetimes
-    $|__shared__ __align__(16) unsigned char tile[\{scales+256+(count-1)*512}];
+    $|__shared__ __align__(16) unsigned char tile[\{scales+256+(count-1)*tile_columns*16}];
     $|for(int base_k=0;base_k<\{inner};base_k+=256) {
     $|  \{copies.join("\n")}
     $|  asm volatile("cp.async.commit_group; cp.async.wait_group 0;" ::: "memory");__syncthreads();
     $|  for(int kk=0;kk<256&&base_k+kk<\{inner};kk+=64) {
     $|    const unsigned *a0p=(const unsigned *)(tile+\{left}+g*128);
     $|    const unsigned *a1p=(const unsigned *)(tile+\{left}+(g+8)*128);
-    $|    int wr=(threadIdx.x/32)*8+g;
-    $|    const unsigned *bp=(const unsigned *)(tile+\{right}+wr*128);
     $|    int lo=((kk/2+t*4)^((g%8)*16))/4,hi=((kk/2+(t+4)*4)^((g%8)*16))/4;
     $|    unsigned sa=*(const unsigned *)(tile+\{scales}+(g+(t&1)*8)*16+kk/16);
+    $|    #pragma unroll
+    $|    for(int fragment=0;fragment<\{tile_columns/32};++fragment) {
+    $|    int wr=(threadIdx.x/32)*8+g+fragment*32;
+    $|    const unsigned *bp=(const unsigned *)(tile+\{right}+wr*128);
     $|    unsigned sb=*(const unsigned *)(tile+\{scales+256}+wr*16+kk/16);
-    $|    \{symbol}_mma(d\{stage},a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp[lo],bp[hi],sa,sb);
+    $|    \{symbol}_mma(d\{stage}+fragment*4,a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp[lo],bp[hi],sa,sb);
     $|    \{second}
+    $|    }
     $|  }
     $|  __syncthreads();
     $|}

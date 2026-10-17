@@ -28,5 +28,13 @@ The DeepSeek adapter selects block128 E4M3/UE8M0 activations, an explicit
 BF16 rounding. FP4 experts remain packed; FP8 experts retain 128x128 scales.
 This is executable expert compute, not a full GLM/DeepSeek/MiniMax serving
 executor. Its SIMT accumulation has a declared tolerance, not bitwise parity
-with the reference tensor-core schedule. Tensor-core expert GEMM and cross-rank
-execution remain separate implementation work.
+with a reference tensor-core schedule.
+
+The explicit block-scaled NVFP4 path now uses native E2M1 matrix instructions,
+stable device-side expert grouping and a bounded indirect matrix traversal.
+`ExpertGroupingPlan.column_tile` describes independent output-column ownership;
+physical operand regions derive their widths from that immutable plan. CUDA
+lowering supports 32/64/128 columns, rejects unsupported widths, and maps each
+column to the same ordered K reduction. Wider alternatives are opt-in until
+paired correctness, resource, sanitizer and end-to-end measurements select one.
+The compiler does not import reference implementations or benchmark results.

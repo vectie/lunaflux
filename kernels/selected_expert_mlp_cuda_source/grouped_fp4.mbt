@@ -15,6 +15,7 @@ fn grouped_fp4_source(
     @matrix.ExpertGroupingPlan::new(
       maximum_rows=rows,
       selected_experts=selected,
+      column_tile=64,
     ),
   )
   guard grouping.maximum_groups().to_int64() ==
@@ -22,6 +23,11 @@ fn grouped_fp4_source(
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   let jobs = grouping.maximum_groups()
+  let tile_columns = grouping.column_tile()
+  guard tile_columns is (32 | 64 | 128) else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
+  }
+  let accumulators = tile_columns / 8
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
   let prefix = @luna_cuda_precision.e2m1_scaled_matrix_helper(symbol~)
   let quantizers = [qx, qa].mapi((i, q) => {
@@ -47,11 +53,12 @@ fn grouped_fp4_source(
     // both projections; inactive rows are zero operands, not live requests.
     bodies.push(
       (
-        $|float d\{stage}[4]={0,0,0,0};
+        $|float d\{stage}[\{accumulators}]={0};
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
-        $|\{fp4_fragment_pipeline(stage,k,n,selected,x.scales_offset().unwrap(),w.scales_offset().unwrap(),symbol,work_tile="work_tile")}
+        $|\{fp4_fragment_pipeline(stage,k,n,selected,x.scales_offset().unwrap(),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~)}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
-        $|for(int i=0;i<4;++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
+        $|#pragma unroll
+        $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
       ),
     )
   }
@@ -62,7 +69,7 @@ fn grouped_fp4_source(
     let declarations = [0, 1]
       .map(stage => {
         (
-          $|float d\{stage}[4]={0,0,0,0};
+          $|float d\{stage}[\{accumulators}]={0};
           $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
         )
       })
@@ -71,7 +78,8 @@ fn grouped_fp4_source(
       .map(stage => {
         (
           $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{layouts[stage].global_scale_offset().unwrap()}ULL));
-          $|for(int i=0;i<4;++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
+          $|#pragma unroll
+          $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
         )
       })
       .join("\n")
@@ -87,6 +95,7 @@ fn grouped_fp4_source(
       symbol,
       work_tile="work_tile",
       paired_weight_scales=layouts[1].scales_offset().unwrap(),
+      tile_columns~,
     ) +
     "\n" +
     publication
@@ -128,8 +137,8 @@ fn grouped_fp4_source(
       value
     },
   ])
-  let ng = (intermediate + 31) / 32
-  let nd = (hidden + 31) / 32
+  let ng = (intermediate + tile_columns - 1) / tile_columns
+  let nd = (hidden + tile_columns - 1) / tile_columns
   let gate_tiles = @matrix.IndirectMatrixTraversal::new(
     capacity_groups=jobs,
     column_tiles=ng,
@@ -149,11 +158,12 @@ fn grouped_fp4_source(
       $|extern "C" __global__ void \{symbol}_gate_up(const int *counts,const unsigned char *input,const int *indices,const int *expert_map,const unsigned char *bank,__nv_bfloat16 *activation\{if before {",const float *selected_weights"} else {""}}) {
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
       $|  for(int work_tile=blockIdx.x;work_tile<meta[0]*\{ng};work_tile+=gridDim.x) { int group=work_tile/\{ng};
-      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{ng})*32+(threadIdx.x/32)*8;
+      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{ng})*\{tile_columns}+(threadIdx.x/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{gate_up}
-      $|  for(int i=0;i<4;++i) {int job=job_ids[g+(i/2)*8],out=column+t*2+i%2;if(job<0||out>=\{intermediate}) continue;
+      $|  #pragma unroll
+      $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(i%4/2)*8],out=column+(i/4)*32+t*2+i%2;if(job<0||out>=\{intermediate}) continue;
       $|    __nv_bfloat16 gate=__float2bfloat16_rn(d0[i]),up=__float2bfloat16_rn(d1[i]);\{clamp}
       $|    float g=__bfloat162float(gate),product=\{expr(Product,["g","up"])};\{route}
       $|    activation[(unsigned long long)job*\{intermediate}+out]=local<0?__float2bfloat16_rn(0.0f):__float2bfloat16_rn(product);
@@ -163,11 +173,12 @@ fn grouped_fp4_source(
       $|extern "C" __global__ void \{symbol}_down(const int *counts,const unsigned char *input,const int *indices,const float *selected_weights,const int *expert_map,const unsigned char *bank,\{wt} *weighted,const __nv_bfloat16 *activation) {
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
       $|  for(int work_tile=blockIdx.x;work_tile<meta[0]*\{nd};work_tile+=gridDim.x) { int group=work_tile/\{nd};
-      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{nd})*32+(threadIdx.x/32)*8;
+      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{nd})*\{tile_columns}+(threadIdx.x/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{bodies[2]}
-      $|  for(int i=0;i<4;++i) {int job=job_ids[g+(i/2)*8],out=column+t*2+i%2;if(job>=0&&out<\{hidden}) weighted[(unsigned long long)job*\{hidden}+out]=\{down};}
+      $|  #pragma unroll
+      $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(i%4/2)*8],out=column+(i/4)*32+t*2+i%2;if(job>=0&&out<\{hidden}) weighted[(unsigned long long)job*\{hidden}+out]=\{down};}
       $|  }
       $|}
       $|extern "C" __global__ void \{symbol}_combine(const int *counts,const int *indices,const \{wt} *weighted,float *output\{if partial {",const float *selected_weights"} else {""}}) {

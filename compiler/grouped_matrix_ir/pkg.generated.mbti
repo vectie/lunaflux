@@ -13,8 +13,9 @@ import {
 pub struct ExpertGroupingPlan {
   // private fields
 }
+pub fn ExpertGroupingPlan::column_tile(Self) -> Int
 pub fn ExpertGroupingPlan::maximum_groups(Self) -> Int
-pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool) -> Self raise @precision_ir.PrecisionPlanError
+pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int) -> Self raise @precision_ir.PrecisionPlanError
 pub fn ExpertGroupingPlan::rows_per_group(Self) -> Int
 pub fn ExpertGroupingPlan::shared_input_staging(Self) -> Bool
 pub fn ExpertGroupingPlan::stable_assignment(Self) -> StableAssignmentPlan

@@ -73,3 +73,42 @@ test "paired FP4 owners stage left once without joining reduction chains" {
     assert_true(source.contains("__syncthreads();\n}\n}"))
   }
 }
+
+///|
+test "wider column ownership covers every logical cell once including output tails" {
+  for columns in [32, 64, 128] {
+    for extent in [1, 31, 32, 33, 63, 65, 127, 128, 129] {
+      let visits = Array::make(16 * extent, 0)
+      for tile in 0..<((extent + columns - 1) / columns) {
+        for thread in 0..<128 {
+          let lane = thread % 32
+          for i in 0..<(columns / 8) {
+            let row = lane / 4 + i % 4 / 2 * 8
+            let col = tile * columns +
+              thread / 32 * 8 +
+              i / 4 * 32 +
+              lane % 4 * 2 +
+              i % 2
+            if col < extent {
+              visits[row * extent + col] += 1
+            }
+          }
+        }
+      }
+      assert_true(visits.all(n => n == 1))
+    }
+    let source = fp4_fragment_pipeline(
+      2,
+      1024,
+      4096,
+      8,
+      65536L,
+      131072L,
+      "wide",
+      tile_columns=columns,
+    )
+    assert_true(source.contains("fragment<\{columns/32}"))
+    assert_true(source.contains("wide_mma(d2+fragment*4"))
+    assert_true(source.contains("__syncthreads();\n}\n}"))
+  }
+}

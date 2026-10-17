@@ -252,3 +252,65 @@ does not validate replacement of the restored EXL3/draft/media configuration.
 Performance comparison and numerical/output validation remain external to the
 compiler. No payload hashes, tolerance changes or reference-dependent runtime
 logic were introduced.
+
+## Selected CUTLASS follow-up: output ownership experiment
+
+The original service is temporarily stopped again with explicit permission.
+The first bounded vLLM trace (`cutlass-trace-20261017-v1`) was stopped by the
+independent memory guard during graph capture: 16,268,312 KiB available is
+below the 16 GiB floor. No OOM or performance result is inferred. The separate
+v2 trace disables graph capture only for selected-kernel identification;
+ordinary graph-enabled timing remains unchanged.
+
+External installed-FlashInfer component root
+`/tmp/lunaflux-glm-cutlass-component-r22-20261017-v3` uses synthetic NVFP4
+operands, 288 full banks, R22/H4096/I1024/top8/TP2. Its CUTLASS matrix symbols
+select 128x128x256, two-stage TMA, block384 and 48 persistent CTAs. Counter
+capture uses 12 GiB/no swap after confirming at least 28 GiB available.
+Gate/up and down respectively: 3.247/1.745 ms replay time, 79.03M/64.37M warp
+instructions, 3.99%/10.34% long-scoreboard and 2.49%/9.86% barrier stalls.
+Both have about 22.9% active warps, 168 registers/thread and 89,088 dynamic
+shared bytes. These are synthetic component measurements, not serving times
+or captured checkpoint arithmetic. Pending server-symbol comparison must not
+be silently assumed. The CLI prints "outputs matched" even with no supplied
+output oracle; this is explicitly NOT a numerical correctness result.
+
+At most two new schedules: 64-column and 128-column output ownership with the
+same 16 logical rows, K ordering, quantization and publication. An immutable
+grouped-matrix column plan drives physical operand regions and terminal CUDA
+fragment ownership. Fewer independent output tiles should amortize producer
+addressing and barriers; resource growth may negate the benefit. Compare
+against frozen stable-grouping sources with alternating complete-chain trials,
+bitwise workspace/output checks, sanitizer boundaries, and new counters.
+Neither wider tiles nor the earlier rejected two-stage pipeline become a
+default merely because CUTLASS uses them. No payload hashing.
+
+The eager v2 serving trace also stopped at the host reserve (16,693,680 KiB
+available); it produced no valid serving trace. Both reference pairs were
+retired without relaxing the floor. Consequently the installed CUTLASS
+component symbols are measured, but their identity with the live serving
+invocation remains unverified.
+
+Both 64/128-column candidates preserve the complete synthetic chain and
+workspace bytes at R1/R3/R22/R64 with 288 distinct banks. A separate H192/I320
+tail case also agrees at every row count. The 64-column R3 full-bank run has
+zero memcheck/leak/race/synchronization errors. This is R3 sanitizer coverage,
+not an all-shape sanitizer claim. Roots are
+`/tmp/lunaflux-glm-fp4-performance-columns64-20261017-v2`,
+`/tmp/lunaflux-glm-fp4-performance-columns128-20261017-v1`, and
+`/tmp/lunaflux-glm-fp4-performance-tails128-20261017-v1`.
+
+At R22, median capacity-grid chain time moves from 6780.067 to 6673.101 us
+with 64 columns (1.58% less). Trimmed diagnostic grids do not improve; 128
+columns regress R3. The 64-column actual-source counter replay reduces
+gate/up warp instructions from 96.53M to 73.42M, but long-scoreboard remains
+81.07% to 81.62%. Down instructions fall 49.42M to 33.75M and long-scoreboard
+70.34% to 57.71%. These counters do not establish a full-model gain.
+CUTLASS's 128 logical rows also perform more padded arithmetic than our 16;
+its higher tensor-activity percentage is not directly useful-work efficiency.
+
+The next source-pinned full-model trial uses 64 columns as the CUDA backend's
+grouped FP4 choice. Its default status is provisional until that test; no
+original GLM serving container or configuration is changed. Pure grouped
+matrix ownership drives physical storage and terminal fragment lowering;
+comparison data and reference dependencies remain outside the compiler.

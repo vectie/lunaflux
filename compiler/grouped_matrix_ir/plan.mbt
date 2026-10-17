@@ -74,6 +74,7 @@ pub fn MatrixTilePlan::law(self : Self) -> @precision.DenseDotLaw {
 pub struct ExpertGroupingPlan {
   priv jobs : Int
   priv shared_input_staging : Bool
+  priv column_tile : Int
 }
 
 ///|
@@ -81,12 +82,17 @@ pub fn ExpertGroupingPlan::new(
   maximum_rows~ : Int,
   selected_experts~ : Int,
   shared_input_staging? : Bool = false,
+  column_tile? : Int = 32,
 ) -> Self raise @precision.PrecisionPlanError {
   let jobs = maximum_rows.to_int64() * selected_experts.to_int64()
-  guard maximum_rows > 0 && selected_experts > 0 && jobs <= 1048576L else {
+  guard maximum_rows > 0 &&
+    selected_experts > 0 &&
+    jobs <= 1048576L &&
+    column_tile > 0 &&
+    column_tile <= 1024 else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
-  { jobs: jobs.to_int(), shared_input_staging, }
+  { jobs: jobs.to_int(), shared_input_staging, column_tile, }
 }
 
 ///|
@@ -109,4 +115,11 @@ pub fn ExpertGroupingPlan::storage_bytes(self : Self) -> Int64 {
 /// measured frontier may retain both shared and independent staging schedules.
 pub fn ExpertGroupingPlan::shared_input_staging(self : Self) -> Bool {
   self.shared_input_staging
+}
+
+///|
+/// Output ownership width. Independent output columns may reuse an operand
+/// without changing any column's ordered reduction or numerical law.
+pub fn ExpertGroupingPlan::column_tile(self : Self) -> Int {
+  self.column_tile
 }

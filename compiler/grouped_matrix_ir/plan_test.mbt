@@ -32,6 +32,7 @@ test "group storage bounds worst case distinct experts and padding" {
   assert_eq(p.maximum_groups(), 136)
   assert_eq(p.rows_per_group(), 16)
   assert_eq(p.storage_bytes(), 9252L)
+  assert_eq(p.column_tile(), 32)
   try
     @grouped_matrix_ir.ExpertGroupingPlan::new(
       maximum_rows=2147483647,
@@ -41,5 +42,32 @@ test "group storage bounds worst case distinct experts and padding" {
     _ => ()
   } noraise {
     _ => fail("overflow accepted")
+  }
+}
+
+///|
+test "column reuse leaves grouping storage and row ownership unchanged" {
+  for columns in [32, 64, 128] {
+    let p = @grouped_matrix_ir.ExpertGroupingPlan::new(
+      maximum_rows=17,
+      selected_experts=8,
+      column_tile=columns,
+    )
+    assert_eq(p.column_tile(), columns)
+    assert_eq(p.rows_per_group(), 16)
+    assert_eq(p.storage_bytes(), 9252L)
+  }
+  for columns in [0, -1, 1025] {
+    try
+      @grouped_matrix_ir.ExpertGroupingPlan::new(
+        maximum_rows=17,
+        selected_experts=8,
+        column_tile=columns,
+      )
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("unbounded column ownership")
+    }
   }
 }

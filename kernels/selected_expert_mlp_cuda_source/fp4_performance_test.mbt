@@ -1,8 +1,9 @@
 ///|
 test "full-width native FP4 expert performance export" {
   let rows = 64
-  let hidden = 4096
-  let intermediate = 1024
+  let tails = @env.get_env_var("LUNA_FP4_TAILS") == Some("1")
+  let hidden = if tails { 192 } else { 4096 }
+  let intermediate = if tails { 320 } else { 1024 }
   let selected = 8
   let full_bank = @env.get_env_var("LUNA_FP4_FULL_BANK") == Some("1")
   let bank_count = if full_bank { 288 } else { 8 }
@@ -54,12 +55,18 @@ test "full-width native FP4 expert performance export" {
     memory_ceiling=if full_bank { 4294967296L } else { 268435456L },
   )
   let variant = @env.get_env_var("LUNA_EXPORT_FP4_PERFORMANCE")
+  let column_tile = match @env.get_env_var("LUNA_FP4_COLUMN_TILE") {
+    Some("64") => 64
+    Some("128") => 128
+    _ => 32
+  }
   let generated = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
     p,
     symbol=if variant == Some("next") { "next" } else { "perf" },
     grouping=@matrix.ExpertGroupingPlan::new(
       maximum_rows=rows,
       selected_experts=selected,
+      column_tile~,
       shared_input_staging=variant == Some("next") &&
         @env.get_env_var("LUNA_FP4_INDEPENDENT_INPUT") != Some("1"),
     ),
@@ -74,11 +81,30 @@ test "full-width native FP4 expert performance export" {
     ),
   )
   assert_true(@utf8.decode(alternate.source_bytes()).contains("tile[11520]"))
+  try
+    @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+      p,
+      symbol="unsupported_width",
+      grouping=@matrix.ExpertGroupingPlan::new(
+        maximum_rows=rows,
+        selected_experts=selected,
+        column_tile=96,
+      ),
+    )
+  catch {
+    @precision_ir.PrecisionPlanError::NoImplementation => ()
+    other => fail(other.to_string())
+  } noraise {
+    _ => fail("unsupported output ownership silently ignored")
+  }
   let ordinary = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
     p,
     symbol="ordinary",
   )
-  assert_true(!@utf8.decode(ordinary.source_bytes()).contains("tile[11520]"))
+  assert_true(
+    !@utf8.decode(ordinary.source_bytes()).contains("const unsigned *bp1="),
+  )
+  assert_true(@utf8.decode(ordinary.source_bytes()).contains("fragment<2"))
   for i in 0..<ordinary.launches().length() {
     assert_eq(ordinary.launches()[i], alternate.launches()[i])
   }
@@ -101,6 +127,7 @@ test "full-width native FP4 expert performance export" {
   if variant is Some(_) {
     println("LUNA_SOURCE_BEGIN fp4-performance")
     println("#define LUNA_FP4_BANK_COUNT \{bank_count}")
+    println("static constexpr int column_tile=\{column_tile};")
     println(@utf8.decode(generated.source_bytes()))
     println(
       "static constexpr int R=\{rows},H=\{hidden},I=\{intermediate},S=\{selected};",

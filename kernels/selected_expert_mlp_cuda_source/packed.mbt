@@ -45,6 +45,9 @@ pub fn packed_expert_mlp_source(
   if plan.scaled_dot_law() is BlockScaledMatrixFloat32(..) {
     return grouped_fp4_source(plan, symbol~, grouping?)
   }
+  guard grouping is None || grouping.unwrap().column_tile() == 32 else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
+  }
   if plan.scaled_dot_law() != DecodeOperandsFloat32 {
     guard grouping is None else {
       raise @precision_ir.PrecisionPlanError::NoImplementation
