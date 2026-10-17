@@ -3,7 +3,7 @@
 Status: isolated kernels, two-run independent full-model ablations, selected
 execution traces and fresh vLLM comparison completed. The freshly measured
 completion gap decreases17.07% →12.01%; it is **not closed**. Original-service
-restoration is in progress.
+restoration is complete and health returns200.
 
 The starting point is commit `214ad93f`, with shared-column 32 and explicit
 shared/routed overlap. The matched five-prompt cohort took 3218.5 ms versus
@@ -301,3 +301,24 @@ violation occurs; a bounded Docker event query returns no OOM event. Both
 GPU owner lists are empty before restoration starts. Benchmark teardown is
 complete; this worker-shutdown status is distinct from the successful HTTP
 requests and from native correctness gates.
+
+## Original GLM service restored
+
+At about02:43 CST October18, the unchanged original worker
+`785b9b6a03b9e985e82133a5f3ede582f90f4816bd0382afdf0a0e53e39d1572`
+and head
+`2bd8297b956955c35146cbf657c6e0f44c532990712c56d7e969edc1e5ac352c`
+are running again. `/health` returns200 and `/v1/models` reports
+`GLM-5.3-Flash-EXL3`, context850000. NFS remained running throughout.
+Restoration evidence: `/tmp/lunaflux-glm-hc-vocab-restore-20261018-v1`.
+The EXL3/DFlash production configuration is distinct from the NVFP4/no-draft
+benchmark; neither the new LunaFlux profile nor the reference experiment is
+left deployed in its place.
+
+Fresh post-restoration observations report102266MiB GPU usage on each rank
+(about99.87GiB), with9522020/11613912KiB host MemAvailable (9.08/11.08GiB).
+The original workload's host reserve is below16GiB, as in the prior phase;
+the explicit request was to restore that existing workload unchanged. The
+100GiB/no-swap/16GiB-reserve controls described above apply to the exclusive
+benchmark campaign. No claim is made that the restored legacy configuration
+now satisfies that benchmark host-reserve policy.
