@@ -77,3 +77,34 @@ Initial full-suite compilation also overlapped edits and failed on a stale
 function signature; it is not reported as a completed full-suite result.
 The current affected suite passes 89/89; selected `moon info` reports existing
 migration warnings (1063), zero errors. Warning exclusions are unchanged.
+
+## Counter-level explanation
+
+Scoped offline Nsight captures in the successful probe roots use the actual
+generated entries and the same operands. They are not model-layer traces.
+HC selects the live1 invocation after the empty-row control; vocabulary selects
+the actual154880/4096 head and its two independent column partitions. Counter
+containers are bounded to4GiB with no swap; no persistent driver settings are
+changed. Raw `counters.csv` and `counters.ncu-rep` are retained.
+
+HC old function+Sinkhorn executes12964+7027=19991 warp instructions; the fused
+subgroup version executes13791 (**31.0% fewer**). L2 read sectors decrease
+3951+2337=6288 to4471 (**28.9% fewer**). The old Sinkhorn has one active lane,
+low active-warps2.72%, and47.53% long-scoreboard contribution. The fused entry
+retains38 registers/thread, the same as the old function, and avoids the separate
+serial global-memory matrix loop. Its long-scoreboard percentage still53% is
+not a failure: percentages are not elapsed milliseconds, and less total work
+finishes sooner. NCU replay times are not used in place of the paired timings.
+
+Vocabulary instructions are exactly132267520 full-table versus66133760 for
+each shard. L2 reads40.290M sectors become20.152M/20.143M per shard. Occupancy
+remains about94–95%, registers37/thread, and long-scoreboard contribution stays
+about52%. This improvement is **partitioning the memory work**, not hiding each
+individual load better or increasing occupancy. The two-rank owner must still
+demonstrate that candidate gather and rank arrival do not consume the saving.
+
+Implementation pins: `ef6f2c4e` introduces explicit HC/vocabulary alternatives;
+`74f1212e` adds subgroup-owned HC controls. Both are pushed to main. The latter
+clean ARM release build passes in37seconds, peak700.3MiB, zero swap. The complete
+local native suite subsequently passes **5199/5199**, using the repository's
+unchanged warning exclusions; unrelated dirty migration files are preserved.

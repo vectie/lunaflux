@@ -1,5 +1,31 @@
 # Parallel execution IR
 
+## Independent vocabulary outputs and adjacent fusion (October 18)
+
+`VocabularyShard` partitions independent output columns, not their reduction
+axis. Each dot and logit round retains the numerical program. Uneven partitions
+carry global IDs. The greedy lowering emits a fixed-capacity `(score, ID,
+invalid)` record per selected output, gathers records rank-major, then applies
+the same stable global tie/nonfinite policy. It does not gather the full
+vocabulary and does not replace non-greedy sampling semantics.
+
+The bound effect distinguishes fixed output-domain record counts from live
+query rows. `ReductionBoundary::fixed_gather` carries distinct send/receive
+storage and an explicit all-gather kind; startup verifies the communicator
+contract and allocation extents. Existing live-row all-reduce effects remain
+unchanged. Graph replay and deferred submission preserve both kinds; resources
+outlive every graph and collective.
+
+`AdjacentFusion` is a pure launch-coordinate rewrite. It rejects overlapping
+pairs and any collective/fork cut inside a pair, then remaps all surviving
+effect and producer coordinates. HC owners supply the numerical and storage
+proofs before constructing a fused launch. The rewrite itself knows neither
+model names nor CUDA. Performance and vLLM comparison remain offline in
+`GLM_HC_AND_VOCABULARY_TP_2026-10-18.md`; existence of these plans is not proof
+of a performance win.
+
+## Original parallel milestone
+
 Branch: `parallel`. Compiler lowering and opt-in CUDA/NCCL dispatch are
 implemented; physical overlap performance and two-Spark qualification remain open.
 The original milestone below concerns compute/communication queues. The later
