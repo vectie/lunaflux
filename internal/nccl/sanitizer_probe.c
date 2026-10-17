@@ -325,6 +325,18 @@ static void test_graph(lf_nccl_api *api, int cancel) {
   assert(lunaflux_nccl_graph_release(c) == LF_NCCL_BUSY);
   if (!cancel) {
     assert(lunaflux_nccl_graph_complete(c) == 1);
+    /* Prefill ordinary-count submission can alternate with captured decode. */
+    for (int i = 0; i < 2; ++i) {
+      assert(lf_nccl_communicator_submit_typed(c, 4, 1, 2, i + 3, i, 1,
+        lf_device_interop_probe_context(&device), lf_device_interop_probe_send(&device), 0, 16,
+        lf_device_interop_probe_receive(&device), 0, 16,
+        lf_device_interop_probe_queue(&device)) == LF_NCCL_OK);
+      assert(lunaflux_nccl_defer_submitted(c) == 1);
+    }
+    assert(lunaflux_nccl_poll_deferred(c) == 1);
+    assert(c->graph_lease_count == 4 && c->deferred_count == 0);
+    assert(lunaflux_nccl_graph_begin(c, 1, 3, 5) == LF_NCCL_OK);
+    assert(lunaflux_nccl_graph_complete(c) == 1);
     assert(lunaflux_nccl_graph_release(c) == LF_NCCL_OK);
     assert(lf_nccl_communicator_close(c) == LF_NCCL_OK);
   }
@@ -346,7 +358,7 @@ int main(void) {
   assert(probe_collective_calls == 4);
   test_graph(&api, 0);
   test_graph(&api, 1);
-  assert(probe_collective_calls == 12);
+  assert(probe_collective_calls == 14);
   assert(probe_increfs == probe_decrefs);
   return 0;
 }

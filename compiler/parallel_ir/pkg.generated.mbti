@@ -115,13 +115,17 @@ pub fn Lane::not_equal(Self, Self) -> Bool
 pub struct OrderedSubmissionPlan {
   // private fields
 }
+pub fn OrderedSubmissionPlan::captures_interval_graphs(Self) -> Bool
 pub fn OrderedSubmissionPlan::collective_bucket(Self, Int) -> Int
 pub fn OrderedSubmissionPlan::collective_row_buckets(Self, Int) -> Array[Int] raise ParallelError
+pub fn OrderedSubmissionPlan::has_collective_graphs(Self) -> Bool
 pub fn OrderedSubmissionPlan::interval(Self, Int) -> (Int, Int)
 pub fn OrderedSubmissionPlan::interval_count(Self) -> Int
 pub fn OrderedSubmissionPlan::interval_end(Self, Int) -> Int
+pub fn OrderedSubmissionPlan::interval_queue_offset(Self) -> Int
 pub fn OrderedSubmissionPlan::interval_start(Self, Int) -> Int
 pub fn OrderedSubmissionPlan::new(kernel_count~ : Int, ArrayView[Int], retirement~ : RetirementPolicy, replay? : ReplayPolicy) -> Self raise ParallelError
+pub fn OrderedSubmissionPlan::replay_collectives(Self, Int) -> Bool
 pub fn OrderedSubmissionPlan::replay_policy(Self) -> ReplayPolicy
 pub fn OrderedSubmissionPlan::replay_reserve_bytes(Self, bytes_per_kernel~ : Int64, bytes_per_interval~ : Int64) -> Int64 raise ParallelError
 pub fn OrderedSubmissionPlan::retirement_policy(Self) -> RetirementPolicy
@@ -152,6 +156,7 @@ pub(all) enum ReplayPolicy {
   CaptureIntervals
   CapturePaddedCollectives
   CaptureBucketedCollectives
+  CaptureDecodeCollectives
 } derive(Eq)
 pub fn ReplayPolicy::equal(Self, Self) -> Bool
 pub fn ReplayPolicy::not_equal(Self, Self) -> Bool

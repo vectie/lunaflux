@@ -17,6 +17,8 @@ pub(all) enum ReplayPolicy {
   CapturePaddedCollectives
   // One-row decode and capacity-bounded prefill retain separate effect graphs.
   CaptureBucketedCollectives
+  // Whole effect frame for one row; ordinary-count interval replay otherwise.
+  CaptureDecodeCollectives
 } derive(Eq)
 
 ///|
@@ -39,7 +41,10 @@ pub fn OrderedSubmissionPlan::new(
   replay? : ReplayPolicy = Eager,
 ) -> Self raise ParallelError {
   guard kernel_count > 0 && !collective_cuts.is_empty() else { raise Capacity }
-  guard !(replay is (CapturePaddedCollectives | CaptureBucketedCollectives)) ||
+  guard !(replay
+    is (CapturePaddedCollectives
+    | CaptureBucketedCollectives
+    | CaptureDecodeCollectives)) ||
     retirement == WholeFrame else {
     raise Capacity
   }
@@ -99,6 +104,7 @@ pub fn OrderedSubmissionPlan::collective_row_buckets(
 ) -> Array[Int] raise ParallelError {
   guard capacity > 0 else { raise Capacity }
   match self.replay {
+    CaptureDecodeCollectives => [1]
     CapturePaddedCollectives => [capacity]
     CaptureBucketedCollectives =>
       if capacity == 1 {
@@ -107,6 +113,37 @@ pub fn OrderedSubmissionPlan::collective_row_buckets(
         [1, capacity]
       }
     _ => []
+  }
+}
+
+///|
+pub fn OrderedSubmissionPlan::has_collective_graphs(self : Self) -> Bool {
+  self.replay
+  is (CapturePaddedCollectives
+  | CaptureBucketedCollectives
+  | CaptureDecodeCollectives)
+}
+
+///|
+pub fn OrderedSubmissionPlan::captures_interval_graphs(self : Self) -> Bool {
+  self.replay is (CaptureIntervals | CaptureDecodeCollectives)
+}
+
+///|
+pub fn OrderedSubmissionPlan::replay_collectives(
+  self : Self,
+  live : Int,
+) -> Bool {
+  self.has_collective_graphs() &&
+  (self.replay != CaptureDecodeCollectives || live == 1)
+}
+
+///|
+pub fn OrderedSubmissionPlan::interval_queue_offset(self : Self) -> Int {
+  if self.replay == CaptureDecodeCollectives {
+    1
+  } else {
+    0
   }
 }
 
@@ -138,7 +175,7 @@ pub fn OrderedSubmissionPlan::replay_reserve_bytes(
     raise Capacity
   }
   let reserve = kernels * bytes_per_kernel + intervals * bytes_per_interval
-  if self.replay == CaptureBucketedCollectives {
+  if self.replay is (CaptureBucketedCollectives | CaptureDecodeCollectives) {
     guard reserve <= 4611686018427387903L else { raise Capacity }
     reserve * 2L
   } else {

@@ -260,7 +260,7 @@ async fn main {
       expert_fragment_slots=if lookahead { 2 } else { 1 },
       retirement=if queued { WholeFrame } else { EachCollective },
       replay=if collective_graph {
-        CaptureBucketedCollectives
+        CaptureDecodeCollectives
       } else if replay {
         CaptureIntervals
       } else {

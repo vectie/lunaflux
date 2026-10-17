@@ -131,7 +131,10 @@ pub fn CollectiveKernelProgram::new(
       }
     }
   }
-  if replay == CaptureIntervals {
+  for _ in graph_rows {
+    queues.push(context.create_ordered_kernel_executor(stream, launches))
+  }
+  if plan.captures_interval_graphs() {
     for i in 0..<plan.interval_count() {
       let (first, end) = plan.interval(i)
       queues.push(
@@ -142,11 +145,7 @@ pub fn CollectiveKernelProgram::new(
         ),
       )
     }
-  } else if !graph_rows.is_empty() {
-    for _ in graph_rows {
-      queues.push(context.create_ordered_kernel_executor(stream, launches))
-    }
-  } else {
+  } else if graph_rows.is_empty() {
     queues.push(context.create_ordered_kernel_executor(stream, launches))
   }
   for i, rows in graph_rows {
@@ -189,8 +188,8 @@ fn CollectiveKernelProgram::enqueue_interval(
   guard self.next_kernel == first else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
   }
-  if self.plan.replay_policy() == CaptureIntervals {
-    let queue = self.queues[interval]
+  if self.plan.captures_interval_graphs() {
+    let queue = self.queues[self.plan.interval_queue_offset() + interval]
     queue.launch_captured()
     queue.record_completion()
     self.next_kernel = end
@@ -243,8 +242,7 @@ pub fn CollectiveKernelProgram::submit(
   self.global_sequence = global_sequence
   self.site = 0
   self.next_kernel = 0
-  if self.plan.replay_policy()
-    is (CapturePaddedCollectives | CaptureBucketedCollectives) {
+  if self.plan.replay_collectives(live_rows) {
     self.graph_index = self.plan.collective_bucket(live_rows)
     self.owner.begin_graph(self.generation, plan_sequence, global_sequence)
     self.queues[self.graph_index].launch_captured()
@@ -324,12 +322,12 @@ pub fn CollectiveKernelProgram::poll(
   if self.queues[self.queues.length() - 1].poll_completion() {
     // The last event follows every same-stream graph and collective. No
     // segment is rearmed early, including on request cancellation.
-    for i in 0..<self.queues.length() {
+    for i in self.plan.interval_queue_offset()..<self.queues.length() {
       if !self.queues[i].poll_completion() {
         return false
       }
     }
-    for i in 0..<self.queues.length() {
+    for i in self.plan.interval_queue_offset()..<self.queues.length() {
       self.queues[i].reset()
     }
     self.state = Idle
@@ -352,8 +350,7 @@ pub fn CollectiveKernelProgram::close(
   for queue in self.queues.rev() {
     queue.close()
   }
-  if self.plan.replay_policy()
-    is (CapturePaddedCollectives | CaptureBucketedCollectives) {
+  if self.plan.has_collective_graphs() {
     self.owner.release_graph()
   }
   self.state = Closed
@@ -367,8 +364,7 @@ pub fn CollectiveKernelProgram::abort(
     return
   }
   self.state = Failed
-  if self.plan.replay_policy()
-    is (CapturePaddedCollectives | CaptureBucketedCollectives) {
+  if self.plan.has_collective_graphs() {
     for queue in self.queues.rev() {
       queue.discard_effect_graph()
     }

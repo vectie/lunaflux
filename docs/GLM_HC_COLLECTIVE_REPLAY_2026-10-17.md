@@ -103,4 +103,40 @@ advances only the logical site count, never the total captured lease count.
 Graph references retire before communicator abort. No runtime allocation,
 clock, capture or change to kernel arithmetic is added to replay. Alternating
 bucket replay/cancellation and native reference-balance/ASan/UBSan tests cover
-both graph lifetimes. Full-model validation of this repair is pending.
+both graph lifetimes. The source-pinned `fc4c10ad` ARM build passes (749.7 MiB,
+zero swap), affected tests pass 154/154, and the complete native suite passes
+5,185/5,185 with the existing warning exclusions unchanged.
+
+The repaired graph-only run `glm-collective-graph-20261017-v3` completes normally
+on both ranks, records two prepared graphs and explicit closed CUDA contexts,
+and retains all six baseline output-token sequences. Timings (ms) are
+576/498/911/920/921/562 versus 565/483/885/902/902/545: **2.48% slower** in total.
+Prefill/first-token time sums to 1,958 ms versus 1,826 ms (+132); after-prefill
+time is 2,430 versus 2,456 ms (−26). This localizes the aggregate regression to
+prefill without assigning every millisecond to NCCL. Minimum observed host
+availability is 21.803 GiB; process peaks are 63.86/62.15 GiB and swap is zero.
+
+The inspected vLLM source explicitly distinguishes these regimes:
+`../vlm/vllm/config/compilation.py:630` describes full decode graphs and piecewise
+prefill/mixed graphs; `v1/cudagraph_dispatcher.py:167` constructs separate legal
+keys. This is source evidence for an alternative scheduling policy, not proof
+of which policy the frozen baseline selected. Our capacity prefill graph still
+reduces 64 rows for 22–36 live rows. Keep this non-winning graph schedule
+explicit; fewer host launches alone are not an end-to-end optimization.
+
+The retained **actual baseline startup log** adds stronger evidence: compilation
+mode NONE, graph capture sizes `[1, 2]`, maximum graph size 2, and breakable CUDA
+graph enabled. Local dispatcher source returns NONE above its maximum. Thus
+the matched long-enough prefills do not use that engine's full decode graph;
+do not describe the default policy as proof of piecewise capture in this run.
+
+Both full-prefill-capture schedule variants have now been measured. Rather
+than tuning their kernels, a separate, bounded follow-up tests **one** regime
+policy: `CaptureDecodeCollectives`. Parallel IR selects collective-inclusive
+one-row replay, but retains existing interval graphs and exact live collective
+counts for prefill. All graphs and leases remain startup-bound; alternating
+ordinary and captured submissions use the same monotonically ordered effect
+owner. This changes schedule, not HC or any other numerical operation. Keep
+the two losing policies available explicitly for reproducibility; only the
+diagnostic `-collective-graph` option chooses the revised policy. Validation
+and the new paired measurement are required before a performance claim.

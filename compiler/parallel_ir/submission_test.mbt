@@ -105,3 +105,24 @@ test "collective buckets distinguish decode from prefill with bounded storage" {
     _ => fail("bucket graphs require a whole-frame retirement fence")
   }
 }
+
+///|
+test "decode effects and prefill intervals have independent legal replay regimes" {
+  let p = OrderedSubmissionPlan::new(
+    kernel_count=3,
+    [1, 2],
+    retirement=WholeFrame,
+    replay=CaptureDecodeCollectives,
+  )
+  assert_eq(p.collective_row_buckets(64), [1])
+  assert_true(p.has_collective_graphs())
+  assert_true(p.captures_interval_graphs())
+  assert_true(p.replay_collectives(1))
+  assert_true(!p.replay_collectives(2))
+  assert_true(!p.replay_collectives(64))
+  assert_eq(p.interval_queue_offset(), 1)
+  assert_eq(
+    p.replay_reserve_bytes(bytes_per_kernel=100L, bytes_per_interval=10L),
+    660L,
+  )
+}

@@ -4,7 +4,9 @@ fn run_collective_program(
   replay? : Bool = false,
   collective_graph? : Bool = false,
   bucketed? : Bool = false,
+  decode_graph? : Bool = false,
   cancel? : Bool = false,
+  cancel_rows? : Int = 1,
 ) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
@@ -115,7 +117,9 @@ fn run_collective_program(
     generation=1UL,
     maximum_rows=2,
     retirement=if queued { WholeFrame } else { EachCollective },
-    replay=if bucketed {
+    replay=if decode_graph {
+      CaptureDecodeCollectives
+    } else if bucketed {
       CaptureBucketedCollectives
     } else if collective_graph {
       CapturePaddedCollectives
@@ -129,7 +133,9 @@ fn run_collective_program(
   defer (queue.abort() catch { _ => () })
   assert_eq(
     queue.replay_graph_count(),
-    if bucketed {
+    if decode_graph {
+      4
+    } else if bucketed {
       2
     } else if collective_graph {
       1
@@ -153,6 +159,7 @@ fn run_collective_program(
     }
     if !collective_graph &&
       !bucketed &&
+      !(decode_graph && sequence % 2UL != 0UL) &&
       enqueues() != before + (sequence - 1UL) * 5UL + 1UL {
       abort("consumer submitted before first reduction")
     }
@@ -165,7 +172,11 @@ fn run_collective_program(
   assert_eq(enqueues() - before, 80UL)
   assert_eq(blocking_syncs() - syncs, 0UL)
   if cancel {
-    queue.submit(live_rows=1, plan_sequence=17UL, global_sequence=33UL)
+    queue.submit(
+      live_rows=cancel_rows,
+      plan_sequence=17UL,
+      global_sequence=33UL,
+    )
     ignore(queue.poll())
     try queue.close() catch {
       _ => ()
@@ -207,10 +218,13 @@ test "queued and captured cancellation retain live work until explicit abort" {
   run_collective_program(true, replay=true, cancel=true)
   run_collective_program(true, collective_graph=true, cancel=true)
   run_collective_program(true, bucketed=true, cancel=true)
+  run_collective_program(true, decode_graph=true, cancel=true)
+  run_collective_program(true, decode_graph=true, cancel=true, cancel_rows=2)
 }
 
 ///|
 test "collective-inclusive replay retires entire effect frame without allocation" {
   run_collective_program(true, collective_graph=true)
   run_collective_program(true, bucketed=true)
+  run_collective_program(true, decode_graph=true)
 }
