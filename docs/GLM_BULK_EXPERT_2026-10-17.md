@@ -191,7 +191,112 @@ free: tiled activation capacity and conservatively counted startup scratch add
 about 1.09 GB to each prior plan. Startup permutation duration is not isolated.
 All completed native ranks close their contexts, with zero task swap.
 
-Fresh vLLM comparison and original-service restoration follow below; the older
-reference remains historical until that new cohort completes. No ordinary
-default is promoted from these measurements, and the other ledger gaps are
-not declared complete.
+The fresh vLLM comparison follows below. No ordinary default is promoted from
+these measurements, and the other ledger gaps are not declared complete.
+
+## What is major, and what is only a plausible next explanation?
+
+The objective is completed requests, separated into first-token and subsequent
+token time. The repaired expert matrices were the largest demonstrated short
+prefill target. They are not the largest remaining decode region. The repeat's
+first-token sum is 1826 ms, while its remaining time is 2456 ms. Optimizing only
+prefill cannot remove most of this corpus's completion time. The selected trace
+is useful for ranking and verifying propagation, not for turning instrumented
+milliseconds into an additive explanation of the unprofiled vLLM gap.
+
+The remaining source differences are concrete, but their recoverable gains are
+not yet measured:
+
+* **Recurrent projection scheduling, not recurrence itself.** Decode input and
+  output projections sum to 21.802 ms; recurrent update is 0.683 ms. Our
+  `SegmentedMatrixPlan` joins six launch domains but retains separate weight
+  pointers and independent per-region CTAs. The single-row lowering performs
+  scalar loads and one dependent FP32 accumulator per lane. Buffered prefill
+  staging is bypassed by this single-row branch. The installed GLM reference
+  physically concatenates six projection banks in `MergedColumnParallelLinear`.
+  Both use BF16 here. Physical concatenation alone does not prove fewer DRAM
+  bytes or better input reuse: that requires a consumer schedule and matched
+  counters. Compare vectorized/prefetched GEMV and physical region packing
+  separately, preserving the declared fold unless an explicit numerical
+  alternative is independently validated.
+* **Hyper-connections still have an ordered serial fold.** Cooperative loads
+  and products do not make the reduction parallel: in
+  `parallel_source.mbt`, worker zero consumes every 256-product tile in order,
+  with two workgroup barriers per tile. This is required by the currently
+  selected ordered law, not by functional programming. Our separate pre/post,
+  normalization and control publications also differ from the installed
+  reference's inter-layer and attention-to-FFN `MHCFusedPostPreOp`. The whole
+  hyper region is 12.983 ms in the decode trace. A cross-boundary lifetime plan
+  can remove materialization without silently changing arithmetic; a tree
+  reduction needs its own numerical law and output-quality validation. Neither
+  is accomplished by renaming the existing schedule parallel.
+* **Shared experts are unchanged.** Their 30.185 ms prefill / 6.482 ms decode
+  does not benefit from the new routed FP4 tile transport. They have a different
+  operand and activation contract; silently activating the routed quantizer
+  would be a numerical change, not a layout optimization. First compare the
+  same representation with shared-input matrix scheduling, then evaluate
+  fork/join overlap under explicit scratch lifetimes.
+* **Distributed execution is not yet one replayable dependency graph.** There
+  are still 91 graph intervals separated by 90 F32 collective submissions.
+  The whole-stream wait was removed, but collective-inclusive capture was not
+  implemented by that removal. Profiled collective duration includes peer
+  waiting; the 36.543 ms decode sum is not pure network transfer. The observed
+  kernel-free span is not automatically recoverable CPU overhead. Rank-aligned
+  ready/enqueue/complete timestamps and a matched capture ablation are needed
+  before assigning this region a share of the vLLM completion gap.
+
+The sparse-attention leaf is only 0.220 ms in this decode. Even eliminating it
+cannot explain a large end-to-end gain on this workload. Larger histories may
+reverse the ranking, so these priorities must not be generalized to long
+context or higher concurrency without measurements. Keep comparison and
+causal interventions in the external harness, and lower any verified change
+through the existing immutable numerical, schedule, layout and lifetime plans.
+
+## Fresh matched vLLM result
+
+`/tmp/lunaflux-reference-bench-vllm-glm-bulk-tiles-20261017-v1` uses the
+retained installed vLLM 0.1.dev20051+g487ecf187 image and the same NVFP4
+checkpoint, TP2/PP1, concurrency one, no prefix cache/speculation, maximum eight
+output tokens and one excluded request warmup. Its context capacity is 256
+and KV allocation 512 MiB. It is not the EXL3 production deployment. All six
+literal input ID arrays agree with both native cohorts. Native reports internal
+generation duration; reference reports local HTTP request wall time. Thus this
+is not an identical API-boundary timer or a matched per-kernel gap allocation.
+
+| Case | Native run 1 ms | Native run 2 ms | Fresh vLLM ms | Native / vLLM output counts |
+| --- | ---: | ---: | ---: | ---: |
+| Fact | 542 | 565 | 387.121 | 4 / 4 |
+| Arithmetic | 468 | 483 | 392.841 | 3 / 4 |
+| Chinese | 866 | 885 | 657.336 | 8 / 8 |
+| JSON | 884 | 902 | 670.561 | 8 / 8 |
+| Code | 885 | 902 | 680.855 | 8 / 8 |
+| Retrieval | 677 | 545 | 379.882 | 3 / 3 |
+
+The five equal-output-count requests sum to **3854 / 3799 ms native versus
+2775.755 ms reference**: native takes **38.85% / 36.86% longer**. Their decoded
+text agrees after removing the native stop marker. Arithmetic is excluded from
+this equal-count ratio: native emits `</think>42<|user|>`, while the reference
+emits `42</think>42`. Both answer 42, but their token work differs. Across all
+six requests native sums 4322/4282 ms versus 3168.596 ms; do not use that ratio
+as fixed-output-work evidence. The fresh reference sum is about 0.56% above
+the retained reference; this single new cohort is not a confidence interval.
+No new full-model correctness or long-context claim follows from six short
+prompts. The complete reports are each native root's
+`comparison-fresh-reference.json`; previous reports are retained unchanged.
+
+Native run 2's observed host floor is 21.828 GiB; the fresh reference floor is
+16.903 GiB. Reference containers retain 96 GiB/no-swap limits. All requests
+complete before paired shutdown. Rank zero exits zero; rank one exits 137
+after the harness's explicit five-second stop grace. Recorded Docker events
+show SIGTERM at epoch 1792234152 followed by SIGKILL at 1792234157, with no OOM
+event in that stop interval. The watcher consequently reports failure on the
+terminal rank, **not a measured reserve violation**. Preserve this non-graceful
+shutdown result; do not call the entire reference lifecycle clean. Both
+containers disappear and both GPUs have no compute owners before restoration.
+`worker-stop-events.stdout`, both terminal journals and `memory-watch.txt`
+retain the distinction. No payload hashing or integrity scan was performed.
+
+Original worker `785b9b6a03b9` and head `2bd8297b9569` restart, in that order,
+at approximately 18:49 CST. Their original configurations are unchanged;
+readiness confirmation is recorded separately below when complete. The
+original production footprint is not a permitted concurrent benchmark state.
