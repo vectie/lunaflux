@@ -252,6 +252,36 @@ context or higher concurrency without measurements. Keep comparison and
 causal interventions in the external harness, and lower any verified change
 through the existing immutable numerical, schedule, layout and lifetime plans.
 
+### Rank avoidable work, not only duration
+
+The selected rank source makes an important qualification possible. Each of
+the 34 recurrent input projections has K=4096 and output regions
+4096+4096+4096+128+32+128: 103,022,592 bytes of BF16 weights. Its output
+projection has 4096×4096 BF16 weights: another 33,554,432 bytes. The pair
+therefore names **4,643,618,816 weight bytes per rank per decode step**. Dividing
+by its 21.801696 ms selected time gives a nominal weight-byte rate of about
+213 GB/s. This is a source-derived work estimate, **not a DRAM-counter reading
+or a measured bandwidth ceiling**. Cache traffic and all intermediate work
+still need counters. Nevertheless, concatenating the six banks alone does not
+remove this weight payload. Activation reuse alone is not an adequate causal
+explanation for recovering the complete model gap; do not promote that
+hypothesis merely because the region is large.
+
+By contrast, the selected HC square/dot uses a 16,384-element ordered sum.
+Cooperative product tiles retain a 16,384-add dependency chain per dot, with
+two workgroup barriers per 256 elements. At one live row there are only 24
+independent control outputs. The 12.983 ms hyper region therefore contains a
+demonstrated serial dependency that the recent parallel-load implementation
+does not remove. This motivates **parallel numerical reductions and fused
+HC publication**, along with the collective/submission boundaries, ahead of
+assuming another GEMM buffering pass will suffice. A reduction tree must be an
+explicit numerical alternative, evaluated against its semantic contract and
+model quality externally; matching vLLM alone is not a correctness proof.
+The amount of recovered time is still an experiment, not the entire HC region
+or collective sum assumed removable. This distinction between mandatory bytes,
+unnecessary dependency depth and distributed waiting is the next prioritization
+rule, without adding another IR layer simply to rename the same operations.
+
 ## Fresh matched vLLM result
 
 `/tmp/lunaflux-reference-bench-vllm-glm-bulk-tiles-20261017-v1` uses the
