@@ -11,6 +11,7 @@ fn capture_collective_frame(
   generation : UInt64,
   rows : Int,
   kernel_count : Int,
+  timeout_millis : UInt64,
 ) -> Unit raise @device.DeviceError {
   for boundary in boundaries {
     let bytes = rows.to_int64() * boundary.width.to_int64() * 4L
@@ -56,12 +57,17 @@ fn capture_collective_frame(
       receive_offset=0L,
       stream~,
     )
-    // Host-side nonblocking NCCL submission only: never query or synchronize
-    // the capturing device stream. Bounded by the startup process watchdog.
-    let mut attempts = 0
+    // Lazy peer connection may take seconds on the first nonblocking call.
+    // Poll count is not elapsed time. Startup-only monotonic budget; never
+    // query/synchronize a capturing device stream, or read clocks in replay.
+    let clock = @clock.MonotonicClock::system()
+    let stamp = Ref(0UL)
+    guard clock.read_into(stamp) else {
+      raise @device.DeviceError::DriverFailure(TensorCollectiveExecute)
+    }
+    let started = stamp.val
     while !owner.defer_submitted() {
-      attempts += 1
-      guard attempts < 100000000 else {
+      guard clock.read_into(stamp) && stamp.val - started < timeout_millis else {
         raise @device.DeviceError::Busy(TensorCollectiveExecute)
       }
     }

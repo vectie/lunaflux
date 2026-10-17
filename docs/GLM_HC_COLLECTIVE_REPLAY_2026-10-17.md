@@ -58,6 +58,16 @@ also pass. Graph teardown now discards executable/raw graph references before
 NCCL abort, retaining operand leases until stream drain and executor close;
 otherwise NCCL abort can wait for references owned by the graph itself.
 
-Full-model timing and actual collective capture are still pending. Fusion is
+After the fixture repair, the complete native suite passes **5,184/5,184**.
+Full-model ablations are in progress. The first capture attempt
+`/tmp/lunaflux-model-bench-glm-collective-graph-20261017-v1` fails before requests
+with `Busy` while NCCL's lazy connection jobs are outstanding. Both ranks close
+their CUDA contexts, zero swap. Preserve this failure, not a timing sample.
+The startup poll-count cutoff has been replaced by an explicit caller-supplied
+monotonic timeout (default 60 seconds); replay performs no clock reads.
+vLLM additionally warms up NCCL before capture; whether warmup is necessary
+here must be distinguished from an artificially short polling budget.
+
+Fusion is
 collapse plus normalization, preserving the BF16 intermediate; it is not yet
 vLLM's cross-layer post/pre fusion.

@@ -58,8 +58,12 @@ pub fn CollectiveKernelProgram::new(
   retirement? : @parallel.RetirementPolicy = EachCollective,
   replay? : @parallel.ReplayPolicy = Eager,
   replay_budget_bytes? : Int64 = 0L,
+  capture_timeout_millis? : UInt64 = 60000UL,
 ) -> Self raise @device.DeviceError {
-  guard !boundaries.is_empty() && !launches.is_empty() && maximum_rows > 0 else {
+  guard !boundaries.is_empty() &&
+    !launches.is_empty() &&
+    maximum_rows > 0 &&
+    capture_timeout_millis > 0UL else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   owner.validate_site_count(boundaries.length())
@@ -134,6 +138,7 @@ pub fn CollectiveKernelProgram::new(
       generation,
       maximum_rows,
       launches.length(),
+      capture_timeout_millis,
     )
   }
   {

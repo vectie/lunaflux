@@ -1,6 +1,7 @@
 import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/compiler/parallel_ir" @parallel,
+  "vectie/lunaflux/runtime/monotonic_clock" @clock,
 }
 
 supported_targets = "native"
