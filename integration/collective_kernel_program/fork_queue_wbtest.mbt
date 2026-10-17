@@ -15,9 +15,9 @@ test "physical independent branches replay and retire before storage release" {
     file.read_immutable_snapshot(maximum_bytes=1048576L),
   )
   defer module.close()
-  let branch = module.load_function(b"fork_branch\x00")
+  let branch = module.load_function(b"fork_branch")
   defer branch.close()
-  let join = module.load_function(b"fork_join\x00")
+  let join = module.load_function(b"fork_join")
   defer join.close()
   let buffers = Array::makei(4, _ => context.allocate(128L))
   defer (for buffer in buffers.rev() {

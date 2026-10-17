@@ -9,6 +9,7 @@ async fn main {
   guard @env.args() is [_, root, build, mode] && root.has_prefix("/tmp/lunaflux-glm-fork-") && build.has_prefix("/tmp/lunaflux-checkpoint-build-") && mode is ("prepare"|"run"|"sanitize") else { fail("ROOT BUILD prepare|run|sanitize") }
   let host="wlc003s@192.168.2.178"
   let socket="/tmp/lunaflux-glm178-cutlass-20261017.sock"
+  let unit = root[5:].to_owned()
   async fn remote(command : String) -> @shell.Output {
     @shell.Cmd("ssh",["-S",socket,"-o","BatchMode=yes",host,command]).output(max_output_bytes=4194304)
   }
@@ -20,7 +21,7 @@ async fn main {
   if mode=="prepare" {
     @fs.mkdir(root)
     record("mkdir",remote("mkdir "+root))
-    record("compile",remote("systemd-run --user --wait --pipe --unit="+root[5:]+"-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=120 /usr/local/cuda-13.0/bin/nvcc -O3 -arch=sm_121 --cubin "+build+"/source/tests/packed_moe_execution/fork_join_probe.cu -o "+root+"/fork.cubin"))
+    record("compile",remote("systemd-run --user --wait --pipe --unit="+unit+"-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=120 /usr/local/cuda-13.0/bin/nvcc -O3 -arch=sm_121 --cubin "+build+"/source/tests/packed_moe_execution/fork_join_probe.cu -o "+root+"/fork.cubin"))
     return
   }
   let owners=remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
@@ -30,6 +31,6 @@ async fn main {
   let toolchain="/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
   for tool in (if mode=="run" { ["run"] } else { ["memcheck","racecheck","synccheck"] }) {
     let sanitizer=if tool=="run" { "" } else { "/usr/local/cuda-13.0/bin/compute-sanitizer --target-processes all --error-exitcode 97 --tool "+tool+(if tool=="memcheck" { " --leak-check full" } else { "" })+" " }
-    record(tool,remote("systemd-run --user --wait --pipe --unit="+root[5:]+"-"+tool+" --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 --working-directory="+build+"/source /usr/bin/env MOON_HOME="+toolchain+" PATH="+toolchain+"/bin:/usr/bin:/bin MOON_CC=gcc LUNA_FORK_PROBE_ROOT="+root+" "+sanitizer+toolchain+"/bin/moon test integration/collective_kernel_program --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2"))
+    record(tool,remote("systemd-run --user --wait --pipe --unit="+unit+"-"+tool+" --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 --working-directory="+build+"/source /usr/bin/env MOON_HOME="+toolchain+" PATH="+toolchain+"/bin:/usr/bin:/bin MOON_CC=gcc LUNA_FORK_PROBE_ROOT="+root+" "+sanitizer+toolchain+"/bin/moon test integration/collective_kernel_program --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2"))
   }
 }

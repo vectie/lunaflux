@@ -1,0 +1,39 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  guard @env.args() is [_, name, columns, overlap] &&
+    columns is ("32"|"64") && overlap is ("0"|"1") &&
+    name.iter().all(c => c is ('a'..='z'|'0'..='9'|'-')) else { fail("UNIQUE_NAME 32|64 0|1") }
+  let root="/tmp/lunaflux-model-bench-"+name
+  let runtime="/tmp/lunaflux-glm-expert-tp-columns"+columns+"-fork-20261018-v1"
+  let environment={
+    "LUNAFLUX_SPARK_178_SOCKET": "/tmp/lunaflux-glm178-cutlass-20261017.sock",
+    "LUNAFLUX_SPARK_179_SOCKET": "/tmp/lunaflux-glm179-cutlass-20261017b.sock",
+    "LUNA_GLM_EXPERT_TRANSPORT": "tiles", "LUNA_GLM_EXPERT_LOOKAHEAD": "1",
+    "LUNA_GLM_BUFFERED_MATRICES": "1", "LUNA_GLM_PARALLEL_HC": "1",
+    "LUNA_GLM_SHARED_COLUMNS": columns, "LUNA_GLM_OVERLAP_EXPERTS": overlap,
+  }
+  for mode in ["prepare","start","watch","collect"] {
+    let out=@shell.Cmd("moon",[
+      "run","scripts/benchmark-spark-models.mbtx",root,"glm",mode,
+      "--runtime",runtime,"--rows","64","--tiled-grouped","--expert-tp",
+      "--low-bit","--queued-tp","--graph-tp","--shape-aware","--warmup",
+    ],env=environment).output(max_output_bytes=8388608)
+    @fs.write_file(root+"/ablation-"+mode+".stdout",out.stdout(),create_mode=CreateNew)
+    @fs.write_file(root+"/ablation-"+mode+".stderr",out.stderr(),create_mode=CreateNew)
+    out.check()
+    println(name+" "+mode+" completed")
+  }
+  let comparison=@shell.Cmd("moon",["run","scripts/compare-glm-matched-benchmark.mbtx",root,
+    "/tmp/lunaflux-model-bench-glm-shared-vector-next-20261017-v1/paired-native.json",
+  ],env=environment).output(max_output_bytes=8388608)
+  @fs.write_file(root+"/ablation-comparison.stdout",comparison.stdout(),create_mode=CreateNew)
+  @fs.write_file(root+"/ablation-comparison.stderr",comparison.stderr(),create_mode=CreateNew)
+  comparison.check()
+  println(comparison.stdout())
+}
