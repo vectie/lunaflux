@@ -403,3 +403,23 @@ gate/up component is still flat in the selected full model. Repeating the
 same buffering variants would not justify a new conclusion; the remaining
 coupled transport/consumer and cross-region changes need their own executable
 implementations and matched gates. They are not being labeled fixed here.
+
+## Original GLM restored unchanged
+
+After both benchmark GPU-owner lists were empty, the original worker
+`785b9b6a03b9` restarted at **17:26:51 CST** and head `2bd8297b9569` at
+**17:26:52 CST**, October 17. Neither container was recreated or reconfigured.
+At approximately **17:35 CST**, `/health` returns **200** and `/v1/models`
+reports `GLM-5.3-Flash-EXL3` with its original 850,000-token maximum.
+Both original containers are running with `OOMKilled=false`; the unchanged
+NFS container `401d9b5f3a68` remains running since October 14. Only the original
+vLLM TP workers appear in the GPU owner lists. No task benchmark remains.
+
+Restored GPU allocations are 102,202/102,204 MiB. Host available memory is
+9,547,672/11,657,700 KiB, about **9.1/11.1 GiB**. This is the original
+EXL3/DFlash2 service footprint, not the NVFP4 comparison configuration.
+As explicitly requested, restoration preserves that original configuration;
+it does **not** meet the task benchmark's 16 GiB host-reserve envelope.
+All task measurements above were taken before restoration and honored their
+separate caps/reserve. No payload hashing, container replacement, NFS changes
+or unrelated source cleanup was performed.
