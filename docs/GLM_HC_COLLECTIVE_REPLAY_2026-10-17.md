@@ -249,3 +249,20 @@ mistakenly selected zero tests and was not counted; the complete package and
 full suite were subsequently executed. The clean commit-pinned ARM checkpoint
 build is separate evidence from the dirty local full suite. Unrelated
 toolchain/TLS edits are preserved and are not included in these commits.
+
+## Original service restored
+
+The exact existing worker `785b9b6a03b9` and head `2bd8297b9569` restart at
+21:22:06/07 CST, worker first, after both benchmark ranks release their GPUs.
+By **21:30:01 CST** both are running; `/health` and `/v1/models` return 200,
+advertising `GLM-5.3-Flash-EXL3`. NFS `401d9b5f3a68` remains running and was
+never stopped. No task benchmark GPU owner remains. Evidence:
+`/tmp/lunaflux-glm-hc-graph-restoration-20261017-v1`.
+
+As explicitly requested, the original production configuration is restored
+unchanged, not replaced by the experimental runtime. It reports
+102820/102822 MiB per GPU and 9010816/11078196 KiB host MemAvailable. Like the
+previous restoration, this existing production deployment is **outside** the
+benchmark's 100 GiB / 16 GiB reserve envelope. Those limits and the observed
+21.8 GiB floor apply to the isolated new benchmarks, not the restored service.
+No deployment resizing or further GPU experiment was performed after restore.
