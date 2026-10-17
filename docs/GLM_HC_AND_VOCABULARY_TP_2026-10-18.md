@@ -1,8 +1,9 @@
 # GLM HC fusion and vocabulary tensor partition experiment
 
-Status: isolated kernels and first full-model ablations validated; repeated
-full-model and refreshed reference measurements are in progress. No claim
-that the remaining end-to-end gap has closed.
+Status: isolated kernels, two-run independent full-model ablations, selected
+execution traces and fresh vLLM comparison completed. The freshly measured
+completion gap decreases17.07% →12.01%; it is **not closed**. Original-service
+restoration is in progress.
 
 The starting point is commit `214ad93f`, with shared-column 32 and explicit
 shared/routed overlap. The matched five-prompt cohort took 3218.5 ms versus
@@ -231,3 +232,72 @@ not vLLM's181-call deferred post/pre path. The rejected post/square fusion
 shows why deleting a boundary without retaining parallelism is not enough.
 This comparison motivates further work; it is not a claim that all HC
 rounding/effect constraints are interchangeable between the implementations.
+
+## Fresh vLLM result and the remaining gap
+
+Root `/tmp/lunaflux-reference-bench-vllm-glm-hc-vocab-20261018-v1`.
+The installed engine is again `0.1.dev20051+g487ecf187`, using the same
+NVFP4 checkpoint, TP2/PP1, C1, context256, one excluded warmup, no prefix
+caching/speculation and the literal input IDs. Native capacity is64; every
+request fits. Actual reference selection remains
+`FLASHINFER_MLA_SPARSE_SM120`/`fp8_ds_mla` KV and
+`FLASHINFER_CUTLASS` NVFP4 MoE. Native KV remainsBF16. The retained reference
+warning about unequal `w1_weight_scale_2`/`w3_weight_scale_2` is not suppressed.
+Comparison remains outside compiler legality/correctness. No payload hashes,
+integrity scans, changed tolerances or checkpoint edits are used.
+
+| Prompt | Input tokens | Baseline native mean, ms | Combined native mean, ms | Fresh vLLM, ms | Native / vLLM output tokens |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fact | 22 | 753.5 | 727 | 385.319 | 8 / 4 |
+| Arithmetic | 23 | 476.5 | 460.5 | 394.174 | 4 / 4 |
+| Chinese | 22 | 743.5 | 714 | 656.861 | 8 / 8 |
+| JSON | 23 | 768 | 726.5 | 667.154 | 8 / 8 |
+| Code | 24 | 773 | 731 | 673.499 | 8 / 8 |
+| Retrieval | 36 | 477 | 466 | 374.163 | 3 / 3 |
+
+All six HTTP requests return200. Native means are two repetitions; reference
+is one fresh repetition, not an invented confidence interval. Native's own
+mean improves on every prompt. All five equal-output-count prompts,31 output
+tokens, give:
+
+| Configuration | Completion sum, ms | More time than fresh vLLM |
+| --- | ---: | ---: |
+| Baseline native, two-run mean | 3238 | 17.07% |
+| HC only, two-run mean | 3186.5 | 15.21% |
+| Vocabulary TP only, two-run mean | 3131.5 | 13.22% |
+| Combined, two-run mean | 3098 | 12.01% |
+| Fresh vLLM | 2765.851 | — |
+
+The combined140ms saving removes29.65% of this measured excess time, not100%.
+Output tokens per request-second including prefill are10.01 native versus
+11.21 reference. The earlier “16%” was a different baseline/reference repeat;
+this round remeasures both sides rather than keeping a more favorable old
+denominator. The historical three-prompt cohort is retained too, not replaced
+by a newly chosen favorable subset.
+
+Four decoded texts agree after removing the native stop marker; fact and JSON
+differ. The API does not return reference token IDs here. These are matched
+input/output-count timing comparisons, **not** proof of identical internal
+work or model quality. Reference first-token latency is not measured by this
+buffered client; do not infer it from its total latency. All eight native
+roots contain new `comparison-fresh.json` reports, leaving the frozen earlier
+`comparison.json` untouched. Reproduce accounting with the existing compare
+and summarize scripts.
+
+The remaining difference is not explained by a missing vocabulary shard:
+actual both-rank execution and the small gather are observed. HC still has
+separate projection, square and residual-publication kernels, and the
+unchanged sparse/prefill and collective paths remain independent candidates.
+The instrumented captures do not establish an exact additive attribution of
+the remaining332.149ms across the five requests. Neither extra IR layers nor
+perfect overlap is asserted as a solution without a matched experiment.
+
+Reference containers retain96GiB/no-swap limits and the16GiB watcher. Minimum
+observed host availability is17.027973GiB. After all requests finish, the
+client requests paired5-second Docker stops. Rank0 exits0; rank1 exits137
+after that stop, and the watcher marks that terminal worker failed. Logs are
+preserved rather than relabeled as two clean exits. No observed host-floor
+violation occurs; a bounded Docker event query returns no OOM event. Both
+GPU owner lists are empty before restoration starts. Benchmark teardown is
+complete; this worker-shutdown status is distinct from the successful HTTP
+requests and from native correctness gates.

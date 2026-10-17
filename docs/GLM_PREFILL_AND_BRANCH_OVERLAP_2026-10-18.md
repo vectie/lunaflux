@@ -1,5 +1,9 @@
 # Prefill ownership and independent MoE branches
 
+The subsequent HC control-tail fusion and vocabulary TP ablations are in
+[the HC/vocabulary report](GLM_HC_AND_VOCABULARY_TP_2026-10-18.md).
+The results below remain the retained pre-HC/vocabulary baseline.
+
 ## Experiment contract
 
 This follows the actual serving traces in
