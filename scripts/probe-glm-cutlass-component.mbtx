@@ -1,0 +1,152 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// External installed-reference component, never imported by the compiler.
+// Synthetic inputs establish hardware behavior, not model correctness.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-cutlass-component-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode is ("upload" | "run" | "trace" | "counters" | "collect") else {
+    fail("ROOT upload|run|trace|counters|collect")
+  }
+  let host = "wlc004s@192.168.2.179"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap()
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(name : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  if mode == "upload" {
+    record("mkdir", remote("mkdir " + root))
+    @shell.Cmd("tar", [
+      "-czf",
+      root + "/payload.tgz",
+      "-C",
+      root,
+      "inputs.safetensors",
+      "metadata.jsonl",
+      "SCOPE.txt",
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      root + "/payload.tgz",
+      host + ":" + root + "/payload.tgz",
+    ])
+    .output()
+    .check()
+    record(
+      "unpack",
+      remote("tar --keep-old-files -xzf " + root + "/payload.tgz -C " + root),
+    )
+    return
+  }
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"
+  if mode == "collect" {
+    for file in ["timeline.nsys-rep", "matrix.ncu-rep"] {
+      if !@fs.exists(root + "/" + file) {
+        @shell.Cmd("scp", [
+          "-o",
+          "ControlPath=" + socket,
+          host + ":" + root + "/" + file,
+          root + "/" + file,
+        ])
+        .output()
+        .check()
+      }
+    }
+    record(
+      "counters-raw",
+      remote(ncu + " --import " + root + "/matrix.ncu-rep --page raw --csv"),
+    )
+    record(
+      "kernel-summary",
+      remote(
+        nsys +
+        " stats --report cuda_gpu_kern_sum --format csv " +
+        root +
+        "/timeline.nsys-rep",
+      ),
+    )
+    return
+  }
+  // A 12 GiB cgroup cannot spend the separately reserved 16 GiB host budget.
+  // Unified-memory resident data is under 2 GiB; NCU backup fits this bound.
+  let record_mode = if mode == "counters" { "matrix-counters" } else { mode }
+  record(
+    record_mode + "-reserve",
+    remote(
+      "awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo",
+    ),
+  )
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else {
+    fail("GPU occupied; no overlapping replay")
+  }
+  let name = root[5:].to_owned() + "-" + record_mode
+  let command = match mode {
+    "trace" =>
+      nsys +
+      " profile --trace=cuda --sample=none --cpuctxsw=none --output=" +
+      root +
+      "/timeline python3 -m flashinfer replay --dir " +
+      root
+    "counters" =>
+      ncu +
+      " --config-file off --clock-control none --cache-control none --target-processes all --kernel-name-base demangled --kernel-name regex:.*cutlass::device_kernel.* --launch-count 2 --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active --export " +
+      root +
+      "/matrix python3 -m flashinfer replay --dir " +
+      root
+    _ => "python3 -m flashinfer replay --dir " + root
+  }
+  let image = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+  let result = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    name +
+    " --property=RuntimeMaxSec=480 docker run --name " +
+    name +
+    " --gpus all --network none --ipc=private --shm-size=128m --memory=12g --memory-swap=12g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+    root +
+    ":" +
+    root +
+    " -v /opt/nvidia:/opt/nvidia:ro -e FLASHINFER_DISABLE_VERSION_CHECK=1 --entrypoint " +
+    command.split(" ").to_array()[0].to_owned() +
+    " " +
+    image +
+    " " +
+    command.split(" ").to_array()[1:].join(" "),
+  )
+  record(record_mode, result)
+  guard !result.stdout().contains("Replay failed") &&
+    !result.stdout().contains("Execution error") else {
+    fail("reference CLI reported replay failure despite its exit status")
+  }
+}

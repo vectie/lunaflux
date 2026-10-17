@@ -286,6 +286,10 @@ async fn main {
   let image = reference_image(glm, sg)
   let tag = root[5:].to_owned()
   let profile = mode is ("prepare-profile" | "start-profile" | "query-profile")
+  // This is a separately labelled selected-kernel trace, not the ordinary
+  // graph-enabled timing baseline. Avoid graph-capture memory at the host floor.
+  let eager_profile = profile &&
+    @env.get_env_var("LUNAFLUX_REFERENCE_PROFILE_EAGER") == Some("1")
   guard !profile || (glm && !sg) else {
     fail("bounded profile is GLM/vLLM only")
   }
@@ -422,7 +426,8 @@ async fn main {
       "\nspeculation=false\nprefix_cache=false\ncorpus=" +
       corpus +
       (if profile {
-        "\nprofile=cuda-profiler-api\nprofile_output=2\nprofile_requests=1\n"
+        "\nprofile=cuda-profiler-api\nprofile_output=2\nprofile_requests=1\n" +
+        "profile_eager=\{eager_profile}\n"
       } else {
         ""
       }) +
@@ -646,6 +651,7 @@ async fn main {
       rank +
       " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len 256 --max-num-seqs 1 --max-num-batched-tokens 256 --gpu-memory-utilization 0.80 --kv-cache-memory-bytes 536870912 --no-enable-prefix-caching --trust-remote-code" +
       (if glm { " --language-model-only" } else { "" }) +
+      (if eager_profile { " --enforce-eager" } else { "" }) +
       (if last { " --headless" } else { "" })
     }
     let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"

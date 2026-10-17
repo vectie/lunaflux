@@ -1,0 +1,61 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn fields(line : StringView) -> Array[String] raise {
+  guard line.has_prefix("\"") && line.has_suffix("\"") else {
+    fail("NCU quoted CSV required")
+  }
+  line[1:line.length() - 1].split("\",\"").map(x => x.to_owned()).to_array()
+}
+
+///|
+fn summarize(text : String) -> Array[Json] raise {
+  let columns = [
+    "Kernel Name", "Block Size", "Grid Size", "gpu__time_duration.sum", "launch__registers_per_thread",
+    "launch__shared_mem_per_block_static", "launch__shared_mem_per_block_dynamic",
+    "smsp__inst_executed.sum", "sm__warps_active.avg.pct_of_peak_sustained_active",
+    "smsp__warp_issue_stalled_barrier_per_warp_active.pct", "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct",
+    "lts__t_sectors_op_read.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active",
+  ]
+  let rows = text
+    .split("\n")
+    .filter(x => x.has_prefix("\""))
+    .to_array()
+    .map(fields)
+  guard rows.length() >= 3 else { fail("missing counter rows") }
+  let header = rows[0]
+  let units = rows[1]
+  rows[2:].map(row => {
+    guard row.length() == header.length() else { fail("truncated counter row") }
+    let result : Map[String, Json] = Map([])
+    for label in columns {
+      for i, key in header {
+        if key == label {
+          result[label] = { "value": Json(row[i]), "unit": Json(units[i]) }
+        }
+      }
+    }
+    Json(result)
+  })
+}
+
+///|
+test "missing metrics stay absent rather than becoming zero" {
+  let rows = summarize(
+    "\"Kernel Name\",\"Grid Size\"\n\"\",\"\"\n\"kernel\",\"(1, 1, 1)\"\n",
+  )
+  assert_eq(rows.length(), 1)
+  assert_true(!rows[0].stringify().contains("inst_executed"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, path] else { fail("NCU_RAW_CSV") }
+  println(Json(summarize(@fs.read_file(path).text())).stringify(indent=2))
+}

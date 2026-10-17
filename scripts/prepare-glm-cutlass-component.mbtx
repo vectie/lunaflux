@@ -1,0 +1,179 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// External diagnostic fixture for the installed FlashInfer replay CLI. This
+// creates no reference outputs and makes no correctness claim. Match the actual
+// serving kernel symbol before using its counters to explain a serving gap.
+
+///|
+struct Tensor {
+  name : String
+  dtype : String
+  shape : Array[Int]
+  bytes : Int64
+  pattern : Bytes
+}
+
+///|
+fn word(n : Int64, width : Int) -> Bytes {
+  Bytes::from_array(Array::makei(width, i => ((n >> (i * 8)) & 255L).to_byte()))
+}
+
+///|
+fn tensor(
+  name : String,
+  dtype : String,
+  shape : Array[Int],
+  pattern : Bytes,
+) -> Tensor {
+  let size = match dtype {
+    "I64" => 8L
+    "I32" | "F32" => 4L
+    "BF16" => 2L
+    _ => 1L
+  }
+  let bytes = shape.fold(init=size, (n, d) => n * d.to_int64())
+  { name, dtype, shape, bytes, pattern, }
+}
+
+///|
+fn fixture(rows : Int) -> Array[Tensor] {
+  let ids = Bytes::from_array(
+    Array::makei(rows * 8 * 4, i => {
+      let job = i / 4
+      ((((job / 8 * 7 + job % 8) % 288) >> (i % 4 * 8)) & 255).to_byte()
+    }),
+  )
+  [
+    tensor("kwarg_input", "I64", [rows, 256], b"\x21\x43\xa1\xc3"),
+    tensor("kwarg_token_selected_experts", "I32", [rows, 8], ids),
+    tensor("kwarg_token_final_scales", "F32", [rows, 8], word(1040187392L, 4)),
+    tensor(
+      "kwarg_fc1_expert_weights",
+      "I64",
+      [288, 2048, 256],
+      b"\x21\x43\xa1\xc3",
+    ),
+    tensor(
+      "kwarg_fc2_expert_weights",
+      "I64",
+      [288, 4096, 64],
+      b"\x21\x43\xa1\xc3",
+    ),
+    tensor("kwarg_input_sf", "U8", [128, 256], b"\x30"),
+    tensor("kwarg_quant_scales__0", "F32", [288], word(1065353216L, 4)),
+    tensor("kwarg_quant_scales__1", "I32", [288, 2048, 64], b"\x30"),
+    tensor("kwarg_quant_scales__2", "F32", [288], word(981467136L, 4)),
+    tensor("kwarg_quant_scales__3", "F32", [288], word(1065353216L, 4)),
+    tensor("kwarg_quant_scales__4", "I32", [288, 4096, 16], b"\x30"),
+    tensor("kwarg_quant_scales__5", "F32", [288], word(981467136L, 4)),
+    tensor("kwarg_swiglu_limit", "F32", [288], word(1092616192L, 4)),
+  ]
+}
+
+///|
+fn offsets(start : Int64, end : Int64) -> Json {
+  Json([Json(start.to_int()), Json(end.to_int())])
+}
+
+///|
+test "bounded fixture matches TP2 GLM expert geometry without an expected-output oracle" {
+  let tensors = fixture(22)
+  assert_eq(tensors[0].bytes, 45056L)
+  assert_eq(tensors[3].bytes, 1207959552L)
+  assert_eq(tensors[4].bytes, 603979776L)
+  assert_true(tensors.all(t => !t.name.contains("output")))
+  assert_true(tensors.fold(init=0L, (n, t) => n + t.bytes) < 2147483648L)
+  assert_eq(offsets(0L, 2038516736L).stringify(), "[0,2038516736]")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, rows_text] &&
+    root.has_prefix("/tmp/lunaflux-glm-cutlass-component-") &&
+    !root.contains("..") else {
+    fail("NEW_ROOT ROWS")
+  }
+  let rows = @string.parse_int(rows_text)
+  guard rows is (1 | 22 | 64) else { fail("bounded row workload") }
+  @fs.mkdir(root)
+  let tensors = fixture(rows)
+  let headers : Map[String, Json] = Map([])
+  let mut offset = 0L
+  for t in tensors {
+    headers[t.name] = {
+      "dtype": Json(t.dtype),
+      "shape": Json(t.shape.map(n => Json(n))),
+      // This bounded fixture is below 2 GiB. Json(Int64) is encoded as a
+      // string by MoonBit, but the safetensors format requires JSON integers.
+      "data_offsets": offsets(offset, offset + t.bytes),
+    }
+    offset += t.bytes
+  }
+  let raw = Json(headers).stringify()
+  let padded = raw + " ".repeat((8 - raw.length() % 8) % 8)
+  let encoded = @utf8.encode(padded)
+  let file = @fs.open(
+    root + "/inputs.safetensors",
+    mode=WriteOnly,
+    create_mode=CreateNew,
+  )
+  defer file.close()
+  file.write_at(word(encoded.length().to_int64(), 8), position=0L)
+  file.write_at(encoded, position=8L)
+  let mut position = encoded.length().to_int64() + 8L
+  for t in tensors {
+    let chunk_size = 1048576 / t.pattern.length() * t.pattern.length()
+    let chunk = Bytes::from_array(
+      Array::makei(chunk_size, i => t.pattern[i % t.pattern.length()]),
+    )
+    let mut done = 0L
+    while done < t.bytes {
+      let count = (t.bytes - done).min(chunk_size.to_int64()).to_int()
+      file.write_at(chunk[:count].to_owned(), position=position + done)
+      done += count.to_int64()
+    }
+    position += t.bytes
+  }
+  file.sync()
+  let metadata : Json = {
+    "function_name": "cutlass_fused_moe",
+    "module": "flashinfer.fused_moe.core",
+    "input_metadata": {
+      "kwarg_output_dtype": { "type": "torch.dtype", "value": "torch.bfloat16" },
+      "kwarg_quant_scales": {
+        "type": "list",
+        "items": Json(
+          Array::makei(6, i => {
+            let item : Json = {
+              "type": "torch.Tensor",
+              "tensor_key": Json("kwarg_quant_scales__\{i}"),
+            }
+            item
+          }),
+        ),
+      },
+      "kwarg_tp_size": 2,
+      "kwarg_tp_rank": 1,
+    },
+    "scope": "Synthetic full-bank component inputs, NOT captured model tensors or a correctness reference",
+  }
+  @fs.write_file(
+    root + "/metadata.jsonl",
+    metadata.stringify() + "\n",
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    root + "/SCOPE.txt",
+    "Installed FlashInfer CUTLASS component, synthetic NVFP4 operands. Match selected server symbols/geometry before attribution. No output oracle, no model-quality claim, no payload hashing.\n",
+    create_mode=CreateNew,
+  )
+  println("rows=\{rows} payload_bytes=\{offset} bounded_chunk=1048576")
+}
