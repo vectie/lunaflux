@@ -240,3 +240,12 @@ are offline `.mbtx`; runtime replay does not hash, capture, allocate MoonBit
 objects, read clocks, or render diagnostic evidence. The final mixed-path
 native tests also exercise both graph and prefill cancellation; native
 ASan/UBSan and explicit reference-balance checks pass.
+
+Final warning-denied check with the unchanged repository warning exclusions
+passes; the local working-tree native suite passes **5,186/5,186**. The final
+mixed-path packed-execution package passes 124/124, affected packages 155/155,
+and the external trace analyzer regression passes 1/1. A name-filter invocation
+mistakenly selected zero tests and was not counted; the complete package and
+full suite were subsequently executed. The clean commit-pinned ARM checkpoint
+build is separate evidence from the dirty local full suite. Unrelated
+toolchain/TLS edits are preserved and are not included in these commits.

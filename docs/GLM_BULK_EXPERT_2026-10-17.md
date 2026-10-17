@@ -344,3 +344,16 @@ outside the benchmark memory envelope. It was restored as explicitly
 requested, not resized or benchmarked concurrently. The 100 GiB/rank and
 16 GiB reserve claims above apply to this isolated benchmark campaign, not to
 the original production deployment.
+
+## Follow-up: HC and collective replay
+
+The subsequent [HC/replay report](GLM_HC_COLLECTIVE_REPLAY_2026-10-17.md)
+implements explicit tree controls, collapse/normalization fusion, and
+collective-inclusive decode replay through the existing numerical/physical/
+effect IRs. It retains unsuccessful full-prefill graph experiments and their
+lifetime fixes. HC-only reduces completion time by 10.12% on the three prompts
+whose native output IDs remain unchanged, leaving 22.00% over the same vLLM
+cohort; collective-inclusive replay has no demonstrated additional request
+gain. Some HC outputs change, so neither model-quality parity nor default
+production promotion follows. Use that report for the final workload vectors,
+selected-kernel evidence, validation and later service restoration.
