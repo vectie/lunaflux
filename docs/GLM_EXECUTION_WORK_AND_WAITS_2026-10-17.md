@@ -227,7 +227,9 @@ to the same kernels' savings twice.
 
 Important revisions to the earlier priorities:
 
-- KDA projections alone are **21.944 vs 27.275 ms**. They consume much native
+- The complete KDA projection set is **22.647 vs 27.275 ms**. Native's two
+  smaller control projections (roles4/9, 0.703 ms) are included here as well as
+  the 21.944 ms merged-input/output subset quoted earlier. They consume much native
   time but are **not a demonstrated decode deficit**. The short-history KDA
   core is 0.600 ms native versus 0.460 ms reference; rewriting the recurrence
   cannot recover the multi-millisecond head/HC costs.
