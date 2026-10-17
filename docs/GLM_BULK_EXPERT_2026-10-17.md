@@ -266,6 +266,12 @@ still need counters. Nevertheless, concatenating the six banks alone does not
 remove this weight payload. Activation reuse alone is not an adequate causal
 explanation for recovering the complete model gap; do not promote that
 hypothesis merely because the region is large.
+The actual single-row `glm_recurrent_0_inputs` launch has 3144 CTAs, 128
+threads, 39 registers/thread and 14,336 bytes of static shared memory. The
+single-row branch does not use the prefill scratch, but its combined entry
+point still reserves it. Phase-specialized AOT entry points can test this
+resource coupling separately from bank concatenation; lower reserved memory
+alone is not evidence of faster GEMV.
 
 By contrast, the selected HC square/dot uses a 16,384-element ordered sum.
 Cooperative product tiles retain a 16,384-add dependency chain per dot, with
@@ -327,6 +333,14 @@ containers disappear and both GPUs have no compute owners before restoration.
 retain the distinction. No payload hashing or integrity scan was performed.
 
 Original worker `785b9b6a03b9` and head `2bd8297b9569` restart, in that order,
-at approximately 18:49 CST. Their original configurations are unchanged;
-readiness confirmation is recorded separately below when complete. The
-original production footprint is not a permitted concurrent benchmark state.
+at 18:49:44/45 CST. At **18:57:40 CST**, both are running and head port 8888
+returns **200 for `/health` and `/v1/models`**, advertising
+`GLM-5.3-Flash-EXL3`. Their original configurations are unchanged; the NFS
+container was never stopped. Restoration records are in
+`/tmp/lunaflux-glm-bulk-tiles-restoration-20261017-v1`. There are no remaining
+benchmark GPU owners. The restored original service reports 102666/102668 MiB
+per GPU and 9481376/11053816 KiB host available: its existing deployment is
+outside the benchmark memory envelope. It was restored as explicitly
+requested, not resized or benchmarked concurrently. The 100 GiB/rank and
+16 GiB reserve claims above apply to this isolated benchmark campaign, not to
+the original production deployment.

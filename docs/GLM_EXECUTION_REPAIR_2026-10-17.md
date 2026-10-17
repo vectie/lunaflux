@@ -423,3 +423,23 @@ it does **not** meet the task benchmark's 16 GiB host-reserve envelope.
 All task measurements above were taken before restoration and honored their
 separate caps/reserve. No payload hashing, container replacement, NFS changes
 or unrelated source cleanup was performed.
+
+## Later whole-tile expert campaign
+
+The subsequent [bulk expert report](GLM_BULK_EXPERT_2026-10-17.md) supersedes
+the still-missing persistent-consumer/contiguous-bulk-transfer item above.
+Implementation `74529f10` introduces byte-preserving physical weight/activation
+tiles and a bounded persistent producer/consumer schedule. It is not a
+tensor-descriptor TMA implementation. Three row-copy alternatives regressed
+and remain unselected; the whole-tile path passes the recorded physical gates.
+Selected full-model prefill gate/up and down fall 74.188→57.095 ms and
+34.279→27.178 ms; two unprofiled completion cohorts improve 2.20%/3.10%.
+Fresh vLLM equal-output-count comparisons still leave 38.85%/36.86% longer
+completion time. No claim that every ledger item is complete follows.
+
+The new report ranks mandatory projection weight bytes, remaining HC serial
+reduction depth and distributed submission separately. It also records all
+source propagation, counter limitations, memory floors and the subsequent
+18:57:40 CST restoration of the same original GLM containers with health and
+models endpoints returning 200. No task GPU workload remains after that
+restoration.
