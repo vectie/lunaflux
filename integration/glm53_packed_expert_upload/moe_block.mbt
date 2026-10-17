@@ -14,6 +14,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   accuracy~ : @precision_ir.Accuracy,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   tensor_group? : (Int, Int),
@@ -30,6 +31,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
     maximum_state_bytes~,
     evaluation~,
     matrix_law~,
+    matrix_staging~,
     tensor_group?,
   )
   {

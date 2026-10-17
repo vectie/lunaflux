@@ -297,7 +297,7 @@ async fn main {
   let transport = @env.get_env_var("LUNA_GLM_EXPERT_TRANSPORT").unwrap_or(
     "indexed",
   )
-  guard transport is ("indexed" | "packed" | "pipeline") &&
+  guard transport is ("indexed" | "packed" | "pipeline" | "buffered") &&
     (glm || transport == "indexed") else {
     fail("expert transport")
   }
@@ -306,6 +306,10 @@ async fn main {
   let warmup = options.last() is Some("--warmup")
   let options = if warmup { options[:options.length() - 1] } else { options }
   let shape_aware = options.last() == Some("--shape-aware")
+  let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
+  guard !buffered || (glm && shape_aware) else {
+    fail("buffered matrices require GLM shape-aware")
+  }
   let options = if shape_aware {
     options[:options.length() - 1]
   } else {
@@ -354,6 +358,7 @@ async fn main {
       "expert_transport=\{transport}\n"
     }) +
     (if shape_aware { "matrix_evaluation=shape-aware-f32\n" } else { "" }) +
+    (if buffered { "matrix_staging=buffered-k32\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled && !shape_aware {
       "matrix_evaluation=bf16-matrix-f32-grouped\n"
@@ -647,11 +652,14 @@ async fn main {
         (if shape_aware { "-shape-aware" } else { "" }) +
         (if transport == "pipeline" {
           "-expert-pipeline"
+        } else if transport == "buffered" {
+          "-buffered-experts"
         } else if transport == "packed" {
           "-packed-experts"
         } else {
           ""
-        })
+        }) +
+        (if buffered { "-buffered-matrices" } else { "" })
       record(
         root,
         role + "-start",

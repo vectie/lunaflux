@@ -129,10 +129,14 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let buffered = mode.has_suffix("-buffered-matrices")
+  let mode = if buffered { mode[:mode.length() - 18].to_owned() } else { mode }
   let expert_transport : @matrix.ExpertTransport = if mode.has_suffix(
       "-expert-pipeline",
     ) {
     PackedPipeline
+  } else if mode.has_suffix("-buffered-experts") {
+    IndexedBuffered
   } else if mode.has_suffix("-packed-experts") {
     PackedRows
   } else {
@@ -140,10 +144,14 @@ async fn main {
   }
   let mode = match expert_transport {
     IndexedRows => mode
+    IndexedBuffered => mode[:mode.length() - 17].to_owned()
     PackedRows => mode[:mode.length() - 15].to_owned()
     PackedPipeline => mode[:mode.length() - 16].to_owned()
   }
   let shape_aware = mode.has_suffix("-shape-aware")
+  guard !buffered || shape_aware else {
+    fail("buffered matrices require shape-aware arithmetic")
+  }
   let mode = if shape_aware {
     mode[:mode.length() - 12].to_owned()
   } else {
@@ -220,6 +228,11 @@ async fn main {
         DecodeOperandsFloat32
       },
       expert_tensor_parallel=expert_tp,
+      matrix_staging=if buffered {
+        Buffered(inner_tile=32)
+      } else {
+        Synchronous
+      },
       expert_transport~,
       retirement=if queued { WholeFrame } else { EachCollective },
       replay=if replay { CaptureIntervals } else { Eager },
@@ -232,8 +245,12 @@ async fn main {
     "expert_activation_quantization=\{low_bit} native_block_scaled_matrix=\{low_bit}",
   )
   println("tp_submission_queued=\{queued} tp_graph_replay=\{replay}")
+  println(
+    "recurrent_matrix_buffered=\{buffered} operand_slots=\{if buffered {2} else {1}}",
+  )
   let transport_name = match expert_transport {
     IndexedRows => "indexed"
+    IndexedBuffered => "buffered"
     PackedRows => "packed"
     PackedPipeline => "pipeline"
   }

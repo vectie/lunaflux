@@ -5,6 +5,7 @@
 pub struct RetainedIndexPlan {
   priv queries : Int
   priv candidates : Int
+  priv published_slots : Int
 }
 
 ///|
@@ -12,8 +13,21 @@ pub fn RetainedIndexPlan::new(
   semantic : @precision.IndexedSparseAttentionPrecision,
 ) -> Self {
   let (queries, history) = semantic.capacity()
-  let (_, _, pool, _, _) = semantic.index_geometry()
-  { queries, candidates: history / pool, }
+  let (_, _, pool, top_k, tail) = semantic.index_geometry()
+  {
+    queries,
+    candidates: history / pool,
+    published_slots: Int::min(history / pool, top_k / pool) * pool +
+    (if tail { pool - 1 } else { 0 }),
+  }
+}
+
+///|
+/// The producer writes selected pools followed by the incomplete tail. All
+/// slots beyond this prefix are padding for every admitted history. Consumers
+/// may restrict traversal only when bound to this producer, not arbitrary lists.
+pub fn RetainedIndexPlan::published_slots(self : Self) -> Int {
+  self.published_slots
 }
 
 ///|

@@ -98,28 +98,32 @@ fn dense_render(
   let tile_id = if device_region { "tile_id" } else { "blockIdx.x" }
   let tile_count = if device_region { "tile_count" } else { "gridDim.x" }
   let blocks_n = (columns + 63) / 64
-  let body = matrix_tile_body(
-    plan,
-    external_scratch=device_region,
-    input="(row_base+matrix_row<live_rows?input[(unsigned long long)(row_base+matrix_row)*\{inner}+matrix_inner]:__float2bfloat16_rn(0.0f))",
-    weight="(column_base+matrix_column<\{columns}?weight[(unsigned long long)(column_base+matrix_column)*\{inner}+matrix_inner]:__float2bfloat16_rn(0.0f))",
-    result="result",
-    vector_guard="(((unsigned long long)input|(unsigned long long)weight)&15ULL)==0ULL",
-    input_vector?=if inner % 8 == 0 {
-      Some(
-        "(row_base+matrix_row<live_rows?*reinterpret_cast<const uint4 *>(input+(unsigned long long)(row_base+matrix_row)*\{inner}+matrix_inner):make_uint4(0,0,0,0))",
-      )
-    } else {
-      None
-    },
-    weight_vector?=if inner % 8 == 0 {
-      Some(
-        "(column_base+matrix_column<\{columns}?*reinterpret_cast<const uint4 *>(weight+(unsigned long long)(column_base+matrix_column)*\{inner}+matrix_inner):make_uint4(0,0,0,0))",
-      )
-    } else {
-      None
-    },
-  )
+  let body = if plan.operand_slots() == 2 {
+    buffered_dense_body(plan, external_scratch=device_region)
+  } else {
+    matrix_tile_body(
+      plan,
+      external_scratch=device_region,
+      input="(row_base+matrix_row<live_rows?input[(unsigned long long)(row_base+matrix_row)*\{inner}+matrix_inner]:__float2bfloat16_rn(0.0f))",
+      weight="(column_base+matrix_column<\{columns}?weight[(unsigned long long)(column_base+matrix_column)*\{inner}+matrix_inner]:__float2bfloat16_rn(0.0f))",
+      result="result",
+      vector_guard="(((unsigned long long)input|(unsigned long long)weight)&15ULL)==0ULL",
+      input_vector?=if inner % 8 == 0 {
+        Some(
+          "(row_base+matrix_row<live_rows?*reinterpret_cast<const uint4 *>(input+(unsigned long long)(row_base+matrix_row)*\{inner}+matrix_inner):make_uint4(0,0,0,0))",
+        )
+      } else {
+        None
+      },
+      weight_vector?=if inner % 8 == 0 {
+        Some(
+          "(column_base+matrix_column<\{columns}?*reinterpret_cast<const uint4 *>(weight+(unsigned long long)(column_base+matrix_column)*\{inner}+matrix_inner):make_uint4(0,0,0,0))",
+        )
+      } else {
+        None
+      },
+    )
+  }
   let output_type = if partial_float32 { "float" } else { "__nv_bfloat16" }
   let output_value = if partial_float32 {
     "result[i]"

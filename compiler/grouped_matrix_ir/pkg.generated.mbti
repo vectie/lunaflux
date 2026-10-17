@@ -25,6 +25,7 @@ pub fn ExpertGroupingPlan::transport(Self) -> ExpertTransport
 
 pub(all) enum ExpertTransport {
   IndexedRows
+  IndexedBuffered
   PackedRows
   PackedPipeline
 } derive(Eq, @debug.Debug)
@@ -39,12 +40,22 @@ pub fn IndirectMatrixTraversal::new(capacity_groups~ : Int, column_tiles~ : Int)
 pub fn IndirectMatrixTraversal::tile_count(Self, Int) -> Int raise @precision_ir.PrecisionPlanError
 pub fn IndirectMatrixTraversal::workers(Self) -> Int
 
+pub(all) enum MatrixStaging {
+  Synchronous
+  Buffered(inner_tile~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn MatrixStaging::equal(Self, Self) -> Bool
+pub fn MatrixStaging::not_equal(Self, Self) -> Bool
+pub fn MatrixStaging::to_repr(Self) -> @debug.Repr
+
 pub struct MatrixTilePlan {
   // private fields
 }
 pub fn MatrixTilePlan::geometry(Self) -> (Int, Int, Int)
 pub fn MatrixTilePlan::law(Self) -> @precision_ir.DenseDotLaw
-pub fn MatrixTilePlan::new(rows~ : Int, columns~ : Int, inner~ : Int, law~ : @precision_ir.DenseDotLaw) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixTilePlan::new(rows~ : Int, columns~ : Int, inner~ : Int, law~ : @precision_ir.DenseDotLaw, staging? : MatrixStaging) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixTilePlan::operand_slots(Self) -> Int
+pub fn MatrixTilePlan::staging(Self) -> MatrixStaging
 pub fn MatrixTilePlan::tile(Self) -> (Int, Int, Int)
 pub fn MatrixTilePlan::tile_count(Self) -> Int
 

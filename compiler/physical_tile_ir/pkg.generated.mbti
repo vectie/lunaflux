@@ -77,6 +77,15 @@ pub fn FragmentRowDomain::geometry(Self) -> (Int, Int)
 pub fn FragmentRowDomain::not_equal(Self, Self) -> Bool
 pub fn FragmentRowDomain::to_repr(Self) -> @debug.Repr
 
+pub struct MaximumReductionTree {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn MaximumReductionTree::equal(Self, Self) -> Bool
+pub fn MaximumReductionTree::geometry(Self) -> (Int, Int, Int)
+pub fn MaximumReductionTree::new(leaves~ : Int, group~ : Int) -> Self?
+pub fn MaximumReductionTree::not_equal(Self, Self) -> Bool
+pub fn MaximumReductionTree::to_repr(Self) -> @debug.Repr
+
 pub struct OperandLayout {
   // private fields
 } derive(Eq, @debug.Debug)

@@ -20,7 +20,10 @@ pub fn SegmentedMatrixPlan::new(
   let mut tiles = 0L
   for segment in segments {
     let (sr, _, sk) = segment.geometry()
-    guard sr == rows && sk == inner && segment.law() == segments[0].law() else {
+    guard sr == rows &&
+      sk == inner &&
+      segment.law() == segments[0].law() &&
+      segment.staging() == segments[0].staging() else {
       raise @precision.PrecisionPlanError::IllegalPlacement
     }
     offsets.push(tiles.to_int())
@@ -56,5 +59,6 @@ pub fn SegmentedMatrixPlan::tile_count(self : Self) -> Int {
 /// is common to all segments, while allocation element sizes belong to lowering.
 pub fn SegmentedMatrixPlan::scratch_elements(self : Self) -> (Int, Int, Int) {
   let (m, n, k) = self.segments[0].tile()
-  (m * k, n * k, m * n)
+  let slots = self.segments[0].operand_slots()
+  (slots * m * k, slots * n * k, m * n)
 }

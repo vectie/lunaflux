@@ -1,0 +1,149 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, .. options] &&
+    (options.is_empty() || options is ["profile"]) &&
+    root.has_prefix("/tmp/lunaflux-glm-buffered-matrix-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_ROOT")
+  }
+  let profile = !options.is_empty()
+  if !profile { @fs.mkdir(root) }
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm179-cutlass-20261017b.sock",
+  )
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(cmd : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(name : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  async fn idle(name : String) -> Unit {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU busy") }
+    record(
+      name,
+      remote(
+        "awk '/MemAvailable:/ {if ($2 < 18874368) exit 9; print}' /proc/meminfo",
+      ),
+    )
+  }
+  if profile {
+    idle("profile-owners")
+    record("profile-reserve", remote("awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo"))
+    let name = root[5:].to_owned() + "-profile"
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    record("profile", remote("systemd-run --user --wait --pipe --unit=" + name +
+      " --property=RuntimeMaxSec=480 docker run --name " + name +
+      " --gpus all --network none --memory=12g --memory-swap=12g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " + root + ":" + root +
+      " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " + ncu +
+      " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base demangled --kernel-name 'regex:matrix_(old|next)_0' --launch-count 4 --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__shared_mem_per_block_static --export " + root + "/matrix " + root + "/probe sanitizer"))
+    @shell.Cmd("scp", ["-o", "ControlPath=" + socket, host + ":" + root + "/matrix.ncu-rep", root + "/matrix.ncu-rep"]).output().check()
+    record("matrix-raw", remote(ncu + " --import " + root + "/matrix.ncu-rep --page raw --csv"))
+    return
+  }
+  idle("reserve-before")
+  let out = @shell.Cmd("env", [
+    "LUNA_EXPORT_BUFFERED_MATRIX=1", "moon", "test", "kernels/tiled_matrix_cuda_source",
+    "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+  ]).output(max_output_bytes=16777216)
+  record("export", out)
+  let parts = out.stdout().split("LUNA_SOURCE_BEGIN\n").to_array()
+  guard parts.length() == 2 else { fail("missing source") }
+  @fs.write_file(
+    root + "/matrix.cuh",
+    parts[1].split("LUNA_SOURCE_END").to_array()[0].to_owned(),
+    create_mode=CreateNew,
+  )
+  record("mkdir", remote("mkdir " + root))
+  for
+    (file, name) in [
+      (root + "/matrix.cuh", "matrix.cuh"),
+      ("tests/packed_moe_execution/buffered_matrix_probe.cu", "probe.cu"),
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      file,
+      host + ":" + root + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let unit = root[5:].to_owned()
+  record(
+    "compile",
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      unit +
+      "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 -arch=sm_121 " +
+      root +
+      "/probe.cu -o " +
+      root +
+      "/probe",
+    ),
+  )
+  for tool in ["native", "memcheck", "racecheck", "synccheck"] {
+    idle(tool + "-reserve")
+    let cmd = if tool == "native" {
+      root + "/probe"
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 97 --tool " +
+      tool +
+      (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+      " " +
+      root +
+      "/probe sanitizer"
+    }
+    record(
+      tool,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-" +
+        tool +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 " +
+        cmd,
+      ),
+    )
+    record(
+      tool + "-terminal",
+      remote(
+        "systemctl --user show " +
+        unit +
+        "-" +
+        tool +
+        ".service -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+      ),
+    )
+  }
+  idle("reserve-after")
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "actual-source numerical/tail/unaligned controls and sanitizer gates complete\n",
+    create_mode=CreateNew,
+  )
+}

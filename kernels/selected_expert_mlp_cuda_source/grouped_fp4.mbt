@@ -33,7 +33,7 @@ fn grouped_fp4_source(
   let row_half = if accumulators == 4 { "i/2" } else { "i%4/2" }
   let column_offset = if accumulators == 4 { "" } else { "(i/4)*32+" }
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
-  let packed_rows = if grouping.transport() == IndexedRows {
+  let packed_rows = if grouping.transport() is (IndexedRows | IndexedBuffered) {
     None
   } else {
     Some(
@@ -57,6 +57,31 @@ fn grouped_fp4_source(
     None
   }
   let matrix_threads = if pipeline is Some(_) { 256 } else { 128 }
+  let shared_ring = if grouping.transport() == IndexedBuffered &&
+    !grouping.shared_input_staging() {
+    let layout = @physical_tile_ir.OperandLayout::new(
+      columns=128,
+      vector=16,
+      rotations=8,
+      row_group=1,
+    ).unwrap()
+    let storage = @physical_tile_ir.OperandStorage::new(
+      layout,
+      [16, tile_columns],
+      owners=128,
+      stages=2,
+    ).unwrap()
+    let bytes = (storage.slot_elements() + 256 + tile_columns * 16).to_int64() *
+      2L
+    let lifetime = @physical_tile_ir.SequentialScratch::new(
+      producer_bytes=bytes,
+      consumer_bytes=bytes,
+      overlapping=false,
+    ).unwrap()
+    "__shared__ __align__(16) unsigned char gate_up_operands[\{lifetime.allocation_bytes()}];"
+  } else {
+    ""
+  }
   let consumer = if pipeline is Some(_) { "threadIdx.x>=128" } else { "true" }
   let warp_owner = if pipeline is Some(_) {
     "(threadIdx.x%128)"
@@ -94,7 +119,7 @@ fn grouped_fp4_source(
       (
         $|float d\{stage}[\{accumulators}]={0};
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
-        $|\{fp4_fragment_pipeline(stage,k,n,selected,packed_rows.map(p => p.plane(stage==2).2).unwrap_or(x.scales_offset().unwrap()),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~,packed_input=packed_rows is Some(_),pipeline?)}
+        $|\{fp4_fragment_pipeline(stage,k,n,selected,packed_rows.map(p => p.plane(stage==2).2).unwrap_or(x.scales_offset().unwrap()),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~,packed_input=packed_rows is Some(_),pipeline?,buffered=grouping.transport()==IndexedBuffered,borrowed_ring?=if stage<2&&!shared_ring.is_empty() {Some("gate_up_operands")} else {None})}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
         $|\{unroll}
         $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
@@ -139,6 +164,7 @@ fn grouped_fp4_source(
       tile_columns~,
       packed_input=packed_rows is Some(_),
       pipeline?,
+      buffered=grouping.transport() == IndexedBuffered,
     ) +
     "\n" +
     publication
@@ -218,6 +244,7 @@ fn grouped_fp4_source(
       $|extern "C" __global__ void \{symbol}_gate_up(const int *counts,const unsigned char *input,const int *indices,const int *expert_map,const unsigned char *bank,__nv_bfloat16 *activation\{if before {",const float *selected_weights"} else {""}}) {
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
       $|  \{packed_pointer}
+      $|  \{shared_ring}
       $|  for(int work_tile=blockIdx.x;work_tile<meta[0]*\{ng};work_tile+=gridDim.x) { int group=work_tile/\{ng};
       $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{ng})*\{tile_columns}+(\{warp_owner}/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;

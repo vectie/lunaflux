@@ -13,10 +13,14 @@ async fn main {
     fail("NEW_RUNTIME_ROOT COMMITTED_BUILD_ROOT")
   }
   let shape_aware = supplied.last() == Some("--shape-aware")
+  let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
+  guard !buffered || shape_aware else {
+    fail("buffered matrices require shape-aware")
+  }
   let transport = @env.get_env_var("LUNA_GLM_EXPERT_TRANSPORT").unwrap_or(
     "indexed",
   )
-  guard transport is ("indexed" | "packed" | "pipeline") else {
+  guard transport is ("indexed" | "packed" | "pipeline" | "buffered") else {
     fail("expert transport")
   }
   let args = if shape_aware {
@@ -186,11 +190,14 @@ async fn main {
       (if shape_aware { "-shape-aware" } else { "" }) +
       (if transport == "pipeline" {
         "-expert-pipeline"
+      } else if transport == "buffered" {
+        "-buffered-experts"
       } else if transport == "packed" {
         "-packed-experts"
       } else {
         ""
       }) +
+      (if buffered { "-buffered-matrices" } else { "" }) +
       " /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 \{rows} 64 107374182400 107374182400 2147483648 " +
       aot,
     ),
@@ -254,7 +261,7 @@ async fn main {
   }
   @fs.write_file(
     root + "/PREPARED.txt",
-    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nshape_aware=\{shape_aware}\nexpert_transport=\{transport}\nno_hashing=true\n",
+    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nshape_aware=\{shape_aware}\nexpert_transport=\{transport}\nbuffered_matrices=\{buffered}\nno_hashing=true\n",
     create_mode=CreateNew,
   )
   println("CPU-only expert TP preparation complete; full model has not run")

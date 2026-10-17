@@ -15,6 +15,7 @@ pub struct RetainedIndexPlan {
 }
 pub fn RetainedIndexPlan::geometry(Self) -> (Int, Int)
 pub fn RetainedIndexPlan::new(@precision_ir.IndexedSparseAttentionPrecision) -> Self
+pub fn RetainedIndexPlan::published_slots(Self) -> Int
 pub fn RetainedIndexPlan::scratch_bytes(Self) -> Int64
 
 // Type aliases

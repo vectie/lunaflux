@@ -24,7 +24,9 @@ pub fn selected_sparse_source(
   maximum_queries~ : Int,
   maximum_history~ : Int,
   symbol~ : String,
+  published_slots? : Int,
 ) -> SelectedSparseCudaSource raise {
+  let extent = published_slots.unwrap_or(selected_width)
   guard query_heads > 0 &&
     query_heads <= 1024 &&
     kv_heads > 0 &&
@@ -36,6 +38,8 @@ pub fn selected_sparse_source(
     value_dimension <= 65536 &&
     selected_width > 0 &&
     selected_width <= 65536 &&
+    extent >= 0 &&
+    extent <= selected_width &&
     maximum_queries > 0 &&
     maximum_queries <= maximum_history &&
     maximum_history <= 1048576 &&
@@ -104,7 +108,8 @@ pub fn selected_sparse_source(
     $|  __shared__ float maximum, denominator;
     $|  if (worker == 0) row_valid = 1;
     $|  __syncthreads();
-    $|  for (int rank = worker; rank < \{selected_width}; rank += blockDim.x) {
+    $|  // Producer-bound selection prefix: storage stride remains \{selected_width}.
+    $|  for (int rank = worker; rank < \{extent}; rank += blockDim.x) {
     $|    const int key = selected_indices[selected_base + rank];
     $|    if (key == -1) continue;
     $|    if (key < 0 || key >= keys_live || key > position || key_valid[key] == 0) {
@@ -117,7 +122,7 @@ pub fn selected_sparse_source(
     $|  if (!row_valid) return;
     $|  if (worker == 0) {
     $|    visible = 0;
-    $|    for (int rank = 0; rank < \{selected_width}; ++rank) {
+    $|    for (int rank = 0; rank < \{extent}; ++rank) {
     $|      const int key = selected_indices[selected_base + rank];
     $|      if (key != -1) retained[visible++] = key;
     $|    }

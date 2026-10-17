@@ -15,6 +15,7 @@ pub fn recurrent_block_source(
   plan : @precision.RecurrentBlockPrecision,
   symbol_prefix~ : String,
   fuse_input_projections? : Bool = false,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
 ) -> RecurrentBlockCudaSource raise {
   // The recurrent renderer validates the prefix as a CUDA identifier.
   let delta = @delta.recurrent_delta_source(
@@ -50,6 +51,7 @@ pub fn recurrent_block_source(
             columns~,
             inner=hidden,
             law=plan.projection_law(),
+            staging=matrix_staging,
           )
         }),
       ),
@@ -77,6 +79,7 @@ pub fn recurrent_block_source(
           columns=output_width,
           inner=input_width,
           law=plan.projection_law(),
+          staging=matrix_staging,
         ),
         symbol~,
         partial_float32=partial,

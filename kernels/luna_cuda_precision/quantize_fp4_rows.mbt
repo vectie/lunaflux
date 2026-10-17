@@ -25,16 +25,23 @@ pub fn quantize_fp4_bf16_rows_source(
   let scale = storage.scales_offset().unwrap()
   let global = storage.global_scale_offset().unwrap()
   let floor = Float::from_double(plan.amax_floor()).reinterpret_as_uint()
+  let tree = @physical.MaximumReductionTree::new(leaves=256, group=32).unwrap()
+  let (leaves, group, groups) = tree.geometry()
   prelude() +
   quantization_helpers() +
   (
     $|extern "C" __global__ void \{symbol}_global(const int *counts,const __nv_bfloat16 *x,unsigned char *packed,int *error) {
     $|  int rows=counts[3]; if(rows<=0||rows>\{rows/row_multiplier}) return;
-    $|  __shared__ float maxima[256]; float m=__uint_as_float(\{floor}U);
-    $|  for(unsigned long long i=threadIdx.x;i<(unsigned long long)rows*\{row_multiplier}*\{columns};i+=256) {float v=__bfloat162float(x[i]);if(!isfinite(v)) atomicOr(error,1);else m=fmaxf(m,fabsf(v));}
-    $|  maxima[threadIdx.x]=m; __syncthreads();
-    $|  for(int d=128;d;d>>=1) {if(threadIdx.x<d) maxima[threadIdx.x]=fmaxf(maxima[threadIdx.x],maxima[threadIdx.x+d]);__syncthreads();}
-    $|  if(threadIdx.x==0) *(float *)(packed+\{global}ULL)=maxima[0]==0.0f?1.0f:fmaxf(__fdiv_rn(maxima[0],2688.0f),__uint_as_float(1U));
+    $|  __shared__ float maxima[\{groups}]; float m=__uint_as_float(\{floor}U);
+    $|  for(unsigned long long i=threadIdx.x;i<(unsigned long long)rows*\{row_multiplier}*\{columns};i+=\{leaves}) {float v=__bfloat162float(x[i]);if(!isfinite(v)) atomicOr(error,1);else m=fmaxf(m,fabsf(v));}
+    $|  for(int d=\{group/2};d;d>>=1) m=fmaxf(m,__shfl_down_sync(0xffffffffU,m,d));
+    $|  if((threadIdx.x%\{group})==0) maxima[threadIdx.x/\{group}]=m;
+    $|  __syncthreads();
+    $|  if(threadIdx.x<\{group}) {
+    $|    m=threadIdx.x<\{groups}?maxima[threadIdx.x]:__uint_as_float(\{floor}U);
+    $|    for(int d=\{group/2};d;d>>=1) m=fmaxf(m,__shfl_down_sync(0xffffffffU,m,d));
+    $|    if(threadIdx.x==0) *(float *)(packed+\{global}ULL)=m==0.0f?1.0f:fmaxf(__fdiv_rn(m,2688.0f),__uint_as_float(1U));
+    $|  }
     $|}
     $|extern "C" __global__ void \{symbol}_pack(const int *counts,const __nv_bfloat16 *x,unsigned char *packed,int *error) {
     $|  int rows=counts[3]; if(rows<=0||rows>\{rows/row_multiplier}) return;

@@ -9,6 +9,7 @@ pub struct MatrixTilePlan {
   priv tile_columns : Int
   priv tile_inner : Int
   priv law : @precision.DenseDotLaw
+  priv staging : MatrixStaging
 }
 
 ///|
@@ -17,6 +18,7 @@ pub fn MatrixTilePlan::new(
   columns~ : Int,
   inner~ : Int,
   law~ : @precision.DenseDotLaw,
+  staging? : MatrixStaging = Synchronous,
 ) -> Self raise @precision.PrecisionPlanError {
   guard law != ScalarFloat32 &&
     rows > 0 &&
@@ -31,14 +33,24 @@ pub fn MatrixTilePlan::new(
     2147483647L else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
+  let tile_inner = match staging {
+    Synchronous => 32
+    Buffered(inner_tile~) => {
+      guard inner_tile is (32 | 64 | 128) else {
+        raise @precision.PrecisionPlanError::NoImplementation
+      }
+      inner_tile
+    }
+  }
   {
     rows,
     columns,
     inner,
     tile_rows: 16,
     tile_columns: 64,
-    tile_inner: 32,
+    tile_inner,
     law,
+    staging,
   }
 }
 
@@ -81,6 +93,7 @@ pub struct ExpertGroupingPlan {
 ///|
 pub(all) enum ExpertTransport {
   IndexedRows
+  IndexedBuffered
   PackedRows
   PackedPipeline
 } derive(Eq, Debug)

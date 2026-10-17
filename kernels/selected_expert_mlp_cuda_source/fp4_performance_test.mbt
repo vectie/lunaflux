@@ -69,6 +69,7 @@ test "full-width native FP4 expert performance export" {
       selected_experts=selected,
       column_tile~,
       transport=match @env.get_env_var("LUNA_FP4_TRANSPORT") {
+        Some("buffered") => IndexedBuffered
         Some("packed") => PackedRows
         Some("pipeline") => PackedPipeline
         _ => IndexedRows
@@ -107,6 +108,26 @@ test "full-width native FP4 expert performance export" {
     p,
     symbol="ordinary",
   )
+  let buffered = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+    p,
+    symbol="buffered_check",
+    grouping=@matrix.ExpertGroupingPlan::new(
+      maximum_rows=rows,
+      selected_experts=selected,
+      transport=IndexedBuffered,
+    ),
+  )
+  assert_eq(buffered.symbols().length(), ordinary.symbols().length())
+  assert_eq(buffered.activation_bytes(), ordinary.activation_bytes())
+  assert_false(buffered.has_packed_rows())
+  let buffered_source = @utf8.decode(buffered.source_bytes())
+  assert_true(buffered_source.contains("cooperative operand ring=2"))
+  assert_true(buffered_source.contains("unsigned char gate_up_operands[13824]"))
+  assert_true(buffered_source.contains("unsigned char *ring=gate_up_operands"))
+  assert_false(buffered_source.contains("mbarrier.try_wait"))
+  for i in 0..<ordinary.launches().length() {
+    assert_eq(buffered.launches()[i], ordinary.launches()[i])
+  }
   for transport in [@matrix.PackedRows, PackedPipeline] {
     let packed = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
       p,
@@ -121,6 +142,11 @@ test "full-width native FP4 expert performance export" {
     assert_true(packed.activation_bytes() > ordinary.activation_bytes())
     assert_true(
       @utf8.decode(packed.source_bytes()).contains("source_row=group*16+row"),
+    )
+    assert_true(
+      @utf8.decode(packed.source_bytes()).contains(
+        "bool valid=job_ids[row]>=0&&local>=0",
+      ),
     )
     assert_eq(
       @utf8.decode(packed.source_bytes()).contains("barrier.arrive"),

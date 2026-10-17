@@ -1,6 +1,11 @@
 ///|
 test "packed transport reaches recurrent and sparse GLM experts and startup budget" {
-  let stages = [@matrix.IndexedRows, PackedRows, PackedPipeline].map(transport => {
+  let stages = [
+    @matrix.IndexedRows,
+    PackedRows,
+    PackedPipeline,
+    IndexedBuffered,
+  ].map(transport => {
     @glm53_packed_expert_upload.GlmDecoderStage::new(
       @glm53_spec.Glm53FlashSpec::official(),
       @pipeline.DecoderStageRange::new(
@@ -28,10 +33,17 @@ test "packed transport reaches recurrent and sparse GLM experts and startup budg
   for i, stage in stages {
     let source = @utf8.decode(stage.source_bytes())
     for layer in [3, 4] {
-      assert_eq(source.contains("glm_routed_\{layer}_pack_rows_0"), i != 0)
-      assert_eq(source.contains("glm_routed_\{layer}_pack_rows_1"), i != 0)
+      assert_eq(
+        source.contains("glm_routed_\{layer}_pack_rows_0"),
+        i is (1 | 2),
+      )
+      assert_eq(
+        source.contains("glm_routed_\{layer}_pack_rows_1"),
+        i is (1 | 2),
+      )
     }
     assert_eq(source.contains("mbarrier.try_wait.parity"), i == 2)
     assert_eq(source.contains("mbarrier.inval"), i == 2)
+    assert_eq(source.contains("cooperative operand ring=2"), i == 3)
   }
 }

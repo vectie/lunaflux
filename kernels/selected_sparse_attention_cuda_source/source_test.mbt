@@ -21,6 +21,29 @@ test "score reuse keeps ordered arithmetic and distinct ownership" {
   assert_true(text.contains("__float2bfloat16_rn(__fdividef"))
   assert_false(text.contains("__expf"))
   assert_false(text.contains("__shfl"))
+  assert_true(text.contains("rank < 2051"))
+}
+
+///|
+test "producer prefix changes traversal but not index stride or arithmetic" {
+  for extent in [0, 3, 67, 2051] {
+    let source = @selected_sparse_attention_cuda_source.selected_sparse_source(
+      query_heads=2,
+      kv_heads=1,
+      qk_dimension=4,
+      value_dimension=4,
+      selected_width=2051,
+      maximum_queries=1,
+      maximum_history=64,
+      symbol="bound",
+      published_slots=extent,
+    )
+    let text = @utf8.decode(source.source_bytes())
+    assert_true(text.contains("rank < " + extent.to_string()))
+    assert_true(text.contains("storage stride remains 2051"))
+    assert_true(text.contains("key > position"))
+    assert_false(text.contains("__expf"))
+  }
 }
 
 ///|

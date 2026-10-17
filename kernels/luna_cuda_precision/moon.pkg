@@ -4,10 +4,7 @@ import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
+  "vectie/lunaflux/compiler/physical_tile_ir" @physical,
 }
 
 supported_targets = "native"
-
-import {
-  "vectie/lunaflux/compiler/physical_tile_ir" @physical,
-} for "test"

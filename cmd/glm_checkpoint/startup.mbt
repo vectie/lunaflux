@@ -14,6 +14,7 @@ priv struct Startup {
   reserve : Int64
   recurrent_evaluation : @precision.RecurrentEvaluationLaw
   matrix_law : @precision.DenseDotLaw
+  matrix_staging : @matrix.MatrixStaging
   expert_scaled_dot_law : @precision.ScaledDotReductionLaw
   expert_transport : @matrix.ExpertTransport
 }
@@ -69,6 +70,7 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
     recurrent_evaluation=startup.recurrent_evaluation,
     matrix_law=startup.matrix_law,
+    matrix_staging=startup.matrix_staging,
     expert_scaled_dot_law=startup.expert_scaled_dot_law,
     expert_transport=startup.expert_transport,
     tensor_group?=if startup.expert_tensor_parallel {
@@ -97,6 +99,7 @@ fn inspect_startup(
   reserve : Int64,
   recurrent_evaluation? : @precision.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   expert_tensor_parallel? : Bool = false,
@@ -167,6 +170,7 @@ fn inspect_startup(
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
     recurrent_evaluation~,
     matrix_law~,
+    matrix_staging~,
     expert_scaled_dot_law~,
     expert_transport~,
   )
@@ -224,6 +228,7 @@ fn inspect_startup(
     reserve,
     recurrent_evaluation,
     matrix_law,
+    matrix_staging,
     expert_scaled_dot_law,
     expert_transport,
   }

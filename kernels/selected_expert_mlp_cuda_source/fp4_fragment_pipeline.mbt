@@ -15,6 +15,8 @@ fn fp4_fragment_pipeline(
   tile_columns? : Int = 32,
   packed_input? : Bool = false,
   pipeline? : @physical_tile_ir.ProducerConsumerPipeline,
+  buffered? : Bool = false,
+  borrowed_ring? : String,
 ) -> String {
   let layout = @physical_tile_ir.OperandLayout::new(
     columns=128,
@@ -69,7 +71,7 @@ fn fp4_fragment_pipeline(
       paired_weight_scales.unwrap()
     }
     let row = if is_left && packed_input {
-      "int source_row=group*16+row;bool valid=local>=0;"
+      "int source_row=group*16+row;bool valid=job_ids[row]>=0&&local>=0;"
     } else if is_left {
       let index = if stage < 2 { "job/" + selected.to_string() } else { "job" }
       "int job=job_ids[row];int source_row=" +
@@ -153,6 +155,30 @@ fn fp4_fragment_pipeline(
     $|  const unsigned *a1p=(const unsigned *)(tile+\{left}+(g+8)*128);
     $|  \{fragments}
     $|}
+  if buffered {
+    let slot_bytes = scales + 256 + (count - 1) * tile_columns * 16
+    let declaration = match borrowed_ring {
+      Some(name) => "unsigned char *ring=" + name + ";"
+      None => "__shared__ __align__(16) unsigned char ring[\{slot_bytes*2}];"
+    }
+    return (
+      $|{ // cooperative operand ring=2; direct indexed rows, ascending K64 folds
+      $|\{declaration}
+      $|{unsigned char *tile=ring;int base_k=0;\{copies.join("\n")}}
+      $|asm volatile("cp.async.commit_group;cp.async.wait_group 0;" ::: "memory");
+      $|__syncthreads();
+      $|for(int epoch=0;epoch<\{(inner+255)/256};++epoch) {
+      $|  int base_k=epoch*256;
+      $|  if(base_k+256<\{inner}) {unsigned char *tile=ring+((epoch+1)%2)*\{slot_bytes};int base_k=(epoch+1)*256;\{copies.join("\n")}}
+      $|  asm volatile("cp.async.commit_group;" ::: "memory");
+      $|  const unsigned char *tile=ring+(epoch%2)*\{slot_bytes};
+      $|  \{consume_chunk}
+      $|  asm volatile("cp.async.wait_group 0;" ::: "memory");
+      $|  __syncthreads(); // next producer completion and current reader retirement
+      $|}
+      $|}
+    )
+  }
   if pipeline is Some(p) {
     let (stages, producers, consumers) = p.geometry()
     let slot_bytes = scales + 256 + (count - 1) * tile_columns * 16

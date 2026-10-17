@@ -47,3 +47,30 @@ test "projected sparse lowering keeps query and history domains distinct" {
     }
   }
 }
+
+///|
+test "indexed producer binds short history to attention traversal" {
+  let plan = @precision.IndexedSparseAttentionPrecision::new(
+    index_head_count=1,
+    index_head_dimension=4,
+    query_head_count=2,
+    key_value_head_count=1,
+    query_key_dimension=4,
+    value_dimension=4,
+    pool_size=4,
+    top_k=2048,
+    append_incomplete_tail=true,
+    maximum_queries=1,
+    maximum_history=64,
+    maximum_workspace_bytes=10000000L,
+  )
+  let text = @utf8.decode(
+    @indexed_sparse_attention_execution_cuda_source.indexed_sparse_attention_source(
+      plan,
+      symbol_prefix="short_history",
+    ).source_bytes(),
+  )
+  assert_true(text.contains("storage stride remains 2051"))
+  assert_true(text.contains("rank < 67"))
+  assert_false(text.contains("rank < 2051"))
+}

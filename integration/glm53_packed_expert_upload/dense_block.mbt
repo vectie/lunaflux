@@ -11,6 +11,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is DenseSwiGlu else {
@@ -25,6 +26,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
     maximum_state_bytes~,
     evaluation~,
     matrix_law~,
+    matrix_staging~,
     tensor_group?,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(

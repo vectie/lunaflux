@@ -56,6 +56,7 @@ pub fn indexed_sparse_attention_source(
     maximum_history=history,
     maximum_queries=queries,
     symbol=symbols[2],
+    published_slots=index.published_slots(),
   )
   {
     plan,

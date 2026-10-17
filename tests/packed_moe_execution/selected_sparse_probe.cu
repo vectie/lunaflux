@@ -39,16 +39,32 @@ int main(int argc,char**argv) {
     Device<__nv_bfloat16> old(size_t(a.q)*a.h*a.v),out(size_t(a.q)*a.h*a.v);
     Device<unsigned char> scratch(a.scratch);
     q.put(varied(q.count,3)); k.put(varied(k.count,11)); v.put(varied(v.count,23));
-    void *old_args[]={&counts.p,&positions.p,&key_count.p,&valid.p,&q.p,&k.p,&v.p,&indices.p,&old.p};
+    void *old_args[]={&counts.p,&positions.p,&key_count.p,&valid.p,&q.p,&k.p,&v.p,&indices.p,&old.p
+#ifdef LUNA_PREFIX_PROBE
+      ,&scratch.p
+#endif
+    };
     void *new_args[]={&counts.p,&positions.p,&key_count.p,&valid.p,&q.p,&k.p,&v.p,&indices.p,&out.p,&scratch.p};
     auto launch=[&](bool fresh) {
-      ck(cudaLaunchKernel(fresh?a.new_kernel:a.old_kernel,dim3(fresh?a.grid:1),dim3(fresh?a.block:1),fresh?new_args:old_args,0,nullptr));
+      ck(cudaLaunchKernel(fresh?a.new_kernel:a.old_kernel,
+#ifdef LUNA_PREFIX_PROBE
+        dim3(a.grid),dim3(a.block),
+#else
+        dim3(fresh?a.grid:1),dim3(fresh?a.block:1),
+#endif
+        fresh?new_args:old_args,0,nullptr));
     };
     auto setup=[&](int mode) {
       std::vector<int> x(size_t(a.q)*a.w,-1),p(a.q,a.live-1),ok(a.t,1);
       std::vector<int> ct={0,0,1,a.q,0};
       for(int row=0;row<a.q;++row) for(int item=0;item<std::min(a.live,a.w);++item)
-        x[size_t(row)*a.w+size_t(item)*a.w/std::min(a.live,a.w)]=a.live-1-item;
+        x[size_t(row)*a.w+
+#ifdef LUNA_PREFIX_PROBE
+          item
+#else
+          size_t(item)*a.w/std::min(a.live,a.w)
+#endif
+        ]=a.live-1-item;
       if(mode==1) std::fill(x.begin(),x.end(),-1);
       if(mode==2) x[1]=x[0]; // duplicate, entire first query must be zero
       if(mode==3) x[0]=-2;
@@ -103,7 +119,12 @@ int main(int argc,char**argv) {
         float time[2]={};
         for(int order=0;order<2;++order) {
           bool fresh=((trial+order)%2)==1;
-          int repeats=fresh?20:1;
+          int repeats=
+#ifdef LUNA_PREFIX_PROBE
+          20;
+#else
+          fresh?20:1;
+#endif
           ck(cudaEventRecord(start)); for(int r=0;r<repeats;++r) launch(fresh);
           ck(cudaEventRecord(end)); ck(cudaEventSynchronize(end));
           ck(cudaEventElapsedTime(&time[fresh?1:0],start,end)); time[fresh?1:0]/=repeats;

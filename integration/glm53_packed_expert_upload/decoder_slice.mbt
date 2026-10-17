@@ -42,6 +42,7 @@ pub fn GlmDecoderSlice::new(
   accuracy~ : @precision_ir.Accuracy,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   tensor_group? : (Int, Int),
@@ -68,6 +69,7 @@ pub fn GlmDecoderSlice::new(
                 maximum_state_bytes=maximum_layer_state_bytes,
                 evaluation=recurrent_evaluation,
                 matrix_law~,
+                matrix_staging~,
                 tensor_group?,
               ),
             )
@@ -84,6 +86,7 @@ pub fn GlmDecoderSlice::new(
                 accuracy~,
                 evaluation=recurrent_evaluation,
                 matrix_law~,
+                matrix_staging~,
                 expert_scaled_dot_law~,
                 expert_transport~,
                 tensor_group?,

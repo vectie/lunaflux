@@ -33,6 +33,7 @@ pub fn GlmRecurrentLayer::new(
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   let plan = recurrent_block_plan(
@@ -50,6 +51,7 @@ pub fn GlmRecurrentLayer::new(
     plan,
     symbol_prefix="glm_recurrent_" + layer_index.to_string(),
     fuse_input_projections=matrix_law == ShapeAwareFloat32,
+    matrix_staging~,
   )
   {
     spec,

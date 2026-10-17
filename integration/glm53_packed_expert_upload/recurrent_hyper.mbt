@@ -10,6 +10,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   let branch = GlmRecurrentLayer::new(
@@ -21,6 +22,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
     maximum_state_bytes~,
     evaluation~,
     matrix_law~,
+    matrix_staging~,
     tensor_group?,
   )
   let plan = @precision_ir.HyperConnectionPrecision::new(

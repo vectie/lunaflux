@@ -11,7 +11,9 @@ import {
 let host = "wlc003s@192.168.2.178"
 
 ///|
-let socket = "/tmp/lunaflux-checkpoint-live-20261010.sock"
+let socket : String = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+  "/tmp/lunaflux-checkpoint-live-20261010.sock",
+)
 
 ///|
 async fn remote(command : String) -> @shell.Output {
