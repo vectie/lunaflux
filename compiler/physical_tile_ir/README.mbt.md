@@ -44,6 +44,14 @@ or introduces a runtime publication barrier.
 and consumer bindings therefore derive their offsets from one plan rather than
 reconstructing strip boundaries independently.
 
+`TiledPlane` composes a complete logical plane with an inner `OperandLayout`
+and contiguous outer tiles. It is a byte-preserving address permutation, not a
+quantizer or a new numerical law. The grouped low-bit backend uses it for both
+startup weight permutation and step-local activation packing, enabling a single
+producer to transfer a whole tile to the consumer's physical layout. Padding
+belongs to `OperandStorage`; a complete tiled plane rejects partial tiles and
+row-stride holes. Device policy still chooses tile geometry and copy mechanism.
+
 `ProducerConsumerPipeline` describes disjoint producer/consumer owners and
 slot reuse by monotonically ordered epochs. Publication follows every producer;
 reuse follows every consumer's retirement. The finite descriptor is pure;

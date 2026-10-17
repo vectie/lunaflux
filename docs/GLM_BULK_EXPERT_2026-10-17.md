@@ -114,3 +114,84 @@ waiting. The installed CUTLASS component uses different physical padding and
 a separate capture. Its 3.247/1.745 ms cannot be used to claim a vLLM model win.
 Next gate: commit-pinned startup selection, bounded full-model run, matched
 output lengths and original-service restoration. Other ledger items remain open.
+
+## Full-model propagation and phase accounting
+
+Implementation `74529f10` builds cleanly on ARM (558.9 MiB reported process
+peak, zero swap). Both exported rank sources contain all 42 routed-bank
+preparation kernels. Actual execution logs select `expert_operand_transport=tiles`
+with 91 replay graphs and 90 F32 collective sites per step. The immutable
+physical tile plan reaches startup permutation, activation packing, producer
+copies, consumer reads and launch geometry. Shared experts stay unchanged.
+
+Unprofiled roots `/tmp/lunaflux-model-bench-glm-bulk-tiles-20261017-v{1,2}`
+reuse the previous six literal prompts and exclude one warmup. Every generated
+ID sequence is unchanged versus the retained lookahead run.
+
+| Prompt / input tokens | Retained completion ms | Tiles run 1 ms | Tiles run 2 ms |
+| --- | ---: | ---: | ---: |
+| Fact / 22 | 563 | 542 | 565 |
+| Arithmetic / 23 | 496 | 468 | 483 |
+| Chinese / 22 | 906 | 866 | 885 |
+| JSON / 23 | 933 | 884 | 902 |
+| Code / 24 | 936 | 885 | 902 |
+| Retrieval / 36 | 585 | 677 | 545 |
+| Sum | 4419 | 4322 | 4282 |
+
+These are **2.20% and 3.10% less completion time**, not a 23% model win.
+The first retrieval slowdown does not reproduce. Neither discard it nor
+invent a thermal/network explanation without evidence. Two cohorts do not
+establish a confidence interval. First-token sums change 1959→1853/1826 ms;
+the remainder changes 2460→2469/2456 ms (1 ms rounding differences between
+reported phase totals are possible). The measured benefit is mostly prefill.
+
+Selected trace root
+`/tmp/lunaflux-model-bench-glm-bulk-tiles-trace-20261017-v1`, compared with
+`lunaflux-model-bench-glm-repair-lookahead-trace-20261017-v1`, uses the same
+short diagnostic prompt, two output tokens and one excluded warmup. Egress:
+
+| Region | Retained prefill ms | Tiles prefill ms | Retained decode ms | Tiles decode ms |
+| --- | ---: | ---: | ---: | ---: |
+| Routed gate/up | 74.188384 | 57.095264 | 9.536704 | 7.230496 |
+| Routed down | 34.279296 | 27.178464 | 4.333472 | 3.530144 |
+| Shared experts | 29.110880 | 30.185088 | 6.427552 | 6.482240 |
+| Hyper-connections | 17.314336 | 17.455168 | 12.883360 | 12.982912 |
+
+Ingress confirms warmed prefill gate/up 57.105120 ms and down 26.992320 ms.
+The main repair is selected and its matrix saving survives production routing,
+not just the synthetic benchmark. Prefill matrix savings are about 24.19 ms;
+decode matrix savings are only 3.11 ms per step. The latter does not imply a
+23% decrease in an entire decode step. Recurrent projections alone still cost
+16.187+5.615 ms in the selected decode; recurrent update itself is 0.683 ms.
+Calling all of that time the recurrent algorithm or FlashAttention would
+misidentify the work. Sparse leaf is 0.220 ms, while its surrounding projection
+and indexing chain is much larger.
+
+The trace still has 91 graphs/90 collective launches and no stream query before
+the last collective enqueue. Collective sums and kernel-free intervals vary
+under profiling: egress warmed prefill is 32.999 ms collective/17.702 ms empty,
+decode 36.543/43.572 ms. These are **not** pure link cost or unprofiled CPU cost.
+Do not subtract them from a separate vLLM run to manufacture a gap allocation.
+The dominant remaining work is spread across unchanged projection/control/
+shared-expert regions and distributed submission, not a missing tile IR level.
+
+Offline analysis now materializes the resolved kernel and step-boundary CTEs.
+This avoids repeated SQLite range/name expansion over startup permutation
+launches; per-rank family and leaf tables match the original query exactly.
+Slow v1 analyses were stopped after those two tables; v2 completes all tables.
+This is analysis-only, outside compiler/runtime, and is not a model speedup.
+
+Validation: warning-denied native check with unchanged migration exclusions;
+full native suite 5178/5178; affected packages 77/77, subsequent tile-domain
+tests 2/2, benchmark runner 3/3, source and trace analyzer regressions 1/1 each.
+Targeted info has 1059 existing warnings and zero errors. Native task memory
+plans are 99,738,719,500/101,008,132,364 bytes, below 100 GiB per rank; the
+observed run-1 host floor is 21.813 GiB. The declared additional storage is not
+free: tiled activation capacity and conservatively counted startup scratch add
+about 1.09 GB to each prior plan. Startup permutation duration is not isolated.
+All completed native ranks close their contexts, with zero task swap.
+
+Fresh vLLM comparison and original-service restoration follow below; the older
+reference remains historical until that new cohort completes. No ordinary
+default is promoted from these measurements, and the other ledger gaps are
+not declared complete.

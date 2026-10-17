@@ -11,7 +11,10 @@ import {
 
 ///|
 fn prefix() -> String {
-  "WITH k AS (SELECT k.*,s.value AS name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON k.shortName=s.id), e AS (SELECT start,lead(start) OVER (ORDER BY start) AS finish,row_number() OVER (ORDER BY start) AS step FROM k WHERE name='glm_text_io_embed'), r AS (SELECT step,start,coalesce(finish,(SELECT max(end)+1 FROM k)) AS finish FROM e), selected AS (SELECT r.step,k.* FROM r JOIN k ON k.start>=r.start AND k.start<r.finish) "
+  // Reuse the resolved kernel table. Without materialization SQLite may
+  // repeatedly expand the same name join/range expression for every startup
+  // permutation launch; this changes analysis cost, not selected step bounds.
+  "WITH k AS MATERIALIZED (SELECT k.*,s.value AS name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON k.shortName=s.id), e AS (SELECT start,lead(start) OVER (ORDER BY start) AS finish,row_number() OVER (ORDER BY start) AS step FROM k WHERE name='glm_text_io_embed'), r AS MATERIALIZED (SELECT step,start,coalesce(finish,(SELECT max(end)+1 FROM k)) AS finish FROM e), selected AS (SELECT r.step,k.* FROM r JOIN k ON k.start>=r.start AND k.start<r.finish) "
 }
 
 ///|
