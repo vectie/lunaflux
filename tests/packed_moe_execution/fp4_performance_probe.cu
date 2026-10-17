@@ -44,7 +44,11 @@ int main(int argc,char **argv) {
   for(int j=0;j<R*S;j++) indices[j]=diverse?((j/S)*7+j%S)%logical:j%S;
   for(int e=0;e<logical;e++) map[e]=e%banks;
   auto *db=gpu(bank),*qx=gpu(std::vector<unsigned char>(qb0)),*qa=gpu(std::vector<unsigned char>(qb1));
-  auto *dx=gpu(x),*a=gpu(std::vector<__nv_bfloat16>(activation_bytes/2));
+  size_t allocated_activation=activation_bytes;
+#ifdef LUNA_PAIRED
+  if(candidate::activation_bytes>allocated_activation) allocated_activation=candidate::activation_bytes;
+#endif
+  auto *dx=gpu(x),*a=gpu(std::vector<__nv_bfloat16>(allocated_activation/2));
   auto *c=gpu(counts),*idx=gpu(indices),*em=gpu(map),*err=gpu(std::vector<int>(1));
   auto *routes=gpu(std::vector<float>(R*S,.125f)),*w=gpu(std::vector<float>(R*S*H)),*out=gpu(std::vector<float>(R*H));
   // Host-trimmed grid is a diagnostic intervention with known synthetic routes,
@@ -59,11 +63,21 @@ int main(int argc,char **argv) {
       candidate::next_group<<<candidate::grid0,candidate::block0>>>(c,idx,a);
       candidate::next_quantize_0_global<<<grid1,block1>>>(c,dx,qx,err);
       candidate::next_quantize_0_pack<<<grid2,block2>>>(c,dx,qx,err);
+#ifdef LUNA_FP4_PACKED_ROWS
+      candidate::next_pack_rows_0<<<candidate::grid3,candidate::block3>>>(c,qx,a);
+      candidate::next_gate_up<<<trimmed?groups*((I+candidate::column_tile-1)/candidate::column_tile):candidate::grid4,candidate::block4>>>(c,qx,idx,em,db,a);
+      candidate::next_quantize_1_global<<<candidate::grid5,candidate::block5>>>(c,a,qa,err);
+      candidate::next_quantize_1_pack<<<candidate::grid6,candidate::block6>>>(c,a,qa,err);
+      candidate::next_pack_rows_1<<<candidate::grid7,candidate::block7>>>(c,qa,a);
+      candidate::next_down<<<trimmed?groups*((H+candidate::column_tile-1)/candidate::column_tile):candidate::grid8,candidate::block8>>>(c,qa,idx,routes,em,db,w,a);
+      candidate::next_combine<<<candidate::grid9,candidate::block9>>>(c,idx,w,out,routes);
+#else
       candidate::next_gate_up<<<trimmed?groups*((I+candidate::column_tile-1)/candidate::column_tile):candidate::grid3,candidate::block3>>>(c,qx,idx,em,db,a);
       candidate::next_quantize_1_global<<<grid4,block4>>>(c,a,qa,err);
       candidate::next_quantize_1_pack<<<grid5,block5>>>(c,a,qa,err);
       candidate::next_down<<<trimmed?groups*((H+candidate::column_tile-1)/candidate::column_tile):candidate::grid6,candidate::block6>>>(c,qa,idx,routes,em,db,w,a);
       candidate::next_combine<<<grid7,block7>>>(c,idx,w,out,routes);
+#endif
       return;
     }
 #endif
@@ -84,8 +98,36 @@ int main(int argc,char **argv) {
     return bytes;
   };
   run(false);ck(cudaDeviceSynchronize());auto reference=snapshot();
+  // Do not let unwritten candidate outputs inherit a passing reference.
+  ck(cudaMemset(out,0xa5,rows*H*4));ck(cudaMemset(w,0xa5,rows*S*H*4));
+  ck(cudaMemset(a,0,allocated_activation));ck(cudaMemset(qx,0,qb0));ck(cudaMemset(qa,0,qb1));
   run(true);ck(cudaDeviceSynchronize());auto actual=snapshot();
   if(reference!=actual){fprintf(stderr,"bitwise workspace/output mismatch\n");return 4;}
+#ifdef LUNA_FP4_PACKED_ROWS
+  // Independent host gather checks payload/scales and neutral padded rows for
+  // BOTH materialization epochs; it does not decode/requantize the bytes.
+  auto check_packed=[&](bool product){
+    if(product) candidate::next_pack_rows_1<<<candidate::grid7,candidate::block7>>>(c,qa,a);
+    else candidate::next_pack_rows_0<<<candidate::grid3,candidate::block3>>>(c,qx,a);
+    ck(cudaDeviceSynchronize());
+    std::vector<unsigned char> staged(allocated_activation);
+    ck(cudaMemcpy(staged.data(),a,staged.size(),cudaMemcpyDeviceToHost));
+    std::vector<unsigned char> input(product?qb1:qb0);
+    ck(cudaMemcpy(input.data(),product?qa:qx,input.size(),cudaMemcpyDeviceToHost));
+    const int *meta=(const int *)(staged.data()+candidate::metadata_offset);
+    int width=product?I:H,payload=width/2,scales=width/16;
+    size_t source_scale=(size_t)(product?R*S:R)*payload;
+    size_t dest_scale=(size_t)R*S*16*payload;
+    const unsigned char *packed=staged.data()+candidate::packed_base;
+    for(int row=0;row<meta[0]*16;row++) {
+      int job=meta[1+R*S+row],original=job<0?0:(product?job:job/S);
+      for(int col=0;col<payload;col++)if(packed[(size_t)row*payload+col]!=(job<0?0:input[(size_t)original*payload+col])){fprintf(stderr,"packed payload mismatch\n");exit(5);}
+      for(int col=0;col<scales;col++)if(packed[dest_scale+(size_t)row*scales+col]!=(job<0?0:input[source_scale+(size_t)original*scales+col])){fprintf(stderr,"packed scale mismatch\n");exit(5);}
+    }
+  };
+  check_packed(false);check_packed(true);
+  printf("packed_payload_and_scale_oracle=passed\n");
+#endif
   printf("correctness=passed bitwise_chain=true bytes=%zu\n",actual.size());
   if(once){run(true);ck(cudaDeviceSynchronize());}
   else {

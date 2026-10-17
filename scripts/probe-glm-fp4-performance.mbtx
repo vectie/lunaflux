@@ -272,6 +272,13 @@ async fn main {
     guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
     for sanitizer in ["memcheck", "racecheck", "synccheck"] {
       let leak = if sanitizer == "memcheck" { " --leak-check full" } else { "" }
+      // Bound sanitizer bookkeeping, not kernel concurrency: synchronize
+      // between launches while retaining intra-kernel async/race checks.
+      let bookkeeping = if sanitizer == "racecheck" {
+        " --racecheck-num-workers 1 --force-synchronization-limit 1"
+      } else {
+        ""
+      }
       let grid = if sanitizer == "memcheck" || mode == "sanitize-diverse" {
         "capacity"
       } else {
@@ -291,6 +298,7 @@ async fn main {
           " --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
           sanitizer +
           leak +
+          bookkeeping +
           " " +
           root +
           "/probe \{rows} " +

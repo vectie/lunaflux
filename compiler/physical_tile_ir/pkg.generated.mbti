@@ -144,6 +144,17 @@ pub fn OrderedOperandReads::new(items~ : Int, slots~ : Int) -> Self?
 pub fn OrderedOperandReads::not_equal(Self, Self) -> Bool
 pub fn OrderedOperandReads::to_repr(Self) -> @debug.Repr
 
+pub struct ProducerConsumerPipeline {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn ProducerConsumerPipeline::equal(Self, Self) -> Bool
+pub fn ProducerConsumerPipeline::geometry(Self) -> (Int, Int, Int)
+pub fn ProducerConsumerPipeline::new(stages~ : Int, producers~ : Int, consumers~ : Int) -> Self?
+pub fn ProducerConsumerPipeline::not_equal(Self, Self) -> Bool
+pub fn ProducerConsumerPipeline::reuse_after(Self, Int) -> Int?
+pub fn ProducerConsumerPipeline::slot(Self, Int) -> Int?
+pub fn ProducerConsumerPipeline::to_repr(Self) -> @debug.Repr
+
 pub struct SequentialScratch {
   // private fields
 } derive(Eq, @debug.Debug)

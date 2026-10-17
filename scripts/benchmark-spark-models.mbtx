@@ -294,6 +294,13 @@ async fn main {
     )
   }
   let glm = family == "glm"
+  let transport = @env.get_env_var("LUNA_GLM_EXPERT_TRANSPORT").unwrap_or(
+    "indexed",
+  )
+  guard transport is ("indexed" | "packed" | "pipeline") &&
+    (glm || transport == "indexed") else {
+    fail("expert transport")
+  }
   let timeline = options.last() is Some("--timeline")
   let options = if timeline { options[:options.length() - 1] } else { options }
   let warmup = options.last() is Some("--warmup")
@@ -310,6 +317,9 @@ async fn main {
   guard !replay || queued else { fail("graph replay requires queued TP") }
   let options = if queued { options[:options.length() - 1] } else { options }
   let low_bit = options.last() is Some("--low-bit")
+  guard transport == "indexed" || low_bit else {
+    fail("packed transport requires low-bit")
+  }
   let options = if low_bit { options[:options.length() - 1] } else { options }
   let expert_tp = options.last() is Some("--expert-tp")
   let profiles = if expert_tp {
@@ -338,6 +348,11 @@ async fn main {
     "\naot=" +
     aot +
     "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n" +
+    (if transport == "indexed" {
+      ""
+    } else {
+      "expert_transport=\{transport}\n"
+    }) +
     (if shape_aware { "matrix_evaluation=shape-aware-f32\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled && !shape_aware {
@@ -629,7 +644,14 @@ async fn main {
         (if low_bit { "-low-bit" } else { "" }) +
         (if queued { "-queued-tp" } else { "" }) +
         (if replay { "-graph-tp" } else { "" }) +
-        (if shape_aware { "-shape-aware" } else { "" })
+        (if shape_aware { "-shape-aware" } else { "" }) +
+        (if transport == "pipeline" {
+          "-expert-pipeline"
+        } else if transport == "packed" {
+          "-packed-experts"
+        } else {
+          ""
+        })
       record(
         root,
         role + "-start",

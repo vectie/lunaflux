@@ -60,6 +60,7 @@ import {
 }
 
 import {
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
   "vectie/lunaflux/integration/decoder_stage_control" @stage_control,
   "vectie/lunaflux/integration/deepseek_v4_query_kv" @deepseek,
   "vectie/lunaflux/integration/deepseek_v4_hyper_connection" @deepseek_hyper,

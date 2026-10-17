@@ -2,6 +2,7 @@
 package "vectie/lunaflux/compiler/grouped_matrix_ir"
 
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/compiler/precision_ir",
 }
 
@@ -15,11 +16,21 @@ pub struct ExpertGroupingPlan {
 }
 pub fn ExpertGroupingPlan::column_tile(Self) -> Int
 pub fn ExpertGroupingPlan::maximum_groups(Self) -> Int
-pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int, transport? : ExpertTransport) -> Self raise @precision_ir.PrecisionPlanError
 pub fn ExpertGroupingPlan::rows_per_group(Self) -> Int
 pub fn ExpertGroupingPlan::shared_input_staging(Self) -> Bool
 pub fn ExpertGroupingPlan::stable_assignment(Self) -> StableAssignmentPlan
 pub fn ExpertGroupingPlan::storage_bytes(Self) -> Int64
+pub fn ExpertGroupingPlan::transport(Self) -> ExpertTransport
+
+pub(all) enum ExpertTransport {
+  IndexedRows
+  PackedRows
+  PackedPipeline
+} derive(Eq, @debug.Debug)
+pub fn ExpertTransport::equal(Self, Self) -> Bool
+pub fn ExpertTransport::not_equal(Self, Self) -> Bool
+pub fn ExpertTransport::to_repr(Self) -> @debug.Repr
 
 pub struct IndirectMatrixTraversal {
   // private fields
@@ -36,6 +47,15 @@ pub fn MatrixTilePlan::law(Self) -> @precision_ir.DenseDotLaw
 pub fn MatrixTilePlan::new(rows~ : Int, columns~ : Int, inner~ : Int, law~ : @precision_ir.DenseDotLaw) -> Self raise @precision_ir.PrecisionPlanError
 pub fn MatrixTilePlan::tile(Self) -> (Int, Int, Int)
 pub fn MatrixTilePlan::tile_count(Self) -> Int
+
+pub struct PackedExpertRows {
+  // private fields
+}
+pub fn PackedExpertRows::base(Self) -> Int64
+pub fn PackedExpertRows::new(ExpertGroupingPlan, after_bytes~ : Int64, payload_bytes~ : (Int, Int), scale_bytes~ : (Int, Int)) -> Self raise @precision_ir.PrecisionPlanError
+pub fn PackedExpertRows::plane(Self, Bool) -> (Int, Int, Int64)
+pub fn PackedExpertRows::row(Self, Int, Int) -> Int?
+pub fn PackedExpertRows::total_bytes(Self) -> Int64
 
 pub struct SegmentedMatrixPlan {
   // private fields

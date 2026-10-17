@@ -15,6 +15,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport? : @matrix.ExpertTransport = IndexedRows,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
@@ -47,6 +48,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
         accuracy,
         matrix_law~,
         expert_scaled_dot_law~,
+        expert_transport~,
         tensor_group?,
       ),
     ),
@@ -65,6 +67,7 @@ fn make_moe_ffn(
   accuracy : @precision_ir.Accuracy,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport? : @matrix.ExpertTransport = IndexedRows,
   tensor_group? : (Int, Int),
 ) -> GlmFfn raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
@@ -134,6 +137,17 @@ fn make_moe_ffn(
     @expert_source.packed_expert_mlp_source(
       routed,
       symbol="glm_routed_" + layer_index.to_string(),
+      grouping?=if expert_transport == IndexedRows {
+        None
+      } else {
+        Some(
+          @matrix.ExpertGroupingPlan::new(
+            maximum_rows~,
+            selected_experts=routed.geometry().4,
+            transport=expert_transport,
+          ),
+        )
+      },
     ),
     @expert_source.packed_expert_mlp_source(
       shared,

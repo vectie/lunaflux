@@ -29,6 +29,7 @@ pub fn GlmSparseLayer::new(
   accuracy~ : @precision_ir.Accuracy,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport? : @matrix.ExpertTransport = IndexedRows,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   let projection = @sparse_model.flash_sparse_projection_plan(
@@ -70,6 +71,7 @@ pub fn GlmSparseLayer::new(
     accuracy,
     matrix_law~,
     expert_scaled_dot_law~,
+    expert_transport~,
     tensor_group?,
   )
   let decoder = @sparse_frame.IndexedSparseDecoderFrame::new(

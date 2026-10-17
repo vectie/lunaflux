@@ -2,6 +2,9 @@
 /// The extra region stores a bounded physical grouping, not model activations.
 /// It is allocated once with the activation frame and survives gate/down.
 pub fn PackedExpertMlpCudaSource::activation_bytes(self : Self) -> Int64 {
+  if self.packed_rows is Some(rows) {
+    return rows.total_bytes()
+  }
   let bytes = self.plan.workspace_bytes().0
   if self.plan.dot_law() == ScalarFloat32 {
     return bytes
@@ -307,6 +310,7 @@ fn grouped_expert_source(
   {
     plan,
     source: @utf8.encode(text),
+    packed_rows: None,
     symbols: ReadOnlyArray::from_array([
       group_symbol, gate_symbol, down_symbol, combine_symbol,
     ]),

@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/async/socket",

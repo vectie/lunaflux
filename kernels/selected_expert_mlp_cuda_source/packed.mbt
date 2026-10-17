@@ -4,6 +4,12 @@ pub struct PackedExpertMlpCudaSource {
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
   priv launches : ReadOnlyArray[(Int, Int)]
+  priv packed_rows : @matrix.PackedExpertRows?
+}
+
+///|
+pub fn PackedExpertMlpCudaSource::has_packed_rows(self : Self) -> Bool {
+  self.packed_rows is Some(_)
 }
 
 ///|
@@ -45,7 +51,11 @@ pub fn packed_expert_mlp_source(
   if plan.scaled_dot_law() is BlockScaledMatrixFloat32(..) {
     return grouped_fp4_source(plan, symbol~, grouping?)
   }
-  guard grouping is None || grouping.unwrap().column_tile() == 32 else {
+  guard grouping is None ||
+    (
+      grouping.unwrap().column_tile() == 32 &&
+      grouping.unwrap().transport() == IndexedRows
+    ) else {
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   if plan.scaled_dot_law() != DecodeOperandsFloat32 {
@@ -299,6 +309,7 @@ pub fn packed_expert_mlp_source(
   }
   {
     plan,
+    packed_rows: None,
     source: @utf8.encode(text + "\n" + quantizers.join("\n")),
     symbols: ReadOnlyArray::from_array(symbols),
     launches: ReadOnlyArray::from_array(launches),

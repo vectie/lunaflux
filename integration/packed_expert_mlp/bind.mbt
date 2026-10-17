@@ -93,16 +93,31 @@ pub fn bind(
       combine,
     ]
     if p.scaled_dot_law() is BlockScaledMatrixFloat32(..) {
-      [
-        [c, ix, a],
-        quantized[0],
-        quantized[0],
-        gate,
-        quantized[2],
-        quantized[2],
-        [c, qa, ix, sw, em, w, b, a],
-        combine,
-      ]
+      if source.has_packed_rows() {
+        [
+          [c, ix, a],
+          quantized[0],
+          quantized[0],
+          [c, qx, a],
+          gate,
+          quantized[2],
+          quantized[2],
+          [c, qa, a],
+          [c, qa, ix, sw, em, w, b, a],
+          combine,
+        ]
+      } else {
+        [
+          [c, ix, a],
+          quantized[0],
+          quantized[0],
+          gate,
+          quantized[2],
+          quantized[2],
+          [c, qa, ix, sw, em, w, b, a],
+          combine,
+        ]
+      }
     } else {
       quantized
     }

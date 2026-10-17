@@ -129,6 +129,20 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let expert_transport : @matrix.ExpertTransport = if mode.has_suffix(
+      "-expert-pipeline",
+    ) {
+    PackedPipeline
+  } else if mode.has_suffix("-packed-experts") {
+    PackedRows
+  } else {
+    IndexedRows
+  }
+  let mode = match expert_transport {
+    IndexedRows => mode
+    PackedRows => mode[:mode.length() - 15].to_owned()
+    PackedPipeline => mode[:mode.length() - 16].to_owned()
+  }
   let shape_aware = mode.has_suffix("-shape-aware")
   let mode = if shape_aware {
     mode[:mode.length() - 12].to_owned()
@@ -143,6 +157,9 @@ async fn main {
   }
   let mode = if queued { mode[:mode.length() - 10].to_owned() } else { mode }
   let low_bit = mode.has_suffix("-low-bit")
+  guard expert_transport == IndexedRows || low_bit else {
+    fail("packed expert transport requires the explicit low-bit path")
+  }
   let mode = if low_bit { mode[:mode.length() - 8].to_owned() } else { mode }
   let expert_tp = mode.has_suffix("-expert-tp")
   guard !queued || expert_tp else {
@@ -203,6 +220,7 @@ async fn main {
         DecodeOperandsFloat32
       },
       expert_tensor_parallel=expert_tp,
+      expert_transport~,
       retirement=if queued { WholeFrame } else { EachCollective },
       replay=if replay { CaptureIntervals } else { Eager },
     )
@@ -214,6 +232,12 @@ async fn main {
     "expert_activation_quantization=\{low_bit} native_block_scaled_matrix=\{low_bit}",
   )
   println("tp_submission_queued=\{queued} tp_graph_replay=\{replay}")
+  let transport_name = match expert_transport {
+    IndexedRows => "indexed"
+    PackedRows => "packed"
+    PackedPipeline => "pipeline"
+  }
+  println("expert_operand_transport=\{transport_name}")
   for ordinal, range in startup.ranges {
     let (first, end) = range.layer_range()
     println(

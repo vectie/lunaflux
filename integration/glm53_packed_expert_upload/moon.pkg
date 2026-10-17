@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
   "vectie/lunaflux/integration/collective_kernel_program" @collective_program,
   "vectie/lunaflux/model/glm53_weights",
   "vectie/lunaflux/model/glm53_spec",

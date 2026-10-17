@@ -2,8 +2,9 @@
 test "full-width native FP4 expert performance export" {
   let rows = 64
   let tails = @env.get_env_var("LUNA_FP4_TAILS") == Some("1")
-  let hidden = if tails { 192 } else { 4096 }
-  let intermediate = if tails { 320 } else { 1024 }
+  let wrapped = @env.get_env_var("LUNA_FP4_TAILS") == Some("wrapped")
+  let hidden = if tails { 192 } else if wrapped { 704 } else { 4096 }
+  let intermediate = if tails { 320 } else if wrapped { 576 } else { 1024 }
   let selected = 8
   let full_bank = @env.get_env_var("LUNA_FP4_FULL_BANK") == Some("1")
   let bank_count = if full_bank { 288 } else { 8 }
@@ -67,6 +68,11 @@ test "full-width native FP4 expert performance export" {
       maximum_rows=rows,
       selected_experts=selected,
       column_tile~,
+      transport=match @env.get_env_var("LUNA_FP4_TRANSPORT") {
+        Some("packed") => PackedRows
+        Some("pipeline") => PackedPipeline
+        _ => IndexedRows
+      },
       shared_input_staging=variant == Some("next") &&
         @env.get_env_var("LUNA_FP4_INDEPENDENT_INPUT") != Some("1"),
     ),
@@ -101,6 +107,26 @@ test "full-width native FP4 expert performance export" {
     p,
     symbol="ordinary",
   )
+  for transport in [@matrix.PackedRows, PackedPipeline] {
+    let packed = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+      p,
+      symbol="transport_check",
+      grouping=@matrix.ExpertGroupingPlan::new(
+        maximum_rows=rows,
+        selected_experts=selected,
+        transport~,
+      ),
+    )
+    assert_eq(packed.symbols().length(), 10)
+    assert_true(packed.activation_bytes() > ordinary.activation_bytes())
+    assert_true(
+      @utf8.decode(packed.source_bytes()).contains("source_row=group*16+row"),
+    )
+    assert_eq(
+      @utf8.decode(packed.source_bytes()).contains("barrier.arrive"),
+      transport == PackedPipeline,
+    )
+  }
   assert_true(
     !@utf8.decode(ordinary.source_bytes()).contains("const unsigned *bp1="),
   )
@@ -127,6 +153,15 @@ test "full-width native FP4 expert performance export" {
   if variant is Some(_) {
     println("LUNA_SOURCE_BEGIN fp4-performance")
     println("#define LUNA_FP4_BANK_COUNT \{bank_count}")
+    if generated.has_packed_rows() {
+      println("#define LUNA_FP4_PACKED_ROWS 1")
+      println(
+        "static constexpr unsigned long long packed_base=\{(ordinary.activation_bytes()+15L)/16L*16L};",
+      )
+      println(
+        "static constexpr unsigned long long metadata_offset=\{(p.workspace_bytes().0+3L)/4L*4L};",
+      )
+    }
     println("static constexpr int column_tile=\{column_tile};")
     println(@utf8.decode(generated.source_bytes()))
     println(

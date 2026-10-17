@@ -43,6 +43,7 @@ pub fn GlmDecoderSlice::new(
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport? : @matrix.ExpertTransport = IndexedRows,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard first_layer >= 0 &&
@@ -84,6 +85,7 @@ pub fn GlmDecoderSlice::new(
                 evaluation=recurrent_evaluation,
                 matrix_law~,
                 expert_scaled_dot_law~,
+                expert_transport~,
                 tensor_group?,
               ),
             )
@@ -105,6 +107,7 @@ pub fn GlmDecoderSlice::new(
             accuracy~,
             matrix_law~,
             expert_scaled_dot_law~,
+            expert_transport~,
             tensor_group?,
           ),
         )

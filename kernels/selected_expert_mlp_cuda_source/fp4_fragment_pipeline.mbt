@@ -13,6 +13,8 @@ fn fp4_fragment_pipeline(
   work_tile? : String = "blockIdx.x",
   paired_weight_scales? : Int64,
   tile_columns? : Int = 32,
+  packed_input? : Bool = false,
+  pipeline? : @physical_tile_ir.ProducerConsumerPipeline,
 ) -> String {
   let layout = @physical_tile_ir.OperandLayout::new(
     columns=128,
@@ -28,11 +30,11 @@ fn fp4_fragment_pipeline(
       [16, tile_columns]
     },
     owners=128,
-    stages=1,
+    stages=pipeline.map(p => p.geometry().0).unwrap_or(1),
   ).unwrap()
   let left = storage.region(0).unwrap().geometry().0
   let right = storage.region(1).unwrap().geometry().0
-  let scales = storage.allocation_elements()
+  let scales = storage.slot_elements()
   let count = if paired_weight_scales is Some(_) { 3 } else { 2 }
   let copies = []
   for operand in 0..<(count * 2) {
@@ -49,7 +51,11 @@ fn fp4_fragment_pipeline(
     let stride = if is_scale { inner / 16 } else { inner / 2 }
     let offset = if is_scale { "base_k/16" } else { "base_k/2" }
     let origin = if is_left {
-      "input"
+      if packed_input {
+        "packed"
+      } else {
+        "input"
+      }
     } else {
       "w" + (stage + owner - 1).to_string()
     }
@@ -62,7 +68,9 @@ fn fp4_fragment_pipeline(
     } else {
       paired_weight_scales.unwrap()
     }
-    let row = if is_left {
+    let row = if is_left && packed_input {
+      "int source_row=group*16+row;bool valid=local>=0;"
+    } else if is_left {
       let index = if stage < 2 { "job/" + selected.to_string() } else { "job" }
       "int job=job_ids[row];int source_row=" +
       index +
@@ -119,7 +127,7 @@ fn fp4_fragment_pipeline(
     $|int lo=((kk/2+t*4)^((g%8)*16))/4,hi=((kk/2+(t+4)*4)^((g%8)*16))/4;
     $|unsigned sa=*(const unsigned *)(tile+\{scales}+(g+(t&1)*8)*16+kk/16);
   let right_fragment =
-    $|int wr=(threadIdx.x/32)*8+g\{if tile_columns==32 {""} else {"+fragment*32"}};
+    $|int wr=(\{if pipeline is Some(_) {"(threadIdx.x%128)"} else {"threadIdx.x"}}/32)*8+g\{if tile_columns==32 {""} else {"+fragment*32"}};
     $|const unsigned *bp=(const unsigned *)(tile+\{right}+wr*128);
   let consume =
     $|unsigned sb=*(const unsigned *)(tile+\{scales+256}+wr*16+kk/16);
@@ -139,17 +147,67 @@ fn fp4_fragment_pipeline(
       $|}
     )
   }
+  let consume_chunk =
+    $|for(int kk=0;kk<256&&base_k+kk<\{inner};kk+=64) {
+    $|  const unsigned *a0p=(const unsigned *)(tile+\{left}+g*128);
+    $|  const unsigned *a1p=(const unsigned *)(tile+\{left}+(g+8)*128);
+    $|  \{fragments}
+    $|}
+  if pipeline is Some(p) {
+    let (stages, producers, consumers) = p.geometry()
+    let slot_bytes = scales + 256 + (count - 1) * tile_columns * 16
+    let chunks = (inner + 255) / 256
+    // Publication and retirement are distinct phase-counted memory barriers.
+    // Each has only its publishing role as arrivals; the other role waits
+    // without contributing an arrival to this or a later epoch.
+    return (
+      $|{ // separate producer/consumer ring; unchanged ascending K folds
+      $|__shared__ __align__(16) unsigned char ring[\{slot_bytes*stages}];
+      $|__shared__ __align__(8) unsigned long long ready[\{stages}],retired[\{stages}];
+      $|if(threadIdx.x==0) for(int s=0;s<\{stages};++s) {
+      $|  unsigned r=(unsigned)__cvta_generic_to_shared(ready+s),f=(unsigned)__cvta_generic_to_shared(retired+s);
+      $|  asm volatile("mbarrier.init.shared.b64 [%0], \{producers};" :: "r"(r):"memory");
+      $|  asm volatile("mbarrier.init.shared.b64 [%0], \{consumers};" :: "r"(f):"memory");
+      $|}
+      $|__syncthreads();
+      $|if(threadIdx.x<\{producers}) {
+      $|  for(int epoch=0;epoch<\{chunks};++epoch) {
+      $|    int slot=epoch%\{stages},base_k=epoch*256;
+      $|    unsigned char *tile=ring+slot*\{slot_bytes};
+      $|    unsigned r=(unsigned)__cvta_generic_to_shared(ready+slot),f=(unsigned)__cvta_generic_to_shared(retired+slot);
+      $|    if(epoch>=\{stages}) {unsigned done=0;do {
+      $|      asm volatile("{.reg .pred p;mbarrier.try_wait.parity.shared.b64 p,[%1],%2;selp.u32 %0,1,0,p;}" : "=r"(done):"r"(f),"r"((epoch/\{stages}-1)&1):"memory");
+      $|    } while(!done);}
+      $|    \{copies.join("\n")}
+      $|    asm volatile("cp.async.commit_group; cp.async.wait_group 0;" ::: "memory");
+      $|    asm volatile("mbarrier.arrive.shared.b64 _,[%0];" :: "r"(r):"memory");
+      $|  }
+      $|} else {
+      $|  for(int epoch=0;epoch<\{chunks};++epoch) {
+      $|    int slot=epoch%\{stages},base_k=epoch*256;
+      $|    const unsigned char *tile=ring+slot*\{slot_bytes};
+      $|    unsigned r=(unsigned)__cvta_generic_to_shared(ready+slot),f=(unsigned)__cvta_generic_to_shared(retired+slot),done=0;
+      $|    do {asm volatile("{.reg .pred p;mbarrier.try_wait.parity.shared.b64 p,[%1],%2;selp.u32 %0,1,0,p;}" : "=r"(done):"r"(r),"r"((epoch/\{stages})&1):"memory");} while(!done);
+      $|    \{consume_chunk}
+      $|    asm volatile("mbarrier.arrive.shared.b64 _,[%0];" :: "r"(f):"memory");
+      $|  }
+      $|}
+      $|__syncthreads();
+      $|if(threadIdx.x==0) for(int s=0;s<\{stages};++s) {
+      $|  unsigned r=(unsigned)__cvta_generic_to_shared(ready+s),f=(unsigned)__cvta_generic_to_shared(retired+s);
+      $|  asm volatile("mbarrier.inval.shared.b64 [%0];mbarrier.inval.shared.b64 [%1];" :: "r"(r),"r"(f):"memory");
+      $|}
+      $|__syncthreads();
+      $|}
+    )
+  }
   (
     $|{ // \{layout.canonical()}; ordered K chunks, explicit producer/reader lifetimes
     $|__shared__ __align__(16) unsigned char tile[\{scales+256+(count-1)*tile_columns*16}];
     $|for(int base_k=0;base_k<\{inner};base_k+=256) {
     $|  \{copies.join("\n")}
     $|  asm volatile("cp.async.commit_group; cp.async.wait_group 0;" ::: "memory");__syncthreads();
-    $|  for(int kk=0;kk<256&&base_k+kk<\{inner};kk+=64) {
-    $|    const unsigned *a0p=(const unsigned *)(tile+\{left}+g*128);
-    $|    const unsigned *a1p=(const unsigned *)(tile+\{left}+(g+8)*128);
-    $|    \{fragments}
-    $|  }
+    $|  \{consume_chunk}
     $|  __syncthreads();
     $|}
     $|}

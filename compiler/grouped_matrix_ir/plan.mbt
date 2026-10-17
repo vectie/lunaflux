@@ -75,7 +75,21 @@ pub struct ExpertGroupingPlan {
   priv jobs : Int
   priv shared_input_staging : Bool
   priv column_tile : Int
+  priv transport : ExpertTransport
 }
+
+///|
+pub(all) enum ExpertTransport {
+  IndexedRows
+  PackedRows
+  PackedPipeline
+} derive(Eq, Debug)
+
+///|
+pub extend ExpertTransport with Eq::{equal, not_equal}
+
+///|
+pub extend ExpertTransport with @debug.Debug::{to_repr}
 
 ///|
 pub fn ExpertGroupingPlan::new(
@@ -83,6 +97,7 @@ pub fn ExpertGroupingPlan::new(
   selected_experts~ : Int,
   shared_input_staging? : Bool = false,
   column_tile? : Int = 32,
+  transport? : ExpertTransport = IndexedRows,
 ) -> Self raise @precision.PrecisionPlanError {
   let jobs = maximum_rows.to_int64() * selected_experts.to_int64()
   guard maximum_rows > 0 &&
@@ -92,7 +107,12 @@ pub fn ExpertGroupingPlan::new(
     column_tile <= 1024 else {
     raise @precision.PrecisionPlanError::MemoryBudgetExceeded
   }
-  { jobs: jobs.to_int(), shared_input_staging, column_tile, }
+  { jobs: jobs.to_int(), shared_input_staging, column_tile, transport, }
+}
+
+///|
+pub fn ExpertGroupingPlan::transport(self : Self) -> ExpertTransport {
+  self.transport
 }
 
 ///|

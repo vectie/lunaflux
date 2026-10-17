@@ -33,6 +33,41 @@ fn grouped_fp4_source(
   let row_half = if accumulators == 4 { "i/2" } else { "i%4/2" }
   let column_offset = if accumulators == 4 { "" } else { "(i/4)*32+" }
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
+  let packed_rows = if grouping.transport() == IndexedRows {
+    None
+  } else {
+    Some(
+      @matrix.PackedExpertRows::new(
+        grouping,
+        after_bytes=metadata + grouping.storage_bytes(),
+        payload_bytes=(hidden / 2, intermediate / 2),
+        scale_bytes=(hidden / 16, intermediate / 16),
+      ),
+    )
+  }
+  let pipeline = if grouping.transport() == PackedPipeline {
+    Some(
+      @physical_tile_ir.ProducerConsumerPipeline::new(
+        stages=2,
+        producers=128,
+        consumers=128,
+      ).unwrap(),
+    )
+  } else {
+    None
+  }
+  let matrix_threads = if pipeline is Some(_) { 256 } else { 128 }
+  let consumer = if pipeline is Some(_) { "threadIdx.x>=128" } else { "true" }
+  let warp_owner = if pipeline is Some(_) {
+    "(threadIdx.x%128)"
+  } else {
+    "threadIdx.x"
+  }
+  let packed_pointer = match packed_rows {
+    None => ""
+    Some(p) =>
+      "const unsigned char *packed=(const unsigned char *)activation+\{p.base()}ULL;"
+  }
   let prefix = @luna_cuda_precision.e2m1_scaled_matrix_helper(symbol~)
   let quantizers = [qx, qa].mapi((i, q) => {
     @luna_cuda_precision.quantize_fp4_bf16_rows_source(
@@ -59,7 +94,7 @@ fn grouped_fp4_source(
       (
         $|float d\{stage}[\{accumulators}]={0};
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
-        $|\{fp4_fragment_pipeline(stage,k,n,selected,x.scales_offset().unwrap(),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~)}
+        $|\{fp4_fragment_pipeline(stage,k,n,selected,packed_rows.map(p => p.plane(stage==2).2).unwrap_or(x.scales_offset().unwrap()),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~,packed_input=packed_rows is Some(_),pipeline?)}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
         $|\{unroll}
         $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
@@ -94,12 +129,16 @@ fn grouped_fp4_source(
       hidden,
       intermediate,
       selected,
-      x.scales_offset().unwrap(),
+      packed_rows
+      .map(p => p.plane(false).2)
+      .unwrap_or(x.scales_offset().unwrap()),
       layouts[0].scales_offset().unwrap(),
       symbol,
       work_tile="work_tile",
       paired_weight_scales=layouts[1].scales_offset().unwrap(),
       tile_columns~,
+      packed_input=packed_rows is Some(_),
+      pipeline?,
     ) +
     "\n" +
     publication
@@ -158,14 +197,33 @@ fn grouped_fp4_source(
   let text = quantizers.join("\n") +
     prefix +
     grouping_kernel(symbol + "_group", rows, selected, metadata) +
+    (match packed_rows {
+      None => ""
+      Some(p) =>
+        [0, 1]
+        .map(i => {
+          fp4_pack_rows_source(
+            p,
+            i == 1,
+            jobs,
+            selected,
+            metadata,
+            operands[i].scales_offset().unwrap(),
+            symbol + "_pack_rows_" + i.to_string(),
+          )
+        })
+        .join("\n")
+    }) +
     (
       $|extern "C" __global__ void \{symbol}_gate_up(const int *counts,const unsigned char *input,const int *indices,const int *expert_map,const unsigned char *bank,__nv_bfloat16 *activation\{if before {",const float *selected_weights"} else {""}}) {
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
+      $|  \{packed_pointer}
       $|  for(int work_tile=blockIdx.x;work_tile<meta[0]*\{ng};work_tile+=gridDim.x) { int group=work_tile/\{ng};
-      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{ng})*\{tile_columns}+(threadIdx.x/32)*8;
+      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{ng})*\{tile_columns}+(\{warp_owner}/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{gate_up}
+      $|  if(\{consumer}) {
       $|  \{unroll}
       $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(\{row_half})*8],out=column+\{column_offset}t*2+i%2;if(job<0||out>=\{intermediate}) continue;
       $|    __nv_bfloat16 gate=__float2bfloat16_rn(d0[i]),up=__float2bfloat16_rn(d1[i]);\{clamp}
@@ -173,16 +231,20 @@ fn grouped_fp4_source(
       $|    activation[(unsigned long long)job*\{intermediate}+out]=local<0?__float2bfloat16_rn(0.0f):__float2bfloat16_rn(product);
       $|  }
       $|  }
+      $|  }
       $|}
       $|extern "C" __global__ void \{symbol}_down(const int *counts,const unsigned char *input,const int *indices,const float *selected_weights,const int *expert_map,const unsigned char *bank,\{wt} *weighted,const __nv_bfloat16 *activation) {
       $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
+      $|  \{packed_pointer}
       $|  for(int work_tile=blockIdx.x;work_tile<meta[0]*\{nd};work_tile+=gridDim.x) { int group=work_tile/\{nd};
-      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{nd})*\{tile_columns}+(threadIdx.x/32)*8;
+      $|  int lane=threadIdx.x&31,g=lane/4,t=lane%4,column=(work_tile%\{nd})*\{tile_columns}+(\{warp_owner}/32)*8;
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{bodies[2]}
+      $|  if(\{consumer}) {
       $|  \{unroll}
       $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(\{row_half})*8],out=column+\{column_offset}t*2+i%2;if(job>=0&&out<\{hidden}) weighted[(unsigned long long)job*\{hidden}+out]=\{down};}
+      $|  }
       $|  }
       $|}
       $|extern "C" __global__ void \{symbol}_combine(const int *counts,const int *indices,const \{wt} *weighted,float *output\{if partial {",const float *selected_weights"} else {""}}) {
@@ -191,31 +253,44 @@ fn grouped_fp4_source(
       $|  for(int n=0;n<\{selected};++n) {int next=\{experts},slot=-1;for(int j=0;j<\{selected};++j) {int expert=indices[row*\{selected}+j];if(expert>previous&&expert<next) {next=expert;slot=j;}}if(slot<0) break;sum=\{addition};previous=next;}output[cell]=sum;
       $|}
     )
+  let symbols = [
+    symbol + "_group",
+    symbol + "_quantize_0_global",
+    symbol + "_quantize_0_pack",
+  ]
+  let launches = [
+    (1, 128),
+    (1, 256),
+    (((rows.to_int64() * hidden.to_int64() + 127L) / 128L).to_int(), 128),
+  ]
+  if packed_rows is Some(_) {
+    symbols.push(symbol + "_pack_rows_0")
+    launches.push((jobs, 128))
+  }
+  symbols.append([
+    symbol + "_gate_up",
+    symbol + "_quantize_1_global",
+    symbol + "_quantize_1_pack",
+  ])
+  launches.append([
+    (gate_tiles.workers(), matrix_threads),
+    (1, 256),
+    (((jobs.to_int64() * intermediate.to_int64() + 127L) / 128L).to_int(), 128),
+  ])
+  if packed_rows is Some(_) {
+    symbols.push(symbol + "_pack_rows_1")
+    launches.push((jobs, 128))
+  }
+  symbols.append([symbol + "_down", symbol + "_combine"])
+  launches.append([
+    (down_tiles.workers(), matrix_threads),
+    (((rows.to_int64() * hidden.to_int64() + 255L) / 256L).to_int(), 256),
+  ])
   {
     plan,
+    packed_rows,
     source: @utf8.encode(text),
-    symbols: ReadOnlyArray::from_array([
-      symbol + "_group",
-      symbol + "_quantize_0_global",
-      symbol + "_quantize_0_pack",
-      symbol + "_gate_up",
-      symbol + "_quantize_1_global",
-      symbol + "_quantize_1_pack",
-      symbol + "_down",
-      symbol + "_combine",
-    ]),
-    launches: ReadOnlyArray::from_array([
-      (1, 128),
-      (1, 256),
-      (((rows.to_int64() * hidden.to_int64() + 127L) / 128L).to_int(), 128),
-      (gate_tiles.workers(), 128),
-      (1, 256),
-      (
-        ((jobs.to_int64() * intermediate.to_int64() + 127L) / 128L).to_int(),
-        128,
-      ),
-      (down_tiles.workers(), 128),
-      (((rows.to_int64() * hidden.to_int64() + 255L) / 256L).to_int(), 256),
-    ]),
+    symbols: ReadOnlyArray::from_array(symbols),
+    launches: ReadOnlyArray::from_array(launches),
   }
 }
