@@ -1,0 +1,78 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Graph-level CUPTI capture deliberately omits the graph's kernel nodes.
+// Measure interval coverage, not invented per-kernel attribution. The first
+// (embedding) graph marks each step; a collective-inclusive decode graph is
+// another complete step. The first two steps are warmup and are retained.
+
+///|
+fn intervals(decode_graph : Int?) -> String {
+  "WITH g AS MATERIALIZED (SELECT * FROM CUPTI_ACTIVITY_KIND_GRAPH_TRACE), " +
+  "first_graph AS (SELECT graphExecId FROM g ORDER BY start LIMIT 1), " +
+  "marks AS (SELECT start FROM g WHERE graphExecId=(SELECT graphExecId FROM first_graph)" +
+  (if decode_graph is Some(id) { " OR graphExecId=\{id}" } else { "" }) +
+  "), " +
+  "bounds AS (SELECT row_number() OVER (ORDER BY start) step,start,coalesce(lead(start) OVER (ORDER BY start),9223372036854775807) finish FROM marks), " +
+  "events AS (SELECT start,end,'graph' kind,correlationId FROM g UNION ALL SELECT k.start,k.end,'collective',k.correlationId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE s.value LIKE '%nccl%'), " +
+  "selected AS (SELECT b.step,e.* FROM bounds b JOIN events e ON e.start>=b.start AND e.start<b.finish) "
+}
+
+///|
+test "graph analysis measures graphs and external collectives without claiming node times" {
+  assert_true(intervals(None).contains("CUPTI_ACTIVITY_KIND_GRAPH_TRACE"))
+  assert_true(intervals(None).contains("'%nccl%'"))
+  assert_false(intervals(None).contains("sum(graphNodeId)"))
+  assert_true(intervals(Some(275)).contains("OR graphExecId=275"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output, .. ids] && ids.length() <= 1 else {
+    fail("SQLITE NEW_OUTPUT [OBSERVED_DECODE_GRAPH_EXEC_ID]")
+  }
+  let decode_graph = if ids is [id] {
+    Some(@string.parse_int(id))
+  } else {
+    None
+  }
+  @fs.mkdir(output)
+  for
+    (name, sql) in [
+      (
+        "graph-inventory", "SELECT graphExecId,count(*) calls,min(start)/1e9 first_s,avg(end-start)/1e6 gpu_ms FROM CUPTI_ACTIVITY_KIND_GRAPH_TRACE GROUP BY graphExecId ORDER BY min(start);",
+      ),
+      (
+        "step-coverage",
+        intervals(decode_graph) +
+        ", ordered AS (SELECT *,max(end) OVER (PARTITION BY step ORDER BY start ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) previous_end FROM selected) SELECT step,count(*) events,sum(kind='graph') graphs,(max(end)-min(start))/1e6 span_ms,sum(end-start)/1e6 event_sum_ms,sum(max(0,start-previous_end))/1e6 uncovered_ms,sum(CASE WHEN kind='collective' THEN end-start ELSE 0 END)/1e6 external_collective_ms FROM ordered GROUP BY step;",
+      ),
+      (
+        "queue",
+        intervals(decode_graph) +
+        "SELECT e.step,count(*) graphs,sum(e.start>a.end) already_submitted,min(e.start-a.end)/1e6 min_queue_ms,avg(e.start-a.end)/1e6 mean_queue_ms,max(e.start-a.end)/1e6 max_queue_ms,sum(a.end-a.start)/1e6 launch_cpu_ms FROM selected e JOIN CUPTI_ACTIVITY_KIND_RUNTIME a ON a.correlationId=e.correlationId WHERE e.kind='graph' GROUP BY e.step;",
+      ),
+    ] {
+    let out = @shell.Cmd("sqlite3", ["-header", "-csv", db, sql]).output(
+      max_output_bytes=8388608,
+    )
+    @fs.write_file(
+      output + "/" + name + ".csv",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      output + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+    println(name + "\n" + out.stdout())
+  }
+}

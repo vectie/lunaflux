@@ -266,3 +266,63 @@ previous restoration, this existing production deployment is **outside** the
 benchmark's 100 GiB / 16 GiB reserve envelope. Those limits and the observed
 21.8 GiB floor apply to the isolated new benchmarks, not the restored service.
 No deployment resizing or further GPU experiment was performed after restore.
+
+## Follow-up: projection counterfactual and BF16 operand transport
+
+The next authorized session temporarily stops the same two GLM containers;
+NFS stays running. The finite investigation tests two hypotheses: missing
+decode projection lookahead, then redundant shared-expert operand decoding.
+It does not change HC numerical laws, routed NVFP4 arithmetic, or tolerances.
+
+The installed vLLM `reference-glm-kda.py` in
+`/tmp/lunaflux-glm-gap-diagnosis-20261014-v1` merges the six KDA projection
+regions into `MergedColumnParallelLinear`; the local `../vlm` unquantized
+GEMM dispatch delegates to `torch.nn.functional.linear`. This is evidence
+about implementation, not evidence that every cuBLAS schedule is faster.
+The matched 4096-by-12576 BF16 decode projection probe at
+`/tmp/lunaflux-glm-decode-projection-20261017-v2` retains the actual selected
+native source and launch. Its six alternating trials take roughly 0.452 ms
+native versus 0.613 ms for merged cuBLAS. Four/eight-element load lookahead
+does not win consistently and is **not enabled**. NCU records native 84.2%
+long-scoreboard stalls versus vendor 56.2%, yet vendor is slower. Lower stall
+percentage is not a speedup. This vendor probe is not a capture of the full
+vLLM invocation; requested DRAM metrics are unavailable, not zero.
+
+The second hypothesis has a demonstrated local win. Generic BF16 shared
+experts used byte-at-a-time packed decoding followed by BF16/F32/BF16
+conversion, even though their physical consumer accepts eight-value vectors.
+`luna_cuda_precision` now supplies aligned 128-bit BF16 transport with an
+unaligned fallback, preserving finite values, signed zero and the existing
+NaN/infinity clamp. No model-name branch or new numerical policy is involved:
+semantic/numerical IR and physical ownership stay fixed; only terminal
+operand transport changes.
+
+Actual old/new generated kernels and counters are retained at
+`/tmp/lunaflux-glm-shared-vector-20261017-v1`. All 65,536 BF16 codes match the
+scalar loader, aligned and unaligned. Complete chains at rows 0/1/3/22/64/65
+are bitwise equal with preserved tails; memcheck/full leak, racecheck and
+synccheck report zero errors. Five alternating unprofiled trials show:
+
+| Shape | Gate/up old → vector, typical ms | Down old → vector, typical ms |
+| --- | --- | --- |
+| 1 row | 0.039 → 0.039 | 0.0129 → 0.0129 |
+| 22 rows | 0.337 → 0.231 | 0.0540 → 0.0401 |
+| 64 rows | 0.344 → 0.2456 | 0.0708 → 0.0531 |
+
+There are timing outliers in the retained raw trials; no selected-only trial
+report is used. At 22 rows, NCU warp instructions fall 12,072,192→7,990,208
+for gate/up and 6,699,520→4,461,568 for down. L2 read sectors stay essentially
+unchanged (1,145,016→1,149,487 and 605,708→606,403). Gate/up long-scoreboard
+share falls 41.37%→27.62%, but barrier share rises 6.99%→12.04% while the
+kernel gets faster. This removes instruction/transport overhead, not weight
+bytes or all synchronization. Component benefit is not yet a full-model gain.
+
+Graph-level-only traces at `glm-gap-{interval,collective}-light-20261017-v1`
+(under `/tmp/lunaflux-model-bench-`) verify 91 interval launches versus one
+collective-inclusive decode launch. Even this lighter profiler perturbs the
+interval path: measured decode spans 181.98 ms versus 72.37 ms, inconsistent
+with the near-neutral unprofiled comparison. Graph-level capture cannot
+attribute internal node time. Its interval decode has 82/91 graph calls
+returned before GPU start; the full graph starts before its API returns.
+The supposed 60–70 ms removable gap is **not an unprofiled budget**. Fresh
+unprofiled full-model comparisons remain the acceptance criterion.

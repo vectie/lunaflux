@@ -309,7 +309,8 @@ async fn main {
   let shape_aware = options.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
   let parallel_hc = @env.get_env_var("LUNA_GLM_PARALLEL_HC") == Some("1")
-  let collective_graph = @env.get_env_var("LUNA_GLM_COLLECTIVE_GRAPH") == Some("1")
+  let collective_graph = @env.get_env_var("LUNA_GLM_COLLECTIVE_GRAPH") ==
+    Some("1")
   let lookahead = @env.get_env_var("LUNA_GLM_EXPERT_LOOKAHEAD") == Some("1")
   guard !buffered || (glm && shape_aware) else {
     fail("buffered matrices require GLM shape-aware")
@@ -344,7 +345,8 @@ async fn main {
     fail("expert TP is currently bound through GLM")
   }
   guard !queued || expert_tp else { fail("queued mode requires TP") }
-  guard (!parallel_hc || glm) && (!collective_graph || (glm && queued && expert_tp)) else {
+  guard (!parallel_hc || glm) &&
+    (!collective_graph || (glm && queued && expert_tp)) else {
     fail("HC requires GLM; collective capture requires queued GLM TP")
   }
   guard !tiled || glm else {
@@ -382,7 +384,11 @@ async fn main {
     (if timeline { "timeline=true\n" } else { "" }) +
     (if queued { "tp_submission_queued=true\n" } else { "" }) +
     (if replay { "tp_graph_replay=true\n" } else { "" }) +
-    (if parallel_hc { "hc_parallel_tree=true\nhc_collapse_norm_fused=true\n" } else { "" }) +
+    (if parallel_hc {
+      "hc_parallel_tree=true\nhc_collapse_norm_fused=true\n"
+    } else {
+      ""
+    }) +
     (if collective_graph { "tp_collective_inclusive_graph=true\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
     guard @fs.read_file(root + "/selected.txt").text() == selection else {
@@ -637,13 +643,9 @@ async fn main {
         // Whole process: fixed wall-time delays miss inference after loading
         // speed changes. Separate loading copies from model kernels in reports.
         "/usr/local/bin/nsys profile --sample=none --cpuctxsw=none --trace=cuda " +
-        // The two-token probe includes StreamQuery (omitted by default) and
-        // individual graph nodes. Never add this overhead to timed cohorts.
-        (if profile {
-          "--cuda-trace-all-apis=true --cuda-graph-trace=node "
-        } else {
-          ""
-        }) +
+        // Both profiling modes perturb execution. Graph-level capture omits
+        // node events; neither mode supplies an unprofiled latency budget.
+        cuda_trace_flags(profile, @env.get_env_var("LUNA_BENCH_GRAPH_TRACE")) +
         "--force-overwrite=false --kill=none --output=" +
         root +
         "/timeline "
@@ -831,4 +833,24 @@ async fn main {
     )
   }
   println("collected " + root)
+}
+
+///|
+fn cuda_trace_flags(profile : Bool, level : String?) -> String {
+  if level == Some("graph") {
+    "--cuda-graph-trace=graph "
+  } else if profile {
+    "--cuda-trace-all-apis=true --cuda-graph-trace=node "
+  } else {
+    ""
+  }
+}
+
+///|
+test "graph-level profiling does not request per-node or all-API events" {
+  assert_eq(cuda_trace_flags(true, Some("graph")), "--cuda-graph-trace=graph ")
+  assert_true(
+    cuda_trace_flags(true, None).contains("--cuda-trace-all-apis=true"),
+  )
+  assert_eq(cuda_trace_flags(false, None), "")
 }

@@ -1,0 +1,191 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+fn selected(text : String) -> String raise {
+  let marker = "__device__ __forceinline__ void glm_recurrent_0_inputs_region_0("
+  guard text.split(marker).to_array() is [_, tail] else {
+    fail("missing selected segmented input")
+  }
+  let end = "extern \"C\" __global__ void glm_recurrent_0_inputs("
+  guard tail.split(end).to_array() is [helpers, body] else {
+    fail("missing selected entry")
+  }
+  guard body.split("\n}\n").to_array().get(0) is Some(entry) else {
+    fail("missing entry end")
+  }
+  marker + helpers.to_owned() + end + entry.to_owned() + "\n}\n"
+}
+
+///|
+fn prefetch(text : String, depth : Int) -> String raise {
+  let old =
+    #|  for(int inner=lane;inner<4096;inner+=32) {
+    #|    value=__fadd_rn(value,__fmul_rn(__bfloat162float(input[inner]),__bfloat162float(weight[(unsigned long long)column*4096+inner])));
+    #|  }
+  let fresh =
+    $|  for(int base=lane;base<4096;base+=\{32*depth}) {
+    $|    float px[\{depth}],pw[\{depth}];
+    $|    #pragma unroll
+    $|    for(int j=0;j<\{depth};++j) {int inner=base+j*32;px[j]=__bfloat162float(input[inner]);pw[j]=__bfloat162float(weight[(unsigned long long)column*4096+inner]);}
+    $|    #pragma unroll
+    $|    for(int j=0;j<\{depth};++j) value=__fadd_rn(value,__fmul_rn(px[j],pw[j]));
+    $|  }
+  guard text.split(old).to_array().length() == 7 else {
+    fail("expected all six selected folds")
+  }
+  text.split(old).join(fresh)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-decode-projection-") &&
+    mode is ("prepare" | "run" | "profile" | "sanitize") else {
+    fail("NEW_ROOT prepare|run|profile|sanitize")
+  }
+  let socket = "/tmp/lunaflux-glm179-cutlass-20261017b.sock"
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(cmd : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(name : String, o : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      o.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      o.stderr(),
+      create_mode=CreateNew,
+    )
+    o.check()
+  }
+  let unit = root[5:].to_owned()
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let code = selected(
+      @fs.read_file(
+        "/tmp/lunaflux-glm-expert-tp-hc-graph-20261017-v1/stage-0.cu",
+      ).text(),
+    )
+    let output = "#include <cuda_bf16.h>\n#include <mma.h>\n" +
+      code.split("glm_recurrent_0_inputs").join("projection_old") +
+      prefetch(code, 4).split("glm_recurrent_0_inputs").join("projection_p4") +
+      prefetch(code, 8).split("glm_recurrent_0_inputs").join("projection_p8")
+    @fs.write_file(root + "/projection.cuh", output, create_mode=CreateNew)
+    record("mkdir", remote("mkdir " + root))
+    for
+      (local_file, target) in [
+        (root + "/projection.cuh", "projection.cuh"),
+        (
+          "tests/packed_moe_execution/glm_decode_projection_probe.cu", "probe.cu",
+        ),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        local_file,
+        host + ":" + root + "/" + target,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+        root +
+        "/probe.cu -lcublas -o " +
+        root +
+        "/probe",
+      ),
+    )
+    return
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  record(
+    mode + "-reserve",
+    remote(
+      "awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo",
+    ),
+  )
+  if mode == "profile" {
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    record(
+      "profile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-profile --property=RuntimeMaxSec=600 docker run --name " +
+        unit +
+        "-profile --gpus all --network none --memory=12g --memory-swap=12g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+        root +
+        ":" +
+        root +
+        " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+        ncu +
+        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base demangled --launch-count 4 --metrics gpu__time_duration.sum,dram__bytes_read.sum,dram__throughput.avg.pct_of_peak_sustained_elapsed,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_wait_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__shared_mem_per_block_static --export " +
+        root +
+        "/matrix " +
+        root +
+        "/probe profile",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/matrix.ncu-rep",
+      root + "/matrix.ncu-rep",
+    ])
+    .output()
+    .check()
+    record(
+      "matrix-raw",
+      remote(ncu + " --import " + root + "/matrix.ncu-rep --page raw --csv"),
+    )
+  } else if mode == "run" {
+    record(
+      "timing",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-timing --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 " +
+        root +
+        "/probe",
+      ),
+    )
+  } else {
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      record(
+        tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          unit +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 /usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 97 --tool " +
+          tool +
+          (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+          " " +
+          root +
+          "/probe sanitizer",
+        ),
+      )
+    }
+  }
+}

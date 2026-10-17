@@ -128,7 +128,8 @@ test "packed vector loading retains scalar scale stages and rejects partial vect
       (MxFp4, 64, true),
       (Fp4E2M1, 64, true),
       (NvFp4, 33, false),
-      (Bf16, 64, false),
+      (Bf16, 64, true),
+      (Bf16, 65, false),
     ] {
     let tile = @precision.plan_operand(
       role=Weight,
@@ -155,6 +156,13 @@ test "packed vector loading retains scalar scale stages and rejects partial vect
       if format == NvFp4 {
         assert_true(code.contains("v0=__fmul_rn(v0,s)"))
         assert_true(code.contains("v0=__fmul_rn(v0,g)"))
+      }
+      if format == Bf16 {
+        assert_true(code.contains("reinterpret_cast<const uint4 *>(p)"))
+        assert_true(code.contains("&15ULL"))
+        assert_true(code.contains("lf_precision_read(p,12,4)"))
+        assert_true(code.contains("a&32767U"))
+        assert_false(code.contains("__float2bfloat16"))
       }
     }
   }

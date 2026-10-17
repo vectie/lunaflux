@@ -122,6 +122,12 @@ pub fn tile_load_vector_source(
     raise UnsupportedPlacement
   }
   let rep = physical.plan().representation()
+  if rep.element() == Bf16 &&
+    rep.scale_element() == Absent &&
+    !rep.has_global_scale() &&
+    rep.shape().1 % 8 == 0 {
+    return Some(bf16_tile_vector(rep.row_bytes(), symbol~))
+  }
   guard rep.element() == E2M1 && rep.shape().1 % 8 == 0 else { return None }
   match rep.grouping() {
     Block(columns=bc, ..) => if bc % 8 != 0 { return None }
