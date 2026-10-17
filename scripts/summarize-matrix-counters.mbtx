@@ -22,6 +22,13 @@ fn summarize(text : String) -> Array[Json] raise {
     "smsp__inst_executed.sum", "sm__warps_active.avg.pct_of_peak_sustained_active",
     "smsp__warp_issue_stalled_barrier_per_warp_active.pct", "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct",
     "lts__t_sectors_op_read.sum", "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active",
+    "lts__t_sectors_op_write.sum", "lts__t_sector_hit_rate.pct", "smsp__inst_executed_pipe_adu.sum",
+    "smsp__inst_executed_pipe_alu.sum", "smsp__inst_executed_pipe_cbu.sum", "smsp__inst_executed_pipe_lsu.sum",
+    "smsp__inst_executed_pipe_tensor.sum", "smsp__inst_executed_pipe_tma.sum", "smsp__inst_executed_pipe_uniform.sum",
+    "smsp__inst_executed_pipe_xu.sum", "smsp__warps_eligible.avg.per_cycle_active",
+    "smsp__issue_active.avg.pct_of_peak_sustained_active", "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct",
+    "smsp__warp_issue_stalled_mio_throttle_per_warp_active.pct", "smsp__warp_issue_stalled_math_pipe_throttle_per_warp_active.pct",
+    "smsp__warp_issue_stalled_wait_per_warp_active.pct",
   ]
   let rows = text
     .split("\n")

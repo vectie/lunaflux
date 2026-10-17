@@ -1,0 +1,150 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Frozen, full-bank component probes, not whole-serving counters. Exact row,
+// bank and routing geometry is shared; synthetic payloads are not model data.
+
+///|
+fn metrics() -> String {
+  [
+    "gpu__time_duration.sum", "smsp__inst_executed.sum", "smsp__inst_executed_pipe_adu.sum",
+    "smsp__inst_executed_pipe_alu.sum", "smsp__inst_executed_pipe_cbu.sum", "smsp__inst_executed_pipe_lsu.sum",
+    "smsp__inst_executed_pipe_tensor.sum", "smsp__inst_executed_pipe_tma.sum", "smsp__inst_executed_pipe_uniform.sum",
+    "smsp__inst_executed_pipe_xu.sum", "smsp__warps_eligible.avg.per_cycle_active",
+    "smsp__issue_active.avg.pct_of_peak_sustained_active", "sm__warps_active.avg.pct_of_peak_sustained_active",
+    "smsp__warp_issue_stalled_barrier_per_warp_active.pct", "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct",
+    "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_mio_throttle_per_warp_active.pct",
+    "smsp__warp_issue_stalled_math_pipe_throttle_per_warp_active.pct", "smsp__warp_issue_stalled_wait_per_warp_active.pct",
+    "lts__t_sectors_op_read.sum", "lts__t_sectors_op_write.sum", "lts__t_sector_hit_rate.pct",
+    "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active", "launch__registers_per_thread",
+    "launch__shared_mem_per_block",
+  ].join(",")
+}
+
+///|
+test "instruction families and eligible issue accompany stall percentages" {
+  assert_true(metrics().contains("smsp__warps_eligible"))
+  assert_true(metrics().contains("smsp__inst_executed_pipe_tma.sum"))
+  assert_false(metrics().contains("dram__")) // not exposed by this GB10 capture
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, kind, probe] &&
+    root.has_prefix("/tmp/lunaflux-glm-work-stalls-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    kind is ("native" | "reference") &&
+    probe.has_prefix("/tmp/lunaflux-glm-") &&
+    probe.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_ROOT native|reference FROZEN_PROBE_ROOT")
+  }
+  let socket = "/tmp/lunaflux-glm179-cutlass-20261017b.sock"
+  let source_counters = @env.get_env_var("LUNA_GLM_SOURCE_COUNTERS") ==
+    Some("1")
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(cmd : String) {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let reserve = remote(
+    "awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo",
+  )
+  reserve.check()
+  @fs.mkdir(root)
+  @fs.write_file(root + "/reserve.txt", reserve.stdout(), create_mode=CreateNew)
+  remote("mkdir " + root).check()
+  @fs.write_file(
+    root + "/scope.txt",
+    "R22 H4096 I1024 top8 TP2 288 banks; synthetic data, not serving times or correctness. Selected native entry bodies are separately compared with retained AOT source.\nprobe=" +
+    probe +
+    "\n",
+    create_mode=CreateNew,
+  )
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  let selected = if kind == "native" {
+    "regex:next_(gate_up|down)"
+  } else {
+    "regex:.*cutlass::device_kernel.*"
+  }
+  let command = if kind == "native" {
+    probe + "/probe 22 capacity once diverse"
+  } else {
+    "python3 -m flashinfer replay --dir " + probe
+  }
+  let measurement = if source_counters {
+    "--section SourceCounters --section InstructionStats"
+  } else {
+    "--metrics " + metrics()
+  }
+  let out = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    root[5:].to_owned() +
+    " --property=RuntimeMaxSec=600 docker run --rm --name " +
+    root[5:].to_owned() +
+    " --gpus all --network none --ipc=private --shm-size=128m --memory=12g --memory-swap=12g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+    root +
+    ":" +
+    root +
+    " -v " +
+    probe +
+    ":" +
+    probe +
+    " -v /opt/nvidia:/opt/nvidia:ro -e FLASHINFER_DISABLE_VERSION_CHECK=1 --entrypoint " +
+    ncu +
+    " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --target-processes all --kernel-name-base demangled --kernel-name '" +
+    selected +
+    "' --launch-count 2 " +
+    measurement +
+    " --export " +
+    root +
+    "/counters " +
+    command,
+  )
+  @fs.write_file(root + "/run.stdout", out.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/run.stderr", out.stderr(), create_mode=CreateNew)
+  out.check()
+  guard !out.stdout().contains("Replay failed") else {
+    fail("reference replay failed")
+  }
+  @shell.Cmd("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    host + ":" + root + "/counters.ncu-rep",
+    root + "/counters.ncu-rep",
+  ])
+  .output()
+  .check()
+  let raw = remote(
+    ncu + " --import " + root + "/counters.ncu-rep --page raw --csv",
+  )
+  @fs.write_file(root + "/raw.csv", raw.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/raw.stderr", raw.stderr(), create_mode=CreateNew)
+  raw.check()
+  if source_counters {
+    let sass = remote(
+      ncu +
+      " --import " +
+      root +
+      "/counters.ncu-rep --page source --print-source sass --csv",
+    )
+    @fs.write_file(root + "/source.csv", sass.stdout(), create_mode=CreateNew)
+    @fs.write_file(
+      root + "/source.stderr",
+      sass.stderr(),
+      create_mode=CreateNew,
+    )
+    sass.check()
+  }
+  println("completed " + root)
+}

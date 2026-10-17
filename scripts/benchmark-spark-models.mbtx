@@ -839,6 +839,8 @@ async fn main {
 fn cuda_trace_flags(profile : Bool, level : String?) -> String {
   if level == Some("graph") {
     "--cuda-graph-trace=graph "
+  } else if level == Some("node-light") {
+    "--cuda-graph-trace=node "
   } else if profile {
     "--cuda-trace-all-apis=true --cuda-graph-trace=node "
   } else {
@@ -853,4 +855,8 @@ test "graph-level profiling does not request per-node or all-API events" {
     cuda_trace_flags(true, None).contains("--cuda-trace-all-apis=true"),
   )
   assert_eq(cuda_trace_flags(false, None), "")
+  assert_eq(
+    cuda_trace_flags(true, Some("node-light")),
+    "--cuda-graph-trace=node ",
+  )
 }

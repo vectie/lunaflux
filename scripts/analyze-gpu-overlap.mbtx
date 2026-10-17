@@ -1,0 +1,201 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// External trace analysis, never a compiler pass. Explicit observed windows
+// prevent startup kernels or warmup from silently entering a serving total.
+// A graph envelope is opaque: coverage is NOT proof that its GPU was busy.
+
+///|
+struct Event {
+  start : Int64
+  end : Int64
+  kind : String
+  stream : Int64
+}
+
+///|
+fn coverage(events : Array[Event], begin : Int64, end : Int64) -> Json {
+  let points = [begin, end]
+  for e in events {
+    if e.start < end && e.end > begin {
+      points.push(e.start.max(begin))
+      points.push(e.end.min(end))
+    }
+  }
+  points.sort()
+  let totals : Map[String, Int64] = Map([])
+  let mut max_gap = 0L
+  let mut gap = 0L
+  for i in 1..<points.length() {
+    let left = points[i - 1]
+    let right = points[i]
+    if right == left {
+      continue
+    }
+    let kinds : Map[String, Bool] = Map([])
+    let streams : Map[Int64, Bool] = Map([])
+    for e in events {
+      if e.start <= left && e.end >= right {
+        kinds[e.kind] = true
+        streams[e.stream] = true
+      }
+    }
+    let duration = right - left
+    if kinds.is_empty() {
+      gap += duration
+      max_gap = max_gap.max(gap)
+    } else {
+      gap = 0L
+    }
+    let labels = [
+      ("uncovered", kinds.is_empty()),
+      ("compute", kinds.contains("compute")),
+      ("collective", kinds.contains("collective")),
+      ("copy", kinds.contains("copy")),
+      ("opaque_graph_envelope", kinds.contains("graph")),
+      (
+        "compute_collective_overlap",
+        kinds.contains("compute") && kinds.contains("collective"),
+      ),
+      ("multi_stream_coverage", streams.length() > 1),
+      ("covered_union", !kinds.is_empty()),
+    ]
+    for (label, enabled) in labels {
+      if enabled {
+        totals[label] = totals.get(label).unwrap_or(0L) + duration
+      }
+    }
+  }
+  let result : Map[String, Json] = Map([])
+  for
+    label in [
+      "uncovered", "compute", "collective", "copy", "opaque_graph_envelope", "compute_collective_overlap",
+      "multi_stream_coverage", "covered_union",
+    ] {
+    result[label + "_ms"] = Json(
+      totals.get(label).unwrap_or(0L).to_double() / 1000000.0,
+    )
+  }
+  result["window_ms"] = Json((end - begin).to_double() / 1000000.0)
+  result["largest_uncovered_ms"] = Json(max_gap.to_double() / 1000000.0)
+  result["graph_internals_observed"] = Json(!events.any(e => e.kind == "graph"))
+  result["uncovered_is_not_causal_attribution"] = true
+  Json(result)
+}
+
+///|
+test "overlap union does not add streams or opaque graphs as GPU busy time" {
+  let events = [
+    Event::{ start: 0, end: 10, kind: "compute", stream: 1, },
+    Event::{ start: 5, end: 15, kind: "collective", stream: 2, },
+    Event::{ start: 20, end: 30, kind: "graph", stream: 1, },
+  ]
+  let r = coverage(events, 0, 40)
+  guard r is Object(fields) else { fail("object") }
+  assert_eq(fields["covered_union_ms"], Json(0.000025))
+  assert_eq(fields["compute_collective_overlap_ms"], Json(0.000005))
+  assert_eq(fields["uncovered_ms"], Json(0.000015))
+  assert_eq(fields["largest_uncovered_ms"], Json(0.000010))
+  assert_eq(fields["graph_internals_observed"], Json(false))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output, first, last] else {
+    fail("SQLITE NEW_OUTPUT OBSERVED_START_NS OBSERVED_END_NS")
+  }
+  let begin = @string.parse_int64(first)
+  let end = @string.parse_int64(last)
+  guard begin >= 0L && end > begin else { fail("invalid trace window") }
+  let query = async fn(sql : String) {
+    let result = @shell.Cmd("sqlite3", ["-json", db, sql]).output(
+      max_output_bytes=16777216,
+    )
+    result.check()
+    result.stdout()
+  }
+  let tables = query("SELECT name FROM sqlite_master WHERE type='table';")
+  let owners = query(
+    "SELECT DISTINCT deviceId,contextId,globalPid FROM CUPTI_ACTIVITY_KIND_KERNEL WHERE start<\{end} AND end>\{begin};",
+  )
+  guard @json.parse(owners) is Array(contexts) && contexts.length() == 1 else {
+    fail(
+      "select one GPU context/process window; stream IDs alone are not global",
+    )
+  }
+  let select = "SELECT k.start,k.end,k.streamId stream,CASE WHEN s.value LIKE '%nccl%' THEN 'collective' ELSE 'compute' END kind,s.value name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName"
+  let parts = [select]
+  if tables.contains("CUPTI_ACTIVITY_KIND_GRAPH_TRACE") {
+    parts.push(
+      "SELECT start,end,streamId,'graph','opaque_graph' FROM CUPTI_ACTIVITY_KIND_GRAPH_TRACE",
+    )
+  }
+  if tables.contains("CUPTI_ACTIVITY_KIND_MEMCPY") {
+    parts.push(
+      "SELECT start,end,streamId,'copy','memcpy' FROM CUPTI_ACTIVITY_KIND_MEMCPY",
+    )
+  }
+  if tables.contains("CUPTI_ACTIVITY_KIND_MEMSET") {
+    parts.push(
+      "SELECT start,end,streamId,'copy','memset' FROM CUPTI_ACTIVITY_KIND_MEMSET",
+    )
+  }
+  let selected = "WITH e AS (" +
+    parts.join(" UNION ALL ") +
+    "), selected AS (SELECT * FROM e WHERE start<\{end} AND end>\{begin}) "
+  @fs.mkdir(output)
+  let raw = query(selected + "SELECT * FROM selected ORDER BY start;")
+  @fs.write_file(output + "/events.json", raw, create_mode=CreateNew)
+  guard @json.parse(raw) is Array(rows) else { fail("event array") }
+  let events = rows.map(row => {
+    guard row
+      is {
+        "start": Number(a, ..),
+        "end": Number(b, ..),
+        "stream": Number(s, ..),
+        "kind": String(kind),
+        ..
+      } else {
+      fail("invalid event")
+    }
+    Event::{
+      start: a.to_int64(),
+      end: b.to_int64(),
+      stream: s.to_int64(),
+      kind,
+    }
+  })
+  let result = coverage(events, begin, end)
+  @fs.write_file(
+    output + "/coverage.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+  for
+    (label, sql) in [
+      (
+        "symbols",
+        selected +
+        "SELECT kind,name,stream,count(*) calls,sum(min(end,\{end})-max(start,\{begin}))/1e6 summed_ms FROM selected GROUP BY kind,name,stream ORDER BY summed_ms DESC;",
+      ),
+      (
+        "apis",
+        "SELECT s.value name,count(*) calls,sum(min(a.end,\{end})-max(a.start,\{begin}))/1e6 cpu_duration_sum_ms FROM CUPTI_ACTIVITY_KIND_RUNTIME a JOIN StringIds s ON s.id=a.nameId WHERE a.start<\{end} AND a.end>\{begin} GROUP BY s.value ORDER BY cpu_duration_sum_ms DESC;",
+      ),
+      ("metadata", "SELECT * FROM TARGET_INFO_SESSION_START_TIME;"),
+    ] {
+    @fs.write_file(
+      output + "/" + label + ".json",
+      query(sql),
+      create_mode=CreateNew,
+    )
+  }
+}

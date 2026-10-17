@@ -49,6 +49,12 @@ test "full-width native FP4 expert performance export" {
     local_experts=Array::makei(bank_count, i => i),
     selected_experts=selected,
     maximum_rows=rows,
+    // External matched-component fixture; ordinary exports retain no clamp.
+    clamp?=if @env.get_env_var("LUNA_FP4_CLAMP") == Some("10") {
+      Some(10.0)
+    } else {
+      None
+    },
     dot_law=MatrixFloat32,
     scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
     activation_quantization=(quant[0], quant[1]),

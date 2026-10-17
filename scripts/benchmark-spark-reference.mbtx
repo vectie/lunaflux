@@ -269,6 +269,33 @@ fn vllm_trace_capacity(compact : Bool) -> (Int, Int) {
 }
 
 ///|
+fn reference_trace_granularity(value : String?) -> String raise {
+  match value {
+    None | Some("node") => "node"
+    Some("graph") => "graph:host-only"
+    _ => fail("LUNAFLUX_REFERENCE_GRAPH_TRACE must be node or graph")
+  }
+}
+
+///|
+fn reference_trace_rank(value : String?, last : Bool) -> Bool raise {
+  match value {
+    None | Some("both") => true
+    Some("egress") => last
+    _ => fail("LUNAFLUX_REFERENCE_TRACE_RANKS must be both or egress")
+  }
+}
+
+///|
+test "reference graph trace explicitly omits captured nodes, not eager kernels" {
+  assert_eq(reference_trace_granularity(None), "node")
+  assert_eq(reference_trace_granularity(Some("graph")), "graph:host-only")
+  assert_true(reference_trace_rank(None, false))
+  assert_false(reference_trace_rank(Some("egress"), false))
+  assert_true(reference_trace_rank(Some("egress"), true))
+}
+
+///|
 test "compact trace keeps hybrid state capacity and leaves ordinary baseline unchanged" {
   assert_eq(vllm_trace_capacity(true), (64, 268435456))
   assert_eq(vllm_trace_capacity(false), (256, 536870912))
@@ -303,6 +330,11 @@ async fn main {
   let image = reference_image(glm, sg)
   let tag = root[5:].to_owned()
   let profile = mode is ("prepare-profile" | "start-profile" | "query-profile")
+  let granularity = reference_trace_granularity(
+    @env.get_env_var("LUNAFLUX_REFERENCE_GRAPH_TRACE"),
+  )
+  let trace_ranks = @env.get_env_var("LUNAFLUX_REFERENCE_TRACE_RANKS")
+  let trace_ingress = reference_trace_rank(trace_ranks, false)
   // This is a separately labelled selected-kernel trace, not the ordinary
   // graph-enabled timing baseline. Avoid graph-capture memory at the host floor.
   let eager_profile = profile &&
@@ -455,7 +487,7 @@ async fn main {
       corpus +
       (if profile {
         "\nprofile=cuda-profiler-api\nprofile_output=2\nprofile_requests=1\n" +
-        "profile_eager=\{eager_profile}\nprofile_compact=\{compact_profile}\n"
+        "profile_eager=\{eager_profile}\nprofile_compact=\{compact_profile}\nprofile_graph_trace=\{granularity}\nprofile_ingress=\{trace_ingress}\nprofile_egress=true\n"
       } else {
         ""
       }) +
@@ -596,6 +628,9 @@ async fn main {
       record(root, "stop-profile", stop)
       // Reports are finalized before model shutdown; retain a failed capture.
       for last in [false, true] {
+        if !reference_trace_rank(trace_ranks, last) {
+          continue
+        }
         let mut ready = false
         for _ in 0..<60 {
           let state = remote(last, "test -s " + root + "/timeline.nsys-rep")
@@ -665,6 +700,7 @@ async fn main {
     )
   }
   for last in [true, false] {
+    let capture_rank = profile && reference_trace_rank(trace_ranks, last)
     let rank = if last { "1" } else { "0" }
     let ip = if last { "10.0.0.2" } else { "10.0.0.1" }
     let interface = if last { "enp1s0f0np0" } else { "enp1s0f1np1" }
@@ -683,7 +719,7 @@ async fn main {
       (if last { " --headless" } else { "" })
     }
     let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"
-    let profile_args = " profile --trace=cuda,nvtx --sample=none --cpuctxsw=none --cuda-graph-trace=node --capture-range=cudaProfilerApi --capture-range-end=stop --output=/run-result/timeline vllm "
+    let profile_args = " profile --trace=cuda,nvtx --sample=none --cpuctxsw=none --cuda-graph-trace=\{granularity} --capture-range=cudaProfilerApi --capture-range-end=stop --output=/run-result/timeline vllm "
     record(
       root,
       "start-" + rank,
@@ -728,11 +764,11 @@ async fn main {
         " -e NCCL_IB_HCA=" +
         hca +
         " -e NCCL_IB_DISABLE=0 -e HF_HOME=/run-result/hf --entrypoint " +
-        (if profile { nsys } else if sg { "python3" } else { "vllm" }) +
+        (if capture_rank { nsys } else if sg { "python3" } else { "vllm" }) +
         " " +
         image +
         " " +
-        (if profile { profile_args } else { "" }) +
+        (if capture_rank { profile_args } else { "" }) +
         command[if sg { 8 } else { 5 }:].to_owned() +
         (if profile {
           " --profiler-config '{\"profiler\":\"cuda\"}'"

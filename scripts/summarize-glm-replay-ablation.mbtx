@@ -1,0 +1,117 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn number(row : Json, field : String) -> Double raise {
+  guard row is Object(fields) && fields.get(field) is Some(Number(value, ..)) else {
+    fail("missing numeric field " + field)
+  }
+  value
+}
+
+///|
+fn rows(report : Json) -> Array[Json] raise {
+  guard report is { "rows": Array(values), .. } && values.length() == 6 else {
+    fail("six literal prompt records required")
+  }
+  values
+}
+
+///|
+fn same_work(before : Json, after : Json) -> Bool {
+  guard before is Object(a) && after is Object(b) else { return false }
+  a.get("input_ids") is Some(Array(_)) &&
+  a.get("native_output_ids") is Some(Array(_)) &&
+  a.get("input_ids") == b.get("input_ids") &&
+  a.get("native_output_ids") == b.get("native_output_ids")
+}
+
+///|
+test "equal token count does not establish the same native work" {
+  let a : Json = { "input_ids": [1, 2], "native_output_ids": [3, 4] }
+  assert_true(same_work(a, a))
+  assert_false(
+    same_work(a, { "input_ids": [1, 2], "native_output_ids": [3, 5] }),
+  )
+  assert_false(same_work({}, {}))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, .. candidates] && !candidates.is_empty() else {
+    fail("BASELINE_JSON CANDIDATE_JSON...")
+  }
+  let before = rows(@json.parse(@fs.read_file(baseline).text()))
+  for path in [baseline] + candidates.to_owned() {
+    let report = @json.parse(@fs.read_file(path).text())
+    let after = rows(report)
+    let mut total = 0.0
+    let mut first = 0.0
+    let mut common = 0.0
+    let mut reference = 0.0
+    let mut equal_count_native = 0.0
+    let mut equal_count_reference = 0.0
+    let equal_count_indices : Array[Int] = []
+    let times : Array[Double] = []
+    let first_times : Array[Double] = []
+    for i, row in after {
+      guard same_work(before[i], row) else {
+        fail("native token work changed at prompt \{i}")
+      }
+      let seconds = number(row, "native_seconds")
+      let ttft = number(row, "native_first_token_seconds")
+      total += seconds
+      first += ttft
+      times.push(seconds)
+      first_times.push(ttft)
+      if number(row, "native_output_tokens") ==
+        number(row, "reference_output_tokens") {
+        equal_count_indices.push(i)
+        equal_count_native += seconds
+        equal_count_reference += number(row, "reference_seconds")
+      }
+      // Retain the historical 22%-gap cohort, not a post-hoc fastest subset.
+      if i is (2 | 4 | 5) {
+        guard number(row, "native_output_tokens") ==
+          number(row, "reference_output_tokens") else {
+          fail("historical comparison cohort output count changed")
+        }
+        common += seconds
+        reference += number(row, "reference_seconds")
+      }
+    }
+    println(
+      Json({
+        "path": Json(path),
+        "native_token_ids_unchanged": Json(true),
+        "completion_seconds": Json(times),
+        "first_token_seconds": Json(first_times),
+        "all_six_seconds": Json(total),
+        "all_six_first_token_seconds": Json(first),
+        "all_six_after_first_seconds": Json(total - first),
+        "historical_common_three_seconds": Json(common),
+        "all_equal_count_indices": Json(equal_count_indices),
+        "all_equal_count_native_seconds": Json(equal_count_native),
+        "all_equal_count_reference_seconds": Json(equal_count_reference),
+        "all_equal_count_gap_percent": if equal_count_reference > 0.0 {
+          Json((equal_count_native / equal_count_reference - 1.0) * 100.0)
+        } else {
+          null
+        },
+        "reference_common_three_seconds": Json(reference),
+        "common_three_completion_gap_percent": Json(
+          (common / reference - 1.0) * 100.0,
+        ),
+        "minimum_host_available_gib": Json(
+          number(report, "native_minimum_host_available_gib"),
+        ),
+        "quality_or_throughput_parity_claim": Json(false),
+      }).stringify(),
+    )
+  }
+}
