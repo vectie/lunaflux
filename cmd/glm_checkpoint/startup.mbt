@@ -21,6 +21,8 @@ priv struct Startup {
   hc_reduction : @precision.HyperControlReduction
   shared_matrix_columns : Int
   overlap_experts : Bool
+  fuse_hyper : Bool
+  shard_vocabulary : Bool
 }
 
 ///|
@@ -80,6 +82,7 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
     expert_transport=startup.expert_transport,
     expert_fragment_slots=startup.expert_fragment_slots,
     shared_matrix_columns=startup.shared_matrix_columns,
+    shard_vocabulary=startup.shard_vocabulary,
     tensor_group?=if startup.expert_tensor_parallel {
       Some((ordinal, 2))
     } else {
@@ -116,6 +119,8 @@ fn inspect_startup(
   hc_reduction? : @precision.HyperControlReduction = Ordered,
   shared_matrix_columns? : Int = 64,
   overlap_experts? : Bool = false,
+  fuse_hyper? : Bool = false,
+  shard_vocabulary? : Bool = false,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -249,6 +254,8 @@ fn inspect_startup(
     hc_reduction,
     shared_matrix_columns,
     overlap_experts,
+    fuse_hyper,
+    shard_vocabulary,
   }
   // Recheck the executable owners, not only the planner's layer estimates.
   for ordinal in 0..<2 {

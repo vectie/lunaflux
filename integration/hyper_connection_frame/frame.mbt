@@ -15,6 +15,7 @@ pub struct HyperConnectionFrame {
   priv functions : Array[@device.Function]
   priv before : Array[@device.OrderedKernelLaunch]
   priv after : Array[@device.OrderedKernelLaunch]
+  priv ports : Array[@device.Allocation]
   priv mut status : State
 }
 
@@ -22,7 +23,15 @@ pub struct HyperConnectionFrame {
 pub fn HyperConnectionFrame::new(
   source : @source.HyperConnectionCudaSource,
 ) -> Self {
-  { source, buffers: [], functions: [], before: [], after: [], status: Fresh, }
+  {
+    source,
+    buffers: [],
+    functions: [],
+    before: [],
+    after: [],
+    ports: [],
+    status: Fresh,
+  }
 }
 
 ///|
@@ -99,6 +108,7 @@ pub fn HyperConnectionFrame::prepare(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
+  self.ports.append([counts, input, output])
   let plan = self.source.plan()
   let (streams, hidden, rows) = plan.geometry()
   for size in plan.frame_bytes() {
@@ -266,6 +276,7 @@ pub fn HyperConnectionFrame::close(
   self.status = Failed
   self.before.clear()
   self.after.clear()
+  self.ports.clear()
   while self.functions.last() is Some(function) {
     function.close()
     ignore(self.functions.pop())

@@ -44,7 +44,11 @@ pub fn TextIoFrame::source_bytes(self : Self) -> Bytes {
 
 ///|
 pub fn TextIoFrame::workspace_bytes(self : Self) -> Int64 {
-  self.source.plan().boundary_workspace_bytes(self.boundary)
+  if self.boundary.has_egress() {
+    self.source.workspace_bytes()
+  } else {
+    0L
+  }
 }
 
 ///|
@@ -127,7 +131,7 @@ pub fn TextIoFrame::prepare(
   let output = region(output_residual, plan.residual_bytes(), 2L)
   let embedding = region(embedding, plan.table_bytes(), 2L)
   let norm = region(norm_weight, hidden.to_int64() * 2L, 2L)
-  let head = region(head_weight, plan.table_bytes(), 2L)
+  let head = region(head_weight, self.source.head_bytes(), 2L)
   let tokens = region(sampled_tokens, outputs.to_int64() * 4L, 4L)
   self.bind_ingress(aot, counts, token_ids, embedding, input)
   self.bind_egress(
@@ -158,7 +162,9 @@ pub fn TextIoFrame::suffix(
 
 ///|
 pub fn TextIoFrame::logits(self : Self) -> @device.Allocation raise {
-  guard self.state is Prepared && self.boundary.has_egress() else {
+  guard self.state is Prepared &&
+    self.boundary.has_egress() &&
+    self.source.vocabulary_shard() is None else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.buffers[1]

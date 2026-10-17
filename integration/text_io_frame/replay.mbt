@@ -6,7 +6,9 @@
 pub fn TextIoFrame::replay_buffers(
   self : Self,
 ) -> Array[(@precision.NumericBoundary, @device.Allocation)] raise {
-  guard self.state is Prepared && self.boundary.has_egress() else {
+  guard self.state is Prepared &&
+    self.boundary.has_egress() &&
+    self.source.vocabulary_shard() is None else {
     raise @device.DeviceError::InvalidArgument(DeviceCopyCreate)
   }
   let ports = [..self.buffers, ..self.replay_inputs]

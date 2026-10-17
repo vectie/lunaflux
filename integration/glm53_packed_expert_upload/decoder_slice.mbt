@@ -225,12 +225,14 @@ pub fn GlmDecoderSlice::prepare(
   output~ : @device.Allocation,
   prefix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
   suffix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
+  vocabulary_boundary? : (Int, @device.Allocation, @device.Allocation, Int, Int),
   collective? : @device.TensorCollectiveOwner,
   generation? : UInt64 = 1UL,
   retirement? : @parallel.RetirementPolicy = EachCollective,
   replay? : @parallel.ReplayPolicy = Eager,
   replay_budget_bytes? : Int64 = 0L,
   overlap_experts? : Bool = false,
+  fuse_hyper? : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -253,9 +255,10 @@ pub fn GlmDecoderSlice::prepare(
   for _ in 0..<self.buffer_count {
     self.buffers.push(context.allocate(self.residual_bytes))
   }
-  let launches = prefix_launches.to_owned()
-  let boundaries = []
-  let forks = []
+  let mut launches = prefix_launches.to_owned()
+  let mut boundaries = []
+  let mut forks = []
+  let hyper_sites = []
   for index, layer in self.layers {
     let input = if index == 0 { hidden } else { self.buffers[(index - 1) % 2] }
     let next = if index == self.layers.length() - 1 {
@@ -296,12 +299,37 @@ pub fn GlmDecoderSlice::prepare(
         },
       )
     }
+    if fuse_hyper {
+      for (first, last, frame) in layer.hyper_sites() {
+        hyper_sites.push(
+          (launches.length() + first, launches.length() + last, frame),
+        )
+      }
+    }
     launches.append(layer.launches())
     if layer is Sparse(sparse) {
       self.descriptors.push(sparse.append_descriptor())
     }
   }
+  if vocabulary_boundary is Some((cut, send, receive, width, world)) {
+    boundaries.push(
+      @collective_program.ReductionBoundary::fixed_gather(
+        before_kernel=launches.length() + cut,
+        local_width=width,
+        world~,
+        operation_id=self.end_layer * 3,
+        send~,
+        receive~,
+      ),
+    )
+  }
   launches.append(suffix_launches)
+  if fuse_hyper {
+    let (fused, rewrite) = fuse_hyper_sites(launches, hyper_sites, aot)
+    boundaries = boundaries.map(boundary => boundary.remap(rewrite))
+    forks = forks.map(span => rewrite.fork(span))
+    launches = fused
+  }
   match collective {
     None =>
       self.queue = Some(

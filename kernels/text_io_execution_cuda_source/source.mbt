@@ -4,6 +4,7 @@ pub struct TextIoCudaSource {
   priv prefix : String
   priv bytes : Bytes
   priv order : ReadOnlyArray[Int]
+  priv shard : @parallel.VocabularyShard?
 }
 
 ///|
@@ -12,6 +13,7 @@ pub struct TextIoCudaSource {
 pub fn text_io_source(
   plan : @precision.TextIoPrecision,
   symbol_prefix~ : String,
+  vocabulary_shard? : @parallel.VocabularyShard,
 ) -> TextIoCudaSource raise @precision.PrecisionPlanError {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 100 &&
@@ -20,6 +22,12 @@ pub fn text_io_source(
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (vocabulary, hidden, _, rows, outputs) = plan.geometry()
+  if vocabulary_shard is Some(shard) {
+    guard shard.geometry() == (vocabulary, outputs) &&
+      plan.head_law() == ShapeAwareFloat32 else {
+      raise @precision.PrecisionPlanError::NoImplementation
+    }
+  }
   let v = vocabulary.to_string()
   let h = hidden.to_string()
   let s = plan.fold(StreamUpdate).extent.to_string()
@@ -200,19 +208,28 @@ pub fn text_io_source(
     "ULL+word]; if(!isfinite(value)) { tokens[row]=-1; return; } if(token<0 || value>best) {best=value;token=word;} } tokens[row]=token;\n}\n"
   let source = if plan.head_law() == ShapeAwareFloat32 {
     prefix_source +
-    parallel_head_source(plan, symbol_prefix) +
-    parallel_greedy_source(plan, symbol_prefix)
+    parallel_head_source(plan, symbol_prefix, vocabulary_shard?) +
+    (match vocabulary_shard {
+      None => parallel_greedy_source(plan, symbol_prefix)
+      Some(shard) => sharded_greedy_source(plan, shard, symbol_prefix)
+    })
   } else {
     prefix_source + ordered_head
   }
-  { plan, prefix: symbol_prefix, bytes: @utf8.encode(source), order, }
+  {
+    plan,
+    prefix: symbol_prefix,
+    bytes: @utf8.encode(source),
+    order,
+    shard: vocabulary_shard,
+  }
 }
 
 ///|
 pub fn TextIoCudaSource::head_launch(self : Self) -> (Int, Int) {
   let (vocabulary, _, _, _, outputs) = self.plan.geometry()
   if self.plan.head_law() == ShapeAwareFloat32 {
-    ((vocabulary + 3) / 4, 128)
+    ((self.shard.map(s => s.columns().1).unwrap_or(vocabulary) + 3) / 4, 128)
   } else {
     (((outputs.to_int64() * vocabulary.to_int64() + 255L) / 256L).to_int(), 256)
   }
@@ -278,6 +295,7 @@ pub fn TextIoCudaSource::symbol(
     1 => "norm"
     2 => "head"
     3 => "greedy"
+    4 if self.shard is Some(_) => "greedy_join"
     _ => raise IllegalPlacement
   }
   self.prefix + "_" + suffix

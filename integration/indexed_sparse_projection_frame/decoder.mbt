@@ -38,6 +38,14 @@ pub fn IndexedSparseDecoderFrame::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
+/// Borrowed envelope for startup-only composition of adjacent HC effects.
+pub fn IndexedSparseDecoderFrame::hyper_envelope(
+  self : Self,
+) -> @hyper.HyperConnectionFrame {
+  self.envelope
+}
+
+///|
 pub fn IndexedSparseDecoderFrame::workspace_bytes(self : Self) -> Int64 {
   self.source.plan().workspace_bytes() +
   self.source.attention().scratch_bytes() +

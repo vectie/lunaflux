@@ -63,6 +63,7 @@ pub fn TextIoFrame::projection_suffix(Self) -> ArrayView[@device.OrderedKernelLa
 pub fn TextIoFrame::replay_buffers(Self) -> Array[(@precision_ir.NumericBoundary, @device.Allocation)] raise
 pub fn TextIoFrame::source_bytes(Self) -> Bytes
 pub fn TextIoFrame::suffix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn TextIoFrame::vocabulary_boundary(Self) -> (Int, @device.Allocation, @device.Allocation, Int, Int)? raise
 pub fn TextIoFrame::workspace_bytes(Self) -> Int64
 
 // Type aliases

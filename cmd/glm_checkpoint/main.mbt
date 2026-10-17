@@ -129,6 +129,14 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let shard_vocabulary = mode.has_suffix("-vocab-tp")
+  let mode = if shard_vocabulary {
+    mode[:mode.length() - 9].to_owned()
+  } else {
+    mode
+  }
+  let fuse_hyper = mode.has_suffix("-fused-hc")
+  let mode = if fuse_hyper { mode[:mode.length() - 9].to_owned() } else { mode }
   let overlap_experts = mode.has_suffix("-overlap-experts")
   let mode = if overlap_experts {
     mode[:mode.length() - 16].to_owned()
@@ -287,6 +295,8 @@ async fn main {
       hc_reduction=if parallel_hc { Tree(partitions=256) } else { Ordered },
       shared_matrix_columns~,
       overlap_experts~,
+      fuse_hyper~,
+      shard_vocabulary~,
     )
   }
   println(
@@ -298,7 +308,7 @@ async fn main {
   println("tp_submission_queued=\{queued} tp_graph_replay=\{replay}")
   println("tp_collective_inclusive_graph=\{collective_graph}")
   println(
-    "shared_matrix_columns=\{shared_matrix_columns} independent_expert_branches=\{overlap_experts}",
+    "shared_matrix_columns=\{shared_matrix_columns} independent_expert_branches=\{overlap_experts} fused_hc_post_square=\{fuse_hyper} vocabulary_tp=\{shard_vocabulary}",
   )
   println(
     "hc_parallel_tree=\{parallel_hc} hc_collapse_norm_fused=\{parallel_hc}",

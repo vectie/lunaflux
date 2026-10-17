@@ -27,6 +27,7 @@ pub fn bind_text_io_weights(
   checkpoint : @precision_materialize.PackedCheckpoint,
   spec : @glm53_spec.Glm53FlashSpec,
   boundary? : @precision_ir.TextBoundary = Complete,
+  vocabulary_shard? : @parallel.VocabularyShard,
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   let table = @precision_format.Representation::new(
     format=Bf16,
@@ -53,11 +54,16 @@ pub fn bind_text_io_weights(
         payload_name="model.language_model.norm.weight",
       ),
     )
+    let head = checkpoint.bind_weight(
+      representation=table,
+      payload_name="lm_head.weight",
+    )
     weights.push(
-      checkpoint.bind_weight(
-        representation=table,
-        payload_name="lm_head.weight",
-      ),
+      match vocabulary_shard {
+        None => head
+        Some(shard) =>
+          slice_weight_rows(head, shard.columns().0, shard.columns().1)
+      },
     )
   }
   weights
@@ -69,6 +75,7 @@ pub fn bind_text_io_weights(
 pub struct GlmTextIo {
   priv spec : @glm53_spec.Glm53FlashSpec
   priv boundary : @precision_ir.TextBoundary
+  priv vocabulary_shard : @parallel.VocabularyShard?
   priv frame : @text_frame.TextIoFrame
   priv weights : @upload.CheckpointDeviceWeights
   priv mut status : RecurrentLayerState
@@ -82,6 +89,7 @@ pub fn GlmTextIo::new(
   maximum_workspace_bytes~ : Int64,
   boundary? : @precision_ir.TextBoundary = Complete,
   head_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  vocabulary_shard? : @parallel.VocabularyShard,
 ) -> Self raise {
   let plan = flash_text_io_plan(
     spec,
@@ -94,8 +102,13 @@ pub fn GlmTextIo::new(
   {
     spec,
     boundary,
+    vocabulary_shard,
     frame: @text_frame.TextIoFrame::new(
-      @text_source.text_io_source(plan, symbol_prefix="glm_text_io"),
+      @text_source.text_io_source(
+        plan,
+        symbol_prefix="glm_text_io",
+        vocabulary_shard?,
+      ),
       boundary~,
     ),
     weights: @upload.CheckpointDeviceWeights::new(),
@@ -113,10 +126,14 @@ pub fn GlmTextIo::required_device_bytes(
   self : Self,
   checkpoint : @precision_materialize.PackedCheckpoint,
 ) -> Int64 raise {
-  bind_text_io_weights(checkpoint, self.spec, boundary=self.boundary).fold(
-    init=self.frame.workspace_bytes(),
-    (bytes, weight) => bytes + weight.buffer_bytes(),
-  )
+  bind_text_io_weights(
+    checkpoint,
+    self.spec,
+    boundary=self.boundary,
+    vocabulary_shard?=self.vocabulary_shard,
+  ).fold(init=self.frame.workspace_bytes(), (bytes, weight) => {
+    bytes + weight.buffer_bytes()
+  })
 }
 
 ///|
@@ -151,7 +168,12 @@ pub fn GlmTextIo::prepare(
     context,
     checkpoint,
     root,
-    bind_text_io_weights(checkpoint, self.spec, boundary=self.boundary),
+    bind_text_io_weights(
+      checkpoint,
+      self.spec,
+      boundary=self.boundary,
+      vocabulary_shard?=self.vocabulary_shard,
+    ),
     maximum_device_bytes=maximum_device_bytes - self.frame.workspace_bytes(),
     chunk_bytes~,
     limits~,

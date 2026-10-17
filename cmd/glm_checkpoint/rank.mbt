@@ -34,6 +34,7 @@ fn prepare_rank(
       replay=startup.replay,
       replay_budget_bytes=startup.reserve / 4L,
       overlap_experts=startup.overlap_experts,
+      fuse_hyper=startup.fuse_hyper,
     )
   })
   stage.bind_rank(rank, context)

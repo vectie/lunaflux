@@ -34,9 +34,17 @@ fn TextIoFrame::bind_egress(
   let plan = self.source.plan()
   let (_, _, _, _, outputs) = plan.geometry()
   self.buffers.push(context.allocate(plan.normalized_bytes()))
-  self.buffers.push(context.allocate(plan.logits_bytes()))
+  self.buffers.push(context.allocate(self.source.local_logits_bytes()))
   let normalized = region(self.buffers[0], plan.normalized_bytes(), 2L)
-  let logits = region(self.buffers[1], plan.logits_bytes(), 4L)
+  let logits = region(self.buffers[1], self.source.local_logits_bytes(), 4L)
+  let candidates = if self.source.vocabulary_shard() is Some(shard) {
+    let bytes = shard.candidate_width().to_int64() * 4L
+    self.buffers.push(context.allocate(bytes))
+    self.buffers.push(context.allocate(bytes * shard.group().1.to_int64()))
+    region(self.buffers[2], bytes, 4L)
+  } else {
+    tokens
+  }
   for stage in self.source.egress_order() {
     let launch = match stage {
       0 =>
@@ -53,11 +61,24 @@ fn TextIoFrame::bind_egress(
         )
       2 =>
         self.launch(aot, 3, outputs.to_int64(), self.source.greedy_threads(), [
-          counts, output_count, selected, logits, tokens,
+          counts, output_count, selected, logits, candidates,
         ])
       _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
     }
     self.after.push(launch)
+  }
+  if self.source.vocabulary_shard() is Some(shard) {
+    self.after.push(
+      self.launch(aot, 4, outputs.to_int64(), 1, [
+        output_count,
+        region(
+          self.buffers[3],
+          shard.candidate_width().to_int64() * shard.group().1.to_int64() * 4L,
+          4L,
+        ),
+        tokens,
+      ]),
+    )
   }
 }
 
@@ -114,7 +135,7 @@ pub fn TextIoFrame::prepare_egress(
   let selected = region(selected_rows, outputs.to_int64() * 4L, 4L)
   let residual = region(output_residual, plan.residual_bytes(), 2L)
   let norm = region(norm_weight, hidden.to_int64() * 2L, 2L)
-  let head = region(head_weight, plan.table_bytes(), 2L)
+  let head = region(head_weight, self.source.head_bytes(), 2L)
   let tokens = region(sampled_tokens, outputs.to_int64() * 4L, 4L)
   self.bind_egress(
     context, aot, counts, count, selected, residual, norm, head, tokens,

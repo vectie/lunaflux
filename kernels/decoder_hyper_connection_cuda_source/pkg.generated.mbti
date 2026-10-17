@@ -18,6 +18,8 @@ pub fn parallel_control_tiles_source(@precision_ir.HyperConnectionPrecision, @hy
 
 pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String, mix_law? : @precision_ir.HyperConnectionMixLaw) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError
 
+pub fn post_square_source(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision, symbol~ : String) -> Bytes raise
+
 pub fn pre_reduce_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPreReduceCudaSource raise DecoderHyperConnectionCudaSourceError
 
 pub fn staged_function_and_collapse_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String, control_law? : @precision_ir.HyperConnectionControlLaw, control_square_law? : @precision_ir.SquareReductionLaw, control_dot_law? : @precision_ir.DotReductionLaw, control_vector_affine_law? : @precision_ir.Float32AffineLaw, control_sigmoid_law? : @precision_ir.SigmoidEvaluationLaw, control_matrix_affine_law? : @precision_ir.Float32AffineLaw, matrix_sum_law? : @precision_ir.SumReductionLaw, control_root_law? : @precision_ir.ReciprocalRootLaw) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError

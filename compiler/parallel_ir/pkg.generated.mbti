@@ -36,6 +36,13 @@ pub(all) enum Action {
   Communicate(Collective)
 }
 
+pub struct AdjacentFusion {
+  // private fields
+}
+pub fn AdjacentFusion::boundary(Self, Int) -> Int raise ParallelError
+pub fn AdjacentFusion::fork(Self, ForkJoinSpan) -> ForkJoinSpan raise ParallelError
+pub fn AdjacentFusion::new(kernel_count~ : Int, ArrayView[Int]) -> Self raise ParallelError
+
 pub struct Arena {
   // private fields
 }
@@ -192,6 +199,15 @@ pub fn Step::accesses(Self) -> ReadOnlyArray[Access]
 pub fn Step::action(Self) -> Action
 pub fn Step::dependencies(Self) -> ReadOnlyArray[Int]
 pub fn Step::new(Action, ArrayView[Access], dependencies? : ArrayView[Int]) -> Self
+
+pub struct VocabularyShard {
+  // private fields
+}
+pub fn VocabularyShard::candidate_width(Self) -> Int
+pub fn VocabularyShard::columns(Self) -> (Int, Int)
+pub fn VocabularyShard::geometry(Self) -> (Int, Int)
+pub fn VocabularyShard::group(Self) -> (Int, Int)
+pub fn VocabularyShard::new(vocabulary~ : Int, rank~ : Int, world~ : Int, maximum_outputs~ : Int) -> Self raise ParallelError
 
 // Type aliases
 

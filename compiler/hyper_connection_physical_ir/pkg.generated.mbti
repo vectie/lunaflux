@@ -41,6 +41,12 @@ pub fn ParallelControlPlan::workers(Self) -> Int
 pub fn ParallelControlPlan::workgroups(Self, Int) -> Int raise @precision_ir.PrecisionPlanError
 pub fn ParallelControlPlan::workspace_bytes(Self) -> Int64
 
+pub struct PostSquareFusion {
+  // private fields
+}
+pub fn PostSquareFusion::geometry(Self) -> (Int, Int, Int, Int)
+pub fn PostSquareFusion::new(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision) -> Self raise @precision_ir.PrecisionPlanError
+
 // Type aliases
 
 // Traits

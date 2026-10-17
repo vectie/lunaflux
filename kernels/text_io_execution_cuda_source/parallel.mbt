@@ -2,8 +2,12 @@
 fn parallel_head_source(
   plan : @precision.TextIoPrecision,
   symbol : String,
+  vocabulary_shard? : @parallel.VocabularyShard,
 ) -> String raise @precision.PrecisionPlanError {
   let (vocabulary, hidden, _, _, outputs) = plan.geometry()
+  let vocabulary = vocabulary_shard
+    .map(s => s.columns().1)
+    .unwrap_or(vocabulary)
   let publish = @arithmetic.scalar_expression(plan.expression(Logits), ["value"])
   let body = @tiled.shape_decode_body(
     inner=hidden,

@@ -40,6 +40,7 @@ pub fn GlmDecoderStage::new(
   expert_fragment_slots? : Int = 1,
   shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
+  shard_vocabulary? : Bool = false,
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
     maximum_history >= maximum_rows else {
@@ -48,8 +49,8 @@ pub fn GlmDecoderStage::new(
   let (first_layer, end_layer) = range.layer_range()
   // TP workers receive identical token IDs. Only the last rank owns model
   // egress; computing a discarded full vocabulary on every rank is redundant.
-  let boundary : @precision_ir.TextBoundary = if tensor_group
-    is Some((rank, world)) &&
+  let boundary : @precision_ir.TextBoundary = if !shard_vocabulary &&
+    tensor_group is Some((rank, world)) &&
     rank != world - 1 &&
     range.text_boundary().has_egress() {
     if range.text_boundary().has_ingress() {
@@ -59,6 +60,22 @@ pub fn GlmDecoderStage::new(
     }
   } else {
     range.text_boundary()
+  }
+  let vocabulary_shard = if shard_vocabulary {
+    guard tensor_group is Some((rank, world)) &&
+      range.text_boundary().has_egress() else {
+      raise @precision_ir.PrecisionPlanError::IllegalPlacement
+    }
+    Some(
+      @parallel.VocabularyShard::new(
+        vocabulary=spec.vocabulary_size(),
+        rank~,
+        world~,
+        maximum_outputs=1,
+      ),
+    )
+  } else {
+    None
   }
   let text_plan = flash_text_io_plan(
     spec,
@@ -98,6 +115,7 @@ pub fn GlmDecoderStage::new(
       tensor_group?,
     ),
     text: GlmTextIo::new(
+      vocabulary_shard?,
       head_law=if matrix_law == ShapeAwareFloat32 {
         ShapeAwareFloat32
       } else {
@@ -171,6 +189,7 @@ pub fn GlmDecoderStage::prepare(
   replay? : @parallel.ReplayPolicy = Eager,
   replay_budget_bytes? : Int64 = 0L,
   overlap_experts? : Bool = false,
+  fuse_hyper? : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -236,12 +255,14 @@ pub fn GlmDecoderStage::prepare(
     output=self.residuals[1],
     prefix_launches=self.text.prefix(),
     suffix_launches=self.text.suffix(),
+    vocabulary_boundary?=self.text.frame.vocabulary_boundary(),
     collective?,
     generation~,
     retirement~,
     replay~,
     replay_budget_bytes~,
     overlap_experts~,
+    fuse_hyper~,
   )
   self.counts = Some(counts)
   self.status = Ready

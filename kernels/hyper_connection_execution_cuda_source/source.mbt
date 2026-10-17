@@ -5,6 +5,7 @@ pub struct HyperConnectionCudaSource {
   priv source : Bytes
   priv normalization_threads : Int
   priv control_schedule : @physical.ControlSchedule?
+  priv post_square : Bool
 }
 
 ///|
@@ -102,6 +103,17 @@ pub fn hyper_connection_source(
         mix_law=plan.mix_law(),
       ).source_bytes()
   }
+  let post_square = plan.mix_law() is RoundedBf16ControlsAndProducts &&
+    control_schedule is Some(Tree(_))
+  let fused = if post_square {
+    @control.post_square_source(
+      plan,
+      plan,
+      symbol=symbol_prefix + "_post_square",
+    )
+  } else {
+    b""
+  }
   {
     plan,
     prefix: symbol_prefix,
@@ -111,9 +123,12 @@ pub fn hyper_connection_source(
     b"\n" +
     normalization.source_bytes() +
     b"\n" +
-    post,
+    post +
+    b"\n" +
+    fused,
     normalization_threads: normalization.launch_threads(),
     control_schedule,
+    post_square,
   }
 }
 
@@ -150,6 +165,11 @@ pub fn HyperConnectionCudaSource::control_schedule(
 }
 
 ///|
+pub fn HyperConnectionCudaSource::supports_post_square(self : Self) -> Bool {
+  self.post_square
+}
+
+///|
 pub fn HyperConnectionCudaSource::symbol(
   self : Self,
   stage : Int,
@@ -170,6 +190,7 @@ pub fn HyperConnectionCudaSource::symbol(
     5 if self.control_schedule is Some(Tree(_)) => "project_tree_tiles_v1"
     4 if self.control_schedule is Some(_) => "square_ordered_tiles_v1"
     5 if self.control_schedule is Some(_) => "project_ordered_tiles_v1"
+    6 if self.post_square => "post_square"
     _ => raise @precision.PrecisionPlanError::IllegalPlacement
   }
   self.prefix + "_" + suffix

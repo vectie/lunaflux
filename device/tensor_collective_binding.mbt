@@ -30,6 +30,26 @@ pub fn TensorCollectiveOwner::validate_sum_site(
   maximum_rows~ : Int,
   width~ : Int,
 ) -> Unit raise DeviceError {
+  self.validate_f32_site(
+    site_sequence~,
+    operation_id~,
+    maximum_rows~,
+    width~,
+    local_width=width,
+    kind=F32SumAllReduce,
+  )
+}
+
+///|
+pub fn TensorCollectiveOwner::validate_f32_site(
+  self : Self,
+  site_sequence~ : Int,
+  operation_id~ : Int,
+  maximum_rows~ : Int,
+  width~ : Int,
+  local_width~ : Int,
+  kind~ : TensorCollectiveKind,
+) -> Unit raise DeviceError {
   let index = site_sequence - 1
   guard site_sequence > 0 &&
     index < self.contract.sequences.length() &&
@@ -38,9 +58,10 @@ pub fn TensorCollectiveOwner::validate_sum_site(
     width > 0 &&
     self.contract.sequences[index] == site_sequence &&
     self.contract.operation_ids[index] == operation_id &&
-    self.contract.kinds[index] == tensor_collective_kind_code(F32SumAllReduce) &&
+    kind is (F32SumAllReduce | F32AllGather) &&
+    self.contract.kinds[index] == tensor_collective_kind_code(kind) &&
     self.contract.full_widths[index] == width &&
-    self.contract.local_widths[index] == width else {
+    self.contract.local_widths[index] == local_width else {
     raise InvalidArgument(TensorCollectiveExecute)
   }
 }

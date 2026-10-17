@@ -14,7 +14,9 @@ fn capture_collective_frame(
   timeout_millis : UInt64,
 ) -> Unit raise @device.DeviceError {
   for boundary in boundaries {
-    let bytes = rows.to_int64() * boundary.width.to_int64() * 4L
+    let bytes = boundary.row_count(rows).to_int64() *
+      boundary.local_width.to_int64() *
+      4L
     guard bytes <= 2147483647L else {
       raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
     }
@@ -42,11 +44,11 @@ fn capture_collective_frame(
       global_sequence=(site + 1).to_uint64(),
       site_sequence=site + 1,
       operation_id=boundary.operation_id,
-      kind=F32SumAllReduce,
-      live_query_tokens=rows,
+      kind=boundary.kind,
+      live_query_tokens=boundary.row_count(rows),
       send=boundary.buffer,
       send_offset=0L,
-      receive=boundary.buffer,
+      receive=boundary.receive,
       receive_offset=0L,
       stream~,
     )

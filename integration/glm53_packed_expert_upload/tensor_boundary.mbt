@@ -135,6 +135,7 @@ fn GlmDecoderLayer::tensor_boundaries(
 pub fn GlmDecoderSlice::tensor_contract(
   self : Self,
   label : @device.TensorCollectiveContractDigest,
+  vocabulary_shard? : @parallel.VocabularyShard,
 ) -> @device.TensorCollectiveContract raise @device.DeviceError {
   guard self.tensor_group is Some((rank, world_size)) else {
     raise @device.DeviceError::InvalidArgument(TensorCollectiveContractCreate)
@@ -153,6 +154,20 @@ pub fn GlmDecoderSlice::tensor_contract(
       )
     }
   }
+  if vocabulary_shard is Some(shard) {
+    guard shard.group() == (rank, world_size) else {
+      raise @device.DeviceError::InvalidArgument(TensorCollectiveContractCreate)
+    }
+    sites.push(
+      @device.TensorCollectiveSite::new(
+        sequence=sites.length() + 1,
+        operation_id=self.end_layer * 3,
+        kind=F32AllGather,
+        full_width=shard.candidate_width() * world_size,
+        local_width=shard.candidate_width(),
+      ),
+    )
+  }
   @device.TensorCollectiveContract::new(
     digest=label,
     rank~,
@@ -167,5 +182,8 @@ pub fn GlmDecoderStage::tensor_contract(
   self : Self,
   label : @device.TensorCollectiveContractDigest,
 ) -> @device.TensorCollectiveContract raise @device.DeviceError {
-  self.decoder.tensor_contract(label)
+  self.decoder.tensor_contract(
+    label,
+    vocabulary_shard?=self.text.vocabulary_shard,
+  )
 }

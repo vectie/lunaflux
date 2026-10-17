@@ -20,6 +20,7 @@ pub fn HyperConnectionCudaSource::fuses_normalization(Self) -> Bool
 pub fn HyperConnectionCudaSource::normalization_threads(Self) -> Int
 pub fn HyperConnectionCudaSource::plan(Self) -> @precision_ir.HyperConnectionPrecision
 pub fn HyperConnectionCudaSource::source_bytes(Self) -> Bytes
+pub fn HyperConnectionCudaSource::supports_post_square(Self) -> Bool
 pub fn HyperConnectionCudaSource::symbol(Self, Int) -> String raise @precision_ir.PrecisionPlanError
 
 // Type aliases

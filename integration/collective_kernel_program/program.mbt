@@ -6,6 +6,10 @@ pub struct ReductionBoundary {
   priv width : Int
   priv operation_id : Int
   priv buffer : @device.Allocation
+  priv receive : @device.Allocation
+  priv local_width : Int
+  priv fixed_rows : Int?
+  priv kind : @device.TensorCollectiveKind
 }
 
 ///|
@@ -15,7 +19,24 @@ pub fn ReductionBoundary::new(
   operation_id~ : Int,
   buffer~ : @device.Allocation,
 ) -> Self {
-  { before_kernel, width, operation_id, buffer, }
+  {
+    before_kernel,
+    width,
+    operation_id,
+    buffer,
+    receive: buffer,
+    local_width: width,
+    fixed_rows: None,
+    kind: F32SumAllReduce,
+  }
+}
+
+///|
+pub fn ReductionBoundary::remap(
+  self : Self,
+  rewrite : @parallel.AdjacentFusion,
+) -> Self raise @parallel.ParallelError {
+  { ..self, before_kernel: rewrite.boundary(self.before_kernel), }
 }
 
 ///|
@@ -86,16 +107,28 @@ pub fn CollectiveKernelProgram::new(
       (i == 0 || boundary.before_kernel > boundaries[i - 1].before_kernel) else {
       raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
     }
-    owner.validate_sum_site(
+    owner.validate_f32_site(
       site_sequence=i + 1,
       operation_id=boundary.operation_id,
       maximum_rows~,
       width=boundary.width,
+      local_width=boundary.local_width,
+      kind=boundary.kind,
     )
     context.validate_allocation_region(
       boundary.buffer,
       offset=0L,
-      byte_count=maximum_rows.to_int64() * boundary.width.to_int64() * 4L,
+      byte_count=boundary.row_count(maximum_rows).to_int64() *
+        boundary.local_width.to_int64() *
+        4L,
+      alignment=4L,
+    )
+    context.validate_allocation_region(
+      boundary.receive,
+      offset=0L,
+      byte_count=boundary.row_count(maximum_rows).to_int64() *
+        boundary.width.to_int64() *
+        4L,
       alignment=4L,
     )
   }
@@ -234,11 +267,11 @@ fn CollectiveKernelProgram::reduce(
     global_sequence=self.global_sequence,
     site_sequence=self.site + 1,
     operation_id=boundary.operation_id,
-    kind=F32SumAllReduce,
-    live_query_tokens=self.rows,
+    kind=boundary.kind,
+    live_query_tokens=boundary.row_count(self.rows),
     send=boundary.buffer,
     send_offset=0L,
-    receive=boundary.buffer,
+    receive=boundary.receive,
     receive_offset=0L,
     stream=self.stream,
   )

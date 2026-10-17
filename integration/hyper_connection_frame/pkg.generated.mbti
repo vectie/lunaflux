@@ -17,6 +17,7 @@ pub struct HyperConnectionFrame {
 pub fn HyperConnectionFrame::branch_input(Self) -> @device.Allocation raise @device.DeviceError
 pub fn HyperConnectionFrame::branch_output(Self) -> @device.Allocation raise @device.DeviceError
 pub fn HyperConnectionFrame::close(Self) -> Unit raise @device.DeviceError
+pub fn HyperConnectionFrame::fuse_post_square(Self, Self, @device.Module) -> @device.OrderedKernelLaunch raise
 pub fn HyperConnectionFrame::new(@hyper_connection_execution_cuda_source.HyperConnectionCudaSource) -> Self
 pub fn HyperConnectionFrame::prefix(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn HyperConnectionFrame::prepare(Self, @device.Context, @device.Module, counts~ : @device.Allocation, input~ : @device.Allocation, output~ : @device.Allocation, function_weight~ : @device.Allocation, base~ : @device.Allocation, scale~ : @device.Allocation, norm_weight~ : @device.Allocation, maximum_workspace_bytes~ : Int64) -> Unit raise

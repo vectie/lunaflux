@@ -1,0 +1,145 @@
+///|
+import {
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, target, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-hc-vocab-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    target is ("hc" | "vocab") &&
+    mode is ("prepare" | "run" | "memcheck" | "racecheck" | "synccheck") else {
+    fail("ROOT hc|vocab prepare|run|memcheck|racecheck|synccheck")
+  }
+  let host = "wlc003s@192.168.2.178"
+  let socket = "/tmp/lunaflux-glm178-cutlass-20261017.sock"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-S", socket, "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host, command,
+    ]).output(max_output_bytes=8388608)
+  }
+  async fn record(name : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let package = if target == "hc" {
+      "kernels/hyper_connection_execution_cuda_source"
+    } else {
+      "kernels/text_io_execution_cuda_source"
+    }
+    let filter = if target == "hc" {
+      "export adjacent HC publication square fusion"
+    } else {
+      "export independent vocabulary shard and stable join"
+    }
+    record(
+      "export",
+      @shell.Cmd(
+        "moon",
+        [
+          "test", package, "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "--filter", filter,
+        ],
+        env={
+          "LUNA_HC_FUSION_HEADER": root + "/probe.cuh",
+          "LUNA_VOCAB_TP_HEADER": root + "/probe.cuh",
+        },
+      ).output(max_output_bytes=8388608),
+    )
+    record("mkdir", remote("mkdir " + root))
+    for
+      (source, name) in [
+        (root + "/probe.cuh", "probe.cuh"),
+        (
+          "tests/packed_moe_execution/" +
+          (if target == "hc" {
+            "hyper_post_square_probe.cu"
+          } else {
+            "vocabulary_tp_probe.cu"
+          }),
+          "probe.cu",
+        ),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        source,
+        host + ":" + root + "/" + name,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:] +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 -arch=sm_121 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+    return
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let mem = remote("awk '/MemAvailable/ {print $2}' /proc/meminfo")
+  mem.check()
+  guard @string.parse_int64(mem.stdout().trim()) >= 16777216L else {
+    fail("host reserve below 16 GiB")
+  }
+  record(mode + "-memory-before", mem)
+  let cmd = if mode == "run" {
+    root + "/probe"
+  } else {
+    "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 97 --tool " +
+    mode +
+    (if mode == "memcheck" { " --leak-check full" } else { "" }) +
+    " " +
+    root +
+    "/probe " +
+    (if target == "vocab" && mode != "memcheck" {
+      "small"
+    } else {
+      "sanitizer"
+    })
+  }
+  let unit = root[5:] + "-" + mode
+  record(
+    mode,
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      unit +
+      " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 " +
+      cmd,
+    ),
+  )
+  record(
+    mode + "-status",
+    remote(
+      "systemctl --user show " +
+      unit +
+      ".service -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    ),
+  )
+}
