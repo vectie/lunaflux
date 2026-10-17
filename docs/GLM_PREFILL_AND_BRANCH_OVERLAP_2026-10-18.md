@@ -76,5 +76,25 @@ owned; input/counts are shared reads. Shared producers issue first on the
 auxiliary lane, while the primary lane retains routing/routed order. Both join
 before the existing F32 TP publication. Scalar index loops preserve the
 allocation-free submission contract; iterator allocation caught by the
-regression test was removed. Physical fork/graph validation and full-model
-ablations are still pending; the historical vLLM baseline is not a new result.
+regression test was removed.
+
+The actual MoonBit GPU queue owner now passes 32 eager and 32 captured replays
+with changing input, exact outputs and explicit release, plus partial-submission
+cancellation/drain. The same test passes CUDA memcheck/full leak (zero leaked
+bytes), racecheck (zero errors/warnings), and synccheck. Evidence:
+`/tmp/lunaflux-glm-fork-owner-20261018-v2`; clean source pin `19d4883c`.
+The retained v1 failure was a test symbol containing a trailing NUL, rejected
+by the real function-loader ABI; the corrected fixture uses plain symbols.
+This is a real queue-owner gate, not a replacement CUDA-only harness.
+
+Complete-model AOT variants at columns64/32 are built from `0d614c5f` on ARM;
+the owner implementation is unchanged by the fixture correction. Full-model
+ablations are running; the historical vLLM baseline is not a new result.
+
+Local phase validation: `moon info --target native` reports 3,669 existing
+migration warnings and zero errors; `moon fmt` and native check pass.
+The full native suite passes **5,193/5,193** with the existing warning
+exclusions `-20-25-29-35-79-92`; no new exclusions or tolerance changes.
+This is the current working-tree suite, which includes unrelated ongoing
+migration files. Clean pinned ARM builds independently validate the task's
+executable and actual fork-owner test; unrelated files are not staged.

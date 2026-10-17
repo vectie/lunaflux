@@ -6,9 +6,11 @@ import {
 }
 
 async fn main {
-  guard @env.args() is [_, name, columns, overlap] &&
+  guard @env.args() is [_, name, columns, overlap, .. rest] &&
     columns is ("32"|"64") && overlap is ("0"|"1") &&
-    name.iter().all(c => c is ('a'..='z'|'0'..='9'|'-')) else { fail("UNIQUE_NAME 32|64 0|1") }
+    rest is ([]|["--profile"]) &&
+    name.iter().all(c => c is ('a'..='z'|'0'..='9'|'-')) else { fail("UNIQUE_NAME 32|64 0|1 [--profile]") }
+  let profile = !rest.is_empty()
   let root="/tmp/lunaflux-model-bench-"+name
   let runtime="/tmp/lunaflux-glm-expert-tp-columns"+columns+"-fork-20261018-v1"
   let environment={
@@ -17,10 +19,12 @@ async fn main {
     "LUNA_GLM_EXPERT_TRANSPORT": "tiles", "LUNA_GLM_EXPERT_LOOKAHEAD": "1",
     "LUNA_GLM_BUFFERED_MATRICES": "1", "LUNA_GLM_PARALLEL_HC": "1",
     "LUNA_GLM_SHARED_COLUMNS": columns, "LUNA_GLM_OVERLAP_EXPERTS": overlap,
+    "LUNA_BENCH_GRAPH_TRACE": "node",
   }
   for mode in ["prepare","start","watch","collect"] {
     let out=@shell.Cmd("moon",[
-      "run","scripts/benchmark-spark-models.mbtx",root,"glm",mode,
+      "run","scripts/benchmark-spark-models.mbtx",root,"glm",
+      if profile && mode=="prepare" { "prepare-profile" } else { mode },
       "--runtime",runtime,"--rows","64","--tiled-grouped","--expert-tp",
       "--low-bit","--queued-tp","--graph-tp","--shape-aware","--warmup",
     ],env=environment).output(max_output_bytes=8388608)
@@ -29,6 +33,7 @@ async fn main {
     out.check()
     println(name+" "+mode+" completed")
   }
+  if profile { return }
   let comparison=@shell.Cmd("moon",["run","scripts/compare-glm-matched-benchmark.mbtx",root,
     "/tmp/lunaflux-model-bench-glm-shared-vector-next-20261017-v1/paired-native.json",
   ],env=environment).output(max_output_bytes=8388608)
