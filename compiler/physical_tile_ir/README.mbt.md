@@ -44,6 +44,15 @@ or introduces a runtime publication barrier.
 and consumer bindings therefore derive their offsets from one plan rather than
 reconstructing strip boundaries independently.
 
+`ProducerConsumerPipeline` describes disjoint producer/consumer owners and
+slot reuse by monotonically ordered epochs. Publication follows every producer;
+reuse follows every consumer's retirement. The finite descriptor is pure;
+CUDA alone chooses phase-counted barriers and copy/MMA thread assignments.
+The experimental grouped low-bit expert lowering consumes it with packed-row
+materialization from `compiler/grouped_matrix_ir`. Neither descriptor changes
+quantization, reduction association or original job-order publication. These
+transports are explicit opt-in alternatives, not an assumed performance win.
+
 Current consumers are the matrix, intermediate/down, sibling gate/up,
 sibling-reuse and fused-ingress pipelines. Scalar and selected-row reduction
 plans live in the projection compiler. Online-softmax state lives in the
