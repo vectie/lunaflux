@@ -348,6 +348,13 @@ pub(all) enum HyperControlExpression {
 }
 pub fn HyperControlExpression::expression(Self) -> NumericExpression raise PrecisionPlanError
 
+pub(all) enum HyperControlReduction {
+  Ordered
+  Tree(partitions~ : Int)
+}
+pub fn HyperControlReduction::dot_law(Self) -> DotReductionLaw
+pub fn HyperControlReduction::square_law(Self) -> SquareReductionLaw
+
 pub(all) enum HyperMixExpression {
   BranchProduct
   ResidualUpdate

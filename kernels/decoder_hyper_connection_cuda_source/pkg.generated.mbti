@@ -14,6 +14,8 @@ pub fn head_reduce_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, 
 
 pub fn ordered_control_tiles_source(@precision_ir.HyperConnectionPrecision, @hyper_connection_physical_ir.OrderedControlPlan, symbol_prefix~ : String) -> Bytes raise DecoderHyperConnectionCudaSourceError
 
+pub fn parallel_control_tiles_source(@precision_ir.HyperConnectionPrecision, @hyper_connection_physical_ir.ParallelControlPlan, symbol_prefix~ : String) -> Bytes raise DecoderHyperConnectionCudaSourceError
+
 pub fn post_combine_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String, mix_law? : @precision_ir.HyperConnectionMixLaw) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError
 
 pub fn pre_reduce_v1_bf16_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, function_symbol~ : String) -> DecoderHyperConnectionPreReduceCudaSource raise DecoderHyperConnectionCudaSourceError

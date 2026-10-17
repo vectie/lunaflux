@@ -47,3 +47,30 @@ test "replay budgeting is explicit and overflow checked" {
     _ => fail("overflowed graph reserve")
   }
 }
+
+///|
+test "collective-inclusive replay requires whole-frame retirement" {
+  try
+    OrderedSubmissionPlan::new(
+      kernel_count=3,
+      [1, 2],
+      retirement=EachCollective,
+      replay=CapturePaddedCollectives,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("per-site capture retirement accepted")
+  }
+  let p = OrderedSubmissionPlan::new(
+    kernel_count=3,
+    [1, 2],
+    retirement=WholeFrame,
+    replay=CapturePaddedCollectives,
+  )
+  assert_eq(p.interval_count(), 3)
+  assert_eq(
+    p.replay_reserve_bytes(bytes_per_kernel=100L, bytes_per_interval=10L),
+    330L,
+  )
+}

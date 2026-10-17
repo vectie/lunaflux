@@ -18,6 +18,7 @@ priv struct Startup {
   expert_scaled_dot_law : @precision.ScaledDotReductionLaw
   expert_transport : @matrix.ExpertTransport
   expert_fragment_slots : Int
+  hc_reduction : @precision.HyperControlReduction
 }
 
 ///|
@@ -61,6 +62,7 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
   @glm.GlmDecoderStage::new(
     startup.spec,
     range,
+    hc_reduction=startup.hc_reduction,
     maximum_rows=startup.rows,
     maximum_history=startup.history,
     index_layer_norm_epsilon=1.0e-5,
@@ -108,6 +110,7 @@ fn inspect_startup(
   expert_tensor_parallel? : Bool = false,
   retirement? : @parallel.RetirementPolicy = EachCollective,
   replay? : @parallel.ReplayPolicy = Eager,
+  hc_reduction? : @precision.HyperControlReduction = Ordered,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -160,6 +163,7 @@ fn inspect_startup(
   let ceiling = budgets[0].max(budgets[1]) - reserve
   let decoder = @glm.GlmDecoderSlice::new(
     spec,
+    hc_reduction~,
     first_layer=0,
     end_layer=spec.layer_count(),
     maximum_rows=rows,
@@ -236,6 +240,7 @@ fn inspect_startup(
     expert_scaled_dot_law,
     expert_transport,
     expert_fragment_slots,
+    hc_reduction,
   }
   // Recheck the executable owners, not only the planner's layer estimates.
   for ordinal in 0..<2 {

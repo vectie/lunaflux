@@ -12,6 +12,9 @@ pub extend RetirementPolicy with Eq::{equal, not_equal}
 pub(all) enum ReplayPolicy {
   Eager
   CaptureIntervals
+  // Independent-row sums at capacity; active row count remains a device input.
+  // Consumers must ignore inactive rows. Padding is not valid for all-gather.
+  CapturePaddedCollectives
 } derive(Eq)
 
 ///|
@@ -34,6 +37,9 @@ pub fn OrderedSubmissionPlan::new(
   replay? : ReplayPolicy = Eager,
 ) -> Self raise ParallelError {
   guard kernel_count > 0 && !collective_cuts.is_empty() else { raise Capacity }
+  guard replay != CapturePaddedCollectives || retirement == WholeFrame else {
+    raise Capacity
+  }
   for i, cut in collective_cuts {
     guard cut > 0 &&
       cut < kernel_count &&

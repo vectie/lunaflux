@@ -144,17 +144,22 @@ pub fn HyperConnectionFrame::prepare(
   } else {
     (weight, 1)
   }
+  let control_arguments = [
+    region(counts, 20L, 4L),
+    region(input, stream_bytes, 2L),
+    control_input,
+    region(base, width * 4L, 4L),
+    region(scale, 12L, 4L),
+    region(frame[0], sizes[0], 4L),
+    region(frame[1], sizes[1], 4L),
+    region(frame[3], sizes[3], 2L),
+  ]
+  if self.source.fuses_normalization() {
+    control_arguments.push(region(norm_weight, hidden.to_int64() * 2L, 2L))
+    control_arguments.push(region(frame[4], sizes[4], 2L))
+  }
   self.before.push(
-    self.launch(aot, 0, rows, control_threads, [
-      region(counts, 20L, 4L),
-      region(input, stream_bytes, 2L),
-      control_input,
-      region(base, width * 4L, 4L),
-      region(scale, 12L, 4L),
-      region(frame[0], sizes[0], 4L),
-      region(frame[1], sizes[1], 4L),
-      region(frame[3], sizes[3], 2L),
-    ]),
+    self.launch(aot, 0, rows, control_threads, control_arguments),
   )
   self.before.push(
     self.launch(aot, 1, rows, 1, [
@@ -163,14 +168,16 @@ pub fn HyperConnectionFrame::prepare(
       region(frame[2], sizes[2], 4L),
     ]),
   )
-  self.before.push(
-    self.launch(aot, 2, rows, self.source.normalization_threads(), [
-      region(counts, 20L, 4L),
-      region(frame[3], sizes[3], 2L),
-      region(norm_weight, hidden.to_int64() * 2L, 2L),
-      region(frame[4], sizes[4], 2L),
-    ]),
-  )
+  if !self.source.fuses_normalization() {
+    self.before.push(
+      self.launch(aot, 2, rows, self.source.normalization_threads(), [
+        region(counts, 20L, 4L),
+        region(frame[3], sizes[3], 2L),
+        region(norm_weight, hidden.to_int64() * 2L, 2L),
+        region(frame[4], sizes[4], 2L),
+      ]),
+    )
+  }
   let post = region(frame[0], sizes[0], 4L)
   let combination = region(frame[2], sizes[2], 4L)
   let residual = region(input, stream_bytes, 2L)

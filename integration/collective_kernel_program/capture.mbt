@@ -1,0 +1,72 @@
+///|
+/// Startup only. All ranks capture identical collective sites/counts. This
+/// explicit schedule reduces the capacity of independent rows, not only live
+/// rows; no consumer may observe padding. Initialize once before capture so
+/// inactive operands are defined. Runtime counts still mask model/KV writes.
+fn capture_collective_frame(
+  queue : @device.OrderedKernelExecutor,
+  stream : @device.Stream,
+  boundaries : ArrayView[ReductionBoundary],
+  owner : @device.TensorCollectiveOwner,
+  generation : UInt64,
+  rows : Int,
+  kernel_count : Int,
+) -> Unit raise @device.DeviceError {
+  for boundary in boundaries {
+    let bytes = rows.to_int64() * boundary.width.to_int64() * 4L
+    guard bytes <= 2147483647L else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+    boundary.buffer.copy_from_host(
+      Bytes::make(bytes.to_int(), 0),
+      0L,
+      0L,
+      bytes,
+    )
+  }
+  queue.begin_effect_capture()
+  errdefer {
+    queue.abort() catch {
+      _ => ()
+    }
+    owner.abort() catch {
+      _ => ()
+    }
+  }
+  let mut next = 0
+  for site, boundary in boundaries {
+    while next < boundary.before_kernel {
+      queue.enqueue(next)
+      next += 1
+    }
+    owner.submit(
+      generation~,
+      plan_sequence=1UL,
+      global_sequence=(site + 1).to_uint64(),
+      site_sequence=site + 1,
+      operation_id=boundary.operation_id,
+      kind=F32SumAllReduce,
+      live_query_tokens=rows,
+      send=boundary.buffer,
+      send_offset=0L,
+      receive=boundary.buffer,
+      receive_offset=0L,
+      stream~,
+    )
+    // Host-side nonblocking NCCL submission only: never query or synchronize
+    // the capturing device stream. Bounded by the startup process watchdog.
+    let mut attempts = 0
+    while !owner.defer_submitted() {
+      attempts += 1
+      guard attempts < 100000000 else {
+        raise @device.DeviceError::Busy(TensorCollectiveExecute)
+      }
+    }
+  }
+  while next < kernel_count {
+    queue.enqueue(next)
+    next += 1
+  }
+  queue.end_effect_capture()
+  owner.seal_graph(0UL)
+}

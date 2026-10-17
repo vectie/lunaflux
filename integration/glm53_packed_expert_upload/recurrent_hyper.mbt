@@ -11,6 +11,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
+  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   let branch = GlmRecurrentLayer::new(
@@ -33,6 +34,8 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
     control_epsilon=spec.hyper_connection_epsilon(),
     normalization_epsilon=spec.rms_norm_epsilon(),
     mix_law=RoundedBf16ControlsAndProducts,
+    control_square_law=hc_reduction.square_law(),
+    control_dot_law=hc_reduction.dot_law(),
   )
   {
     spec,

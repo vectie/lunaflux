@@ -298,7 +298,9 @@ pub struct OrderedKernelExecutor {
   // private fields
 }
 pub fn OrderedKernelExecutor::abort(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::begin_effect_capture(Self) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::close(Self) -> Unit raise DeviceError
+pub fn OrderedKernelExecutor::end_effect_capture(Self) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::enqueue(Self, Int) -> Unit raise DeviceError
 pub fn OrderedKernelExecutor::execution_mode(Self) -> OrderedKernelExecutionMode
 pub fn OrderedKernelExecutor::kernel_count(Self) -> Int
@@ -358,7 +360,9 @@ pub struct TensorCollectiveOwner {
   // private fields
 }
 pub fn TensorCollectiveOwner::abort(Self) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::begin_graph(Self, UInt64, UInt64, UInt64) -> Unit raise DeviceError
 pub fn TensorCollectiveOwner::close(Self) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::complete_graph(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::defer_submitted(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::invalidate(Self) -> Unit raise DeviceError
 pub fn TensorCollectiveOwner::poll(Self) -> Bool raise DeviceError
@@ -366,6 +370,8 @@ pub fn TensorCollectiveOwner::poll_deferred(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::poll_ready(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::poll_submitted(Self) -> Bool raise DeviceError
 pub fn TensorCollectiveOwner::prepare_deferred(Self) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::release_graph(Self) -> Unit raise DeviceError
+pub fn TensorCollectiveOwner::seal_graph(Self, UInt64) -> Unit raise DeviceError
 pub fn TensorCollectiveOwner::submit(Self, generation~ : UInt64, plan_sequence~ : UInt64, global_sequence~ : UInt64, site_sequence~ : Int, operation_id~ : Int, kind~ : TensorCollectiveKind, live_query_tokens~ : Int, send~ : Allocation, send_offset~ : Int64, receive~ : Allocation, receive_offset~ : Int64, stream~ : Stream) -> Unit raise DeviceError
 pub fn TensorCollectiveOwner::validate_group(Self, rank~ : Int, world_size~ : Int) -> Unit raise DeviceError
 pub fn TensorCollectiveOwner::validate_site_count(Self, Int) -> Unit raise DeviceError

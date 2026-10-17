@@ -51,6 +51,7 @@ struct lf_ordered_executor {
   int32_t kernel_count;
   int32_t acquired_kernel_count;
   int32_t execution_mode;
+  int32_t capture_active;
   atomic_int next_kernel;
   atomic_int phase;
   atomic_int state;
@@ -64,6 +65,9 @@ int32_t lf_ordered_graph_prepare(
 );
 int32_t lf_ordered_graph_launch(lf_ordered_executor *executor);
 int32_t lf_ordered_graph_destroy(lf_ordered_executor *executor);
+int32_t lf_ordered_capture_cancel(lf_ordered_executor *executor);
+int32_t lunaflux_cuda_ordered_capture_begin(lf_ordered_executor *executor);
+int32_t lunaflux_cuda_ordered_capture_end(lf_ordered_executor *executor);
 int32_t lf_ordered_operation_begin(lf_ordered_executor *executor);
 void lf_ordered_operation_end(lf_ordered_executor *executor);
 int32_t lf_ordered_launch_record(lf_ordered_executor *executor, lf_ordered_kernel *kernel);

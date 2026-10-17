@@ -471,6 +471,11 @@ int32_t lunaflux_cuda_ordered_executor_abort(lf_ordered_executor *executor) {
   if (executor == NULL) return LF_CLOSED;
   int32_t result = lf_ordered_operation_begin(executor);
   if (result != LF_OK) return result;
+  if (executor->capture_active) {
+    result = lf_ordered_capture_cancel(executor);
+    lf_ordered_operation_end(executor);
+    return result;
+  }
   int32_t phase = atomic_load(&executor->phase);
   if (phase == LF_ORDERED_IDLE || phase == LF_ORDERED_COMPLETE) {
     atomic_store(&executor->phase, LF_ORDERED_COMPLETE);

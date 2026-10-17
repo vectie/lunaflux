@@ -119,6 +119,8 @@ typedef struct lf_nccl_communicator {
   int32_t deferred_capacity;
   int32_t deferred_count;
   void *deferred_stream;
+  int32_t graph_bound;
+  int32_t graph_in_flight;
   atomic_int state;
   atomic_int operation_lock;
   atomic_int failed;
@@ -233,5 +235,9 @@ int32_t lf_nccl_communicator_poll_collective(
   lf_nccl_communicator *communicator,
   int32_t *completed
 );
+int32_t lunaflux_nccl_graph_seal(lf_nccl_communicator *, uint64_t, int32_t);
+int32_t lunaflux_nccl_graph_begin(lf_nccl_communicator *, uint64_t, uint64_t, uint64_t);
+int32_t lunaflux_nccl_graph_complete(lf_nccl_communicator *);
+int32_t lunaflux_nccl_graph_release(lf_nccl_communicator *);
 
 #endif

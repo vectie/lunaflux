@@ -198,7 +198,7 @@ pub struct OrderedKernelLaunch {
 pub struct OrderedKernelExecutor {
   priv raw : @cuda.OrderedKernelExecutor
   priv kernel_count : Int
-  priv mode : OrderedKernelExecutionMode
+  priv mut mode : OrderedKernelExecutionMode
 }
 
 ///|

@@ -27,6 +27,7 @@ pub fn GlmSparseLayer::new(
   maximum_workspace_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
@@ -52,6 +53,8 @@ pub fn GlmSparseLayer::new(
     control_epsilon=spec.hyper_connection_epsilon(),
     normalization_epsilon=spec.rms_norm_epsilon(),
     mix_law=RoundedBf16ControlsAndProducts,
+    control_square_law=hc_reduction.square_law(),
+    control_dot_law=hc_reduction.dot_law(),
   )
   let plan = @precision_ir.IndexedSparseDecoderPrecision::new(
     projection,
@@ -70,6 +73,7 @@ pub fn GlmSparseLayer::new(
     maximum_queries,
     maximum_expert_bytes,
     accuracy,
+    hc_reduction~,
     matrix_law~,
     expert_scaled_dot_law~,
     expert_transport~,

@@ -286,7 +286,7 @@ static int32_t lf_run_graph_probe(int32_t mode) {
   starts[0] = 0;
   starts[1] = 1;
   allocations[0] = allocation;
-  int32_t policy = mode == 1
+  int32_t policy = (mode == 1 || mode == 10)
     ? LF_ORDERED_EAGER_ONLY
     : (mode == 2
       ? LF_ORDERED_CAPTURE_WITH_EAGER_FALLBACK
@@ -297,6 +297,13 @@ static int32_t lf_run_graph_probe(int32_t mode) {
     byte_counts, alignments, policy, &status
   );
   int32_t result = 0;
+  if (mode == 10 && status == LF_OK) {
+    if (lunaflux_cuda_ordered_capture_begin(executor) != LF_OK ||
+        lunaflux_cuda_ordered_capture_begin(executor) != LF_INVALID_ARGUMENT ||
+        lunaflux_cuda_ordered_capture_end(executor) != LF_INVALID_ARGUMENT ||
+        lunaflux_cuda_ordered_executor_enqueue(executor, 0) != LF_OK ||
+        lunaflux_cuda_ordered_capture_end(executor) != LF_OK) result = 220;
+  }
   if (mode == 5) {
     if (status != LF_UNSUPPORTED || executor == NULL ||
         state.event_destroys != 1 ||
@@ -336,7 +343,7 @@ static int32_t lf_run_graph_probe(int32_t mode) {
     result = 200;
   } else {
     int32_t expected_mode =
-      mode == 0 || mode == 3 || mode == 4 || mode == 8 || mode == 9
+      mode == 0 || mode == 3 || mode == 4 || mode == 8 || mode == 9 || mode == 10
       ? LF_ORDERED_MODE_CAPTURED
       : LF_ORDERED_MODE_EAGER;
     if (lunaflux_cuda_ordered_executor_mode(executor) != expected_mode) {
@@ -411,7 +418,7 @@ static int32_t lf_run_graph_probe(int32_t mode) {
     result = 207;
   }
   int32_t captured =
-    mode == 0 || mode == 3 || mode == 4 || mode == 8 || mode == 9;
+    mode == 0 || mode == 3 || mode == 4 || mode == 8 || mode == 9 || mode == 10;
   if (result == 0 && mode != 5 && mode != 6 && mode != 7 &&
       (state.begin_captures != captured ||
        state.end_captures != captured ||
@@ -452,7 +459,7 @@ MOONBIT_FFI_EXPORT
 int32_t lunaflux_cuda_test_ordered_graph(int32_t cycles) {
   if (cycles < 1 || cycles > 10000) return LF_INVALID_ARGUMENT;
   for (int32_t cycle = 0; cycle < cycles; cycle += 1) {
-    int32_t mode = cycle % 10;
+    int32_t mode = cycle % 11;
     int32_t result = lf_run_graph_probe(mode);
     if (result != LF_OK) return result;
   }

@@ -308,6 +308,8 @@ async fn main {
   let options = if warmup { options[:options.length() - 1] } else { options }
   let shape_aware = options.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
+  let parallel_hc = @env.get_env_var("LUNA_GLM_PARALLEL_HC") == Some("1")
+  let collective_graph = @env.get_env_var("LUNA_GLM_COLLECTIVE_GRAPH") == Some("1")
   let lookahead = @env.get_env_var("LUNA_GLM_EXPERT_LOOKAHEAD") == Some("1")
   guard !buffered || (glm && shape_aware) else {
     fail("buffered matrices require GLM shape-aware")
@@ -670,7 +672,9 @@ async fn main {
           ""
         }) +
         (if lookahead { "-lookahead-experts" } else { "" }) +
-        (if buffered { "-buffered-matrices" } else { "" })
+        (if buffered { "-buffered-matrices" } else { "" }) +
+        (if parallel_hc { "-parallel-hc" } else { "" }) +
+        (if collective_graph { "-collective-graph" } else { "" })
       record(
         root,
         role + "-start",

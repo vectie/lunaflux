@@ -24,6 +24,7 @@ priv enum State {
   Submission
   Completion
   Tail
+  Graph
   Failed
   Closed
 } derive(Eq)
@@ -103,6 +104,9 @@ pub fn CollectiveKernelProgram::new(
   }
   let queues : Array[@device.OrderedKernelExecutor] = []
   errdefer (for queue in queues.rev() {
+    queue.abort() catch {
+      _ => ()
+    }
     queue.close() catch {
       _ => ()
     }
@@ -120,6 +124,17 @@ pub fn CollectiveKernelProgram::new(
     }
   } else {
     queues.push(context.create_ordered_kernel_executor(stream, launches))
+  }
+  if replay == CapturePaddedCollectives {
+    capture_collective_frame(
+      queues[0],
+      stream,
+      boundaries,
+      owner,
+      generation,
+      maximum_rows,
+      launches.length(),
+    )
   }
   {
     queues: ReadOnlyArray::from_array(queues),
@@ -202,6 +217,13 @@ pub fn CollectiveKernelProgram::submit(
   self.global_sequence = global_sequence
   self.site = 0
   self.next_kernel = 0
+  if self.plan.replay_policy() == CapturePaddedCollectives {
+    self.owner.begin_graph(self.generation, plan_sequence, global_sequence)
+    self.queues[0].launch_captured()
+    self.queues[0].record_completion()
+    self.state = Graph
+    return
+  }
   self.enqueue_interval(0)
   self.reduce()
 }
@@ -212,6 +234,20 @@ pub fn CollectiveKernelProgram::submit(
 pub fn CollectiveKernelProgram::poll(
   self : Self,
 ) -> Bool raise @device.DeviceError {
+  if self.state == Graph {
+    errdefer {
+      self.state = Failed
+    }
+    if !self.queues[0].poll_completion() {
+      return false
+    }
+    if !self.owner.complete_graph() {
+      return false
+    }
+    self.queues[0].reset()
+    self.state = Idle
+    return true
+  }
   guard self.state == Submission ||
     self.state == Completion ||
     self.state == Tail else {
@@ -288,6 +324,9 @@ pub fn CollectiveKernelProgram::close(
   for queue in self.queues.rev() {
     queue.close()
   }
+  if self.plan.replay_policy() == CapturePaddedCollectives {
+    self.owner.release_graph()
+  }
   self.state = Closed
 }
 
@@ -309,7 +348,7 @@ pub fn CollectiveKernelProgram::abort(
 
 ///|
 pub fn CollectiveKernelProgram::replay_graph_count(self : Self) -> Int {
-  if self.plan.replay_policy() == CaptureIntervals {
+  if self.plan.replay_policy() != Eager {
     self.queues.length()
   } else {
     0

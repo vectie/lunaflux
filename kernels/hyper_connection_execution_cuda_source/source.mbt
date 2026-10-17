@@ -4,7 +4,7 @@ pub struct HyperConnectionCudaSource {
   priv prefix : String
   priv source : Bytes
   priv normalization_threads : Int
-  priv control_schedule : @physical.OrderedControlPlan?
+  priv control_schedule : @physical.ControlSchedule?
 }
 
 ///|
@@ -18,11 +18,20 @@ pub fn hyper_connection_source(
   let (streams, hidden, rows) = plan.geometry()
   // Independent physical scheduling does not change the numerical IR. Keep
   // other arithmetic laws on their explicit existing implementations.
-  let control_schedule = if parallel_controls &&
+  let control_schedule : @physical.ControlSchedule? = if parallel_controls &&
     plan.control_law() is NormalizedBf16Projection &&
     plan.control_square_law() is OrderedFloat32 &&
     plan.control_dot_law() is OrderedFloat32 {
-    Some(@physical.OrderedControlPlan::new(plan, workers=256, product_tile=256))
+    Some(
+      Ordered(
+        @physical.OrderedControlPlan::new(plan, workers=256, product_tile=256),
+      ),
+    )
+  } else if parallel_controls &&
+    plan.control_law() is NormalizedBf16Projection &&
+    plan.control_square_law() is VectorizedTreeFloat32(..) &&
+    plan.control_dot_law() is StripedTreeFloat32(..) {
+    Some(Tree(@physical.ParallelControlPlan::new(plan)))
   } else {
     None
   }
@@ -43,8 +52,10 @@ pub fn hyper_connection_source(
     control_root_law=plan.control_root_law(),
   )
   // Multiple branch envelopes may share a module without duplicate helpers.
-  let function_source = if control_schedule is Some(schedule) {
+  let function_source = if control_schedule is Some(Ordered(schedule)) {
     @control.ordered_control_tiles_source(plan, schedule, symbol_prefix~)
+  } else if control_schedule is Some(Tree(schedule)) {
+    @control.parallel_control_tiles_source(plan, schedule, symbol_prefix~)
   } else {
     @utf8.encode(
       @utf8.decode(function.source_bytes())
@@ -124,9 +135,17 @@ pub fn HyperConnectionCudaSource::normalization_threads(self : Self) -> Int {
 }
 
 ///|
+pub fn HyperConnectionCudaSource::fuses_normalization(self : Self) -> Bool {
+  match self.control_schedule {
+    Some(schedule) => schedule.fuses_normalization()
+    None => false
+  }
+}
+
+///|
 pub fn HyperConnectionCudaSource::control_schedule(
   self : Self,
-) -> @physical.OrderedControlPlan? {
+) -> @physical.ControlSchedule? {
   self.control_schedule
 }
 
@@ -137,7 +156,9 @@ pub fn HyperConnectionCudaSource::symbol(
 ) -> String raise @precision.PrecisionPlanError {
   let suffix = match stage {
     0 =>
-      if self.control_schedule is Some(_) {
+      if self.control_schedule is Some(Tree(_)) {
+        "function_tree_tiles_v1"
+      } else if self.control_schedule is Some(_) {
         "function_ordered_tiles_v1"
       } else {
         "function"
@@ -145,6 +166,8 @@ pub fn HyperConnectionCudaSource::symbol(
     1 => "sinkhorn"
     2 => "norm"
     3 => "post"
+    4 if self.control_schedule is Some(Tree(_)) => "square_tree_tiles_v1"
+    5 if self.control_schedule is Some(Tree(_)) => "project_tree_tiles_v1"
     4 if self.control_schedule is Some(_) => "square_ordered_tiles_v1"
     5 if self.control_schedule is Some(_) => "project_ordered_tiles_v1"
     _ => raise @precision.PrecisionPlanError::IllegalPlacement

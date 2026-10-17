@@ -16,10 +16,58 @@ pub fn ordered_control_tiles_source(
     precision.control_dot_law() is OrderedFloat32 else {
     raise InvalidNumericalContract
   }
-  let flattened = width * hidden
-  let controls = width * (width + 2)
   let tile = schedule.product_tile()
   let workers = schedule.workers()
+  control_tiles_source(precision, workers, tile, false, false, symbol_prefix~)
+}
+
+///|
+pub fn parallel_control_tiles_source(
+  precision : @precision.HyperConnectionPrecision,
+  schedule : @physical.ParallelControlPlan,
+  symbol_prefix~ : String,
+) -> Bytes raise DecoderHyperConnectionCudaSourceError {
+  let checked = @physical.ParallelControlPlan::new(precision) catch {
+    _ => raise InvalidNumericalContract
+  }
+  guard valid_hyper_connection_symbol(symbol_prefix) &&
+    schedule.geometry() == checked.geometry() &&
+    schedule.workers() == checked.workers() else {
+    raise InvalidNumericalContract
+  }
+  control_tiles_source(
+    precision,
+    schedule.workers(),
+    schedule.workers(),
+    true,
+    checked.fuses_normalization(),
+    symbol_prefix~,
+  )
+}
+
+///|
+fn control_tiles_source(
+  precision : @precision.HyperConnectionPrecision,
+  workers : Int,
+  tile : Int,
+  parallel : Bool,
+  fused_norm : Bool,
+  symbol_prefix~ : String,
+) -> Bytes raise DecoderHyperConnectionCudaSourceError {
+  let (width, hidden, rows) = precision.geometry()
+  let flattened = width * hidden
+  let controls = width * (width + 2)
+  let suffix = if parallel { "tree_tiles_v1" } else { "ordered_tiles_v1" }
+  let norm_parameters = if fused_norm {
+    ", const __nv_bfloat16 *norm_weight, __nv_bfloat16 *normalized"
+  } else {
+    ""
+  }
+  let norm_body = if fused_norm {
+    fused_collapse_norm_body(precision, workers)
+  } else {
+    ""
+  }
   let norm_eps = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(
     precision.normalization_epsilon(),
   )
@@ -93,17 +141,23 @@ pub fn ordered_control_tiles_source(
   } else {
     ""
   }
-  @utf8.encode(
+  let square_fold = if parallel {
     (
-      $|#include <cuda_bf16.h>
-      $|#include <math.h>
-      $|#include <stdint.h>
-      $|__device__ __forceinline__ float \{symbol_prefix}_sigmoid(float x) { \{sigmoid} }
-      $|\{matrix_sum}
-      $|extern "C" __global__ void \{symbol_prefix}_square_ordered_tiles_v1(const int32_t *counts, const __nv_bfloat16 *streams, float *scratch) {
-      $|  const int live_rows = counts[3], row = blockIdx.x, worker = threadIdx.x;
-      $|  if (live_rows < 0 || live_rows > \{rows} || row >= live_rows || blockDim.x != \{workers}) return;
-      $|  __shared__ float products[\{tile}];
+      $|  float sum = 0.0f;
+      $|  for (int column = worker; column < \{flattened}; column += \{workers}) {
+      $|    const float x = __bfloat162float(streams[(unsigned long long)row * \{flattened} + column]);
+      $|    sum = __fadd_rn(sum, isfinite(x) ? __fmul_rn(x, x) : NAN);
+      $|  }
+      $|  products[worker] = sum;
+      $|  __syncthreads();
+      $|  for (int stride = \{workers / 2}; stride > 0; stride >>= 1) {
+      $|    if (worker < stride) products[worker] = __fadd_rn(products[worker], products[worker + stride]);
+      $|    __syncthreads();
+      $|  }
+      $|  sum = products[0];
+    )
+  } else {
+    (
       $|  float sum = 0.0f;
       $|  for (int start = 0; start < \{flattened}; start += \{tile}) {
       $|    const int count = min(\{tile}, \{flattened} - start);
@@ -115,15 +169,23 @@ pub fn ordered_control_tiles_source(
       $|    if (worker == 0) for (int i = 0; i < count; ++i) sum = __fadd_rn(sum, products[i]);
       $|    __syncthreads(); // readers retire before the next product tile
       $|  }
-      $|  if (worker == 0) scratch[row] = \{root};
-      $|}
-      $|extern "C" __global__ void \{symbol_prefix}_project_ordered_tiles_v1(const int32_t *counts, const __nv_bfloat16 *streams, const \{weight_type} *function_weights, float *scratch) {
-      $|  const int row = blockIdx.x / \{controls}, output = blockIdx.x % \{controls}, worker = threadIdx.x;
-      $|  const int live_rows = counts[3]; if (live_rows < 0 || live_rows > \{rows} || row >= live_rows || blockDim.x != \{workers}) return;
-      $|  const float inverse = scratch[row]; if (!isfinite(inverse)) return;
-      $|  const unsigned long long input_base = (unsigned long long)row * \{flattened};
-      $|  const unsigned long long weight_base = (unsigned long long)output * \{flattened};
-      $|  __shared__ float products[\{tile}]; float dot = 0.0f;
+    )
+  }
+  let dot_fold = if parallel {
+    (
+      $|  for (int column = worker; column < \{flattened}; column += \{workers}) {
+      $|    dot = __fadd_rn(dot, __fmul_rn(\{operand}, \{weight}));
+      $|  }
+      $|  products[worker] = dot;
+      $|  __syncthreads();
+      $|  for (int stride = \{workers / 2}; stride > 0; stride >>= 1) {
+      $|    if (worker < stride) products[worker] = __fadd_rn(products[worker], products[worker + stride]);
+      $|    __syncthreads();
+      $|  }
+      $|  dot = products[0];
+    )
+  } else {
+    (
       $|  for (int start = 0; start < \{flattened}; start += \{tile}) {
       $|    const int count = min(\{tile}, \{flattened} - start);
       $|    for (int i = worker; i < count; i += \{workers}) {
@@ -134,9 +196,33 @@ pub fn ordered_control_tiles_source(
       $|    if (worker == 0) for (int i = 0; i < count; ++i) dot = __fadd_rn(dot, products[i]);
       $|    __syncthreads();
       $|  }
+    )
+  }
+  @utf8.encode(
+    (
+      $|#include <cuda_bf16.h>
+      $|#include <math.h>
+      $|#include <stdint.h>
+      $|__device__ __forceinline__ float \{symbol_prefix}_sigmoid(float x) { \{sigmoid} }
+      $|\{matrix_sum}
+      $|extern "C" __global__ void \{symbol_prefix}_square_\{suffix}(const int32_t *counts, const __nv_bfloat16 *streams, float *scratch) {
+      $|  const int live_rows = counts[3], row = blockIdx.x, worker = threadIdx.x;
+      $|  if (live_rows < 0 || live_rows > \{rows} || row >= live_rows || blockDim.x != \{workers}) return;
+      $|  __shared__ float products[\{tile}];
+      $|\{square_fold}
+      $|  if (worker == 0) scratch[row] = \{root};
+      $|}
+      $|extern "C" __global__ void \{symbol_prefix}_project_\{suffix}(const int32_t *counts, const __nv_bfloat16 *streams, const \{weight_type} *function_weights, float *scratch) {
+      $|  const int row = blockIdx.x / \{controls}, output = blockIdx.x % \{controls}, worker = threadIdx.x;
+      $|  const int live_rows = counts[3]; if (live_rows < 0 || live_rows > \{rows} || row >= live_rows || blockDim.x != \{workers}) return;
+      $|  const float inverse = scratch[row]; if (!isfinite(inverse)) return;
+      $|  const unsigned long long input_base = (unsigned long long)row * \{flattened};
+      $|  const unsigned long long weight_base = (unsigned long long)output * \{flattened};
+      $|  __shared__ float products[\{tile}]; float dot = 0.0f;
+      $|\{dot_fold}
       $|  if (worker == 0) scratch[\{rows} + (unsigned long long)row * \{controls} + output] = \{publication};
       $|}
-      $|extern "C" __global__ void \{symbol_prefix}_function_ordered_tiles_v1(const int32_t *counts, const __nv_bfloat16 *streams, const float *scratch, const float *base, const float *scale, float *post, float *initial_combination, __nv_bfloat16 *collapsed) {
+      $|extern "C" __global__ void \{symbol_prefix}_function_\{suffix}(const int32_t *counts, const __nv_bfloat16 *streams, const float *scratch, const float *base, const float *scale, float *post, float *initial_combination, __nv_bfloat16 *collapsed\{norm_parameters}) {
       $|  const int live_rows = counts[3], row = blockIdx.x, worker = threadIdx.x;
       $|  if (live_rows < 0 || live_rows > \{rows} || row >= live_rows || blockDim.x != \{workers}) return;
       $|  if (!isfinite(scratch[row])) return;
@@ -174,6 +260,7 @@ pub fn ordered_control_tiles_source(
       $|    for (int stream = 0; stream < \{width}; ++stream) sum = \{collapse};
       $|    if (isfinite(sum)) collapsed[(unsigned long long)row * \{hidden} + column] = \{publish};
       $|  }
+      $|\{norm_body}
       $|}
       $|
     ),

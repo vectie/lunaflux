@@ -40,6 +40,7 @@ pub fn GlmDecoderSlice::new(
   maximum_layer_workspace_bytes~ : Int64,
   maximum_layer_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
@@ -63,6 +64,7 @@ pub fn GlmDecoderSlice::new(
             Recurrent(
               GlmRecurrentLayer::with_dense_block(
                 spec,
+                hc_reduction~,
                 layer_index~,
                 maximum_rows~,
                 maximum_sequences~,
@@ -78,6 +80,7 @@ pub fn GlmDecoderSlice::new(
             Recurrent(
               GlmRecurrentLayer::with_moe_block(
                 spec,
+                hc_reduction~,
                 layer_index~,
                 maximum_rows~,
                 maximum_sequences~,
@@ -102,6 +105,7 @@ pub fn GlmDecoderSlice::new(
         Sparse(
           GlmSparseLayer::new(
             spec,
+            hc_reduction~,
             layer_index~,
             maximum_queries=maximum_rows,
             maximum_history~,

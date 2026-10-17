@@ -87,6 +87,10 @@ int32_t lf_ordered_graph_launch(lf_ordered_executor *executor) {
 
 int32_t lf_ordered_graph_destroy(lf_ordered_executor *executor) {
   if (executor == NULL) return LF_INVALID_ARGUMENT;
+  if (executor->capture_active) {
+    int32_t cancel = lf_ordered_capture_cancel(executor);
+    if (cancel != LF_OK) return cancel;
+  }
   if (executor->graph_exec == NULL && executor->graph == NULL) return LF_OK;
   int32_t result = lf_context_current(executor->context);
   if (result != LF_OK) return result;
@@ -111,6 +115,61 @@ int32_t lf_ordered_graph_destroy(lf_ordered_executor *executor) {
     }
   }
   return result;
+}
+
+/* Startup-only composition: the immutable kernel records retain operands;
+ * external same-stream effects may be inserted between those records. */
+MOONBIT_FFI_EXPORT int32_t lunaflux_cuda_ordered_capture_begin(lf_ordered_executor *e) {
+  int32_t status = lf_ordered_operation_begin(e);
+  if (status != LF_OK) return status;
+  if (e->capture_active || e->execution_mode != LF_ORDERED_MODE_EAGER ||
+      atomic_load(&e->phase) != LF_ORDERED_IDLE || atomic_load(&e->next_kernel) != 0) {
+    status = LF_INVALID_ARGUMENT;
+  } else if (!lf_ordered_graph_api_available(e->context->api)) {
+    status = LF_UNSUPPORTED;
+  } else if ((status = lf_context_current(e->context)) == LF_OK) {
+    status = lf_cuda_map_result(e->context->api->cuStreamBeginCapture(
+      (CUstream)e->stream->handle, CU_STREAM_CAPTURE_MODE_THREAD_LOCAL));
+    if (status == LF_OK) e->capture_active = 1;
+  }
+  lf_ordered_operation_end(e);
+  return status;
+}
+
+int32_t lf_ordered_capture_cancel(lf_ordered_executor *e) {
+  if (!e->capture_active) return LF_OK;
+  int32_t status = lf_context_current(e->context);
+  if (status != LF_OK) return status;
+  CUgraph graph = NULL;
+  /* An invalidated capture returns an error but still terminates capture. */
+  (void)e->context->api->cuStreamEndCapture((CUstream)e->stream->handle, &graph);
+  e->capture_active = 0;
+  e->graph = graph;
+  atomic_store(&e->phase, LF_ORDERED_COMPLETE);
+  return LF_OK;
+}
+
+MOONBIT_FFI_EXPORT int32_t lunaflux_cuda_ordered_capture_end(lf_ordered_executor *e) {
+  int32_t status = lf_ordered_operation_begin(e);
+  if (status != LF_OK) return status;
+  if (!e->capture_active || atomic_load(&e->next_kernel) != e->kernel_count) {
+    status = LF_INVALID_ARGUMENT;
+  } else if ((status = lf_context_current(e->context)) == LF_OK) {
+    status = lf_cuda_map_result(e->context->api->cuStreamEndCapture(
+      (CUstream)e->stream->handle, &e->graph));
+    e->capture_active = 0;
+    atomic_store(&e->phase, LF_ORDERED_IDLE);
+    atomic_store(&e->next_kernel, 0);
+    if (status == LF_OK && e->graph != NULL) {
+      status = lf_cuda_map_result(e->context->api->cuGraphInstantiateWithFlags(&e->graph_exec, e->graph, 0));
+      if (status == LF_OK) {
+        status = lf_cuda_map_result(e->context->api->cuGraphDestroy(e->graph));
+        if (status == LF_OK) { e->graph = NULL; e->execution_mode = LF_ORDERED_MODE_CAPTURED; }
+      }
+    } else if (status == LF_OK) { status = LF_DRIVER_FAILURE; }
+  }
+  lf_ordered_operation_end(e);
+  return status;
 }
 
 MOONBIT_FFI_EXPORT

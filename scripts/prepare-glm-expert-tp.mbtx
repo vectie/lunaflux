@@ -14,6 +14,7 @@ async fn main {
   }
   let shape_aware = supplied.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
+  let parallel_hc = @env.get_env_var("LUNA_GLM_PARALLEL_HC") == Some("1")
   let lookahead = @env.get_env_var("LUNA_GLM_EXPERT_LOOKAHEAD") == Some("1")
   guard !buffered || shape_aware else {
     fail("buffered matrices require shape-aware")
@@ -208,6 +209,7 @@ async fn main {
       }) +
       (if lookahead { "-lookahead-experts" } else { "" }) +
       (if buffered { "-buffered-matrices" } else { "" }) +
+      (if parallel_hc { "-parallel-hc" } else { "" }) +
       " /tmp/lunaflux-glm-real-20261010.6yIBQN35/GLM-5.3-Flash-NVFP4 /tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP/SHARDS.sha256 \{rows} 64 107374182400 107374182400 2147483648 " +
       aot,
     ),

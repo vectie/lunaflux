@@ -313,7 +313,7 @@ int32_t lf_nccl_collective_begin(
     status = LF_NCCL_CLOSED;
   } else if (atomic_load(&communicator->failed) != 0) {
     status = LF_NCCL_FAILED;
-  } else if (communicator->phase != LF_NCCL_PHASE_READY) {
+  } else if (communicator->graph_bound || communicator->phase != LF_NCCL_PHASE_READY) {
     status = LF_NCCL_BUSY;
   } else if (generation != communicator->generation) {
     atomic_store(&communicator->failed, 1);

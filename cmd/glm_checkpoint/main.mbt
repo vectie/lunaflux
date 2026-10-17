@@ -129,6 +129,18 @@ async fn main {
   }
   // Explicit experimental arithmetic, shared by export and runtime planning.
   // Ordinary commands retain ordered recurrence; no request-path selection.
+  let collective_graph = mode.has_suffix("-collective-graph")
+  let mode = if collective_graph {
+    mode[:mode.length() - 17].to_owned()
+  } else {
+    mode
+  }
+  let parallel_hc = mode.has_suffix("-parallel-hc")
+  let mode = if parallel_hc {
+    mode[:mode.length() - 12].to_owned()
+  } else {
+    mode
+  }
   let buffered = mode.has_suffix("-buffered-matrices")
   let mode = if buffered { mode[:mode.length() - 18].to_owned() } else { mode }
   let lookahead = mode.has_suffix("-lookahead-experts")
@@ -247,7 +259,14 @@ async fn main {
       expert_transport~,
       expert_fragment_slots=if lookahead { 2 } else { 1 },
       retirement=if queued { WholeFrame } else { EachCollective },
-      replay=if replay { CaptureIntervals } else { Eager },
+      replay=if collective_graph {
+        CapturePaddedCollectives
+      } else if replay {
+        CaptureIntervals
+      } else {
+        Eager
+      },
+      hc_reduction=if parallel_hc { Tree(partitions=256) } else { Ordered },
     )
   }
   println(
@@ -257,6 +276,10 @@ async fn main {
     "expert_activation_quantization=\{low_bit} native_block_scaled_matrix=\{low_bit}",
   )
   println("tp_submission_queued=\{queued} tp_graph_replay=\{replay}")
+  println("tp_collective_inclusive_graph=\{collective_graph}")
+  println(
+    "hc_parallel_tree=\{parallel_hc} hc_collapse_norm_fused=\{parallel_hc}",
+  )
   println(
     "recurrent_matrix_buffered=\{buffered} operand_slots=\{if buffered {2} else {1}}",
   )

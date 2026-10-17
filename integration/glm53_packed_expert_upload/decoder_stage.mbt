@@ -31,6 +31,7 @@ pub fn GlmDecoderStage::new(
   maximum_layer_expert_bytes~ : Int64,
   maximum_text_workspace_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
+  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
@@ -74,6 +75,7 @@ pub fn GlmDecoderStage::new(
     range,
     decoder: GlmDecoderSlice::new(
       spec,
+      hc_reduction~,
       first_layer~,
       end_layer~,
       maximum_rows~,

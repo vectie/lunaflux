@@ -15,6 +15,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
+  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   expert_fragment_slots? : Int = 1,
@@ -33,6 +34,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
     evaluation~,
     matrix_law~,
     matrix_staging~,
+    hc_reduction~,
     tensor_group?,
   )
   {
@@ -49,6 +51,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
         maximum_rows,
         maximum_expert_bytes,
         accuracy,
+        hc_reduction~,
         matrix_law~,
         expert_scaled_dot_law~,
         expert_transport~,
@@ -69,6 +72,7 @@ fn make_moe_ffn(
   maximum_rows : Int,
   maximum_expert_bytes : Int64,
   accuracy : @precision_ir.Accuracy,
+  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
@@ -191,6 +195,8 @@ fn make_moe_ffn(
     control_epsilon=spec.hyper_connection_epsilon(),
     normalization_epsilon=spec.rms_norm_epsilon(),
     mix_law=RoundedBf16ControlsAndProducts,
+    control_square_law=hc_reduction.square_law(),
+    control_dot_law=hc_reduction.dot_law(),
   )
   {
     envelope: @hyper.HyperConnectionFrame::new(
