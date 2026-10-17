@@ -27,6 +27,11 @@ fn grouped_fp4_source(
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   let accumulators = tile_columns / 8
+  // Fold the publication coordinates over a single-fragment index domain.
+  // Keep its established loop policy; explicit unrolling is for wider owners.
+  let unroll = if accumulators == 4 { "" } else { "#pragma unroll" }
+  let row_half = if accumulators == 4 { "i/2" } else { "i%4/2" }
+  let column_offset = if accumulators == 4 { "" } else { "(i/4)*32+" }
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
   let prefix = @luna_cuda_precision.e2m1_scaled_matrix_helper(symbol~)
   let quantizers = [qx, qa].mapi((i, q) => {
@@ -56,7 +61,7 @@ fn grouped_fp4_source(
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
         $|\{fp4_fragment_pipeline(stage,k,n,selected,x.scales_offset().unwrap(),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~)}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
-        $|#pragma unroll
+        $|\{unroll}
         $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
       ),
     )
@@ -77,7 +82,7 @@ fn grouped_fp4_source(
       .map(stage => {
         (
           $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{layouts[stage].global_scale_offset().unwrap()}ULL));
-          $|#pragma unroll
+          $|\{unroll}
           $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
         )
       })
@@ -161,8 +166,8 @@ fn grouped_fp4_source(
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{gate_up}
-      $|  #pragma unroll
-      $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(i%4/2)*8],out=column+(i/4)*32+t*2+i%2;if(job<0||out>=\{intermediate}) continue;
+      $|  \{unroll}
+      $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(\{row_half})*8],out=column+\{column_offset}t*2+i%2;if(job<0||out>=\{intermediate}) continue;
       $|    __nv_bfloat16 gate=__float2bfloat16_rn(d0[i]),up=__float2bfloat16_rn(d1[i]);\{clamp}
       $|    float g=__bfloat162float(gate),product=\{expr(Product,["g","up"])};\{route}
       $|    activation[(unsigned long long)job*\{intermediate}+out]=local<0?__float2bfloat16_rn(0.0f):__float2bfloat16_rn(product);
@@ -176,8 +181,8 @@ fn grouped_fp4_source(
       $|  int expert=meta[1+group],local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1;if(local>=\{plan.local_experts().length()}) local=-1;
       $|  const int *job_ids=meta+1+\{jobs}+group*16;
       $|  \{bodies[2]}
-      $|  #pragma unroll
-      $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(i%4/2)*8],out=column+(i/4)*32+t*2+i%2;if(job>=0&&out<\{hidden}) weighted[(unsigned long long)job*\{hidden}+out]=\{down};}
+      $|  \{unroll}
+      $|  for(int i=0;i<\{accumulators};++i) {int job=job_ids[g+(\{row_half})*8],out=column+\{column_offset}t*2+i%2;if(job>=0&&out<\{hidden}) weighted[(unsigned long long)job*\{hidden}+out]=\{down};}
       $|  }
       $|}
       $|extern "C" __global__ void \{symbol}_combine(const int *counts,const int *indices,const \{wt} *weighted,float *output\{if partial {",const float *selected_weights"} else {""}}) {

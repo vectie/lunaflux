@@ -104,7 +104,7 @@ test "full-width native FP4 expert performance export" {
   assert_true(
     !@utf8.decode(ordinary.source_bytes()).contains("const unsigned *bp1="),
   )
-  assert_true(@utf8.decode(ordinary.source_bytes()).contains("fragment<1"))
+  assert_true(!@utf8.decode(ordinary.source_bytes()).contains("fragment<"))
   for i in 0..<ordinary.launches().length() {
     assert_eq(ordinary.launches()[i], alternate.launches()[i])
   }

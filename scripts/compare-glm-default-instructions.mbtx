@@ -1,0 +1,84 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// CPU-only disassembly of the paired probe. Equality here is compiled-code
+// preservation, not a model correctness oracle or a performance measurement.
+
+///|
+fn normalize(text : String, prefix : String) -> String {
+  text.replace_all(old=prefix + "_", new="matched_")
+}
+
+///|
+test "normalize only the paired symbol prefix, not instruction operands" {
+  assert_eq(normalize("perf_down R4, R5", "perf"), "matched_down R4, R5")
+  assert_true(
+    normalize("perf_down R4, R5", "perf") !=
+    normalize("next_down R5, R4", "next"),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-fp4-performance-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("PREPARED_PAIRED_ROOT")
+  }
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap()
+  let output = root + "/default-instructions"
+  @fs.mkdir(output)
+  let report = StringBuilder()
+  for role in ["gate_up", "down"] {
+    for kind in ["sass", "resource-usage"] {
+      let values = []
+      for prefix in ["perf", "next"] {
+        let result = @shell.Cmd("ssh", [
+          "-S",
+          socket,
+          "-o",
+          "BatchMode=yes",
+          "wlc004s@192.168.2.179",
+          "/usr/local/cuda-13.0/bin/cuobjdump --dump-" +
+          kind +
+          " --function " +
+          prefix +
+          "_" +
+          role +
+          " " +
+          root +
+          "/probe",
+        ]).output(max_output_bytes=4194304)
+        let label = prefix + "-" + role + "-" + kind
+        @fs.write_file(
+          output + "/" + label + ".stdout",
+          result.stdout(),
+          create_mode=CreateNew,
+        )
+        @fs.write_file(
+          output + "/" + label + ".stderr",
+          result.stderr(),
+          create_mode=CreateNew,
+        )
+        result.check()
+        guard result.stdout().contains(prefix + "_" + role) else {
+          fail("selected function absent from disassembly")
+        }
+        values.push(normalize(result.stdout(), prefix))
+      }
+      report <+
+        "role=\{role} kind=\{kind} identical_after_symbol_rename=\{values[0] == values[1]}\n"
+    }
+  }
+  @fs.write_file(
+    output + "/comparison.txt",
+    report.to_string(),
+    create_mode=CreateNew,
+  )
+  println(report.to_string())
+}

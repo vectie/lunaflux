@@ -387,3 +387,50 @@ the full model. A future independent producer/consumer transport plan must
 preserve operand/scaling arithmetic and reader lifetimes; TMA descriptor/warp
 details belong only in CUDA lowering. Do not infer a quantitative full-model
 gain from this source difference before an executable paired measurement.
+
+## Final capture limitation and default-path preservation
+
+Compact eager trace v4 supplies the required 256 MiB state, but still reaches
+the reserve guard during startup/warmup: rank 0 has 16,655,500 KiB available,
+below 16,777,216 KiB. The watcher requests paired shutdown; rank exits 1/137
+after that request are not evidence of an OOM. Both GPUs and profilers are
+subsequently released. The retained logs are in
+`/tmp/lunaflux-reference-bench-vllm-glm-cutlass-trace-20261017-v4`.
+No successful live-serving trace or exact component/serving symbol match was
+obtained. Do not relabel the installed CUTLASS component counters as counters
+from the actual matched serving request. The completed unprofiled reference
+benchmark remains valid. Further profiled loading attempts are stopped rather
+than relaxing the reserve or replacing this missing observation with inference.
+
+Returning to width 32 initially left a subtle code-generation regression:
+gate/up instructions matched the retained binary, but down instruction order
+and register assignment differed even though resource totals were unchanged.
+The single-fragment plan now partially evaluates fragment offsets/publication
+coordinates and preserves its established declaration and loop policy. Wider
+ownership still shares its left fragment through the same lowering; no copied
+legacy implementation or model-specific branch is introduced.
+
+The paired default export at
+`/tmp/lunaflux-glm-fp4-performance-default32-20261017-v3` has **identical gate/up
+and down SASS and resource reports**, after normalizing only the paired symbol
+prefix, against the frozen retained stable-grouping source. The earlier v1/v2
+nonidentical down reports are retained. This comparison is an external
+compiled-code preservation check, not an accuracy oracle or performance gain.
+
+Final default32 verification also preserves all synthetic chain/workspace bytes
+at R1/R3/R22/R64 on both capacity and trimmed grids, with 288 distinct banks,
+no nonfinite values and no device errors. The R3 capacity full-bank memcheck,
+full leak check, racecheck and synccheck all report zero issues. This does not
+expand sanitizer coverage to every shape. Full native tests after the final
+partial-evaluation correction pass 5161/5161; warning-denied native check uses
+the unchanged migration exclusions above. Targeted `moon info` completes with
+561 existing migration warnings and zero errors. The external instruction
+comparison runner passes its own regression.
+
+The two-schedule experiment budget is exhausted without a reliable full-model
+winner. AKO's measured decision is to preserve the retained production schedule
+and the unsuccessful evidence, not to promote the best noisy sample. The next
+performance change would need an independent producer/consumer transport
+schedule and a memory-feasible actual-serving capture; it is not implemented
+or benchmark-proven in this phase. No integrity scans or payload hashes were
+performed.

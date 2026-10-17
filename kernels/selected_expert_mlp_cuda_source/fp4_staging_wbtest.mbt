@@ -107,8 +107,13 @@ test "wider column ownership covers every logical cell once including output tai
       "wide",
       tile_columns=columns,
     )
-    assert_true(source.contains("fragment<\{columns/32}"))
-    assert_true(source.contains("wide_mma(d2+fragment*4"))
+    if columns == 32 {
+      assert_false(source.contains("fragment<"))
+      assert_true(source.contains("wide_mma(d2,a0p[lo]"))
+    } else {
+      assert_true(source.contains("fragment<\{columns/32}"))
+      assert_true(source.contains("wide_mma(d2+fragment*4"))
+    }
     assert_true(source.contains("__syncthreads();\n}\n}"))
   }
 }

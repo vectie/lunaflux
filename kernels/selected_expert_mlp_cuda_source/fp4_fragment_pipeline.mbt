@@ -103,6 +103,7 @@ fn fp4_fragment_pipeline(
       ),
     )
   }
+  let accumulator_offset = if tile_columns == 32 { "" } else { "+fragment*4" }
   let second = match paired_weight_scales {
     None => ""
     Some(_) => {
@@ -110,9 +111,33 @@ fn fp4_fragment_pipeline(
       (
         $|const unsigned *bp1=(const unsigned *)(tile+\{second_right}+wr*128);
         $|unsigned sb1=*(const unsigned *)(tile+\{scales+256+tile_columns*16}+wr*16+kk/16);
-        $|\{symbol}_mma(d\{stage+1}+fragment*4,a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp1[lo],bp1[hi],sa,sb1);
+        $|\{symbol}_mma(d\{stage+1}\{accumulator_offset},a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp1[lo],bp1[hi],sa,sb1);
       )
     }
+  }
+  let left_fragment =
+    $|int lo=((kk/2+t*4)^((g%8)*16))/4,hi=((kk/2+(t+4)*4)^((g%8)*16))/4;
+    $|unsigned sa=*(const unsigned *)(tile+\{scales}+(g+(t&1)*8)*16+kk/16);
+  let right_fragment =
+    $|int wr=(threadIdx.x/32)*8+g\{if tile_columns==32 {""} else {"+fragment*32"}};
+    $|const unsigned *bp=(const unsigned *)(tile+\{right}+wr*128);
+  let consume =
+    $|unsigned sb=*(const unsigned *)(tile+\{scales+256}+wr*16+kk/16);
+    $|\{symbol}_mma(d\{stage}\{accumulator_offset},a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp[lo],bp[hi],sa,sb);
+    $|\{second}
+  // Partial evaluation over one fragment keeps the established declaration
+  // order; wider ownership shares the left fragment across independent rights.
+  let fragments = if tile_columns == 32 {
+    right_fragment + "\n" + left_fragment + "\n" + consume
+  } else {
+    (
+      $|\{left_fragment}
+      $|#pragma unroll
+      $|for(int fragment=0;fragment<\{tile_columns/32};++fragment) {
+      $|\{right_fragment}
+      $|\{consume}
+      $|}
+    )
   }
   (
     $|{ // \{layout.canonical()}; ordered K chunks, explicit producer/reader lifetimes
@@ -123,16 +148,7 @@ fn fp4_fragment_pipeline(
     $|  for(int kk=0;kk<256&&base_k+kk<\{inner};kk+=64) {
     $|    const unsigned *a0p=(const unsigned *)(tile+\{left}+g*128);
     $|    const unsigned *a1p=(const unsigned *)(tile+\{left}+(g+8)*128);
-    $|    int lo=((kk/2+t*4)^((g%8)*16))/4,hi=((kk/2+(t+4)*4)^((g%8)*16))/4;
-    $|    unsigned sa=*(const unsigned *)(tile+\{scales}+(g+(t&1)*8)*16+kk/16);
-    $|    #pragma unroll
-    $|    for(int fragment=0;fragment<\{tile_columns/32};++fragment) {
-    $|    int wr=(threadIdx.x/32)*8+g+fragment*32;
-    $|    const unsigned *bp=(const unsigned *)(tile+\{right}+wr*128);
-    $|    unsigned sb=*(const unsigned *)(tile+\{scales+256}+wr*16+kk/16);
-    $|    \{symbol}_mma(d\{stage}+fragment*4,a0p[lo],a1p[lo],a0p[hi],a1p[hi],bp[lo],bp[hi],sa,sb);
-    $|    \{second}
-    $|    }
+    $|    \{fragments}
     $|  }
     $|  __syncthreads();
     $|}
