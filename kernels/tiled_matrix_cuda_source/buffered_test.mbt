@@ -22,6 +22,43 @@ test "buffered dense lowering preserves decode and admits scalar tails" {
 }
 
 ///|
+test "expression-only operands cannot silently discard buffered staging" {
+  let plan = @matrix.MatrixTilePlan::new(
+    rows=16,
+    columns=64,
+    inner=32,
+    law=ShapeAwareFloat32,
+    staging=Buffered(inner_tile=32),
+  )
+  try
+    @tiled_matrix_cuda_source.matrix_tile_body(
+      plan,
+      input="left",
+      weight="right",
+      result="output",
+    )
+  catch {
+    @precision.PrecisionPlanError::NoImplementation => ()
+    _ => fail("unexpected lowering error")
+  } noraise {
+    _ => fail("address-free operand accepted an unimplemented copy schedule")
+  }
+  try
+    @tiled_matrix_cuda_source.paired_matrix_tile_body(
+      plan,
+      input="left",
+      weights=("right0", "right1"),
+      results=("out0", "out1"),
+    )
+  catch {
+    @precision.PrecisionPlanError::NoImplementation => ()
+    _ => fail("unexpected paired lowering error")
+  } noraise {
+    _ => fail("paired expressions silently ignored copy schedule")
+  }
+}
+
+///|
 test "export buffered matrix paired probe" {
   if @env.get_env_var("LUNA_EXPORT_BUFFERED_MATRIX") != Some("1") {
     return

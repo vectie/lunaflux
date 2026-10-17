@@ -10,7 +10,10 @@ pub fn paired_matrix_tile_body(
   input_vector? : String,
   weight_vectors? : (String, String),
   vector_guard? : String = "true",
-) -> String {
+) -> String raise @precision.PrecisionPlanError {
+  guard plan.staging() == Synchronous else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
   let (_, _, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
   let scalar_a =

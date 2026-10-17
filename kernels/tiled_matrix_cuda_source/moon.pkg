@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/kernels/luna_projection_strategy" @strategy,
   "vectie/lunaflux/kernels/luna_projection_tile_compiler" @tile_compiler,
   "moonbitlang/core/encoding/utf8",

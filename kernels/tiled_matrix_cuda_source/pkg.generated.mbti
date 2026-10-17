@@ -3,20 +3,21 @@ package "vectie/lunaflux/kernels/tiled_matrix_cuda_source"
 
 import {
   "vectie/lunaflux/compiler/grouped_matrix_ir",
+  "vectie/lunaflux/compiler/precision_ir",
 }
 
 // Values
-pub fn dense_source(@grouped_matrix_ir.MatrixTilePlan, symbol~ : String, partial_float32? : Bool) -> Bytes
+pub fn dense_source(@grouped_matrix_ir.MatrixTilePlan, symbol~ : String, partial_float32? : Bool) -> Bytes raise @precision_ir.PrecisionPlanError
 
-pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String, external_scratch? : Bool) -> String
+pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String, external_scratch? : Bool) -> String raise @precision_ir.PrecisionPlanError
 
-pub fn paired_matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weights~ : (String, String), results~ : (String, String), input_vector? : String, weight_vectors? : (String, String), vector_guard? : String) -> String
+pub fn paired_matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weights~ : (String, String), results~ : (String, String), input_vector? : String, weight_vectors? : (String, String), vector_guard? : String) -> String raise @precision_ir.PrecisionPlanError
 
 pub fn publication_source(rows~ : Int, width~ : Int, symbol~ : String) -> Bytes
 
 pub fn scalar_partial_source(rows~ : Int, columns~ : Int, inner~ : Int, symbol~ : String) -> Bytes
 
-pub fn segmented_source(@grouped_matrix_ir.SegmentedMatrixPlan, symbol~ : String) -> Bytes
+pub fn segmented_source(@grouped_matrix_ir.SegmentedMatrixPlan, symbol~ : String) -> Bytes raise @precision_ir.PrecisionPlanError
 
 pub fn shape_decode_body(inner~ : Int, columns~ : Int, maximum_rows~ : Int, left~ : String, right~ : String, publish~ : String, prepare? : String, tile_id? : String, tile_count? : String) -> String
 

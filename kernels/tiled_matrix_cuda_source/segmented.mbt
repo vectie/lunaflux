@@ -5,7 +5,7 @@
 pub fn segmented_source(
   plan : @matrix.SegmentedMatrixPlan,
   symbol~ : String,
-) -> Bytes {
+) -> Bytes raise @precision.PrecisionPlanError {
   let helpers = []
   let arguments = ["const int *counts", "const __nv_bfloat16 *input"]
   let dispatch = []

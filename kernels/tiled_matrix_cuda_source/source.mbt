@@ -12,7 +12,12 @@ pub fn matrix_tile_body(
   weight_vector? : String,
   vector_guard? : String = "true",
   external_scratch? : Bool = false,
-) -> String {
+) -> String raise @precision.PrecisionPlanError {
+  // Expression operands have no address/extent contract for asynchronous
+  // copies. Never silently discard an explicitly requested staging policy.
+  guard plan.staging() == Synchronous else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
   let (_, _, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
   let scalar_a =
@@ -81,7 +86,7 @@ pub fn dense_source(
   plan : @matrix.MatrixTilePlan,
   symbol~ : String,
   partial_float32? : Bool = false,
-) -> Bytes {
+) -> Bytes raise @precision.PrecisionPlanError {
   @utf8.encode(
     dense_render(plan, symbol~, partial_float32~, device_region=false),
   )
@@ -93,7 +98,7 @@ fn dense_render(
   symbol~ : String,
   partial_float32~ : Bool,
   device_region~ : Bool,
-) -> String {
+) -> String raise @precision.PrecisionPlanError {
   let (rows, columns, inner) = plan.geometry()
   let tile_id = if device_region { "tile_id" } else { "blockIdx.x" }
   let tile_count = if device_region { "tile_count" } else { "gridDim.x" }
