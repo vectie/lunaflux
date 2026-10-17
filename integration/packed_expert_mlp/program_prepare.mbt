@@ -218,6 +218,8 @@ fn MoeProgram::bind_experts(
   @device.Allocation,
 ) raise @device.DeviceError {
   let (rows, _, _, _, _) = self.routed.plan().geometry()
+  self.prepare_bank(context, aot_module, self.routed, routed_bank)
+  self.prepare_bank(context, aot_module, self.shared, shared_bank)
   let routed_functions = self.load_functions(aot_module, self.routed.symbols())
   let shared_functions = self.load_functions(aot_module, self.shared.symbols())
   let finalize_functions = self.load_functions(aot_module, [

@@ -21,7 +21,8 @@ async fn main {
   let transport = @env.get_env_var("LUNA_GLM_EXPERT_TRANSPORT").unwrap_or(
     "indexed",
   )
-  guard transport is ("indexed" | "packed" | "pipeline" | "buffered") else {
+  guard transport
+    is ("indexed" | "packed" | "pipeline" | "buffered" | "bulk" | "tiles") else {
     fail("expert transport")
   }
   let args = if shape_aware {
@@ -145,7 +146,9 @@ async fn main {
   )
   let binary = root + "/glm_checkpoint.exe"
   let low_bit = !args.is_empty() && args[0] == "--low-bit"
-  guard !lookahead || low_bit else { fail("expert lookahead requires native low-bit experts") }
+  guard !lookahead || low_bit else {
+    fail("expert lookahead requires native low-bit experts")
+  }
   let aot = root + "/aot"
   for rank in 0..<2 {
     record("mkdir-\{rank}", remote(rank, "mkdir " + root))
@@ -190,7 +193,11 @@ async fn main {
       " export-tiled-grouped-expert-tp" +
       (if low_bit { "-low-bit" } else { "" }) +
       (if shape_aware { "-shape-aware" } else { "" }) +
-      (if transport == "pipeline" {
+      (if transport == "tiles" {
+        "-tile-experts"
+      } else if transport == "bulk" {
+        "-bulk-experts"
+      } else if transport == "pipeline" {
         "-expert-pipeline"
       } else if transport == "buffered" {
         "-buffered-experts"

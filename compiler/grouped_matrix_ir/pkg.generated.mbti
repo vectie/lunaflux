@@ -15,9 +15,11 @@ pub struct ExpertGroupingPlan {
   // private fields
 }
 pub fn ExpertGroupingPlan::column_tile(Self) -> Int
+pub fn ExpertGroupingPlan::consumer_teams(Self) -> Int
 pub fn ExpertGroupingPlan::fragment_slots(Self) -> Int
 pub fn ExpertGroupingPlan::maximum_groups(Self) -> Int
 pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int, transport? : ExpertTransport, fragment_slots? : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn ExpertGroupingPlan::persistent_workers(Self) -> Int?
 pub fn ExpertGroupingPlan::rows_per_group(Self) -> Int
 pub fn ExpertGroupingPlan::shared_input_staging(Self) -> Bool
 pub fn ExpertGroupingPlan::stable_assignment(Self) -> StableAssignmentPlan
@@ -29,6 +31,8 @@ pub(all) enum ExpertTransport {
   IndexedBuffered
   PackedRows
   PackedPipeline
+  PackedBulk(columns~ : Int, consumer_teams~ : Int, workers~ : Int)
+  PackedBulkTiles(columns~ : Int, consumer_teams~ : Int, workers~ : Int)
 } derive(Eq, @debug.Debug)
 pub fn ExpertTransport::equal(Self, Self) -> Bool
 pub fn ExpertTransport::not_equal(Self, Self) -> Bool
@@ -37,7 +41,7 @@ pub fn ExpertTransport::to_repr(Self) -> @debug.Repr
 pub struct IndirectMatrixTraversal {
   // private fields
 }
-pub fn IndirectMatrixTraversal::new(capacity_groups~ : Int, column_tiles~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn IndirectMatrixTraversal::new(capacity_groups~ : Int, column_tiles~ : Int, workers? : Int) -> Self raise @precision_ir.PrecisionPlanError
 pub fn IndirectMatrixTraversal::tile_count(Self, Int) -> Int raise @precision_ir.PrecisionPlanError
 pub fn IndirectMatrixTraversal::workers(Self) -> Int
 

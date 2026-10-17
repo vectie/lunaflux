@@ -42,6 +42,7 @@ async fn main {
     | "collect-paired"
     | "sanitize"
     | "profile-matrices"
+    | "profile-source"
     | "sanitize-diverse") else {
     fail("NEW_ROOT prepare|run|collect-counters|sanitize")
   }
@@ -209,9 +210,10 @@ async fn main {
         )
       }
     }
-  } else if mode == "profile-matrices" {
+  } else if mode is ("profile-matrices" | "profile-source") {
+    let prefix = if mode == "profile-source" { "source" } else { "matrix" }
     record(
-      "matrix-reserve",
+      prefix + "-reserve",
       remote(
         "awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo",
       ),
@@ -221,10 +223,10 @@ async fn main {
     )
     owners.check()
     guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
-    let name = root[5:].to_owned() + "-matrix"
+    let name = root[5:].to_owned() + "-" + prefix
     let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
     record(
-      "matrix-profile",
+      prefix + "-profile",
       remote(
         "systemd-run --user --wait --pipe --unit=" +
         name +
@@ -236,9 +238,17 @@ async fn main {
         root +
         " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
         ncu +
-        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base demangled --kernel-name 'regex:(perf|next)_(gate_up|down)' --launch-count 4 --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active --export " +
+        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base demangled --kernel-name 'regex:(perf|next)_(gate_up|down)' --launch-count 4 " +
+        (if mode == "profile-source" {
+          "--section SourceCounters "
+        } else {
+          "--metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_mio_throttle_per_warp_active.pct,smsp__warp_issue_stalled_wait_per_warp_active.pct,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active "
+        }) +
+        "--export " +
         root +
-        "/matrix " +
+        "/" +
+        prefix +
+        " " +
         root +
         "/probe 22 capacity once diverse",
       ),
@@ -246,15 +256,28 @@ async fn main {
     @shell.Cmd("scp", [
       "-o",
       "ControlPath=" + socket,
-      host + ":" + root + "/matrix.ncu-rep",
-      root + "/matrix.ncu-rep",
+      host + ":" + root + "/" + prefix + ".ncu-rep",
+      root + "/" + prefix + ".ncu-rep",
     ])
     .output()
     .check()
     record(
-      "matrix-raw",
-      remote(ncu + " --import " + root + "/matrix.ncu-rep --page raw --csv"),
+      prefix + "-raw",
+      remote(
+        ncu + " --import " + root + "/" + prefix + ".ncu-rep --page raw --csv",
+      ),
     )
+    if mode == "profile-source" {
+      record(
+        "source-sass",
+        remote(
+          ncu +
+          " --import " +
+          root +
+          "/source.ncu-rep --page source --print-source sass --csv",
+        ),
+      )
+    }
   } else if mode is ("sanitize" | "sanitize-diverse") {
     let suffix = if mode == "sanitize-diverse" { "-diverse" } else { "" }
     record(

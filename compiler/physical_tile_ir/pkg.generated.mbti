@@ -93,9 +93,10 @@ pub fn OperandLayout::canonical(Self) -> String
 pub fn OperandLayout::equal(Self, Self) -> Bool
 pub fn OperandLayout::factor_rows(Self) -> OperandRowFactoring
 pub fn OperandLayout::geometry(Self) -> (Int, Int, Int, Int)
-pub fn OperandLayout::new(columns~ : Int, vector~ : Int, rotations~ : Int, row_group~ : Int) -> Self?
+pub fn OperandLayout::new(columns~ : Int, vector~ : Int, rotations~ : Int, row_group~ : Int, row_stride? : Int) -> Self?
 pub fn OperandLayout::not_equal(Self, Self) -> Bool
 pub fn OperandLayout::offset(Self, Int, Int) -> Int?
+pub fn OperandLayout::row_stride(Self) -> Int
 pub fn OperandLayout::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OperandReadAction {
@@ -170,6 +171,15 @@ pub struct SequentialScratch {
 pub fn SequentialScratch::allocation_bytes(Self) -> Int64
 pub fn SequentialScratch::new(producer_bytes~ : Int64, consumer_bytes~ : Int64, overlapping~ : Bool) -> Self?
 pub fn SequentialScratch::reuses_storage(Self) -> Bool
+
+pub struct TiledPlane {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn TiledPlane::elements(Self) -> Int
+pub fn TiledPlane::geometry(Self) -> (Int, Int, Int, Int)
+pub fn TiledPlane::layout(Self) -> OperandLayout
+pub fn TiledPlane::new(rows~ : Int, columns~ : Int, tile_rows~ : Int, layout~ : OperandLayout) -> Self?
+pub fn TiledPlane::offset(Self, Int, Int) -> Int?
 
 pub struct VectorOwnership {
   // private fields

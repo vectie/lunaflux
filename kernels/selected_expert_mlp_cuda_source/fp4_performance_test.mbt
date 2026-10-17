@@ -74,9 +74,15 @@ test "full-width native FP4 expert performance export" {
         1
       },
       transport=match @env.get_env_var("LUNA_FP4_TRANSPORT") {
+        Some("tiles") =>
+          PackedBulkTiles(columns=column_tile, consumer_teams=2, workers=48)
         Some("buffered") => IndexedBuffered
         Some("packed") => PackedRows
         Some("pipeline") => PackedPipeline
+        Some("bulk") =>
+          PackedBulk(columns=column_tile, consumer_teams=1, workers=48)
+        Some("bulk2") =>
+          PackedBulk(columns=column_tile, consumer_teams=2, workers=48)
         _ => IndexedRows
       },
       shared_input_staging=variant == Some("next") &&
@@ -199,6 +205,9 @@ test "full-width native FP4 expert performance export" {
   if variant is Some(_) {
     println("LUNA_SOURCE_BEGIN fp4-performance")
     println("#define LUNA_FP4_BANK_COUNT \{bank_count}")
+    if generated.bank_preparation() is Some(_) {
+      println("#define LUNA_FP4_TILED_PLANES 1")
+    }
     if generated.has_packed_rows() {
       println("#define LUNA_FP4_PACKED_ROWS 1")
       println(

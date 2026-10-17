@@ -71,3 +71,54 @@ test "column reuse leaves grouping storage and row ownership unchanged" {
     }
   }
 }
+
+///|
+test "bulk expert domains preserve row ownership and bound persistent workers" {
+  for columns in [64, 128] {
+    for teams in [1, 2] {
+      let p = @grouped_matrix_ir.ExpertGroupingPlan::new(
+        maximum_rows=17,
+        selected_experts=8,
+        transport=PackedBulk(columns~, consumer_teams=teams, workers=48),
+      )
+      assert_eq(p.column_tile(), columns)
+      assert_eq(p.consumer_teams(), teams)
+      assert_eq(p.persistent_workers(), Some(48))
+      assert_eq(p.storage_bytes(), 9252L)
+      let traversal = @grouped_matrix_ir.IndirectMatrixTraversal::new(
+        capacity_groups=136,
+        column_tiles=3,
+        workers?=p.persistent_workers(),
+      )
+      assert_eq(traversal.workers(), 48)
+      let visits = Array::make(traversal.tile_count(51), 0)
+      for worker in 0..<traversal.workers() {
+        for tile = worker
+            tile < visits.length()
+            tile = tile + traversal.workers() {
+          visits[tile] += 1
+        }
+      }
+      assert_true(visits.all(x => x == 1))
+    }
+  }
+  for
+    (columns, teams, workers) in [
+      (32, 1, 48),
+      (64, 0, 48),
+      (128, 3, 48),
+      (128, 2, 0),
+    ] {
+    try
+      @grouped_matrix_ir.ExpertGroupingPlan::new(
+        maximum_rows=1,
+        selected_experts=1,
+        transport=PackedBulk(columns~, consumer_teams=teams, workers~),
+      )
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("unsupported bulk geometry accepted")
+    }
+  }
+}

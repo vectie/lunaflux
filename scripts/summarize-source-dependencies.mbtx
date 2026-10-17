@@ -1,0 +1,72 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn fields(line : StringView) -> Array[String] raise {
+  guard line.has_prefix("\"") && line.has_suffix("\"") else {
+    fail("quoted NCU row required")
+  }
+  line[1:line.length() - 1].split("\",\"").map(x => x.to_owned()).to_array()
+}
+
+///|
+fn summarize(rows : Array[Array[String]], header : Array[String]) -> Unit raise {
+  if rows.is_empty() {
+    return
+  }
+  for
+    metric in [
+      "Instructions Executed", "stall_long_sb", "stall_wait", "stall_membar", "L1 Wavefronts Shared Excessive",
+    ] {
+    let index = for i, label in header {
+      if label == metric {
+        break i
+      }
+    } nobreak {
+      fail("missing metric " + metric)
+    }
+    let ranked = rows.map(row => {
+      (@string.parse_int64(row[index]), row[0], row[1])
+    })
+    ranked.sort_by((a, b) => b.0.compare(a.0))
+    let total = ranked.fold(init=0L, (a, b) => a + b.0)
+    println("metric=\{metric} total=\{total}")
+    for i in 0..<Int::min(8, ranked.length()) {
+      let (value, address, source) = ranked[i]
+      println("  \{value} \{address} \{source}")
+    }
+  }
+}
+
+///|
+test "quoted source preserves operand commas" {
+  assert_eq(fields("\"0x1\",\"LDG R1, [R2]\",\"3\"")[1], "LDG R1, [R2]")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, path] else { fail("NCU_SOURCE_CSV") }
+  let mut header : Array[String] = []
+  let mut rows : Array[Array[String]] = []
+  for line in @fs.read_file(path).text().split("\n") {
+    if line.has_prefix("\"Kernel Name\"") {
+      summarize(rows, header)
+      rows = []
+      println(line)
+    } else if line.has_prefix("\"Address\",\"Source\"") {
+      header = fields(line)
+    } else if line.has_prefix("\"0x") {
+      let row = fields(line)
+      guard row.length() == header.length() else {
+        fail("truncated source record")
+      }
+      rows.push(row)
+    }
+  }
+  summarize(rows, header)
+}

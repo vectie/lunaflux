@@ -48,6 +48,17 @@ int main(int argc,char **argv) {
   for(int j=0;j<R*S;j++) indices[j]=diverse?((j/S)*7+j%S)%logical:j%S;
   for(int e=0;e<logical;e++) map[e]=e%banks;
   auto *db=gpu(bank),*qx=gpu(std::vector<unsigned char>(qb0)),*qa=gpu(std::vector<unsigned char>(qb1));
+  auto *candidate_bank=db;
+#ifdef LUNA_FP4_TILED_PLANES
+  ck(cudaMalloc(&candidate_bank,bank.size()));
+  unsigned char *startup_scratch;ck(cudaMalloc(&startup_scratch,stride));
+  for(int e=0;e<banks;e++) {
+    candidate::next_prepare_bank<<<256,256>>>(db+e*stride,startup_scratch);
+    candidate::next_prepare_bank_copy<<<256,256>>>(startup_scratch,candidate_bank+e*stride);
+  }
+  ck(cudaDeviceSynchronize());
+  ck(cudaFree(startup_scratch));
+#endif
   size_t allocated_activation=activation_bytes;
 #ifdef LUNA_PAIRED
   if(candidate::activation_bytes>allocated_activation) allocated_activation=candidate::activation_bytes;
@@ -69,11 +80,11 @@ int main(int argc,char **argv) {
       candidate::next_quantize_0_pack<<<grid2,block2>>>(c,dx,qx,err);
 #ifdef LUNA_FP4_PACKED_ROWS
       candidate::next_pack_rows_0<<<candidate::grid3,candidate::block3>>>(c,qx,a);
-      candidate::next_gate_up<<<trimmed?groups*((I+candidate::column_tile-1)/candidate::column_tile):candidate::grid4,candidate::block4>>>(c,qx,idx,em,db,a);
+      candidate::next_gate_up<<<trimmed?groups*((I+candidate::column_tile-1)/candidate::column_tile):candidate::grid4,candidate::block4>>>(c,qx,idx,em,candidate_bank,a);
       candidate::next_quantize_1_global<<<candidate::grid5,candidate::block5>>>(c,a,qa,err);
       candidate::next_quantize_1_pack<<<candidate::grid6,candidate::block6>>>(c,a,qa,err);
       candidate::next_pack_rows_1<<<candidate::grid7,candidate::block7>>>(c,qa,a);
-      candidate::next_down<<<trimmed?groups*((H+candidate::column_tile-1)/candidate::column_tile):candidate::grid8,candidate::block8>>>(c,qa,idx,routes,em,db,w,a);
+      candidate::next_down<<<trimmed?groups*((H+candidate::column_tile-1)/candidate::column_tile):candidate::grid8,candidate::block8>>>(c,qa,idx,routes,em,candidate_bank,w,a);
       candidate::next_combine<<<candidate::grid9,candidate::block9>>>(c,idx,w,out,routes);
 #else
       candidate::next_gate_up<<<trimmed?groups*((I+candidate::column_tile-1)/candidate::column_tile):candidate::grid3,candidate::block3>>>(c,qx,idx,em,db,a);
@@ -125,8 +136,15 @@ int main(int argc,char **argv) {
     const unsigned char *packed=staged.data()+candidate::packed_base;
     for(int row=0;row<meta[0]*16;row++) {
       int job=meta[1+R*S+row],original=job<0?0:(product?job:job/S);
-      for(int col=0;col<payload;col++)if(packed[(size_t)row*payload+col]!=(job<0?0:input[(size_t)original*payload+col])){fprintf(stderr,"packed payload mismatch\n");exit(5);}
-      for(int col=0;col<scales;col++)if(packed[dest_scale+(size_t)row*scales+col]!=(job<0?0:input[source_scale+(size_t)original*scales+col])){fprintf(stderr,"packed scale mismatch\n");exit(5);}
+      auto physical=[&](int col,int columns,int tile,int rotations)->size_t{
+#ifdef LUNA_FP4_TILED_PLANES
+        return ((size_t)(row/16)*(columns/tile)+col/tile)*(16*tile)+(row%16)*tile+((col%tile)^((row%rotations)*16));
+#else
+        return (size_t)row*columns+col;
+#endif
+      };
+      for(int col=0;col<payload;col++)if(packed[physical(col,payload,128,8)]!=(job<0?0:input[(size_t)original*payload+col])){fprintf(stderr,"packed payload mismatch\n");exit(5);}
+      for(int col=0;col<scales;col++)if(packed[dest_scale+physical(col,scales,16,1)]!=(job<0?0:input[source_scale+(size_t)original*scales+col])){fprintf(stderr,"packed scale mismatch\n");exit(5);}
     }
   };
   check_packed(false);check_packed(true);
@@ -149,6 +167,7 @@ int main(int argc,char **argv) {
   #endif
   std::vector<float> host(rows*H);ck(cudaMemcpy(host.data(),out,host.size()*4,cudaMemcpyDeviceToHost));int nonfinite=0;for(float v:host)nonfinite+=!std::isfinite(v);
   int error;ck(cudaMemcpy(&error,err,4,cudaMemcpyDeviceToHost));printf("nonfinite=%d device_error=%d\n",nonfinite,error);
+  if(candidate_bank!=db) ck(cudaFree(candidate_bank));
   ck(cudaFree(db));ck(cudaFree(qx));ck(cudaFree(qa));ck(cudaFree(dx));ck(cudaFree(a));ck(cudaFree(c));ck(cudaFree(idx));ck(cudaFree(em));ck(cudaFree(err));ck(cudaFree(routes));ck(cudaFree(w));ck(cudaFree(out));ck(cudaDeviceReset());
   return nonfinite||error?1:0;
 }

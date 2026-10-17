@@ -26,12 +26,28 @@ fn grouped_fp4_source(
   guard tile_columns is (32 | 64 | 128) else {
     raise @precision_ir.PrecisionPlanError::NoImplementation
   }
-  let accumulators = tile_columns / 8
+  let tiled = grouping.transport() is PackedBulkTiles(..)
+  let bulk = grouping.transport() is (PackedBulk(..) | PackedBulkTiles(..))
+  guard !bulk || (hidden % 32 == 0 && intermediate % 32 == 0) else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
+  }
+  guard !tiled ||
+    (
+      hidden % 256 == 0 &&
+      intermediate % 256 == 0 &&
+      hidden.to_int64() * intermediate.to_int64() / 2L <= 2147483647L &&
+      jobs.to_int64() * 16L * Int::max(hidden, intermediate).to_int64() / 2L <=
+      2147483647L
+    ) else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
+  }
+  let teams = grouping.consumer_teams()
+  let accumulators = tile_columns / (8 * teams)
   // Fold the publication coordinates over a single-fragment index domain.
   // Keep its established loop policy; explicit unrolling is for wider owners.
   let unroll = if accumulators == 4 { "" } else { "#pragma unroll" }
   let row_half = if accumulators == 4 { "i/2" } else { "i%4/2" }
-  let column_offset = if accumulators == 4 { "" } else { "(i/4)*32+" }
+  let column_offset = if accumulators == 4 { "" } else { "(i/4)*\{32*teams}+" }
   let metadata = (plan.workspace_bytes().0 + 3L) / 4L * 4L
   let packed_rows = if grouping.transport() is (IndexedRows | IndexedBuffered) {
     None
@@ -45,7 +61,15 @@ fn grouped_fp4_source(
       ),
     )
   }
-  let pipeline = if grouping.transport() == PackedPipeline {
+  let pipeline = if bulk {
+    Some(
+      @physical_tile_ir.ProducerConsumerPipeline::new(
+        stages=2,
+        producers=32,
+        consumers=128 * teams,
+      ).unwrap(),
+    )
+  } else if grouping.transport() == PackedPipeline {
     Some(
       @physical_tile_ir.ProducerConsumerPipeline::new(
         stages=2,
@@ -56,7 +80,9 @@ fn grouped_fp4_source(
   } else {
     None
   }
-  let matrix_threads = if pipeline is Some(_) { 256 } else { 128 }
+  let matrix_threads = pipeline
+    .map(p => p.geometry().1 + p.geometry().2)
+    .unwrap_or(128)
   let shared_ring = if grouping.transport() == IndexedBuffered &&
     !grouping.shared_input_staging() {
     let layout = @physical_tile_ir.OperandLayout::new(
@@ -82,8 +108,16 @@ fn grouped_fp4_source(
   } else {
     ""
   }
-  let consumer = if pipeline is Some(_) { "threadIdx.x>=128" } else { "true" }
-  let warp_owner = if pipeline is Some(_) {
+  let consumer = if bulk {
+    "threadIdx.x>=32"
+  } else if pipeline is Some(_) {
+    "threadIdx.x>=128"
+  } else {
+    "true"
+  }
+  let warp_owner = if bulk {
+    "(threadIdx.x-32)"
+  } else if pipeline is Some(_) {
     "(threadIdx.x%128)"
   } else {
     "threadIdx.x"
@@ -108,6 +142,52 @@ fn grouped_fp4_source(
     @precision_ir.packed_buffer_layout(q.operand().representation())
   })
   let bodies = []
+  fn body(
+    stage : Int,
+    k : Int,
+    n : Int,
+    input_scales : Int64,
+    weight_scales : Int64,
+    paired : Int64?,
+  ) -> String {
+    if bulk {
+      fp4_bulk_pipeline(
+        stage,
+        k,
+        n,
+        tile_columns,
+        input_scales,
+        weight_scales,
+        symbol,
+        pipeline.unwrap(),
+        grouping.fragment_slots(),
+        paired,
+        tiled~,
+      )
+    } else {
+      fp4_fragment_pipeline(
+        stage,
+        k,
+        n,
+        selected,
+        input_scales,
+        weight_scales,
+        symbol,
+        work_tile="work_tile",
+        tile_columns~,
+        packed_input=packed_rows is Some(_),
+        pipeline?,
+        buffered=grouping.transport() == IndexedBuffered,
+        borrowed_ring?=if stage < 2 && !shared_ring.is_empty() {
+          Some("gate_up_operands")
+        } else {
+          None
+        },
+        fragment_slots=grouping.fragment_slots(),
+        paired_weight_scales?=paired,
+      )
+    }
+  }
   for stage in 0..<3 {
     let k = if stage < 2 { hidden } else { intermediate }
     let n = if stage < 2 { intermediate } else { hidden }
@@ -119,7 +199,7 @@ fn grouped_fp4_source(
       (
         $|float d\{stage}[\{accumulators}]={0};
         $|const unsigned char *w\{stage}=bank+(unsigned long long)(local<0?0:local)*\{plan.expert_stride()}ULL+\{plan.weight_offsets()[stage]}ULL;
-        $|\{fp4_fragment_pipeline(stage,k,n,selected,packed_rows.map(p => p.plane(stage==2).2).unwrap_or(x.scales_offset().unwrap()),w.scales_offset().unwrap(),symbol,work_tile="work_tile",tile_columns~,packed_input=packed_rows is Some(_),pipeline?,buffered=grouping.transport()==IndexedBuffered,borrowed_ring?=if stage<2&&!shared_ring.is_empty() {Some("gate_up_operands")} else {None},fragment_slots=grouping.fragment_slots())}
+        $|\{body(stage,k,n,packed_rows.map(p => p.plane(stage==2).2).unwrap_or(x.scales_offset().unwrap()),w.scales_offset().unwrap(),None)}
         $|float global\{stage}=__fmul_rn(*(const float *)(input+\{x.global_scale_offset().unwrap()}ULL),*(const float *)(w\{stage}+\{w.global_scale_offset().unwrap()}ULL));
         $|\{unroll}
         $|for(int i=0;i<\{accumulators};++i) d\{stage}[i]=__fmul_rn(d\{stage}[i],global\{stage});
@@ -149,23 +229,15 @@ fn grouped_fp4_source(
       .join("\n")
     declarations +
     "\n" +
-    fp4_fragment_pipeline(
+    body(
       0,
       hidden,
       intermediate,
-      selected,
       packed_rows
       .map(p => p.plane(false).2)
       .unwrap_or(x.scales_offset().unwrap()),
       layouts[0].scales_offset().unwrap(),
-      symbol,
-      work_tile="work_tile",
-      paired_weight_scales=layouts[1].scales_offset().unwrap(),
-      tile_columns~,
-      packed_input=packed_rows is Some(_),
-      pipeline?,
-      buffered=grouping.transport() == IndexedBuffered,
-      fragment_slots=grouping.fragment_slots(),
+      layouts[1].scales_offset(),
     ) +
     "\n" +
     publication
@@ -212,10 +284,12 @@ fn grouped_fp4_source(
   let gate_tiles = @matrix.IndirectMatrixTraversal::new(
     capacity_groups=jobs,
     column_tiles=ng,
+    workers?=grouping.persistent_workers(),
   )
   let down_tiles = @matrix.IndirectMatrixTraversal::new(
     capacity_groups=jobs,
     column_tiles=nd,
+    workers?=grouping.persistent_workers(),
   )
   guard jobs.to_int64() * ng.to_int64() <= 2147483647L &&
     jobs.to_int64() * nd.to_int64() <= 2147483647L else {
@@ -223,6 +297,7 @@ fn grouped_fp4_source(
   }
   let text = quantizers.join("\n") +
     prefix +
+    (if tiled { fp4_tile_bank_source(plan, tile_columns, symbol) } else { "" }) +
     grouping_kernel(symbol + "_group", rows, selected, metadata) +
     (match packed_rows {
       None => ""
@@ -237,6 +312,7 @@ fn grouped_fp4_source(
             metadata,
             operands[i].scales_offset().unwrap(),
             symbol + "_pack_rows_" + i.to_string(),
+            tiled~,
           )
         })
         .join("\n")
@@ -317,6 +393,11 @@ fn grouped_fp4_source(
   {
     plan,
     packed_rows,
+    bank_preparation: if tiled {
+      Some(symbol + "_prepare_bank")
+    } else {
+      None
+    },
     source: @utf8.encode(text),
     symbols: ReadOnlyArray::from_array(symbols),
     launches: ReadOnlyArray::from_array(launches),

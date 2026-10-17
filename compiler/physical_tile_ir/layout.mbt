@@ -7,6 +7,7 @@ pub struct OperandLayout {
   priv vector : Int
   priv rotations : Int
   priv row_group : Int
+  priv row_stride : Int
 } derive(Eq, Debug)
 
 ///|
@@ -21,18 +22,28 @@ pub fn OperandLayout::new(
   vector~ : Int,
   rotations~ : Int,
   row_group~ : Int,
+  row_stride? : Int = columns,
 ) -> OperandLayout? {
   guard columns > 0 &&
     vector > 0 &&
     rotations > 0 &&
     row_group > 0 &&
+    row_stride >= columns &&
+    row_stride % vector == 0 &&
     (vector & (vector - 1)) == 0 &&
     (rotations & (rotations - 1)) == 0 &&
     vector.to_int64() * rotations.to_int64() <= columns.to_int64() &&
     columns.to_int64() % (vector.to_int64() * rotations.to_int64()) == 0L else {
     return None
   }
-  Some({ columns, vector, rotations, row_group, })
+  Some({ columns, vector, rotations, row_group, row_stride, })
+}
+
+///|
+/// Physical distance between rows. Padding has no logical ownership and is
+/// never included in copy coverage or numerical reductions.
+pub fn OperandLayout::row_stride(self : OperandLayout) -> Int {
+  self.row_stride
 }
 
 ///|
@@ -48,7 +59,7 @@ pub fn OperandLayout::offset(
 ) -> Int? {
   guard row >= 0 && column >= 0 && column < self.columns else { return None }
   let mask = row / self.row_group % self.rotations * self.vector
-  let offset = row.to_int64() * self.columns.to_int64() +
+  let offset = row.to_int64() * self.row_stride.to_int64() +
     (column ^ mask).to_int64()
   if offset > 2147483647L {
     None
@@ -59,5 +70,10 @@ pub fn OperandLayout::offset(
 
 ///|
 pub fn OperandLayout::canonical(self : OperandLayout) -> String {
-  "tile-operand-layout-v1;columns=\{self.columns};vector=\{self.vector};rotations=\{self.rotations};row-group=\{self.row_group}"
+  let base = "tile-operand-layout-v1;columns=\{self.columns};vector=\{self.vector};rotations=\{self.rotations};row-group=\{self.row_group}"
+  if self.row_stride == self.columns {
+    base
+  } else {
+    base + ";row-stride=\{self.row_stride}"
+  }
 }

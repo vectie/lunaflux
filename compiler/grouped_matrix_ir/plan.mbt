@@ -97,6 +97,8 @@ pub(all) enum ExpertTransport {
   IndexedBuffered
   PackedRows
   PackedPipeline
+  PackedBulk(columns~ : Int, consumer_teams~ : Int, workers~ : Int)
+  PackedBulkTiles(columns~ : Int, consumer_teams~ : Int, workers~ : Int)
 } derive(Eq, Debug)
 
 ///|
@@ -116,6 +118,19 @@ pub fn ExpertGroupingPlan::new(
 ) -> Self raise @precision.PrecisionPlanError {
   guard fragment_slots is (1 | 2) else {
     raise @precision.PrecisionPlanError::NoImplementation
+  }
+  let column_tile = match transport {
+    PackedBulk(columns~, consumer_teams~, workers~)
+    | PackedBulkTiles(columns~, consumer_teams~, workers~) => {
+      guard columns is (64 | 128) &&
+        consumer_teams is (1 | 2) &&
+        workers > 0 &&
+        workers <= 1024 else {
+        raise @precision.PrecisionPlanError::NoImplementation
+      }
+      columns
+    }
+    _ => column_tile
   }
   let jobs = maximum_rows.to_int64() * selected_experts.to_int64()
   guard maximum_rows > 0 &&
@@ -173,4 +188,23 @@ pub fn ExpertGroupingPlan::shared_input_staging(self : Self) -> Bool {
 /// without changing any column's ordered reduction or numerical law.
 pub fn ExpertGroupingPlan::column_tile(self : Self) -> Int {
   self.column_tile
+}
+
+///|
+/// Physical independent consumer domains; arithmetic is unchanged.
+pub fn ExpertGroupingPlan::consumer_teams(self : Self) -> Int {
+  match self.transport {
+    PackedBulk(consumer_teams~, ..) | PackedBulkTiles(consumer_teams~, ..) =>
+      consumer_teams
+    _ => 1
+  }
+}
+
+///|
+/// A finite persistent worker pool partitions the live indirect tile domain.
+pub fn ExpertGroupingPlan::persistent_workers(self : Self) -> Int? {
+  match self.transport {
+    PackedBulk(workers~, ..) | PackedBulkTiles(workers~, ..) => Some(workers)
+    _ => None
+  }
 }

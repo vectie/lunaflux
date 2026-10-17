@@ -150,6 +150,8 @@ fn make_moe_ffn(
             maximum_rows~,
             selected_experts=routed.geometry().4,
             transport=expert_transport,
+            shared_input_staging=expert_transport
+              is (PackedBulk(..) | PackedBulkTiles(..)),
             fragment_slots=expert_fragment_slots,
           ),
         )

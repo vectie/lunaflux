@@ -7,6 +7,8 @@ test "packed transport reaches recurrent and sparse GLM experts and startup budg
     (IndexedBuffered, 1),
     (IndexedRows, 2),
     (IndexedBuffered, 2),
+    (PackedBulk(columns=128, consumer_teams=2, workers=48), 2),
+    (PackedBulkTiles(columns=128, consumer_teams=2, workers=48), 2),
   ].map(entry => {
     let (transport, slots) = entry
     @glm53_packed_expert_upload.GlmDecoderStage::new(
@@ -39,19 +41,25 @@ test "packed transport reaches recurrent and sparse GLM experts and startup budg
     for layer in [3, 4] {
       assert_eq(
         source.contains("glm_routed_\{layer}_pack_rows_0"),
-        i is (1 | 2),
+        i is (1 | 2 | 6 | 7),
       )
       assert_eq(
         source.contains("glm_routed_\{layer}_pack_rows_1"),
-        i is (1 | 2),
+        i is (1 | 2 | 6 | 7),
       )
     }
-    assert_eq(source.contains("mbarrier.try_wait.parity"), i == 2)
-    assert_eq(source.contains("mbarrier.inval"), i == 2)
+    assert_eq(source.contains("mbarrier.try_wait.parity"), i is (2 | 6 | 7))
+    assert_eq(source.contains("mbarrier.inval"), i is (2 | 6 | 7))
+    assert_eq(source.contains("cp.async.bulk.shared::cta"), i is (6 | 7))
+    assert_eq(source.contains("_prepare_bank_copy"), i == 7)
+    assert_eq(
+      source.contains("bulk rows; producers=32; consumers=256; stages=2"),
+      i is (6 | 7),
+    )
     assert_eq(source.contains("cooperative operand ring=2"), i is (3 | 5))
     assert_eq(
       source.contains("ordered-operand-reads-v1;items=4;slots=2"),
-      i is (4 | 5),
+      i is (4 | 5 | 6 | 7),
     )
   }
 }

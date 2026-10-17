@@ -88,7 +88,7 @@ pub fn OperandStorage::new(
   let (columns, vector, _, _) = layout.geometry()
   let slot_elements = for rows in operand_rows; total = 0L {
     guard rows > 0 else { return None }
-    let next = total + rows.to_int64() * columns.to_int64()
+    let next = total + rows.to_int64() * layout.row_stride().to_int64()
     guard next <= 2147483647L / stages.to_int64() else { return None }
     continue next
   } nobreak {
@@ -103,7 +103,7 @@ pub fn OperandStorage::new(
       layout,
       ownership: VectorOwnership::new(vectors=elements / vector, owners~).unwrap(),
     })
-    continue base + elements
+    continue base + rows * layout.row_stride()
   }
   Some({
     regions: ReadOnlyArray::from_array(regions),
@@ -140,12 +140,14 @@ pub fn OperandStorage::allocation_elements(self : OperandStorage) -> Int {
 /// Whether a backend may address these strips as one concatenated matrix
 /// without changing their individual row-local permutations.
 pub fn OperandStorage::has_concatenated_layout(self : OperandStorage) -> Bool {
-  let (columns, _, rotations, row_group) = self.layout.geometry()
+  let (_, _, rotations, row_group) = self.layout.geometry()
   if rotations == 1 {
     return true
   }
   let period = rotations.to_int64() * row_group.to_int64()
-  self.regions.all(region => (region.base / columns).to_int64() % period == 0L)
+  self.regions.all(region => {
+    (region.base / self.layout.row_stride()).to_int64() % period == 0L
+  })
 }
 
 ///|

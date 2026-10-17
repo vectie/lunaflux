@@ -10,9 +10,20 @@ fn fp4_pack_rows_source(
   metadata : Int64,
   source_scales : Int64,
   symbol : String,
+  tiled? : Bool = false,
 ) -> String {
   let (payload, scales, scale_offset) = packed.plane(product)
   let first_source = if product { "job" } else { "job/" + selected.to_string() }
+  let payload_offset = if tiled {
+    tile_address(tile_plane(jobs * 16, payload, 16, true), "row", "col")
+  } else {
+    "(unsigned long long)row*\{payload}+col"
+  }
+  let scales_offset = if tiled {
+    tile_address(tile_plane(jobs * 16, scales, 16, false), "row", "col")
+  } else {
+    "(unsigned long long)row*\{scales}+col"
+  }
   (
     $|extern "C" __global__ void \{symbol}(const int *counts,const unsigned char *input,__nv_bfloat16 *activation) {
     $|  const int *meta=(const int *)((const unsigned char *)activation+\{metadata}ULL);
@@ -22,10 +33,10 @@ fn fp4_pack_rows_source(
     $|    for(int col=threadIdx.x*16;col<\{payload};col+=blockDim.x*16) {
     $|      uint4 value=make_uint4(0,0,0,0);
     $|      if(job>=0) value=*(const uint4 *)(input+(unsigned long long)source_row*\{payload}+col);
-    $|      *(uint4 *)(packed+(unsigned long long)row*\{payload}+col)=value;
+    $|      *(uint4 *)(packed+\{payload_offset})=value;
     $|    }
     $|    for(int col=threadIdx.x;col<\{scales};col+=blockDim.x)
-    $|      packed[\{scale_offset}ULL+(unsigned long long)row*\{scales}+col]=job>=0?input[\{source_scales}ULL+(unsigned long long)source_row*\{scales}+col]:0;
+    $|      packed[\{scale_offset}ULL+\{scales_offset}]=job>=0?input[\{source_scales}ULL+(unsigned long long)source_row*\{scales}+col]:0;
     $|  }
     $|}
   )

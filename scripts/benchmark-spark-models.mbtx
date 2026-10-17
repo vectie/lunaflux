@@ -297,7 +297,8 @@ async fn main {
   let transport = @env.get_env_var("LUNA_GLM_EXPERT_TRANSPORT").unwrap_or(
     "indexed",
   )
-  guard transport is ("indexed" | "packed" | "pipeline" | "buffered") &&
+  guard transport
+    is ("indexed" | "packed" | "pipeline" | "buffered" | "bulk" | "tiles") &&
     (glm || transport == "indexed") else {
     fail("expert transport")
   }
@@ -322,7 +323,9 @@ async fn main {
   guard !replay || queued else { fail("graph replay requires queued TP") }
   let options = if queued { options[:options.length() - 1] } else { options }
   let low_bit = options.last() is Some("--low-bit")
-  guard !lookahead || (glm && low_bit) else { fail("expert lookahead requires GLM low-bit") }
+  guard !lookahead || (glm && low_bit) else {
+    fail("expert lookahead requires GLM low-bit")
+  }
   guard transport == "indexed" || low_bit else {
     fail("packed transport requires low-bit")
   }
@@ -653,7 +656,11 @@ async fn main {
         (if queued { "-queued-tp" } else { "" }) +
         (if replay { "-graph-tp" } else { "" }) +
         (if shape_aware { "-shape-aware" } else { "" }) +
-        (if transport == "pipeline" {
+        (if transport == "tiles" {
+          "-tile-experts"
+        } else if transport == "bulk" {
+          "-bulk-experts"
+        } else if transport == "pipeline" {
           "-expert-pipeline"
         } else if transport == "buffered" {
           "-buffered-experts"

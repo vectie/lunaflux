@@ -5,6 +5,13 @@ pub struct PackedExpertMlpCudaSource {
   priv symbols : ReadOnlyArray[String]
   priv launches : ReadOnlyArray[(Int, Int)]
   priv packed_rows : @matrix.PackedExpertRows?
+  priv bank_preparation : String?
+}
+
+///|
+/// Optional startup byte-permutation kernel, not part of the token graph.
+pub fn PackedExpertMlpCudaSource::bank_preparation(self : Self) -> String? {
+  self.bank_preparation
 }
 
 ///|
@@ -310,6 +317,7 @@ pub fn packed_expert_mlp_source(
   {
     plan,
     packed_rows: None,
+    bank_preparation: None,
     source: @utf8.encode(text + "\n" + quantizers.join("\n")),
     symbols: ReadOnlyArray::from_array(symbols),
     launches: ReadOnlyArray::from_array(launches),

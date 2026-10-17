@@ -313,6 +313,7 @@ fn grouped_expert_source(
     plan,
     source: @utf8.encode(text),
     packed_rows: None,
+    bank_preparation: None,
     symbols: ReadOnlyArray::from_array([
       group_symbol, gate_symbol, down_symbol, combine_symbol,
     ]),

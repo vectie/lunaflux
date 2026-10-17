@@ -10,6 +10,7 @@ pub struct MoeProgram {
   priv workspace_bytes : Int64
   priv functions : Array[@device.Function]
   priv allocations : Array[@device.Allocation]
+  priv startup_streams : Array[@device.Stream]
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut executor : MoeExecutor?
   priv mut closed : Bool
@@ -82,6 +83,11 @@ pub fn MoeProgram::new(
     raise @device.DeviceError::InvalidArgument(FunctionLoad)
   }
   let sizes = expert_workspace_sizes(routed)
+  for source in [routed, shared] {
+    if source.bank_preparation() is Some(_) {
+      sizes.push(source.plan().expert_stride())
+    }
+  }
   let collective_region = if coalesce_reductions {
     guard shared.plan().down_publication() == ReduceFloat32BeforeRound &&
       routed.plan().down_publication() == ReduceFloat32BeforeRound else {
@@ -121,6 +127,7 @@ pub fn MoeProgram::new(
     workspace_bytes,
     functions: [],
     allocations: [],
+    startup_streams: [],
     launches: [],
     executor: None,
     closed: false,
@@ -202,6 +209,10 @@ pub fn MoeProgram::close(self : Self) -> Unit raise @device.DeviceError {
     self.executor = None
   }
   self.launches.clear()
+  while self.startup_streams.last() is Some(stream) {
+    stream.close()
+    ignore(self.startup_streams.pop())
+  }
   while !self.functions.is_empty() {
     self.functions[self.functions.length() - 1].close()
     ignore(self.functions.pop())

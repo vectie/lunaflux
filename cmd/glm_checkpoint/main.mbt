@@ -137,6 +137,10 @@ async fn main {
       "-expert-pipeline",
     ) {
     PackedPipeline
+  } else if mode.has_suffix("-tile-experts") {
+    PackedBulkTiles(columns=128, consumer_teams=2, workers=48)
+  } else if mode.has_suffix("-bulk-experts") {
+    PackedBulk(columns=128, consumer_teams=2, workers=48)
   } else if mode.has_suffix("-buffered-experts") {
     IndexedBuffered
   } else if mode.has_suffix("-packed-experts") {
@@ -149,6 +153,8 @@ async fn main {
     IndexedBuffered => mode[:mode.length() - 17].to_owned()
     PackedRows => mode[:mode.length() - 15].to_owned()
     PackedPipeline => mode[:mode.length() - 16].to_owned()
+    PackedBulk(..) => mode[:mode.length() - 13].to_owned()
+    PackedBulkTiles(..) => mode[:mode.length() - 13].to_owned()
   }
   let shape_aware = mode.has_suffix("-shape-aware")
   guard !buffered || shape_aware else {
@@ -259,6 +265,8 @@ async fn main {
     IndexedBuffered => "buffered"
     PackedRows => "packed"
     PackedPipeline => "pipeline"
+    PackedBulk(..) => "bulk"
+    PackedBulkTiles(..) => "tiles"
   }
   println("expert_fragment_slots=\{if lookahead { 2 } else { 1 }}")
   println("expert_operand_transport=\{transport_name}")
