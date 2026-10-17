@@ -303,3 +303,28 @@ HC boundary fusion, vocabulary TP sharding, collective payload/placement, or
 expert publication-wait investigations in the preceding report. It also does
 not establish long-context, larger-batch, or quality parity. The measured
 short-prompt benefit must not be extrapolated to those workloads.
+
+## Original service restored
+
+Restoration completed at about00:59 CST October18. The exact original worker
+`785b9b6a03b9e985e82133a5f3ede582f90f4816bd0382afdf0a0e53e39d1572`
+and head `2bd8297b956955c35146cbf657c6e0f44c532990712c56d7e969edc1e5ac352c`
+were restarted without changing their configuration. `/health` returns200;
+`/v1/models` reports `GLM-5.3-Flash-EXL3`, context850000. NFS remained running
+throughout. Evidence:
+`/tmp/lunaflux-glm-columns-overlap-restore-20261018-v1`.
+
+The100GiB/Spark and16GiB host-reserve constraints above describe the exclusive
+benchmark runs, not the restored production service's original configuration.
+After restoration the original head/worker report102660/102666MiB GPU usage
+(about100.3GiB each) and8969552/11161616KiB MemAvailable (8.55/10.64GiB).
+Thus the restored service does **not** meet that benchmark envelope. It was
+restored unchanged as explicitly requested, not silently resized or used for
+further tests. No benchmark GPU owner remains. Another physical campaign must
+first release that service or obtain a separately agreed smaller configuration.
+
+Compiler contract documentation is updated in `docs/PARALLEL_IR.md`,
+`docs/ARCHITECTURE.md` and the parallel-IR package README; its25 native tests
+pass again after the documentation update. The complete fresh comparison is
+committed in `508be88a`; implementation and actual-source validation pins are
+listed above. All commits are scoped to task paths on `main`.

@@ -47,3 +47,14 @@ to derive these values from admitted physical bindings. Current production
 execution defaults to ordered; the TP worker can explicitly bind the overlap
 schedule at startup. Physical qualification remains open. See
 [the full contract](../../docs/PARALLEL_IR.md).
+
+`ForkJoinSpan` additionally describes two independent compute-producer ranges
+inside an ordered submission interval. The binding owner, not this inert
+schedule, establishes disjoint writes and shared read-only inputs.
+`OrderedSubmissionPlan.validate_forks` rejects overlapping/nested spans and
+collective cuts through the producers. The collective-kernel owner binds the
+second range to an auxiliary queue and joins it before the common consumer;
+graph replay preserves the same dependencies. This is distinct from
+compute/communication overlap. The selected GLM shared/routed implementation
+and bounded GPU replay/cancellation tests are recorded in
+[the October18 measurements](../../docs/GLM_PREFILL_AND_BRANCH_OVERLAP_2026-10-18.md).

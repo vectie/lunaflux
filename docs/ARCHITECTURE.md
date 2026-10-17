@@ -448,6 +448,16 @@ queues to separate streams and preallocated events; physical qualification is
 still required. No parallel graph analysis enters the
 request scheduler or token-step path.
 
+An independent compute-producer extension uses immutable `ForkJoinSpan`
+intervals within the same parallel IR. Binding owners establish disjoint
+branch writes; startup validation prevents a collective from bisecting those
+producers. The collective-kernel owner preserves the fork/join dependencies
+in eager and captured execution and retains both branches until completion or
+drain. The packed-expert owner uses this for explicit shared/routed overlap,
+without changing numerical combine order. This is not compute/NCCL overlap;
+the bounded implementation and qualification scope are recorded in
+[the prefill/overlap report](GLM_PREFILL_AND_BRANCH_OVERLAP_2026-10-18.md).
+
 Weights are streamed or mapped into their final device destination. A
 multi-device loader must never materialize the complete model independently on
 every worker.

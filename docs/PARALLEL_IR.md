@@ -2,6 +2,8 @@
 
 Branch: `parallel`. Compiler lowering and opt-in CUDA/NCCL dispatch are
 implemented; physical overlap performance and two-Spark qualification remain open.
+The original milestone below concerns compute/communication queues. The later
+independent compute-producer integration has a separate measured scope, below.
 
 ## Contract
 
@@ -61,6 +63,39 @@ All graph construction, initialization analysis, lifetime analysis and queue
 lowering happen before execution. The representation owns copied immutable
 arrays. It opens no files, sockets, GPU handles or communicators and introduces
 no token-step validation, hashing or allocation.
+
+### Independent compute producers
+
+`ForkJoinSpan(first, split, join)` expresses two independent half-open producer
+ranges `[first, split)` and `[split, join)`, followed by a common consumer.
+It is immutable scheduling data, not an alias proof or numerical rewrite.
+The owner supplying the span must bind disjoint writable scratch/outputs and
+shared read-only inputs. `OrderedSubmissionPlan.validate_forks` rejects nested
+or overlapping spans, out-of-range endpoints and a collective cut bisecting
+the producers. Adjacent spans remain legal.
+
+The private collective-kernel `PreparedQueue` binds dispatch indices, auxiliary
+ordered executors, streams and completion events at startup. It records input
+readiness on the primary queue, issues the second range on its auxiliary
+queue, retains the first range's primary order and waits for both before the
+common consumer/collective. The original serial combine and reduction order
+is unchanged. Capture preserves the cross-stream dependency DAG; graph and
+branch resources remain leased until terminal completion or explicit drain.
+The enqueue/reset path uses scalar cursors without per-step allocation.
+
+The generic packed-expert owner supplies one such span for independent routed
+and shared experts, before their existing F32 TP publication. GLM forwards an
+explicit startup choice; model semantics and kernel arithmetic do not name
+CUDA streams. Ordered execution remains the default. This does not establish
+compute/NCCL overlap or a general automatic scheduling/cost model.
+
+The actual owner passes eager/captured changing-input replay, partial-submit
+cancellation/drain, memcheck/full leak, racecheck and synccheck on the Spark.
+Selected two-Spark GLM traces prove shared/routed overlap, and unprofiled
+short-input ablations measure its benefits and regressions. Those bounded
+results, source pins and remaining scope are in
+[the prefill/overlap report](GLM_PREFILL_AND_BRANCH_OVERLAP_2026-10-18.md).
+They do not qualify every parallel-IR policy or model/shape combination.
 
 ## Scope and validation
 
