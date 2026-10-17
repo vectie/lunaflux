@@ -233,6 +233,7 @@ pub fn GlmDecoderSlice::prepare(
   replay_budget_bytes? : Int64 = 0L,
   overlap_experts? : Bool = false,
   fuse_hyper? : Bool = false,
+  fuse_controls? : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -299,7 +300,7 @@ pub fn GlmDecoderSlice::prepare(
         },
       )
     }
-    if fuse_hyper {
+    if fuse_hyper || fuse_controls {
       for (first, last, frame) in layer.hyper_sites() {
         hyper_sites.push(
           (launches.length() + first, launches.length() + last, frame),
@@ -324,8 +325,14 @@ pub fn GlmDecoderSlice::prepare(
     )
   }
   launches.append(suffix_launches)
-  if fuse_hyper {
-    let (fused, rewrite) = fuse_hyper_sites(launches, hyper_sites, aot)
+  if fuse_hyper || fuse_controls {
+    let (fused, rewrite) = fuse_hyper_sites(
+      launches,
+      hyper_sites,
+      aot,
+      post_square=fuse_hyper,
+      control_tail=fuse_controls,
+    )
     boundaries = boundaries.map(boundary => boundary.remap(rewrite))
     forks = forks.map(span => rewrite.fork(span))
     launches = fused

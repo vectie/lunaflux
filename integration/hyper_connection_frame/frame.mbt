@@ -16,6 +16,7 @@ pub struct HyperConnectionFrame {
   priv before : Array[@device.OrderedKernelLaunch]
   priv after : Array[@device.OrderedKernelLaunch]
   priv ports : Array[@device.Allocation]
+  priv controls : Array[@device.KernelArgument]
   priv mut status : State
 }
 
@@ -30,6 +31,7 @@ pub fn HyperConnectionFrame::new(
     before: [],
     after: [],
     ports: [],
+    controls: [],
     status: Fresh,
   }
 }
@@ -168,6 +170,7 @@ pub fn HyperConnectionFrame::prepare(
     control_arguments.push(region(norm_weight, hidden.to_int64() * 2L, 2L))
     control_arguments.push(region(frame[4], sizes[4], 2L))
   }
+  self.controls.append(control_arguments)
   self.before.push(
     self.launch(aot, 0, rows, control_threads, control_arguments),
   )
@@ -277,6 +280,7 @@ pub fn HyperConnectionFrame::close(
   self.before.clear()
   self.after.clear()
   self.ports.clear()
+  self.controls.clear()
   while self.functions.last() is Some(function) {
     function.close()
     ignore(self.functions.pop())

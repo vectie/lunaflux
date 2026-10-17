@@ -35,3 +35,20 @@ pub fn HyperConnectionFrame::fuse_post_square(
     region(next.buffers[6], schedule.workspace_bytes(), 4L),
   ])
 }
+
+///|
+pub fn HyperConnectionFrame::fuse_control_tail(
+  self : Self,
+  aot : @device.Module,
+) -> @device.OrderedKernelLaunch raise {
+  guard self.status is Prepared else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
+  let plan = @physical.ControlTailFusion::new(self.source.plan())
+  let (rows, workers, _) = plan.geometry()
+  let arguments = self.controls.copy()
+  arguments.push(
+    region(self.buffers[2], self.source.plan().frame_bytes()[2], 4L),
+  )
+  self.launch(aot, 7, rows, workers, arguments)
+}

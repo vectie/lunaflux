@@ -22,6 +22,7 @@ priv struct Startup {
   shared_matrix_columns : Int
   overlap_experts : Bool
   fuse_hyper : Bool
+  fuse_controls : Bool
   shard_vocabulary : Bool
 }
 
@@ -120,6 +121,7 @@ fn inspect_startup(
   shared_matrix_columns? : Int = 64,
   overlap_experts? : Bool = false,
   fuse_hyper? : Bool = false,
+  fuse_controls? : Bool = false,
   shard_vocabulary? : Bool = false,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
@@ -255,6 +257,7 @@ fn inspect_startup(
     shared_matrix_columns,
     overlap_experts,
     fuse_hyper,
+    fuse_controls,
     shard_vocabulary,
   }
   // Recheck the executable owners, not only the planner's layer estimates.

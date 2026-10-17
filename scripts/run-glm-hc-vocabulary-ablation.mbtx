@@ -1,0 +1,49 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+async fn main {
+  guard @env.args() is [_, name, runtime, hc, vocab, .. rest] &&
+    hc is ("0" | "1") && vocab is ("0" | "1") &&
+    rest is ([] | ["--profile"]) &&
+    runtime.has_prefix("/tmp/lunaflux-glm-expert-tp-") &&
+    name.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')) else {
+    fail("UNIQUE_NAME RUNTIME HC_0_OR_1 VOCAB_0_OR_1 [--profile]")
+  }
+  let profile = !rest.is_empty()
+  let root = "/tmp/lunaflux-model-bench-" + name
+  let environment = {
+    "LUNAFLUX_SPARK_178_SOCKET": "/tmp/lunaflux-glm178-cutlass-20261017.sock",
+    "LUNAFLUX_SPARK_179_SOCKET": "/tmp/lunaflux-glm179-cutlass-20261017b.sock",
+    "LUNA_GLM_EXPERT_TRANSPORT": "tiles", "LUNA_GLM_EXPERT_LOOKAHEAD": "1",
+    "LUNA_GLM_BUFFERED_MATRICES": "1", "LUNA_GLM_PARALLEL_HC": "1",
+    "LUNA_GLM_SHARED_COLUMNS": "32", "LUNA_GLM_OVERLAP_EXPERTS": "1",
+    "LUNA_GLM_FUSED_HC": "0", "LUNA_GLM_FUSED_CONTROLS": hc,
+    "LUNA_GLM_VOCAB_TP": vocab, "LUNA_BENCH_GRAPH_TRACE": "node",
+    "LUNA_BENCH_TELEMETRY": "1",
+  }
+  for mode in ["prepare", "start", "watch", "collect"] {
+    let out = @shell.Cmd("moon", [
+      "run", "scripts/benchmark-spark-models.mbtx", root, "glm",
+      if profile && mode == "prepare" { "prepare-profile" } else { mode },
+      "--runtime", runtime, "--rows", "64", "--tiled-grouped", "--expert-tp",
+      "--low-bit", "--queued-tp", "--graph-tp", "--shape-aware", "--warmup",
+    ], env=environment).output(max_output_bytes=8388608)
+    @fs.write_file(root + "/ablation-" + mode + ".stdout", out.stdout(), create_mode=CreateNew)
+    @fs.write_file(root + "/ablation-" + mode + ".stderr", out.stderr(), create_mode=CreateNew)
+    out.check()
+    println(name + " " + mode + " completed")
+  }
+  if profile { return }
+  let comparison = @shell.Cmd("moon", [
+    "run", "scripts/compare-glm-matched-benchmark.mbtx", root,
+    "/tmp/lunaflux-model-bench-glm-shared-vector-next-20261017-v1/paired-native.json",
+  ], env=environment).output(max_output_bytes=8388608)
+  @fs.write_file(root + "/ablation-comparison.stdout", comparison.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/ablation-comparison.stderr", comparison.stderr(), create_mode=CreateNew)
+  comparison.check()
+  println(comparison.stdout())
+}

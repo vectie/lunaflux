@@ -19,6 +19,13 @@ pub fn ControlSchedule::workers(Self) -> Int
 pub fn ControlSchedule::workgroups(Self, Int) -> Int raise @precision_ir.PrecisionPlanError
 pub fn ControlSchedule::workspace_bytes(Self) -> Int64
 
+pub struct ControlTailFusion {
+  // private fields
+}
+pub fn ControlTailFusion::geometry(Self) -> (Int, Int, Int)
+pub fn ControlTailFusion::matrix_subgroup(Self) -> Int
+pub fn ControlTailFusion::new(@precision_ir.HyperConnectionPrecision, subgroup_width? : Int) -> Self raise @precision_ir.PrecisionPlanError
+
 pub struct OrderedControlPlan {
   // private fields
 }

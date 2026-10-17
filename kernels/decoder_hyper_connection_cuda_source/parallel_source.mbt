@@ -53,8 +53,34 @@ fn control_tiles_source(
   parallel : Bool,
   fused_norm : Bool,
   symbol_prefix~ : String,
+  fused_sinkhorn? : Bool = false,
 ) -> Bytes raise DecoderHyperConnectionCudaSourceError {
   let (width, hidden, rows) = precision.geometry()
+  let subgroup_matrix = fused_sinkhorn &&
+    (@physical.ControlTailFusion::new(precision, subgroup_width=32) catch {
+      _ => raise InvalidNumericalContract
+    }).matrix_subgroup() ==
+    32
+  let sinkhorn_parameters = if fused_sinkhorn {
+    ", float *combination"
+  } else {
+    ""
+  }
+  let sinkhorn_storage = if fused_sinkhorn {
+    "__shared__ float local_combination[\{width*width}];"
+  } else {
+    ""
+  }
+  let sinkhorn_body = if fused_sinkhorn && !subgroup_matrix {
+    fused_sinkhorn_body(precision, symbol_prefix)
+  } else {
+    ""
+  }
+  let subgroup_body = if subgroup_matrix {
+    subgroup_sinkhorn_body(precision)
+  } else {
+    ""
+  }
   let flattened = width * hidden
   let controls = width * (width + 2)
   let suffix = if parallel { "tree_tiles_v1" } else { "ordered_tiles_v1" }
@@ -222,13 +248,14 @@ fn control_tiles_source(
       $|\{dot_fold}
       $|  if (worker == 0) scratch[\{rows} + (unsigned long long)row * \{controls} + output] = \{publication};
       $|}
-      $|extern "C" __global__ void \{symbol_prefix}_function_\{suffix}(const int32_t *counts, const __nv_bfloat16 *streams, const float *scratch, const float *base, const float *scale, float *post, float *initial_combination, __nv_bfloat16 *collapsed\{norm_parameters}) {
+      $|extern "C" __global__ void \{symbol_prefix}_function_\{suffix}(const int32_t *counts, const __nv_bfloat16 *streams, const float *scratch, const float *base, const float *scale, float *post, float *initial_combination, __nv_bfloat16 *collapsed\{norm_parameters}\{sinkhorn_parameters}) {
       $|  const int live_rows = counts[3], row = blockIdx.x, worker = threadIdx.x;
       $|  if (live_rows < 0 || live_rows > \{rows} || row >= live_rows || blockDim.x != \{workers}) return;
       $|  if (!isfinite(scratch[row])) return;
       $|  const float *mixes = scratch + \{rows} + (unsigned long long)row * \{controls};
       $|  const unsigned long long input_base = (unsigned long long)row * \{flattened};
       $|  __shared__ float pre[\{width}]; __shared__ int valid;
+      $|  \{sinkhorn_storage}
       $|  if (worker == 0) {
       $|    valid = 1;
       $|    for (int i = 0; i < \{controls}; ++i) if (!isfinite(base[i])) valid = 0;
@@ -252,9 +279,11 @@ fn control_tiles_source(
       $|        \{sum_finish}
       $|        for (int source = 0; source < \{width}; ++source) { const unsigned long long index = matrix_base + destination * \{width} + source; initial_combination[index] = \{probability}; }
       $|      }
+      $|\{sinkhorn_body}
       $|    }
       $|  }
       $|  __syncthreads(); if (!valid) return;
+      $|\{subgroup_body}
       $|  for (int column = worker; column < \{hidden}; column += \{workers}) {
       $|    float sum = 0.0f;
       $|    for (int stream = 0; stream < \{width}; ++stream) sum = \{collapse};

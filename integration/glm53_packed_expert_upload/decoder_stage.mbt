@@ -190,6 +190,7 @@ pub fn GlmDecoderStage::prepare(
   replay_budget_bytes? : Int64 = 0L,
   overlap_experts? : Bool = false,
   fuse_hyper? : Bool = false,
+  fuse_controls? : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -263,6 +264,7 @@ pub fn GlmDecoderStage::prepare(
     replay_budget_bytes~,
     overlap_experts~,
     fuse_hyper~,
+    fuse_controls~,
   )
   self.counts = Some(counts)
   self.status = Ready

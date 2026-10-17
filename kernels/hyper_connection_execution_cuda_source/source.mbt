@@ -114,6 +114,14 @@ pub fn hyper_connection_source(
   } else {
     b""
   }
+  let fused_tail = if control_schedule is Some(Tree(_)) {
+    @control.fused_control_tail_source(
+      plan,
+      symbol_prefix=symbol_prefix + "_tail",
+    )
+  } else {
+    b""
+  }
   {
     plan,
     prefix: symbol_prefix,
@@ -125,7 +133,9 @@ pub fn hyper_connection_source(
     b"\n" +
     post +
     b"\n" +
-    fused,
+    fused +
+    b"\n" +
+    fused_tail,
     normalization_threads: normalization.launch_threads(),
     control_schedule,
     post_square,
@@ -191,6 +201,7 @@ pub fn HyperConnectionCudaSource::symbol(
     4 if self.control_schedule is Some(_) => "square_ordered_tiles_v1"
     5 if self.control_schedule is Some(_) => "project_ordered_tiles_v1"
     6 if self.post_square => "post_square"
+    7 if self.control_schedule is Some(Tree(_)) => "tail_function_tree_tiles_v1"
     _ => raise @precision.PrecisionPlanError::IllegalPlacement
   }
   self.prefix + "_" + suffix

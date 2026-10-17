@@ -1,5 +1,6 @@
 ///|
 import {
+  "moonbitlang/async@0.21.3",
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
@@ -8,10 +9,11 @@ import {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, target, mode] &&
+  guard @env.args() is [_, root, target, mode, .. rest] &&
     root.has_prefix("/tmp/lunaflux-glm-hc-vocab-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    target is ("hc" | "vocab") &&
+    target is ("hc" | "vocab" | "tail") &&
+    (rest is [] || (rest is [tag] && tag.iter().all(c=>c is ('a'..='z'|'0'..='9'|'-')))) &&
     mode is ("prepare" | "run" | "memcheck" | "racecheck" | "synccheck") else {
     fail("ROOT hc|vocab prepare|run|memcheck|racecheck|synccheck")
   }
@@ -37,12 +39,14 @@ async fn main {
   }
   if mode == "prepare" {
     @fs.mkdir(root)
-    let package = if target == "hc" {
+    let target_package = if target != "vocab" {
       "kernels/hyper_connection_execution_cuda_source"
     } else {
       "kernels/text_io_execution_cuda_source"
     }
-    let filter = if target == "hc" {
+    let filter = if target == "tail" {
+      "export fused HC control and Sinkhorn tail"
+    } else if target == "hc" {
       "export adjacent HC publication square fusion"
     } else {
       "export independent vocabulary shard and stable join"
@@ -52,7 +56,7 @@ async fn main {
       @shell.Cmd(
         "moon",
         [
-          "test", package, "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+          "test", target_package, "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
           "--filter", filter,
         ],
         env={
@@ -67,7 +71,9 @@ async fn main {
         (root + "/probe.cuh", "probe.cuh"),
         (
           "tests/packed_moe_execution/" +
-          (if target == "hc" {
+          (if target == "tail" {
+            "hyper_control_tail_probe.cu"
+          } else if target == "hc" {
             "hyper_post_square_probe.cu"
           } else {
             "vocabulary_tp_probe.cu"
@@ -88,7 +94,7 @@ async fn main {
       "compile",
       remote(
         "systemd-run --user --wait --pipe --unit=" +
-        root[5:] +
+        root[5:].to_owned() +
         "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 -arch=sm_121 " +
         root +
         "/probe.cu -o " +
@@ -108,7 +114,8 @@ async fn main {
   guard @string.parse_int64(mem.stdout().trim()) >= 16777216L else {
     fail("host reserve below 16 GiB")
   }
-  record(mode + "-memory-before", mem)
+  let label=mode+(match rest { []=>""; [tag]=>"-"+tag; _=>abort("checked") })
+  record(label + "-memory-before", mem)
   let cmd = if mode == "run" {
     root + "/probe"
   } else {
@@ -124,9 +131,9 @@ async fn main {
       "sanitizer"
     })
   }
-  let unit = root[5:] + "-" + mode
+  let unit = root[5:].to_owned() + "-" + label
   record(
-    mode,
+    label,
     remote(
       "systemd-run --user --wait --pipe --unit=" +
       unit +
@@ -135,7 +142,7 @@ async fn main {
     ),
   )
   record(
-    mode + "-status",
+    label + "-status",
     remote(
       "systemctl --user show " +
       unit +

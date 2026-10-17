@@ -280,7 +280,7 @@ async fn main {
   }
   @fs.write_file(
     root + "/PREPARED.txt",
-    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=last-rank-owner\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nshape_aware=\{shape_aware}\nexpert_transport=\{transport}\nbuffered_matrices=\{buffered}\nexpert_fragment_slots=\{if lookahead {2} else {1}}\nhc_parallel_tree=\{parallel_hc}\nno_hashing=true\n",
+    "expert_tp=2\nattention=head-sharded\nnonexpert_ffn=intermediate-sharded\nhead=\{if vocab_tp { "vocabulary-sharded-candidate-gather" } else { "last-rank-owner" }}\nrows=\{rows}\nhistory=64\nnative_low_bit=\{low_bit}\nshape_aware=\{shape_aware}\nexpert_transport=\{transport}\nbuffered_matrices=\{buffered}\nexpert_fragment_slots=\{if lookahead {2} else {1}}\nhc_parallel_tree=\{parallel_hc}\nno_hashing=true\n",
     create_mode=CreateNew,
   )
   println("CPU-only expert TP preparation complete; full model has not run")

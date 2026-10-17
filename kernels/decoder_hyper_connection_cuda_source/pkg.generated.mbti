@@ -10,6 +10,8 @@ import {
 // Values
 pub fn block_control_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionCudaSource raise DecoderHyperConnectionCudaSourceError
 
+pub fn fused_control_tail_source(@precision_ir.HyperConnectionPrecision, symbol_prefix~ : String) -> Bytes raise
+
 pub fn head_reduce_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionHeadReduceCudaSource raise DecoderHyperConnectionCudaSourceError
 
 pub fn ordered_control_tiles_source(@precision_ir.HyperConnectionPrecision, @hyper_connection_physical_ir.OrderedControlPlan, symbol_prefix~ : String) -> Bytes raise DecoderHyperConnectionCudaSourceError

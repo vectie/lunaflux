@@ -19,17 +19,24 @@ fn fuse_hyper_sites(
   launches : ArrayView[@device.OrderedKernelLaunch],
   sites : ArrayView[(Int, Int, @hyper.HyperConnectionFrame)],
   aot : @device.Module,
+  post_square~ : Bool,
+  control_tail~ : Bool,
 ) -> (Array[@device.OrderedKernelLaunch], @parallel.AdjacentFusion) raise {
   let pairs = []
   let fused = []
-  for i in 1..<sites.length() {
-    let (_, post, producer) = sites[i - 1]
-    let (square, _, consumer) = sites[i]
-    guard post + 1 == square else {
-      raise @precision_ir.PrecisionPlanError::IllegalPlacement
+  for i, (square, _, consumer) in sites {
+    if post_square && i > 0 {
+      let (_, post, producer) = sites[i - 1]
+      guard post + 1 == square else {
+        raise @precision_ir.PrecisionPlanError::IllegalPlacement
+      }
+      pairs.push(post)
+      fused.push(producer.fuse_post_square(consumer, aot))
     }
-    pairs.push(post)
-    fused.push(producer.fuse_post_square(consumer, aot))
+    if control_tail {
+      pairs.push(square + 2)
+      fused.push(consumer.fuse_control_tail(aot))
+    }
   }
   let rewrite = @parallel.AdjacentFusion::new(
     kernel_count=launches.length(),

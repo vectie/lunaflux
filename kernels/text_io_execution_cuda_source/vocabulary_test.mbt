@@ -17,6 +17,7 @@ async test "export independent vocabulary shard and stable join" {
       symbol_prefix="full\{index}",
     )
     text.write_string(@utf8.decode(full.source_bytes()))
+    text.write_string("\n")
     for rank in 0..<2 {
       let shard = @parallel.VocabularyShard::new(
         vocabulary~,
@@ -38,6 +39,7 @@ async test "export independent vocabulary shard and stable join" {
         shard.columns().1.to_int64() * outputs.to_int64() * 4L,
       )
       text.write_string(@utf8.decode(source.source_bytes()))
+      text.write_string("\n")
     }
     let split = vocabulary / 2
     text <+
