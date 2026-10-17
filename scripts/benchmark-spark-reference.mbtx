@@ -258,6 +258,23 @@ test "GLM recipe limits scratch and captures without enabling speculation" {
 }
 
 ///|
+fn vllm_trace_capacity(compact : Bool) -> (Int, Int) {
+  // The hybrid recurrent model needs 0.14 GiB even at context 64; retain
+  // 256 MiB, not merely a token-proportional 128 MiB KV estimate.
+  if compact {
+    (64, 268435456)
+  } else {
+    (256, 536870912)
+  }
+}
+
+///|
+test "compact trace keeps hybrid state capacity and leaves ordinary baseline unchanged" {
+  assert_eq(vllm_trace_capacity(true), (64, 268435456))
+  assert_eq(vllm_trace_capacity(false), (256, 536870912))
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, family, engine, mode, .. rest] &&
     root.has_prefix("/tmp/lunaflux-reference-bench-") &&
@@ -295,8 +312,7 @@ async fn main {
   // It is never applied to ordinary graph-enabled benchmark cohorts.
   let compact_profile = profile &&
     @env.get_env_var("LUNAFLUX_REFERENCE_PROFILE_COMPACT") == Some("1")
-  let context = if compact_profile { 64 } else { 256 }
-  let kv_bytes = if compact_profile { 134217728 } else { 536870912 }
+  let (context, kv_bytes) = vllm_trace_capacity(compact_profile)
   guard !profile || (glm && !sg) else {
     fail("bounded profile is GLM/vLLM only")
   }

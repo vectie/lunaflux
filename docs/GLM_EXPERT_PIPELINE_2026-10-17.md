@@ -314,3 +314,17 @@ grouped FP4 choice. Its default status is provisional until that test; no
 original GLM serving container or configuration is changed. Pure grouped
 matrix ownership drives physical storage and terminal fragment lowering;
 comparison data and reference dependencies remain outside the compiler.
+
+Validation after this change: full native suite 5161/5161, warning-denied
+native check with the existing `-20-25-29-35-79-92` migration exclusions,
+and the external runner regressions pass. Tail H192/I320 at R3 also has zero
+memcheck/leak/race/synchronization errors. Pinned `15adf788` ARM build passes;
+both AOT rank sources contain all 42 widened routed gate/up and down paths.
+Planned bytes remain 98,648,722,228 / 99,918,135,092.
+
+Trace v3 was a distinct setup failure, not a reserve breach or kernel result:
+the compact 64-position configuration supplied 128 MiB KV/state, while the
+installed hybrid model requires 0.14 GiB. No trace was captured and both
+owners retired. The runner now reserves 256 MiB for compact diagnostic traces,
+with a regression preserving the ordinary 256-position/512-MiB baseline.
+No live-serving kernel identity is claimed from the three unsuccessful traces.
