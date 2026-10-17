@@ -49,8 +49,8 @@ fn grouped_fp4_source(
     let n = if stage < 2 { intermediate } else { hidden }
     let x = operands[if stage < 2 { 0 } else { 1 }]
     let w = layouts[stage]
-    // One warp owns a 16x8 output tile. The same logical grouping is used by
-    // both projections; inactive rows are zero operands, not live requests.
+    // Each warp owns one or more independent 16x8 fragments. Both projections
+    // share logical grouping; inactive rows are zero operands, not requests.
     bodies.push(
       (
         $|float d\{stage}[\{accumulators}]={0};

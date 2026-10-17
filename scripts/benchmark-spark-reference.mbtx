@@ -290,6 +290,13 @@ async fn main {
   // graph-enabled timing baseline. Avoid graph-capture memory at the host floor.
   let eager_profile = profile &&
     @env.get_env_var("LUNAFLUX_REFERENCE_PROFILE_EAGER") == Some("1")
+  // The selected request needs fewer than 64 positions. A smaller, explicitly
+  // labelled trace envelope avoids allocating unused startup/warmup capacity.
+  // It is never applied to ordinary graph-enabled benchmark cohorts.
+  let compact_profile = profile &&
+    @env.get_env_var("LUNAFLUX_REFERENCE_PROFILE_COMPACT") == Some("1")
+  let context = if compact_profile { 64 } else { 256 }
+  let kv_bytes = if compact_profile { 134217728 } else { 536870912 }
   guard !profile || (glm && !sg) else {
     fail("bounded profile is GLM/vLLM only")
   }
@@ -405,6 +412,9 @@ async fn main {
       guard !tokens.is_empty() && tokens.all(t => t >= 0) else {
         fail("invalid IDs")
       }
+      guard tokens.length() + (if profile { 2 } else { 8 }) <= context else {
+        fail("literal request exceeds the selected context capacity")
+      }
       let path = root + "/request-\{i}.json"
       @fs.write_file(
         path,
@@ -421,13 +431,15 @@ async fn main {
       family +
       "\nengine=" +
       engine +
-      "\ntp=2\npp=1\ncontext=256\nconcurrency=1\nmax_output=" +
+      "\ntp=2\npp=1\ncontext=\{context}" +
+      (if sg { "" } else { "\nkv_bytes=\{kv_bytes}" }) +
+      "\nconcurrency=1\nmax_output=" +
       (if profile { "2" } else { "8" }) +
       "\nspeculation=false\nprefix_cache=false\ncorpus=" +
       corpus +
       (if profile {
         "\nprofile=cuda-profiler-api\nprofile_output=2\nprofile_requests=1\n" +
-        "profile_eager=\{eager_profile}\n"
+        "profile_eager=\{eager_profile}\nprofile_compact=\{compact_profile}\n"
       } else {
         ""
       }) +
@@ -649,7 +661,7 @@ async fn main {
     } else {
       "vllm serve /model --served-model-name matched-model --tensor-parallel-size 2 --nnodes 2 --node-rank " +
       rank +
-      " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len 256 --max-num-seqs 1 --max-num-batched-tokens 256 --gpu-memory-utilization 0.80 --kv-cache-memory-bytes 536870912 --no-enable-prefix-caching --trust-remote-code" +
+      " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len \{context} --max-num-seqs 1 --max-num-batched-tokens \{context} --gpu-memory-utilization 0.80 --kv-cache-memory-bytes \{kv_bytes} --no-enable-prefix-caching --trust-remote-code" +
       (if glm { " --language-model-only" } else { "" }) +
       (if eager_profile { " --enforce-eager" } else { "" }) +
       (if last { " --headless" } else { "" })

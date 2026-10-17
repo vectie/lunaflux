@@ -1,0 +1,69 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline trace-to-component attribution. Matching a compiled kernel and
+// launch geometry does not match its inputs, route distribution or cache state.
+
+///|
+fn selected(database : String) -> String {
+  "SELECT s.value AS name,k.* FROM " +
+  database +
+  ".CUPTI_ACTIVITY_KIND_KERNEL k JOIN " +
+  database +
+  ".StringIds s ON k.demangledName=s.id WHERE s.value LIKE '%cutlass::device_kernel%'"
+}
+
+///|
+fn comparison() -> String {
+  "WITH c AS (" +
+  selected("component") +
+  "), k AS (" +
+  selected("main") +
+  ") SELECT k.name,k.gridX,k.gridY,k.gridZ,k.blockX,k.blockY,k.blockZ,k.registersPerThread,k.staticSharedMemory,k.dynamicSharedMemory,count(*) AS calls,sum(k.end-k.start)/1e6 AS gpu_ms,EXISTS(SELECT 1 FROM c WHERE c.name=k.name AND c.gridX=k.gridX AND c.gridY=k.gridY AND c.gridZ=k.gridZ AND c.blockX=k.blockX AND c.blockY=k.blockY AND c.blockZ=k.blockZ AND c.registersPerThread=k.registersPerThread AND c.staticSharedMemory=k.staticSharedMemory AND c.dynamicSharedMemory=k.dynamicSharedMemory) AS same_compiled_schedule FROM k GROUP BY k.name,k.gridX,k.gridY,k.gridZ,k.blockX,k.blockY,k.blockZ,k.registersPerThread,k.staticSharedMemory,k.dynamicSharedMemory ORDER BY gpu_ms DESC;"
+}
+
+///|
+test "match actual demangled schedule and resources, not merely backend label" {
+  assert_true(selected("main").contains("k.demangledName=s.id"))
+  assert_true(
+    comparison().contains("c.dynamicSharedMemory=k.dynamicSharedMemory"),
+  )
+  assert_true(comparison().contains("c.name=k.name"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, serving, component, output] &&
+    [serving, component, output].all(p => {
+      p.has_prefix("/tmp/lunaflux-") &&
+      p.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-' | '.' | '_')) &&
+      !p.contains("..")
+    }) else {
+    fail("SERVING_SQLITE COMPONENT_SQLITE NEW_REPORT_DIRECTORY")
+  }
+  @fs.mkdir(output)
+  let result = @shell.Cmd("sqlite3", [
+    "-header",
+    "-csv",
+    serving,
+    "ATTACH DATABASE '" + component + "' AS component;" + comparison(),
+  ]).output(max_output_bytes=4194304)
+  @fs.write_file(
+    output + "/schedules.csv",
+    result.stdout(),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(output + "/stderr.txt", result.stderr(), create_mode=CreateNew)
+  result.check()
+  @fs.write_file(
+    output + "/SCOPE.txt",
+    "Exact demangled symbol, grid/block and registers/shared allocation comparison. Component inputs are synthetic; same_compiled_schedule does not assert equal data, routes, cache state, times or correctness. No payload hashing.\n",
+    create_mode=CreateNew,
+  )
+  println(result.stdout())
+}
