@@ -570,6 +570,17 @@ async fn main {
           fail("stopped experiment: host memory reserve reached")
         }
         if status.stdout().contains("SubState=failed") {
+          // A failed rank cannot make progress with its peer. Retire both
+          // owned units before leaving the offline acceptance campaign.
+          for stop_last in [false, true] {
+            let stop_role = if stop_last { "egress" } else { "ingress" }
+            ignore(
+              remote(
+                stop_last,
+                "systemctl --user stop " + prefix + "-" + stop_role + ".service",
+              ),
+            )
+          }
           @fs.write_file(
             root + "/memory-watch.txt",
             observations.to_string(),
@@ -592,7 +603,21 @@ async fn main {
       }
       @async.sleep(5000)
     }
-    fail("bounded watch expired")
+    for stop_last in [false, true] {
+      let stop_role = if stop_last { "egress" } else { "ingress" }
+      ignore(
+        remote(
+          stop_last,
+          "systemctl --user stop " + prefix + "-" + stop_role + ".service",
+        ),
+      )
+    }
+    @fs.write_file(
+      root + "/memory-watch.txt",
+      observations.to_string(),
+      create_mode=CreateNew,
+    )
+    fail("bounded watch expired; both owned ranks stopped")
   }
   if mode is ("prepare" | "prepare-profile") {
     @fs.mkdir(root)

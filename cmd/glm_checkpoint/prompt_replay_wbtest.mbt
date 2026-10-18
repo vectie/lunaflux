@@ -15,6 +15,63 @@ test "generation admits all declared EOS ids without changing the single-id CLI"
 }
 
 ///|
+test "every declared EOS retires on prefill and decode without another step" {
+  let (limits, inference) = prompt_limits(2, 16, 154880)
+  let encoded = @prompt.encode_prompt(
+    [64, 65],
+    limits,
+    inference,
+    maximum_rows=2,
+    maximum_context=16,
+    model_generation=1UL,
+  )
+  let plans = @wire.PlanFrameBuffer::new(limits, inference)
+  let scratch = FixedArray::make(plans.capacity(), b'\x00')
+  for i, byte in encoded[0] {
+    scratch[i] = byte
+  }
+  let plan = plans.load(scratch, encoded[0].length())
+  let completions = @wire.CompletionFrameBuffer::new(limits, inference)
+  let stops = parse_generation_stops("154820,154827,154829", 154880)
+  for stop in stops {
+    for initial_stop in [true, false] {
+      let writer = completions.writer_for(plan)
+      writer.append_final_prefill_completed(
+        plan.prefill_row(0),
+        if initial_stop {
+          stop
+        } else {
+          66
+        },
+      )
+      let owner = @generation.SerialGreedyGeneration::new(
+        plan,
+        writer.submit(),
+        limits,
+        inference,
+        maximum_new_tokens=4,
+        maximum_context=16,
+        stop_tokens=stops,
+      )
+      if !initial_stop {
+        let next = owner.next_decode()
+        let writer = completions.writer_for(next)
+        writer.append_decode_completed(next.decode_row(0), stop)
+        owner.accept(writer.submit())
+      }
+      assert_eq(owner.finish_reason(), @generation.GenerationFinish::StopToken)
+      assert_eq(owner.token_count(), if initial_stop { 1 } else { 2 })
+      try owner.next_decode() catch {
+        @generation.SerialGenerationError::Finished => ()
+        error => raise error
+      } noraise {
+        _ => fail("EOS submitted another step")
+      }
+    }
+  }
+}
+
+///|
 async test "GLM prompt replay resolves capacity before file authority is released" {
   let directory = @fs.tmpdir(prefix="lunaflux-glm-prompt-replay")
   defer @fs.rmdir(directory, recursive=true)

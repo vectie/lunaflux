@@ -1,0 +1,157 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+// Offline assessment, never linked into model selection or the compiler.
+// The prompt opens <think>; only its explicit closing delimiter begins the
+// final answer. Preserve raw text separately and reject unexpected framing.
+fn final_answer(raw : String, finish : String) -> String raise {
+  guard finish == "stop" else { fail("answer did not terminate with EOS") }
+  let sections = raw.split("</think>").to_array()
+  guard sections.length() == 2 else {
+    fail("missing or repeated reasoning end")
+  }
+  let mut answer = sections[1].trim().to_owned()
+  for marker in ["<|user|>", "<|endoftext|>", "<|observation|>"] {
+    if answer.has_suffix(marker) {
+      answer = answer[:answer.length() - marker.length()].trim().to_owned()
+      break
+    }
+  }
+  guard !answer.is_empty() &&
+    !answer.contains("<|") &&
+    !answer.contains("<think>") else {
+    fail("empty final answer or unexpected control token")
+  }
+  answer
+}
+
+///|
+fn task_check(case : Json, answer : String) -> String raise {
+  guard case is { "check": String(kind), .. } else {
+    fail("missing task check")
+  }
+  match kind {
+    "json" | "integer" => {
+      guard case is { "expected": expected, .. } else {
+        fail("missing expected")
+      }
+      let observed = @json.parse(answer) catch {
+        _ => return "FAIL: invalid JSON/value format"
+      }
+      if observed == expected {
+        "PASS: exact task value"
+      } else {
+        "FAIL: wrong task value"
+      }
+    }
+    "name" | "label" => {
+      guard case is { "expected": String(expected), .. } else {
+        fail("missing expected")
+      }
+      if answer == expected {
+        "PASS: exact supplied-context answer"
+      } else {
+        "REVIEW: name/label or instruction mismatch"
+      }
+    }
+    _ => "REVIEW: independent semantic/code assessment required"
+  }
+}
+
+///|
+test "assessment never accepts truncated reasoning or repairs malformed output" {
+  assert_eq(final_answer("thinking</think>449<|user|>", "stop"), "449")
+  for
+    (raw, finish) in [
+      ("</think>449", "length"),
+      ("still thinking", "stop"),
+      ("</think> ", "stop"),
+      ("</think>a</think>b", "stop"),
+      ("</think>449<|user|>extra", "stop"),
+    ] {
+    try final_answer(raw, finish) catch {
+      _ => ()
+    } noraise {
+      _ => fail("malformed/incomplete output accepted")
+    }
+  }
+}
+
+///|
+test "task checks do not compare engine wording and enforce requested JSON" {
+  let object = @json.parse(
+    "{\"check\":\"json\",\"expected\":{\"result\":42,\"ok\":true}}",
+  )
+  assert_eq(
+    task_check(object, "{\"ok\":true,\"result\":42}"),
+    "PASS: exact task value",
+  )
+  assert_true(
+    task_check(object, "```json\n{\"result\":42,\"ok\":true}\n```").has_prefix(
+      "FAIL",
+    ),
+  )
+  assert_true(
+    task_check(object, "{\"result\":43,\"ok\":true}").has_prefix("FAIL"),
+  )
+  assert_true(
+    task_check(object, "{\"result\":42,\"ok\":true,\"extra\":0}").has_prefix(
+      "FAIL",
+    ),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-model-bench-") else {
+    fail("COMPLETED_MODEL_BENCH_ROOT")
+  }
+  guard @json.parse(@fs.read_file(root + "/corpus.json").text()) is Array(cases) else {
+    fail("literal corpus required")
+  }
+  let report = StringBuilder()
+  report <+
+    "Complete-answer assessment; reference engines are not correctness oracles.\n"
+  report <+
+    "REVIEW is not a pass. length is inconclusive, never a completed answer.\n\n"
+  for index, case in cases {
+    guard case is { "id": String(id), .. } else { fail("case id required") }
+    guard @json.parse(@fs.read_file(root + "/finish-\{index}.json").text())
+      is {
+        "finish_reason": String(finish),
+        "generated_tokens": Number(count, ..),
+        ..
+      } else {
+      fail("actual terminal reason/count required")
+    }
+    let raw = @fs.read_file(root + "/decoded-\{index}.txt").text()
+    report <+ "[\{index}] \{id} finish=\{finish} tokens=\{count.to_int()}\n"
+    if finish == "length" {
+      report <+
+        "INCONCLUSIVE: output budget exhausted; rerun with a larger admitted budget\n"
+      report <+ "RAW: \{raw}\n\n"
+      continue
+    }
+    let answer = final_answer(raw, finish) catch {
+      error => {
+        report <+ "FAIL: framing/termination \{error}\nRAW: \{raw}\n\n"
+        continue
+      }
+    }
+    report.write_string(task_check(case, answer))
+    report <+ "\nFINAL: \{answer}\n\n"
+  }
+  @fs.write_file(
+    root + "/answer-assessment.txt",
+    report.to_string(),
+    create_mode=CreateNew,
+  )
+  println(report.to_string())
+}
