@@ -25,6 +25,7 @@ pub fn selected_sparse_source(
   maximum_history~ : Int,
   symbol~ : String,
   published_slots? : Int,
+  paged_history? : @physical.PagedHistoryDomain,
 ) -> SelectedSparseCudaSource raise {
   let extent = published_slots.unwrap_or(selected_width)
   guard query_heads > 0 &&
@@ -78,6 +79,33 @@ pub fn selected_sparse_source(
     "accumulator", "probability", "values[vbase + component]",
   ])
   let publish = expression(Publish, ["accumulator"])
+  let extra_ports = if paged_history is Some(_) {
+    ", const int32_t *row_sequences, const int32_t *page_offsets, const int32_t *page_ids, const int32_t *page_generations"
+  } else {
+    ""
+  }
+  let (sequence_guard, live_keys, address, validity, retained_key) = match
+    paged_history {
+    None => ("counts[2] != 1", "*key_count", "", "key_valid[key] == 0", "key")
+    Some(domain) => {
+      let (page_rows, pages, context, sequences) = domain.geometry()
+      guard context == maximum_history else {
+        raise @precision.PrecisionPlanError::IllegalPlacement
+      }
+      (
+        "counts[2] <= 0 || counts[2] > \{sequences}",
+        "\{maximum_history}",
+        (
+          $|const int sequence=row_sequences[query];
+          $|if(sequence<0||sequence>=counts[2])return;
+          $|const int first_page=page_offsets[sequence],end_page=page_offsets[sequence+1];
+          $|if(first_page<0||end_page<first_page||end_page>\{domain.table_capacity()})return;
+        ),
+        "first_page+key/\{page_rows}>=end_page || page_ids[first_page+key/\{page_rows}]<0 || page_ids[first_page+key/\{page_rows}]>=\{pages} || key_valid[page_ids[first_page+key/\{page_rows}]*\{page_rows}+key%\{page_rows}]!=page_generations[first_page+key/\{page_rows}]",
+        "page_ids[first_page+key/\{page_rows}]*\{page_rows}+key%\{page_rows}",
+      )
+    }
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
@@ -87,7 +115,7 @@ pub fn selected_sparse_source(
     $|  const int32_t *query_positions, const int32_t *key_count,
     $|  const int32_t *key_valid, const __nv_bfloat16 *queries,
     $|  const __nv_bfloat16 *keys, const __nv_bfloat16 *values,
-    $|  const int32_t *selected_indices, __nv_bfloat16 *output, void *scratch) {
+    $|  const int32_t *selected_indices, __nv_bfloat16 *output, void *scratch\{extra_ports}) {
     $|  const int group = blockIdx.x, worker = threadIdx.x;
     $|  if (group >= \{schedule.workgroups()}) return;
     $|  const int query = group / \{query_heads}, head = group % \{query_heads};
@@ -95,11 +123,12 @@ pub fn selected_sparse_source(
     $|  const unsigned long long outbase = (unsigned long long)group * \{value_dimension}ULL;
     $|  for (int component = worker; component < \{value_dimension}; component += blockDim.x)
     $|    output[outbase + component] = __float2bfloat16_rn(0.0f);
-    $|  const int query_count = counts[3], keys_live = *key_count;
-    $|  if (counts[2] != 1 || query_count <= 0 || query_count > \{maximum_queries} ||
+    $|  const int query_count = counts[3], keys_live = \{live_keys};
+    $|  if (\{sequence_guard} || query_count <= 0 || query_count > \{maximum_queries} ||
     $|      query >= query_count || keys_live <= 0 || keys_live > \{maximum_history}) return;
     $|  const int position = query_positions[query];
     $|  if (position < 0 || position >= keys_live) return;
+    $|  \{address}
     $|  const unsigned long long selected_base = (unsigned long long)query * \{selected_width}ULL;
     $|  const unsigned long long region = (unsigned long long)group * \{slots * 2}ULL;
     $|  int *retained = ((int *)scratch) + region;
@@ -112,7 +141,7 @@ pub fn selected_sparse_source(
     $|  for (int rank = worker; rank < \{extent}; rank += blockDim.x) {
     $|    const int key = selected_indices[selected_base + rank];
     $|    if (key == -1) continue;
-    $|    if (key < 0 || key >= keys_live || key > position || key_valid[key] == 0) {
+    $|    if (key < 0 || key >= keys_live || key > position || \{validity}) {
     $|      atomicExch(&row_valid, 0); continue;
     $|    }
     $|    for (int prior = 0; prior < rank; ++prior)
@@ -124,7 +153,7 @@ pub fn selected_sparse_source(
     $|    visible = 0;
     $|    for (int rank = 0; rank < \{extent}; ++rank) {
     $|      const int key = selected_indices[selected_base + rank];
-    $|      if (key != -1) retained[visible++] = key;
+    $|      if (key != -1) retained[visible++] = \{retained_key};
     $|    }
     $|  }
     $|  __syncthreads();

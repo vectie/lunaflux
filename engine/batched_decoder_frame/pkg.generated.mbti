@@ -3,6 +3,7 @@ package "vectie/lunaflux/engine/batched_decoder_frame"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/attention_physical_ir",
   "vectie/lunaflux/engine/worker_wire",
 }
 
@@ -20,6 +21,7 @@ pub(all) suberror BatchFrameError {
   UnknownRequest
   GenerationMismatch
   ModelGenerationMismatch
+  InvalidPages
 } derive(Eq, @debug.Debug)
 pub fn BatchFrameError::equal(Self, Self) -> Bool
 pub fn BatchFrameError::not_equal(Self, Self) -> Bool
@@ -38,6 +40,10 @@ pub(all) enum BatchInputPort {
   Positions
   RowSlots
   SequencePositions
+  RowSequences
+  PageOffsets
+  PageIds
+  PageGenerations
 } derive(Eq, @debug.Debug)
 pub fn BatchInputPort::equal(Self, Self) -> Bool
 pub fn BatchInputPort::not_equal(Self, Self) -> Bool
@@ -50,10 +56,11 @@ pub fn BatchedDecoderFrame::close(Self) -> Unit raise
 pub fn BatchedDecoderFrame::complete(Self, ArrayView[Int], execution_failed~ : Bool) -> @worker_wire.ValidatedCompletionFrame raise
 pub fn BatchedDecoderFrame::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
 pub fn BatchedDecoderFrame::copy_input(Self, BatchInputPort, FixedArray[Byte]) -> Int raise BatchFrameError
+pub fn BatchedDecoderFrame::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn BatchedDecoderFrame::input_capacity(Self, BatchInputPort) -> Int
 pub fn BatchedDecoderFrame::is_faulted(Self) -> Bool
 pub fn BatchedDecoderFrame::live_rows(Self) -> Int raise BatchFrameError
-pub fn BatchedDecoderFrame::new(maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_context~ : Int, vocabulary_size~ : Int, model_generation~ : UInt64) -> Self raise BatchFrameError
+pub fn BatchedDecoderFrame::new(maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_context~ : Int, vocabulary_size~ : Int, model_generation~ : UInt64, paged_history? : @attention_physical_ir.PagedHistoryDomain) -> Self raise BatchFrameError
 pub fn BatchedDecoderFrame::output_entry(Self, Int) -> Int raise BatchFrameError
 pub fn BatchedDecoderFrame::output_rows(Self) -> Int raise BatchFrameError
 pub fn BatchedDecoderFrame::processed_tokens(Self, UInt64, UInt64) -> Int raise BatchFrameError

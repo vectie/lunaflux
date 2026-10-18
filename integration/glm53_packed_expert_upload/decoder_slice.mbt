@@ -51,6 +51,7 @@ pub fn GlmDecoderSlice::new(
   expert_scale_partitions? : Int = 1,
   shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
+  paged_history? : @history_domain.PagedHistoryDomain,
 ) -> Self raise {
   guard first_layer >= 0 &&
     end_layer > first_layer &&
@@ -59,6 +60,12 @@ pub fn GlmDecoderSlice::new(
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
   }
   let layers : Array[GlmDecoderLayer] = []
+  if paged_history is Some(domain) {
+    let (_, _, context, sequences) = domain.geometry()
+    guard context == maximum_history && sequences == maximum_sequences else {
+      raise @precision_ir.PrecisionPlanError::IllegalPlacement
+    }
+  }
   for layer_index in first_layer..<end_layer {
     let layer : GlmDecoderLayer = match spec.attention_kind(layer_index) {
       KimiDeltaAttention =>
@@ -104,7 +111,8 @@ pub fn GlmDecoderSlice::new(
             )
         }
       DeepSeekSparseAttention => {
-        guard maximum_sequences == 1 && cache_slots == 1 else {
+        guard paged_history is Some(_) ||
+          (maximum_sequences == 1 && cache_slots == 1) else {
           raise @precision_ir.PrecisionPlanError::IllegalPlacement
         }
         Sparse(
@@ -114,6 +122,7 @@ pub fn GlmDecoderSlice::new(
             layer_index~,
             maximum_queries=maximum_rows,
             maximum_history~,
+            paged_history?,
             index_layer_norm_epsilon~,
             maximum_state_bytes=maximum_layer_state_bytes,
             maximum_workspace_bytes=maximum_layer_workspace_bytes,
@@ -240,6 +249,8 @@ pub fn GlmDecoderSlice::prepare(
   fuse_hyper? : Bool = false,
   fuse_controls? : Bool = false,
   defer_hyper? : Bool = false,
+  input_positions? : @device.Allocation,
+  page_ports? : @history_frame.SparseHistoryPagePorts,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -286,6 +297,8 @@ pub fn GlmDecoderSlice::prepare(
       sequence_slots~,
       reset_flags~,
       sparse_reset_flag~,
+      input_positions?,
+      page_ports?,
       hidden=input,
       output=next,
     )

@@ -16,6 +16,7 @@ pub struct IndexedSparseAttentionPrecision {
   priv history : Int
   priv frame_sizes : ReadOnlyArray[Int64]
   priv workspace : Int64
+  priv paging : @history.PagedHistoryDomain?
 }
 
 ///|
@@ -32,6 +33,7 @@ pub fn IndexedSparseAttentionPrecision::new(
   maximum_queries~ : Int,
   maximum_history~ : Int,
   maximum_workspace_bytes~ : Int64,
+  paged_history? : @history.PagedHistoryDomain,
 ) -> Self raise PrecisionPlanError {
   guard index_head_count > 0 &&
     index_head_count <= 1024 &&
@@ -57,7 +59,16 @@ pub fn IndexedSparseAttentionPrecision::new(
     maximum_queries <= maximum_history else {
     raise IllegalPlacement
   }
-  let pools = (maximum_history / pool_size).to_int64()
+  if paged_history is Some(domain) {
+    let (page_rows, _, context, _) = domain.geometry()
+    guard context == maximum_history && page_rows % pool_size == 0 else {
+      raise IllegalPlacement
+    }
+  }
+  let physical_history = paged_history
+    .map(d => d.physical_rows())
+    .unwrap_or(maximum_history)
+  let pools = (physical_history / pool_size).to_int64()
   let width = top_k + (if append_incomplete_tail { pool_size - 1 } else { 0 })
   guard width <= 65536 else { raise IllegalPlacement }
   let selected_cells = expert_checked_mul(
@@ -99,6 +110,7 @@ pub fn IndexedSparseAttentionPrecision::new(
     history: maximum_history,
     frame_sizes: ReadOnlyArray::from_array(sizes),
     workspace,
+    paging: paged_history,
   }
 }
 
@@ -142,4 +154,16 @@ pub fn IndexedSparseAttentionPrecision::frame_bytes(
 ///|
 pub fn IndexedSparseAttentionPrecision::workspace_bytes(self : Self) -> Int64 {
   self.workspace
+}
+
+///|
+pub fn IndexedSparseAttentionPrecision::paged_history(
+  self : Self,
+) -> @history.PagedHistoryDomain? {
+  self.paging
+}
+
+///|
+pub fn IndexedSparseAttentionPrecision::physical_history(self : Self) -> Int {
+  self.paging.map(d => d.physical_rows()).unwrap_or(self.history)
 }

@@ -1,0 +1,121 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-paged-sparse-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode is ("export" | "compile" | "run" | "sanitize") else {
+    fail("NEW_ROOT export|compile|run|sanitize")
+  }
+  let socket = "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(cmd : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(
+      max_output_bytes=8388608,
+    )
+  }
+  async fn record(label : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  if mode == "export" {
+    @fs.mkdir(root)
+    let output = @shell.Cmd("env", [
+      "LUNA_PAGED_SPARSE_EXPORT=1", "moon", "test", "kernels/indexed_sparse_attention_execution_cuda_source/paged_test.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=8388608)
+    record("export", output)
+    let parts = output.stdout().split("LUNA_PAGED_BEGIN\n").to_array()
+    guard parts.length() == 2 else { fail("source export") }
+    @fs.write_file(
+      root + "/source.cuh",
+      parts[1].split("LUNA_PAGED_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+  } else if mode == "compile" {
+    record("mkdir", remote("mkdir " + root))
+    for
+      (source, target) in [
+        (root + "/source.cuh", "source.cuh"),
+        ("tests/packed_moe_execution/paged_sparse_probe.cu", "probe.cu"),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        source,
+        host + ":" + root + "/" + target,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 --generate-code arch=compute_121a,code=sm_121a " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+  } else {
+    record(
+      mode + "-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo",
+      ),
+    )
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    for
+      tool in (if mode == "run" {
+        ["run"]
+      } else {
+        ["memcheck", "racecheck", "synccheck", "initcheck"]
+      }) {
+      let prefix = if tool == "run" {
+        ""
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+        tool +
+        (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+        " "
+      }
+      record(
+        tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          root[5:].to_owned() +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+          prefix +
+          root +
+          "/probe",
+        ),
+      )
+      println(tool + " complete")
+    }
+  }
+}

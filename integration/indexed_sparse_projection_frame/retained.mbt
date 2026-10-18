@@ -13,6 +13,8 @@ pub fn IndexedSparseProjectionFrame::prepare_retained_attention(
   reset_flag~ : @device.Allocation,
   pool_ape~ : @device.Allocation,
   output~ : @device.Allocation,
+  input_positions? : @device.Allocation,
+  page_ports? : @sparse.SparseHistoryPagePorts,
 ) -> Array[@device.OrderedKernelLaunch] raise {
   guard self.state is Prepared && self.counts is Some(query_counts) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -20,6 +22,8 @@ pub fn IndexedSparseProjectionFrame::prepare_retained_attention(
   let expected = self.source.plan().attention()
   for plan in [history.attention_plan(), attention.attention_plan()] {
     guard plan.capacity() == expected.capacity() &&
+      plan.paged_history().map(d => d.geometry()) ==
+      expected.paged_history().map(d => d.geometry()) &&
       plan.index_geometry() == expected.index_geometry() &&
       plan.attention_geometry() == expected.attention_geometry() else {
       raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -36,6 +40,8 @@ pub fn IndexedSparseProjectionFrame::prepare_retained_attention(
     pool_gate_scores=outputs.pool_gate_scores,
     keys=outputs.keys,
     values=outputs.values,
+    input_positions?,
+    page_ports?,
   )
   attention.prepare_retained(
     context,
@@ -48,6 +54,7 @@ pub fn IndexedSparseProjectionFrame::prepare_retained_attention(
     pool_ape~,
     queries=outputs.queries,
     output~,
+    page_ports?,
   )
   let retained = attention.launches()
   let launches = [retained[0]]

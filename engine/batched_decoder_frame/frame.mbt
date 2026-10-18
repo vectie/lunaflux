@@ -10,6 +10,7 @@ pub(all) suberror BatchFrameError {
   UnknownRequest
   GenerationMismatch
   ModelGenerationMismatch
+  InvalidPages
 } derive(Debug, Eq)
 
 ///|
@@ -41,6 +42,10 @@ pub(all) enum BatchInputPort {
   Positions
   RowSlots
   SequencePositions
+  RowSequences
+  PageOffsets
+  PageIds
+  PageGenerations
 } derive(Debug, Eq)
 
 ///|
@@ -63,6 +68,10 @@ fn BatchInputPort::index(self : Self) -> Int {
     Positions => 8
     RowSlots => 9
     SequencePositions => 10
+    RowSequences => 11
+    PageOffsets => 12
+    PageIds => 13
+    PageGenerations => 14
   }
 }
 
@@ -77,6 +86,7 @@ pub struct BatchedDecoderFrame {
   priv context : Int
   priv vocabulary : Int
   priv generation : UInt64
+  priv history : @history.PagedHistoryDomain?
   priv inputs : FixedArray[FixedArray[Byte]]
   priv live : FixedArray[Bool]
   priv ids : FixedArray[UInt64]
@@ -92,6 +102,7 @@ pub struct BatchedDecoderFrame {
   priv mut active_sequences : Int
   priv mut active_rows : Int
   priv mut outputs : Int
+  priv mut active_pages : Int
   priv mut state : State
 }
 
@@ -103,6 +114,7 @@ pub fn BatchedDecoderFrame::new(
   maximum_context~ : Int,
   vocabulary_size~ : Int,
   model_generation~ : UInt64,
+  paged_history? : @history.PagedHistoryDomain,
 ) -> Self raise BatchFrameError {
   guard maximum_rows > 0 &&
     maximum_rows <= 536870910 &&
@@ -114,6 +126,12 @@ pub fn BatchedDecoderFrame::new(
     vocabulary_size > 0 else {
     raise InvalidCapacity
   }
+  if paged_history is Some(domain) {
+    let (_, _, context, sequences) = domain.geometry()
+    guard context == maximum_context && sequences == maximum_sequences else {
+      raise InvalidCapacity
+    }
+  }
   {
     rows: maximum_rows,
     sequences: maximum_sequences,
@@ -121,12 +139,14 @@ pub fn BatchedDecoderFrame::new(
     context: maximum_context,
     vocabulary: vocabulary_size,
     generation: model_generation,
-    inputs: FixedArray::makei(11, port => {
+    history: paged_history,
+    inputs: FixedArray::makei(15, port => {
       let bytes = match port {
         0 => 20
         6 => 4
-        1 | 8 | 9 => maximum_rows * 4
-        2 => (maximum_sequences + 1) * 4
+        1 | 8 | 9 | 11 => maximum_rows * 4
+        2 | 12 => (maximum_sequences + 1) * 4
+        13 | 14 => paged_history.map(d => d.table_capacity() * 4).unwrap_or(0)
         _ => maximum_sequences * 4
       }
       FixedArray::make(bytes, b'\x00')
@@ -145,6 +165,7 @@ pub fn BatchedDecoderFrame::new(
     active_sequences: 0,
     active_rows: 0,
     outputs: 0,
+    active_pages: 0,
     state: Idle,
   }
 }
@@ -188,6 +209,12 @@ pub fn BatchedDecoderFrame::input_capacity(
 }
 
 ///|
+/// Startup geometry: rows, active sequences, retained slots, context, vocabulary.
+pub fn BatchedDecoderFrame::geometry(self : Self) -> (Int, Int, Int, Int, Int) {
+  (self.rows, self.sequences, self.slots, self.context, self.vocabulary)
+}
+
+///|
 /// No new arrays are allocated during staging or transfer. Consumers use the
 /// live counts; copying stale tail bytes is neither required nor permitted.
 pub fn BatchedDecoderFrame::copy_input(
@@ -199,8 +226,9 @@ pub fn BatchedDecoderFrame::copy_input(
   let bytes = match port {
     Counts => 20
     OutputCount => 4
-    TokenIds | Positions | RowSlots => self.active_rows * 4
-    SequenceOffsets => (self.active_sequences + 1) * 4
+    TokenIds | Positions | RowSlots | RowSequences => self.active_rows * 4
+    SequenceOffsets | PageOffsets => (self.active_sequences + 1) * 4
+    PageIds | PageGenerations => self.active_pages * 4
     SelectedRows => self.outputs * 4
     _ => self.active_sequences * 4
   }

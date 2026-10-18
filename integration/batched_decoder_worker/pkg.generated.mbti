@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/batched_decoder_worker"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/batched_decoder_frame",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct BatchedDecoderRank {
+  // private fields
+}
+pub fn BatchedDecoderRank::begin(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise
+pub fn BatchedDecoderRank::bind_executor(Self, @device.Context, submit~ : (Int) -> Unit raise, poll~ : () -> Bool raise, close~ : () -> Unit raise, append_descriptors~ : ArrayView[@device.Allocation]) -> Unit raise
+pub fn BatchedDecoderRank::close(Self) -> Unit raise
+pub fn BatchedDecoderRank::commit(Self, pipeline_failed~ : Bool) -> Unit raise
+pub fn BatchedDecoderRank::execution_failed(Self) -> Bool raise
+pub fn BatchedDecoderRank::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn BatchedDecoderRank::input(Self, @batched_decoder_frame.BatchInputPort) -> @device.Allocation raise
+pub fn BatchedDecoderRank::inputs_ready(Self) -> Bool raise
+pub fn BatchedDecoderRank::new(@batched_decoder_frame.BatchedDecoderFrame, outputs_token~ : Bool) -> Self
+pub fn BatchedDecoderRank::output_entry(Self, Int) -> Int raise
+pub fn BatchedDecoderRank::outputs_token(Self) -> Bool
+pub fn BatchedDecoderRank::prepare_ports(Self, @device.Context, maximum_device_bytes~ : Int64) -> Unit raise
+pub fn BatchedDecoderRank::progress(Self) -> Bool raise
+pub fn BatchedDecoderRank::release_request(Self, UInt64, UInt64) -> Unit raise
+pub fn BatchedDecoderRank::required_device_bytes(Self) -> Int64
+pub fn BatchedDecoderRank::sampled_tokens(Self) -> @device.Allocation raise
+pub fn BatchedDecoderRank::samples(Self) -> ArrayView[Int] raise
+pub fn BatchedDecoderRank::sampling_plan(Self) -> @worker_wire.ValidatedPlanFrame raise
+pub fn BatchedDecoderRank::submit(Self) -> Unit raise
+
+// Type aliases
+
+// Traits

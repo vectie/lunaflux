@@ -1,8 +1,12 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "vectie/lunaflux/kernels/selected_sparse_attention_cuda_source"
 
+import {
+  "vectie/lunaflux/compiler/attention_physical_ir",
+}
+
 // Values
-pub fn selected_sparse_source(query_heads~ : Int, kv_heads~ : Int, qk_dimension~ : Int, value_dimension~ : Int, selected_width~ : Int, maximum_queries~ : Int, maximum_history~ : Int, symbol~ : String, published_slots? : Int) -> SelectedSparseCudaSource raise
+pub fn selected_sparse_source(query_heads~ : Int, kv_heads~ : Int, qk_dimension~ : Int, value_dimension~ : Int, selected_width~ : Int, maximum_queries~ : Int, maximum_history~ : Int, symbol~ : String, published_slots? : Int, paged_history? : @attention_physical_ir.PagedHistoryDomain) -> SelectedSparseCudaSource raise
 
 // Errors
 

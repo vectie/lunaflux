@@ -68,18 +68,26 @@ pub fn IndexedSparseHistory::prepare(
   pool_gate_scores~ : @device.Allocation,
   keys~ : @device.Allocation,
   values~ : @device.Allocation,
+  input_positions? : @device.Allocation,
+  page_ports? : SparseHistoryPagePorts,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh && self.state_bytes() <= maximum_state_bytes else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
+  let paging = page_arguments(self.source.plan().attention(), page_ports)
+  guard (self.source.plan().attention().paged_history() is Some(_)) ==
+    (input_positions is Some(_)) else {
+    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
   let sizes = self.source.plan().buffer_bytes()
   for size in sizes {
     self.buffers.push(context.allocate(size))
   }
   zero_metadata(self.buffers[4])
   zero_metadata(self.buffers[5])
-  let (rows, history) = self.source.plan().attention().capacity()
+  let (rows, _) = self.source.plan().attention().capacity()
+  let history = self.source.plan().attention().physical_history()
   let r = rows.to_int64()
   let h = history.to_int64()
   let buffers = self.buffers
@@ -89,11 +97,11 @@ pub fn IndexedSparseHistory::prepare(
       region(reset_flag, 4L, 4L),
       region(buffers[5], 20L, 4L),
       region(buffers[4], sizes[4], 4L),
-      region(buffers[6], 12L, 4L),
+      region(buffers[6], sizes[6], 4L),
       region(buffers[7], sizes[7], 4L),
     ],
     [
-      region(buffers[6], 12L, 4L),
+      region(buffers[6], sizes[6], 4L),
       region(index_keys, sizes[0] / h * r, 2L),
       region(pool_gate_scores, sizes[1] / h * r, 2L),
       region(keys, sizes[2] / h * r, 2L),
@@ -104,11 +112,15 @@ pub fn IndexedSparseHistory::prepare(
       region(buffers[3], sizes[3], 2L),
     ],
     [
-      region(buffers[6], 12L, 4L),
+      region(buffers[6], sizes[6], 4L),
       region(buffers[5], 20L, 4L),
       region(buffers[4], sizes[4], 4L),
     ],
   ]
+  if input_positions is Some(positions) {
+    arguments[0].push(region(positions, r * 4L, 4L))
+    arguments[0].append(paging)
+  }
   for stage in 0..<3 {
     let (grid_x, block_x) = self.source.launch(stage)
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))

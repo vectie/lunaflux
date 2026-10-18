@@ -66,6 +66,8 @@ fn GlmDecoderLayer::prepare(
   sparse_reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
+  input_positions? : @device.Allocation,
+  page_ports? : @history_frame.SparseHistoryPagePorts,
 ) -> Unit raise {
   match self {
     Recurrent(layer) =>
@@ -95,6 +97,8 @@ fn GlmDecoderLayer::prepare(
         limits~,
         counts~,
         reset_flag=sparse_reset_flag,
+        input_positions?,
+        page_ports?,
         hidden~,
         output~,
       )

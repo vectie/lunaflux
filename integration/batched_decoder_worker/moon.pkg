@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/batched_decoder_frame" @frame,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+}
+
+supported_targets = "native"

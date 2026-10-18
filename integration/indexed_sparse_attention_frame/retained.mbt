@@ -14,6 +14,7 @@ pub fn IndexedSparseAttentionFrame::prepare_retained(
   pool_ape~ : @device.Allocation,
   queries~ : @device.Allocation,
   output~ : @device.Allocation,
+  page_ports? : SparseHistoryPagePorts,
 ) -> Unit raise {
   let expected = self.source.plan()
   let retained = history.source.plan().attention()
@@ -22,6 +23,8 @@ pub fn IndexedSparseAttentionFrame::prepare_retained(
     history.counts is Some(bound_counts) &&
     bound_counts.same_storage(query_counts) &&
     expected.capacity() == retained.capacity() &&
+    expected.paged_history().map(d => d.geometry()) ==
+    retained.paged_history().map(d => d.geometry()) &&
     expected.index_geometry() == retained.index_geometry() &&
     expected.attention_geometry() == retained.attention_geometry() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -44,6 +47,7 @@ pub fn IndexedSparseAttentionFrame::prepare_retained(
     keys=buffers[2],
     values=buffers[3],
     output~,
+    page_ports?,
   )
   let attention = self.launches[:].to_owned()
   self.launches.clear()

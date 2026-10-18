@@ -17,6 +17,11 @@ async fn main {
     fail("UNIQUE_NAME RUNTIME HC_0_OR_1 VOCAB_0_OR_1 [--profile]")
   }
   let profile = !rest.is_empty()
+  let graph = @env.get_env_var("LUNA_GLM_GRAPH_REPLAY").unwrap_or("1")
+  let overlap = @env.get_env_var("LUNA_GLM_OVERLAP_EXPERTS").unwrap_or("1")
+  guard graph is ("0" | "1") && overlap is ("0" | "1") else {
+    fail("graph and overlap controls must be 0 or 1")
+  }
   let root = "/tmp/lunaflux-model-bench-" + name
   let environment = {
     "LUNAFLUX_SPARK_178_SOCKET": @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
@@ -35,7 +40,7 @@ async fn main {
     "LUNA_GLM_INITCHECK": @env.get_env_var("LUNA_GLM_INITCHECK").unwrap_or("0"),
     "LUNA_GLM_PARALLEL_HC": "1",
     "LUNA_GLM_SHARED_COLUMNS": "32",
-    "LUNA_GLM_OVERLAP_EXPERTS": "1",
+    "LUNA_GLM_OVERLAP_EXPERTS": overlap,
     "LUNA_GLM_FUSED_HC": "0",
     "LUNA_GLM_FUSED_CONTROLS": hc,
     "LUNA_GLM_DEFERRED_HC": @env.get_env_var("LUNA_GLM_DEFERRED_HC").unwrap_or(
@@ -46,32 +51,32 @@ async fn main {
     "LUNA_BENCH_TELEMETRY": "1",
   }
   for mode in ["prepare", "start", "watch", "collect"] {
-    let out = @shell.Cmd(
-      "moon",
-      [
-        "run",
-        "scripts/benchmark-spark-models.mbtx",
-        root,
-        "glm",
-        if profile && mode == "prepare" {
-          "prepare-profile"
-        } else {
-          mode
-        },
-        "--runtime",
-        runtime,
-        "--rows",
-        "64",
-        "--tiled-grouped",
-        "--expert-tp",
-        "--low-bit",
-        "--queued-tp",
-        "--graph-tp",
-        "--shape-aware",
-        "--warmup",
-      ],
-      env=environment,
-    ).output(max_output_bytes=8388608)
+    let arguments = [
+      "run",
+      "scripts/benchmark-spark-models.mbtx",
+      root,
+      "glm",
+      if profile && mode == "prepare" {
+        "prepare-profile"
+      } else {
+        mode
+      },
+      "--runtime",
+      runtime,
+      "--rows",
+      "64",
+      "--tiled-grouped",
+      "--expert-tp",
+      "--low-bit",
+      "--queued-tp",
+    ]
+    if graph == "1" {
+      arguments.push("--graph-tp")
+    }
+    arguments.append(["--shape-aware", "--warmup"])
+    let out = @shell.Cmd("moon", arguments, env=environment).output(
+      max_output_bytes=8388608,
+    )
     @fs.write_file(
       root + "/ablation-" + mode + ".stdout",
       out.stdout(),

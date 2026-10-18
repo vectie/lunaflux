@@ -46,7 +46,11 @@ pub fn indexed_sparse_attention_source(
     function_symbol=symbols[0],
   )
   let index = @index_physical.RetainedIndexPlan::new(plan)
-  let index_source = retained_index_source(plan, index, symbols[1])
+  let index_source = if plan.paged_history() is Some(_) {
+    paged_index_source(plan, symbols[1])
+  } else {
+    retained_index_source(plan, index, symbols[1])
+  }
   let attention = @attention.selected_sparse_source(
     query_heads=qh,
     kv_heads=kvh,
@@ -57,6 +61,7 @@ pub fn indexed_sparse_attention_source(
     maximum_queries=queries,
     symbol=symbols[2],
     published_slots=index.published_slots(),
+    paged_history?=plan.paged_history(),
   )
   {
     plan,
@@ -64,7 +69,11 @@ pub fn indexed_sparse_attention_source(
     attention,
     index,
     symbols: ReadOnlyArray::from_array(symbols),
-    source: pool.source_bytes() +
+    source: (if plan.paged_history() is Some(_) {
+      paged_pool_source(plan, symbols[0])
+    } else {
+      pool.source_bytes()
+    }) +
     b"\n" +
     index_source +
     b"\n" +
@@ -94,6 +103,8 @@ pub fn IndexedSparseAttentionCudaSource::launch(
     self.attention.launch()
   } else if stage == 1 {
     (self.index.geometry().0, 128)
+  } else if self.plan.paged_history() is Some(domain) {
+    (domain.physical_rows() / self.plan.index_geometry().2, 128)
   } else {
     (1, 1)
   }

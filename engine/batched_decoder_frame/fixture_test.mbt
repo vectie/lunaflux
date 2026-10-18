@@ -50,6 +50,7 @@ fn host() -> @batched_decoder_frame.BatchedDecoderFrame raise {
 fn plan(
   entries : ArrayView[(UInt64, UInt64, Int, Array[Int], Bool, Bool, Bool)],
   model_generation? : UInt64 = 9UL,
+  page_rows? : Int,
 ) -> (
   @protocol.SubmittedSchedulePlan,
   @wire.ValidatedPlanFrame,
@@ -72,7 +73,10 @@ fn plan(
     let request_id = @inference.RequestId::new(id)
     let request_generation = @inference.RequestGeneration::from_wire(generation)
     let completion_slot = @protocol.CompletionSlot::new(index, limits)
-    let pages = [allocator.allocate_one()]
+    let page_count = page_rows
+      .map(width => (position + tokens.length() - 1) / width + 1)
+      .unwrap_or(1)
+    let pages = Array::makei(page_count, _ => allocator.allocate_one())
     let capabilities = [@plan.KernelCapabilityId::paged_causal_attention()]
     let sampling = if stochastic {
       @inference.SamplingParameters::sample(

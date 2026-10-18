@@ -31,7 +31,8 @@ fn IndexedSparseAttentionFrame::attention_arguments(
   scratch : @device.Allocation,
 ) -> Array[@device.KernelArgument] raise @device.DeviceError {
   let plan = self.source.plan()
-  let (rows, history) = plan.capacity()
+  let (rows, _) = plan.capacity()
+  let history = plan.physical_history()
   let (qh, kvh, qkd, vd) = plan.attention_geometry()
   let r = rows.to_int64()
   let h = history.to_int64()
@@ -72,6 +73,7 @@ pub fn IndexedSparseAttentionFrame::prepare_shared_indices(
   values~ : @device.Allocation,
   selected_indices~ : @device.Allocation,
   output~ : @device.Allocation,
+  page_ports? : SparseHistoryPagePorts,
 ) -> Unit raise {
   guard self.status is Fresh &&
     self.shared &&
@@ -85,6 +87,7 @@ pub fn IndexedSparseAttentionFrame::prepare_shared_indices(
     query_counts, history_counts, query_positions, history_valid, queries, keys,
     values, selected_indices, output, scratch,
   )
+  arguments.append(page_arguments(self.source.plan(), page_ports))
   let function = aot.load_function(@utf8.encode(self.source.symbol(2)))
   self.functions.push(function)
   let (grid, block) = self.source.launch(2)

@@ -11,6 +11,8 @@ pub struct GlmDecoderStage {
   priv maximum_rows : Int
   priv maximum_history : Int
   priv vocabulary : Int
+  priv maximum_sequences : Int
+  priv maximum_outputs : Int
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
   priv mut activation_leased : Bool
@@ -43,9 +45,18 @@ pub fn GlmDecoderStage::new(
   shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
   shard_vocabulary? : Bool = false,
+  maximum_sequences? : Int = 1,
+  cache_slots? : Int = 1,
+  maximum_output_rows? : Int = 1,
+  paged_history? : @history_domain.PagedHistoryDomain,
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
-    maximum_history >= maximum_rows else {
+    maximum_history >= maximum_rows &&
+    maximum_sequences > 0 &&
+    maximum_sequences <= maximum_rows &&
+    cache_slots >= maximum_sequences &&
+    maximum_output_rows > 0 &&
+    maximum_output_rows <= maximum_sequences else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
   }
   let (first_layer, end_layer) = range.layer_range()
@@ -73,7 +84,7 @@ pub fn GlmDecoderStage::new(
         vocabulary=spec.vocabulary_size(),
         rank~,
         world~,
-        maximum_outputs=1,
+        maximum_outputs=maximum_output_rows,
       ),
     )
   } else {
@@ -82,7 +93,7 @@ pub fn GlmDecoderStage::new(
   let text_plan = flash_text_io_plan(
     spec,
     maximum_rows~,
-    maximum_output_rows=1,
+    maximum_output_rows~,
     maximum_workspace_bytes=maximum_text_workspace_bytes,
     boundary~,
     head_law=if matrix_law == ShapeAwareFloat32 {
@@ -99,9 +110,10 @@ pub fn GlmDecoderStage::new(
       first_layer~,
       end_layer~,
       maximum_rows~,
-      maximum_sequences=1,
-      cache_slots=1,
+      maximum_sequences~,
+      cache_slots~,
       maximum_history~,
+      paged_history?,
       index_layer_norm_epsilon~,
       maximum_layer_state_bytes~,
       maximum_layer_workspace_bytes~,
@@ -127,7 +139,7 @@ pub fn GlmDecoderStage::new(
       },
       spec,
       maximum_rows~,
-      maximum_output_rows=1,
+      maximum_output_rows~,
       maximum_workspace_bytes=maximum_text_workspace_bytes,
       boundary~,
     ),
@@ -135,6 +147,8 @@ pub fn GlmDecoderStage::new(
     maximum_rows,
     maximum_history,
     vocabulary: spec.vocabulary_size(),
+    maximum_sequences,
+    maximum_outputs: maximum_output_rows,
     counts: None,
     activation_leased: false,
     active_rows: 0,
@@ -176,14 +190,14 @@ pub fn GlmDecoderStage::required_device_bytes(
 ///|
 /// Budget the entire stage before its first allocation/upload. The text prefix
 /// and suffix join the same decoder queue. Boundary residuals are never aliased.
-pub fn GlmDecoderStage::prepare(
+pub fn GlmDecoderStage::prepare_inputs(
   self : Self,
   context : @device.Context,
   aot : @device.Module,
   stream : @device.Stream,
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
-  ports : @serial_worker.SerialDecoderWorker,
+  ports : GlmDecoderInputs,
   maximum_device_bytes~ : Int64,
   chunk_bytes~ : Int,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
@@ -200,10 +214,11 @@ pub fn GlmDecoderStage::prepare(
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  let (rows, history, vocabulary) = ports.geometry()
-  guard rows == self.maximum_rows &&
-    history <= self.maximum_history &&
-    vocabulary == self.vocabulary else {
+  guard ports.maximum_rows == self.maximum_rows &&
+    ports.maximum_history <= self.maximum_history &&
+    ports.vocabulary == self.vocabulary &&
+    ports.maximum_sequences == self.maximum_sequences &&
+    ports.maximum_outputs == self.maximum_outputs else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   let decoder_bytes = self.decoder.required_device_bytes(checkpoint)
@@ -215,15 +230,15 @@ pub fn GlmDecoderStage::prepare(
     raise @precision_ir.PrecisionPlanError::MemoryBudgetExceeded
   }
   // Resolve all borrowed inputs before acquiring stage storage.
-  let counts = ports.input(Counts)
-  let ids = ports.input(TokenIds)
-  let offsets = ports.input(SequenceOffsets)
-  let slots = ports.input(SequenceSlots)
-  let resets = ports.input(RecurrentResets)
-  let sparse_reset = ports.input(SparseReset)
-  let output_count = ports.input(OutputCount)
-  let selected = ports.input(SelectedRows)
-  let sampled = ports.sampled_tokens()
+  let counts = ports.counts
+  let ids = ports.token_ids
+  let offsets = ports.sequence_offsets
+  let slots = ports.sequence_slots
+  let resets = ports.recurrent_resets
+  let sparse_reset = ports.sparse_resets
+  let output_count = ports.output_count
+  let selected = ports.selected_rows
+  let sampled = ports.sampled_tokens
   self.status = Failed
   self.residuals.push(context.allocate(self.residual_bytes))
   self.residuals.push(context.allocate(self.residual_bytes))
@@ -257,6 +272,8 @@ pub fn GlmDecoderStage::prepare(
     sequence_slots=slots,
     reset_flags=resets,
     sparse_reset_flag=sparse_reset,
+    input_positions?=ports.input_positions,
+    page_ports?=ports.page_ports,
     hidden=self.residuals[0],
     output=self.residuals[1],
     prefix_launches=self.text.prefix(),

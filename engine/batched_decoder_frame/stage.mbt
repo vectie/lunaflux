@@ -75,6 +75,7 @@ fn BatchedDecoderFrame::reserve_entry(
   for row in 0..<rows {
     store_i32(self.inputs[8], start + row, position + row)
     store_i32(self.inputs[9], start + row, slot)
+    store_i32(self.inputs[11], start + row, entry)
   }
   self.active_rows += rows
 }
@@ -107,6 +108,7 @@ pub fn BatchedDecoderFrame::stage(
   }
   self.active_rows = 0
   self.outputs = 0
+  self.active_pages = 0
   for entry in 0..<prefills {
     let row = frame.prefill_row(entry)
     self.reserve_entry(
@@ -118,6 +120,13 @@ pub fn BatchedDecoderFrame::stage(
       row.token_length(),
       true,
       row.produces_token(),
+    )
+    self.stage_pages(
+      frame,
+      entry,
+      row.page_start(),
+      row.page_length(),
+      row.sequence_token_start() + row.token_length(),
     )
   }
   for index in 0..<decodes {
@@ -131,6 +140,13 @@ pub fn BatchedDecoderFrame::stage(
       1,
       false,
       true,
+    )
+    self.stage_pages(
+      frame,
+      prefills + index,
+      row.page_start(),
+      row.page_length(),
+      row.sequence_token_position() + 1,
     )
   }
   guard self.active_rows == frame.token_count() else {
@@ -148,4 +164,42 @@ pub fn BatchedDecoderFrame::stage(
   self.completion.bind(frame, writer)
   self.active_sequences = prefills + decodes
   self.state = Staged
+}
+
+///|
+/// Copies the scheduler-owned logical page list, including its reuse
+/// generation. No private per-request KV reservation or payload access occurs.
+/// A later device history owner uses this exact list for all sparse operands.
+fn BatchedDecoderFrame::stage_pages(
+  self : Self,
+  frame : @wire.ValidatedPlanFrame,
+  entry : Int,
+  start : Int,
+  length : Int,
+  tokens : Int,
+) -> Unit raise {
+  store_i32(self.inputs[12], entry, self.active_pages)
+  if self.history is Some(domain) {
+    let (_, physical_pages, context, _) = domain.geometry()
+    let required = domain.pages_for(tokens).unwrap()
+    guard length >= required &&
+      length <= domain.pages_for(context).unwrap() &&
+      length <= domain.table_capacity() - self.active_pages else {
+      raise BatchFrameError::InvalidPages
+    }
+    for index in 0..<length {
+      let page = frame.page_index_at(start + index)
+      guard page >= 0 && page < physical_pages else {
+        raise BatchFrameError::InvalidPages
+      }
+      store_i32(self.inputs[13], self.active_pages + index, page)
+      store_i32(
+        self.inputs[14],
+        self.active_pages + index,
+        frame.page_generation_at(start + index),
+      )
+    }
+    self.active_pages += length
+  }
+  store_i32(self.inputs[12], entry + 1, self.active_pages)
 }

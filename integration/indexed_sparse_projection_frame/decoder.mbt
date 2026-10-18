@@ -73,6 +73,8 @@ pub fn IndexedSparseDecoderFrame::prepare(
   pool_ape~ : @device.Allocation,
   output_weight~ : @device.Allocation,
   hyper_weights~ : ArrayView[@device.Allocation],
+  input_positions? : @device.Allocation,
+  page_ports? : @sparse.SparseHistoryPagePorts,
 ) -> Unit raise {
   guard self.state is Fresh &&
     projection_weights.length() == 12 &&
@@ -115,6 +117,8 @@ pub fn IndexedSparseDecoderFrame::prepare(
     reset_flag~,
     pool_ape~,
     output=attention_output,
+    input_positions?,
+    page_ports?,
   )
   self.launches.append(self.envelope.prefix())
   self.launches.append(sparse)

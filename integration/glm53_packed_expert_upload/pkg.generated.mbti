@@ -3,12 +3,15 @@ package "vectie/lunaflux/integration/glm53_packed_expert_upload"
 
 import {
   "moonbitlang/async/socket",
+  "vectie/lunaflux/compiler/attention_physical_ir",
   "vectie/lunaflux/compiler/decoder_pipeline_plan",
   "vectie/lunaflux/compiler/grouped_matrix_ir",
   "vectie/lunaflux/compiler/parallel_ir",
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/device",
   "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/integration/batched_decoder_worker",
+  "vectie/lunaflux/integration/indexed_sparse_attention_frame",
   "vectie/lunaflux/integration/serial_decoder_worker",
   "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/model/streaming_safetensors",
@@ -68,6 +71,26 @@ pub fn GlmActivationEdge::new(GlmDecoderStage, @socket.Tcp, outgoing~ : Bool, ma
 pub async fn GlmActivationEdge::poll(Self, local_now_millis~ : UInt64) -> Bool
 pub fn GlmActivationEdge::prepare(Self, @device.Context) -> Unit raise
 
+pub(all) struct GlmDecoderInputs {
+  maximum_rows : Int
+  maximum_history : Int
+  maximum_sequences : Int
+  maximum_outputs : Int
+  vocabulary : Int
+  counts : @device.Allocation
+  token_ids : @device.Allocation
+  sequence_offsets : @device.Allocation
+  sequence_slots : @device.Allocation
+  recurrent_resets : @device.Allocation
+  sparse_resets : @device.Allocation
+  output_count : @device.Allocation
+  selected_rows : @device.Allocation
+  sampled_tokens : @device.Allocation
+  input_positions : @device.Allocation?
+  page_ports : @indexed_sparse_attention_frame.SparseHistoryPagePorts?
+}
+pub fn GlmDecoderInputs::from_batched_rank(@batched_decoder_worker.BatchedDecoderRank) -> Self raise
+
 pub struct GlmDecoderSlice {
   // private fields
 }
@@ -77,10 +100,10 @@ pub fn GlmDecoderSlice::device_bytes(Self) -> Int64
 pub fn GlmDecoderSlice::launch_count(Self) -> Int
 pub fn GlmDecoderSlice::layer_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Array[Int64] raise
 pub fn GlmDecoderSlice::layer_range(Self) -> (Int, Int)
-pub fn GlmDecoderSlice::new(@glm53_spec.Glm53FlashSpec, first_layer~ : Int, end_layer~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, hc_reduction? : @precision_ir.HyperControlReduction, recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, matrix_staging? : @grouped_matrix_ir.MatrixStaging, sparse_matrix_staging? : @grouped_matrix_ir.MatrixStaging, expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw, expert_transport? : @grouped_matrix_ir.ExpertTransport, expert_fragment_slots? : Int, expert_scale_partitions? : Int, shared_matrix_columns? : Int, tensor_group? : (Int, Int)) -> Self raise
+pub fn GlmDecoderSlice::new(@glm53_spec.Glm53FlashSpec, first_layer~ : Int, end_layer~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, hc_reduction? : @precision_ir.HyperControlReduction, recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, matrix_staging? : @grouped_matrix_ir.MatrixStaging, sparse_matrix_staging? : @grouped_matrix_ir.MatrixStaging, expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw, expert_transport? : @grouped_matrix_ir.ExpertTransport, expert_fragment_slots? : Int, expert_scale_partitions? : Int, shared_matrix_columns? : Int, tensor_group? : (Int, Int), paged_history? : @attention_physical_ir.PagedHistoryDomain) -> Self raise
 pub fn GlmDecoderSlice::partition(Self, @precision_materialize.PackedCheckpoint, ArrayView[Int64], ingress_bytes~ : Int64, egress_bytes~ : Int64, additional_stage_bytes~ : Int64) -> @decoder_pipeline_plan.DecoderPipelinePlan raise
 pub fn GlmDecoderSlice::poll(Self) -> Bool raise @device.DeviceError
-pub fn GlmDecoderSlice::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, sparse_reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation, prefix_launches? : ArrayView[@device.OrderedKernelLaunch], suffix_launches? : ArrayView[@device.OrderedKernelLaunch], vocabulary_boundary? : (Int, @device.Allocation, @device.Allocation, Int, Int), collective? : @device.TensorCollectiveOwner, generation? : UInt64, retirement? : @parallel_ir.RetirementPolicy, replay? : @parallel_ir.ReplayPolicy, replay_budget_bytes? : Int64, overlap_experts? : Bool, fuse_hyper? : Bool, fuse_controls? : Bool, defer_hyper? : Bool) -> Unit raise
+pub fn GlmDecoderSlice::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, sequence_offsets~ : @device.Allocation, sequence_slots~ : @device.Allocation, reset_flags~ : @device.Allocation, sparse_reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation, prefix_launches? : ArrayView[@device.OrderedKernelLaunch], suffix_launches? : ArrayView[@device.OrderedKernelLaunch], vocabulary_boundary? : (Int, @device.Allocation, @device.Allocation, Int, Int), collective? : @device.TensorCollectiveOwner, generation? : UInt64, retirement? : @parallel_ir.RetirementPolicy, replay? : @parallel_ir.ReplayPolicy, replay_budget_bytes? : Int64, overlap_experts? : Bool, fuse_hyper? : Bool, fuse_controls? : Bool, defer_hyper? : Bool, input_positions? : @device.Allocation, page_ports? : @indexed_sparse_attention_frame.SparseHistoryPagePorts) -> Unit raise
 pub fn GlmDecoderSlice::replay_graph_count(Self) -> Int
 pub fn GlmDecoderSlice::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn GlmDecoderSlice::source_bytes(Self) -> Bytes
@@ -92,6 +115,7 @@ pub struct GlmDecoderStage {
   // private fields
 }
 pub fn GlmDecoderStage::append_descriptors(Self) -> ArrayView[@device.Allocation]
+pub fn GlmDecoderStage::bind_batched_rank(Self, @batched_decoder_worker.BatchedDecoderRank, @device.Context) -> Unit raise
 pub fn GlmDecoderStage::bind_rank(Self, @serial_decoder_worker.SerialDecoderRank, @device.Context) -> Unit raise
 pub fn GlmDecoderStage::bind_worker(Self, @serial_decoder_worker.SerialDecoderWorker, @device.Context) -> Unit raise
 pub fn GlmDecoderStage::borrow_text_logits(Self) -> @device.Allocation raise
@@ -99,10 +123,11 @@ pub fn GlmDecoderStage::close(Self) -> Unit raise
 pub fn GlmDecoderStage::input_residual(Self) -> @device.Allocation raise
 pub fn GlmDecoderStage::launch_count(Self) -> Int
 pub fn GlmDecoderStage::layer_range(Self) -> (Int, Int)
-pub fn GlmDecoderStage::new(@glm53_spec.Glm53FlashSpec, @decoder_pipeline_plan.DecoderStageRange, maximum_rows~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, maximum_text_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, hc_reduction? : @precision_ir.HyperControlReduction, recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, matrix_staging? : @grouped_matrix_ir.MatrixStaging, sparse_matrix_staging? : @grouped_matrix_ir.MatrixStaging, expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw, expert_transport? : @grouped_matrix_ir.ExpertTransport, expert_fragment_slots? : Int, expert_scale_partitions? : Int, shared_matrix_columns? : Int, tensor_group? : (Int, Int), shard_vocabulary? : Bool) -> Self raise
+pub fn GlmDecoderStage::new(@glm53_spec.Glm53FlashSpec, @decoder_pipeline_plan.DecoderStageRange, maximum_rows~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_layer_state_bytes~ : Int64, maximum_layer_workspace_bytes~ : Int64, maximum_layer_expert_bytes~ : Int64, maximum_text_workspace_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, hc_reduction? : @precision_ir.HyperControlReduction, recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw, matrix_law? : @precision_ir.DenseDotLaw, matrix_staging? : @grouped_matrix_ir.MatrixStaging, sparse_matrix_staging? : @grouped_matrix_ir.MatrixStaging, expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw, expert_transport? : @grouped_matrix_ir.ExpertTransport, expert_fragment_slots? : Int, expert_scale_partitions? : Int, shared_matrix_columns? : Int, tensor_group? : (Int, Int), shard_vocabulary? : Bool, maximum_sequences? : Int, cache_slots? : Int, maximum_output_rows? : Int, paged_history? : @attention_physical_ir.PagedHistoryDomain) -> Self raise
 pub fn GlmDecoderStage::output_residual(Self) -> @device.Allocation raise
 pub fn GlmDecoderStage::poll(Self) -> Bool raise
 pub fn GlmDecoderStage::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, @serial_decoder_worker.SerialDecoderWorker, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, collective? : @device.TensorCollectiveOwner, generation? : UInt64, retirement? : @parallel_ir.RetirementPolicy, replay? : @parallel_ir.ReplayPolicy, replay_budget_bytes? : Int64, overlap_experts? : Bool, fuse_hyper? : Bool, fuse_controls? : Bool, defer_hyper? : Bool) -> Unit raise
+pub fn GlmDecoderStage::prepare_inputs(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, GlmDecoderInputs, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, collective? : @device.TensorCollectiveOwner, generation? : UInt64, retirement? : @parallel_ir.RetirementPolicy, replay? : @parallel_ir.ReplayPolicy, replay_budget_bytes? : Int64, overlap_experts? : Bool, fuse_hyper? : Bool, fuse_controls? : Bool, defer_hyper? : Bool) -> Unit raise
 pub fn GlmDecoderStage::replay_graph_count(Self) -> Int
 pub fn GlmDecoderStage::required_device_bytes(Self, @precision_materialize.PackedCheckpoint) -> Int64 raise
 pub fn GlmDecoderStage::source_bytes(Self) -> Bytes
@@ -134,10 +159,10 @@ pub fn GlmSparseLayer::append_descriptor(Self) -> @device.Allocation raise @devi
 pub fn GlmSparseLayer::close(Self) -> Unit raise @device.DeviceError
 pub fn GlmSparseLayer::device_bytes(Self) -> Int64
 pub fn GlmSparseLayer::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
-pub fn GlmSparseLayer::new(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_queries~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, hc_reduction? : @precision_ir.HyperControlReduction, matrix_law? : @precision_ir.DenseDotLaw, matrix_staging? : @grouped_matrix_ir.MatrixStaging, expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw, expert_transport? : @grouped_matrix_ir.ExpertTransport, shared_matrix_columns? : Int, expert_fragment_slots? : Int, expert_scale_partitions? : Int, tensor_group? : (Int, Int)) -> Self raise
+pub fn GlmSparseLayer::new(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_queries~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_state_bytes~ : Int64, maximum_workspace_bytes~ : Int64, maximum_expert_bytes~ : Int64, accuracy~ : @precision_ir.Accuracy, hc_reduction? : @precision_ir.HyperControlReduction, matrix_law? : @precision_ir.DenseDotLaw, matrix_staging? : @grouped_matrix_ir.MatrixStaging, expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw, expert_transport? : @grouped_matrix_ir.ExpertTransport, shared_matrix_columns? : Int, expert_fragment_slots? : Int, expert_scale_partitions? : Int, tensor_group? : (Int, Int), paged_history? : @attention_physical_ir.PagedHistoryDomain) -> Self raise
 pub fn GlmSparseLayer::poll(Self) -> Bool raise @device.DeviceError
 pub fn GlmSparseLayer::prepare(Self, @device.Context, @device.Module, @device.Stream, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
-pub fn GlmSparseLayer::prepare_frame(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation) -> Unit raise
+pub fn GlmSparseLayer::prepare_frame(Self, @device.Context, @device.Module, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, chunk_bytes~ : Int, limits~ : @streaming_safetensors.StreamingSafetensorsLimits, counts~ : @device.Allocation, reset_flag~ : @device.Allocation, hidden~ : @device.Allocation, output~ : @device.Allocation, input_positions? : @device.Allocation, page_ports? : @indexed_sparse_attention_frame.SparseHistoryPagePorts) -> Unit raise
 pub fn GlmSparseLayer::source_bytes(Self) -> Bytes
 pub fn GlmSparseLayer::state_bytes(Self) -> Int64
 pub fn GlmSparseLayer::submit(Self, live_rows~ : Int) -> Unit raise @device.DeviceError

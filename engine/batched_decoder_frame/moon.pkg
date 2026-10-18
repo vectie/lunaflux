@@ -1,6 +1,7 @@
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/compiler/attention_physical_ir" @history,
 }
 
 import {

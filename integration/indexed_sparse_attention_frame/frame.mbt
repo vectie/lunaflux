@@ -93,6 +93,7 @@ pub fn IndexedSparseAttentionFrame::prepare(
   keys~ : @device.Allocation,
   values~ : @device.Allocation,
   output~ : @device.Allocation,
+  page_ports? : SparseHistoryPagePorts,
 ) -> Unit raise {
   guard self.status is Fresh &&
     !self.shared &&
@@ -101,7 +102,9 @@ pub fn IndexedSparseAttentionFrame::prepare(
   }
   self.status = Failed
   let plan = self.source.plan()
-  let (rows, history) = plan.capacity()
+  let (rows, _) = plan.capacity()
+  let history = plan.physical_history()
+  let paging = page_arguments(plan, page_ports)
   let (ih, id, pool, _, _) = plan.index_geometry()
   let r = rows.to_int64()
   let h = history.to_int64()
@@ -150,6 +153,8 @@ pub fn IndexedSparseAttentionFrame::prepare(
       buffers[5],
     ),
   ]
+  arguments[1].append(paging)
+  arguments[2].append(paging)
   for stage in self.source.execution_order() {
     let (grid, block) = self.source.launch(stage)
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))

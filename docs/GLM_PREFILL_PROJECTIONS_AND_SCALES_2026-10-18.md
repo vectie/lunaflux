@@ -303,6 +303,55 @@ failure; that result is preserved and not counted as a pass. A fresh v5 run
 uses an 8GiB diagnostic cap and a 24GiB admission reserve. These are synthetic
 component inputs, not whole-model correctness evidence.
 
+The v5 campaign has now completed: memcheck/full leak, racecheck, synccheck and
+initcheck all report zero errors. Racecheck peaked at 2.4 GiB and used zero swap.
+The defined-bank fix is committed/pushed as `12df8a7c`.
+
+The rebuilt full-model initcheck at
+`/tmp/lunaflux-model-bench-glm-defined-bank-initcheck-20261018-v1` did **not**
+finish. The watchdog stopped both ranks when `.178` MemAvailable reached
+14,608,296 KiB, below the 16 GiB reserve. No initcheck errors were recorded
+before that stop, but this is not a passing full-model sanitizer run. Both
+ranks released their memory, with zero experiment swap. No limit was raised.
+
+Two uninstrumented fresh runs at
+`/tmp/lunaflux-model-bench-glm-defined-bank-scales-20261018-r1` and `-r2`
+completed and closed both contexts. Only prompts 4 and 5 have identical output
+IDs; prompts 0–3 differ. Therefore the padding fix does **not** resolve the
+distributed-scale instability. Aggregate elapsed time is not comparable as
+equal work. An explicit eager/no-shared-overlap control is being tested before
+attributing the remaining failure to either scale arithmetic or execution order.
+
+### Shared paged history and batched model ports
+
+The generic immutable `PagedHistoryDomain` now separates per-request logical
+context from shared physical history capacity. Scheduler page IDs and reuse
+generations flow through the batched frame, sparse precision plan, private
+CUDA append/pool/index/attention lowering and actual frame bindings. GLM
+stage construction accepts batched capacities with this domain and forwards
+slot metadata to recurrent layers. No per-request maximum-context allocation,
+model comparison, hash scan or CUDA type is added to the semantic plan.
+
+The GPU component at `/tmp/lunaflux-paged-sparse-20261018-v2` exercises five
+mixed/chunked frames, reordered sequences, noncontiguous pages and physical
+page reuse with a new generation. Appended values/stamps and ordered logical
+selection are exact; all attention BF16 outputs match independently executed
+contiguous histories on the same operands. Unused selection-slot holes may
+differ and are not semantic indices. The v1 failure retained that distinction;
+the corrected harness compares ordered visible selections, not neutral holes.
+Memcheck/full leak, racecheck, synccheck and initcheck pass on `.179` at a 2 GiB
+cap with no swap. This is bounded component coverage, not a whole-model or
+performance claim.
+
+The prepared batched rank owns metadata DMA and output/error retirement, while
+whole-step commit stays with the coordinator. Its native transfer-double tests
+cover memory rejection, teardown, peer-failure poisoning and zero warmed heap
+allocation. Initial tests caught a test-fixture generation mismatch and an
+allocating iterator in metadata staging; both are corrected rather than waived.
+The complete multi-request TP transport, stochastic vocabulary sampling,
+buffered HTTP delivery and full-model service acceptance are still outstanding.
+The public endpoint remains offline.
+
 The normal warning-denied native check (existing migration exclusions) and
 19 affected source-package tests pass. The full service remains offline. The
 batch frame is still a prerequisite, not GPU/service integration; sparse

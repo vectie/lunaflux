@@ -36,6 +36,7 @@ pub fn GlmSparseLayer::new(
   expert_fragment_slots? : Int = 1,
   expert_scale_partitions? : Int = 1,
   tensor_group? : (Int, Int),
+  paged_history? : @history_domain.PagedHistoryDomain,
 ) -> Self raise {
   let projection = @sparse_model.flash_sparse_projection_plan(
     spec,
@@ -46,6 +47,7 @@ pub fn GlmSparseLayer::new(
     maximum_attention_workspace_bytes=maximum_workspace_bytes,
     maximum_projection_workspace_bytes=maximum_workspace_bytes,
     projection_law=matrix_law,
+    paged_history?,
     tensor_group?,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(
@@ -181,6 +183,8 @@ fn GlmSparseLayer::prepare_layer(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
+  input_positions? : @device.Allocation,
+  page_ports? : @history_frame.SparseHistoryPagePorts,
 ) -> Unit raise {
   let frames = self.workspace_bytes() + self.state_bytes()
   guard stream is None || !self.ffn.is_tensor_parallel() else {
@@ -229,6 +233,8 @@ fn GlmSparseLayer::prepare_layer(
     output_weight=self.weights.allocation(12),
     pool_ape=self.weights.allocation(13),
     hyper_weights=Array::makei(4, i => self.weights.allocation(14 + i)),
+    input_positions?,
+    page_ports?,
   )
   let launches = self.decoder.launches().to_owned()
   launches.append(self.ffn.launches)

@@ -1,0 +1,52 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn ids(text : String) -> Array[Int] raise {
+  let values = []
+  for word in text.split(",").join("\n").split("\n") {
+    if !word.trim().is_empty() {
+      values.push(@string.parse_int(word.trim()))
+    }
+  }
+  values
+}
+
+///|
+test "literal IDs compare as values without payload hashing" {
+  assert_eq(ids("1,2,3\n"), ids("1\n2\n3"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, first, second] else {
+    fail("FIRST_COMPLETED_ROOT SECOND_COMPLETED_ROOT")
+  }
+  let mut equal = 0
+  for prompt in 0..<6 {
+    let name = "/output-\{prompt}-tokens.txt"
+    guard ids(@fs.read_file(first + "/input-\{prompt}-tokens.txt").text()) ==
+      ids(@fs.read_file(second + "/input-\{prompt}-tokens.txt").text()) else {
+      fail("input mismatch at prompt \{prompt}")
+    }
+    let a = ids(@fs.read_file(first + name).text())
+    let b = ids(@fs.read_file(second + name).text())
+    if a == b {
+      equal += 1
+    }
+    println(
+      "prompt=\{prompt} first=\{Repr(a)} second=\{Repr(b)} identical=\{a==b}",
+    )
+  }
+  println("identical_prompts=\{equal}/6 scope=literal-native-generation-repeat")
+  guard equal == 6 else {
+    fail(
+      "generation instability remains; do not compare aggregate throughput as equal work",
+    )
+  }
+}

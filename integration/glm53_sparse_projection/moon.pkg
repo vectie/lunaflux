@@ -1,6 +1,7 @@
 import {
   "vectie/lunaflux/model/glm53_spec" @spec,
   "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/attention_physical_ir" @history,
   "vectie/lunaflux/model/precision_format" @format,
   "vectie/lunaflux/engine/precision_materialize" @checkpoint,
 }

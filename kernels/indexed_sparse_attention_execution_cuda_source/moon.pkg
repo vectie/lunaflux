@@ -9,6 +9,7 @@ import {
 
 import {
   "moonbitlang/core/env",
+  "vectie/lunaflux/compiler/attention_physical_ir" @history,
   "vectie/lunaflux/kernels/glm_hybrid_dsa_index_cuda_source" @index,
 } for "test"
 

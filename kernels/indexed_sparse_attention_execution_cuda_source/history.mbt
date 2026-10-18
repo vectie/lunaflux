@@ -62,7 +62,11 @@ pub fn indexed_sparse_history_source(
   {
     plan,
     symbols: ReadOnlyArray::from_array(symbols),
-    source: @utf8.encode(source),
+    source: if plan.attention().paged_history() is Some(_) {
+      paged_history_source(plan, symbols)
+    } else {
+      @utf8.encode(source)
+    },
     copy_blocks: blocks.to_int(),
   }
 }
@@ -94,6 +98,12 @@ pub fn IndexedSparseHistoryCudaSource::launch(
 ) -> (Int, Int) {
   if stage == 1 {
     (self.copy_blocks, 256)
+  } else if self.plan.attention().paged_history() is Some(_) {
+    if stage == 0 {
+      (1, 256)
+    } else {
+      ((self.plan.attention().capacity().0 + 255) / 256, 256)
+    }
   } else {
     (1, 1)
   }

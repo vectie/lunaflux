@@ -175,6 +175,16 @@ pub fn PagedCopyOrigin::not_equal(Self, Self) -> Bool
 pub fn PagedCopyOrigin::page_origin(Self, Int64) -> Int64?
 pub fn PagedCopyOrigin::to_repr(Self) -> @debug.Repr
 
+pub struct PagedHistoryDomain {
+  // private fields
+}
+pub fn PagedHistoryDomain::geometry(Self) -> (Int, Int, Int, Int)
+pub fn PagedHistoryDomain::new(rows_per_page~ : Int, physical_pages~ : Int, maximum_context~ : Int, maximum_sequences~ : Int) -> Self?
+pub fn PagedHistoryDomain::pages_for(Self, Int) -> Int?
+pub fn PagedHistoryDomain::physical_row(Self, Int, Int) -> Int?
+pub fn PagedHistoryDomain::physical_rows(Self) -> Int
+pub fn PagedHistoryDomain::table_capacity(Self) -> Int
+
 pub struct PagedLookupLookahead {
   // private fields
 } derive(Eq, @debug.Debug)

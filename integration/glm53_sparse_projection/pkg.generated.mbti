@@ -2,6 +2,7 @@
 package "vectie/lunaflux/integration/glm53_sparse_projection"
 
 import {
+  "vectie/lunaflux/compiler/attention_physical_ir",
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/engine/precision_materialize",
   "vectie/lunaflux/model/glm53_spec",
@@ -12,7 +13,7 @@ pub fn bind_flash_sparse_output_weights(@precision_materialize.PackedCheckpoint,
 
 pub fn bind_flash_sparse_projection_weights(@precision_materialize.PackedCheckpoint, @glm53_spec.Glm53FlashSpec, layer_index~ : Int) -> Array[@precision_materialize.PackedCheckpointWeight] raise
 
-pub fn flash_sparse_projection_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_queries~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_attention_workspace_bytes~ : Int64, maximum_projection_workspace_bytes~ : Int64, projection_law? : @precision_ir.DenseDotLaw, tensor_group? : (Int, Int)) -> @precision_ir.IndexedSparseProjectionPrecision raise
+pub fn flash_sparse_projection_plan(@glm53_spec.Glm53FlashSpec, layer_index~ : Int, maximum_queries~ : Int, maximum_history~ : Int, index_layer_norm_epsilon~ : Double, maximum_attention_workspace_bytes~ : Int64, maximum_projection_workspace_bytes~ : Int64, projection_law? : @precision_ir.DenseDotLaw, tensor_group? : (Int, Int), paged_history? : @attention_physical_ir.PagedHistoryDomain) -> @precision_ir.IndexedSparseProjectionPrecision raise
 
 // Errors
 

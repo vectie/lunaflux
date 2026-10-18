@@ -13,7 +13,8 @@ pub fn IndexedSparseHistoryPrecision::new(
   attention : IndexedSparseAttentionPrecision,
   maximum_state_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
-  let (rows, history) = attention.capacity()
+  let (rows, _) = attention.capacity()
+  let history = attention.physical_history()
   let (_, dimension, _, _, _) = attention.index_geometry()
   let (_, heads, keys, values) = attention.attention_geometry()
   let h = history.to_int64()
@@ -36,7 +37,11 @@ pub fn IndexedSparseHistoryPrecision::new(
     ),
     h * 4L,
     20L,
-    12L,
+    if attention.paged_history() is Some(_) {
+      12L + rows.to_int64() * 8L
+    } else {
+      12L
+    },
     rows.to_int64() * 4L,
   ]
   // Attention geometry bounds ensure this eight-buffer sum fits Int64.

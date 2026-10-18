@@ -19,6 +19,12 @@ selection, numerical comparison, hashing, device submission or HTTP handling.
 The batch ABI has counts, IDs, sequence offsets/slots, recurrent and sparse reset
 vectors, selected output rows, absolute positions, per-token slots and per-sequence
 base positions. It is **not compatible** with single-history sparse kernels.
+With an immutable `PagedHistoryDomain`, staging also copies the scheduler's
+page IDs/generations and per-sequence page offsets, plus per-token sequence
+ordinals. The domain bounds shared physical rows separately from request
+length and cache-slot count; only page-table metadata scales with concurrency.
+Short page coverage or an index outside the physical pool rejects the entire
+stage without advancing retained state. DMA copies only the live page prefix.
 Device owners must implement this ABI before serving can advertise concurrency.
 This host owner does not establish GLM HTTP, multi-request GPU execution,
 prefix reuse, stochastic TP sampling or full-service deployment by itself.
