@@ -11,6 +11,44 @@ async fn sockets() -> (@socket.Tcp, @socket.Tcp) {
 }
 
 ///|
+async test "receive cancellation racing peer EOF does not become disconnection" {
+  for delay in 0..<16 {
+    let (client, peer) = sockets()
+    defer client.close()
+    let channel = RemoteChannel::new(
+      peer,
+      max_frame_bytes=16,
+      timeout_millis=1000UL,
+    )
+    defer channel.close()
+    channel.begin_receive(0UL, idle=true)
+    let output = FixedArray::make(16, b'x')
+    @async.with_task_group(group => {
+      let reader = group.spawn(
+        () => {
+          while true {
+            ignore(channel.poll_receive(output, 0UL))
+            @async.pause()
+          }
+        },
+        allow_failure=true,
+      )
+      for _ in 0..<delay {
+        @async.pause()
+      }
+      reader.cancel()
+      client.close()
+      try reader.wait() catch {
+        @async.WaitedTaskAlreadyCancelled => ()
+        error => fail("cancelled receive changed to \{Repr(error)}")
+      } noraise {
+        _ => fail("cancelled receive returned normally")
+      }
+    })
+  }
+}
+
+///|
 async test "fragmented header and body publish atomically and preserve destination tail" {
   let (client, peer) = sockets()
   defer client.close()

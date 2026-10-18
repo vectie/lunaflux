@@ -8,7 +8,7 @@ import {
 }
 
 ///|
-fn host(rank : Int) -> String {
+fn host(rank : Int32) -> String {
   if rank == 0 {
     "wlc003s@192.168.2.178"
   } else {
@@ -17,7 +17,7 @@ fn host(rank : Int) -> String {
 }
 
 ///|
-fn socket(rank : Int) -> String {
+fn socket(rank : Int32) -> String {
   if rank == 0 {
     "/tmp/lunaflux-glm178-prefill-20261018.sock"
   } else {
@@ -26,7 +26,7 @@ fn socket(rank : Int) -> String {
 }
 
 ///|
-async fn remote(rank : Int, command : String) -> @shell.Output {
+async fn remote(rank : Int32, command : String) -> @shell.Output {
   @shell.Cmd("ssh", [
     "-o",
     "BatchMode=yes",
@@ -66,6 +66,20 @@ fn gpu_mib(text : String) -> Int64 raise {
 }
 
 ///|
+fn stop_order() -> Array[Int32] {
+  // The coordinator owns admission and its worker. Keep the peer alive while
+  // that owner retires requests and closes the stage channel after release.
+  [0, 1]
+}
+
+///|
+fn stop_properties() -> String {
+  // SIGTERM goes to the owning main process only. A timeout still kills the
+  // entire cgroup, so an abandoned child cannot survive a failed drain.
+  " --property=KillMode=mixed --property=TimeoutStopSec=90"
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-http-") &&
@@ -78,13 +92,25 @@ async fn main {
   }
   let tag = root.split("/").last().unwrap().to_string()
   async fn stop() -> Unit {
-    @async.with_task_group(group => {
-      for rank in 0..<2 {
-        group.spawn_bg(() => {
-          remote(rank, "systemctl --user stop " + tag + "-rank\{rank}.service").check()
-        })
+    let failures = []
+    for rank in stop_order() {
+      let unit = tag + "-rank\{rank}.service"
+      let result = remote(rank, "systemctl --user stop " + unit)
+      if result.exit_code() != 0 {
+        // A peer can finish from the acknowledged release and clean EOF before
+        // this stop reaches systemd. Verify that precise unit, not other owners.
+        let state = remote(
+          rank,
+          "systemctl --user show " + unit + " -p LoadState -p ActiveState",
+        )
+        if state.exit_code() != 0 ||
+          !state.stdout().contains("LoadState=not-found") ||
+          !state.stdout().contains("ActiveState=inactive") {
+          failures.push(result.stderr() + state.stdout() + state.stderr())
+        }
       }
-    })
+    }
+    guard failures.is_empty() else { fail(failures.join("\n")) }
   }
   if mode == "stop" {
     stop()
@@ -125,7 +151,9 @@ async fn main {
         interface +
         " --setenv=NCCL_IB_HCA=" +
         hca +
-        " --property=MemoryMax=100G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 --property=TimeoutStopSec=90 " +
+        " --property=MemoryMax=100G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800" +
+        stop_properties() +
+        " " +
         (if mode == "start-traced" && rank == 0 {
           "/usr/bin/strace -ff -tt -xx -s 8192 -e trace=read,write,recvfrom,sendto,close,shutdown,exit_group -e trace-fds=0,1,2 -z -o " +
           root +
@@ -206,4 +234,12 @@ async fn main {
     }
     @async.sleep(2000)
   }
+}
+
+///|
+test "coordinator owns graceful shutdown before its worker and peer" {
+  assert_eq(stop_order(), [0, 1])
+  assert_true(stop_properties().contains("--property=KillMode=mixed"))
+  assert_true(stop_properties().contains("--property=TimeoutStopSec=90"))
+  assert_false(stop_properties().contains("KillMode=process"))
 }

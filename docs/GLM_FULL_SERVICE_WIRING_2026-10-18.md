@@ -37,12 +37,12 @@ distinguished by F32 but not BF16, nonfinite rejection, varying/zero live rows,
 and repeated request-index draws. Kernel sanitizer and actual-owner results
 must be recorded before full-model use.
 
-## Remaining execution boundary
+## Request execution and retirement boundary
 
-The canonical HTTP worker must bind the real batched GLM TP owner. A terminal
-request can release recurrent/KV slot ownership only after all submitted work
+The canonical HTTP worker now binds the real batched GLM TP owner. A terminal
+request releases recurrent/KV slot ownership only after all submitted work
 retires and both ranks acknowledge the exact request ID/generation. Requests
-cancelled before their first GPU step also need a valid no-state retirement.
+cancelled before their first GPU step have an explicit no-state retirement.
 Absent rows in a batch are not evidence that a request has finished. Do not
 reuse a slot by inferring liveness from the most recent batch.
 
@@ -70,7 +70,8 @@ lanes and scheduler to a distinct GLM batched TP bootstrap recipe. Full-F32
 sampling runs on the output rank. Retirement is an explicit ID/generation
 receipt after both ranks release their state, including queued requests that
 never submitted GPU work. Cancellation uses the original device generation.
-This command is not yet a physically qualified or publicly installed service.
+Physical acceptance of this command is recorded below and in the complete-answer
+report; it is not yet publicly installed.
 
 HTTP integration adds a once-per-conversation document prefix and model EOS
 union before the typed handoff declares its stop count. GLM explicitly admits
@@ -80,5 +81,32 @@ or wall-time lifetime cap; partial transfers retain their I/O deadline. The
 HTTP Ready handshake waits for both ranks to finish preparation. Deployment
 identity fields are supplied labels, never computed payload hashes.
 
-The current 376 affected native tests pass. Full-model HTTP acceptance remains
-pending; the earlier CLI answer campaign does not qualify this new path.
+The original wiring passed 376 affected native tests. Subsequent real HTTP
+campaigns exercise both GPUs, rather than reusing the earlier CLI result.
+
+## Lifecycle repairs and current acceptance
+
+Full-service validation exposed two independent host-runtime defects after
+successful model generation. Multi-request disconnect could pin another lane's
+terminal event while retrying an earlier lane's abort. Retirement now consumes
+that pinned event first and attributes it to its owning request. A separate
+active-stop abort was reproduced without a model or GPU: async0.20.3 could
+under-count live I/O after its signal task retired. The unmodified published
+async0.22.4 dependency removes that signal-task accounting defect. Prepared-worker
+ownership is retained across listener startup and protected cancellation cleanup.
+
+These repairs affect explicit runtime effects, not numerical IR or compiler
+comparison policy. There is no payload hashing, CPU sampling fallback, recurring
+keepalive workaround or vendor-library patch. Actual pinned ARM signal-cleanup
+and owned-worker startup fixtures each pass three repetitions. The latest
+full-model campaign uses source71061272, context2048, four resident slots and
+eight admission lanes under the100GiB/rank and16GiB host-reserve envelope.
+The final HTTP, active-stop and peer-loss results belong in
+`GLM_COMPLETE_ANSWERS_AND_SERVICE_2026-10-18.md`; none implies unrestricted
+context, arbitrary concurrency or every feature of another serving product.
+
+Public routing remains separate from private acceptance. The existing managed
+route identifies the old EXL3 checkpoint; the tested checkpoint is NVFP4. Its
+model metadata, worker ownership and forwarding credential must be connected
+truthfully before cutover. A loopback acceptance listener with a fixture
+credential and a bounded test lifetime is not a production deployment.

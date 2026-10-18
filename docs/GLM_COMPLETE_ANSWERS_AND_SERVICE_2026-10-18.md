@@ -828,3 +828,53 @@ Three actual committed `--async-signal-cleanup` runs pass at
 startup-stop runs also pass at `/tmp/lunaflux-glm-owned-startup-stop-20261018-v2`.
 The optional build dependency snapshot supplies the declared updated package
 without reusing the old snapshot silently. It performs no payload hashing.
+
+### v25 complete HTTP campaign and shutdown ownership
+
+Pinned71061272 with async0.22.4 completes all nine HTTP groups on both GPUs:
+JSON/SSE/Responses, generation controls, capacity/recovery, concurrent clients,
+distinct-identifier routing with different prompt lengths, GPU sampling,
+disconnect/reuse, protocol errors and broad answers. Every final observation
+has zero active requests, queue depth and KV occupancy. All twelve broad answers
+end naturally, totaling4,007 output tokens over319.579367 summed sequential
+request seconds (12.5384 output tokens per request-wall-second, including
+prefill/HTTP; not decode-only or a matched vLLM throughput comparison).
+
+Content review retains the previous findings: the JSON-only response contains
+Markdown fences; the unsolicited SQL tie-handling alternative includes a
+tie-breaking ID in its DENSE_RANK order and does not implement the stated tie
+semantics. The floating-point, transaction and multiprocessing explanations
+contain overstatements. Arithmetic, supplied-text summary, translation and
+the main merge/SQL tasks are coherent; generated code was manually reviewed,
+not executed. Twelve completed responses are not twelve unconditional quality
+passes, and none is rewritten to match a reference engine.
+
+The249 paired memory samples have minimum host availability18,184,988 and
+19,517,468KiB, maximum GPU residency97,654 and97,669MiB, and zero unit swap.
+Evidence: `/tmp/lunaflux-glm-http-acceptance-20261018-v25` and its per-mode roots.
+
+Active-stop with four active requests and one queued no longer aborts rank0:
+its journal reports successful stop at20:42:42CST. Rank1 instead reports
+`RemoteChannelError.Disconnected` and exits1. Both GPUs release, but this is a
+failed lifecycle test, retained at
+`/tmp/lunaflux-glm-http-active-stop-20261018-v25`; there is no completion marker.
+
+The unit recipe used systemd's default control-group SIGTERM and stopped both
+ranks concurrently. This interrupts the owned worker and peer while the HTTP
+parent is still retiring requests. The corrected deployment recipe uses
+`KillMode=mixed` (TERM only to the owner, timeout KILL still covers its cgroup)
+and coordinator-before-peer stop ordering. An already retired/garbage-collected
+peer is checked explicitly, not confused with a failed loaded unit. These are
+ownership/lifecycle rules, not a waiver of the Disconnected result. Fresh v26
+tests the same71061272 executable with that recipe; its outcome is pending.
+The independent cancellation/EOF unit test passes16 scheduling interleavings
+without a transport-code change, so no speculative exception suppression is
+introduced into RemoteChannel.
+
+Stable isolated-tree phase validation completes at
+`/tmp/lunaflux-native-phase-record-20261018-v1`: moon info reports4,433 existing
+migration warnings and zero errors; warning-denied native check passes with
+the existing exclusions unchanged; the full native suite passes5,275/5,275.
+The additional cancellation/EOF case passes in the8/8 affected transport suite.
+An earlier full-test attempt captured its file list before the new fixture was
+added and failed with an unbound fixture; it is not counted as a pass.
