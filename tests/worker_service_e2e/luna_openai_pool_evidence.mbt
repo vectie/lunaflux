@@ -87,7 +87,9 @@ async fn drain_openai_pool(
     ignore(pool.progress_on_reactor())
     turns += 1
     if turns > 1000000 {
-      raise Failure("OpenAI pool drain did not converge")
+      raise Failure(
+        "OpenAI pool drain did not converge: " + pool.drain_diagnostic(),
+      )
     }
     if turns % 64 == 0 {
       @async.pause()
@@ -173,6 +175,7 @@ async fn run_luna_openai_active_drain_evidence(
   executable : Bytes,
   fixture_root : String,
   after_failure~ : Bool = false,
+  request_count~ : Int = 1,
 ) -> Unit {
   let tcp = @online_tcp.LunaOnlineTcpLimits::new(
     read_chunk_bytes=2048,
@@ -192,20 +195,26 @@ async fn run_luna_openai_active_drain_evidence(
     tcp,
     log_capacity=64,
   )
-  let client = @socket.Tcp::connect(pool.local_addr())
-  progress_openai_pool_to_connections(pool, 1, "active-drain-connect")
+  let clients : Array[@socket.Tcp] = []
+  for index in 0..<request_count {
+    clients.push(@socket.Tcp::connect(pool.local_addr()))
+    progress_openai_pool_to_connections(pool, index + 1, "active-drain-connect")
+  }
   let request = openai_http_request(
     "/v1/responses", "secret", "{\"model\":\"model-x\",\"input\":\"\\u0002\",\"stream\":true}",
   )
-  openai_write_range(client, request, 0, request.length())
+  for client in clients {
+    openai_write_range(client, request, 0, request.length())
+  }
   let mut turns = 0
-  while pool.metrics_snapshot().counter_value(Admissions) == 0UL {
+  while pool.metrics_snapshot().counter_value(Admissions) <
+        request_count.to_uint64() {
     ignore(pool.progress_on_reactor())
     turns += 1
     guard turns < 100000 else { fail("active request was not admitted") }
   }
   assert_eq(pool.metrics_snapshot().counter_value(Completions), 0UL)
-  assert_eq(pool.active_connection_count(), 1)
+  assert_eq(pool.active_connection_count(), request_count)
   if after_failure {
     while pool.metrics_snapshot().counter_value(WorkerFailures) == 0UL {
       ignore(pool.progress_on_reactor())
@@ -219,6 +228,8 @@ async fn run_luna_openai_active_drain_evidence(
   drain_openai_pool(pool)
   assert_eq(pool.active_connection_count(), 0)
   assert_eq(pool.metrics_snapshot().counter_value(WorkerRestarts), 0UL)
-  client.close()
+  for client in clients {
+    client.close()
+  }
   println("active HTTP request drained; worker restarts=0; pool closed")
 }
