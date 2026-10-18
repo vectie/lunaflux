@@ -691,3 +691,13 @@ the pinned event first, assigns retirement to that event's route (not whichever
 ticket was last polled), and distinguishes terminal events from accepted/token
 events. All 123 session/TCP tests pass. This is not yet proof that the physical
 peer-loss failure is resolved; the source-pinned replay remains required.
+
+The v19 live snapshot confirms this ordering is the actual stalled state:
+five tickets, maintenance kind 4, no outstanding semantic credit/ACK or
+observation, recovery already complete, and `FailureUsageEvent` pinned to
+lane 6 while lanes 3/4/5/7 remain active. No GPU owner survives. The scoped
+parent GDB trace captures the later abort in the async event loop; it is not
+a CUDA/NCCL wait. Evidence is under the v19 acceptance and peer-failure roots.
+The complete local native suite after the route repair passes 5,283/5,283
+with the existing migration-warning exclusions unchanged. No physical repair
+pass is claimed before the new `64f144c8` build/replay.
