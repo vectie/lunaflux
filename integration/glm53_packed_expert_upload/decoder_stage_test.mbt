@@ -57,6 +57,10 @@ test "stage assembly follows model boundaries rather than slice-local boundaries
     } noraise {
       _ => fail("unprepared model execution accepted")
     }
+    stage.abort_execution()
+    stage.abort_execution()
+    stage.close()
+    stage.abort_execution()
   }
 }
 

@@ -432,3 +432,31 @@ token processing; the GLM command reports it after cleanup instead of calling
 an error-triggered clean exit success. No speculative numerical fix, payload
 hashing or public-route change was made. Physical reproduction with that
 diagnostic build is still required.
+
+### v10: reproduced overload credit and captured-collective teardown defects
+
+Pinned dd38de21 repeats the smoke and all three control checks successfully.
+The following nine-client overload attempt terminates rank0 with the retained
+cause `take rejection: LunaOnlineFramedCoordinatorFailed(LunaOnlineFramedLifecycle)`.
+This narrows the earlier v9 unexplained exit to overload handling, not a
+successful length-limited request or a memory failure. A taken rejection was
+still reported as RejectionReady when a nonblocking error-response write had
+not finished. The pool consequently attempted a second take. Both coordinator
+drivers now report Waiting until the exact rejection credit is acknowledged.
+The new regression fails before this change; the116 session/TCP tests pass
+afterwards. Evidence roots retain the v10 smoke, controls and failed capacity
+clients. The two-rank watcher now also retires a survivor after a clean peer exit.
+
+Rank1 teardown again stalls. A scoped live GDB attachment to the exact owned
+PID2917967 observes its main thread in `commDestroySync -> ncclCommPollCallbacks
+-> ncclIntruQueueMpscDequeueAll(waitSome=true)`, waiting for captured graph
+callbacks. The GLM command called communicator abort before the graph-owning
+execution program could discard its graphs. The existing collective program
+already has the correct discard-graphs/abort-communication/drain-stream order.
+The stage now exposes execution-only abort through that owner before worker
+DMA leases and model storage are released. No CUDA/NCCL ABI or kernel math
+changes are required. Idle-captured and pending-execution teardown regressions
+remain separate; real two-Spark shutdown must still confirm this repair.
+
+Public GLM remains offline. This is a demonstrated lifecycle repair, not a
+full-service acceptance pass or a throughput result. No payload hashes are used.

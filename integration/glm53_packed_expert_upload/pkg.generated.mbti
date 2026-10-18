@@ -114,6 +114,7 @@ pub fn GlmDecoderSlice::workspace_bytes(Self) -> Int64
 pub struct GlmDecoderStage {
   // private fields
 }
+pub fn GlmDecoderStage::abort_execution(Self) -> Unit raise
 pub fn GlmDecoderStage::append_descriptors(Self) -> ArrayView[@device.Allocation]
 pub fn GlmDecoderStage::bind_batched_rank(Self, @batched_decoder_worker.BatchedDecoderRank, @device.Context, sampling_aot? : @device.Module, maximum_sampling_device_bytes? : Int64, maximum_sampling_host_bytes? : Int64) -> Unit raise
 pub fn GlmDecoderStage::bind_rank(Self, @serial_decoder_worker.SerialDecoderRank, @device.Context) -> Unit raise

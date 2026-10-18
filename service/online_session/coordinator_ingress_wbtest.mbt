@@ -107,6 +107,35 @@ test "Luna coordinator rejection credit is ordered and alias safe" {
 }
 
 ///|
+test "taken rejection waits for transport acknowledgement without redelivery" {
+  let coordinator = coordinator_fixture()
+  coordinator.service.next_sequence = 1UL
+  coordinator.service.publish_rejection(1UL, LunaOnlineFramedRejectedCapacity)
+  assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorRejectionReady)
+  let credit = coordinator.take_rejection()
+  // A nonblocking HTTP write may yield before its response has completed.
+  // Both drivers must preserve the one outstanding credit, not advertise a
+  // second take of it while the network owner still holds the first one.
+  for _ in 0..<8 {
+    assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorWaiting)
+    assert_eq(
+      coordinator.progress_off_reactor_maintenance(),
+      LunaOnlineFramedCoordinatorWaiting,
+    )
+    assert_eq(credit.rule(), LunaOnlineFramedRejectedCapacity)
+    assert_eq(credit.sequence(), 1UL)
+  }
+  assert_false(coordinator.service.drain_requested)
+  credit.ack()
+  coordinator.service.next_sequence = 2UL
+  coordinator.service.publish_rejection(2UL, LunaOnlineFramedRejectedInput)
+  assert_eq(coordinator.progress(), LunaOnlineFramedCoordinatorRejectionReady)
+  let next = coordinator.take_rejection()
+  assert_eq(next.sequence(), 2UL)
+  next.ack()
+}
+
+///|
 test "Luna invalid magic publishes typed rejection before retained tail replay" {
   let malformed = coordinator_fixture_frame()
   malformed[0] = malformed[0] ^ b'\x01'

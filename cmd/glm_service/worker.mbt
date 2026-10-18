@@ -80,8 +80,10 @@ async fn run_rank(
   defer rendezvous.close()
   let collective = connect_collective(context, stage, rendezvous, ordinal)
   defer {
-    // A failed peer can leave collective work pending. Abort its communicator
-    // before owners wait on streams during deterministic resource release.
+    // Graph user objects retain NCCL callbacks even when no step is in flight.
+    // The execution owner first drops graphs and aborts pending communication;
+    // worker DMA leases and model allocations are released only afterwards.
+    stage.abort_execution()
     collective.abort()
     rank.close()
     stage.close()
@@ -138,6 +140,7 @@ async fn run_rank(
       stage.replay_graph_count() > 0,
     ) catch {
       error => {
+        stage.abort_execution()
         collective.abort()
         raise error
       }
@@ -161,6 +164,7 @@ async fn run_rank(
       }
     } catch {
       error => {
+        stage.abort_execution()
         collective.abort()
         raise error
       }

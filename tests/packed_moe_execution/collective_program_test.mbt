@@ -1,13 +1,14 @@
 ///|
 fn run_collective_program(
   queued : Bool,
-  replay? : Bool = false,
-  collective_graph? : Bool = false,
-  bucketed? : Bool = false,
-  decode_graph? : Bool = false,
-  cancel? : Bool = false,
-  cancel_rows? : Int = 1,
-  fork? : Bool = false,
+  replay~ : Bool = false,
+  collective_graph~ : Bool = false,
+  bucketed~ : Bool = false,
+  decode_graph~ : Bool = false,
+  cancel~ : Bool = false,
+  cancel_rows~ : Int = 1,
+  fork~ : Bool = false,
+  abort_idle~ : Bool = false,
 ) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
@@ -177,6 +178,13 @@ fn run_collective_program(
   assert_eq(allocations, 0UL)
   assert_eq(enqueues() - before, 80UL)
   assert_eq(blocking_syncs() - syncs, 0UL)
+  if abort_idle {
+    queue.abort()
+    owner.abort()
+    queue.close()
+    buffer.close()
+    return
+  }
   if cancel {
     queue.submit(
       live_rows=cancel_rows,
@@ -239,4 +247,11 @@ test "collective-inclusive replay retires entire effect frame without allocation
   run_collective_program(true, collective_graph=true)
   run_collective_program(true, bucketed=true)
   run_collective_program(true, decode_graph=true)
+}
+
+///|
+test "idle peer teardown drops retained collective graphs before abort" {
+  run_collective_program(true, collective_graph=true, abort_idle=true)
+  run_collective_program(true, bucketed=true, abort_idle=true)
+  run_collective_program(true, decode_graph=true, abort_idle=true)
 }

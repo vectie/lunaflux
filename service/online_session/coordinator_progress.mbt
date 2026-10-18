@@ -314,7 +314,11 @@ fn LunaOnlineFramedService::progress_reactor_core(
     if self.enforce_rejection_stall() {
       return LunaOnlineFramedCoordinatorMaintenanceRequired
     }
-    return LunaOnlineFramedCoordinatorRejectionReady
+    return if self.rejection_taken {
+      LunaOnlineFramedCoordinatorWaiting
+    } else {
+      LunaOnlineFramedCoordinatorRejectionReady
+    }
   }
   if self.disconnect_requested && !self.tickets.is_empty() {
     self.begin_output_disconnect() catch {

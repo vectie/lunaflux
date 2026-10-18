@@ -64,6 +64,27 @@ pub fn GlmDecoderSlice::poll(self : Self) -> Bool raise @device.DeviceError {
 }
 
 ///|
+fn GlmDecoderSlice::abort_execution(
+  self : Self,
+) -> Unit raise @device.DeviceError {
+  if self.status is Closed {
+    return
+  }
+  self.status = Failed
+  if self.collective_queue is Some(queue) {
+    // The program owns capture references and the communicator ordering:
+    // discard graphs, abort communication, then drain the retained streams.
+    queue.abort()
+    self.collective_queue = None
+  }
+  if self.queue is Some(queue) {
+    queue.abort()
+    queue.close()
+    self.queue = None
+  }
+}
+
+///|
 pub fn GlmDecoderSlice::close(self : Self) -> Unit raise @device.DeviceError {
   if self.status is Closed {
     return

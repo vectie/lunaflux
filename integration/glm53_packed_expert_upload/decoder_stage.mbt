@@ -33,22 +33,22 @@ pub fn GlmDecoderStage::new(
   maximum_layer_expert_bytes~ : Int64,
   maximum_text_workspace_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
-  recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  sparse_matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  expert_transport? : @matrix.ExpertTransport = IndexedRows,
-  expert_fragment_slots? : Int = 1,
-  expert_scale_partitions? : Int = 1,
-  shared_matrix_columns? : Int = 64,
+  hc_reduction~ : @precision_ir.HyperControlReduction = Ordered,
+  recurrent_evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  sparse_matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport~ : @matrix.ExpertTransport = IndexedRows,
+  expert_fragment_slots~ : Int = 1,
+  expert_scale_partitions~ : Int = 1,
+  shared_matrix_columns~ : Int = 64,
   tensor_group? : (Int, Int),
-  shard_vocabulary? : Bool = false,
-  vocabulary_publication? : @parallel.VocabularyPublication = GreedyCandidates,
-  maximum_sequences? : Int = 1,
-  cache_slots? : Int = 1,
-  maximum_output_rows? : Int = 1,
+  shard_vocabulary~ : Bool = false,
+  vocabulary_publication~ : @parallel.VocabularyPublication = GreedyCandidates,
+  maximum_sequences~ : Int = 1,
+  cache_slots~ : Int = 1,
+  maximum_output_rows~ : Int = 1,
   paged_history? : @history_domain.PagedHistoryDomain,
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
@@ -207,14 +207,14 @@ pub fn GlmDecoderStage::prepare_inputs(
   chunk_bytes~ : Int,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   collective? : @device.TensorCollectiveOwner,
-  generation? : UInt64 = 1UL,
-  retirement? : @parallel.RetirementPolicy = EachCollective,
-  replay? : @parallel.ReplayPolicy = Eager,
-  replay_budget_bytes? : Int64 = 0L,
-  overlap_experts? : Bool = false,
-  fuse_hyper? : Bool = false,
-  fuse_controls? : Bool = false,
-  defer_hyper? : Bool = false,
+  generation~ : UInt64 = 1UL,
+  retirement~ : @parallel.RetirementPolicy = EachCollective,
+  replay~ : @parallel.ReplayPolicy = Eager,
+  replay_budget_bytes~ : Int64 = 0L,
+  overlap_experts~ : Bool = false,
+  fuse_hyper~ : Bool = false,
+  fuse_controls~ : Bool = false,
+  defer_hyper~ : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -371,6 +371,18 @@ fn GlmDecoderStage::poll_submission(self : Self) -> Bool raise {
   } else {
     self.poll()
   }
+}
+
+///|
+/// Stop execution without releasing allocations borrowed by worker DMA ports.
+/// Captured collective callbacks must be dropped before communicator abort;
+/// otherwise NCCL can wait for graphs that only later teardown would destroy.
+pub fn GlmDecoderStage::abort_execution(self : Self) -> Unit raise {
+  if self.status is Closed {
+    return
+  }
+  self.status = Failed
+  self.decoder.abort_execution()
 }
 
 ///|

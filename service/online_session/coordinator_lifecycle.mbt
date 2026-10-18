@@ -175,7 +175,11 @@ fn LunaOnlineFramedService::progress_maintenance_core(
   }
   if self.rejection_epoch != 0UL {
     if !self.enforce_rejection_stall() {
-      return LunaOnlineFramedCoordinatorRejectionReady
+      return if self.rejection_taken {
+        LunaOnlineFramedCoordinatorWaiting
+      } else {
+        LunaOnlineFramedCoordinatorRejectionReady
+      }
     }
   }
   if self.disconnect_requested && !self.tickets.is_empty() {
