@@ -1,6 +1,6 @@
 ///|
-test "finite oversubscribed requests finish after recompute preemption" {
-  let owner = wb_owner_with_capacity(1, 2)
+fn finite_oversubscribed_progress(waiting_age : Int) -> Int raise {
+  let owner = wb_owner_with_capacity(1, 2, waiting_age~)
   ignore(owner.admit(wb_request(1801UL, max_new_tokens=4), 0UL))
   ignore(owner.admit(wb_request(1802UL, max_new_tokens=4), 0UL))
   let mut emitted = 0
@@ -58,8 +58,18 @@ test "finite oversubscribed requests finish after recompute preemption" {
       retired += 1
     }
   }
-  assert_true(evictions > 0)
   assert_eq(emitted, 8)
   assert_eq(retired, 2)
   assert_eq(owner.live_request_count(), 0)
+  evictions
+}
+
+///|
+test "finite oversubscribed requests finish after recompute preemption" {
+  assert_true(finite_oversubscribed_progress(2) > 0)
+}
+
+///|
+test "context-sized fairness window lets finite residents finish without replay churn" {
+  assert_eq(finite_oversubscribed_progress(16), 0)
 }

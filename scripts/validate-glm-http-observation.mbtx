@@ -10,6 +10,15 @@ import {
 // External acceptance only: observes the HTTP contract, not compiler truth.
 
 ///|
+fn expected_status(name : String, ready : Bool) -> String {
+  if (name == "metrics" || name == "readiness") && !ready {
+    "503"
+  } else {
+    "200"
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, expected_context] &&
     root.has_prefix("/tmp/lunaflux-glm-http-") &&
@@ -22,11 +31,14 @@ async fn main {
     fail("NEW_EVIDENCE_ROOT EXPECTED_CONTEXT")
   }
   @fs.mkdir(root)
+  let ready = @env.get_env_var("LUNAFLUX_GLM_HTTP_PRODUCTION_READY") ==
+    Some("1")
   for
     (name, route) in [
       ("health", "/health"),
       ("models", "/v1/models"),
       ("metrics", "/metrics"),
+      ("readiness", "/readyz"),
     ] {
     let prefix = root + "/" + name
     let result = @shell.Cmd("curl", [
@@ -48,7 +60,10 @@ async fn main {
       create_mode=CreateNew,
     )
     result.check()
-    guard result.stdout().trim() == "200" else { fail(name + " HTTP failure") }
+    // Existing control semantics keep metrics readable but return 503 until
+    // the deployment explicitly enables production readiness.
+    let status = expected_status(name, ready)
+    guard result.stdout().trim() == status else { fail(name + " HTTP failure") }
     let value = @json.parse(@fs.read_file(prefix + ".json").text())
     if name == "models" {
       guard value
@@ -63,6 +78,9 @@ async fn main {
         fail("model discovery does not match the admitted deployment")
       }
     } else if name == "metrics" {
+      guard value is { "readiness": observed, .. } && observed == Json(ready) else {
+        fail("readiness does not match deployment state")
+      }
       guard value
         is {
           "gauges": {
@@ -84,4 +102,16 @@ async fn main {
   println(
     "health, admitted model/context and idle request/KV retirement verified",
   )
+}
+
+///|
+test "observation status respects explicit private and public readiness" {
+  for name in ["metrics", "readiness"] {
+    assert_eq(expected_status(name, false), "503")
+    assert_eq(expected_status(name, true), "200")
+  }
+  for name in ["health", "models"] {
+    assert_eq(expected_status(name, false), "200")
+    assert_eq(expected_status(name, true), "200")
+  }
 }

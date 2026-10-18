@@ -90,14 +90,20 @@ fn wb_owner() -> Scheduler {
 fn wb_owner_with_capacity(
   max_active_requests : Int,
   max_waiting_requests : Int,
+  waiting_age~ : Int = 2,
 ) -> Scheduler {
-  try! wb_blueprint_with_capacity(max_active_requests, max_waiting_requests).instantiate()
+  try! wb_blueprint_with_capacity(
+    max_active_requests,
+    max_waiting_requests,
+    waiting_age~,
+  ).instantiate()
 }
 
 ///|
 fn wb_blueprint_with_capacity(
   max_active_requests : Int,
   max_waiting_requests : Int,
+  waiting_age~ : Int = 2,
 ) -> SchedulerBlueprint {
   let scheduler = try! @scheduler.new(
     step_token_budget=2,
@@ -105,7 +111,7 @@ fn wb_blueprint_with_capacity(
     max_waiting_requests~,
     prefill_chunk_tokens=2,
     emergency_decode_page_reserve=1,
-    waiting_age_threshold_steps=2,
+    waiting_age_threshold_steps=waiting_age,
     output_event_capacity=2,
   )
   let cache = try! @cache.new(

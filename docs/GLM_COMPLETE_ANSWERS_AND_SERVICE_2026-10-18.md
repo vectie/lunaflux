@@ -484,3 +484,48 @@ hard-coded model or an untested context promise. The embedded metrics endpoint
 refreshes retained scheduler/graph counters on demand rather than exposing
 stale zero gauges. None of these operations reads GPU data or hashes payloads.
 The new changes still require their source-pinned two-Spark acceptance run.
+
+The complete v11 HTTP answer campaign finished all12 prompts with natural stop,
+using a1024-token ceiling. Evidence: `/tmp/lunaflux-glm-http-answers-20261018-v11`.
+Reviewed answers include correct probability3/10, six chickens/four rabbits,
+complete merge code and complexity, Chinese transaction examples, translation,
+two-sentence summary, classifier limitations, concurrency and sort stability.
+This is not twelve unqualified correctness passes: the JSON-only answer has
+Markdown fences; the SQL answer's primary query is correct but its unsolicited
+DENSE_RANK alternative includes customer_id in the ranking and thus does not
+preserve equal-total ties as claimed. The floating-point answer also overstates
+"never" using equality. These are retained answer-quality findings, not proven
+execution defects. No response rewriting conceals them.
+
+Paired v11 stop at18:40:54 CST completes on both ranks by18:40:57, exit0,
+Result=success, no forced kill and zero owned-unit swap. Both GPU-owner queries
+are empty afterwards. This physically confirms the captured-graph teardown
+ordering repair; the preceding90-second shutdown hangs were real defects.
+Latest local native suite:5273/5273 with the existing warning exclusions.
+
+### v13: real queue pressure exposes a fixture-only fairness cadence
+
+Pinned18fb1269 passes smoke, controls, model discovery and idle KV/request
+retirement. The first observation client incorrectly expected HTTP200 for
+private metrics; the existing control contract explicitly returns503 with
+readiness=false while retaining its metrics body. The client now tests this
+contract (including `/readyz`) rather than changing server readiness to pass.
+The initial failed client output is retained.
+
+Nine concurrent clients now produce four429 capacity responses, not503; four
+requests run and one waits. The worker no longer exits. However, the GLM service
+blueprint copied the scheduler fixture's two-step fairness threshold. With a
+fifth request waiting it continually evicts/replays resident recurrent state.
+At18:48:49 CST, prefix_tokens_computed reaches5330, graph misses321, and none
+of these five512-token requests has completed. The live counters expose this
+cost; the previously stale zero counters concealed it. This is a scheduling
+policy error, not a numerical-kernel diagnosis.
+
+The service now derives the age-only eviction window from the admitted context
+(bounded by the existing scheduler validation ceiling). Existing bounded
+waiting, page-pressure and deadline mechanisms remain in the generic scheduler;
+no device/model numerical rule changes. A pure two-request regression proves
+both policies finish, while the context-sized window avoids replay eviction.
+The147 affected tests pass. The old-capacity experiment is deliberately stopped
+after recording its counters; it is not a completed capacity pass. The new
+policy requires a fresh physical replay of the unchanged clients.

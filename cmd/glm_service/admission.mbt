@@ -49,6 +49,17 @@ fn ServicePlan::source(
 }
 
 ///|
+/// One admitted context bounds the useful token work of a resident request.
+/// Give it that window before age-only eviction; the two-step fixture policy
+/// otherwise repeatedly destroys recurrent state when one extra client waits.
+/// The cap is the existing SchedulerConfig waiting-age validation ceiling,
+/// not a device/kernel tuning constant. Page pressure and deadlines are still
+/// handled by the scheduler's existing resource and cancellation rules.
+fn service_waiting_age_steps(context : Int) -> Int {
+  Int::min(context, 1_000_000)
+}
+
+///|
 fn ServicePlan::blueprint(
   self : Self,
   spec : @spec.Glm53FlashSpec,
@@ -61,7 +72,7 @@ fn ServicePlan::blueprint(
       max_waiting_requests=self.slots,
       prefill_chunk_tokens=self.rows,
       emergency_decode_page_reserve=1,
-      waiting_age_threshold_steps=2,
+      waiting_age_threshold_steps=service_waiting_age_steps(self.context),
       output_event_capacity=self.slots * 4,
     ),
     @cache.new(
@@ -105,6 +116,13 @@ fn ServicePlan::blueprint(
     recipe,
     recipe,
   )
+}
+
+///|
+test "service fairness derives from admitted context rather than fixture cadence" {
+  assert_eq(service_waiting_age_steps(2048), 2048)
+  assert_eq(service_waiting_age_steps(65536), 65536)
+  assert_eq(service_waiting_age_steps(1048576), 1_000_000)
 }
 
 ///|
