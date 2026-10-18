@@ -223,13 +223,10 @@ pub async fn bind_luna_online_openai_connection_pool(
   if !telemetry.refresh(initial, initial_plan) {
     raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }
-  let listener = bind_luna_online_tcp_listener(addr)
-  let service = preparation.service.take_ready() catch {
-    _ => {
-      listener.close()
-      raise luna_online_tcp_error(LunaOnlineTcpPreparation)
-    }
-  }
+  let (listener, service) = bind_prepared_luna_openai_listener(
+    addr,
+    preparation.service,
+  )
   let opened = service.open_semantic_stream()
   if opened.kind() != LunaOnlineFramedOpened {
     listener.close()

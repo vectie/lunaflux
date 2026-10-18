@@ -731,3 +731,23 @@ The watcher deliberately reports rank failure for the injected kill. This
 physically verifies the cross-request terminal-retirement repair; it does
 not resolve the separate v20 startup-stop abort. A fresh full HTTP/answer
 campaign is required after this fault test, rather than reusing a failed pair.
+
+### Startup-stop isolation without a model or GPU
+
+The separate v20 abort reproduces in a small native ARM program: five seconds
+of synchronous CPU preparation, then an asynchronous TCP listener bind. A
+SIGTERM sent during that preparation reaches the async runtime's deadlock
+check, with the main coroutine still alive. Evidence is
+`/tmp/lunaflux-glm-startup-cancel-cpu-20261018-v1/journal.txt`. No checkpoint,
+CUDA/NCCL, HTTP request or numerical kernel participates in this reproduction.
+The probe is bounded to64MiB with no swap; it is not a production busy loop.
+
+Adding one cancellation checkpoint before the socket job makes the otherwise
+identical v2 probe stop normally, with no deadlock/abort. The canonical listener
+now has that checkpoint. The OpenAI pool also claims the prepared worker before
+this boundary and retains protected cleanup until listener ownership transfers
+successfully; cancellation or binding failure must not abandon a loaded worker.
+Neither operation enters token-step scheduling or compiler numerical selection.
+The63 TCP tests pass, including cancelled and ordinary listener startup. The
+actual owned-worker startup-stop fixture and full-model replay remain required
+before this additional repair is declared physically verified.

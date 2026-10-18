@@ -1,6 +1,11 @@
 ///|
 async fn main {
   match @env.args() {
+    [_, "--openai-startup-stop", executable, fixture_root] =>
+      run_luna_openai_startup_stop_evidence(
+        @utf8.encode(executable),
+        fixture_root,
+      )
     [_, "--openai-multi-failed-drain", executable, fixture_root] =>
       run_luna_openai_active_drain_evidence(
         @utf8.encode(executable),
