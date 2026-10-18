@@ -1,5 +1,13 @@
 # Deferred HC post/pre: preserved arithmetic, measured work distribution
 
+Status: implementation, numerical/sanitizer checks, selected-graph verification,
+two-run full-model comparison and fresh vLLM measurement are complete.
+**The requested performance gap is not closed.** The five equal-count prompt
+means are3104ms baseline,3096.5ms candidate and2790.644ms vLLM. The observed
+0.24% native mean reduction is smaller than the run-to-run spread; the complete
+six-prompt native mean regresses. Deferred HC remains explicitly selected,
+not promoted as a faster default. Original-service restoration is in progress.
+
 ## Scope and hypothesis
 
 Continue `GLM_HC_AND_VOCABULARY_TP_2026-10-18.md` from main `ed83800e`.
@@ -246,6 +254,60 @@ prefill-heavy and multiple unchanged projection/representation/reduction
 paths remain. No claim that an unmeasured sum of their potential gains will
 close11.4% is made.
 
+## Repeated full-model acceptance: no convincing win
+
+The new `c493fa77` ARM executable and both AOT stages complete CPU-only builds
+with bounded memory/no swap before the timed workloads. Roots
+`/tmp/lunaflux-model-bench-glm-deferred-control-lanes-20261018-v1` and `-v2`
+both log the actual deferred/control/vocabulary selection,92 prepared graphs,
+and91 collective sites. Every native output token ID remains unchanged;
+both ranks exit0 and explicitly close their CUDA contexts.
+
+| Variant | Six requests run1 /run2, ms | Six mean, ms | Five equal-count run1 /run2, ms | Five mean, ms | Versus fresh vLLM |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Prior winning HC-controls + vocabulary TP | 3797 /3843 | 3820 | 3083 /3125 | 3104 | +11.229% |
+| Deferred HC + parallel control initialization | 3883 /3819 | 3851 | 3084 /3109 | 3096.5 | +10.960% |
+| Fresh vLLM, one repetition | — | — | 2790.644 | 2790.644 | — |
+
+Baseline roots end `glm-deferred-current-base-20261018-v1`/`-v2`.
+Order: baseline1, deferred-only diagnostic, separately profiled diagnostic,
+fresh reference buffered+streaming, combined1, combined2, baseline2. No CPU
+AOT compilation or competing GPU workload overlaps the timed model requests.
+The reference denominator is identical for this table; do not relabel the
+change from the earlier historical12.01% comparison as a kernel speedup.
+
+The baseline five-request spread is42ms; the combined spread25ms. A7.5ms
+mean difference with only two repetitions is not convincing evidence of an
+engine win. All six native requests, with identical token work, take0.81%
+longer on average. Prompt0's799ms first combined observation is retained,
+not removed as an outlier; its exclusion from the cross-engine five-prompt
+cohort predates this run and is solely because8 native versus4 reference
+output tokens are not equal work.
+
+Candidate mean internal first-token sum over the five prompts is1308.5ms;
+fresh reference separate-stream first-content sum994.891ms. Their313.609ms
+difference is consistent with the305.856ms overall completion difference,
+not an exact same-run decomposition. Native after-first sum is1788ms. The
+primary corpus gives10.011 native versus11.109 reference output tokens per
+request-second **including prefill**, not saturated serving throughput.
+
+This corrects the prioritization: HC was a real implementation inefficiency,
+but treating it as the main remaining12% cause overestimated its impact.
+The AKO acceptance decision is to retain the explicit, numerically verified
+candidate and its negative measurements, not promote it or keep tuning HC
+based solely on component percentages. Remaining prefill projection/operand
+reuse, global-amax distribution and sparse representation costs need their
+own complete-chain ablations. They are not fixed by this change and their
+individual shares of the unprofiled gap have not yet been fully established.
+
+Latest implementation validation: warning-denied native check and full
+suite5203/5203; after the external graph-harness update, affected exporter
+tests11/11 and new phase-comparison runner1/1 pass. The full source is still
+functional plan/law composition with explicit effect ownership; benchmark
+comparison and timing remain external scripts. No payload hashes, tolerance
+changes or reference substitutions were introduced. Unrelated dirty
+toolchain/TLS files were not staged.
+
 ## Maintenance and limits
 
 Direct LAN SSH was unavailable; access recovered with the configured
@@ -254,5 +316,8 @@ head/worker were stopped using their exact previously recorded IDs, worker
 first, at `/tmp/lunaflux-glm-deferred-maintenance-stop-20261018-v1`. NFS stays
 running. Both nodes became GPU-idle with ample host reserve. Benchmark limits
 remain100GiB/device and process, zero benchmark swap and16GiB host reserve.
+The current native rank plan is100373434160bytes (93.48GiB). Minimum observed
+host availability across these native experiments is21.956GiB; the fresh
+reference minimum is17.007GiB. The reference containers use96GiB/no-swap limits.
 The unchanged original EXL3/DFlash service must be restored afterward; its
 pre-existing footprint does not satisfy the benchmark host-reserve policy.
