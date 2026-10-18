@@ -141,10 +141,7 @@ async fn qualification_wait_connected(
       return
     }
     if turn % 64 == 63 {
-      @async.pause() catch {
-        _ =>
-          raise openai_qualification_validation_error(OpenAiQualificationOwner)
-      }
+      @async.pause()
     }
   }
   raise openai_qualification_validation_error(OpenAiQualificationConnect)
@@ -182,10 +179,7 @@ async fn qualification_wait_retired(
       return
     }
     if turn % 64 == 63 {
-      @async.pause() catch {
-        _ =>
-          raise openai_qualification_validation_error(OpenAiQualificationOwner)
-      }
+      @async.pause()
     }
   }
   raise openai_qualification_validation_error(OpenAiQualificationResponse)
@@ -259,10 +253,7 @@ async fn qualification_wait_operational_state(
       return
     }
     if turn % 64 == 63 {
-      @async.pause() catch {
-        _ =>
-          raise openai_qualification_validation_error(OpenAiQualificationOwner)
-      }
+      @async.pause()
     }
   }
   raise openai_qualification_validation_error(OpenAiQualificationResponse)

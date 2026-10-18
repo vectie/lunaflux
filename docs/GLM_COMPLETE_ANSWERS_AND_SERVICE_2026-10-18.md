@@ -786,3 +786,35 @@ Both journals report successful stop after11seconds and both GPU-owner lists
 are empty; zero unit swap. This verifies the late-loading startup boundary on
 the actual pair, not the separate active-stop boundary. Evidence:
 `/tmp/lunaflux-glm-http-startup-stop-20261018-v23/COMPLETE.txt`.
+
+### Active-stop cause: async runtime signal-wait liveness
+
+Fresh9f5682b1 v24 passes real JSON/SSE/Responses smoke, then repeats the active-stop
+abort. The scoped parent debugger catches `moonbit_panic` directly under
+`EventLoop::run_forever`; worker threads are idle in their wait loop. Both GPU
+owners release. Evidence: v24 active-stop root and `parent-gdb.txt`. The startup
+checkpoint alone therefore does not fix active shutdown.
+
+The CPU-only v4 probe waits for SIGTERM, then opens/closes a TCP listener inside
+protected cleanup. It prints `cleanup starts`, followed by the async runtime's
+deadlock diagnostic and SIGABRT, without any model, CUDA, NCCL or child worker.
+In async0.20.3, signal waiting subtracts one blocked task; that subtraction is
+restored only when the main coroutine terminates. If the signal task finishes
+first, protected cleanup can wait for real I/O while the effective count is
+zero. The v5 diagnostic moves restoration to the signal task's own defer; the
+identical probe then completes. That dependency patch is experimental evidence
+only and is not vendored or selected for production.
+
+Published async0.22.4 uses the dedicated native signal-handler lifecycle instead
+of this signal-task exclusion. Its unmodified release passes the same ARM probe
+three times at `/tmp/lunaflux-glm-startup-cancel-cpu-20261018-v7`,64MiB/no swap.
+The v6 packaging failure (macOS AppleDouble files in a tar archive) is retained;
+v7 excludes host metadata and does not change library source. The runtime
+dependency is now explicitly pinned to0.22.4. Three obsolete `pause` error catches
+are removed because cancellation is no longer an ordinary catchable error.
+The fixture is retained as `worker_service_e2e --async-signal-cleanup`.
+
+This correction stays at the async runtime boundary. It introduces no compiler
+comparison, GPU numerical change, recurring keepalive/poll workaround, payload
+hash or vendored fork. Clean-tree warning-denied checking passes; the full native
+suite and source-pinned full-model lifecycle retests are still running/pending.
