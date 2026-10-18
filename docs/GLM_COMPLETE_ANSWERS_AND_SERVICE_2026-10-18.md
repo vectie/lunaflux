@@ -198,3 +198,54 @@ recipes, not a GLM53 packed-model worker binding. Its GLM adapter must consume
 the real model plan rather than masquerading as a Llama recipe. Together with
 the missing GPU full-logit sampler and request-retirement wiring, this is
 unfinished implementation—not a benchmark waiting for a switch to be flipped.
+
+## Canonical HTTP integration, 18 October afternoon
+
+The earlier missing implementation list above is now historical. Commits
+`79c01cc2` and `fabc4701` introduce a dedicated GLM batched worker recipe,
+canonical HTTP/scheduler binding, AOT full-logit GPU sampling, and explicit
+two-rank request-retirement receipts. A terminal HTTP lane cannot be reused
+until both GPU request owners acknowledge release. Cancellation preserves the
+original device generation, including cancellation before the first frame.
+This is not a serial CLI subprocess per request.
+
+Sampling qualification root `/tmp/lunaflux-full-sampling-20261018-v4` contains
+both-Spark correctness and memcheck/full-leak results for vocabulary513 and
+the actual155648 vocabulary. Each normal probe covers24 cases twice. Tail
+synccheck and init-kernel-only racecheck pass; **full-vocabulary racecheck was
+not run**. Earlier capped racecheck OOM attempts are preserved, not converted
+to passes. Sampling remains on GPU; only selected token/position results are
+downloaded, not the vocabulary logits.
+
+The first private HTTP integration attempts exposed two startup defects:
+
+- Acceptance v1/v2: decoded-delta capacity4096 omitted the three-byte UTF-8
+  carry required by a tokenizer admitting4096-byte pieces. The typed cause
+  was `LunaOnlineAdmissionPreparationFailure(Invalid(OutputContract))`.
+  `6a32cdcd` corrects the envelope to4099 and adds an exact-boundary test.
+- Acceptance v3: the approved child launcher discarded the configured NCCL
+  library/fabric environment. Rank1 observed rendezvous EOF. The fixed
+  deployment library path had no NCCL installation, while the service's
+  explicit runtime directory did. `4458d0d7` preserves the four explicit
+  library/collective settings at launch. It also removes a rank0 startup
+  print from the framed protocol channel. The environment change passes
+  Linux ARM ASan/UBSan/leak, descriptor and signal probes on **both** Sparks
+  at `/tmp/lunaflux-glm-worker-env-20261018-v1`, under2GiB/no-swap limits.
+
+`52b80899` preserves preparation failure causes and applies the checkpoint
+chat template to Responses string input. Required model EOS tokens remain
+unioned with user stop tokens. The broader external HTTP acceptance runner is
+`scripts/validate-glm-http-spark.mbtx`; its own parser regression is not a
+full-model acceptance result.
+
+Latest focused native tests pass264/264. Full native-suite execution is still
+in progress at this record. All task commits are on main and pushed. No
+checkpoint hashes or integrity scans were added. Direct small generated-source
+comparison permits unchanged AOT reuse across these service-only changes.
+
+The four-slot,64-row,1024-context plan estimates101957032556 bytes per Spark
+(94.96GiB including reserves). This is a planning result, **not an observed
+resident peak**. The two-rank acceptance watcher stops both owned units if GPU
+residency exceeds100GiB, host MemAvailable drops below16GiB, or either rank
+fails. All three failed private attempts are stopped. Public GLM remains
+offline until complete HTTP behavior and answer-level acceptance pass.
