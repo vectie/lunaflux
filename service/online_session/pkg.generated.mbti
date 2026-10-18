@@ -220,6 +220,7 @@ pub struct LunaOnlineFramedService {
   // private fields
 }
 pub fn LunaOnlineFramedService::begin_drain(Self) -> Unit
+pub fn LunaOnlineFramedService::drain_diagnostic(Self) -> String
 pub fn LunaOnlineFramedService::has_luna_graph_runtime_telemetry(Self) -> Bool raise LunaOnlineFramedCoordinatorError
 pub fn LunaOnlineFramedService::is_closed(Self) -> Bool
 pub fn LunaOnlineFramedService::luna_graph_runtime_telemetry(Self) -> @worker_wire.WorkerGraphTelemetry raise LunaOnlineFramedCoordinatorError

@@ -144,6 +144,7 @@ pub struct LunaOnlineOpenAIConnectionPool {
 }
 pub fn LunaOnlineOpenAIConnectionPool::active_connection_count(Self) -> Int
 pub fn LunaOnlineOpenAIConnectionPool::begin_drain(Self) -> Unit
+pub fn LunaOnlineOpenAIConnectionPool::drain_diagnostic(Self) -> String
 pub fn LunaOnlineOpenAIConnectionPool::failure(Self) -> (String, Error)?
 pub fn LunaOnlineOpenAIConnectionPool::health(Self) -> LunaOnlineTcpServerHealth
 pub fn LunaOnlineOpenAIConnectionPool::local_addr(Self) -> @socket.Addr

@@ -143,8 +143,15 @@ async fn serve(
   )
   defer @async.protect_from_cancel(() => {
     pool.begin_drain()
+    let mut drain_turns = 0
     while pool.state() != LunaOnlineOpenAIConnectionPoolClosed {
       ignore(pool.progress_on_reactor())
+      drain_turns += 1
+      if drain_turns == 100000 {
+        @stdio.stderr.write(
+          "GLM drain pending: " + pool.drain_diagnostic() + "\n",
+        )
+      }
       @async.pause()
     }
   })

@@ -621,8 +621,10 @@ remaining physical gate, not implied by this cooperative stop.
 
 Evidence roots are `/tmp/lunaflux-glm-http-{MODE}-20261018-v14`, with modes
 `smoke`, `controls`, `capacity`, `concurrent`, `routing`, `sampling`, `cancel`,
-`protocol`, `answers`, and `active-stop`. Observations use
-`/tmp/lunaflux-glm-http-observation-{MODE}-20261018-v14`; service/memory evidence
+`protocol`, `answers`, and `active-stop`. Group observations use
+`/tmp/lunaflux-glm-http-{MODE}-20261018-v14-retired`; the separately added routing
+observation uses `/tmp/lunaflux-glm-http-observation-routing-20261018-v14`.
+Service/memory evidence
 is `/tmp/lunaflux-glm-http-acceptance-20261018-v14`.
 
 ### Public cutover is not the private acceptance listener
@@ -636,3 +638,27 @@ credential and three-hour transient units are not a production deployment.
 The user has been asked whether to expose a separately authenticated standalone
 service first or wait for the managed LunaNexa integration. No public route has
 been changed while that deployment choice is pending.
+
+### v15: unexpected peer loss still blocks public release
+
+The same `ee79c390` executable passes a fresh three-route smoke on both GPUs.
+With four active requests and one queued, the test kills only the exact owned
+rank-1 main process at 19:18:09 CST. The paired watcher detects the failure and
+starts rank-0 stop at 19:18:10. Both GPU allocations are released, but the HTTP
+parent does not finish retirement; systemd kills it at its 90-second timeout.
+This is a failed physical gate, not a pass because GPU memory was reclaimed.
+
+A scoped administrator GDB attachment to that exact parent, PID548705, shows
+`epoll_pwait(timeout=0) -> EventLoop -> run_forever`; its other threads wait
+for async-pool signals. No child or GPU owner remains. The single-request
+failed-worker process fixture did not cover this multi-request failure timing.
+The private run is retained at
+`/tmp/lunaflux-glm-http-peer-failure-20261018-v15`; no successful completion
+marker is written. The watcher reports the intentional peer failure rather
+than hiding it as a successful service exit.
+
+Cold teardown diagnostics now report retained request/event ownership once
+after prolonged drain. They do not execute on normal token progress, inspect
+GPU data, or include prompts/credentials. The 121 affected session/TCP tests
+pass; the diagnostic is evidence collection, not a claimed repair. Public
+cutover remains blocked by this failure independently of the route choice.

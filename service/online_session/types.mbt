@@ -114,7 +114,7 @@ priv enum SessionEventKind {
   CompletedEvent
   FailureUsageEvent
   FailedEvent
-}
+} derive(Debug)
 
 ///|
 #valtype
@@ -142,7 +142,7 @@ priv enum SessionTerminalCut {
   OutputCancellationCut
   WorkerFailureCut
   NaturalOutputFailureCut
-} derive(Eq)
+} derive(Debug, Eq)
 
 ///|
 #valtype
@@ -151,7 +151,7 @@ priv enum SessionLatchedFailure {
   DeadlineLatchedFailure
   OutputLatchedFailure
   WorkerLatchedFailure
-} derive(Eq)
+} derive(Debug, Eq)
 
 ///|
 #valtype
@@ -166,7 +166,7 @@ priv enum LunaInstancePhase {
   LunaInstanceDrainingPhase
   LunaInstanceRetryingEmptyClosePhase
   LunaInstanceClosedPhase
-} derive(Eq)
+} derive(Debug, Eq)
 
 ///|
 #valtype
