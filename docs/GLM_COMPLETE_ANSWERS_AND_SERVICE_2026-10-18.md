@@ -98,3 +98,103 @@ both ranks retire, and release request-specific recurrent/KV state on the
 canonical terminal/cancellation path. Do not bridge the CLI with a separate
 HTTP queue and call it continuous batching. These are implementation/acceptance
 requirements, not requests for more hardening or bit-identical tensors.
+
+## First physical complete-answer results
+
+Both TP2 campaigns used the same598cf66c executable/AOT and the literal15-case
+corpus,512-token output allowance and1024-context envelope. The ordered-branch
+and independent-expert-overlap runs each finished all15 measured requests by
+declared EOS, without length truncation. Both ranks exited0, explicitly closed
+their CUDA contexts and reported zero cgroup swap. Warmup is excluded below.
+
+| Independent task | Ordered branches | Overlap |
+| --- | --- | --- |
+| Japan fact, including later repeat | Tokyo, correct | Tokyo, correct |
+| Multi-step arithmetic / time conversion | 449 / 225 | 449 / 225 |
+| Exact JSON object / sorted array / ordering logic | All exact task values | All exact task values |
+| Chinese fact / English translation | Paris / cat under table, correct | Same meaning, correct |
+| `unique_sorted` code | `sorted(set(values))`, manually reviewed correct | Same complete function |
+| SQL aggregation | Query correct; **fails requested only-SQL format** (Markdown fence) | Same failure |
+| Conflicting successive request notes | Mira then Jon, both correct | Mira then Jon, both correct |
+| Longer supplied-context retrieval | lilac-81, correct | lilac-81, correct |
+| One-sentence library summary | All four required facts, no invented fact | Different wording, all four facts |
+
+Semantic/manual assessment is14/15 passing the full task instruction per run;
+SQL is not counted as a pass simply because the query itself is correct.
+This repeatable formatting error is observed model behavior, not a demonstrated
+compiler arithmetic defect. No output sanitization, prompt rewrite or numerical
+policy change is used to conceal it. The summaries' different wording does not
+constitute a correctness failure. Code was reviewed, not executed in a Python
+test runtime. This small corpus is evidence of these tasks, not general model
+quality, concurrency correctness or stochastic correctness.
+
+The ordered run produced212 measured tokens,3–37 per answer. Minimum sampled
+host MemAvailable was22459732KiB (21.42GiB), overlap22518976KiB (21.48GiB).
+Both stay above16GiB. A live overlap observation showed94676MiB resident GPU
+memory on each Spark (92.46GiB). That single observation is **not** a measured
+peak; the early watcher recorded cgroup and host memory, not GPU residency.
+The extended campaign adds five-second GPU-residency observations and a100GiB
+stop check. Cgroup peaks must not be substituted for unified GPU-memory peaks.
+
+Retained roots:
+
+- `/tmp/lunaflux-model-bench-glm-complete-answers-ordered-20261018-r1`
+- `/tmp/lunaflux-model-bench-glm-complete-answers-overlap-20261018-r1`
+
+The additional frozen corpus `glm_complete_answers_extended_v1.json` asks for
+a16-object JSON array,220–260-word explanation, a complete interval-merging
+function and the identical SQL prompt again. It addresses the first corpus's
+short *actual* answers, not just its large permitted budget. Its run cancels
+the unmeasured warmup after preparing its first step, drains that actual step
+and releases both request owners before the four measured requests reuse
+state. This is a resident TP-owner check, not an HTTP-disconnect test.
+
+## Extended results and remaining correctness distinctions
+
+`/tmp/lunaflux-model-bench-glm-complete-answers-extended-20261018-r1` completed
+on both Sparks using the overlap path and the same source-pinned runtime.
+The unmeasured warmup's real prepared step retired with
+`request_cancelled=true`; all four following requests completed naturally.
+The pipeline does not cancel a partially executed kernel: it drains the step,
+suppresses its sampled token, releases both request owners, then accepts reuse.
+
+| Task | Actual generated tokens (including framing/EOS) | Finding |
+| --- | ---: | --- |
+| 16 JSON objects with squares1–16 | 195 | Exactly matches every required key/value and array order; no omitted entries/fences |
+| FIFO/LIFO explanation | 297 | 242 words, correct insertion/removal examples and uses; **one overbroad claim**: sorting does not universally require comparisons (counting/radix sorts are counterexamples) |
+| Merge inclusive intervals without input mutation | 97 | Complete function, manually reviewed correct: sorted outer copy, fresh output inner lists, `start <= previous_end` merges touching endpoints |
+| Identical SQL prompt | 30 | Correct aggregation/tie order, same Markdown-format failure |
+
+All four finish with EOS, not the512-token limit. The generated SQL query was
+also executed separately against an in-memory SQLite fixture, yielding
+`B|10, C|10, A|8, D|-2` in the expected order. That checks SQL semantics only;
+it does not turn the fenced response into compliance with the output format.
+Python functions were manually reviewed, not executed; do not label them as
+interpreter-tested. The explanation's inaccurate generalization is retained,
+not edited into a passing answer. These answer-level issues are not yet
+causally attributed to a LunaFlux execution defect or excluded as such by a
+matched implementation control. Rewriting kernels to force these particular
+answers would not be a correctness fix.
+
+Observed maximum resident GPU memory was94676MiB (92.46GiB) on the extended
+watch; minimum host MemAvailable was22430616KiB (21.39GiB). Both rank units
+exit0, explicitly release CUDA, and have zero swap. The watcher samples every
+five seconds, so this is the sampled peak, not a claim of continuous capture.
+The runtime's100GiB allocation envelope and the16GiB host-floor checks remain
+in force. No payload hashing or numerical-tolerance changes were performed.
+
+Across the three runs,34 measured requests produced complete answers, plus
+two completed warmups and one cancelled warmup. This proves neither arbitrary
+prompt correctness nor concurrent HTTP service readiness. The canonical
+batched frame/rank tests pass12/12; four focused transfer-double tests for
+batched rank/control/TP retirement also pass. They are explicitly **not** GPU
+model tests or network-client acceptance.
+
+The endpoint remains offline. Real JSON/SSE agreement, concurrent mixed
+prefill/decode, seeded GPU sampling, HTTP disconnect/cancellation, capacity
+rejection/recovery and rank-loss handling are still unvalidated on the full
+GLM service. The canonical worker bootstrap currently lists dense-model
+recipes, not a GLM53 packed-model worker binding. Its GLM adapter must consume
+the real model plan rather than masquerading as a Llama recipe. Together with
+the missing GPU full-logit sampler and request-retirement wiring, this is
+unfinished implementation—not a benchmark waiting for a switch to be flipped.
