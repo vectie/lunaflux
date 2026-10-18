@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/internal/remote_tls_native"
+
+import {
+  "moonbitlang/async/socket",
+}
+
+// Values
+
+// Errors
+pub(all) suberror ProviderError {
+  InvalidIdentity
+  Closed
+  Transport
+}
+
+// Types and methods
+pub struct ServerIdentity {
+  // private fields
+}
+pub async fn ServerIdentity::accept(Self, @socket.Tcp) -> ServerSession
+pub fn ServerIdentity::close(Self) -> Unit
+pub fn ServerIdentity::load(String, String) -> Self raise ProviderError
+
+pub struct ServerSession {
+  // private fields
+}
+pub fn ServerSession::close(Self) -> Unit
+pub async fn ServerSession::read(Self, FixedArray[Byte], offset~ : Int, max_len~ : Int) -> Int
+pub async fn ServerSession::write_once(Self, Bytes, offset~ : Int, len~ : Int) -> Int
+
+// Type aliases
+
+// Traits

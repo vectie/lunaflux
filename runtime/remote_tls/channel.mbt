@@ -27,7 +27,7 @@ pub fn RemoteCredential::from_bytes(
 /// Exclusive TLS and TCP ownership. Async operations run outside scheduling.
 pub struct AuthenticatedRemoteChannel {
   priv socket : @socket.Tcp
-  priv tls : @tls.Tls
+  priv tls : RemoteTlsSession
   priv input : FixedArray[Byte]
   priv output : Bytes
   priv output_alias : FixedArray[Byte]
@@ -56,7 +56,7 @@ fn validate_limits(
 
 ///|
 async fn read_exact(
-  tls : @tls.Tls,
+  tls : RemoteTlsSession,
   bytes : FixedArray[Byte],
   offset : Int,
   length : Int,
@@ -99,7 +99,7 @@ fn matches(actual : FixedArray[Byte], expected : Bytes) -> Bool {
 ///|
 fn channel(
   socket : @socket.Tcp,
-  tls : @tls.Tls,
+  tls : RemoteTlsSession,
   binding : Bytes,
   max_frame_bytes : Int,
   timeout_millis : Int,
@@ -137,10 +137,12 @@ pub async fn connect(
     raise Configuration
   }
   @async.with_timeout(timeout_millis, () => {
-    let tls = @tls.Tls::client(
-      socket,
-      host=server_name,
-      trust=CustomPemFile(ca_pem_file),
+    let tls = RemoteTlsSession::Client(
+      @tls.Tls::client(
+        socket,
+        host=server_name,
+        trust=CustomPemFile(ca_pem_file),
+      ),
     )
     errdefer tls.close()
     tls.write(hello(credential, expected_binding))
@@ -166,18 +168,35 @@ pub async fn accept(
   timeout_millis~ : Int,
 ) -> AuthenticatedRemoteChannel {
   errdefer socket.close()
+  let identity = RemoteServerIdentity::load(
+    certificate_pem_file~,
+    private_key_pem_file~,
+  )
+  defer identity.close()
+  accept_prepared(
+    socket,
+    credential,
+    expected_binding,
+    identity,
+    max_frame_bytes~,
+    timeout_millis~,
+  )
+}
+
+///|
+/// Accept using an identity already loaded before the asynchronous service loop.
+pub async fn accept_prepared(
+  socket : @socket.Tcp,
+  credential : RemoteCredential,
+  expected_binding : Bytes,
+  identity : RemoteServerIdentity,
+  max_frame_bytes~ : Int,
+  timeout_millis~ : Int,
+) -> AuthenticatedRemoteChannel {
+  errdefer socket.close()
   validate_limits(expected_binding, max_frame_bytes, timeout_millis)
-  if certificate_pem_file.is_empty() || private_key_pem_file.is_empty() {
-    raise Configuration
-  }
   @async.with_timeout(timeout_millis, () => {
-    let tls = @tls.Tls::server(
-      socket,
-      certificate_file=certificate_pem_file,
-      certificate_type=PEM,
-      private_key_file=private_key_pem_file,
-      private_key_type=PEM,
-    )
+    let tls = RemoteTlsSession::Server(identity.identity.accept(socket))
     errdefer tls.close()
     let expected = hello(credential, expected_binding)
     let received = FixedArray::make(expected.length(), b'\x00')

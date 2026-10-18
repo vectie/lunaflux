@@ -1,0 +1,13 @@
+supported_targets = "native"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/internal/online_tcp_buffer_alias" @buffer_alias,
+}
+
+options(
+  "native-stub": [ "provider.c" ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+)

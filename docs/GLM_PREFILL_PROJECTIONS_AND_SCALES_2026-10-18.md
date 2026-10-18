@@ -484,3 +484,25 @@ to a bounded CPU-only Spark run. Its child admission uses the existing
 no-payload-read API, not the old test helper that computed an executable hash.
 None of this establishes real-model service readiness or changes the offline
 public-endpoint decision.
+
+### Authorized TLS compatibility integration
+
+The user approved integrating the existing server-side TLS compatibility
+migration after the clean ARM service build failed on the now-internal
+`Tls::server` API (warning 14 under warning-denied compilation). The migration
+uses the public MoonBit client and a private OpenSSL server ABI with memory
+BIOs. Socket readiness, deadlines, cancellation and frame ownership remain in
+MoonBit. No new authentication policy, payload scan or token-step validation is
+introduced. The public channel API does not expose internal native types.
+
+Prepared server identities load certificate/key paths once and retain their
+context for accepted sessions; closing the identity does not invalidate an
+active session. Explicit close remains mandatory. Paths are copied into
+terminated C strings at startup rather than relying on byte-array padding.
+Five native loopback tests pass locally, including failed authentication,
+malformed frames, multi-record transfers, cancelled handshake and identity
+reuse. The exact production C provider passes ASan/UBSan across 16 identity
+lifecycles and 4 MiB duplex data at
+`/tmp/lunaflux-tls-provider-asan-20261018-v1`; this Mac run has leak detection
+disabled because its system sanitizer does not support LSan. Linux leak,
+clean service-build and real TCP integration results remain pending.

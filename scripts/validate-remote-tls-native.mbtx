@@ -1,0 +1,35 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, compiler, include_dir, output_dir, leaks] &&
+    leaks is ("0" | "1") else {
+    fail("CLANG MOON_INCLUDE NEW_OUTPUT_DIR LEAK_DETECTION_0_OR_1")
+  }
+  @fs.mkdir(output_dir)
+  let build = @shell.Cmd(compiler, [
+    "-std=c11", "-Wall", "-Wextra", "-Werror", "-g", "-O1",
+    "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+    "-I" + include_dir, "internal/remote_tls_native/provider_asan_probe.c",
+    "-o", output_dir + "/probe",
+  ]).output()
+  @fs.write_file(output_dir + "/build.stderr", build.stderr(), create_mode=CreateNew)
+  build.check()
+  let run = @shell.Cmd(output_dir + "/probe", [
+    "runtime/remote_tls/test_keys/cert.pem", "runtime/remote_tls/test_keys/key.pem",
+  ], env={
+    "ASAN_OPTIONS": "detect_leaks=" + leaks + ":halt_on_error=1:fast_unwind_on_malloc=0",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
+  }).output()
+  @fs.write_file(output_dir + "/run.stdout", run.stdout(), create_mode=CreateNew)
+  @fs.write_file(output_dir + "/run.stderr", run.stderr(), create_mode=CreateNew)
+  println(run.stdout())
+  println(run.stderr())
+  run.check()
+}

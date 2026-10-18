@@ -8,6 +8,8 @@ import {
 // Values
 pub async fn accept(@socket.Tcp, RemoteCredential, Bytes, certificate_pem_file~ : String, private_key_pem_file~ : String, max_frame_bytes~ : Int, timeout_millis~ : Int) -> AuthenticatedRemoteChannel
 
+pub async fn accept_prepared(@socket.Tcp, RemoteCredential, Bytes, RemoteServerIdentity, max_frame_bytes~ : Int, timeout_millis~ : Int) -> AuthenticatedRemoteChannel
+
 pub async fn connect(@socket.Tcp, RemoteCredential, Bytes, server_name~ : String, ca_pem_file~ : String, max_frame_bytes~ : Int, timeout_millis~ : Int) -> AuthenticatedRemoteChannel
 
 // Errors
@@ -34,6 +36,12 @@ pub struct RemoteCredential {
   // private fields
 }
 pub fn RemoteCredential::from_bytes(Bytes) -> Self raise RemoteTlsError
+
+pub struct RemoteServerIdentity {
+  // private fields
+}
+pub fn RemoteServerIdentity::close(Self) -> Unit
+pub fn RemoteServerIdentity::load(certificate_pem_file~ : String, private_key_pem_file~ : String) -> Self raise RemoteTlsError
 
 // Type aliases
 

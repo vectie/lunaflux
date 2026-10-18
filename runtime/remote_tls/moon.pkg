@@ -2,6 +2,7 @@ import {
   "moonbitlang/async",
   "moonbitlang/async/socket",
   "moonbitlang/async/tls",
+  "vectie/lunaflux/internal/remote_tls_native" @native_tls,
   "vectie/lunaflux/internal/online_tcp_buffer_alias" @buffer_alias,
 }
 
