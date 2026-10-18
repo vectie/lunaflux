@@ -1,0 +1,29 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/batched_device_sampling"
+
+import {
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/integration/batched_decoder_worker",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct BatchedDeviceSampler {
+  // private fields
+}
+pub fn BatchedDeviceSampler::begin(Self) -> Unit raise
+pub fn BatchedDeviceSampler::binding(Self) -> @batched_decoder_worker.BatchedSampling raise
+pub fn BatchedDeviceSampler::close(Self) -> Unit raise
+pub fn BatchedDeviceSampler::new(@device.Context, @device.Module, @device.Allocation, @elementwise_physical_ir.FullVocabularySamplingProgram, maximum_device_bytes~ : Int64, maximum_host_bytes~ : Int64) -> Self raise
+pub fn BatchedDeviceSampler::poll(Self) -> Bool raise
+pub fn BatchedDeviceSampler::prepare(Self, @worker_wire.ValidatedPlanFrame) -> Unit raise
+pub fn BatchedDeviceSampler::token_at(Self, Int) -> Int raise
+
+// Type aliases
+
+// Traits

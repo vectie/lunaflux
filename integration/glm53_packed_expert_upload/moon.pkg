@@ -1,5 +1,6 @@
 import {
-  "vectie/lunaflux/integration/batched_logit_sampling" @logit_sampling,
+  "vectie/lunaflux/integration/batched_device_sampling" @logit_sampling,
+  "vectie/lunaflux/compiler/elementwise_physical_ir" @sampling_program,
   "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
   "vectie/lunaflux/compiler/attention_physical_ir" @history_domain,
   "vectie/lunaflux/integration/indexed_sparse_attention_frame" @history_frame,

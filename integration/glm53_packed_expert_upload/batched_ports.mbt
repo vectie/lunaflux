@@ -37,7 +37,9 @@ pub fn GlmDecoderStage::bind_batched_rank(
   self : Self,
   rank : @batch_worker.BatchedDecoderRank,
   context : @device.Context,
-  maximum_sampling_host_bytes? : Int64 = 67108864L,
+  sampling_aot? : @device.Module,
+  maximum_sampling_device_bytes~ : Int64 = 67108864L,
+  maximum_sampling_host_bytes~ : Int64 = 67108864L,
 ) -> Unit raise {
   let outputs_token = self.range.text_boundary() is (Egress | Complete)
   guard self.status is Ready &&
@@ -49,6 +51,29 @@ pub fn GlmDecoderStage::bind_batched_rank(
     counts.same_storage(rank.input(Counts)) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
+  if rank.outputs_token() &&
+    self.text.vocabulary_shard is Some(shard) &&
+    shard.publication() == FullLogits {
+    guard sampling_aot is Some(aot) &&
+      @sampling_program.FullVocabularySamplingProgram::new(
+        values=self.vocabulary,
+        maximum_rows=self.maximum_outputs,
+        maximum_workspace_bytes=maximum_sampling_device_bytes,
+      )
+      is Some(program) else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+    let sampler = @logit_sampling.BatchedDeviceSampler::new(
+      context,
+      aot,
+      self.text.frame.logits(),
+      program,
+      maximum_device_bytes=maximum_sampling_device_bytes,
+      maximum_host_bytes=maximum_sampling_host_bytes,
+    )
+    errdefer (sampler.close() catch { _ => () })
+    rank.bind_sampling(sampler.binding())
+  }
   rank.bind_executor(
     context,
     submit=rows => self.submit(live_rows=rows),
@@ -56,17 +81,4 @@ pub fn GlmDecoderStage::bind_batched_rank(
     close=() => self.close(),
     append_descriptors=self.append_descriptors(),
   )
-  if rank.outputs_token() &&
-    self.text.vocabulary_shard is Some(shard) &&
-    shard.publication() == FullLogits {
-    let sampler = @logit_sampling.BatchedLogitSampler::new(
-      context,
-      self.text.frame.logits(),
-      vocabulary_size=self.vocabulary,
-      maximum_outputs=self.maximum_outputs,
-      maximum_host_bytes=maximum_sampling_host_bytes,
-    )
-    errdefer (sampler.close() catch { _ => () })
-    rank.bind_sampling(sampler.binding())
-  }
 }

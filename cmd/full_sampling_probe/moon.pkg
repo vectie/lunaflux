@@ -1,0 +1,20 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/elementwise_physical_ir" @physical,
+  "vectie/lunaflux/kernels/full_logit_sampling_cuda_source" @source,
+  "vectie/lunaflux/integration/batched_device_sampling" @gpu,
+  "vectie/lunaflux/engine/worker_protocol" @protocol,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/kv/page_allocator",
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/sampling",
+}
+supported_targets = "native"
+pkgtype(kind: "executable")
+options(link: { "native": { "cc-link-flags": "-pthread -ldl" } })

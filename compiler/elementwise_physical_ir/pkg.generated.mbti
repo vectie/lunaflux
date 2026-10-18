@@ -11,6 +11,16 @@ import {
 // Errors
 
 // Types and methods
+pub struct FullVocabularySamplingProgram {
+  // private fields
+}
+pub fn FullVocabularySamplingProgram::final_steps(Self) -> ReadOnlyArray[StochasticFinalStep]
+pub fn FullVocabularySamplingProgram::geometry(Self) -> (Int, Int, Int)
+pub fn FullVocabularySamplingProgram::new(values~ : Int, maximum_rows~ : Int, maximum_workspace_bytes~ : Int64) -> Self?
+pub fn FullVocabularySamplingProgram::stages(Self) -> ReadOnlyArray[(Int, Int)]
+pub fn FullVocabularySamplingProgram::weight_offset_bytes(Self) -> Int64
+pub fn FullVocabularySamplingProgram::workspace_bytes(Self) -> Int64
+
 pub(all) enum IngressEffect {
   LoadHead
   PublishHead

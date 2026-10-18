@@ -1,0 +1,4 @@
+import {
+  "vectie/lunaflux/compiler/elementwise_physical_ir" @physical,
+}
+supported_targets = "native"
