@@ -662,3 +662,23 @@ after prolonged drain. They do not execute on normal token progress, inspect
 GPU data, or include prompts/credentials. The 121 affected session/TCP tests
 pass; the diagnostic is evidence collection, not a claimed repair. Public
 cutover remains blocked by this failure independently of the route choice.
+
+### Fault-fixture correction and repeated physical failure
+
+The first two-client CPU fixture never reached its admission precondition.
+`cmd/worker_echo_fail` was reading the startup-attestation frame as if it were
+the first plan. It now consumes that frame before Ready and decodes a real
+plan before injecting loss. The corrected two-admitted-request ARM run at
+`/tmp/lunaflux-checkpoint-build-glm-http-20261018-v18/multi-drain-v2.txt`
+exits zero in 30 ms, closes the pool and reports zero restarts. The failed
+earlier fixture is retained; this CPU result does not cover the TP timing.
+
+The v16 physical run passes smoke, then fails peer-loss cleanup with SIGABRT
+instead of v15's timeout. Both GPU owners retire; the HTTP parent does not
+exit successfully. A separate v17 attempt fails before inference because the
+control listener address remains in TIME_WAIT after the failed pair. It is
+not an additional numerical or GPU failure. The new listener binding enables
+address reuse without port-sharing/load-balancing, and closes the first
+listener if binding the second fails. Both cases have native socket tests.
+The repeated peer-loss failure remains under investigation; no public route
+or production-ready flag is changed.

@@ -49,14 +49,7 @@ async fn run_rank(
   )
   defer rank.close()
   let listeners = if ordinal == 1 {
-    Some(
-      (
-        @socket.TcpServer::TcpServer(@socket.Addr::parse(plan.control_address)),
-        @socket.TcpServer::TcpServer(
-          @socket.Addr::parse(plan.rendezvous_address),
-        ),
-      ),
-    )
+    Some(bind_rank_listeners(plan.control_address, plan.rendezvous_address))
   } else {
     None
   }
