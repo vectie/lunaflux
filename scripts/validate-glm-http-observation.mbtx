@@ -1,0 +1,87 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// External acceptance only: observes the HTTP contract, not compiler truth.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, expected_context] &&
+    root.has_prefix("/tmp/lunaflux-glm-http-") &&
+    !root.contains("..") &&
+    root
+    .iter()
+    .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_')) &&
+    @json.parse(expected_context) is Number(context, ..) &&
+    context > 0 else {
+    fail("NEW_EVIDENCE_ROOT EXPECTED_CONTEXT")
+  }
+  @fs.mkdir(root)
+  for
+    (name, route) in [
+      ("health", "/health"),
+      ("models", "/v1/models"),
+      ("metrics", "/metrics"),
+    ] {
+    let prefix = root + "/" + name
+    let result = @shell.Cmd("curl", [
+      "--silent",
+      "--show-error",
+      "--max-time",
+      "5",
+      "--dump-header",
+      prefix + ".headers",
+      "--output",
+      prefix + ".json",
+      "--write-out",
+      "%{http_code}\n",
+      "http://127.0.0.1:18889" + route,
+    ]).output()
+    @fs.write_file(
+      prefix + ".client.txt",
+      result.stdout() + result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    guard result.stdout().trim() == "200" else { fail(name + " HTTP failure") }
+    let value = @json.parse(@fs.read_file(prefix + ".json").text())
+    if name == "models" {
+      guard value
+        is {
+          "object": "list",
+          "data": Array(
+            [{ "id": "glm-5.3", "max_model_len": Number(n, ..), .. }]
+          ),
+          ..
+        } &&
+        n == context else {
+        fail("model discovery does not match the admitted deployment")
+      }
+    } else if name == "metrics" {
+      guard value
+        is {
+          "gauges": {
+            "active_requests": 0,
+            "queue_depth": 0,
+            "kv_pages_used": 0,
+            ..
+          },
+          "counters": { "worker_failures": 0, "worker_restarts": 0, .. },
+          ..
+        } else {
+        fail(
+          "requests not retired or worker failure recorded: " +
+          value.stringify(),
+        )
+      }
+    }
+  }
+  println(
+    "health, admitted model/context and idle request/KV retirement verified",
+  )
+}
