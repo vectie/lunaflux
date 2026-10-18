@@ -17,8 +17,8 @@ priv struct ServicePlan {
   tokenizer_label : String
   credential_file : String
   rows : Int
-  slots : Int32
-  context : Int32
+  slots : Int
+  context : Int
   budget : Int64
   reserve : Int64
 }
@@ -32,7 +32,7 @@ fn json_string(j : Json, key : String) -> String raise {
 }
 
 ///|
-fn json_int(j : Json, key : String) -> Int32 raise {
+fn json_int(j : Json, key : String) -> Int raise {
   guard j is Object(fields) &&
     fields.get(key) is Some(Number(value, ..)) &&
     value >= 0.0 &&
@@ -180,7 +180,7 @@ fn ServicePlan::frame(
 fn ServicePlan::stage(
   self : Self,
   spec : @spec.Glm53FlashSpec,
-  ordinal : Int32,
+  ordinal : Int,
 ) -> @glm.GlmDecoderStage raise {
   guard ordinal is (0 | 1) && self.context <= spec.context_length() else {
     fail("invalid GLM rank or context")

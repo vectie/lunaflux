@@ -34,7 +34,7 @@ pub fn RequestRetirement::encode(
 ///|
 pub fn decode_request_retirement(
   bytes : FixedArray[Byte],
-  length : Int32,
+  length : Int,
 ) -> RequestRetirement raise WorkerWireError {
   guard length == 40 &&
     is_request_retirement(bytes, length) &&

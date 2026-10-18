@@ -8,7 +8,7 @@ fn bytes(text : String) -> FixedArray[Byte] {
 fn model_stops(
   root : @approved_fs.ApprovedRoot,
   vocabulary : Int,
-) -> Array[Int32] raise {
+) -> Array[Int] raise {
   let j = @json.parse(
     @utf8.decode(read_bounded(root, "generation_config.json", 1048576L)),
   )
@@ -19,7 +19,7 @@ fn model_stops(
     Array(values) => values
     value => [value]
   }
-  let stops : Array[Int32] = []
+  let stops : Array[Int] = []
   for value in ids {
     guard value is Number(n, ..) &&
       n >= 0.0 &&
