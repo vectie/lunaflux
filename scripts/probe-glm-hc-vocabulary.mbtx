@@ -69,6 +69,9 @@ async fn main {
         env={
           "LUNA_HC_FUSION_HEADER": root + "/probe.cuh",
           "LUNA_VOCAB_TP_HEADER": root + "/probe.cuh",
+          "LUNA_HC_TAIL_BASELINE_HEADER": @env.get_env_var(
+            "LUNA_HC_TAIL_BASELINE_HEADER",
+          ).unwrap_or(""),
         },
       ).output(max_output_bytes=8388608),
     )

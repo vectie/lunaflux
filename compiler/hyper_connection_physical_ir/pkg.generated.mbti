@@ -23,6 +23,7 @@ pub struct ControlTailFusion {
   // private fields
 }
 pub fn ControlTailFusion::geometry(Self) -> (Int, Int, Int)
+pub fn ControlTailFusion::initial_control_subgroup(Self) -> Int
 pub fn ControlTailFusion::matrix_subgroup(Self) -> Int
 pub fn ControlTailFusion::new(@precision_ir.HyperConnectionPrecision, subgroup_width? : Int) -> Self raise @precision_ir.PrecisionPlanError
 

@@ -113,6 +113,46 @@ chunks are not claimed to be individual tokens. Raw curl trace/body are kept.
 This provides first-content and following-content arrival times without GPU
 profiling and without adding measurement code to the compiler/runtime.
 
+## First model result and actual selected work
+
+`glm-deferred-selected-20261018-v1` completes both ranks, preserves every
+native output ID, and records at least21.956GiB host availability. Six timings
+are697/462/710/735/740/462ms; equal-count sum3109ms versus fresh baseline3083ms.
+This single observation does **not** establish an engine gain. The optional
+CLI selection receipt is independently checked against the actual graph.
+
+Trace `glm-deferred-selected-node-20261018-v1` (same16-input/2-output diagnostic
+as the retained prior trace) executes89 deferred kernels and90 fused control
+tails per step, with three initial/final HC launches:182 instead of360.
+All182 are graph nodes; vocabulary remains sharded and91 collective sites
+remain. Egress warmed prefill/decode HC sums are4.386496/3.247424ms versus
+prior4.728288/3.561024ms. Thus decode saves about0.314ms in this instrumented
+scope, not12% of a request. The profiler still substantially inflates whole
+step/collective gaps; these sums are not an additive unprofiled budget.
+
+The production dispatched kernel uses108 registers and7168 shared bytes,
+not the80 registers of the separately profiled width-one entry. Its89 decode
+calls sum1.614624ms; the remaining90 control tails sum1.612576ms. This exposes
+two weaknesses of inferring engine performance from the hot repeated probe:
+the complete bucket wrapper has a different resource envelope, and half of
+remaining HC time is outside the replaced post/square/project chain.
+
+Source inspection of the executed control tail finds independent sigmoid and
+initial softmax cells still initialized by worker0. One additional bounded
+candidate distributes those cells via existing `ControlTailFusion` ownership,
+while retaining each row's declared maximum/sum order, strict exponential,
+rounding and final publication. The immutable plan checks subgroup capacity;
+larger geometries retain their existing implementation. This candidate is not
+accepted on source inspection alone: paired original-fused/new-fused probes,
+frontier correctness, sanitizers and full-model tests are required.
+
+Separately, current prefill still contains42 one-CTA activation-scale scans
+totalling9.301024ms (plus1.738496ms for input scales). Their256-thread grid
+strides over all live selected rows in `quantize_fp4_rows.mbt`; the existing
+two-level maximum tree is intra-CTA, not a distributed multi-CTA reduction.
+These are observed residual work, not a claim of an equivalent removable
+request delay. No quantization convention has been changed in this experiment.
+
 ## Maintenance and limits
 
 Direct LAN SSH was unavailable; access recovered with the configured

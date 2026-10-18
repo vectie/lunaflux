@@ -19,6 +19,14 @@ test "matrix ownership uses supplied subgroup capability without changing arithm
   )
   assert_eq(four.geometry(), (64, 256, 16))
   assert_eq(four.matrix_subgroup(), 32)
+  assert_eq(four.initial_control_subgroup(), 32)
+  assert_eq(
+    @hyper_connection_physical_ir.ControlTailFusion::new(
+      make(8),
+      subgroup_width=64,
+    ).initial_control_subgroup(),
+    1,
+  )
   assert_eq(
     @hyper_connection_physical_ir.ControlTailFusion::new(
       make(4),

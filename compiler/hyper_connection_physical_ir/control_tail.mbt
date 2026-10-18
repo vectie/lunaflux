@@ -6,6 +6,7 @@ pub struct ControlTailFusion {
   priv rows : Int
   priv workers : Int
   priv matrix_cells : Int
+  priv controls : Int
   priv subgroup : Int
 }
 
@@ -25,6 +26,7 @@ pub fn ControlTailFusion::new(
     rows,
     workers: schedule.workers(),
     matrix_cells: streams * streams,
+    controls: streams * (streams + 2),
     subgroup: if streams * streams <= subgroup_width {
       subgroup_width
     } else {
@@ -43,4 +45,15 @@ pub fn ControlTailFusion::geometry(self : Self) -> (Int, Int, Int) {
 /// row/column is unchanged. Oversized matrices retain workgroup-local storage.
 pub fn ControlTailFusion::matrix_subgroup(self : Self) -> Int {
   self.subgroup
+}
+
+///|
+/// Independent affine/nonlinear outputs share the same subgroup. This does
+/// not permit reassociating the ordered sum inside any softmax row.
+pub fn ControlTailFusion::initial_control_subgroup(self : Self) -> Int {
+  if self.controls <= self.subgroup {
+    self.subgroup
+  } else {
+    1
+  }
 }

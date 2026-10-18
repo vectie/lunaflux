@@ -167,6 +167,43 @@ fn control_tiles_source(
   } else {
     ""
   }
+  let parallel_initial = fused_sinkhorn &&
+    (@physical.ControlTailFusion::new(precision, subgroup_width=32) catch {
+      _ => raise InvalidNumericalContract
+    }).initial_control_subgroup() ==
+    32
+  let initial_controls = if parallel_initial {
+    subgroup_initial_controls(precision, symbol_prefix)
+  } else {
+    (
+      $|  if (worker == 0) {
+      $|    valid = 1;
+      $|    for (int i = 0; i < \{controls}; ++i) if (!isfinite(base[i])) valid = 0;
+      $|    for (int i = 0; i < 3; ++i) if (!isfinite(scale[i])) valid = 0;
+      $|    if (valid) {
+      $|      const unsigned long long vector_base = (unsigned long long)row * \{width};
+      $|      for (int stream = 0; stream < \{width}; ++stream) {
+      $|        const float pre_logit = \{pre_logit}; pre[stream] = \{pre};
+      $|        const int p = \{width} + stream; const float post_logit = \{post_logit}; post[vector_base + stream] = \{post};
+      $|      }
+      $|      const unsigned long long matrix_base = (unsigned long long)row * \{width * width};
+      $|      for (int destination = 0; destination < \{width}; ++destination) {
+      $|        int control_index = 2 * \{width} + destination * \{width}; float maximum = \{affine};
+      $|        for (int source = 1; source < \{width}; ++source) { control_index = 2 * \{width} + destination * \{width} + source; const float value = \{affine}; if (value > maximum) maximum = value; }
+      $|        float sum = 0.0f;
+      $|        for (int source = 0; source < \{width}; ++source) {
+      $|          control_index = 2 * \{width} + destination * \{width} + source;
+      $|          const float value = \{exponential}; const unsigned long long index = matrix_base + destination * \{width} + source;
+      $|          initial_combination[index] = value; \{sum_update}
+      $|        }
+      $|        \{sum_finish}
+      $|        for (int source = 0; source < \{width}; ++source) { const unsigned long long index = matrix_base + destination * \{width} + source; initial_combination[index] = \{probability}; }
+      $|      }
+      $|\{sinkhorn_body}
+      $|    }
+      $|  }
+    )
+  }
   let square_fold = if parallel {
     (
       $|  float sum = 0.0f;
@@ -256,32 +293,7 @@ fn control_tiles_source(
       $|  const unsigned long long input_base = (unsigned long long)row * \{flattened};
       $|  __shared__ float pre[\{width}]; __shared__ int valid;
       $|  \{sinkhorn_storage}
-      $|  if (worker == 0) {
-      $|    valid = 1;
-      $|    for (int i = 0; i < \{controls}; ++i) if (!isfinite(base[i])) valid = 0;
-      $|    for (int i = 0; i < 3; ++i) if (!isfinite(scale[i])) valid = 0;
-      $|    if (valid) {
-      $|      const unsigned long long vector_base = (unsigned long long)row * \{width};
-      $|      for (int stream = 0; stream < \{width}; ++stream) {
-      $|        const float pre_logit = \{pre_logit}; pre[stream] = \{pre};
-      $|        const int p = \{width} + stream; const float post_logit = \{post_logit}; post[vector_base + stream] = \{post};
-      $|      }
-      $|      const unsigned long long matrix_base = (unsigned long long)row * \{width * width};
-      $|      for (int destination = 0; destination < \{width}; ++destination) {
-      $|        int control_index = 2 * \{width} + destination * \{width}; float maximum = \{affine};
-      $|        for (int source = 1; source < \{width}; ++source) { control_index = 2 * \{width} + destination * \{width} + source; const float value = \{affine}; if (value > maximum) maximum = value; }
-      $|        float sum = 0.0f;
-      $|        for (int source = 0; source < \{width}; ++source) {
-      $|          control_index = 2 * \{width} + destination * \{width} + source;
-      $|          const float value = \{exponential}; const unsigned long long index = matrix_base + destination * \{width} + source;
-      $|          initial_combination[index] = value; \{sum_update}
-      $|        }
-      $|        \{sum_finish}
-      $|        for (int source = 0; source < \{width}; ++source) { const unsigned long long index = matrix_base + destination * \{width} + source; initial_combination[index] = \{probability}; }
-      $|      }
-      $|\{sinkhorn_body}
-      $|    }
-      $|  }
+      $|\{initial_controls}
       $|  __syncthreads(); if (!valid) return;
       $|\{subgroup_body}
       $|  for (int column = worker; column < \{hidden}; column += \{workers}) {
