@@ -599,3 +599,42 @@ from this evidence. The public GLM endpoint stays offline.
 The full warning-denied native suite is running from pinned `abd67950` ARM
 source in user unit `lunaflux-native-suite-tls-batched-20261018-v1` under a
 4 GiB/no-swap limit, after both GPU captures retired. Its result is pending.
+
+### GPU acceptance and literal down replay
+
+The user clarified that GLM acceptance must be on the GPUs. The CPU-native
+TLS/HTTP and repository tests are ancillary regressions, not model-correctness
+or service-acceptance evidence. No inference is being moved to a CPU fallback.
+The full two-rank GPU service still must be validated before going online.
+
+The isolated generated down kernel first ran with the literal rank-1 warmup
+layer-22 operands but synthetic weight banks, at
+`/tmp/lunaflux-glm-retired-down-20261018-v2`. Both 500 serial and 500 concurrent
+down/down repetitions were identical; memcheck/full leak, racecheck,
+synccheck and initcheck reported zero errors. This negative control did not
+reproduce the full-model shared/routed overlap and did not test TP.
+
+The stronger fixture at `/tmp/lunaflux-glm-retired-down-20261018-v3` uses all
+62 expert identities selected by the actual 22 live rows, with their literal
+NVFP4 down weights, scales and global scales sliced to rank 1's intermediate
+half. The offline `.mbtx` extractor reads selected tensor regions only. It
+performs no payload hashing or integrity traversal. Gate/up planes are zero
+because this fixture executes only down; unselected experts are not exercised.
+The actual compiler exports the 288-expert plan, 48-CTA/288-thread bulk-tiled
+down schedule, two consumer teams and two fragment slots. This is not the old
+eight-bank synthetic mapping, and no kernel arithmetic is rewritten by the
+fixture. The exported startup permutation prepares the checkpoint planes.
+
+On Spark `.179`, 500 serial and 500 concurrent down/down trials again report
+zero different F32 outputs and zero nonfinite values. CUDA is explicitly
+released, experiment swap is zero, and each run has an 8 GiB process cap with
+at least a 24 GiB host admission reserve. The real-weight fixture also passes
+memcheck/full leak, racecheck, synccheck and initcheck on two concurrent trials
+at the full 22-row live extent; all report zero errors/hazards/leaks. These
+sanitizer counts do not describe the full-model schedule. The numerical result is a negative
+reproduction, **not** a fix or a model-parity claim. The fixture has no NCCL,
+no preceding gate/up/pack execution and no simultaneous shared branch. Its
+saved outputs are rank-local partials, unlike the earlier post-TP captures.
+The next causal boundary is each actual rank's pre-reduction partial versus
+the collective's published result; do not blame the collective solely because
+this isolated down replay is stable.

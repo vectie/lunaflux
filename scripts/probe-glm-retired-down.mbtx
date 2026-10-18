@@ -1,0 +1,224 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-retired-down-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode
+    is ("prepare"
+    | "prepare-real"
+    | "serial-real"
+    | "concurrent-real"
+    | "memcheck-real"
+    | "racecheck-real"
+    | "synccheck-real"
+    | "initcheck-real"
+    | "serial"
+    | "concurrent"
+    | "memcheck"
+    | "racecheck"
+    | "synccheck"
+    | "initcheck") else {
+    fail(
+      "NEW_ROOT prepare|serial|concurrent|memcheck|racecheck|synccheck|initcheck",
+    )
+  }
+  let socket = "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=8388608,
+    )
+  }
+  async fn record(name : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    if name == "export" {
+      println(
+        "actual 288-expert compiler source exported; full text retained in export.stdout",
+      )
+    } else {
+      println(result.stdout())
+    }
+    println(result.stderr())
+    result.check()
+  }
+  let literal = mode.has_suffix("-real")
+  let action = if literal { mode[:mode.length() - 5].to_owned() } else { mode }
+  if action == "prepare" {
+    @fs.mkdir(root)
+    record("mkdir", remote("mkdir " + root))
+    for name in ["baseline.cuh", "candidate.cuh"] {
+      if literal && name == "candidate.cuh" {
+        continue
+      }
+      // Reuse the retained actual compiler export, not a handwritten kernel.
+      record(
+        "source-" + name,
+        remote(
+          "cp -n /tmp/lunaflux-glm-expert-scales-20261018-v6/" +
+          name +
+          " " +
+          root +
+          "/" +
+          name,
+        ),
+      )
+    }
+    if literal {
+      let result = @shell.Cmd("env", [
+        "LUNA_EXPORT_FP4_PERFORMANCE=next", "LUNA_FP4_TRANSPORT=tiles", "LUNA_FP4_COLUMN_TILE=128",
+        "LUNA_FP4_FRAGMENT_SLOTS=2", "LUNA_FP4_SCALE_PARTITIONS=32", "LUNA_FP4_FULL_BANK=1",
+        "LUNA_FP4_CLAMP=10", "moon", "test", "--target", "native", "--deny-warn",
+        "--warn-list", "-20-25-29-35-79-92", "kernels/selected_expert_mlp_cuda_source/fp4_performance_test.mbt",
+      ]).output(max_output_bytes=8388608)
+      record("export", result)
+      let parts = result
+        .stdout()
+        .split("LUNA_SOURCE_BEGIN fp4-performance\n")
+        .to_array()
+      guard parts.length() == 2 else { fail("actual source export") }
+      @fs.write_file(
+        root + "/candidate.cuh",
+        parts[1].split("LUNA_SOURCE_END").to_array()[0]
+        .to_owned()
+        .replace_all(old="extern \"C\" __global__", new="__global__"),
+        create_mode=CreateNew,
+      )
+      record(
+        "build-extractor",
+        @shell.Cmd("moon", [
+          "build",
+          "--target-dir",
+          root + "/extractor",
+          "scripts/extract-glm-retired-down.mbtx",
+        ]).output(),
+      )
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=/tmp/lunaflux-glm178-prefill-20261018.sock",
+        "wlc003s@192.168.2.178:/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain/bin/moonrun",
+        root + "/moonrun",
+      ])
+      .output()
+      .check()
+      for
+        (source, name) in [
+          (root + "/candidate.cuh", "candidate.cuh"),
+          (
+            root +
+            "/extractor/extract-glm-retired-down.mbtx/wasm/debug/build/single/single.wasm",
+            "extract.wasm",
+          ),
+          (root + "/moonrun", "moonrun"),
+        ] {
+        @shell.Cmd("scp", [
+          "-o",
+          "ControlPath=" + socket,
+          source,
+          host + ":" + root + "/" + name,
+        ])
+        .output()
+        .check()
+      }
+      remote("chmod +x " + root + "/moonrun").check()
+      record(
+        "weights",
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          root[5:].to_owned() +
+          "-weights --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+          root +
+          "/moonrun " +
+          root +
+          "/extract.wasm -- " +
+          "/tmp/lunaflux-glm-real-20261010.ekEYBzqU/GLM-5.3-Flash-NVFP4 " +
+          "/tmp/lunaflux-model-bench-glm-all-leaves-ordered-scales-20261018-r2/frontiers/prefill-0/layer-22- 22 22 1 " +
+          root +
+          "/weights",
+        ),
+      )
+    }
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      "tests/packed_moe_execution/retired_down_probe.cu",
+      host + ":" + root + "/probe.cu",
+    ])
+    .output()
+    .check()
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 --generate-code arch=compute_121a,code=sm_121a " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+    return
+  }
+  record(
+    mode + "-reserve",
+    remote(
+      "awk '/MemAvailable:/ {if ($2<25165824) exit 9; print}' /proc/meminfo",
+    ),
+  )
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let numeric = action is ("serial" | "concurrent")
+  let tool = if numeric {
+    ""
+  } else {
+    "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+    action +
+    (if action == "memcheck" {
+      " --leak-check full"
+    } else if action == "racecheck" {
+      " --racecheck-num-workers 1 --force-synchronization-limit 1"
+    } else {
+      ""
+    }) +
+    " "
+  }
+  let operands = "/tmp/lunaflux-model-bench-glm-all-leaves-ordered-scales-20261018-r2/frontiers/prefill-0/layer-22-"
+  record(
+    mode,
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      root[5:].to_owned() +
+      "-" +
+      mode +
+      " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+      tool +
+      root +
+      "/probe " +
+      operands +
+      " 22 " +
+      (if numeric { "500 " } else { "2 " }) +
+      (if action == "serial" { "serial" } else { "concurrent" }) +
+      (if literal { " " + root + "/weights" } else { "" }),
+    ),
+  )
+}

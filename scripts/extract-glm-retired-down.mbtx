@@ -1,0 +1,136 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}
+
+// Offline literal-weight fixture. Reads only selected down tensors; no payload
+// digests, integrity traversal, reference arithmetic, or production dependency.
+
+///|
+fn little(bytes : BytesView) -> Int64 {
+  for i in 0..<bytes.length(); value = 0L {
+    continue value | (bytes[i].to_int64() << (8 * i))
+  } nobreak {
+    value
+  }
+}
+
+///|
+fn half_rows(
+  bytes : Bytes,
+  rows : Int,
+  row_bytes : Int,
+  rank : Int,
+) -> Bytes raise {
+  guard (rank == 0 || rank == 1) &&
+    rows > 0 &&
+    row_bytes > 0 &&
+    row_bytes % 2 == 0 &&
+    bytes.length() == rows * row_bytes else {
+    fail("literal down tensor geometry")
+  }
+  let half = row_bytes / 2
+  Bytes::from_array(
+    Array::makei(rows * half, i => {
+      bytes[i / half * row_bytes + rank * half + i % half]
+    }),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args()
+    is [_, model, prefix, layer_text, rows_text, rank_text, output] else {
+    fail("MODEL CAPTURE_PREFIX LAYER LIVE_ROWS TP_RANK NEW_OUTPUT")
+  }
+  let layer = @string.parse_int(layer_text)
+  let rows = @string.parse_int(rows_text)
+  let rank = @string.parse_int(rank_text)
+  guard layer >= 3 &&
+    layer < 45 &&
+    rows > 0 &&
+    rows <= 64 &&
+    (rank == 0 || rank == 1) else {
+    fail("fixture geometry")
+  }
+  guard @json.parse(
+      @fs.read_file(model + "/model.safetensors.index.json").text(),
+    )
+    is { "weight_map": Object(weights), .. } else {
+    fail("index")
+  }
+  let indices = @fs.read_file(prefix + "router-indices.bin").binary()
+  guard indices.length() == 64 * 8 * 4 else { fail("router extent") }
+  let experts : Set[Int] = Set([])
+  for i in 0..<(rows * 8) {
+    let expert = little(indices[i * 4:i * 4 + 4]).to_int()
+    guard expert >= 0 && expert < 288 else { fail("expert identity") }
+    experts.add(expert)
+  }
+  let headers : Map[String, (Int64, Json)] = Map([])
+  async fn tensor(name : String, expected : Int) -> Bytes {
+    guard weights.get(name) is Some(String(shard)) else { fail(name) }
+    let file = @fs.open(model + "/" + shard, mode=ReadOnly)
+    defer file.close()
+    let (start, header) = match headers.get(shard) {
+      Some(value) => value
+      None => {
+        let n = little(file.read_exactly_at(8, position=0L)[:])
+        guard n > 0L && n < 8388608L else { fail("bounded header") }
+        let header = @json.parse(
+          @utf8.decode(file.read_exactly_at(n.to_int(), position=8L)),
+        )
+        headers[shard] = (8L + n, header)
+        (8L + n, header)
+      }
+    }
+    guard header is Object(entries) &&
+      entries.get(name)
+      is Some({ "data_offsets": [Number(begin, ..), Number(end, ..)], .. }) &&
+      end - begin == expected.to_double() else {
+      fail("tensor extent " + name)
+    }
+    file.read_exactly_at(expected, position=start + begin.to_int64())
+  }
+  @fs.mkdir(output)
+  for expert in experts {
+    let name = "model.language_model.layers.\{layer}.mlp.experts.\{expert}.down_proj.weight"
+    let base = output + "/expert-\{expert}"
+    @fs.write_file(
+      base + ".payload",
+      half_rows(tensor(name, 4194304), 4096, 1024, rank),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      base + ".scales",
+      half_rows(tensor(name + "_scale", 524288), 4096, 128, rank),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      base + ".global",
+      tensor(name + "_scale_2", 4),
+      create_mode=CreateNew,
+    )
+  }
+  println(
+    "literal_down_experts=\{experts.length()} layer=\{layer} rank=\{rank} rows=\{rows} payload_hashing=false",
+  )
+}
+
+///|
+test "TP fixture preserves per-row packed bytes and selects the intermediate half" {
+  let bytes = Bytes::from_array(Array::makei(24, i => i.to_byte()))
+  assert_eq(
+    half_rows(bytes, 3, 8, 0),
+    b"\x00\x01\x02\x03\x08\x09\x0a\x0b\x10\x11\x12\x13",
+  )
+  assert_eq(
+    half_rows(bytes, 3, 8, 1),
+    b"\x04\x05\x06\x07\x0c\x0d\x0e\x0f\x14\x15\x16\x17",
+  )
+}
