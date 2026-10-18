@@ -3,8 +3,8 @@ fn inference(v : Int) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=128,
     max_input_tokens=16,
-    max_new_tokens=16,
-    max_context_tokens=16,
+    max_new_tokens=32,
+    max_context_tokens=32,
     max_token_id=v - 1,
     max_stop_token_ids=1,
     max_stop_strings=1,
@@ -67,7 +67,7 @@ fn frame(
     max_plan_pages=rows,
     max_capabilities=rows,
     max_completion_slots=rows,
-    max_sequence_tokens=16,
+    max_sequence_tokens=32,
     max_token_id=v - 1,
   )
   let owner = @protocol.SchedulePlanBuffer::new(limits)
@@ -109,7 +109,7 @@ fn frame(
     }
   }
   let submitted = owner.submit_wire(
-    sequence_value=iteration.to_uint64() + 1UL,
+    sequence_value=1UL,
     model_plan_generation_value=1UL,
     token_budget=live.max(1),
     has_previous=false,

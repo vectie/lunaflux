@@ -29,6 +29,7 @@ pub struct BatchedDeviceSampler {
   priv output : FixedArray[Byte]
   priv mut count : Int
   priv mut state : State
+  priv mut close_phase : Int
 }
 
 ///|

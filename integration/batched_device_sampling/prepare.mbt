@@ -113,6 +113,7 @@ pub fn BatchedDeviceSampler::new(
     output: FixedArray::make(result_bytes.to_int(), b'\x00'),
     count: 0,
     state: Ready,
+    close_phase: 0,
   }
 }
 

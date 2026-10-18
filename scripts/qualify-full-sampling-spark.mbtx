@@ -1,0 +1,52 @@
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+async fn main {
+  guard @env.args() is [_, root, build] && root.has_prefix("/tmp/lunaflux-full-sampling-") && build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    [root,build].all(s => !s.contains("..") && s.iter().all(c => c is ('a'..='z'|'A'..='Z'|'0'..='9'|'/'|'-'|'_'))) else { fail("NEW_ROOT PINNED_ARM_BUILD_ROOT") }
+  let socket178 = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or("/tmp/lunaflux-glm178-prefill-20261018.sock")
+  let socket179 = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
+  let tag = root.split("/").last().unwrap()
+  @fs.mkdir(root)
+  let binary = root+"/probe"
+  @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath="+socket178,"wlc003s@192.168.2.178:"+build+"/source/_build/native/release/build/cmd/full_sampling_probe/full_sampling_probe.exe",binary]).output().check()
+  for (suffix,user,socket) in [("178","wlc003s",socket178),("179","wlc004s",socket179)] {
+    let node=user+"@192.168.2."+suffix
+    let ssh = ["-o","BatchMode=yes","-o","ConnectTimeout=10","-S",socket,node]
+    let owners=@shell.Cmd("ssh",ssh+["nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits"]).output()
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied on "+suffix) }
+    let mem=@shell.Cmd("ssh",ssh+["awk '/MemAvailable:/ {print $2}' /proc/meminfo"]).output()
+    mem.check()
+    guard @string.parse_int64(mem.stdout().trim()) >= 16777216L else { fail("host reserve on "+suffix) }
+    @shell.Cmd("ssh",ssh+["mkdir "+root]).output().check()
+    @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath="+socket,binary,node+":"+binary]).output().check()
+    @shell.Cmd("ssh",ssh+["chmod 700 "+binary]).output().check()
+    for (label,v) in [("tail",513),("full",155648)] {
+      @shell.Cmd("ssh",ssh+[binary+" export "+root+"/"+label+".cu "+v.to_string()+" 4"]).output().check()
+      let compile=@shell.Cmd("ssh",ssh+["systemd-run --user --wait --unit="+tag+"-compile-"+suffix+"-"+label+" --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda/bin/nvcc -std=c++17 -arch=sm_121 -lineinfo --fmad=false --cubin "+root+"/"+label+".cu -o "+root+"/"+label+".cubin"]).output(max_output_bytes=1048576)
+      @fs.write_file(root+"/"+suffix+"-"+label+"-compile.txt",compile.stdout()+compile.stderr(),create_mode=CreateNew)
+      compile.check()
+      let modes=if label=="tail" { ["run","memcheck","racecheck","synccheck"] } else { ["run","memcheck"] }
+      for mode in modes {
+        let unit=tag+"-"+suffix+"-"+label+"-"+mode
+        let prefix=if mode=="run" { "" } else { "/usr/local/cuda/bin/compute-sanitizer --error-exitcode 91 --tool "+mode+(if mode=="memcheck" {" --leak-check full "}else{" "}) }
+        let result=@shell.Cmd("ssh",ssh+["systemd-run --user --wait --unit="+unit+" --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 "+prefix+binary+" run "+root+"/"+label+".cubin "+v.to_string()+" 4"]).output(max_output_bytes=1048576)
+        @fs.write_file(root+"/"+suffix+"-"+label+"-"+mode+"-launcher.txt",result.stdout()+result.stderr(),create_mode=CreateNew)
+        let journal=@shell.Cmd("ssh",ssh+["journalctl --user -u "+unit+".service --no-pager"]).output(max_output_bytes=8388608)
+        journal.check()
+        @fs.write_file(root+"/"+suffix+"-"+label+"-"+mode+".txt",journal.stdout(),create_mode=CreateNew)
+        let status=@shell.Cmd("ssh",ssh+["systemctl --user show "+unit+".service -p ActiveState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak"]).output()
+        status.check()
+        @fs.write_file(root+"/"+suffix+"-"+label+"-"+mode+"-status.txt",status.stdout(),create_mode=CreateNew)
+        result.check()
+        println(suffix+" "+label+" "+mode+" passed")
+      }
+    }
+  }
+}

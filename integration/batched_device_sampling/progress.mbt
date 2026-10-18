@@ -98,19 +98,27 @@ pub fn BatchedDeviceSampler::close(self : Self) -> Unit raise {
     return
   }
   self.state = Failed
-  self.upload.drain(0)
-  self.executor.abort()
-  self.download.drain(0)
-  self.executor.close()
-  self.download.close()
-  self.upload.close()
-  for f in self.functions.rev_iter() {
-    f.close()
+  // Advance only after a release succeeds. A retry must not abort an executor
+  // already closed before a later allocation/module cleanup failure.
+  while self.close_phase < 12 {
+    match self.close_phase {
+      0 => self.upload.drain(0)
+      1 => self.executor.abort()
+      2 => self.download.drain(0)
+      3 => self.executor.close()
+      4 => self.download.close()
+      5 => self.upload.close()
+      6 => while !self.functions.is_empty() {
+        self.functions[self.functions.length()-1].close()
+        ignore(self.functions.pop())
+      }
+      7 => self.stream.close()
+      8 => self.results.close()
+      9 => self.stages.close()
+      10 => self.workspace.close()
+      _ => self.control.close()
+    }
+    self.close_phase += 1
   }
-  self.stream.close()
-  self.results.close()
-  self.stages.close()
-  self.workspace.close()
-  self.control.close()
   self.state = Closed
 }
