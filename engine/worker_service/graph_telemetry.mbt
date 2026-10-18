@@ -9,30 +9,6 @@ fn new_worker_service_graph_telemetry() -> WorkerServiceGraphTelemetryOwner {
 }
 
 ///|
-fn worker_service_graph_shape_equal(
-  left : @worker_wire.WorkerGraphTelemetry,
-  right : @worker_wire.WorkerGraphTelemetry,
-) -> Bool raise WorkerServiceError {
-  if left.has_selected_shape_class() != right.has_selected_shape_class() {
-    return false
-  }
-  if !left.has_selected_shape_class() {
-    return true
-  }
-  let left_shape = left.selected_shape_class() catch {
-    _ => raise Invalid(WorkerOutput)
-  }
-  let right_shape = right.selected_shape_class() catch {
-    _ => raise Invalid(WorkerOutput)
-  }
-  left_shape.phase() == right_shape.phase() &&
-  left_shape.batch_rows() == right_shape.batch_rows() &&
-  left_shape.query_tokens_per_row() == right_shape.query_tokens_per_row() &&
-  left_shape.context_tokens() == right_shape.context_tokens() &&
-  left_shape.token_rows() == right_shape.token_rows()
-}
-
-///|
 fn saturated_graph_sum(left : UInt64, right : UInt64) -> UInt64 {
   if 0xffffffffffffffffUL - left < right {
     0xffffffffffffffffUL
@@ -93,27 +69,12 @@ fn WorkerServiceGraphTelemetryOwner::record_child_report(
   } else {
     (hits, misses)
   }
-  let saturated_step = self.child_initialized &&
-    delta_hits == 0UL &&
-    delta_misses == 0UL &&
-    (match report.selected_path() {
-      WorkerGraphCaptured =>
-        self.child_hits == 0xffffffffffffffffUL && self.child_misses == misses
-      WorkerGraphOrderedEager =>
-        self.child_misses == 0xffffffffffffffffUL && self.child_hits == hits
-    })
-  if !saturated_step &&
-    !((delta_hits > 0UL && delta_misses == 0UL) ||
-    (delta_hits == 0UL && delta_misses > 0UL)) {
+  if !report.counters_advance_from(self.child_hits, self.child_misses) {
     raise Invalid(WorkerOutput)
   }
   let (aggregate_hits, aggregate_misses) = if self.aggregate.is_available() {
     let previous = self.aggregate.current() catch {
       _ => raise Invalid(WorkerOutput)
-    }
-    if previous.selected_path() != report.selected_path() ||
-      !worker_service_graph_shape_equal(previous, report) {
-      raise Invalid(WorkerOutput)
     }
     (
       saturated_graph_sum(previous.graph_hits(), delta_hits),

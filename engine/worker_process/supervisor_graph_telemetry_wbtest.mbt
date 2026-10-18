@@ -78,3 +78,37 @@ test "initial graph counters reject overflow and selected-path mismatch" {
   )
   expect_initial_graph_attack_rejected(WorkerGraphOrderedEager, 1UL, 0UL)
 }
+
+///|
+test "graph reports follow eager prefill and captured decode across shapes" {
+  let prefill = @worker_wire.WorkerGraphTelemetry::without_shape(
+    sequence=1UL,
+    path=WorkerGraphOrderedEager,
+    graph_hits=0UL,
+    graph_misses=1UL,
+  )
+  let decode = @worker_wire.WorkerGraphTelemetry::with_shape(
+    sequence=2UL,
+    path=WorkerGraphCaptured,
+    shape=@worker_wire.WorkerGraphShapeClass::new(
+      phase=1,
+      batch_rows=1,
+      query_tokens_per_row=1,
+      context_tokens=32,
+      token_rows=1L,
+    ),
+    graph_hits=1UL,
+    graph_misses=1UL,
+  )
+  let mixed = @worker_wire.WorkerGraphTelemetry::without_shape(
+    sequence=64UL,
+    path=WorkerGraphOrderedEager,
+    graph_hits=58UL,
+    graph_misses=6UL,
+  )
+  assert_true(valid_initial_graph_counters(prefill))
+  assert_true(valid_graph_counter_step(decode, prefill))
+  assert_true(valid_graph_counter_step(mixed, decode))
+  assert_false(valid_graph_counter_step(decode, mixed))
+  assert_false(valid_graph_counter_step(mixed, mixed))
+}

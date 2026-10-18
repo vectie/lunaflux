@@ -50,9 +50,11 @@ fn valid_initial_graph_report(
 fn valid_next_graph_report(
   current : @worker_wire.WorkerGraphTelemetry,
   previous : @worker_wire.WorkerGraphTelemetry,
-) -> Bool raise RankGroupProcessError {
-  if current.selected_path() != previous.selected_path() ||
-    !same_graph_shape(current, previous) {
+) -> Bool {
+  if !current.counters_advance_from(
+      previous.graph_hits(),
+      previous.graph_misses(),
+    ) {
     return false
   }
   let hits = current.graph_hits()

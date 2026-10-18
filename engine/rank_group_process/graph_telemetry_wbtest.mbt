@@ -122,3 +122,23 @@ test "group graph counters require one monotonic step and allow saturation" {
   let saturated = graph_test_report(9UL, 0xffffffffffffffffUL)
   assert_true(valid_next_graph_report(saturated, saturated))
 }
+
+///|
+test "rank graph execution may switch paths and shapes between completions" {
+  let prefill = graph_test_report(1UL, 1UL)
+  let decode = @worker_wire.WorkerGraphTelemetry::with_shape(
+    sequence=2UL,
+    path=WorkerGraphCaptured,
+    shape=graph_test_shape(2),
+    graph_hits=1UL,
+    graph_misses=1UL,
+  )
+  assert_true(valid_next_graph_report(decode, prefill))
+  let next = @worker_wire.WorkerGraphTelemetry::without_shape(
+    sequence=3UL,
+    path=WorkerGraphOrderedEager,
+    graph_hits=1UL,
+    graph_misses=2UL,
+  )
+  assert_true(valid_next_graph_report(next, decode))
+}

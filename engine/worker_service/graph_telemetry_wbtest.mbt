@@ -3,7 +3,7 @@ fn wb_graph_report(
   sequence : UInt64,
   hits : UInt64,
   misses : UInt64,
-  batch_rows? : Int = 1,
+  batch_rows~ : Int = 1,
 ) -> @worker_wire.WorkerGraphTelemetry raise {
   let shape = @worker_wire.WorkerGraphShapeClass::new(
     phase=1,
@@ -55,7 +55,7 @@ test "service graph telemetry admits a cumulative sparse sample" {
 }
 
 ///|
-test "service graph telemetry rejects regressions and replacement substitution" {
+test "service graph telemetry rejects regressions and reports replacement shape" {
   let regressed = new_worker_service_graph_telemetry()
   regressed.record_child_report(1UL, wb_graph_report(1UL, 1UL, 0UL))
   try regressed.record_child_report(2UL, wb_graph_report(2UL, 1UL, 0UL)) catch {
@@ -68,20 +68,14 @@ test "service graph telemetry rejects regressions and replacement substitution" 
   let substituted = new_worker_service_graph_telemetry()
   substituted.record_child_report(1UL, wb_graph_report(1UL, 1UL, 0UL))
   substituted.begin_replacement_child()
-  try
-    substituted.record_child_report(
-      2UL,
-      wb_graph_report(2UL, 1UL, 0UL, batch_rows=2),
-    )
-  catch {
-    Invalid(WorkerOutput) => ()
-    _ => fail("unexpected graph shape substitution error")
-  } noraise {
-    _ => fail("replacement changed the selected graph shape")
-  }
+  substituted.record_child_report(
+    2UL,
+    wb_graph_report(2UL, 1UL, 0UL, batch_rows=2),
+  )
   let stable = substituted.aggregate.current()
-  assert_eq(stable.sequence_value(), 1UL)
-  assert_eq(stable.selected_shape_class().batch_rows(), 1)
+  assert_eq(stable.sequence_value(), 2UL)
+  assert_eq(stable.selected_shape_class().batch_rows(), 2)
+  assert_eq(stable.graph_hits(), 2UL)
 }
 
 ///|
@@ -111,4 +105,19 @@ test "service graph telemetry accepts only a genuinely saturated child step" {
   } noraise {
     _ => fail("non-maximum unchanged graph counter was accepted")
   }
+}
+
+///|
+test "service graph telemetry aggregates mixed paths and latest shape" {
+  let owner = new_worker_service_graph_telemetry()
+  owner.record_child_report(1UL, wb_graph_report(1UL, 0UL, 1UL, batch_rows=4))
+  owner.record_child_report(2UL, wb_graph_report(2UL, 1UL, 1UL))
+  owner.record_child_report(
+    64UL,
+    wb_graph_report(64UL, 58UL, 6UL, batch_rows=2),
+  )
+  let report = owner.aggregate.current()
+  assert_eq(report.graph_hits(), 58UL)
+  assert_eq(report.graph_misses(), 6UL)
+  assert_eq(report.selected_shape_class().batch_rows(), 2)
 }

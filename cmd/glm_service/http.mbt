@@ -46,7 +46,7 @@ fn glm_template(
     [],
     bytes("<|user|>"),
     [],
-    bytes("<|assistant|>"),
+    bytes("<|assistant|><think></think>"),
     [],
     bytes("<|assistant|><think>"),
     document_prefix=bytes("[gMASK]<sop><|system|>Reasoning Effort: Low"),

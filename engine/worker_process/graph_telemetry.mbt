@@ -1,64 +1,9 @@
 ///|
-fn same_graph_shape(
-  left : @worker_wire.WorkerGraphTelemetry,
-  right : @worker_wire.WorkerGraphTelemetry,
-) -> Bool raise WorkerProcessError {
-  if left.has_selected_shape_class() != right.has_selected_shape_class() {
-    return false
-  }
-  if !left.has_selected_shape_class() {
-    return true
-  }
-  let left_shape = left.selected_shape_class() catch {
-    error => raise Wire(error)
-  }
-  let right_shape = right.selected_shape_class() catch {
-    error => raise Wire(error)
-  }
-  left_shape.phase() == right_shape.phase() &&
-  left_shape.batch_rows() == right_shape.batch_rows() &&
-  left_shape.query_tokens_per_row() == right_shape.query_tokens_per_row() &&
-  left_shape.context_tokens() == right_shape.context_tokens() &&
-  left_shape.token_rows() == right_shape.token_rows()
-}
-
-///|
 fn valid_graph_counter_step(
   current : @worker_wire.WorkerGraphTelemetry,
   previous : @worker_wire.WorkerGraphTelemetry,
-) -> Bool raise WorkerProcessError {
-  let hits = current.graph_hits()
-  let misses = current.graph_misses()
-  match current.selected_path() {
-    WorkerGraphCaptured if misses != 0UL || hits == 0UL => return false
-    WorkerGraphOrderedEager if hits != 0UL || misses == 0UL => return false
-    _ => ()
-  }
-  if current.selected_path() != previous.selected_path() ||
-    !same_graph_shape(current, previous) {
-    return false
-  }
-  let old_hits = previous.graph_hits()
-  let old_misses = previous.graph_misses()
-  if hits < old_hits || misses < old_misses {
-    return false
-  }
-  match current.selected_path() {
-    WorkerGraphCaptured =>
-      misses == old_misses &&
-      (if old_hits == 0xffffffffffffffffUL {
-        hits == old_hits
-      } else {
-        hits > old_hits
-      })
-    WorkerGraphOrderedEager =>
-      hits == old_hits &&
-      (if old_misses == 0xffffffffffffffffUL {
-        misses == old_misses
-      } else {
-        misses > old_misses
-      })
-  }
+) -> Bool {
+  current.counters_advance_from(previous.graph_hits(), previous.graph_misses())
 }
 
 ///|

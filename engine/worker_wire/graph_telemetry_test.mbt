@@ -138,3 +138,21 @@ test "graph telemetry samples warmup and sparse steady steps" {
   assert_true(@worker_wire.worker_graph_telemetry_sample_required(64UL))
   assert_false(@worker_wire.worker_graph_telemetry_sample_required(65UL))
 }
+
+///|
+test "mixed graph samples require progress on the last executed path" {
+  let captured = graph_wire_report(WorkerGraphCaptured, 7UL, 2UL)
+  assert_true(captured.counters_advance_from(6UL, 1UL))
+  assert_false(captured.counters_advance_from(7UL, 1UL))
+  assert_false(captured.counters_advance_from(6UL, 3UL))
+  let eager = graph_wire_report(WorkerGraphOrderedEager, 7UL, 2UL)
+  assert_true(eager.counters_advance_from(6UL, 1UL))
+  assert_false(eager.counters_advance_from(6UL, 2UL))
+  assert_false(eager.counters_advance_from(8UL, 1UL))
+  let saturated = graph_wire_report(
+    WorkerGraphCaptured,
+    0xffffffffffffffffUL,
+    2UL,
+  )
+  assert_true(saturated.counters_advance_from(0xffffffffffffffffUL, 1UL))
+}

@@ -435,6 +435,7 @@ pub fn WorkerGraphShapeClass::token_rows(Self) -> Int64
 pub struct WorkerGraphTelemetry {
   // private fields
 }
+pub fn WorkerGraphTelemetry::counters_advance_from(Self, UInt64, UInt64) -> Bool
 pub fn WorkerGraphTelemetry::graph_hits(Self) -> UInt64
 pub fn WorkerGraphTelemetry::graph_misses(Self) -> UInt64
 pub fn WorkerGraphTelemetry::has_selected_shape_class(Self) -> Bool

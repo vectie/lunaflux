@@ -73,8 +73,8 @@ async fn main {
     root
     .iter()
     .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_')) &&
-    mode is ("start" | "watch" | "stop" | "status") else {
-    fail("ROOT start|watch|stop|status")
+    mode is ("start" | "start-traced" | "watch" | "stop" | "status") else {
+    fail("ROOT start|start-traced|watch|stop|status")
   }
   let tag = root.split("/").last().unwrap().to_string()
   async fn stop() -> Unit {
@@ -101,7 +101,7 @@ async fn main {
     }
     return
   }
-  if mode == "start" {
+  if mode == "start" || mode == "start-traced" {
     for rank in 0..<2 {
       let owners = remote(
         rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits",
@@ -122,6 +122,13 @@ async fn main {
         " --setenv=NCCL_IB_HCA=" +
         hca +
         " --property=MemoryMax=100G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 --property=TimeoutStopSec=90 " +
+        (if mode == "start-traced" && rank == 0 {
+          "/usr/bin/strace -ff -tt -xx -s 8192 -e trace=read,write,recvfrom,sendto,close,shutdown,exit_group -e trace-fds=0,1,2 -z -o " +
+          root +
+          "/worker-wire "
+        } else {
+          ""
+        }) +
         root +
         "/glm_service.exe " +
         (if rank == 0 { "serve" } else { "rank1" }) +

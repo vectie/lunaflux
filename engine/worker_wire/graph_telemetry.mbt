@@ -33,7 +33,9 @@ pub struct WorkerGraphShapeClass {
 }
 
 ///|
-/// Fixed-wire worker telemetry for the exact completed plan sequence.
+/// Fixed-wire worker telemetry for the exact completed plan sequence. Path and
+/// shape describe this step; hit/miss counters accumulate across all paths and
+/// shapes in the child. A sparse reporting interval may contain both paths.
 #valtype
 pub struct WorkerGraphTelemetry {
   priv sequence : UInt64
@@ -206,6 +208,27 @@ pub fn WorkerGraphTelemetry::graph_misses(
   self : WorkerGraphTelemetry,
 ) -> UInt64 {
   self.graph_misses
+}
+
+///|
+/// Pure counter progression shared by process and service telemetry owners.
+/// A selected path must have advanced (or already saturated); the other path
+/// may also have run between sampled reports. Shape is not a lifetime binding.
+pub fn WorkerGraphTelemetry::counters_advance_from(
+  self : WorkerGraphTelemetry,
+  previous_hits : UInt64,
+  previous_misses : UInt64,
+) -> Bool {
+  if self.graph_hits < previous_hits || self.graph_misses < previous_misses {
+    return false
+  }
+  match self.selected_path() {
+    WorkerGraphCaptured =>
+      self.graph_hits > previous_hits || previous_hits == 0xffffffffffffffffUL
+    WorkerGraphOrderedEager =>
+      self.graph_misses > previous_misses ||
+      previous_misses == 0xffffffffffffffffUL
+  }
 }
 
 ///|

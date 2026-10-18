@@ -279,3 +279,34 @@ It does not bypass the pool's health/state readiness. The external acceptance
 runner additionally covers capacity rejection/recovery, multi-turn messages,
 stop strings and output-token budgets. These tests are not yet full-model
 passes at this record.
+
+### Eager-to-graph service transition (private acceptance v5)
+
+The exact GLM vocabulary154880 sampler passes24 normal cases twice and
+memcheck/full-leak checks on both Sparks at
+`/tmp/lunaflux-full-sampling-glm-20261018-v5`. This is separate from the
+earlier155648 synthetic coverage, not full-vocabulary racecheck.
+
+Private HTTP v5 started successfully, but its first request received an empty
+reply after4.304seconds and triggered worker recovery. Source isolation then
+reproduced two failing pure regressions: both worker-process and service
+telemetry owners wrongly treated selected graph path/shape as lifetime fixed.
+The worker legitimately reports eager prefill(0hits,1miss), then captured
+decode(1hit,1miss). Its cumulative telemetry was rejected as an invalid
+completion. The corrected contract reports the latest step's path/shape and
+monotonic cumulative counters across paths; sparse intervals may contain both.
+Rollback, selected-counter progress and saturation behavior remain tested.
+Rank-group telemetry now also permits path/shape changes between completions,
+while requiring peer reports for the same completion to agree.
+
+Observed v5 residency was95988MiB per GPU, with host available memory above
+the16GiB reserve and unit swap0. Host swap already existed before this run.
+The failed-peer parent drain exceeded its90second unit stop timeout; that
+failure remains unresolved, not a clean retirement pass. The incomplete v6
+trace run was deliberately stopped during loading because its syscall filter
+missed send/receive transport; it is not an inference result.
+
+The checkpoint chat template also requires `<think></think>` before historical
+assistant content; the command now preserves that formatting. No arithmetic,
+compiler comparison, hashing, or public route was added. Physical HTTP
+acceptance must be rerun with these fixes before readiness promotion.
