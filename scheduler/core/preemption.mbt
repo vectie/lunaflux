@@ -61,6 +61,7 @@ fn Scheduler::preemption_victim(self : Scheduler, urgent : Int) -> Int {
     let slot = self.active_slots[(start + offset) % self.active_count]
     if slot != urgent &&
       !self.in_flight[slot] &&
+      !self.recompute_decode_due[slot] &&
       (
         self.slot_states[slot] == SLOT_DECODE ||
         self.slot_states[slot] == SLOT_PREFILL
@@ -89,6 +90,7 @@ fn Scheduler::release_active_for_recompute(
   self.preemption_cursor = slot
   self.remove_active(slot)
   self.recompute_required[slot] = self.output_counts[slot] > 0
+  self.recompute_decode_due[slot] = false
   self.recompute_processed[slot] = 0
   self.slot_states[slot] = SLOT_WAITING
   try! self.discover_prefix_candidate(self.requests[slot].unwrap(), slot)

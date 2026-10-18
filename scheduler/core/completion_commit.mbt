@@ -65,6 +65,7 @@ fn Scheduler::commit_current_completion(
         self.recompute_processed[slot] += processed
         if self.recompute_processed[slot] == self.recompute_target(slot) {
           self.recompute_required[slot] = false
+          self.recompute_decode_due[slot] = true
           self.recompute_processed[slot] = 0
           self.slot_states[slot] = SLOT_DECODE
         } else {
@@ -110,6 +111,7 @@ fn Scheduler::commit_current_completion(
       }
     }
     DecodeCompletion => {
+      self.recompute_decode_due[slot] = false
       let token = try! entry.token_id()
       try! self.enqueue_generated_token(slot, token)
       self.store_generated_token(slot, self.output_counts[slot], token)

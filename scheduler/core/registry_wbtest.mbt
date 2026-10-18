@@ -41,8 +41,9 @@ fn wb_stop_token_projection(
 ///|
 fn wb_request(
   id : UInt64,
-  deadline? : UInt64 = 100UL,
-  input_tokens? : Array[Int] = [1, 2],
+  deadline~ : UInt64 = 100UL,
+  input_tokens~ : Array[Int] = [1, 2],
+  max_new_tokens~ : Int = 2,
 ) -> TokenizedRequest {
   let limits = try! @inference.InferenceLimits::new(
     max_text_bytes=64,
@@ -69,7 +70,7 @@ fn wb_request(
     stop_tokens=wb_stop_token_projection(limits, []),
     stream_preference=Streaming,
     effective_limits=try! @inference.EffectiveLimits::new(
-      max_new_tokens=2,
+      max_new_tokens~,
       context_ceiling=8,
       limits,
     ),

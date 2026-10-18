@@ -373,3 +373,18 @@ native suite passes275/275. Physical overload retesting is still required.
 The pinned ARM v9 build also caught a formatter-introduced range-pattern spelling
 unsupported by its older compiler. The equivalent guarded byte comparison is
 used instead; no toolchain migration or warning suppression was added.
+
+### Recompute must make forward progress
+
+A second, independent pure scheduler regression uses two finite requests,
+one active slot and four output tokens each. Before the fix,80 scheduling
+attempts emit only4 of the required8 tokens: each replay finishes, then is
+immediately preempted before its next decode. The scheduler now retains one
+preallocated decode-progress credit after completed replay. A request consumes
+that credit on its next successful decode and is eligible for eviction again.
+The policy changes no numerical computation, output-token budget or capacity;
+it prevents fairness preemption from endlessly undoing useful replay work.
+The previously failing test now finishes both requests and the213 affected
+scheduler/worker tests pass. The preceding eviction revision's full native
+suite passed5265/5265; this newer liveness change still needs physical overload
+acceptance before publication.

@@ -43,6 +43,8 @@ pub struct Scheduler {
   priv decode_tokens : FixedArray[Int]
   priv generated_history : FixedArray[Int]
   priv recompute_required : FixedArray[Bool]
+  // A replay earns one useful decode before another fairness eviction.
+  priv recompute_decode_due : FixedArray[Bool]
   priv recompute_processed : FixedArray[Int]
   priv prefix_entry_indices : FixedArray[Int]
   priv prefix_entry_generations : FixedArray[Int]

@@ -10,7 +10,10 @@ fn Scheduler::allocate_request_generation(
 }
 
 ///|
-fn Scheduler::find_request(self : Scheduler, id : @inference.RequestId) -> Int {
+fn Scheduler::find_request(
+  self : Scheduler,
+  id : @inference.RequestId,
+) -> Int {
   for index in 0..<self.slot_states.length() {
     if self.slot_states[index] != SLOT_FREE &&
       self.slot_states[index] != SLOT_RETIRED {
@@ -54,6 +57,7 @@ fn Scheduler::recycle_slot(self : Scheduler, index : Int) -> Unit {
   self.in_flight[index] = false
   self.decode_tokens[index] = 0
   self.recompute_required[index] = false
+  self.recompute_decode_due[index] = false
   self.recompute_processed[index] = 0
   self.prefix_matched_tokens[index] = 0
   self.prefix_candidate_entry_indices[index] = NO_INDEX
@@ -355,6 +359,7 @@ pub fn Scheduler::new(
       0,
     ),
     recompute_required: FixedArray::make(slots, false),
+    recompute_decode_due: FixedArray::make(slots, false),
     recompute_processed: FixedArray::make(slots, 0),
     prefix_entry_indices: FixedArray::make(slots, NO_INDEX),
     prefix_entry_generations: FixedArray::make(slots, 0),
