@@ -118,6 +118,7 @@ pub fn GlmDecoderStage::append_descriptors(Self) -> ArrayView[@device.Allocation
 pub fn GlmDecoderStage::bind_batched_rank(Self, @batched_decoder_worker.BatchedDecoderRank, @device.Context, maximum_sampling_host_bytes? : Int64) -> Unit raise
 pub fn GlmDecoderStage::bind_rank(Self, @serial_decoder_worker.SerialDecoderRank, @device.Context) -> Unit raise
 pub fn GlmDecoderStage::bind_worker(Self, @serial_decoder_worker.SerialDecoderWorker, @device.Context) -> Unit raise
+pub fn GlmDecoderStage::borrow_retired_experts(Self, Int) -> ArrayView[(String, @device.Allocation)] raise
 pub fn GlmDecoderStage::borrow_retired_ffn(Self, Int) -> (Int, @device.Allocation, @device.Allocation, @device.Allocation) raise
 pub fn GlmDecoderStage::borrow_text_logits(Self) -> @device.Allocation raise
 pub fn GlmDecoderStage::close(Self) -> Unit raise

@@ -12,6 +12,7 @@ pub struct MoeProgram {
   priv allocations : Array[@device.Allocation]
   priv startup_streams : Array[@device.Stream]
   priv launches : Array[@device.OrderedKernelLaunch]
+  priv frontiers : Array[(String, @device.Allocation)]
   priv mut executor : MoeExecutor?
   priv mut closed : Bool
   priv mut shared_tensor_boundary : ExpertTensorBoundary?
@@ -130,6 +131,7 @@ pub fn MoeProgram::new(
     allocations: [],
     startup_streams: [],
     launches: [],
+    frontiers: [],
     executor: None,
     closed: false,
     shared_tensor_boundary: None,

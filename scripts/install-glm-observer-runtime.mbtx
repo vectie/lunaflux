@@ -1,0 +1,56 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, build, runtime, previous, .. rest] && rest is ([] | ["--materialize-aot"]) &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    runtime.has_prefix("/tmp/lunaflux-glm-expert-tp-") &&
+    previous.has_prefix("/tmp/lunaflux-glm-expert-tp-") &&
+    [build, runtime, previous].all(path => path.iter().all(c =>
+      c is ('a'..='z' | '0'..='9' | '/' | '-'))) else {
+    fail("COMPLETED_BUILD NEW_RUNTIME EXISTING_IDENTICAL_AOT_RUNTIME")
+  }
+  let sockets = [
+    @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or("/tmp/lunaflux-glm178-prefill-20261018.sock"),
+    @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock"),
+  ]
+  let hosts = ["wlc003s@192.168.2.178", "wlc004s@192.168.2.179"]
+  let materialize = !rest.is_empty()
+  if !materialize {
+    @fs.mkdir(runtime)
+    @shell.Cmd("scp", ["-o", "ControlPath=" + sockets[0],
+    hosts[0] + ":" + build + "/source/_build/native/release/build/cmd/glm_checkpoint/glm_checkpoint.exe",
+    runtime + "/glm_checkpoint.exe"]).output().check()
+  }
+  for rank in 0..<2 {
+    if !materialize {
+      @shell.Cmd("ssh", ["-S", sockets[rank], "-o", "BatchMode=yes", hosts[rank],
+        "mkdir " + runtime]).output().check()
+      @shell.Cmd("scp", ["-o", "ControlPath=" + sockets[rank],
+      runtime + "/glm_checkpoint.exe", hosts[rank] + ":" + runtime + "/glm_checkpoint.exe"]).output().check()
+      @shell.Cmd("ssh", ["-S", sockets[rank], "-o", "BatchMode=yes", hosts[rank],
+        "ln -s " + previous + "/nccl " + runtime + "/nccl"]).output().check()
+    } else {
+      // Remove only this installer-created symlink, never its target/evidence.
+      let target = @shell.Cmd("ssh", ["-S", sockets[rank], hosts[rank], "readlink " + runtime + "/aot"]).output()
+      target.check()
+      guard target.stdout().trim() == previous + "/aot" else { fail("unexpected AOT link") }
+      @shell.Cmd("ssh", ["-S", sockets[rank], hosts[rank], "unlink " + runtime + "/aot"]).output().check()
+    }
+    @shell.Cmd("ssh", ["-S", sockets[rank], hosts[rank], "mkdir " + runtime + "/aot"]).output().check()
+    for leaf in ["SHARDS.sha256", "stage-\{rank}.cubin"] {
+      @shell.Cmd("ssh", ["-S", sockets[rank], hosts[rank],
+        "cp -n " + previous + "/aot/" + leaf + " " + runtime + "/aot/" + leaf]).output().check()
+    }
+  }
+  if !materialize {
+    @fs.write_file(runtime + "/observer.txt", "build=" + build + "\naot=" + previous + "\nno_payload_hashing=true\n", create_mode=CreateNew)
+  }
+  println("installed offline observer binary with unchanged AOT on both Sparks")
+}

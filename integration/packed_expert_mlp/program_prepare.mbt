@@ -227,6 +227,19 @@ fn MoeProgram::bind_experts(
   ])
   let routed = self.expert_buffers(context, self.routed)
   let shared = self.expert_buffers(context, self.shared)
+  for (name, buffers) in [("routed", routed), ("shared", shared)] {
+    self.frontiers.append([
+      (name + "-activation", buffers.activation),
+      (name + "-weighted", buffers.weighted),
+      (name + "-output", buffers.output),
+    ])
+    if buffers.quantized_input is Some(buffer) {
+      self.frontiers.push((name + "-quantized-input", buffer))
+    }
+    if buffers.quantized_activation is Some(buffer) {
+      self.frontiers.push((name + "-quantized-activation", buffer))
+    }
+  }
   let shared_indices = self.allocate(context, rows.to_int64() * 4L)
   let shared_weights = self.allocate(context, rows.to_int64() * 4L)
   initialize_shared_route(

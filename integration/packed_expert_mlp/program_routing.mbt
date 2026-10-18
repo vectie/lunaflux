@@ -80,6 +80,15 @@ fn MoeProgram::bind_router(
       None
     }
   })
+  for
+    (name, index) in [
+      ("router-logits", 0),
+      ("router-scores", 1),
+      ("router-indices", 3),
+      ("router-weights", 4),
+    ] {
+    self.frontiers.push((name, buffers[index].unwrap()))
+  }
   let counts_arg = region(counts, 20L, 4L)
   let logits = region(buffers[0].unwrap(), sizes[0], 4L)
   let scores = region(buffers[1].unwrap(), sizes[1], 4L)

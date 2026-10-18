@@ -17,7 +17,13 @@ fn capture_retired_frontiers(
     fail("retired frontier capture exceeds host reserve")
   }
   let output = []
+  let expert_layer = @env.get_env_var("LUNA_GLM_RETIRED_EXPERT_LAYER").map(value => {
+    @string.parse_int(value)
+  })
   for layer in first..<end {
+    if expert_layer is Some(selected) && selected != layer {
+      continue
+    }
     let (rows, residual, input, branch) = stage.borrow_retired_ffn(layer)
     for
       (name, buffer) in [
@@ -31,6 +37,25 @@ fn capture_retired_frontiers(
       output.push(
         ("layer-\{layer}-\{name}.bf16", buffer.copy_to_host(0L, bytes)),
       )
+    }
+    if expert_layer is Some(_) {
+      let buffers = stage.borrow_retired_experts(layer)
+      let bytes = for (_, buffer) in buffers; total = 0L {
+        continue total + buffer.byte_count()
+      } nobreak {
+        total
+      }
+      guard bytes + upper_bound <= startup.reserve / 4L else {
+        fail("retired expert capture exceeds host reserve")
+      }
+      for (name, buffer) in buffers {
+        output.push(
+          (
+            "layer-\{layer}-\{name}.bin",
+            buffer.copy_to_host(0L, buffer.byte_count()),
+          ),
+        )
+      }
     }
   }
   output

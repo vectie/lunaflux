@@ -395,6 +395,9 @@ async fn main {
     }) +
     (if distributed { "expert_scale_partitions=32\n" } else { "" }) +
     (if initialization_probe { "diagnostic=initcheck-untimed\n" } else { "" }) +
+    (if @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS") == Some("1") {
+      "diagnostic=retired-frontiers-untimed\n"
+    } else { "" }) +
     (if lookahead { "expert_fragment_slots=2\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled && !shape_aware {
@@ -746,6 +749,11 @@ async fn main {
           root +
           (if last && @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS") == Some("1") {
             " --setenv=LUNA_GLM_RETIRED_FRONTIERS=" + root + "/frontiers"
+            + (match @env.get_env_var("LUNA_GLM_RETIRED_EXPERT_LAYER") {
+              Some(value) if !value.is_empty() && value.iter().all(c => c is '0'..='9') =>
+                " --setenv=LUNA_GLM_RETIRED_EXPERT_LAYER=" + value
+              _ => ""
+            })
           } else {
             ""
           }) +

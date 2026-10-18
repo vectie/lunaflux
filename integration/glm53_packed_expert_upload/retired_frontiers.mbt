@@ -33,3 +33,22 @@ pub fn GlmDecoderStage::borrow_retired_ffn(
     ffn.envelope.branch_output(),
   )
 }
+
+///|
+/// Diagnostic-only leaf buffers; the stage guard establishes whole-program
+/// retirement. Raw packed scratch includes inactive capacity and must not be
+/// mistaken for a live mathematical output by an external comparison.
+pub fn GlmDecoderStage::borrow_retired_experts(
+  self : Self,
+  layer_index : Int,
+) -> ArrayView[(String, @device.Allocation)] raise {
+  ignore(self.borrow_retired_ffn(layer_index))
+  let ffn = match self.decoder.layers[layer_index - self.layer_range().0] {
+    Recurrent(layer) => layer.ffn.unwrap()
+    Sparse(layer) => layer.ffn
+  }
+  guard ffn.branch is Moe(moe) else {
+    raise @device.DeviceError::InvalidArgument(StreamingTransfer)
+  }
+  moe.program.borrow_retired_frontiers()
+}

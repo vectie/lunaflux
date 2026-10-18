@@ -439,3 +439,28 @@ are layer-private buffers, not overwritten residual ping-pong slots. Capture is
 explicitly selected in the offline checkpoint CLI, bounded by the host reserve,
 and excluded from benchmark timing claims. The compiler receives no reference
 or comparison logic. Both ranks must be idle before a new probe is launched.
+
+The paired capture is now complete: ordered
+`/tmp/lunaflux-model-bench-glm-frontiers-ordered-scales-20261018-r2` versus overlap
+`/tmp/lunaflux-model-bench-glm-frontiers-overlap-scales-20261018-r1`.
+Both ranks exit successfully, release CUDA, and remain within 100 GiB/16 GiB
+reserve with zero experiment swap. The first differing boundary is always the
+combined MoE output, while that layer's normalized FFN input is still bitwise:
+
+| Prefill | First layer | Different BF16 branch values |
+| --- | ---: | ---: |
+| Warmup | 22 | 29 |
+| Fact | 29 | 130 |
+| Arithmetic | 30 | 15 |
+| Chinese | 7 | 12 |
+| JSON | 19 | 43 |
+| Code | 30 | 144 |
+| Retrieval | None | All captured frontiers bitwise |
+
+The literal-array report is `/tmp/lunaflux-glm-retired-frontiers-20261018-v1.tsv`.
+This localizes the first divergence, not its cause: router arithmetic, routed
+and shared producers, and TP publication must still be distinguished. Added
+an opt-in retired MoE leaf observer for one selected layer, with named startup
+buffer bindings and the same host budget. Packed scratch includes inactive
+capacity; differences there alone are not mathematical output differences.
+The observer does not insert device operations into the execution schedule.

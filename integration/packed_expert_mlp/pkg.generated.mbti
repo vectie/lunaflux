@@ -46,6 +46,7 @@ pub struct MoeProgram {
   // private fields
 }
 pub fn MoeProgram::abort(Self) -> Unit raise @device.DeviceError
+pub fn MoeProgram::borrow_retired_frontiers(Self) -> ArrayView[(String, @device.Allocation)] raise @device.DeviceError
 pub fn MoeProgram::close(Self) -> Unit raise @device.DeviceError
 pub fn MoeProgram::coalesced_tensor_width(Self) -> Int?
 pub fn MoeProgram::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
