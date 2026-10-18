@@ -222,8 +222,7 @@ pub fn DecoderStageClient::release_one(
 ) -> Unit raise {
   guard self.batched_outputs &&
     !self.busy &&
-    self.state is Idle &&
-    self.epoch > 0UL else {
+    self.state is Idle && request_id > 0UL else {
     raise StageControlError::InvalidState
   }
   header(self.message, release_one_kind, self.epoch, 0, 0)

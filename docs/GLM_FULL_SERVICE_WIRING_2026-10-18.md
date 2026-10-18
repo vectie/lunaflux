@@ -52,3 +52,33 @@ and HTTP disconnect with reuse, saturation/capacity recovery and failed-rank
 drain. Model tests, echo workers and transfer doubles alone cannot pass this
 gate. Admission must respect the measured context/concurrency capacity under
 100 GiB per Spark, 16 GiB host reserve and zero swap.
+
+## GPU sampler qualification and service integration
+
+`/tmp/lunaflux-full-sampling-20261018-v4` completes on both Sparks with the
+actual prepared owner, 24 cases repeated twice at V=513 and V=155648, four
+maximum output rows. Both geometries pass token checks and full leak/memcheck.
+The tail geometry passes synccheck and racecheck restricted to the only
+shared-memory kernel (initialization), with two sanitizer workers. This is not
+full-vocabulary race coverage. Earlier unbounded race-worker attempts exceeded
+their instrumentation cgroup memory caps; they are preserved, not passes.
+All successful probe units close CUDA and report zero unit swap. Host-wide old
+swap residency is distinct and is not reported as zero.
+
+The new `cmd/glm_service` binds the canonical HTTP pool, tokenizer, admission
+lanes and scheduler to a distinct GLM batched TP bootstrap recipe. Full-F32
+sampling runs on the output rank. Retirement is an explicit ID/generation
+receipt after both ranks release their state, including queued requests that
+never submitted GPU work. Cancellation uses the original device generation.
+This command is not yet a physically qualified or publicly installed service.
+
+HTTP integration adds a once-per-conversation document prefix and model EOS
+union before the typed handoff declares its stop count. GLM explicitly admits
+checkpoint special tokens through the generic tokenizer policy; existing
+services retain their rejecting default. Worker idle waits have no poll-count
+or wall-time lifetime cap; partial transfers retain their I/O deadline. The
+HTTP Ready handshake waits for both ranks to finish preparation. Deployment
+identity fields are supplied labels, never computed payload hashes.
+
+The current 376 affected native tests pass. Full-model HTTP acceptance remains
+pending; the earlier CLI answer campaign does not qualify this new path.

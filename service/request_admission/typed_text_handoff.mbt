@@ -153,14 +153,13 @@ fn LunaRequestPreparationPool::progress_typed_input_begin(
   self : LunaRequestPreparationPool,
   lane : LunaRequestPreparationLane,
 ) -> Unit raise RequestAdmissionError {
-  ignore(self)
   if lane.typed_handoff.length() != 1 || lane.framed_input_count <= 0 {
     raise Invalid(LunaPreparedLifecycle)
   }
   lane.tokenizer_input_write = Some(
     lane.tokenizer.begin_luna_input(
       byte_count=lane.framed_input_count,
-      special_policy=Reject,
+      special_policy=self.input_special_policy,
       output_limit=lane.input_capacity,
       truncation=RejectOverflow,
     ) catch {

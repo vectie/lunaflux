@@ -47,6 +47,9 @@ pub fn OnlineWorkerLease::retire_terminal_request(
   self : OnlineWorkerLease,
 ) -> Unit raise WorkerServiceError {
   let service = self.require_current()
+  if !self.compatibility_request().progress_terminal_retirement() {
+    raise PhysicalTransport(PhysicalBackpressured)
+  }
   self.preflight_terminal_request_retirement(
     service,
     service.require_transport().has_exchange_capacity(),

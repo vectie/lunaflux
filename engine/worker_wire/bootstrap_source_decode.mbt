@@ -18,10 +18,13 @@ fn validate_bootstrap_source_header(
     version != BOOTSTRAP_SOURCE_VERSION_V10 &&
     version != MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11 &&
     version != QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 &&
-    version != QWEN3_BOOTSTRAP_SOURCE_VERSION_V13 {
+    version != QWEN3_BOOTSTRAP_SOURCE_VERSION_V13 && version != 14U {
     raise InvalidBootstrapSource(Version)
   }
-  let header_bytes = if version == BOOTSTRAP_SOURCE_VERSION_V2 {
+  let header_bytes = if version == 14U {
+    if recipe != 14 { raise InvalidBootstrapSource(Recipe) }
+    BOOTSTRAP_SOURCE_HEADER_BYTES_V2
+  } else if version == BOOTSTRAP_SOURCE_VERSION_V2 {
     if recipe != BOOTSTRAP_SOURCE_RECIPE_V2 {
       raise InvalidBootstrapSource(Recipe)
     }
@@ -233,7 +236,9 @@ pub fn decode_bootstrap_source(
     } else {
       None
     },
-    sampling_runtime=if extensions && read_u32(source, 220) == 1U {
+    sampling_runtime=if version == 14U {
+      DeviceFullF32SamplingV1
+    } else if extensions && read_u32(source, 220) == 1U {
       EmbeddedCudaGreedyV1
     } else {
       HostSamplingRuntime
@@ -266,7 +271,9 @@ pub fn decode_bootstrap_source(
     kernel~,
     execution~,
     ceilings~,
-    recipe=if extensions {
+    recipe=if version == 14U {
+      PackedGlmBatchedTensorV14
+    } else if extensions {
       DenseLlamaBf16PagedAotExtensionsV10
     } else if specialized {
       DenseLlamaPagedAotV3

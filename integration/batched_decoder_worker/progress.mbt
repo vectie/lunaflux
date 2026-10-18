@@ -242,3 +242,9 @@ pub fn BatchedDecoderRank::release_request(
   guard self.state is Ready else { raise @frame.BatchFrameError::Busy }
   self.frame.release_request(request_id, generation)
 }
+
+///|
+pub fn BatchedDecoderRank::retire_request(self : Self, request_id : UInt64, generation : UInt64) -> Unit raise {
+  guard self.state is Ready else { raise @frame.BatchFrameError::Busy }
+  self.frame.retire_request(request_id, generation)
+}

@@ -175,8 +175,8 @@ pub async fn BatchedTensorPipeline::progress(
       if !self.remote.poll(local_now_millis~) {
         return false
       }
-      self.local.release_request(self.release_id, self.release_generation)
-      self.frame.release_request(self.release_id, self.release_generation)
+      self.local.retire_request(self.release_id, self.release_generation)
+      self.frame.retire_request(self.release_id, self.release_generation)
       self.state = Ready
       true
     }
@@ -206,13 +206,12 @@ pub fn BatchedTensorPipeline::release_request(
 ) -> Unit raise {
   guard !self.busy &&
     self.state is Ready &&
-    self.epoch > 0UL &&
     local_now_millis >= self.last_tick &&
     local_now_millis <= 0xffffffffffffffffUL - self.timeout else {
     raise @frame.BatchFrameError::Busy
   }
   // Validate identity before either rank changes its retained ownership.
-  ignore(self.frame.processed_tokens(request_id, generation))
+  ignore(self.frame.contains_request(request_id, generation))
   self.state = Failed
   self.remote.release_one(request_id, generation, local_now_millis~)
   self.release_id = request_id

@@ -158,6 +158,7 @@ pub fn admit_bootstrap_source(
   execution : WorkerBootstrapExecution,
   ceilings : WorkerBootstrapCeilings,
 ) -> EncodedBootstrapSource raise WorkerWireError {
+  if kernel.sampling_runtime == DeviceFullF32SamplingV1 { raise InvalidBootstrapSource(Recipe) }
   let lengths = bootstrap_source_lengths(roots, model, kernel)
   if kernel.luna_approval is Some(_) &&
     (
@@ -240,6 +241,7 @@ pub fn admit_bootstrap_source(
       match kernel.sampling_runtime {
         HostSamplingRuntime => 0U
         EmbeddedCudaGreedyV1 => 1U
+        DeviceFullF32SamplingV1 => raise InvalidBootstrapSource(Recipe)
       },
     )
   }

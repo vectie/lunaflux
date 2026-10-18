@@ -44,7 +44,7 @@ pub fn admit_mistral_bootstrap_source_v7(
   execution : WorkerBootstrapExecution,
   ceilings : WorkerBootstrapCeilings,
 ) -> EncodedBootstrapSource raise WorkerWireError {
-  if kernel.luna_approval() is Some(_) || !execution.supports_bf16() {
+  if kernel.sampling_runtime() == DeviceFullF32SamplingV1 || kernel.luna_approval() is Some(_) || !execution.supports_bf16() {
     raise InvalidBootstrapSource(Recipe)
   }
   let lengths = mistral_source_lengths(roots, model, kernel)
@@ -141,6 +141,7 @@ pub fn admit_mistral_bootstrap_source_v7(
       match kernel.sampling_runtime() {
         HostSamplingRuntime => 0U
         EmbeddedCudaGreedyV1 => 1U
+        DeviceFullF32SamplingV1 => raise InvalidBootstrapSource(Recipe)
       },
     )
     write_i32(

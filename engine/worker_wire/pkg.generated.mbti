@@ -17,6 +17,8 @@ pub fn admit_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, 
 
 pub fn admit_fp8_reusable_bootstrap_source_v9(WorkerBootstrapRoots, WorkerFp8BootstrapModelSource, WorkerBootstrapKernelSource, WorkerFp8BootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
 
+pub fn admit_glm_batched_bootstrap_source(WorkerBootstrapRoots, WorkerBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
+
 pub fn admit_i8_bootstrap_source_v6(WorkerBootstrapRoots, WorkerI8BootstrapModelSource, WorkerBootstrapKernelSource, WorkerI8BootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
 
 pub fn admit_mistral_bootstrap_source_v7(WorkerBootstrapRoots, WorkerMistralBootstrapModelSource, WorkerBootstrapKernelSource, WorkerBootstrapExecution, WorkerBootstrapCeilings) -> EncodedBootstrapSource raise WorkerWireError
@@ -41,6 +43,8 @@ pub fn decode_mistral_bootstrap_source_v7(FixedArray[Byte], Int) -> EncodedBoots
 
 pub fn decode_parent_approval_attestation_v1(FixedArray[Byte], Int) -> @luna_capability_manifest.LunaParentStartupApprovalWitness? raise WorkerWireError
 
+pub fn decode_request_retirement(FixedArray[Byte], Int) -> RequestRetirement raise WorkerWireError
+
 pub fn decode_worker_graph_telemetry(FixedArray[Byte], Int) -> WorkerGraphTelemetry raise WorkerWireError
 
 pub fn encode_absent_parent_approval_attestation_v1(FixedArray[Byte]) -> Int raise WorkerWireError
@@ -50,6 +54,8 @@ pub fn encode_parent_approval_subjects_attestation_v1(FixedArray[Byte], WorkerPa
 pub fn encode_worker_graph_telemetry(WorkerGraphTelemetry, FixedArray[Byte]) -> Int raise WorkerWireError
 
 pub fn i8_bootstrap_source_v6_capacity() -> Int
+
+pub fn is_request_retirement(FixedArray[Byte], Int) -> Bool
 
 pub fn parent_approval_attestation_capacity() -> Int
 
@@ -194,6 +200,14 @@ pub fn PlanFramePrefillRow::sampling_top_p_value(Self) -> Double raise WorkerWir
 pub fn PlanFramePrefillRow::sequence_token_start(Self) -> Int raise WorkerWireError
 pub fn PlanFramePrefillRow::token_length(Self) -> Int raise WorkerWireError
 pub fn PlanFramePrefillRow::token_start(Self) -> Int raise WorkerWireError
+
+pub(all) struct RequestRetirement {
+  predecessor : UInt64
+  request_id : UInt64
+  generation : UInt64
+  acknowledged : Bool
+} derive(Eq, @debug.Debug)
+pub fn RequestRetirement::encode(Self, FixedArray[Byte]) -> Unit raise WorkerWireError
 
 pub struct StartupFrameBuffer {
   // private fields
@@ -343,6 +357,7 @@ pub(all) enum WorkerBootstrapRecipe {
   DenseMistralBf16PagedAotExtensionsV11
   DenseQwen3Bf16PagedAotV12
   DenseQwen3Bf16PagedAotExtensionsV13
+  PackedGlmBatchedTensorV14
 } derive(Eq, @debug.Debug)
 
 pub struct WorkerBootstrapRoots {
@@ -355,6 +370,7 @@ pub fn WorkerBootstrapRoots::new(model_root~ : StringView, kernel_root~ : String
 pub(all) enum WorkerBootstrapSamplingRuntime {
   HostSamplingRuntime
   EmbeddedCudaGreedyV1
+  DeviceFullF32SamplingV1
 } derive(Eq, @debug.Debug)
 
 pub struct WorkerBootstrapSourceDigest(String) derive(Eq, @debug.Debug)

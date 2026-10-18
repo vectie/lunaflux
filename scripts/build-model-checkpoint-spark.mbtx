@@ -30,6 +30,7 @@ async fn main {
     | "cmd/minimax_checkpoint"
     | "cmd/device_state_snapshot_probe"
     | "cmd/full_sampling_probe"
+    | "cmd/glm_service"
     | "tests/worker_service_e2e") &&
     unit.has_prefix("lunaflux-checkpoint-build-") &&
     unit.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '.')) else {

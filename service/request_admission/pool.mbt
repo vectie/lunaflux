@@ -10,6 +10,7 @@ fn new_pool_with_clock(
   step_budget : LunaRequestPreparationStepBudget,
   work_limit : LunaRequestPreparationWorkLimit,
   storage_budget : LunaRequestPreparationStorageBudget,
+  input_special_policy? : @tokenizer.SpecialTokenPolicy = Reject,
 ) -> LunaRequestPreparationPool raise RequestAdmissionError {
   if framed_limits.inference_limits() != inference {
     raise Invalid(RequestContract)
@@ -26,6 +27,7 @@ fn new_pool_with_clock(
     )
   })
   {
+    input_special_policy,
     tokenizer,
     expected_tokenizer,
     expected_model,
@@ -56,6 +58,7 @@ pub fn LunaRequestPreparationPool::new(
   step_budget~ : LunaRequestPreparationStepBudget,
   work_limit~ : LunaRequestPreparationWorkLimit,
   storage_budget~ : LunaRequestPreparationStorageBudget,
+  input_special_policy? : @tokenizer.SpecialTokenPolicy = Reject,
 ) -> LunaRequestPreparationPool raise RequestAdmissionError {
   new_pool_with_clock(
     tokenizer,
@@ -68,6 +71,7 @@ pub fn LunaRequestPreparationPool::new(
     step_budget,
     work_limit,
     storage_budget,
+    input_special_policy~,
   )
 }
 
@@ -289,7 +293,7 @@ fn LunaRequestPreparationPool::start_lane(
       lane.tokenizer_input_write = Some(
         lane.tokenizer.begin_luna_input(
           byte_count=text.utf8_bytes(),
-          special_policy=Reject,
+          special_policy=self.input_special_policy,
           output_limit=input_capacity,
           truncation=RejectOverflow,
         ) catch {

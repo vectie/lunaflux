@@ -207,7 +207,14 @@ fn LunaOpenAIInboundWorkspace::progress_render_segment(
     self.render_segment_index += 1
     return
   }
-  if self.render_segment == 0 ||
+  if self.render_segment == 7 {
+    self.render_segment = match self.message_cells[0] {
+      1 => 0
+      2 => 2
+      _ => 4
+    }
+    self.render_segment_index = 0
+  } else if self.render_segment == 0 ||
     self.render_segment == 2 ||
     self.render_segment == 4 {
     let base = self.render_message * 3

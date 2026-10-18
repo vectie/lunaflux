@@ -20,8 +20,8 @@ pub(all) suberror LunaOpenAICompatError {
 pub struct LunaOpenAIChatTemplate {
   // private fields
 }
-pub fn LunaOpenAIChatTemplate::new(@inference.InferenceLimits, FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], max_rendered_prompt_bytes~ : Int) -> Self raise LunaOpenAICompatError
-pub fn LunaOpenAIChatTemplate::required_byte_cells(FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte]) -> UInt64 raise LunaOpenAICompatError
+pub fn LunaOpenAIChatTemplate::new(@inference.InferenceLimits, FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], max_rendered_prompt_bytes~ : Int, document_prefix? : FixedArray[Byte]) -> Self raise LunaOpenAICompatError
+pub fn LunaOpenAIChatTemplate::required_byte_cells(FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], FixedArray[Byte], document_prefix? : FixedArray[Byte]) -> UInt64 raise LunaOpenAICompatError
 pub fn LunaOpenAIChatTemplate::required_int_cells() -> UInt64
 
 pub(all) enum LunaOpenAICompatMode {
@@ -94,7 +94,7 @@ pub fn LunaOpenAICompatWorkspace::required_reference_cells(@inference.InferenceL
 pub struct LunaOpenAIInboundLimits {
   // private fields
 }
-pub fn LunaOpenAIInboundLimits::new(max_messages~ : Int) -> Self raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundLimits::new(max_messages~ : Int, required_stop_tokens? : ArrayView[Int]) -> Self raise LunaOpenAICompatError
 
 pub(all) enum LunaOpenAIInboundProgress {
   LunaOpenAIInboundIdle

@@ -224,8 +224,7 @@ fn DecoderStageServer::command(
     flags == 0 &&
     self.phase is (Idle | Released) &&
     length == control_header_bytes + 16 &&
-    epoch == self.epoch &&
-    epoch > 0UL {
+    epoch == self.epoch {
     self.rank.release_one(
       read_u64(self.message, control_header_bytes),
       read_u64(self.message, control_header_bytes + 8),

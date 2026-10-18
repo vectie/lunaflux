@@ -103,6 +103,7 @@ pub fn prepare_owned_luna_online_framed_service_approved(
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
   restart_policy : @worker_service.WorkerRestartBackoffPolicy,
+  input_special_policy? : @tokenizer.SpecialTokenPolicy = Reject,
 ) -> LunaOnlineFramedServicePreparation raise LunaOnlineInstancePreparationError {
   if framed_limits.inference_limits() != inference {
     raise luna_coordinator_preparation_failure(LunaOnlineFramedPreparation)
@@ -119,6 +120,7 @@ pub fn prepare_owned_luna_online_framed_service_approved(
     step_budget=preparation_step_budget,
     work_limit=preparation_work_limit,
     storage_budget=preparation_storage_budget,
+    input_special_policy~,
   ) catch {
     _ => raise luna_coordinator_preparation_failure(LunaOnlineFramedPreparation)
   }

@@ -289,6 +289,8 @@ pub struct OnlineWorkerLease {
   // WorkerFailed terminal is already pending for post-restart retirement.
   priv lane_restart_dispositions : FixedArray[Int]
   priv lane_expected_positions : FixedArray[Int]
+  priv lane_device_retired : FixedArray[Bool]
+  priv mut device_retirement_lane : Int
   priv free_lanes : FixedArray[Int]
   priv mut free_head : Int
   priv mut free_count : Int

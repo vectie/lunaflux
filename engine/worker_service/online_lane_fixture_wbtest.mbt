@@ -96,6 +96,8 @@ fn wb_online_lane_lease(
         0
       }
     }),
+    lane_device_retired: FixedArray::make(lane_count, false),
+    device_retirement_lane: -1,
     free_lanes: FixedArray::makei(lane_count, index => index),
     free_head: if occupied {
       1 % lane_count

@@ -144,6 +144,8 @@ fn OnlineWorkerLease::release_lane(
   self.lane_cut_source_generations[lane] = @inference.RequestGeneration::initial()
   self.lane_restart_dispositions[lane] = 0
   self.lane_expected_positions[lane] = 0
+  self.lane_device_retired[lane] = false
+  if self.device_retirement_lane == lane { self.device_retirement_lane = -1 }
   self.lane_phases[lane] = ONLINE_LANE_EMPTY
   let tail = (self.free_head + self.free_count) % self.free_lanes.length()
   self.free_lanes[tail] = lane
@@ -242,6 +244,9 @@ pub fn LunaOnlineWorkerRequest::retire_terminal(
   if lease.lane_phases[self.lane] != ONLINE_LANE_TERMINAL ||
     lease.cancel_lane >= 0 ||
     lease.service.lifecycle != ServiceReady {
+    raise Invalid(Lifecycle)
+  }
+  if lease.service.transport.requires_request_retirement() && !lease.lane_device_retired[self.lane] {
     raise Invalid(Lifecycle)
   }
   lease.release_lane(self.lane)

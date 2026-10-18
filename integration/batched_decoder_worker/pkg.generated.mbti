@@ -33,6 +33,7 @@ pub fn BatchedDecoderRank::prepare_ports(Self, @device.Context, maximum_device_b
 pub fn BatchedDecoderRank::progress(Self) -> Bool raise
 pub fn BatchedDecoderRank::release_request(Self, UInt64, UInt64) -> Unit raise
 pub fn BatchedDecoderRank::required_device_bytes(Self) -> Int64
+pub fn BatchedDecoderRank::retire_request(Self, UInt64, UInt64) -> Unit raise
 pub fn BatchedDecoderRank::sampled_tokens(Self) -> @device.Allocation raise
 pub fn BatchedDecoderRank::samples(Self) -> ArrayView[Int] raise
 pub fn BatchedDecoderRank::sampling_plan(Self) -> @worker_wire.ValidatedPlanFrame raise

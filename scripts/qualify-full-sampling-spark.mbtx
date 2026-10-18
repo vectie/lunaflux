@@ -11,7 +11,7 @@ async fn main {
     [root,build].all(s => !s.contains("..") && s.iter().all(c => c is ('a'..='z'|'A'..='Z'|'0'..='9'|'/'|'-'|'_'))) else { fail("NEW_ROOT PINNED_ARM_BUILD_ROOT") }
   let socket178 = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or("/tmp/lunaflux-glm178-prefill-20261018.sock")
   let socket179 = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
-  let tag = root.split("/").last().unwrap()
+  let tag = root.split("/").last().unwrap().to_string()
   @fs.mkdir(root)
   let binary = root+"/probe"
   @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath="+socket178,"wlc003s@192.168.2.178:"+build+"/source/_build/native/release/build/cmd/full_sampling_probe/full_sampling_probe.exe",binary]).output().check()
@@ -35,8 +35,9 @@ async fn main {
       let modes=if label=="tail" { ["run","memcheck","racecheck","synccheck"] } else { ["run","memcheck"] }
       for mode in modes {
         let unit=tag+"-"+suffix+"-"+label+"-"+mode
-        let prefix=if mode=="run" { "" } else { "/usr/local/cuda/bin/compute-sanitizer --error-exitcode 91 --tool "+mode+(if mode=="memcheck" {" --leak-check full "}else{" "}) }
-        let result=@shell.Cmd("ssh",ssh+["systemd-run --user --wait --unit="+unit+" --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 "+prefix+binary+" run "+root+"/"+label+".cubin "+v.to_string()+" 4"]).output(max_output_bytes=1048576)
+        let prefix=if mode=="run" { "" } else { "/usr/local/cuda/bin/compute-sanitizer --error-exitcode 91 --tool "+mode+(if mode=="memcheck" {" --leak-check full "}else if mode=="racecheck" {" --racecheck-num-workers 2 --kernel-name kns=luna_full_sampling_init "}else{" "}) }
+        let cap=if mode=="racecheck" || mode=="synccheck" { "8G" } else { "2G" }
+        let result=@shell.Cmd("ssh",ssh+["systemd-run --user --wait --unit="+unit+" --property=MemoryMax="+cap+" --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 "+prefix+binary+" run "+root+"/"+label+".cubin "+v.to_string()+" 4"]).output(max_output_bytes=1048576)
         @fs.write_file(root+"/"+suffix+"-"+label+"-"+mode+"-launcher.txt",result.stdout()+result.stderr(),create_mode=CreateNew)
         let journal=@shell.Cmd("ssh",ssh+["journalctl --user -u "+unit+".service --no-pager"]).output(max_output_bytes=8388608)
         journal.check()

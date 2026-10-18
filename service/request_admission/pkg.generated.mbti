@@ -74,7 +74,7 @@ pub fn LunaRequestPreparationPool::begin_drain(Self) -> Unit
 pub fn LunaRequestPreparationPool::free_lane_count(Self) -> Int
 pub fn LunaRequestPreparationPool::is_drained(Self) -> Bool
 pub fn LunaRequestPreparationPool::lane_count(Self) -> Int
-pub fn LunaRequestPreparationPool::new(@tokenizer.TokenizerSpec, expected_tokenizer~ : @tokenizer.TokenizerDigest, expected_model~ : @spec.ModelIdentity, inference~ : @inference.InferenceLimits, framed_limits~ : @framed_wire.FramedWireLimits, clock~ : @monotonic_clock.MonotonicClock, lane_count~ : Int, step_budget~ : LunaRequestPreparationStepBudget, work_limit~ : LunaRequestPreparationWorkLimit, storage_budget~ : LunaRequestPreparationStorageBudget) -> Self raise RequestAdmissionError
+pub fn LunaRequestPreparationPool::new(@tokenizer.TokenizerSpec, expected_tokenizer~ : @tokenizer.TokenizerDigest, expected_model~ : @spec.ModelIdentity, inference~ : @inference.InferenceLimits, framed_limits~ : @framed_wire.FramedWireLimits, clock~ : @monotonic_clock.MonotonicClock, lane_count~ : Int, step_budget~ : LunaRequestPreparationStepBudget, work_limit~ : LunaRequestPreparationWorkLimit, storage_budget~ : LunaRequestPreparationStorageBudget, input_special_policy? : @tokenizer.SpecialTokenPolicy) -> Self raise RequestAdmissionError
 pub fn LunaRequestPreparationPool::progress(Self) -> LunaRequestPreparationPoolProgress
 pub fn LunaRequestPreparationPool::try_begin_luna_framed(Self, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaRequestPreparationAdmission raise RequestAdmissionError
 pub fn LunaRequestPreparationPool::try_begin_luna_framed_with_receipt(Self, LunaRequestReceipt, FixedArray[Byte], source_offset~ : Int, length~ : Int) -> LunaRequestPreparationAdmission raise RequestAdmissionError

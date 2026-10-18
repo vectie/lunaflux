@@ -130,16 +130,24 @@ const LUNA_STRING_STOP : Int = 7
 ///|
 pub struct LunaOpenAIInboundLimits {
   priv max_messages : Int
+  priv required_stop_tokens : ReadOnlyArray[Int]
 }
 
 ///|
 pub fn LunaOpenAIInboundLimits::new(
   max_messages~ : Int,
+  required_stop_tokens? : ArrayView[Int] = [],
 ) -> Self raise LunaOpenAICompatError {
   if max_messages <= 0 || max_messages > 64 {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits)
   }
-  { max_messages, }
+  guard required_stop_tokens.length() <= 64 && required_stop_tokens.all(t => t >= 0) else { raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits) }
+  for i in 0..<required_stop_tokens.length() {
+    for j in 0..<i {
+      if required_stop_tokens[i] == required_stop_tokens[j] { raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits) }
+    }
+  }
+  { max_messages, required_stop_tokens: ReadOnlyArray::from_array(required_stop_tokens.to_array()) }
 }
 
 ///|

@@ -9,6 +9,7 @@ pub fn admit_bootstrap_sampling_policy(
   execution : @execution_manifest_file.PagedExecutionAdmission,
 ) -> @device_step.PagedSamplingExecutionPolicy raise DeviceWorkerError {
   match source.kernel().sampling_runtime() {
+    DeviceFullF32SamplingV1 => raise Invalid(StartupContract)
     HostSamplingRuntime => PagedHostSampling
     EmbeddedCudaGreedyV1 =>
       @device_step.admit_paged_embedded_cuda_greedy_sampling(

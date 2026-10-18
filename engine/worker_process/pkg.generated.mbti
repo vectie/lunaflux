@@ -123,9 +123,11 @@ pub fn RootBoundWorkerProcessSupervisor::maintenance_remaining_millis(Self) -> I
 pub fn RootBoundWorkerProcessSupervisor::outstanding_count(Self) -> Int
 pub fn RootBoundWorkerProcessSupervisor::progress_exchange(Self) -> RootBoundWorkerExchangeProgress raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::progress_maintenance(Self) -> WorkerProcessMaintenanceProgress raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::progress_request_retirement(Self, UInt64, UInt64) -> Bool raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::progress_streaming_exchange(Self) -> @streaming_ir.ReplyOption raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::receive(Self, RootBoundWorkerSubmission, @worker_protocol.SubmittedSchedulePlan) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::received_for_sequence(Self, UInt64) -> RootBoundReceivedWorkerCompletion raise RootBoundWorkerProcessError
+pub fn RootBoundWorkerProcessSupervisor::requires_request_retirement(Self) -> Bool
 pub fn RootBoundWorkerProcessSupervisor::restart(Self) -> RootBoundWorkerProcessRestart raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::retire_received(Self, RootBoundReceivedWorkerCompletion) -> Unit raise RootBoundWorkerProcessError
 pub fn RootBoundWorkerProcessSupervisor::retry_replacement_cleanup(Self) -> Unit raise RootBoundWorkerProcessError

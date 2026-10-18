@@ -55,6 +55,7 @@ pub struct BatchedDecoderFrame {
 pub fn BatchedDecoderFrame::close(Self) -> Unit raise
 pub fn BatchedDecoderFrame::complete(Self, ArrayView[Int], execution_failed~ : Bool) -> @worker_wire.ValidatedCompletionFrame raise
 pub fn BatchedDecoderFrame::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn BatchedDecoderFrame::contains_request(Self, UInt64, UInt64) -> Bool raise BatchFrameError
 pub fn BatchedDecoderFrame::copy_input(Self, BatchInputPort, FixedArray[Byte]) -> Int raise BatchFrameError
 pub fn BatchedDecoderFrame::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn BatchedDecoderFrame::input_capacity(Self, BatchInputPort) -> Int
@@ -65,6 +66,7 @@ pub fn BatchedDecoderFrame::output_entry(Self, Int) -> Int raise BatchFrameError
 pub fn BatchedDecoderFrame::output_rows(Self) -> Int raise BatchFrameError
 pub fn BatchedDecoderFrame::processed_tokens(Self, UInt64, UInt64) -> Int raise BatchFrameError
 pub fn BatchedDecoderFrame::release_request(Self, UInt64, UInt64) -> Unit raise BatchFrameError
+pub fn BatchedDecoderFrame::retire_request(Self, UInt64, UInt64) -> Unit raise BatchFrameError
 pub fn BatchedDecoderFrame::retire_stage(Self, execution_failed~ : Bool) -> Unit raise
 pub fn BatchedDecoderFrame::sampling_plan(Self) -> @worker_wire.ValidatedPlanFrame raise
 pub fn BatchedDecoderFrame::stage(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise

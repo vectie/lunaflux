@@ -2,6 +2,18 @@
 fn LunaOpenAIInboundWorkspace::begin_render(
   self : Self,
 ) -> Unit raise LunaOpenAICompatError {
+  // Merge before opening the typed handoff: its declared stop count must be
+  // identical to the number subsequently published. Empty user stops cannot
+  // disable the deployed model's EOS set.
+  for token in self.limits.required_stop_tokens {
+    let mut present = false
+    for i in 0..<self.stop_token_count { if self.stop_tokens[i] == token { present = true } }
+    if !present {
+      if self.stop_token_count == self.stop_tokens.length() { raise LunaOpenAICompatInvalid(LunaOpenAICompatCapacity) }
+      self.stop_tokens[self.stop_token_count] = token
+      self.stop_token_count += 1
+    }
+  }
   let sampling = if self.sampling_mode == 0 {
     @inference.LunaValidatedSampling::greedy()
   } else {
@@ -77,10 +89,8 @@ fn LunaOpenAIInboundWorkspace::begin_render(
     self.phase = LUNA_INBOUND_RENDER_STRING
   } else {
     self.render_message = 0
-    self.render_segment = match self.message_cells[0] {
-      1 => 0
-      2 => 2
-      _ => 4
+    self.render_segment = if self.template.segment_length(7) > 0 { 7 } else {
+      match self.message_cells[0] { 1 => 0; 2 => 2; _ => 4 }
     }
     self.render_segment_index = 0
     self.phase = LUNA_INBOUND_RENDER_SEGMENT

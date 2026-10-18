@@ -215,7 +215,7 @@ fn LunaRequestPreparationPool::progress_framed_input_begin(
     lane.tokenizer_input_write = Some(
       lane.tokenizer.begin_luna_input(
         byte_count=lane.framed_input_count,
-        special_policy=Reject,
+        special_policy=self.input_special_policy,
         output_limit=lane.input_capacity,
         truncation=RejectOverflow,
       ) catch {

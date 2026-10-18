@@ -297,6 +297,7 @@ priv struct LunaRequestPreparationLane {
 
 ///|
 pub struct LunaRequestPreparationPool {
+  priv input_special_policy : @tokenizer.SpecialTokenPolicy
   priv tokenizer : @tokenizer.TokenizerSpec
   priv expected_tokenizer : @tokenizer.TokenizerDigest
   priv expected_model : @spec.ModelIdentity

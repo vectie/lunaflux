@@ -74,6 +74,7 @@ pub fn LunaOnlineWorkerRequest::commit_cancel(Self) -> OnlineCancelReservationCo
 pub fn LunaOnlineWorkerRequest::expire(Self) -> OnlineExpiry raise WorkerServiceError
 pub fn LunaOnlineWorkerRequest::is_live(Self) -> Bool
 pub fn LunaOnlineWorkerRequest::matches_publication_route(Self, @core.SchedulerPublicationRoute) -> Bool
+pub fn LunaOnlineWorkerRequest::progress_terminal_retirement(Self) -> Bool raise WorkerServiceError
 pub fn LunaOnlineWorkerRequest::publication_route(Self) -> @core.SchedulerPublicationRoute raise WorkerServiceError
 pub fn LunaOnlineWorkerRequest::reserve_cancel(Self) -> OnlineCancelReservationStart raise WorkerServiceError
 pub fn LunaOnlineWorkerRequest::retire_terminal(Self) -> Unit raise WorkerServiceError

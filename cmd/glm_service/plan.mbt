@@ -1,0 +1,222 @@
+///|
+/// Deployment envelope only. Numerical and physical schedules are existing
+/// immutable compiler plans; this command supplies no reference-engine logic.
+priv struct ServicePlan {
+  model_root : String
+  kernel_root : String
+  inventory : String
+  module0 : String
+  module1 : String
+  sampling_module : String
+  control_address : String
+  rendezvous_address : String
+  listen_address : String
+  executable : String
+  model_label : String
+  runtime_label : String
+  tokenizer_label : String
+  credential_file : String
+  rows : Int
+  slots : Int32
+  context : Int32
+  budget : Int64
+  reserve : Int64
+}
+
+///|
+fn json_string(j : Json, key : String) -> String raise {
+  guard j is Object(fields) && fields.get(key) is Some(String(value)) else {
+    fail("missing string \{key}")
+  }
+  value
+}
+
+///|
+fn json_int(j : Json, key : String) -> Int32 raise {
+  guard j is Object(fields) &&
+    fields.get(key) is Some(Number(value, ..)) &&
+    value >= 0.0 &&
+    value <= 2147483647.0 &&
+    value.to_int().to_double() == value else {
+    fail("missing integer \{key}")
+  }
+  value.to_int()
+}
+
+///|
+fn parse_plan(bytes : Bytes) -> ServicePlan raise {
+  guard bytes.length() <= 65536 else {
+    fail("service plan exceeds startup envelope")
+  }
+  let j = @json.parse(@utf8.decode(bytes))
+  let p = ServicePlan::{
+    model_root: json_string(j, "model_root"),
+    kernel_root: json_string(j, "kernel_root"),
+    inventory: json_string(j, "inventory"),
+    module0: json_string(j, "module0"),
+    module1: json_string(j, "module1"),
+    sampling_module: json_string(j, "sampling_module"),
+    control_address: json_string(j, "control_address"),
+    rendezvous_address: json_string(j, "rendezvous_address"),
+    listen_address: json_string(j, "listen_address"),
+    executable: json_string(j, "executable"),
+    model_label: json_string(j, "model_label"),
+    runtime_label: json_string(j, "runtime_label"),
+    tokenizer_label: json_string(j, "tokenizer_label"),
+    credential_file: json_string(j, "credential_file"),
+    rows: json_int(j, "rows"),
+    slots: json_int(j, "slots"),
+    context: json_int(j, "context"),
+    budget: json_int(j, "budget_mib").to_int64() * 1048576L,
+    reserve: json_int(j, "reserve_mib").to_int64() * 1048576L,
+  }
+  guard p.rows > 0 &&
+    p.rows <= 256 &&
+    p.slots > 0 &&
+    p.slots <= p.rows &&
+    p.context >= p.rows &&
+    p.context <= 1048576 &&
+    p.context % 16 == 0 &&
+    p.budget <= 107374182400L &&
+    p.reserve >= 1073741824L &&
+    p.reserve < p.budget else {
+    fail("invalid service capacity")
+  }
+  for
+    path in [
+      p.inventory,
+      p.module0,
+      p.module1,
+      p.sampling_module,
+      p.credential_file,
+    ] {
+    ignore(@approved_fs.ApprovedRelativeLocator::new(path))
+  }
+  ignore(@socket.Addr::parse(p.control_address))
+  ignore(@socket.Addr::parse(p.rendezvous_address))
+  ignore(@socket.Addr::parse(p.listen_address))
+  p
+}
+
+///|
+fn read_bounded(
+  root : @approved_fs.ApprovedRoot,
+  name : String,
+  ceiling : Int64,
+) -> Bytes raise {
+  let file = root.open_file(@approved_fs.ApprovedRelativeLocator::new(name))
+  defer file.close()
+  file.read_immutable_snapshot(maximum_bytes=ceiling)
+}
+
+///|
+fn ServicePlan::history(self : Self) -> @history.PagedHistoryDomain {
+  @history.PagedHistoryDomain::new(
+    rows_per_page=16,
+    physical_pages=self.slots * (self.context / 16),
+    maximum_context=self.context,
+    maximum_sequences=self.slots,
+  ).unwrap()
+}
+
+///|
+fn ServicePlan::worker_limits(
+  self : Self,
+  spec : @spec.Glm53FlashSpec,
+) -> @protocol.WorkerProtocolLimits raise {
+  @protocol.WorkerProtocolLimits::new(
+    max_prefill_rows=self.slots,
+    max_decode_rows=self.slots,
+    max_plan_rows=self.slots,
+    max_plan_tokens=self.rows,
+    max_plan_pages=self.slots * (self.context / 16),
+    max_capabilities=self.slots,
+    max_completion_slots=self.slots,
+    max_sequence_tokens=self.context,
+    max_token_id=spec.vocabulary_size() - 1,
+  )
+}
+
+///|
+fn ServicePlan::inference(
+  self : Self,
+  spec : @spec.Glm53FlashSpec,
+) -> @inference.InferenceLimits raise {
+  @inference.InferenceLimits::new(
+    max_text_bytes=1048576,
+    max_input_tokens=self.context,
+    max_new_tokens=self.context,
+    max_context_tokens=self.context,
+    max_token_id=spec.vocabulary_size() - 1,
+    max_stop_token_ids=32,
+    max_stop_strings=16,
+    max_stop_string_bytes=256,
+    max_trace_bytes=256,
+    max_cache_scope_bytes=256,
+    max_decoded_delta_bytes=4096,
+    max_deadline_millis=3600000UL,
+    max_top_k=spec.vocabulary_size(),
+    max_temperature=100.0,
+  )
+}
+
+///|
+fn ServicePlan::frame(
+  self : Self,
+  spec : @spec.Glm53FlashSpec,
+) -> @frame.BatchedDecoderFrame raise {
+  @frame.BatchedDecoderFrame::new(
+    maximum_rows=self.rows,
+    maximum_sequences=self.slots,
+    cache_slots=self.slots,
+    maximum_context=self.context,
+    vocabulary_size=spec.vocabulary_size(),
+    model_generation=1UL,
+    paged_history=self.history(),
+  )
+}
+
+///|
+fn ServicePlan::stage(
+  self : Self,
+  spec : @spec.Glm53FlashSpec,
+  ordinal : Int32,
+) -> @glm.GlmDecoderStage raise {
+  guard ordinal is (0 | 1) && self.context <= spec.context_length() else {
+    fail("invalid GLM rank or context")
+  }
+  let cap = self.budget - self.reserve
+  @glm.GlmDecoderStage::new(
+    spec,
+    @placement.DecoderStageRange::new(
+      layer_count=spec.layer_count(),
+      first_layer=0,
+      end_layer=spec.layer_count(),
+    ),
+    maximum_rows=self.rows,
+    maximum_sequences=self.slots,
+    cache_slots=self.slots,
+    maximum_output_rows=self.slots,
+    maximum_history=self.context,
+    paged_history=self.history(),
+    index_layer_norm_epsilon=1.0e-5,
+    maximum_layer_state_bytes=cap,
+    maximum_layer_workspace_bytes=cap,
+    maximum_layer_expert_bytes=cap,
+    maximum_text_workspace_bytes=cap,
+    accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
+    recurrent_evaluation=OrderedTokenFloat32,
+    matrix_law=ShapeAwareFloat32,
+    matrix_staging=Synchronous,
+    sparse_matrix_staging=Synchronous,
+    expert_scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
+    expert_transport=PackedRows,
+    expert_fragment_slots=2,
+    expert_scale_partitions=1,
+    hc_reduction=Tree(partitions=256),
+    shared_matrix_columns=64,
+    tensor_group=(ordinal, 2),
+    shard_vocabulary=true,
+    vocabulary_publication=FullLogits,
+  )
+}

@@ -144,6 +144,7 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
     match kernel.sampling_runtime() {
       HostSamplingRuntime => 0U
       EmbeddedCudaGreedyV1 => 1U
+      DeviceFullF32SamplingV1 => raise InvalidBootstrapSource(Recipe)
     },
   )
   if extensions {

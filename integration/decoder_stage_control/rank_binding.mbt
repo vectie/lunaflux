@@ -117,7 +117,7 @@ fn StageRank::release_one(
 ) -> Unit raise {
   match self {
     Serial(_) => raise StageControlError::InvalidMessage
-    Batched(r) => r.release_request(id, generation)
+    Batched(r) => r.retire_request(id, generation)
   }
 }
 

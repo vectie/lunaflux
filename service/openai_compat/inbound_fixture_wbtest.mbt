@@ -20,6 +20,7 @@ fn inbound_identity() -> @spec.ModelIdentity raise {
 fn inbound_template(
   inference : @inference.InferenceLimits,
   maximum? : Int = 64,
+  document_prefix? : FixedArray[Byte] = [],
 ) -> LunaOpenAIChatTemplate raise {
   LunaOpenAIChatTemplate::new(
     inference,
@@ -31,6 +32,7 @@ fn inbound_template(
     inbound_bytes("</A>"),
     inbound_bytes("<A>"),
     max_rendered_prompt_bytes=maximum,
+    document_prefix~,
   )
 }
 
@@ -42,13 +44,15 @@ fn inbound_workspace(
   max_messages? : Int = 8,
   max_new_tokens? : Int = 4,
   context_ceiling? : Int = 16,
+  document_prefix? : FixedArray[Byte] = [],
+  required_stop_tokens? : ArrayView[Int] = [],
 ) -> LunaOpenAIInboundWorkspace raise {
   let model = inbound_bytes("model-x")
   LunaOpenAIInboundWorkspace::new(
     inference,
     LunaOpenAICompatStepBudget::new(budget),
-    LunaOpenAIInboundLimits::new(max_messages~),
-    inbound_template(inference, maximum=template_maximum),
+    LunaOpenAIInboundLimits::new(max_messages~,required_stop_tokens~),
+    inbound_template(inference, maximum=template_maximum,document_prefix~),
     model,
     model_alias_offset=0,
     model_alias_length=model.length(),

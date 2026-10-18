@@ -91,6 +91,33 @@ pub fn BatchedDecoderFrame::release_request(
 }
 
 ///|
+/// Absent is valid only for a request cancelled before its first submitted
+/// step (or a repeated receipt). A live ID with a different generation rejects.
+pub fn BatchedDecoderFrame::contains_request(
+  self : Self,
+  request_id : UInt64,
+  request_generation : UInt64,
+) -> Bool raise BatchFrameError {
+  self.require_idle()
+  guard request_id > 0UL else { raise UnknownRequest }
+  let slot = self.find_live(request_id)
+  if slot < 0 { return false }
+  guard self.generations[slot] == request_generation else { raise GenerationMismatch }
+  true
+}
+
+///|
+pub fn BatchedDecoderFrame::retire_request(
+  self : Self,
+  request_id : UInt64,
+  request_generation : UInt64,
+) -> Unit raise BatchFrameError {
+  if self.contains_request(request_id, request_generation) {
+    self.release_request(request_id, request_generation)
+  }
+}
+
+///|
 pub fn BatchedDecoderFrame::processed_tokens(
   self : Self,
   request_id : UInt64,

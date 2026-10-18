@@ -12,6 +12,7 @@ pub(all) enum WorkerBootstrapRecipe {
   DenseMistralBf16PagedAotExtensionsV11
   DenseQwen3Bf16PagedAotV12
   DenseQwen3Bf16PagedAotExtensionsV13
+  PackedGlmBatchedTensorV14
 } derive(Debug, Eq)
 
 ///|
@@ -55,6 +56,7 @@ pub struct WorkerBootstrapKernelSource {
 pub(all) enum WorkerBootstrapSamplingRuntime {
   HostSamplingRuntime
   EmbeddedCudaGreedyV1
+  DeviceFullF32SamplingV1
 } derive(Debug, Eq)
 
 ///|

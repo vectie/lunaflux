@@ -179,6 +179,8 @@ fn prepare_owned_shell(
       @inference.RequestGeneration::initial(),
     ),
     lane_restart_dispositions: FixedArray::make(online_lane_count, 0),
+    lane_device_retired: FixedArray::make(online_lane_count, false),
+    device_retirement_lane: -1,
     lane_expected_positions: FixedArray::make(online_lane_count, 0),
     free_lanes: FixedArray::makei(online_lane_count, index => index),
     free_head: 0,

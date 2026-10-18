@@ -6,6 +6,7 @@ priv struct StreamingIo {
   staging : FixedArray[Byte]
   mut phase : Int
   mut command : @streaming_ir.Command
+  mut retirement : @worker_wire.RequestRetirement
 }
 
 ///|
@@ -16,6 +17,7 @@ fn new_streaming_io() -> StreamingIo {
     rx: FixedArray::make(64, b'\x00'),
     staging: FixedArray::make(64, b'\x00'),
     phase: 0,
+    retirement: { predecessor: 0UL, request_id: 1UL, generation: 0UL, acknowledged: false },
     command: {
       worker: 0UL,
       sequence: 0UL,

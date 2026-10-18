@@ -49,6 +49,9 @@ pub fn LunaOpenAIInboundWorkspace::new(
   ignore(LunaOpenAIInboundWorkspace::required_int_cells(inference, limits))
   budget.validate()
   template.validate_for(inference)
+  if limits.required_stop_tokens.length() > inference.max_stop_token_ids() || limits.required_stop_tokens.any(t => t > inference.max_token_id()) {
+    raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits)
+  }
   if !luna_openai_range_is_valid(
       deployment_model_alias.length(),
       model_alias_offset,

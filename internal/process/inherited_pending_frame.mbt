@@ -224,6 +224,26 @@ pub fn InheritedChannel::begin_read_frame_or_eof(
 }
 
 ///|
+/// Waits for a parent's next request without limiting a healthy worker's idle
+/// lifetime. The ordinary I/O deadline starts on its first prefix byte; partial
+/// frames and writes retain their finite deadline. No new buffers are created.
+pub fn InheritedChannel::begin_wait_frame_or_eof(
+  self : InheritedChannel,
+  destination : FixedArray[Byte],
+  staging~ : FixedArray[Byte],
+) -> Unit raise ProcessError {
+  self.begin_read_frame_internal(destination, staging, self.limits.io_timeout_millis, true)
+  self.read_transfer_deadline_millis = 0L
+}
+
+///|
+fn InheritedChannel::start_waiting_frame_deadline(self : Self) -> Unit raise ProcessError {
+  if self.read_transfer_deadline_millis == 0L {
+    self.read_transfer_deadline_millis = capture_deadline(self.limits.io_timeout_millis, Read)
+  }
+}
+
+///|
 fn InheritedChannel::progress_read_frame_internal(
   self : InheritedChannel,
   expects_eof_mode : Bool,
@@ -233,7 +253,9 @@ fn InheritedChannel::progress_read_frame_internal(
     self.read_transfer_allows_eof != expects_eof_mode {
     raise InvalidState(Read)
   }
-  self.require_transfer_unexpired(self.read_transfer_deadline_millis, Read)
+  if self.read_transfer_deadline_millis != 0L {
+    self.require_transfer_unexpired(self.read_transfer_deadline_millis, Read)
+  }
   let buffer = if self.read_transfer_phase == 0 {
     self.read_prefix
   } else {
@@ -262,6 +284,7 @@ fn InheritedChannel::progress_read_frame_internal(
     return None
   }
   validate_inherited_progress_count(self, transferred, remaining, Read)
+  self.start_waiting_frame_deadline()
   self.read_transfer_cursor += transferred
   if self.read_transfer_cursor < phase_count {
     return None

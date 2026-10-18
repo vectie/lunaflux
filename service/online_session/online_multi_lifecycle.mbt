@@ -229,6 +229,11 @@ fn LunaOnlineInstance::progress_multi_retirement(
   if lane.phase != LunaRequestReleaseReadyPhase {
     raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineLifecycle))
   }
+  if !(self.multi_worker_request(ticket.lane).progress_terminal_retirement() catch {
+      _ => raise LunaOnlineInstanceFailed(LunaOnlineServiceFailure)
+    }) {
+    return LunaOnlineInstanceRetirementPending
+  }
   self.release_multi_lane(ticket.lane)
   LunaOnlineInstanceIdle
 }
