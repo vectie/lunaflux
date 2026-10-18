@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/batched_decoder_pipeline"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/engine/batched_decoder_frame",
+  "vectie/lunaflux/engine/worker_protocol",
+  "vectie/lunaflux/engine/worker_wire",
+  "vectie/lunaflux/integration/batched_decoder_worker",
+  "vectie/lunaflux/integration/decoder_stage_control",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct BatchedTensorPipeline {
+  // private fields
+}
+pub fn BatchedTensorPipeline::begin(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter, epoch~ : UInt64, local_now_millis~ : UInt64) -> Unit raise
+pub fn BatchedTensorPipeline::close(Self) -> Unit raise
+pub fn BatchedTensorPipeline::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn BatchedTensorPipeline::new(@batched_decoder_frame.BatchedDecoderFrame, @batched_decoder_worker.BatchedDecoderRank, @decoder_stage_control.DecoderStageClient, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, timeout_millis? : UInt64) -> Self raise
+pub async fn BatchedTensorPipeline::progress(Self, local_now_millis~ : UInt64) -> Bool
+pub fn BatchedTensorPipeline::release_request(Self, UInt64, UInt64, local_now_millis~ : UInt64) -> Unit raise
+
+// Type aliases
+
+// Traits

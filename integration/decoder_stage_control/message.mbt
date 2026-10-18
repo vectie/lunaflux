@@ -48,6 +48,9 @@ let predict_kind : Int = 11
 let drafts_kind : Int = 12
 
 ///|
+let release_one_kind : Int = 13
+
+///|
 /// Fixed byte/integer storage ceiling for a server or client. Object/socket
 /// runtime overhead and rank/device/activation storage are reserved separately.
 pub fn required_buffer_bytes(

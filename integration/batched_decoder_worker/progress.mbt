@@ -175,6 +175,20 @@ pub fn BatchedDecoderRank::samples(self : Self) -> ArrayView[Int] raise {
 }
 
 ///|
+pub fn BatchedDecoderRank::live_rows(self : Self) -> Int raise {
+  self.frame.live_rows()
+}
+
+///|
+pub fn BatchedDecoderRank::output_rows(self : Self) -> Int raise {
+  if self.outputs_token {
+    self.frame.output_rows()
+  } else {
+    0
+  }
+}
+
+///|
 /// Preserves the request-owned sampling configuration before GPU submission.
 /// Binding a greedy-only suffix is not sufficient for stochastic requests.
 pub fn BatchedDecoderRank::sampling_plan(

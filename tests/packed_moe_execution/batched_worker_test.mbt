@@ -1,5 +1,7 @@
 ///|
-fn batch_rank_fixture() -> @batch_worker.BatchedDecoderRank raise {
+fn batch_rank_fixture(
+  outputs_token? : Bool = true,
+) -> @batch_worker.BatchedDecoderRank raise {
   @batch_worker.BatchedDecoderRank::new(
     @batch_frame.BatchedDecoderFrame::new(
       maximum_rows=4,
@@ -9,7 +11,7 @@ fn batch_rank_fixture() -> @batch_worker.BatchedDecoderRank raise {
       vocabulary_size=16,
       model_generation=9UL,
     ),
-    outputs_token=true,
+    outputs_token~,
   )
 }
 

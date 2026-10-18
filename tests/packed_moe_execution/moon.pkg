@@ -77,6 +77,7 @@ import {
   "vectie/lunaflux/runtime/remote_channel" @channel,
   "vectie/lunaflux/integration/serial_decoder_worker" @serial_worker,
   "vectie/lunaflux/integration/batched_decoder_worker" @batch_worker,
+  "vectie/lunaflux/integration/batched_decoder_pipeline" @batch_pipeline,
   "vectie/lunaflux/engine/batched_decoder_frame" @batch_frame,
   "vectie/lunaflux/engine/serial_decoder_frame" @serial_frame,
   "vectie/lunaflux/engine/worker_wire" @wire,

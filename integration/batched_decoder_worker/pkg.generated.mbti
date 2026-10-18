@@ -23,8 +23,10 @@ pub fn BatchedDecoderRank::execution_failed(Self) -> Bool raise
 pub fn BatchedDecoderRank::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn BatchedDecoderRank::input(Self, @batched_decoder_frame.BatchInputPort) -> @device.Allocation raise
 pub fn BatchedDecoderRank::inputs_ready(Self) -> Bool raise
+pub fn BatchedDecoderRank::live_rows(Self) -> Int raise
 pub fn BatchedDecoderRank::new(@batched_decoder_frame.BatchedDecoderFrame, outputs_token~ : Bool) -> Self
 pub fn BatchedDecoderRank::output_entry(Self, Int) -> Int raise
+pub fn BatchedDecoderRank::output_rows(Self) -> Int raise
 pub fn BatchedDecoderRank::outputs_token(Self) -> Bool
 pub fn BatchedDecoderRank::prepare_ports(Self, @device.Context, maximum_device_bytes~ : Int64) -> Unit raise
 pub fn BatchedDecoderRank::progress(Self) -> Bool raise

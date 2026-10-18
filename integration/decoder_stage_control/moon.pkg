@@ -4,6 +4,7 @@ import {
   "vectie/lunaflux/engine/worker_protocol" @protocol,
   "vectie/lunaflux/engine/worker_wire" @wire,
   "vectie/lunaflux/integration/serial_decoder_worker" @rank,
+  "vectie/lunaflux/integration/batched_decoder_worker" @batch_rank,
   "vectie/lunaflux/runtime/remote_channel" @channel,
 }
 

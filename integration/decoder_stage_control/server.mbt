@@ -29,7 +29,7 @@ priv enum ServerState {
 /// The server owns the connection but borrows the rank. Close transport/edges
 /// before closing rank resources. Cancellation never implies successful commit.
 pub struct DecoderStageServer {
-  priv rank : @rank.SerialDecoderRank
+  priv rank : StageRank
   priv channel : @channel.RemoteChannel
   priv message : FixedArray[Byte]
   priv plan_bytes : FixedArray[Byte]
@@ -69,6 +69,61 @@ pub fn DecoderStageServer::new(
   state_transaction? : StageStateTransaction,
   draft_execution? : StageDraftExecution,
 ) -> Self raise {
+  prepare_server(
+    Serial(rank),
+    connection,
+    limits,
+    inference_limits,
+    maximum_buffer_bytes~,
+    timeout_millis~,
+    local_now_millis~,
+    ready_to_submit~,
+    arm_activation~,
+    committed_effect?,
+    poll_committed_effect~,
+    state_transaction?,
+    draft_execution?,
+  )
+}
+
+///|
+pub fn DecoderStageServer::new_batched(
+  rank : @batch_rank.BatchedDecoderRank,
+  connection : @socket.Tcp,
+  limits : @protocol.WorkerProtocolLimits,
+  inference_limits : @inference.InferenceLimits,
+  maximum_buffer_bytes~ : Int64,
+  timeout_millis~ : UInt64,
+  local_now_millis~ : UInt64,
+) -> Self raise {
+  prepare_server(
+    Batched(rank),
+    connection,
+    limits,
+    inference_limits,
+    maximum_buffer_bytes~,
+    timeout_millis~,
+    local_now_millis~,
+    ready_to_submit=() => true,
+  )
+}
+
+///|
+fn prepare_server(
+  rank : StageRank,
+  connection : @socket.Tcp,
+  limits : @protocol.WorkerProtocolLimits,
+  inference_limits : @inference.InferenceLimits,
+  maximum_buffer_bytes~ : Int64,
+  timeout_millis~ : UInt64,
+  local_now_millis~ : UInt64,
+  ready_to_submit~ : () -> Bool raise,
+  arm_activation? : (UInt64, Int, UInt64) -> Unit raise = (_, _, _) => (),
+  committed_effect? : (Bool) -> Unit raise,
+  poll_committed_effect? : () -> Bool raise = () => true,
+  state_transaction? : StageStateTransaction,
+  draft_execution? : StageDraftExecution,
+) -> DecoderStageServer raise {
   guard maximum_buffer_bytes >= required_buffer_bytes(limits) &&
     timeout_millis > 0UL &&
     timeout_millis <= 300000UL &&
@@ -163,6 +218,20 @@ fn DecoderStageServer::command(
     self.epoch = epoch
     self.phase_deadline = now + self.timeout_millis
     self.state = Uploading
+    return
+  }
+  if kind == release_one_kind &&
+    flags == 0 &&
+    self.phase is (Idle | Released) &&
+    length == control_header_bytes + 16 &&
+    epoch == self.epoch &&
+    epoch > 0UL {
+    self.rank.release_one(
+      read_u64(self.message, control_header_bytes),
+      read_u64(self.message, control_header_bytes + 8),
+    )
+    self.phase = Released
+    self.reply(released_kind, 0, 0, now)
     return
   }
   guard length == control_header_bytes && epoch == self.epoch && epoch > 0UL else {

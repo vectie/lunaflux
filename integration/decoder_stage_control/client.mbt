@@ -21,6 +21,7 @@ pub struct DecoderStageClient {
   priv maximum_output_rows : Int
   priv maximum_token : Int
   priv maximum_draft_tokens : Int
+  priv batched_outputs : Bool
   priv mut expect_token : Bool
   priv mut expected_rows : Int
   priv mut draft_rows : Int
@@ -42,6 +43,7 @@ pub fn DecoderStageClient::new(
   timeout_millis~ : UInt64,
   maximum_output_rows? : Int = 1,
   maximum_draft_tokens? : Int = 0,
+  batched_outputs? : Bool = false,
 ) -> Self raise {
   guard maximum_buffer_bytes >= required_buffer_bytes(limits) &&
     maximum_output_rows > 0 &&
@@ -64,6 +66,7 @@ pub fn DecoderStageClient::new(
     maximum_output_rows,
     maximum_token: limits.max_token_id(),
     maximum_draft_tokens,
+    batched_outputs,
     expect_token: false,
     expected_rows: 0,
     draft_rows: 0,
@@ -92,18 +95,26 @@ pub fn DecoderStageClient::prepare(
   guard length <= self.message.length() - control_header_bytes else {
     raise StageControlError::InvalidMessage
   }
-  let expect_token = self.outputs_token &&
+  let serial_token = self.outputs_token &&
     (
       plan.decode_count() == 1 ||
       (plan.prefill_count() == 1 && plan.prefill_row(0).produces_token())
     )
-  let expected_rows = if !expect_token {
+  let expected_rows = if self.batched_outputs && self.outputs_token {
+    for row in 0..<plan.prefill_count(); count = plan.decode_count() {
+      continue count +
+        (if plan.prefill_row(row).produces_token() { 1 } else { 0 })
+    } nobreak {
+      count
+    }
+  } else if !serial_token {
     0
   } else if self.maximum_output_rows == 1 {
     1
   } else {
     plan.token_count()
   }
+  let expect_token = expected_rows > 0
   guard expected_rows <= self.maximum_output_rows else {
     raise StageControlError::InvalidMessage
   }
@@ -192,10 +203,44 @@ pub fn DecoderStageClient::release_request(
   self : Self,
   local_now_millis~ : UInt64,
 ) -> Unit raise {
-  guard !self.busy && self.state is (Idle | DraftsReady) && self.epoch > 0UL else {
+  guard !self.batched_outputs &&
+    !self.busy &&
+    self.state is (Idle | DraftsReady) &&
+    self.epoch > 0UL else {
     raise StageControlError::InvalidState
   }
   self.command(release_kind, released_kind, 0, local_now_millis)
+}
+
+///|
+/// Identified retirement is independent of the most recent batch ordinal.
+pub fn DecoderStageClient::release_one(
+  self : Self,
+  request_id : UInt64,
+  generation : UInt64,
+  local_now_millis~ : UInt64,
+) -> Unit raise {
+  guard self.batched_outputs &&
+    !self.busy &&
+    self.state is Idle &&
+    self.epoch > 0UL else {
+    raise StageControlError::InvalidState
+  }
+  header(self.message, release_one_kind, self.epoch, 0, 0)
+  write_u64(self.message, control_header_bytes, request_id)
+  write_u64(self.message, control_header_bytes + 8, generation)
+  self.state = FailedState
+  self.channel.begin_send(
+    self.message,
+    control_header_bytes + 16,
+    local_now_millis,
+  )
+  self.state = Sending(released_kind)
+}
+
+///|
+pub fn DecoderStageClient::is_batched(self : Self) -> Bool {
+  self.batched_outputs
 }
 
 ///|

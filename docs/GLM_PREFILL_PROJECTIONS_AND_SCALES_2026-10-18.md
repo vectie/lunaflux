@@ -348,9 +348,30 @@ whole-step commit stays with the coordinator. Its native transfer-double tests
 cover memory rejection, teardown, peer-failure poisoning and zero warmed heap
 allocation. Initial tests caught a test-fixture generation mismatch and an
 allocating iterator in metadata staging; both are corrected rather than waived.
-The complete multi-request TP transport, stochastic vocabulary sampling,
-buffered HTTP delivery and full-model service acceptance are still outstanding.
-The public endpoint remains offline.
+Paged history and rank ports are committed as `5dbfb418`. The generic batched
+TP transport/coordinator now carries selected output vectors, waits for both
+ranks and the commit receipt, and retires request identity plus generation.
+Native tests include delayed local retirement, partial prefill, reordered
+requests, reuse and stale cancellation; the complete affected transfer-double
+package passes 129/129. These are not real two-Spark concurrent service tests.
+Stochastic vocabulary sampling, buffered HTTP delivery and full-model service
+acceptance are still outstanding. The public endpoint remains offline.
+
+### Execution-order isolation after the defined-bank fix
+
+Two fresh eager/no-overlap runs with the same distributed-scale32 source,
+runtime and six literal prompts match 6/6 token sequences, also matching the
+retained serial-scale control. Roots:
+`/tmp/lunaflux-model-bench-glm-defined-bank-ordered-scales-20261018-r1` and `-r2`.
+Complete six-prompt times are 3.983/3.997 seconds, versus matched vLLM 3.168596
+seconds (25.7/26.1% more time). No changed-work speedup is claimed. Both ranks
+release with zero experiment swap and the 16GiB reserve maintained.
+
+This contrasts with 2/6 identical fresh outputs when graph replay AND expert
+overlap are enabled. It narrows the defect to an execution-path interaction,
+not yet a proof of which interaction. The first graph-only/no-overlap run also
+matches all six controls; its fresh repeat is pending. Component graph
+correctness alone was insufficient to demonstrate the full-model path.
 
 The normal warning-denied native check (existing migration exclusions) and
 19 affected source-package tests pass. The full service remains offline. The
