@@ -123,7 +123,7 @@ test "Luna OpenAI optional sampling fields fail before frame publication" {
     "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"temperature\":1e}",
     "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"temperature\":1e401}",
     "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"temperature\":9}",
-    "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"top_k\":0}", "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"top_k\":1.0}",
+    "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"top_k\":-2}", "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"top_k\":1.0}",
     "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"top_p\":0}", "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"top_p\":1.0001}",
     "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"seed\":-1}", "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"seed\":1.0}",
     "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"seed\":18446744073709551616}",

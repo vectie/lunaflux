@@ -1,0 +1,67 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/engine/batched_decoder_frame"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/engine/worker_wire",
+}
+
+// Values
+
+// Errors
+pub(all) suberror BatchFrameError {
+  InvalidCapacity
+  Busy
+  Closed
+  Faulted
+  CapacityExceeded
+  InvalidToken
+  InvalidPosition
+  UnknownRequest
+  GenerationMismatch
+  ModelGenerationMismatch
+} derive(Eq, @debug.Debug)
+pub fn BatchFrameError::equal(Self, Self) -> Bool
+pub fn BatchFrameError::not_equal(Self, Self) -> Bool
+pub fn BatchFrameError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum BatchInputPort {
+  Counts
+  TokenIds
+  SequenceOffsets
+  SequenceSlots
+  RecurrentResets
+  SparseResets
+  OutputCount
+  SelectedRows
+  Positions
+  RowSlots
+  SequencePositions
+} derive(Eq, @debug.Debug)
+pub fn BatchInputPort::equal(Self, Self) -> Bool
+pub fn BatchInputPort::not_equal(Self, Self) -> Bool
+pub fn BatchInputPort::to_repr(Self) -> @debug.Repr
+
+pub struct BatchedDecoderFrame {
+  // private fields
+}
+pub fn BatchedDecoderFrame::close(Self) -> Unit raise
+pub fn BatchedDecoderFrame::complete(Self, ArrayView[Int], execution_failed~ : Bool) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn BatchedDecoderFrame::completion(Self) -> @worker_wire.ValidatedCompletionFrame raise
+pub fn BatchedDecoderFrame::copy_input(Self, BatchInputPort, FixedArray[Byte]) -> Int raise BatchFrameError
+pub fn BatchedDecoderFrame::input_capacity(Self, BatchInputPort) -> Int
+pub fn BatchedDecoderFrame::is_faulted(Self) -> Bool
+pub fn BatchedDecoderFrame::live_rows(Self) -> Int raise BatchFrameError
+pub fn BatchedDecoderFrame::new(maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_context~ : Int, vocabulary_size~ : Int, model_generation~ : UInt64) -> Self raise BatchFrameError
+pub fn BatchedDecoderFrame::output_entry(Self, Int) -> Int raise BatchFrameError
+pub fn BatchedDecoderFrame::output_rows(Self) -> Int raise BatchFrameError
+pub fn BatchedDecoderFrame::processed_tokens(Self, UInt64, UInt64) -> Int raise BatchFrameError
+pub fn BatchedDecoderFrame::release_request(Self, UInt64, UInt64) -> Unit raise BatchFrameError
+pub fn BatchedDecoderFrame::retire_stage(Self, execution_failed~ : Bool) -> Unit raise
+pub fn BatchedDecoderFrame::sampling_plan(Self) -> @worker_wire.ValidatedPlanFrame raise
+pub fn BatchedDecoderFrame::stage(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise
+
+// Type aliases
+
+// Traits

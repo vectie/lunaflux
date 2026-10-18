@@ -161,7 +161,7 @@ fn LunaOpenAIInboundWorkspace::progress_parse(
           self.phase = LUNA_INBOUND_TRUE
         }
         4 => self.phase = LUNA_INBOUND_MESSAGES_START
-        5 | 6 | 7 | 8 =>
+        5 | 6 | 7 | 8 | 11 | 12 | 13 =>
           self.start_number(self.current_key, LUNA_INBOUND_TOP_AFTER)
         9 =>
           if byte == b'"' {

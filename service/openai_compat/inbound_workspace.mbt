@@ -104,6 +104,8 @@ pub fn LunaOpenAIInboundWorkspace::new(
     ),
     handoff_workspace,
     effective,
+    requested_max_tokens: -1,
+    requested_max_completion_tokens: -1,
     sampling,
     sampling_seed,
     deadline,
@@ -199,6 +201,8 @@ fn LunaOpenAIInboundWorkspace::reset_operation(self : Self) -> Unit {
   self.top_seen = 0
   self.message_seen = 0
   self.current_key = 0
+  self.requested_max_tokens = -1
+  self.requested_max_completion_tokens = -1
   self.message_count = 0
   self.current_role = 0
   self.current_content_start = 0

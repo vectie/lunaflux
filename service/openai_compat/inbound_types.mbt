@@ -171,6 +171,8 @@ pub struct LunaOpenAIInboundWorkspace {
   priv stop_string_bytes : FixedArray[Byte]
   priv handoff_workspace : @inference.LunaTextRequestHandoffStorage
   priv effective : @inference.EffectiveLimits
+  priv mut requested_max_tokens : Int
+  priv mut requested_max_completion_tokens : Int
   priv sampling : @inference.SamplingParameters
   priv sampling_seed : @inference.SamplingSeed
   priv deadline : @inference.DeadlineBudget

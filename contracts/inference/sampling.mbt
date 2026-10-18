@@ -9,7 +9,8 @@ pub(all) enum SamplingMode {
 /// Validated v1 sampling parameters.
 ///
 /// Greedy is represented separately from probabilistic sampling so zero
-/// temperature never acquires an implicit or adapter-specific meaning.
+/// temperature never enters the native sampling contract. Compatibility APIs
+/// translate their explicit zero-temperature convention to Greedy at ingress.
 pub struct SamplingParameters {
   priv mode : SamplingMode
   priv temperature : Double

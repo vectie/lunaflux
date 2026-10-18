@@ -53,7 +53,10 @@ fn luna_known_byte(group : Int, candidate : Int, index : Int) -> Int {
     (1, 6) => b"top_p"
     (1, 7) => b"seed"
     (1, 8) => b"stop"
-    (1, _) => b"stop_token_ids"
+    (1, 9) => b"stop_token_ids"
+    (1, 10) => b"max_tokens"
+    (1, 11) => b"max_completion_tokens"
+    (1, _) => b"max_output_tokens"
     (2, 0) => b"role"
     (2, _) => b"content"
     (3, 0) => b"system"
@@ -77,7 +80,10 @@ fn luna_known_length(group : Int, candidate : Int) -> Int {
     (1, 3) => 8
     (1, 4) => 11
     (1, 7) | (1, 8) => 4
-    (1, _) => 14
+    (1, 9) => 14
+    (1, 10) => 10
+    (1, 11) => 21
+    (1, _) => 17
     (2, 0) => 4
     (2, _) => 7
     (3, 0) => 6
@@ -99,7 +105,7 @@ fn LunaOpenAIInboundWorkspace::accept_string_byte(
     _ => 0
   }
   if group != 0 {
-    let maximum = if group == 1 { 10 } else if group == 2 { 2 } else { 3 }
+    let maximum = if group == 1 { 13 } else if group == 2 { 2 } else { 3 }
     for candidate in 0..<maximum {
       let bit = 1 << candidate
       if (self.string_candidates & bit) != 0 &&
@@ -146,7 +152,7 @@ fn LunaOpenAIInboundWorkspace::start_string(
   self.string_start = self.cursor + 1
   self.string_decoded_index = 0
   self.string_candidates = match purpose {
-    LUNA_STRING_TOP_KEY => 1023
+    LUNA_STRING_TOP_KEY => 8191
     LUNA_STRING_MESSAGE_KEY => 3
     LUNA_STRING_ROLE => 7
     LUNA_STRING_MODEL => 1
@@ -215,7 +221,7 @@ fn LunaOpenAIInboundWorkspace::finish_string(
   match self.string_purpose {
     LUNA_STRING_TOP_KEY => {
       let mut found = -1
-      for candidate in 0..<10 {
+      for candidate in 0..<13 {
         if (self.string_candidates & (1 << candidate)) != 0 &&
           self.string_decoded_index == luna_known_length(1, candidate) {
           if found >= 0 {
@@ -226,7 +232,9 @@ fn LunaOpenAIInboundWorkspace::finish_string(
       }
       if found < 0 ||
         (self.route == 1 && found == 3) ||
-        (self.route == 2 && found == 1) {
+        (self.route == 2 && found == 1) ||
+        (self.route == 1 && (found == 10 || found == 11)) ||
+        (self.route == 2 && found == 12) {
         raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
       }
       let bit = 1 << found

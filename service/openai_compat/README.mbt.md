@@ -67,7 +67,15 @@ Completions requires `model`, `stream: true`, and a nonempty `messages` array
 whose objects contain exactly one `role` and one nonempty string `content`.
 Both routes additionally accept bounded `temperature`, `top_k`, `top_p`,
 `seed`, string-or-string-array `stop`, and integer-array `stop_token_ids`.
+The adapter explicitly maps `temperature: 0` to native `Greedy` and `top_k`
+values `0`/`-1` to an absent filter. Filters are validated before greedy
+normalization, independently of JSON field order; invalid values are not ignored.
 Absent optional values preserve the validated startup sampling and seed.
+Chat also accepts per-request `max_tokens` and `max_completion_tokens`; when
+both are present, `max_completion_tokens` takes precedence independently of
+key order. Responses accepts `max_output_tokens`. These budgets may exceed the
+startup *default*, but not the admitted engine output/context ceilings. Omission
+resets to the startup default on each request, including connection reuse.
 Explicit values are scanned one byte per charged transition into scalar or
 fixed-capacity storage. JSON syntax and numeric representation are checked
 while parsing; typed sampling construction and the semantic handoff validate

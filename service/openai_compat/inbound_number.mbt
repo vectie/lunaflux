@@ -58,7 +58,10 @@ fn LunaOpenAIInboundWorkspace::finish_number_scan(
     }
     self.phase = LUNA_INBOUND_NUMBER_SCALE
   } else {
-    if self.number_negative ||
+    if (
+        self.number_negative &&
+        !(self.number_target == 6 && self.number_significand == 1UL)
+      ) ||
       self.number_fraction_digits != 0 ||
       self.number_stage == 5 {
       raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
@@ -177,8 +180,17 @@ fn LunaOpenAIInboundWorkspace::progress_number_final(
     }
     6 => {
       self.sampling_mode = 1
-      self.has_top_k = true
-      self.top_k = self.number_significand.to_int()
+      // Compatibility's 0/-1 both mean no filter. Native sampling still uses
+      // explicit absence, not a negative or zero top-k sent to a kernel.
+      if self.number_significand > self.inference.max_top_k().to_uint64() {
+        raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
+      }
+      self.has_top_k = !self.number_negative && self.number_significand != 0UL
+      self.top_k = if self.has_top_k {
+        self.number_significand.to_int()
+      } else {
+        0
+      }
     }
     7 => {
       self.sampling_mode = 1
@@ -192,6 +204,21 @@ fn LunaOpenAIInboundWorkspace::progress_number_final(
       }
       self.stop_tokens[self.stop_token_count] = self.number_significand.to_int()
       self.stop_token_count += 1
+    }
+    11 | 12 | 13 => {
+      // Bound before narrowing UInt64; these are request budgets, not new
+      // engine capacities. Keep at least one token of room for the prompt.
+      let value = self.number_significand
+      if value == 0UL ||
+        value > self.inference.max_new_tokens().to_uint64() ||
+        value >= self.effective.context_ceiling().to_uint64() {
+        raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
+      }
+      if self.number_target == 11 {
+        self.requested_max_tokens = value.to_int()
+      } else {
+        self.requested_max_completion_tokens = value.to_int()
+      }
     }
     _ => abort("Luna OpenAI number target invariant")
   }

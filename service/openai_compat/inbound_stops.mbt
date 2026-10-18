@@ -5,8 +5,14 @@ fn LunaOpenAIInboundWorkspace::begin_render(
   let sampling = if self.sampling_mode == 0 {
     @inference.LunaValidatedSampling::greedy()
   } else {
-    @inference.LunaValidatedSampling::sample(
-      temperature=self.temperature,
+    // Zero temperature is an explicit outer-API translation to native Greedy.
+    // Validate filters even in greedy mode; malformed values are not ignored.
+    let checked = @inference.LunaValidatedSampling::sample(
+      temperature=if self.temperature == 0.0 {
+        self.inference.max_temperature()
+      } else {
+        self.temperature
+      },
       has_top_k=self.has_top_k,
       top_k=self.top_k,
       has_top_p=self.has_top_p,
@@ -15,11 +21,34 @@ fn LunaOpenAIInboundWorkspace::begin_render(
     ) catch {
       _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
     }
+    if self.temperature == 0.0 {
+      @inference.LunaValidatedSampling::greedy()
+    } else {
+      checked
+    }
   }
   let prompt_limit = if self.route == 2 {
     self.template.max_rendered_prompt_bytes
   } else {
     self.inference.max_text_bytes()
+  }
+  // Chat's modern field takes precedence regardless of JSON key order, like
+  // the existing vLLM request adapter. Responses uses max_output_tokens.
+  let requested = if self.requested_max_completion_tokens > 0 {
+    self.requested_max_completion_tokens
+  } else {
+    self.requested_max_tokens
+  }
+  let effective = if requested > 0 {
+    @inference.EffectiveLimits::new(
+      max_new_tokens=requested,
+      context_ceiling=self.effective.context_ceiling(),
+      self.inference,
+    ) catch {
+      _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
+    }
+  } else {
+    self.effective
   }
   self.handoff_writes.push(
     self.handoff_workspace.begin(
@@ -27,7 +56,7 @@ fn LunaOpenAIInboundWorkspace::begin_render(
       stop_token_count=self.stop_token_count,
       stop_string_count=self.stop_string_count,
       request_id=self.request_ids[0],
-      effective=self.effective,
+      effective~,
       sampling~,
       sampling_seed=@inference.SamplingSeed::new(self.sampling_seed_value) catch {
         _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
