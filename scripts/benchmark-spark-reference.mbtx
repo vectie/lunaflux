@@ -651,6 +651,26 @@ async fn main {
         )
       }
     }
+    if !profile && glm && !sg &&
+      @env.get_env_var("LUNAFLUX_REFERENCE_STREAM_DIAGNOSTIC") == Some("1") {
+      let diagnostic = @shell.Cmd("moon", [
+        "run", "scripts/measure-glm-reference-stream.mbtx", root,
+      ]).output(max_output_bytes=8388608)
+      @fs.write_file(
+        root + "/stream-diagnostic.stdout",
+        diagnostic.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/stream-diagnostic.stderr",
+        diagnostic.stderr(),
+        create_mode=CreateNew,
+      )
+      if diagnostic.exit_code() != 0 {
+        stop_pair(tag)
+      }
+      diagnostic.check()
+    }
     stop_pair(tag)
     println(
       (if profile {

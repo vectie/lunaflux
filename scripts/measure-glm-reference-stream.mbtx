@@ -1,0 +1,210 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline localhost client diagnostic. Data-arrival chunks are not assumed
+// to be individual tokens. It does not change compiler/runtime selection.
+
+///|
+fn seconds(value : StringView) -> Double raise {
+  guard value.split(":").to_array() is [h, m, s] else {
+    fail("trace timestamp")
+  }
+  @string.parse_double(h) * 3600.0 +
+  @string.parse_double(m) * 60.0 +
+  @string.parse_double(s)
+}
+
+///|
+fn content_event(text : String) -> Bool {
+  for part in text.split("data: ") {
+    let part = part.trim()
+    if part.has_prefix("{") {
+      // A receive chunk may include HTTP chunk framing. Stop at a complete
+      // JSON value, rather than treating byte arrival as token publication.
+      for end in 1..<=part.length() {
+        if part[end - 1] == '}' {
+          let event = @json.parse(part[:end]) catch { _ => null }
+          if event is { "choices": Array(choices), .. } {
+            for choice in choices {
+              if choice is { "text": String(value), .. } && !value.is_empty() {
+                return true
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  false
+}
+
+///|
+fn trace_events(text : String) -> Json raise {
+  let mut sent : Double? = None
+  let mut arrival : Double? = None
+  let mut body = ""
+  let mut pending = ""
+  let arrivals : Array[Double] = []
+  fn flush() -> Unit {
+    if arrival is Some(time) {
+      pending += body
+      if content_event(pending) {
+        arrivals.push(time)
+        pending = ""
+      }
+    }
+  }
+  for line in text.split("\n") {
+    let space = line.find(" ")
+    if space is Some(space) && space >= 8 && line.contains("=> Send header") {
+      if sent is None {
+        sent = Some(seconds(line[:space]))
+      }
+    }
+    if space is Some(space) &&
+      space >= 8 &&
+      (line.contains("<= ") || line.contains("=> ") || line.contains("== ")) {
+      flush()
+      arrival = if line.contains("<= Recv data,") {
+        Some(seconds(line[:space]))
+      } else {
+        None
+      }
+      body = ""
+    } else if arrival is Some(_) && line.length() >= 6 && line[4:6] == ": " {
+      body += line[6:].to_owned()
+    }
+  }
+  flush()
+  guard sent is Some(start) && !arrivals.is_empty() else {
+    fail("no complete content arrival observed")
+  }
+  let deltas = arrivals.map(t => {
+    if t >= start {
+      t - start
+    } else {
+      t + 86400.0 - start
+    }
+  })
+  {
+    "request_sent_seconds_of_day": start,
+    "first_content_seconds": deltas[0],
+    "content_chunk_arrival_seconds": Json(deltas),
+    "content_chunks_not_token_count": arrivals.length(),
+  }
+}
+
+///|
+test "trace distinguishes headers empty chunks and content publication" {
+  let trace = "10:00:00.100000 => Send header, 10 bytes\n0000: POST /\n10:00:00.150000 <= Recv header, 10 bytes\n0000: HTTP/1.1\n10:00:00.200000 <= Recv data, 64 bytes\n0000: data: {\"choices\":[{\"text\":\"\"}]}\n10:00:00.300000 <= Recv data, 80 bytes\n0000: data: {\"choices\":[{\"text\":\"a\"}]}\n10:00:00.400000 <= Recv data, 20 bytes\n0000: data: [DONE]\n"
+  guard trace_events(trace)
+    is {
+      "content_chunks_not_token_count": Number(n, ..),
+      "first_content_seconds": Number(t, ..),
+      ..
+    } else {
+    fail("summary")
+  }
+  assert_eq(n, 1.0)
+  assert_true((t - 0.2).abs() < 1.0e-8)
+}
+
+///|
+test "split JSON lines and usage-only events do not invent token arrivals" {
+  assert_true(content_event("data: {\"choices\":[{\"text\":\"hello\"}]}"))
+  assert_false(
+    content_event("data: {\"choices\":[],\"usage\":{\"completion_tokens\":8}}"),
+  )
+  assert_false(content_event("data: {\"choices\":[{\"text\":"))
+}
+
+///|
+test "fragmented content is timed when its JSON event becomes complete" {
+  let trace = "10:00:00.100000 => Send header, 10 bytes\n0000: POST /\n10:00:00.200000 <= Recv data, 32 bytes\n0000: data: {\"choices\":[{\"text\":\"he\n10:00:00.300000 <= Recv data, 12 bytes\n0000: llo\"}]}\n"
+  guard trace_events(trace)
+    is {
+      "first_content_seconds": Number(t, ..),
+      "content_chunks_not_token_count": Number(n, ..),
+      ..
+    } else {
+    fail("summary")
+  }
+  assert_true((t - 0.2).abs() < 1.0e-8)
+  assert_eq(n, 1.0)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-reference-bench-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("EXISTING_REFERENCE_ROOT")
+  }
+  let host = "wlc003s@192.168.2.178"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm178-cutlass-20261017.sock",
+  )
+  for i in 0..<6 {
+    guard @json.parse(@fs.read_file(root + "/request-\{i}.json").text())
+      is Object(request) else {
+      fail("request")
+    }
+    request["stream"] = true
+    request["stream_options"] = { "include_usage": true }
+    let path = root + "/stream-\{i}"
+    @fs.write_file(
+      path + "-request.json",
+      Json(request).stringify(),
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      path + "-request.json",
+      host + ":" + path + "-request.json",
+    ])
+    .output()
+    .check()
+    let out = @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      "-o",
+      "BatchMode=yes",
+      host,
+      "curl --fail --silent --show-error --no-buffer --max-time 900 --trace-time --trace-ascii " +
+      path +
+      "-trace.txt -H 'Content-Type: application/json' --data-binary @" +
+      path +
+      "-request.json -o " +
+      path +
+      "-response.txt -w 'http=%{http_code} total_seconds=%{time_total}\\n' http://127.0.0.1:28880/v1/completions",
+    ]).output(max_output_bytes=8388608)
+    @fs.write_file(path + "-timing.stdout", out.stdout(), create_mode=CreateNew)
+    @fs.write_file(path + "-timing.stderr", out.stderr(), create_mode=CreateNew)
+    out.check()
+    for suffix in ["-trace.txt", "-response.txt"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        host + ":" + path + suffix,
+        path + suffix,
+      ])
+      .output()
+      .check()
+    }
+    let report = trace_events(@fs.read_file(path + "-trace.txt").text())
+    @fs.write_file(
+      path + "-summary.json",
+      report.stringify(),
+      create_mode=CreateNew,
+    )
+    println("prompt=\{i} \{report.stringify()}")
+  }
+}

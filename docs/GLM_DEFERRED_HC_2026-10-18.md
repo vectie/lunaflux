@@ -92,6 +92,27 @@ Unselected serving behavior stays unchanged.
 Full-model selection, paired unprofiled runs and comparison against vLLM are
 pending at this commit. Do not infer a closed12% gap from the isolated result.
 
+Implementation `213647b8` passed warning-denied native check with the unchanged
+warning exclusions `-20-25-29-35-79-92`,88 affected tests, and the full native
+suite5202/5202. Targeted `moon info` has1086 existing migration warnings and
+zero errors. Clean commit-pinned ARM build passed in38 seconds with822.3MiB
+peak memory and zero swap. Both AOT stages compiled within4GiB limits; existing
+unused-variable/unsigned-comparison warnings are retained, not suppressed.
+
+Fresh current-path baseline root
+`/tmp/lunaflux-model-bench-glm-deferred-current-base-20261018-v1` completes with
+all original output IDs unchanged: [714,445,714,730,734,460]ms for the six
+prompts; equal-output five-prompt sum3083ms. Its requests finish at10:47:28;
+the new CPU-only AOT export starts at10:48:02, so preparation did not overlap
+these timings. Candidate model measurements remain pending.
+
+The optional external `LUNAFLUX_REFERENCE_STREAM_DIAGNOSTIC=1` client adds a
+separate warm six-prompt streaming replay after the ordinary buffered cohort.
+It timestamps localhost receive events with nonempty, complete SSE content;
+chunks are not claimed to be individual tokens. Raw curl trace/body are kept.
+This provides first-content and following-content arrival times without GPU
+profiling and without adding measurement code to the compiler/runtime.
+
 ## Maintenance and limits
 
 Direct LAN SSH was unavailable; access recovered with the configured
