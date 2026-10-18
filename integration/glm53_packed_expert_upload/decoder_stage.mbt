@@ -45,6 +45,7 @@ pub fn GlmDecoderStage::new(
   shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
   shard_vocabulary? : Bool = false,
+  vocabulary_publication? : @parallel.VocabularyPublication = GreedyCandidates,
   maximum_sequences? : Int = 1,
   cache_slots? : Int = 1,
   maximum_output_rows? : Int = 1,
@@ -57,6 +58,9 @@ pub fn GlmDecoderStage::new(
     cache_slots >= maximum_sequences &&
     maximum_output_rows > 0 &&
     maximum_output_rows <= maximum_sequences else {
+    raise @precision_ir.PrecisionPlanError::IllegalPlacement
+  }
+  guard vocabulary_publication == GreedyCandidates || shard_vocabulary else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
   }
   let (first_layer, end_layer) = range.layer_range()
@@ -85,6 +89,7 @@ pub fn GlmDecoderStage::new(
         rank~,
         world~,
         maximum_outputs=maximum_output_rows,
+        publication=vocabulary_publication,
       ),
     )
   } else {

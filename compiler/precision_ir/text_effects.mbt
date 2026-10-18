@@ -4,18 +4,31 @@
 /// The decoder is an external producer; embedding is NOT its substitute.
 pub fn TextIoPrecision::egress_program(
   self : Self,
+  vocabulary_shard? : @parallel.VocabularyShard,
 ) -> @parallel.Program raise PrecisionPlanError {
+  if vocabulary_shard is Some(shard) {
+    guard shard.geometry() == (self.vocabulary, self.outputs) else {
+      raise IllegalPlacement
+    }
+  }
+  let local_columns = vocabulary_shard
+    .map(s => s.columns().1)
+    .unwrap_or(self.vocabulary)
+    .to_int64()
+  let published_bytes = vocabulary_shard
+    .map(s => s.transfer_width().to_int64() * 4L)
+    .unwrap_or(self.outputs.to_int64() * 4L)
   numeric_effects(
     [
       self.normalized_bytes,
-      self.logits_bytes,
+      local_columns * self.outputs.to_int64() * 4L,
       20L,
       4L,
       self.outputs.to_int64() * 4L,
       self.residual_bytes,
       self.hidden.to_int64() * 2L,
-      self.table_bytes,
-      self.outputs.to_int64() * 4L,
+      local_columns * self.hidden.to_int64() * 2L,
+      published_bytes,
     ],
     [false, false, true, true, true, true, true, true, false],
     [

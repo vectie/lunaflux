@@ -163,8 +163,8 @@ pub fn GlmDecoderSlice::tensor_contract(
         sequence=sites.length() + 1,
         operation_id=self.end_layer * 3,
         kind=F32AllGather,
-        full_width=shard.candidate_width() * world_size,
-        local_width=shard.candidate_width(),
+        full_width=shard.transfer_width() * world_size,
+        local_width=shard.transfer_width(),
       ),
     )
   }

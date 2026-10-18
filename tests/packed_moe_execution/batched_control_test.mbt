@@ -17,6 +17,7 @@ fn batch_control_limits() -> @protocol.WorkerProtocolLimits raise {
 // Each request has one committed frontier even when its ordinal changes.
 fn batch_control_plan(
   entries : ArrayView[(UInt64, UInt64, Int, Bool)],
+  stochastic? : Bool = false,
 ) -> (
   @protocol.SubmittedSchedulePlan,
   @wire.ValidatedPlanFrame,
@@ -24,6 +25,16 @@ fn batch_control_plan(
 ) raise {
   let limits = batch_control_limits()
   let inference = serial_inference_limits()
+  let sampling = if stochastic {
+    @inference.SamplingParameters::sample(
+      temperature=0.75,
+      top_k=3,
+      top_p=0.9,
+      inference,
+    )
+  } else {
+    @inference.SamplingParameters::greedy()
+  }
   let owner = @protocol.SchedulePlanBuffer::new(limits)
   let allocator = @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(
@@ -47,7 +58,7 @@ fn batch_control_plan(
         input_token=7,
         pages~,
         capabilities~,
-        sampling=@inference.SamplingParameters::greedy(),
+        sampling~,
         sampling_seed=@inference.SamplingSeed::new(id),
         sample_index=position,
         completion_slot~,
@@ -60,7 +71,7 @@ fn batch_control_plan(
         tokens=[2, 3],
         pages~,
         capabilities~,
-        sampling=@inference.SamplingParameters::greedy(),
+        sampling~,
         sampling_seed=@inference.SamplingSeed::new(id),
         sample_index=1,
         completion_slot~,

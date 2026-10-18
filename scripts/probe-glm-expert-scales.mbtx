@@ -14,12 +14,13 @@ async fn main {
     mode
     is ("prepare"
     | "run"
+    | "concurrent"
     | "sanitize"
     | "memcheck"
     | "racecheck"
     | "synccheck"
     | "initcheck") else {
-    fail("NEW_ROOT prepare|run|sanitize|memcheck|racecheck|synccheck|initcheck")
+    fail("NEW_ROOT prepare|run|concurrent|sanitize|memcheck|racecheck|synccheck|initcheck")
   }
   let socket = "/tmp/lunaflux-glm179-prefill-20261018.sock"
   let host = "wlc004s@192.168.2.179"
@@ -120,7 +121,7 @@ async fn main {
       } else {
         [mode]
       }) {
-      let prefix = if tool == "run" {
+      let prefix = if tool is ("run" | "concurrent") {
         ""
       } else {
         "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
@@ -145,7 +146,7 @@ async fn main {
           prefix +
           root +
           "/probe" +
-          (if tool == "run" { "" } else { " sanitize" }),
+          (if tool == "run" { "" } else if tool == "concurrent" { " concurrent" } else { " sanitize" }),
         ),
       )
       println(tool + " complete")

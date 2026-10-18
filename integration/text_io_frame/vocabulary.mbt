@@ -15,7 +15,7 @@ pub fn TextIoFrame::vocabulary_boundary(
           3,
           self.buffers[2],
           self.buffers[3],
-          shard.candidate_width(),
+          shard.transfer_width(),
           shard.group().1,
         ),
       )

@@ -28,7 +28,8 @@ pub fn TextIoCudaSource::workspace_bytes(self : Self) -> Int64 {
   (match self.shard {
     None => 0L
     Some(s) =>
-      s.candidate_width().to_int64() * (s.group().1 + 1).to_int64() * 4L
+      s.transfer_width().to_int64() * (s.group().1 + 1).to_int64() * 4L +
+      s.dense_logits_bytes()
   })
 }
 
@@ -38,6 +39,9 @@ fn sharded_greedy_source(
   shard : @parallel.VocabularyShard,
   symbol : String,
 ) -> String {
+  if shard.publication() == FullLogits {
+    return sharded_logits_source(plan, shard, symbol)
+  }
   let (_, _, _, rows, outputs) = plan.geometry()
   let (first, columns) = shard.columns()
   let (_, world) = shard.group()

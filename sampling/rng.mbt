@@ -30,11 +30,11 @@ pub fn SamplingRng::reseed(
 
 ///|
 fn counter_state(seed : @inference.SamplingSeed, sample_index : Int) -> UInt64 {
-  let mut value = seed.value() +
+  let value = seed.value() +
     (sample_index + 1).to_uint64() * 0x9e3779b97f4a7c15UL
-  value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL
-  value = (value ^ (value >> 27)) * 0x94d049bb133111ebUL
-  value = value ^ (value >> 31)
+  let value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL
+  let value = (value ^ (value >> 27)) * 0x94d049bb133111ebUL
+  let value = value ^ (value >> 31)
   if value == 0UL {
     0x9e3779b97f4a7c15UL
   } else {
@@ -50,10 +50,10 @@ fn counter_unit(seed : @inference.SamplingSeed, sample_index : Int) -> Double {
 
 ///|
 fn SamplingRng::next_unit(self : SamplingRng) -> Double {
-  let mut value = self.state
-  value = value ^ (value << 13)
-  value = value ^ (value >> 7)
-  value = value ^ (value << 17)
+  let value = self.state
+  let value = value ^ (value << 13)
+  let value = value ^ (value >> 7)
+  let value = value ^ (value << 17)
   self.state = value
   // The upper 53 bits are exactly representable as a Double. Multiplication
   // by 2^-53 produces a value in [0, 1) without rounding up to one.

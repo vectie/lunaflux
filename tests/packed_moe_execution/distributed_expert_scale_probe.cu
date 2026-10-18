@@ -51,7 +51,8 @@ static size_t differences(const char *name,const void *a,const void *b,size_t n)
   printf("frontier=%s bytes=%zu differences=%zu first=%zu\n",name,n,count,first);return count;
 }
 int main(int argc,char **argv){
-  bool sanitize=argc>1;
+  bool sanitize=argc>1&&strcmp(argv[1],"sanitize")==0;
+  bool concurrent=argc>1&&strcmp(argv[1],"concurrent")==0;
   constexpr int banks=8;
   std::vector<unsigned char> bank(old::stride*banks);
   const int widths[3]={H,H,I},outs[3]={I,I,H};
@@ -73,7 +74,7 @@ int main(int argc,char **argv){
   }
   for(int e=0;e<banks;e++){old::next_prepare_bank<<<256,256>>>(raw+e*old::stride,scratch);old::next_prepare_bank_copy<<<256,256>>>(scratch,packed+e*old::stride);}
   ck(cudaDeviceSynchronize());ck(cudaFree(raw));ck(cudaFree(scratch));
-  Frame a,b;cudaStream_t stream;ck(cudaStreamCreate(&stream));
+  Frame a,b;cudaStream_t stream,auxiliary;ck(cudaStreamCreate(&stream));ck(cudaStreamCreate(&auxiliary));
   cudaGraph_t graphs[2];cudaGraphExec_t execs[2];
   for(int i=0;i<2;i++){
     ck(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));
@@ -96,8 +97,9 @@ int main(int argc,char **argv){
       // Poison output storage identically; only active output is inspected.
       ck(cudaMemset(f->qx,0xa5,next::physical_qb0));ck(cudaMemset(f->qa,0xa5,next::physical_qb1));
     }
-    ck(cudaGraphLaunch(execs[step%2],stream));ck(cudaGraphLaunch(execs[1-step%2],stream));ck(cudaStreamSynchronize(stream));
-    printf("step=%d live=%d\n",step,live);
+    ck(cudaGraphLaunch(execs[step%2],stream));ck(cudaGraphLaunch(execs[1-step%2],concurrent?auxiliary:stream));
+    ck(cudaStreamSynchronize(stream));ck(cudaStreamSynchronize(auxiliary));
+    printf("step=%d live=%d concurrent=%s\n",step,live,concurrent?"true":"false");
     size_t errors=0;
     errors+=differences("quantized_input",a.qx,b.qx,old::qb0);
     errors+=differences("gate_up",a.activation,b.activation,(size_t)live*S*I*2);
@@ -108,5 +110,5 @@ int main(int argc,char **argv){
     if(errors||e0||e1){fprintf(stderr,"first divergent step=%d error=%d/%d\n",step,e0,e1);return 4;}
   }
   for(int i=0;i<2;i++){ck(cudaGraphExecDestroy(execs[i]));ck(cudaGraphDestroy(graphs[i]));}
-  ck(cudaStreamDestroy(stream));a.close();b.close();ck(cudaFree(packed));ck(cudaDeviceReset());puts("released=true");
+  ck(cudaStreamDestroy(stream));ck(cudaStreamDestroy(auxiliary));a.close();b.close();ck(cudaFree(packed));ck(cudaDeviceReset());puts("released=true");
 }

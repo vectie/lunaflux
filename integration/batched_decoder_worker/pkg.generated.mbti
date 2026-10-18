@@ -17,6 +17,7 @@ pub struct BatchedDecoderRank {
 }
 pub fn BatchedDecoderRank::begin(Self, @worker_wire.ValidatedPlanFrame, @worker_wire.CompletionFrameWriter) -> Unit raise
 pub fn BatchedDecoderRank::bind_executor(Self, @device.Context, submit~ : (Int) -> Unit raise, poll~ : () -> Bool raise, close~ : () -> Unit raise, append_descriptors~ : ArrayView[@device.Allocation]) -> Unit raise
+pub fn BatchedDecoderRank::bind_sampling(Self, BatchedSampling) -> Unit raise
 pub fn BatchedDecoderRank::close(Self) -> Unit raise
 pub fn BatchedDecoderRank::commit(Self, pipeline_failed~ : Bool) -> Unit raise
 pub fn BatchedDecoderRank::execution_failed(Self) -> Bool raise
@@ -36,6 +37,11 @@ pub fn BatchedDecoderRank::sampled_tokens(Self) -> @device.Allocation raise
 pub fn BatchedDecoderRank::samples(Self) -> ArrayView[Int] raise
 pub fn BatchedDecoderRank::sampling_plan(Self) -> @worker_wire.ValidatedPlanFrame raise
 pub fn BatchedDecoderRank::submit(Self) -> Unit raise
+
+pub struct BatchedSampling {
+  // private fields
+}
+pub fn BatchedSampling::new(maximum_outputs~ : Int, vocabulary_size~ : Int, prepare~ : (@worker_wire.ValidatedPlanFrame) -> Unit raise, begin~ : () -> Unit raise, poll~ : () -> Bool raise, token_at~ : (Int) -> Int raise, close~ : () -> Unit raise) -> Self raise @batched_decoder_frame.BatchFrameError
 
 // Type aliases
 

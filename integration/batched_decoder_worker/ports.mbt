@@ -35,6 +35,7 @@ pub struct BatchedDecoderRank {
   priv vocabulary : Int
   priv mut sampled : @device.Allocation?
   priv mut effects : Effects?
+  priv mut sampling : BatchedSampling?
   priv mut failed : Bool
   priv mut state : State
 }
@@ -73,6 +74,7 @@ pub fn BatchedDecoderRank::new(
     vocabulary,
     sampled: None,
     effects: None,
+    sampling: None,
     failed: false,
     state: Fresh,
   }
@@ -199,6 +201,10 @@ pub fn BatchedDecoderRank::close(self : Self) -> Unit raise {
     pool.drain(0)
     pool.close()
     ignore(self.pools.pop())
+  }
+  if self.sampling is Some(sampling) {
+    (sampling.close)()
+    self.sampling = None
   }
   if self.effects is Some(effects) {
     (effects.close)()

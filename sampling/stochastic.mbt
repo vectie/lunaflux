@@ -84,12 +84,13 @@ fn prepare_distribution_scalars(
     scratch,
   )
   let maximum = logits[scratch.token_ids[0]]
-  let mut total = 0.0
-  for index in 0..<top_k_count {
+  let total = for index in 0..<top_k_count; total = 0.0 {
     let token_id = scratch.token_ids[index]
     let weight = @math.exp((logits[token_id] - maximum) / temperature)
     scratch.weights[index] = weight
-    total = total + weight
+    continue total + weight
+  } nobreak {
+    total
   }
   if total <= 0.0 || total.is_nan() || total.is_inf() {
     scratch.candidate_count = 0
@@ -98,19 +99,19 @@ fn prepare_distribution_scalars(
   }
   let retained = if has_top_p {
     let threshold = top_p * total
-    let mut cumulative = 0.0
-    let mut count = 0
-    while count < top_k_count && cumulative < threshold {
-      cumulative = cumulative + scratch.weights[count]
-      count = count + 1
+    for count = 0, cumulative = 0.0; count < top_k_count &&
+       cumulative < threshold; {
+      continue count + 1, cumulative + scratch.weights[count]
+    } nobreak {
+      count.max(1)
     }
-    count.max(1)
   } else {
     top_k_count
   }
-  let mut retained_total = 0.0
-  for index in 0..<retained {
-    retained_total = retained_total + scratch.weights[index]
+  let retained_total = for index in 0..<retained; total = 0.0 {
+    continue total + scratch.weights[index]
+  } nobreak {
+    total
   }
   if retained_total <= 0.0 || retained_total.is_nan() || retained_total.is_inf() {
     scratch.candidate_count = 0
@@ -171,14 +172,14 @@ fn select_prepared(
   scratch : SamplerScratch,
 ) -> Selection {
   let threshold = unit * scratch.total_weight
-  let mut cumulative = 0.0
-  let mut selected = count - 1
-  for index in 0..<count {
-    cumulative = cumulative + scratch.weights[index]
-    if threshold < cumulative {
-      selected = index
-      break
+  let selected = for index in 0..<count; cumulative = 0.0 {
+    let next = cumulative + scratch.weights[index]
+    if threshold < next {
+      break index
     }
+    continue next
+  } nobreak {
+    count - 1
   }
   let token_id = scratch.token_ids[selected]
   { token_id, logit: logits[token_id], }

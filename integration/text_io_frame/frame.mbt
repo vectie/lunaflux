@@ -162,12 +162,14 @@ pub fn TextIoFrame::suffix(
 
 ///|
 pub fn TextIoFrame::logits(self : Self) -> @device.Allocation raise {
-  guard self.state is Prepared &&
-    self.boundary.has_egress() &&
-    self.source.vocabulary_shard() is None else {
+  guard self.state is Prepared && self.boundary.has_egress() else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  self.buffers[1]
+  match self.source.vocabulary_shard() {
+    None => self.buffers[1]
+    Some(shard) if shard.publication() == FullLogits => self.buffers[4]
+    Some(_) => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  }
 }
 
 ///|

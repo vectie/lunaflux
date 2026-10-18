@@ -9,6 +9,7 @@ pub struct VocabularyShard {
   priv outputs : Int
   priv first : Int
   priv count : Int
+  priv publication : VocabularyPublication
 }
 
 ///|
@@ -17,6 +18,7 @@ pub fn VocabularyShard::new(
   rank~ : Int,
   world~ : Int,
   maximum_outputs~ : Int,
+  publication? : VocabularyPublication = GreedyCandidates,
 ) -> Self raise ParallelError {
   guard vocabulary > 0 &&
     vocabulary <= 16777216 &&
@@ -30,6 +32,15 @@ pub fn VocabularyShard::new(
   }
   let first = (vocabulary.to_int64() * rank.to_int64() / world.to_int64()).to_int()
   let end = (vocabulary.to_int64() * (rank + 1).to_int64() / world.to_int64()).to_int()
+  if publication == FullLogits {
+    guard maximum_outputs.to_int64() *
+      ((vocabulary - 1) / world + 1).to_int64() *
+      world.to_int64() *
+      4L <=
+      2147483647L else {
+      raise Capacity
+    }
+  }
   {
     vocabulary,
     rank,
@@ -37,6 +48,7 @@ pub fn VocabularyShard::new(
     outputs: maximum_outputs,
     first,
     count: end - first,
+    publication,
   }
 }
 

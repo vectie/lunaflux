@@ -1,0 +1,23 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/batched_logit_sampling"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/batched_decoder_worker",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct BatchedLogitSampler {
+  // private fields
+}
+pub fn BatchedLogitSampler::binding(Self) -> @batched_decoder_worker.BatchedSampling raise
+pub fn BatchedLogitSampler::close(Self) -> Unit raise
+pub fn BatchedLogitSampler::new(@device.Context, @device.Allocation, vocabulary_size~ : Int, maximum_outputs~ : Int, maximum_host_bytes~ : Int64) -> Self raise
+
+// Type aliases
+
+// Traits

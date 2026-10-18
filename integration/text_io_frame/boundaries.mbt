@@ -38,9 +38,12 @@ fn TextIoFrame::bind_egress(
   let normalized = region(self.buffers[0], plan.normalized_bytes(), 2L)
   let logits = region(self.buffers[1], self.source.local_logits_bytes(), 4L)
   let candidates = if self.source.vocabulary_shard() is Some(shard) {
-    let bytes = shard.candidate_width().to_int64() * 4L
+    let bytes = shard.transfer_width().to_int64() * 4L
     self.buffers.push(context.allocate(bytes))
     self.buffers.push(context.allocate(bytes * shard.group().1.to_int64()))
+    if shard.publication() == FullLogits {
+      self.buffers.push(context.allocate(shard.dense_logits_bytes()))
+    }
     region(self.buffers[2], bytes, 4L)
   } else {
     tokens
@@ -69,15 +72,29 @@ fn TextIoFrame::bind_egress(
   }
   if self.source.vocabulary_shard() is Some(shard) {
     self.after.push(
-      self.launch(aot, 4, outputs.to_int64(), 1, [
-        output_count,
-        region(
-          self.buffers[3],
-          shard.candidate_width().to_int64() * shard.group().1.to_int64() * 4L,
-          4L,
-        ),
-        tokens,
-      ]),
+      self.launch(
+        aot,
+        4,
+        outputs.to_int64(),
+        if shard.publication() == FullLogits {
+          256
+        } else {
+          1
+        },
+        [
+          output_count,
+          region(
+            self.buffers[3],
+            shard.transfer_width().to_int64() * shard.group().1.to_int64() * 4L,
+            4L,
+          ),
+          if shard.publication() == FullLogits {
+            region(self.buffers[4], shard.dense_logits_bytes(), 4L)
+          } else {
+            tokens
+          },
+        ],
+      ),
     )
   }
 }

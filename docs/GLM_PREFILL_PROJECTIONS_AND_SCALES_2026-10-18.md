@@ -378,3 +378,50 @@ The normal warning-denied native check (existing migration exclusions) and
 batch frame is still a prerequisite, not GPU/service integration; sparse
 history paging, batched model binding, sharded sampling and buffered HTTP
 response delivery still need end-to-end validation before cutover.
+
+### Overlap isolation and full-logit publication
+
+The two graph-only/no-overlap runs at
+`/tmp/lunaflux-model-bench-glm-defined-bank-graph-only-scales-20261018-r1`
+and `-r2` now match all six literal output sequences and the retained control.
+Their totals are 3.783/3.884 seconds. Conversely, the two eager/overlap runs at
+`/tmp/lunaflux-model-bench-glm-defined-bank-overlap-only-scales-20261018-r1`
+and `-r2` match only 4/6 sequences: prompts 0 and 3 differ between runs.
+Graph replay is therefore not required to trigger the instability. This
+isolates the failing configuration, not yet the faulty dependency or kernel.
+Changed-work totals are not performance evidence. Both ranks released normally.
+
+The new concurrent component control at
+`/tmp/lunaflux-glm-expert-scales-20261018-v6` runs both actual generated expert
+chains on independent streams with disjoint scratch, shared read-only bank,
+and the existing 44 varying frames. It remains bitwise at all five frontiers.
+This does not reproduce the whole-model shared/routed schedule and cannot
+exonerate that binding. The preceding serial sanitizer results remain scoped
+to their documented runs; the concurrent run is numerical, not a sanitizer pass.
+
+`VocabularyPublication` now expresses the consumer requirement in parallel IR:
+greedy candidates or all logits. Full-logit publication uses equal-width
+rank-major transport, excludes uneven-shard padding, and reconstructs literal
+row-major F32 logits. Precision effect plans and actual collective contracts,
+allocations, launch dimensions and GLM batched bindings consume the same law.
+Ordinary greedy publication remains unchanged. Sampling is outside model and
+compiler semantics, using the existing seeded temperature/top-k/top-p sampler.
+It cannot silently substitute greedy sampling for a stochastic request.
+
+The actual CUDA pack/join probe at `/tmp/lunaflux-full-logits-20261018-v1`
+checks a 17-token vocabulary over three uneven shards, live-output transitions
+0/1/3/2/1, exact transport padding and exact reconstructed logits. Numerical,
+memcheck/full-leak, racecheck, synccheck and initcheck checks pass on `.179`
+under a 2 GiB/no-swap cap with a 24 GiB admission reserve. This is a component
+test, not a complete model, throughput or HTTP-service claim.
+
+Prepared host sampling budgets pinned DMA, staging, row logits, canonical
+sampling scratch and per-request metadata at startup. The allocation regression
+initially measured 48 heap allocations per two-output step. Generated native
+code traced these to boxed mutable locals in the canonical sampler. Loop-carried
+values and immutable RNG intermediates remove them without changing arithmetic,
+candidate ordering or seeded selections. The repeated batched sampling test
+now measures zero warmed allocations and no blocking synchronization; all
+151 sampling/transfer-double tests pass. Full-model mixed batching, buffered
+HTTP delivery and production service acceptance remain unproven. The public
+endpoint remains offline, and no memory limit or numerical tolerance was relaxed.

@@ -1,6 +1,10 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "vectie/lunaflux/compiler/parallel_ir"
 
+import {
+  "moonbitlang/core/debug",
+}
+
 // Values
 pub fn compile(rank~ : Int, world_size~ : Int, ArrayView[Arena], ArrayView[Buffer], ArrayView[Step]) -> Program raise ParallelError
 
@@ -201,14 +205,26 @@ pub fn Step::action(Self) -> Action
 pub fn Step::dependencies(Self) -> ReadOnlyArray[Int]
 pub fn Step::new(Action, ArrayView[Access], dependencies? : ArrayView[Int]) -> Self
 
+pub(all) enum VocabularyPublication {
+  GreedyCandidates
+  FullLogits
+} derive(Eq, @debug.Debug)
+pub fn VocabularyPublication::equal(Self, Self) -> Bool
+pub fn VocabularyPublication::not_equal(Self, Self) -> Bool
+pub fn VocabularyPublication::to_repr(Self) -> @debug.Repr
+
 pub struct VocabularyShard {
   // private fields
 }
 pub fn VocabularyShard::candidate_width(Self) -> Int
 pub fn VocabularyShard::columns(Self) -> (Int, Int)
+pub fn VocabularyShard::dense_logits_bytes(Self) -> Int64
 pub fn VocabularyShard::geometry(Self) -> (Int, Int)
 pub fn VocabularyShard::group(Self) -> (Int, Int)
-pub fn VocabularyShard::new(vocabulary~ : Int, rank~ : Int, world~ : Int, maximum_outputs~ : Int) -> Self raise ParallelError
+pub fn VocabularyShard::new(vocabulary~ : Int, rank~ : Int, world~ : Int, maximum_outputs~ : Int, publication? : VocabularyPublication) -> Self raise ParallelError
+pub fn VocabularyShard::padded_columns(Self) -> Int
+pub fn VocabularyShard::publication(Self) -> VocabularyPublication
+pub fn VocabularyShard::transfer_width(Self) -> Int
 
 // Type aliases
 

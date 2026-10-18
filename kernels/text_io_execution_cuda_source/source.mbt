@@ -81,7 +81,7 @@ pub fn text_io_source(
     "weight[word*\{h}ULL+c]",
   ])
   let logits = expression(Logits, ["sum"])
-  let order = ordered_text_stages(plan.egress_program())
+  let order = ordered_text_stages(plan.egress_program(vocabulary_shard?))
   let prefix_source = "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n" +
     "extern \"C\" __global__ void " +
     symbol_prefix +
@@ -294,7 +294,9 @@ pub fn TextIoCudaSource::symbol(
     0 => "embed"
     1 => "norm"
     2 => "head"
+    3 if self.shard is Some(s) && s.publication() == FullLogits => "logits_pack"
     3 => "greedy"
+    4 if self.shard is Some(s) && s.publication() == FullLogits => "logits_join"
     4 if self.shard is Some(_) => "greedy_join"
     _ => raise IllegalPlacement
   }

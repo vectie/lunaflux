@@ -9,19 +9,18 @@ fn select_row(
   if first.is_nan() || first.is_inf() {
     raise NonFiniteLogit(row~, token_id=0)
   }
-  let mut best_token = 0
-  let mut best_logit = first
-  for token_id in 1..<token_count {
+  for token_id in 1..<token_count; best_token = 0, best_logit = first {
     let logit = logits[offset + token_id]
     if logit.is_nan() || logit.is_inf() {
       raise NonFiniteLogit(row~, token_id~)
     }
     if logit > best_logit {
-      best_token = token_id
-      best_logit = logit
+      continue token_id, logit
     }
+    continue best_token, best_logit
+  } nobreak {
+    { token_id: best_token, logit: best_logit, }
   }
-  { token_id: best_token, logit: best_logit, }
 }
 
 ///|
@@ -61,19 +60,18 @@ pub fn greedy_float(
   if first.is_nan() || first.is_inf() {
     raise NonFiniteLogit(row=0, token_id=0)
   }
-  let mut best_token = 0
-  let mut best_logit = first
-  for token_id in 1..<logits.length() {
+  for token_id in 1..<logits.length(); best_token = 0, best_logit = first {
     let logit = logits[token_id]
     if logit.is_nan() || logit.is_inf() {
       raise NonFiniteLogit(row=0, token_id~)
     }
     if logit > best_logit {
-      best_token = token_id
-      best_logit = logit
+      continue token_id, logit
     }
+    continue best_token, best_logit
+  } nobreak {
+    { token_id: best_token, logit: best_logit.to_double(), }
   }
-  { token_id: best_token, logit: best_logit.to_double(), }
 }
 
 ///|

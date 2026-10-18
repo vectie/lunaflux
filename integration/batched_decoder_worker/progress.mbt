@@ -5,8 +5,16 @@ pub fn BatchedDecoderRank::begin(
   writer : @wire.CompletionFrameWriter,
 ) -> Unit raise {
   guard self.state is Ready else { raise @frame.BatchFrameError::Busy }
+  guard !self.outputs_token ||
+    self.sampling is Some(_) ||
+    !requires_stochastic(plan) else {
+    raise @frame.BatchFrameError::InvalidCapacity
+  }
   self.frame.stage(plan, writer)
   self.state = Failed
+  if self.sampling is Some(sampling) {
+    (sampling.prepare)(plan)
+  }
   for index in 0..<self.ports.length() {
     let port = self.ports[index]
     let bytes = self.frame.copy_input(port, self.payloads[index])
@@ -77,7 +85,7 @@ fn load_i32(bytes : FixedArray[Byte], row : Int) -> Int {
 ///|
 fn BatchedDecoderRank::download_bytes(self : Self, index : Int) -> Int raise {
   if index == self.ports.length() {
-    if self.outputs_token {
+    if self.outputs_token && self.sampling is None {
       self.frame.output_rows() * 4
     } else {
       0
@@ -99,6 +107,9 @@ pub fn BatchedDecoderRank::progress(self : Self) -> Bool raise {
         self.state = Executing
         return false
       }
+      if self.sampling is Some(sampling) {
+        (sampling.begin)()
+      }
       for index in self.ports.length()..<self.pools.length() {
         let bytes = self.download_bytes(index)
         if bytes == 0 {
@@ -119,6 +130,10 @@ pub fn BatchedDecoderRank::progress(self : Self) -> Bool raise {
     }
     Downloading => {
       self.state = Failed
+      if self.sampling is Some(sampling) && !(sampling.poll)() {
+        self.state = Downloading
+        return false
+      }
       for index in self.ports.length()..<self.pools.length() {
         if self.download_bytes(index) > 0 && !self.pools[index].poll(0) {
           self.state = Downloading
@@ -145,7 +160,10 @@ pub fn BatchedDecoderRank::progress(self : Self) -> Bool raise {
       }
       if self.outputs_token {
         for row in 0..<self.frame.output_rows() {
-          let token = load_i32(self.payloads[sample_port], row)
+          let token = match self.sampling {
+            Some(sampling) => (sampling.token_at)(row)
+            None => load_i32(self.payloads[sample_port], row)
+          }
           self.samples[row] = token
           if token < 0 || token >= self.vocabulary {
             self.failed = true

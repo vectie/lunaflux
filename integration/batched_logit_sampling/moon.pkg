@@ -1,0 +1,9 @@
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/batched_decoder_worker" @rank,
+  "vectie/lunaflux/engine/worker_wire" @wire,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/sampling",
+}
+
+supported_targets = "native"

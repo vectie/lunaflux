@@ -37,6 +37,7 @@ pub fn GlmDecoderStage::bind_batched_rank(
   self : Self,
   rank : @batch_worker.BatchedDecoderRank,
   context : @device.Context,
+  maximum_sampling_host_bytes? : Int64 = 67108864L,
 ) -> Unit raise {
   let outputs_token = self.range.text_boundary() is (Egress | Complete)
   guard self.status is Ready &&
@@ -55,4 +56,17 @@ pub fn GlmDecoderStage::bind_batched_rank(
     close=() => self.close(),
     append_descriptors=self.append_descriptors(),
   )
+  if rank.outputs_token() &&
+    self.text.vocabulary_shard is Some(shard) &&
+    shard.publication() == FullLogits {
+    let sampler = @logit_sampling.BatchedLogitSampler::new(
+      context,
+      self.text.frame.logits(),
+      vocabulary_size=self.vocabulary,
+      maximum_outputs=self.maximum_outputs,
+      maximum_host_bytes=maximum_sampling_host_bytes,
+    )
+    errdefer (sampler.close() catch { _ => () })
+    rank.bind_sampling(sampler.binding())
+  }
 }

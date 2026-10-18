@@ -32,19 +32,19 @@ fn sift_worst_down(
   start : Int,
   end : Int,
 ) -> Unit {
-  let mut root = start
-  while root * 2 + 1 <= end {
+  for root = start; root * 2 + 1 <= end; {
     let child = root * 2 + 1
-    let mut selected = child
-    if child + 1 <= end &&
+    let selected = if child + 1 <= end &&
       worse_than(logits, token_ids[child + 1], token_ids[child]) {
-      selected = child + 1
+      child + 1
+    } else {
+      child
     }
     if !worse_than(logits, token_ids[selected], token_ids[root]) {
       break
     }
     token_ids.swap(root, selected)
-    root = selected
+    continue selected
   }
 }
 
@@ -58,13 +58,11 @@ fn make_worst_heap(
   if count <= 1 {
     return
   }
-  let mut start = (count - 2) / 2
-  for ;; {
+  for start = (count - 2) / 2; ; start = start - 1 {
     sift_worst_down(token_ids, logits, start, count - 1)
     if start == 0 {
       break
     }
-    start -= 1
   }
 }
 
@@ -76,11 +74,9 @@ fn drain_worst_heap(
   logits : ArrayView[Double],
   count : Int,
 ) -> Unit {
-  let mut end = count - 1
-  while end > 0 {
+  for end = count - 1; end > 0; end = end - 1 {
     token_ids.swap(end, 0)
-    end -= 1
-    sift_worst_down(token_ids, logits, 0, end)
+    sift_worst_down(token_ids, logits, 0, end - 1)
   }
 }
 
