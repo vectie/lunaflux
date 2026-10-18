@@ -7,7 +7,16 @@ import {
 }
 
 async fn main {
-  guard @env.args() is [_, root, build] && root.has_prefix("/tmp/lunaflux-full-sampling-") && build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+  let (root, build, geometries) = match @env.args() {
+    [_, root, build] => (root, build, [("tail",513),("full",155648)])
+    [_, root, build, vocabulary] => {
+      let v = @string.parse_int(vocabulary)
+      guard v > 0 && v <= 1048576 else { fail("vocabulary range") }
+      (root, build, [("full",v)])
+    }
+    _ => fail("NEW_ROOT PINNED_ARM_BUILD_ROOT [EXACT_VOCABULARY]")
+  }
+  guard root.has_prefix("/tmp/lunaflux-full-sampling-") && build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
     [root,build].all(s => !s.contains("..") && s.iter().all(c => c is ('a'..='z'|'A'..='Z'|'0'..='9'|'/'|'-'|'_'))) else { fail("NEW_ROOT PINNED_ARM_BUILD_ROOT") }
   let socket178 = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or("/tmp/lunaflux-glm178-prefill-20261018.sock")
   let socket179 = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
@@ -27,7 +36,7 @@ async fn main {
     @shell.Cmd("ssh",ssh+["mkdir "+root]).output().check()
     @shell.Cmd("scp",["-o","BatchMode=yes","-o","ControlPath="+socket,binary,node+":"+binary]).output().check()
     @shell.Cmd("ssh",ssh+["chmod 700 "+binary]).output().check()
-    for (label,v) in [("tail",513),("full",155648)] {
+    for (label,v) in geometries {
       @shell.Cmd("ssh",ssh+[binary+" export "+root+"/"+label+".cu "+v.to_string()+" 4"]).output().check()
       let compile=@shell.Cmd("ssh",ssh+["systemd-run --user --wait --unit="+tag+"-compile-"+suffix+"-"+label+" --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda/bin/nvcc -std=c++17 -arch=sm_121 -lineinfo --fmad=false --cubin "+root+"/"+label+".cu -o "+root+"/"+label+".cubin"]).output(max_output_bytes=1048576)
       @fs.write_file(root+"/"+suffix+"-"+label+"-compile.txt",compile.stdout()+compile.stderr(),create_mode=CreateNew)

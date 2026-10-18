@@ -1,4 +1,38 @@
 ///|
+test "sampling binds only after executor ownership and closes exactly once" {
+  let baseline = live_resources()
+  let context = @device.open_context(0)
+  defer (context.close() catch { _ => () })
+  let rank = batch_rank_fixture()
+  defer (rank.close() catch { _ => () })
+  rank.prepare_ports(context, maximum_device_bytes=rank.required_device_bytes())
+  let closes = Ref::new(0)
+  let sampler = @batch_worker.BatchedSampling::new(
+    maximum_outputs=2,
+    vocabulary_size=16,
+    prepare=_ => (),
+    begin=() => (),
+    poll=() => true,
+    token_at=_ => 0,
+    close=() => closes.val += 1,
+  )
+  try rank.bind_sampling(sampler) catch {
+    @batch_frame.BatchFrameError::InvalidCapacity => ()
+    error => raise error
+  } noraise {
+    _ => fail("sampling bound before execution owner")
+  }
+  assert_eq(closes.val, 0)
+  rank.bind_executor(context, submit=_ => (), poll=() => true, close=() => (), append_descriptors=[])
+  rank.bind_sampling(sampler)
+  rank.close()
+  rank.close()
+  assert_eq(closes.val, 1)
+  context.close()
+  assert_eq(live_resources(), baseline)
+}
+
+///|
 test "batched full logits preserve canonical seeded sampling without step allocations" {
   let baseline = live_resources()
   let context = @device.open_context(0)

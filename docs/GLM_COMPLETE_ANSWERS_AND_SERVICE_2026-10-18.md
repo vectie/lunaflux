@@ -211,7 +211,9 @@ This is not a serial CLI subprocess per request.
 
 Sampling qualification root `/tmp/lunaflux-full-sampling-20261018-v4` contains
 both-Spark correctness and memcheck/full-leak results for vocabulary513 and
-the actual155648 vocabulary. Each normal probe covers24 cases twice. Tail
+the large synthetic155648 vocabulary. The loaded GLM checkpoint declares
+154880; exact-checkpoint sampling qualification is recorded separately below.
+Each normal probe covers24 cases twice. Tail
 synccheck and init-kernel-only racecheck pass; **full-vocabulary racecheck was
 not run**. Earlier capped racecheck OOM attempts are preserved, not converted
 to passes. Sampling remains on GPU; only selected token/position results are
@@ -249,3 +251,31 @@ resident peak**. The two-rank acceptance watcher stops both owned units if GPU
 residency exceeds100GiB, host MemAvailable drops below16GiB, or either rank
 fails. All three failed private attempts are stopped. Public GLM remains
 offline until complete HTTP behavior and answer-level acceptance pass.
+
+### Startup acceptance v4 and lifecycle repair
+
+The full native suite completed5252/5252, with the existing migration warning
+exclusions unchanged. The subsequent worker/sampler changes also have focused
+checks; this does not substitute for the two-GPU HTTP campaign.
+
+Private v4 reached full checkpoint materialization but failed before HTTP
+startup. Both owned units retired, unit swap stayed0, and no public endpoint
+was opened. Source review found that the GLM adapter called `bind_sampling`
+while the rank was still Prepared, whereas that operation requires Ready.
+Executor binding must precede sampling attachment. The corrected order keeps
+cleanup owned by the rank. A lifecycle regression rejects premature binding
+and checks exactly-once sampling close.
+
+The previous approved-child ABI closed stderr, so the original error was
+lost behind a generic parent EOF and a peer cleanup Busy error. Stderr now
+remains the parent's diagnostic descriptor, separate from framed descriptors
+0/1. Startup diagnostics preserve the original preparation exception before
+cleanup. Both-Spark ASan/UBSan/leak/descriptor/signal probes pass at
+`/tmp/lunaflux-glm-worker-env-20261018-v2`. No request-time diagnostics, payload
+hashes, or changed arithmetic were introduced.
+
+Production readiness is now an explicit deployment boolean, false by default.
+It does not bypass the pool's health/state readiness. The external acceptance
+runner additionally covers capacity rejection/recovery, multi-turn messages,
+stop strings and output-token budgets. These tests are not yet full-model
+passes at this record.

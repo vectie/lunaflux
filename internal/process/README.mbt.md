@@ -110,6 +110,9 @@ Only `LD_LIBRARY_PATH`, `NCCL_SOCKET_IFNAME`, `NCCL_IB_HCA`, and `NCCL_DEBUG`
 are copied before fork; absent library paths retain the packaged default.
 This preserves the service's collective library and fabric selection when it
 launches the child. Other environment values do not cross the boundary. The parent
+diagnostic stderr remains descriptor2; it is never redirected onto the framed
+protocol descriptors0/1. Child startup failures can therefore be reported
+without corrupting protocol bytes or disappearing behind a generic EOF. The parent
 blocks all signals before `fork`; while they remain blocked the child resets
 every catchable disposition, installs the empty final mask, and only then
 executes. Parent mask restoration is mandatory, and failure kills and reaps

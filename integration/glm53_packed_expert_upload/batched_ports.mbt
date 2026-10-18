@@ -38,8 +38,8 @@ pub fn GlmDecoderStage::bind_batched_rank(
   rank : @batch_worker.BatchedDecoderRank,
   context : @device.Context,
   sampling_aot? : @device.Module,
-  maximum_sampling_device_bytes? : Int64 = 67108864L,
-  maximum_sampling_host_bytes? : Int64 = 67108864L,
+  maximum_sampling_device_bytes~ : Int64 = 67108864L,
+  maximum_sampling_host_bytes~ : Int64 = 67108864L,
 ) -> Unit raise {
   let outputs_token = self.range.text_boundary() is (Egress | Complete)
   guard self.status is Ready &&
@@ -51,6 +51,15 @@ pub fn GlmDecoderStage::bind_batched_rank(
     counts.same_storage(rank.input(Counts)) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
+  // Binding the executor establishes Ready and transfers the model cleanup
+  // owner. Sampling can only be attached to that prepared execution owner.
+  rank.bind_executor(
+    context,
+    submit=rows => self.submit(live_rows=rows),
+    poll=() => self.poll_submission(),
+    close=() => self.close(),
+    append_descriptors=self.append_descriptors(),
+  )
   if rank.outputs_token() &&
     self.text.vocabulary_shard is Some(shard) &&
     shard.publication() == FullLogits {
@@ -74,11 +83,4 @@ pub fn GlmDecoderStage::bind_batched_rank(
     errdefer (sampler.close() catch { _ => () })
     rank.bind_sampling(sampler.binding())
   }
-  rank.bind_executor(
-    context,
-    submit=rows => self.submit(live_rows=rows),
-    poll=() => self.poll_submission(),
-    close=() => self.close(),
-    append_descriptors=self.append_descriptors(),
-  )
 }

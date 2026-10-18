@@ -2,7 +2,10 @@
 async fn main {
   if @env.args() is [_] {
     inherited_worker() catch {
-      _ => @process.exit_failure()
+      error => {
+        @stdio.stderr.write("GLM worker failed: \{Repr(error)}\n")
+        @process.exit_failure()
+      }
     }
     return
   }

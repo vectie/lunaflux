@@ -84,7 +84,8 @@ int lf_process_spawn_approved(
         _exit(126);
       }
     }
-    if (close(2) != 0 && errno != EBADF) _exit(126);
+    /* Keep the parent's diagnostic stderr separate from protocol fd 0/1.
+     * Otherwise startup failures disappear and only an EOF reaches parent. */
     if (dup2(channel_fd, 0) < 0 || dup2(channel_fd, 1) < 0 ||
         dup2(model_root_fd, 3) < 0 ||
         dup2(kernel_root_fd, 4) < 0 || dup2(executable_fd, 5) < 0 ||

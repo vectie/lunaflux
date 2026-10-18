@@ -87,7 +87,16 @@ async fn run_rank(
   prepare_rank(
     plan, spec, ordinal, context, stream, aot, sampling, root, checkpoint, stage,
     rank, collective,
-  )
+  ) catch {
+    error => {
+      // Record the original failure before teardown can itself fail. This is
+      // startup/failure diagnostics, never text on the framed result channel.
+      @stdio.stderr.write(
+        "GLM rank \{ordinal} preparation failed: \{Repr(error)}\n",
+      )
+      raise error
+    }
+  }
   // Ready is a two-rank statement. Keep this startup rendezvous outside the
   // token step and do not expose HTTP before the remote weights/ports exist.
   @async.with_timeout(300000, () => {
