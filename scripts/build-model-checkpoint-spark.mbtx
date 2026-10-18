@@ -19,11 +19,13 @@ async fn main {
     [local_directory, remote_directory].all(path => {
       path
       .iter()
-      .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '.' | '_')) &&
+      .all(c => {
+        c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '.' | '_')
+      }) &&
       !path.contains("..")
     }) &&
     commit.length() == 40 &&
-    commit.iter().all(c => c is ('0'..='9' | 'a'..='f')) &&
+    commit.iter().all(c => c is ('0'..<='9' | 'a'..<='f')) &&
     target_package
     is ("cmd/deepseek_checkpoint"
     | "cmd/glm_checkpoint"
@@ -33,7 +35,7 @@ async fn main {
     | "cmd/glm_service"
     | "tests/worker_service_e2e") &&
     unit.has_prefix("lunaflux-checkpoint-build-") &&
-    unit.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '.')) else {
+    unit.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '.')) else {
     fail("invalid isolated build arguments")
   }
   let node = "wlc003s@192.168.2.178"
@@ -69,12 +71,37 @@ async fn main {
   ])
   .output()
   .check()
+  // An explicitly supplied dependency snapshot supports a changed module pin.
+  // The source commit still declares versions; no dependency payload is hashed.
+  let supplied_dependencies = @env.get_env_var(
+    "LUNAFLUX_SPARK_DEPENDENCIES_ARCHIVE",
+  )
+  if supplied_dependencies is Some(path) {
+    guard path.has_prefix("/") else {
+      fail("dependency archive must be absolute")
+    }
+    @shell.Cmd("scp", [
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ControlPath=" + socket,
+      path,
+      node + ":" + remote_directory + "/dependencies.tar.gz",
+    ])
+    .output()
+    .check()
+  }
   // Reuse the already-installed ARM toolchain and module dependency snapshot.
   let previous = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b"
+  let dependencies = if supplied_dependencies is Some(_) {
+    remote_directory + "/dependencies.tar.gz"
+  } else {
+    previous + "/dependencies-clean.tar.gz"
+  }
   for
     command in [
       "tar -xf " + remote_directory + "/source.tar.gz -C " + source,
-      "tar -xf " + previous + "/dependencies-clean.tar.gz -C " + source,
+      "tar -xf " + dependencies + " -C " + source,
       "systemd-run --user --unit=" +
       unit +
       " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1200 --working-directory=" +
@@ -87,7 +114,11 @@ async fn main {
       previous +
       "/toolchain/bin/moon build " +
       target_package +
-      (if target_package == "tests/worker_service_e2e" { " cmd/worker_echo" } else { "" }) +
+      (if target_package == "tests/worker_service_e2e" {
+        " cmd/worker_echo"
+      } else {
+        ""
+      }) +
       " --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
     ] {
     let result = @shell.Cmd("ssh", [
