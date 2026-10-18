@@ -506,3 +506,29 @@ lifecycles and 4 MiB duplex data at
 `/tmp/lunaflux-tls-provider-asan-20261018-v1`; this Mac run has leak detection
 disabled because its system sanitizer does not support LSan. Linux leak,
 clean service-build and real TCP integration results remain pending.
+
+Those Linux checks now pass on pinned `6f123cae`: the clean warning-denied ARM
+build in `/tmp/lunaflux-checkpoint-build-buffered-http-tls-20261018-v1`
+finishes under a 2 GiB cap (1.1 GiB reported peak, zero swap). The same source's
+five loopback tests pass, and the native provider passes ASan/UBSan/LSan with
+leak detection enabled in user unit `lunaflux-tls-provider-asan-20261018-v2`.
+The real TCP test in `lunaflux-openai-buffered-e2e-tls-20261018-v1` exits 0,
+covering two concurrent buffered responses followed by SSE slot reuse. This
+is service transport evidence using the echo worker, not real GLM acceptance.
+
+The selected-layer paired capture is also complete at
+`/tmp/lunaflux-model-bench-glm-leaf-{ordered,overlap}-scales-20261018-r1`.
+The earlier Chinese-prompt layer-7 failure does not recur there: all live core
+arrays agree for that prompt. Differences in its leaf tails begin exactly at
+the inactive-row boundary and are not evidence of incorrect live computation.
+Other prompts already differ at layer-7 input, so those downstream leaf
+differences cannot identify the first cause. The literal byte report is
+`/tmp/lunaflux-glm-retired-leaves-20261018-v1.tsv`; no timing is accepted from
+these diagnostic runs. Both ranks retire, with zero experiment swap.
+
+An opt-in `all` leaf capture now writes one retired layer at a time before the
+control owner acknowledges commit, retaining the existing host-reserve limit.
+It addresses the moving first-divergence location without keeping all leaves
+in memory. Large leaves remain on the Spark; the collector first retrieves
+only core frontiers, then selected causal-layer leaves. No reference enters
+the compiler, no AOT kernels change, and this remains an offline diagnostic.

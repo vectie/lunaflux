@@ -748,9 +748,9 @@ async fn main {
           " --setenv=TMPDIR=" +
           root +
           (if last && @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS") == Some("1") {
-            " --setenv=LUNA_GLM_RETIRED_FRONTIERS=" + root + "/frontiers"
-            + (match @env.get_env_var("LUNA_GLM_RETIRED_EXPERT_LAYER") {
-              Some(value) if !value.is_empty() && value.iter().all(c => c is '0'..='9') =>
+            " --setenv=LUNA_GLM_RETIRED_FRONTIERS=" + root + "/frontiers" +
+            (match @env.get_env_var("LUNA_GLM_RETIRED_EXPERT_LAYER") {
+              Some(value) if value == "all" || (!value.is_empty() && value.iter().all(c => c is '0'..='9')) =>
                 " --setenv=LUNA_GLM_RETIRED_EXPERT_LAYER=" + value
               _ => ""
             })

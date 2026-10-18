@@ -79,6 +79,12 @@ async fn main {
     let out = @shell.Cmd("moon", arguments, env=environment).output(
       max_output_bytes=8388608,
     )
+    if mode == "prepare" {
+      // Compilation can fail before prepare creates its evidence directory.
+      // Preserve the causal error rather than replacing it with a log-write error.
+      println(out.stderr())
+      out.check()
+    }
     @fs.write_file(
       root + "/ablation-" + mode + ".stdout",
       out.stdout(),

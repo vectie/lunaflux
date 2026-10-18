@@ -5,6 +5,8 @@
 fn capture_retired_frontiers(
   startup : Startup,
   stage : @glm.GlmDecoderStage,
+  selected_layer? : Int,
+  include_experts? : Bool = false,
 ) -> Array[(String, Bytes)] raise {
   let (first, end) = stage.layer_range()
   let (_, example, _, _) = stage.borrow_retired_ffn(first)
@@ -17,9 +19,7 @@ fn capture_retired_frontiers(
     fail("retired frontier capture exceeds host reserve")
   }
   let output = []
-  let expert_layer = @env.get_env_var("LUNA_GLM_RETIRED_EXPERT_LAYER").map(value => {
-    @string.parse_int(value)
-  })
+  let expert_layer = selected_layer
   for layer in first..<end {
     if expert_layer is Some(selected) && selected != layer {
       continue
@@ -38,7 +38,7 @@ fn capture_retired_frontiers(
         ("layer-\{layer}-\{name}.bf16", buffer.copy_to_host(0L, bytes)),
       )
     }
-    if expert_layer is Some(_) {
+    if include_experts {
       let buffers = stage.borrow_retired_experts(layer)
       let bytes = for (_, buffer) in buffers; total = 0L {
         continue total + buffer.byte_count()
@@ -65,12 +65,44 @@ fn capture_retired_frontiers(
 async fn write_retired_frontiers(
   root : String,
   index : Int,
-  buffers : ArrayView[(String, Bytes)],
+  startup : Startup,
+  stage : @glm.GlmDecoderStage,
 ) -> Unit {
   let directory = root + "/prefill-\{index}"
   @fs.mkdir(directory)
-  for (name, bytes) in buffers {
-    @fs.write_file(directory + "/" + name, bytes, create_mode=CreateNew)
+  let selected = @env.get_env_var("LUNA_GLM_RETIRED_EXPERT_LAYER")
+  let (first, end) = stage.layer_range()
+  let layers = match selected {
+    Some("all") => Array::makei(end - first, i => first + i)
+    Some(text) => {
+      let layer = @string.parse_int(text)
+      guard layer >= first && layer < end else { fail("invalid retired layer") }
+      [layer]
+    }
+    None => []
   }
-  println("retired_frontiers prefill=\{index} buffers=\{buffers.length()}")
+  // The control owner withholds its commit reply until this offline effect
+  // completes. Only one layer is copied at a time; no whole-model leaf arena.
+  let mut written = 0
+  if selected is None {
+    let buffers = capture_retired_frontiers(startup, stage)
+    for (name, bytes) in buffers {
+      @fs.write_file(directory + "/" + name, bytes, create_mode=CreateNew)
+      written += 1
+    }
+  } else {
+    for layer in layers {
+      let buffers = capture_retired_frontiers(
+        startup,
+        stage,
+        selected_layer=layer,
+        include_experts=true,
+      )
+      for (name, bytes) in buffers {
+        @fs.write_file(directory + "/" + name, bytes, create_mode=CreateNew)
+        written += 1
+      }
+    }
+  }
+  println("retired_frontiers prefill=\{index} buffers=\{written}")
 }

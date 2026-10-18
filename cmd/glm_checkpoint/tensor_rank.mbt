@@ -125,7 +125,7 @@ async fn run_tensor_egress(
   if frontier_root is Some(path) {
     @fs.mkdir(path)
   }
-  let captured : Ref[Array[(String, Bytes)]?] = Ref(None)
+  let pending_capture = Ref(false)
   let server = @control.DecoderStageServer::new(
     rank,
     connection,
@@ -138,18 +138,19 @@ async fn run_tensor_egress(
     committed_effect?=frontier_root.map(_ => {
       decode => {
         if !decode && frontier_root is Some(_) {
-          captured.val = Some(capture_retired_frontiers(startup, stage))
+          pending_capture.val = true
         }
       }
     }),
+    poll_committed_effect=() => !pending_capture.val,
   )
   defer server.close()
   let mut capture_index = 0
   while !server.is_terminal() {
     server.poll(local_now_millis=clock.now_millis())
-    if frontier_root is Some(path) && captured.val is Some(buffers) {
-      write_retired_frontiers(path, capture_index, buffers)
-      captured.val = None
+    if frontier_root is Some(path) && pending_capture.val {
+      write_retired_frontiers(path, capture_index, startup, stage)
+      pending_capture.val = false
       capture_index += 1
     }
     @async.pause()

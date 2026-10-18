@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -24,6 +25,59 @@ test "frontiers compare literal BF16 values, including high bytes" {
 ///|
 async fn main {
   let args = @env.args()
+  if args is [_, "collect-core", root] && root.has_prefix("/tmp/lunaflux-model-bench-") && root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) {
+    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
+    let host = "wlc004s@192.168.2.179"
+    let status = @shell.Cmd("ssh", ["-S", socket, host, "systemctl --user show " + root[5:].to_owned() + "-egress.service -p SubState -p ExecMainStatus"]).output()
+    status.check()
+    guard status.stdout().contains("SubState=exited") && status.stdout().contains("ExecMainStatus=0") else { fail("capture has not retired successfully") }
+    @fs.mkdir(root + "/collected-frontiers")
+    let archive = root + "/collected-frontiers/core.tar.gz"
+    let result = @shell.Cmd("ssh", ["-S", socket, host, "tar -czf - -C " + root + " --wildcards 'frontiers/*/*.bf16'"]).output(max_output_bytes=536870912)
+    result.check()
+    @fs.write_file(archive, result.stdout_bytes(), create_mode=CreateNew)
+    @shell.Cmd("tar", ["-xf", archive, "-C", root + "/collected-frontiers"]).output().check()
+    println("collected core frontiers only; large leaf arrays remain on Spark")
+    return
+  }
+  if args is [_, "collect-leaf", root, prefill_text, layer_text] && root.has_prefix("/tmp/lunaflux-model-bench-") && root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) {
+    let prefill = @string.parse_int(prefill_text)
+    let layer = @string.parse_int(layer_text)
+    guard prefill >= 0 && prefill < 7 && layer >= 0 && layer < 45 else { fail("invalid frontier location") }
+    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
+    let host = "wlc004s@192.168.2.179"
+    let local_root = root + "/collected-leaves/prefill-\{prefill}-layer-\{layer}"
+    // Parent must already exist (created explicitly once by the caller).
+    @fs.mkdir(local_root)
+    @shell.Cmd("scp", ["-o", "ControlPath=" + socket,
+      host + ":" + root + "/frontiers/prefill-\{prefill}/layer-\{layer}-*.bin", local_root + "/",
+    ]).output().check()
+    println("collected selected numerical leaf arrays without overwrite")
+    return
+  }
+  if args is [_, "leaves", ordered, overlap, layer_text, report] {
+    let layer = @string.parse_int(layer_text)
+    guard layer >= 0 && layer < 45 else { fail("invalid layer") }
+    let summary = StringBuilder()
+    summary <+ "prefill\tleaf\tbytes\tdifferent_bytes\tfirst_byte\n"
+    let leaves = ["residual.bf16", "input.bf16", "branch.bf16", "router-logits.bin", "router-scores.bin", "router-indices.bin", "router-weights.bin", "routed-activation.bin", "routed-weighted.bin", "routed-output.bin", "routed-quantized-input.bin", "routed-quantized-activation.bin", "shared-activation.bin", "shared-weighted.bin", "shared-output.bin"]
+    for prefill in 0..<7 {
+      for leaf in leaves {
+        let path = "/collected-frontiers/frontiers/prefill-\{prefill}/layer-\{layer}-" + leaf
+        let a = @fs.read_file(ordered + path).binary()
+        let b = @fs.read_file(overlap + path).binary()
+        guard a.length() == b.length() else { fail("geometry mismatch") }
+        let (different, first) = for i in 0..<a.length(); different = 0, first = -1 {
+          continue different + (if a[i] != b[i] { 1 } else { 0 }), if first < 0 && a[i] != b[i] { i } else { first }
+        } nobreak { (different, first) }
+        summary <+ "\{prefill}\t\{leaf}\t\{a.length()}\t\{different}\t\{first}\n"
+        println("prefill=\{prefill} leaf=\{leaf} bytes=\{a.length()} different_bytes=\{different} first_byte=\{first}")
+      }
+    }
+    @fs.write_file(report, summary.to_string(), create_mode=CreateNew)
+    println("Raw scratch includes inactive capacity. Only matching live mathematical extents establish numerical differences.")
+    return
+  }
   if args is [_, "collect", root] && root.has_prefix("/tmp/lunaflux-model-bench-") && root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) {
     let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
     let host = "wlc004s@192.168.2.179"

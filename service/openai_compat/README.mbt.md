@@ -2,7 +2,8 @@
 
 This package is LunaFlux's transport-neutral outbound compatibility codec. It
 cooperatively maps an authenticated `@luna_event.LunaEventView` to canonical
-Server-Sent Events for either the Responses or Chat Completions wire shape.
+Server-Sent Events or a single buffered JSON response for either the Responses
+or Chat Completions wire shape.
 It does not own transport acknowledgement authority: retiring or acknowledging
 the source event remains the caller's responsibility.
 
@@ -62,9 +63,16 @@ production request path. Its sizing methods include the prompt, model alias,
 typed semantic child, fixed stop-token and stop-string tables, and the full
 configured stop-string byte envelope before construction.
 
-Responses requires `model`, a string `input`, and `stream: true`. Chat
-Completions requires `model`, `stream: true`, and a nonempty `messages` array
+Responses requires `model` and a string `input`. Chat
+Completions requires `model` and a nonempty `messages` array
 whose objects contain exactly one `role` and one nonempty string `content`.
+Both routes accept optional `stream`: true selects SSE; false or omission
+selects a single JSON response. This changes only presentation; the internal
+handoff still uses canonical token events so stopping, cancellation and
+ownership have one implementation. Buffered output is opt-in at workspace
+construction, and its sizing includes every visible delta, the final tail and
+worst-case JSON escaping. Accepted and Usage events produce no HTTP body in
+buffered mode. Completed emits the accumulated text; Failed emits a JSON error.
 Both routes additionally accept bounded `temperature`, `top_k`, `top_p`,
 `seed`, string-or-string-array `stop`, and integer-array `stop_token_ids`.
 The adapter explicitly maps `temperature: 0` to native `Greedy` and `top_k`
