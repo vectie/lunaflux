@@ -40,7 +40,17 @@ async fn remote(rank : Int32, command : String) -> @shell.Output {
 fn graceful_journal(text : String, unit : String) -> Bool {
   // Successfully stopped transient units can already be garbage-collected.
   // Default ExecMainStatus=0 from an unloaded unit alone proves nothing.
-  text.contains("Stopped " + unit) &&
+  for line in text.split("\n") {
+    if line.contains("GLM_UNIT_EXIT") &&
+      !line.contains("GLM_UNIT_EXIT result=success code=exited status=0") &&
+      !line.contains("GLM_UNIT_EXIT result=success code=killed status=TERM") {
+      return false
+    }
+  }
+  (
+    text.contains("Stopped " + unit) ||
+    text.contains("GLM_UNIT_EXIT result=success code=exited status=0")
+  ) &&
   !text.contains("timed out") &&
   !text.contains("Failed with result") &&
   !text.contains("Killing process") &&
@@ -215,6 +225,22 @@ test "unloaded unit defaults are not successful drain evidence" {
     ),
   )
   assert_true(graceful_journal("Stopped owned.service", "owned.service"))
+  assert_false(
+    graceful_journal(
+      "Stopped owned.service\nGLM_UNIT_EXIT result=signal code=killed status=ABRT",
+      "owned.service",
+    ),
+  )
+  assert_true(
+    graceful_journal(
+      "GLM_UNIT_EXIT result=success code=exited status=0", "owned.service",
+    ),
+  )
+  assert_false(
+    graceful_journal(
+      "GLM_UNIT_EXIT result=exit-code code=exited status=1", "owned.service",
+    ),
+  )
   for
     failure in [
       "timed out", "Failed with result", "Killing process", "status=9/KILL",

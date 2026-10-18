@@ -76,7 +76,8 @@ fn stop_order() -> Array[Int32] {
 fn stop_properties() -> String {
   // SIGTERM goes to the owning main process only. A timeout still kills the
   // entire cgroup, so an abandoned child cannot survive a failed drain.
-  " --property=KillMode=mixed --property=TimeoutStopSec=90"
+  " --property=KillMode=mixed --property=TimeoutStopSec=90" +
+  " --property='ExecStopPost=/usr/bin/echo GLM_UNIT_EXIT result=${SERVICE_RESULT} code=${EXIT_CODE} status=${EXIT_STATUS}'"
 }
 
 ///|
@@ -242,4 +243,9 @@ test "coordinator owns graceful shutdown before its worker and peer" {
   assert_true(stop_properties().contains("--property=KillMode=mixed"))
   assert_true(stop_properties().contains("--property=TimeoutStopSec=90"))
   assert_false(stop_properties().contains("KillMode=process"))
+  assert_true(
+    stop_properties().contains(
+      "GLM_UNIT_EXIT result=${SERVICE_RESULT} code=${EXIT_CODE} status=${EXIT_STATUS}",
+    ),
+  )
 }

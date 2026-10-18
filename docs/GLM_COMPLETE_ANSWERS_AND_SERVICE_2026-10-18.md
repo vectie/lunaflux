@@ -866,7 +866,10 @@ parent is still retiring requests. The corrected deployment recipe uses
 and coordinator-before-peer stop ordering. An already retired/garbage-collected
 peer is checked explicitly, not confused with a failed loaded unit. These are
 ownership/lifecycle rules, not a waiver of the Disconnected result. Fresh v26
-tests the same71061272 executable with that recipe; its outcome is pending.
+tests the same71061272 executable with that recipe. Rank0 stops cleanly and
+rank1 exits naturally with no reported failure, but the checker requires a
+literal systemd `Stopped` line that natural exit does not emit. Its missing
+completion marker is retained; unloaded-unit default status alone is not a pass.
 The independent cancellation/EOF unit test passes16 scheduling interleavings
 without a transport-code change, so no speculative exception suppression is
 introduced into RemoteChannel.
@@ -878,3 +881,27 @@ the existing exclusions unchanged; the full native suite passes5,275/5,275.
 The additional cancellation/EOF case passes in the8/8 affected transport suite.
 An earlier full-test attempt captured its file list before the new fixture was
 added and failed with an unbound fixture; it is not counted as a pass.
+
+### v27: verified coordinator-first active drain
+
+The unit recipe now emits only the manager-provided SERVICE_RESULT, EXIT_CODE
+and EXIT_STATUS from ExecStopPost. No payload inspection, credential logging,
+token-step diagnostic or inference executable change is involved. The checker
+accepts an actual natural-exit receipt, rejects failed receipts even alongside
+a `Stopped` line, and still rejects unobserved unloaded-unit defaults. Both
+runner regression tests pass. The earlier v26 observation is not rewritten.
+
+Fresh v27 passes JSON/SSE/Responses smoke, then observes four active requests,
+one queued and eight KV pages before stop. Rank0 begins stop at20:54:20CST and
+finishes at20:54:23 with `result=success code=killed status=TERM`; rank1's
+manager receipt is `result=success code=exited status=0`. Both GPU-owner lists
+are empty. There is no abort, stop timeout or forced kill. The paired watcher
+also exits zero. This verifies active cancellation/drain, not successful
+completion of the interrupted clients. Evidence:
+`/tmp/lunaflux-glm-http-active-stop-20261018-v27/COMPLETE.txt`.
+
+The66 paired memory samples record minimum host availability18,277,928 and
+19,569,372KiB, maximum GPU residency97,654/97,669MiB and zero unit swap. The
+same71061272 executable and unchanged AOT are used; the corrected unit ownership
+and stop sequencing are the changed variables relative to v25. Fresh-pair
+peer-loss testing remains required before the final service handoff.
