@@ -818,3 +818,13 @@ This correction stays at the async runtime boundary. It introduces no compiler
 comparison, GPU numerical change, recurring keepalive/poll workaround, payload
 hash or vendored fork. Clean-tree warning-denied checking passes; the full native
 suite and source-pinned full-model lifecycle retests are still running/pending.
+
+Pinned71061272 ARM buildv21 confirms the resolved dependency is0.22.4, builds
+successfully under2GiB/no swap and peaks at1.3GiB. The upstream C compiler warns
+about an ignored `write` result in its signal handler; this is retained, not
+reported as empty stderr or suppressed. No MoonBit warning exclusions change.
+Three actual committed `--async-signal-cleanup` runs pass at
+`/tmp/lunaflux-glm-signal-cleanup-pinned-20261018-v1`; three owned-worker
+startup-stop runs also pass at `/tmp/lunaflux-glm-owned-startup-stop-20261018-v2`.
+The optional build dependency snapshot supplies the declared updated package
+without reusing the old snapshot silently. It performs no payload hashing.

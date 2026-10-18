@@ -1,0 +1,82 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+// CPU-only external signal regression. The executable comes from the explicit
+// source-pinned ARM build, not from an unrecorded dependency/source overlay.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, build] &&
+    root.has_prefix("/tmp/lunaflux-glm-signal-cleanup-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    [root, build].all(path => {
+      !path.contains("..") &&
+      path
+      .iter()
+      .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_'))
+    }) else {
+    fail("NEW_ROOT PINNED_ARM_BUILD")
+  }
+  @fs.mkdir(root)
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-S", "/tmp/lunaflux-glm178-prefill-20261018.sock", "-o", "BatchMode=yes",
+      "-o", "ConnectTimeout=10", "wlc003s@192.168.2.178", command,
+    ]).output(max_output_bytes=1048576)
+  }
+  let tag = root.split("/").last().unwrap().to_owned()
+  let executable = build +
+    "/source/_build/native/release/build/tests/worker_service_e2e/worker_service_e2e.exe"
+  remote("test -x " + executable).check()
+  for i in 0..<3 {
+    let unit = tag + "-\{i}.service"
+    remote(
+      "systemd-run --user --unit=" +
+      unit +
+      " --property=MemoryMax=64M --property=MemorySwapMax=0 --property=RuntimeMaxSec=30 --property=TimeoutStopSec=10 /usr/bin/stdbuf -oL -eL " +
+      executable +
+      " --async-signal-cleanup",
+    ).check()
+    let mut stopped = false
+    defer @async.protect_from_cancel(() => {
+      if !stopped {
+        remote("systemctl --user stop " + unit).check()
+      }
+    })
+    let mut ready = false
+    for _ in 0..<50 {
+      let journal = remote("journalctl --user -u " + unit + " --no-pager")
+      journal.check()
+      if journal.stdout().contains("signal-cleanup ready") {
+        ready = true
+        break
+      }
+      @async.sleep(100)
+    }
+    guard ready else { fail("fixture did not start") }
+    remote("systemctl --user stop " + unit).check()
+    stopped = true
+    let journal = remote("journalctl --user -u " + unit + " --no-pager")
+    journal.check()
+    let text = journal.stdout()
+    @fs.write_file(root + "/attempt-\{i}.txt", text, create_mode=CreateNew)
+    guard text.contains("signal-cleanup completes") &&
+      text.contains("Stopped " + unit) &&
+      !text.contains("Failed with result") &&
+      !text.contains("Killing process") &&
+      !text.contains("timed out") else {
+      fail(text)
+    }
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "three external SIGTERM protected-I/O cleanups completed\n",
+    create_mode=CreateNew,
+  )
+  println("signal cleanup passed three repetitions")
+}
