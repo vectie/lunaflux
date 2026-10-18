@@ -4,17 +4,17 @@
 /// a device lowering must publish each stage before consuming the next one.
 /// Neither the network nor the probability law depends on a model or backend.
 pub struct FullVocabularySamplingProgram {
-  priv values : Int32
-  priv padded : Int32
-  priv rows : Int32
-  priv stages : ReadOnlyArray[(Int32, Int32)]
+  priv values : Int
+  priv padded : Int
+  priv rows : Int
+  priv stages : ReadOnlyArray[(Int, Int)]
   priv final_program : StochasticProgram
 }
 
 ///|
 pub fn FullVocabularySamplingProgram::new(
-  values~ : Int32,
-  maximum_rows~ : Int32,
+  values~ : Int,
+  maximum_rows~ : Int,
   maximum_workspace_bytes~ : Int64,
 ) -> Self? {
   // Keep signed indexing and the next-power-of-two operation representable.
@@ -31,7 +31,7 @@ pub fn FullVocabularySamplingProgram::new(
     maximum_rows.to_int64() <= maximum_workspace_bytes / row_bytes else {
     return None
   }
-  let stages : Array[(Int32, Int32)] = []
+  let stages : Array[(Int, Int)] = []
   for width = 2; width <= padded; width = width * 2 {
     for distance = width / 2; distance > 0; distance = distance / 2 {
       stages.push((width, distance))
@@ -58,14 +58,14 @@ pub fn FullVocabularySamplingProgram::new(
 ///|
 pub fn FullVocabularySamplingProgram::geometry(
   self : Self,
-) -> (Int32, Int32, Int32) {
+) -> (Int, Int, Int) {
   (self.values, self.padded, self.rows)
 }
 
 ///|
 pub fn FullVocabularySamplingProgram::stages(
   self : Self,
-) -> ReadOnlyArray[(Int32, Int32)] {
+) -> ReadOnlyArray[(Int, Int)] {
   self.stages
 }
 

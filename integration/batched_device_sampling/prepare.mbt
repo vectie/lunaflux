@@ -119,8 +119,8 @@ pub fn BatchedDeviceSampler::new(
 ///|
 fn launch(
   function : @device.Function,
-  x : Int32,
-  y : Int32,
+  x : Int,
+  y : Int,
   args : Array[@device.KernelArgument],
 ) -> @device.OrderedKernelLaunch raise {
   @device.OrderedKernelLaunch::new(

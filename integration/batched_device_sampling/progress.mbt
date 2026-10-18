@@ -81,7 +81,7 @@ pub fn BatchedDeviceSampler::binding(
 }
 
 ///|
-pub fn BatchedDeviceSampler::token_at(self : Self, row : Int32) -> Int32 raise {
+pub fn BatchedDeviceSampler::token_at(self : Self, row : Int) -> Int raise {
   guard self.state is Retired && row >= 0 && row < self.count else {
     raise @device.DeviceError::Busy(DeviceCopyCreate)
   }

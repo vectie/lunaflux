@@ -1,5 +1,5 @@
 ///|
-fn inference(v : Int32) -> @inference.InferenceLimits raise {
+fn inference(v : Int) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=128,
     max_input_tokens=16,
@@ -19,7 +19,7 @@ fn inference(v : Int32) -> @inference.InferenceLimits raise {
 }
 
 ///|
-fn parameters(kind : Int32, v : Int32) -> @inference.SamplingParameters raise {
+fn parameters(kind : Int, v : Int) -> @inference.SamplingParameters raise {
   match kind % 6 {
     0 => @inference.SamplingParameters::greedy()
     1 => @inference.SamplingParameters::sample(temperature=0.7, inference(v))
@@ -54,10 +54,10 @@ fn parameters(kind : Int32, v : Int32) -> @inference.SamplingParameters raise {
 
 ///|
 fn frame(
-  v : Int32,
-  rows : Int32,
-  live : Int32,
-  iteration : Int32,
+  v : Int,
+  rows : Int,
+  live : Int,
+  iteration : Int,
 ) -> @wire.ValidatedPlanFrame raise {
   let limits = @protocol.WorkerProtocolLimits::new(
     max_prefill_rows=rows,
@@ -124,8 +124,8 @@ fn run_cases(
   context : @device.Context,
   logits : @device.Allocation,
   sampler : @gpu.BatchedDeviceSampler,
-  v : Int32,
-  rows : Int32,
+  v : Int,
+  rows : Int,
 ) -> Unit raise {
   let payload = FixedArray::make(v * rows * 4, b'\x00')
   let values = Array::make(v, 0.0)

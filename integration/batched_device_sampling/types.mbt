@@ -27,26 +27,26 @@ pub struct BatchedDeviceSampler {
   priv executor : @device.OrderedKernelExecutor
   priv parameters : FixedArray[Byte]
   priv output : FixedArray[Byte]
-  priv mut count : Int32
+  priv mut count : Int
   priv mut state : State
 }
 
 ///|
-fn put_u64(bytes : FixedArray[Byte], offset : Int32, value : UInt64) -> Unit {
+fn put_u64(bytes : FixedArray[Byte], offset : Int, value : UInt64) -> Unit {
   for i in 0..<8 {
     bytes[offset + i] = ((value >> (8 * i)) & 255UL).to_byte()
   }
 }
 
 ///|
-fn put_i32(bytes : FixedArray[Byte], offset : Int32, value : Int32) -> Unit {
+fn put_i32(bytes : FixedArray[Byte], offset : Int, value : Int) -> Unit {
   for i in 0..<4 {
     bytes[offset + i] = ((value.reinterpret_as_uint() >> (8 * i)) & 255U).to_byte()
   }
 }
 
 ///|
-fn get_i32(bytes : FixedArray[Byte], offset : Int32) -> Int32 {
+fn get_i32(bytes : FixedArray[Byte], offset : Int) -> Int {
   for i in 0..<4; bits = 0U {
     continue bits | (bytes[offset + i].to_uint() << (8 * i))
   } nobreak {
@@ -57,7 +57,7 @@ fn get_i32(bytes : FixedArray[Byte], offset : Int32) -> Int32 {
 ///|
 fn argument(
   allocation : @device.Allocation,
-  offset~ : Int64 = 0L,
+  offset? : Int64 = 0L,
   bytes? : Int64,
 ) -> @device.KernelArgument raise {
   @device.KernelArgument::device_region(

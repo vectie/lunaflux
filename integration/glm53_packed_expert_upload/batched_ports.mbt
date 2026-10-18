@@ -38,8 +38,8 @@ pub fn GlmDecoderStage::bind_batched_rank(
   rank : @batch_worker.BatchedDecoderRank,
   context : @device.Context,
   sampling_aot? : @device.Module,
-  maximum_sampling_device_bytes~ : Int64 = 67108864L,
-  maximum_sampling_host_bytes~ : Int64 = 67108864L,
+  maximum_sampling_device_bytes? : Int64 = 67108864L,
+  maximum_sampling_host_bytes? : Int64 = 67108864L,
 ) -> Unit raise {
   let outputs_token = self.range.text_boundary() is (Egress | Complete)
   guard self.status is Ready &&
