@@ -1,4 +1,39 @@
 ///|
+test "decoded delta admits a full token plus three carried UTF-8 bytes" {
+  let tokenizer = fixture_tokenizer()
+  for delta in [10, 11] {
+    let inference = @inference.InferenceLimits::new(
+      max_text_bytes=64,
+      max_input_tokens=64,
+      max_new_tokens=32,
+      max_context_tokens=64,
+      max_token_id=260,
+      max_stop_token_ids=4,
+      max_stop_strings=4,
+      max_stop_string_bytes=16,
+      max_trace_bytes=16,
+      max_cache_scope_bytes=16,
+      max_decoded_delta_bytes=delta,
+      max_deadline_millis=1000UL,
+      max_top_k=261,
+      max_temperature=4.0,
+    )
+    try
+      LunaIncrementalOutputWorkspace::new(
+        tokenizer,
+        inference,
+        LunaIncrementalOutputStepBudget::new(1),
+      )
+    catch {
+      Invalid(rule=DecodeEnvelope, issue=Unsupported) => assert_eq(delta, 10)
+      error => raise error
+    } noraise {
+      workspace => assert_eq(workspace.scratch.length(), 11)
+    }
+  }
+}
+
+///|
 fn wb_output_workspace(budget : Int) -> LunaIncrementalOutputWorkspace raise {
   LunaIncrementalOutputWorkspace::new(
     fixture_tokenizer(),

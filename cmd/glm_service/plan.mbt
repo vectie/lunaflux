@@ -153,7 +153,9 @@ fn ServicePlan::inference(
     max_stop_string_bytes=256,
     max_trace_bytes=256,
     max_cache_scope_bytes=256,
-    max_decoded_delta_bytes=4096,
+    // Checkpoint tokenizer admits 4096-byte pieces; an incremental UTF-8
+    // decoder can also publish three carried bytes from the preceding token.
+    max_decoded_delta_bytes=4096 + 3,
     max_deadline_millis=3600000UL,
     max_top_k=spec.vocabulary_size(),
     max_temperature=100.0,

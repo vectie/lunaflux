@@ -1,0 +1,296 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// External service acceptance. Never part of the compiler or model runtime.
+
+///|
+let node = "wlc003s@192.168.2.178"
+
+///|
+let socket = "/tmp/lunaflux-glm178-prefill-20261018.sock"
+
+///|
+async fn remote(command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "-S", socket, node, command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+async fn transfer(from : String, to : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket,
+    from,
+    to,
+  ])
+  .output()
+  .check()
+}
+
+///|
+fn chat(prompt : String, stream : Bool, tokens : Int) -> Json {
+  {
+    "model": "glm-5.3",
+    "messages": [{ "role": "user", "content": prompt }],
+    "stream": stream,
+    "temperature": 0,
+    "max_tokens": tokens,
+  }
+}
+
+///|
+fn answer(body : String, streaming : Bool) -> String raise {
+  if !streaming {
+    let value = @json.parse(body)
+    if value
+      is {
+        "choices": Array([{ "message": { "content": String(text), .. }, .. }]),
+        ..
+      } {
+      return text
+    }
+    fail("missing chat answer: " + body)
+  }
+  let mut text = ""
+  let mut finished = false
+  for line in body.split("\n") {
+    let line = line.trim()
+    if line == "data: [DONE]" {
+      finished = true
+    } else if line.has_prefix("data: ") {
+      let value = @json.parse(line[6:])
+      if value is { "choices": Array(choices), .. } {
+        for choice in choices {
+          if choice is { "delta": { "content": String(delta), .. }, .. } {
+            text += delta
+          }
+        }
+      }
+    }
+  }
+  guard finished else { fail("SSE missing terminal DONE") }
+  text
+}
+
+///|
+async fn request(
+  root : String,
+  name : String,
+  route : String,
+  body : Json,
+  timeout~ : Int = 1800,
+  cancel~ : Bool = false,
+) -> String {
+  let prefix = root + "/" + name
+  @fs.write_file(
+    prefix + ".request.json",
+    body.stringify(),
+    create_mode=CreateNew,
+  )
+  transfer(prefix + ".request.json", node + ":" + prefix + ".request.json")
+  let result = remote(
+    "curl --silent --show-error --no-buffer --max-time \{timeout} --dump-header " +
+    prefix +
+    ".headers --output " +
+    prefix +
+    ".body --write-out '%{http_code} %{time_total}\n' -H 'Authorization: Bearer lunaflux-acceptance' -H 'Content-Type: application/json' --data-binary @" +
+    prefix +
+    ".request.json http://127.0.0.1:18888" +
+    route,
+  )
+  @fs.write_file(
+    prefix + ".client.txt",
+    result.stdout() + result.stderr(),
+    create_mode=CreateNew,
+  )
+  transfer(node + ":" + prefix + ".headers", prefix + ".headers")
+  // curl may not create a body if cancellation happens before response headers.
+  let collected = remote("test -f " + prefix + ".body")
+  if collected.exit_code() == 0 {
+    transfer(node + ":" + prefix + ".body", prefix + ".body")
+  }
+  if cancel {
+    guard result.exit_code() == 28 else {
+      fail("disconnect probe did not time out as intended")
+    }
+    return "cancelled"
+  }
+  result.check()
+  guard result.stdout().has_prefix("200 ") else {
+    fail("HTTP failure " + name + ": " + result.stdout())
+  }
+  @fs.read_file(prefix + ".body").text()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-http-") &&
+    !root.contains("..") &&
+    root
+    .iter()
+    .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_')) &&
+    mode is ("smoke" | "answers" | "concurrent" | "sampling" | "cancel") else {
+    fail("NEW_EVIDENCE_ROOT smoke|answers|concurrent|sampling|cancel")
+  }
+  @fs.mkdir(root)
+  remote("mkdir " + root).check()
+  if mode == "smoke" {
+    let prompt = "What is 17 multiplied by 19? Give only the integer."
+    let a = answer(
+      request(root, "json", "/v1/chat/completions", chat(prompt, false, 128)),
+      false,
+    )
+    println("JSON: " + a)
+    let b = answer(
+      request(root, "sse", "/v1/chat/completions", chat(prompt, true, 128)),
+      true,
+    )
+    println("SSE: " + b)
+    guard a == b && a.contains("323") else {
+      fail("JSON/SSE or arithmetic failure")
+    }
+    let response = request(root, "responses", "/v1/responses", {
+      "model": "glm-5.3",
+      "input": "Give the capital of France in one word.",
+      "max_output_tokens": 128,
+      "temperature": 0,
+    })
+    println("Responses: " + response)
+    guard response.contains("Paris") else { fail("Responses semantic failure") }
+  } else if mode == "answers" {
+    let prompts = [
+      "Explain why 0.1 + 0.2 is not exactly 0.3 in binary floating-point. Give a practical comparison method.",
+      "用中文解释银行转账为何需要事务，给出一个失败后回滚的例子。",
+      "Write a Python function merge_sorted(a, b) that merges two already sorted integer lists. Include empty inputs and explain complexity.",
+      "For sales(customer_id, amount), write SQL returning the three customers with the highest total amount. Break ties by customer_id ascending.",
+      "Translate into English: 尽管火车晚点了，我们仍然准时到达会议现场。",
+      "A box contains 3 red and 2 blue balls. Draw two without replacement. Explain the probability that both are red.",
+      "Summarize in two sentences: A town replaced its diesel buses with electric buses. Air pollution declined, but charging delays initially reduced service. A redesigned timetable and overnight charging restored reliability.",
+      "Return only JSON with keys name, count, active for a fictional project named Luna, count 3, and active true.",
+      "A farmer has chickens and rabbits, with 10 heads and 28 legs in total. How many of each? Show the equations.",
+      "List three limitations of using accuracy alone to evaluate a classifier on an imbalanced dataset.",
+      "Explain the difference between concurrency and parallelism with an example of each.",
+      "Give an example of a stable sorting algorithm and an unstable one. Explain what stable means without claiming all sorting algorithms are stable.",
+    ]
+    for i, prompt in prompts {
+      let body = request(
+        root,
+        "answer-\{i}",
+        "/v1/chat/completions",
+        chat(prompt, false, 512),
+      )
+      let text = answer(body, false)
+      guard !text.trim().is_empty() else { fail("empty answer") }
+      let j = @json.parse(body)
+      if j
+        is { "choices": Array([{ "finish_reason": String(reason), .. }]), .. } {
+        guard reason == "stop" else {
+          fail("incomplete answer \{i}: " + reason)
+        }
+      } else {
+        fail("missing finish reason")
+      }
+      println("\{i}: " + text)
+    }
+  } else if mode == "concurrent" {
+    @async.with_task_group(group => {
+      for i in 0..<4 {
+        group.spawn_bg(() => {
+          let body = request(
+            root,
+            "concurrent-\{i}",
+            "/v1/chat/completions",
+            chat(
+              "Explain photosynthesis in three complete sentences.",
+              i % 2 == 0,
+              256,
+            ),
+          )
+          let text = answer(body, i % 2 == 0)
+          guard !text.trim().is_empty() else { fail("empty concurrent answer") }
+          println("\{i}: " + text)
+        })
+      }
+    })
+  } else if mode == "sampling" {
+    for i in 0..<3 {
+      let payload : Json = {
+        "model": "glm-5.3",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Write a short creative sentence about the moon.",
+          },
+        ],
+        "max_tokens": 256,
+        "temperature": 0.7,
+        "top_k": 32,
+        "top_p": 0.9,
+        "seed": 12345,
+      }
+      let body = request(root, "sample-\{i}", "/v1/chat/completions", payload)
+      let text = answer(body, false)
+      println("\{i}: " + text)
+      if i > 0 {
+        let first = answer(@fs.read_file(root + "/sample-0.body").text(), false)
+        guard text == first else { fail("same-seed replay changed") }
+      }
+    }
+  } else {
+    for i in 0..<6 {
+      ignore(
+        request(
+          root,
+          "disconnect-\{i}",
+          "/v1/chat/completions",
+          chat(
+            "Write a detailed story about a lighthouse in a storm.", true, 512,
+          ),
+          timeout=1,
+          cancel=true,
+        ),
+      )
+      @async.sleep(3000)
+      let body = request(
+        root,
+        "reuse-\{i}",
+        "/v1/chat/completions",
+        chat("What is 2 plus 2? Answer only the number.", false, 128),
+      )
+      guard answer(body, false).contains("4") else {
+        fail("slot reuse correctness")
+      }
+    }
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    mode + " completed; human answer review remains separate\n",
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "SSE concatenation and terminal marker" {
+  assert_eq(
+    answer(
+      "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n",
+      true,
+    ),
+    "hi",
+  )
+  try ignore(answer("data: {\"choices\":[]}\n", true)) catch {
+    _ => ()
+  } noraise {
+    _ => fail("accepted incomplete SSE")
+  }
+}
