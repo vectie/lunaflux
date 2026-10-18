@@ -20,6 +20,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   shared_matrix_columns? : Int = 64,
   expert_fragment_slots? : Int = 1,
+  expert_scale_partitions? : Int = 1,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
@@ -58,6 +59,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
         expert_transport~,
         shared_matrix_columns~,
         expert_fragment_slots~,
+        expert_scale_partitions~,
         tensor_group?,
       ),
     ),
@@ -80,6 +82,7 @@ fn make_moe_ffn(
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   shared_matrix_columns? : Int = 64,
   expert_fragment_slots? : Int = 1,
+  expert_scale_partitions? : Int = 1,
   tensor_group? : (Int, Int),
 ) -> GlmFfn raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
@@ -149,7 +152,9 @@ fn make_moe_ffn(
     @expert_source.packed_expert_mlp_source(
       routed,
       symbol="glm_routed_" + layer_index.to_string(),
-      grouping?=if expert_transport == IndexedRows && expert_fragment_slots == 1 {
+      grouping?=if expert_transport == IndexedRows &&
+        expert_fragment_slots == 1 &&
+        expert_scale_partitions == 1 {
         None
       } else {
         Some(
@@ -160,6 +165,7 @@ fn make_moe_ffn(
             shared_input_staging=expert_transport
               is (PackedBulk(..) | PackedBulkTiles(..)),
             fragment_slots=expert_fragment_slots,
+            scale_partitions=expert_scale_partitions,
           ),
         )
       },

@@ -12,7 +12,11 @@ pub struct IndexedSparseProjectionCudaSource {
 pub fn indexed_sparse_projection_source(
   plan : @precision.IndexedSparseProjectionPrecision,
   symbol_prefix~ : String,
+  staging? : @matrix.MatrixStaging = Synchronous,
 ) -> IndexedSparseProjectionCudaSource raise {
+  guard staging == Synchronous || plan.projection_law() != ScalarFloat32 else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
   let (hidden, qr, kr) = plan.geometry()
   let (qh, kvh, qkd, vd) = plan.attention().attention_geometry()
   let (ih, id, _, _, _) = plan.attention().index_geometry()
@@ -42,6 +46,7 @@ pub fn indexed_sparse_projection_source(
         columns=output,
         inner=input,
         law=plan.projection_law(),
+        staging~,
       )
       sources[stage] = @tiled.dense_source(tile, symbol=symbols[stage])
       launches[stage] = (tile.tile_count(), 128)

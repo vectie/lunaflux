@@ -30,6 +30,7 @@ pub fn PackedExpertMlpCudaSource::bank_preparation(Self) -> String?
 pub fn PackedExpertMlpCudaSource::has_packed_rows(Self) -> Bool
 pub fn PackedExpertMlpCudaSource::launches(Self) -> ReadOnlyArray[(Int, Int)]
 pub fn PackedExpertMlpCudaSource::plan(Self) -> @precision_ir.ExpertMlpPrecision
+pub fn PackedExpertMlpCudaSource::quantized_workspace_bytes(Self) -> (Int64, Int64)
 pub fn PackedExpertMlpCudaSource::source_bytes(Self) -> Bytes
 pub fn PackedExpertMlpCudaSource::symbols(Self) -> ReadOnlyArray[String]
 

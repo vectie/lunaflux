@@ -15,9 +15,11 @@ priv struct Startup {
   recurrent_evaluation : @precision.RecurrentEvaluationLaw
   matrix_law : @precision.DenseDotLaw
   matrix_staging : @matrix.MatrixStaging
+  sparse_matrix_staging : @matrix.MatrixStaging
   expert_scaled_dot_law : @precision.ScaledDotReductionLaw
   expert_transport : @matrix.ExpertTransport
   expert_fragment_slots : Int
+  expert_scale_partitions : Int
   hc_reduction : @precision.HyperControlReduction
   shared_matrix_columns : Int
   overlap_experts : Bool
@@ -80,9 +82,11 @@ fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
     recurrent_evaluation=startup.recurrent_evaluation,
     matrix_law=startup.matrix_law,
     matrix_staging=startup.matrix_staging,
+    sparse_matrix_staging=startup.sparse_matrix_staging,
     expert_scaled_dot_law=startup.expert_scaled_dot_law,
     expert_transport=startup.expert_transport,
     expert_fragment_slots=startup.expert_fragment_slots,
+    expert_scale_partitions=startup.expert_scale_partitions,
     shared_matrix_columns=startup.shared_matrix_columns,
     shard_vocabulary=startup.shard_vocabulary,
     tensor_group?=if startup.expert_tensor_parallel {
@@ -112,9 +116,11 @@ fn inspect_startup(
   recurrent_evaluation? : @precision.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
+  sparse_matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   expert_fragment_slots? : Int = 1,
+  expert_scale_partitions? : Int = 1,
   expert_tensor_parallel? : Bool = false,
   retirement? : @parallel.RetirementPolicy = EachCollective,
   replay? : @parallel.ReplayPolicy = Eager,
@@ -192,9 +198,11 @@ fn inspect_startup(
     recurrent_evaluation~,
     matrix_law~,
     matrix_staging~,
+    sparse_matrix_staging~,
     expert_scaled_dot_law~,
     expert_transport~,
     expert_fragment_slots~,
+    expert_scale_partitions~,
     shared_matrix_columns~,
   )
   defer decoder.close()
@@ -252,9 +260,11 @@ fn inspect_startup(
     recurrent_evaluation,
     matrix_law,
     matrix_staging,
+    sparse_matrix_staging,
     expert_scaled_dot_law,
     expert_transport,
     expert_fragment_slots,
+    expert_scale_partitions,
     hc_reduction,
     shared_matrix_columns,
     overlap_experts,

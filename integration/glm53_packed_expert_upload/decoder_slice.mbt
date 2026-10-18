@@ -44,9 +44,11 @@ pub fn GlmDecoderSlice::new(
   recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
+  sparse_matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   expert_fragment_slots? : Int = 1,
+  expert_scale_partitions? : Int = 1,
   shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
 ) -> Self raise {
@@ -96,6 +98,7 @@ pub fn GlmDecoderSlice::new(
                 expert_transport~,
                 shared_matrix_columns~,
                 expert_fragment_slots~,
+                expert_scale_partitions~,
                 tensor_group?,
               ),
             )
@@ -117,10 +120,12 @@ pub fn GlmDecoderSlice::new(
             maximum_expert_bytes=maximum_layer_expert_bytes,
             accuracy~,
             matrix_law~,
+            matrix_staging=sparse_matrix_staging,
             expert_scaled_dot_law~,
             expert_transport~,
             shared_matrix_columns~,
             expert_fragment_slots~,
+            expert_scale_partitions~,
             tensor_group?,
           ),
         )

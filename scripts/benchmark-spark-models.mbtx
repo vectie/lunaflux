@@ -308,6 +308,9 @@ async fn main {
   let options = if warmup { options[:options.length() - 1] } else { options }
   let shape_aware = options.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
+  let distributed = @env.get_env_var("LUNA_GLM_DISTRIBUTED_SCALES") == Some("1")
+  let prefill_k = @env.get_env_var("LUNA_GLM_PREFILL_K").unwrap_or("0")
+  guard prefill_k is ("0" | "32" | "64" | "128") else { fail("prefill K") }
   let parallel_hc = @env.get_env_var("LUNA_GLM_PARALLEL_HC") == Some("1")
   let shared_columns = @env.get_env_var("LUNA_GLM_SHARED_COLUMNS").unwrap_or(
     "64",
@@ -707,6 +710,8 @@ async fn main {
         }) +
         (if lookahead { "-lookahead-experts" } else { "" }) +
         (if buffered { "-buffered-matrices" } else { "" }) +
+        (if prefill_k != "0" { "-prefill-k" + prefill_k } else { "" }) +
+        (if distributed { "-distributed-scales" } else { "" }) +
         (if parallel_hc { "-parallel-hc" } else { "" }) +
         (if collective_graph { "-collective-graph" } else { "" }) +
         (if shared_columns != "64" { "-shared" + shared_columns } else { "" }) +

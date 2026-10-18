@@ -19,9 +19,10 @@ pub fn ExpertGroupingPlan::consumer_teams(Self) -> Int
 pub fn ExpertGroupingPlan::fragment_slots(Self) -> Int
 pub fn ExpertGroupingPlan::matrix_columns(Self) -> Int
 pub fn ExpertGroupingPlan::maximum_groups(Self) -> Int
-pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int, transport? : ExpertTransport, fragment_slots? : Int, matrix_columns? : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn ExpertGroupingPlan::new(maximum_rows~ : Int, selected_experts~ : Int, shared_input_staging? : Bool, column_tile? : Int, transport? : ExpertTransport, fragment_slots? : Int, matrix_columns? : Int, scale_partitions? : Int) -> Self raise @precision_ir.PrecisionPlanError
 pub fn ExpertGroupingPlan::persistent_workers(Self) -> Int?
 pub fn ExpertGroupingPlan::rows_per_group(Self) -> Int
+pub fn ExpertGroupingPlan::scale_partitions(Self) -> Int
 pub fn ExpertGroupingPlan::shared_input_staging(Self) -> Bool
 pub fn ExpertGroupingPlan::stable_assignment(Self) -> StableAssignmentPlan
 pub fn ExpertGroupingPlan::storage_bytes(Self) -> Int64

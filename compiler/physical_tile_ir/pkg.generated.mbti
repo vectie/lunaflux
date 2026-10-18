@@ -154,6 +154,20 @@ pub fn OrderedOperandReads::new(items~ : Int, slots~ : Int) -> Self?
 pub fn OrderedOperandReads::not_equal(Self, Self) -> Bool
 pub fn OrderedOperandReads::to_repr(Self) -> @debug.Repr
 
+pub struct PartitionedMaximum {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn PartitionedMaximum::allocation_bytes(Self) -> Int64
+pub fn PartitionedMaximum::equal(Self, Self) -> Bool
+pub fn PartitionedMaximum::group_elements(Self) -> Int
+pub fn PartitionedMaximum::live_partitions(Self, Int) -> Int
+pub fn PartitionedMaximum::new(partitions~ : Int, group_elements~ : Int, after_bytes~ : Int64) -> Self?
+pub fn PartitionedMaximum::not_equal(Self, Self) -> Bool
+pub fn PartitionedMaximum::owner(Self, Int64, Int) -> Int?
+pub fn PartitionedMaximum::partial_offset(Self) -> Int64
+pub fn PartitionedMaximum::partitions(Self) -> Int
+pub fn PartitionedMaximum::to_repr(Self) -> @debug.Repr
+
 pub struct ProducerConsumerPipeline {
   // private fields
 } derive(Eq, @debug.Debug)

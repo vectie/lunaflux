@@ -26,7 +26,7 @@ fn expert_workspace_sizes(
   let plan = source.plan()
   let (rows, hidden, _, experts, _) = plan.geometry()
   let weighted = plan.workspace_bytes().1
-  let (qx, qa) = plan.quantized_workspace_bytes()
+  let (qx, qa) = source.quantized_workspace_bytes()
   [
     experts.to_int64() * 4L,
     source.activation_bytes(),

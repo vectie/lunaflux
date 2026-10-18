@@ -3,6 +3,7 @@ package "vectie/lunaflux/kernels/luna_cuda_precision"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/compiler/precision_ir",
   "vectie/lunaflux/model/precision_format",
 }
@@ -18,7 +19,7 @@ pub fn moe_combine_source(@precision_ir.MoeCombinePrecision, symbol~ : String) -
 
 pub fn quantize_bf16_rows_source(@precision_ir.QuantizationPlan, row_multiplier~ : Int, symbol~ : String) -> RowQuantizationSource raise LoweringError
 
-pub fn quantize_fp4_bf16_rows_source(@precision_ir.QuantizationPlan, row_multiplier~ : Int, symbol~ : String) -> String raise LoweringError
+pub fn quantize_fp4_bf16_rows_source(@precision_ir.QuantizationPlan, row_multiplier~ : Int, symbol~ : String, maximum? : @physical_tile_ir.PartitionedMaximum) -> String raise LoweringError
 
 pub fn quantize_source(@precision_ir.OperandPlan, symbol~ : String) -> QuantizationSource raise LoweringError
 

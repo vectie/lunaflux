@@ -317,6 +317,7 @@ fn grouped_expert_source(
     source: @utf8.encode(text),
     packed_rows: None,
     bank_preparation: None,
+    quantization_workspace: plan.quantized_workspace_bytes(),
     symbols: ReadOnlyArray::from_array([
       group_symbol, gate_symbol, down_symbol, combine_symbol,
     ]),

@@ -142,6 +142,7 @@ fn block_scaled_expert_source(
     source: @utf8.encode(text),
     packed_rows: None,
     bank_preparation: None,
+    quantization_workspace: plan.quantized_workspace_bytes(),
     symbols: [
       quantizers[0].symbol(),
       gate_up,

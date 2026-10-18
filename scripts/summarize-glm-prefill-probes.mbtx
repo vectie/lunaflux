@@ -1,0 +1,72 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, kind] && kind is ("scales" | "projections") else {
+    fail("ROOT scales|projections")
+  }
+  let sums : Map[String, (Double, Double, Int)] = Map([])
+  let names : Array[String] = []
+  if kind == "scales" {
+    for s in [1, 8] {
+      for g in [16, 32, 64] {
+        names.push("scale-\{s}-\{g}-run.stdout")
+      }
+    }
+  } else {
+    names.push("run.stdout")
+  }
+  for name in names {
+    for line in @fs.read_file(root + "/" + name).text().split("\n") {
+      if !line.has_prefix("timing ") {
+        continue
+      }
+      let fields : Map[String, String] = Map([])
+      for part in line.split(" ") {
+        if part.split("=").to_array() is [k, v] {
+          fields[k.to_owned()] = v.to_owned()
+        }
+      }
+      let key = if kind == "scales" {
+        "s=" +
+        fields["multiplier"] +
+        ",g=" +
+        fields["groups"] +
+        ",r=" +
+        fields["rows"]
+      } else {
+        "shape=" +
+        fields["shape"] +
+        ",r=" +
+        fields["rows"] +
+        ",variant=" +
+        fields["variant"]
+      }
+      let (a, b, n) = sums.get(key).unwrap_or((0.0, 0.0, 0))
+      sums[key] = (
+        a +
+        @string.parse_double(
+          fields[if kind == "scales" { "old_us" } else { "us" }],
+        ),
+        b +
+        (if kind == "scales" {
+          @string.parse_double(fields["new_us"])
+        } else {
+          0.0
+        }),
+        n + 1,
+      )
+    }
+  }
+  for key, (a, b, n) in sums {
+    println(
+      "\{key},mean_us=\{a/n.to_double()},next_us=\{b/n.to_double()},n=\{n}",
+    )
+  }
+}

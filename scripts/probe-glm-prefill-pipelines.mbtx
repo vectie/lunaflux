@@ -1,0 +1,135 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-prefill-pipelines-") &&
+    mode is ("prepare" | "run" | "sanitize") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_ROOT prepare|run|sanitize")
+  }
+  let host = "wlc003s@192.168.2.178"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm178-prefill-20261018.sock",
+  )
+  async fn remote(cmd : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(
+      max_output_bytes=8388608,
+    )
+  }
+  async fn record(name : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    let out = @shell.Cmd("env", [
+      "LUNA_EXPORT_PREFILL_PIPELINES=1", "moon", "test", "kernels/tiled_matrix_cuda_source/prefill_export_test.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=8388608)
+    record("export", out)
+    let parts = out.stdout().split("LUNA_SOURCE_BEGIN prefill\n").to_array()
+    guard parts.length() == 2 else { fail("missing source") }
+    @fs.write_file(
+      root + "/prefill.cuh",
+      parts[1].split("LUNA_SOURCE_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+    record("mkdir", remote("mkdir " + root))
+    for
+      (from, name) in [
+        (root + "/prefill.cuh", "prefill.cuh"),
+        ("tests/packed_moe_execution/prefill_pipeline_probe.cu", "probe.cu"),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        from,
+        host + ":" + root + "/" + name,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+  } else {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU busy") }
+    record(
+      mode + "-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo",
+      ),
+    )
+    for
+      tool in (if mode == "run" {
+        ["run"]
+      } else {
+        ["memcheck", "racecheck", "synccheck"]
+      }) {
+      let variant = @env.get_env_var("LUNA_PREFILL_PROBE_VARIANT").unwrap_or(
+        "3",
+      )
+      guard variant is ("1" | "2" | "3") else {
+        fail("variant must be 1, 2 or 3")
+      }
+      let command = if tool == "run" {
+        root + "/probe"
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+        tool +
+        " --error-exitcode 9 " +
+        (if tool == "memcheck" {
+          "--leak-check full "
+        } else if tool == "racecheck" {
+          "--racecheck-num-workers 1 --force-synchronization-limit 1 "
+        } else {
+          ""
+        }) +
+        root +
+        "/probe sanitize " +
+        variant
+      }
+      record(
+        tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          root[5:].to_owned() +
+          "-" +
+          tool +
+          " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+          command,
+        ),
+      )
+      println(tool + " complete")
+    }
+  }
+}

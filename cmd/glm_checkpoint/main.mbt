@@ -179,6 +179,28 @@ async fn main {
   } else {
     mode
   }
+  let distributed_scales = mode.has_suffix("-distributed-scales")
+  let mode = if distributed_scales {
+    mode[:mode.length() - 19].to_owned()
+  } else {
+    mode
+  }
+  let prefill_k = if mode.has_suffix("-prefill-k128") {
+    128
+  } else if mode.has_suffix("-prefill-k64") {
+    64
+  } else if mode.has_suffix("-prefill-k32") {
+    32
+  } else {
+    0
+  }
+  let mode = if prefill_k == 128 {
+    mode[:mode.length() - 13].to_owned()
+  } else if prefill_k > 0 {
+    mode[:mode.length() - 12].to_owned()
+  } else {
+    mode
+  }
   let buffered = mode.has_suffix("-buffered-matrices")
   let mode = if buffered { mode[:mode.length() - 18].to_owned() } else { mode }
   let lookahead = mode.has_suffix("-lookahead-experts")
@@ -207,6 +229,9 @@ async fn main {
     PackedBulkTiles(..) => mode[:mode.length() - 13].to_owned()
   }
   let shape_aware = mode.has_suffix("-shape-aware")
+  guard prefill_k == 0 || (buffered && shape_aware) else {
+    fail("prefill staging requires buffered shape-aware projections")
+  }
   guard !buffered || shape_aware else {
     fail("buffered matrices require shape-aware arithmetic")
   }
@@ -223,6 +248,9 @@ async fn main {
   }
   let mode = if queued { mode[:mode.length() - 10].to_owned() } else { mode }
   let low_bit = mode.has_suffix("-low-bit")
+  guard !distributed_scales || low_bit else {
+    fail("distributed scales require the native low-bit path")
+  }
   guard !lookahead || low_bit else {
     fail("fragment lookahead requires native low-bit experts")
   }
@@ -290,12 +318,18 @@ async fn main {
       },
       expert_tensor_parallel=expert_tp,
       matrix_staging=if buffered {
-        Buffered(inner_tile=32)
+        Buffered(inner_tile=if prefill_k == 0 { 32 } else { prefill_k })
       } else {
         Synchronous
       },
+      sparse_matrix_staging=if prefill_k == 0 {
+        Synchronous
+      } else {
+        Buffered(inner_tile=prefill_k)
+      },
       expert_transport~,
       expert_fragment_slots=if lookahead { 2 } else { 1 },
+      expert_scale_partitions=if distributed_scales { 32 } else { 1 },
       retirement=if queued { WholeFrame } else { EachCollective },
       replay=if collective_graph {
         CaptureDecodeCollectives
@@ -339,6 +373,8 @@ async fn main {
     PackedBulkTiles(..) => "tiles"
   }
   println("expert_fragment_slots=\{if lookahead { 2 } else { 1 }}")
+  println("expert_scale_partitions=\{if distributed_scales { 32 } else { 1 }}")
+  println("sparse_prefill_inner_tile=\{prefill_k}")
   println("expert_operand_transport=\{transport_name}")
   for ordinal, range in startup.ranges {
     let (first, end) = range.layer_range()

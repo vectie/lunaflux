@@ -29,10 +29,12 @@ pub fn GlmSparseLayer::new(
   accuracy~ : @precision_ir.Accuracy,
   hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   shared_matrix_columns? : Int = 64,
   expert_fragment_slots? : Int = 1,
+  expert_scale_partitions? : Int = 1,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   let projection = @sparse_model.flash_sparse_projection_plan(
@@ -80,12 +82,14 @@ pub fn GlmSparseLayer::new(
     expert_transport~,
     shared_matrix_columns~,
     expert_fragment_slots~,
+    expert_scale_partitions~,
     tensor_group?,
   )
   let decoder = @sparse_frame.IndexedSparseDecoderFrame::new(
     @sparse_source.indexed_sparse_decoder_source(
       plan,
       symbol_prefix="glm_sparse_" + layer_index.to_string(),
+      staging=matrix_staging,
     ),
   )
   guard ffn.workspace_bytes() <=

@@ -6,6 +6,15 @@ pub struct PackedExpertMlpCudaSource {
   priv launches : ReadOnlyArray[(Int, Int)]
   priv packed_rows : @matrix.PackedExpertRows?
   priv bank_preparation : String?
+  priv quantization_workspace : (Int64, Int64)
+}
+
+///|
+/// Physical allocation extent, including partial maxima beyond packed values.
+pub fn PackedExpertMlpCudaSource::quantized_workspace_bytes(
+  self : Self,
+) -> (Int64, Int64) {
+  self.quantization_workspace
 }
 
 ///|
@@ -60,6 +69,9 @@ pub fn packed_expert_mlp_source(
       raise @precision_ir.PrecisionPlanError::NoImplementation
     }
     return grouped_fp4_source(plan, symbol~, grouping?)
+  }
+  guard grouping is None || grouping.unwrap().scale_partitions() == 1 else {
+    raise @precision_ir.PrecisionPlanError::NoImplementation
   }
   guard grouping is None ||
     (
@@ -321,6 +333,7 @@ pub fn packed_expert_mlp_source(
     plan,
     packed_rows: None,
     bank_preparation: None,
+    quantization_workspace: plan.quantized_workspace_bytes(),
     source: @utf8.encode(text + "\n" + quantizers.join("\n")),
     symbols: ReadOnlyArray::from_array(symbols),
     launches: ReadOnlyArray::from_array(launches),

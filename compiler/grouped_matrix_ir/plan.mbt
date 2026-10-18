@@ -102,6 +102,7 @@ pub struct ExpertGroupingPlan {
   priv transport : ExpertTransport
   priv fragment_slots : Int
   priv matrix_columns : Int
+  priv scale_partitions : Int
 }
 
 ///|
@@ -129,8 +130,11 @@ pub fn ExpertGroupingPlan::new(
   transport? : ExpertTransport = IndexedRows,
   fragment_slots? : Int = 1,
   matrix_columns? : Int = 64,
+  scale_partitions? : Int = 1,
 ) -> Self raise @precision.PrecisionPlanError {
-  guard fragment_slots is (1 | 2) &&
+  guard scale_partitions > 0 &&
+    scale_partitions <= 256 &&
+    fragment_slots is (1 | 2) &&
     matrix_columns is (16 | 32 | 64) &&
     (matrix_columns == 64 || transport == IndexedRows) else {
     raise @precision.PrecisionPlanError::NoImplementation
@@ -163,7 +167,14 @@ pub fn ExpertGroupingPlan::new(
     transport,
     fragment_slots,
     matrix_columns,
+    scale_partitions,
   }
+}
+
+///|
+/// Physical maximum producers; independent of expert grouping and arithmetic.
+pub fn ExpertGroupingPlan::scale_partitions(self : Self) -> Int {
+  self.scale_partitions
 }
 
 ///|

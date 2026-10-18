@@ -128,11 +128,24 @@ fn grouped_fp4_source(
       "const unsigned char *packed=(const unsigned char *)activation+\{p.base()}ULL;"
   }
   let prefix = @luna_cuda_precision.e2m1_scaled_matrix_helper(symbol~)
+  let numeric_bytes = plan.quantized_workspace_bytes()
+  let maxima = [numeric_bytes.0, numeric_bytes.1].map(bytes => {
+    if grouping.scale_partitions() == 1 {
+      None
+    } else {
+      @physical_tile_ir.PartitionedMaximum::new(
+        partitions=grouping.scale_partitions(),
+        group_elements=256,
+        after_bytes=bytes,
+      )
+    }
+  })
   let quantizers = [qx, qa].mapi((i, q) => {
     @luna_cuda_precision.quantize_fp4_bf16_rows_source(
       q,
       row_multiplier=if i == 0 { 1 } else { selected },
       symbol="\{symbol}_quantize_\{i}",
+      maximum?=maxima[i],
     )
   })
   let layouts = plan
@@ -364,7 +377,7 @@ fn grouped_fp4_source(
   ]
   let launches = [
     (1, 128),
-    (1, 256),
+    (grouping.scale_partitions(), 256),
     (((rows.to_int64() * hidden.to_int64() + 127L) / 128L).to_int(), 128),
   ]
   if packed_rows is Some(_) {
@@ -378,7 +391,7 @@ fn grouped_fp4_source(
   ])
   launches.append([
     (gate_tiles.workers(), matrix_threads),
-    (1, 256),
+    (grouping.scale_partitions(), 256),
     (((jobs.to_int64() * intermediate.to_int64() + 127L) / 128L).to_int(), 128),
   ])
   if packed_rows is Some(_) {
@@ -393,6 +406,10 @@ fn grouped_fp4_source(
   {
     plan,
     packed_rows,
+    quantization_workspace: (
+      maxima[0].map(p => p.allocation_bytes()).unwrap_or(numeric_bytes.0),
+      maxima[1].map(p => p.allocation_bytes()).unwrap_or(numeric_bytes.1),
+    ),
     bank_preparation: if tiled {
       Some(symbol + "_prepare_bank")
     } else {

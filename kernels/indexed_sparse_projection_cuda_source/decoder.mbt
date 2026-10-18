@@ -15,6 +15,7 @@ pub struct IndexedSparseDecoderCudaSource {
 pub fn indexed_sparse_decoder_source(
   plan : @precision.IndexedSparseDecoderPrecision,
   symbol_prefix~ : String,
+  staging? : @matrix.MatrixStaging = Synchronous,
 ) -> IndexedSparseDecoderCudaSource raise {
   let projection = plan.projection()
   let attention = projection.attention()
@@ -29,6 +30,7 @@ pub fn indexed_sparse_decoder_source(
       columns=hidden,
       inner=heads * values,
       law=projection.projection_law(),
+      staging~,
     )
     (
       @tiled.dense_source(tile, symbol=output_symbol, partial_float32=partial),
@@ -60,6 +62,7 @@ pub fn indexed_sparse_decoder_source(
     projection: indexed_sparse_projection_source(
       projection,
       symbol_prefix=symbol_prefix + "_projection",
+      staging~,
     ),
     history: @sparse.indexed_sparse_history_source(
       plan.history(),

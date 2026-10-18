@@ -77,7 +77,7 @@ pub fn bind(
       quantization_error is Some(error) else {
       raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
     }
-    let bytes = p.quantized_workspace_bytes()
+    let bytes = source.quantized_workspace_bytes()
     let qx = region(qx, bytes.0, 1L)
     let qa = region(qa, bytes.1, 1L)
     let error = region(error, 4L, 4L)
