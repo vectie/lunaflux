@@ -701,3 +701,33 @@ a CUDA/NCCL wait. Evidence is under the v19 acceptance and peer-failure roots.
 The complete local native suite after the route repair passes 5,283/5,283
 with the existing migration-warning exclusions unchanged. No physical repair
 pass is claimed before the new `64f144c8` build/replay.
+
+### v20 interruption and v21 physical peer-loss repair
+
+The desktop interruption ended v20 before its smoke or peer-loss campaign.
+Actual journals show both units received stop at19:47:12CST while loading.
+Rank1 stops successfully; rank0 exits with SIGABRT at19:47:14. Both GPUs are
+released and both unit swap peaks are zero. This is a retained startup-stop
+failure, not a peer-loss replay or a memory-limit breach. The saved watcher
+ends before final startup and must not be presented as uninterrupted coverage.
+No v20 smoke/peer-failure completion marker exists. Direct desktop SSH was
+subsequently unavailable; both Sparks were reachable through the management
+node, so this is not evidence that either Spark crashed.
+
+Fresh v21 uses the same pinned64f144c8 executable. JSON and SSE return323;
+Responses returns Paris. The external fault client observes four active
+requests and one queued, then kills only the owned rank1 main at20:00:07.
+The worker reports peer disconnection; paired stop starts at20:00:09 and the
+rank0 journal records successful stop at20:00:11. There is no parent abort,
+stop timeout or forced kill of the surviving rank. Both GPU-owner queries are
+empty. A scoped debugger on the HTTP parent does not hit `moonbit_panic`;
+it observes ordinary SIGTERM termination. One attempted child replacement
+before the watcher's drain is visible, so this is not a zero-restart claim.
+
+Evidence: `/tmp/lunaflux-glm-http-peer-failure-20261018-v21/COMPLETE.txt`,
+the adjacent rank journals and empty GPU-owner observations, and the v21
+acceptance memory log. Interrupted clients are not successful model answers.
+The watcher deliberately reports rank failure for the injected kill. This
+physically verifies the cross-request terminal-retirement repair; it does
+not resolve the separate v20 startup-stop abort. A fresh full HTTP/answer
+campaign is required after this fault test, rather than reusing a failed pair.
