@@ -485,6 +485,12 @@ async fn main {
   }
   let queue = root + "/queue"
   let aot = runtime + "/aot"
+  let cancel_warmup = @env.get_env_var("LUNA_BENCH_CANCEL_WARMUP") == Some("1")
+  guard !cancel_warmup || (glm && warmup && custom_text is Some(_)) else {
+    fail(
+      "cancellation probe requires the unmeasured GLM warmup and literal corpus",
+    )
+  }
   let selection = "binary=" +
     executable +
     "\naot=" +
@@ -528,6 +534,7 @@ async fn main {
     "expert_tensor_parallel=\{expert_tp}\n" +
     (if low_bit { "expert_scaled_dot=block-scaled-matrix-f32\n" } else { "" }) +
     (if warmup { "warmup_requests=1\n" } else { "" }) +
+    (if cancel_warmup { "cancel_warmup_after_steps=1\n" } else { "" }) +
     (if timeline { "timeline=true\n" } else { "" }) +
     (if queued { "tp_submission_queued=true\n" } else { "" }) +
     (if replay { "tp_graph_replay=true\n" } else { "" }) +
@@ -957,7 +964,16 @@ async fn main {
           (if last {
             ""
           } else {
-            " " + queue + " \{count} \{maximum} \{stop} " + root + "/output"
+            " " +
+            queue +
+            " \{count} \{maximum} \{stop} " +
+            root +
+            "/output" +
+            (if cancel_warmup {
+              " --cancel-request 0 --after-steps 1"
+            } else {
+              ""
+            })
           }),
         ),
       )
@@ -1028,6 +1044,18 @@ async fn main {
   for i in 0..<count {
     let label = sample_label(i, warmup, "output-")
     let decoded_label = sample_label(i, warmup, "")
+    if cancel_warmup && i == 0 {
+      copy(
+        false,
+        host(false) + ":" + root + "/output/request-0/cancelled.txt",
+        root + "/cancelled-warmup.txt",
+      )
+      guard @fs.read_file(root + "/cancelled-warmup.txt").text() ==
+        "request_cancelled=true\n" else {
+        fail("missing actual cancellation retirement")
+      }
+      continue
+    }
     let tokens = root + "/" + label + "-tokens.txt"
     copy(
       false,

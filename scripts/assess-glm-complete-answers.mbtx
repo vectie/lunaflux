@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.21.3/fs",
   "moonbitlang/core/env",
   "moonbitlang/core/json",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -166,6 +167,30 @@ async fn main {
     "Complete-answer assessment; reference engines are not correctness oracles.\n"
   report <+
     "REVIEW is not a pass. length is inconclusive, never a completed answer.\n\n"
+  let watch = @fs.read_file(root + "/memory-watch.txt").text()
+  let mut minimum_host = 9223372036854775807L
+  let mut maximum_gpu = 0L
+  let mut observed_gpu = false
+  for line in watch.split("\n") {
+    for word in line.split(" ") {
+      if word.has_prefix("available_kib=") {
+        minimum_host = minimum_host.min(@string.parse_int64(word[14:]))
+      }
+    }
+    if line.has_prefix("resident_gpu_mib=") {
+      observed_gpu = true
+      maximum_gpu = maximum_gpu.max(@string.parse_int64(line[17:]))
+    }
+  }
+  report <+ "Observed minimum host MemAvailable KiB: \{minimum_host}\n"
+  if observed_gpu {
+    report <+
+      "Observed maximum total resident GPU MiB per Spark: \{maximum_gpu}\n"
+  } else {
+    report <+
+      "GPU-residency sampling absent in this run; cgroup peak is not GPU peak.\n"
+  }
+  report <+ "\n"
   for index, case in cases {
     guard case is { "id": String(id), .. } else { fail("case id required") }
     guard @json.parse(@fs.read_file(root + "/finish-\{index}.json").text())

@@ -30,6 +30,9 @@ async fn main {
     "LUNA_BENCH_OUTPUT_TOKENS": "512",
     "LUNA_BENCH_STOP_TOKENS": "154820,154827,154829",
     "LUNA_BENCH_CORPUS": corpus,
+    "LUNA_BENCH_CANCEL_WARMUP": @env.get_env_var("LUNA_BENCH_CANCEL_WARMUP").unwrap_or(
+      "0",
+    ),
     "LUNA_GLM_EXPERT_TRANSPORT": "tiles",
     "LUNA_GLM_EXPERT_LOOKAHEAD": "1",
     "LUNA_GLM_BUFFERED_MATRICES": "1",
