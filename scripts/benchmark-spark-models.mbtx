@@ -384,6 +384,12 @@ async fn main {
     }) +
     (if shape_aware { "matrix_evaluation=shape-aware-f32\n" } else { "" }) +
     (if buffered { "matrix_staging=buffered-k32\n" } else { "" }) +
+    (if prefill_k != "0" {
+      "sparse_matrix_staging=buffered-k" + prefill_k + "\n"
+    } else {
+      ""
+    }) +
+    (if distributed { "expert_scale_partitions=32\n" } else { "" }) +
     (if lookahead { "expert_fragment_slots=2\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled && !shape_aware {

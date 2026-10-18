@@ -1,0 +1,125 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/json",
+}
+
+///|
+fn number(value : Json) -> Double raise {
+  guard value is Number(n, ..) else { fail("expected metric") }
+  n
+}
+
+///|
+fn comparable_row(row : Json, control : Json) -> Bool {
+  guard row is Object(r) && control is Object(c) else { return false }
+  r.get("native_output_ids") == c.get("native_output_ids") &&
+  r.get("input_ids") == c.get("input_ids") &&
+  r.get("output_token_count_matches_reference") == Some(Json(true))
+}
+
+///|
+test "matched work includes the literal generated IDs, not just their count" {
+  let control : Json = {
+    "input_ids": [1, 2], "native_output_ids": [3, 4],
+    "output_token_count_matches_reference": true,
+  }
+  assert_true(comparable_row(control, control))
+  assert_false(comparable_row({
+    "input_ids": [1, 2], "native_output_ids": [3, 5],
+    "output_token_count_matches_reference": true,
+  }, control))
+  assert_false(comparable_row({
+    "input_ids": [1, 2], "native_output_ids": [3],
+    "output_token_count_matches_reference": false,
+  }, control))
+}
+
+///|
+async fn main {
+  guard @json.parse(@fs.read_file(
+      "/tmp/lunaflux-model-bench-glm-prefill-control-matched-20261018-r1/comparison-fresh.json",
+    ).text()) is { "rows": Array(control), .. } && control.length() == 6 else {
+    fail("fresh six-prompt control required")
+  }
+  let mut invalid = false
+  for variant in ["control", "scales", "projections", "both"] {
+    let sums : Array[Double] = []
+    let firsts : Array[Double] = []
+    let reserves : Array[Double] = []
+    let mut reference = 0.0
+    let mut comparable = true
+    let mut stable = true
+    for round in [1, 2] {
+      let original_root = "/tmp/lunaflux-model-bench-glm-prefill-" +
+        variant +
+        "-matched-20261018-r" +
+        round.to_string()
+      let root = if @fs.exists(original_root + "/comparison-fresh.json") {
+        original_root
+      } else {
+        original_root + "-retry1"
+      }
+      if !@fs.exists(root + "/comparison-fresh.json") {
+        continue
+      }
+      guard @json.parse(@fs.read_file(root + "/comparison-fresh.json").text())
+        is Object(o) &&
+        o.get("rows") is Some(Array(rows)) else {
+        fail("missing report")
+      }
+      // Fix the cohort before seeing candidate outputs: request 0 had unequal
+      // work in the control. Never silently include it when a candidate stops
+      // earlier, or advertise that shorter sequence as a kernel speedup.
+      guard rows.length() == 6 else { fail("prompt vector changed") }
+      let mut total = 0.0
+      reference = 0.0
+      let mut first = 0.0
+      let vector : Array[Json] = []
+      for index, row in rows {
+        guard row is Object(r) && control[index] is Object(c) else {
+          fail("missing row")
+        }
+        let same = r.get("native_output_ids") == c.get("native_output_ids")
+        stable = stable && same
+        if index > 0 {
+          comparable = comparable && comparable_row(row, control[index])
+          total += number(r.get("native_seconds").unwrap())
+          reference += number(r.get("reference_seconds").unwrap())
+          first += number(r.get("native_first_token_seconds").unwrap())
+        }
+        vector.push({
+          "seconds": r.get("native_seconds").unwrap(),
+          "first": r.get("native_first_token_seconds").unwrap(),
+          "outputs": r.get("native_output_tokens").unwrap(),
+          "native_ids_unchanged": Json(same),
+          "included_in_fixed5": Json(index > 0),
+        })
+      }
+      let reserve = number(o.get("native_minimum_host_available_gib").unwrap())
+      guard reserve >= 16.0 else { fail("host reserve violated") }
+      sums.push(total)
+      firsts.push(first)
+      reserves.push(reserve)
+      println("\{variant} r\{round}: " + Json(vector).stringify())
+    }
+    if !comparable {
+      invalid = true
+      println("\{variant}: fixed cohort changed; no aggregate timing/gap claim")
+      continue
+    }
+    if !sums.is_empty() {
+      let mean = sums.fold(init=0.0, (a, b) => a + b) /
+        sums.length().to_double()
+      let first = firsts.fold(init=0.0, (a, b) => a + b) /
+        firsts.length().to_double()
+      println(
+        "\{variant} runs=\{sums.length()} all6_native_ids_stable=\{stable} matched5_s=\{mean} first5_s=\{first} after5_s=\{mean-first} vllm5_s=\{reference} gap_percent=\{(mean/reference-1.0)*100.0} output_tok_per_request_s=\{31.0/mean} min_host_gib=\{reserves.fold(init=1.0e20,(a,b)=>a.min(b))}",
+      )
+    }
+  }
+  guard !invalid else {
+    fail("changed outputs invalidate the fixed cohort; raw results retained")
+  }
+}

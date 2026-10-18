@@ -275,7 +275,8 @@ async fn main {
     fail("request cancellation is only a generation control")
   }
   let mode_valid = match (mode, tail.length()) {
-    ("export", 1)
+    ("inspect", 0)
+    | ("export", 1)
     | ("egress", 4)
     | ("egress-logits", 5)
     | ("ingress", 7)
@@ -285,7 +286,7 @@ async fn main {
   }
   guard mode_valid else {
     fail(
-      "export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | egress-logits AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN CAPTURE_DIR | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR | generate|generate-sequence AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT PREFILL_COUNT_OR_REQUEST_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE OUTDIR",
+      "inspect | export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | egress-logits AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN CAPTURE_DIR | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR | generate|generate-sequence AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT PREFILL_COUNT_OR_REQUEST_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE OUTDIR",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
@@ -397,6 +398,9 @@ async fn main {
     }),
   )
   match mode {
+    // Header-only startup planning: no GPU open, payload scan, or AOT write.
+    // This reports a capacity estimate, never a resident-memory or service pass.
+    "inspect" => println(placement_receipt(startup))
     "export" => {
       @fs.mkdir(tail[0])
       for ordinal in 0..<2 {

@@ -1,0 +1,118 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+/// Offline comparison only. All AOT builds must retire before any timed run.
+/// No concurrent full-model GPU process, no checkpoint payload hashing.
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-prefill-ablation-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    fail("NEW_ABLATION_ROOT")
+  }
+  @fs.mkdir(root)
+  let variants = [
+    ("control", "prefill-control", "0", "0"),
+    ("scales", "scales", "1", "0"),
+    ("projections", "prefill", "0", "32"),
+    ("both", "prefill-scales", "1", "32"),
+  ]
+  for v in variants {
+    let ready = "/tmp/lunaflux-glm-expert-tp-" +
+      v.1 +
+      "-20261018-v1/PREPARED.txt"
+    let mut complete = false
+    for _ in 0..<240 {
+      if @fs.exists(ready) {
+        complete = true
+        break
+      }
+      @async.sleep(5000)
+    }
+    guard complete else { fail("AOT preparation incomplete: " + ready) }
+  }
+  for (round, order) in [(1, [0, 1, 2, 3]), (2, [3, 2, 1, 0])] {
+    for index in order {
+      let v = variants[index]
+      let original_name = "glm-prefill-" +
+        v.0 +
+        "-matched-20261018-r" +
+        round.to_string()
+      let original_root = "/tmp/lunaflux-model-bench-" + original_name
+      if @fs.exists(original_root + "/comparison-fresh.json") {
+        println("retaining completed " + original_name)
+        continue
+      }
+      // The first scale preparation retained an older manifest format; start
+      // rejected before any GPU unit existed. Keep it, use a fresh root.
+      let name = if @fs.exists(original_root) {
+        guard v.0 == "scales" && round == 1 else {
+          fail("incomplete run requires inspection: " + original_root)
+        }
+        original_name + "-retry1"
+      } else { original_name }
+      let runtime = "/tmp/lunaflux-glm-expert-tp-" + v.1 + "-20261018-v1"
+      let environment = {
+        "LUNAFLUX_SPARK_178_SOCKET": @env.get_env_var(
+          "LUNAFLUX_SPARK_178_SOCKET",
+        ).unwrap_or("/tmp/lunaflux-glm178-prefill-20261018.sock"),
+        "LUNAFLUX_SPARK_179_SOCKET": @env.get_env_var(
+          "LUNAFLUX_SPARK_179_SOCKET",
+        ).unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock"),
+        "LUNA_GLM_DISTRIBUTED_SCALES": v.2,
+        "LUNA_GLM_PREFILL_K": v.3,
+      }
+      println("starting " + name)
+      let out = @shell.Cmd(
+        "moon",
+        [
+          "run", "scripts/run-glm-hc-vocabulary-ablation.mbtx", name, runtime, "1",
+          "1",
+        ],
+        env=environment,
+      ).output(max_output_bytes=8388608)
+      @fs.write_file(
+        root + "/" + name + ".stdout",
+        out.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + name + ".stderr",
+        out.stderr(),
+        create_mode=CreateNew,
+      )
+      out.check()
+      let bench = "/tmp/lunaflux-model-bench-" + name
+      let comparison = @shell.Cmd("moon", [
+        "run",
+        "scripts/compare-glm-matched-benchmark.mbtx",
+        bench,
+        "/tmp/lunaflux-model-bench-glm-shared-vector-next-20261017-v1/paired-native.json",
+        "/tmp/lunaflux-reference-bench-vllm-glm-deferred-hc-20261018-v1",
+        bench + "/comparison-fresh.json",
+      ]).output(max_output_bytes=8388608)
+      @fs.write_file(
+        root + "/" + name + "-reference.stdout",
+        comparison.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/" + name + "-reference.stderr",
+        comparison.stderr(),
+        create_mode=CreateNew,
+      )
+      comparison.check()
+      println(comparison.stdout())
+    }
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "eight serialized matched native runs completed\n",
+    create_mode=CreateNew,
+  )
+}
