@@ -79,6 +79,12 @@ test "full-width native FP4 expert performance export" {
       } else {
         1
       },
+      scale_partitions=if @env.get_env_var("LUNA_FP4_SCALE_PARTITIONS") ==
+        Some("32") {
+        32
+      } else {
+        1
+      },
       transport=match @env.get_env_var("LUNA_FP4_TRANSPORT") {
         Some("tiles") =>
           PackedBulkTiles(columns=column_tile, consumer_teams=2, workers=48)
@@ -135,6 +141,33 @@ test "full-width native FP4 expert performance export" {
     ),
   )
   assert_eq(ahead.activation_bytes(), ordinary.activation_bytes())
+  // Check the actual preparation source on every normal test run, not only
+  // the optional physical export. Checkpoint transfers initialize numerical
+  // planes; alignment gaps between experts' operands are not readable input.
+  if !tails && !wrapped {
+    let tiled = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+      p,
+      symbol="padding_check",
+      grouping=@matrix.ExpertGroupingPlan::new(
+        maximum_rows=rows,
+        selected_experts=selected,
+        column_tile=128,
+        transport=PackedBulkTiles(columns=128, consumer_teams=2, workers=48),
+      ),
+    )
+    let text = @utf8.decode(tiled.source_bytes())
+    assert_true(tiled.bank_preparation() is Some(_))
+    assert_true(text.contains("target[destination]=readable?source[index]:0;"))
+    for i, weight in weights {
+      let layout = @precision_ir.packed_buffer_layout(weight.representation())
+      let base = p.weight_offsets()[i]
+      assert_true(
+        text.contains(
+          "readable=readable||(index>=\{base}ULL&&index<\{base+layout.buffer_bytes()}ULL);",
+        ),
+      )
+    }
+  }
   let ahead_source = @utf8.decode(ahead.source_bytes())
   assert_true(ahead_source.contains("ordered-operand-reads-v1;items=4;slots=2"))
   assert_false(
@@ -244,6 +277,10 @@ test "full-width native FP4 expert performance export" {
       let l = @precision_ir.packed_buffer_layout(q.operand().representation())
       println("static constexpr unsigned long long qb\{i}=\{l.buffer_bytes()};")
     }
+    let physical = generated.quantized_workspace_bytes()
+    println(
+      "static constexpr unsigned long long physical_qb0=\{physical.0},physical_qb1=\{physical.1};",
+    )
     for i, launch in generated.launches() {
       println(
         "static constexpr int grid\{i}=\{launch.0},block\{i}=\{launch.1};",

@@ -1,0 +1,154 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-expert-scales-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    mode
+    is ("prepare"
+    | "run"
+    | "sanitize"
+    | "memcheck"
+    | "racecheck"
+    | "synccheck"
+    | "initcheck") else {
+    fail("NEW_ROOT prepare|run|sanitize|memcheck|racecheck|synccheck|initcheck")
+  }
+  let socket = "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=8388608,
+    )
+  }
+  async fn record(name : String, output : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      output.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      output.stderr(),
+      create_mode=CreateNew,
+    )
+    output.check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    for (name, groups) in [("baseline", "1"), ("candidate", "32")] {
+      let output = @shell.Cmd("env", [
+        "LUNA_EXPORT_FP4_PERFORMANCE=next",
+        "LUNA_FP4_TRANSPORT=tiles",
+        "LUNA_FP4_COLUMN_TILE=128",
+        "LUNA_FP4_FRAGMENT_SLOTS=2",
+        "LUNA_FP4_SCALE_PARTITIONS=" + groups,
+        "moon",
+        "test",
+        "--target",
+        "native",
+        "--deny-warn",
+        "--warn-list",
+        "-20-25-29-35-79-92",
+        "kernels/selected_expert_mlp_cuda_source/fp4_performance_test.mbt",
+      ]).output(max_output_bytes=8388608)
+      record("export-" + name, output)
+      let parts = output
+        .stdout()
+        .split("LUNA_SOURCE_BEGIN fp4-performance\n")
+        .to_array()
+      guard parts.length() == 2 else { fail("source export") }
+      // Namespace linkage separates otherwise identical selected symbols in
+      // this paired diagnostic translation unit; arithmetic is unchanged.
+      let source = parts[1].split("LUNA_SOURCE_END").to_array()[0]
+        .to_owned()
+        .replace_all(old="extern \"C\" __global__", new="__global__")
+      @fs.write_file(root + "/" + name + ".cuh", source, create_mode=CreateNew)
+    }
+    record("mkdir", remote("mkdir " + root))
+    for
+      (source, target) in [
+        (root + "/baseline.cuh", "baseline.cuh"),
+        (root + "/candidate.cuh", "candidate.cuh"),
+        (
+          "tests/packed_moe_execution/distributed_expert_scale_probe.cu", "probe.cu",
+        ),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        source,
+        host + ":" + root + "/" + target,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 --generate-code arch=compute_121a,code=sm_121a " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+  } else {
+    record(
+      mode + "-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if ($2<25165824) exit 9; print}' /proc/meminfo",
+      ),
+    )
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    for
+      tool in (if mode == "sanitize" {
+        ["memcheck", "racecheck", "synccheck", "initcheck"]
+      } else {
+        [mode]
+      }) {
+      let prefix = if tool == "run" {
+        ""
+      } else {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+        tool +
+        (if tool == "memcheck" {
+          " --leak-check full"
+        } else if tool == "racecheck" {
+          " --racecheck-num-workers 1 --force-synchronization-limit 1"
+        } else {
+          ""
+        }) +
+        " "
+      }
+      record(
+        tool,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          root[5:].to_owned() +
+          "-" +
+          tool +
+          " --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+          prefix +
+          root +
+          "/probe" +
+          (if tool == "run" { "" } else { " sanitize" }),
+        ),
+      )
+      println(tool + " complete")
+    }
+  }
+}

@@ -273,3 +273,38 @@ The CLI now also has a header-only `inspect` mode for capacity planning. It
 does not open CUDA, emit AOT, or scan/hash checkpoint payloads. Its estimate is
 not a measured context capacity or a service readiness result. Unrelated
 toolchain/TLS files were neither staged nor modified for this work.
+
+### Distributed-scale investigation: defined bank bytes
+
+The actual two-rank scale candidate was run under initcheck at
+`/tmp/lunaflux-model-bench-glm-scales-initcheck-20261018-v1`. It reported
+uninitialized one-byte reads in `glm_routed_3_prepare_bank`: the startup
+permutation copied the entire aligned expert stride, although checkpoint
+transfer initializes only payload, scale and global-scalar planes. Both exact
+user units were stopped after this finding; this was not a completed model run
+or a memory-limit failure. The local `initcheck-178.log` and
+`initcheck-179.log` retain the reports. There is not yet evidence that these
+padding reads caused the changed generated tokens.
+
+The private lowering now derives readable spans from the immutable packed
+layouts, permutes defined bytes and writes zero to alignment gaps. No payload
+hash, additional full-bank scan, numerical-policy change or runtime validation
+was added. An always-on source regression checks all three operand spans.
+
+The new offline complete-chain probe uses each source's own launch geometry
+and physical scratch size, independently captured graphs, varying live counts,
+route occupancy and BF16 magnitudes. It compares input packing, gate/up,
+activation packing, down and combination directly. The 44-step graph run at
+`/tmp/lunaflux-glm-expert-scales-20261018-v4` (4096 hidden, 1024 local intermediate,
+64-row capacity) is bitwise at all five frontiers; memcheck/full-leak and
+initcheck pass. The input bank deliberately leaves alignment padding
+uninitialized. The race checker hit its 2GiB process limit, not a numerical
+failure; that result is preserved and not counted as a pass. A fresh v5 run
+uses an 8GiB diagnostic cap and a 24GiB admission reserve. These are synthetic
+component inputs, not whole-model correctness evidence.
+
+The normal warning-denied native check (existing migration exclusions) and
+19 affected source-package tests pass. The full service remains offline. The
+batch frame is still a prerequisite, not GPU/service integration; sparse
+history paging, batched model binding, sharded sampling and buffered HTTP
+response delivery still need end-to-end validation before cutover.

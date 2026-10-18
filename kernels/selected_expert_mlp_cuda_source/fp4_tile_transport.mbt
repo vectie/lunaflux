@@ -46,11 +46,10 @@ fn fp4_tile_bank_source(
       (hidden, intermediate),
     ] {
     let base = plan.weight_offsets()[i]
-    let scales = @precision_ir.packed_buffer_layout(
-        plan.weights()[i].representation(),
-      )
-      .scales_offset()
-      .unwrap()
+    let layout = @precision_ir.packed_buffer_layout(
+      plan.weights()[i].representation(),
+    )
+    let scales = layout.scales_offset().unwrap()
     let payload = tile_address(
       tile_plane(rows, inner / 2, tile_columns, true),
       "row",
@@ -63,6 +62,7 @@ fn fp4_tile_bank_source(
     )
     parts.push(
       (
+        $|readable=readable||(index>=\{base}ULL&&index<\{base+layout.buffer_bytes()}ULL);
         $|if(index>=\{base}ULL&&index<\{base+rows.to_int64()*(inner/2).to_int64()}ULL) {
         $|  unsigned long long local=index-\{base}ULL;int row=local/\{inner/2},col=local%\{inner/2};destination=\{base}ULL+\{payload};
         $|} else if(index>=\{base+scales}ULL&&index<\{base+scales+rows.to_int64()*(inner/16).to_int64()}ULL) {
@@ -74,9 +74,9 @@ fn fp4_tile_bank_source(
   (
     $|extern "C" __global__ void \{symbol}_prepare_bank(const unsigned char *source,unsigned char *target) {
     $| for(unsigned long long index=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;index<\{plan.expert_stride()}ULL;index+=(unsigned long long)gridDim.x*blockDim.x) {
-    $|   unsigned long long destination=index;
+    $|   unsigned long long destination=index; bool readable=false;
     $|   \{parts.join("\n")}
-    $|   target[destination]=source[index];
+    $|   target[destination]=readable?source[index]:0;
     $| }
     $|}
     $|extern "C" __global__ void \{symbol}_prepare_bank_copy(const unsigned char *source,unsigned char *target) {

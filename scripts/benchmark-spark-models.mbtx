@@ -309,6 +309,10 @@ async fn main {
   let shape_aware = options.last() == Some("--shape-aware")
   let buffered = @env.get_env_var("LUNA_GLM_BUFFERED_MATRICES") == Some("1")
   let distributed = @env.get_env_var("LUNA_GLM_DISTRIBUTED_SCALES") == Some("1")
+  let initialization_probe = @env.get_env_var("LUNA_GLM_INITCHECK") == Some("1")
+  guard !initialization_probe || (glm && !timeline && mode != "prepare-profile") else {
+    fail("initcheck is a separate untimed GLM diagnostic")
+  }
   let prefill_k = @env.get_env_var("LUNA_GLM_PREFILL_K").unwrap_or("0")
   guard prefill_k is ("0" | "32" | "64" | "128") else { fail("prefill K") }
   let parallel_hc = @env.get_env_var("LUNA_GLM_PARALLEL_HC") == Some("1")
@@ -390,6 +394,7 @@ async fn main {
       ""
     }) +
     (if distributed { "expert_scale_partitions=32\n" } else { "" }) +
+    (if initialization_probe { "diagnostic=initcheck-untimed\n" } else { "" }) +
     (if lookahead { "expert_fragment_slots=2\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled && !shape_aware {
@@ -685,6 +690,10 @@ async fn main {
         "--force-overwrite=false --kill=none --output=" +
         root +
         "/timeline "
+      } else if initialization_probe {
+        "/usr/local/cuda-13.0/bin/compute-sanitizer --tool initcheck --error-exitcode 9 --print-limit 20 --log-file " +
+        root +
+        "/initcheck.log "
       } else {
         ""
       }
