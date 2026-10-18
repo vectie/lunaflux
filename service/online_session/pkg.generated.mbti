@@ -324,6 +324,7 @@ pub(all) enum LunaOnlineInstanceAdmissionKind {
 
 pub(all) enum LunaOnlineInstanceFailure {
   LunaOnlineAdmissionFailure
+  LunaOnlineAdmissionCapacity
   LunaOnlineServicePreparationFailure
   LunaOnlineAdmissionPreparationFailure(@request_admission.RequestAdmissionError)
   LunaOnlineFramedPreparationFailure(@framed_wire.FramedWireError)

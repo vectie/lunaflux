@@ -5,6 +5,7 @@ priv struct LunaOpenAIEmbeddedControl {
   workspace : @http1.LunaHttp1ControlWorkspace
   requests : Array[@http1.LunaHttp1ControlRequest]
   responses : FixedArray[Bytes]
+  models_response : Bytes
   metrics_output : LunaOnlineTcpOutputScratch
   metrics_flights : Array[LunaOnlineTcpOutputFlight]
   mut output : Bytes
@@ -13,7 +14,9 @@ priv struct LunaOpenAIEmbeddedControl {
 }
 
 ///|
-fn new_luna_openai_embedded_control() -> LunaOpenAIEmbeddedControl raise LunaOnlineTcpError {
+fn new_luna_openai_embedded_control(
+  models_response~ : Bytes = b"",
+) -> LunaOpenAIEmbeddedControl raise LunaOnlineTcpError {
   let limits = @http1.LunaHttp1ControlLimits::new(max_head_bytes=1024) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }
@@ -29,6 +32,7 @@ fn new_luna_openai_embedded_control() -> LunaOpenAIEmbeddedControl raise LunaOnl
     workspace,
     requests: Array(capacity=1),
     responses: luna_online_control_responses(),
+    models_response,
     metrics_output,
     metrics_flights: Array(capacity=1),
     output: b"",
@@ -157,6 +161,7 @@ fn LunaOpenAIEmbeddedControl::offer(
         LunaHttp1Health => 1
         LunaHttp1Readiness => 2
         LunaHttp1Metrics => 3
+        LunaHttp1Models => 5
       }
     }
   }

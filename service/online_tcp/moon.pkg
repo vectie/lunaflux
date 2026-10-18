@@ -3,6 +3,7 @@ supported_targets = "native"
 import {
   "moonbitlang/async",
   "moonbitlang/async/socket",
+  "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/logging/instance" @instance_log,
   "vectie/lunaflux/metrics/instance" @metrics,
   "vectie/lunaflux/runtime/monotonic_clock",
@@ -18,7 +19,3 @@ import {
   "vectie/lunaflux/service/request_admission",
   "vectie/lunaflux/service/online_session",
 }
-
-import {
-  "moonbitlang/core/encoding/utf8",
-} for "wbtest"

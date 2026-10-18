@@ -68,6 +68,7 @@ pub(all) enum LunaHttp1ControlRoute {
   LunaHttp1Health
   LunaHttp1Readiness
   LunaHttp1Metrics
+  LunaHttp1Models
 } derive(Eq, @debug.Debug)
 
 pub struct LunaHttp1ControlWorkspace {

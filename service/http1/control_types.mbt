@@ -25,6 +25,7 @@ pub(all) enum LunaHttp1ControlRoute {
   LunaHttp1Health
   LunaHttp1Readiness
   LunaHttp1Metrics
+  LunaHttp1Models
 } derive(Debug, Eq)
 
 ///|

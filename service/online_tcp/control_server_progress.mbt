@@ -292,6 +292,7 @@ async fn LunaOnlineHttpControlServer::read_on_reactor(
             LunaHttp1ControlNotReadyResponse
           }
         LunaHttp1Metrics => abort("control metrics route handled above")
+        LunaHttp1Models => LunaHttp1ControlBadRequest
       }
       if !self.prepare_response(kind) {
         self.fail()

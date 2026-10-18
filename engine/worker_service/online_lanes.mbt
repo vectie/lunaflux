@@ -145,7 +145,9 @@ fn OnlineWorkerLease::release_lane(
   self.lane_restart_dispositions[lane] = 0
   self.lane_expected_positions[lane] = 0
   self.lane_device_retired[lane] = false
-  if self.device_retirement_lane == lane { self.device_retirement_lane = -1 }
+  if self.device_retirement_lane == lane {
+    self.device_retirement_lane = -1
+  }
   self.lane_phases[lane] = ONLINE_LANE_EMPTY
   let tail = (self.free_head + self.free_count) % self.free_lanes.length()
   self.free_lanes[tail] = lane
@@ -202,6 +204,17 @@ pub fn OnlineWorkerLease::try_admit_request(
     }
   }
   service.scheduler.commit_admission(prepared, now) catch {
+    @core.Invalid(field=WaitingCapacity | RequestCapacity, issue=Exhausted) => {
+      self.release_lane_retention(lane)
+      // A free publication lane does not imply a free scheduler waiting slot.
+      // Saturation retains neither semantic ownership nor a worker lane.
+      return luna_online_worker_admission(
+        LunaOnlineWorkerSaturated,
+        self,
+        -1,
+        0UL,
+      )
+    }
     error => {
       self.release_lane_retention(lane)
       raise scheduler_error(error)
@@ -246,7 +259,8 @@ pub fn LunaOnlineWorkerRequest::retire_terminal(
     lease.service.lifecycle != ServiceReady {
     raise Invalid(Lifecycle)
   }
-  if lease.service.transport.requires_request_retirement() && !lease.lane_device_retired[self.lane] {
+  if lease.service.transport.requires_request_retirement() &&
+    !lease.lane_device_retired[self.lane] {
     raise Invalid(Lifecycle)
   }
   lease.release_lane(self.lane)

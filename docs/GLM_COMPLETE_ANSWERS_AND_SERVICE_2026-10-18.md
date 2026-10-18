@@ -460,3 +460,27 @@ remain separate; real two-Spark shutdown must still confirm this repair.
 
 Public GLM remains offline. This is a demonstrated lifecycle repair, not a
 full-service acceptance pass or a throughput result. No payload hashes are used.
+
+### v11: overload remains live; scheduler saturation was misclassified
+
+Pinned70a5afe7 passes JSON/SSE/Responses smoke and remains healthy during the
+nine-client overload. Four requests are rejected, but as503/service_error,
+not429/capacity. Subsequent JSON/SSE/Responses and protocol checks pass. This
+confirms the rejection-credit crash repair without calling overload accepted.
+The client runner cancels its other clients on the first unexpected503; their
+incomplete output is not a model correctness failure or a successful campaign.
+
+The worker has eight publication lanes while the scheduler has four waiting
+slots. A free worker lane therefore does not imply admission capacity. The
+worker now translates scheduler waiting/request exhaustion into saturation,
+releasing its temporary semantic retention. The session releases the consumed
+claim and accepted-event reservation, and publishes a typed capacity rejection.
+A regression with four lanes and only two waiting slots verifies saturation,
+then successful retry after the scheduler activates the waiting requests.
+
+Gateway compatibility now includes startup-owned `/v1/models` metadata and
+the `/health` alias. The listing reports the admitted alias/context, not a
+hard-coded model or an untested context promise. The embedded metrics endpoint
+refreshes retained scheduler/graph counters on demand rather than exposing
+stale zero gauges. None of these operations reads GPU data or hashes payloads.
+The new changes still require their source-pinned two-Spark acceptance run.

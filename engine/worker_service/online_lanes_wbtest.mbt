@@ -71,7 +71,7 @@ fn wb_multi_scheduler() -> @core.Scheduler {
 ///|
 fn wb_multi_request(
   value : UInt64,
-  received_at? : UInt64 = 0UL,
+  received_at~ : UInt64 = 0UL,
 ) -> @core.TokenizedRequest {
   let limits = wb_service_inference_limits()
   try! @core.TokenizedRequest::new(
@@ -95,7 +95,7 @@ fn wb_multi_request(
 }
 
 ///|
-test "fixed online lanes admit two requests into one mixed worker plan" {
+test "scheduler waiting saturation releases retention even with free worker lanes" {
   let scheduler = wb_multi_scheduler()
   let service : WorkerService = {
     scheduler,
@@ -129,7 +129,7 @@ test "fixed online lanes admit two requests into one mixed worker plan" {
     0,
     false,
     @inference.LunaRequestStopTokenRetentionSlot::new(),
-    lane_count=2,
+    lane_count=4,
   )
   let admitted_a = try! lease.try_admit_request(
     wb_multi_request(2001UL, received_at~),
@@ -152,6 +152,13 @@ test "fixed online lanes admit two requests into one mixed worker plan" {
   let plan = try! scheduler.submitted_plan(outcome)
   assert_eq(try! plan.row_count(), 2)
   assert_eq(try! plan.token_count(), 2)
+  // Scheduling the first two requests frees waiting capacity. The rejected
+  // request can now be retried without a consumed lane or stale retention.
+  let retried = try! lease.try_admit_request(
+    wb_multi_request(2003UL, received_at~),
+  )
+  assert_eq(retried.kind(), LunaOnlineWorkerAdmitted)
+  assert_eq(try! lease.active_request_count(), 3)
 }
 
 ///|

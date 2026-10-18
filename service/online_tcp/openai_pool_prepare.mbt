@@ -69,7 +69,11 @@ fn new_luna_openai_connection_slot(
   ) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }
-  let embedded_control = new_luna_openai_embedded_control()
+  let embedded_control = new_luna_openai_embedded_control(
+    models_response=luna_openai_model_response(
+      deployment_model_alias, model_alias_offset, model_alias_length, context_ceiling,
+    ),
+  )
   {
     receipt_workspace,
     http_workspace,

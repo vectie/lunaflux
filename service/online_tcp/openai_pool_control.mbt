@@ -7,6 +7,30 @@ fn LunaOnlineOpenAIConnectionPool::embedded_control_readiness(
 }
 
 ///|
+fn LunaOnlineOpenAIConnectionPool::refresh_pool_metrics(
+  self : LunaOnlineOpenAIConnectionPool,
+) -> Bool {
+  let scheduler = self.service().luna_telemetry() catch { _ => return false }
+  let plan = self.service().luna_plan_telemetry() catch { _ => return false }
+  if !luna_openai_server_refresh_sample(
+      self.telemetry,
+      luna_server_scheduler_sample(scheduler, plan),
+    ) {
+    return false
+  }
+  let has_graph = self.service().has_luna_graph_runtime_telemetry() catch {
+      _ => return false
+    }
+  if !has_graph {
+    return true
+  }
+  let graph = self.service().luna_graph_runtime_telemetry() catch {
+      _ => return false
+    }
+  self.telemetry.refresh_graph_runtime(graph)
+}
+
+///|
 fn LunaOnlineOpenAIConnectionPool::prepare_slot_embedded_control_response(
   self : LunaOnlineOpenAIConnectionPool,
   index : Int,
@@ -33,6 +57,11 @@ fn LunaOnlineOpenAIConnectionPool::prepare_slot_embedded_control_response(
         },
       )
     3 => {
+      // Read the already-retained worker/scheduler counters only when metrics
+      // are requested. This does not query the GPU or add token-step work.
+      if !self.refresh_pool_metrics() {
+        return false
+      }
       let snapshot = self.telemetry.metrics_snapshot() catch {
         _ => return false
       }
@@ -42,6 +71,7 @@ fn LunaOnlineOpenAIConnectionPool::prepare_slot_embedded_control_response(
         ready,
       )
     }
+    5 => slot.embedded_control.prepare_models()
     _ => slot.embedded_control.prepare_static(LunaHttp1ControlBadRequest)
   }
   if prepared {

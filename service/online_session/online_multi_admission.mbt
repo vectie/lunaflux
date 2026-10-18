@@ -231,6 +231,9 @@ fn LunaOnlineInstance::begin_multi(
   if lower.kind() != LunaOnlineWorkerAdmitted {
     try! claim.release()
     try! self.events.discard()
+    if lower.kind() == LunaOnlineWorkerSaturated {
+      raise LunaOnlineInstanceFailed(LunaOnlineAdmissionCapacity)
+    }
     raise LunaOnlineInstanceFailed(LunaOnlineAdmissionFailure)
   }
   let worker_request = lower.request() catch {

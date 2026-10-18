@@ -153,7 +153,7 @@ fn LunaOnlineFramedService::dispatch_prepared(
   }
   let prepared = self.prepared[0]
   let admission = self.instance.begin_multi(prepared) catch {
-    _ => {
+    error => {
       // Preflight errors leave Prepared live; lower-admission errors consume
       // it after releasing all lower authority. Either disposition is safe to
       // probe through the one-shot discard boundary.
@@ -162,7 +162,14 @@ fn LunaOnlineFramedService::dispatch_prepared(
       }
       self.prepared.clear()
       self.pop_queue_head()
-      self.publish_rejection(sequence, LunaOnlineFramedRejectedService)
+      self.publish_rejection(
+        sequence,
+        match error {
+          LunaOnlineInstanceFailed(LunaOnlineAdmissionCapacity) =>
+            LunaOnlineFramedRejectedCapacity
+          _ => LunaOnlineFramedRejectedService
+        },
+      )
       return LunaOnlineFramedCoordinatorRejectionReady
     }
   }

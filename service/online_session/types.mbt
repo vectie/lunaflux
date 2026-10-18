@@ -12,6 +12,7 @@ pub(all) enum LunaOnlineInstanceRule {
 ///|
 pub(all) enum LunaOnlineInstanceFailure {
   LunaOnlineAdmissionFailure
+  LunaOnlineAdmissionCapacity
   LunaOnlineServicePreparationFailure
   LunaOnlineAdmissionPreparationFailure(
     @request_admission.RequestAdmissionError

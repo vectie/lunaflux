@@ -155,6 +155,12 @@ fn luna_http1_control_parse_request_line(
       first_space + 1,
       second_space,
       b"/healthz",
+    ) ||
+    luna_http1_control_ascii_equal(
+      storage,
+      first_space + 1,
+      second_space,
+      b"/health",
     ) {
     1
   } else if luna_http1_control_ascii_equal(
@@ -171,6 +177,13 @@ fn luna_http1_control_parse_request_line(
       b"/metrics",
     ) {
     3
+  } else if luna_http1_control_ascii_equal(
+      storage,
+      first_space + 1,
+      second_space,
+      b"/v1/models",
+    ) {
+    5
   } else {
     0
   }
@@ -358,6 +371,7 @@ pub fn LunaHttp1ControlRequestView::route(
     1 => LunaHttp1Health
     2 => LunaHttp1Readiness
     3 => LunaHttp1Metrics
+    5 => LunaHttp1Models
     _ => abort("Luna HTTP/1 control route invariant")
   }
 }

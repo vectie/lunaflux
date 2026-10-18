@@ -50,6 +50,7 @@ fn LunaOnlineOpenAIServer::prepare_embedded_control_response(
         ready,
       )
     }
+    5 => self.embedded_control.prepare_models()
     _ => self.embedded_control.prepare_static(LunaHttp1ControlBadRequest)
   }
   if prepared {

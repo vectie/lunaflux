@@ -22,6 +22,8 @@ test "control HTTP accepts only exact bodyless observational routes" {
   for
     pair in [
       ("/healthz", LunaHttp1Health),
+      ("/health", LunaHttp1Health),
+      ("/v1/models", LunaHttp1Models),
       ("/readyz", LunaHttp1Readiness),
       ("/metrics", LunaHttp1Metrics),
     ] {
@@ -42,7 +44,7 @@ test "control HTTP accepts only exact bodyless observational routes" {
 test "control HTTP rejects hostile method path body and transfer forms" {
   for
     text in [
-      "POST /healthz HTTP/1.1\r\nHost: localhost\r\n\r\n", "GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n",
+      "POST /healthz HTTP/1.1\r\nHost: localhost\r\n\r\n", "GET /v1/models/unknown HTTP/1.1\r\nHost: localhost\r\n\r\n",
       "GET /readyz?probe=1 HTTP/1.1\r\nHost: localhost\r\n\r\n", "GET /readyz HTTP/1.0\r\nHost: localhost\r\n\r\n",
       "GET /metrics?scope=model HTTP/1.1\r\nHost: localhost\r\n\r\n", "GET /readyz HTTP/1.1\r\nContent-Length: 1\r\n\r\nx",
       "GET /readyz HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n", "GET /readyz HTTP/1.1\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n",
