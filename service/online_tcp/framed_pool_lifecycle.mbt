@@ -180,7 +180,9 @@ fn LunaOnlineFramedConnectionPool::try_finish_slot_retirement(
   if slot.phase != LUNA_FRAMED_POOL_RETIRING || !slot.semantic_events.is_empty() {
     return false
   }
-  let route_live = if slot.routes.length() == 1 {
+  let route_live = if slot.routes.length() == 1 &&
+    self.streams.length() == 1 &&
+    self.stream().is_live() {
     self.stream().request_route_live(slot.route()) catch {
       _ => true
     }
@@ -294,6 +296,9 @@ pub fn LunaOnlineFramedConnectionPool::begin_drain(
       self.begin_slot_retirement(index)
     }
   }
+  self.service().begin_drain()
+  self.service_drain_started = true
+  self.stream_disconnect_started = true
 }
 
 ///|

@@ -529,3 +529,24 @@ both policies finish, while the context-sized window avoids replay eviction.
 The147 affected tests pass. The old-capacity experiment is deliberately stopped
 after recording its counters; it is not a completed capacity pass. The new
 policy requires a fresh physical replay of the unchanged clients.
+
+### Active shutdown is distinct from the passing idle shutdown
+
+Stopping v13 with five retained requests at18:49:21 releases both GPUs, but
+rank0's HTTP parent remains in its reactor until the90-second stop timeout;
+rank1 exits successfully. A scoped GDB capture of the owned rank0 parent shows
+epoll/event-loop polling, not an NCCL wait. Three replacement attempts during
+shutdown are also visible. This is a failed active-drain gate, not an idle-stop
+regression or successful request retirement.
+
+The repair propagates drain intent before retained tickets retire, preserves
+terminal-recovery maintenance across repeated disconnect calls, consumes the
+failure terminals after recovery is ready, and releases exact terminal lanes
+after failed-child/device cleanup without sending retirement commands to the
+dead child. Retired shared-stream epochs no longer leave HTTP/framed slots
+waiting forever on an invalid route query. No GPU math or compiler comparison
+policy changes. The191 affected native tests pass, including forbidden-restart
+multi-lane retirement and early drain intent. The new active/failed-drain
+process fixtures build locally but cannot start the native child on this Mac
+(PhysicalUnavailable); this is not an end-to-end pass. The physical Spark
+replay remains required before promotion.

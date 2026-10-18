@@ -213,6 +213,10 @@ fn LunaOnlineInstance::progress_multi_retirement(
 ) -> LunaOnlineInstanceRetirementProgress raise LunaOnlineInstanceError {
   let lane = self.require_multi_ticket(ticket)
   self.require_owner()
+  if self.recovery_close {
+    ignore(self.advance_multi_recovery_maintenance())
+    return LunaOnlineInstanceRetirementPending
+  }
   if lane.phase == LunaRequestAwaitingTerminalPhase {
     if self.events.has_event() {
       return LunaOnlineInstanceRetirementPending

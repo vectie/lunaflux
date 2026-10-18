@@ -1,6 +1,17 @@
 ///|
 async fn main {
   match @env.args() {
+    [_, "--openai-active-drain", executable, fixture_root] =>
+      run_luna_openai_active_drain_evidence(
+        @utf8.encode(executable),
+        fixture_root,
+      )
+    [_, "--openai-failed-drain", executable, fixture_root] =>
+      run_luna_openai_active_drain_evidence(
+        @utf8.encode(executable),
+        fixture_root,
+        after_failure=true,
+      )
     [_, "--openai-buffered", executable, fixture_root] => {
       run_luna_openai_buffered_evidence(@utf8.encode(executable), fixture_root) catch {
         @online_session.LunaOnlineInstancePreparationFailed(failure) => {

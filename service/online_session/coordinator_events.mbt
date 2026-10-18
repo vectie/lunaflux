@@ -145,11 +145,13 @@ fn LunaOnlineFramedService::begin_output_disconnect(
   if self.stream_phase == 2 {
     self.stream_phase = 3
   }
-  // Once request retirement or cooperative multi-cut owns the cut, repeating
+  // Once terminal recovery, request retirement or cooperative multi-cut owns the cut, repeating
   // begin_abort is both
   // unnecessary and unsafe: the lower instance may already have advanced
   // beyond its abortable phase while maintenance still holds the ticket.
-  if self.maintenance_kind == 2 || self.maintenance_kind == 4 {
+  if self.maintenance_kind == 1 ||
+    self.maintenance_kind == 2 ||
+    self.maintenance_kind == 4 {
     return
   }
   self.maintenance_kind = 0

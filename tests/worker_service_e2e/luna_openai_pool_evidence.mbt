@@ -2,8 +2,8 @@
 fn prepare_openai_pool_e2e(
   executable : Bytes,
   tcp_limits : @online_tcp.LunaOnlineTcpLimits,
-  fixture_root? : String = "/private/tmp",
-  output_buffer_bytes? : Int = 16384,
+  fixture_root~ : String = "/private/tmp",
+  output_buffer_bytes~ : Int = 16384,
 ) -> @online_tcp.LunaOnlineOpenAIConnectionPoolPreparation raise {
   let inference = tcp_inference_limits()
   let model = openai_e2e_bytes("model-x")
@@ -98,7 +98,7 @@ async fn drain_openai_pool(
 ///|
 async fn run_luna_openai_pool_evidence(
   executable : Bytes,
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> Unit {
   println("openai-pool-stage=bind")
   let tcp_limits = @online_tcp.LunaOnlineTcpLimits::new(
@@ -166,4 +166,59 @@ async fn run_luna_openai_pool_evidence(
   println("openai-pool-stage=drained")
   assert_eq(pool.state(), LunaOnlineOpenAIConnectionPoolClosed)
   assert_eq(pool.readiness(), LunaOnlineOpenAIConnectionPoolNotReady)
+}
+
+///|
+async fn run_luna_openai_active_drain_evidence(
+  executable : Bytes,
+  fixture_root : String,
+  after_failure~ : Bool = false,
+) -> Unit {
+  let tcp = @online_tcp.LunaOnlineTcpLimits::new(
+    read_chunk_bytes=2048,
+    write_chunk_bytes=16384,
+    accept_timeout_millis=1,
+    input_idle_timeout_millis=1000,
+    write_timeout_millis=1000,
+    reactor_transition_budget=1,
+  )
+  let pool = @online_tcp.bind_luna_online_openai_connection_pool(
+    @socket.Addr::parse("127.0.0.1:0"),
+    prepare_openai_pool_e2e(executable, tcp, fixture_root~) catch {
+      @online_session.LunaOnlineInstancePreparationFailed(cause) =>
+        fail("active drain fixture preparation: \{Repr(cause)}")
+      error => raise error
+    },
+    tcp,
+    log_capacity=64,
+  )
+  let client = @socket.Tcp::connect(pool.local_addr())
+  progress_openai_pool_to_connections(pool, 1, "active-drain-connect")
+  let request = openai_http_request(
+    "/v1/responses", "secret", "{\"model\":\"model-x\",\"input\":\"\\u0002\",\"stream\":true}",
+  )
+  openai_write_range(client, request, 0, request.length())
+  let mut turns = 0
+  while pool.metrics_snapshot().counter_value(Admissions) == 0UL {
+    ignore(pool.progress_on_reactor())
+    turns += 1
+    guard turns < 100000 else { fail("active request was not admitted") }
+  }
+  assert_eq(pool.metrics_snapshot().counter_value(Completions), 0UL)
+  assert_eq(pool.active_connection_count(), 1)
+  if after_failure {
+    while pool.metrics_snapshot().counter_value(WorkerFailures) == 0UL {
+      ignore(pool.progress_on_reactor())
+      turns += 1
+      guard turns < 1000000 else { fail("worker failure was not observed") }
+      if turns % 64 == 0 {
+        @async.pause()
+      }
+    }
+  }
+  drain_openai_pool(pool)
+  assert_eq(pool.active_connection_count(), 0)
+  assert_eq(pool.metrics_snapshot().counter_value(WorkerRestarts), 0UL)
+  client.close()
+  println("active HTTP request drained; worker restarts=0; pool closed")
 }

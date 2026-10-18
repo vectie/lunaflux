@@ -254,10 +254,10 @@ async fn LunaOnlineOpenAIConnectionPool::progress_drain(
     return LunaOnlineOpenAIConnectionPoolDrainingProgress
   }
   if !self.service_drain_started {
-    self.streams.clear()
     self.service().begin_drain()
     self.service_drain_started = true
   }
+  self.streams.clear()
   let readiness = self.service().progress() catch {
       _ => return LunaOnlineOpenAIConnectionPoolDrainingProgress
     }

@@ -231,6 +231,9 @@ fn LunaOnlineFramedService::begin_service_drain(
     return
   }
   self.drain_requested = true
+  // Do not postpone this until the stream's last ticket retires: a peer loss
+  // during drain must not spawn a replacement worker for cancelled requests.
+  self.instance.retain_drain_intent()
   if self.stream_phase == 1 {
     if self.stream_slots.length() != 1 {
       abort("Luna framed unopened stream slot invariant")

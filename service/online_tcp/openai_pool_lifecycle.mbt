@@ -190,7 +190,9 @@ fn LunaOnlineOpenAIConnectionPool::try_finish_slot_retirement(
     !slot.rejections.is_empty() {
     return false
   }
-  let route_live = if slot.routes.length() == 1 {
+  let route_live = if slot.routes.length() == 1 &&
+    self.streams.length() == 1 &&
+    self.stream().is_live() {
     self.stream().request_route_live(slot.route()) catch {
       _ => true
     }
@@ -264,6 +266,11 @@ pub fn LunaOnlineOpenAIConnectionPool::begin_drain(
       self.begin_slot_retirement(index)
     }
   }
+  // Local output/semantic credits have been relinquished. Cut the shared
+  // stream now, rather than waiting for every request route to disappear.
+  self.service().begin_drain()
+  self.service_drain_started = true
+  self.stream_disconnect_started = true
 }
 
 ///|

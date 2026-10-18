@@ -78,8 +78,23 @@ pub fn LunaOnlineWorkerRequest::progress_terminal_retirement(
   let service = lease.service
   guard lease.lane_phases[self.lane] == ONLINE_LANE_TERMINAL &&
     lease.cancel_lane < 0 &&
-    service.lifecycle == ServiceReady else {
+    (
+      service.lifecycle == ServiceReady ||
+      service.lifecycle == ServiceTerminalCloseReady
+    ) else {
     raise Invalid(Lifecycle)
+  }
+  if service.lifecycle == ServiceTerminalCloseReady {
+    // This phase is reached only after failed child cleanup, flight recovery,
+    // device invalidation and scheduler drain. No request-retirement command
+    // can be sent to that dead child. The terminal still authenticates the
+    // lane, and semantic retention is released by retire_terminal below.
+    guard service.maintenance_mode == MAINTENANCE_NONE &&
+      service.raw_outstanding_count() == 0 else {
+      raise Invalid(Lifecycle)
+    }
+    lease.lane_device_retired[self.lane] = true
+    return true
   }
   if !service.transport.requires_request_retirement() ||
     lease.lane_device_retired[self.lane] {

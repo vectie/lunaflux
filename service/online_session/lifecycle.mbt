@@ -318,6 +318,13 @@ pub fn LunaOnlineInstance::begin_drain(self : LunaOnlineInstance) -> Unit {
     return
   }
   self.require_owner()
+  self.retain_drain_intent()
+}
+
+///|
+/// Admission/restart intent only; retained requests and device obligations
+/// remain owned until their existing retirement transitions complete.
+fn LunaOnlineInstance::retain_drain_intent(self : LunaOnlineInstance) -> Unit {
   self.drain_requested = true
   if self.phase == LunaInstanceIdlePhase {
     self.phase = LunaInstanceDrainingPhase

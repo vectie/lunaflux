@@ -1,4 +1,34 @@
 ///|
+test "disconnect preserves multi-request terminal recovery maintenance" {
+  let service = coordinator_fixture(multi_lane_count=2).service
+  service.tickets.push({ lane: 0, epoch: 1UL, })
+  service.ticket_sequences.push(1UL)
+  service.maintenance_kind = 1
+  service.instance.recovery_close = true
+  service.begin_output_disconnect()
+  service.begin_output_disconnect()
+  assert_eq(service.maintenance_kind, 1)
+  assert_true(service.instance.recovery_close)
+  assert_true(service.disconnect_requested)
+}
+
+///|
+test "service drain reaches restart policy before active tickets retire" {
+  let service = coordinator_fixture(multi_lane_count=2).service
+  service.instance.phase = LunaRequestActivePhase
+  service.tickets.push({ lane: 0, epoch: 1UL, })
+  service.ticket_sequences.push(1UL)
+  service.maintenance_kind = 4
+  service.begin_drain()
+  assert_true(service.instance.drain_requested)
+  assert_true(service.disconnect_requested)
+  assert_eq(service.tickets.length(), 1)
+  assert_true(service.instance.phase == LunaRequestActivePhase)
+  service.begin_drain()
+  assert_eq(service.tickets.length(), 1)
+}
+
+///|
 test "Luna disconnect resumes retirement after abort seam" {
   let compatibility = coordinator_fixture()
   let service = compatibility.service

@@ -80,7 +80,11 @@ fn LunaOnlineInstance::advance_multi_recovery_maintenance(
     LunaWorkerServiceRecoveryReady => ()
     LunaWorkerServiceFailCloseReady => {
       self.maintenance_state = 0
-      self.recovery_close = true
+      // Recovery has already reaped the failed worker and drained scheduler
+      // requests. Consume its terminal publications next; do not restart the
+      // same recovery from a TerminalCloseReady lease forever.
+      self.recovery_close = false
+      self.retain_drain_intent()
       return LunaRecoveryMaintenanceFailCloseReady
     }
     LunaWorkerServiceClosed => {
@@ -106,7 +110,8 @@ fn LunaOnlineInstance::progress_multi_terminalization(
     match self.advance_multi_recovery_maintenance() {
       LunaRecoveryMaintenancePending | LunaRecoveryMaintenanceRestarted =>
         return LunaOnlineInstanceTerminalizationRequired
-      LunaRecoveryMaintenanceFailCloseReady | LunaRecoveryMaintenanceClosed =>
+      LunaRecoveryMaintenanceFailCloseReady => ()
+      LunaRecoveryMaintenanceClosed =>
         return LunaOnlineInstanceTerminalizationRequired
     }
   }

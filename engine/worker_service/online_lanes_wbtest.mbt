@@ -163,6 +163,16 @@ test "scheduler waiting saturation releases retention even with free worker lane
 
 ///|
 test "multi-lane restart terminalizes waiting requests in global order" {
+  wb_multi_terminal_release(false)
+}
+
+///|
+test "multi-lane forbidden restart releases terminals without a live worker" {
+  wb_multi_terminal_release(true)
+}
+
+///|
+fn wb_multi_terminal_release(abandon : Bool) -> Unit raise {
   let scheduler = wb_multi_scheduler()
   let service : WorkerService = {
     scheduler,
@@ -207,9 +217,23 @@ test "multi-lane restart terminalizes waiting requests in global order" {
   service.lifecycle = ServiceDeviceInvalidationRequired
   assert_eq(try! lease.invalidate_device_state(), 0)
   assert_eq(service.lifecycle, ServiceRestartReady)
-  service.lifecycle = ServiceReady
-  assert_false(try! lease.progress_restarted_failure_terminals())
-  assert_true(try! lease.progress_restarted_failure_terminals())
+  if abandon {
+    try! lease.abandon_restart()
+    try! lease.begin_recovery_maintenance(ResourceUnavailable)
+    assert_eq(
+      try! lease.progress_maintenance(),
+      LunaWorkerServiceMaintenanceAdvanced,
+    )
+    assert_eq(
+      try! lease.progress_maintenance(),
+      LunaWorkerServiceFailCloseReady,
+    )
+    assert_eq(service.lifecycle, ServiceTerminalCloseReady)
+  } else {
+    service.lifecycle = ServiceReady
+    assert_false(try! lease.progress_restarted_failure_terminals())
+    assert_true(try! lease.progress_restarted_failure_terminals())
+  }
   let first = try! lease.take_publication()
   let second = try! lease.take_publication()
   assert_eq(first.publication_sequence(), 1UL)
@@ -218,6 +242,8 @@ test "multi-lane restart terminalizes waiting requests in global order" {
   assert_eq(second.terminal_reason(), OnlineWorkerFailed)
   assert_eq(first.route().lane(), 0)
   assert_eq(second.route().lane(), 1)
+  assert_true(try! request_a.progress_terminal_retirement())
+  assert_true(try! request_b.progress_terminal_retirement())
   try! request_a.retire_terminal()
   try! request_b.retire_terminal()
   assert_eq(try! lease.active_request_count(), 0)

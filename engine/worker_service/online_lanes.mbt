@@ -256,7 +256,10 @@ pub fn LunaOnlineWorkerRequest::retire_terminal(
   let lease = self.require_lane()
   if lease.lane_phases[self.lane] != ONLINE_LANE_TERMINAL ||
     lease.cancel_lane >= 0 ||
-    lease.service.lifecycle != ServiceReady {
+    (
+      lease.service.lifecycle != ServiceReady &&
+      lease.service.lifecycle != ServiceTerminalCloseReady
+    ) {
     raise Invalid(Lifecycle)
   }
   if lease.service.transport.requires_request_retirement() &&
