@@ -109,6 +109,17 @@ async fn main {
     fail("invalid roots")
   }
   @fs.mkdir(root)
+  let context = match @env.get_env_var("LUNAFLUX_GLM_HTTP_CONTEXT") {
+    None => 1024
+    Some(value) => {
+      let n = @json.parse(value)
+      guard n is Number(v, ..) && v >= 64.0 && v <= 1048576.0 &&
+        v.to_int().to_double() == v && v.to_int() % 16 == 0 else {
+        fail("invalid explicit test context")
+      }
+      v.to_int()
+    }
+  }
   copy(
     0,
     host(0) +
@@ -138,7 +149,7 @@ async fn main {
       "executable": root + "/glm_service.exe",
       "rows": 64,
       "slots": 4,
-      "context": 1024,
+      "context": context,
       "budget_mib": 102400,
       "reserve_mib": 2048,
       "model_label": "0000000000000000000000000000000000000000000000000000000000000001",

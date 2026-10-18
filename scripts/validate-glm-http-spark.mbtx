@@ -219,6 +219,15 @@ async fn main {
       fail("Responses semantic or framing failure")
     }
   } else if mode == "answers" {
+    let output_tokens = match @env.get_env_var("LUNAFLUX_GLM_HTTP_ANSWER_TOKENS") {
+      None => 512
+      Some(text) => {
+        guard @json.parse(text) is Number(n, ..) && n > 0.0 && n <= 65536.0 &&
+          n.to_int().to_double() == n else { fail("invalid answer token budget") }
+        n.to_int()
+      }
+    }
+    let incomplete : Array[Int] = []
     let prompts = [
       "Explain why 0.1 + 0.2 is not exactly 0.3 in binary floating-point. Give a practical comparison method.",
       "用中文解释银行转账为何需要事务，给出一个失败后回滚的例子。",
@@ -238,20 +247,24 @@ async fn main {
         root,
         "answer-\{i}",
         "/v1/chat/completions",
-        chat(prompt, false, 512),
+        chat(prompt, false, output_tokens),
       )
       let text = answer(body, false)
       guard !text.trim().is_empty() else { fail("empty answer") }
       let j = @json.parse(body)
       if j
         is { "choices": Array([{ "finish_reason": String(reason), .. }]), .. } {
-        guard reason == "stop" else {
-          fail("incomplete answer \{i}: " + reason)
+        if reason != "stop" {
+          incomplete.push(i)
+          println("INCOMPLETE answer \{i}: " + reason)
         }
       } else {
         fail("missing finish reason")
       }
       println("\{i}: " + text)
+    }
+    guard incomplete.is_empty() else {
+      fail("incomplete answers at output budget \{output_tokens}: \{Repr(incomplete)}")
     }
   } else if mode == "concurrent" {
     @async.with_task_group(group => {

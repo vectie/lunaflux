@@ -175,24 +175,45 @@ fn ServicePlan::inference(
   self : Self,
   spec : @spec.Glm53FlashSpec,
 ) -> @inference.InferenceLimits raise {
+  glm_inference_limits(self.context, spec.vocabulary_size())
+}
+
+///|
+fn glm_inference_limits(
+  context : Int,
+  vocabulary : Int,
+) -> @inference.InferenceLimits raise {
+  let maximum_token_bytes = 4096
+  let maximum_stop_bytes = 256
   @inference.InferenceLimits::new(
     max_text_bytes=1048576,
-    max_input_tokens=self.context,
-    max_new_tokens=self.context,
-    max_context_tokens=self.context,
-    max_token_id=spec.vocabulary_size() - 1,
+    max_input_tokens=context,
+    max_new_tokens=context,
+    max_context_tokens=context,
+    max_token_id=vocabulary - 1,
     max_stop_token_ids=32,
     max_stop_strings=16,
-    max_stop_string_bytes=256,
+    max_stop_string_bytes=maximum_stop_bytes,
     max_trace_bytes=256,
     max_cache_scope_bytes=256,
-    // Checkpoint tokenizer admits 4096-byte pieces; an incremental UTF-8
-    // decoder can also publish three carried bytes from the preceding token.
-    max_decoded_delta_bytes=4096 + 3,
+    // A failed stop-prefix match can release held bytes together with a full
+    // tokenizer piece and the UTF-8 carry from the preceding token.
+    max_decoded_delta_bytes=maximum_token_bytes + maximum_stop_bytes + 3,
     max_deadline_millis=3600000UL,
-    max_top_k=spec.vocabulary_size(),
+    max_top_k=vocabulary,
     max_temperature=100.0,
   )
+}
+
+///|
+test "service decoding envelope includes declared stop prefixes and UTF8 carry" {
+  let limits = glm_inference_limits(2048, 154880)
+  assert_eq(
+    limits.max_decoded_delta_bytes(),
+    4096 + limits.max_stop_string_bytes() + 3,
+  )
+  assert_eq(limits.max_context_tokens(), 2048)
+  assert_eq(limits.max_new_tokens(), 2048)
 }
 
 ///|

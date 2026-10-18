@@ -400,3 +400,12 @@ acknowledge silent nonterminal events without a socket write or connection cut.
 Terminal events still require terminal framing. The failed raw SSE is retained
 at `/tmp/lunaflux-glm-http-smoke-20261018-v8`; unit renderer success was not an
 end-to-end transport pass. No public endpoint has been promoted.
+
+The same v8 run correctly recalls `ORCHID-37` across a multi-turn prompt but
+rejects a valid stop string before admission with503. The GLM startup envelope
+reserved4096token-piece bytes plus3UTF-8 carry bytes, leaving no room for any
+held stop prefix. The generic incremental decoder correctly rejects this
+undersized envelope. GLM now derives delta capacity from4096piece bytes plus
+the declared256stop bytes plus3carry bytes. This is a host output bound, not a
+GPU or compiler-numerics change. The old failure and complete first broader
+answer (truncated by512output tokens) remain under the v8 evidence roots.
