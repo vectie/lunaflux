@@ -557,3 +557,45 @@ GNU tar's `--wildcards` does not expand input paths when creating an archive.
 The failed collection wrote no numerical arrays. Selected-leaf and explicit
 live-byte-extent comparisons remain offline and distinguish inactive scratch
 tails from live mathematical output; neither uses payload hashes.
+
+### Same-run all-layer leaf localization
+
+The corrected ordered `glm-all-leaves-ordered-scales-20261018-r2` and overlap
+`glm-all-leaves-overlap-scales-20261018-r1` captures both complete and release
+CUDA on both ranks. Experiment swap peaks are zero; no run is used as timing
+evidence. In prefill order warmup/fact/arithmetic/Chinese/JSON/code/retrieval,
+the first changed MoE branch is at layers 22/35/42/none/11/27/24, with
+31/16/198/0/15/184/1 differing BF16 values. Each first changed branch has an
+identical normalized FFN input. Report:
+`/tmp/lunaflux-glm-all-retired-frontiers-20261018-v1.tsv`.
+
+Two of those exact first-divergence locations have now been examined down to
+the retained leaf buffers, not a different run's guessed layer:
+
+| Captured frontier on rank 1 | Warmup, layer 22 | JSON, layer 11 |
+| --- | ---: | ---: |
+| Router logits/scores/indices/weights | Bitwise | Bitwise |
+| Routed activation, packed rows and metadata | Bitwise | Bitwise |
+| Quantized input and activation, including scale workspace | Bitwise | Bitwise |
+| Shared activation, weighted result and output | Bitwise | Bitwise |
+| Routed weighted F32 result after TP reduction | 32 live values differ | 16 live values differ |
+
+These routed differences are within the live extents (22 and 23 rows), not
+inactive scratch. Warmup affects one row/slot's four eight-column groups;
+JSON affects one row/slot's two eight-column groups. Their magnitudes are not
+mere final-rounding ULPs (for example 0.272494912 versus 0.267189503). Reports:
+`/tmp/lunaflux-glm-prefill0-layer22-leaves-20261018-v1.tsv`,
+`/tmp/lunaflux-glm-prefill4-layer11-leaves-20261018-v1.tsv`, and matching
+`*-down-f32-20261018-v1.tsv` literal-value reports.
+
+This narrows the actual failing path to the routed down result / TP handoff.
+It does **not** yet distinguish a rank-local down fault from its remote-rank
+contribution or collective publication: the retained weighted buffer is read
+after all-reduce, and only rank 1's leaves were captured. Identical retained
+operands do not prove their earlier read was correctly synchronized. Do not
+rewrite router/shared arithmetic or claim the distributed-scale bug fixed
+from this evidence. The public GLM endpoint stays offline.
+
+The full warning-denied native suite is running from pinned `abd67950` ARM
+source in user unit `lunaflux-native-suite-tls-batched-20261018-v1` under a
+4 GiB/no-swap limit, after both GPU captures retired. Its result is pending.

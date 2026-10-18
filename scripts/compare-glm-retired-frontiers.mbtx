@@ -43,6 +43,20 @@ fn different_bytes(a : Bytes, b : Bytes, bytes : Int) -> (Int, Int) raise {
 }
 
 ///|
+fn u32_at(bytes : Bytes, index : Int) -> UInt {
+  let offset = index * 4
+  bytes[offset].to_uint() |
+  (bytes[offset + 1].to_uint() << 8) |
+  (bytes[offset + 2].to_uint() << 16) |
+  (bytes[offset + 3].to_uint() << 24)
+}
+
+///|
+test "retired float reader preserves literal little endian operands" {
+  assert_eq(Float::reinterpret_from_uint(u32_at(b"\x00\x00\x80\x3f", 0)), 1.0)
+}
+
+///|
 test "inactive captured capacity is not part of a live extent comparison" {
   assert_eq(different_bytes(b"\x01\x02\x03", b"\x01\x02\x04", 2), (0, -1))
   assert_eq(different_bytes(b"\x01\x02\x03", b"\x01\x02\x04", 3), (1, 2))
@@ -62,6 +76,34 @@ test "frontiers compare literal BF16 values, including high bytes" {
 ///|
 async fn main {
   let args = @env.args()
+  if args is [_, "f32", ordered, overlap, elements_text, report] {
+    let a = @fs.read_file(ordered).binary()
+    let b = @fs.read_file(overlap).binary()
+    let elements = @string.parse_int(elements_text)
+    guard elements >= 0 &&
+      elements <= a.length() / 4 &&
+      elements <= b.length() / 4 else {
+      fail("F32 comparison exceeds captured extent")
+    }
+    let summary = StringBuilder()
+    summary <+ "index\tordered\toverlap\tordered_bits\toverlap_bits\n"
+    let count = for index in 0..<elements; count = 0 {
+      let left = u32_at(a, index)
+      let right = u32_at(b, index)
+      if left != right {
+        summary <+
+          "\{index}\t\{Float::reinterpret_from_uint(left)}\t\{Float::reinterpret_from_uint(right)}\t\{left}\t\{right}\n"
+      }
+      continue count + (if left != right { 1 } else { 0 })
+    } nobreak {
+      count
+    }
+    @fs.write_file(report, summary.to_string(), create_mode=CreateNew)
+    println(
+      "live_f32=\{elements} differing_f32=\{count}; literal values in \{report}",
+    )
+    return
+  }
   if args is [_, "extent", ordered, overlap, bytes_text, report] {
     let a = @fs.read_file(ordered).binary()
     let b = @fs.read_file(overlap).binary()
