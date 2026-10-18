@@ -13,6 +13,13 @@ pub(all) enum LunaOnlineInstanceRule {
 pub(all) enum LunaOnlineInstanceFailure {
   LunaOnlineAdmissionFailure
   LunaOnlineServicePreparationFailure
+  LunaOnlineAdmissionPreparationFailure(
+    @request_admission.RequestAdmissionError
+  )
+  LunaOnlineFramedPreparationFailure(@framed_wire.FramedWireError)
+  LunaOnlineWorkerPreparationFailure(
+    @worker_service.OwnedWorkerServicePreparationError
+  )
   LunaOnlineServiceFailure
   LunaOnlineInvalid(LunaOnlineInstanceRule)
 } derive(Debug, Eq)

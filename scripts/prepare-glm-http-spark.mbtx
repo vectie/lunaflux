@@ -1,0 +1,285 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn host(rank : Int) -> String {
+  if rank == 0 {
+    "wlc003s@192.168.2.178"
+  } else {
+    "wlc004s@192.168.2.179"
+  }
+}
+
+///|
+fn socket(rank : Int) -> String {
+  if rank == 0 {
+    "/tmp/lunaflux-glm178-prefill-20261018.sock"
+  } else {
+    "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  }
+}
+
+///|
+async fn remote(rank : Int, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    socket(rank),
+    host(rank),
+    command,
+  ]).output(max_output_bytes=8388608)
+}
+
+///|
+async fn copy(rank : Int, from : String, to : String) -> Unit {
+  @shell.Cmd("scp", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ControlPath=" + socket(rank),
+    from,
+    to,
+  ])
+  .output()
+  .check()
+}
+
+///|
+async fn record(root : String, name : String, result : @shell.Output) -> Unit {
+  @fs.write_file(
+    root + "/" + name + ".txt",
+    result.stdout() + result.stderr(),
+    create_mode=CreateNew,
+  )
+  result.check()
+}
+
+///|
+async fn wait_unit(root : String, rank : Int, unit : String) -> Unit {
+  while true {
+    let state = remote(
+      rank,
+      "systemctl --user show " +
+      unit +
+      " -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    )
+    state.check()
+    if state.stdout().contains("SubState=exited") ||
+      state.stdout().contains("ActiveState=failed") {
+      record(root, unit + "-status", state)
+      record(
+        root,
+        unit + "-journal",
+        remote(rank, "journalctl --user -u " + unit + " --no-pager"),
+      )
+      guard state.stdout().contains("ExecMainStatus=0") &&
+        state.stdout().contains("Result=success") else {
+        fail("failed " + unit)
+      }
+      return
+    }
+    @async.sleep(5000)
+  }
+}
+
+///|
+async fn main {
+  let (root, build, previous) = match @env.args() {
+    [_, root, build] => (root, build, None)
+    [_, root, build, previous] => (root, build, Some(previous))
+    _ => fail("NEW_ROOT PINNED_ARM_BUILD_ROOT [PREVIOUS_AOT_ROOT]")
+  }
+  guard root.has_prefix("/tmp/lunaflux-glm-http-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    [root, build, previous.unwrap_or(root)].all(s => {
+      !s.contains("..") &&
+      s
+      .iter()
+      .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_'))
+    }) else {
+    fail("invalid roots")
+  }
+  @fs.mkdir(root)
+  copy(
+    0,
+    host(0) +
+    ":" +
+    build +
+    "/source/_build/native/release/build/cmd/glm_service/glm_service.exe",
+    root + "/glm_service.exe",
+  )
+  let tag = root.split("/").last().unwrap().to_string()
+  for rank in 0..<2 {
+    let model = (if rank == 0 {
+        "/tmp/lunaflux-glm-real-20261010.6yIBQN35"
+      } else {
+        "/tmp/lunaflux-glm-real-20261010.ekEYBzqU"
+      }) +
+      "/GLM-5.3-Flash-NVFP4"
+    let plan : Json = {
+      "model_root": model,
+      "kernel_root": root,
+      "inventory": "SHARDS.sha256",
+      "module0": "rank0.cubin",
+      "module1": "rank1.cubin",
+      "sampling_module": "sampling.cubin",
+      "control_address": "10.0.0.2:32901",
+      "rendezvous_address": "10.0.0.2:32902",
+      "listen_address": "127.0.0.1:18888",
+      "executable": root + "/glm_service.exe",
+      "rows": 64,
+      "slots": 4,
+      "context": 1024,
+      "budget_mib": 102400,
+      "reserve_mib": 2048,
+      "model_label": "0000000000000000000000000000000000000000000000000000000000000001",
+      "runtime_label": "0000000000000000000000000000000000000000000000000000000000000002",
+      "tokenizer_label": "0000000000000000000000000000000000000000000000000000000000000003",
+      "credential_file": "acceptance.credential",
+    }
+    @fs.write_file(
+      root + "/service-\{rank}.json",
+      plan.stringify(),
+      create_mode=CreateNew,
+    )
+    record(root, "mkdir-\{rank}", remote(rank, "mkdir " + root))
+    copy(
+      rank,
+      root + "/glm_service.exe",
+      host(rank) + ":" + root + "/glm_service.exe",
+    )
+    copy(
+      rank,
+      root + "/service-\{rank}.json",
+      host(rank) + ":" + root + "/service.json",
+    )
+    let old = if rank == 0 {
+      "/tmp/lunaflux-glm-real-aot-20261010.qdZHUGIP"
+    } else {
+      "/tmp/lunaflux-glm-real-aot-20261010.uvS6YcCC"
+    }
+    record(
+      root,
+      "inventory-\{rank}",
+      remote(rank, "cp -n " + old + "/SHARDS.sha256 " + root + "/SHARDS.sha256"),
+    )
+    record(
+      root,
+      "chmod-\{rank}",
+      remote(rank, "chmod 700 " + root + "/glm_service.exe"),
+    )
+  }
+  @fs.write_file(
+    root + "/acceptance.credential",
+    "lunaflux-acceptance",
+    create_mode=CreateNew,
+  )
+  copy(
+    0,
+    root + "/acceptance.credential",
+    host(0) + ":" + root + "/acceptance.credential",
+  )
+  let export_unit = tag + "-export"
+  record(
+    root,
+    "export-launch",
+    remote(
+      0,
+      "systemd-run --user --unit=" +
+      export_unit +
+      " --property=RemainAfterExit=yes --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+      root +
+      "/glm_service.exe export " +
+      root +
+      " service.json",
+    ),
+  )
+  wait_unit(root, 0, export_unit)
+  copy(0, host(0) + ":" + root + "/rank1.cu", root + "/rank1.cu")
+  copy(1, root + "/rank1.cu", host(1) + ":" + root + "/rank1.cu")
+  copy(0, host(0) + ":" + root + "/sampling.cu", root + "/sampling.cu")
+  copy(1, root + "/sampling.cu", host(1) + ":" + root + "/sampling.cu")
+  if previous is Some(previous) {
+    // Direct source comparison, not a digest or checkpoint integrity scan.
+    for rank in 0..<2 {
+      for name in ["rank\{rank}", "sampling"] {
+        record(
+          root,
+          "source-match-\{rank}-" + name,
+          remote(
+            rank,
+            "cmp " + previous + "/" + name + ".cu " + root + "/" + name + ".cu",
+          ),
+        )
+        record(
+          root,
+          "aot-reuse-\{rank}-" + name,
+          remote(
+            rank,
+            "cp -n " +
+            previous +
+            "/" +
+            name +
+            ".cubin " +
+            root +
+            "/" +
+            name +
+            ".cubin",
+          ),
+        )
+      }
+    }
+    println("unchanged AOT reused; no GPU execution or public listener started")
+    return
+  }
+  for rank in 0..<2 {
+    let unit = tag + "-compile-\{rank}"
+    record(
+      root,
+      "compile-launch-\{rank}",
+      remote(
+        rank,
+        "systemd-run --user --unit=" +
+        unit +
+        " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda/bin/nvcc -O3 -lineinfo -std=c++17 --cubin --generate-code arch=compute_121a,code=sm_121a " +
+        root +
+        "/rank\{rank}.cu -o " +
+        root +
+        "/rank\{rank}.cubin",
+      ),
+    )
+  }
+  for rank in 0..<2 {
+    wait_unit(root, rank, tag + "-compile-\{rank}")
+  }
+  for rank in 0..<2 {
+    let unit = tag + "-sampling-\{rank}"
+    record(
+      root,
+      "sampling-launch-\{rank}",
+      remote(
+        rank,
+        "systemd-run --user --unit=" +
+        unit +
+        " --property=RemainAfterExit=yes --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda/bin/nvcc -O3 -lineinfo -std=c++17 --fmad=false --cubin -arch=sm_121 " +
+        root +
+        "/sampling.cu -o " +
+        root +
+        "/sampling.cubin",
+      ),
+    )
+    wait_unit(root, rank, unit)
+  }
+  println(
+    "AOT prepared on both Sparks; no GPU execution or public listener started",
+  )
+}

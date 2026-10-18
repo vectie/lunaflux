@@ -5,7 +5,7 @@ fn LunaOpenAIInboundWorkspace::emit_prompt_byte(
 ) -> Unit raise LunaOpenAICompatError {
   if self.prompt_length >= self.inference.max_text_bytes() ||
     (
-      self.route == 2 &&
+      (self.route == 2 || self.limits.template_response_input) &&
       self.prompt_length >= self.template.max_rendered_prompt_bytes
     ) {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatCapacity)
@@ -48,7 +48,7 @@ fn LunaOpenAIInboundWorkspace::finish_render_source(
     self.high_surrogate != 0 {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
   }
-  if self.route == 1 {
+  if self.route == 1 && !self.limits.template_response_input {
     self.phase = LUNA_INBOUND_HANDOFF_BEGIN
     return
   }

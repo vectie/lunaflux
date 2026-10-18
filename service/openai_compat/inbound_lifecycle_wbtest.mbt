@@ -137,7 +137,11 @@ test "Luna OpenAI inbound sizing is exact and forged limits fail before allocati
     202UL,
   )
   assert_eq(LunaOpenAIInboundWorkspace::required_reference_cells(), 8UL)
-  let forged : LunaOpenAIInboundLimits = { max_messages: 2147483647, required_stop_tokens: [], }
+  let forged : LunaOpenAIInboundLimits = {
+    max_messages: 2147483647,
+    required_stop_tokens: [],
+    template_response_input: false,
+  }
   openai_expect_rule(
     () => {
       ignore(LunaOpenAIInboundWorkspace::required_int_cells(inference, forged))

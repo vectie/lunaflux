@@ -32,6 +32,10 @@ async fn run_device_greedy_route(
   let expectation = match sampling_runtime {
     EmbeddedCudaGreedyV1 => @runtime_instance.EmbeddedCudaGreedyExpected
     HostSamplingRuntime => HostSamplingRuntimeExpected
+    DeviceFullF32SamplingV1 => {
+      ignore(drain_campaign_owner(owner) catch { _ => false })
+      raise DeviceGreedyQualificationRejected
+    }
   }
   let contract = campaign_validation_contract().with_execution_expectation(
     expectation, require_fused,

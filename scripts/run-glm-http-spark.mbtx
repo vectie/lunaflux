@@ -1,0 +1,191 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn host(rank : Int) -> String {
+  if rank == 0 {
+    "wlc003s@192.168.2.178"
+  } else {
+    "wlc004s@192.168.2.179"
+  }
+}
+
+///|
+fn socket(rank : Int) -> String {
+  if rank == 0 {
+    "/tmp/lunaflux-glm178-prefill-20261018.sock"
+  } else {
+    "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  }
+}
+
+///|
+async fn remote(rank : Int, command : String) -> @shell.Output {
+  @shell.Cmd("ssh", [
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "ConnectTimeout=10",
+    "-S",
+    socket(rank),
+    host(rank),
+    command,
+  ]).output(max_output_bytes=8388608)
+}
+
+///|
+fn available(text : String) -> Int64 raise {
+  for line in text.split("\n") {
+    if line.has_prefix("MemAvailable:") {
+      for word in line.split(" ") {
+        if !word.is_empty() && word[0] is ('0'..<='9') {
+          return @string.parse_int64(word)
+        }
+      }
+    }
+  }
+  fail("missing MemAvailable")
+}
+
+///|
+fn gpu_mib(text : String) -> Int64 raise {
+  let mut total = 0L
+  for line in text.split("\n") {
+    let s = line.trim()
+    if !s.is_empty() {
+      total += @string.parse_int64(s)
+    }
+  }
+  total
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-http-") &&
+    !root.contains("..") &&
+    root
+    .iter()
+    .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_')) &&
+    mode is ("start" | "watch" | "stop" | "status") else {
+    fail("ROOT start|watch|stop|status")
+  }
+  let tag = root.split("/").last().unwrap().to_string()
+  async fn stop() -> Unit {
+    for rank in 0..<2 {
+      remote(rank, "systemctl --user stop " + tag + "-rank\{rank}.service").check()
+    }
+  }
+  if mode == "stop" {
+    stop()
+    return
+  }
+  if mode == "status" {
+    for rank in 0..<2 {
+      let result = remote(
+        rank,
+        "systemctl --user show " +
+        tag +
+        "-rank\{rank}.service -p ActiveState -p SubState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak; journalctl --user -u " +
+        tag +
+        "-rank\{rank}.service -n 18 --no-pager",
+      )
+      println(result.stdout())
+      result.check()
+    }
+    return
+  }
+  if mode == "start" {
+    for rank in 0..<2 {
+      let owners = remote(
+        rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+      let mem = remote(rank, "cat /proc/meminfo")
+      mem.check()
+      guard available(mem.stdout()) >= 16777216L else { fail("host reserve") }
+    }
+    for rank in [1, 0] {
+      let interface = if rank == 0 { "enp1s0f1np1" } else { "enp1s0f0np0" }
+      let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
+      let command = "systemd-run --user --unit=" +
+        tag +
+        "-rank\{rank} --setenv=LD_LIBRARY_PATH=/tmp/lunaflux-glm-expert-tp-complete-answers-20261018-v1/nccl --setenv=NCCL_DEBUG=WARN --setenv=NCCL_SOCKET_IFNAME=" +
+        interface +
+        " --setenv=NCCL_IB_HCA=" +
+        hca +
+        " --property=MemoryMax=100G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800 --property=TimeoutStopSec=90 " +
+        root +
+        "/glm_service.exe " +
+        (if rank == 0 { "serve" } else { "rank1" }) +
+        " " +
+        root +
+        " service.json"
+      let result = remote(rank, command)
+      @fs.write_file(
+        root + "/start-\{rank}.txt",
+        result.stdout() + result.stderr(),
+        create_mode=CreateNew,
+      )
+      if result.exit_code() != 0 {
+        stop()
+        result.check()
+      }
+      @async.sleep(1000)
+    }
+    println("private acceptance service started; public GLM remains offline")
+    return
+  }
+  let out = @fs.open(
+    root + "/memory-watch.txt",
+    mode=WriteOnly,
+    create_mode=CreateNew,
+  )
+  defer out.close()
+  while true {
+    let mut active = 0
+    for rank in 0..<2 {
+      let memory = remote(rank, "cat /proc/meminfo")
+      let gpu = remote(
+        rank, "nvidia-smi --query-compute-apps=used_gpu_memory --format=csv,noheader,nounits",
+      )
+      let state = remote(
+        rank,
+        "systemctl --user show " +
+        tag +
+        "-rank\{rank}.service -p ActiveState -p Result -p ExecMainStatus -p MemoryCurrent -p MemoryPeak -p MemorySwapCurrent -p MemorySwapPeak",
+      )
+      memory.check()
+      gpu.check()
+      state.check()
+      let reserve = available(memory.stdout())
+      let used = gpu_mib(gpu.stdout())
+      out.write(
+        "rank=\{rank} host_available_kib=\{reserve} gpu_mib=\{used}\n" +
+        state.stdout(),
+      )
+      if reserve < 16777216L || used > 102400L {
+        stop()
+        fail("stopped service: memory envelope")
+      }
+      if state.stdout().contains("ActiveState=active") {
+        active += 1
+      }
+      if state.stdout().contains("ActiveState=failed") {
+        stop()
+        fail("rank failed; both owned units stopped")
+      }
+    }
+    if active == 0 {
+      return
+    }
+    @async.sleep(2000)
+  }
+}

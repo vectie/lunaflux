@@ -13,6 +13,16 @@ test "document prefix is once per conversation and never added to raw input" {
       inbound_http_view(1, "{\"model\":\"model-x\",\"input\":\"a\"}"),
     )
     assert_eq(inbound_text(raw, inference), "a")
+    let (wrapped, _) = inbound_encode(
+      inbound_workspace(
+        inference,
+        budget,
+        document_prefix=inbound_bytes("BOS"),
+        template_response_input=true,
+      ),
+      inbound_http_view(1, "{\"model\":\"model-x\",\"input\":\"a\"}"),
+    )
+    assert_eq(inbound_text(wrapped, inference), "BOS<U>a</U><A>")
   }
 }
 

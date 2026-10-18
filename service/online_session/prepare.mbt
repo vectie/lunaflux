@@ -142,7 +142,8 @@ fn prepare_owned_luna_online_instance_with_clock(
     blueprint, binding, executable, startup, source, process_limits, model_root,
     kernel_root, restart_policy,
   ) catch {
-    _ => raise luna_preparation_failure(LunaOnlineServicePreparationFailure)
+    error =>
+      raise luna_preparation_failure(LunaOnlineWorkerPreparationFailure(error))
   }
   publish_owned_luna_online_preparation(instance, prepared, owned, clock)
 }

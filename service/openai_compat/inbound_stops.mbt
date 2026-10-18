@@ -7,9 +7,15 @@ fn LunaOpenAIInboundWorkspace::begin_render(
   // disable the deployed model's EOS set.
   for token in self.limits.required_stop_tokens {
     let mut present = false
-    for i in 0..<self.stop_token_count { if self.stop_tokens[i] == token { present = true } }
+    for i in 0..<self.stop_token_count {
+      if self.stop_tokens[i] == token {
+        present = true
+      }
+    }
     if !present {
-      if self.stop_token_count == self.stop_tokens.length() { raise LunaOpenAICompatInvalid(LunaOpenAICompatCapacity) }
+      if self.stop_token_count == self.stop_tokens.length() {
+        raise LunaOpenAICompatInvalid(LunaOpenAICompatCapacity)
+      }
       self.stop_tokens[self.stop_token_count] = token
       self.stop_token_count += 1
     }
@@ -79,7 +85,7 @@ fn LunaOpenAIInboundWorkspace::begin_render(
       _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
     },
   )
-  if self.route == 1 {
+  if self.route == 1 && !self.limits.template_response_input {
     self.render_source_start = self.input_start
     self.render_source_length = self.input_length
     self.render_source_index = 0
@@ -88,9 +94,21 @@ fn LunaOpenAIInboundWorkspace::begin_render(
     self.high_surrogate = 0
     self.phase = LUNA_INBOUND_RENDER_STRING
   } else {
+    if self.route == 1 {
+      self.message_count = 1
+      self.message_cells[0] = 2
+      self.message_cells[1] = self.input_start
+      self.message_cells[2] = self.input_length
+    }
     self.render_message = 0
-    self.render_segment = if self.template.segment_length(7) > 0 { 7 } else {
-      match self.message_cells[0] { 1 => 0; 2 => 2; _ => 4 }
+    self.render_segment = if self.template.segment_length(7) > 0 {
+      7
+    } else {
+      match self.message_cells[0] {
+        1 => 0
+        2 => 2
+        _ => 4
+      }
     }
     self.render_segment_index = 0
     self.phase = LUNA_INBOUND_RENDER_SEGMENT

@@ -94,7 +94,7 @@ pub fn LunaOpenAICompatWorkspace::required_reference_cells(@inference.InferenceL
 pub struct LunaOpenAIInboundLimits {
   // private fields
 }
-pub fn LunaOpenAIInboundLimits::new(max_messages~ : Int, required_stop_tokens? : ArrayView[Int]) -> Self raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundLimits::new(max_messages~ : Int, required_stop_tokens? : ArrayView[Int], template_response_input? : Bool) -> Self raise LunaOpenAICompatError
 
 pub(all) enum LunaOpenAIInboundProgress {
   LunaOpenAIInboundIdle

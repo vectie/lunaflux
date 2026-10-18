@@ -17,7 +17,7 @@ fn batch_control_limits() -> @protocol.WorkerProtocolLimits raise {
 // Each request has one committed frontier even when its ordinal changes.
 fn batch_control_plan(
   entries : ArrayView[(UInt64, UInt64, Int, Bool)],
-  stochastic? : Bool = false,
+  stochastic~ : Bool = false,
 ) -> (
   @protocol.SubmittedSchedulePlan,
   @wire.ValidatedPlanFrame,
@@ -154,6 +154,9 @@ async test "batched transport publishes selected rows and retires only identifie
     local_now_millis=0UL,
   )
   defer (server.close() catch { _ => () })
+  // Cancellation before the first frame still retires on both ranks.
+  client.release_one(99UL, 0UL, local_now_millis=0UL)
+  control_exchange(client, server)
   // A partial prefill has no sampled row, even though it contains two tokens.
   let (_, first, _) = batch_control_plan([
     (7UL, 0UL, 0, false),

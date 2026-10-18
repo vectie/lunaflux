@@ -26,6 +26,7 @@ fn validate_qwen3_source_envelope(
   }
   match source.kernel().sampling_runtime() {
     HostSamplingRuntime | EmbeddedCudaGreedyV1 => ()
+    DeviceFullF32SamplingV1 => raise Invalid(Recipe)
   }
   guard source.qwen3_model_source() is Some(model_source) else {
     raise Invalid(Recipe)

@@ -80,7 +80,16 @@ async fn serve(
     write_timeout_millis=30000,
     reactor_transition_budget=64,
   )
-  let prepared = prepare_service(plan, manifest, root, kernels, spec)
+  let prepared = prepare_service(plan, manifest, root, kernels, spec) catch {
+    @session.LunaOnlineInstancePreparationFailed(cause) => {
+      auth.close()
+      fail("GLM preparation: \{Repr(cause)}")
+    }
+    error => {
+      auth.close()
+      raise error
+    }
+  }
   if prepared.state() != LunaOnlineInstanceReady {
     let cleanup = prepared.take_cleanup()
     while !cleanup.is_closed() {
@@ -110,6 +119,7 @@ async fn serve(
       @openai.LunaOpenAIInboundLimits::new(
         max_messages=64,
         required_stop_tokens=stops,
+        template_response_input=true,
       ),
       glm_template(inference),
       model,

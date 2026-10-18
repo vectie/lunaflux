@@ -19,8 +19,8 @@ fn inbound_identity() -> @spec.ModelIdentity raise {
 ///|
 fn inbound_template(
   inference : @inference.InferenceLimits,
-  maximum? : Int = 64,
-  document_prefix? : FixedArray[Byte] = [],
+  maximum~ : Int = 64,
+  document_prefix~ : FixedArray[Byte] = [],
 ) -> LunaOpenAIChatTemplate raise {
   LunaOpenAIChatTemplate::new(
     inference,
@@ -40,19 +40,24 @@ fn inbound_template(
 fn inbound_workspace(
   inference : @inference.InferenceLimits,
   budget : Int,
-  template_maximum? : Int = 64,
-  max_messages? : Int = 8,
-  max_new_tokens? : Int = 4,
-  context_ceiling? : Int = 16,
-  document_prefix? : FixedArray[Byte] = [],
-  required_stop_tokens? : ArrayView[Int] = [],
+  template_maximum~ : Int = 64,
+  max_messages~ : Int = 8,
+  max_new_tokens~ : Int = 4,
+  context_ceiling~ : Int = 16,
+  document_prefix~ : FixedArray[Byte] = [],
+  required_stop_tokens~ : ArrayView[Int] = [],
+  template_response_input~ : Bool = false,
 ) -> LunaOpenAIInboundWorkspace raise {
   let model = inbound_bytes("model-x")
   LunaOpenAIInboundWorkspace::new(
     inference,
     LunaOpenAICompatStepBudget::new(budget),
-    LunaOpenAIInboundLimits::new(max_messages~,required_stop_tokens~),
-    inbound_template(inference, maximum=template_maximum,document_prefix~),
+    LunaOpenAIInboundLimits::new(
+      max_messages~,
+      required_stop_tokens~,
+      template_response_input~,
+    ),
+    inbound_template(inference, maximum=template_maximum, document_prefix~),
     model,
     model_alias_offset=0,
     model_alias_length=model.length(),
@@ -70,7 +75,7 @@ fn inbound_workspace(
 fn inbound_http_raw_view(
   route : Int,
   body_bytes : FixedArray[Byte],
-  chunk? : Int = 2147483647,
+  chunk~ : Int = 2147483647,
 ) -> @http1.LunaHttp1View raise {
   let secret = inbound_bytes("secret")
   let policy = @api_auth.LunaApiAuthPolicy::new(
@@ -128,7 +133,7 @@ fn inbound_http_raw_view(
 fn inbound_http_view(
   route : Int,
   body : String,
-  chunk? : Int = 2147483647,
+  chunk~ : Int = 2147483647,
 ) -> @http1.LunaHttp1View raise {
   inbound_http_raw_view(route, inbound_bytes(body), chunk~)
 }
@@ -137,7 +142,7 @@ fn inbound_http_view(
 fn inbound_encode(
   workspace : LunaOpenAIInboundWorkspace,
   http : @http1.LunaHttp1View,
-  request_id? : UInt64 = 42UL,
+  request_id~ : UInt64 = 42UL,
 ) -> (FixedArray[Byte], UInt64) raise {
   let work = workspace.begin(http, @inference.RequestId::new(request_id))
   while work.state() == LunaOpenAIInboundPending {

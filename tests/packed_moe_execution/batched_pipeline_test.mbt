@@ -99,6 +99,8 @@ async test "batched TP publication waits for both ranks and preserves other live
     serial_inference_limits(),
   )
   defer (pipeline.close() catch { _ => () })
+  pipeline.release_request(99UL, 0UL, local_now_millis=0UL)
+  batch_pipeline_exchange(pipeline, server)
   let (submitted, first, writer) = batch_control_plan([
     (7UL, 0UL, 0, true),
     (8UL, 0UL, 0, true),

@@ -103,7 +103,7 @@ pub fn prepare_owned_luna_online_framed_service_approved(
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
   restart_policy : @worker_service.WorkerRestartBackoffPolicy,
-  input_special_policy? : @tokenizer.SpecialTokenPolicy = Reject,
+  input_special_policy~ : @tokenizer.SpecialTokenPolicy = Reject,
 ) -> LunaOnlineFramedServicePreparation raise LunaOnlineInstancePreparationError {
   if framed_limits.inference_limits() != inference {
     raise luna_coordinator_preparation_failure(LunaOnlineFramedPreparation)
@@ -122,12 +122,16 @@ pub fn prepare_owned_luna_online_framed_service_approved(
     storage_budget=preparation_storage_budget,
     input_special_policy~,
   ) catch {
-    _ => raise luna_coordinator_preparation_failure(LunaOnlineFramedPreparation)
+    error =>
+      raise luna_preparation_failure(
+        LunaOnlineAdmissionPreparationFailure(error),
+      )
   }
   let outbound = @framed_wire.LunaFramedEventWorkspace::new(
     framed_limits, event_step_budget,
   ) catch {
-    _ => raise luna_coordinator_preparation_failure(LunaOnlineFramedPreparation)
+    error =>
+      raise luna_preparation_failure(LunaOnlineFramedPreparationFailure(error))
   }
   let prepared = prepare_owned_luna_online_instance_with_clock(
     expected_tokenizer, expected_model, inference, blueprint, binding, executable,
