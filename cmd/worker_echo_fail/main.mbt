@@ -28,6 +28,19 @@ fn run_worker() -> Unit raise {
   if source.digest() != startup.bootstrap_source_digest() {
     raise Failure("worker bootstrap source mismatch")
   }
+  // Match the ordinary worker handshake. This frame is not a physical plan:
+  // exiting on it tests startup loss rather than an admitted in-flight request.
+  let approval = FixedArray::make(
+    @worker_wire.parent_approval_attestation_capacity(),
+    b'\x00',
+  )
+  if @worker_wire.decode_parent_approval_attestation_v1(
+      approval,
+      channel.read_frame(approval),
+    )
+    is Some(_) {
+    raise Failure("failure fixture cannot execute an approved device runtime")
+  }
   let ready = startup_owner.encode(Ready, startup)
   let startup_output = FixedArray::make(startup_owner.capacity(), b'\x00')
   ready.copy_to(startup_output, destination_offset=0)
@@ -37,7 +50,7 @@ fn run_worker() -> Unit raise {
     startup.inference_limits(),
   )
   let input = FixedArray::make(plan_owner.capacity(), b'\x00')
-  ignore(channel.read_frame(input))
+  ignore(plan_owner.load(input, channel.read_frame(input)))
   // Exit after accepting the first physical plan without returning completion.
 }
 
