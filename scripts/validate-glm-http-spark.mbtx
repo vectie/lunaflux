@@ -90,6 +90,7 @@ async fn request(
   timeout~ : Int = 1800,
   cancel~ : Bool = false,
   capacity_probe~ : Bool = false,
+  expected_status~ : Int = 200,
 ) -> String {
   let prefix = root + "/" + name
   @fs.write_file(
@@ -158,7 +159,7 @@ async fn request(
   if capacity_probe && result.stdout().has_prefix("429 ") {
     return "capacity-rejected"
   }
-  guard result.stdout().has_prefix("200 ") else {
+  guard result.stdout().has_prefix("\{expected_status} ") else {
     fail("HTTP failure " + name + ": " + result.stdout())
   }
   @fs.read_file(prefix + ".body").text()
@@ -179,9 +180,10 @@ async fn main {
     | "sampling"
     | "cancel"
     | "capacity"
+    | "protocol"
     | "controls") else {
     fail(
-      "NEW_EVIDENCE_ROOT smoke|answers|concurrent|sampling|cancel|capacity|controls",
+      "NEW_EVIDENCE_ROOT smoke|answers|concurrent|sampling|cancel|capacity|controls|protocol",
     )
   }
   @fs.mkdir(root)
@@ -219,11 +221,16 @@ async fn main {
       fail("Responses semantic or framing failure")
     }
   } else if mode == "answers" {
-    let output_tokens = match @env.get_env_var("LUNAFLUX_GLM_HTTP_ANSWER_TOKENS") {
+    let output_tokens = match
+      @env.get_env_var("LUNAFLUX_GLM_HTTP_ANSWER_TOKENS") {
       None => 512
       Some(text) => {
-        guard @json.parse(text) is Number(n, ..) && n > 0.0 && n <= 65536.0 &&
-          n.to_int().to_double() == n else { fail("invalid answer token budget") }
+        guard @json.parse(text) is Number(n, ..) &&
+          n > 0.0 &&
+          n <= 65536.0 &&
+          n.to_int().to_double() == n else {
+          fail("invalid answer token budget")
+        }
         n.to_int()
       }
     }
@@ -264,7 +271,9 @@ async fn main {
       println("\{i}: " + text)
     }
     guard incomplete.is_empty() else {
-      fail("incomplete answers at output budget \{output_tokens}: \{Repr(incomplete)}")
+      fail(
+        "incomplete answers at output budget \{output_tokens}: \{Repr(incomplete)}",
+      )
     }
   } else if mode == "concurrent" {
     @async.with_task_group(group => {
@@ -346,6 +355,57 @@ async fn main {
       chat("What is 2 plus 2? Answer only the number.", false, 128),
     )
     guard answer(body, false).contains("4") else { fail("capacity recovery") }
+  } else if mode == "protocol" {
+    // External admission checks, followed by useful inference on the same
+    // resident service. These are not compiler constraints or integrity scans.
+    ignore(
+      request(
+        root,
+        "unknown-model",
+        "/v1/chat/completions",
+        {
+          "model": "not-the-served-model",
+          "messages": [{ "role": "user", "content": "Hello" }],
+          "max_tokens": 64,
+        },
+        expected_status=400,
+      ),
+    )
+    ignore(
+      request(
+        root,
+        "over-output-limit",
+        "/v1/chat/completions",
+        chat("Hello", false, 65536),
+        expected_status=400,
+      ),
+    )
+    ignore(
+      request(
+        root,
+        "invalid-sampling",
+        "/v1/chat/completions",
+        {
+          "model": "glm-5.3",
+          "messages": [{ "role": "user", "content": "Hello" }],
+          "top_p": 1.5,
+        },
+        expected_status=400,
+      ),
+    )
+    let response = request(root, "responses-sse", "/v1/responses", {
+      "model": "glm-5.3",
+      "input": "Give the capital of France in one word.",
+      "stream": true,
+      "max_output_tokens": 128,
+      "temperature": 0,
+    })
+    guard response.contains("response.completed") &&
+      response.contains("data: [DONE]") &&
+      response.contains("Paris") else {
+      fail("Responses SSE completion or answer missing")
+    }
+    println("admission errors and Responses SSE completed")
   } else if mode == "controls" {
     let body = request(root, "multiturn", "/v1/chat/completions", {
       "model": "glm-5.3",

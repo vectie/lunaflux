@@ -54,8 +54,8 @@ async fn LunaOnlineOpenAIConnectionPool::accept_one(
     self.listeners[0].accept()
   }) catch {
     error if @async.is_being_cancelled() => raise error
-    _ => {
-      self.begin_drain()
+    error => {
+      self.fail_pool("listener accept", error)
       return LunaOnlineOpenAIConnectionPoolDrainingProgress
     }
   }

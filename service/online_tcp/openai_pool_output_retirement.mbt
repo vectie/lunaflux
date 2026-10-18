@@ -13,8 +13,8 @@ fn LunaOnlineOpenAIConnectionPool::release_completed_slot_output(
     return LunaOnlineOpenAIConnectionPoolAdvanced
   }
   slot.flights[0].release() catch {
-    _ => {
-      self.begin_drain()
+    error => {
+      self.fail_pool("release output flight", error)
       return LunaOnlineOpenAIConnectionPoolDrainingProgress
     }
   }

@@ -155,4 +155,7 @@ async fn serve(
     ignore(pool.progress_on_reactor())
     @async.pause()
   }
+  if pool.failure() is Some((stage, error)) {
+    fail("GLM HTTP pool failed at \{stage}: \{Repr(error)}")
+  }
 }

@@ -137,6 +137,7 @@ pub struct LunaOnlineOpenAIConnectionPool {
   priv mut service_waiting : Bool
   priv mut next_request_sequence : UInt64
   priv mut drain_requested : Bool
+  priv mut failure : (String, Error)?
   priv mut stream_disconnect_started : Bool
   priv mut service_drain_started : Bool
   priv mut closed : Bool

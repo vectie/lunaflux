@@ -409,3 +409,26 @@ undersized envelope. GLM now derives delta capacity from4096piece bytes plus
 the declared256stop bytes plus3carry bytes. This is a host output bound, not a
 GPU or compiler-numerics change. The old failure and complete first broader
 answer (truncated by512output tokens) remain under the v8 evidence roots.
+
+### Private HTTP v9: framing/control passes, unexpected lifecycle exit
+
+Pinned4580f324 uses freshly exported2048-context AOT on both Sparks. JSON and
+SSE return exactly323, Responses returnsParis, multi-turn recall returns
+ORCHID-37, the stop-string request publishes only`red `, and a four-token
+request reports exactly4 completion tokens with finish_reason=length.
+Evidence is under`/tmp/lunaflux-glm-http-{smoke,controls}-20261018-v9`.
+Observed residency is97654/97669MiB with host reserve above16GiB and zero
+owned-unit swap. The current full native suite passes5268/5268.
+
+This is NOT acceptance: rank0 unexpectedly drains and exits0 after these
+requests, before the subsequent capacity clients can connect. Their empty
+replies at`/tmp/lunaflux-glm-http-capacity-20261018-v9` are not a valid overload
+run. Rank1 remains resident. The preceding v8 stop also required the90-second
+systemd kill timeout, and clean paired shutdown remains unqualified.
+
+The pool previously discarded underlying coordinator/listener errors while
+beginning drain. It now retains the first failure and its stage outside normal
+token processing; the GLM command reports it after cleanup instead of calling
+an error-triggered clean exit success. No speculative numerical fix, payload
+hashing or public-route change was made. Physical reproduction with that
+diagnostic build is still required.

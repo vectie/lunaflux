@@ -3,17 +3,17 @@ fn LunaOnlineOpenAIConnectionPool::capture_observation(
   self : LunaOnlineOpenAIConnectionPool,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let observation = self.stream().take_observation() catch {
-      _ => {
-        self.begin_drain()
+      error => {
+        self.fail_pool("take observation", error)
         return LunaOnlineOpenAIConnectionPoolDrainingProgress
       }
     }
   if self.telemetry.record_observation(observation) < 0 {
-    self.begin_drain()
+    self.fail_pool("record observation", Failure("invalid observation"))
     return LunaOnlineOpenAIConnectionPoolDrainingProgress
   }
   observation.ack() catch {
-    _ => self.begin_drain()
+    error => self.fail_pool("ack observation", error)
   }
   LunaOnlineOpenAIConnectionPoolAdvanced
 }
@@ -23,28 +23,28 @@ fn LunaOnlineOpenAIConnectionPool::capture_rejection(
   self : LunaOnlineOpenAIConnectionPool,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let rejection = self.stream().take_rejection() catch {
-      _ => {
-        self.begin_drain()
+      error => {
+        self.fail_pool("take rejection", error)
         return LunaOnlineOpenAIConnectionPoolDrainingProgress
       }
     }
   let route = rejection.request_route() catch {
-    _ => {
-      self.begin_drain()
+    error => {
+      self.fail_pool("rejection route", error)
       return LunaOnlineOpenAIConnectionPoolDrainingProgress
     }
   }
   let index = self.find_route_slot(route)
   if index < 0 {
     rejection.ack() catch {
-      _ => self.begin_drain()
+      error => self.fail_pool("ack rejection without route", error)
     }
     return LunaOnlineOpenAIConnectionPoolAdvanced
   }
   let slot = self.slots[index]
   let rejection_rule = rejection.rule() catch {
-    _ => {
-      self.begin_drain()
+    error => {
+      self.fail_pool("rejection rule", error)
       return LunaOnlineOpenAIConnectionPoolDrainingProgress
     }
   }
@@ -64,7 +64,7 @@ fn LunaOnlineOpenAIConnectionPool::capture_rejection(
     slot.phase == LUNA_OPENAI_POOL_RETIRING ||
     !slot.output.is_idle() {
     rejection.ack() catch {
-      _ => self.begin_drain()
+      error => self.fail_pool("ack rejection after disconnect", error)
     }
     slot.cancel_requested = true
     self.stream().request_cancel_route(route) catch {
@@ -76,7 +76,7 @@ fn LunaOnlineOpenAIConnectionPool::capture_rejection(
   self.telemetry.record_admission_rejection(reason)
   if !self.begin_slot_http_error(index, kind) {
     rejection.ack() catch {
-      _ => self.begin_drain()
+      error => self.fail_pool("ack unwritable rejection", error)
     }
     self.begin_slot_retirement(index)
     return LunaOnlineOpenAIConnectionPoolAdvanced
@@ -93,8 +93,8 @@ fn LunaOnlineOpenAIConnectionPool::progress_service_once(
     return LunaOnlineOpenAIConnectionPoolBackpressured
   }
   let progress = self.stream().progress() catch {
-      _ => {
-        self.begin_drain()
+      error => {
+        self.fail_pool("service progress", error)
         return LunaOnlineOpenAIConnectionPoolDrainingProgress
       }
     }
@@ -105,7 +105,12 @@ fn LunaOnlineOpenAIConnectionPool::progress_service_once(
     LunaOnlineFramedCoordinatorSemanticEventReady =>
       self.capture_semantic_event()
     LunaOnlineFramedCoordinatorDraining | LunaOnlineFramedCoordinatorClosed => {
-      self.begin_drain()
+      if !self.drain_requested {
+        self.fail_pool(
+          "unexpected coordinator termination",
+          Failure(Repr(progress).to_string()),
+        )
+      }
       LunaOnlineOpenAIConnectionPoolDrainingProgress
     }
     LunaOnlineFramedCoordinatorIdle

@@ -1,7 +1,7 @@
 ///|
 fn LunaOnlineOpenAIConnectionSlot::begin_output_write(
   self : LunaOnlineOpenAIConnectionSlot,
-  continuing? : Bool = false,
+  continuing~ : Bool = false,
 ) -> Bool {
   if !self.output.is_idle() ||
     self.output_writes.length() != 0 ||
@@ -153,12 +153,12 @@ fn LunaOnlineOpenAIConnectionPool::discard_semantic_event(
   let slot = self.slots[index]
   if slot.cancel_requested {
     event.discard_after_transport_cut() catch {
-      _ => self.begin_drain()
+      error => self.fail_pool("discard cut event", error)
     }
   } else {
     event.cancel_and_discard() catch {
-      _ => {
-        self.begin_drain()
+      error => {
+        self.fail_pool("cancel event", error)
         return LunaOnlineOpenAIConnectionPoolDrainingProgress
       }
     }
@@ -176,21 +176,21 @@ fn LunaOnlineOpenAIConnectionPool::capture_semantic_event(
   self : LunaOnlineOpenAIConnectionPool,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let event = self.stream().take_semantic_event() catch {
-      _ => {
-        self.begin_drain()
+      error => {
+        self.fail_pool("take semantic event", error)
         return LunaOnlineOpenAIConnectionPoolDrainingProgress
       }
     }
   let route = event.request_route() catch {
-    _ => {
-      self.begin_drain()
+    error => {
+      self.fail_pool("semantic route", error)
       return LunaOnlineOpenAIConnectionPoolDrainingProgress
     }
   }
   let index = self.find_route_slot(route)
   if index < 0 {
     event.cancel_and_discard() catch {
-      _ => self.begin_drain()
+      error => self.fail_pool("cancel unrouted event", error)
     }
     return LunaOnlineOpenAIConnectionPoolAdvanced
   }
@@ -363,8 +363,8 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_response(
           }
           if service_rejection {
             slot.rejections[0].ack() catch {
-              _ => {
-                self.begin_drain()
+              error => {
+                self.fail_pool("ack rendered rejection", error)
                 return LunaOnlineOpenAIConnectionPoolDrainingProgress
               }
             }
