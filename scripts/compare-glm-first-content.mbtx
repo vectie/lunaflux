@@ -1,0 +1,116 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn number(value : Json, key : String) -> Double raise {
+  guard value is Object(fields) && fields.get(key) is Some(Number(n, ..)) else {
+    fail("missing numeric field " + key)
+  }
+  n
+}
+
+///|
+fn matched_count(row : Json) -> Bool raise {
+  number(row, "native_output_tokens") == number(row, "reference_output_tokens")
+}
+
+///|
+test "content chunks must not stand in for output token count" {
+  let row : Json = {
+    "native_output_tokens": 4,
+    "reference_output_tokens": 4,
+    "content_chunks_not_token_count": 3,
+  }
+  assert_true(matched_count(row))
+  assert_false(
+    matched_count({ "native_output_tokens": 8, "reference_output_tokens": 4 }),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, comparison_path, reference_root, output] else {
+    fail("MATCHED_NATIVE_COMPARISON_JSON STREAM_REFERENCE_ROOT NEW_REPORT_JSON")
+  }
+  guard @json.parse(@fs.read_file(comparison_path).text())
+    is { "rows": Array(rows), "reference_root": String(saved_root), .. } &&
+    saved_root == reference_root &&
+    rows.length() == 6 else {
+    fail("six matched prompts from this buffered reference are required")
+  }
+  let records : Array[Json] = []
+  let mut native_completion = 0.0
+  let mut reference_completion = 0.0
+  let mut native_first = 0.0
+  let mut reference_first = 0.0
+  for i, row in rows {
+    guard row is Object(fields) else { fail("prompt record") }
+    let request = @json.parse(
+      @fs.read_file(reference_root + "/stream-\{i}-request.json").text(),
+    )
+    guard request is Object(request_fields) &&
+      request_fields.get("prompt") == fields.get("input_ids") else {
+      fail("streamed and buffered input token IDs differ")
+    }
+    let stream = @json.parse(
+      @fs.read_file(reference_root + "/stream-\{i}-summary.json").text(),
+    )
+    let a = number(row, "native_seconds")
+    let b = number(row, "reference_seconds")
+    let c = number(row, "native_first_token_seconds")
+    let d = number(stream, "first_content_seconds")
+    let equal_count = matched_count(row)
+    if equal_count {
+      native_completion += a
+      reference_completion += b
+      native_first += c
+      reference_first += d
+    }
+    records.push({
+      "prompt_index": Json(i),
+      "equal_buffered_output_counts": Json(equal_count),
+      "native_completion_seconds": Json(a),
+      "reference_buffered_completion_seconds": Json(b),
+      "native_internal_first_token_seconds": Json(c),
+      "reference_separate_stream_first_content_seconds": Json(d),
+      "reference_content_chunks_not_tokens": Json(
+        number(stream, "content_chunks_not_token_count"),
+      ),
+    })
+  }
+  let result : Json = {
+    "comparison_path": Json(comparison_path),
+    "reference_root": Json(reference_root),
+    "rows": Json(records),
+    "equal_count_native_completion_seconds": Json(native_completion),
+    "equal_count_reference_buffered_completion_seconds": Json(
+      reference_completion,
+    ),
+    "equal_count_native_internal_first_token_seconds": Json(native_first),
+    "equal_count_reference_separate_stream_first_content_seconds": Json(
+      reference_first,
+    ),
+    "completion_difference_seconds": Json(
+      native_completion - reference_completion,
+    ),
+    "first_boundary_difference_seconds": Json(native_first - reference_first),
+    "native_after_first_seconds": Json(native_completion - native_first),
+    "reference_buffered_minus_separate_stream_first_seconds": Json(
+      reference_completion - reference_first,
+    ),
+    "exact_additive_causal_attribution": false,
+    "quality_or_numerical_parity": false,
+    "limitations": "Separate warm buffered/streaming requests; native internal first token versus HTTP first nonempty content. Chunks are not tokens; equal output counts are not identical contents. The reference remainder combines separate runs and is not measured decode latency.",
+  }
+  @fs.write_file(
+    output,
+    result.stringify(indent=2) + "\n",
+    create_mode=CreateNew,
+  )
+  println(result.stringify())
+}

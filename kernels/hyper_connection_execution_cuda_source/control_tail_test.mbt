@@ -39,14 +39,14 @@ async test "export fused HC control and Sinkhorn tail" {
       )
       text.write_string(@utf8.decode(source.source_bytes()))
       text <+
-        "\nvoid launch\{index}(bool fused,int *counts,__nv_bfloat16 *x,float *scratch,float *base,float *scale,float *post,float *initial,float *combine,__nv_bfloat16 *collapsed,__nv_bfloat16 *weight,__nv_bfloat16 *normalized) {\n"
+        "\nvoid launch\{index}(bool fused,int *counts,__nv_bfloat16 *x,float *scratch,float *base,float *scale,float *post,float *initial,float *combine,__nv_bfloat16 *collapsed,__nv_bfloat16 *weight,__nv_bfloat16 *normalized,cudaStream_t stream) {\n"
       text <+
-        "if(fused) \{source.symbol(7)}<<<\{rows},256>>>(counts,x,scratch,base,scale,post,initial,collapsed,weight,normalized,combine); else "
+        "if(fused) \{source.symbol(7)}<<<\{rows},256,0,stream>>>(counts,x,scratch,base,scale,post,initial,collapsed,weight,normalized,combine); else "
       text.write_string(
         if previous is Some(_) {
-          "{oldtail\{index}_tail_function_tree_tiles_v1<<<\{rows},256>>>(counts,x,scratch,base,scale,post,initial,collapsed,weight,normalized,combine);}}\n"
+          "{oldtail\{index}_tail_function_tree_tiles_v1<<<\{rows},256,0,stream>>>(counts,x,scratch,base,scale,post,initial,collapsed,weight,normalized,combine);}}\n"
         } else {
-          "{\{source.symbol(0)}<<<\{rows},256>>>(counts,x,scratch,base,scale,post,initial,collapsed,weight,normalized); \{source.symbol(1)}<<<\{rows},1>>>(counts,initial,combine);}}\n"
+          "{\{source.symbol(0)}<<<\{rows},256,0,stream>>>(counts,x,scratch,base,scale,post,initial,collapsed,weight,normalized); \{source.symbol(1)}<<<\{rows},1,0,stream>>>(counts,initial,combine);}}\n"
         },
       )
     }

@@ -34,7 +34,12 @@ async fn main {
     "awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo",
   ).check()
   let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
-  let filter = if target == "tail" {
+  let paired_tail = target == "tail" &&
+    @env.get_env_var("LUNA_HC_TAIL_BASELINE_HEADER").filter(p => !p.is_empty())
+    is Some(_)
+  let filter = if paired_tail {
+    "regex:^(oldtail2_tail_function_tree_tiles_v1|tail2_tail_function_tree_tiles_v1)$"
+  } else if target == "tail" {
     "regex:^tail2_(function_tree_tiles_v1|sinkhorn|tail_function_tree_tiles_v1)$"
   } else if target == "deferred" {
     "regex:^(hc2_(post|square_tree_tiles_v1|project_tree_tiles_v1)|deferred2_(1|2|4))$"
@@ -64,7 +69,9 @@ async fn main {
     " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name '" +
     filter +
     "' --launch-skip " +
-    (if target == "tail" {
+    (if paired_tail {
+      "2"
+    } else if target == "tail" {
       "3"
     } else if target == "deferred" {
       "6"
@@ -72,7 +79,7 @@ async fn main {
       "0"
     }) +
     " --launch-count " +
-    (if target == "deferred" { "6" } else { "3" }) +
+    (if paired_tail { "2" } else if target == "deferred" { "6" } else { "3" }) +
     " --metrics " +
     metrics +
     " --export " +

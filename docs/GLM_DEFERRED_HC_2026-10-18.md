@@ -153,6 +153,99 @@ two-level maximum tree is intra-CTA, not a distributed multi-CTA reduction.
 These are observed residual work, not a claim of an equivalent removable
 request delay. No quantization convention has been changed in this experiment.
 
+## Parallel control initialization: bounded component result
+
+Implementation `c493fa77` distributes independent sigmoid/initial-softmax
+cells through `ControlTailFusion`; it leaves each declared sum order and
+rounding boundary intact. The original fused tail is the comparator, not
+the older two-launch function/Sinkhorn baseline. Source exporter and harness
+explicitly retain both generated versions.
+
+Root `/tmp/lunaflux-glm-hc-vocab-tail-parallel-20261018-v3` uses seven
+alternating trials of100-kernel CUDA graphs, with4096 hidden/4streams/cap64.
+Old/new mean microseconds: live1 11.0817/10.7131; live22 11.1044/10.7356;
+live36 11.2955/11.0606; live64 11.8009/11.2097. The raw36/64 trials include
+outliers; this is not a confidence interval. Root v2's host-launched timing
+plateau near12.3us was launch-bound and is not used as GPU attribution.
+
+All five frontiers are bitwise equal at four geometries, including inactive,
+tail, over-capacity, nonfinite base/scale and extreme-logit controls. Full
+memory/leak, race and synchronization probes pass with zero errors and
+explicit resource release,2GiB/no swap. The native suite passes5203/5203.
+
+Paired actual-source counters show13791→13413 warp instructions (2.7% less),
+4475→3509 L2 read sectors (21.6% less),38→27 registers/thread, and unchanged
+64-CTA/256-thread launch geometry. Long-scoreboard contribution stays about
+53%, active-warps about21.5%. This is a small removal of supporting work, not
+a dramatic latency-hiding change. A0.369us hot decode-tail saving across90
+calls is only about0.033ms per step; it cannot explain a55–80ms TTFT deficit.
+Counter replay times25.952/25.440us are separate from unprofiled graph times.
+Full-model acceptance remains separate below; do not multiply the component
+percentage by request latency.
+
+## Fresh reference: the residual gap is primarily before first content
+
+`/tmp/lunaflux-reference-bench-vllm-glm-deferred-hc-20261018-v1` repeats the
+installed reference and literal six-prompt corpus, then runs six separate
+warm streaming requests. Every buffered/streaming request returns200.
+NVFP4 checkpoint, TP2/PP1, C1, context256, max-batched256,512MiB KV, no prefix
+reuse/speculation remain unchanged. Native KV isBF16; reference KV isFP8 MLA.
+The reference's unequal gate/up global-scale warning remains visible.
+
+| Prompt | Input tokens | Deferred native completion / internal first token, ms | vLLM buffered completion / separate first content, ms | Native / reference output tokens |
+| --- | ---: | ---: | ---: | ---: |
+| Fact | 22 | 697 /240 | 386.273 /205.473 | 8 /4 |
+| Arithmetic | 23 | 462 /244 | 393.540 /187.547 | 4 /4 |
+| Chinese | 22 | 710 /238 | 655.714 /181.891 | 8 /8 |
+| JSON | 23 | 735 /252 | 669.408 /196.231 | 8 /8 |
+| Code | 24 | 740 /259 | 676.096 /199.532 | 8 /8 |
+| Retrieval | 36 | 462 /313 | 395.886 /229.690 | 3 /3 |
+
+The same five equal-output-count requests total3109ms native versus2790.644ms
+reference:11.408% longer, not a closed gap. Their first-boundary sums are
+1306ms versus994.891ms, a311.109ms difference compared with318.356ms completion
+difference. This strongly localizes remaining work before first output, but
+**is not an exact additive causal decomposition**: the reference buffered and
+streaming runs are separate, and internal first token is not HTTP content
+arrival. Content chunks are not tokens. `compare-glm-first-content.mbtx`
+checks literal input IDs and records these limitations explicitly; it does
+not enter the compiler or runtime.
+
+Visible reference content intervals are generally66–69ms, consistent with
+decode already being close on this short C1 sample. Unequal-output prompt0
+is retained but excluded from the equal-count cohort; equal counts and four
+matching decoded texts do not prove quality/numerical parity. The reference
+worker exits137 after the paired five-second Docker stop, not a clean exit;
+the memory watcher did not observe a reserve violation. All requested
+responses were collected before shutdown. No GPU owner remains afterward.
+
+### What the selected source and trace do, and do not, establish
+
+For the separate literal16-input/2-output diagnostic, current egress prefill
+has34 merged recurrent-input calls totalling23.126ms,34 output projections
+8.296ms, and recurrent updates1.356ms. The sparse family takes21.948ms, but
+the actual retained-score attention leaf is only0.310ms; output projection
+alone is5.805ms. Calling that whole family an attention algorithm bottleneck
+would be incorrect. These projection kernels are BF16 in both frameworks;
+the reference's NVFP4 MoE does not make every linear operation low-bit.
+
+Native routed gate/up+down sum85.202ms; shared compute overlaps routed work
+and must not be added as an independent delay. Separately, input/activation
+global-amax scans remain one-workgroup traversals (1.738/9.301ms). The source
+contains a workgroup tree, but no distributed partial-max phase. A fix would
+need an explicit partial workspace, publication/lifetime plan and a complete
+quantize/pack-chain measurement, not just a faster reduction leaf or an
+unsafe cross-workgroup barrier. The installed reference also physically
+merges projection regions and uses a latent sparse representation; our
+launch-merging of disjoint regions is not equivalent operand reuse.
+
+The heavily instrumented trace cannot assign every millisecond of the fresh
+unprofiled gap to these categories. The demonstrated result is narrower:
+HC propagation is correct, HC work is smaller, but the current deficit is
+prefill-heavy and multiple unchanged projection/representation/reduction
+paths remain. No claim that an unmeasured sum of their potential gains will
+close11.4% is made.
+
 ## Maintenance and limits
 
 Direct LAN SSH was unavailable; access recovered with the configured
