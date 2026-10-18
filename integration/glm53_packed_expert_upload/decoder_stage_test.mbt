@@ -33,6 +33,12 @@ test "stage assembly follows model boundaries rather than slice-local boundaries
     } noraise {
       _ => fail("fresh stage exposed unretired layer operands")
     }
+    try stage.borrow_retired_experts(first) catch {
+      @device.DeviceError::InvalidArgument(StreamingTransfer) => ()
+      error => raise error
+    } noraise {
+      _ => fail("fresh stage treated unretired operands as an empty expert set")
+    }
     try stage.borrow_text_logits() catch {
       @device.DeviceError::InvalidArgument(StreamingTransfer) => ()
       error => raise error

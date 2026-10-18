@@ -38,6 +38,8 @@ pub fn GlmDecoderStage::borrow_retired_ffn(
 /// Diagnostic-only leaf buffers; the stage guard establishes whole-program
 /// retirement. Raw packed scratch includes inactive capacity and must not be
 /// mistaken for a live mathematical output by an external comparison.
+/// Dense layers have no expert buffers and return an empty view; lifecycle
+/// and layer-range failures are still errors, never an empty success.
 pub fn GlmDecoderStage::borrow_retired_experts(
   self : Self,
   layer_index : Int,
@@ -47,8 +49,8 @@ pub fn GlmDecoderStage::borrow_retired_experts(
     Recurrent(layer) => layer.ffn.unwrap()
     Sparse(layer) => layer.ffn
   }
-  guard ffn.branch is Moe(moe) else {
-    raise @device.DeviceError::InvalidArgument(StreamingTransfer)
+  match ffn.branch {
+    Dense(_) => []
+    Moe(moe) => moe.program.borrow_retired_frontiers()
   }
-  moe.program.borrow_retired_frontiers()
 }

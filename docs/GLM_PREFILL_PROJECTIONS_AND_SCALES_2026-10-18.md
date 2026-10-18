@@ -532,3 +532,11 @@ It addresses the moving first-divergence location without keeping all leaves
 in memory. Large leaves remain on the Spark; the collector first retrieves
 only core frontiers, then selected causal-layer leaves. No reference enters
 the compiler, no AOT kernels change, and this remains an offline diagnostic.
+
+The first all-layer attempt (`glm-all-leaves-ordered-scales-20261018-r1`)
+stopped in the observer because layers 0–2 are dense and have no MoE leaves.
+It is a diagnostic failure, not numerical evidence. Both ranks closed CUDA;
+systemd reports 58.3/54.1 GiB peaks and zero swap. The observer now returns an
+empty expert view for a retired dense layer while preserving lifecycle errors.
+The `.179` TLS provider ASan/UBSan/LSan repetition also passes in user unit
+`lunaflux-tls-provider-asan-20261018-v3` (same pinned ARM probe as `.178`).
