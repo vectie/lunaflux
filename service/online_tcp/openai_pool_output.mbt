@@ -270,7 +270,7 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_compat(
           return LunaOnlineOpenAIConnectionPoolAdvanced
         }
       }
-      if length == 0 && !slot.event_terminal && !slot.streaming_response {
+      if luna_openai_silent_nonterminal(length, slot.event_terminal) {
         view.release() catch {
           _ => {
             self.begin_slot_retirement(index)

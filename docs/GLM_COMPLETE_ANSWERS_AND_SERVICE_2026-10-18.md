@@ -388,3 +388,15 @@ The previously failing test now finishes both requests and the213 affected
 scheduler/worker tests pass. The preceding eviction revision's full native
 suite passed5265/5265; this newer liveness change still needs physical overload
 acceptance before publication.
+
+### Filtered SSE tokens are not transport termination
+
+Private v8 returns the exact JSON answer `323`, but the equivalent SSE closes
+after its role event without `[DONE]`. The model and both ranks stay healthy.
+The compatibility renderer correctly emits zero visible bytes for a reasoning
+token; both TCP owners previously allowed such silent events only in buffered
+mode and treated the SSE case as an invalid empty write. Both owners now
+acknowledge silent nonterminal events without a socket write or connection cut.
+Terminal events still require terminal framing. The failed raw SSE is retained
+at `/tmp/lunaflux-glm-http-smoke-20261018-v8`; unit renderer success was not an
+end-to-end transport pass. No public endpoint has been promoted.

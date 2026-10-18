@@ -192,7 +192,7 @@ fn LunaOnlineOpenAIServer::progress_compat(
         }
       }
       self.outbound_views.push(view)
-      if length == 0 && !self.event_terminal && !self.streaming_response {
+      if luna_openai_silent_nonterminal(length, self.event_terminal) {
         self.output_source = 2
         self.output_cursor = 0
         self.output_length = 0
