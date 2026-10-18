@@ -57,3 +57,44 @@ The command package's3 tests and serial-generation package's11 tests pass;
 the extended offline runner passes5 tests. Interface generation reports1096
 pre-existing migration warnings and zero errors. These are preflight checks,
 not physical-model or full-service acceptance.
+
+## Source-pinned campaign and build compatibility
+
+The executable/AOT for the first complete-answer run is pinned to598cf66c.
+The first clean ARM build at82482cdc failed because the newer local formatter
+rewrote `Int` to `Int32`, which the pinned Spark toolchain does not support.
+598cf66c restores compatible source syntax; the fresh ARM build succeeds.
+This was a build failure, not a GPU numerical failure. The failed build is
+retained at`/tmp/lunaflux-checkpoint-build-glm-complete-answers-20261018-v1`.
+
+The new AOT is at`/tmp/lunaflux-glm-expert-tp-complete-answers-20261018-v1`;
+export and both CPU-only compilers complete. Planned device bytes per rank are
+100898667632 (including the plan's reserve), below107374182400. Runtime process
+and available-host-memory measurements are separate and remain required.
+
+`scripts/assess-glm-complete-answers.mbtx` is an offline task assessor. It
+retains raw text, requires explicit reasoning closure for this thinking prompt,
+does not turn length truncation into a pass, and checks JSON/integer and
+supplied-context tasks independently of another engine. Facts, translation,
+summary, code and SQL require semantic/manual review in addition to framing.
+Its2 tests pass. The command package's4 tests now include every declared EOS
+as both the final-prefill token and a later decode token; all terminate without
+another submission. The offline watcher retires both owned ranks on peer
+failure or expiry, not only on a host-reserve violation.
+
+## Concrete full-service gaps still visible in source
+
+Do not equate `cmd/glm_checkpoint`'s serial TP generation with the canonical
+HTTP service. The batched rank/pipeline and GLM page/slot bindings exist but
+are not installed as the live canonical HTTP worker. In addition,
+`integration/batched_logit_sampling` currently downloads full F32 logits and
+samples on the host. It must not be presented as GPU sampling. The older
+standalone CUDA sampler supports bounded restrictive top-k over BF16, not a
+drop-in full F32-logit sampling replacement. The user's requested GPU execution
+and full service acceptance remain unmet by those components alone.
+
+A real adapter must retain canonical scheduler ownership, publish only after
+both ranks retire, and release request-specific recurrent/KV state on the
+canonical terminal/cancellation path. Do not bridge the CLI with a separate
+HTTP queue and call it continuous batching. These are implementation/acceptance
+requirements, not requests for more hardening or bit-identical tensors.
