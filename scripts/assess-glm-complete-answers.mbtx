@@ -60,6 +60,34 @@ fn task_check(case : Json, answer : String) -> String raise {
         "REVIEW: name/label or instruction mismatch"
       }
     }
+    "reviewed-sql" | "reviewed-code" =>
+      if answer.contains("```") {
+        "FAIL: requested code-only output contains a Markdown fence; semantic review still required"
+      } else {
+        "REVIEW: independent code/SQL assessment required"
+      }
+    "manual-long-explanation" => {
+      guard case
+        is {
+          "minimum_words": Number(minimum, ..),
+          "maximum_words": Number(maximum, ..),
+          ..
+        } else {
+        fail("word bounds required")
+      }
+      let words = answer
+        .replace_all(old="\n", new=" ")
+        .replace_all(old="\t", new=" ")
+        .replace_all(old="\r", new=" ")
+        .split(" ")
+        .filter(s => !s.is_empty())
+        .count()
+      if words.to_double() < minimum || words.to_double() > maximum {
+        "FAIL: word count \{words} outside requested range; semantic review still required"
+      } else {
+        "REVIEW: \{words} words; independent semantic assessment required"
+      }
+    }
     _ => "REVIEW: independent semantic/code assessment required"
   }
 }
@@ -108,10 +136,27 @@ test "task checks do not compare engine wording and enforce requested JSON" {
 }
 
 ///|
+test "code-only and long-answer constraints remain visible" {
+  let sql = @json.parse("{\"check\":\"reviewed-sql\"}")
+  assert_true(task_check(sql, "```sql\nSELECT 1;\n```").has_prefix("FAIL"))
+  assert_true(task_check(sql, "SELECT 1;").has_prefix("REVIEW"))
+  let prose = @json.parse(
+    "{\"check\":\"manual-long-explanation\",\"minimum_words\":3,\"maximum_words\":4}",
+  )
+  assert_true(task_check(prose, "One two\nthree").has_prefix("REVIEW"))
+  assert_true(task_check(prose, "One two").has_prefix("FAIL"))
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, root] &&
+  guard @env.args() is [_, root, .. options] &&
     root.has_prefix("/tmp/lunaflux-model-bench-") else {
     fail("COMPLETED_MODEL_BENCH_ROOT")
+  }
+  let report_name = match options {
+    [] => "answer-assessment.txt"
+    [name] if !name.contains("/") && !name.is_empty() => name
+    _ => fail("optional new report filename")
   }
   guard @json.parse(@fs.read_file(root + "/corpus.json").text()) is Array(cases) else {
     fail("literal corpus required")
@@ -149,7 +194,7 @@ async fn main {
     report <+ "\nFINAL: \{answer}\n\n"
   }
   @fs.write_file(
-    root + "/answer-assessment.txt",
+    root + "/" + report_name,
     report.to_string(),
     create_mode=CreateNew,
   )

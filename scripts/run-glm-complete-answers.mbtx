@@ -10,12 +10,17 @@ import {
 // Offline resident-model acceptance. This is not an HTTP service or a speed
 // comparison against the old eight-token corpus.
 async fn main {
-  guard @env.args() is [_, name, runtime, overlap] &&
+  guard @env.args() is [_, name, runtime, overlap, .. options] &&
     name.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '-')) &&
     !name.is_empty() &&
     runtime.has_prefix("/tmp/lunaflux-glm-expert-tp-") &&
     overlap is ("0" | "1") else {
-    fail("UNIQUE_NAME RUNTIME OVERLAP_0_OR_1")
+    fail("UNIQUE_NAME RUNTIME OVERLAP_0_OR_1 [CORPUS_JSON]")
+  }
+  let corpus = match options {
+    [] => "benchmarks/corpora/glm_complete_answers_v1.json"
+    [path] => path
+    _ => fail("at most one explicit corpus")
   }
   let root = "/tmp/lunaflux-model-bench-" + name
   let environment = {
@@ -24,7 +29,7 @@ async fn main {
     "LUNA_GLM_HISTORY": "1024",
     "LUNA_BENCH_OUTPUT_TOKENS": "512",
     "LUNA_BENCH_STOP_TOKENS": "154820,154827,154829",
-    "LUNA_BENCH_CORPUS": "benchmarks/corpora/glm_complete_answers_v1.json",
+    "LUNA_BENCH_CORPUS": corpus,
     "LUNA_GLM_EXPERT_TRANSPORT": "tiles",
     "LUNA_GLM_EXPERT_LOOKAHEAD": "1",
     "LUNA_GLM_BUFFERED_MATRICES": "1",

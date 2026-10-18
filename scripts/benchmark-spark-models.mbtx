@@ -266,6 +266,34 @@ fn available_kib(text : String) -> Int64 raise {
 }
 
 ///|
+fn resident_gpu_mib(text : String) -> Int64 raise {
+  let mut total = 0L
+  for line in text.split("\n") {
+    let value = line.trim()
+    if value.is_empty() {
+      continue
+    }
+    let memory = @string.parse_int64(value)
+    guard memory >= 0L && memory <= 9223372036854775807L - total else {
+      fail("invalid observed GPU memory")
+    }
+    total += memory
+  }
+  total
+}
+
+///|
+test "resident GPU budget counts all observed allocations, not only a process cgroup" {
+  assert_eq(resident_gpu_mib(""), 0L)
+  assert_eq(resident_gpu_mib("100000\n4096\n"), 104096L)
+  try resident_gpu_mib("[Not Supported]") catch {
+    _ => ()
+  } noraise {
+    _ => fail("unavailable GPU measurement treated as zero")
+  }
+}
+
+///|
 fn sample_label(index : Int32, warmup : Bool, prefix : String) -> String {
   if warmup && index == 0 {
     "warmup"
@@ -543,8 +571,14 @@ async fn main {
         let memory = remote(last, "cat /proc/meminfo")
         memory.check()
         let available = available_kib(memory.stdout())
+        let device_memory = remote(
+          last, "nvidia-smi --query-compute-apps=used_gpu_memory --format=csv,noheader,nounits",
+        )
+        device_memory.check()
+        let gpu_mib = resident_gpu_mib(device_memory.stdout())
         observations <+ "tick=\{tick} role=\{role} available_kib=\{available}\n"
         observations <+ "\{status.stdout()}"
+        observations <+ "resident_gpu_mib=\{gpu_mib}\n"
         if @env.get_env_var("LUNA_BENCH_TELEMETRY") == Some("1") {
           let telemetry = remote(
             last, "nvidia-smi --query-gpu=timestamp,clocks.current.sm,clocks.current.memory,temperature.gpu,power.draw,utilization.gpu --format=csv,noheader,nounits",
@@ -552,7 +586,7 @@ async fn main {
           observations <+ "gpu_telemetry=\{telemetry.stdout()}"
           observations <+ "gpu_telemetry_stderr=\{telemetry.stderr()}"
         }
-        if available < 16777216L {
+        if available < 16777216L || gpu_mib > 102400L {
           for stop_last in [false, true] {
             let stop_role = if stop_last { "egress" } else { "ingress" }
             ignore(
@@ -567,7 +601,7 @@ async fn main {
             observations.to_string(),
             create_mode=CreateNew,
           )
-          fail("stopped experiment: host memory reserve reached")
+          fail("stopped experiment: host reserve or 100 GiB GPU limit reached")
         }
         if status.stdout().contains("SubState=failed") {
           // A failed rank cannot make progress with its peer. Retire both
