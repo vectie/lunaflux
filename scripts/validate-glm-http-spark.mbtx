@@ -37,7 +37,7 @@ async fn transfer(from : String, to : String) -> Unit {
 }
 
 ///|
-fn chat(prompt : String, stream : Bool, tokens : Int) -> Json {
+fn chat(prompt : String, stream : Bool, tokens : Int32) -> Json {
   {
     "model": "glm-5.3",
     "messages": [{ "role": "user", "content": prompt }],
@@ -87,10 +87,10 @@ async fn request(
   name : String,
   route : String,
   body : Json,
-  timeout~ : Int = 1800,
+  timeout~ : Int32 = 1800,
   cancel~ : Bool = false,
   capacity_probe~ : Bool = false,
-  expected_status~ : Int = 200,
+  expected_status~ : Int32 = 200,
 ) -> String {
   let prefix = root + "/" + name
   @fs.write_file(
@@ -177,13 +177,14 @@ async fn main {
     is ("smoke"
     | "answers"
     | "concurrent"
+    | "routing"
     | "sampling"
     | "cancel"
     | "capacity"
     | "protocol"
     | "controls") else {
     fail(
-      "NEW_EVIDENCE_ROOT smoke|answers|concurrent|sampling|cancel|capacity|controls|protocol",
+      "NEW_EVIDENCE_ROOT smoke|answers|concurrent|routing|sampling|cancel|capacity|controls|protocol",
     )
   }
   @fs.mkdir(root)
@@ -234,7 +235,7 @@ async fn main {
         n.to_int()
       }
     }
-    let incomplete : Array[Int] = []
+    let incomplete : Array[Int32] = []
     let prompts = [
       "Explain why 0.1 + 0.2 is not exactly 0.3 in binary floating-point. Give a practical comparison method.",
       "用中文解释银行转账为何需要事务，给出一个失败后回滚的例子。",
@@ -291,6 +292,33 @@ async fn main {
           )
           let text = answer(body, i % 2 == 0)
           guard !text.trim().is_empty() else { fail("empty concurrent answer") }
+          println("\{i}: " + text)
+        })
+      }
+    })
+  } else if mode == "routing" {
+    // Distinct answers and prompt lengths detect cross-request state/output
+    // routing errors that four copies of the same prompt cannot expose.
+    let labels = ["LUNA-A17", "LUNA-B29", "LUNA-C43", "LUNA-D61"]
+    @async.with_task_group(group => {
+      for i, label in labels {
+        group.spawn_bg(() => {
+          let prompt = "The following background is irrelevant to the requested reply. " +
+            "A lighthouse overlooks the quiet harbor. ".repeat(i * 32) +
+            "\nReply with exactly this identifier on one line, without quotes, markdown or explanation: " +
+            label
+          let text = answer(
+            request(
+              root,
+              "routing-\{i}",
+              "/v1/chat/completions",
+              chat(prompt, i % 2 == 0, 256),
+            ),
+            i % 2 == 0,
+          )
+          guard text.trim() == label else {
+            fail("distinct-request answer mismatch \{i}: " + text)
+          }
           println("\{i}: " + text)
         })
       }

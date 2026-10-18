@@ -550,3 +550,89 @@ multi-lane retirement and early drain intent. The new active/failed-drain
 process fixtures build locally but cannot start the native child on this Mac
 (PhysicalUnavailable); this is not an end-to-end pass. The physical Spark
 replay remains required before promotion.
+
+The full local native suite subsequently passes5278/5278. Pinnedee79c390 ARM
+build succeeds on178 under2GiB/no-swap. Both actual child-process fixtures,
+`--openai-active-drain` and`--openai-failed-drain`, pass on that Spark, close
+their HTTP pool with zero worker restarts and zero swap. Evidence is retained
+in`/tmp/lunaflux-checkpoint-build-glm-http-20261018-v17/{active,failed}-drain.txt`.
+These deterministic protocol children are not GPU-model acceptance; the next
+GLM run must independently verify active shutdown with both TP ranks.
+
+### v14: canonical HTTP, GPU sampling and retirement physical acceptance
+
+Pinned `ee79c390` runs the actual GLM TP2 worker on both Sparks, with the
+2048-context/64-prefill-row/four-resident-request AOT. This is a measured
+deployment envelope, not qualification of arbitrary context or every vLLM API.
+No numerical reference engine, payload hashing or response rewriting is in
+the serving path. Public readiness remains false.
+
+| External test | Observed result |
+| --- | --- |
+| Chat JSON / SSE / Responses | Exact arithmetic323, SSE terminal framing, Responses Paris |
+| Generation controls | Multi-turn ORCHID-37, stop-string `red `, four-token length termination |
+| Nine simultaneous capacity clients | Five complete, four HTTP429; subsequent request returns4 |
+| Mixed JSON/SSE clients | Four coherent completed answers |
+| Distinct prompt lengths and identifiers | All four exact request-specific identifiers; no observed cross-request routing |
+| Seeded GPU sampling | Three temperature0.7/top-k32/top-p0.9/seed12345 responses agree |
+| SSE disconnect / reuse | Six cancellations followed by successful reuse |
+| Protocol / model discovery | Expected admission errors, Responses SSE and admitted model/context |
+| Twelve broader answers | All natural stop,32–647 tokens each,4007 output tokens total |
+| Active paired shutdown | Four active plus one queued; both ranks stop in about2seconds; GPUs released |
+
+Before the intentional active stop, live counters show48admissions,
+42completions,6cancellations, zero worker failures/restarts, zero active/queued
+requests, and zero used KV pages. This includes request-retirement observation
+after each test group, not only successful HTTP payloads. Buffered JSON early
+disconnect detection is not established by the SSE cancellation test.
+
+The context-sized fairness correction resolves the observed saturation replay
+loop. The unchanged nine-client probe completes its first four512-token
+requests in about73.2seconds and its queued request in112.9seconds, while
+four clients receive429. During four-active/one-waiting execution, computed
+prefix tokens stay284 and graph misses9 rather than continually replaying
+prefixes. The v13 probe never completed, so no matched speedup factor is claimed.
+
+The twelve sequential answers take321.034seconds in total, including HTTP and
+prefill, or12.48output tokens/second. This is not isolated decode throughput or
+a new comparison against vLLM. Manual review retains the JSON-only Markdown
+failure, the incorrect unsolicited SQL tie-ranking alternative, and the
+overbroad floating-point equality advice. The main SQL query, arithmetic,
+translation, two-sentence summary and merge function are correct by inspection;
+the generated Python has not been interpreter-tested. The concurrency example
+also overstates that four tiny process-pool tasks must execute simultaneously.
+Model-quality findings are not erased by service acceptance or attributed to
+compiler arithmetic without a causal experiment.
+
+Across249samples per Spark, maximum observed GPU residency is97654/97669MiB;
+minimum host MemAvailable is18209088/19540112KiB (17.37/18.64GiB), above the
+16GiB reserve. Both owned units report zero swap. Sampling is not a proof of
+an unobserved instantaneous peak; the100GiB process cap and paired memory
+watch remain in effect.
+
+At19:13:52CST both units receive stop with four active and one waiting request.
+Their actual journals record successful stop at19:13:54, with no timeout,
+forced kill or replacement process. Both GPU-owner queries are empty. A
+garbage-collected transient unit's default `ExecMainStatus=0` alone is not used
+as proof; the journal and GPU release are checked separately. Interrupted
+clients are retained as interrupted, not counted as successful answers. This
+repairs the real v13 active-drain hang. Unexpected peer death is a separate
+remaining physical gate, not implied by this cooperative stop.
+
+Evidence roots are `/tmp/lunaflux-glm-http-{MODE}-20261018-v14`, with modes
+`smoke`, `controls`, `capacity`, `concurrent`, `routing`, `sampling`, `cancel`,
+`protocol`, `answers`, and `active-stop`. Observations use
+`/tmp/lunaflux-glm-http-observation-{MODE}-20261018-v14`; service/memory evidence
+is `/tmp/lunaflux-glm-http-acceptance-20261018-v14`.
+
+### Public cutover is not the private acceptance listener
+
+Read-only inspection finds the LunaNexa route still names the old EXL3 runtime
+and forwards to `glm53-exl3.lunanexa.svc.cluster.local:8899`; its endpoint is
+absent. It does not yet own this NVFP4 TP2 process pair or supply its bearer
+credential. Existing external-route metadata cannot truthfully be reused for
+a different checkpoint/runtime. The current loopback listener, acceptance
+credential and three-hour transient units are not a production deployment.
+The user has been asked whether to expose a separately authenticated standalone
+service first or wait for the managed LunaNexa integration. No public route has
+been changed while that deployment choice is pending.

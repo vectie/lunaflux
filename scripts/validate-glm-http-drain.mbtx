@@ -1,0 +1,227 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// External two-Spark lifecycle acceptance, never a compiler/runtime oracle.
+// The existing paired memory watcher must own this service throughout.
+
+///|
+fn safe_root(root : String) -> Bool {
+  root.has_prefix("/tmp/lunaflux-glm-http-") &&
+  !root.contains("..") &&
+  root
+  .iter()
+  .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_'))
+}
+
+///|
+async fn remote(rank : Int32, command : String) -> @shell.Output {
+  let socket = if rank == 0 {
+    "/tmp/lunaflux-glm178-prefill-20261018.sock"
+  } else {
+    "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  }
+  let host = if rank == 0 {
+    "wlc003s@192.168.2.178"
+  } else {
+    "wlc004s@192.168.2.179"
+  }
+  @shell.Cmd("ssh", [
+    "-S", socket, "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host, command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+fn graceful_journal(text : String, unit : String) -> Bool {
+  // Successfully stopped transient units can already be garbage-collected.
+  // Default ExecMainStatus=0 from an unloaded unit alone proves nothing.
+  text.contains("Stopped " + unit) &&
+  !text.contains("timed out") &&
+  !text.contains("Failed with result") &&
+  !text.contains("Killing process") &&
+  !text.contains("status=9/KILL")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, service, root, mode] &&
+    safe_root(service) &&
+    safe_root(root) &&
+    service != root &&
+    mode is ("active-stop" | "peer-failure") &&
+    @env.get_env_var("LUNAFLUX_GLM_HTTP_LOCAL_FORWARD") == Some("1") else {
+    fail(
+      "SERVICE_ROOT NEW_EVIDENCE_ROOT active-stop|peer-failure; loopback forward required",
+    )
+  }
+  let tag = service.split("/").last().unwrap().to_owned()
+  fn unit(rank : Int32) -> String {
+    tag + "-rank\{rank}.service"
+  }
+  async fn stop() -> Unit {
+    @shell.Cmd("moon", [
+      "run", "scripts/run-glm-http-spark.mbtx", "--", service, "stop",
+    ])
+    .output(max_output_bytes=4194304)
+    .check()
+  }
+  for rank in 0..<2 {
+    let state = remote(
+      rank,
+      "systemctl --user show " +
+      unit(rank) +
+      " -p LoadState -p ActiveState -p MainPID",
+    )
+    state.check()
+    guard state.stdout().contains("LoadState=loaded") &&
+      state.stdout().contains("ActiveState=active") else {
+      fail("not an active owned pair: " + state.stdout())
+    }
+  }
+  @async.with_task_group(group => {
+    let client = group.spawn(() => {
+      let out = @shell.Cmd("moon", [
+        "run", "scripts/validate-glm-http-spark.mbtx", "--", root, "capacity",
+      ]).output(max_output_bytes=4194304)
+      @fs.write_file(
+        root + "/interrupted-clients.txt",
+        out.stdout() + out.stderr(),
+        create_mode=CreateNew,
+      )
+      out.exit_code()
+    })
+    let mut observed = false
+    for _ in 0..<120 {
+      let out = @shell.Cmd("curl", [
+        "-sS", "--max-time", "3", "http://127.0.0.1:18889/metrics",
+      ]).output()
+      out.check()
+      if @json.parse(out.stdout())
+        is {
+          "gauges": {
+            "active_requests": Number(a, ..),
+            "queue_depth": Number(q, ..),
+            ..
+          },
+          ..
+        } &&
+        a >= 4.0 &&
+        q >= 1.0 {
+        @fs.write_file(
+          root + "/before-stop.json",
+          out.stdout(),
+          create_mode=CreateNew,
+        )
+        observed = true
+        break
+      }
+      @async.sleep(1000)
+    }
+    guard observed else {
+      fail("did not observe four active plus a queued request")
+    }
+    if mode == "active-stop" {
+      stop()
+    } else {
+      // Kill only the exact owned peer's main PID; no broad process selection.
+      let killed = remote(
+        1,
+        "systemctl --user kill --kill-whom=main --signal=SIGKILL " + unit(1),
+      )
+      @fs.write_file(
+        root + "/injected-peer-failure.txt",
+        killed.stdout() + killed.stderr(),
+        create_mode=CreateNew,
+      )
+      killed.check()
+      let mut retired = false
+      for _ in 0..<120 {
+        let state = remote(
+          0,
+          "systemctl --user show " + unit(0) + " -p ActiveState",
+        )
+        state.check()
+        if state.stdout().contains("ActiveState=inactive") ||
+          state.stdout().contains("ActiveState=failed") {
+          retired = true
+          break
+        }
+        @async.sleep(1000)
+      }
+      if !retired {
+        stop()
+        fail("surviving rank did not retire within 120 seconds")
+      }
+    }
+    guard client.wait() != 0 else { fail("clients were not interrupted") }
+    for rank in 0..<2 {
+      let status = remote(
+        rank,
+        "systemctl --user show " +
+        unit(rank) +
+        " -p LoadState -p ActiveState -p Result -p ExecMainStatus; journalctl --user -u " +
+        unit(rank) +
+        " -n 40 --no-pager",
+      )
+      @fs.write_file(
+        root + "/rank\{rank}-status.txt",
+        status.stdout() + status.stderr(),
+        create_mode=CreateNew,
+      )
+      status.check()
+      if mode == "active-stop" || rank == 0 {
+        guard graceful_journal(status.stdout(), unit(rank)) else {
+          fail(status.stdout())
+        }
+      } else {
+        guard status.stdout().contains("status=9/KILL") &&
+          status.stdout().contains("Result=signal") else {
+          fail("missing injected peer exit: " + status.stdout())
+        }
+      }
+      let gpu = remote(
+        rank, "nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader",
+      )
+      @fs.write_file(
+        root + "/rank\{rank}-gpu-after.txt",
+        gpu.stdout() + gpu.stderr(),
+        create_mode=CreateNew,
+      )
+      gpu.check()
+      guard gpu.stdout().trim().is_empty() else {
+        fail("GPU still owned: " + gpu.stdout())
+      }
+    }
+    @fs.write_file(
+      root + "/COMPLETE.txt",
+      mode +
+      ": four active + one queued; pair retired and GPU owners empty; interrupted clients are not successful model completions\n",
+      create_mode=CreateNew,
+    )
+    println(mode + " passed")
+  })
+}
+
+///|
+test "unloaded unit defaults are not successful drain evidence" {
+  assert_false(
+    graceful_journal(
+      "Result=success\nExecMainStatus=0\nLoadState=not-found", "owned.service",
+    ),
+  )
+  assert_true(graceful_journal("Stopped owned.service", "owned.service"))
+  for
+    failure in [
+      "timed out", "Failed with result", "Killing process", "status=9/KILL",
+    ] {
+    assert_false(
+      graceful_journal("Stopped owned.service\n" + failure, "owned.service"),
+    )
+  }
+  assert_false(safe_root("/tmp/lunaflux-glm-http-a/../other"))
+}
