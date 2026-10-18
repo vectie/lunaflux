@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -17,8 +18,16 @@ int main(void) {
   static const char expected_environment[] =
     "LD_LIBRARY_PATH=/opt/lunaflux/lib:/usr/local/nvidia/lib64:"
     "/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu";
-  if (environ == NULL || environ[0] == NULL || environ[1] != NULL ||
-      strcmp(environ[0], expected_environment) != 0 ||
+  const char *debug = getenv("NCCL_DEBUG");
+  int custom = debug != NULL;
+  if (environ == NULL || environ[0] == NULL ||
+      (!custom && (environ[1] != NULL || strcmp(environ[0], expected_environment) != 0)) ||
+      (custom && (environ[1] == NULL || environ[2] == NULL || environ[3] == NULL ||
+                  strcmp(environ[0], "LD_LIBRARY_PATH=/tmp/lunaflux-probe/lib") != 0 ||
+                  strcmp(environ[1], "NCCL_SOCKET_IFNAME=probe0") != 0 ||
+                  strcmp(environ[2], "NCCL_IB_HCA=probe1") != 0 ||
+                  strcmp(environ[3], "NCCL_DEBUG=WARN") != 0 || environ[4] != NULL)) ||
+      getenv("LUNAFLUX_UNRELATED_SENTINEL") != NULL ||
       sigprocmask(SIG_SETMASK, NULL, &mask) != 0 ||
       sigismember(&mask, SIGTERM) != 0 || sigismember(&mask, SIGUSR1) != 0 ||
       sigaction(SIGTERM, NULL, &action) != 0 || action.sa_handler != SIG_DFL ||

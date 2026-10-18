@@ -1,7 +1,9 @@
 ///|
 async fn main {
   if @env.args() is [_] {
-    inherited_worker()
+    inherited_worker() catch {
+      _ => @process.exit_failure()
+    }
     return
   }
   guard @env.args() is [_, mode, kernel_root, manifest] else {

@@ -105,7 +105,11 @@ length prefix followed by EOF, poisons the channel and fails shutdown.
 and one already authenticated executable capability across native spawn. On
 Linux it maps only fixed child descriptors 0-5, closes the complete descriptor
 range from 6 through `UINT_MAX`, uses fixed argv0 `lunaflux-worker`, supplies an
-empty environment, and calls `fexecve(5)` without reopening a path. The parent
+deployment runtime environment, and calls `fexecve(5)` without reopening a path.
+Only `LD_LIBRARY_PATH`, `NCCL_SOCKET_IFNAME`, `NCCL_IB_HCA`, and `NCCL_DEBUG`
+are copied before fork; absent library paths retain the packaged default.
+This preserves the service's collective library and fabric selection when it
+launches the child. Other environment values do not cross the boundary. The parent
 blocks all signals before `fork`; while they remain blocked the child resets
 every catchable disposition, installs the empty final mask, and only then
 executes. Parent mask restoration is mandatory, and failure kills and reaps

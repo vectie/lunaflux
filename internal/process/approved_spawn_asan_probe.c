@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -115,12 +116,28 @@ static int spawn_once(const char *executable, int sentinel) {
 int main(int argc, char **argv) {
 #if defined(__linux__)
   assert(argc == 2);
+  unsetenv("LD_LIBRARY_PATH");
+  unsetenv("NCCL_SOCKET_IFNAME");
+  unsetenv("NCCL_IB_HCA");
+  unsetenv("NCCL_DEBUG");
   int before = fd_count();
   assert(spawn_once(argv[1], 1));
+  assert(setenv("LD_LIBRARY_PATH", "/tmp/lunaflux-probe/lib", 1) == 0);
+  assert(setenv("NCCL_SOCKET_IFNAME", "probe0", 1) == 0);
+  assert(setenv("NCCL_IB_HCA", "probe1", 1) == 0);
+  assert(setenv("NCCL_DEBUG", "WARN", 1) == 0);
+  assert(setenv("LUNAFLUX_UNRELATED_SENTINEL", "must-not-cross", 1) == 0);
   for (int iteration = 0; iteration < 24; iteration++) {
     assert(spawn_once(argv[1], 0));
   }
   assert(fd_count() == before);
+  char too_long[PATH_MAX + 2];
+  memset(too_long, 'x', sizeof(too_long) - 1);
+  too_long[sizeof(too_long) - 1] = '\0';
+  assert(setenv("NCCL_SOCKET_IFNAME", too_long, 1) == 0);
+  pid_t unpublished = -1;
+  assert(lf_process_spawn_approved(6, 7, 8, 9, &unpublished) == E2BIG);
+  assert(unpublished == -1 && fd_count() == before);
 #else
   (void)argc;
   (void)argv;

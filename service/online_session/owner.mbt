@@ -39,12 +39,14 @@ pub fn FailedLunaOnlineInstancePreparation::cause(
   self : FailedLunaOnlineInstancePreparation,
 ) -> LunaOnlineInstanceFailure {
   match self.cause_kind {
-    PreparationServiceCleanupFailure => {
-      if self.service_cleanup is None {
-        abort("luna online cleanup preparation cause invariant")
+    PreparationServiceCleanupFailure =>
+      match self.service_cleanup {
+        Some(cleanup) =>
+          LunaOnlineWorkerPreparationFailure(
+            @worker_service.OwnedPreparationFailure(cleanup.cause()),
+          )
+        None => abort("luna online cleanup preparation cause invariant")
       }
-      LunaOnlineServicePreparationFailure
-    }
     PreparationOwnershipFailure => LunaOnlineInvalid(LunaOnlineOwnership)
   }
 }

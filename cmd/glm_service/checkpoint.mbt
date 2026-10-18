@@ -86,9 +86,12 @@ fn prepare_rank(
     rank.required_device_bytes() <= plan.reserve / 8L else {
     fail("GLM owner exceeds per-Spark envelope")
   }
-  println(
-    "GLM rank=\{ordinal} planned_total=\{bytes + plan.reserve} budget=\{plan.budget} rows=\{plan.rows} slots=\{plan.slots} context=\{plan.context} vocabulary=\{spec.vocabulary_size()} payload_hashing=false",
-  )
+  // Rank zero's stdout is the framed worker channel, never a log stream.
+  if ordinal == 1 {
+    println(
+      "GLM rank=\{ordinal} planned_total=\{bytes + plan.reserve} budget=\{plan.budget} rows=\{plan.rows} slots=\{plan.slots} context=\{plan.context} vocabulary=\{spec.vocabulary_size()} payload_hashing=false",
+    )
+  }
   rank.prepare_ports(context, maximum_device_bytes=plan.reserve / 8L)
   let limits = checkpoint_limits(plan.budget)
   checkpoint.with_transfer_session(root, limits, bank => {

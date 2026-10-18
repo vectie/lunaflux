@@ -92,11 +92,12 @@ async fn serve(
   }
   if prepared.state() != LunaOnlineInstanceReady {
     let cleanup = prepared.take_cleanup()
+    let cause = cleanup.cause()
     while !cleanup.is_closed() {
       cleanup.retry_close()
     }
     auth.close()
-    fail("GLM worker startup failed; prepared resources closed")
+    fail("GLM worker startup failed: \{Repr(cause)}; prepared resources closed")
   }
   let model = bytes("glm-5.3")
   let prefix = bytes("lf_")

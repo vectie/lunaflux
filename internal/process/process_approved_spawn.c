@@ -8,6 +8,8 @@
 #include <limits.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -27,6 +29,28 @@ int lf_process_spawn_approved(
     return EINVAL;
   }
 #if defined(__linux__)
+  /* Snapshot deployment-time runtime settings before fork. The child does
+   * not allocate or call getenv after fork. Request data never enters env. */
+  static const char *const names[] = {
+    "LD_LIBRARY_PATH", "NCCL_SOCKET_IFNAME", "NCCL_IB_HCA", "NCCL_DEBUG"
+  };
+  char values[4][PATH_MAX + 1];
+  char *runtime_environment[5];
+  size_t environment_count = 0;
+  for (size_t i = 0; i < 4; i++) {
+    const char *value = getenv(names[i]);
+    if (value == NULL && i == 0) {
+      value = "/opt/lunaflux/lib:/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu";
+    }
+    if (value == NULL) continue;
+    size_t key_bytes = strlen(names[i]), value_bytes = strlen(value);
+    if (key_bytes + 1 + value_bytes >= sizeof(values[i])) return E2BIG;
+    memcpy(values[i], names[i], key_bytes);
+    values[i][key_bytes] = '=';
+    memcpy(values[i] + key_bytes + 1, value, value_bytes + 1);
+    runtime_environment[environment_count++] = values[i];
+  }
+  runtime_environment[environment_count] = NULL;
   sigset_t all_signals;
   sigset_t parent_mask;
   if (sigfillset(&all_signals) != 0) return errno;
@@ -71,14 +95,8 @@ int lf_process_spawn_approved(
       _exit(126);
     }
     char *const argv[] = {(char *)"lunaflux-worker", NULL};
-    /* Keep the child environment closed while exposing only the audited
-     * distroless and NVIDIA library roots required before worker main. */
-    char *const sanitized_environment[] = {
-      (char *)"LD_LIBRARY_PATH=/opt/lunaflux/lib:/usr/local/nvidia/lib64:/usr/local/nvidia/lib:/usr/lib/x86_64-linux-gnu",
-      NULL,
-    };
     if (sigprocmask(SIG_SETMASK, &empty_mask, NULL) != 0) _exit(126);
-    fexecve(5, argv, sanitized_environment);
+    fexecve(5, argv, runtime_environment);
     _exit(127);
   }
   *pid_out = pid;

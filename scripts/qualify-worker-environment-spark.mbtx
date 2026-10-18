@@ -1,0 +1,92 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-worker-env-") &&
+    !root.contains("..") &&
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail("NEW_PROBE_ROOT")
+  }
+  @fs.mkdir(root)
+  for rank in 0..<2 {
+    let node = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    let socket = if rank == 0 {
+      "/tmp/lunaflux-glm178-prefill-20261018.sock"
+    } else {
+      "/tmp/lunaflux-glm179-prefill-20261018.sock"
+    }
+    async fn remote(command : String) -> @shell.Output {
+      @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", node, command]).output(
+        max_output_bytes=1048576,
+      )
+    }
+    remote("mkdir " + root).check()
+    for
+      file in [
+        "process_approved_spawn.c", "process_approved_spawn.h", "approved_spawn_probe_child.c",
+        "approved_spawn_asan_probe.c",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        "internal/process/" + file,
+        node + ":" + root + "/" + file,
+      ])
+      .output()
+      .check()
+    }
+    for
+      (name, command) in [
+        (
+          "compile-child",
+          "cc -std=c11 -Wall -Wextra -Werror " +
+          root +
+          "/approved_spawn_probe_child.c -o " +
+          root +
+          "/child",
+        ),
+        (
+          "compile-parent",
+          "cc -std=c11 -Wall -Wextra -Werror -g -pthread -fsanitize=address,undefined -fno-omit-frame-pointer " +
+          root +
+          "/approved_spawn_asan_probe.c " +
+          root +
+          "/process_approved_spawn.c -o " +
+          root +
+          "/probe",
+        ),
+        (
+          "sanitizer",
+          "systemd-run --user --wait --pipe --unit=" +
+          root.split("/").last().unwrap().to_string() +
+          "-\{rank} --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=120 /usr/bin/env ASAN_OPTIONS=detect_leaks=1:abort_on_error=1 UBSAN_OPTIONS=halt_on_error=1 " +
+          root +
+          "/probe " +
+          root +
+          "/child",
+        ),
+      ] {
+      let result = remote(command)
+      @fs.write_file(
+        root + "/rank\{rank}-" + name + ".txt",
+        result.stdout() + result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+    }
+    println(
+      "rank \{rank}: environment transfer, fallback, fd/signal ownership, ASan/UBSan/leaks passed",
+    )
+  }
+}
