@@ -128,3 +128,18 @@ Likewise, the outbound caller may invoke `SemanticEvent.delivered` only after
 the entire compatibility View has been confirmed by the transport; a partial
 SSE write is not delivery. Reusable HTTP server integration and inbound request
 receipt wiring remain separate packages/slices.
+# Model output framing
+
+The optional immutable `LunaOpenAIOutputFraming::answer_after` protocol belongs
+to presentation, not compilation or comparison. A model adapter whose prompt
+opens a non-answer section supplies its closing ASCII delimiter. The renderer
+tracks that delimiter across token boundaries using a startup-prepared prefix
+table, suppresses the preceding section, and preserves all subsequent answer
+bytes literally. Plain-text models retain the unchanged default behavior.
+
+Streaming and buffered Responses/Chat Completions share this bounded state
+machine. Per-request acceptance resets its state. Sampling, token IDs, stop
+decisions and token usage remain unchanged, including tokens in the non-answer
+section. Exhausting the output budget before the delimiter yields empty answer
+content with `finish_reason=length`, not a fabricated completed answer. This
+policy currently exposes final answer text, not a separate reasoning channel.

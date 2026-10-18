@@ -1,7 +1,7 @@
 ///|
 fn luna_openai_requirements(
   inference : @inference.InferenceLimits,
-  buffered? : Bool = false,
+  buffered~ : Bool = false,
 ) -> (Int, UInt64, UInt64) raise LunaOpenAICompatError {
   let delta = inference.max_decoded_delta_bytes()
   if delta <= 0 || delta > 16384 {
@@ -35,7 +35,7 @@ fn luna_openai_requirements(
 ///|
 pub fn LunaOpenAICompatWorkspace::required_byte_cells(
   inference : @inference.InferenceLimits,
-  buffered? : Bool = false,
+  buffered~ : Bool = false,
 ) -> UInt64 raise LunaOpenAICompatError {
   let (_, bytes, _) = luna_openai_requirements(inference, buffered~)
   bytes
@@ -59,7 +59,8 @@ pub fn LunaOpenAICompatWorkspace::new(
   response_id_prefix : FixedArray[Byte],
   response_id_prefix_offset~ : Int,
   response_id_prefix_length~ : Int,
-  buffered? : Bool = false,
+  buffered~ : Bool = false,
+  output_framing? : LunaOpenAIOutputFraming,
 ) -> LunaOpenAICompatWorkspace raise LunaOpenAICompatError {
   let (output_capacity, _, _) = luna_openai_requirements(inference, buffered~)
   budget.validate()
@@ -118,6 +119,10 @@ pub fn LunaOpenAICompatWorkspace::new(
     response_id_prefix: prefix_storage,
     response_id_prefix_length,
     semantic_views: Array(capacity=1),
+    output_framing,
+    framing_matched: 0,
+    answer_started: false,
+    payload_offset: 0,
     buffered_text: FixedArray::make(
       if buffered {
         ((inference.max_new_tokens().to_uint64() + 1UL) *
@@ -191,6 +196,7 @@ fn LunaOpenAICompatWorkspace::reset_operation(
   self.finish_reason = 0
   self.retryable = false
   self.payload_length = 0
+  self.payload_offset = 0
   self.length = 0
   self.failure_rule = 0
   self.last_work_units = 0
@@ -214,7 +220,7 @@ pub fn LunaOpenAICompatWorkspace::begin(
   event : @luna_event.LunaEventView,
   mode : LunaOpenAICompatMode,
   response_sequence~ : UInt64,
-  streaming? : Bool = true,
+  streaming~ : Bool = true,
 ) -> LunaOpenAICompatWork raise LunaOpenAICompatError {
   if self.phase != LUNA_OPENAI_COMPAT_IDLE {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLifecycle)
@@ -249,6 +255,10 @@ pub fn LunaOpenAICompatWorkspace::begin(
     raise LunaOpenAICompatInvalid(LunaOpenAICompatEpoch)
   }
   self.reset_operation()
+  if kind == LunaAcceptedEventKind {
+    self.framing_matched = 0
+    self.answer_started = false
+  }
   if self.semantic_views.length() != 0 {
     abort("Luna OpenAI semantic reference-slot invariant")
   }

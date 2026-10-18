@@ -169,7 +169,7 @@ async fn main {
       true,
     )
     println("SSE: " + b)
-    guard a == b && a.contains("323") else {
+    guard a == b && a.trim() == "323" else {
       fail("JSON/SSE or arithmetic failure")
     }
     let response = request(root, "responses", "/v1/responses", {
@@ -179,7 +179,16 @@ async fn main {
       "temperature": 0,
     })
     println("Responses: " + response)
-    guard response.contains("Paris") else { fail("Responses semantic failure") }
+    guard @json.parse(response)
+      is {
+        "output": Array(
+          [{ "content": Array([{ "text": String(text), .. }]), .. }]
+        ),
+        ..
+      } &&
+      text.trim() == "Paris" else {
+      fail("Responses semantic or framing failure")
+    }
   } else if mode == "answers" {
     let prompts = [
       "Explain why 0.1 + 0.2 is not exactly 0.3 in binary floating-point. Give a practical comparison method.",

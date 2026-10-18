@@ -59,7 +59,8 @@ fn LunaOpenAICompatWorkspace::payload_byte_at(
 ) -> Byte raise LunaOpenAICompatError {
   if self.buffering &&
     self.event_kind == LUNA_OPENAI_EVENT_COMPLETED &&
-    self.phase != LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD {
+    self.phase != LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD &&
+    self.phase != LUNA_OPENAI_COMPAT_FILTER_PAYLOAD {
     return self.buffered_text[index]
   }
   match self.event_kind {
@@ -67,7 +68,7 @@ fn LunaOpenAICompatWorkspace::payload_byte_at(
       let token = event.token() catch {
         _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatSemanticEvent)
       }
-      token.delta_byte_at(index) catch {
+      token.delta_byte_at(self.payload_offset + index) catch {
         _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatSemanticEvent)
       }
     }
@@ -75,7 +76,7 @@ fn LunaOpenAICompatWorkspace::payload_byte_at(
       let completed = event.completed() catch {
         _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatSemanticEvent)
       }
-      completed.final_delta_byte_at(index) catch {
+      completed.final_delta_byte_at(self.payload_offset + index) catch {
         _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatSemanticEvent)
       }
     }
@@ -97,7 +98,7 @@ fn luna_openai_escape_kind(byte : Byte) -> (Int, Int) {
     b'"' => (1, 2)
     b'\\' => (2, 2)
     b'\x08' | b'\x09' | b'\x0a' | b'\x0c' | b'\x0d' => (3, 2)
-    b'\x00'..=b'\x1f' => (4, 6)
+    b'\x00'..<=b'\x1f' => (4, 6)
     _ => (0, 1)
   }
 }

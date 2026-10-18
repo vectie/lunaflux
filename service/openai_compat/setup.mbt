@@ -78,6 +78,22 @@ fn luna_openai_valid_usage(
 fn LunaOpenAICompatWorkspace::finish_setup(
   self : LunaOpenAICompatWorkspace,
 ) -> Unit {
+  if self.output_framing is Some(_) &&
+    !self.answer_started &&
+    (
+      self.event_kind == LUNA_OPENAI_EVENT_TOKEN ||
+      self.event_kind == LUNA_OPENAI_EVENT_COMPLETED
+    ) {
+    self.phase = LUNA_OPENAI_COMPAT_FILTER_PAYLOAD
+  } else {
+    self.finish_visible_setup()
+  }
+}
+
+///|
+fn LunaOpenAICompatWorkspace::finish_visible_setup(
+  self : LunaOpenAICompatWorkspace,
+) -> Unit {
   self.setup_cursor = 0
   self.part_index = 0
   self.phase = if !self.buffering || self.event_kind == LUNA_OPENAI_EVENT_FAILED {

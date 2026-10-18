@@ -112,3 +112,16 @@ test "graph reports follow eager prefill and captured decode across shapes" {
   assert_false(valid_graph_counter_step(decode, mixed))
   assert_false(valid_graph_counter_step(mixed, mixed))
 }
+
+///|
+test "replacement first graph sample counts from its own predecessor" {
+  let first = @worker_wire.WorkerGraphTelemetry::without_shape(
+    sequence=64UL,
+    path=WorkerGraphCaptured,
+    graph_hits=42UL,
+    graph_misses=2UL,
+  )
+  assert_true(valid_initial_graph_counters(first, predecessor=20UL))
+  assert_false(valid_initial_graph_counters(first, predecessor=19UL))
+  assert_false(valid_initial_graph_counters(first, predecessor=64UL))
+}

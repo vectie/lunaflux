@@ -1,6 +1,6 @@
 ///|
 fn openai_fixture_limits(
-  max_delta? : Int = 32,
+  max_delta~ : Int = 32,
 ) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=64,
@@ -36,8 +36,9 @@ fn openai_fixture_identity() -> @spec.ModelIdentity raise {
 fn openai_workspace(
   limits : @inference.InferenceLimits,
   budget : Int,
-  model? : FixedArray[Byte] = [b'm', b'o', b'd', b'e', b'l', b'-', b'x'],
-  buffered? : Bool = false,
+  model~ : FixedArray[Byte] = [b'm', b'o', b'd', b'e', b'l', b'-', b'x'],
+  buffered~ : Bool = false,
+  output_framing? : LunaOpenAIOutputFraming,
 ) -> LunaOpenAICompatWorkspace raise {
   let prefix : FixedArray[Byte] = [b'r', b'e', b's', b'p', b'_']
   LunaOpenAICompatWorkspace::new(
@@ -50,6 +51,7 @@ fn openai_workspace(
     response_id_prefix_offset=0,
     response_id_prefix_length=prefix.length(),
     buffered~,
+    output_framing?,
   )
 }
 
@@ -59,7 +61,7 @@ fn openai_encode(
   event : @luna_event.LunaEventView,
   mode : LunaOpenAICompatMode,
   sequence : UInt64,
-  streaming? : Bool = true,
+  streaming~ : Bool = true,
 ) -> (FixedArray[Byte], UInt64) raise {
   let work = workspace.begin(
     event,

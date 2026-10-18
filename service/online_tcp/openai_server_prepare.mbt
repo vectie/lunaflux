@@ -21,7 +21,8 @@ pub fn prepare_luna_online_openai_server(
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
-  production_ready? : Bool = false,
+  production_ready~ : Bool = false,
+  output_framing? : @openai_compat.LunaOpenAIOutputFraming,
 ) -> LunaOnlineOpenAIServerPreparation raise LunaOnlineTcpError {
   let transferred = Ref(false)
   defer (if !transferred.val { auth_policy.close() })
@@ -78,6 +79,7 @@ pub fn prepare_luna_online_openai_server(
     response_id_prefix_offset~,
     response_id_prefix_length~,
     buffered=true,
+    output_framing?,
   ) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }

@@ -24,6 +24,7 @@ fn new_luna_openai_connection_slot(
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
+  output_framing : @openai_compat.LunaOpenAIOutputFraming?,
 ) -> LunaOnlineOpenAIConnectionSlot raise LunaOnlineTcpError {
   let receipt_workspace = @request_admission.LunaRequestReceiptWorkspace::new(
     @monotonic_clock.MonotonicClock::system(),
@@ -64,6 +65,7 @@ fn new_luna_openai_connection_slot(
     response_id_prefix_offset~,
     response_id_prefix_length~,
     buffered=true,
+    output_framing?,
   ) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }
@@ -140,7 +142,8 @@ pub fn prepare_luna_online_openai_connection_pool(
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
-  production_ready? : Bool = false,
+  production_ready~ : Bool = false,
+  output_framing? : @openai_compat.LunaOpenAIOutputFraming,
 ) -> LunaOnlineOpenAIConnectionPoolPreparation raise LunaOnlineTcpError {
   let transferred = Ref(false)
   defer (if !transferred.val { auth_policy.close() })
@@ -170,7 +173,7 @@ pub fn prepare_luna_online_openai_connection_pool(
       auth_policy, inbound_budget, outbound_budget, inbound_limits, template, deployment_model_alias,
       model_alias_offset, model_alias_length, response_id_prefix, response_id_prefix_offset,
       response_id_prefix_length, cache_scope, max_new_tokens, context_ceiling, sampling,
-      sampling_seed, deadline,
+      sampling_seed, deadline, output_framing,
     )
   })
   transferred.val = true

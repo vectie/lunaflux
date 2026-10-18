@@ -9,13 +9,17 @@ fn valid_graph_counter_step(
 ///|
 fn valid_initial_graph_counters(
   report : @worker_wire.WorkerGraphTelemetry,
+  predecessor~ : UInt64 = 0UL,
 ) -> Bool {
-  match report.selected_path() {
-    WorkerGraphCaptured =>
-      report.graph_hits() == 1UL && report.graph_misses() == 0UL
-    WorkerGraphOrderedEager =>
-      report.graph_hits() == 0UL && report.graph_misses() == 1UL
+  // A replacement starts at its predecessor, but sidecars are sampled in the
+  // global sequence domain. Its first sidecar may therefore cover many steps.
+  if report.sequence_value() <= predecessor {
+    return false
   }
+  let steps = report.sequence_value() - predecessor
+  report.graph_hits() <= steps &&
+  report.graph_misses() == steps - report.graph_hits() &&
+  report.counters_advance_from(0UL, 0UL)
 }
 
 ///|
@@ -44,7 +48,10 @@ fn WorkerProcessSupervisor::accept_graph_telemetry_bytes_in_place(
     }
     valid_graph_counter_step(report, previous)
   } else {
-    valid_initial_graph_counters(report)
+    valid_initial_graph_counters(
+      report,
+      predecessor=self.startup.predecessor_value(),
+    )
   }
   if report.sequence_value() != expected_sequence || !valid_counters {
     self.lifecycle = Failed

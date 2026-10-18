@@ -136,6 +136,7 @@ async fn serve(
       @inference.SamplingSeed::new(17UL),
       @inference.DeadlineBudget::from_milliseconds(3600000UL, inference),
       production_ready=plan.production_ready,
+      output_framing=@openai.LunaOpenAIOutputFraming::answer_after(b"</think>"),
     ),
     tcp,
     log_capacity=256,

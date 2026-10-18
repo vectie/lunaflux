@@ -70,6 +70,7 @@ fn LunaOpenAICompatWorkspace::progress_one(
   match self.phase {
     LUNA_OPENAI_COMPAT_SETUP => self.progress_setup(event)
     LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD => self.progress_buffered_payload(event)
+    LUNA_OPENAI_COMPAT_FILTER_PAYLOAD => self.progress_output_framing(event)
     LUNA_OPENAI_COMPAT_CONFIGURE_PART => self.configure_part()
     LUNA_OPENAI_COMPAT_LITERAL => self.progress_literal()
     LUNA_OPENAI_COMPAT_RAW => self.progress_raw()

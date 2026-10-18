@@ -56,6 +56,9 @@ const LUNA_OPENAI_COMPAT_FAILED : Int = 12
 const LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD : Int = 13
 
 ///|
+const LUNA_OPENAI_COMPAT_FILTER_PAYLOAD : Int = 14
+
+///|
 const LUNA_OPENAI_PART_END : Int = 0
 
 ///|
@@ -194,6 +197,10 @@ pub struct LunaOpenAICompatWorkspace {
   priv response_id_prefix : FixedArray[Byte]
   priv response_id_prefix_length : Int
   priv semantic_views : Array[@luna_event.LunaEventView]
+  priv output_framing : LunaOpenAIOutputFraming?
+  priv mut framing_matched : Int
+  priv mut answer_started : Bool
+  priv mut payload_offset : Int
   priv buffered_text : FixedArray[Byte]
   priv mut buffered_sequence : UInt64
   priv mut buffered_mode : Int
