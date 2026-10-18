@@ -1,31 +1,105 @@
+///|
 import {
-  "moonbitlang/async@0.21.3", "moonbitlang/async@0.21.3/fs",
-  "moonbitlang/async@0.21.3/shell", "moonbitlang/core/env",
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
 }
 
 // Offline actual-generated-source counters, not full-model timing/quality.
+
+///|
 async fn main {
   guard @env.args() is [_, root, target] &&
     root.has_prefix("/tmp/lunaflux-glm-hc-vocab-") &&
-    root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) &&
-    target is ("tail"|"vocab") else { fail("EXISTING_PROBE_ROOT tail|vocab") }
-  let host="wlc003s@192.168.2.178"
-  let socket="/tmp/lunaflux-glm178-cutlass-20261017.sock"
-  async fn remote(cmd : String) -> @shell.Output {
-    @shell.Cmd("ssh",["-S",socket,"-o","BatchMode=yes",host,cmd]).output(max_output_bytes=16777216)
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    target is ("tail" | "vocab" | "deferred") else {
+    fail("EXISTING_PROBE_ROOT tail|vocab|deferred")
   }
-  let owners=remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader")
-  owners.check(); guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
-  remote("awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo").check()
-  let ncu="/opt/nvidia/nsight-compute/2025.3.1/ncu"
-  let filter=if target=="tail" { "regex:^tail2_(function_tree_tiles_v1|sinkhorn|tail_function_tree_tiles_v1)$" } else { "regex:^(full1|shard1_0|shard1_1)_head$" }
-  let metrics=["gpu__time_duration.sum","smsp__inst_executed.sum","smsp__inst_executed_pipe_lsu.sum","smsp__warps_eligible.avg.per_cycle_active","smsp__issue_active.avg.pct_of_peak_sustained_active","sm__warps_active.avg.pct_of_peak_sustained_active","smsp__warp_issue_stalled_barrier_per_warp_active.pct","smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct","smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct","smsp__warp_issue_stalled_wait_per_warp_active.pct","lts__t_sectors_op_read.sum","lts__t_sectors_op_write.sum","launch__registers_per_thread","launch__shared_mem_per_block"].join(",")
-  let unit=root[5:].to_owned()+"-counters"
-  let out=remote("systemd-run --user --wait --pipe --unit="+unit+" --property=RuntimeMaxSec=600 docker run --rm --name "+unit+" --gpus all --network none --ipc=private --shm-size=128m --memory=4g --memory-swap=4g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v "+root+":"+root+" -v /opt/nvidia:/opt/nvidia:ro --entrypoint "+ncu+" ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name '"+filter+"' --launch-skip "+(if target=="tail" {"3"}else{"0"})+" --launch-count 3 --metrics "+metrics+" --export "+root+"/counters "+root+"/probe sanitizer")
-  @fs.write_file(root+"/counters.stdout",out.stdout(),create_mode=CreateNew)
-  @fs.write_file(root+"/counters.stderr",out.stderr(),create_mode=CreateNew);out.check()
-  @shell.Cmd("scp",["-o","ControlPath="+socket,host+":"+root+"/counters.ncu-rep",root+"/counters.ncu-rep"]).output().check()
-  let raw=remote(ncu+" --import "+root+"/counters.ncu-rep --page raw --csv")
-  @fs.write_file(root+"/counters.csv",raw.stdout(),create_mode=CreateNew)
-  @fs.write_file(root+"/counters-raw.stderr",raw.stderr(),create_mode=CreateNew);raw.check()
+  let host = "wlc003s@192.168.2.178"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm178-cutlass-20261017.sock",
+  )
+  async fn remote(cmd : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  remote(
+    "awk '/MemAvailable:/ {if ($2 < 29360128) exit 9; print}' /proc/meminfo",
+  ).check()
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  let filter = if target == "tail" {
+    "regex:^tail2_(function_tree_tiles_v1|sinkhorn|tail_function_tree_tiles_v1)$"
+  } else if target == "deferred" {
+    "regex:^(hc2_(post|square_tree_tiles_v1|project_tree_tiles_v1)|deferred2_(1|2|4))$"
+  } else {
+    "regex:^(full1|shard1_0|shard1_1)_head$"
+  }
+  let metrics = [
+    "gpu__time_duration.sum", "smsp__inst_executed.sum", "smsp__inst_executed_pipe_lsu.sum",
+    "smsp__warps_eligible.avg.per_cycle_active", "smsp__issue_active.avg.pct_of_peak_sustained_active",
+    "sm__warps_active.avg.pct_of_peak_sustained_active", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+    "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct",
+    "smsp__warp_issue_stalled_wait_per_warp_active.pct", "lts__t_sectors_op_read.sum",
+    "lts__t_sectors_op_write.sum", "launch__registers_per_thread", "launch__shared_mem_per_block",
+  ].join(",")
+  let unit = root[5:].to_owned() + "-counters"
+  let out = remote(
+    "systemd-run --user --wait --pipe --unit=" +
+    unit +
+    " --property=RuntimeMaxSec=600 docker run --rm --name " +
+    unit +
+    " --gpus all --network none --ipc=private --shm-size=128m --memory=4g --memory-swap=4g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+    root +
+    ":" +
+    root +
+    " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+    ncu +
+    " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name '" +
+    filter +
+    "' --launch-skip " +
+    (if target == "tail" {
+      "3"
+    } else if target == "deferred" {
+      "6"
+    } else {
+      "0"
+    }) +
+    " --launch-count " +
+    (if target == "deferred" { "6" } else { "3" }) +
+    " --metrics " +
+    metrics +
+    " --export " +
+    root +
+    "/counters " +
+    root +
+    "/probe sanitizer",
+  )
+  @fs.write_file(root + "/counters.stdout", out.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/counters.stderr", out.stderr(), create_mode=CreateNew)
+  out.check()
+  @shell.Cmd("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    host + ":" + root + "/counters.ncu-rep",
+    root + "/counters.ncu-rep",
+  ])
+  .output()
+  .check()
+  let raw = remote(
+    ncu + " --import " + root + "/counters.ncu-rep --page raw --csv",
+  )
+  @fs.write_file(root + "/counters.csv", raw.stdout(), create_mode=CreateNew)
+  @fs.write_file(
+    root + "/counters-raw.stderr",
+    raw.stderr(),
+    create_mode=CreateNew,
+  )
+  raw.check()
 }

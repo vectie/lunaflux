@@ -42,6 +42,7 @@ pub struct AdjacentFusion {
 pub fn AdjacentFusion::boundary(Self, Int) -> Int raise ParallelError
 pub fn AdjacentFusion::fork(Self, ForkJoinSpan) -> ForkJoinSpan raise ParallelError
 pub fn AdjacentFusion::new(kernel_count~ : Int, ArrayView[Int]) -> Self raise ParallelError
+pub fn AdjacentFusion::spans(kernel_count~ : Int, ArrayView[(Int, Int)]) -> Self raise ParallelError
 
 pub struct Arena {
   // private fields

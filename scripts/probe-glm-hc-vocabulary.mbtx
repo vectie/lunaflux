@@ -12,13 +12,18 @@ async fn main {
   guard @env.args() is [_, root, target, mode, .. rest] &&
     root.has_prefix("/tmp/lunaflux-glm-hc-vocab-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    target is ("hc" | "vocab" | "tail") &&
-    (rest is [] || (rest is [tag] && tag.iter().all(c=>c is ('a'..='z'|'0'..='9'|'-')))) &&
+    target is ("hc" | "vocab" | "tail" | "deferred") &&
+    (
+      rest is [] ||
+      (rest is [tag] && tag.iter().all(c => c is ('a'..='z' | '0'..='9' | '-')))
+    ) &&
     mode is ("prepare" | "run" | "memcheck" | "racecheck" | "synccheck") else {
     fail("ROOT hc|vocab prepare|run|memcheck|racecheck|synccheck")
   }
   let host = "wlc003s@192.168.2.178"
-  let socket = "/tmp/lunaflux-glm178-cutlass-20261017.sock"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm178-cutlass-20261017.sock",
+  )
   async fn remote(command : String) -> @shell.Output {
     @shell.Cmd("ssh", [
       "-S", socket, "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host, command,
@@ -44,7 +49,9 @@ async fn main {
     } else {
       "kernels/text_io_execution_cuda_source"
     }
-    let filter = if target == "tail" {
+    let filter = if target == "deferred" {
+      "export deferred HC post pre alternatives"
+    } else if target == "tail" {
       "export fused HC control and Sinkhorn tail"
     } else if target == "hc" {
       "export adjacent HC publication square fusion"
@@ -56,8 +63,8 @@ async fn main {
       @shell.Cmd(
         "moon",
         [
-          "test", target_package, "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
-          "--filter", filter,
+          "test", target_package, "--target", "native", "--deny-warn", "--warn-list",
+          "-20-25-29-35-79-92", "--filter", filter,
         ],
         env={
           "LUNA_HC_FUSION_HEADER": root + "/probe.cuh",
@@ -71,7 +78,9 @@ async fn main {
         (root + "/probe.cuh", "probe.cuh"),
         (
           "tests/packed_moe_execution/" +
-          (if target == "tail" {
+          (if target == "deferred" {
+            "hyper_deferred_probe.cu"
+          } else if target == "tail" {
             "hyper_control_tail_probe.cu"
           } else if target == "hc" {
             "hyper_post_square_probe.cu"
@@ -114,7 +123,12 @@ async fn main {
   guard @string.parse_int64(mem.stdout().trim()) >= 16777216L else {
     fail("host reserve below 16 GiB")
   }
-  let label=mode+(match rest { []=>""; [tag]=>"-"+tag; _=>abort("checked") })
+  let label = mode +
+    (match rest {
+      [] => ""
+      [tag] => "-" + tag
+      _ => abort("checked")
+    })
   record(label + "-memory-before", mem)
   let cmd = if mode == "run" {
     root + "/probe"

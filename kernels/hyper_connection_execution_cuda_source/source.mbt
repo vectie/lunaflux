@@ -6,6 +6,7 @@ pub struct HyperConnectionCudaSource {
   priv normalization_threads : Int
   priv control_schedule : @physical.ControlSchedule?
   priv post_square : Bool
+  priv deferred : Bool
 }
 
 ///|
@@ -122,6 +123,22 @@ pub fn hyper_connection_source(
   } else {
     b""
   }
+  let deferred_enabled = post_square &&
+    (match control_schedule {
+      Some(schedule) =>
+        (streams * hidden + schedule.workers() - 1) / schedule.workers() <= 128
+      None => false
+    })
+  let deferred = if deferred_enabled {
+    @control.deferred_post_pre_dispatch_source(
+      plan,
+      plan,
+      deferred_candidate(plan),
+      symbol=symbol_prefix + "_deferred_post_pre",
+    )
+  } else {
+    b""
+  }
   {
     plan,
     prefix: symbol_prefix,
@@ -135,10 +152,13 @@ pub fn hyper_connection_source(
     b"\n" +
     fused +
     b"\n" +
-    fused_tail,
+    fused_tail +
+    b"\n" +
+    deferred,
     normalization_threads: normalization.launch_threads(),
     control_schedule,
     post_square,
+    deferred: deferred_enabled,
   }
 }
 
@@ -202,6 +222,7 @@ pub fn HyperConnectionCudaSource::symbol(
     5 if self.control_schedule is Some(_) => "project_ordered_tiles_v1"
     6 if self.post_square => "post_square"
     7 if self.control_schedule is Some(Tree(_)) => "tail_function_tree_tiles_v1"
+    8 if self.deferred => "deferred_post_pre"
     _ => raise @precision.PrecisionPlanError::IllegalPlacement
   }
   self.prefix + "_" + suffix

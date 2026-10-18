@@ -35,6 +35,7 @@ fn prepare_rank(
       replay_budget_bytes=startup.reserve / 4L,
       overlap_experts=startup.overlap_experts,
       fuse_hyper=startup.fuse_hyper,
+      defer_hyper=startup.defer_hyper,
       fuse_controls=startup.fuse_controls,
     )
   })

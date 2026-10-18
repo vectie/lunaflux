@@ -135,6 +135,12 @@ async fn main {
   } else {
     mode
   }
+  let defer_hyper = mode.has_suffix("-deferred-hc")
+  let mode = if defer_hyper {
+    mode[:mode.length() - 12].to_owned()
+  } else {
+    mode
+  }
   let fuse_hyper = mode.has_suffix("-fused-hc")
   let mode = if fuse_hyper { mode[:mode.length() - 9].to_owned() } else { mode }
   let fuse_controls = mode.has_suffix("-fused-controls")
@@ -303,6 +309,7 @@ async fn main {
       overlap_experts~,
       fuse_hyper~,
       fuse_controls~,
+      defer_hyper~,
       shard_vocabulary~,
     )
   }
@@ -315,7 +322,7 @@ async fn main {
   println("tp_submission_queued=\{queued} tp_graph_replay=\{replay}")
   println("tp_collective_inclusive_graph=\{collective_graph}")
   println(
-    "shared_matrix_columns=\{shared_matrix_columns} independent_expert_branches=\{overlap_experts} fused_hc_post_square=\{fuse_hyper} fused_hc_controls=\{fuse_controls} vocabulary_tp=\{shard_vocabulary}",
+    "shared_matrix_columns=\{shared_matrix_columns} independent_expert_branches=\{overlap_experts} fused_hc_post_square=\{fuse_hyper} fused_hc_controls=\{fuse_controls} deferred_hc_post_pre=\{defer_hyper} vocabulary_tp=\{shard_vocabulary}",
   )
   println(
     "hc_parallel_tree=\{parallel_hc} hc_collapse_norm_fused=\{parallel_hc}",

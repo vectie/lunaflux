@@ -316,6 +316,7 @@ async fn main {
   let overlap_experts = @env.get_env_var("LUNA_GLM_OVERLAP_EXPERTS") ==
     Some("1")
   let fused_hc = @env.get_env_var("LUNA_GLM_FUSED_HC") == Some("1")
+  let deferred_hc = @env.get_env_var("LUNA_GLM_DEFERRED_HC") == Some("1")
   let fused_controls = @env.get_env_var("LUNA_GLM_FUSED_CONTROLS") == Some("1")
   let vocab_tp = @env.get_env_var("LUNA_GLM_VOCAB_TP") == Some("1")
   let collective_graph = @env.get_env_var("LUNA_GLM_COLLECTIVE_GRAPH") ==
@@ -406,6 +407,7 @@ async fn main {
     }) +
     (if overlap_experts { "independent_expert_branches=true\n" } else { "" }) +
     (if fused_hc { "fused_hc_post_square=true\n" } else { "" }) +
+    (if deferred_hc { "deferred_hc_post_pre=true\n" } else { "" }) +
     (if fused_controls { "fused_hc_controls=true\n" } else { "" }) +
     (if vocab_tp { "vocabulary_tp=true\n" } else { "" })
   if mode != "prepare" && mode != "prepare-profile" {
@@ -711,6 +713,7 @@ async fn main {
         (if overlap_experts { "-overlap-experts" } else { "" }) +
         (if fused_controls { "-fused-controls" } else { "" }) +
         (if fused_hc { "-fused-hc" } else { "" }) +
+        (if deferred_hc { "-deferred-hc" } else { "" }) +
         (if vocab_tp { "-vocab-tp" } else { "" })
       record(
         root,

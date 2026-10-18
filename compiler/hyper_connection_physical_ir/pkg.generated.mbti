@@ -26,6 +26,22 @@ pub fn ControlTailFusion::geometry(Self) -> (Int, Int, Int)
 pub fn ControlTailFusion::matrix_subgroup(Self) -> Int
 pub fn ControlTailFusion::new(@precision_ir.HyperConnectionPrecision, subgroup_width? : Int) -> Self raise @precision_ir.PrecisionPlanError
 
+pub struct DeferredPostPreDispatch {
+  // private fields
+}
+pub fn DeferredPostPreDispatch::buckets(Self) -> ReadOnlyArray[(Int, Int)]
+pub fn DeferredPostPreDispatch::new(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision, ArrayView[(Int, Int)], workgroup_budget~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn DeferredPostPreDispatch::workgroups(Self) -> Int
+
+pub struct DeferredPostPrePlan {
+  // private fields
+}
+pub fn DeferredPostPrePlan::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn DeferredPostPrePlan::new(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision, controls_per_group~ : Int, workgroup_budget? : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn DeferredPostPrePlan::retained_values_per_worker(Self) -> Int
+pub fn DeferredPostPrePlan::reuses_component_operands(Self) -> Bool
+pub fn DeferredPostPrePlan::workgroups(Self) -> Int
+
 pub struct OrderedControlPlan {
   // private fields
 }

@@ -110,7 +110,7 @@ pub fn HyperConnectionFrame::prepare(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
-  self.ports.append([counts, input, output])
+  self.ports.append([counts, input, output, function_weight])
   let plan = self.source.plan()
   let (streams, hidden, rows) = plan.geometry()
   for size in plan.frame_bytes() {

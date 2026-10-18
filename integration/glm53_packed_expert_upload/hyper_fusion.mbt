@@ -21,35 +21,42 @@ fn fuse_hyper_sites(
   aot : @device.Module,
   post_square~ : Bool,
   control_tail~ : Bool,
+  deferred~ : Bool,
 ) -> (Array[@device.OrderedKernelLaunch], @parallel.AdjacentFusion) raise {
-  let pairs = []
+  let spans = []
   let fused = []
   for i, (square, _, consumer) in sites {
-    if post_square && i > 0 {
+    if (post_square || deferred) && i > 0 {
       let (_, post, producer) = sites[i - 1]
       guard post + 1 == square else {
         raise @precision_ir.PrecisionPlanError::IllegalPlacement
       }
-      pairs.push(post)
-      fused.push(producer.fuse_post_square(consumer, aot))
+      spans.push((post, if deferred { 3 } else { 2 }))
+      fused.push(
+        if deferred {
+          producer.fuse_deferred_post_pre(consumer, aot)
+        } else {
+          producer.fuse_post_square(consumer, aot)
+        },
+      )
     }
     if control_tail {
-      pairs.push(square + 2)
+      spans.push((square + 2, 2))
       fused.push(consumer.fuse_control_tail(aot))
     }
   }
-  let rewrite = @parallel.AdjacentFusion::new(
+  let rewrite = @parallel.AdjacentFusion::spans(
     kernel_count=launches.length(),
-    pairs,
+    spans,
   )
   let result = []
   let mut pair = 0
   let mut index = 0
   while index < launches.length() {
-    if pair < pairs.length() && index == pairs[pair] {
+    if pair < spans.length() && index == spans[pair].0 {
       result.push(fused[pair])
+      index += spans[pair].1
       pair += 1
-      index += 2
     } else {
       result.push(launches[index])
       index += 1

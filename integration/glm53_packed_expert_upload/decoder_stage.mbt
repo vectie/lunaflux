@@ -191,6 +191,7 @@ pub fn GlmDecoderStage::prepare(
   overlap_experts? : Bool = false,
   fuse_hyper? : Bool = false,
   fuse_controls? : Bool = false,
+  defer_hyper? : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -265,6 +266,7 @@ pub fn GlmDecoderStage::prepare(
     overlap_experts~,
     fuse_hyper~,
     fuse_controls~,
+    defer_hyper~,
   )
   self.counts = Some(counts)
   self.status = Ready
