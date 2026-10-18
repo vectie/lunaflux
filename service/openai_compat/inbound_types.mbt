@@ -210,6 +210,7 @@ pub struct LunaOpenAIInboundWorkspace {
   priv mut utf8_codepoint : Int
   priv mut utf8_minimum : Int
   priv mut true_index : Int
+  priv mut streaming_response : Bool
   priv mut input_start : Int
   priv mut input_length : Int
   priv mut sampling_mode : Int

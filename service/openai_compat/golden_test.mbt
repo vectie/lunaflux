@@ -37,6 +37,7 @@ fn openai_workspace(
   limits : @inference.InferenceLimits,
   budget : Int,
   model? : FixedArray[Byte] = [b'm', b'o', b'd', b'e', b'l', b'-', b'x'],
+  buffered? : Bool = false,
 ) -> LunaOpenAICompatWorkspace raise {
   let prefix : FixedArray[Byte] = [b'r', b'e', b's', b'p', b'_']
   LunaOpenAICompatWorkspace::new(
@@ -48,6 +49,7 @@ fn openai_workspace(
     prefix,
     response_id_prefix_offset=0,
     response_id_prefix_length=prefix.length(),
+    buffered~,
   )
 }
 
@@ -57,8 +59,14 @@ fn openai_encode(
   event : @luna_event.LunaEventView,
   mode : LunaOpenAICompatMode,
   sequence : UInt64,
+  streaming? : Bool = true,
 ) -> (FixedArray[Byte], UInt64) raise {
-  let work = workspace.begin(event, mode, response_sequence=sequence)
+  let work = workspace.begin(
+    event,
+    mode,
+    response_sequence=sequence,
+    streaming~,
+  )
   while work.state() == LunaOpenAICompatPending {
     assert_eq(work.progress(), LunaOpenAICompatAdvanced)
     assert_true(work.last_work_units() > 0)

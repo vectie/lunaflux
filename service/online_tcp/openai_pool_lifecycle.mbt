@@ -163,6 +163,7 @@ fn LunaOnlineOpenAIConnectionSlot::reset_for_reuse(
   self.routes.clear()
   self.request_sequence = 0UL
   self.route_mode = 0
+  self.streaming_response = true
   self.tail_start = 0
   self.tail_length = 0
   self.response_kind = 0

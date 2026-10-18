@@ -1,6 +1,7 @@
 ///|
 fn LunaOnlineOpenAIConnectionSlot::begin_output_write(
   self : LunaOnlineOpenAIConnectionSlot,
+  continuing? : Bool = false,
 ) -> Bool {
   if !self.output.is_idle() ||
     self.output_writes.length() != 0 ||
@@ -10,7 +11,9 @@ fn LunaOnlineOpenAIConnectionSlot::begin_output_write(
   let write = self.output.begin_write() catch { _ => return false }
   self.output_writes.push(write)
   self.response_copy_cursor = 0
-  self.compat_copy_cursor = 0
+  if !continuing {
+    self.compat_copy_cursor = 0
+  }
   self.output_length = 0
   self.output_cursor = 0
   true
@@ -84,13 +87,15 @@ fn LunaOnlineOpenAIConnectionSlot::copy_compat_view(
   let length = self.outbound_views[0].length() catch { _ => return -1 }
   if length <= 0 ||
     self.compat_copy_cursor < 0 ||
-    self.compat_copy_cursor >= length ||
-    length - self.compat_copy_cursor >
-    self.output.byte_capacity() - self.output_length {
+    self.compat_copy_cursor >= length {
     return -1
   }
   let remaining = length - self.compat_copy_cursor
-  let amount = Int::min(remaining, self.outbound_copy_quanta)
+  let amount = luna_openai_bounded_copy_length(
+    remaining,
+    self.output.byte_capacity() - self.output_length,
+    self.outbound_copy_quanta,
+  )
   if amount <= 0 {
     return -1
   }
@@ -108,7 +113,7 @@ fn LunaOnlineOpenAIConnectionSlot::copy_compat_view(
   self.compat_copy_cursor += copied
   self.output_length += copied
   if self.compat_copy_cursor != length {
-    return 0
+    return if self.output_length == self.output.byte_capacity() { 2 } else { 0 }
   }
   self.outbound_views[0].release() catch {
     _ => return -1
@@ -222,6 +227,7 @@ fn LunaOnlineOpenAIConnectionPool::capture_semantic_event(
     view,
     mode,
     response_sequence=slot.request_sequence,
+    streaming=slot.streaming_response,
   ) catch {
     _ => return self.discard_semantic_event(index, event, terminal)
   }
@@ -258,6 +264,30 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_compat(
       }
       slot.outbound_works.clear()
       slot.outbound_views.push(view)
+      let length = view.length() catch {
+        _ => {
+          self.begin_slot_retirement(index)
+          return LunaOnlineOpenAIConnectionPoolAdvanced
+        }
+      }
+      if length == 0 && !slot.event_terminal && !slot.streaming_response {
+        view.release() catch {
+          _ => {
+            self.begin_slot_retirement(index)
+            return LunaOnlineOpenAIConnectionPoolAdvanced
+          }
+        }
+        slot.outbound_views.clear()
+        slot.semantic_events[0].delivered() catch {
+          _ => {
+            self.begin_slot_retirement(index)
+            return LunaOnlineOpenAIConnectionPoolAdvanced
+          }
+        }
+        slot.semantic_events.clear()
+        slot.phase = LUNA_OPENAI_POOL_REQUEST_ACTIVE
+        return LunaOnlineOpenAIConnectionPoolAdvanced
+      }
       if !slot.begin_output_write() {
         self.begin_slot_retirement(index)
         return LunaOnlineOpenAIConnectionPoolAdvanced
@@ -266,7 +296,16 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_compat(
         slot.phase = LUNA_OPENAI_POOL_RESPONSE_PROGRESS
         return LunaOnlineOpenAIConnectionPoolAdvanced
       }
-      let response = slot.response_workspace.begin_event_stream() catch {
+      let response = try {
+        if slot.streaming_response {
+          slot.response_workspace.begin_event_stream()
+        } else {
+          slot.response_workspace.begin_json(
+            content_length=length,
+            failed=view.failed_response(),
+          )
+        }
+      } catch {
         _ => {
           self.begin_slot_retirement(index)
           return LunaOnlineOpenAIConnectionPoolAdvanced
@@ -308,6 +347,10 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_response(
       _ =>
         if slot.response_kind == 1 {
           slot.sse_started = true
+          if slot.output_length == slot.output.byte_capacity() &&
+            !slot.publish_output() {
+            self.begin_slot_retirement(index)
+          }
         } else {
           let service_rejection = slot.response_kind == 4 ||
             slot.response_kind == 5
@@ -434,35 +477,4 @@ async fn LunaOnlineOpenAIConnectionPool::write_slot_output(
       LunaOnlineOpenAIConnectionPoolAdvanced
     }
   }
-}
-
-///|
-/// Releases the single output cell in the same bounded transition that writes
-/// its last byte. A short or blocked write never reaches this transition and
-/// therefore retains its flight until that connection is retired.
-fn LunaOnlineOpenAIConnectionPool::release_completed_slot_output(
-  self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
-) -> LunaOnlineOpenAIConnectionPoolProgress {
-  let slot = self.slots[index]
-  if slot.flights.length() != 1 ||
-    slot.output_length <= 0 ||
-    slot.output_cursor != slot.output_length {
-    self.begin_slot_retirement(index)
-    return LunaOnlineOpenAIConnectionPoolAdvanced
-  }
-  slot.flights[0].release() catch {
-    _ => {
-      self.begin_drain()
-      return LunaOnlineOpenAIConnectionPoolDrainingProgress
-    }
-  }
-  slot.flights.clear()
-  slot.output_cursor = 0
-  slot.output_length = 0
-  // Even a terminal write returns to the request-active phase first. Closing
-  // the transport is a separate bounded transition, matching the reusable
-  // server's write-confirmation/retirement sequencing.
-  slot.phase = LUNA_OPENAI_POOL_REQUEST_ACTIVE
-  LunaOnlineOpenAIConnectionPoolAdvanced
 }

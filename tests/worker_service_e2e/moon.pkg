@@ -7,6 +7,7 @@ import {
   "vectie/lunaflux/config/runtime_resolved",
   "vectie/lunaflux/config/scheduler" @scheduler_config,
   "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/deploy/worker_executable_file",
   "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/engine/worker_protocol",
   "vectie/lunaflux/engine/worker_service",

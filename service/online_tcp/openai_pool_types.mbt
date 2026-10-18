@@ -94,6 +94,7 @@ priv struct LunaOnlineOpenAIConnectionSlot {
   mut generation : UInt64
   mut request_sequence : UInt64
   mut route_mode : Int
+  mut streaming_response : Bool
   mut tail_start : Int
   mut tail_length : Int
   mut response_kind : Int

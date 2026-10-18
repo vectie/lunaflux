@@ -6,9 +6,9 @@ fn luna_json_space(byte : Byte) -> Bool {
 ///|
 fn LunaOpenAIInboundWorkspace::required_top_bits(self : Self) -> Int {
   if self.route == 1 {
-    7
+    3
   } else {
-    13
+    9
   }
 }
 
@@ -65,14 +65,17 @@ fn LunaOpenAIInboundWorkspace::finish_message(
 fn LunaOpenAIInboundWorkspace::progress_true(
   self : Self,
 ) -> Unit raise LunaOpenAICompatError {
-  let literal = b"true"
+  if self.true_index == 0 && self.cursor < self.body_length {
+    self.streaming_response = self.body_byte(self.cursor) == b't'
+  }
+  let literal = if self.streaming_response { b"true" } else { b"false" }
   if self.cursor >= self.body_length ||
     self.body_byte(self.cursor) != literal[self.true_index] {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatJson)
   }
   self.cursor += 1
   self.true_index += 1
-  if self.true_index == 4 {
+  if self.true_index == literal.length() {
     self.phase = LUNA_INBOUND_TOP_AFTER
   }
 }

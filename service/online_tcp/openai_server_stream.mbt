@@ -99,6 +99,7 @@ fn LunaOnlineOpenAIServer::capture_semantic_event(
     view,
     mode,
     response_sequence=self.request_sequence,
+    streaming=self.streaming_response,
   ) catch {
     _ => {
       self.begin_retirement(LunaLogInternal, failure=LunaOnlineTcpCoordinator)
@@ -191,6 +192,12 @@ fn LunaOnlineOpenAIServer::progress_compat(
         }
       }
       self.outbound_views.push(view)
+      if length == 0 && !self.event_terminal && !self.streaming_response {
+        self.output_source = 2
+        self.output_cursor = 0
+        self.output_length = 0
+        return self.finish_output_view()
+      }
       if !self.sse_started {
         self.begin_success_head()
       } else {

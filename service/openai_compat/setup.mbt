@@ -80,7 +80,14 @@ fn LunaOpenAICompatWorkspace::finish_setup(
 ) -> Unit {
   self.setup_cursor = 0
   self.part_index = 0
-  self.phase = LUNA_OPENAI_COMPAT_CONFIGURE_PART
+  self.phase = if !self.buffering || self.event_kind == LUNA_OPENAI_EVENT_FAILED {
+    LUNA_OPENAI_COMPAT_CONFIGURE_PART
+  } else if self.event_kind == LUNA_OPENAI_EVENT_TOKEN ||
+    self.event_kind == LUNA_OPENAI_EVENT_COMPLETED {
+    LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD
+  } else {
+    LUNA_OPENAI_COMPAT_FINALIZING
+  }
 }
 
 ///|

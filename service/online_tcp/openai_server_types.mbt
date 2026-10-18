@@ -86,6 +86,7 @@ pub struct LunaOnlineOpenAIServer {
   priv mut connection_epoch : UInt64
   priv mut request_sequence : UInt64
   priv mut route_mode : Int
+  priv mut streaming_response : Bool
   priv mut tail_start : Int
   priv mut tail_length : Int
   priv mut response_kind : Int

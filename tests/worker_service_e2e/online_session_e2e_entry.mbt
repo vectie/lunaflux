@@ -1,6 +1,19 @@
 ///|
 async fn main {
   match @env.args() {
+    [_, "--openai-buffered", executable, fixture_root] => {
+      run_luna_openai_buffered_evidence(@utf8.encode(executable), fixture_root) catch {
+        @online_session.LunaOnlineInstancePreparationFailed(failure) => {
+          println("buffered preparation failure=\{Repr(failure)}")
+          raise @online_session.LunaOnlineInstancePreparationFailed(failure)
+        }
+        error => {
+          println("buffered failure=\{Repr(error)}")
+          raise error
+        }
+      }
+      println("LunaFlux buffered OpenAI evidence passed")
+    }
     [_, "--coalesced-progress", executable, fixture_root] =>
       try
         run_online_coalesced_evidence(@utf8.encode(executable), fixture_root~)

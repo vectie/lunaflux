@@ -27,7 +27,16 @@ fn LunaOpenAICompatWorkspace::current_literal(
       } else {
         b"false"
       }
-    _ => luna_openai_literal(self.mode, self.event_kind, self.part_index)
+    _ =>
+      if self.buffering {
+        luna_openai_buffered_literal(
+          self.mode,
+          self.event_kind,
+          self.part_index,
+        )
+      } else {
+        luna_openai_literal(self.mode, self.event_kind, self.part_index)
+      }
   }
 }
 
@@ -48,6 +57,11 @@ fn LunaOpenAICompatWorkspace::payload_byte_at(
   event : @luna_event.LunaEventView,
   index : Int,
 ) -> Byte raise LunaOpenAICompatError {
+  if self.buffering &&
+    self.event_kind == LUNA_OPENAI_EVENT_COMPLETED &&
+    self.phase != LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD {
+    return self.buffered_text[index]
+  }
   match self.event_kind {
     LUNA_OPENAI_EVENT_TOKEN => {
       let token = event.token() catch {

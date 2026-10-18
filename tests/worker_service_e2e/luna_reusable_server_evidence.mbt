@@ -37,7 +37,17 @@ fn prepare_tcp_service(
     @framed_wire.LunaFramedEventStepBudget::new(17),
     scheduler_blueprint(),
     tcp_service_binding(fixture_root~),
-    @worker_executable_fixture.admit(executable),
+    // The deployment verifier opens this exact executable without reading its
+    // payload. This fixed test label is not computed integrity evidence.
+    @worker_executable_file.verify(
+      @utf8.decode(executable),
+      @worker_executable_file.WorkerExecutableDigest::from_sha256(
+        "0000000000000000000000000000000000000000000000000000000000000001",
+      ),
+      @worker_executable_file.WorkerExecutableFileLimits::new(
+        maximum_bytes=67108864L,
+      ),
+    ),
     tcp_startup(fixture_root~),
     bootstrap_source_for_root(fixture_root),
     reusable_server_process_limits(),

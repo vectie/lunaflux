@@ -63,6 +63,7 @@ fn new_luna_openai_connection_slot(
     response_id_prefix,
     response_id_prefix_offset~,
     response_id_prefix_length~,
+    buffered=true,
   ) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }
@@ -97,6 +98,7 @@ fn new_luna_openai_connection_slot(
     generation: 0UL,
     request_sequence: 0UL,
     route_mode: 0,
+    streaming_response: true,
     tail_start: 0,
     tail_length: 0,
     response_kind: 0,

@@ -2,7 +2,16 @@
 fn LunaOnlineOpenAIServer::begin_success_head(
   self : LunaOnlineOpenAIServer,
 ) -> LunaOnlineTcpServerProgress {
-  let work = self.response_workspace.begin_event_stream() catch {
+  let work = try {
+    if self.streaming_response {
+      self.response_workspace.begin_event_stream()
+    } else {
+      self.response_workspace.begin_json(
+        content_length=self.outbound_views[0].length(),
+        failed=self.outbound_views[0].failed_response(),
+      )
+    }
+  } catch {
     _ => {
       self.begin_retirement(LunaLogInternal, failure=LunaOnlineTcpLifecycle)
       return LunaOnlineTcpServerAdvanced
@@ -145,6 +154,12 @@ fn LunaOnlineOpenAIServer::offer_handoff(
     return LunaOnlineTcpServerAdvanced
   }
   let handoff = self.inbound_views[0].handoff() catch {
+    _ => {
+      self.begin_retirement(LunaLogValidation, failure=LunaOnlineTcpLifecycle)
+      return LunaOnlineTcpServerAdvanced
+    }
+  }
+  self.streaming_response = self.inbound_views[0].streaming_response() catch {
     _ => {
       self.begin_retirement(LunaLogValidation, failure=LunaOnlineTcpLifecycle)
       return LunaOnlineTcpServerAdvanced

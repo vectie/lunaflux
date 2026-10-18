@@ -332,6 +332,12 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_handoff(
       return LunaOnlineOpenAIConnectionPoolAdvanced
     }
   }
+  slot.streaming_response = slot.inbound_views[0].streaming_response() catch {
+    _ => {
+      self.begin_slot_retirement(index)
+      return LunaOnlineOpenAIConnectionPoolAdvanced
+    }
+  }
   let ingress = self
     .stream()
     .offer_luna_text_handoff_with_receipt(slot.receipts[0], handoff) catch {

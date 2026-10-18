@@ -1,13 +1,19 @@
 ///|
 fn luna_openai_requirements(
   inference : @inference.InferenceLimits,
+  buffered? : Bool = false,
 ) -> (Int, UInt64, UInt64) raise LunaOpenAICompatError {
   let delta = inference.max_decoded_delta_bytes()
   if delta <= 0 || delta > 16384 {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits)
   }
+  let buffered_bytes = if buffered {
+    (inference.max_new_tokens().to_uint64() + 1UL) * delta.to_uint64()
+  } else {
+    0UL
+  }
   let escaped_dynamic = (
-      delta.to_uint64() +
+      (if buffered { buffered_bytes } else { delta.to_uint64() }) +
       LUNA_OPENAI_COMPAT_MAX_ERROR_CODE_BYTES.to_uint64() +
       LUNA_OPENAI_COMPAT_MAX_MODEL_ALIAS_BYTES.to_uint64()
     ) *
@@ -17,6 +23,7 @@ fn luna_openai_requirements(
     LUNA_OPENAI_COMPAT_MAX_RESPONSE_PREFIX_BYTES.to_uint64() +
     20UL
   let total = output +
+    buffered_bytes +
     LUNA_OPENAI_COMPAT_MAX_MODEL_ALIAS_BYTES.to_uint64() +
     LUNA_OPENAI_COMPAT_MAX_RESPONSE_PREFIX_BYTES.to_uint64()
   if output > 2147483647UL || total > 2147483647UL {
@@ -28,8 +35,9 @@ fn luna_openai_requirements(
 ///|
 pub fn LunaOpenAICompatWorkspace::required_byte_cells(
   inference : @inference.InferenceLimits,
+  buffered? : Bool = false,
 ) -> UInt64 raise LunaOpenAICompatError {
-  let (_, bytes, _) = luna_openai_requirements(inference)
+  let (_, bytes, _) = luna_openai_requirements(inference, buffered~)
   bytes
 }
 
@@ -51,8 +59,9 @@ pub fn LunaOpenAICompatWorkspace::new(
   response_id_prefix : FixedArray[Byte],
   response_id_prefix_offset~ : Int,
   response_id_prefix_length~ : Int,
+  buffered? : Bool = false,
 ) -> LunaOpenAICompatWorkspace raise LunaOpenAICompatError {
-  let (output_capacity, _, _) = luna_openai_requirements(inference)
+  let (output_capacity, _, _) = luna_openai_requirements(inference, buffered~)
   budget.validate()
   if !luna_openai_range_is_valid(
       deployment_model_alias.length(),
@@ -109,6 +118,19 @@ pub fn LunaOpenAICompatWorkspace::new(
     response_id_prefix: prefix_storage,
     response_id_prefix_length,
     semantic_views: Array(capacity=1),
+    buffered_text: FixedArray::make(
+      if buffered {
+        ((inference.max_new_tokens().to_uint64() + 1UL) *
+        inference.max_decoded_delta_bytes().to_uint64()).to_int()
+      } else {
+        0
+      },
+      0,
+    ),
+    buffered_sequence: 0UL,
+    buffered_mode: 0,
+    buffered_length: 0,
+    buffering: false,
     epoch: 0UL,
     phase: LUNA_OPENAI_COMPAT_IDLE,
     mode: 0,
@@ -192,6 +214,7 @@ pub fn LunaOpenAICompatWorkspace::begin(
   event : @luna_event.LunaEventView,
   mode : LunaOpenAICompatMode,
   response_sequence~ : UInt64,
+  streaming? : Bool = true,
 ) -> LunaOpenAICompatWork raise LunaOpenAICompatError {
   if self.phase != LUNA_OPENAI_COMPAT_IDLE {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLifecycle)
@@ -202,6 +225,26 @@ pub fn LunaOpenAICompatWorkspace::begin(
   let kind = event.kind() catch {
     _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatSemanticEvent)
   }
+  let selected_mode = match mode {
+    LunaOpenAIResponses => 1
+    LunaOpenAIChatCompletions => 2
+  }
+  if !streaming {
+    guard self.buffered_text.length() > 0 else {
+      raise LunaOpenAICompatInvalid(LunaOpenAICompatCapacity)
+    }
+    if kind == LunaAcceptedEventKind {
+      self.buffered_sequence = response_sequence
+      self.buffered_mode = selected_mode
+      self.buffered_length = 0
+    } else if self.buffered_sequence != response_sequence ||
+      self.buffered_mode != selected_mode {
+      raise LunaOpenAICompatInvalid(LunaOpenAICompatLifecycle)
+    }
+  } else {
+    self.buffered_sequence = 0UL
+    self.buffered_length = 0
+  }
   if self.epoch == 0xffffffffffffffffUL {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatEpoch)
   }
@@ -210,10 +253,8 @@ pub fn LunaOpenAICompatWorkspace::begin(
     abort("Luna OpenAI semantic reference-slot invariant")
   }
   self.epoch += 1UL
-  self.mode = match mode {
-    LunaOpenAIResponses => 1
-    LunaOpenAIChatCompletions => 2
-  }
+  self.mode = selected_mode
+  self.buffering = !streaming
   self.event_kind = luna_openai_event_kind(kind)
   self.response_sequence = response_sequence
   self.semantic_views.push(event)

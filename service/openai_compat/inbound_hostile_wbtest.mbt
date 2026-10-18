@@ -20,7 +20,7 @@ test "Luna OpenAI inbound rejects duplicate unknown missing and trailing fields"
   let responses : FixedArray[String] = [
     "{\"model\":\"model-x\",\"model\":\"model-x\",\"input\":\"x\",\"stream\":true}",
     "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,\"extra\":1}", "{\"model\":\"model-x\",\"stream\":true}",
-    "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,}", "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":false}",
+    "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":true,}", "{\"model\":\"model-x\",\"input\":\"x\",\"stream\":null}",
     "{\"model\":\"wrong\",\"input\":\"x\",\"stream\":true}", "{\"model\":\"model-x\",\"input\":\"\",\"stream\":true}",
   ]
   for body in responses {

@@ -113,6 +113,7 @@ fn LunaOnlineOpenAIServer::reset_connection(
   self.streams.clear()
   self.connection_phase = LUNA_OPENAI_CONNECTION_NONE
   self.route_mode = 0
+  self.streaming_response = true
   self.tail_start = 0
   self.tail_length = 0
   self.response_kind = 0

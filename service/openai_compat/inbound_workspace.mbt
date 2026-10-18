@@ -143,6 +143,7 @@ pub fn LunaOpenAIInboundWorkspace::new(
     utf8_codepoint: 0,
     utf8_minimum: 0,
     true_index: 0,
+    streaming_response: false,
     input_start: 0,
     input_length: 0,
     sampling_mode: if sampling.mode() == Sample {
@@ -199,6 +200,7 @@ fn LunaOpenAIInboundWorkspace::reset_operation(self : Self) -> Unit {
   self.body_length = 0
   self.cursor = 0
   self.top_seen = 0
+  self.streaming_response = false
   self.message_seen = 0
   self.current_key = 0
   self.requested_max_tokens = -1

@@ -9,6 +9,10 @@ supported_targets = "native"
 
 import {
   "moonbitlang/core/encoding/utf8",
+} for "test"
+
+import {
+  "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/sampling",
   "vectie/lunaflux/service/api_auth",
   "vectie/lunaflux/service/framed_wire",

@@ -54,6 +54,7 @@ pub struct LunaHttp1ResponseWorkspace {
   priv mut response_kind : Int
   priv mut status_code : Int
   priv mut response_length : Int
+  priv mut body_length : Int
   priv mut cursor : Int
   priv mut last_work_units : Int
   priv mut total_work_units : UInt64

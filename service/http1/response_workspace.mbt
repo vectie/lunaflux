@@ -33,6 +33,7 @@ pub fn LunaHttp1ResponseWorkspace::new(
     response_kind: 0,
     status_code: 0,
     response_length: 0,
+    body_length: 0,
     cursor: 0,
     last_work_units: 0,
     total_work_units: 0UL,

@@ -69,6 +69,7 @@ fn LunaOpenAICompatWorkspace::progress_one(
   let event = self.authenticate_event()
   match self.phase {
     LUNA_OPENAI_COMPAT_SETUP => self.progress_setup(event)
+    LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD => self.progress_buffered_payload(event)
     LUNA_OPENAI_COMPAT_CONFIGURE_PART => self.configure_part()
     LUNA_OPENAI_COMPAT_LITERAL => self.progress_literal()
     LUNA_OPENAI_COMPAT_RAW => self.progress_raw()
@@ -164,6 +165,8 @@ pub fn LunaOpenAICompatWork::abort(
   self : LunaOpenAICompatWork,
 ) -> Unit raise LunaOpenAICompatError {
   let workspace = self.require_workspace()
+  workspace.buffered_sequence = 0UL
+  workspace.buffered_length = 0
   workspace.reset_operation()
   workspace.phase = LUNA_OPENAI_COMPAT_IDLE
 }
@@ -185,6 +188,13 @@ pub fn LunaOpenAICompatView::length(
   self : LunaOpenAICompatView,
 ) -> Int raise LunaOpenAICompatError {
   self.require_workspace().length
+}
+
+///|
+pub fn LunaOpenAICompatView::failed_response(
+  self : Self,
+) -> Bool raise LunaOpenAICompatError {
+  self.require_workspace().event_kind == LUNA_OPENAI_EVENT_FAILED
 }
 
 ///|
@@ -219,6 +229,11 @@ pub fn LunaOpenAICompatView::release(
   self : LunaOpenAICompatView,
 ) -> Unit raise LunaOpenAICompatError {
   let workspace = self.require_workspace()
+  if workspace.event_kind == LUNA_OPENAI_EVENT_COMPLETED ||
+    workspace.event_kind == LUNA_OPENAI_EVENT_FAILED {
+    workspace.buffered_sequence = 0UL
+    workspace.buffered_length = 0
+  }
   workspace.reset_operation()
   workspace.phase = LUNA_OPENAI_COMPAT_IDLE
 }

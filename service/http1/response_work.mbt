@@ -7,10 +7,11 @@ pub fn LunaHttp1ResponseWork::progress(
   let budget = workspace.budget.work_units()
   let mut used = 0
   while used < budget && workspace.phase == LUNA_HTTP1_RESPONSE_BUILDING {
-    workspace.storage[workspace.cursor] = luna_http1_response_byte(
-      workspace.response_kind,
-      workspace.cursor,
-    )
+    workspace.storage[workspace.cursor] = if workspace.response_kind >= 5 {
+      workspace.json_head_byte(workspace.cursor)
+    } else {
+      luna_http1_response_byte(workspace.response_kind, workspace.cursor)
+    }
     workspace.cursor += 1
     used += 1
     if workspace.cursor == workspace.response_length {

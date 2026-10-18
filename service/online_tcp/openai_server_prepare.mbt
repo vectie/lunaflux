@@ -77,6 +77,7 @@ pub fn prepare_luna_online_openai_server(
     response_id_prefix,
     response_id_prefix_offset~,
     response_id_prefix_length~,
+    buffered=true,
   ) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }
@@ -183,6 +184,7 @@ pub async fn bind_luna_online_openai_server(
     connection_epoch: 0UL,
     request_sequence: 0UL,
     route_mode: 0,
+    streaming_response: true,
     tail_start: 0,
     tail_length: 0,
     response_kind: 0,

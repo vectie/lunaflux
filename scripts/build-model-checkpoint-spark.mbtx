@@ -28,7 +28,8 @@ async fn main {
     is ("cmd/deepseek_checkpoint"
     | "cmd/glm_checkpoint"
     | "cmd/minimax_checkpoint"
-    | "cmd/device_state_snapshot_probe") &&
+    | "cmd/device_state_snapshot_probe"
+    | "tests/worker_service_e2e") &&
     unit.has_prefix("lunaflux-checkpoint-build-") &&
     unit.iter().all(c => c is ('a'..='z' | '0'..='9' | '-' | '.')) else {
     fail("invalid isolated build arguments")
@@ -84,6 +85,7 @@ async fn main {
       previous +
       "/toolchain/bin/moon build " +
       target_package +
+      (if target_package == "tests/worker_service_e2e" { " cmd/worker_echo" } else { "" }) +
       " --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
     ] {
     let result = @shell.Cmd("ssh", [

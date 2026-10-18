@@ -319,6 +319,15 @@ pub fn LunaOpenAIInboundView::handoff(
 }
 
 ///|
+/// HTTP presentation preference only. The engine receives the same streaming
+/// semantic event contract; buffered delivery is owned by the HTTP adapter.
+pub fn LunaOpenAIInboundView::streaming_response(
+  self : Self,
+) -> Bool raise LunaOpenAICompatError {
+  self.require_workspace().streaming_response
+}
+
+///|
 pub fn LunaOpenAIInboundView::length(
   self : Self,
 ) -> Int raise LunaOpenAICompatError {

@@ -151,6 +151,7 @@ pub struct LunaHttp1ResponseWorkspace {
 }
 pub fn LunaHttp1ResponseWorkspace::begin_error(Self, LunaHttp1ErrorResponseKind) -> LunaHttp1ResponseWork raise LunaHttp1Error
 pub fn LunaHttp1ResponseWorkspace::begin_event_stream(Self) -> LunaHttp1ResponseWork raise LunaHttp1Error
+pub fn LunaHttp1ResponseWorkspace::begin_json(Self, content_length~ : Int, failed? : Bool) -> LunaHttp1ResponseWork raise LunaHttp1Error
 pub fn LunaHttp1ResponseWorkspace::new(LunaHttp1ResponseStepBudget) -> Self
 pub fn LunaHttp1ResponseWorkspace::required_byte_cells() -> UInt64
 

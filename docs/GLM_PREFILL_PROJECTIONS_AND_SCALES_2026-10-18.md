@@ -464,3 +464,23 @@ an opt-in retired MoE leaf observer for one selected layer, with named startup
 buffer bindings and the same host budget. Packed scratch includes inactive
 capacity; differences there alone are not mathematical output differences.
 The observer does not insert device operations into the execution schedule.
+
+### Full-service HTTP presentation
+
+Non-streaming JSON now accumulates every visible token delta and final tail in
+a startup-sized buffer. Omitted `stream` and `stream:false` select JSON; `true`
+retains SSE. Both presentations use the same canonical internal token events,
+request ownership, scheduler and compiler. The connection pool copies large
+JSON bodies across bounded immutable output flights, retaining the semantic
+terminal until its final chunk is copied. Buffer requirements include text plus
+worst-case JSON escaping; no unbounded response builder is introduced.
+
+The three affected HTTP/compatibility packages pass 134 tests, including exact
+decimal Content-Length, bounded progress, deltas/tail/escaping and workspace
+reuse. A real TCP test covers simultaneous JSON requests and subsequent SSE
+reuse with 192-byte output cells. It is not yet a pass: this Mac cannot execute
+the existing descriptor-pinned child path (Linux-only), so the test is moving
+to a bounded CPU-only Spark run. Its child admission uses the existing
+no-payload-read API, not the old test helper that computed an executable hash.
+None of this establishes real-model service readiness or changes the offline
+public-endpoint decision.

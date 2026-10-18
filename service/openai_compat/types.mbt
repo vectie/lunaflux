@@ -53,6 +53,9 @@ const LUNA_OPENAI_COMPAT_VIEW_LEASED : Int = 11
 const LUNA_OPENAI_COMPAT_FAILED : Int = 12
 
 ///|
+const LUNA_OPENAI_COMPAT_BUFFER_PAYLOAD : Int = 13
+
+///|
 const LUNA_OPENAI_PART_END : Int = 0
 
 ///|
@@ -191,6 +194,11 @@ pub struct LunaOpenAICompatWorkspace {
   priv response_id_prefix : FixedArray[Byte]
   priv response_id_prefix_length : Int
   priv semantic_views : Array[@luna_event.LunaEventView]
+  priv buffered_text : FixedArray[Byte]
+  priv mut buffered_sequence : UInt64
+  priv mut buffered_mode : Int
+  priv mut buffered_length : Int
+  priv mut buffering : Bool
   priv mut epoch : UInt64
   priv mut phase : Int
   priv mut mode : Int
