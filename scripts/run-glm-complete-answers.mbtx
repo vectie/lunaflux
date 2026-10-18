@@ -1,0 +1,68 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+// Offline resident-model acceptance. This is not an HTTP service or a speed
+// comparison against the old eight-token corpus.
+async fn main {
+  guard @env.args() is [_, name, runtime, overlap] &&
+    name.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '-')) &&
+    !name.is_empty() &&
+    runtime.has_prefix("/tmp/lunaflux-glm-expert-tp-") &&
+    overlap is ("0" | "1") else {
+    fail("UNIQUE_NAME RUNTIME OVERLAP_0_OR_1")
+  }
+  let root = "/tmp/lunaflux-model-bench-" + name
+  let environment = {
+    "LUNAFLUX_SPARK_178_SOCKET": "/tmp/lunaflux-glm178-prefill-20261018.sock",
+    "LUNAFLUX_SPARK_179_SOCKET": "/tmp/lunaflux-glm179-prefill-20261018.sock",
+    "LUNA_GLM_HISTORY": "1024",
+    "LUNA_BENCH_OUTPUT_TOKENS": "512",
+    "LUNA_BENCH_STOP_TOKENS": "154820,154827,154829",
+    "LUNA_BENCH_CORPUS": "benchmarks/corpora/glm_complete_answers_v1.json",
+    "LUNA_GLM_EXPERT_TRANSPORT": "tiles",
+    "LUNA_GLM_EXPERT_LOOKAHEAD": "1",
+    "LUNA_GLM_BUFFERED_MATRICES": "1",
+    "LUNA_GLM_DISTRIBUTED_SCALES": "1",
+    "LUNA_GLM_PREFILL_K": "0",
+    "LUNA_GLM_PARALLEL_HC": "1",
+    "LUNA_GLM_SHARED_COLUMNS": "32",
+    "LUNA_GLM_OVERLAP_EXPERTS": overlap,
+    "LUNA_GLM_FUSED_CONTROLS": "1",
+    "LUNA_GLM_VOCAB_TP": "1",
+  }
+  for mode in ["prepare", "start", "watch", "collect"] {
+    let out = @shell.Cmd(
+      "moon",
+      [
+        "run", "scripts/benchmark-spark-models.mbtx", root, "glm", mode, "--runtime",
+        runtime, "--rows", "64", "--tiled-grouped", "--expert-tp", "--low-bit", "--queued-tp",
+        "--shape-aware", "--warmup",
+      ],
+      env=environment,
+    ).output(max_output_bytes=8388608)
+    if @fs.exists(root) {
+      @fs.write_file(
+        root + "/complete-" + mode + ".stdout",
+        out.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/complete-" + mode + ".stderr",
+        out.stderr(),
+        create_mode=CreateNew,
+      )
+    }
+    println(out.stderr())
+    out.check()
+    println("\{name} \{mode} completed")
+  }
+  println(
+    "Complete-answer captures collected; quality and HTTP service remain separate gates.",
+  )
+}

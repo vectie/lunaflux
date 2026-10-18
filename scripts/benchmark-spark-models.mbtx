@@ -5,6 +5,7 @@ import {
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
   "moonbitlang/core/string",
+  "moonbitlang/core/json",
 }
 
 // Offline measurement only. Reuse already built AOT; never hash payloads.
@@ -88,14 +89,14 @@ fn runtime_selection(glm : Bool, options : ArrayView[String]) -> String raise {
   guard options is ["--runtime", runtime] &&
     runtime.has_prefix("/tmp/lunaflux-") &&
     !runtime.contains("..") &&
-    runtime.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
+    runtime.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
     fail("expected --runtime /tmp/lunaflux-NEW-RUNTIME")
   }
   runtime
 }
 
 ///|
-fn row_selection(glm : Bool, options : ArrayView[String]) -> Int raise {
+fn row_selection(glm : Bool, options : ArrayView[String]) -> Int32 raise {
   if options is [.. base, "--low-bit"] {
     return row_selection(glm, base)
   }
@@ -149,6 +150,63 @@ fn corpus(profile : Bool) -> Array[(String, String)] {
         "retrieval", "Mira has a red bag. Jon has a blue bag. Who has the blue bag? Answer only the name.",
       ),
     ]
+  }
+}
+
+///|
+// Offline inputs only. Expected answers/scorers are deliberately not consumed
+// by the inference executable or compiler.
+fn explicit_corpus(text : String) -> Array[(String, String)] raise {
+  guard @json.parse(text) is Array(cases) &&
+    cases.length() > 0 &&
+    cases.length() <= 64 else {
+    fail("expected 1..64 explicit cases")
+  }
+  let seen : Map[String, Bool] = Map([])
+  cases.map(value => {
+    guard value is { "id": String(id), "prompt": String(prompt), .. } &&
+      !id.is_empty() &&
+      !prompt.is_empty() &&
+      prompt.length() <= 32768 &&
+      !seen.contains(id) else {
+      fail("case requires unique id and bounded prompt")
+    }
+    seen[id] = true
+    (id, prompt)
+  })
+}
+
+///|
+fn answer_envelope(
+  history : Int32,
+  maximum : Int32,
+  rows : Int32,
+) -> Unit raise {
+  guard history >= rows && history <= 4096 && maximum > 0 && maximum < history else {
+    fail("invalid explicit context/output envelope")
+  }
+}
+
+///|
+test "complete-answer corpus and budgets are explicit, not eight-token defaults" {
+  let cases = explicit_corpus(
+    "[{\"id\":\"json\",\"prompt\":\"Return a JSON value\",\"expected\":42}]",
+  )
+  assert_eq(cases, [("json", "Return a JSON value")])
+  answer_envelope(1024, 512, 64)
+  try answer_envelope(64, 64, 64) catch {
+    _ => ()
+  } noraise {
+    _ => fail("no input reserve")
+  }
+  try
+    explicit_corpus(
+      "[{\"id\":\"a\",\"prompt\":\"x\"},{\"id\":\"a\",\"prompt\":\"y\"}]",
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("duplicate ids")
   }
 }
 
@@ -208,7 +266,7 @@ fn available_kib(text : String) -> Int64 raise {
 }
 
 ///|
-fn sample_label(index : Int, warmup : Bool, prefix : String) -> String {
+fn sample_label(index : Int32, warmup : Bool, prefix : String) -> String {
   if warmup && index == 0 {
     "warmup"
   } else {
@@ -286,7 +344,7 @@ async fn main {
   guard @env.args() is [_, root, family, mode, .. options] &&
     root.has_prefix("/tmp/lunaflux-model-bench-") &&
     !root.contains("..") &&
-    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
     family is ("glm" | "deepseek") &&
     mode is ("prepare" | "prepare-profile" | "start" | "watch" | "collect") else {
     fail(
@@ -373,13 +431,45 @@ async fn main {
   let runtime = runtime_selection(glm, options)
   let executable = binary(glm, runtime)
   let rows = row_selection(glm, options)
-  let history = if glm { 64 } else { 256 }
+  let history = if glm {
+    @string.parse_int(@env.get_env_var("LUNA_GLM_HISTORY").unwrap_or("64"))
+  } else {
+    256
+  }
+  let output_budget = @string.parse_int(
+    @env.get_env_var("LUNA_BENCH_OUTPUT_TOKENS").unwrap_or("8"),
+  )
+  let stop = @env.get_env_var("LUNA_BENCH_STOP_TOKENS").unwrap_or(
+    if glm {
+      "154827"
+    } else {
+      "1"
+    },
+  )
+  guard stop == "-1" ||
+    (!stop.is_empty() && stop.iter().all(c => c is ('0'..<='9' | ','))) else {
+    fail("stop policy must be explicit token ids or -1")
+  }
+  answer_envelope(history, output_budget, rows)
+  let custom_text = match @env.get_env_var("LUNA_BENCH_CORPUS") {
+    Some(path) => Some(@fs.read_file(path).text())
+    None => None
+  }
   let queue = root + "/queue"
   let aot = runtime + "/aot"
   let selection = "binary=" +
     executable +
     "\naot=" +
     aot +
+    (if history != (if glm { 64 } else { 256 }) ||
+      output_budget != 8 ||
+      custom_text is Some(_) ||
+      stop != (if glm { "154827" } else { "1" }) {
+      "\nhistory=\{history}\nmaximum_new_tokens=\{output_budget}\nstop_tokens=\{stop}\nexplicit_corpus=" +
+      custom_text.unwrap_or("default")
+    } else {
+      ""
+    }) +
     "\nrows=\{rows}\ncomparison_outside_compiler=true\npayload_hashing=false\n" +
     (if transport == "indexed" {
       ""
@@ -397,7 +487,9 @@ async fn main {
     (if initialization_probe { "diagnostic=initcheck-untimed\n" } else { "" }) +
     (if @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS") == Some("1") {
       "diagnostic=retired-frontiers-untimed\n"
-    } else { "" }) +
+    } else {
+      ""
+    }) +
     (if lookahead { "expert_fragment_slots=2\n" } else { "" }) +
     (if chunk { "recurrent_evaluation=chunk-triangular-f32\n" } else { "" }) +
     (if tiled && !shape_aware {
@@ -519,10 +611,17 @@ async fn main {
     record(root, "queue-mkdir", remote(false, "mkdir " + queue))
     let counts : Array[String] = []
     let samples = []
-    if warmup {
-      samples.push(corpus(profile)[0])
+    let cases = match custom_text {
+      Some(text) => explicit_corpus(text)
+      None => corpus(profile)
     }
-    for sample in corpus(profile) {
+    if custom_text is Some(text) {
+      @fs.write_file(root + "/corpus.json", text, create_mode=CreateNew)
+    }
+    if warmup {
+      samples.push(cases[0])
+    }
+    for sample in cases {
       samples.push(sample)
     }
     for i, (category, prompt) in samples {
@@ -561,7 +660,7 @@ async fn main {
       }
       guard input_tokens > 0 &&
         count == 1 + (input_tokens - 1) / rows &&
-        input_tokens + 8 <= history else {
+        input_tokens + (if profile { 2 } else { output_budget }) <= history else {
         fail("prompt outside existing AOT envelope")
       }
       counts.push(count.to_string())
@@ -595,9 +694,12 @@ async fn main {
     return
   }
   let profile = @fs.read_file(root + "/profile.txt").text() == "true"
-  let count = corpus(profile).length() + (if warmup { 1 } else { 0 })
-  let maximum = if profile { 2 } else { 8 }
-  let stop = if glm { 154827 } else { 1 }
+  let count = (match custom_text {
+      Some(text) => explicit_corpus(text).length()
+      None => corpus(profile).length()
+    }) +
+    (if warmup { 1 } else { 0 })
+  let maximum = if profile { 2 } else { output_budget }
   if mode == "start" {
     // A closed previous benchmark can leave the listener's accepted socket in
     // TIME_WAIT. Wait for these two benchmark ports; do not change the service
@@ -747,10 +849,14 @@ async fn main {
           unit +
           " --setenv=TMPDIR=" +
           root +
-          (if last && @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS") == Some("1") {
-            " --setenv=LUNA_GLM_RETIRED_FRONTIERS=" + root + "/frontiers" +
+          (if last &&
+            @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS") == Some("1") {
+            " --setenv=LUNA_GLM_RETIRED_FRONTIERS=" +
+            root +
+            "/frontiers" +
             (match @env.get_env_var("LUNA_GLM_RETIRED_EXPERT_LAYER") {
-              Some(value) if value == "all" || (!value.is_empty() && value.iter().all(c => c is '0'..='9')) =>
+              Some(value) if value == "all" ||
+                (!value.is_empty() && value.iter().all(c => c is ('0'..<='9'))) =>
                 " --setenv=LUNA_GLM_RETIRED_EXPERT_LAYER=" + value
               _ => ""
             })
@@ -869,6 +975,13 @@ async fn main {
       host(false) + ":" + root + "/output/request-\{i}/tokens.txt",
       tokens,
     )
+    if custom_text is Some(_) {
+      copy(
+        false,
+        host(false) + ":" + root + "/output/request-\{i}/finish.json",
+        root + "/finish-" + decoded_label + ".json",
+      )
+    }
     let ids = @fs.read_file(tokens)
       .text()
       .trim()

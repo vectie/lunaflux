@@ -8,8 +8,8 @@ priv struct Startup {
   expert_tensor_parallel : Bool
   retirement : @parallel.RetirementPolicy
   replay : @parallel.ReplayPolicy
-  rows : Int
-  history : Int
+  rows : Int32
+  history : Int32
   budgets : Array[Int64]
   reserve : Int64
   recurrent_evaluation : @precision.RecurrentEvaluationLaw
@@ -18,10 +18,10 @@ priv struct Startup {
   sparse_matrix_staging : @matrix.MatrixStaging
   expert_scaled_dot_law : @precision.ScaledDotReductionLaw
   expert_transport : @matrix.ExpertTransport
-  expert_fragment_slots : Int
-  expert_scale_partitions : Int
+  expert_fragment_slots : Int32
+  expert_scale_partitions : Int32
   hc_reduction : @precision.HyperControlReduction
-  shared_matrix_columns : Int
+  shared_matrix_columns : Int32
   overlap_experts : Bool
   fuse_hyper : Bool
   fuse_controls : Bool
@@ -62,7 +62,7 @@ fn read_inventory(
 }
 
 ///|
-fn stage_plan(startup : Startup, ordinal : Int) -> @glm.GlmDecoderStage raise {
+fn stage_plan(startup : Startup, ordinal : Int32) -> @glm.GlmDecoderStage raise {
   guard startup.ranges.get(ordinal) is Some(range) else {
     fail("stage ordinal is outside the planned placement")
   }
@@ -109,28 +109,28 @@ fn inspect_config(
 fn inspect_startup(
   root : @approved_fs.ApprovedRoot,
   inventory_name : String,
-  rows : Int,
-  history : Int,
+  rows : Int32,
+  history : Int32,
   budgets : Array[Int64],
   reserve : Int64,
-  recurrent_evaluation? : @precision.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision.DenseDotLaw = ScalarFloat32,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  sparse_matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  expert_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  expert_transport? : @matrix.ExpertTransport = IndexedRows,
-  expert_fragment_slots? : Int = 1,
-  expert_scale_partitions? : Int = 1,
-  expert_tensor_parallel? : Bool = false,
-  retirement? : @parallel.RetirementPolicy = EachCollective,
-  replay? : @parallel.ReplayPolicy = Eager,
-  hc_reduction? : @precision.HyperControlReduction = Ordered,
-  shared_matrix_columns? : Int = 64,
-  overlap_experts? : Bool = false,
-  fuse_hyper? : Bool = false,
-  fuse_controls? : Bool = false,
-  defer_hyper? : Bool = false,
-  shard_vocabulary? : Bool = false,
+  recurrent_evaluation~ : @precision.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision.DenseDotLaw = ScalarFloat32,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  sparse_matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  expert_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport~ : @matrix.ExpertTransport = IndexedRows,
+  expert_fragment_slots~ : Int32 = 1,
+  expert_scale_partitions~ : Int32 = 1,
+  expert_tensor_parallel~ : Bool = false,
+  retirement~ : @parallel.RetirementPolicy = EachCollective,
+  replay~ : @parallel.ReplayPolicy = Eager,
+  hc_reduction~ : @precision.HyperControlReduction = Ordered,
+  shared_matrix_columns~ : Int32 = 64,
+  overlap_experts~ : Bool = false,
+  fuse_hyper~ : Bool = false,
+  fuse_controls~ : Bool = false,
+  defer_hyper~ : Bool = false,
+  shard_vocabulary~ : Bool = false,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -311,7 +311,7 @@ fn inference_limits(startup : Startup) -> @inference.InferenceLimits raise {
     max_new_tokens=startup.history,
     max_context_tokens=startup.history,
     max_token_id=startup.spec.vocabulary_size() - 1,
-    max_stop_token_ids=1,
+    max_stop_token_ids=16,
     max_stop_strings=1,
     max_stop_string_bytes=1,
     max_trace_bytes=1,

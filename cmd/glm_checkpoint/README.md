@@ -81,7 +81,9 @@ inside the inventory remain relative to the read-only model root.
   PREFILL_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE NEW_OUTDIR`: consume
   prompt-only `plan-i.bin` chunks ending in one final-prefill frame, then feed
   each actual terminal-rank token into successive canonical decode steps.
-  `-1` disables token stopping; otherwise use the tokenizer's real stop ID.
+  `-1` disables token stopping; otherwise use the checkpoint's complete stop-ID
+  set as comma-separated integers (a single integer remains supported). The
+  offline result includes `finish.json`, distinguishing EOS from length limits.
   Length/context/EOS bound continuation. After both ranks release the request,
   write generated IDs to `tokens.txt` without overwrite. The decode loop does
   no evidence rendering/filesystem writes. Prompt frame input is still the

@@ -1,7 +1,7 @@
 ///|
 fn prepare_rank(
   startup : Startup,
-  ordinal : Int,
+  ordinal : Int32,
   context : @device.Context,
   aot : @device.Module,
   stream : @device.Stream,
@@ -189,8 +189,8 @@ async fn run_ingress(
   root : @approved_fs.ApprovedRoot,
   arguments : ArrayView[String],
   generate~ : Bool,
-  sequence? : Bool = false,
-  cancellation? : @generation.SerialRequestCancellation? = None,
+  sequence~ : Bool = false,
+  cancellation~ : @generation.SerialRequestCancellation? = None,
 ) -> Unit {
   let count = @string.parse_int(arguments[5])
   guard count > 0 && count <= startup.history else {
@@ -201,11 +201,12 @@ async fn run_ingress(
   } else {
     1
   }
-  let stop = if generate { @string.parse_int(arguments[7]) } else { -1 }
-  guard maximum_new_tokens > 0 &&
-    maximum_new_tokens <= startup.history &&
-    stop >= -1 &&
-    stop < startup.spec.vocabulary_size() else {
+  let stop_tokens = if generate {
+    parse_generation_stops(arguments[7], startup.spec.vocabulary_size())
+  } else {
+    []
+  }
+  guard maximum_new_tokens > 0 && maximum_new_tokens <= startup.history else {
     fail("invalid generation length or stop token")
   }
   let output_directory = arguments[if generate { 8 } else { 6 }]
@@ -358,7 +359,7 @@ async fn run_ingress(
           clock,
           generate~,
           maximum_new_tokens~,
-          stop~,
+          stop_tokens~,
           output_directory=destination,
           first_epoch=next_epoch,
           cancel_after_steps=match cancellation {
@@ -380,7 +381,7 @@ async fn run_ingress(
           clock,
           generate~,
           maximum_new_tokens~,
-          stop~,
+          stop_tokens~,
           output_directory~,
           first_epoch=1UL,
         ),

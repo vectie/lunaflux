@@ -1,4 +1,20 @@
 ///|
+test "generation admits all declared EOS ids without changing the single-id CLI" {
+  assert_eq(parse_generation_stops("154820,154827,154829", 154880), [
+    154820, 154827, 154829,
+  ])
+  assert_eq(parse_generation_stops("154827", 154880), [154827])
+  assert_eq(parse_generation_stops("-1", 154880), [])
+  for invalid in ["", "154820,154820", "-1,154827", "154880", "1,"] {
+    try parse_generation_stops(invalid, 154880) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid stop accepted")
+    }
+  }
+}
+
+///|
 async test "GLM prompt replay resolves capacity before file authority is released" {
   let directory = @fs.tmpdir(prefix="lunaflux-glm-prompt-replay")
   defer @fs.rmdir(directory, recursive=true)

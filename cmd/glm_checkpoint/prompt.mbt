@@ -1,8 +1,8 @@
 ///|
 fn prompt_limits(
-  rows : Int,
-  history : Int,
-  vocabulary : Int,
+  rows : Int32,
+  history : Int32,
+  vocabulary : Int32,
 ) -> (@protocol.WorkerProtocolLimits, @inference.InferenceLimits) raise {
   (
     @protocol.WorkerProtocolLimits::new(
@@ -22,7 +22,7 @@ fn prompt_limits(
       max_new_tokens=history,
       max_context_tokens=history,
       max_token_id=vocabulary - 1,
-      max_stop_token_ids=1,
+      max_stop_token_ids=16,
       max_stop_strings=1,
       max_stop_string_bytes=1,
       max_trace_bytes=1,
@@ -45,7 +45,7 @@ fn preflight_generation(
   frames : String,
   count : String,
   byte_budget : String,
-  sequence? : Bool = false,
+  sequence~ : Bool = false,
 ) -> Unit raise {
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
   defer root.close()
@@ -53,12 +53,8 @@ fn preflight_generation(
   let rows = @string.parse_int(rows)
   let history = @string.parse_int(history)
   let maximum = @string.parse_int(maximum)
-  let stop = @string.parse_int(stop)
-  guard rows > 0 &&
-    rows <= history &&
-    history <= spec.context_length() &&
-    stop >= -1 &&
-    stop < spec.vocabulary_size() else {
+  ignore(parse_generation_stops(stop, spec.vocabulary_size()))
+  guard rows > 0 && rows <= history && history <= spec.context_length() else {
     fail("invalid generation geometry or stop token")
   }
   let (limits, inference) = prompt_limits(rows, history, spec.vocabulary_size())
@@ -95,4 +91,29 @@ fn preflight_generation(
       "request_prepared: input_tokens=\{prompt.input_token_count()} maximum_new_tokens=\{prompt.maximum_new_tokens()} context=\{history}",
     )
   }
+}
+
+///|
+// CLI diagnostic policy, not compiler arithmetic. Preserve the old single-ID
+// and -1 forms while allowing the checkpoint's complete declared EOS set.
+fn parse_generation_stops(
+  text : String,
+  vocabulary : Int32,
+) -> Array[Int32] raise {
+  if text == "-1" {
+    return []
+  }
+  let stops : Array[Int32] = []
+  for word in text.split(",") {
+    let token = @string.parse_int(word)
+    guard token >= 0 &&
+      token < vocabulary &&
+      stops.length() < 16 &&
+      !stops.contains(token) else {
+      fail("invalid or duplicate generation stop token")
+    }
+    stops.push(token)
+  }
+  guard !stops.is_empty() else { fail("empty stop set; use -1 explicitly") }
+  stops
 }

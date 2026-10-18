@@ -13,15 +13,15 @@ async fn execute_ingress_request(
   startup : Startup,
   frame_root : @approved_fs.ApprovedRoot,
   prepared : @prompt.PreparedSerialPrompt?,
-  count : Int,
+  count : Int32,
   pipeline : @pipeline.TwoRankDecoderPipeline,
   clock : @clock.MonotonicClock,
   generate~ : Bool,
-  maximum_new_tokens~ : Int,
-  stop~ : Int,
+  maximum_new_tokens~ : Int32,
+  stop_tokens~ : ArrayView[Int32],
   output_directory~ : String,
   first_epoch~ : UInt64,
-  cancel_after_steps? : Int = 0,
+  cancel_after_steps~ : Int32 = 0,
 ) -> UInt64 {
   let limits = worker_limits(startup)
   let inference = inference_limits(startup)
@@ -95,7 +95,7 @@ async fn execute_ingress_request(
           inference,
           maximum_new_tokens~,
           maximum_context=startup.history,
-          stop_tokens=if stop == -1 { [] } else { [stop] },
+          stop_tokens~,
         ),
       )
     }
@@ -158,6 +158,18 @@ async fn execute_ingress_request(
     @fs.write_file(
       output_directory + "/tokens.txt",
       rendered.to_string(),
+      create_mode=CreateNew,
+    )
+    let finish = match owner.finish_reason() {
+      Running => "running"
+      Length => "length"
+      StopToken => "stop"
+      Cancelled => "cancelled"
+      Failed => "failed"
+    }
+    @fs.write_file(
+      output_directory + "/finish.json",
+      "{\"finish_reason\":\"\{finish}\",\"generated_tokens\":\{owner.token_count()},\"maximum_new_tokens\":\{maximum_new_tokens},\"context_capacity\":\{startup.history}}\n",
       create_mode=CreateNew,
     )
     println(

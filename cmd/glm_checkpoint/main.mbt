@@ -70,7 +70,7 @@ async fn main {
       token_ids.length() <= 1048576 else {
       fail("invalid token-frame envelope")
     }
-    let tokens : Array[Int] = []
+    let tokens : Array[Int32] = []
     for id in token_ids.split(",") {
       guard tokens.length() < history - 1 else {
         fail("prompt exhausts reserved context")
@@ -286,7 +286,7 @@ async fn main {
   }
   guard mode_valid else {
     fail(
-      "inspect | export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | egress-logits AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN CAPTURE_DIR | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR | generate|generate-sequence AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT PREFILL_COUNT_OR_REQUEST_COUNT MAX_NEW_TOKENS STOP_TOKEN_OR_MINUS_ONE OUTDIR",
+      "inspect | export OUTDIR | egress AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN | egress-logits AOT_ROOT AOT_FILE CONTROL_LISTEN ACTIVATION_LISTEN CAPTURE_DIR | ingress AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT FRAME_COUNT OUTDIR | generate|generate-sequence AOT_ROOT AOT_FILE CONTROL_PEER ACTIVATION_PEER FRAME_ROOT PREFILL_COUNT_OR_REQUEST_COUNT MAX_NEW_TOKENS STOP_TOKEN_IDS_OR_MINUS_ONE OUTDIR",
     )
   }
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
