@@ -751,3 +751,38 @@ Neither operation enters token-step scheduling or compiler numerical selection.
 The63 TCP tests pass, including cancelled and ordinary listener startup. The
 actual owned-worker startup-stop fixture and full-model replay remain required
 before this additional repair is declared physically verified.
+
+### Fresh v22 acceptance and remaining active-stop failure
+
+The fresh pinned64f144c8 pair completes all nine HTTP groups: smoke, controls,
+capacity/recovery, concurrent requests, route isolation, GPU sampling,
+disconnect/reuse, protocol errors and broad answers. Each group's final
+observation has zero active requests, queue depth and KV occupancy. All twelve
+answers terminate naturally: 4,007 output tokens. These are service completion
+results, not twelve unqualified content-correctness passes: the JSON-only
+answer includes Markdown fences, and several otherwise useful answers contain
+overstatements. The unsolicited SQL tie-handling alternative is incorrect.
+
+The306 paired memory samples remain within the envelope: rank0 minimum host
+available17,958,696KiB, rank1 minimum19,516,496KiB; maximum observed GPU
+residency97,654/97,669MiB. Unit swap peaks remain zero. Evidence roots are
+`/tmp/lunaflux-glm-http-acceptance-20261018-v22` and the adjacent per-mode v22
+roots; no payload hashes are computed.
+
+The subsequent active-stop test observes four active requests plus one queued,
+then stops both owned units at20:14:43CST. Rank1 stops normally and both GPUs
+release, but rank0 exits with SIGABRT at20:14:44. No successful active-stop
+marker is written. This remains a real lifecycle failure despite the earlier
+v14 active-stop and v21 peer-loss successes. It must be isolated rather than
+declared fixed by the separate startup-cancellation change. The public route
+remains offline. Evidence: `/tmp/lunaflux-glm-http-active-stop-20261018-v22`.
+
+Pinned9f5682b1 builds cleanly on ARM (1.3GiB peak, no swap). The real owned-worker
+startup fixture passes three parent-only SIGTERM attempts; no listener is
+published and no child is forcibly killed. Evidence:
+`/tmp/lunaflux-glm-owned-startup-stop-20261018-v1`. Full-model v23 then stops
+at observed rank0 residency95,016MiB, before the HTTP port accepts connections.
+Both journals report successful stop after11seconds and both GPU-owner lists
+are empty; zero unit swap. This verifies the late-loading startup boundary on
+the actual pair, not the separate active-stop boundary. Evidence:
+`/tmp/lunaflux-glm-http-startup-stop-20261018-v23/COMPLETE.txt`.

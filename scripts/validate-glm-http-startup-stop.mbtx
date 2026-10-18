@@ -1,0 +1,155 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// External cancellation experiment. The paired memory watcher must be active.
+// TRIGGER_MIB selects an observed loading frontier, not production capacity.
+
+///|
+fn safe_root(root : String) -> Bool {
+  root.has_prefix("/tmp/lunaflux-glm-http-") &&
+  !root.contains("..") &&
+  root
+  .iter()
+  .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_'))
+}
+
+///|
+async fn remote(rank : Int32, command : String) -> @shell.Output {
+  let socket = if rank == 0 {
+    "/tmp/lunaflux-glm178-prefill-20261018.sock"
+  } else {
+    "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  }
+  let host = if rank == 0 {
+    "wlc003s@192.168.2.178"
+  } else {
+    "wlc004s@192.168.2.179"
+  }
+  @shell.Cmd("ssh", [
+    "-S", socket, "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host, command,
+  ]).output(max_output_bytes=4194304)
+}
+
+///|
+fn loaded_mib(text : String) -> Int64 raise {
+  let mut total = 0L
+  for line in text.split("\n") {
+    if !line.trim().is_empty() {
+      total += @string.parse_int64(line.trim())
+    }
+  }
+  total
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, service, root, trigger] &&
+    safe_root(service) &&
+    safe_root(root) &&
+    service != root else {
+    fail("SERVICE_ROOT NEW_EVIDENCE_ROOT TRIGGER_MIB")
+  }
+  let trigger = @string.parse_int64(trigger)
+  guard trigger > 0L && trigger <= 102400L else {
+    fail("invalid loading frontier")
+  }
+  @fs.mkdir(root)
+  let tag = service.split("/").last().unwrap().to_owned()
+  async fn stop() -> Unit {
+    @shell.Cmd("moon", [
+      "run", "scripts/run-glm-http-spark.mbtx", "--", service, "stop",
+    ])
+    .output()
+    .check()
+  }
+  let mut stopped = false
+  defer @async.protect_from_cancel(() => if !stopped { stop() })
+  for rank in 0..<2 {
+    let state = remote(
+      rank,
+      "systemctl --user show " + tag + "-rank\{rank}.service -p ActiveState",
+    )
+    state.check()
+    guard state.stdout().contains("ActiveState=active") else {
+      fail("pair not active")
+    }
+  }
+  let mut reached = false
+  for _ in 0..<600 {
+    let gpu = remote(
+      0, "nvidia-smi --query-compute-apps=used_gpu_memory --format=csv,noheader,nounits",
+    )
+    gpu.check()
+    if loaded_mib(gpu.stdout()) >= trigger {
+      let health = remote(
+        0, "curl -sS --max-time 1 http://127.0.0.1:18888/healthz",
+      )
+      @fs.write_file(
+        root + "/before-stop.txt",
+        "observed_gpu_mib=" +
+        gpu.stdout() +
+        "health_exit=\{health.exit_code()}\n" +
+        health.stdout() +
+        health.stderr(),
+        create_mode=CreateNew,
+      )
+      guard health.exit_code() != 0 else {
+        fail("listener already ready; startup frontier missed")
+      }
+      reached = true
+      break
+    }
+    @async.sleep(1000)
+  }
+  guard reached else { fail("loading frontier not observed") }
+  stop()
+  stopped = true
+  for rank in 0..<2 {
+    let unit = tag + "-rank\{rank}.service"
+    let journal = remote(rank, "journalctl --user -u " + unit + " --no-pager")
+    journal.check()
+    let text = journal.stdout()
+    @fs.write_file(
+      root + "/rank\{rank}-journal.txt",
+      text,
+      create_mode=CreateNew,
+    )
+    guard text.contains("Stopped " + unit) &&
+      !text.contains("Failed with result") &&
+      !text.contains("timed out") &&
+      !text.contains("Killing process") &&
+      !text.contains("status=6/ABRT") else {
+      fail(text)
+    }
+    let gpu = remote(
+      rank, "nvidia-smi --query-compute-apps=pid,used_gpu_memory --format=csv,noheader",
+    )
+    gpu.check()
+    @fs.write_file(
+      root + "/rank\{rank}-gpu-after.txt",
+      gpu.stdout(),
+      create_mode=CreateNew,
+    )
+    guard gpu.stdout().trim().is_empty() else { fail("GPU owner remains") }
+  }
+  @fs.write_file(
+    root + "/COMPLETE.txt",
+    "late-loading stop before HTTP readiness: both journals stopped without abort/forced kill; GPU owners empty\n",
+    create_mode=CreateNew,
+  )
+  println("startup stop passed")
+}
+
+///|
+test "startup stop sums observed residency without payload inspection" {
+  assert_eq(loaded_mib("95016\n"), 95016L)
+  assert_eq(loaded_mib("1\n2\n"), 3L)
+  assert_eq(loaded_mib(""), 0L)
+  assert_false(safe_root("/tmp/lunaflux-glm-http-a/../b"))
+}
