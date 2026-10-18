@@ -1,8 +1,8 @@
 ///|
 fn prompt_limits(
-  rows : Int32,
-  history : Int32,
-  vocabulary : Int32,
+  rows : Int,
+  history : Int,
+  vocabulary : Int,
 ) -> (@protocol.WorkerProtocolLimits, @inference.InferenceLimits) raise {
   (
     @protocol.WorkerProtocolLimits::new(
@@ -45,7 +45,7 @@ fn preflight_generation(
   frames : String,
   count : String,
   byte_budget : String,
-  sequence~ : Bool = false,
+  sequence? : Bool = false,
 ) -> Unit raise {
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
   defer root.close()
@@ -98,12 +98,12 @@ fn preflight_generation(
 // and -1 forms while allowing the checkpoint's complete declared EOS set.
 fn parse_generation_stops(
   text : String,
-  vocabulary : Int32,
-) -> Array[Int32] raise {
+  vocabulary : Int,
+) -> Array[Int] raise {
   if text == "-1" {
     return []
   }
-  let stops : Array[Int32] = []
+  let stops : Array[Int] = []
   for word in text.split(",") {
     let token = @string.parse_int(word)
     guard token >= 0 &&

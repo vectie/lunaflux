@@ -1,7 +1,7 @@
 ///|
 fn prepare_rank(
   startup : Startup,
-  ordinal : Int32,
+  ordinal : Int,
   context : @device.Context,
   aot : @device.Module,
   stream : @device.Stream,
@@ -189,8 +189,8 @@ async fn run_ingress(
   root : @approved_fs.ApprovedRoot,
   arguments : ArrayView[String],
   generate~ : Bool,
-  sequence~ : Bool = false,
-  cancellation~ : @generation.SerialRequestCancellation? = None,
+  sequence? : Bool = false,
+  cancellation? : @generation.SerialRequestCancellation? = None,
 ) -> Unit {
   let count = @string.parse_int(arguments[5])
   guard count > 0 && count <= startup.history else {

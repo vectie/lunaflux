@@ -13,15 +13,15 @@ async fn execute_ingress_request(
   startup : Startup,
   frame_root : @approved_fs.ApprovedRoot,
   prepared : @prompt.PreparedSerialPrompt?,
-  count : Int32,
+  count : Int,
   pipeline : @pipeline.TwoRankDecoderPipeline,
   clock : @clock.MonotonicClock,
   generate~ : Bool,
-  maximum_new_tokens~ : Int32,
-  stop_tokens~ : ArrayView[Int32],
+  maximum_new_tokens~ : Int,
+  stop_tokens~ : ArrayView[Int],
   output_directory~ : String,
   first_epoch~ : UInt64,
-  cancel_after_steps~ : Int32 = 0,
+  cancel_after_steps? : Int = 0,
 ) -> UInt64 {
   let limits = worker_limits(startup)
   let inference = inference_limits(startup)
