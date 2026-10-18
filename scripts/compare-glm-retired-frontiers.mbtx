@@ -9,11 +9,20 @@ import {
 
 ///|
 fn different_bf16(a : Bytes, b : Bytes) -> (Int, Int) raise {
-  guard a.length() == b.length() && a.length() % 2 == 0 else { fail("frontier geometry differs") }
+  guard a.length() == b.length() && a.length() % 2 == 0 else {
+    fail("frontier geometry differs")
+  }
   for i in 0..<(a.length() / 2); count = 0, first = -1 {
-    let different = a[2*i] != b[2*i] || a[2*i+1] != b[2*i+1]
-    continue count + (if different { 1 } else { 0 }), if different && first < 0 { i } else { first }
-  } nobreak { (count, first) }
+    let different = a[2 * i] != b[2 * i] || a[2 * i + 1] != b[2 * i + 1]
+    continue count + (if different { 1 } else { 0 }),
+      if different && first < 0 {
+        i
+      } else {
+        first
+      }
+  } nobreak {
+    (count, first)
+  }
 }
 
 ///|
@@ -23,8 +32,14 @@ fn different_bytes(a : Bytes, b : Bytes, bytes : Int) -> (Int, Int) raise {
   }
   for i in 0..<bytes; count = 0, first = -1 {
     continue count + (if a[i] != b[i] { 1 } else { 0 }),
-      if first < 0 && a[i] != b[i] { i } else { first }
-  } nobreak { (count, first) }
+      if first < 0 && a[i] != b[i] {
+        i
+      } else {
+        first
+      }
+  } nobreak {
+    (count, first)
+  }
 }
 
 ///|
@@ -33,7 +48,9 @@ test "inactive captured capacity is not part of a live extent comparison" {
   assert_eq(different_bytes(b"\x01\x02\x03", b"\x01\x02\x04", 3), (1, 2))
   try different_bytes(b"\x01", b"\x01", 2) catch {
     _ => ()
-  } noraise { _ => fail("out-of-range live extent accepted") }
+  } noraise {
+    _ => fail("out-of-range live extent accepted")
+  }
 }
 
 ///|
@@ -55,14 +72,30 @@ async fn main {
     println(summary)
     return
   }
-  if args is [_, "selected-leaves", ordered, overlap, prefill_text, layer_text, report] {
+  if args
+    is [
+      _,
+      "selected-leaves",
+      ordered,
+      overlap,
+      prefill_text,
+      layer_text,
+      report,
+    ] {
     let prefill = @string.parse_int(prefill_text)
     let layer = @string.parse_int(layer_text)
-    guard prefill >= 0 && prefill < 7 && layer >= 3 && layer < 45 else { fail("invalid MoE frontier") }
+    guard prefill >= 0 && prefill < 7 && layer >= 3 && layer < 45 else {
+      fail("invalid MoE frontier")
+    }
     let directory = "/collected-leaves/prefill-\{prefill}-layer-\{layer}/layer-\{layer}-"
     let summary = StringBuilder()
     summary <+ "leaf\tbytes\tdifferent_bytes\tfirst_byte\n"
-    for leaf in ["router-logits", "router-scores", "router-indices", "router-weights", "routed-activation", "routed-weighted", "routed-output", "routed-quantized-input", "routed-quantized-activation", "shared-activation", "shared-weighted", "shared-output"] {
+    for
+      leaf in [
+        "router-logits", "router-scores", "router-indices", "router-weights", "routed-activation",
+        "routed-weighted", "routed-output", "routed-quantized-input", "routed-quantized-activation",
+        "shared-activation", "shared-weighted", "shared-output",
+      ] {
       let a = @fs.read_file(ordered + directory + leaf + ".bin").binary()
       let b = @fs.read_file(overlap + directory + leaf + ".bin").binary()
       guard a.length() == b.length() else { fail("geometry mismatch") }
@@ -71,38 +104,73 @@ async fn main {
     }
     @fs.write_file(report, summary.to_string(), create_mode=CreateNew)
     println(summary.to_string())
-    println("Raw scratch includes inactive capacity; use extent on known live ranges before attributing a numerical cause.")
+    println(
+      "Raw scratch includes inactive capacity; use extent on known live ranges before attributing a numerical cause.",
+    )
     return
   }
-  if args is [_, "collect-core", root] && root.has_prefix("/tmp/lunaflux-model-bench-") && root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) {
-    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
+  if args is [_, "collect-core", root] &&
+    root.has_prefix("/tmp/lunaflux-model-bench-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) {
+    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+      "/tmp/lunaflux-glm179-prefill-20261018.sock",
+    )
     let host = "wlc004s@192.168.2.179"
-    let status = @shell.Cmd("ssh", ["-S", socket, host, "systemctl --user show " + root[5:].to_owned() + "-egress.service -p SubState -p ExecMainStatus"]).output()
+    let status = @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      host,
+      "systemctl --user show " +
+      root[5:].to_owned() +
+      "-egress.service -p SubState -p ExecMainStatus",
+    ]).output()
     status.check()
-    guard status.stdout().contains("SubState=exited") && status.stdout().contains("ExecMainStatus=0") else { fail("capture has not retired successfully") }
+    guard status.stdout().contains("SubState=exited") &&
+      status.stdout().contains("ExecMainStatus=0") else {
+      fail("capture has not retired successfully")
+    }
     @fs.mkdir(root + "/collected-frontiers")
     let archive = root + "/collected-frontiers/core.tar.gz"
     // GNU tar wildcard matching applies to extraction, not archive creation.
     // The validated root and fixed glob are expanded by the remote shell.
-    let result = @shell.Cmd("ssh", ["-S", socket, host, "cd " + root + " && tar -czf - frontiers/*/*.bf16"]).output(max_output_bytes=536870912)
+    let result = @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      host,
+      "cd " + root + " && tar -czf - frontiers/*/*.bf16",
+    ]).output(max_output_bytes=536870912)
     result.check()
     @fs.write_file(archive, result.stdout_bytes(), create_mode=CreateNew)
-    @shell.Cmd("tar", ["-xf", archive, "-C", root + "/collected-frontiers"]).output().check()
+    @shell.Cmd("tar", ["-xf", archive, "-C", root + "/collected-frontiers"])
+    .output()
+    .check()
     println("collected core frontiers only; large leaf arrays remain on Spark")
     return
   }
-  if args is [_, "collect-leaf", root, prefill_text, layer_text] && root.has_prefix("/tmp/lunaflux-model-bench-") && root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) {
+  if args is [_, "collect-leaf", root, prefill_text, layer_text] &&
+    root.has_prefix("/tmp/lunaflux-model-bench-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) {
     let prefill = @string.parse_int(prefill_text)
     let layer = @string.parse_int(layer_text)
-    guard prefill >= 0 && prefill < 7 && layer >= 0 && layer < 45 else { fail("invalid frontier location") }
-    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
+    guard prefill >= 0 && prefill < 7 && layer >= 0 && layer < 45 else {
+      fail("invalid frontier location")
+    }
+    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+      "/tmp/lunaflux-glm179-prefill-20261018.sock",
+    )
     let host = "wlc004s@192.168.2.179"
-    let local_root = root + "/collected-leaves/prefill-\{prefill}-layer-\{layer}"
+    let local_root = root +
+      "/collected-leaves/prefill-\{prefill}-layer-\{layer}"
     // Parent must already exist (created explicitly once by the caller).
     @fs.mkdir(local_root)
-    @shell.Cmd("scp", ["-o", "ControlPath=" + socket,
-      host + ":" + root + "/frontiers/prefill-\{prefill}/layer-\{layer}-*.bin", local_root + "/",
-    ]).output().check()
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/frontiers/prefill-\{prefill}/layer-\{layer}-*.bin",
+      local_root + "/",
+    ])
+    .output()
+    .check()
     println("collected selected numerical leaf arrays without overwrite")
     return
   }
@@ -111,37 +179,81 @@ async fn main {
     guard layer >= 0 && layer < 45 else { fail("invalid layer") }
     let summary = StringBuilder()
     summary <+ "prefill\tleaf\tbytes\tdifferent_bytes\tfirst_byte\n"
-    let leaves = ["residual.bf16", "input.bf16", "branch.bf16", "router-logits.bin", "router-scores.bin", "router-indices.bin", "router-weights.bin", "routed-activation.bin", "routed-weighted.bin", "routed-output.bin", "routed-quantized-input.bin", "routed-quantized-activation.bin", "shared-activation.bin", "shared-weighted.bin", "shared-output.bin"]
+    let leaves = [
+      "residual.bf16", "input.bf16", "branch.bf16", "router-logits.bin", "router-scores.bin",
+      "router-indices.bin", "router-weights.bin", "routed-activation.bin", "routed-weighted.bin",
+      "routed-output.bin", "routed-quantized-input.bin", "routed-quantized-activation.bin",
+      "shared-activation.bin", "shared-weighted.bin", "shared-output.bin",
+    ]
     for prefill in 0..<7 {
       for leaf in leaves {
-        let path = "/collected-frontiers/frontiers/prefill-\{prefill}/layer-\{layer}-" + leaf
+        let path = "/collected-frontiers/frontiers/prefill-\{prefill}/layer-\{layer}-" +
+          leaf
         let a = @fs.read_file(ordered + path).binary()
         let b = @fs.read_file(overlap + path).binary()
         guard a.length() == b.length() else { fail("geometry mismatch") }
-        let (different, first) = for i in 0..<a.length(); different = 0, first = -1 {
-          continue different + (if a[i] != b[i] { 1 } else { 0 }), if first < 0 && a[i] != b[i] { i } else { first }
-        } nobreak { (different, first) }
-        summary <+ "\{prefill}\t\{leaf}\t\{a.length()}\t\{different}\t\{first}\n"
-        println("prefill=\{prefill} leaf=\{leaf} bytes=\{a.length()} different_bytes=\{different} first_byte=\{first}")
+        let (different, first) = for
+          i in 0..<a.length()
+          different = 0, first = -1 {
+          continue different + (if a[i] != b[i] { 1 } else { 0 }),
+            if first < 0 && a[i] != b[i] {
+              i
+            } else {
+              first
+            }
+        } nobreak {
+          (different, first)
+        }
+        summary <+
+          "\{prefill}\t\{leaf}\t\{a.length()}\t\{different}\t\{first}\n"
+        println(
+          "prefill=\{prefill} leaf=\{leaf} bytes=\{a.length()} different_bytes=\{different} first_byte=\{first}",
+        )
       }
     }
     @fs.write_file(report, summary.to_string(), create_mode=CreateNew)
-    println("Raw scratch includes inactive capacity. Only matching live mathematical extents establish numerical differences.")
+    println(
+      "Raw scratch includes inactive capacity. Only matching live mathematical extents establish numerical differences.",
+    )
     return
   }
-  if args is [_, "collect", root] && root.has_prefix("/tmp/lunaflux-model-bench-") && root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) {
-    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
+  if args is [_, "collect", root] &&
+    root.has_prefix("/tmp/lunaflux-model-bench-") &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) {
+    let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+      "/tmp/lunaflux-glm179-prefill-20261018.sock",
+    )
     let host = "wlc004s@192.168.2.179"
-    let status = @shell.Cmd("ssh", ["-S", socket, host, "systemctl --user show " + root[5:].to_owned() + "-egress.service -p SubState -p ExecMainStatus"]).output()
+    let status = @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      host,
+      "systemctl --user show " +
+      root[5:].to_owned() +
+      "-egress.service -p SubState -p ExecMainStatus",
+    ]).output()
     status.check()
-    guard status.stdout().contains("SubState=exited") && status.stdout().contains("ExecMainStatus=0") else { fail("capture has not retired successfully") }
+    guard status.stdout().contains("SubState=exited") &&
+      status.stdout().contains("ExecMainStatus=0") else {
+      fail("capture has not retired successfully")
+    }
     // mkdir fails on a prior collection, so source evidence is never overwritten.
     @fs.mkdir(root + "/collected-frontiers")
-    @shell.Cmd("scp", ["-r", "-o", "ControlPath=" + socket, host + ":" + root + "/frontiers", root + "/collected-frontiers/"]).output().check()
+    @shell.Cmd("scp", [
+      "-r",
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/frontiers",
+      root + "/collected-frontiers/",
+    ])
+    .output()
+    .check()
     println("collected literal retired arrays without payload hashes")
     return
   }
-  guard args is [_, "compare", ordered, overlap, report] else { fail("collect ROOT | compare ORDERED OVERLAP NEW_REPORT") }
+  guard args is [_, "compare", ordered, overlap, report] else {
+    fail("collect ROOT | compare ORDERED OVERLAP NEW_REPORT")
+  }
   let summary = StringBuilder()
   summary <+ "prefill\tlayer\tfrontier\telements\tdifferent\tfirst_index\n"
   for prefill in 0..<7 {
@@ -152,15 +264,22 @@ async fn main {
         let a = @fs.read_file(ordered + leaf).binary()
         let b = @fs.read_file(overlap + leaf).binary()
         let (count, first) = different_bf16(a, b)
-        summary <+ "\{prefill}\t\{layer}\t\{boundary}\t\{a.length()/2}\t\{count}\t\{first}\n"
+        summary <+
+          "\{prefill}\t\{layer}\t\{boundary}\t\{a.length()/2}\t\{count}\t\{first}\n"
         if count > 0 && !first_difference {
-          println("prefill=\{prefill} first_difference_layer=\{layer} boundary=\{boundary} different=\{count} first_index=\{first}")
+          println(
+            "prefill=\{prefill} first_difference_layer=\{layer} boundary=\{boundary} different=\{count} first_index=\{first}",
+          )
           first_difference = true
         }
       }
     }
-    if !first_difference { println("prefill=\{prefill} all_retired_frontiers_bitwise=true") }
+    if !first_difference {
+      println("prefill=\{prefill} all_retired_frontiers_bitwise=true")
+    }
   }
   @fs.write_file(report, summary.to_string(), create_mode=CreateNew)
-  println("Downstream drift is propagated; only the first differing frontier is localized. No performance or reference-quality claim.")
+  println(
+    "Downstream drift is propagated; only the first differing frontier is localized. No performance or reference-quality claim.",
+  )
 }
