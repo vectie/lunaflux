@@ -78,9 +78,13 @@ async fn main {
   }
   let tag = root.split("/").last().unwrap().to_string()
   async fn stop() -> Unit {
-    for rank in 0..<2 {
-      remote(rank, "systemctl --user stop " + tag + "-rank\{rank}.service").check()
-    }
+    @async.with_task_group(group => {
+      for rank in 0..<2 {
+        group.spawn_bg(() => {
+          remote(rank, "systemctl --user stop " + tag + "-rank\{rank}.service").check()
+        })
+      }
+    })
   }
   if mode == "stop" {
     stop()
@@ -156,6 +160,7 @@ async fn main {
     create_mode=CreateNew,
   )
   defer out.close()
+  let mut pair_observed = false
   while true {
     let mut active = 0
     for rank in 0..<2 {
@@ -192,6 +197,12 @@ async fn main {
     }
     if active == 0 {
       return
+    }
+    if active == 2 {
+      pair_observed = true
+    } else if pair_observed {
+      stop()
+      fail("one resident rank exited; paired owner stopped")
     }
     @async.sleep(2000)
   }
