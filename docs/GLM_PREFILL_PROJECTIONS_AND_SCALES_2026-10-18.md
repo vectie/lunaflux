@@ -425,3 +425,17 @@ now measures zero warmed allocations and no blocking synchronization; all
 151 sampling/transfer-double tests pass. Full-model mixed batching, buffered
 HTTP delivery and production service acceptance remain unproven. The public
 endpoint remains offline, and no memory limit or numerical tolerance was relaxed.
+
+### Matched retired-frontier investigation
+
+The eager overlap run with HC control fusion disabled at
+`/tmp/lunaflux-model-bench-glm-defined-bank-overlap-unfused-scales-20261018-r1`
+still changes two of six control outputs. Fusion is not required to trigger the
+failure. No changed-work timing is used as a speedup.
+
+The next diagnostic captures actual per-layer full-stream attention publication,
+normalized FFN input and combined FFN output after prefill retirement. These
+are layer-private buffers, not overwritten residual ping-pong slots. Capture is
+explicitly selected in the offline checkpoint CLI, bounded by the host reserve,
+and excluded from benchmark timing claims. The compiler receives no reference
+or comparison logic. Both ranks must be idle before a new probe is launched.

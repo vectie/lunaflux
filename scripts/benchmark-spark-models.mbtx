@@ -744,6 +744,11 @@ async fn main {
           unit +
           " --setenv=TMPDIR=" +
           root +
+          (if last && @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS") == Some("1") {
+            " --setenv=LUNA_GLM_RETIRED_FRONTIERS=" + root + "/frontiers"
+          } else {
+            ""
+          }) +
           (if expert_tp {
             " --setenv=LD_LIBRARY_PATH=" +
             runtime +

@@ -27,6 +27,12 @@ test "stage assembly follows model boundaries rather than slice-local boundaries
     assert_eq(stage.layer_range(), (first, end))
     assert_true(stage.text_boundary() == boundary)
     assert_eq(stage.launch_count(), 0)
+    try stage.borrow_retired_ffn(first) catch {
+      @device.DeviceError::InvalidArgument(StreamingTransfer) => ()
+      error => raise error
+    } noraise {
+      _ => fail("fresh stage exposed unretired layer operands")
+    }
     try stage.borrow_text_logits() catch {
       @device.DeviceError::InvalidArgument(StreamingTransfer) => ()
       error => raise error

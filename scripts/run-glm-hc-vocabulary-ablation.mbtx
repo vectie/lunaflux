@@ -38,6 +38,7 @@ async fn main {
     ).unwrap_or("0"),
     "LUNA_GLM_PREFILL_K": @env.get_env_var("LUNA_GLM_PREFILL_K").unwrap_or("0"),
     "LUNA_GLM_INITCHECK": @env.get_env_var("LUNA_GLM_INITCHECK").unwrap_or("0"),
+    "LUNA_GLM_CAPTURE_FRONTIERS": @env.get_env_var("LUNA_GLM_CAPTURE_FRONTIERS").unwrap_or("0"),
     "LUNA_GLM_PARALLEL_HC": "1",
     "LUNA_GLM_SHARED_COLUMNS": "32",
     "LUNA_GLM_OVERLAP_EXPERTS": overlap,

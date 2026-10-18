@@ -121,6 +121,11 @@ async fn run_tensor_egress(
   prepare_rank(startup, 1, context, aot, stream, root, rank, stage, collective~)
   println("expert TP rank=1 loaded; both ranks execute each decoder step")
   let clock = @clock.MonotonicClock::system()
+  let frontier_root = @env.get_env_var("LUNA_GLM_RETIRED_FRONTIERS")
+  if frontier_root is Some(path) {
+    @fs.mkdir(path)
+  }
+  let captured : Ref[Array[(String, Bytes)]?] = Ref(None)
   let server = @control.DecoderStageServer::new(
     rank,
     connection,
@@ -130,10 +135,23 @@ async fn run_tensor_egress(
     timeout_millis=300000UL,
     local_now_millis=clock.now_millis(),
     ready_to_submit=() => true,
+    committed_effect?=frontier_root.map(_ => {
+      decode => {
+        if !decode && frontier_root is Some(_) {
+          captured.val = Some(capture_retired_frontiers(startup, stage))
+        }
+      }
+    }),
   )
   defer server.close()
+  let mut capture_index = 0
   while !server.is_terminal() {
     server.poll(local_now_millis=clock.now_millis())
+    if frontier_root is Some(path) && captured.val is Some(buffers) {
+      write_retired_frontiers(path, capture_index, buffers)
+      captured.val = None
+      capture_index += 1
+    }
     @async.pause()
   }
 }
