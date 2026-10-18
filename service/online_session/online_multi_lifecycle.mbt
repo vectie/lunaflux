@@ -182,28 +182,42 @@ fn LunaOnlineInstance::progress_multi_disconnect(
   self : LunaOnlineInstance,
 ) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError {
   if self.events.has_event() {
-    let lane_index = self.multi.event_lane
-    if lane_index < 0 {
-      raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
-    }
-    try! self.events.discard()
-    self.event_taken = false
-    self.multi.event_lane = -1
-    self.multi.lanes[lane_index].phase = LunaRequestReleaseReadyPhase
-    self.multi.retirement_lane = lane_index
-    return LunaOnlineInstanceRequestRetirementRequired
+    return self.discard_multi_disconnect_event()
   }
   let progress = self.progress_multi()
   if self.events.has_event() {
-    let lane_index = self.multi.event_lane
-    try! self.events.discard()
-    self.event_taken = false
-    self.multi.event_lane = -1
-    self.multi.lanes[lane_index].phase = LunaRequestReleaseReadyPhase
-    self.multi.retirement_lane = lane_index
-    return LunaOnlineInstanceRequestRetirementRequired
+    return self.discard_multi_disconnect_event()
   }
   progress
+}
+
+///|
+/// A cut transport discards the held event on its actual route. Only an event
+/// backed by a consumed terminal authorizes release; accepted/token events do
+/// not. In particular the next publication need not belong to the ticket whose
+/// cancellation was most recently progressed.
+fn LunaOnlineInstance::discard_multi_disconnect_event(
+  self : LunaOnlineInstance,
+) -> LunaOnlineInstanceProgress raise LunaOnlineInstanceError {
+  let lane_index = self.multi.event_lane
+  if lane_index < 0 ||
+    lane_index >= self.multi.lanes.length() ||
+    !self.events.has_event() {
+    raise LunaOnlineInstanceFailed(LunaOnlineInvalid(LunaOnlineEventCredit))
+  }
+  try! self.events.discard()
+  self.event_taken = false
+  self.multi.event_lane = -1
+  let terminal = self.finish_multi_abort_after_event_cut(lane_index)
+  if self.event_kind is AcceptedEvent {
+    self.multi.lanes[lane_index].accepted_acked = true
+  }
+  self.event_kind = NoSessionEvent
+  if terminal {
+    LunaOnlineInstanceRequestRetirementRequired
+  } else {
+    LunaOnlineInstancePending
+  }
 }
 
 ///|
@@ -223,10 +237,7 @@ fn LunaOnlineInstance::progress_multi_retirement(
     }
     ignore(self.multi_route_one_publication())
     if self.events.has_event() {
-      try! self.events.discard()
-      self.event_taken = false
-      self.multi.event_lane = -1
-      lane.phase = LunaRequestReleaseReadyPhase
+      ignore(self.discard_multi_disconnect_event())
     }
     return LunaOnlineInstanceRetirementPending
   }

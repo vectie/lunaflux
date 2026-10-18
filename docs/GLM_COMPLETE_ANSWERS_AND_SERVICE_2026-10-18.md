@@ -682,3 +682,12 @@ address reuse without port-sharing/load-balancing, and closes the first
 listener if binding the second fails. Both cases have native socket tests.
 The repeated peer-loss failure remains under investigation; no public route
 or production-ready flag is changed.
+
+The session regression now reproduces a distinct ordering defect: in
+multi-request disconnect, a later lane's terminal event can hold the single
+publication slot while the coordinator keeps retrying abort on an earlier
+active lane. The regression fails before the repair. Disconnect now consumes
+the pinned event first, assigns retirement to that event's route (not whichever
+ticket was last polled), and distinguishes terminal events from accepted/token
+events. All 123 session/TCP tests pass. This is not yet proof that the physical
+peer-loss failure is resolved; the source-pinned replay remains required.

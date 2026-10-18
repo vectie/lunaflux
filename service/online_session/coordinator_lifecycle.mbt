@@ -278,6 +278,18 @@ fn LunaOnlineFramedService::progress_maintenance_core(
       self.maintenance_kind = 0
       return LunaOnlineFramedCoordinatorAdvanced
     }
+    // A terminal for a later ticket may already own the one publication slot.
+    // Retire that route first. Repeatedly aborting an earlier active ticket
+    // would merely defer its cancellation and leave this event pinned forever.
+    if self.instance.events.has_event() {
+      let progress = self.instance.discard_multi_disconnect_event() catch {
+        _ => raise luna_coordinator_error(LunaOnlineFramedMaintenance)
+      }
+      if progress == LunaOnlineInstanceRequestRetirementRequired {
+        self.maintenance_kind = 2
+      }
+      return LunaOnlineFramedCoordinatorMaintenanceRequired
+    }
     for ticket in self.tickets {
       if self.instance.multi_ticket_needs_abort(ticket) {
         self.instance.begin_abort(ticket) catch {
