@@ -5,6 +5,38 @@ not established and full serving integration is incomplete. Baseline is
 `a8d8fb87`; the prior deferred-HC
 candidate did not demonstrate an end-to-end win and is not the new baseline.
 
+## Correctness acceptance clarification
+
+The user's 18 October clarification makes final output correctness the goal,
+not bitwise imitation of an installed engine. Apply the existing policy in
+`NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md`: LunaFlux, vLLM and SGLang can each
+have bugs; their agreement is differential evidence, not a correctness proof.
+Internal tensor differences alone do not fail model acceptance. Conversely,
+agreement on a few generated answers does not excuse a demonstrated race,
+wrong mask, corrupted request state, or a violated numerical program.
+
+Use independent task checks where possible: arithmetic answers, retrieved
+facts from the supplied context, parsed JSON/schema constraints, and executable
+code tests. Open-ended responses require task-quality assessment, not identical
+wording. Generation must have enough output budget to finish; a length-truncated
+JSON/code answer is inconclusive, not a quality pass. Pin tokenizer/template,
+checkpoint interpretation, generation settings and input context for comparisons.
+
+Within LunaFlux, test repeatability under its declared deterministic settings,
+request isolation, chunked/unchunked prefill, reordered batches and cancellation
+with state reuse. A changed token is a diagnostic trigger, not automatically a
+wrong answer: report its semantic consequence and, where needed, the final-head
+margin on the same prefix. Stochastic paths need seeded and distributional
+checks, not universal token-for-token identity with a different implementation.
+Keep all comparisons and scoring outside the compiler. Its numerical/effect
+contracts remain explicit; no tolerance or reference is relaxed by this decision.
+
+Pre/post-TP snapshots are bounded causal diagnostics for the observed overlap
+variation, not a new requirement that all intermediates equal vLLM. Do not keep
+rewriting arithmetic merely to erase harmless reference differences. Full
+two-Spark service acceptance and the 100 GiB / 16 GiB reserve constraints remain
+required before enabling the endpoint.
+
 ## Experiment contract
 
 Keep numerical programs unchanged. Finite nonnegative maxima admit exact
@@ -588,17 +620,20 @@ mere final-rounding ULPs (for example 0.272494912 versus 0.267189503). Reports:
 `/tmp/lunaflux-glm-prefill4-layer11-leaves-20261018-v1.tsv`, and matching
 `*-down-f32-20261018-v1.tsv` literal-value reports.
 
-This narrows the actual failing path to the routed down result / TP handoff.
+This narrows the first observed internal divergence to the routed down result /
+TP handoff, not a demonstrated wrong final answer in this captured pair.
 It does **not** yet distinguish a rank-local down fault from its remote-rank
 contribution or collective publication: the retained weighted buffer is read
 after all-reduce, and only rank 1's leaves were captured. Identical retained
 operands do not prove their earlier read was correctly synchronized. Do not
-rewrite router/shared arithmetic or claim the distributed-scale bug fixed
+rewrite router/shared arithmetic or claim the observed instability resolved
 from this evidence. The public GLM endpoint stays offline.
 
-The full warning-denied native suite is running from pinned `abd67950` ARM
-source in user unit `lunaflux-native-suite-tls-batched-20261018-v1` under a
-4 GiB/no-swap limit, after both GPU captures retired. Its result is pending.
+The full warning-denied native suite from pinned `abd67950` ARM source in user
+unit `lunaflux-native-suite-tls-batched-20261018-v1` failed during compilation
+at its own 4 GiB cap (`Result=oom-kill`, `ExecMainStatus=130`, peak4294967296
+bytes, swap0). It produced no test-suite result. This is a bounded CPU build
+failure, not a Spark-wide memory exhaustion or a GPU model test failure.
 
 ### GPU acceptance and literal down replay
 
@@ -638,3 +673,27 @@ saved outputs are rank-local partials, unlike the earlier post-TP captures.
 The next causal boundary is each actual rank's pre-reduction partial versus
 the collective's published result; do not blame the collective solely because
 this isolated down replay is stable.
+
+### Final-output reinspection after the acceptance clarification
+
+The retained ordered `glm-all-leaves-ordered-scales-20261018-r2` and overlap
+`glm-all-leaves-overlap-scales-20261018-r1` files contain identical generated
+token sequences for five of six measured prompts.
+Only the final token of the Chinese answer differs: both identify Paris, but
+one continues with an opening parenthesis and the other ends with a full stop.
+That is not evidence of a wrong factual answer. The internal branch differences
+above therefore must not be described as six failed output-correctness cases.
+
+This pair also does not establish six quality passes. Its eight-token output
+ceiling truncates the Japan answer, JSON task and code task; the JSON case is
+still reasoning text rather than a completed JSON response. Raw decoder text
+also includes model control tokens, so it is not a validated HTTP presentation.
+These files remain useful performance/diagnostic fixtures, not the full-service
+acceptance corpus. Earlier repeat-run token variations remain preserved; do not
+infer their semantic severity from mismatch counts alone or erase them based
+on this later pair.
+
+Next acceptance work must collect complete final responses with finish reasons,
+independent task checks and service-state tests, within the measured memory
+envelope. Broad output validation and any remaining bounded TP diagnosis are
+separate from external engine compatibility and performance measurements.
