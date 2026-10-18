@@ -5,6 +5,19 @@ This campaign uses independent expected answers/task checks, not reference
 engine tokens. All evaluation remains outside the compiler and runtime.
 No payload hashes, tolerance changes or production promotion are introduced.
 
+## Latest private-service result
+
+The canonical GLM HTTP worker, device sampling and identified request retirement
+are implemented and exercised on both Sparks. Pinned71061272 completes the nine
+HTTP groups (v25); the coordinator-owned shutdown recipe passes active-stop
+(v27) and abrupt-peer-loss cleanup (v28). Both GPUs are free after the tests.
+Memory stays below100GiB/rank with more than16GiB host availability and zero
+unit swap. These are private acceptance results, not a public deployment or a
+claim of every vLLM feature. The remaining public-route choice/integration is
+described in "Public cutover is not the private acceptance listener" below.
+The later chronological sections retain failed attempts and the exact repairs;
+earlier "pending" statements describe their historical point in the campaign.
+
 ## First campaign
 
 Use both GB10 Sparks as TP2, 64-row prefill capacity, context1024 and at most512
@@ -905,3 +918,33 @@ The66 paired memory samples record minimum host availability18,277,928 and
 same71061272 executable and unchanged AOT are used; the corrected unit ownership
 and stop sequencing are the changed variables relative to v25. Fresh-pair
 peer-loss testing remains required before the final service handoff.
+
+### v28: verified abrupt-peer-loss cleanup
+
+The fresh pair passes JSON/SSE/Responses smoke before the same four-active,
+one-queued fault precondition. The fixture kills only rank1's main process
+at20:58:16CST. Its actual unit receipt records `result=signal code=killed
+status=KILL`, as intended. The memory/lifecycle watcher detects the failed rank,
+requests coordinator stop at20:58:17, and rank0 completes at20:58:18 with
+`result=success code=killed status=TERM`. The worker's expected `Disconnected`
+error remains visible. There is no parent abort, drain timeout or forced kill
+of the surviving rank, and both GPU-owner queries are empty.
+
+The fault test passes at
+`/tmp/lunaflux-glm-http-peer-failure-20261018-v28/COMPLETE.txt`. The watcher exits
+nonzero because it deliberately reports the injected rank failure; that is not
+hidden as a successful inference run. Interrupted clients are not successful
+answers. The65 paired samples retain minimum host availability18,345,316 and
+19,589,856KiB, peak GPU residency97,654/97,669MiB and zero unit swap. No other GPU
+work overlapped. Neither old GLM containers nor the public route were restored.
+
+Final acceptance scope is HTTP generation/control, concurrency/routing,
+device sampling, request retirement/reuse, normal active drain and failed-peer
+cleanup on the measured2048-context/four-resident-slot plan. Startup cleanup has
+the earlier full-model v23 evidence plus three current pinned-ARM owned-worker
+fixtures; it is not relabeled as a new full-model startup-stop on v28. The
+full-vocabulary sampler retains its documented sanitizer coverage limits.
+The12-answer review retains format/factual caveats and makes no blanket model
+quality or reference-engine parity claim. Public rollout still needs the
+selected deployment integration and a real forwarding credential, rather than
+publishing the acceptance process or its fixture credential.

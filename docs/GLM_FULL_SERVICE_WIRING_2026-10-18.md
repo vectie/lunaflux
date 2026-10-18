@@ -110,3 +110,23 @@ route identifies the old EXL3 checkpoint; the tested checkpoint is NVFP4. Its
 model metadata, worker ownership and forwarding credential must be connected
 truthfully before cutover. A loopback acceptance listener with a fixture
 credential and a bounded test lifetime is not a production deployment.
+
+### Completed private acceptance
+
+Pinned71061272 passes all nine real HTTP groups on the paired Sparks in v25.
+The terminal observations show zero active requests, queue depth and KV usage,
+with zero worker failures/restarts during that campaign. Twelve broader answers
+finish naturally (4,007 tokens in319.579367 summed request seconds); content
+review still identifies Markdown around requested JSON and factual caveats.
+Those are not converted to unqualified correctness passes.
+
+Coordinator-first `KillMode=mixed` units then pass v27 active shutdown with
+four active/one queued and v28 deliberate peer loss. Actual exit receipts and
+empty GPU-owner observations establish cleanup; default status of a collected
+unit is insufficient. Both GPUs are released. Peak observed residency is
+97,654/97,669MiB; the lowest host reserve across these accepted runs is
+18,184,988/19,517,468KiB, with zero unit swap. The isolated full native suite
+passes5,275/5,275 and the added transport regression passes8/8 affected tests.
+Existing migration-warning exclusions are unchanged. Detailed positive and
+negative evidence remains in the complete-answer report. Public integration
+is still pending; the old EXL3 route must not misrepresent this NVFP4 runtime.
