@@ -135,6 +135,7 @@ async fn serve(
       @inference.SamplingParameters::greedy(),
       @inference.SamplingSeed::new(17UL),
       @inference.DeadlineBudget::from_milliseconds(3600000UL, inference),
+      production_ready=plan.production_ready,
     ),
     tcp,
     log_capacity=256,
@@ -147,7 +148,7 @@ async fn serve(
     }
   })
   println(
-    "GLM canonical HTTP worker ready at \{plan.listen_address}; public promotion not performed",
+    "GLM canonical HTTP worker ready at \{plan.listen_address}; production_ready=\{plan.production_ready}",
   )
   while pool.state() != LunaOnlineOpenAIConnectionPoolClosed {
     ignore(pool.progress_on_reactor())

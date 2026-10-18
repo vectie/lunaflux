@@ -89,6 +89,7 @@ async fn request(
   body : Json,
   timeout~ : Int = 1800,
   cancel~ : Bool = false,
+  capacity_probe~ : Bool = false,
 ) -> String {
   let prefix = root + "/" + name
   @fs.write_file(
@@ -125,6 +126,9 @@ async fn request(
     return "cancelled"
   }
   result.check()
+  if capacity_probe && result.stdout().has_prefix("429 ") {
+    return "capacity-rejected"
+  }
   guard result.stdout().has_prefix("200 ") else {
     fail("HTTP failure " + name + ": " + result.stdout())
   }
@@ -139,8 +143,17 @@ async fn main {
     root
     .iter()
     .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_')) &&
-    mode is ("smoke" | "answers" | "concurrent" | "sampling" | "cancel") else {
-    fail("NEW_EVIDENCE_ROOT smoke|answers|concurrent|sampling|cancel")
+    mode
+    is ("smoke"
+    | "answers"
+    | "concurrent"
+    | "sampling"
+    | "cancel"
+    | "capacity"
+    | "controls") else {
+    fail(
+      "NEW_EVIDENCE_ROOT smoke|answers|concurrent|sampling|cancel|capacity|controls",
+    )
   }
   @fs.mkdir(root)
   remote("mkdir " + root).check()
@@ -245,6 +258,91 @@ async fn main {
         let first = answer(@fs.read_file(root + "/sample-0.body").text(), false)
         guard text == first else { fail("same-seed replay changed") }
       }
+    }
+  } else if mode == "capacity" {
+    let rejected = FixedArray::make(9, false)
+    @async.with_task_group(group => {
+      for i in 0..<9 {
+        group.spawn_bg(() => {
+          let body = request(
+            root,
+            "capacity-\{i}",
+            "/v1/chat/completions",
+            chat(
+              "Write a detailed story about a lighthouse in a storm. Use several complete paragraphs.",
+              false, 512,
+            ),
+            capacity_probe=true,
+          )
+          rejected[i] = body == "capacity-rejected"
+          if !rejected[i] {
+            guard !answer(body, false).trim().is_empty() else {
+              fail("empty accepted answer")
+            }
+          }
+        })
+      }
+    })
+    let count = rejected.iter().filter(x => x).count()
+    guard count > 0 && count < 9 else {
+      fail("capacity probe did not exercise both admission and rejection")
+    }
+    println("capacity rejections: \{count}/9")
+    let body = request(
+      root,
+      "after-capacity",
+      "/v1/chat/completions",
+      chat("What is 2 plus 2? Answer only the number.", false, 128),
+    )
+    guard answer(body, false).contains("4") else { fail("capacity recovery") }
+  } else if mode == "controls" {
+    let body = request(root, "multiturn", "/v1/chat/completions", {
+      "model": "glm-5.3",
+      "messages": [
+        { "role": "user", "content": "Remember the project code: ORCHID-37." },
+        { "role": "assistant", "content": "I will remember ORCHID-37." },
+        {
+          "role": "user",
+          "content": "What project code did I give you? Reply only with that code.",
+        },
+      ],
+      "temperature": 0,
+      "max_tokens": 128,
+    })
+    guard answer(body, false).contains("ORCHID-37") else {
+      fail("multi-turn context")
+    }
+    let stopped = request(root, "stop", "/v1/chat/completions", {
+      "model": "glm-5.3",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Copy exactly these three words: red green blue",
+        },
+      ],
+      "temperature": 0,
+      "stop": ["green"],
+      "max_tokens": 128,
+    })
+    let text = answer(stopped, false)
+    guard text.contains("red") &&
+      !text.contains("green") &&
+      !text.contains("blue") else {
+      fail("stop-string publication")
+    }
+    let limited = request(
+      root,
+      "length",
+      "/v1/chat/completions",
+      chat("Write a detailed story about a lighthouse in a storm.", false, 4),
+    )
+    guard @json.parse(limited)
+      is {
+        "choices": Array([{ "finish_reason": "length", .. }]),
+        "usage": { "completion_tokens": 4, .. },
+        ..
+      } else {
+      fail("output-token budget")
     }
   } else {
     for i in 0..<6 {

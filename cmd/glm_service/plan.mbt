@@ -11,6 +11,7 @@ priv struct ServicePlan {
   control_address : String
   rendezvous_address : String
   listen_address : String
+  production_ready : Bool
   executable : String
   model_label : String
   runtime_label : String
@@ -44,6 +45,17 @@ fn json_int(j : Json, key : String) -> Int raise {
 }
 
 ///|
+fn json_optional_bool(j : Json, key : String) -> Bool raise {
+  guard j is Object(fields) else { fail("expected service object") }
+  match fields.get(key) {
+    None => false
+    Some(True) => true
+    Some(False) => false
+    _ => fail("expected boolean \{key}")
+  }
+}
+
+///|
 fn parse_plan(bytes : Bytes) -> ServicePlan raise {
   guard bytes.length() <= 65536 else {
     fail("service plan exceeds startup envelope")
@@ -59,6 +71,7 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
     control_address: json_string(j, "control_address"),
     rendezvous_address: json_string(j, "rendezvous_address"),
     listen_address: json_string(j, "listen_address"),
+    production_ready: json_optional_bool(j, "production_ready"),
     executable: json_string(j, "executable"),
     model_label: json_string(j, "model_label"),
     runtime_label: json_string(j, "runtime_label"),
@@ -96,6 +109,26 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
   ignore(@socket.Addr::parse(p.rendezvous_address))
   ignore(@socket.Addr::parse(p.listen_address))
   p
+}
+
+///|
+test "production readiness is an explicit deployment choice" {
+  assert_false(json_optional_bool({}, "production_ready"))
+  assert_true(
+    json_optional_bool({ "production_ready": true }, "production_ready"),
+  )
+  assert_false(
+    json_optional_bool({ "production_ready": false }, "production_ready"),
+  )
+  try
+    ignore(
+      json_optional_bool({ "production_ready": "true" }, "production_ready"),
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("nonboolean readiness was accepted")
+  }
 }
 
 ///|
