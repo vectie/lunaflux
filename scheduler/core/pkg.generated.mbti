@@ -27,13 +27,15 @@ pub(all) suberror SchedulerError {
 pub enum BuildNextOutcome {
   BuildIdle
   BuildBackpressured
-  BuildPreempted
+  BuildPreempted(UInt64, UInt64)
   BuildSubmitted(Int, UInt64)
 }
 pub fn BuildNextOutcome::is_backpressured(Self) -> Bool
 pub fn BuildNextOutcome::is_idle(Self) -> Bool
 pub fn BuildNextOutcome::is_preempted(Self) -> Bool
 pub fn BuildNextOutcome::is_submitted(Self) -> Bool
+pub fn BuildNextOutcome::preempted_request_generation(Self) -> UInt64 raise SchedulerError
+pub fn BuildNextOutcome::preempted_request_id(Self) -> UInt64 raise SchedulerError
 
 pub(all) enum CancelReservationCommit {
   CancelCommitted(@inference.RequestGeneration)

@@ -95,6 +95,9 @@ pub fn OnlineWorkerLease::progress(
   if service.scheduler.live_request_count() == 0 {
     raise Invalid(Lifecycle)
   }
+  if !self.progress_retired_lanes() {
+    return ServiceBackpressured
+  }
   let progress = service.progress_impl()
   match progress {
     // This commit is emitted only by the currently owned physical flight.

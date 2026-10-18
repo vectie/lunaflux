@@ -97,27 +97,56 @@ async fn request(
     body.stringify(),
     create_mode=CreateNew,
   )
-  transfer(prefix + ".request.json", node + ":" + prefix + ".request.json")
-  let result = remote(
-    "curl --silent --show-error --no-buffer --max-time \{timeout} --dump-header " +
-    prefix +
-    ".headers --output " +
-    prefix +
-    ".body --write-out '%{http_code} %{time_total}\n' -H 'Authorization: Bearer lunaflux-acceptance' -H 'Content-Type: application/json' --data-binary @" +
-    prefix +
-    ".request.json http://127.0.0.1:18888" +
-    route,
-  )
+  let local_forward = @env.get_env_var("LUNAFLUX_GLM_HTTP_LOCAL_FORWARD") ==
+    Some("1")
+  let result = if local_forward {
+    // One loopback SSH forwarding channel avoids consuming a remote SSH
+    // session per HTTP client (sshd's session limit is not service capacity).
+    @shell.Cmd("curl", [
+      "--silent",
+      "--show-error",
+      "--no-buffer",
+      "--max-time",
+      timeout.to_string(),
+      "--dump-header",
+      prefix + ".headers",
+      "--output",
+      prefix + ".body",
+      "--write-out",
+      "%{http_code} %{time_total}\n",
+      "-H",
+      "Authorization: Bearer lunaflux-acceptance",
+      "-H",
+      "Content-Type: application/json",
+      "--data-binary",
+      "@" + prefix + ".request.json",
+      "http://127.0.0.1:18889" + route,
+    ]).output(max_output_bytes=4194304)
+  } else {
+    transfer(prefix + ".request.json", node + ":" + prefix + ".request.json")
+    remote(
+      "curl --silent --show-error --no-buffer --max-time \{timeout} --dump-header " +
+      prefix +
+      ".headers --output " +
+      prefix +
+      ".body --write-out '%{http_code} %{time_total}\n' -H 'Authorization: Bearer lunaflux-acceptance' -H 'Content-Type: application/json' --data-binary @" +
+      prefix +
+      ".request.json http://127.0.0.1:18888" +
+      route,
+    )
+  }
   @fs.write_file(
     prefix + ".client.txt",
     result.stdout() + result.stderr(),
     create_mode=CreateNew,
   )
-  transfer(node + ":" + prefix + ".headers", prefix + ".headers")
-  // curl may not create a body if cancellation happens before response headers.
-  let collected = remote("test -f " + prefix + ".body")
-  if collected.exit_code() == 0 {
-    transfer(node + ":" + prefix + ".body", prefix + ".body")
+  if !local_forward {
+    transfer(node + ":" + prefix + ".headers", prefix + ".headers")
+    // curl may not create a body if cancellation happens before response headers.
+    let collected = remote("test -f " + prefix + ".body")
+    if collected.exit_code() == 0 {
+      transfer(node + ":" + prefix + ".body", prefix + ".body")
+    }
   }
   if cancel {
     guard result.exit_code() == 28 else {

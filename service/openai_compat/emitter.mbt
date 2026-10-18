@@ -98,7 +98,7 @@ fn luna_openai_escape_kind(byte : Byte) -> (Int, Int) {
     b'"' => (1, 2)
     b'\\' => (2, 2)
     b'\x08' | b'\x09' | b'\x0a' | b'\x0c' | b'\x0d' => (3, 2)
-    b'\x00'..<=b'\x1f' => (4, 6)
+    value if value <= b'\x1f' => (4, 6)
     _ => (0, 1)
   }
 }

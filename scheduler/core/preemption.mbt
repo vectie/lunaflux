@@ -101,15 +101,15 @@ fn Scheduler::release_active_for_recompute(
 ///|
 fn Scheduler::preempt_for_aged_waiter(
   self : Scheduler,
-) -> Bool raise SchedulerError {
+) -> Int raise SchedulerError {
   let urgent = self.oldest_prefill()
   if !self.aged_requires_preemption(urgent) {
-    return false
+    return NO_INDEX
   }
   let victim = self.preemption_victim(urgent)
   if victim == NO_INDEX {
-    return false
+    return NO_INDEX
   }
   self.release_active_for_recompute(victim)
-  true
+  victim
 }

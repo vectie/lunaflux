@@ -4,6 +4,8 @@
 #valtype
 priv enum WorkerFlightState {
   FlightEmpty
+  // Request-state eviction has no submitted plan or completion sequence.
+  FlightEvicting(UInt64, UInt64)
   FlightPlanned(UInt64)
   FlightSubmitted(UInt64)
   FlightReceived(UInt64)

@@ -73,6 +73,7 @@ fn WorkerService::progress_impl(
         return ServiceBackpressured
       }
       if outcome.is_preempted() {
+        self.retain_preemption(outcome)
         return ServiceAdvanced
       }
       let plan = self.scheduler.submitted_plan(outcome) catch {
@@ -85,6 +86,12 @@ fn WorkerService::progress_impl(
       self.start_pending_plan()
     }
     FlightSubmitted(_) => {
+      // A request-state eviction cannot share the framed control channel
+      // with an in-flight GPU plan. Stateful transports retire this flight
+      // before asking the scheduler for a preempting successor.
+      if self.transport.requires_request_retirement() {
+        return self.progress_existing_flight_impl()
+      }
       if !self.has_pending_plan() && !self.scheduler.streaming_enabled() {
         let outcome = self.scheduler.build_next() catch {
           error => raise scheduler_error(error)
@@ -119,6 +126,20 @@ fn WorkerService::progress_existing_flight_impl(
 ) -> WorkerServiceProgress raise WorkerServiceError {
   self.require_lifecycle(ServiceReady)
   match self.flight {
+    FlightEvicting(id, generation) => {
+      guard self.transport is RootedSingle(process) else {
+        raise Invalid(Lifecycle)
+      }
+      let done = process.progress_request_retirement(id, generation) catch {
+        error => enter_service_recovery(self, physical_transport_error(error))
+      }
+      if done {
+        self.clear_flight()
+        ServiceAdvanced
+      } else {
+        ServiceBackpressured
+      }
+    }
     FlightEmpty if self.scheduler.streaming_busy() => {
       ignore(self.progress_streaming()) catch {
         error => enter_service_recovery(self, error)

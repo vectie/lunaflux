@@ -342,3 +342,34 @@ pass129 focused tests and native check. No post-framing physical pass is claimed
 yet. Capacity-only exports (no GPU execution) estimate106650380908 bytes per
 rank at4096context/four slots;8192/16384 exceed100GiB and are rejected before
 allocation. Host-reserve qualification is still required for any larger plan.
+
+### Overload exposes missing recompute eviction
+
+The first nine-client attempt exhausted SSH multiplexed sessions; it is not a
+service capacity result. The second used a private local TCP forward and reached
+the server: all clients lost their replies when the rank0 worker raised
+`CapacityExceeded`. The watcher stopped both ranks. Memory remained within the
+specified limits; this was not an OOM. Evidence:
+`/tmp/lunaflux-glm-http-capacity-20261018-v7b`.
+
+The scheduler preempts an aged waiter after two steps. Its recompute transition
+released scheduler KV pages and active credit but returned only a boolean-like
+`BuildPreempted`; the service discarded that result. The recurrent device frame
+retained the victim's slot indefinitely. With four retained requests, the next
+admitted replacement cannot reserve a slot. A focused frame regression
+reproduces the failure and proves that eviction admits the waiter and permits
+the original request to replay at position0 with the same generation and reset
+state, without touching live neighbors.
+
+The scheduler now emits an immutable request/generation eviction effect. The
+service holds an explicit non-plan flight until the existing two-rank release
+protocol acknowledges it; no successor plan is built in that interval. A
+closed-child recovery consumes this device-only obligation without inventing a
+submitted scheduler plan. Terminal device state is also retired before the next
+plan, independent of slow HTTP terminal-event acknowledgment. Scheduling remains
+backend-neutral; no model or CUDA detail enters the scheduler. The focused
+native suite passes275/275. Physical overload retesting is still required.
+
+The pinned ARM v9 build also caught a formatter-introduced range-pattern spelling
+unsupported by its older compiler. The equivalent guarded byte comparison is
+used instead; no toolchain migration or warning suppression was added.

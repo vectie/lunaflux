@@ -37,6 +37,8 @@ test "preemption releases KV and replay excludes the retained latest token" {
 
   let outcome = try! owner.build_next()
   assert_true(outcome.is_preempted())
+  assert_eq(outcome.preempted_request_id(), active.request_id().value())
+  assert_eq(outcome.preempted_request_generation(), generation.value())
   assert_eq(
     owner.status(active.request_id()).unwrap().state(),
     RecomputeWaiting,
@@ -250,7 +252,7 @@ test "preemption threshold is exact and victim order is circular" {
   let urgent = owner.admit(wb_request(773UL), 0UL)
   owner.admitted_steps[urgent.slot().index()] = 0UL
   owner.step = 1UL
-  assert_false(try! owner.preempt_for_aged_waiter())
+  assert_eq(try! owner.preempt_for_aged_waiter(), NO_INDEX)
   owner.step = 2UL
   assert_eq(
     owner.preemption_victim(urgent.slot().index()),

@@ -80,9 +80,11 @@ async fn run_rank(
   defer rendezvous.close()
   let collective = connect_collective(context, stage, rendezvous, ordinal)
   defer {
+    // A failed peer can leave collective work pending. Abort its communicator
+    // before owners wait on streams during deterministic resource release.
+    collective.abort()
     rank.close()
     stage.close()
-    collective.abort()
   }
   prepare_rank(
     plan, spec, ordinal, context, stream, aot, sampling, root, checkpoint, stage,
@@ -134,7 +136,12 @@ async fn run_rank(
       pipeline,
       clock,
       stage.replay_graph_count() > 0,
-    )
+    ) catch {
+      error => {
+        collective.abort()
+        raise error
+      }
+    }
   } else {
     let server = @control.DecoderStageServer::new_batched(
       rank,
@@ -147,9 +154,16 @@ async fn run_rank(
     )
     defer server.close()
     println("GLM batched rank 1 ready")
-    while !server.is_terminal() {
-      server.poll(local_now_millis=clock.now_millis())
-      @async.pause()
+    try {
+      while !server.is_terminal() {
+        server.poll(local_now_millis=clock.now_millis())
+        @async.pause()
+      }
+    } catch {
+      error => {
+        collective.abort()
+        raise error
+      }
     }
   }
 }

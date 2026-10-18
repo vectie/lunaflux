@@ -38,7 +38,7 @@ fn WorkerService::flight_sequence_value(
   self : WorkerService,
 ) -> UInt64 raise WorkerServiceError {
   match self.flight {
-    FlightEmpty => raise Invalid(Sequence)
+    FlightEmpty | FlightEvicting(_, _) => raise Invalid(Sequence)
     FlightPlanned(sequence)
     | FlightSubmitted(sequence)
     | FlightReceived(sequence)

@@ -304,8 +304,11 @@ pub fn Scheduler::build_next(
     raise invalid(Plan, Exhausted)
   }
   let preempted = self.preempt_for_aged_waiter()
-  if preempted {
-    return BuildPreempted
+  if preempted != NO_INDEX {
+    return BuildPreempted(
+      self.requests[preempted].unwrap().request_id().value(),
+      self.request_generations[preempted].value(),
+    )
   }
   let token_budget = self.select_rows() catch {
     error => rollback_prefix_selection(self, error)

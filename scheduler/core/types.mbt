@@ -41,7 +41,7 @@ const NO_INDEX : Int = -1
 pub enum BuildNextOutcome {
   BuildIdle
   BuildBackpressured
-  BuildPreempted
+  BuildPreempted(UInt64, UInt64)
   BuildSubmitted(Int, UInt64)
 }
 
@@ -123,7 +123,9 @@ pub fn SchedulerPublicationRoute::new(
 }
 
 ///|
-pub fn SchedulerPublicationRoute::lane(self : SchedulerPublicationRoute) -> Int {
+pub fn SchedulerPublicationRoute::lane(
+  self : SchedulerPublicationRoute,
+) -> Int {
   self.lane_value
 }
 

@@ -90,6 +90,13 @@ fn WorkerService::recover_physical_flight_impl(
   if !self.require_transport().recovery_cleanup_complete() {
     raise PhysicalTransport(PhysicalBackpressured)
   }
+  if self.flight is FlightEvicting(_, _) {
+    // Closed-child cleanup consumes the device state. There is no submitted
+    // scheduler plan to fail; device invalidation handles the live request.
+    self.clear_flight()
+    self.lifecycle = ServiceDeviceInvalidationRequired
+    return self.scheduler.last_submitted_plan_sequence()
+  }
   let sequence = self.flight_sequence_value()
   if self.require_transport().has_received(sequence) {
     match self.flight {
