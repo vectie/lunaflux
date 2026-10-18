@@ -540,3 +540,20 @@ systemd reports 58.3/54.1 GiB peaks and zero swap. The observer now returns an
 empty expert view for a retired dense layer while preserving lifecycle errors.
 The `.179` TLS provider ASan/UBSan/LSan repetition also passes in user unit
 `lunaflux-tls-provider-asan-20261018-v3` (same pinned ARM probe as `.178`).
+
+The post-integration HTTP/compatibility repetition passes all 134 tests at
+`/tmp/lunaflux-http-final-check-20261018-v1`. The local full native suite was
+interrupted during compilation as free disk fell below 4 GiB; it did not
+produce a test-suite result. Only its regenerable native test cache was
+removed (about 5.5 GiB), preserving source, evidence, models, and other build
+logs. Full-suite validation is moving to the pinned ARM source after the
+paired GPU diagnostics retire. This is not a new full-suite pass claim.
+
+The corrected all-layer ordered capture
+`glm-all-leaves-ordered-scales-20261018-r2` completes on both ranks with zero
+experiment swap. The matching overlap run uses the same executable and AOT.
+The core-only collector now expands its fixed file glob in the remote shell:
+GNU tar's `--wildcards` does not expand input paths when creating an archive.
+The failed collection wrote no numerical arrays. Selected-leaf and explicit
+live-byte-extent comparisons remain offline and distinguish inactive scratch
+tails from live mathematical output; neither uses payload hashes.

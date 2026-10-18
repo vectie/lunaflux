@@ -17,6 +17,26 @@ fn different_bf16(a : Bytes, b : Bytes) -> (Int, Int) raise {
 }
 
 ///|
+fn different_bytes(a : Bytes, b : Bytes, bytes : Int) -> (Int, Int) raise {
+  guard bytes >= 0 && bytes <= a.length() && bytes <= b.length() else {
+    fail("comparison exceeds captured extent")
+  }
+  for i in 0..<bytes; count = 0, first = -1 {
+    continue count + (if a[i] != b[i] { 1 } else { 0 }),
+      if first < 0 && a[i] != b[i] { i } else { first }
+  } nobreak { (count, first) }
+}
+
+///|
+test "inactive captured capacity is not part of a live extent comparison" {
+  assert_eq(different_bytes(b"\x01\x02\x03", b"\x01\x02\x04", 2), (0, -1))
+  assert_eq(different_bytes(b"\x01\x02\x03", b"\x01\x02\x04", 3), (1, 2))
+  try different_bytes(b"\x01", b"\x01", 2) catch {
+    _ => ()
+  } noraise { _ => fail("out-of-range live extent accepted") }
+}
+
+///|
 test "frontiers compare literal BF16 values, including high bytes" {
   assert_eq(different_bf16(b"\x00\x01\x00\x02", b"\x00\x01\x00\x03"), (1, 1))
   assert_eq(different_bf16(b"\x00\x01", b"\x00\x01"), (0, -1))
@@ -25,6 +45,35 @@ test "frontiers compare literal BF16 values, including high bytes" {
 ///|
 async fn main {
   let args = @env.args()
+  if args is [_, "extent", ordered, overlap, bytes_text, report] {
+    let a = @fs.read_file(ordered).binary()
+    let b = @fs.read_file(overlap).binary()
+    let bytes = @string.parse_int(bytes_text)
+    let (count, first) = different_bytes(a, b, bytes)
+    let summary = "live_bytes=\{bytes} different_bytes=\{count} first_byte=\{first}\n"
+    @fs.write_file(report, summary, create_mode=CreateNew)
+    println(summary)
+    return
+  }
+  if args is [_, "selected-leaves", ordered, overlap, prefill_text, layer_text, report] {
+    let prefill = @string.parse_int(prefill_text)
+    let layer = @string.parse_int(layer_text)
+    guard prefill >= 0 && prefill < 7 && layer >= 3 && layer < 45 else { fail("invalid MoE frontier") }
+    let directory = "/collected-leaves/prefill-\{prefill}-layer-\{layer}/layer-\{layer}-"
+    let summary = StringBuilder()
+    summary <+ "leaf\tbytes\tdifferent_bytes\tfirst_byte\n"
+    for leaf in ["router-logits", "router-scores", "router-indices", "router-weights", "routed-activation", "routed-weighted", "routed-output", "routed-quantized-input", "routed-quantized-activation", "shared-activation", "shared-weighted", "shared-output"] {
+      let a = @fs.read_file(ordered + directory + leaf + ".bin").binary()
+      let b = @fs.read_file(overlap + directory + leaf + ".bin").binary()
+      guard a.length() == b.length() else { fail("geometry mismatch") }
+      let (count, first) = different_bytes(a, b, a.length())
+      summary <+ "\{leaf}\t\{a.length()}\t\{count}\t\{first}\n"
+    }
+    @fs.write_file(report, summary.to_string(), create_mode=CreateNew)
+    println(summary.to_string())
+    println("Raw scratch includes inactive capacity; use extent on known live ranges before attributing a numerical cause.")
+    return
+  }
   if args is [_, "collect-core", root] && root.has_prefix("/tmp/lunaflux-model-bench-") && root.iter().all(c => c is ('a'..='z'|'0'..='9'|'/'|'-')) {
     let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or("/tmp/lunaflux-glm179-prefill-20261018.sock")
     let host = "wlc004s@192.168.2.179"
@@ -33,7 +82,9 @@ async fn main {
     guard status.stdout().contains("SubState=exited") && status.stdout().contains("ExecMainStatus=0") else { fail("capture has not retired successfully") }
     @fs.mkdir(root + "/collected-frontiers")
     let archive = root + "/collected-frontiers/core.tar.gz"
-    let result = @shell.Cmd("ssh", ["-S", socket, host, "tar -czf - -C " + root + " --wildcards 'frontiers/*/*.bf16'"]).output(max_output_bytes=536870912)
+    // GNU tar wildcard matching applies to extraction, not archive creation.
+    // The validated root and fixed glob are expanded by the remote shell.
+    let result = @shell.Cmd("ssh", ["-S", socket, host, "cd " + root + " && tar -czf - frontiers/*/*.bf16"]).output(max_output_bytes=536870912)
     result.check()
     @fs.write_file(archive, result.stdout_bytes(), create_mode=CreateNew)
     @shell.Cmd("tar", ["-xf", archive, "-C", root + "/collected-frontiers"]).output().check()
