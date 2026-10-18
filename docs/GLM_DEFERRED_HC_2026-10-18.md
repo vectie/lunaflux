@@ -6,7 +6,9 @@ two-run full-model comparison and fresh vLLM measurement are complete.
 means are3104ms baseline,3096.5ms candidate and2790.644ms vLLM. The observed
 0.24% native mean reduction is smaller than the run-to-run spread; the complete
 six-prompt native mean regresses. Deferred HC remains explicitly selected,
-not promoted as a faster default. Original-service restoration is in progress.
+not promoted as a faster default. The original head/worker are restored and
+health/models endpoints return200. Their unchanged850000-context configuration
+does not satisfy the benchmark memory envelope; see the restoration receipt.
 
 ## Scope and hypothesis
 
@@ -284,6 +286,20 @@ not removed as an outlier; its exclusion from the cross-engine five-prompt
 cohort predates this run and is solely because8 native versus4 reference
 output tokens are not equal work.
 
+The native timings themselves permit a same-run phase identity, unlike the
+cross-engine streamed/buffered comparison:
+
+| Five-prompt native mean | Prior path, ms | Candidate, ms | Candidate minus prior, ms |
+| --- | ---: | ---: | ---: |
+| Through first token | 1302 | 1308.5 | +6.5 |
+| After first token | 1802 | 1788 | -14 |
+| Completion | 3104 | 3096.5 | -7.5 |
+
+The small observed later-token saving is offset by first-token time. These
+are measured phases of unchanged native token sequences, not proof that HC
+alone caused every14ms or that prefill kernels causally regressed6.5ms.
+They explain why a local HC win does not imply a substantial completion win.
+
 Candidate mean internal first-token sum over the five prompts is1308.5ms;
 fresh reference separate-stream first-content sum994.891ms. Their313.609ms
 difference is consistent with the305.856ms overall completion difference,
@@ -319,5 +335,13 @@ remain100GiB/device and process, zero benchmark swap and16GiB host reserve.
 The current native rank plan is100373434160bytes (93.48GiB). Minimum observed
 host availability across these native experiments is21.956GiB; the fresh
 reference minimum is17.007GiB. The reference containers use96GiB/no-swap limits.
-The unchanged original EXL3/DFlash service must be restored afterward; its
-pre-existing footprint does not satisfy the benchmark host-reserve policy.
+The unchanged original EXL3/DFlash service was restored afterward. Receipt
+`/tmp/lunaflux-glm-deferred-restore-20261018-v1` records both exact original
+containers running, NFS retained, `/health`200 and `/v1/models`200 with
+`GLM-5.3-Flash-EXL3`, max_model_len850000. No benchmark process or experimental
+runtime replaces them. The restored deployment reports102864MiB (100.453GiB)
+per GPU and8913820/10953064KiB (8.501/10.446GiB) host availability. Thus this
+unchanged original deployment is **outside both benchmark limits**, not a
+100GiB/16GiB reserve pass. Its context/speculation settings were not silently
+reconfigured. No further GPU experiment is launched alongside it; meeting
+those limits for the original service requires a separate configuration change.
