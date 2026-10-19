@@ -66,3 +66,72 @@ test "latent decoder removes expanded projections and binds new numerical bounda
     println("LUNA_LATENT_END")
   }
 }
+
+///|
+test "exact-cubin replay grids follow the full-shape compiler owner" {
+  let base = @precision.IndexedSparseAttentionPrecision::new(
+    index_head_count=32,
+    index_head_dimension=128,
+    query_head_count=32,
+    key_value_head_count=32,
+    query_key_dimension=256,
+    value_dimension=256,
+    pool_size=4,
+    top_k=2048,
+    append_incomplete_tail=true,
+    maximum_queries=64,
+    maximum_history=8192,
+    paged_history=@history.PagedHistoryDomain::new(
+      rows_per_page=16,
+      physical_pages=513,
+      maximum_context=8192,
+      maximum_sequences=8,
+    ).unwrap(),
+    maximum_workspace_bytes=1073741824L,
+    attention_accumulation=TiledFloat32,
+    index_scoring=RowScaledE4M3Matrix,
+  )
+  for law in [@precision.SparseCacheLaw::ExpandedBFloat16, LatentBFloat16] {
+    let plan = @precision.IndexedSparseProjectionPrecision::new(
+      base,
+      hidden_width=4096,
+      query_rank=1024,
+      key_value_rank=512,
+      rms_epsilon=1.0e-5,
+      index_layer_norm_epsilon=1.0e-5,
+      maximum_workspace_bytes=1073741824L,
+      projection_law=MatrixFloat32,
+      cache_law=law,
+    )
+    let source = @indexed_sparse_projection_cuda_source.indexed_sparse_projection_source(
+      plan,
+      symbol_prefix="replay",
+    )
+    if law is ExpandedBFloat16 {
+      assert_eq(source.launch(5), (1024, 128))
+      assert_eq(source.launch(6), (4096, 256))
+    } else {
+      assert_eq(source.launch(12), (1024, 128))
+      let envelope = @precision.HyperConnectionPrecision::new(
+        stream_count=4,
+        hidden_width=4096,
+        maximum_rows=64,
+        sinkhorn_iterations=20,
+        control_epsilon=1.0e-6,
+        normalization_epsilon=1.0e-5,
+        mix_law=RoundedBf16ControlsAndProducts,
+      )
+      let decoder = @indexed_sparse_projection_cuda_source.indexed_sparse_decoder_source(
+        @precision.IndexedSparseDecoderPrecision::new(
+          plan,
+          envelope,
+          maximum_state_bytes=1073741824L,
+          maximum_workspace_bytes=1073741824L,
+        ),
+        symbol_prefix="replay",
+      )
+      assert_eq(decoder.expansion(), Some(("replay_value_expand", (512, 128))))
+      assert_eq(decoder.attention().launch(2), (2048, 256))
+    }
+  }
+}

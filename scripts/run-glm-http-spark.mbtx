@@ -179,6 +179,20 @@ async fn main {
     return
   }
   if mode == "start" || mode == "start-traced" || mode == "start-profile" {
+    // Trace evidence has its own directory, but the executable and manifest
+    // must retain their original, matching artifact root.
+    let artifact_root = if @fs.exists(root + "/artifact-root.txt") {
+      @fs.read_file(root + "/artifact-root.txt").text().trim().to_owned()
+    } else {
+      root
+    }
+    guard artifact_root.has_prefix("/tmp/lunaflux-glm-http-") &&
+      !artifact_root.contains("..") &&
+      artifact_root.all(c => {
+        c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_')
+      }) else {
+      fail("invalid artifact root")
+    }
     for rank in 0..<2 {
       let owners = remote(
         rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits",
@@ -223,11 +237,11 @@ async fn main {
         } else {
           ""
         }) +
-        root +
+        artifact_root +
         "/glm_service.exe " +
         (if rank == 0 { "serve" } else { "rank1" }) +
         " " +
-        root +
+        artifact_root +
         " service.json"
       let result = remote(rank, command)
       @fs.write_file(

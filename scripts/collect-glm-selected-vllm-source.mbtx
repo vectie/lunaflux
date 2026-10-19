@@ -12,16 +12,21 @@ import {
 ///|
 async fn main {
   guard @env.args() is [_, root, container, .. rest] &&
-    (rest.is_empty() || rest is ["flashinfer"]) &&
+    (rest.is_empty() || rest is ["flashinfer"] || rest is ["experts"]) &&
     root.has_prefix("/tmp/lunaflux-") &&
     !root.contains("..") &&
-    container.has_prefix("lunaflux-reference-bench-") &&
+    (container.has_prefix("lunaflux-reference-bench-") || container == "image") &&
     container.all(c => c is ('a'..<='z' | '0'..<='9' | '-')) else {
     fail("NEW_ROOT RUNNING_REFERENCE_CONTAINER")
   }
   @fs.mkdir(root)
-  let flashinfer = !rest.is_empty()
-  let paths = if flashinfer {
+  let flashinfer = rest == ["flashinfer"]
+  let paths = if rest == ["experts"] {
+    [
+      "model_executor/layers/fused_moe/experts/flashinfer_cutlass_moe.py", "model_executor/layers/fused_moe/experts/flashinfer_b12x_moe.py",
+      "model_executor/layers/quantization/modelopt.py",
+    ]
+  } else if flashinfer {
     [
       "mla/_sparse_mla_sm120.py", "data/csrc/sparse_mla_sm120.cu", "data/csrc/sparse_mla_sm120_prefill.cu",
       "data/csrc/sparse_mla_sm120_decode_dsv3_2.cu", "data/include/flashinfer/attention/sparse_mla_sm120/prefill_kernel.cuh",
@@ -45,9 +50,12 @@ async fn main {
       "-o",
       "BatchMode=yes",
       "wlc004s@192.168.2.179",
-      "docker exec " +
-      container +
-      " cat /usr/local/lib/python3.12/dist-packages/" +
+      (if container == "image" {
+        "docker run --rm --network none --memory=128m --memory-swap=128m --entrypoint cat ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 "
+      } else {
+        "docker exec " + container + " cat "
+      }) +
+      "/usr/local/lib/python3.12/dist-packages/" +
       (if flashinfer { "flashinfer/" } else { "vllm/" }) +
       path,
     ]).output(max_output_bytes=2097152)

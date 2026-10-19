@@ -20,6 +20,7 @@ async fn main {
     fail("EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT")
   }
   @fs.mkdir(root)
+  @fs.write_file(root + "/artifact-root.txt", source, create_mode=CreateNew)
   @fs.write_file(
     root + "/acceptance.credential",
     @fs.read_file(source + "/acceptance.credential"),

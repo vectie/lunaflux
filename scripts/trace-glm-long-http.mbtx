@@ -52,10 +52,10 @@ async fn main {
     out.check()
   }
   let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"
-  let ranks = match @env.get_env_var("LUNAFLUX_TRACE_COLLECT_RANKS") {
+  let ranks = match @env.get_env_var("LUNAFLUX_TRACE_RANKS") {
     None | Some("both") => [0, 1]
     Some("egress") => [1]
-    _ => fail("LUNAFLUX_TRACE_COLLECT_RANKS must be both or egress")
+    _ => fail("LUNAFLUX_TRACE_RANKS must be both or egress")
   }
   if mode == "collect" {
     for rank in ranks {
@@ -119,7 +119,7 @@ async fn main {
     )
   } else {
     @async.with_task_group(group => {
-      for rank in 0..<2 {
+      for rank in ranks {
         group.spawn_bg(() => {
           let command = nsys +
             " " +

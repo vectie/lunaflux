@@ -1,0 +1,214 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Offline attribution of actual exported symbols. A terminated capture is
+// explicitly truncated at its last embedding; its final pass is never counted.
+
+///|
+struct Event {
+  start : Int64
+  end : Int64
+  name : String
+}
+
+///|
+fn union_ns(events : Array[Event]) -> Int64 {
+  let sorted = events.copy()
+  sorted.sort_by((a, b) => a.start.compare(b.start))
+  for e in sorted; right = 0L, total = 0L {
+    continue right.max(e.end), total + (e.end - right.max(e.start)).max(0L)
+  } nobreak {
+    total
+  }
+}
+
+///|
+fn summary(events : Array[Event]) -> Json {
+  {
+    "calls": events.length(),
+    "sum_ms": events.fold(init=0L, (n, e) => n + e.end - e.start).to_double() /
+    1000000.0,
+    "union_ms": union_ns(events).to_double() / 1000000.0,
+  }
+}
+
+///|
+fn category(name : String) -> String {
+  if name.contains("nccl") {
+    return "collective"
+  }
+  if name.contains("hyper") {
+    return "hyper_connection"
+  }
+  if name.has_prefix("glm_shared_") {
+    return "shared_expert"
+  }
+  if name.has_prefix("glm_router_") {
+    return "router"
+  }
+  if name.has_prefix("glm_routed_") {
+    if name.has_suffix("_gate_up") {
+      return "routed_gate_up"
+    }
+    if name.has_suffix("_down") {
+      return "routed_down"
+    }
+    return "routed_glue"
+  }
+  if name.has_prefix("glm_moe_") {
+    return "routed_glue"
+  }
+  if name.has_prefix("glm_dense_") {
+    return "dense_ffn"
+  }
+  if name.has_prefix("glm_recurrent_") {
+    if name.has_suffix("_inputs") ||
+      name.has_suffix("_4") ||
+      name.has_suffix("_9") ||
+      name.has_suffix("_15") ||
+      name.has_suffix("_16") {
+      return "kda_projection"
+    }
+    return "kda_other"
+  }
+  if name.has_prefix("glm_sparse_") {
+    if name.contains("_projection_") ||
+      name.has_suffix("_output") ||
+      name.has_suffix("_output_publish") ||
+      name.has_suffix("_value_expand") {
+      return "sparse_projection"
+    }
+    if name.has_suffix("_attention_index_scores") {
+      return "index_scores"
+    }
+    if name.has_suffix("_attention_index") {
+      return "index_selection"
+    }
+    if name.contains("_attention_attention_") {
+      return "sparse_attention_core"
+    }
+    return "sparse_other"
+  }
+  if name.has_prefix("glm_text_io_") || name.contains("sampling") {
+    return "embedding_head_sampling_tail"
+  }
+  "unclassified"
+}
+
+///|
+test "ownership precedes broad family names" {
+  assert_eq(
+    category("glm_sparse_3_hyper_deferred_post_pre"),
+    "hyper_connection",
+  )
+  assert_eq(category("glm_sparse_3_projection_q_absorb"), "sparse_projection")
+  assert_eq(
+    category("glm_sparse_3_attention_attention_retained_scores_v1"),
+    "sparse_attention_core",
+  )
+  assert_eq(category("glm_routed_3_gate_up"), "routed_gate_up")
+  assert_eq(category("glm_recurrent_0_14"), "kda_other")
+  assert_eq(category("glm_recurrent_0_15"), "kda_projection")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output, "partial"] else {
+    fail("NODE_TRACE_SQLITE NEW_OUTPUT partial (last pass excluded)")
+  }
+  let out = @shell.Cmd("sqlite3", [
+    "-readonly", "-json", db, "SELECT k.start,k.end,k.streamId stream,s.value name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start;",
+  ]).output(max_output_bytes=134217728)
+  out.check()
+  guard @json.parse(out.stdout()) is Array(rows) else { fail("kernel rows") }
+  let all = rows.map(row => {
+    guard row
+      is {
+        "start": Number(a, ..),
+        "end": Number(b, ..),
+        "stream": Number(s, ..),
+        "name": String(name),
+        ..
+      } else {
+      fail("event")
+    }
+    ignore(s)
+    Event::{ start: a.to_int64(), end: b.to_int64(), name, }
+  })
+  let anchors = all.filter(e => e.name == "glm_text_io_embed")
+  guard anchors.length() >= 2 else {
+    fail("need two complete embedding boundaries")
+  }
+  let events = all.filter(e => {
+    e.start >= anchors[0].start && e.end <= anchors.last().unwrap().start
+  })
+  let categories : Map[String, Array[Event]] = Map([])
+  let per_pass : Array[Json] = []
+  for step in 0..<(anchors.length() - 1) {
+    let es = events.filter(e => {
+      e.start >= anchors[step].start && e.start < anchors[step + 1].start
+    })
+    // Actual 45-layer GLM selects 42 routed gate/up and down invocations.
+    guard es.filter(e => category(e.name) == "routed_gate_up").length() == 42 &&
+      es.filter(e => category(e.name) == "routed_down").length() == 42 else {
+      fail("incomplete routed-expert coverage")
+    }
+    let kinds : Map[String, Array[Event]] = Map([])
+    for e in es {
+      let kind = category(e.name)
+      if !kinds.contains(kind) {
+        kinds[kind] = []
+      }
+      if !categories.contains(kind) {
+        categories[kind] = []
+      }
+      kinds[kind].push(e)
+      categories[kind].push(e)
+    }
+    let encoded : Map[String, Json] = Map([])
+    for kind, items in kinds {
+      encoded[kind] = summary(items)
+    }
+    per_pass.push({
+      "pass": step,
+      "categories": Json(encoded),
+      "kernels": summary(es),
+      "embedding_interval_ms": (anchors[step + 1].start - anchors[step].start).to_double() /
+      1000000.0,
+    })
+  }
+  let encoded : Map[String, Json] = Map([])
+  for kind, items in categories {
+    encoded[kind] = summary(items)
+  }
+  let shared = union_ns(events.filter(e => category(e.name) == "shared_expert"))
+  let other = union_ns(events.filter(e => category(e.name) != "shared_expert"))
+  let overlap = shared + other - union_ns(events)
+  let result : Json = {
+    "complete_boundary_intervals": anchors.length() - 1,
+    "excluded_final_pass": true,
+    "kernels": summary(events),
+    "categories": Json(encoded),
+    "shared_overlap_ms": overlap.to_double() / 1000000.0,
+    "shared_uncovered_ms": (shared - overlap).to_double() / 1000000.0,
+    "scope": "Partial interrupted capture; final boundary interval excluded, routed GEMM counts checked. This does not establish complete collective coverage. Not the full 7973-token request; no late-history extrapolation or production performance claim.",
+  }
+  @fs.mkdir(output)
+  @fs.write_file(
+    output + "/summary.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/passes.json",
+    Json(per_pass).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}

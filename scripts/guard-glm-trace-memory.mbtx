@@ -1,0 +1,68 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Collection-only headroom check. The independent paired service watcher still
+// enforces the model's 100 GiB / 16 GiB envelope. Stop profiling before that
+// boundary; do not kill a valid in-flight request for a diagnostic capture.
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-http-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail("TRACE_ROOT")
+  }
+  let out = @fs.open(
+    root + "/trace-headroom.txt",
+    mode=WriteOnly,
+    create_mode=CreateNew,
+  )
+  defer out.close()
+  let tag = root[5:].to_owned()
+  while !@fs.exists(root + "/capture-stop-1.stdout") {
+    let mem = @shell.Cmd("ssh", [
+      "-S", "/tmp/lunaflux-glm179-context-20261019.sock", "-o", "BatchMode=yes",
+      "wlc004s@192.168.2.179", "awk '/MemAvailable:/ {print $2}' /proc/meminfo",
+    ]).output()
+    mem.check()
+    let available = @string.parse_int64(mem.stdout().trim())
+    out.write("\{@async.now()} available_kib=\{available}\n")
+    if available < 20971520L {
+      let stop = @shell.Cmd("ssh", [
+        "-S",
+        "/tmp/lunaflux-glm179-context-20261019.sock",
+        "-o",
+        "BatchMode=yes",
+        "wlc004s@192.168.2.179",
+        "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys stop --session=" + tag,
+      ]).output()
+      @fs.write_file(
+        root + "/capture-stop-1.stdout",
+        stop.stdout(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/capture-stop-1.stderr",
+        stop.stderr(),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/CAPTURE_TRUNCATED.txt",
+        "Profiler stopped at 20 GiB headroom. Service request may continue; capture is partial.\n",
+        create_mode=CreateNew,
+      )
+      stop.check()
+      println(
+        "Stopped collection at headroom boundary; model request not stopped",
+      )
+      return
+    }
+    @async.sleep(250)
+  }
+}

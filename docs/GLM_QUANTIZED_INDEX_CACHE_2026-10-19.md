@@ -233,3 +233,258 @@ explicit context/KV/sequence/chunk settings now apply to profiling as well.
 Graph-level collection omits graph interiors and cannot by itself prove
 GPU-busy time or operator attribution. Full-node profiling previously crossed
 the host reserve; those failures remain visible and are not successful traces.
+
+## Detailed selected vLLM trace, 19 October evening
+
+This phase changes diagnostics only, not production kernels or selection. Its
+budget is zero kernel candidates. It answers the user's request to inspect
+what the reference actually executes before another optimization. No payload
+hashing is performed. Source snapshots, trace SQL, comparisons and correctness
+fixtures remain outside the compiler.
+
+### Matched workload and evidence limits
+
+Both engines use the same serialized 7,973-input/one-output prompt, C1, TP2 on
+the two GB10 Sparks, 64-row prefill chunks and an 8,192-token context limit.
+The one-token budget isolates prefill; it is **not** a complete-answer test.
+Native `cbffec1f` is the experimental index+latent-cache HTTP artifact, not the
+validated production `98c629fd`. The installed reference is
+`v0.1.dev20051+g487ecf187`, from the existing Spark image. Local `../vlm` is
+useful context but does not contain this exact installed GLM implementation.
+Reference capacity is10,240 KV tokens versus native8,208; both fit this C1
+request, but this is not a matched concurrency-capacity comparison. Their
+attention cache arithmetic also differs: reference FP8, native BF16.
+
+Reference root:
+`/tmp/lunaflux-reference-bench-glm-long-egress-trace-20261019-v2`.
+The refreshed client completes in17.703s under capture, versus18.646s in the
+preceding uncaptured warmup and18.033s in the previous steady repeat. Rank1
+has125 observed passes:124x64 rows and1x37 rows,333,954 kernel records. Long
+prefill is eager here: zero opaque CUDA graph envelopes. Full kernel symbols,
+launch geometry, API chronology, NVTX and GPU gaps are retained in
+`/tmp/lunaflux-glm-vllm-long-trace-analysis-20261019-v1`; operation attribution
+and per-pass/per-layer regions are in
+`/tmp/lunaflux-glm-vllm-long-pass-analysis-20261019-v4`.
+
+Nsight warns that not all CUDA/NVTX events might have been collected, including
+for worker PID356; this warning must not be hidden. Other no-CUDA/no-NVTX
+warnings belong to launcher PID79 and helper PID353. The actual GPU worker
+has all125 expected passes,11,375 AllReduce and125 AllGather calls,5,250 each
+routed GEMM role, and1,375 each sparse main/merge kernels. These checks support
+internally consistent pass accounting, not a formal guarantee of lossless
+instrumentation. Unified-memory fault tracing is unsupported in this driver.
+Only rank1 is instrumented; absolute clocks across hosts are not calibrated.
+
+### Whole-request vLLM GPU accounting
+
+| Selected operation | Kernel sum, ms | Calls |
+| --- | ---: | ---: |
+| Routed gate/up CUTLASS | 4450.641 | 5250 |
+| Routed down CUTLASS | 2435.784 | 5250 |
+| KDA projections | 3265.719 | 17000 |
+| Sparse projections/absorption/output | 1124.212 | 16500 |
+| Shared experts | 900.777 | 15750 |
+| KDA remaining work | 551.694 | 86375 |
+| Sparse attention plus split merge | 568.207 | 2750 |
+| HC control/normalization/publication | 464.227 | 33750 |
+| Router | 474.526 | 42000 |
+| Routed preparation/activation/finalization | 429.587 | 36750 |
+| Dense FFN | 285.835 | 1125 |
+| Index scores plus selection | 22.690 | 2046 |
+| Other sparse preparation | 127.228 | 50523 |
+| Embedding/head/sampling and boundary remainder | 448.220 | 7385 |
+| NCCL | 1955.750 | 11500 |
+
+These sums overlap. The exact captured interval identity is:
+
+```
+17,505.095 ms summed kernels
+   -552.971 ms multiple-kernel overlap
+    +22.261 ms copies outside kernel union
+   +604.933 ms uncovered GPU intervals
+ =17,579.319 ms GPU span
+```
+
+Compute union14,996.375ms; collective union1,955.750ms. No measured
+compute/collective overlap on this rank. Shared-expert union899.779ms overlaps
+other kernels410.745ms, leaving489.033ms exposed. The largest GPU gap is0.850ms:
+many small gaps total0.605s, not a hidden multi-second idle hole. CPU API sums
+are not additive critical-path time: e.g.6.454s of `cudaMemcpyAsync` CPU calls
+can include device-dependent waiting while GPU work is active.
+
+### Source-to-execution differences, not unselected feature lists
+
+| Boundary | Actual selected vLLM | Actual selected native HTTP artifact |
+| --- | --- | --- |
+| Expert GEMM | SM120 block-scaled TMA collective;128x128x256 tile; grid1x48x1,384threads,168registers,89,088B dynamic shared | `PackedRows`;512CTAs,128threads;16x32 output tiles;16B `cp.async`, immediate wait and CTA barriers; separate gate/up operand traversals |
+| Activation scale | CUTLASS NVFP4 uses loaded/calibrated global scale metadata and parallel conversion/activation path | Fresh full-input and full-routed-activation maximum scans, **one256-thread CTA each** |
+| Recurrent work | Selected parallel chunk-KDA chain | HTTP plan still selects `OrderedTokenFloat32`; actual `_delta` entry |
+| Projection staging | Selected vendor matrix kernels | HTTP plan sets both matrix staging fields `Synchronous` |
+| HC | At64rows, separate pre/norm/post chain;33,750 launches | Deferred post/pre plus tail functions; two main entries per boundary, not the old serial HC implementation |
+| Index | Cached completed pooled keys; skips scoring while all context fits topK; FP8 score matrix and parallel selection | FP8 matrix scoring is selected, but scoring entries still execute in early chunks |
+| Sparse attention | Gather selected keys first, split-K, FP8 QK/PV, block softmax, bulk double-buffered copies | Full-history QK before masking; BF16 latent width512; global score/probability scratch; synchronous publication |
+| Shared overlap | Auxiliary stream, observed partial overlap | Auxiliary stream already present; early shared work almost entirely hidden |
+| Graphs | Actual64-row prefill eager, despite graphs enabled for small buckets | Constituent graphs used; service's full-step decode-hit counter does not describe them |
+
+The native selection is explicit in pinned `cmd/glm_service/plan.mbt`:
+`expert_transport=PackedRows`, `expert_scale_partitions=1`,
+`recurrent_evaluation=OrderedTokenFloat32`, and synchronous staging. Exported
+CUDA and measured launch resources agree. The bulk-tiled expert and distributed
+maximum implementations exist, but **the service does not select them**. Their
+earlier checkpoint-runner results cannot be called current HTTP results.
+This is not proof that enabling all alternatives together is safe or faster;
+earlier overlap/numerical investigations remain preserved.
+
+Installed source snapshots:
+`/tmp/lunaflux-glm-selected-vllm-source-20261019-v3`,
+`/tmp/lunaflux-glm-selected-vllm-experts-20261019-v2`, and
+`/tmp/lunaflux-glm-selected-flashinfer-source-20261019-v2`.
+The selected expert is CUTLASS, **not** the also-installed fused B12x backend.
+The expert snapshot v1's nonexistent `nvfp4.py` read failed; corrected v2 reads
+the actual `modelopt.py`. No model or GPU workload is loaded by this source read.
+
+Sparse dispatch is specifically `sparse_mla_decode_dsv3_2_kernel<2,32,2048,64>`:
+64x2x32 nominal grid,288threads,96registers,98,608B shared. Its16 heads/CTA share
+selected KV, with one IO warp and eight math warps, two64-key buffers and a
+separate merge. Inactive splits return, so nominal CTAs are not active work.
+Native one-head/CTA instead shares keys across16 queries: it is incorrect to
+infer16x worse reuse just from head ownership. The demonstrated work-domain
+difference is full-history QK versus selected-key QK (near8K/top2K, roughly4x
+pairs before other costs), not a proved4x end-to-end penalty. Reference executes
+index scoring on93 late passes x11layers=1023; the early32 passes bypass it.
+
+### Native trace limitations and matched early operation windows
+
+The node capture root
+`/tmp/lunaflux-glm-http-latent-egress-trace-20261019-v2` exceeded host headroom
+after collection began: .179 MemAvailable fell to12,991,620KiB. The paired
+watcher stopped both workers. Device use remained94,144/94,181MiB and owned
+swap was zero, but the host-floor breach is a **failed profiling attempt**.
+The interrupted request is not a benchmark. Its earlier uncaptured warmup
+completed in42.161s. The v1 attempt failed before GPU work because the trace
+directory did not match the artifact manifest; launcher correction preserves
+the original artifact root, with no recompilation or configuration changes.
+
+The partial node report has13 embedding boundaries; the external analyzer
+excludes the last pass and reports12 completed boundary intervals. Each has
+42 gate/up and42 down calls. It does **not** establish complete collective
+coverage: only149 NCCL records appear, fewer than the expected full per-pass
+sequence. No complete native busy/idle or communication attribution is claimed.
+`/tmp/lunaflux-glm-native-partial-long-analysis-20261019-v2` retains the exact
+classified records and per-pass sums.
+
+| Same first12 prefill chunks, selected kernel sums | Native ms | vLLM ms |
+| --- | ---: | ---: |
+| Routed preparation/activation/finalization | 574.332 | 43.027 |
+| Routed gate/up | 1194.572 | 872.654 |
+| Routed down | 562.369 | 474.231 |
+| KDA projections | 458.602 | 313.308 |
+| KDA remaining | 113.124 | 53.062 |
+| Sparse projections | 251.729 | 107.894 |
+| Sparse attention/merge | 96.710 | 20.773 |
+| Dense FFN | 73.554 | 27.381 |
+
+These are instrumented early-window observations, not a decomposition of the
+entire25-second HTTP gap. Instrumentation modes differ and the native capture
+was interrupted, so these ratios are not deployment speedup predictions.
+History changes and routing work may vary during the request: reference
+gate/up averages1.731ms in these first12 passes versus
+0.848ms over all125. Extrapolating one sample across all chunks is invalid.
+Native shared-expert union762.320ms overlaps757.400ms with other kernels in
+this window; only4.921ms remains exposed. Removing all shared work would not
+save its762ms sum. Concurrent resource competition still requires a causal
+control; near-complete overlap does not prove free execution.
+
+Actual13-pass native leaf totals identify the preparation cost: activation
+global-scale scan427.030ms and input global-scale scan88.047ms, each546 calls
+at grid1/block256. At64rows the former serially distributes524,288 BF16 values
+over one CTA. The grouping/packing kernels are separately recorded, not
+mistaken for GEMMs. The same trace records1,037,004 `cuCtxSetCurrent` calls
+(44.148ms summed API time). This is a real polling/API-volume issue, but that
+44ms does not demonstrate a multi-second latency cause.
+
+The subsequent graph-level capture at
+`/tmp/lunaflux-glm-http-latent-graph-trace-20261019-v2` was proactively stopped
+at20GiB profiler headroom, before the16GiB service floor. The model request
+continued normally and completed in42.673s; its uncaptured warmup was42.312s.
+Only1.182s of graph activity was captured:940.379ms opaque graph envelopes,
+169.100ms NCCL and72.465ms uncovered. Opaque envelopes are **not** individual
+kernel work or proof of GPU busy time. Full native tracing is still incomplete;
+do not repeat unbounded resident captures or mislabel this as a full trace.
+CUDA13's flush interval zero already saves full buffers; changing the flush
+interval was not demonstrated to solve memory overhead.
+
+### Why latent storage regressed: exact-AOT counter control
+
+`/tmp/lunaflux-glm-latent-chain-20261019-v2` directly loads the existing old
+index-only35fd and new latentcbff cubins. A compiler-owner regression verifies
+the launch grids. The one-hot weight bank makes both representations solve
+the same problem; these are synthetic operands, **not captured GLM activations**.
+Projection/attention stages are timed separately, with11 alternating trials
+and the first2 discarded; indexing/history copy/rest-of-model are excluded.
+All524,288 outputs match in all four cases. The8K/stride4 case passes full
+memcheck/leak, racecheck, synccheck and initcheck with zero reported errors.
+The process is capped at8GiB/no swap, admitted only with24GiB host headroom.
+
+| History / selected-key stride | Expanded attention, ms | Latent attention, ms |
+| --- | ---: | ---: |
+| 2048 / 1 | 1.802 | 3.113 |
+| 2048 / 4 | 1.792 | 3.009 |
+| 8192 / 1 | 4.077 | 8.628 |
+| 8192 / 4 | 7.626 | 18.835 |
+
+At8K/stride4 the old projection+split is0.142ms; new query absorption+value
+expansion is0.191ms. The dominant regression is inside attention, not merely
+two extra projection launches. All timed component medians are retained; sums
+of medians are not independently measured whole-chain medians.
+
+| Actual attention NCU counters, 8K/stride4 | Expanded | Latent |
+| --- | ---: | ---: |
+| Warp instructions | 312,229,536 | 541,799,584 |
+| L2 read sectors | 45,571,269 | 70,115,825 |
+| Tensor-pipe warp instructions | 4,188,160 | 8,376,320 |
+| Registers/thread | 56 | 64 |
+| Allocated shared memory incl. overhead | 27,672 B | 35,864 B |
+| Eligible warps/cycle active | 0.115545 | 0.085378 |
+| Long-scoreboard stall contribution | 65.914% | 65.425% |
+| Barrier stall contribution | 14.392% | 8.881% |
+
+The attention dimensions double256->512, tensor instructions double, support
+instructions and read traffic rise, and eligibility declines. Barrier
+percentage falls while execution slows: another direct counterexample to
+optimizing one stall percentage. Dispersed selections also force more16-key
+PV tiles than contiguous selections. Clock/cache controls are disabled and
+NCU records its warnings; use the unprofiled event times above for speed.
+This explains the controlled latent regression, **not** all model slowdown,
+nor a matched counter comparison against reference FP8 attention.
+
+### Priorities supported by this evidence
+
+1. Unify service/checkpoint **selection plumbing** through the existing pure
+   plan: qualify distributed maximum and bulk expert alternatives at actual
+  64-row HTTP/paged/concurrent shapes. Do not add another IR merely because
+   two callers choose different policies. Prove selected symbols after binding.
+2. For compressed attention, make selected-key domain, head/query reuse,
+   precision, split reduction and producer/consumer ownership a coherent
+   physical alternative. Storage compression alone is not an execution plan.
+3. Keep full request accounting and component counter tests separate. Preserve
+   routing distribution and early/middle/late context; compare exposed union
+   time, not kernel sums. Native full collective/idle attribution remains open.
+4. Benchmark each qualified change separately with unchanged public answer
+   checks; reference agreement is not correctness. No promotion of latent
+   regression or unsupported arithmetic just because vLLM selects it.
+
+This tracing round demonstrates selection gaps and specific excess work. It
+does not claim a speedup, a complete attribution of the remaining gap, or that
+existing unselected alternatives will automatically match vLLM. Production
+restoration uses validated98c629fd, never the experimental latent artifact.
+
+Restoration completed: both persistent units are active on98c629fd; private
+HTTP health is healthy and `17+25` returns `42`, finish reason`stop`,26 input /
+3 output tokens. Observed GPU use96,881/96,909MiB; host available18,557,784 /
+20,203,656KiB; both owned swap counters zero. This is a restoration smoke,
+not a rerun of the full customer-facing quality campaign. No new artifact was
+promoted. Diagnostic tests17/17, affected projection tests3/3 and native check
+pass with unchanged existing warning exclusions. Targeted`moon info` completes
+with569 existing migration warnings and zero errors. No full-suite rerun is
+claimed for this diagnostics-only phase; unrelated worktree changes remain.

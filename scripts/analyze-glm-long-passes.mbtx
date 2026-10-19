@@ -53,6 +53,7 @@ fn global_kind(name : String) -> String? {
 
 ///|
 fn matrix(name : String) -> Bool {
+  name.has_prefix("nvjet_") ||
   name
   is ("kernel"
   | "Kernel2"
@@ -113,11 +114,21 @@ async fn main {
   let anchors = events.filter(e => {
     e.name == "mhc_pre_big_fuse_with_norm_tilelang_kernel"
   })
-  let finals = events.filter(e => e.name == "mhc_post_tilelang_kernel")
+  let posts = events.filter(e => e.name == "mhc_post_tilelang_kernel")
   guard !anchors.is_empty() &&
     anchors.length() % 90 == 0 &&
-    finals.length() == anchors.length() / 90 else {
+    (
+      posts.length() == anchors.length() / 90 ||
+      posts.length() == anchors.length()
+    ) else {
     fail("expected 90 HC pre anchors and one final HC post per 45-layer pass")
+  }
+  // Large-row HC publishes after each sublayer; small-row HC defers/fuses
+  // all but its final publication. Both observed paths have 90 pre anchors.
+  let finals = if posts.length() == anchors.length() {
+    Array::makei(anchors.length() / 90, i => posts[i * 90 + 89])
+  } else {
+    posts
   }
   let groups : Array[Array[Event]] = Array::makei(anchors.length(), _ => [])
   let totals : Map[String, Array[Event]] = Map([])
@@ -166,6 +177,7 @@ async fn main {
       fail("one main-stream routed quantizer required per MoE region")
     }
     let mut routed = 0
+    let region_items : Map[String, Array[Event]] = Map([])
     for e in es {
       let kind = if attention {
         if matrix(e.name) {
@@ -174,7 +186,12 @@ async fn main {
           "sparse_attention_core"
         } else if !kda && e.name.contains("mqa_logits") {
           "index_scores"
-        } else if !kda && (e.name.contains("topk") || e.name.contains("top_k")) {
+        } else if !kda &&
+          (
+            e.name.contains("topk") ||
+            e.name.contains("top_k") ||
+            e.name.contains("topK")
+          ) {
           "index_selection"
         } else {
           family + "_other"
@@ -193,15 +210,24 @@ async fn main {
         "routed_glue"
       }
       add(kind, e)
+      if !region_items.contains(kind) {
+        region_items[kind] = []
+      }
+      region_items[kind].push(e)
     }
     if family == "moe" && routed != 2 {
       fail("exactly two routed CUTLASS launches required")
+    }
+    let local_summary : Map[String, Json] = Map([])
+    for kind, items in region_items {
+      local_summary[kind] = summary(items)
     }
     regions.push({
       "pass": i / 90,
       "layer": layer,
       "family": family,
       "events": summary(es),
+      "categories": Json(local_summary),
     })
   }
   guard totals.values().fold(init=0, (n, es) => n + es.length()) ==
@@ -250,4 +276,5 @@ test "overlapping intervals are not additive GPU time" {
   assert_eq(union_ns([e(0, 10), e(3, 5), e(9, 15), e(18, 21)]), 18L)
   assert_eq(global_kind("ncclDevKernel_AllReduce"), Some("collective"))
   assert_eq(global_kind("mhc_fused_tilelang_kernel"), Some("hyper_connection"))
+  assert_true(matrix("nvjet_tst_64x64_128x4_1x2v"))
 }

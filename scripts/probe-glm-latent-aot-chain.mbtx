@@ -1,0 +1,156 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+// Offline exact-cubin experiment. No compiler dependency on comparison.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-glm-latent-chain-") &&
+    !root.contains("..") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
+    mode is ("prepare" | "run" | "sanitize" | "counters") else {
+    fail("NEW_ROOT prepare|run|sanitize|counters")
+  }
+  let socket = "/tmp/lunaflux-glm179-context-20261019.sock"
+  let host = "wlc004s@192.168.2.179"
+  let tag = root[5:].to_owned()
+  let old = "/tmp/lunaflux-glm-http-matrix-index-20261019-v1/rank1.cubin"
+  let next = "/tmp/lunaflux-glm-http-latent-cache-20261019-v2/rank1.cubin"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(label : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    remote("mkdir " + root).check()
+    @fs.write_file(
+      root + "/scope.txt",
+      "Exact serving cubins; row64 heads32 dimension256 latent512 context8192 pages513; projection and attention stages only. One-hot synthetic bank; not whole-model timing or quality. Old=" +
+      old +
+      "\nNew=" +
+      next +
+      "\n",
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      "tests/packed_moe_execution/latent_aot_chain_probe.cu",
+      host + ":" + root + "/probe.cu",
+    ])
+    .output()
+    .check()
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-compile -p MemoryMax=1G -p MemorySwapMax=0 -p RuntimeMaxSec=300 /usr/local/cuda/bin/nvcc -O3 -std=c++17 " +
+        root +
+        "/probe.cu -lcuda -o " +
+        root +
+        "/probe",
+      ),
+    )
+    return
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  record(
+    mode + "-reserve",
+    remote("awk '/MemAvailable:/ {if($2<25165824)exit 9;print}' /proc/meminfo"),
+  )
+  if mode == "counters" {
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    let metrics = "gpu__time_duration.sum,smsp__inst_executed.sum,smsp__inst_executed_pipe_lsu.sum,smsp__inst_executed_pipe_tensor.sum,lts__t_sectors_op_read.sum,smsp__warps_eligible.avg.per_cycle_active,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_barrier_per_warp_active.pct,launch__registers_per_thread,launch__shared_mem_per_block"
+    record(
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-counters -p RuntimeMaxSec=600 docker run --rm --name " +
+        tag +
+        "-counters --gpus all --network none --ipc=private --shm-size=128m --memory=8g --memory-swap=8g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v /tmp:/tmp -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+        ncu +
+        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name 'regex:glm_sparse_3_.*' --launch-count 6 --metrics " +
+        metrics +
+        " --export " +
+        root +
+        "/counters " +
+        root +
+        "/probe " +
+        old +
+        " " +
+        next +
+        " once",
+      ),
+    )
+    let raw = remote(
+      ncu + " --import " + root + "/counters.ncu-rep --page raw --csv",
+    )
+    record("raw", raw)
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/counters.ncu-rep",
+      root + "/counters.ncu-rep",
+    ])
+    .output()
+    .check()
+    return
+  }
+  for
+    tool in (if mode == "run" {
+      ["run"]
+    } else {
+      ["memcheck", "racecheck", "synccheck", "initcheck"]
+    }) {
+    let prefix = if tool == "run" {
+      ""
+    } else {
+      "/usr/local/cuda/bin/compute-sanitizer --error-exitcode 9 --tool " +
+      tool +
+      (if tool == "memcheck" { " --leak-check full " } else { " " })
+    }
+    record(
+      tool,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-" +
+        tool +
+        " -p MemoryMax=8G -p MemorySwapMax=0 -p RuntimeMaxSec=600 " +
+        prefix +
+        root +
+        "/probe " +
+        old +
+        " " +
+        next +
+        (if tool == "run" { " repeat" } else { " once" }),
+      ),
+    )
+    println(tool + " complete")
+  }
+}
