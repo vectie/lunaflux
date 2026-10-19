@@ -46,8 +46,8 @@ pub fn selected_sparse_source(
     maximum_history <= 1048576 &&
     symbol.length() > 0 &&
     symbol.length() <= 128 &&
-    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
-    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
+    symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
+    symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   guard @physical.SelectedSparseSchedule::new(
