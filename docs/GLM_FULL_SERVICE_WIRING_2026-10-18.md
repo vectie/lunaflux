@@ -127,6 +127,15 @@ answer correctness and actual token counts separately; its longer completion
 time is not proof of equal-work engine slowdown. First-use JIT warnings are
 retained and require a warmed measurement pass before steady-state claims.
 
+The external HTTP client additionally accepts `LUNAFLUX_BENCH_MAX_TOKENS=1`
+for a separately labelled prefill-plus-one-generation control. It preserves
+the literal prompts and all context/concurrency vectors; the normal128-token
+complete-answer campaign is unchanged. The comparator checks matching output
+budgets and records actual output counts. A one-token truncated response is
+not a quality pass, and client event arrival is not a per-token GPU timestamp.
+This control exists because naturally different reasoning lengths confound
+equal-work completion comparisons; it does not modify either engine.
+
 ## GPU sampling
 
 The full-logit path now has a backend-neutral total-order permutation plan in

@@ -48,6 +48,31 @@ test "optional timing is a numeric scalar, not an Option serialization array" {
 }
 
 ///|
+fn output_budget(value : String?) -> Int32 raise {
+  let budget = match value {
+    None => 128
+    Some(s) => @string.parse_int(s)
+  }
+  guard budget > 0 && budget <= 128 else {
+    fail("benchmark output budget must be within 1..128")
+  }
+  budget
+}
+
+///|
+test "one-token timing control does not replace complete-answer default" {
+  assert_eq(output_budget(None), 128)
+  assert_eq(output_budget(Some("1")), 1)
+  for value in ["0", "129"] {
+    try output_budget(Some(value)) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid benchmark output budget accepted")
+    }
+  }
+}
+
+///|
 async fn request(
   root : String,
   base : String,
@@ -56,6 +81,7 @@ async fn request(
   words : Int32,
   lane : Int32,
   name : String,
+  max_tokens : Int32,
 ) -> Json {
   let reference = model == "matched-model"
   let serialized_prompt = "[gMASK]<sop><|system|>Reasoning Effort: Low<|user|>" +
@@ -67,7 +93,7 @@ async fn request(
       "prompt": serialized_prompt,
       "add_special_tokens": false,
       "temperature": 0,
-      "max_tokens": 128,
+      "max_tokens": max_tokens,
       "stream": true,
       "stop_token_ids": [154820, 154827, 154829],
       "stream_options": { "include_usage": true },
@@ -77,7 +103,7 @@ async fn request(
       "model": model,
       "messages": [{ "role": "user", "content": prompt(words, lane) }],
       "temperature": 0,
-      "max_tokens": 128,
+      "max_tokens": max_tokens,
       "stream": true,
     }
   }
@@ -174,6 +200,8 @@ async fn request(
   let report : Json = {
     "case": name,
     "filler_words": words,
+    "requested_max_output_tokens": max_tokens,
+    "complete_answer_campaign": max_tokens == 128,
     "lane": lane,
     "http_status": response.code,
     "complete": done,
@@ -255,7 +283,8 @@ async fn main {
     @fs.read_file(credential).text().trim().to_owned()
   }
   let results : Array[Json] = []
-  ignore(request(root, base, model, auth, 16, 0, "warmup"))
+  let max_tokens = output_budget(@env.get_env_var("LUNAFLUX_BENCH_MAX_TOKENS"))
+  ignore(request(root, base, model, auth, 16, 0, "warmup", max_tokens))
   let words = if mode == "edge" {
     [7936]
   } else if mode == "short" {
@@ -306,6 +335,7 @@ async fn main {
                 w,
                 lane,
                 "words-\{w}-c\{concurrency}-lane\{lane}",
+                max_tokens,
               )
             })
           })

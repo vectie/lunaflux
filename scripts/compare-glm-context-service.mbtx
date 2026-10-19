@@ -33,6 +33,17 @@ fn requests(group : Json) -> Array[Json] raise {
 }
 
 ///|
+fn output_budget(row : Json) -> Double raise {
+  // Reports recorded before the one-token control all requested 128 tokens.
+  guard row is Object(fields) else { fail("request report") }
+  if fields.contains("requested_max_output_tokens") {
+    number(row, "requested_max_output_tokens")
+  } else {
+    128.0
+  }
+}
+
+///|
 fn distribution(rows : Array[Json], key : String) -> Json raise {
   let values : Array[Double] = []
   for row in rows {
@@ -76,6 +87,8 @@ fn summarize(group : Json) -> Json raise {
   }
   let wall = number(group, "wall_ms")
   {
+    "requested_max_output_tokens": output_budget(rows[0]),
+    "complete_answer_campaign": output_budget(rows[0]) == 128.0,
     "wall_ms": wall,
     "prompt_tokens": prompt,
     "output_tokens": output,
@@ -178,8 +191,9 @@ async fn main {
     for lane, a in nr {
       let b = rr[lane]
       guard field(a, "serialized_prompt") == field(b, "serialized_prompt") &&
-        field(a, "expected") == field(b, "expected") else {
-        fail("literal prompts differ")
+        field(a, "expected") == field(b, "expected") &&
+        output_budget(a) == output_budget(b) else {
+        fail("literal prompts or output budgets differ")
       }
       if field(field(a, "usage"), "prompt_tokens") ==
         field(field(b, "usage"), "prompt_tokens") {
@@ -226,4 +240,6 @@ test "throughput uses completed batch wall time and retains correctness counts" 
   assert_eq(number(report, "output_tokens_per_second"), 10.0)
   assert_eq(number(report, "exact_answers"), 2.0)
   assert_eq(number(field(report, "first_visible"), "p95_ms"), 900.0)
+  assert_eq(field(report, "complete_answer_campaign"), true)
+  assert_eq(output_budget({ "requested_max_output_tokens": 1 }), 1.0)
 }
