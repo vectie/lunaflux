@@ -20,13 +20,16 @@ pub fn IndexedSparseProjectionFrame::prepare_retained_attention(
   guard self.state is Prepared && self.counts is Some(query_counts) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  let expected = self.source.plan().attention()
+  let expected = self.source.plan().execution_attention()
   for plan in [history.attention_plan(), attention.attention_plan()] {
     guard plan.capacity() == expected.capacity() &&
       plan.paged_history().map(d => d.geometry()) ==
       expected.paged_history().map(d => d.geometry()) &&
       plan.index_geometry() == expected.index_geometry() &&
-      plan.attention_geometry() == expected.attention_geometry() else {
+      plan.attention_geometry() == expected.attention_geometry() &&
+      plan.score_dimension() == expected.score_dimension() &&
+      plan.shares_key_value() == expected.shares_key_value() &&
+      plan.index_scoring() == expected.index_scoring() else {
       raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
     }
   }

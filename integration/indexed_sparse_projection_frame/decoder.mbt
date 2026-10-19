@@ -95,6 +95,19 @@ pub fn IndexedSparseDecoderFrame::prepare(
   let plan = self.source.plan()
   let attention_output = context.allocate(plan.attention_output_bytes())
   self.buffers.push(attention_output)
+  let execution_attention = plan.projection().execution_attention()
+  let (execution_heads, _, _, execution_values) = execution_attention.attention_geometry()
+  let execution_bytes = execution_attention.capacity().0.to_int64() *
+    execution_heads.to_int64() *
+    execution_values.to_int64() *
+    2L
+  let latent_output = if plan.projection().cache_law() is LatentBFloat16 {
+    let buffer = context.allocate(execution_bytes)
+    self.buffers.push(buffer)
+    buffer
+  } else {
+    attention_output
+  }
   self.envelope.prepare(
     context,
     aot,
@@ -124,13 +137,42 @@ pub fn IndexedSparseDecoderFrame::prepare(
     maximum_attention_workspace_bytes=self.attention.workspace_bytes(),
     reset_flag~,
     pool_ape~,
-    output=attention_output,
+    output=latent_output,
     input_positions?,
     page_ports?,
     transient_scratch?,
   )
   self.launches.append(self.envelope.prefix())
   self.launches.append(sparse)
+  if self.source.expansion() is Some((name, (grid, block))) {
+    let function = aot.load_function(@utf8.encode(name))
+    self.functions.push(function)
+    self.launches.push(
+      @device.OrderedKernelLaunch::new(
+        function,
+        @device.KernelLaunchDimensions::new(
+          grid_x=grid,
+          grid_y=1,
+          grid_z=1,
+          block_x=block,
+          block_y=1,
+          block_z=1,
+          shared_memory_bytes=0,
+        ),
+        @device.KernelArguments::new([
+          @device.KernelArgument::device_region(
+            counts,
+            offset=0L,
+            byte_count=20L,
+            alignment=4L,
+          ),
+          region(latent_output, execution_bytes),
+          region(projection_weights[5], plan.projection().weight_bytes()[5]),
+          region(attention_output, plan.attention_output_bytes()),
+        ]),
+      ),
+    )
+  }
   let function = aot.load_function(@utf8.encode(self.source.output_symbol()))
   self.functions.push(function)
   let (hidden_width, _, _) = plan.projection().geometry()

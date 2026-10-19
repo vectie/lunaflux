@@ -26,6 +26,9 @@ pub fn indexed_sparse_projection_source(
     "q_a", "q_norm", "q_b", "kv_a", "kv_norm", "kv_b", "kv_split", "index_q", "index_k",
     "index_norm", "index_weights", "pool_gate",
   ]
+  if plan.cache_law() is LatentBFloat16 {
+    names.push("q_absorb")
+  }
   let symbols = names.map(name => symbol_prefix + "_" + name)
   let dense = [
     (hidden, qr, 0),
@@ -37,9 +40,15 @@ pub fn indexed_sparse_projection_source(
     (hidden, ih, 10),
     (hidden, id, 11),
   ]
-  let sources : Array[Bytes] = Array::make(12, b"")
-  let launches : Array[(Int, Int)] = Array::make(12, (rows, 256))
+  let sources : Array[Bytes] = Array::make(names.length(), b"")
+  let launches : Array[(Int, Int)] = Array::make(
+    names.length(),
+    (rows, 256),
+  )
   for (input, output, stage) in dense {
+    if stage == 5 && plan.cache_law() is LatentBFloat16 {
+      continue
+    }
     if plan.projection_law() != ScalarFloat32 {
       let tile = @matrix.MatrixTilePlan::new(
         rows~,
@@ -92,6 +101,12 @@ pub fn indexed_sparse_projection_source(
   )
   sources[9] = norm.source_bytes()
   launches[9] = norm.launch()
+  if plan.cache_law() is LatentBFloat16 {
+    sources[6] = b""
+    let absorb = latent_head_plan(plan, false)
+    sources[12] = @tiled.head_projection_source(absorb, symbol=symbols[12])
+    launches[12] = (absorb.workgroups(), 128)
+  }
   {
     plan,
     symbols: ReadOnlyArray::from_array(symbols),

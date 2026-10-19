@@ -9,6 +9,8 @@ import {
 // Values
 pub fn dense_source(@grouped_matrix_ir.MatrixTilePlan, symbol~ : String, partial_float32? : Bool) -> Bytes raise @precision_ir.PrecisionPlanError
 
+pub fn head_projection_source(@grouped_matrix_ir.HeadProjectionPlan, symbol~ : String) -> Bytes raise @precision_ir.PrecisionPlanError
+
 pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String, external_scratch? : Bool) -> String raise @precision_ir.PrecisionPlanError
 
 pub fn paired_matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weights~ : (String, String), results~ : (String, String), input_vector? : String, weight_vectors? : (String, String), vector_guard? : String) -> String raise @precision_ir.PrecisionPlanError

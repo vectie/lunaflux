@@ -379,11 +379,14 @@ pub fn IndexedSparseAttentionPrecision::capacity(Self) -> (Int, Int)
 pub fn IndexedSparseAttentionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
 pub fn IndexedSparseAttentionPrecision::index_geometry(Self) -> (Int, Int, Int, Int, Bool)
 pub fn IndexedSparseAttentionPrecision::index_scoring(Self) -> IndexScoringLaw
-pub fn IndexedSparseAttentionPrecision::new(index_head_count~ : Int, index_head_dimension~ : Int, query_head_count~ : Int, key_value_head_count~ : Int, query_key_dimension~ : Int, value_dimension~ : Int, pool_size~ : Int, top_k~ : Int, append_incomplete_tail~ : Bool, maximum_queries~ : Int, maximum_history~ : Int, maximum_workspace_bytes~ : Int64, paged_history? : @attention_physical_ir.PagedHistoryDomain, attention_accumulation? : AttentionAccumulationLaw, index_scoring? : IndexScoringLaw) -> Self raise PrecisionPlanError
+pub fn IndexedSparseAttentionPrecision::latent_cache(Self, Int) -> Self raise PrecisionPlanError
+pub fn IndexedSparseAttentionPrecision::new(index_head_count~ : Int, index_head_dimension~ : Int, query_head_count~ : Int, key_value_head_count~ : Int, query_key_dimension~ : Int, value_dimension~ : Int, pool_size~ : Int, top_k~ : Int, append_incomplete_tail~ : Bool, maximum_queries~ : Int, maximum_history~ : Int, maximum_workspace_bytes~ : Int64, paged_history? : @attention_physical_ir.PagedHistoryDomain, attention_accumulation? : AttentionAccumulationLaw, index_scoring? : IndexScoringLaw, score_dimension? : Int, shared_key_value? : Bool) -> Self raise PrecisionPlanError
 pub fn IndexedSparseAttentionPrecision::paged_history(Self) -> @attention_physical_ir.PagedHistoryDomain?
 pub fn IndexedSparseAttentionPrecision::physical_history(Self) -> Int
 pub fn IndexedSparseAttentionPrecision::program(Self) -> @parallel_ir.Program raise PrecisionPlanError
+pub fn IndexedSparseAttentionPrecision::score_dimension(Self) -> Int
 pub fn IndexedSparseAttentionPrecision::selected_width(Self) -> Int
+pub fn IndexedSparseAttentionPrecision::shares_key_value(Self) -> Bool
 pub fn IndexedSparseAttentionPrecision::workspace_bytes(Self) -> Int64
 
 pub struct IndexedSparseDecoderPrecision {
@@ -403,6 +406,7 @@ pub struct IndexedSparseHistoryPrecision {
 }
 pub fn IndexedSparseHistoryPrecision::attention(Self) -> IndexedSparseAttentionPrecision
 pub fn IndexedSparseHistoryPrecision::buffer_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn IndexedSparseHistoryPrecision::buffer_owner(Self, Int) -> Int
 pub fn IndexedSparseHistoryPrecision::new(IndexedSparseAttentionPrecision, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
 pub fn IndexedSparseHistoryPrecision::state_bytes(Self) -> Int64
 
@@ -410,9 +414,13 @@ pub struct IndexedSparseProjectionPrecision {
   // private fields
 }
 pub fn IndexedSparseProjectionPrecision::attention(Self) -> IndexedSparseAttentionPrecision
+pub fn IndexedSparseProjectionPrecision::cache_law(Self) -> SparseCacheLaw
+pub fn IndexedSparseProjectionPrecision::execution_attention(Self) -> IndexedSparseAttentionPrecision
+pub fn IndexedSparseProjectionPrecision::execution_order(Self) -> ReadOnlyArray[Int]
 pub fn IndexedSparseProjectionPrecision::frame_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn IndexedSparseProjectionPrecision::frame_owner(Self, Int) -> Int
 pub fn IndexedSparseProjectionPrecision::geometry(Self) -> (Int, Int, Int)
-pub fn IndexedSparseProjectionPrecision::new(IndexedSparseAttentionPrecision, hidden_width~ : Int, query_rank~ : Int, key_value_rank~ : Int, rms_epsilon~ : Double, index_layer_norm_epsilon~ : Double, maximum_workspace_bytes~ : Int64, projection_law? : DenseDotLaw) -> Self raise PrecisionPlanError
+pub fn IndexedSparseProjectionPrecision::new(IndexedSparseAttentionPrecision, hidden_width~ : Int, query_rank~ : Int, key_value_rank~ : Int, rms_epsilon~ : Double, index_layer_norm_epsilon~ : Double, maximum_workspace_bytes~ : Int64, projection_law? : DenseDotLaw, cache_law? : SparseCacheLaw) -> Self raise PrecisionPlanError
 pub fn IndexedSparseProjectionPrecision::normalization(Self) -> (Double, Double)
 pub fn IndexedSparseProjectionPrecision::projection_law(Self) -> DenseDotLaw
 pub fn IndexedSparseProjectionPrecision::weight_bytes(Self) -> ReadOnlyArray[Int64]
@@ -1031,6 +1039,14 @@ pub(all) enum SoftplusEvaluationLaw {
 pub fn SoftplusEvaluationLaw::equal(Self, Self) -> Bool
 pub fn SoftplusEvaluationLaw::not_equal(Self, Self) -> Bool
 pub fn SoftplusEvaluationLaw::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SparseCacheLaw {
+  ExpandedBFloat16
+  LatentBFloat16
+} derive(Eq, @debug.Debug)
+pub fn SparseCacheLaw::equal(Self, Self) -> Bool
+pub fn SparseCacheLaw::not_equal(Self, Self) -> Bool
+pub fn SparseCacheLaw::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SparseExpression {
   DotUpdate

@@ -40,6 +40,15 @@ pub fn ExpertTransport::equal(Self, Self) -> Bool
 pub fn ExpertTransport::not_equal(Self, Self) -> Bool
 pub fn ExpertTransport::to_repr(Self) -> @debug.Repr
 
+pub struct HeadProjectionPlan {
+  // private fields
+}
+pub fn HeadProjectionPlan::heads(Self) -> (Int, Int)
+pub fn HeadProjectionPlan::new(rows~ : Int, heads~ : Int, weight_heads~ : Int, columns~ : Int, inner~ : Int, head_stride~ : Int64, column_stride~ : Int64, inner_stride~ : Int64, offset~ : Int64, weight_elements~ : Int64) -> Self raise @precision_ir.PrecisionPlanError
+pub fn HeadProjectionPlan::strides(Self) -> (Int64, Int64, Int64, Int64)
+pub fn HeadProjectionPlan::tile(Self) -> MatrixTilePlan
+pub fn HeadProjectionPlan::workgroups(Self) -> Int
+
 pub struct IndirectMatrixTraversal {
   // private fields
 }

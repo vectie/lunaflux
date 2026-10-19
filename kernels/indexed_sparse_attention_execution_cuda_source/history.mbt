@@ -19,7 +19,11 @@ pub fn indexed_sparse_history_source(
   let (_, dimension, _, _, _) = plan.attention().index_geometry()
   let (_, heads, keys, values) = plan.attention().attention_geometry()
   let kw = heads.to_int64() * keys.to_int64()
-  let vw = heads.to_int64() * values.to_int64()
+  let vw = if plan.attention().shares_key_value() {
+    0L
+  } else {
+    heads.to_int64() * values.to_int64()
+  }
   let width = dimension.to_int64() * 2L + kw + vw
   let blocks = (rows.to_int64() * width + 255L) / 256L
   guard blocks <= 2147483647L else {

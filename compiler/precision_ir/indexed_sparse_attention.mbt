@@ -19,6 +19,8 @@ pub struct IndexedSparseAttentionPrecision {
   priv paging : @history.PagedHistoryDomain?
   priv accumulation : AttentionAccumulationLaw
   priv scoring : IndexScoringLaw
+  priv score_dimension : Int
+  priv shared_key_value : Bool
 }
 
 ///|
@@ -38,7 +40,15 @@ pub fn IndexedSparseAttentionPrecision::new(
   paged_history? : @history.PagedHistoryDomain,
   attention_accumulation? : AttentionAccumulationLaw = OrderedFloat32,
   index_scoring? : IndexScoringLaw = OrderedBFloat16,
+  score_dimension? : Int,
+  shared_key_value? : Bool = false,
 ) -> Self raise PrecisionPlanError {
+  let score_dimension = score_dimension.unwrap_or(query_key_dimension)
+  guard score_dimension > 0 &&
+    score_dimension <= 65536 &&
+    (!shared_key_value || query_key_dimension == value_dimension) else {
+    raise IllegalPlacement
+  }
   guard index_head_count > 0 &&
     index_head_count <= 1024 &&
     index_head_dimension > 0 &&
@@ -125,6 +135,8 @@ pub fn IndexedSparseAttentionPrecision::new(
     paging: paged_history,
     accumulation: attention_accumulation,
     scoring: index_scoring,
+    score_dimension,
+    shared_key_value,
   }
 }
 
@@ -194,4 +206,14 @@ pub fn IndexedSparseAttentionPrecision::index_scoring(
   self : Self,
 ) -> IndexScoringLaw {
   self.scoring
+}
+
+///|
+pub fn IndexedSparseAttentionPrecision::score_dimension(self : Self) -> Int {
+  self.score_dimension
+}
+
+///|
+pub fn IndexedSparseAttentionPrecision::shares_key_value(self : Self) -> Bool {
+  self.shared_key_value
 }

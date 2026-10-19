@@ -44,6 +44,14 @@ pub fn IndexedSparseDecoderPrecision::new(
       attention.workspace_bytes(),
       envelope.workspace_bytes(),
       output,
+      if projection.cache_law() is LatentBFloat16 {
+        rows.to_int64() *
+        heads.to_int64() *
+        projection.geometry().2.to_int64() *
+        2L
+      } else {
+        0L
+      },
       if publication == ReduceFloat32BeforeRound {
         expert_checked_mul(
           expert_checked_mul(rows.to_int64(), hidden.to_int64()),
@@ -62,7 +70,10 @@ pub fn IndexedSparseDecoderPrecision::new(
   guard workspace <= maximum_workspace_bytes else { raise MemoryBudgetExceeded }
   {
     projection,
-    history: IndexedSparseHistoryPrecision::new(attention, maximum_state_bytes~),
+    history: IndexedSparseHistoryPrecision::new(
+      projection.execution_attention(),
+      maximum_state_bytes~,
+    ),
     envelope,
     attention_output_bytes: output,
     output_weight_bytes: weight,

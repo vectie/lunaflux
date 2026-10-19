@@ -89,7 +89,7 @@ fn prepare_rank(
   // Rank zero's stdout is the framed worker channel, never a log stream.
   if ordinal == 1 {
     println(
-      "GLM rank=\{ordinal} planned_total=\{bytes + plan.reserve} budget=\{plan.budget} rows=\{plan.rows} slots=\{plan.slots} context=\{plan.context} physical_pages=\{plan.history().geometry().1} vocabulary=\{spec.vocabulary_size()} payload_hashing=false",
+      "GLM rank=\{ordinal} planned_total=\{bytes + plan.reserve} budget=\{plan.budget} rows=\{plan.rows} slots=\{plan.slots} context=\{plan.context} physical_pages=\{plan.history().geometry().1} vocabulary=\{spec.vocabulary_size()} \{plan.sparse_description()} payload_hashing=false",
     )
   }
   rank.prepare_ports(context, maximum_device_bytes=plan.reserve / 8L)

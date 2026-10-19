@@ -150,7 +150,8 @@ int main(int argc,char**argv) {
         if(ver==0){original_pools.resize(size_t(history/4)*128);ck(cudaMemcpy(original_pools.data(),pooled.p,original_pools.size()*sizeof(__nv_bfloat16),cudaMemcpyDeviceToHost));}
 #ifdef next_QUANTIZED_INDEX
         if(ver==1&&!profile){
-          std::vector<float> s(rows*4096);ck(cudaMemcpy(s.data(),scratch.p,s.size()*sizeof(float),cudaMemcpyDeviceToHost));
+          std::vector<float> s(rows*4096);
+          for(int row=0;row<active;++row){int candidates=(history-active+row+1)/4;ck(cudaMemcpy(s.data()+row*4096,reinterpret_cast<float *>(scratch.p)+row*4096,candidates*sizeof(float),cudaMemcpyDeviceToHost));}
           quantized_index_oracle(original_pools,iq.get(),hw.get(),s,selected.get(),history,active);
         }
 #endif

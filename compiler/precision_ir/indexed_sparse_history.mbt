@@ -45,9 +45,22 @@ pub fn IndexedSparseHistoryPrecision::new(
     rows.to_int64() * 4L,
   ]
   // Attention geometry bounds ensure this eight-buffer sum fits Int64.
-  let bytes = sizes.fold(init=0L, (sum, size) => sum + size)
+  let bytes = sizes.fold(init=0L, (sum, size) => sum + size) -
+    (if attention.shares_key_value() { sizes[3] } else { 0L })
   guard bytes <= maximum_state_bytes else { raise MemoryBudgetExceeded }
   { attention, sizes: ReadOnlyArray::from_array(sizes), bytes, }
+}
+
+///|
+pub fn IndexedSparseHistoryPrecision::buffer_owner(
+  self : Self,
+  index : Int,
+) -> Int {
+  if index == 3 && self.attention.shares_key_value() {
+    2
+  } else {
+    index
+  }
 }
 
 ///|

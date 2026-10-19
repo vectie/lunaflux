@@ -15,6 +15,7 @@ pub fn flash_sparse_projection_plan(
   paged_history? : @history.PagedHistoryDomain,
   attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
   index_scoring? : @precision.IndexScoringLaw = OrderedBFloat16,
+  cache_law? : @precision.SparseCacheLaw = ExpandedBFloat16,
 ) -> @precision.IndexedSparseProjectionPrecision raise {
   guard spec.attention_kind(layer_index) is DeepSeekSparseAttention &&
     spec.qk_rope_head_dimension() == 0 &&
@@ -63,5 +64,6 @@ pub fn flash_sparse_projection_plan(
     index_layer_norm_epsilon~,
     maximum_workspace_bytes=maximum_projection_workspace_bytes,
     projection_law~,
+    cache_law~,
   )
 }

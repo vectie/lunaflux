@@ -28,7 +28,12 @@ pub fn selected_sparse_source(
   published_slots? : Int,
   paged_history? : @physical.PagedHistoryDomain,
   accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  score_dimension? : Int,
 ) -> SelectedSparseCudaSource raise {
+  let score_dimension = score_dimension.unwrap_or(qk_dimension)
+  guard score_dimension > 0 && score_dimension <= 65536 else {
+    raise @precision.PrecisionPlanError::IllegalPlacement
+  }
   let extent = published_slots.unwrap_or(selected_width)
   guard query_heads > 0 &&
     query_heads <= 1024 &&
@@ -224,7 +229,7 @@ pub fn selected_sparse_source(
     $|  }
     $|  __syncthreads();
     $|  if (visible == 0) return;
-    $|  const float scale = rsqrtf(\{qk_dimension}.0f);
+    $|  const float scale = rsqrtf(\{score_dimension}.0f);
     $|  const unsigned long long qbase = (unsigned long long)group * \{qk_dimension}ULL;
     $|  \{score_body}
     $|  __syncthreads(); // all score producers publish before ordered consumers
@@ -260,7 +265,7 @@ pub fn selected_sparse_source(
     let cohort_source = @utf8.decode(
       query_reuse_source(
         query_heads, kv_heads, qk_dimension, value_dimension, selected_width, extent,
-        maximum_queries, maximum_history, cohort_symbol, paged_history,
+        maximum_queries, maximum_history, cohort_symbol, paged_history, score_dimension,
       ),
     )
     let extra_names = if paged_history is Some(_) {

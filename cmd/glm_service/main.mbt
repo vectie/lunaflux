@@ -24,9 +24,11 @@ async fn main {
   }
   if mode == "export" || mode == "plan" {
     let spec = inspect_spec(root)
-    let tokenizer = plan.load_tokenizer(root,spec)
-    let inference = plan.inference(spec,tokenizer)
-    println("decoded_piece_bytes=\{tokenizer.maximum_decoded_piece_bytes()} decoded_delta_bytes=\{inference.max_decoded_delta_bytes()}")
+    let tokenizer = plan.load_tokenizer(root, spec)
+    let inference = plan.inference(spec, tokenizer)
+    println(
+      "decoded_piece_bytes=\{tokenizer.maximum_decoded_piece_bytes()} decoded_delta_bytes=\{inference.max_decoded_delta_bytes()}",
+    )
     ignore(
       plan.preparation_storage(
         tokenizer,
@@ -54,7 +56,7 @@ async fn main {
         create_mode=CreateNew,
       )
       println(
-        "export rank=\{ordinal} total=\{required+plan.reserve} executable=\{plan.executable}",
+        "export rank=\{ordinal} total=\{required+plan.reserve} executable=\{plan.executable} \{plan.sparse_description()}",
       )
     }
     if mode == "plan" {

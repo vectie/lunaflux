@@ -92,8 +92,15 @@ pub fn IndexedSparseProjectionFrame::prepare(
   )
   let input = region(hidden, rows.to_int64() * width.to_int64() * 2L)
   let w = weights.mapi((i, buffer) => region(buffer, w_sizes[i]))
-  for size in sizes {
-    self.buffers.push(context.allocate(size))
+  for i, size in sizes {
+    let owner = plan.frame_owner(i)
+    self.buffers.push(
+      if owner == i {
+        context.allocate(size)
+      } else {
+        self.buffers[owner]
+      },
+    )
   }
   let b = self.buffers.mapi((i, buffer) => region(buffer, sizes[i]))
   let args = [
@@ -110,7 +117,10 @@ pub fn IndexedSparseProjectionFrame::prepare(
     [counts, input, w[10], b[11]],
     [counts, input, w[11], b[12]],
   ]
-  for stage in 0..<12 {
+  if plan.cache_law() is LatentBFloat16 {
+    args.push([counts, b[2], w[5], b[13]])
+  }
+  for stage in plan.execution_order() {
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
     self.functions.push(function)
     let (grid, block) = self.source.launch(stage)
@@ -155,7 +165,11 @@ pub fn IndexedSparseProjectionFrame::projected_outputs(
   }
   let b = self.buffers
   {
-    queries: b[2],
+    queries: b[if self.source.plan().cache_law() is LatentBFloat16 {
+      13
+    } else {
+      2
+    }],
     keys: b[6],
     values: b[7],
     index_queries: b[8],
@@ -180,7 +194,10 @@ pub fn IndexedSparseProjectionFrame::close(
     ignore(self.functions.pop())
   }
   while self.buffers.last() is Some(buffer) {
-    buffer.close()
+    let index = self.buffers.length() - 1
+    if self.source.plan().frame_owner(index) == index {
+      buffer.close()
+    }
     ignore(self.buffers.pop())
   }
   self.state = Closed

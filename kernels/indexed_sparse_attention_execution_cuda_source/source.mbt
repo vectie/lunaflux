@@ -99,6 +99,7 @@ pub fn indexed_sparse_attention_source(
     published_slots=index.published_slots(),
     paged_history?=plan.paged_history(),
     accumulation=plan.attention_accumulation(),
+    score_dimension=plan.score_dimension(),
   )
   {
     plan,

@@ -9,6 +9,7 @@ pub struct IndexedSparseDecoderCudaSource {
   priv output : Bytes
   priv output_symbol : String
   priv output_launch : (Int, Int)
+  priv expansion : (Bytes, String, (Int, Int))?
 }
 
 ///|
@@ -24,6 +25,19 @@ pub fn indexed_sparse_decoder_source(
   let (rows, _) = attention.capacity()
   let output_symbol = symbol_prefix + "_output"
   let partial = plan.publication() == ReduceFloat32BeforeRound
+  let expansion = if projection.cache_law() is LatentBFloat16 {
+    let matrix = latent_head_plan(projection, true)
+    let name = symbol_prefix + "_value_expand"
+    Some(
+      (
+        @tiled.head_projection_source(matrix, symbol=name),
+        name,
+        (matrix.workgroups(), 128),
+      ),
+    )
+  } else {
+    None
+  }
   let (output, output_launch) = if projection.projection_law() != ScalarFloat32 {
     let tile = @matrix.MatrixTilePlan::new(
       rows~,
@@ -69,7 +83,7 @@ pub fn indexed_sparse_decoder_source(
       symbol_prefix=symbol_prefix + "_history",
     ),
     attention: @sparse.indexed_sparse_attention_source(
-      attention,
+      projection.execution_attention(),
       symbol_prefix=symbol_prefix + "_attention",
     ),
     envelope: @hyper.hyper_connection_source(
@@ -89,7 +103,15 @@ pub fn indexed_sparse_decoder_source(
     }),
     output_symbol,
     output_launch,
+    expansion,
   }
+}
+
+///|
+pub fn IndexedSparseDecoderCudaSource::expansion(
+  self : Self,
+) -> (String, (Int, Int))? {
+  self.expansion.map(e => (e.1, e.2))
 }
 
 ///|
@@ -133,7 +155,9 @@ pub fn IndexedSparseDecoderCudaSource::output_symbol(self : Self) -> String {
 }
 
 ///|
-pub fn IndexedSparseDecoderCudaSource::output_launch(self : Self) -> (Int, Int) {
+pub fn IndexedSparseDecoderCudaSource::output_launch(
+  self : Self,
+) -> (Int, Int) {
   self.output_launch
 }
 
@@ -147,5 +171,6 @@ pub fn IndexedSparseDecoderCudaSource::source_bytes(self : Self) -> Bytes {
   b"\n" +
   self.envelope.source_bytes() +
   b"\n" +
-  self.output
+  self.output +
+  self.expansion.map(e => b"\n" + e.0).unwrap_or(b"")
 }

@@ -62,3 +62,48 @@ pooled-cache capacity to the host. It is corrected to read only complete valid
 pool rows; v19 repeats the gates without suppressing the finding. The serving
 kernel's cache validity contract is unchanged. GLM is temporarily stopped while
 these exclusive GPU tests run; the validated release remains the restore target.
+
+The next observer correction restricts score readback to each live row's
+published candidates as well. v20 passes all four sanitizer tools, including
+full leak checking, with zero swap. These were observer overreads of unused
+capacity, not suppressed kernel findings. The index candidate is committed as
+`35fd22a2`, with a pinned ARM build and both-rank AOT export/compilation.
+
+### Selected counters (8K fixture, single profiled invocation)
+
+| Metric | BF16 scalar score producer | E4M3 matrix score producer |
+| --- | ---: | ---: |
+| Profiled time | 4.7915 ms | 0.4730 ms |
+| Warp instructions | 108,843,292 | 47,599,147 |
+| LSU instructions | 33,183,313 | 7,700,688 |
+| L2 read sectors | 34,084,865 | 1,445,851 |
+| Eligible warps/active cycle | 0.163 | 0.439 |
+
+Capture: v20 `counters-next.ncu-rep`, summarized in `selected-counters.txt`.
+NCU replay timings are not interchangeable with alternating unprofiled medians.
+The unchanged selection kernel executes 99.51M instructions and takes about
+0.78 ms in this capture; it now dominates the index chain. Expanded attention
+still executes 259.29M instructions, reads 37.42M L2 sectors and reports 57.67%
+long-scoreboard warp stalls. Improving score generation does not fix that path.
+
+## Latent cache program and ownership
+
+`SparseCacheLaw::LatentBFloat16` explicitly selects
+`Q -> Q Wk -> attention(normalized latent) -> context Wv -> output projection`.
+Q absorption and value expansion use generic strided head-matrix plans. The
+softmax scale remains tied to the original Q/K dimension, not the latent rank.
+KV normalization is retained; expanded KV-B/split launches are omitted.
+Persistent K and V ports borrow **one allocation and one deterministic release**.
+Projection-frame aliases likewise have an explicit immutable owner map. No
+weight repacking, vendor runtime, reference substitution or request-path JIT is
+introduced. At 32 local heads, dimension 256 and latent rank 512, the retained
+attention payload is 32 times smaller (index/gates/metadata are separate).
+
+This is BF16 latent storage, not FP8 latent storage, and is not bitwise-equivalent
+to expanded attention. It is independently selectable from E4M3 index scoring.
+Actual-source probe `/tmp/lunaflux-glm-latent-probe-20261019-v2` exercises head
+grouping, query absorption, shared latent attention, value expansion and inactive
+row publication at 1/15/16/17 live rows. Independent F64 bounds and repeated
+deterministic output pass; memcheck/full leak, racecheck, synccheck and initcheck
+all pass at 2 GiB/no swap. v1's offline harness compile failure is retained.
+Full-model answers and HTTP performance remain separate acceptance gates.

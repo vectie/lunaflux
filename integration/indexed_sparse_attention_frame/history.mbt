@@ -81,8 +81,15 @@ pub fn IndexedSparseHistory::prepare(
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
   let sizes = self.source.plan().buffer_bytes()
-  for size in sizes {
-    self.buffers.push(context.allocate(size))
+  for i, size in sizes {
+    let owner = self.source.plan().buffer_owner(i)
+    self.buffers.push(
+      if owner == i {
+        context.allocate(size)
+      } else {
+        self.buffers[owner]
+      },
+    )
   }
   zero_metadata(self.buffers[4])
   zero_metadata(self.buffers[5])
@@ -195,7 +202,10 @@ pub fn IndexedSparseHistory::close(
     ignore(self.functions.pop())
   }
   while self.buffers.last() is Some(buffer) {
-    buffer.close()
+    let index = self.buffers.length() - 1
+    if self.source.plan().buffer_owner(index) == index {
+      buffer.close()
+    }
     ignore(self.buffers.pop())
   }
   self.status = Closed

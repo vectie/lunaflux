@@ -7,7 +7,7 @@ import {
 }
 
 // Values
-pub fn selected_sparse_source(query_heads~ : Int, kv_heads~ : Int, qk_dimension~ : Int, value_dimension~ : Int, selected_width~ : Int, maximum_queries~ : Int, maximum_history~ : Int, symbol~ : String, published_slots? : Int, paged_history? : @attention_physical_ir.PagedHistoryDomain, accumulation? : @precision_ir.AttentionAccumulationLaw) -> SelectedSparseCudaSource raise
+pub fn selected_sparse_source(query_heads~ : Int, kv_heads~ : Int, qk_dimension~ : Int, value_dimension~ : Int, selected_width~ : Int, maximum_queries~ : Int, maximum_history~ : Int, symbol~ : String, published_slots? : Int, paged_history? : @attention_physical_ir.PagedHistoryDomain, accumulation? : @precision_ir.AttentionAccumulationLaw, score_dimension? : Int) -> SelectedSparseCudaSource raise
 
 // Errors
 

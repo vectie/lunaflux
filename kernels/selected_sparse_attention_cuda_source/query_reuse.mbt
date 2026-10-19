@@ -13,6 +13,7 @@ fn query_reuse_source(
   history : Int,
   symbol : String,
   paging : @physical.PagedHistoryDomain?,
+  score_dimension : Int,
 ) -> Bytes {
   let words = (history + 31) / 32
   let rounds = (vd + 63) / 64
@@ -99,7 +100,7 @@ fn query_reuse_source(
     $|   }
     $|   for(int rr=0;rr<2;++rr)for(int cc=0;cc<2;++cc){
     $|    int r=g+rr*8,k=base+warp*8+t*2+cc,query=first_query+r;
-    $|    if(valid[r]&&sequence_id[r]==seq&&k<limit)((float*)scratch)[((uint64_t)query*\{qh}+head)*\{history}+k]=((mask[r][k/32]>>(k&31))&1U)?__fmul_rn(d[rr*2+cc],rsqrtf(\{qkd}.0f)):0.0f;
+    $|    if(valid[r]&&sequence_id[r]==seq&&k<limit)((float*)scratch)[((uint64_t)query*\{qh}+head)*\{history}+k]=((mask[r][k/32]>>(k&31))&1U)?__fmul_rn(d[rr*2+cc],rsqrtf(\{score_dimension}.0f)):0.0f;
     $|   }
     $|   __syncthreads();
     $|  }
