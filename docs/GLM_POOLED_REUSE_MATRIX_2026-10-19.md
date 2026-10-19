@@ -399,3 +399,85 @@ The new actual-source probe times both score and selection launches together.
 The frozen baseline is the actual5cc72d4c matrix/ordered source in v13, not
 the mistakenly exported ordered-only v12. Hardware and service results must
 be recorded separately from these hypotheses.
+
+### Completed memory gate and physical trials
+
+The memory-only complete-answer root
+`/tmp/lunaflux-glm-service-benchmark-expert-arena-answers-20261019-v1`
+finished64/64 requests:63 exact, one short C8 format failure (lane5 returns
+the correct label, then extra reasoning and the label again). The failure is
+retained; containing the expected string is not an exact-answer pass.
+All2K C1/C4/C8/C16,6K C1/C4 and near8K C1 answers were exact. The monitored
+minimum host availability was17,476,104/19,812,148 KiB, above16,777,216 KiB;
+GPU peaks96,881/96,909 MiB, owned swap zero. Both ranks stopped and released
+their GPU allocations before the next GPU probe. This resolves the observed
+reserve failure on this campaign, not arbitrary-load capacity.
+
+Actual-source physical comparisons:
+
+- v14 failed local export because the test used a nonexistent ReadOnlyArray
+  conversion; no GPU result. v15 compiled the baseline but did not execute:
+  review found its frozen incremental-pool ABI required more arguments and
+  history-write replay. The external harness was corrected, preserving both
+  old full-pool and incremental baselines; no reference arrays were edited.
+- `/tmp/lunaflux-long-paged-sparse-20261019-v16`: the first partitioned index
+  improved8K but regressed at256/2K. Keep this negative result. Query-major
+  fixed-capacity tiles scatter live work among inactive blocks.
+- `98c629fd` consumes a pure live-domain ownership mapping: live queries are
+  fastest varying, candidate tiles follow. This compacts active work without
+  host readback, numerical changes or an empirical short-context threshold.
+- `/tmp/lunaflux-long-paged-sparse-20261019-v17`: matched baseline5cc72d4c,
+  latest source, three alternating-order trials/five launches per timing.
+  The index timing includes BOTH score publication and selection. Median ms:
+
+| History/live rows | Old index | New index chain | Old attention | New attention | Combined reduction |
+| --- | ---: | ---: | ---: | ---: | ---: |
+|64/64|0.09256|0.09413|0.18061|0.11750|22.5%|
+|256/64|0.23673|0.23709|0.34117|0.22769|19.6%|
+|2048/64|1.82657|1.37822|3.26632|1.82491|37.1%|
+|4096/64|3.73613|2.62871|6.56831|3.75660|38.0%|
+|8000/64|7.59068|5.37571|10.18057|6.62396|32.5%|
+|7997/29|4.27743|2.76221|4.94118|4.94295|16.4%|
+|7995/15|4.27845|1.66429|6.07270|5.14982|34.2%|
+|7996/1|4.26799|0.78939|1.46777|1.45359|60.9%|
+|7994/16|4.27578|1.81731|4.60163|4.74454|26.1%|
+
+Every selected index and BF16 output is bitwise equal on all nine fixtures;
+independent mathematical bounds also pass. v16 and v17 full leak/memcheck,
+racecheck, synccheck and initcheck all report zero over64/15/1/16 live rows.
+This is synthetic exact-geometry evidence, not literal service prompts or a
+full-model quality claim. Attention alone has no gain at29 rows and a3.1%
+regression at16; the complete measured chain still improves in both cases.
+The short index chain has about1.6 microseconds extra launch overhead.
+
+The v17 Nsight report explains a real storage/latency-hiding improvement:
+
+| Counter | Old attention | New attention |
+| --- | ---: | ---: |
+|Static shared bytes/block|43,032|26,648|
+|Shared-memory resident-block limit|2|3|
+|Registers/thread|56|56|
+|Executed warp instructions|259,288,704|259,288,704|
+|Active-warps percentage|27.50%|42.78%|
+|L2 read sectors|37,338,290|37,348,222|
+|Profiled time|10.5495ms|7.0071ms|
+
+Thus this attention gain does not come from fewer instructions or fewer
+bytes. The independent shared regions had limited residency; overlaying them
+allows more work to hide the same loads. Load-dependency stalls remain57.45%
+of average active-warp latency, not zero and not a fraction of total wall time.
+
+Old combined index:7.6975ms,212.21M warp instructions,12.06% active warps.
+New score producer:4.8415ms,108.84M instructions,77.88% active warps;
+selection:0.8292ms,99.51M instructions. Instructions fall only about1.8% in
+total. Score-producer L2 reads increase substantially (34.40M sectors versus
+1.24M for the old combined index); improved latency hiding has a traffic
+trade-off, so this is not an optimality claim. Profiled and unprofiled timings
+are kept separate.
+
+Pinned ARM98c629fd builds successfully,1.3GiB reported peak and zero swap.
+Fresh full-service AOT preparation is
+`/tmp/lunaflux-glm-http-live-index-20261019-v1`; its actual generated rank
+source contains all11 score-producer symbols and the live-domain mapping.
+Public GLM remains offline pending completed service qualification; source
+presence and isolated kernel gains alone do not authorize a speed claim there.
