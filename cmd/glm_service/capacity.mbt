@@ -1,4 +1,26 @@
 ///|
+/// Preparation ownership is independent of resident GPU slots. The old recipe
+/// keeps two lanes per slot; deployments may choose fewer waiting owners.
+fn service_admission_lanes(json : Json, slots : Int) -> Int raise {
+  guard json is Object(fields) else { fail("service object required") }
+  let lanes = if fields.contains("admission_lanes") {
+    json_int(json,"admission_lanes")
+  } else { slots * 2 }
+  guard slots > 0 && lanes >= slots && lanes <= 1024 else {
+    fail("invalid admission lane capacity")
+  }
+  lanes
+}
+
+///|
+test "preparation and connection ownership need not duplicate resident slots" {
+  assert_eq(service_admission_lanes({},4),8)
+  assert_eq(service_admission_lanes({"admission_lanes":16},16),16)
+  try service_admission_lanes({"admission_lanes":15},16) catch { _ => () }
+  noraise { _ => fail("preparation cannot expose the declared resident concurrency") }
+}
+
+///|
 /// A deployment chooses aggregate physical pages independently of its logical
 /// context/slot envelope. Omitted pages preserve the existing service recipe.
 fn service_history_capacity(

@@ -124,6 +124,8 @@ async fn main {
     }
   }
   let slots = positive_setting("LUNAFLUX_GLM_HTTP_SLOTS", 4, 64)
+  let admission_lanes = positive_setting("LUNAFLUX_GLM_HTTP_ADMISSION_LANES",slots*2,1024)
+  let compile_memory_mib = positive_setting("LUNAFLUX_GLM_HTTP_COMPILE_MEMORY_MIB",4096,4096)
   let pages = positive_setting(
     "LUNAFLUX_GLM_HTTP_HISTORY_PAGES", slots * (context / 16), 67108864,
   )
@@ -156,6 +158,7 @@ async fn main {
       "executable": root + "/glm_service.exe",
       "rows": 64,
       "slots": slots,
+      "admission_lanes":admission_lanes,
       "history_pages": pages,
       "context": context,
       "budget_mib": 102400,
@@ -269,7 +272,7 @@ async fn main {
         rank,
         "systemd-run --user --unit=" +
         unit +
-        " --property=RemainAfterExit=yes --property=MemoryMax=4G --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda/bin/nvcc -O3 -lineinfo -std=c++17 --cubin --generate-code arch=compute_121a,code=sm_121a " +
+        " --property=RemainAfterExit=yes --property=MemoryMax=\{compile_memory_mib}M --property=MemorySwapMax=0 --property=RuntimeMaxSec=1800 /usr/local/cuda/bin/nvcc -O3 -lineinfo -std=c++17 --cubin --generate-code arch=compute_121a,code=sm_121a " +
         root +
         "/rank\{rank}.cu -o " +
         root +

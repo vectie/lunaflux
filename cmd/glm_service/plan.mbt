@@ -19,6 +19,7 @@ priv struct ServicePlan {
   credential_file : String
   rows : Int
   slots : Int
+  admission_lanes : Int
   context : Int
   history_capacity : @history.ResidentHistoryCapacity
   budget : Int64
@@ -65,6 +66,7 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
   let rows = json_int(j, "rows")
   let slots = json_int(j, "slots")
   let context = json_int(j, "context")
+  let admission_lanes = service_admission_lanes(j,slots)
   let history_capacity = service_history_capacity(j, slots, context)
   let p = ServicePlan::{
     model_root: json_string(j, "model_root"),
@@ -84,6 +86,7 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
     credential_file: json_string(j, "credential_file"),
     rows,
     slots,
+    admission_lanes,
     context,
     history_capacity,
     budget: json_int(j, "budget_mib").to_int64() * 1048576L,
@@ -175,16 +178,18 @@ fn ServicePlan::worker_limits(
 fn ServicePlan::inference(
   self : Self,
   spec : @spec.Glm53FlashSpec,
+  tokenizer : @tokenizer.TokenizerSpec,
 ) -> @inference.InferenceLimits raise {
-  glm_inference_limits(self.context, spec.vocabulary_size())
+  glm_inference_limits(self.context, spec.vocabulary_size(),
+    maximum_token_bytes=tokenizer.maximum_decoded_piece_bytes())
 }
 
 ///|
 fn glm_inference_limits(
   context : Int,
   vocabulary : Int,
+  maximum_token_bytes? : Int = 4096,
 ) -> @inference.InferenceLimits raise {
-  let maximum_token_bytes = 4096
   let maximum_stop_bytes = 256
   @inference.InferenceLimits::new(
     max_text_bytes=1048576,
@@ -215,6 +220,9 @@ test "service decoding envelope includes declared stop prefixes and UTF8 carry" 
   )
   assert_eq(limits.max_context_tokens(), 2048)
   assert_eq(limits.max_new_tokens(), 2048)
+  let exact = glm_inference_limits(8192,154880,maximum_token_bytes=128)
+  assert_eq(exact.max_decoded_delta_bytes(),128+256+3)
+  assert_eq(exact.max_new_tokens(),8192)
 }
 
 ///|

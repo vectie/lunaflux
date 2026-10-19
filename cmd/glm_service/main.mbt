@@ -24,15 +24,9 @@ async fn main {
   }
   if mode == "export" || mode == "plan" {
     let spec = inspect_spec(root)
-    let inference = plan.inference(spec)
-    let tokenizer = @text_input.load_checkpoint_tokenizer(
-      root,
-      plan.model_root,
-      "tokenizer.json",
-      plan.tokenizer_label,
-      vocabulary_size=spec.vocabulary_size(),
-      maximum_tokens=plan.context,
-    )
+    let tokenizer = plan.load_tokenizer(root,spec)
+    let inference = plan.inference(spec,tokenizer)
+    println("decoded_piece_bytes=\{tokenizer.maximum_decoded_piece_bytes()} decoded_delta_bytes=\{inference.max_decoded_delta_bytes()}")
     ignore(
       plan.preparation_storage(
         tokenizer,

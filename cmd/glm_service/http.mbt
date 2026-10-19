@@ -62,7 +62,8 @@ async fn serve(
   kernels : @approved_fs.ApprovedRoot,
 ) -> Unit {
   let spec = inspect_spec(root)
-  let inference = plan.inference(spec)
+  let tokenizer = plan.load_tokenizer(root,spec)
+  let inference = plan.inference(spec,tokenizer)
   let stops = model_stops(root, spec.vocabulary_size())
   let credential = read_bounded(kernels, plan.credential_file, 4096L)
   let secret = FixedArray::makei(credential.length(), i => credential[i])
@@ -80,7 +81,7 @@ async fn serve(
     write_timeout_millis=30000,
     reactor_transition_budget=64,
   )
-  let prepared = prepare_service(plan, manifest, root, kernels, spec) catch {
+  let prepared = prepare_service(plan, manifest, root, kernels, spec,tokenizer,inference) catch {
     @session.LunaOnlineInstancePreparationFailed(cause) => {
       auth.close()
       fail("GLM preparation: \{Repr(cause)}")
@@ -107,7 +108,7 @@ async fn serve(
       prepared,
       tcp,
       @tcp.LunaOnlineOpenAIConnectionPoolLimits::new(
-        connection_capacity=plan.slots * 2 + 2,
+        connection_capacity=plan.admission_lanes + 2,
         output_buffer_bytes=65536,
         io_poll_timeout_millis=1,
       ),

@@ -132,18 +132,11 @@ fn prepare_service(
   root : @approved_fs.ApprovedRoot,
   kernels : @approved_fs.ApprovedRoot,
   spec : @spec.Glm53FlashSpec,
+  tokenizer : @tokenizer.TokenizerSpec,
+  inference : @inference.InferenceLimits,
 ) -> @session.LunaOnlineFramedServicePreparation raise {
-  let inference = plan.inference(spec)
   let source = plan.source(manifest)
   let label = @wire.WorkerBootstrapDigest::from_sha256(plan.runtime_label)
-  let tokenizer = @text_input.load_checkpoint_tokenizer(
-    root,
-    plan.model_root,
-    "tokenizer.json",
-    plan.tokenizer_label,
-    vocabulary_size=spec.vocabulary_size(),
-    maximum_tokens=plan.context,
-  )
   let startup = @wire.WorkerStartupContract::new(
     identity=plan.identity(),
     bootstrap_digest=label,
@@ -163,7 +156,7 @@ fn prepare_service(
     plan.identity(),
     inference,
     framed,
-    plan.slots * 2,
+    plan.admission_lanes,
     @admission.LunaRequestPreparationStepBudget::new(4096),
     @admission.LunaRequestPreparationWorkLimit::new(100000000UL),
     preparation_storage,
