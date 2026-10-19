@@ -197,6 +197,13 @@ pub fn Schedule::event_producers(Self) -> ReadOnlyArray[Int]
 pub fn Schedule::policy(Self) -> Policy
 pub fn Schedule::program(Self) -> Program
 
+pub struct SerialScratch {
+  // private fields
+}
+pub fn SerialScratch::bytes(Self) -> Int64
+pub fn SerialScratch::new(ArrayView[Int64]) -> Self raise ParallelError
+pub fn SerialScratch::saved_bytes(Self) -> Int64
+
 pub struct Step {
   // private fields
 }

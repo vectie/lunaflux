@@ -187,6 +187,7 @@ fn GlmSparseLayer::prepare_layer(
   output~ : @device.Allocation,
   input_positions? : @device.Allocation,
   page_ports? : @history_frame.SparseHistoryPagePorts,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   let frames = self.workspace_bytes() + self.state_bytes()
   guard stream is None || !self.ffn.is_tensor_parallel() else {
@@ -237,6 +238,7 @@ fn GlmSparseLayer::prepare_layer(
     hyper_weights=Array::makei(4, i => self.weights.allocation(14 + i)),
     input_positions?,
     page_ports?,
+    transient_scratch?,
   )
   let launches = self.decoder.launches().to_owned()
   launches.append(self.ffn.launches)

@@ -62,6 +62,7 @@ pub fn GlmSparseLayer::prepare_frame(
   output~ : @device.Allocation,
   input_positions? : @device.Allocation,
   page_ports? : @history_frame.SparseHistoryPagePorts,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   self.prepare_layer(
     context,
@@ -78,6 +79,7 @@ pub fn GlmSparseLayer::prepare_frame(
     output~,
     input_positions?,
     page_ports?,
+    transient_scratch?,
   )
 }
 

@@ -31,6 +31,14 @@ fn GlmDecoderLayer::state_bytes(self : Self) -> Int64 {
 }
 
 ///|
+fn GlmDecoderLayer::transient_scratch_bytes(self : Self) -> Int64 {
+  match self {
+    Recurrent(_) => 0L
+    Sparse(layer) => layer.decoder.transient_scratch_bytes()
+  }
+}
+
+///|
 fn GlmDecoderLayer::device_bytes(self : Self) -> Int64 {
   match self {
     Recurrent(layer) => layer.device_bytes()
@@ -68,6 +76,7 @@ fn GlmDecoderLayer::prepare(
   output~ : @device.Allocation,
   input_positions? : @device.Allocation,
   page_ports? : @history_frame.SparseHistoryPagePorts,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   match self {
     Recurrent(layer) =>
@@ -97,6 +106,7 @@ fn GlmDecoderLayer::prepare(
         limits~,
         counts~,
         reset_flag=sparse_reset_flag,
+        transient_scratch?,
         input_positions?,
         page_ports?,
         hidden~,

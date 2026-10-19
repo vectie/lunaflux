@@ -11,6 +11,8 @@ pub struct GlmDecoderSlice {
   priv buffer_count : Int
   priv layers : Array[GlmDecoderLayer]
   priv buffers : Array[@device.Allocation]
+  priv scratch_plan : @parallel.SerialScratch
+  priv scratch_buffers : Array[@device.Allocation]
   priv descriptors : Array[@device.Allocation]
   priv mut queue : @device.OrderedKernelExecutor?
   priv tensor_group : (Int, Int)?
@@ -161,6 +163,10 @@ pub fn GlmDecoderSlice::new(
     buffer_count: (count - 1).min(2),
     layers,
     buffers: [],
+    scratch_plan: @parallel.SerialScratch::new(
+      layers.map(layer => layer.transient_scratch_bytes())[:],
+    ),
+    scratch_buffers: [],
     descriptors: [],
     queue: None,
     tensor_group,
@@ -191,7 +197,8 @@ pub fn GlmDecoderSlice::workspace_bytes(self : Self) -> Int64 {
   self.layers.fold(init=self.residual_bytes * self.buffer_count.to_int64(), (
     bytes,
     layer,
-  ) => bytes + layer.workspace_bytes())
+  ) => bytes + layer.workspace_bytes()) -
+  self.scratch_plan.saved_bytes()
 }
 
 ///|
@@ -203,7 +210,7 @@ pub fn GlmDecoderSlice::required_device_bytes(
   for layer in self.layers {
     bytes += layer.required_device_bytes(checkpoint)
   }
-  bytes
+  bytes - self.scratch_plan.saved_bytes()
 }
 
 ///|
@@ -211,7 +218,12 @@ pub fn GlmDecoderSlice::device_bytes(self : Self) -> Int64 {
   self.layers.fold(
     init=self.residual_bytes * self.buffers.length().to_int64(),
     (bytes, layer) => bytes + layer.device_bytes(),
-  )
+  ) -
+  (if self.scratch_buffers.is_empty() {
+    0L
+  } else {
+    self.scratch_plan.saved_bytes()
+  })
 }
 
 ///|
@@ -274,12 +286,18 @@ pub fn GlmDecoderSlice::prepare(
     init=self.residual_bytes * self.buffer_count.to_int64(),
     (bytes, layer_bytes) => bytes + layer_bytes,
   )
-  guard total <= maximum_device_bytes else {
+  guard total - self.scratch_plan.saved_bytes() <= maximum_device_bytes else {
     raise @precision_ir.PrecisionPlanError::MemoryBudgetExceeded
   }
   self.status = Failed
   for _ in 0..<self.buffer_count {
     self.buffers.push(context.allocate(self.residual_bytes))
+  }
+  // The one ordered decoder queue retires each sparse sublayer before the
+  // next. Expert forks never access this scratch and join within their layer.
+  // No persistent pooled key, page metadata or selected index is aliased.
+  if self.scratch_plan.bytes() > 0L {
+    self.scratch_buffers.push(context.allocate(self.scratch_plan.bytes()))
   }
   let mut launches = prefix_launches.to_owned()
   let mut boundaries = []
@@ -307,6 +325,7 @@ pub fn GlmDecoderSlice::prepare(
       sparse_reset_flag~,
       input_positions?,
       page_ports?,
+      transient_scratch?=self.scratch_buffers.get(0),
       hidden=input,
       output=next,
     )

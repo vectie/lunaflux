@@ -15,6 +15,7 @@ pub fn IndexedSparseAttentionFrame::prepare_retained(
   queries~ : @device.Allocation,
   output~ : @device.Allocation,
   page_ports? : SparseHistoryPagePorts,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   let expected = self.source.plan()
   let retained = history.source.plan().attention()
@@ -48,6 +49,7 @@ pub fn IndexedSparseAttentionFrame::prepare_retained(
     values=buffers[3],
     output~,
     page_ports?,
+    transient_scratch?,
   )
   let attention = self.launches[:].to_owned()
   self.launches.clear()

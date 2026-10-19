@@ -59,6 +59,13 @@ pub fn IndexedSparseDecoderFrame::state_bytes(self : Self) -> Int64 {
 }
 
 ///|
+/// Transient index/attention storage, dead after the ordered sublayer returns.
+/// Persistent history, pooled keys and selected indices are not included.
+pub fn IndexedSparseDecoderFrame::transient_scratch_bytes(self : Self) -> Int64 {
+  self.source.attention().scratch_bytes()
+}
+
+///|
 pub fn IndexedSparseDecoderFrame::prepare(
   self : Self,
   context : @device.Context,
@@ -75,6 +82,7 @@ pub fn IndexedSparseDecoderFrame::prepare(
   hyper_weights~ : ArrayView[@device.Allocation],
   input_positions? : @device.Allocation,
   page_ports? : @sparse.SparseHistoryPagePorts,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   guard self.state is Fresh &&
     projection_weights.length() == 12 &&
@@ -119,6 +127,7 @@ pub fn IndexedSparseDecoderFrame::prepare(
     output=attention_output,
     input_positions?,
     page_ports?,
+    transient_scratch?,
   )
   self.launches.append(self.envelope.prefix())
   self.launches.append(sparse)

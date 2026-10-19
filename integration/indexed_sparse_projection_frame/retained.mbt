@@ -15,6 +15,7 @@ pub fn IndexedSparseProjectionFrame::prepare_retained_attention(
   output~ : @device.Allocation,
   input_positions? : @device.Allocation,
   page_ports? : @sparse.SparseHistoryPagePorts,
+  transient_scratch? : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise {
   guard self.state is Prepared && self.counts is Some(query_counts) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -55,6 +56,7 @@ pub fn IndexedSparseProjectionFrame::prepare_retained_attention(
     queries=outputs.queries,
     output~,
     page_ports?,
+    transient_scratch?,
   )
   let retained = attention.launches()
   let launches = [retained[0]]

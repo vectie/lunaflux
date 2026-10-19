@@ -94,6 +94,7 @@ pub fn IndexedSparseAttentionFrame::prepare(
   values~ : @device.Allocation,
   output~ : @device.Allocation,
   page_ports? : SparseHistoryPagePorts,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   guard self.status is Fresh &&
     !self.shared &&
@@ -112,7 +113,16 @@ pub fn IndexedSparseAttentionFrame::prepare(
   for bytes in sizes {
     self.buffers.push(context.allocate(bytes))
   }
-  self.buffers.push(context.allocate(self.source.scratch_bytes()))
+  // The caller may lend one region across non-overlapping ordered frames.
+  // Borrowed scratch is never closed here; persistent pools remain owned.
+  let scratch = match transient_scratch {
+    Some(buffer) => buffer
+    None => {
+      let buffer = context.allocate(self.source.scratch_bytes())
+      self.buffers.push(buffer)
+      buffer
+    }
+  }
   let buffers = self.buffers
   if plan.paged_history() is Some(_) {
     // Resident validity is initialized once. Unwritten pools are never read.
@@ -144,7 +154,7 @@ pub fn IndexedSparseAttentionFrame::prepare(
       region(buffers[3], sizes[3], 4L),
       region(history_valid, h * 4L, 4L),
       selected,
-      region(buffers[5], self.source.scratch_bytes(), 4L),
+      region(scratch, self.source.scratch_bytes(), 4L),
     ],
     self.attention_arguments(
       query_counts,
@@ -156,7 +166,7 @@ pub fn IndexedSparseAttentionFrame::prepare(
       values,
       buffers[4],
       output,
-      buffers[5],
+      scratch,
     ),
   ]
   arguments[1].append(paging)
