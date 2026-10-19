@@ -121,3 +121,12 @@ before either stop request; only the partial-pair-loss check consults it.
 Memory-limit and failed-rank checks remain active. Three watcher regression
 tests pass. Requalify final selected combinations with the corrected runner;
 do not misrepresent this old verdict as a clean harness completion.
+
+The bulk cohort was already running the old watcher when that fix landed and
+retains the same requested-drain false failure. Its request checks nevertheless
+complete: 11 automatic cases, full-context `orchid-70` with normal stop,
+distinct concurrent identifiers and all six cancellation/reuse cycles. Both
+terminal rank journals show successful retirement and no GPU owners remain.
+A stop-intent marker belongs to one immutable run root; starting a new owner
+in a retired root is rejected before launch, so stale intent cannot hide an
+unexpected rank loss in a later test.

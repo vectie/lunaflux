@@ -28,7 +28,8 @@ fn observations(text : String) -> (Int64, Int64, Int64, Int32) raise {
           }
         }
       }
-    } else if line.has_prefix("MemorySwapPeak=") {
+    } else if line.has_prefix("MemorySwapPeak=") &&
+      line != "MemorySwapPeak=[not set]" {
       let value = @string.parse_int64(line[15:])
       if value > maximum_swap {
         maximum_swap = value
@@ -46,6 +47,16 @@ test "summary retains the worse rank and actual swap peak" {
       "rank=0 host_available_kib=18000000 gpu_mib=96800\nMemorySwapPeak=0\nrank=1 host_available_kib=17900000 gpu_mib=96900\nMemorySwapPeak=4096\n",
     ),
     (17900000L, 96900L, 4096L, 2),
+  )
+}
+
+///|
+test "retired unit does not erase previously observed swap" {
+  assert_eq(
+    observations(
+      "rank=0 host_available_kib=18000000 gpu_mib=96800\nMemorySwapPeak=4096\nMemorySwapPeak=[not set]\n",
+    ),
+    (18000000L, 96800L, 4096L, 1),
   )
 }
 

@@ -205,6 +205,9 @@ async fn main {
     return
   }
   if mode == "start" || mode == "start-traced" || mode == "start-profile" {
+    guard !@fs.exists(root + "/stop-requested.txt") else {
+      fail("retired qualification root; use a fresh run root for a new owner")
+    }
     // Trace evidence has its own directory, but the executable and manifest
     // must retain their original, matching artifact root.
     let artifact_root = if @fs.exists(root + "/artifact-root.txt") {
