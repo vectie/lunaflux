@@ -55,6 +55,22 @@ complete task answers, request-identity concurrency and cancellation/reuse;
 its memory watcher retires both owned ranks on a resource or rank failure.
 It does not insert comparisons or selection into the compiler.
 
+The startup boundary is `JSON -> ExecutionPolicy -> ServicePlan.stage ->
+existing numerical/physical IR -> private CUDA lowering`. Export and live
+execution invoke that same stage builder; actual export and rank execution
+logs identify the choices. No reference engine is linked into these layers.
+
+| HTTP startup field | Existing IR value passed to the stage |
+|---|---|
+| `expert_scale_partitions: 32` | Distributed maximum physical partition count |
+| `expert_transport: "bulk-tiles-128x2x48"` | `ExpertTransport::PackedBulkTiles` |
+| `projection_staging: "buffered-k32"` | `MatrixStaging::Buffered(inner_tile=32)` for both projection families |
+| `recurrent_evaluation: "chunk-triangular-f32"` | `RecurrentEvaluationLaw::ChunkTriangularFloat32` |
+
+These are deliberate startup choices, not permission for a numerical rewrite
+based on agreement with vLLM. Missing settings retain the validated defaults;
+unknown settings reject instead of silently selecting another implementation.
+
 At 8192 context / 64 physical rows / 8 slots / 513 history pages, export plans
 102,829,853,884 bytes per rank for base/buffered, 102,829,864,636 for scales,
 103,127,127,196 for bulk experts and 105,539,374,268 for chunk KDA. A plan below
@@ -99,6 +115,7 @@ C1, no cached prompt tokens. Startup and the excluded warmup are not timed.
 | Control | 1.237 / 1.233 | 10.908 / 11.021 | 30.280 / 30.973 | 39.517 / 38.808 |
 | 32 scale partitions only | 1.140 / 1.128 | 9.828 / 9.884 | 26.416 / 26.563 | 34.137 / 34.175 |
 | Bulk experts only | 1.132 / 1.081 | 9.991 / 10.108 | 28.139 / 28.199 | 36.502 / 36.389 |
+| Buffered K32 projections only | 1.214 / 1.231 | 10.884 / 11.003 | 31.581 / 30.786 | 39.038 / 39.008 |
 | Fresh vLLM reference | 0.794 / 0.832 | 6.818 / 5.963 | 14.303 / 14.144 | 18.451 / 18.145 |
 
 At 7973 tokens the scale-only two-sweep mean improves 12.78%; this is HTTP
@@ -139,6 +156,25 @@ unexpected rank loss in a later test.
 Bulk's sampled host minimum is 18,401,588 KiB; maximum GPU sample 96,907 MiB;
 process swap remains zero. Its 7973-token two-sweep mean improves 6.94%, not
 the scale-only 12.78%. These gains must not be added without a combined run.
+
+Buffered K32 is not selected for the combined profile: its near-8K mean is
+39.023 s, only 0.36% below control, while the 6181-input mean regresses 1.82%.
+Two unrandomized sweeps do not establish that sub-percent difference as a
+speedup. Its actual export selects buffered staging for both projection
+families, so this negative result cannot be dismissed as an unselected path.
+Keep the component gains in the older report, but do not substitute them for
+this current whole-model HTTP result. The finite combined candidate therefore
+uses distributed scales plus bulk expert transport, leaving projections
+synchronous and KDA ordered.
+
+Buffered's corrected external runner exits 0. The 11 automatic checks,
+full-context retrieval, distinct-request concurrency and six cancellation/reuse
+cycles pass; the four manual answers retain correct semantics and the same SQL
+fence weakness. Both rank units retire successfully and both GPUs are verified
+empty. Actual rank-1 execution logs select `projection_staging=buffered-k32`.
+Its watcher records 342 rank samples, minimum host 17,949,588 KiB,
+maximum GPU 96,907 MiB and zero process swap. This is request/ownership
+qualification of the tested profile, not a reason to choose a slower schedule.
 
 ## Fresh reference qualification
 
