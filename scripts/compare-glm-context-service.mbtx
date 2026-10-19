@@ -117,6 +117,8 @@ async fn observations(root : String, group : Json, native : Bool) -> Json {
   let mut active = 0.0
   let mut waiting = 0.0
   let mut cache = 0.0
+  let mut preemptions_first : Double? = None
+  let mut preemptions_last : Double? = None
   let mut observed = 0
   for sample in samples {
     if sample is { "body": String(body), .. } {
@@ -133,6 +135,7 @@ async fn observations(root : String, group : Json, native : Bool) -> Json {
               ("vllm:num_requests_running", 0),
               ("vllm:num_requests_waiting", 1),
               ("vllm:kv_cache_usage_perc", 2),
+              ("vllm:num_preemptions_total", 3),
             ] {
             if line.has_prefix(metric + "{") || line.has_prefix(metric + " ") {
               let value = @string.parse_double(
@@ -142,8 +145,11 @@ async fn observations(root : String, group : Json, native : Bool) -> Json {
                 active = Double::max(active, value)
               } else if kind == 1 {
                 waiting = Double::max(waiting, value)
-              } else {
+              } else if kind == 2 {
                 cache = Double::max(cache, value)
+              } else {
+                if preemptions_first is None { preemptions_first = Some(value) }
+                preemptions_last = Some(value)
               }
             }
           }
@@ -157,6 +163,10 @@ async fn observations(root : String, group : Json, native : Bool) -> Json {
     "sampled_max_active_not_step_batch": active,
     "sampled_max_waiting": waiting,
     "sampled_max_kv": cache,
+    "sampled_preemptions_delta": match (preemptions_first,preemptions_last) {
+      (Some(first),Some(last)) => Json(last-first)
+      _ => null
+    },
     "kv_unit": if native {
       "pages"
     } else {

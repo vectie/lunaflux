@@ -11,25 +11,6 @@ import {
 // External reference engine/client. No compiler/runtime import or payload hash.
 
 ///|
-fn reference_eager(raw : String?, profile_eager : Bool) -> Bool raise {
-  match raw {
-    None | Some("0") => profile_eager
-    Some("1") => true
-    Some(_) => fail("LUNAFLUX_REFERENCE_EAGER must be 0 or 1")
-  }
-}
-
-///|
-test "memory-qualified eager timing is explicit and leaves default graph timing intact" {
-  assert_false(reference_eager(None, false))
-  assert_true(reference_eager(Some("1"), false))
-  assert_true(reference_eager(None, true))
-  try ignore(reference_eager(Some("yes"), false)) catch {
-    _ => ()
-  } noraise { _ => fail("ambiguous reference execution policy") }
-}
-
-///|
 fn reference_image(glm : Bool, sglang : Bool) -> String {
   if sglang {
     "docker.1ms.run/lmsysorg/sglang:" +
@@ -370,9 +351,6 @@ async fn main {
   // graph-enabled timing baseline. Avoid graph-capture memory at the host floor.
   let eager_profile = profile &&
     @env.get_env_var("LUNAFLUX_REFERENCE_PROFILE_EAGER") == Some("1")
-  let eager = reference_eager(
-    @env.get_env_var("LUNAFLUX_REFERENCE_EAGER"), eager_profile,
-  )
   // The selected request needs fewer than 64 positions. A smaller, explicitly
   // labelled trace envelope avoids allocating unused startup/warmup capacity.
   // It is never applied to ordinary graph-enabled benchmark cohorts.
@@ -536,7 +514,6 @@ async fn main {
       "\nengine=" +
       engine +
       "\ntp=2\npp=1\ncontext=\{context}" +
-      (if sg { "" } else { "\nenforce_eager=\{eager}" }) +
       (if sg { "" } else { "\nkv_bytes=\{kv_bytes}" }) +
       "\nmaximum_sequences=\{sequences}\nbatch_tokens=\{batch_tokens}\nconcurrency=1\nmax_output=" +
       (if profile { "2" } else { "8" }) +
@@ -794,7 +771,7 @@ async fn main {
       " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len \{context} --max-num-seqs \{sequences} --max-num-batched-tokens \{batch_tokens} --gpu-memory-utilization 0.80 --kv-cache-memory-bytes \{kv_bytes} --no-enable-prefix-caching --trust-remote-code" +
       (if glm { " --language-model-only" } else { "" }) +
       capture_option +
-      (if eager { " --enforce-eager" } else { "" }) +
+      (if eager_profile { " --enforce-eager" } else { "" }) +
       (if last { " --headless" } else { "" })
     }
     let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"

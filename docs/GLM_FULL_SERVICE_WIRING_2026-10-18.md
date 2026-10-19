@@ -36,6 +36,23 @@ that unequal fused gate/up global scales warn and select the first scale. This
 is a concrete arithmetic difference, not proof that it explains every answer
 discrepancy or authorization to alter the reference.
 
+The v7 eager experiment failed during warm-up, before any timed request:
+rank0 host availability fell to16,302,936KiB at94,548MiB GPU residency. Disabling
+capture did not provide sufficient observed headroom; the hypothesis failed.
+The experimental ordinary-eager switch is retired from the active runner;
+revision74d9f238 and v7 configuration/terminal logs retain its exact command.
+The existing eager profiler route remains unchanged. No winning result or
+production change is claimed from that experiment.
+
+The final reference runv8 returns to the previously physically qualified v4
+recipe:256MiB KV,eight-sequence ceiling,64-token prefill budget,capture maximum8.
+It first warms every context length with one-generated-token controls, then
+runs the full128-budget answer/concurrency vector and repeats the controls.
+This small hybrid-cache capacity must be disclosed, not treated as unconstrained
+vLLM concurrency. The external comparator also records sampled preemption
+counter deltas, separately from active/waiting maxima. No further reference
+capacity experiments are part of this pass.
+
 ## Context/concurrency extension, 19 October (in progress)
 
 The public 2048-context/four-slot recipe tied physical history to
