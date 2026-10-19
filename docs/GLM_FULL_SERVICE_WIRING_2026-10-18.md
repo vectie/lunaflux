@@ -1,5 +1,76 @@
 # GLM full-service wiring
 
+## Online8K allocation — 19 October, 11:37 CST
+
+The existing LunaNexa `glm-5.3.flash` company route is now serving the physically
+accepted LunaFlux5f864415 native NVFP4 TP2 executable on both Sparks. Installed
+roots are `/home/wlc003s/.local/share/lunanexa/glm53-lunaflux-5f864415` and the
+equivalent wlc004s path. Logical context is8,192, with eight resident sequences,
+sixteen waiting slots, sixteen preparation lanes, eighteen HTTP connection
+slots,64 prefill rows and513 shared sixteen-token history pages, one reserved.
+This is a shared8K history budget, not eight simultaneous8K histories.16K and
+32K are not qualified deployments.
+
+The compiler change is pure retained-history geometry: immutable capacity and
+physical-domain plans propagate to lowering and runtime admission. Host storage
+uses the admitted tokenizer's actual512-byte maximum piece, and the scheduler
+waiting capacity handles the preparation burst independently of GPU slots.
+The separate token-limit text repair changes no GPU arithmetic. Comparison,
+semantic answer review and deployment ownership remain outside the compiler.
+
+The final fixed private campaign completed77 admissions:71 completions and six
+cancellations, zero request/worker failures or worker restarts; active, queued
+and retained-KV counts returned to zero. All12 broad answers finished naturally;
+their quality/formatting caveats are explicitly retained below, not waived.
+The fixed8K retrieval repeat completed in110.694s with the exact requested label
+and10 output tokens (vLLM's matched case18.362s, also10 tokens). The capacity
+upgrade has **not** solved long-prefill performance.
+
+Equal-one-output-token HTTP latency controls, fixed native vs warmed reference:
+
+| Input tokens | LunaFlux (s) | vLLM (s) | Time ratio |
+| ---: | ---: | ---: | ---: |
+| 165 | 1.289 | 0.799 | 1.61x |
+| 2,085 | 17.599 | 6.072 | 2.90x |
+| 6,181 | 71.979 | 14.242 | 5.05x |
+| 7,973 | 103.887 | 17.622 | 5.90x |
+
+These controls can end in a hidden special token and are not complete-answer
+quality tests. Their evidence is
+`/tmp/lunaflux-glm-context-latency-comparison-20261019-v1.json`. The complete64-case
+vector below remains a separate full-service benchmark with actual output-count
+differences disclosed. Neither is a pure kernel or decode-throughput comparison.
+
+Public acceptance used the user's existing company key, without creating keys
+or altering permissions. JSON323, multi-turn42, Chinese SSE with final usage,
+two concurrent arithmetic answers, a disconnect after a real content token and
+subsequent recovery all passed. The literal7,973-token prompt also completed
+through HTTPS with `orchid-70` and natural stop. Post-public metrics report eight
+admissions, seven completions, one cancellation, zero failures/restarts, and zero
+active/queued/KV ownership. Readiness is true and model discovery advertises8192.
+Evidence: `/tmp/lunanexa-glm-public-sequence-20261019-v1` and
+`/tmp/lunanexa-glm-public-context8k-20261019-v1`. The temporary company credential
+file was removed after acceptance; the existing key itself was not revoked.
+
+Fixed private memory minima were16,894,464/19,084,300KiB host available, with
+97,951/97,979MiB GPU residency and zero unit swap. The production observer also
+stayed inside100GiB/rank and16GiB host reserve; the existing paired lifecycle
+controller continues enforcing that envelope. Host margin is tight, not spare
+capacity for unrelated workloads. The private observer's terminal error occurred
+during the explicit coordinator-first stop; both exact units subsequently showed
+`Result=success`, `ExecMainStatus=0` and released both GPUs. It is not a memory
+failure or an unreported service crash.
+
+The platform controller had one initial `DatabaseError.ConnectionUnavailable`
+restart during rollout, then remained ready with unchanged restart count during
+acceptance. Gateway replicas retained zero restarts. The portal's old cached
+session displayed unavailable and reload returned to sign-in; authenticated API
+acceptance succeeded independently. No refreshed signed-in portal-display claim.
+The earlier71061272 idle SIGABRT remains unexplained; this bounded campaign is
+not evidence that it was fixed or a multi-hour soak. Full local native tests
+pass5,297/5,297 and the pinned ARM text tests33/33; retain the scope distinctions
+and historical build failures documented below. No payload hashing was performed.
+
 ### Fixed native API acceptance — 19 October, 11:25 CST
 
 The5f864415 private pair has passed the exact previously failing Chinese request
