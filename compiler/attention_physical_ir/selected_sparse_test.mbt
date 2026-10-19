@@ -14,6 +14,9 @@ test "retained sparse domains bound scratch without truncating selected ranks" {
   assert_eq(plan.region_cells(63), Some((32256L, 32512L)))
   assert_eq(plan.region_cells(64), None)
   assert_eq(plan.independent_owner(257), Some(1))
+  assert_true(plan.uniqueness(2051) is Some(WindowedBitmap(words=8)))
+  assert_true(plan.uniqueness(0) is Some(Pairwise))
+  assert_true(plan.uniqueness(2052) is None)
   let wide = @attention_physical_ir.SelectedSparseSchedule::new(
     queries=3,
     heads=4,
@@ -22,6 +25,7 @@ test "retained sparse domains bound scratch without truncating selected ranks" {
     workers=128,
   ).unwrap()
   assert_eq(wide.scratch_bytes(), 6291456L)
+  assert_true(wide.uniqueness(65536) is Some(WindowedBitmap(words=128)))
   assert_true(
     @attention_physical_ir.SelectedSparseSchedule::new(
       queries=2147483647,

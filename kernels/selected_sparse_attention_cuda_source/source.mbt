@@ -46,8 +46,8 @@ pub fn selected_sparse_source(
     maximum_history <= 1048576 &&
     symbol.length() > 0 &&
     symbol.length() <= 128 &&
-    symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   guard @physical.SelectedSparseSchedule::new(
@@ -65,10 +65,23 @@ pub fn selected_sparse_source(
     raise @precision.PrecisionPlanError::ArithmeticOverflow
   }
   let slots = schedule.retained_slots()
+  let (pairwise_uniqueness, bitmap_uniqueness) = uniqueness_source(
+    schedule, extent,
+  )
   let dot = expression(DotUpdate, [
     "dot", "queries[qbase + component]", "keys[kbase + component]",
   ])
   let score = expression(Score, ["dot", "scale"])
+  let scalar_scores =
+    $|for (int item = worker; item < visible; item += blockDim.x) {
+    $|  const unsigned long long kbase = ((unsigned long long)retained[item] * \{kv_heads} + kv_head) * \{qk_dimension}ULL;
+    $|  float dot = 0.0f;
+    $|  for (int component = 0; component < \{qk_dimension}; ++component) dot = \{dot};
+    $|  scores[item] = \{score};
+    $|}
+  let score_body = score_tile_source(
+    schedule, qk_dimension, kv_heads, scalar_scores,
+  )
   let denominator = expression(DenominatorUpdate, [
     "denominator", "scores[item]", "maximum",
   ])
@@ -144,11 +157,11 @@ pub fn selected_sparse_source(
     $|    if (key < 0 || key >= keys_live || key > position || \{validity}) {
     $|      atomicExch(&row_valid, 0); continue;
     $|    }
-    $|    for (int prior = 0; prior < rank; ++prior)
-    $|      if (selected_indices[selected_base + prior] == key) { atomicExch(&row_valid, 0); break; }
+    $|    \{pairwise_uniqueness}
     $|  }
     $|  __syncthreads();
     $|  if (!row_valid) return;
+    $|  \{bitmap_uniqueness}
     $|  if (worker == 0) {
     $|    visible = 0;
     $|    for (int rank = 0; rank < \{extent}; ++rank) {
@@ -160,12 +173,7 @@ pub fn selected_sparse_source(
     $|  if (visible == 0) return;
     $|  const float scale = rsqrtf(\{qk_dimension}.0f);
     $|  const unsigned long long qbase = (unsigned long long)group * \{qk_dimension}ULL;
-    $|  for (int item = worker; item < visible; item += blockDim.x) {
-    $|    const unsigned long long kbase = ((unsigned long long)retained[item] * \{kv_heads} + kv_head) * \{qk_dimension}ULL;
-    $|    float dot = 0.0f;
-    $|    for (int component = 0; component < \{qk_dimension}; ++component) dot = \{dot};
-    $|    scores[item] = \{score};
-    $|  }
+    $|  \{score_body}
     $|  __syncthreads(); // all score producers publish before ordered consumers
     $|  if (worker == 0) {
     $|    maximum = -INFINITY;

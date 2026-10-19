@@ -1,0 +1,246 @@
+///|
+import {
+  "moonbitlang/async@0.21.3",
+  "moonbitlang/async@0.21.3/fs",
+  "moonbitlang/async@0.21.3/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    root.has_prefix("/tmp/lunaflux-long-paged-sparse-") &&
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
+    mode
+    is ("export-old"
+    | "export-next"
+    | "compile-old"
+    | "compile-next"
+    | "run-old"
+    | "run-next"
+    | "sanitize-next"
+    | "counters-old"
+    | "counters-next") else {
+    fail(
+      "NEW_ROOT export-old|export-next|compile-old|compile-next|run-old|run-next|sanitize-next|counters-old|counters-next",
+    )
+  }
+  let host = "wlc004s@192.168.2.179"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm179-context-20261019.sock",
+  )
+  async fn remote(cmd : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(
+      max_output_bytes=8388608,
+    )
+  }
+  async fn record(label : String, result : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  async fn copy(path : String, name : String) -> Unit {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      path,
+      host + ":" + root + "/" + name,
+    ])
+    .output()
+    .check()
+  }
+  let tag = root[5:].to_owned()
+  if mode.has_prefix("export-") {
+    let prefix = if mode == "export-old" { "old" } else { "next" }
+    if prefix == "old" {
+      @fs.mkdir(root)
+    }
+    if prefix == "old" &&
+      @env.get_env_var("LUNA_LONG_PREVIOUS_HEADER") is Some(path) {
+      let source = @fs.read_file(path).text()
+      guard source.contains("void next_index(") else {
+        fail("expected retained actual-source header")
+      }
+      @fs.write_file(
+        root + "/old.cuh",
+        source.split("next_").to_array().join("old_"),
+        create_mode=CreateNew,
+      )
+      @fs.write_file(
+        root + "/baseline-source.txt",
+        path + "\nOnly symbol namespace next_ -> old_ changed.\n",
+        create_mode=CreateNew,
+      )
+      return
+    }
+    let result = @shell.Cmd(
+      "moon",
+      [
+        "test", "kernels/indexed_sparse_attention_execution_cuda_source/long_probe_test.mbt",
+        "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+      ],
+      env={ "LUNA_LONG_PAGED_EXPORT": prefix },
+    ).output(max_output_bytes=8388608)
+    record(mode, result)
+    let parts = result.stdout().split("LUNA_LONG_BEGIN\n").to_array()
+    guard parts.length() == 2 else { fail("missing export") }
+    @fs.write_file(
+      root + "/" + prefix + ".cuh",
+      parts[1].split("LUNA_LONG_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+    if prefix == "next" {
+      let edges = @shell.Cmd(
+        "moon",
+        [
+          "test", "kernels/indexed_sparse_attention_execution_cuda_source/stable_selection_wbtest.mbt",
+          "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+        ],
+        env={ "LUNA_SELECTION_EDGE_EXPORT": "1" },
+      ).output(max_output_bytes=1048576)
+      record("selection-export", edges)
+      let body = edges.stdout().split("LUNA_SELECTION_BEGIN\n").to_array()
+      guard body.length() == 2 else { fail("selection export") }
+      @fs.write_file(
+        root + "/selection.cuh",
+        body[1].split("LUNA_SELECTION_END").to_array()[0].to_owned(),
+        create_mode=CreateNew,
+      )
+    }
+    return
+  }
+  if mode.has_prefix("compile-") {
+    let fresh = mode == "compile-next"
+    if !fresh {
+      record("mkdir", remote("mkdir " + root))
+      copy(root + "/old.cuh", "old.cuh")
+    } else {
+      copy(root + "/next.cuh", "next.cuh")
+      copy(root + "/selection.cuh", "selection.cuh")
+    }
+    copy("tests/packed_moe_execution/long_paged_sparse_probe.cu", "probe.cu")
+    record(
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-" +
+        mode +
+        " -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -std=c++17 --generate-code arch=compute_121a,code=sm_121a " +
+        (if fresh { "-DNEXT " } else { "" }) +
+        root +
+        "/probe.cu -o " +
+        root +
+        (if fresh { "/next-probe" } else { "/old-probe" }),
+      ),
+    )
+    return
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  record(
+    mode + "-reserve",
+    remote("awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo"),
+  )
+  if mode.has_prefix("counters-") {
+    let next = mode == "counters-next"
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    let metrics = [
+      "gpu__time_duration.sum", "smsp__inst_executed.sum", "smsp__inst_executed_pipe_lsu.sum",
+      "smsp__warps_eligible.avg.per_cycle_active", "smsp__issue_active.avg.pct_of_peak_sustained_active",
+      "sm__warps_active.avg.pct_of_peak_sustained_active", "smsp__warp_issue_stalled_barrier_per_warp_active.pct",
+      "smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct", "smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct",
+      "smsp__warp_issue_stalled_wait_per_warp_active.pct", "lts__t_sectors_op_read.sum",
+      "lts__t_sectors_op_write.sum", "launch__registers_per_thread", "launch__shared_mem_per_block",
+    ].join(",")
+    record(
+      mode,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-" +
+        mode +
+        " -p RuntimeMaxSec=600 docker run --rm --name " +
+        tag +
+        "-" +
+        mode +
+        " --gpus all --network none --ipc=private --shm-size=64m --memory=2g --memory-swap=2g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+        root +
+        ":" +
+        root +
+        " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+        ncu +
+        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name 'regex:^(old|next)_(index|attention_retained_scores_v1)$' --launch-count " +
+        (if next { "4" } else { "2" }) +
+        " --metrics " +
+        metrics +
+        " --export " +
+        root +
+        "/" +
+        mode +
+        " " +
+        root +
+        (if next { "/next-probe" } else { "/old-probe" }) +
+        " profile",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/" + mode + ".ncu-rep",
+      root + "/" + mode + ".ncu-rep",
+    ])
+    .output()
+    .check()
+    record(
+      mode + "-raw",
+      remote(
+        ncu + " --import " + root + "/" + mode + ".ncu-rep --page raw --csv",
+      ),
+    )
+    return
+  }
+  for
+    tool in (if mode == "sanitize-next" {
+      ["memcheck", "racecheck", "synccheck", "initcheck"]
+    } else {
+      ["run"]
+    }) {
+    let prefix = if tool == "run" {
+      ""
+    } else {
+      "/usr/local/cuda-13.0/bin/compute-sanitizer --error-exitcode 9 --tool " +
+      tool +
+      (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+      " "
+    }
+    record(
+      mode + "-" + tool,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        tag +
+        "-" +
+        mode +
+        "-" +
+        tool +
+        " -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=1200 " +
+        prefix +
+        root +
+        (if mode == "run-old" { "/old-probe" } else { "/next-probe" }) +
+        (if tool == "run" { " run" } else { " sanitize" }),
+      ),
+    )
+    println(mode + " " + tool + " complete")
+  }
+}

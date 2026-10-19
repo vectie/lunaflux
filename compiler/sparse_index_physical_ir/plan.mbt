@@ -6,6 +6,7 @@ pub struct RetainedIndexPlan {
   priv queries : Int
   priv candidates : Int
   priv published_slots : Int
+  priv selected_pools : Int
 }
 
 ///|
@@ -17,6 +18,7 @@ pub fn RetainedIndexPlan::new(
   {
     queries,
     candidates: history / pool,
+    selected_pools: top_k / pool,
     published_slots: Int::min(history / pool, top_k / pool) * pool +
     (if tail { pool - 1 } else { 0 }),
   }

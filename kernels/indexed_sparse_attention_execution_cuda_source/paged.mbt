@@ -68,6 +68,12 @@ fn paged_index_source(
   let (queries, _) = plan.capacity()
   let capacity = history / pool
   let width = plan.selected_width()
+  let selection = stable_selection_source(
+    @index_physical.RetainedIndexPlan::new(plan),
+    pool,
+    "limit",
+    "best*\{pool}+offset",
+  )
   let dot = @arithmetic.scalar_expression(
     @precision.SparseExpression::DotUpdate.expression(),
     [
@@ -121,13 +127,9 @@ fn paged_index_source(
     $|  }
     $|  scores[candidate]=score;
     $| }
-    $| __syncthreads();if(threadIdx.x!=0)return;
-    $| for(int rank=0;rank<limit;++rank){
-    $|  int best=-1;float best_score=-INFINITY;
-    $|  for(int c=0;c<candidates;++c){if(!available[c])continue;float score=scores[c];if(score>best_score||(score==best_score&&(best<0||c<best))){best=c;best_score=score;}}
-    $|  if(best<0)break;available[best]=0;
-    $|  for(int offset=0;offset<\{pool};++offset)selected_indices[output_base+rank*\{pool}+offset]=best*\{pool}+offset;
-    $| }
+    $| __syncthreads();
+    $| \{selection}
+    $| if(threadIdx.x!=0)return;
     $| \{tail_code}
     $|}
   @utf8.encode(source)

@@ -8,6 +8,8 @@ pub struct SelectedSparseSchedule {
   priv slots : Int
   priv workers : Int
   priv scratch : Int64
+  priv history : Int
+  priv selected_width : Int
 } derive(Debug, Eq)
 
 ///|
@@ -41,6 +43,8 @@ pub fn SelectedSparseSchedule::new(
     groups,
     slots,
     workers,
+    history,
+    selected_width,
     scratch: groups.to_int64() * slots.to_int64() * 8L,
   })
 }

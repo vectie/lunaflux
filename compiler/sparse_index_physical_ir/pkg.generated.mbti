@@ -17,6 +17,14 @@ pub fn RetainedIndexPlan::geometry(Self) -> (Int, Int)
 pub fn RetainedIndexPlan::new(@precision_ir.IndexedSparseAttentionPrecision) -> Self
 pub fn RetainedIndexPlan::published_slots(Self) -> Int
 pub fn RetainedIndexPlan::scratch_bytes(Self) -> Int64
+pub fn RetainedIndexPlan::selection(Self, Int) -> StableSelectionSchedule?
+
+pub enum StableSelectionSchedule {
+  IndependentRanks
+  CooperativeMaxima
+} derive(Eq)
+pub fn StableSelectionSchedule::equal(Self, Self) -> Bool
+pub fn StableSelectionSchedule::not_equal(Self, Self) -> Bool
 
 // Type aliases
 

@@ -12,6 +12,12 @@ fn retained_index_source(
   let (queries, history) = plan.capacity()
   let (_, capacity) = physical.geometry()
   let width = plan.selected_width()
+  let selection = stable_selection_source(
+    physical,
+    pool,
+    "selection_limit",
+    "candidate_raw_indices[best*\{pool}+offset]",
+  )
   let dot = @arithmetic.scalar_expression(
     @precision.SparseExpression::DotUpdate.expression(),
     [
@@ -69,18 +75,9 @@ fn retained_index_source(
     $|    scores[candidate]=score;
     $|  }
     $|  __syncthreads();
-    $|  if(threadIdx.x!=0)return;
     $|  const int selection_limit=candidates<\{top_k/pool}?candidates:\{top_k/pool};
-    $|  for(int rank=0;rank<selection_limit;++rank) {
-    $|    int best=-1;float best_score=-INFINITY;
-    $|    for(int candidate=0;candidate<candidates;++candidate) {
-    $|      if(!available[candidate])continue;
-    $|      float score=scores[candidate];
-    $|      if(score>best_score||(score==best_score&&(best<0||candidate<best))){best=candidate;best_score=score;}
-    $|    }
-    $|    if(best<0)break;available[best]=0;
-    $|    for(int offset=0;offset<\{pool};++offset)selected_indices[output_base+rank*\{pool}+offset]=candidate_raw_indices[best*\{pool}+offset];
-    $|  }
+    $|  \{selection}
+    $|  if(threadIdx.x!=0)return;
     $|  \{tail_source}
     $|}
   @utf8.encode(text)

@@ -281,6 +281,13 @@ pub fn RetainedCopyOwnership::not_equal(Self, Self) -> Bool
 pub fn RetainedCopyOwnership::to_repr(Self) -> @debug.Repr
 pub fn RetainedCopyOwnership::vector_index(Self, Int, Int) -> Int?
 
+pub struct SelectedScoreTile {
+  // private fields
+}
+pub fn SelectedScoreTile::cell(Self, Int, Int) -> Int64?
+pub fn SelectedScoreTile::geometry(Self) -> (Int, Int)
+pub fn SelectedScoreTile::storage_cells(Self) -> Int64
+
 pub struct SelectedSparseSchedule {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -290,10 +297,19 @@ pub fn SelectedSparseSchedule::new(queries~ : Int, heads~ : Int, selected_width~
 pub fn SelectedSparseSchedule::not_equal(Self, Self) -> Bool
 pub fn SelectedSparseSchedule::region_cells(Self, Int) -> (Int64, Int64)?
 pub fn SelectedSparseSchedule::retained_slots(Self) -> Int
+pub fn SelectedSparseSchedule::score_tile(Self, Int) -> SelectedScoreTile?
 pub fn SelectedSparseSchedule::scratch_bytes(Self) -> Int64
 pub fn SelectedSparseSchedule::to_repr(Self) -> @debug.Repr
+pub fn SelectedSparseSchedule::uniqueness(Self, Int) -> SelectedUniquenessSchedule?
 pub fn SelectedSparseSchedule::workers(Self) -> Int
 pub fn SelectedSparseSchedule::workgroups(Self) -> Int
+
+pub enum SelectedUniquenessSchedule {
+  Pairwise
+  WindowedBitmap(words~ : Int)
+} derive(Eq)
+pub fn SelectedUniquenessSchedule::equal(Self, Self) -> Bool
+pub fn SelectedUniquenessSchedule::not_equal(Self, Self) -> Bool
 
 pub struct ValueComponentOwnership {
   // private fields
