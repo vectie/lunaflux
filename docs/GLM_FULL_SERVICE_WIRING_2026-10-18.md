@@ -60,9 +60,11 @@ maximum is 512 bytes; output workspace validation and sizing now share that
 bound plus stop-text and UTF-8 carry. The bound is retained at preparation,
 not rescanned in token steps. The output-token allowance remains 8,192.
 
-Admission lanes are independent of recurrent resident slots. The explicit
-16-slot/16-lane candidate admits at most sixteen owned requests, not sixteen
-active plus sixteen queued. Its preparation backing is 688,816,544 bytes and
+Preparation lanes are independent of recurrent resident slots and scheduler
+request ownership. The earlier claim that sixteen preparation lanes meant a
+sixteen-owned-request total was incorrect: preparation work releases its lane,
+while scheduler/worker ownership continues until request retirement. The
+16-slot/16-lane candidate's preparation backing is 688,816,544 bytes and
 buffered response backing 795,995,874 bytes, together below the 2 GiB reserve.
 Object/allocator overhead and all other runtime memory still require physical
 host-floor observation. Earlier startup failures remain evidence, not passes.
@@ -149,11 +151,46 @@ loading failure as a performance result.
 
 The corrected native47a1f351 run at
 `/tmp/lunaflux-glm-http-context8k-c8-20261019-v3` completes the short C16 burst
-without429s. All sixteen distinct labels are correct. Its ongoing external
+without429s. All sixteen distinct labels are correct. Its completed external
 campaign is `/tmp/lunaflux-glm-service-benchmark-luna-20261019-v4`.
 The completed2,085-prompt-token cohorts take21.703s(C1),71.769s(C4),
-141.091s(C8), and283.130s(C16). Longer cohorts, general service acceptance and
-the matched reference are still pending; these are not full campaign passes.
+141.091s(C8), and283.130s(C16). General service acceptance and the matched
+reference remain separate gates.
+
+### Completed native context vector; acceptance still in progress
+
+All 64 measured label requests plus warm-up complete with natural stops and
+the requested exact labels. Observed input counts, not filler-word labels,
+define the actual context vector. Output budgets are128, but actual output
+lengths vary (typically6/10; one short C8 request uses60).
+
+| Input tokens | C1 completion | C4 cohort | C8 cohort | C16 cohort | C1 one-generated-token control |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 165 | 1.950s | 5.780s | 16.256s | 25.049s | 1.292s |
+| 2,085 | 21.703s | 71.769s | 141.091s | 283.130s | 16.954s |
+| 6,181 | 76.174s | 301.519s | not run | not run | 70.893s |
+| 7,973 | 108.520s | not run | not run | not run | 102.362s |
+
+Control root: `/tmp/lunaflux-glm-service-benchmark-luna-latency-20261019-v1`.
+The single generated token can belong to hidden reasoning and has a length
+stop; it is explicitly not a complete answer or quality pass.
+
+The public-facing capacity description must distinguish eight resident
+recurrent slots, sixteen waiting slots, sixteen preparation lanes, eighteen
+HTTP connection slots, and513 shared physical KV pages. Scheduler ownership
+allocates active+waiting slots; HTTP connections beyond eighteen backpressure
+before admission. Neither sixteen preparation lanes nor eight GPU slots is
+a promise of an immediate HTTP429 for the next arriving client.
+
+The old `capacity` fixture expected at least one rejection from17 clients.
+All17 returned200, so that fixture failed its intended coverage, not inference
+correctness. Its negative result is retained. A separately named `queued-burst`
+test sends25 clients (more than18 connections), accepts documented transport
+backpressure, requires every admitted answer and a subsequent recovery answer,
+and reports the actual rejection count. It completes25/25 with zero rejections
+at `/tmp/lunaflux-glm-http-context8k-acceptance-20261019-v2-queued-burst`.
+This is not relabelled as an admission-rejection test. The legacy rejection
+mode remains unchanged; service memory is observed independently throughout.
 
 Capacity is not throughput scaling. The observed native queue commonly has
 one or two active requests during these short-answer prefills, while additional

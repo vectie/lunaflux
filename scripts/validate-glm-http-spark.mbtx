@@ -213,11 +213,12 @@ async fn main {
     | "routing"
     | "sampling"
     | "cancel"
+    | "queued-burst"
     | "capacity"
     | "protocol"
     | "controls") else {
     fail(
-      "NEW_EVIDENCE_ROOT smoke|answers|concurrent|routing|sampling|cancel|capacity|controls|protocol",
+      "NEW_EVIDENCE_ROOT smoke|answers|concurrent|routing|sampling|cancel|capacity|queued-burst|controls|protocol",
     )
   }
   @fs.mkdir(root)
@@ -380,7 +381,7 @@ async fn main {
         guard text == first else { fail("same-seed replay changed") }
       }
     }
-  } else if mode == "capacity" {
+  } else if mode == "capacity" || mode == "queued-burst" {
     let clients = capacity_setting(
       @env.get_env_var("LUNAFLUX_GLM_HTTP_CAPACITY_CLIENTS"),
       9,
@@ -415,10 +416,16 @@ async fn main {
       }
     })
     let count = rejected.iter().filter(x => x).count()
-    guard count > 0 && count < clients else {
+    // `capacity` deliberately tests admission rejection. `queued-burst` tests
+    // transport backpressure: clients beyond the connection pool may wait
+    // before admission instead of receiving 429. Never call that a rejection
+    // test, or infer a total request cap from preparation-lane count.
+    guard count < clients && (mode == "queued-burst" || count > 0) else {
       fail("capacity probe did not exercise both admission and rejection")
     }
-    println("capacity rejections: \{count}/\{clients}")
+    println(
+      "\{mode}: completed=\{clients - count} rejected=\{count} clients=\{clients}",
+    )
     let body = request(
       root,
       "after-capacity",
