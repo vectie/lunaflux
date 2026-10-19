@@ -1,6 +1,21 @@
 # GLM HTTP execution-path qualification
 
-Status: integration and qualification in progress; no new production promotion.
+Status: HTTP integration and finite qualification campaign complete; original
+production restored and functionally checked. Chunk KDA remains memory-blocked. No new
+production promotion or claim of full-gap attribution.
+
+After all benchmark owners retired, both original `98c629fd` GLM units were
+started at 20:31:09 CST on 19 October. `/health` returns healthy, and the private
+chat route returns `323` for 17 times 19, with `finish_reason: stop` (26 input,
+6 output tokens). This is a restoration check, not another latency benchmark.
+Post-load samples show 96,881 / 96,909 MiB GPU memory and 18,658,424 /
+20,319,492 KiB host MemAvailable on .178 / .179, respectively; both owned
+units report zero swap. No candidate replaced the validated production bundle.
+Restoration response: `/tmp/lunaflux-glm-http-policy-restoration-20261019-v1.json.reply`.
+
+The requested execution graph and offline allocation of retained trace times
+are in `GLM_EXECUTION_TIME_GRAPH_2026-10-19.md`. These historical stage weights
+must not be presented as timings of the new combined candidate.
 
 The selected trace in `GLM_QUANTIZED_INDEX_CACHE_2026-10-19.md` proves that
 the HTTP owner still selected single-partition activation maxima, packed-row
@@ -103,7 +118,7 @@ is implemented or qualified by merely exposing the HTTP selector.
 retains it in the layer's owned intermediates until close; it is not a
 startup-only repacking buffer that can be assumed released before serving.
 
-## Initial HTTP results (remaining cohorts pending)
+## Completed HTTP results
 
 Native binary is pinned to `72ce7bd1`. All rows below use expanded BF16 cache,
 row-scaled matrix index scoring, 64 physical rows and the same 8192 envelope.
@@ -116,12 +131,13 @@ C1, no cached prompt tokens. Startup and the excluded warmup are not timed.
 | 32 scale partitions only | 1.140 / 1.128 | 9.828 / 9.884 | 26.416 / 26.563 | 34.137 / 34.175 |
 | Bulk experts only | 1.132 / 1.081 | 9.991 / 10.108 | 28.139 / 28.199 | 36.502 / 36.389 |
 | Buffered K32 projections only | 1.214 / 1.231 | 10.884 / 11.003 | 31.581 / 30.786 | 39.038 / 39.008 |
+| Combined scales + bulk experts | 1.120 / 0.985 | 8.852 / 8.947 | 25.209 / 25.040 | 32.461 / 32.352 |
 | Fresh vLLM reference | 0.794 / 0.832 | 6.818 / 5.963 | 14.303 / 14.144 | 18.451 / 18.145 |
 
 At 7973 tokens the scale-only two-sweep mean improves 12.78%; this is HTTP
 latency, not an extrapolation from a selected kernel. Its 34.156 s is still
 1.867x the fresh reference's 18.298 s; the integration has not closed the gap.
-Remaining native axes are pending. The scale path preserves the observed 11/11 automatic task checks,
+The scale path preserves the observed 11/11 automatic task checks,
 four concurrent distinct identifiers and six cancellation/reuse cycles.
 A separately labelled mixed-load full-context request finishes `orchid-70`
 exactly, with 7973 input / 10 output tokens and normal stop; its 36.188 s group
@@ -175,6 +191,44 @@ empty. Actual rank-1 execution logs select `projection_staging=buffered-k32`.
 Its watcher records 342 rank samples, minimum host 17,949,588 KiB,
 maximum GPU 96,907 MiB and zero process swap. This is request/ownership
 qualification of the tested profile, not a reason to choose a slower schedule.
+
+### Combined qualification
+
+Combined 7973-token latency averages **32.4065 s**, versus control 39.1625 s:
+**17.25% less time**, or 1.209x speedup. It remains **1.771x vLLM's 18.298 s**.
+Do not add the two individual percentage gains; the combined run establishes
+its own result. At 165/2085/6181 tokens the combined means are
+1.0525/8.8995/25.1245 s, versus reference 0.813/6.3905/14.2235 s. These are
+C1 one-output HTTP measurements, not decode throughput or C8 saturation tests.
+All comparison reports verify literal prompts, input counts and output budgets.
+
+The source-pinned binary is still `72ce7bd1`; combined artifact root is
+`/tmp/lunaflux-glm-http-policy-combined-20261019-v1`. Both export logs and the
+terminal rank execution log select `PackedBulkTiles(128,2,48)` and 32 scale
+partitions, with synchronous projections and ordered KDA. Planned total per
+rank is 103,127,137,948 bytes, including the existing reserve. Actual watcher:
+316 rank samples, minimum host 17,921,828 KiB (17.09 GiB), maximum GPU
+96,907 MiB (94.64 GiB), zero process swap. Both units retire successfully,
+and independent post-stop checks find no GPU owners before restoration.
+
+Corrected qualifier exits 0 at
+`/tmp/lunaflux-glm-http-qualification-combined-20261019-v1`. All 11 automatic
+task checks, HTTP JSON/SSE/Responses smoke, four distinct concurrent identifiers
+and six cancellation/reuse cycles pass. Four open-ended outputs were inspected
+for semantics; SQL still has the same unwanted fence seen in control/vLLM.
+The full-context answer is exactly `orchid-70`, normal stop, 7973 input /
+6 output tokens. Its 32.848 s is kept separate from the reference's 10-output
+answer and from the one-output latency comparison. This is finite corpus and
+lifecycle qualification, not universal correctness or token-by-token parity.
+
+No CUDA/kernel numerical implementation changes were made in this serving
+integration. Existing bounded component gates are retained in
+`GLM_PREFILL_PROJECTIONS_AND_SCALES_2026-10-18.md` and
+`GLM_BULK_EXPERT_2026-10-17.md`; their stated row/sanitizer scopes are not
+expanded by this report. The current native service tests pass 14/14, targeted
+warning-denied check passes with the unchanged warning exclusions, and external
+runner/comparison/memory-summary regressions pass. No new full-repository suite
+pass is claimed: unrelated migration changes and disk-limited fixtures remain.
 
 ## Fresh reference qualification
 
@@ -235,6 +289,17 @@ the also-installed B12x expert backend.
 Source snapshots and actual kernel records are the roots linked in
 `GLM_QUANTIZED_INDEX_CACHE_2026-10-19.md`. Current native source is
 `/tmp/lunaflux-glm-http-policy-combined-20261019-v1/rank1.cu`.
+The sparse difference is an ownership/dataflow issue, not just a smaller tile:
+native `kernels/selected_sparse_attention_cuda_source/query_reuse.mbt:58`
+groups 16 query rows for one head; its line 89 walks the history and line 103
+applies membership after the MMA. Those query rows can have different selected
+lists. The executed reference assigns a query token to `blockIdx.x`, a group
+of heads to `blockIdx.y`, and a selected-key split to `blockIdx.z`; all heads
+in that block use that query's same selected list. These two reuse directions
+are explicit in source. Neither "both use matrices" nor "both use async copy"
+establishes equivalent work. A selected-domain plan must account for ownership,
+gather, online softmax and publication together, preserving its numerical law;
+merely changing the storage label or adding another IR layer does not do that.
 The reference's recorded 0.605 s uncovered GPU intervals and native early
 shared-expert overlap do not prove a current submission/overlap bottleneck.
 Current full-gap attribution remains unmeasured; no fresh hardware-counter
