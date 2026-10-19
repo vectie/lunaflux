@@ -26,6 +26,12 @@ test "query reuse keeps distinct masks and sequence cohorts" {
   assert_true(text.contains("const int active_tile=any"))
   assert_true(text.contains("__shfl_xor_sync"))
   assert_true(text.contains("__float2bfloat16_rn"))
+  assert_true(text.contains("if(counts[3]>=16)reuse_fixture_cohort"))
+  assert_true(text.contains("else reuse_fixture_single"))
+  // The cohort renderer has its own matrix primitive. No row-zero-only MMA
+  // is emitted for incomplete cohorts; their ordered reductions are retained.
+  assert_false(text.contains("reuse_fixture_mma("))
+  assert_true(text.contains("accumulator = __fadd_rn"))
   if @env.get_env_var("LUNA_QUERY_REUSE_EXPORT") == Some("1") {
     println("LUNA_REUSE_BEGIN")
     println(text)

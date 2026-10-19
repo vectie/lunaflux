@@ -120,7 +120,14 @@ pub fn selected_sparse_source(
   let (helper, score_body, output_body) = match accumulation {
     OrderedFloat32 => ("", ordered_scores, ordered_output)
     TiledFloat32 =>
-      matrix_bodies(qk_dimension, value_dimension, kv_heads, symbol)
+      if reuse is Some(_) {
+        // The physical cohort plan amortizes matrix work across live queries.
+        // Its incomplete-cohort dispatch retains the ordered row program:
+        // a one-live-row MMA changes arithmetic without sharing history reads.
+        ("", ordered_scores, ordered_output)
+      } else {
+        matrix_bodies(qk_dimension, value_dimension, kv_heads, symbol)
+      }
   }
   let extra_ports = if paged_history is Some(_) {
     ", const int32_t *row_sequences, const int32_t *page_offsets, const int32_t *page_ids, const int32_t *page_generations"

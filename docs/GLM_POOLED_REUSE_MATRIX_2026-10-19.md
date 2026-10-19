@@ -134,3 +134,91 @@ access it and join within their layer. This saves 640 MiB per rank at this
 geometry without shrinking context/admission capacity or changing arithmetic.
 The existing generated CUDA/AOT source is unchanged. This ownership correction
 requires a fresh full-service memory/concurrency retest before deployment.
+
+The correction is committed as0ee75887. Clean pinned ARM build succeeds
+(1.2 GiB peak, zero owned-unit swap). Both exported rank sources compare
+directly equal to2fa80cd2 and the existing AOT files are reused without GPU
+compilation or payload hashing. The local phase suite passes5310/5310 with
+the existing migration-warning exclusions; targeted `moon info` reports1065
+existing migration warnings and zero errors. Bare warning-denied validation
+remains blocked by the already recorded unrelated migration diagnostics.
+
+## Remaining source differences (not an additive timing attribution)
+
+The actual installed vLLM variant is retained at
+`/tmp/lunaflux-glm-long-indexer-vllm-20261019.py`; it is not identical to
+the model coverage in the local `../vlm` checkout. Its pooled index path calls
+DeepGEMM matrix logits and has a no-scoring path when all candidates are
+selected. LunaFlux's current paged index still assigns each query to one
+workgroup, and each candidate lane loops through 32 heads and 128 components
+in ordered scalar F32 arithmetic before stable selection. The late probe's
+roughly 7.6 ms index duration is therefore a separate executable gap; caching
+the pooled keys does not remove scoring work.
+
+The new matrix attention retains the existing expanded BF16 K/V representation.
+vLLM's selected implementation uses compressed MLA/FP8 state. Query reuse
+reduces repeated native reads, but does not make these representations or
+memory demand equivalent. Converting the representation would require a
+separate semantic/numerical and ownership change, not a hidden lowering cast.
+The synthetic 64-query probes identify these mechanisms; they do not establish
+their individual fractions of the remaining end-to-end service gap.
+
+## Final-kernel counters and fresh reference
+
+After the reference pair released both devices, v11 was captured serially in
+the bounded2 GiB/no-swap probe. The final exported kernel includes the
+small-row dispatch, not just the earlier cohort prototype. Raw report:
+`/tmp/lunaflux-long-paged-sparse-20261019-v11/counters-next.ncu-rep`.
+
+| Late-history attention counter | Frozen old | Final v11 |
+|---|---:|---:|
+| Profiled duration |14.216 ms|6.941 ms|
+| Warp instructions |1,737,421,824|263,902,848|
+| L2 read sectors (32 B) |145,337,501|37,241,952|
+| Long-scoreboard contribution |61.21%|57.71%|
+| Barrier contribution |21.20%|12.44%|
+| Active warps |80.61%|43.06%|
+| Issue-active metric |23.91%|7.88%|
+
+Lower instruction demand and traffic reduce duration despite lower occupancy
+and issue-active percentages. Neither percentage is an objective by itself.
+The final index probe remains7.681 ms,212,210,635 warp instructions,12.08%
+active warps,51.47% long-scoreboard contribution. It is now slower than the
+attention leaf in this late-history probe, not proven the largest whole-model
+component. The common scratch ownership change does not alter these kernels.
+
+Fresh vLLM uses the same NVFP4 checkpoint,TP2,8192 context,8 maximum sequences,
+64-token prefill chunks,256 MiB KV and capture maximum8 as the previous bounded
+baseline. Prefix caching and speculation are disabled. It completes both
+one-output vectors and all64 complete-answer requests. Warm second-vector
+times for165/2085/6181/7973 inputs are0.808/6.057/15.018/17.642 seconds.
+Complete8K answer takes18.457 seconds and10 generated tokens, exact label.
+
+The broader reference answer vector has57/64 exact answers and64/64 completed
+requests. Seven responses contain the label but also repeated reasoning after
+the first `</think>`, so they fail the explicit exact-label task. This is an
+observed output-format failure, not a proven vLLM implementation bug. The
+reference is not a correctness oracle; no parser, stop list or reference text
+is changed to hide these failures. Output lengths differ and answer-cohort
+times must not be presented as equal-generated-work throughput. The four
+one-output comparisons remain the fixed-output latency control.
+
+## Small-row arithmetic control (not yet qualified)
+
+The shared-scratch service's warm fixed-output vector is
+1.231/11.902/32.636/43.177 seconds. The 7,973-token latency is 22.6% below
+the previous55.779 seconds, but still2.45x the fresh17.642-second reference.
+Its complete-answer short C16 group contains one exact-format failure:
+lane12 returns the correct orchid-82 label followed by repeated reasoning.
+The previous ordered service returned only the label for that prompt.
+This is not yet proof that changed decode arithmetic is the cause: batching
+and upstream prefill arithmetic must not be conflated.
+
+A bounded follow-up keeps matrix query reuse for a full physical cohort,
+but uses the existing ordered row program for fewer live queries than the
+cohort size. This avoids one-live-row MMA work without changing the matrix
+prefill algorithm, page ownership, or persistent state. Static shapes that
+cannot support a reuse cohort still retain their explicit matrix alternative.
+No output parser, reference or acceptance condition is changed. The candidate
+must pass generated-source checks, the mixed-query analytic/sanitizer fixture,
+and a fresh full-service answer/memory check before any promotion.
