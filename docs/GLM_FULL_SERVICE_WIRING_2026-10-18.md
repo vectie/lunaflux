@@ -18,6 +18,24 @@ This proves authorization only, not inference availability or final acceptance.
 vLLMv6 currently owns both GPUs; the fixed native service must wait for its
 bounded baseline to finish and release them.
 
+Subsequent v6 result: loading and graph capture succeeded (1.65GiB graph
+allocation;21,504 cached token positions), but2K/C4 inference crossed the host
+floor at16,773,392KiB, with93,666MiB GPU residency. Both owners were stopped and
+released. Five preceding groups finished, not a complete campaign. Preserve
+`/tmp/lunaflux-glm-service-benchmark-vllm-20261019-v4` and the v6 terminal logs.
+The first-use small groups cannot be used as a full warmed reference.
+
+One distinct memory-qualified reference candidatev7 explicitly disables graph
+capture (`LUNAFLUX_REFERENCE_EAGER=1`) while preserving8K context,eight-sequence
+ceiling,64-token prefill budget and512MiB KV. The external runner records this
+execution choice; default graph-enabled timing and profile modes are unchanged.
+Nine runner regressions pass. This is a memory-constrained eager baseline, not
+a claim about best possible vLLM throughput. Its physical campaign is pending.
+The actual deployed487ecf187 `modelopt.py`, retained in the v6 root, confirms
+that unequal fused gate/up global scales warn and select the first scale. This
+is a concrete arithmetic difference, not proof that it explains every answer
+discrepancy or authorization to alter the reference.
+
 ## Context/concurrency extension, 19 October (in progress)
 
 The public 2048-context/four-slot recipe tied physical history to
