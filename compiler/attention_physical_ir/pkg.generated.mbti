@@ -281,6 +281,23 @@ pub fn RetainedCopyOwnership::not_equal(Self, Self) -> Bool
 pub fn RetainedCopyOwnership::to_repr(Self) -> @debug.Repr
 pub fn RetainedCopyOwnership::vector_index(Self, Int, Int) -> Int?
 
+pub struct SelectedMatrixFold {
+  // private fields
+}
+pub fn SelectedMatrixFold::geometry(Self) -> (Int, Int)
+pub fn SelectedMatrixFold::new(qk_dimension~ : Int, value_dimension~ : Int, columns~ : Int, reduction~ : Int) -> Self?
+pub fn SelectedMatrixFold::score_tiles(Self, Int) -> Int
+
+pub struct SelectedQueryReuse {
+  // private fields
+}
+pub fn SelectedQueryReuse::cohort_rows(Self) -> Int
+pub fn SelectedQueryReuse::dispatch_workgroups(Self) -> Int
+pub fn SelectedQueryReuse::new(queries~ : Int, heads~ : Int, history~ : Int, query_dimension~ : Int, value_dimension~ : Int, rows~ : Int, shared_budget~ : Int64) -> Self?
+pub fn SelectedQueryReuse::owns_sequence(Self, ArrayView[Int], Int) -> Bool
+pub fn SelectedQueryReuse::scratch_bytes(Self) -> Int64
+pub fn SelectedQueryReuse::workgroups(Self) -> Int
+
 pub struct SelectedScoreTile {
   // private fields
 }

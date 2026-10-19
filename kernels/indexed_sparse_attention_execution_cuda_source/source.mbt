@@ -62,6 +62,7 @@ pub fn indexed_sparse_attention_source(
     symbol=symbols[2],
     published_slots=index.published_slots(),
     paged_history?=plan.paged_history(),
+    accumulation=plan.attention_accumulation(),
   )
   {
     plan,
@@ -103,8 +104,12 @@ pub fn IndexedSparseAttentionCudaSource::launch(
     self.attention.launch()
   } else if stage == 1 {
     (self.index.geometry().0, 128)
-  } else if self.plan.paged_history() is Some(domain) {
-    (domain.physical_rows() / self.plan.index_geometry().2, 128)
+  } else if self.plan.paged_history() is Some(_) {
+    let updates = @index_physical.PoolUpdatePlan::new(
+      rows=self.plan.capacity().0,
+      pool=self.plan.index_geometry().2,
+    ).unwrap()
+    (updates.workgroups(), 128)
   } else {
     (1, 1)
   }

@@ -18,9 +18,16 @@ fn host(rank : Int) -> String {
 
 ///|
 fn socket(rank : Int) -> String {
-  if @env.get_env_var(if rank == 0 {
-      "LUNAFLUX_SPARK_178_SOCKET"
-    } else { "LUNAFLUX_SPARK_179_SOCKET" }) is Some(path) { return path }
+  if @env.get_env_var(
+      if rank == 0 {
+        "LUNAFLUX_SPARK_178_SOCKET"
+      } else {
+        "LUNAFLUX_SPARK_179_SOCKET"
+      },
+    )
+    is Some(path) {
+    return path
+  }
   if rank == 0 {
     "/tmp/lunaflux-glm178-prefill-20261018.sock"
   } else {
@@ -107,7 +114,7 @@ async fn main {
       !s.contains("..") &&
       s
       .iter()
-      .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_'))
+      .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_'))
     }) else {
     fail("invalid roots")
   }
@@ -116,18 +123,35 @@ async fn main {
     None => 1024
     Some(value) => {
       let n = @json.parse(value)
-      guard n is Number(v, ..) && v >= 64.0 && v <= 1048576.0 &&
-        v.to_int().to_double() == v && v.to_int() % 16 == 0 else {
+      guard n is Number(v, ..) &&
+        v >= 64.0 &&
+        v <= 1048576.0 &&
+        v.to_int().to_double() == v &&
+        v.to_int() % 16 == 0 else {
         fail("invalid explicit test context")
       }
       v.to_int()
     }
   }
   let slots = positive_setting("LUNAFLUX_GLM_HTTP_SLOTS", 4, 64)
-  let admission_lanes = positive_setting("LUNAFLUX_GLM_HTTP_ADMISSION_LANES",slots*2,1024)
-  let compile_memory_mib = positive_setting("LUNAFLUX_GLM_HTTP_COMPILE_MEMORY_MIB",4096,4096)
+  let sparse_arithmetic = @env.get_env_var("LUNAFLUX_GLM_SPARSE_ARITHMETIC").unwrap_or(
+    "ordered-f32",
+  )
+  guard sparse_arithmetic is ("ordered-f32" | "tiled-f32") else {
+    fail("unsupported explicit sparse arithmetic")
+  }
+  let admission_lanes = positive_setting(
+    "LUNAFLUX_GLM_HTTP_ADMISSION_LANES",
+    slots * 2,
+    1024,
+  )
+  let compile_memory_mib = positive_setting(
+    "LUNAFLUX_GLM_HTTP_COMPILE_MEMORY_MIB", 4096, 4096,
+  )
   let pages = positive_setting(
-    "LUNAFLUX_GLM_HTTP_HISTORY_PAGES", slots * (context / 16), 67108864,
+    "LUNAFLUX_GLM_HTTP_HISTORY_PAGES",
+    slots * (context / 16),
+    67108864,
   )
   copy(
     0,
@@ -158,9 +182,10 @@ async fn main {
       "executable": root + "/glm_service.exe",
       "rows": 64,
       "slots": slots,
-      "admission_lanes":admission_lanes,
+      "admission_lanes": admission_lanes,
       "history_pages": pages,
       "context": context,
+      "sparse_attention_accumulation": sparse_arithmetic,
       "budget_mib": 102400,
       "reserve_mib": 2048,
       "model_label": "0000000000000000000000000000000000000000000000000000000000000001",
@@ -307,12 +332,18 @@ async fn main {
 }
 
 ///|
-fn positive_setting(name : String, default : Int, maximum : Int) -> Int raise {
+fn positive_setting(
+  name : String,
+  default : Int,
+  maximum : Int,
+) -> Int raise {
   match @env.get_env_var(name) {
     None => default
     Some(s) => {
-      guard @json.parse(s) is Number(v, ..) && v >= 1.0 &&
-        v <= maximum.to_double() && v.to_int().to_double() == v else {
+      guard @json.parse(s) is Number(v, ..) &&
+        v >= 1.0 &&
+        v <= maximum.to_double() &&
+        v.to_int().to_double() == v else {
         fail("invalid " + name)
       }
       v.to_int()

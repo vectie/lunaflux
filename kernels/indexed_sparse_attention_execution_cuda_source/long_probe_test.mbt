@@ -17,6 +17,12 @@ test "export long paged sparse probe" {
       maximum_queries=64,
       maximum_history=8192,
       maximum_workspace_bytes=1073741824L,
+      attention_accumulation=if @env.get_env_var("LUNA_LONG_MATRIX") ==
+        Some("1") {
+        TiledFloat32
+      } else {
+        OrderedFloat32
+      },
       paged_history=@history.PagedHistoryDomain::new(
         rows_per_page=16,
         physical_pages=513,
@@ -29,6 +35,9 @@ test "export long paged sparse probe" {
       symbol_prefix=prefix,
     )
     println("LUNA_LONG_BEGIN")
+    println(
+      "static const bool \{prefix}_matrix=\{plan.attention_accumulation() is TiledFloat32};",
+    )
     println(@utf8.decode(source.source_bytes()))
     for stage in 0..<3 {
       let (grid, workers) = source.launch(stage)

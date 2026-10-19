@@ -9,6 +9,8 @@ fn paged_pool_source(
   let domain = plan.paged_history().unwrap()
   let (_, dimension, pool, _, _) = plan.index_geometry()
   let pools = domain.physical_rows() / pool
+  let (rows, _) = plan.capacity()
+  let (page_rows, pages, history, sequences) = domain.geometry()
   let logit = @arithmetic.scalar_expression(
     @precision.SparseExpression::PoolLogit.expression(),
     [
@@ -36,11 +38,28 @@ fn paged_pool_source(
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
     $|#include <math.h>
-    $|extern "C" __global__ void \{symbol}(const int32_t *counts,const __nv_bfloat16 *keys,const __nv_bfloat16 *gates,const int32_t *valid,const __nv_bfloat16 *ape,__nv_bfloat16 *pooled,int32_t *raw_indices,int32_t *pool_valid,int32_t *pool_count) {
-    $| const int candidate=blockIdx.x,first=candidate*\{pool};if(candidate>=\{pools})return;
+    $|__device__ __forceinline__ int \{symbol}_written_pool(int row,const int32_t *counts,const int32_t *positions,const int32_t *sequences,const int32_t *offsets,const int32_t *pages,const int32_t *generations) {
+    $| if(counts[2]<=0||counts[2]>\{sequences}||counts[3]<=0||counts[3]>\{rows}||row>=counts[3])return -1;
+    $| const int seq=sequences[row],position=positions[row];
+    $| if(seq<0||seq>=counts[2]||position<0||position>=\{history})return -1;
+    $| const int first=offsets[seq],end=offsets[seq+1],at=first+position/\{page_rows};
+    $| if(first<0||end<first||end>\{domain.table_capacity()}||at>=end)return -1;
+    $| const int page=pages[at];if(page<0||page>=\{pages}||generations[at]<=0)return -1;
+    $| return (page*\{page_rows}+position%\{page_rows})/\{pool};
+    $|}
+    $|extern "C" __global__ void \{symbol}(const int32_t *counts,const __nv_bfloat16 *keys,const __nv_bfloat16 *gates,const int32_t *valid,const __nv_bfloat16 *ape,__nv_bfloat16 *pooled,int32_t *raw_indices,int32_t *pool_valid,int32_t *pool_count,const int32_t *query_counts,const int32_t *positions,const int32_t *row_sequences,const int32_t *page_offsets,const int32_t *page_ids,const int32_t *page_generations) {
+    $| // Incremental pool-update plan: one owner per physical write footprint.
+    $| const int row=blockIdx.x;if(row>=\{rows})return;
+    $| if(row==0&&threadIdx.x==0)*pool_count=\{pools};
+    $| const int candidate=\{symbol}_written_pool(row,query_counts,positions,row_sequences,page_offsets,page_ids,page_generations);
+    $| if(candidate<0)return;
+    $| __shared__ int owner;if(threadIdx.x==0)owner=1;__syncthreads();
+    $| for(int earlier=threadIdx.x;earlier<row;earlier+=blockDim.x)if(\{symbol}_written_pool(earlier,query_counts,positions,row_sequences,page_offsets,page_ids,page_generations)==candidate)atomicExch(&owner,0);
+    $| __syncthreads();if(!owner)return;
+    $| const int first=candidate*\{pool};
     $| const int generation=valid[first];bool ready=generation>0;
     $| for(int i=1;i<\{pool};++i)ready=ready&&valid[first+i]==generation;
-    $| if(threadIdx.x==0){pool_valid[candidate]=ready?generation:0;if(candidate==0)*pool_count=\{pools};}
+    $| if(threadIdx.x==0)pool_valid[candidate]=ready?generation:0;
     $| for(int i=threadIdx.x;i<\{pool};i+=blockDim.x)raw_indices[first+i]=ready?first+i:-1;
     $| for(int component=threadIdx.x;component<\{dimension};component+=blockDim.x) {
     $|  float accumulator=0.0f;

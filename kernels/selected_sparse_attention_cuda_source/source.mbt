@@ -4,6 +4,7 @@
 pub struct SelectedSparseCudaSource {
   priv schedule : @physical.SelectedSparseSchedule
   priv source : Bytes
+  priv reuse : @physical.SelectedQueryReuse?
 }
 
 ///|
@@ -26,6 +27,7 @@ pub fn selected_sparse_source(
   symbol~ : String,
   published_slots? : Int,
   paged_history? : @physical.PagedHistoryDomain,
+  accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> SelectedSparseCudaSource raise {
   let extent = published_slots.unwrap_or(selected_width)
   guard query_heads > 0 &&
@@ -64,6 +66,19 @@ pub fn selected_sparse_source(
     2147483647L else {
     raise @precision.PrecisionPlanError::ArithmeticOverflow
   }
+  let reuse = if accumulation is TiledFloat32 && extent > 0 {
+    @physical.SelectedQueryReuse::new(
+      queries=maximum_queries,
+      heads=query_heads,
+      history=maximum_history,
+      query_dimension=qk_dimension,
+      value_dimension~,
+      rows=16,
+      shared_budget=49152L,
+    )
+  } else {
+    None
+  }
   let slots = schedule.retained_slots()
   let (pairwise_uniqueness, bitmap_uniqueness) = uniqueness_source(
     schedule, extent,
@@ -79,7 +94,7 @@ pub fn selected_sparse_source(
     $|  for (int component = 0; component < \{qk_dimension}; ++component) dot = \{dot};
     $|  scores[item] = \{score};
     $|}
-  let score_body = score_tile_source(
+  let ordered_scores = score_tile_source(
     schedule, qk_dimension, kv_heads, scalar_scores,
   )
   let denominator = expression(DenominatorUpdate, [
@@ -92,6 +107,21 @@ pub fn selected_sparse_source(
     "accumulator", "probability", "values[vbase + component]",
   ])
   let publish = expression(Publish, ["accumulator"])
+  let ordered_output =
+    $|for (int component = worker; component < \{value_dimension}; component += blockDim.x) {
+    $| float accumulator = 0.0f;
+    $| for (int item = 0; item < visible; ++item) {
+    $|  const __nv_bfloat16 probability = __float2bfloat16_rn(scores[item]);
+    $|  const unsigned long long vbase = ((unsigned long long)retained[item] * \{kv_heads} + kv_head) * \{value_dimension}ULL;
+    $|  accumulator = \{pv};
+    $| }
+    $| output[outbase + component] = \{publish};
+    $|}
+  let (helper, score_body, output_body) = match accumulation {
+    OrderedFloat32 => ("", ordered_scores, ordered_output)
+    TiledFloat32 =>
+      matrix_bodies(qk_dimension, value_dimension, kv_heads, symbol)
+  }
   let extra_ports = if paged_history is Some(_) {
     ", const int32_t *row_sequences, const int32_t *page_offsets, const int32_t *page_ids, const int32_t *page_generations"
   } else {
@@ -119,12 +149,19 @@ pub fn selected_sparse_source(
       )
     }
   }
+  let row_symbol = symbol + "_single"
+  let declaration = if reuse is Some(_) {
+    "__device__ __forceinline__ void " + row_symbol
+  } else {
+    "extern \"C\" __global__ void " + symbol
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
     $|#include <math.h>
+    $|\{helper}
     $|// retained-score-v1: independent axes; ordered reductions unchanged.
-    $|extern "C" __global__ void \{symbol}(const int32_t *counts,
+    $|\{declaration}(const int32_t *counts,
     $|  const int32_t *query_positions, const int32_t *key_count,
     $|  const int32_t *key_valid, const __nv_bfloat16 *queries,
     $|  const __nv_bfloat16 *keys, const __nv_bfloat16 *values,
@@ -185,17 +222,33 @@ pub fn selected_sparse_source(
     $|  for (int item = worker; item < visible; item += blockDim.x)
     $|    scores[item] = __bfloat162float(\{probability});
     $|  __syncthreads();
-    $|  for (int component = worker; component < \{value_dimension}; component += blockDim.x) {
-    $|    float accumulator = 0.0f;
-    $|    for (int item = 0; item < visible; ++item) {
-    $|      const __nv_bfloat16 probability = __float2bfloat16_rn(scores[item]);
-    $|      const unsigned long long vbase = ((unsigned long long)retained[item] * \{kv_heads} + kv_head) * \{value_dimension}ULL;
-    $|      accumulator = \{pv};
-    $|    }
-    $|    output[outbase + component] = \{publish};
-    $|  }
+    $|  \{output_body}
     $|}
-  { schedule, source: @utf8.encode(source + "\n"), }
+  if reuse is Some(plan) {
+    let cohort_symbol = symbol + "_cohort"
+    let cohort_source = @utf8.decode(
+      query_reuse_source(
+        query_heads, kv_heads, qk_dimension, value_dimension, selected_width, extent,
+        maximum_queries, maximum_history, cohort_symbol, paged_history,
+      ),
+    )
+    let extra_names = if paged_history is Some(_) {
+      ",row_sequences,page_offsets,page_ids,page_generations"
+    } else {
+      ""
+    }
+    let dispatch =
+      $|extern "C" __global__ void \{symbol}(const int32_t *counts,const int32_t *query_positions,const int32_t *key_count,const int32_t *key_valid,const __nv_bfloat16 *queries,const __nv_bfloat16 *keys,const __nv_bfloat16 *values,const int32_t *selected_indices,__nv_bfloat16 *output,void *scratch\{extra_ports}){
+      $| if(counts[3]>=\{plan.cohort_rows()})\{cohort_symbol}(counts,query_positions,key_count,key_valid,queries,keys,values,selected_indices,output,scratch\{extra_names});
+      $| else \{row_symbol}(counts,query_positions,key_count,key_valid,queries,keys,values,selected_indices,output,scratch\{extra_names});
+      $|}
+    return {
+      schedule,
+      reuse,
+      source: @utf8.encode(source + "\n" + cohort_source + "\n" + dispatch),
+    }
+  }
+  { schedule, reuse: None, source: @utf8.encode(source + "\n"), }
 }
 
 ///|
@@ -205,10 +258,17 @@ pub fn SelectedSparseCudaSource::source_bytes(self : Self) -> Bytes {
 
 ///|
 pub fn SelectedSparseCudaSource::scratch_bytes(self : Self) -> Int64 {
-  self.schedule.scratch_bytes()
+  self.reuse
+  .map(plan => Int64::max(plan.scratch_bytes(), self.schedule.scratch_bytes()))
+  .unwrap_or(self.schedule.scratch_bytes())
 }
 
 ///|
 pub fn SelectedSparseCudaSource::launch(self : Self) -> (Int, Int) {
-  (self.schedule.workgroups(), self.schedule.workers())
+  (
+    self.reuse
+    .map(plan => plan.dispatch_workgroups())
+    .unwrap_or(self.schedule.workgroups()),
+    self.schedule.workers(),
+  )
 }

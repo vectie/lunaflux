@@ -22,6 +22,7 @@ priv struct ServicePlan {
   admission_lanes : Int
   context : Int
   history_capacity : @history.ResidentHistoryCapacity
+  sparse_accumulation : @precision.AttentionAccumulationLaw
   budget : Int64
   reserve : Int64
 }
@@ -66,7 +67,7 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
   let rows = json_int(j, "rows")
   let slots = json_int(j, "slots")
   let context = json_int(j, "context")
-  let admission_lanes = service_admission_lanes(j,slots)
+  let admission_lanes = service_admission_lanes(j, slots)
   let history_capacity = service_history_capacity(j, slots, context)
   let p = ServicePlan::{
     model_root: json_string(j, "model_root"),
@@ -89,6 +90,7 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
     admission_lanes,
     context,
     history_capacity,
+    sparse_accumulation: service_sparse_accumulation(j),
     budget: json_int(j, "budget_mib").to_int64() * 1048576L,
     reserve: json_int(j, "reserve_mib").to_int64() * 1048576L,
   }
@@ -180,8 +182,11 @@ fn ServicePlan::inference(
   spec : @spec.Glm53FlashSpec,
   tokenizer : @tokenizer.TokenizerSpec,
 ) -> @inference.InferenceLimits raise {
-  glm_inference_limits(self.context, spec.vocabulary_size(),
-    maximum_token_bytes=tokenizer.maximum_decoded_piece_bytes())
+  glm_inference_limits(
+    self.context,
+    spec.vocabulary_size(),
+    maximum_token_bytes=tokenizer.maximum_decoded_piece_bytes(),
+  )
 }
 
 ///|
@@ -220,9 +225,9 @@ test "service decoding envelope includes declared stop prefixes and UTF8 carry" 
   )
   assert_eq(limits.max_context_tokens(), 2048)
   assert_eq(limits.max_new_tokens(), 2048)
-  let exact = glm_inference_limits(8192,154880,maximum_token_bytes=128)
-  assert_eq(exact.max_decoded_delta_bytes(),128+256+3)
-  assert_eq(exact.max_new_tokens(),8192)
+  let exact = glm_inference_limits(8192, 154880, maximum_token_bytes=128)
+  assert_eq(exact.max_decoded_delta_bytes(), 128 + 256 + 3)
+  assert_eq(exact.max_new_tokens(), 8192)
 }
 
 ///|
@@ -274,6 +279,7 @@ fn ServicePlan::stage(
     matrix_law=ShapeAwareFloat32,
     matrix_staging=Synchronous,
     sparse_matrix_staging=Synchronous,
+    sparse_accumulation=self.sparse_accumulation,
     expert_scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
     expert_transport=PackedRows,
     expert_fragment_slots=2,

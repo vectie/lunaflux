@@ -10,6 +10,13 @@ import {
 // Errors
 
 // Types and methods
+pub struct PoolUpdatePlan {
+  // private fields
+}
+pub fn PoolUpdatePlan::new(rows~ : Int, pool~ : Int) -> Self?
+pub fn PoolUpdatePlan::owns_update(Self, ArrayView[Int], Int) -> Bool
+pub fn PoolUpdatePlan::workgroups(Self) -> Int
+
 pub struct RetainedIndexPlan {
   // private fields
 }

@@ -47,7 +47,7 @@ test "paged sparse storage follows physical pool and bindings follow request dom
     history,
     symbol_prefix="ph",
   )
-  assert_eq(source.launch(0), (16, 128))
+  assert_eq(source.launch(0), (8, 128))
   assert_eq(append.launch(0), (1, 256))
   assert_eq(append.launch(2), (1, 256))
   let text = @utf8.decode(source.source_bytes())

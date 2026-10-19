@@ -17,6 +17,7 @@ pub struct IndexedSparseAttentionPrecision {
   priv frame_sizes : ReadOnlyArray[Int64]
   priv workspace : Int64
   priv paging : @history.PagedHistoryDomain?
+  priv accumulation : AttentionAccumulationLaw
 }
 
 ///|
@@ -34,6 +35,7 @@ pub fn IndexedSparseAttentionPrecision::new(
   maximum_history~ : Int,
   maximum_workspace_bytes~ : Int64,
   paged_history? : @history.PagedHistoryDomain,
+  attention_accumulation? : AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise PrecisionPlanError {
   guard index_head_count > 0 &&
     index_head_count <= 1024 &&
@@ -111,6 +113,7 @@ pub fn IndexedSparseAttentionPrecision::new(
     frame_sizes: ReadOnlyArray::from_array(sizes),
     workspace,
     paging: paged_history,
+    accumulation: attention_accumulation,
   }
 }
 
@@ -166,4 +169,11 @@ pub fn IndexedSparseAttentionPrecision::paged_history(
 ///|
 pub fn IndexedSparseAttentionPrecision::physical_history(self : Self) -> Int {
   self.paging.map(d => d.physical_rows()).unwrap_or(self.history)
+}
+
+///|
+pub fn IndexedSparseAttentionPrecision::attention_accumulation(
+  self : Self,
+) -> AttentionAccumulationLaw {
+  self.accumulation
 }

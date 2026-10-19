@@ -48,7 +48,7 @@ int main(){
     ph_begin<<<1,256>>>(p.counts,p.reset,p.hc,p.valid,p.append,p.positions,p.input_pos,p.row_seq,p.offsets,p.pages,p.gens);
     ph_copy<<<1,256>>>(p.append,p.ki,p.g,p.k,p.v,p.hi,p.hg,p.hk,p.hv);
     ph_publish<<<1,256>>>(p.append,p.hc,p.valid);
-    paged_pool<<<16,128>>>(p.hc,p.hi,p.hg,p.valid,p.ape,p.pool,p.raw,p.pool_valid,p.pool_count);
+    paged_pool<<<8,128>>>(p.hc,p.hi,p.hg,p.valid,p.ape,p.pool,p.raw,p.pool_valid,p.pool_count,p.counts,p.positions,p.row_seq,p.offsets,p.pages,p.gens);
     paged_index<<<8,128>>>(p.counts,p.positions,p.iq,p.hw,p.pool,p.raw,p.pool_valid,p.pool_count,p.valid,p.selected,p.scratch,p.row_seq,p.offsets,p.pages,p.gens);
     paged_attention_retained_scores_v1<<<16,256>>>(p.counts,p.positions,p.hc+3,p.valid,p.q,p.hk,p.hv,p.selected,p.out,p.scratch,p.row_seq,p.offsets,p.pages,p.gens);
     ck(cudaDeviceSynchronize());if(get(p.append,3)[2]){fprintf(stderr,"append failure\n");return 3;}
@@ -82,5 +82,21 @@ int main(){
     }
     printf("step=%d rows=%d sequences=%d ordered_logical_indices=exact attention=bitwise physical_append=exact\n",step,rows,sequence);
   }
+  // Overwrite an already complete pool without changing its generation. The
+  // current frame still identifies the physical write footprint; a generation
+  // equality check alone must not suppress recomputation.
+  auto before=get(p.pool,64),index_keys=get(p.hi,128),gate=get(p.hg,128);
+  index_keys[22*4]=__float2bfloat16_rn(3.f);gate[22*4]=__float2bfloat16_rn(1.f);
+  put(p.hi,index_keys);put(p.hg,gate);
+  paged_pool<<<8,128>>>(p.hc,p.hi,p.hg,p.valid,p.ape,p.pool,p.raw,p.pool_valid,p.pool_count,p.counts,p.positions,p.row_seq,p.offsets,p.pages,p.gens);
+  put(d.hi,std::vector<B>(index_keys.begin()+22*4,index_keys.begin()+24*4));
+  put(d.hg,std::vector<B>(gate.begin()+22*4,gate.begin()+24*4));
+  put(d.hc,std::vector<int>{0,0,1,2,0});std::vector<int> dv(32,0);dv[0]=dv[1]=1;put(d.valid,dv);
+  dense_pool<<<1,1>>>(d.hc,d.hi,d.hg,d.valid,d.ape,d.pool,d.raw,d.pool_valid,d.pool_count);
+  ck(cudaDeviceSynchronize());auto after=get(p.pool,64),expected_pool=get(d.pool,4);
+  for(int c=0;c<4;++c)if(bits(after[11*4+c])!=bits(expected_pool[c]))return 7;
+  if(bits(before[11*4])==bits(after[11*4]))return 8;
+  for(int pool=0;pool<16;++pool)if(pool!=11&&pool!=2&&pool!=9)for(int c=0;c<4;++c)if(bits(before[pool*4+c])!=bits(after[pool*4+c]))return 9;
+  puts("same_generation_overwrite=exact untouched_pools=bitwise");
   p.close();d.close();ck(cudaDeviceReset());puts("released=true");
 }

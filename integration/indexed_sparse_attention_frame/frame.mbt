@@ -114,6 +114,12 @@ pub fn IndexedSparseAttentionFrame::prepare(
   }
   self.buffers.push(context.allocate(self.source.scratch_bytes()))
   let buffers = self.buffers
+  if plan.paged_history() is Some(_) {
+    // Resident validity is initialized once. Unwritten pools are never read.
+    for i in 0..<3 {
+      zero_metadata(buffers[i])
+    }
+  }
   let selected = region(buffers[4], sizes[4], 4L)
   let arguments = [
     [
@@ -155,6 +161,11 @@ pub fn IndexedSparseAttentionFrame::prepare(
   ]
   arguments[1].append(paging)
   arguments[2].append(paging)
+  if plan.paged_history() is Some(_) {
+    arguments[0].push(region(query_counts, 20L, 4L))
+    arguments[0].push(region(query_positions, r * 4L, 4L))
+    arguments[0].append(paging)
+  }
   for stage in self.source.execution_order() {
     let (grid, block) = self.source.launch(stage)
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
