@@ -26,4 +26,12 @@ test "candidate score partitions retain the producer consumer dependency" {
   assert_eq(effects.arenas()[0].byte_capacity(), index.scratch_bytes())
   assert_eq(effects.lower(Ordered).commands(ComputeLane).length(), 2)
   assert_eq(index.score_tiles(127).unwrap().workgroups(), 1088)
+  for query in 0..<64 {
+    assert_eq(plan.owner(query, 64), Some((query, 0)))
+  }
+  assert_eq(plan.owner(64, 64), Some((0, 128)))
+  assert_eq(plan.owner(15, 1), Some((0, 1920)))
+  assert_eq(plan.owner(16, 1), None)
+  assert_eq(plan.owner(0, 0), None)
+  assert_eq(plan.owner(0, 65), None)
 }

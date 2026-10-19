@@ -38,6 +38,25 @@ pub fn CandidateScorePlan::workgroups(self : Self) -> Int {
 }
 
 ///|
+/// Live queries are the fastest varying axis. Inactive capacity is a suffix,
+/// not holes between valid queries; short histories also occupy the leading
+/// candidate tiles. The device consumes the explicit live-row count, without
+/// a host readback or a different numerical program.
+pub fn CandidateScorePlan::owner(
+  self : Self,
+  workgroup : Int,
+  live_rows : Int,
+) -> (Int, Int)? {
+  guard live_rows > 0 &&
+    live_rows <= self.queries &&
+    workgroup >= 0 &&
+    workgroup < live_rows * self.tiles_per_query() else {
+    return None
+  }
+  Some((workgroup % live_rows, workgroup / live_rows * self.width))
+}
+
+///|
 /// Refinement of the semantic index step: score publication (0), followed by
 /// stable selection (1). External query/pool operands precede this subprogram;
 /// its arena is the existing score/validity scratch, not additional storage.

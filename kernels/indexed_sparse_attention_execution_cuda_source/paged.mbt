@@ -133,8 +133,8 @@ fn paged_index_source(
   let (first, end, stride) = match score_plan {
     Some(tile) =>
       (
-        "(blockIdx.x%\{tile.tiles_per_query()})*\{tile.geometry().2}+threadIdx.x",
-        "min(candidates,(int)(blockIdx.x%\{tile.tiles_per_query()}+1)*\{tile.geometry().2})",
+        "tile*\{tile.geometry().2}+threadIdx.x",
+        "min(candidates,(tile+1)*\{tile.geometry().2})",
         "blockDim.x",
       )
     None => ("threadIdx.x", "candidates", "blockDim.x")
@@ -157,7 +157,9 @@ fn paged_index_source(
     Some(tile) =>
       (
         $|extern "C" __global__ void \{score_symbol}\{ports} {
-        $| const int query=blockIdx.x/\{tile.tiles_per_query()};
+        $| const int live=counts[3];if(live<=0||live>\{queries})return;
+        $| const int query=blockIdx.x%live,tile=blockIdx.x/live;
+        $| if(tile>=\{tile.tiles_per_query()})return;
         $| \{geometry}
         $| \{scores}
         $|}
