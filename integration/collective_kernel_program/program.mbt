@@ -120,10 +120,7 @@ pub fn CollectiveKernelProgram::new(
       local_width=boundary.local_width,
       kind=boundary.kind,
     )
-    let element_bytes = match boundary.kind {
-      Bf16SumAllReduce | Bf16AllGather => 2L
-      F32SumAllReduce | F32AllGather => 4L
-    }
+    let element_bytes = boundary.element_bytes()
     context.validate_allocation_region(
       boundary.buffer,
       offset=0L,

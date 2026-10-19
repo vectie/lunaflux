@@ -239,7 +239,12 @@ async fn main {
           " " +
           image +
           program +
-          " \{rank} /probe/group.id",
+          " \{rank} /probe/group.id" +
+          (if @env.get_env_var("LUNAFLUX_PROBE_LOCAL_ONLY") == Some("1") {
+            " --local-only"
+          } else {
+            ""
+          }),
         ),
       )
     }

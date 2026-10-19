@@ -15,7 +15,8 @@ fn run_collective_program(
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
   defer (stream.close() catch { _ => () })
-  let buffer = context.allocate(64L)
+  // Exact-size BF16 storage catches accidental F32-sized capture initialization.
+  let buffer = context.allocate(if bfloat16 { 32L } else { 64L })
   defer (buffer.close() catch { _ => () })
   let module = context.load_module(b"fake\x00")
   defer (module.close() catch { _ => () })
@@ -36,7 +37,7 @@ fn run_collective_program(
       @device.KernelArgument::device_region(
         buffer,
         offset=0L,
-        byte_count=64L,
+        byte_count=buffer.byte_count(),
         alignment=4L,
       ),
     ]),
@@ -265,5 +266,7 @@ test "BF16 local-combine boundaries preserve eager replay forks and cancellation
   run_collective_program(true, bfloat16=true, fork=true)
   run_collective_program(true, bfloat16=true, replay=true)
   run_collective_program(true, bfloat16=true, decode_graph=true)
+  run_collective_program(true, bfloat16=true, collective_graph=true)
+  run_collective_program(true, bfloat16=true, bucketed=true)
   run_collective_program(true, bfloat16=true, decode_graph=true, cancel=true)
 }

@@ -16,7 +16,7 @@ fn capture_collective_frame(
   for boundary in boundaries {
     let bytes = boundary.row_count(rows).to_int64() *
       boundary.local_width.to_int64() *
-      4L
+      boundary.element_bytes()
     guard bytes <= 2147483647L else {
       raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
     }
@@ -73,4 +73,12 @@ fn capture_collective_frame(
   }
   queue.end_effect_capture()
   owner.seal_graph(0UL)
+}
+
+///|
+fn ReductionBoundary::element_bytes(self : Self) -> Int64 {
+  match self.kind {
+    Bf16SumAllReduce | Bf16AllGather => 2L
+    F32SumAllReduce | F32AllGather => 4L
+  }
 }

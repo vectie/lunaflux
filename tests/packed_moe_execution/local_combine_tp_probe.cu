@@ -23,7 +23,7 @@ static float shared(int rank,int row,int col) {
   return ((col*3+row+rank*17)%71-35)*0.00239f;
 }
 static float route_weight(int slot) { return (slot+1)*0.027f; }
-static __nv_bfloat16 reference(int row,int col) {
+static __nv_bfloat16 reference(int row,int col,int selected_rank=-1) {
   float local[2];
   for(int rank=0;rank<2;++rank) {
     float s=0;
@@ -32,11 +32,12 @@ static __nv_bfloat16 reference(int row,int col) {
       s=add(s,bf(mul(bf(routed(rank,row,slot,col)),route_weight(slot))));
     local[rank]=bf(add(bf(s),bf(shared(rank,row,col))));
   }
-  return __float2bfloat16_rn(add(local[0],local[1]));
+  return __float2bfloat16_rn(selected_rank<0?add(local[0],local[1]):local[selected_rank]);
 }
 
 int main(int argc,char**argv) {
-  if(argc!=3)return 2;
+  bool local_only=argc==4&&!strcmp(argv[3],"--local-only");
+  if(argc!=3&&!local_only)return 2;
   int rank=atoi(argv[1]);if(rank<0||rank>1)return 2;
   ncclUniqueId id;
   if(rank==0) {
@@ -50,7 +51,7 @@ int main(int argc,char**argv) {
   ck(cudaStreamCreateWithFlags(&main,cudaStreamNonBlocking));
   ck(cudaStreamCreateWithFlags(&branch,cudaStreamNonBlocking));
   cudaEvent_t joined;ck(cudaEventCreateWithFlags(&joined,cudaEventDisableTiming));
-  ncclComm_t comm;nk(ncclCommInitRank(&comm,2,id,rank));
+  ncclComm_t comm=nullptr;if(!local_only)nk(ncclCommInitRank(&comm,2,id,rank));
   constexpr int rows=64,h=4096,k=8;
   auto counts=alloc<int>(5),indices=alloc<int>(rows*k),shared_ids=alloc<int>(rows);
   auto weights=alloc<float>(rows*k),unit=alloc<float>(rows);
@@ -79,17 +80,17 @@ int main(int argc,char**argv) {
     glm_shared_3_combine<<<rows*h/256,256,0,branch>>>(counts,shared_ids,sp,so,unit);
     ck(cudaEventRecord(joined,branch));ck(cudaStreamWaitEvent(main,joined,0));
     glm_moe_combine_3<<<rows*h/256,256,0,main>>>(counts,ro,so,output);
-    nk(ncclAllReduce(output,output,live*h,ncclBfloat16,ncclSum,comm,main));
+    if(!local_only)nk(ncclAllReduce(output,output,live*h,ncclBfloat16,ncclSum,comm,main));
     ck(cudaGetLastError());ck(cudaStreamSynchronize(main));
     std::vector<__nv_bfloat16> actual(rows*h);ck(cudaMemcpy(actual.data(),output,rows*h*2,cudaMemcpyDeviceToHost));
     size_t exact=0;for(int r=0;r<live;++r)for(int c=0;c<h;++c){
-      auto expected=reference(r,c);if(!memcmp(&expected,&actual[r*h+c],2))++exact;
+      auto expected=reference(r,c,local_only?rank:-1);if(!memcmp(&expected,&actual[r*h+c],2))++exact;
     }
     for(int i=live*h;i<rows*h;++i){unsigned short bits;memcpy(&bits,&actual[i],2);if(bits!=0x5555)return 5;}
-    printf("rank=%d live=%d exact=%zu/%d inactive_unchanged=true bytes=%d local_join_before_bf16_tp=true\n",rank,live,exact,live*h,live*h*2);fflush(stdout);
+    printf("rank=%d live=%d exact=%zu/%d inactive_unchanged=true bytes=%d collective_executed=%s\n",rank,live,exact,live*h,live*h*2,local_only?"false":"true");fflush(stdout);
     if(exact!=size_t(live*h))return 4;
   }
-  nk(ncclCommDestroy(comm));
+  if(comm)nk(ncclCommDestroy(comm));
   for(void*p:{(void*)counts,(void*)indices,(void*)shared_ids,(void*)weights,(void*)unit,(void*)partial,(void*)sp,(void*)ro,(void*)so,(void*)output})ck(cudaFree(p));
   ck(cudaEventDestroy(joined));ck(cudaStreamDestroy(branch));ck(cudaStreamDestroy(main));ck(cudaDeviceReset());puts("released=true");
 }
