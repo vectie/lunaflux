@@ -1,0 +1,154 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline same-stream causality within an explicitly observed complete chunk.
+// Collective duration includes arrival waits; it is not inferred wire time.
+
+///|
+struct Event {
+  start : Int64
+  end : Int64
+  stream : Int64
+  name : String
+}
+
+///|
+fn is_marker(name : String, mode : String) -> Bool {
+  match mode {
+    "partials" => name.has_suffix("_collective_pack")
+    "local" =>
+      name.has_prefix("glm_moe_combine_") &&
+      name[16:].all(c => c is ('0'..<='9'))
+    "vllm" => name == "finalizeMoeRoutingKernel"
+    _ => false
+  }
+}
+
+///|
+fn following_collective(events : Array[Event], at : Int32) -> Event? {
+  let marker = events[at]
+  for i in (at + 1)..<events.length() {
+    let event = events[i]
+    if event.stream != marker.stream {
+      continue
+    }
+    if event.name.contains("nccl") {
+      return Some(event)
+    }
+    // Reference finalization is followed by its local shared/routed add.
+    if event.name != "vectorized_elementwise_kernel" {
+      return None
+    }
+  }
+  None
+}
+
+///|
+test "local marker excludes transport helpers and downstream kernels" {
+  assert_true(is_marker("glm_moe_combine_3", "local"))
+  assert_false(is_marker("glm_moe_combine_3_collective_pack", "local"))
+  assert_true(is_marker("glm_moe_combine_3_collective_pack", "partials"))
+  assert_true(is_marker("finalizeMoeRoutingKernel", "vllm"))
+  let events = [
+    Event::{ start: 0, end: 10, stream: 1, name: "glm_moe_combine_3", },
+    Event::{ start: 9, end: 14, stream: 2, name: "other_producer", },
+    Event::{ start: 11, end: 19, stream: 1, name: "ncclDevKernel", },
+  ]
+  assert_true(following_collective(events, 0) is Some(_))
+  let unrelated = [events[0], events[1], { ..events[1], stream: 1, }, events[2]]
+  assert_true(following_collective(unrelated, 0) is None)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output, mode, first, last] &&
+    mode is ("partials" | "local" | "vllm") else {
+    fail("SQLITE NEW_OUTPUT partials|local|vllm START_NS END_NS")
+  }
+  let begin = @string.parse_int64(first)
+  let end = @string.parse_int64(last)
+  guard end > begin && begin >= 0L else { fail("invalid window") }
+  let out = @shell.Cmd("sqlite3", [
+    "-readonly",
+    "-json",
+    db,
+    "SELECT k.start,k.end,k.streamId stream,s.value name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
+  ]).output(max_output_bytes=16777216)
+  out.check()
+  guard @json.parse(out.stdout()) is Array(rows) else { fail("events") }
+  let events = rows.map(row => {
+    guard row
+      is {
+        "start": Number(a, ..),
+        "end": Number(b, ..),
+        "stream": Number(s, ..),
+        "name": String(name),
+        ..
+      } else {
+      fail("event fields")
+    }
+    Event::{
+      start: a.to_int64(),
+      end: b.to_int64(),
+      stream: s.to_int64(),
+      name,
+    }
+  })
+  let sites : Array[Json] = []
+  let mut total = 0L
+  let mut all_collectives = 0L
+  let mut transport = 0L
+  let mut transport_calls = 0
+  for i, event in events {
+    if event.name.contains("nccl") {
+      all_collectives += event.end - event.start
+    }
+    if event.name.has_suffix("_collective_pack") ||
+      event.name.has_suffix("_collective_unpack") {
+      transport += event.end - event.start
+      transport_calls += 1
+    }
+    if !is_marker(event.name, mode) {
+      continue
+    }
+    guard following_collective(events, i) is Some(collective) else {
+      fail("marker is not followed by a same-stream collective: " + event.name)
+    }
+    let duration = collective.end - collective.start
+    total += duration
+    sites.push({
+      "marker": event.name,
+      "marker_start_ns": Json(event.start),
+      "marker_end_ns": Json(event.end),
+      "collective": collective.name,
+      "collective_start_ns": Json(collective.start),
+      "collective_end_ns": Json(collective.end),
+      "stream": Json(collective.stream),
+      "duration_ms": Json(duration.to_double() / 1000000.0),
+    })
+  }
+  guard sites.length() == 42 else { fail("expected all 42 MoE sites") }
+  let result : Json = {
+    "mode": mode,
+    "start_ns": Json(begin),
+    "end_ns": Json(end),
+    "moe_sites": sites.length(),
+    "moe_collective_ms": Json(total.to_double() / 1000000.0),
+    "all_collectives_ms": Json(all_collectives.to_double() / 1000000.0),
+    "transport_calls": transport_calls,
+    "transport_ms": Json(transport.to_double() / 1000000.0),
+    "wire_and_peer_arrival_not_separated": true,
+    "sites": sites,
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(
+    "\{mode}: \{sites.length()} MoE sites; \{total.to_double()/1000000.0} ms; transport \{transport.to_double()/1000000.0} ms",
+  )
+}
