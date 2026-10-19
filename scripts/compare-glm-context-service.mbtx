@@ -19,8 +19,11 @@ fn field(value : Json, key : String) -> Json raise {
 
 ///|
 fn number(value : Json, key : String) -> Double raise {
-  guard field(value, key) is Number(n, ..) else { fail("numeric field " + key) }
-  n
+  match field(value, key) {
+    Number(n, ..) => n
+    String(s) => @string.parse_double(s)
+    _ => fail("numeric field " + key)
+  }
 }
 
 ///|
@@ -33,8 +36,8 @@ fn requests(group : Json) -> Array[Json] raise {
 fn distribution(rows : Array[Json], key : String) -> Json raise {
   let values : Array[Double] = []
   for row in rows {
-    if field(row, key) is Number(n, ..) {
-      values.push(n)
+    if field(row, key) != null {
+      values.push(number(row, key))
     }
   }
   values.sort()

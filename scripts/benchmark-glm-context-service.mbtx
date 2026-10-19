@@ -12,47 +12,97 @@ import {
 // External HTTP experiment, not an oracle or compiler selector. Both engines
 // receive the same text, template request and generation budget. Usage reports
 // expose tokenization/early-stop differences instead of assuming equal work.
+
 ///|
-fn prompt(words : Int, lane : Int) -> String {
+fn prompt(words : Int32, lane : Int32) -> String {
   let filler = Array::make(words / 2, " alpha").join("")
-  "Read this record and ignore filler.\n" + filler +
-  "\nThe access label is orchid-\{70+lane}.\n" + filler +
+  "Read this record and ignore filler.\n" +
+  filler +
+  "\nThe access label is orchid-\{70+lane}.\n" +
+  filler +
   "\nReturn only the access label exactly."
 }
 
 ///|
 test "context corpus varies length and request identity without changing the task" {
-  assert_true(prompt(6144,15).contains("orchid-85"))
-  assert_false(prompt(6144,0).contains("orchid-85"))
-  assert_true(prompt(6144,0).length() > prompt(2048,0).length())
-  assert_true(prompt(128,0).has_suffix("Return only the access label exactly."))
+  assert_true(prompt(6144, 15).contains("orchid-85"))
+  assert_false(prompt(6144, 0).contains("orchid-85"))
+  assert_true(prompt(6144, 0).length() > prompt(2048, 0).length())
+  assert_true(
+    prompt(128, 0).has_suffix("Return only the access label exactly."),
+  )
 }
 
 ///|
-async fn request(root : String, base : String, model : String, auth : String,
-  words : Int, lane : Int, name : String) -> Json {
+fn optional_millis(value : Int64?) -> Json {
+  match value {
+    Some(n) => Json(n.to_double())
+    None => null
+  }
+}
+
+///|
+test "optional timing is a numeric scalar, not an Option serialization array" {
+  assert_eq(optional_millis(Some(42L)), 42)
+  assert_eq(optional_millis(None), null)
+}
+
+///|
+async fn request(
+  root : String,
+  base : String,
+  model : String,
+  auth : String,
+  words : Int32,
+  lane : Int32,
+  name : String,
+) -> Json {
   let reference = model == "matched-model"
   let serialized_prompt = "[gMASK]<sop><|system|>Reasoning Effort: Low<|user|>" +
-    prompt(words,lane) + "<|assistant|><think>"
+    prompt(words, lane) +
+    "<|assistant|><think>"
   let body : Json = if reference {
-    { "model":model, "prompt":serialized_prompt,"add_special_tokens":false,
-      "temperature":0,"max_tokens":128,"stream":true,
-      "stop_token_ids":[154820,154827,154829],
-      "stream_options":{"include_usage":true} }
-  } else { {
-    "model": model,
-    "messages": [{"role":"user", "content":prompt(words,lane)}],
-    "temperature":0, "max_tokens":128, "stream":true,
-    "stream_options":{"include_usage":true},
-  } }
-  @fs.write_file(root+"/"+name+".request.json", body.stringify(), create_mode=CreateNew)
+    {
+      "model": model,
+      "prompt": serialized_prompt,
+      "add_special_tokens": false,
+      "temperature": 0,
+      "max_tokens": 128,
+      "stream": true,
+      "stop_token_ids": [154820, 154827, 154829],
+      "stream_options": { "include_usage": true },
+    }
+  } else {
+    {
+      "model": model,
+      "messages": [{ "role": "user", "content": prompt(words, lane) }],
+      "temperature": 0,
+      "max_tokens": 128,
+      "stream": true,
+    }
+  }
+  @fs.write_file(
+    root + "/" + name + ".request.json",
+    body.stringify(),
+    create_mode=CreateNew,
+  )
   let client = @http.Client(base)
   defer client.close()
   let start = @async.now()
   let encoded = body.stringify()
-  let response = client.post(if reference { "/v1/completions" } else { "/v1/chat/completions" }, encoded,
-    extra_headers={"Content-Type":"application/json", "Authorization":"Bearer " + auth,
-      "Content-Length":@utf8.encode(encoded).length().to_string()})
+  let response = client.post(
+    if reference {
+      "/v1/completions"
+    } else {
+      "/v1/chat/completions"
+    },
+    encoded,
+    extra_headers={
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + auth,
+      "Content-Length": @utf8.encode(encoded).length().to_string(),
+    },
+  )
   let raw = StringBuilder()
   let answer = StringBuilder()
   let reasoning = StringBuilder()
@@ -64,62 +114,91 @@ async fn request(root : String, base : String, model : String, auth : String,
   while client.read_until("\n") is Some(line) {
     raw <+ "\{line}"
     let s = line.trim()
-    if s == "data: [DONE]" { done = true; continue }
+    if s == "data: [DONE]" {
+      done = true
+      continue
+    }
     if s.has_prefix("data: {") {
       let event = @json.parse(s[6:])
-      if event is {"usage": Object(_), ..} {
+      if event is { "usage": Object(_), .. } {
         guard event is Object(fields) else { fail("event") }
         usage = fields["usage"]
       }
-      if event is {"choices":Array(choices),..} {
+      if event is { "choices": Array(choices), .. } {
         for choice in choices {
-          if choice is {"text":String(content),..} && !content.is_empty() {
+          if choice is { "text": String(content), .. } && !content.is_empty() {
             answer <+ "\{content}"
-            arrivals.push(@async.now()-start)
+            arrivals.push(@async.now() - start)
             let generated = answer.to_string()
-            if first_answer is None && generated.find("</think>") is Some(index) &&
-              !generated[index+8:].trim().is_empty() {
-              first_answer = Some(@async.now()-start)
+            if first_answer is None &&
+              generated.find("</think>") is Some(index) &&
+              !generated[index + 8:].trim().is_empty() {
+              first_answer = Some(@async.now() - start)
             }
           }
-          if choice is {"delta":{"content":String(content),..},..} && !content.is_empty() {
-            if first_answer is None { first_answer = Some(@async.now()-start) }
+          if choice is { "delta": { "content": String(content), .. }, .. } &&
+            !content.is_empty() {
+            if first_answer is None {
+              first_answer = Some(@async.now() - start)
+            }
             answer <+ "\{content}"
-            arrivals.push(@async.now()-start)
+            arrivals.push(@async.now() - start)
           }
-          if choice is {"delta":{"reasoning_content":String(content),..},..} && !content.is_empty() {
+          if choice
+            is { "delta": { "reasoning_content": String(content), .. }, .. } &&
+            !content.is_empty() {
             reasoning <+ "\{content}"
-            arrivals.push(@async.now()-start)
+            arrivals.push(@async.now() - start)
           }
-          if choice is Object(fields) && fields.get("finish_reason") is Some(reason) && reason != null {
+          if choice is Object(fields) &&
+            fields.get("finish_reason") is Some(reason) &&
+            reason != null {
             finish = reason
           }
         }
       }
     }
   }
-  let elapsed = @async.now()-start
-  @fs.write_file(root+"/"+name+".sse", raw.to_string(), create_mode=CreateNew)
+  let elapsed = @async.now() - start
+  @fs.write_file(
+    root + "/" + name + ".sse",
+    raw.to_string(),
+    create_mode=CreateNew,
+  )
   let raw_text = answer.to_string()
   let text = if reference && raw_text.find("</think>") is Some(index) {
-    raw_text[index+8:].to_owned()
-  } else { raw_text }
-  let report : Json = {
-    "case":name, "filler_words":words,"lane":lane,"http_status":response.code,
-    "complete":done,"elapsed_ms":Json(elapsed),
-    "first_visible_content_ms":Json(first_answer),
-    "first_content_or_reasoning_ms":Json(arrivals.get(0)),
-    "content_arrivals_ms_not_token_times":Json(arrivals),
-    "usage":usage,"finish_reason":finish,"answer":text,
-    "reasoning":reasoning.to_string(),
-    "raw_generated_text":raw_text,
-    "serialized_prompt":serialized_prompt,
-    "clock":"client wall-clock milliseconds; arrival events are not token counts",
-    "expected":"orchid-\{70+lane}",
-    "answer_contains_expected":text.contains("orchid-\{70+lane}"),
-    "answer_exact":text.trim() == "orchid-\{70+lane}",
+    raw_text[index + 8:].to_owned()
+  } else {
+    raw_text
   }
-  @fs.write_file(root+"/"+name+".json",report.stringify(indent=2),create_mode=CreateNew)
+  let report : Json = {
+    "case": name,
+    "filler_words": words,
+    "lane": lane,
+    "http_status": response.code,
+    "complete": done,
+    "elapsed_ms": Json(elapsed.to_double()),
+    "first_visible_content_ms": optional_millis(first_answer),
+    "first_content_or_reasoning_ms": optional_millis(arrivals.get(0)),
+    "content_arrivals_ms_not_token_times": Json(
+      arrivals.map(n => n.to_double()),
+    ),
+    "usage": usage,
+    "finish_reason": finish,
+    "answer": text,
+    "reasoning": reasoning.to_string(),
+    "raw_generated_text": raw_text,
+    "serialized_prompt": serialized_prompt,
+    "clock": "client wall-clock milliseconds; arrival events are not token counts",
+    "expected": "orchid-\{70+lane}",
+    "answer_contains_expected": text.contains("orchid-\{70+lane}"),
+    "answer_exact": text.trim() == "orchid-\{70+lane}",
+  }
+  @fs.write_file(
+    root + "/" + name + ".json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
   guard response.code == 200 && done else { fail("incomplete request " + name) }
   report
 }
@@ -130,20 +209,29 @@ async fn observe(base : String, origin : Int64) -> Json {
   defer client.close()
   let response = client.get("/metrics")
   let body = StringBuilder()
-  while client.read_until("\n") is Some(line) { body <+ "\{line}\n" }
-  {"elapsed_ms":Json(@async.now()-origin),"status":response.code,
-    "body":body.to_string()}
+  while client.read_until("\n") is Some(line) {
+    body <+ "\{line}\n"
+  }
+  {
+    "elapsed_ms": Json(@async.now() - origin),
+    "status": response.code,
+    "body": body.to_string(),
+  }
 }
 
 ///|
 async fn await_health(base : String) -> Unit {
   for _ in 0..<240 {
-    let healthy = try @async.with_timeout(3000, () => {
+    let healthy = @async.with_timeout(3000, () => {
       let client = @http.Client(base)
       defer client.close()
       client.get("/health").code == 200
-    }) catch { _ => false }
-    if healthy { return }
+    }) catch {
+      _ => false
+    }
+    if healthy {
+      return
+    }
     @async.sleep(5000)
   }
   fail("service did not become healthy within the bounded startup wait")
@@ -153,48 +241,105 @@ async fn await_health(base : String) -> Unit {
 async fn main {
   guard @env.args() is [_, root, base, model, credential, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-service-benchmark-") &&
-    mode is ("short" | "long" | "all") else { fail("NEW_ROOT BASE MODEL CREDENTIAL_FILE_OR_NONE short|long|all") }
+    mode is ("short" | "long" | "all") else {
+    fail("NEW_ROOT BASE MODEL CREDENTIAL_FILE_OR_NONE short|long|all")
+  }
   @fs.mkdir(root)
   if @env.get_env_var("LUNAFLUX_BENCH_WAIT_READY") == Some("1") {
     // Startup/loading is deliberately outside request and warmup timings.
     await_health(base)
   }
-  let auth = if credential == "none" { "unused" } else { @fs.read_file(credential).text().trim().to_owned() }
+  let auth = if credential == "none" {
+    "unused"
+  } else {
+    @fs.read_file(credential).text().trim().to_owned()
+  }
   let results : Array[Json] = []
-  ignore(request(root,base,model,auth,16,0,"warmup"))
-  let words = if mode == "short" { [128] } else if mode == "long" { [2048,6144,7936] } else { [128,2048,6144,7936] }
+  ignore(request(root, base, model, auth, 16, 0, "warmup"))
+  let words = if mode == "short" {
+    [128]
+  } else if mode == "long" {
+    [2048, 6144, 7936]
+  } else {
+    [128, 2048, 6144, 7936]
+  }
   for w in words {
-    for concurrency in (if w == 7936 { [1] } else if w == 6144 { [1,4] } else { [1,4,8,16] }) {
+    for
+      concurrency in (if w == 7936 {
+        [1]
+      } else if w == 6144 {
+        [1, 4]
+      } else {
+        [1, 4, 8, 16]
+      }) {
       let start = @async.now()
       let mut completed_at = start
       let observations : Array[Json] = []
       let reports : Array[Json] = @async.with_task_group(group => {
         let mut monitoring = true
-        defer { monitoring = false }
+        defer {
+          monitoring = false
+        }
         group.spawn_bg(() => {
           while monitoring {
-            let sample = try @async.with_timeout(3000, () => observe(base,start)) catch {
-              error => {"elapsed_ms":Json(@async.now()-start),"error":error.to_string()}
+            let sample = @async.with_timeout(3000, () => observe(base, start)) catch {
+              error =>
+                {
+                  "elapsed_ms": Json(@async.now() - start),
+                  "error": error.to_string(),
+                }
             }
             observations.push(sample)
             @async.sleep(500)
           }
         })
-        let tasks = Array::makei(concurrency, lane => group.spawn(() =>
-          @async.with_timeout(1800000, () => request(root,base,model,auth,w,lane,"words-\{w}-c\{concurrency}-lane\{lane}"))))
+        let tasks = Array::makei(concurrency, lane => {
+          group.spawn(() => {
+            @async.with_timeout(1800000, () => {
+              request(
+                root,
+                base,
+                model,
+                auth,
+                w,
+                lane,
+                "words-\{w}-c\{concurrency}-lane\{lane}",
+              )
+            })
+          })
+        })
         let completed = []
-        for task in tasks { completed.push(task.wait()) }
+        for task in tasks {
+          completed.push(task.wait())
+        }
         completed_at = @async.now()
         completed
       })
-      let group_report : Json = {"filler_words":w,"concurrency":concurrency,
-        "wall_ms":Json(completed_at-start),"requests":Json(reports)}
-      @fs.write_file(root+"/words-\{w}-c\{concurrency}.metrics.json",
-        Json(observations).stringify(indent=2),create_mode=CreateNew)
+      let group_report : Json = {
+        "filler_words": w,
+        "concurrency": concurrency,
+        "wall_ms": Json(completed_at - start),
+        "requests": Json(reports),
+      }
+      @fs.write_file(
+        root + "/words-\{w}-c\{concurrency}.metrics.json",
+        Json(observations).stringify(indent=2),
+        create_mode=CreateNew,
+      )
       results.push(group_report)
-      @fs.write_file(root+"/words-\{w}-c\{concurrency}.json",group_report.stringify(indent=2),create_mode=CreateNew)
-      println("completed words=\{w} concurrency=\{concurrency} wall_ms=\{completed_at-start}")
+      @fs.write_file(
+        root + "/words-\{w}-c\{concurrency}.json",
+        group_report.stringify(indent=2),
+        create_mode=CreateNew,
+      )
+      println(
+        "completed words=\{w} concurrency=\{concurrency} wall_ms=\{completed_at-start}",
+      )
     }
   }
-  @fs.write_file(root+"/summary.json",Json(results).stringify(indent=2),create_mode=CreateNew)
+  @fs.write_file(
+    root + "/summary.json",
+    Json(results).stringify(indent=2),
+    create_mode=CreateNew,
+  )
 }

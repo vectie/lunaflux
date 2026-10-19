@@ -74,6 +74,28 @@ timed requests. This is not an inference performance result or a license to
 relax the reserve. A distinct retry uses 512 MiB KV and capture maximum 16.
 Its actual capacity, answers and timings must be reported separately.
 
+The second reference attempt also crossed the floor during capture:
+16,654,912 KiB host availability at 94,594 MiB observed GPU residency. The
+watcher again stopped both ranks; no timed reference inference completed.
+The next prepared reference configuration has 256 MiB KV, 64-token prefill
+budget and capture maximum16. It must qualify before yielding comparisons.
+
+The 8K/16-slot LunaFlux candidate38d2d266 started and passed JSON/SSE/Responses
+smoke checks, but its first timed cohort crossed the same host floor:
+16,666,372 KiB at 98,528 MiB GPU residency. The paired owner drained and released
+both GPUs with zero unit swap. This is a rejected deployment configuration, not
+a successful16-slot qualification. An8K/eight-resident-slot/sixteen-admission-lane
+candidate is being compiled; at most eight requests can own resident GPU state,
+while additional admitted requests can queue. Preserve that distinction in
+metadata and benchmark reports.
+
+The full local native workspace suite passes5,293/5,293 and the native check
+passes with the existing migration-warning exclusions20/25/29/35/79/92. The
+workspace still contains unrelated migration changes; this is not a clean
+commit-pinned ARM aggregate-test claim. The pinned38d2d266 ARM release build
+passes. The earlier2GiB ARM aggregate compile was OOM-killed, and the interrupted
+two-job local compile is retained; neither is described as a test pass.
+
 ## GPU sampling
 
 The full-logit path now has a backend-neutral total-order permutation plan in
