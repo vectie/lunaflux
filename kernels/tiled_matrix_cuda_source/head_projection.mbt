@@ -14,6 +14,7 @@ pub fn head_projection_source(
     input="(row_base+matrix_row<live?input[((uint64_t)(row_base+matrix_row)*\{heads}+head)*\{inner}+matrix_inner]:__float2bfloat16_rn(0.0f))",
     weight="(column_base+matrix_column<\{columns}?weight[weight_base+(uint64_t)(column_base+matrix_column)*\{cs}ULL+(uint64_t)matrix_inner*\{ks}ULL]:__float2bfloat16_rn(0.0f))",
     result="result",
+    weight_column_first=cs == 1L && ks > 1L,
   )
   let source =
     $|#include <cuda_bf16.h>

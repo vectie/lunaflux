@@ -49,6 +49,7 @@ test "latent decoder removes expanded projections and binds new numerical bounda
   assert_true(!text.contains("void latent_projection_kv_split("))
   assert_true(text.contains("rsqrtf(32.0f)"))
   assert_true(text.contains("if(row_base>=live)"))
+  assert_true(text.contains("tile_b+warp*16*40+kk,40"))
   assert_eq(source.expansion(), Some(("latent_value_expand", (8, 128))))
   if @env.get_env_var("LUNA_LATENT_EXPORT") is Some("1") {
     println("LUNA_LATENT_BEGIN")

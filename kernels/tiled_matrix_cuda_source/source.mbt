@@ -12,6 +12,7 @@ pub fn matrix_tile_body(
   weight_vector? : String,
   vector_guard? : String = "true",
   external_scratch? : Bool = false,
+  weight_column_first? : Bool = false,
 ) -> String raise @precision.PrecisionPlanError {
   // Expression operands have no address/extent contract for asynchronous
   // copies. Never silently discard an explicitly requested staging policy.
@@ -20,16 +21,33 @@ pub fn matrix_tile_body(
   }
   let (_, _, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
+  guard !weight_column_first || (!external_scratch && weight_vector is None) else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
+  // A transposed bank is read along contiguous output columns, then staged
+  // into the consumer's column-major operand. One BF16 WMMA alignment unit
+  // of padding breaks the worst power-of-two producer stride.
+  let b_pitch = k + (if weight_column_first { 8 } else { 0 })
   let scalar_a =
     $|for(int i=threadIdx.x;i<\{m*k};i+=128) {
     $|  const int matrix_row=i/\{k},matrix_inner=base_k+i%\{k};
     $|  tile_a[i]=matrix_inner<\{inner}?(\{input}):__float2bfloat16_rn(0.0f);
     $|}
-  let scalar_b =
-    $|for(int i=threadIdx.x;i<\{n*k};i+=128) {
-    $|  const int matrix_column=i/\{k},matrix_inner=base_k+i%\{k};
-    $|  tile_b[i]=matrix_inner<\{inner}?(\{weight}):__float2bfloat16_rn(0.0f);
-    $|}
+  let scalar_b = if weight_column_first {
+    (
+      $|for(int i=threadIdx.x;i<\{n*k};i+=128) {
+      $|  const int matrix_column=i%\{n},matrix_inner=base_k+i/\{n};
+      $|  tile_b[matrix_column*\{b_pitch}+i/\{n}]=matrix_inner<\{inner}?(\{weight}):__float2bfloat16_rn(0.0f);
+      $|}
+    )
+  } else {
+    (
+      $|for(int i=threadIdx.x;i<\{n*k};i+=128) {
+      $|  const int matrix_column=i/\{k},matrix_inner=base_k+i%\{k};
+      $|  tile_b[i]=matrix_inner<\{inner}?(\{weight}):__float2bfloat16_rn(0.0f);
+      $|}
+    )
+  }
   let load_a = match input_vector {
     Some(load) =>
       (
@@ -53,7 +71,7 @@ pub fn matrix_tile_body(
   let scratch = if external_scratch {
     ""
   } else {
-    "__shared__ __align__(32) __nv_bfloat16 tile_a[\{m*k}], tile_b[\{n*k}];"
+    "__shared__ __align__(32) __nv_bfloat16 tile_a[\{m*k}], tile_b[\{n*b_pitch}];"
   }
   (
     $|{
@@ -71,7 +89,7 @@ pub fn matrix_tile_body(
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a,16,16,16,__nv_bfloat16,nvcuda::wmma::row_major> a;
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_b,16,16,16,__nv_bfloat16,nvcuda::wmma::col_major> b;
     $|      nvcuda::wmma::load_matrix_sync(a,tile_a+kk,\{k});
-    $|      nvcuda::wmma::load_matrix_sync(b,tile_b+warp*16*\{k}+kk,\{k});
+    $|      nvcuda::wmma::load_matrix_sync(b,tile_b+warp*16*\{b_pitch}+kk,\{b_pitch});
     $|      nvcuda::wmma::mma_sync(accumulator,a,b,accumulator);
     $|    }
     $|    }

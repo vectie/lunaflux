@@ -1,0 +1,196 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// External task-level evaluation. No compiler import, model-output oracle,
+// payload hashing, generated-code execution, or runtime qualification hook.
+
+///|
+fn escaped(s : String) -> String {
+  s
+  .replace_all(old="\\", new="\\\\")
+  .replace_all(old="\"", new="\\\"")
+  .replace_all(old="\n", new="\\n")
+}
+
+///|
+fn grade(case : Json, text : String, finish : String) -> String {
+  if finish != "stop" {
+    return "incomplete"
+  }
+  guard case is { "check": String(kind), .. } else { return "missing check" }
+  match kind {
+    "json" | "integer" => {
+      guard case is { "expected": expected, .. } else {
+        return "missing expected"
+      }
+      let actual = @json.parse(text) catch { _ => return "format failure" }
+      if actual == expected {
+        "pass"
+      } else {
+        "value failure"
+      }
+    }
+    "name" | "label" | "fact" => {
+      guard case is { "expected": String(expected), .. } else {
+        return "missing expected"
+      }
+      if (if kind == "fact" {
+          text.contains(expected)
+        } else {
+          text == expected
+        }) {
+        "pass"
+      } else {
+        "task failure"
+      }
+    }
+    _ => if text.is_empty() { "empty failure" } else { "manual review" }
+  }
+}
+
+///|
+test "external checks require completion and task answers, not reference agreement" {
+  assert_eq(
+    grade({ "check": "integer", "expected": 449 }, "449", "stop"),
+    "pass",
+  )
+  assert_eq(
+    grade({ "check": "integer", "expected": 449 }, "448", "stop"),
+    "value failure",
+  )
+  assert_eq(
+    grade({ "check": "integer", "expected": 449 }, "449", "length"),
+    "incomplete",
+  )
+  assert_eq(
+    grade(
+      { "check": "json", "expected": { "ok": true } },
+      "```json\n{\"ok\":true}\n```",
+      "stop",
+    ),
+    "format failure",
+  )
+  assert_eq(
+    grade({ "check": "reviewed-code" }, "def f(): pass", "stop"),
+    "manual review",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, base, model, credential] else {
+    fail("NEW_ROOT BASE MODEL CREDENTIAL_OR_NONE")
+  }
+  @fs.mkdir(root)
+  let auth = if credential == "none" {
+    ""
+  } else {
+    "header = \"Authorization: Bearer " +
+    @fs.read_file(credential).text().trim().to_owned() +
+    "\"\n"
+  }
+  guard @json.parse(
+      @fs.read_file("benchmarks/corpora/glm_complete_answers_v1.json").text(),
+    )
+    is Array(cases) else {
+    fail("corpus")
+  }
+  let reports : Array[Json] = []
+  for case in cases {
+    guard case is { "id": String(id), "prompt": String(prompt), .. } else {
+      fail("case")
+    }
+    let serialized = "[gMASK]<sop><|system|>Reasoning Effort: Low<|user|>" +
+      prompt +
+      "<|assistant|><think>"
+    let reference = model == "matched-model"
+    let body : Json = if reference {
+      {
+        "model": model,
+        "prompt": serialized,
+        "add_special_tokens": false,
+        "temperature": 0,
+        "max_tokens": 512,
+        "stream": false,
+        "stop_token_ids": [154820, 154827, 154829],
+      }
+    } else {
+      {
+        "model": model,
+        "messages": [{ "role": "user", "content": prompt }],
+        "temperature": 0,
+        "max_tokens": 512,
+        "stream": false,
+      }
+    }
+    @fs.write_file(
+      root + "/" + id + ".request.json",
+      body.stringify(),
+      create_mode=CreateNew,
+    )
+    let config = "silent\nshow-error\nmax-time = 600\nurl = \"" +
+      base +
+      (if reference { "/v1/completions" } else { "/v1/chat/completions" }) +
+      "\"\n" +
+      auth +
+      "header = \"Content-Type: application/json\"\nwrite-out = \"\\nHTTP_STATUS=%{http_code}\\n\"\ndata = \"" +
+      escaped(body.stringify()) +
+      "\"\n"
+    let start = @async.now()
+    let response = @shell.Cmd("curl", ["--config", "-"], stdin=Text(config)).output(
+      max_output_bytes=2097152,
+    )
+    let elapsed = @async.now() - start
+    @fs.write_file(
+      root + "/" + id + ".body",
+      response.stdout(),
+      create_mode=CreateNew,
+    )
+    response.check()
+    guard response.stdout().split("\nHTTP_STATUS=").to_array()
+      is [payload, status] &&
+      status.trim() == "200" else {
+      fail("HTTP failure " + id)
+    }
+    guard @json.parse(payload)
+      is { "choices": Array([choice]), "usage": usage, .. } &&
+      choice is { "finish_reason": String(finish), .. } else {
+      fail("response " + id)
+    }
+    let raw = match choice {
+      { "message": { "content": String(content), .. }, .. } => content
+      { "text": String(text), .. } => text
+      _ => fail("missing answer " + id)
+    }
+    let answer = raw.split("</think>").last().unwrap().trim().to_owned()
+    let result = grade(case, answer, finish)
+    let report : Json = {
+      "id": id,
+      "assessment": result,
+      "answer": answer,
+      "finish_reason": finish,
+      "usage": usage,
+      "elapsed_ms": Json(elapsed.to_double()),
+      "serialized_prompt": serialized,
+      "output_budget": 512,
+    }
+    reports.push(report)
+    @fs.write_file(
+      root + "/" + id + ".json",
+      report.stringify(),
+      create_mode=CreateNew,
+    )
+    println(id + ": " + result + " — " + answer)
+  }
+  @fs.write_file(
+    root + "/summary.json",
+    Json(reports).stringify(),
+    create_mode=CreateNew,
+  )
+}
