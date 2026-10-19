@@ -28,7 +28,7 @@ fn ServicePlan::sparse_description(self : Self) -> String {
     ExpandedBFloat16 => "expanded-bf16"
     LatentBFloat16 => "latent-bf16"
   }
-  "index_scoring=\{index} sparse_cache=\{cache}"
+  "index_scoring=\{index} sparse_cache=\{cache} \{self.execution.description()}"
 }
 
 ///|

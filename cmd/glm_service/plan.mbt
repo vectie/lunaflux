@@ -17,14 +17,15 @@ priv struct ServicePlan {
   runtime_label : String
   tokenizer_label : String
   credential_file : String
-  rows : Int
-  slots : Int
-  admission_lanes : Int
-  context : Int
+  rows : Int32
+  slots : Int32
+  admission_lanes : Int32
+  context : Int32
   history_capacity : @history.ResidentHistoryCapacity
   sparse_accumulation : @precision.AttentionAccumulationLaw
   index_scoring : @precision.IndexScoringLaw
   sparse_cache : @precision.SparseCacheLaw
+  execution : ExecutionPolicy
   budget : Int64
   reserve : Int64
 }
@@ -38,7 +39,7 @@ fn json_string(j : Json, key : String) -> String raise {
 }
 
 ///|
-fn json_int(j : Json, key : String) -> Int raise {
+fn json_int(j : Json, key : String) -> Int32 raise {
   guard j is Object(fields) &&
     fields.get(key) is Some(Number(value, ..)) &&
     value >= 0.0 &&
@@ -95,6 +96,7 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
     sparse_accumulation: service_sparse_accumulation(j),
     index_scoring: service_index_scoring(j),
     sparse_cache: service_sparse_cache(j),
+    execution: execution_policy(j),
     budget: json_int(j, "budget_mib").to_int64() * 1048576L,
     reserve: json_int(j, "reserve_mib").to_int64() * 1048576L,
   }
@@ -195,9 +197,9 @@ fn ServicePlan::inference(
 
 ///|
 fn glm_inference_limits(
-  context : Int,
-  vocabulary : Int,
-  maximum_token_bytes? : Int = 4096,
+  context : Int32,
+  vocabulary : Int32,
+  maximum_token_bytes~ : Int32 = 4096,
 ) -> @inference.InferenceLimits raise {
   let maximum_stop_bytes = 256
   @inference.InferenceLimits::new(
@@ -254,7 +256,7 @@ fn ServicePlan::frame(
 fn ServicePlan::stage(
   self : Self,
   spec : @spec.Glm53FlashSpec,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @glm.GlmDecoderStage raise {
   guard ordinal is (0 | 1) && self.context <= spec.context_length() else {
     fail("invalid GLM rank or context")
@@ -279,17 +281,17 @@ fn ServicePlan::stage(
     maximum_layer_expert_bytes=cap,
     maximum_text_workspace_bytes=cap,
     accuracy=@precision.Accuracy::new(absolute=0.125, relative=0.125),
-    recurrent_evaluation=OrderedTokenFloat32,
+    recurrent_evaluation=self.execution.recurrent,
     matrix_law=ShapeAwareFloat32,
-    matrix_staging=Synchronous,
-    sparse_matrix_staging=Synchronous,
+    matrix_staging=self.execution.staging,
+    sparse_matrix_staging=self.execution.staging,
     sparse_accumulation=self.sparse_accumulation,
     index_scoring=self.index_scoring,
     sparse_cache=self.sparse_cache,
     expert_scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
-    expert_transport=PackedRows,
+    expert_transport=self.execution.transport,
     expert_fragment_slots=2,
-    expert_scale_partitions=1,
+    expert_scale_partitions=self.execution.scale_partitions,
     hc_reduction=Tree(partitions=256),
     shared_matrix_columns=64,
     tensor_group=(ordinal, 2),

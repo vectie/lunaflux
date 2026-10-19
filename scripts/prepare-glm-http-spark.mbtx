@@ -8,7 +8,7 @@ import {
 }
 
 ///|
-fn host(rank : Int) -> String {
+fn host(rank : Int32) -> String {
   if rank == 0 {
     "wlc003s@192.168.2.178"
   } else {
@@ -17,7 +17,7 @@ fn host(rank : Int) -> String {
 }
 
 ///|
-fn socket(rank : Int) -> String {
+fn socket(rank : Int32) -> String {
   if @env.get_env_var(
       if rank == 0 {
         "LUNAFLUX_SPARK_178_SOCKET"
@@ -36,7 +36,7 @@ fn socket(rank : Int) -> String {
 }
 
 ///|
-async fn remote(rank : Int, command : String) -> @shell.Output {
+async fn remote(rank : Int32, command : String) -> @shell.Output {
   @shell.Cmd("ssh", [
     "-o",
     "BatchMode=yes",
@@ -50,7 +50,7 @@ async fn remote(rank : Int, command : String) -> @shell.Output {
 }
 
 ///|
-async fn copy(rank : Int, from : String, to : String) -> Unit {
+async fn copy(rank : Int32, from : String, to : String) -> Unit {
   @shell.Cmd("scp", [
     "-o",
     "BatchMode=yes",
@@ -74,7 +74,7 @@ async fn record(root : String, name : String, result : @shell.Output) -> Unit {
 }
 
 ///|
-async fn wait_unit(root : String, rank : Int, unit : String) -> Unit {
+async fn wait_unit(root : String, rank : Int32, unit : String) -> Unit {
   while true {
     let state = remote(
       rank,
@@ -114,7 +114,7 @@ async fn main {
       !s.contains("..") &&
       s
       .iter()
-      .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '/' | '-' | '_'))
+      .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '/' | '-' | '_'))
     }) else {
     fail("invalid roots")
   }
@@ -134,6 +134,24 @@ async fn main {
     }
   }
   let slots = positive_setting("LUNAFLUX_GLM_HTTP_SLOTS", 4, 64)
+  let recurrent = @env.get_env_var("LUNAFLUX_GLM_RECURRENT_EVALUATION").unwrap_or(
+    "ordered-token-f32",
+  )
+  let staging = @env.get_env_var("LUNAFLUX_GLM_PROJECTION_STAGING").unwrap_or(
+    "synchronous",
+  )
+  let transport = @env.get_env_var("LUNAFLUX_GLM_EXPERT_TRANSPORT").unwrap_or(
+    "packed-rows",
+  )
+  let scale_partitions = positive_setting(
+    "LUNAFLUX_GLM_EXPERT_SCALE_PARTITIONS", 1, 32,
+  )
+  guard recurrent is ("ordered-token-f32" | "chunk-triangular-f32") &&
+    staging is ("synchronous" | "buffered-k32") &&
+    transport is ("packed-rows" | "bulk-tiles-128x2x48") &&
+    scale_partitions is (1 | 32) else {
+    fail("unsupported explicit execution policy")
+  }
   let sparse_arithmetic = @env.get_env_var("LUNAFLUX_GLM_SPARSE_ARITHMETIC").unwrap_or(
     "ordered-f32",
   )
@@ -200,6 +218,10 @@ async fn main {
       "sparse_attention_accumulation": sparse_arithmetic,
       "index_scoring": index_scoring,
       "sparse_cache": sparse_cache,
+      "recurrent_evaluation": recurrent,
+      "projection_staging": staging,
+      "expert_transport": transport,
+      "expert_scale_partitions": scale_partitions,
       "budget_mib": 102400,
       "reserve_mib": 2048,
       "model_label": "0000000000000000000000000000000000000000000000000000000000000001",
@@ -348,9 +370,9 @@ async fn main {
 ///|
 fn positive_setting(
   name : String,
-  default : Int,
-  maximum : Int,
-) -> Int raise {
+  default : Int32,
+  maximum : Int32,
+) -> Int32 raise {
   match @env.get_env_var(name) {
     None => default
     Some(s) => {

@@ -16,6 +16,7 @@ import {
   "vectie/lunaflux/runtime/monotonic_clock" @clock,
   "vectie/lunaflux/engine/precision_materialize" @materialize,
   "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
   "vectie/lunaflux/compiler/decoder_pipeline_plan" @placement,
   "vectie/lunaflux/compiler/attention_physical_ir" @history,
   "vectie/lunaflux/compiler/elementwise_physical_ir" @sampling,
@@ -32,11 +33,11 @@ import {
   "vectie/lunaflux/model/spec" @identity,
   "vectie/lunaflux/model/plan" @model_plan,
   "vectie/lunaflux/config/scheduler" @scheduling,
-  "vectie/lunaflux/config/cache" @cache,
+  "vectie/lunaflux/config/cache",
   "vectie/lunaflux/config/runtime_resolved" @resolved,
   "vectie/lunaflux/scheduler/core" @scheduler,
   "vectie/lunaflux/engine/worker_service" @service,
-  "vectie/lunaflux/engine/worker_process" @worker_process,
+  "vectie/lunaflux/engine/worker_process",
   "vectie/lunaflux/deploy/worker_executable_file" @executable,
   "vectie/lunaflux/integration/checkpoint_text_input" @text_input,
   "vectie/lunaflux/tokenizer",
@@ -48,6 +49,11 @@ import {
   "vectie/lunaflux/service/api_auth" @auth,
   "vectie/lunaflux/service/openai_compat" @openai,
 }
+
 supported_targets = "native"
+
 pkgtype(kind: "executable")
-options(link: { "native": { "cc-link-flags": "-pthread -ldl" } })
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)
