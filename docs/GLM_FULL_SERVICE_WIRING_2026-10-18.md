@@ -1,5 +1,47 @@
 # GLM full-service wiring
 
+### Fixed native API acceptance — 19 October, 11:25 CST
+
+The5f864415 private pair has passed the exact previously failing Chinese request
+at512 output tokens over JSON and SSE: both return200, valid UTF-8, exact token
+usage and `finish_reason: length`, without `output_invalid`. This verifies a
+budget-cutoff publication repair, not complete semantic output at that budget.
+Evidence: `/tmp/lunaflux-glm-http-chinese-output-20261019-v2`.
+
+The same pair passed smoke, concurrent requests, distinct routing, sampling,
+disconnect/cancellation, protocol and generation-control checks. The25-client
+queued burst completed25 requests with zero rejections and a successful recovery
+request. This does not mean25 resident GPU sequences or guarantee immediate429
+under saturation; transport backpressure and the scheduler queue are distinct.
+Results are under `/tmp/lunaflux-glm-context-private-sequence-20261019-v3`.
+
+All12 broader prompts finished naturally with a2,048-token allowance. The former
+floating-point/Chinese cutoffs now complete at638/640 tokens. Manual review of
+the literal answer bodies must remain separate from that transport/natural-stop
+gate:
+
+- Merge code handles empty inputs/duplicates; primary SQL aggregation and tie
+  ordering, translation, probability3/10, two-sentence summary, chickens6/rabbits4,
+  imbalanced-classification limitations and sorting examples answer their tasks.
+- The SQL answer adds an incorrect unsolicited tie-inclusive alternative:
+  `DENSE_RANK` includes `customer_id`, so equal totals do not share a rank. The
+  main `LIMIT 3` query is correct; the whole answer is not unqualifiedly correct.
+- The JSON-only prompt returns correct values inside Markdown fences, violating
+  the requested raw-JSON formatting. Do not strip fences and count the original
+  answer as a strict-format pass. This prompt did not request an API-level
+  constrained-decoding format.
+- The floating-point answer overgeneralizes “never” use equality and needs an
+  absolute-tolerance caveat near zero. The transaction example simplifies
+  database-specific automatic rollback behavior. These are answer-quality
+  caveats, not demonstrated causes for a compiler arithmetic change.
+
+The evidence is `/tmp/lunaflux-glm-http-context8k-fixed-acceptance-20261019-v1-answers`.
+No vLLM replay of these12 exact broad prompts was performed in this capacity
+campaign. Neither natural termination nor reference agreement establishes all
+answers correct. Keep comparison and semantic evaluation outside the compiler.
+The8K-edge, fixed-executable latency repeat and public-route gates are still
+running/pending; this section is not an online declaration.
+
 ### Completed matched capacity benchmark — 19 October, 11:12 CST
 
 The v8 reference campaign completed and released both GPUs normally. The full
