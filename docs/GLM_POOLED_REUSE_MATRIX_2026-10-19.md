@@ -481,3 +481,93 @@ Fresh full-service AOT preparation is
 source contains all11 score-producer symbols and the live-domain mapping.
 Public GLM remains offline pending completed service qualification; source
 presence and isolated kernel gains alone do not authorize a speed claim there.
+
+### Combined full-model latency: gains survive, but the gap remains
+
+The pinned98c629fd combined private service uses the same8192 context,
+eight resident slots,16 admission lanes,513 pages and64-row prefill. The
+fixed-one-output campaign is
+`/tmp/lunaflux-glm-service-benchmark-live-index-latency-20261019-v1`.
+The external comparator verifies literal serialized prompts, prompt token
+counts and output budgets against the retained same-day vLLM campaign
+`/tmp/lunaflux-glm-service-benchmark-vllm-pooled-matrix-latency-20261019-v2`.
+The reference is not a new rerun and is not a correctness oracle.
+
+| Actual prompt tokens | Memory-only, s | Combined, s | vLLM, s | Combined/vLLM |
+| --- | ---: | ---: | ---: | ---: |
+|165|1.254|1.234|0.808|1.53x|
+|2085|11.415|11.097|6.057|1.83x|
+|6181|34.068|31.770|15.018|2.12x|
+|7973|45.503|41.679|17.642|2.36x|
+
+Near8K completion falls8.4% from the memory-only control and25.3% from
+the frozen55.779-second pre-pooled/matrix result. This is one-output request
+latency, not sustained decode throughput or time to the first visible answer;
+the first generated token may be a reasoning-control token.
+
+The three changes close concrete storage/ownership/parallelism defects, not
+all execution-path gaps. The attention leaf's residency gain and the index
+producer's latency-hiding gain are measured. Their synthetic end-of-history
+speedups are not a wall-time decomposition of the full model: service prefill
+traverses growing histories, other layers, projections, experts and collective
+boundaries. The new index still performs scalar ordered head/component dots;
+the installed vLLM path uses matrix-based quantized index scoring. Native
+expanded BF16 K/V also differs from the reference's compressed FP8 MLA cache.
+Those are remaining source-level differences, not measured attribution of
+the entire24.037-second near8K gap. A new full-resident profiler capture must
+not reuse the previous reserve-violating setup.
+
+Latest warning-denied native check passes with the unchanged migration
+exclusions (`-20-25-29-35-79-92`). The completed aggregate run reports5,312
+passes/5,313: the single failure is `No space left on device` while the
+attention-envelope fixture writes its temporary bank. After removing only
+the regenerable `_build/native/debug/test` cache (about5.6GiB; no source,
+model or experiment evidence removed), the entire affected test file passes
+1/1. The earlier index2 retry selected no test and is not counted as a pass.
+This is aggregate-plus-rerun evidence, not a fresh all-green aggregate run.
+
+The combined complete-answer campaign
+`/tmp/lunaflux-glm-service-benchmark-live-index-answers-20261019-v1`
+finishes64/64, all with normal stop and the correct request-specific label;
+63 are exact. Short C4 lane1 returns the correct label followed by extra
+reasoning and a second label, and remains an exact-format failure. No output
+parser, stop rule, tolerance or reference is changed to count it as passing.
+All long-prompt groups are exact. Retained matched vLLM completes64/64 with
+57 exact; this does not make either implementation a quality oracle.
+
+| Prompt tokens/request | Concurrency | LunaFlux total wall, s | vLLM total wall, s | Output tokens, LunaFlux/vLLM |
+| --- | ---: | ---: | ---: | ---: |
+|165|1|1.580|4.766|6/60|
+|165|4|12.923|9.084|140/86|
+|165|8|10.265|18.473|80/191|
+|165|16|20.597|28.997|201/254|
+|2085|1|12.680|6.413|10/6|
+|2085|4|45.772|26.260|32/28|
+|2085|8|91.784|58.150|68/137|
+|2085|16|182.991|104.425|136/120|
+|6181|1|32.338|14.678|10/6|
+|6181|4|127.301|59.146|36/40|
+|7973|1|42.383|18.457|10/10|
+
+Short complete-answer wall times do not establish an engine speedup when
+generated lengths differ. The near8K answer has the same10 generated tokens,
+giving a2.30x completion-time ratio. External comparison JSON retains first
+visible-content timing, every request's usage, sampled active/waiting counts,
+exactness and completion. The reference uses256MiB of KV cache; the earlier
+512MiB attempt failed the host-reserve gate. Cache capacity and request
+admissions must not be hidden behind a concurrency-only headline;
+sampled active requests are not the physical step batch.
+
+Through this campaign GPU peaks remain96,881/96,909MiB and minimum available
+host memory is17,474,356/20,129,960KiB, above the16,777,216KiB floor, with
+zero owned-unit swap. These numbers qualify this campaign, not arbitrary
+traffic or unlimited full-context concurrency.
+
+The first broad private API harness reused the public request's
+`stream_options` and received400 before GPU admission. It is preserved at
+`/tmp/lunaflux-glm-live-index-acceptance-20261019-v1`. The installed LunaNexa
+`runtimes/text_chat.mbt` builds a backend request without that option; the
+v2 private test uses that actual wire contract, while the later public test
+keeps the original customer request unchanged. Private manifests also
+deliberately leave `production_ready=false`, so metrics503 is not worker
+failure. Public readiness remains a separate true/200 gate.
