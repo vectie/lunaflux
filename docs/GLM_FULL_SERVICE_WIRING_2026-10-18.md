@@ -135,6 +135,34 @@ budgets and records actual output counts. A one-token truncated response is
 not a quality pass, and client event arrival is not a per-token GPU timestamp.
 This control exists because naturally different reasoning lengths confound
 equal-work completion comparisons; it does not modify either engine.
+The additional `latency` mode runs C1 at all four prompt lengths, leaving the
+complete-answer `all` mode's concurrency sweep unchanged.
+
+Reference v5 (768 MiB KV, capture maximum eight) also failed the physical
+host-reserve gate during graph warm-up: 16,455,900 KiB available on rank0 at
+95,030 MiB GPU residency. The external guard stopped both containers; no timed
+requests completed. Its logs are retained under
+`/tmp/lunaflux-reference-bench-glm-context8k-20261019-v5`.
+A distinct v6 configuration reduces capture maximum to four and KV to512MiB;
+it is prepared, not yet qualified. Do not relax the memory floor or count a
+loading failure as a performance result.
+
+The corrected native47a1f351 run at
+`/tmp/lunaflux-glm-http-context8k-c8-20261019-v3` completes the short C16 burst
+without429s. All sixteen distinct labels are correct. Its ongoing external
+campaign is `/tmp/lunaflux-glm-service-benchmark-luna-20261019-v4`.
+The completed2,085-prompt-token cohorts take21.703s(C1),71.769s(C4),
+141.091s(C8), and283.130s(C16). Longer cohorts, general service acceptance and
+the matched reference are still pending; these are not full campaign passes.
+
+Capacity is not throughput scaling. The observed native queue commonly has
+one or two active requests during these short-answer prefills, while additional
+requests wait. The selected eight-slot AOT source still has a single-thread
+top-k index publication and repeated per-head duplicate-index checks, followed
+by ordered sparse softmax/value folds. Those are literal implementation facts,
+not a measured attribution of all elapsed time. No profiler has yet assigned
+the new long-context latency to individual operations. The capacity work
+does not claim to remove those costs or match vLLM's compressed-cache layout.
 
 ## GPU sampling
 

@@ -269,8 +269,10 @@ async fn await_health(base : String) -> Unit {
 async fn main {
   guard @env.args() is [_, root, base, model, credential, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-service-benchmark-") &&
-    mode is ("short" | "long" | "edge" | "all") else {
-    fail("NEW_ROOT BASE MODEL CREDENTIAL_FILE_OR_NONE short|long|edge|all")
+    mode is ("short" | "long" | "edge" | "latency" | "all") else {
+    fail(
+      "NEW_ROOT BASE MODEL CREDENTIAL_FILE_OR_NONE short|long|edge|latency|all",
+    )
   }
   @fs.mkdir(root)
   if @env.get_env_var("LUNAFLUX_BENCH_WAIT_READY") == Some("1") {
@@ -296,7 +298,7 @@ async fn main {
   }
   for w in words {
     for
-      concurrency in (if w == 7936 {
+      concurrency in (if mode == "latency" || w == 7936 {
         [1]
       } else if w == 6144 {
         [1, 4]
@@ -348,6 +350,7 @@ async fn main {
         completed
       })
       let group_report : Json = {
+        "campaign_mode": mode,
         "filler_words": w,
         "concurrency": concurrency,
         "wall_ms": Json(completed_at - start),
