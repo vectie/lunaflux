@@ -352,3 +352,50 @@ The host-reserve failure itself is not yet attributed to a leak.
 The pure full-service plan reports42 routed frames of19,957,776 bytes each.
 One shared routed arena instead of42 saves818,268,816 bytes (780.36 MiB) per
 rank. This is a planned allocation reduction, not yet measured host headroom.
+
+## Follow-up: routed arena and remaining physical gaps
+
+Memory-only commit `977ebda6` passes all 5,311 native tests with the existing
+migration exclusions and a clean pinned ARM build. The private service root is
+`/tmp/lunaflux-glm-http-expert-arena-20261019-v1`; direct source comparison
+allowed reuse of the preceding cohort/ordered AOT. No payload hashes were used.
+It retains 8,192 context, eight resident slots, 16 admission lanes and 513
+physical pages. Initial measured GPU peaks are96,881/96,909 MiB, versus
+97,663/97,690 before the routed arena: about782 MiB less on each rank.
+
+The isolated one-output-token control is
+`/tmp/lunaflux-glm-service-benchmark-expert-arena-latency-20261019-v2`:
+
+| Actual prompt tokens | Memory-only completion, seconds |
+| --- | ---: |
+|165|1.254|
+|2,085|11.415|
+|6,181|34.068|
+|7,973|45.503|
+
+This is essentially unchanged latency, not a kernel speedup. The failed v1
+request used the public alias against the private service, which advertises
+`glm-5.3`; its validation-error response is retained, not a GPU failure.
+The complete-answer/memory campaign is separate and must finish before a
+residency qualification claim.
+
+Two additional source candidates pass the full5,313-test native suite but
+are not yet GPU-qualified or installed in the public service:
+
+- `2cc4bd3a`: the existing physical `SequentialScratch` plan overlays the
+  mutually exclusive ordered-row copy tile and matrix-cohort membership mask.
+  The hypothesis is lower shared-memory residency cost, not less arithmetic.
+- `acb96a7b`: `CandidateScorePlan` partitions independent candidate ownership,
+  with a pure score-publication/selection dependency in `parallel_ir`.
+  At64 queries and2,048 candidates, the score launch has1,024 blocks instead
+  of keeping all work inside64 query blocks. Stable selection remains a
+  separate64-block consumer with exactly the original head/component folds
+  and tie order. The frame binds both stages into its existing ordered queue;
+  its fake-device32-step regression has zero hot allocations or added waits.
+
+This follows the reference's separation of score production from selection,
+not its FP8/FP4 DeepGEMM numerical program or its short-context score bypass.
+The new actual-source probe times both score and selection launches together.
+The frozen baseline is the actual5cc72d4c matrix/ordered source in v13, not
+the mistakenly exported ordered-only v12. Hardware and service results must
+be recorded separately from these hypotheses.

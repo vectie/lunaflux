@@ -3,11 +3,19 @@
 `IndexedSparseAttentionPrecision` describes the model-independent geometry and
 storage. Query rows and retained history are independent: a one-row decode frame
 may read a long history without allocating a selected-index row for every key.
-CUDA lowering preserves stable selection, ordered F32 score/softmax arithmetic,
-BF16 probability and BF16 output rounding. It currently uses correctness-grade
-serial schedules, not a throughput-tuned sparse serving implementation.
+CUDA lowering preserves stable index selection and the declared attention
+arithmetic. The ordered attention and explicit matrix/cohort alternatives both
+retain BF16 probability and output boundaries; they are not bitwise-equivalent
+numerical programs.
 
 The producer frame composes pooling -> index selection -> sparse attention.
+For a paged candidate domain larger than one score tile, the physical index
+plan refines index selection into independent candidate-score tiles followed
+by stable selection. Its scratch write/read dependency is lowered into the
+same caller queue. Every candidate still folds components and heads in the
+original order; neither head partial sums nor an approximate top-k are used.
+The refinement reuses the existing score/validity allocation, adds no host
+completion, and does not run in an IndexShare consumer.
 History counts, keys, validity and query counts/absolute positions are borrowed
 separately. Intermediate allocations/functions are prepared once and borrowed
 into the caller's ordered queue. No extra completion boundary or host readback
