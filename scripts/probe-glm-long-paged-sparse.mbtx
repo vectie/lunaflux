@@ -93,7 +93,12 @@ async fn main {
       }
       @fs.write_file(
         root + "/old.cuh",
-        source.split("next_").to_array().join("old_"),
+        source.split("next_").to_array().join("old_") +
+        (if source.contains("Incremental pool-update plan") {
+          "\n#define old_INCREMENTAL_POOL 1\n"
+        } else {
+          ""
+        }),
         create_mode=CreateNew,
       )
       @fs.write_file(

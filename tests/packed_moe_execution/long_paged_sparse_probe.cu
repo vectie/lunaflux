@@ -104,14 +104,30 @@ int main(int argc,char**argv) {
 #ifdef next_SPLIT_INDEX
       if(ver==1&&stage==1)ck(cudaLaunchKernel((const void*)next_index_scores,dim3(next_grid_3),dim3(next_workers_3),index_args,0,nullptr));
 #endif
-      ck(cudaLaunchKernel(kernels[ver][stage],dim3(grid[ver][stage]),dim3(workers[ver][stage]),stage==0?(ver==0?pool_args:incremental_pool_args):stage==1?index_args:att_args,0,nullptr));};
-    for(int history: (profile||sanitize?std::vector<int>{8000}:std::vector<int>{64,256,2048,4096,8000,7997})) {
-      int active=history==7997?29:64;
+      void **pool_ports=ver==0?pool_args:incremental_pool_args;
+#ifdef old_INCREMENTAL_POOL
+      pool_ports=incremental_pool_args;
+#endif
+      ck(cudaLaunchKernel(kernels[ver][stage],dim3(grid[ver][stage]),dim3(workers[ver][stage]),stage==0?pool_ports:stage==1?index_args:att_args,0,nullptr));};
+    for(int history: (profile?std::vector<int>{8000}:sanitize?std::vector<int>{8000,7995,7996,7994}:std::vector<int>{64,256,2048,4096,8000,7997,7995,7996,7994})) {
+      int active=history==7997?29:history==7995?15:history==7996?1:history==7994?16:64;
       counts.put({0,0,1,active,0});key_count.put({history});
       std::vector<int> p(rows,0),ok(physical,0);
       for(int i=0;i<active;++i)p[i]=history-active+i;
       for(int i=0;i<history;++i)ok[i]=1;
       pos.put(p);valid.put(ok);
+#ifdef old_INCREMENTAL_POOL
+      // The frozen baseline now has the serving incremental-pool ABI too.
+      // Replay the history's writes before the measured query frame; passing
+      // only its final 64 positions would leave older pools uninitialized.
+      ck(cudaMemset(pool_valid.p,0,pool_valid.n*sizeof(int)));
+      for(int first=0;first<history;first+=rows){
+        int live=std::min(rows,history-first);std::vector<int> written(rows,0);
+        for(int i=0;i<live;++i)written[i]=first+i;
+        counts.put({0,0,1,live,0});pos.put(written);launch(0,0);
+      }
+      counts.put({0,0,1,active,0});pos.put(p);
+#endif
       std::vector<int> original_indices;std::vector<__nv_bfloat16> original_output;
       for(int ver=0;ver<versions;++ver) {
         for(int stage=0;stage<3;++stage)launch(ver,stage);
@@ -130,7 +146,9 @@ int main(int argc,char**argv) {
           double squared=0,reference=0,maxabs=0;
           for(size_t i=0;i<output.size();++i){double a=__bfloat162float(output[i]),b=__bfloat162float(original_output[i]);squared+=(a-b)*(a-b);reference+=b*b;maxabs=std::max(maxabs,fabs(a-b));}
           printf("comparison history=%d active=%d index_differences=%zu output_differences=%zu relL2=%.9g maxabs=%.9g matrix=%d\n",history,active,di,dy,sqrt(squared/reference),maxabs,next_matrix);
-          if(di||(!next_matrix&&dy))return 4;
+          // These are physical-only changes when both bundles select the
+          // matrix law. Require exact outputs in that matched comparison.
+          if(di||((!next_matrix||old_matrix)&&dy))return 4;
           wide_oracle(indices,output,active);
         }
       }
