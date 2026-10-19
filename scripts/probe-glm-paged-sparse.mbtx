@@ -14,7 +14,9 @@ async fn main {
     mode is ("export" | "compile" | "run" | "sanitize") else {
     fail("NEW_ROOT export|compile|run|sanitize")
   }
-  let socket = "/tmp/lunaflux-glm179-prefill-20261018.sock"
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm179-prefill-20261018.sock",
+  )
   let host = "wlc004s@192.168.2.179"
   async fn remote(cmd : String) -> @shell.Output {
     @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, cmd]).output(

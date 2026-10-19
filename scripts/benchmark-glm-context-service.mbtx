@@ -76,6 +76,11 @@ async fn request(root : String, base : String, model : String, auth : String,
           if choice is {"text":String(content),..} && !content.is_empty() {
             answer <+ "\{content}"
             arrivals.push(@async.now()-start)
+            let generated = answer.to_string()
+            if first_answer is None && generated.find("</think>") is Some(index) &&
+              !generated[index+8:].trim().is_empty() {
+              first_answer = Some(@async.now()-start)
+            }
           }
           if choice is {"delta":{"content":String(content),..},..} && !content.is_empty() {
             if first_answer is None { first_answer = Some(@async.now()-start) }
@@ -112,10 +117,22 @@ async fn request(root : String, base : String, model : String, auth : String,
     "clock":"client wall-clock milliseconds; arrival events are not token counts",
     "expected":"orchid-\{70+lane}",
     "answer_contains_expected":text.contains("orchid-\{70+lane}"),
+    "answer_exact":text.trim() == "orchid-\{70+lane}",
   }
   @fs.write_file(root+"/"+name+".json",report.stringify(indent=2),create_mode=CreateNew)
   guard response.code == 200 && done else { fail("incomplete request " + name) }
   report
+}
+
+///|
+async fn observe(base : String, origin : Int64) -> Json {
+  let client = @http.Client(base)
+  defer client.close()
+  let response = client.get("/metrics")
+  let body = StringBuilder()
+  while client.read_until("\n") is Some(line) { body <+ "\{line}\n" }
+  {"elapsed_ms":Json(@async.now()-origin),"status":response.code,
+    "body":body.to_string()}
 }
 
 ///|
@@ -131,18 +148,34 @@ async fn main {
   for w in words {
     for concurrency in (if w == 6144 { [1,4] } else { [1,4,8,16] }) {
       let start = @async.now()
+      let mut completed_at = start
+      let observations : Array[Json] = []
       let reports : Array[Json] = @async.with_task_group(group => {
+        let mut monitoring = true
+        defer { monitoring = false }
+        group.spawn_bg(() => {
+          while monitoring {
+            let sample = try @async.with_timeout(3000, () => observe(base,start)) catch {
+              error => {"elapsed_ms":Json(@async.now()-start),"error":error.to_string()}
+            }
+            observations.push(sample)
+            @async.sleep(500)
+          }
+        })
         let tasks = Array::makei(concurrency, lane => group.spawn(() =>
           @async.with_timeout(1800000, () => request(root,base,model,auth,w,lane,"words-\{w}-c\{concurrency}-lane\{lane}"))))
         let completed = []
         for task in tasks { completed.push(task.wait()) }
+        completed_at = @async.now()
         completed
       })
       let group_report : Json = {"filler_words":w,"concurrency":concurrency,
-        "wall_ms":Json(@async.now()-start),"requests":Json(reports)}
+        "wall_ms":Json(completed_at-start),"requests":Json(reports)}
+      @fs.write_file(root+"/words-\{w}-c\{concurrency}.metrics.json",
+        Json(observations).stringify(indent=2),create_mode=CreateNew)
       results.push(group_report)
       @fs.write_file(root+"/words-\{w}-c\{concurrency}.json",group_report.stringify(indent=2),create_mode=CreateNew)
-      println("completed words=\{w} concurrency=\{concurrency} wall_ms=\{@async.now()-start}")
+      println("completed words=\{w} concurrency=\{concurrency} wall_ms=\{completed_at-start}")
     }
   }
   @fs.write_file(root+"/summary.json",Json(results).stringify(indent=2),create_mode=CreateNew)

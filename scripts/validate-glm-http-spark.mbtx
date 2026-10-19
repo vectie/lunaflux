@@ -13,7 +13,9 @@ import {
 let node = "wlc003s@192.168.2.178"
 
 ///|
-let socket = "/tmp/lunaflux-glm178-prefill-20261018.sock"
+let socket : String = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+  "/tmp/lunaflux-glm178-prefill-20261018.sock",
+)
 
 ///|
 async fn remote(command : String) -> @shell.Output {
