@@ -112,7 +112,12 @@ fn profile_options(
   granularity : String?,
   ranks : String?,
   rank : Int32,
+  trace_method~ : String = "cuda",
+  events~ : Bool = false,
 ) -> String raise {
+  guard trace_method is ("cuda" | "cuda-hw") else {
+    fail("trace method must be cuda or cuda-hw")
+  }
   guard ranks is (None | Some("egress") | Some("both")) else {
     fail("profile ranks must be egress or both")
   }
@@ -122,19 +127,44 @@ fn profile_options(
     _ => fail("profile granularity must be node or graph")
   }
   if rank == 1 || ranks == Some("both") {
-    " --trace=cuda --cuda-graph-trace=" + trace + " --cuda-flush-interval=0 "
+    " --trace=" +
+    trace_method +
+    " --cuda-graph-trace=" +
+    trace +
+    " --cuda-flush-interval=0 --cuda-event-trace=" +
+    (if events { "true" } else { "false" }) +
+    " "
   } else {
     ""
   }
 }
 
 ///|
-test "low overhead tracing preserves both ranks without collecting graph nodes" {
+test "both-rank graph-only option is explicit, not proof of child injection" {
   assert_true(
     profile_options(Some("graph"), Some("both"), 0).contains("graph:host-only"),
   )
   assert_eq(profile_options(None, None, 0), "")
   assert_true(profile_options(None, None, 1).contains("node"))
+}
+
+///|
+test "hardware trace and event observation remain explicit diagnostic options" {
+  let flags = profile_options(
+    Some("node"),
+    Some("both"),
+    0,
+    trace_method="cuda-hw",
+    events=true,
+  )
+  assert_true(flags.contains("--trace=cuda-hw"))
+  assert_true(flags.contains("--cuda-graph-trace=node"))
+  assert_true(flags.contains("--cuda-event-trace=true"))
+  try profile_options(None, None, 1, trace_method="unknown") catch {
+    _ => ()
+  } noraise {
+    _ => fail("unknown tracing method accepted")
+  }
 }
 
 ///|
@@ -238,18 +268,30 @@ async fn main {
           @env.get_env_var("LUNAFLUX_NATIVE_GRAPH_TRACE"),
           @env.get_env_var("LUNAFLUX_NATIVE_TRACE_RANKS"),
           rank,
+          trace_method=@env.get_env_var("LUNAFLUX_NATIVE_TRACE_METHOD").unwrap_or(
+            "cuda",
+          ),
+          events=@env.get_env_var("LUNAFLUX_NATIVE_TRACE_EVENTS") == Some("1"),
         )
       } else {
         ""
       }
       let interface = if rank == 0 { "enp1s0f1np1" } else { "enp1s0f0np0" }
       let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
+      if !profile.is_empty() {
+        remote(rank, "mkdir " + root + "/nsys-tmp").check()
+      }
       let command = "systemd-run --user --unit=" +
         tag +
         "-rank\{rank} --setenv=LD_LIBRARY_PATH=/tmp/lunaflux-glm-expert-tp-complete-answers-20261018-v1/nccl --setenv=NCCL_DEBUG=WARN --setenv=NCCL_SOCKET_IFNAME=" +
         interface +
         " --setenv=NCCL_IB_HCA=" +
         hca +
+        (if profile.is_empty() {
+          ""
+        } else {
+          " --setenv=TMPDIR=" + root + "/nsys-tmp"
+        }) +
         " --property=MemoryMax=100G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800" +
         stop_properties() +
         " " +
@@ -259,7 +301,8 @@ async fn main {
           "/worker-wire "
         } else if !profile.is_empty() {
           // Collection starts explicitly after readiness. Only the egress rank
-          // is instrumented; no profiler code enters the engine or its IR.
+          // is instrumented by default; both ranks are an explicit option.
+          // No profiler code enters the engine or its IR.
           "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys launch --session-new=" +
           tag +
           profile

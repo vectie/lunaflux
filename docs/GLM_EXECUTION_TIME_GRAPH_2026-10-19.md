@@ -1,5 +1,12 @@
 # GLM execution graph with measured stage weights
 
+Historical trace only. The current scales + bulk artifact now has a bounded
+first-chunk trace in [the current execution graph](GLM_SCALES_BULK_EXECUTION_GRAPH_2026-10-19.md),
+including complete observed layer-collective counts. Do not reuse the old
+weights below as current costs. The native MoE fork/join edge below is corrected:
+both partial producers join before TP packing/reduction, not only at the final
+MoE combine.
+
 This is an offline reading of retained execution traces and the selected
 source, not a new overall benchmark. No new GPU workload, model hash or
 integrity scan was run to construct these graphs.
@@ -87,7 +94,7 @@ flowchart TB
         LA --> LD["Routed down<br/>562.37 ms"]
         LD --> LT["TP pack → collective → unpack<br/>Pack/unpack: 52.92 ms<br/>Collective time incomplete"]
         LT --> LF["Routed finalize + MoE join<br/>8.90 + 3.55 ms"]
-        LS --> LF
+        LS --> LT
         LF --> LO["HC / next layer"]
     end
     subgraph V["vLLM — same first twelve chunks"]

@@ -20,6 +20,16 @@ async fn main {
     fail("RUNNING_TRACE_ROOT native|vllm start|stop|collect")
   }
   let tag = root[5:].to_owned()
+  let label_suffix = match @env.get_env_var("LUNAFLUX_TRACE_LABEL") {
+    None => ""
+    Some(label) => {
+      guard !label.is_empty() &&
+        label.all(c => c is ('a'..<='z' | '0'..<='9' | '-')) else {
+        fail("invalid trace label")
+      }
+      "-" + label
+    }
+  }
   async fn remote(rank : Int32, command : String) -> @shell.Output {
     @shell.Cmd("ssh", [
       "-S",
@@ -69,21 +79,33 @@ async fn main {
         fail("retire GPU owners before trace conversion")
       }
       record(
-        "export-\{rank}",
+        "export" + label_suffix + "-\{rank}",
         remote(
           rank,
           "systemd-run --user --wait --pipe --unit=" +
           tag +
-          "-export-\{rank} -p MemoryMax=4G -p MemorySwapMax=0 -p RuntimeMaxSec=600 " +
+          "-export" +
+          label_suffix +
+          "-\{rank} -p MemoryMax=4G -p MemorySwapMax=0 -p RuntimeMaxSec=600 " +
           nsys +
           " export --type=sqlite --output=" +
           root +
-          "/timeline.sqlite " +
+          "/timeline" +
+          label_suffix +
+          ".sqlite " +
           root +
-          "/timeline.nsys-rep",
+          "/timeline" +
+          label_suffix +
+          ".nsys-rep",
         ),
       )
-      for suffix in ["nsys-rep", "sqlite"] {
+      for
+        suffix in (if @env.get_env_var("LUNAFLUX_TRACE_SQLITE_ONLY") ==
+          Some("1") {
+          ["sqlite"]
+        } else {
+          ["nsys-rep", "sqlite"]
+        }) {
         @shell.Cmd("scp", [
           "-o",
           "ControlPath=" +
@@ -99,9 +121,11 @@ async fn main {
           }) +
           ":" +
           root +
-          "/timeline." +
+          "/timeline" +
+          label_suffix +
+          "." +
           suffix,
-          root + "/rank\{rank}." + suffix,
+          root + "/rank\{rank}" + label_suffix + "." + suffix,
         ])
         .output()
         .check()
@@ -121,17 +145,26 @@ async fn main {
     @async.with_task_group(group => {
       for rank in ranks {
         group.spawn_bg(() => {
-          let command = nsys +
+          let command = "env TMPDIR=" +
+            root +
+            "/nsys-tmp " +
+            nsys +
             " " +
             mode +
             " --session=" +
             tag +
             (if mode == "start" {
-              " --sample=none --cpuctxsw=none --output=" + root + "/timeline"
+              " --sample=none --cpuctxsw=none --output=" +
+              root +
+              "/timeline" +
+              label_suffix
             } else {
               ""
             })
-          record("capture-" + mode + "-\{rank}", remote(rank, command))
+          record(
+            "capture-" + mode + label_suffix + "-\{rank}",
+            remote(rank, command),
+          )
         })
       }
     })

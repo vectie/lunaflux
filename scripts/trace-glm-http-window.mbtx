@@ -1,0 +1,181 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/async@0.22.4/http",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}
+
+// One diagnostic request, not a latency sweep. Startup, warmup and report
+// conversion are outside the capture. The launcher selects observed ranks;
+// separate rank traces do not imply synchronized clocks or full coverage.
+// No compiler/runtime instrumentation.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, request_file] &&
+    root.has_prefix("/tmp/lunaflux-glm-http-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/')) else {
+    fail("PREPARED_NATIVE_TRACE_ROOT LITERAL_REQUEST_JSON")
+  }
+  async fn saved(
+    label : String,
+    program : String,
+    args : Array[String],
+  ) -> Unit {
+    let out = @shell.Cmd(program, args).output(max_output_bytes=8388608)
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  let owner = ["run", "scripts/run-glm-http-spark.mbtx", root]
+  let trace = ["run", "scripts/trace-glm-long-http.mbtx", root, "native"]
+  let credential = @fs.read_file(root + "/acceptance.credential")
+    .text()
+    .trim()
+    .to_owned()
+  let watch = @fs.open(
+    root + "/bounded-memory.txt",
+    mode=WriteOnly,
+    create_mode=CreateNew,
+  )
+  defer watch.close()
+  let active = Ref(false)
+  let completed = Ref(false)
+  let stopped = Ref(false)
+  async fn stop_capture() -> Unit {
+    if active.val && !stopped.val {
+      stopped.val = true
+      saved("bounded-stop", "moon", [..trace, "stop"])
+    }
+  }
+  async fn request(name : String, text : String) -> Unit {
+    @fs.write_file(
+      root + "/" + name + ".request.json",
+      text,
+      create_mode=CreateNew,
+    )
+    let client = @http.Client("http://127.0.0.1:18889")
+    defer client.close()
+    let reply = client.post("/v1/chat/completions", text, extra_headers={
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + credential,
+      "Content-Length": @utf8.encode(text).length().to_string(),
+    })
+    let body = client.read_all().text()
+    @fs.write_file(root + "/" + name + ".response", body, create_mode=CreateNew)
+    guard reply.code == 200 else { fail("HTTP \{reply.code}: " + body) }
+    guard body.contains("finish_reason") else {
+      fail("incomplete HTTP response")
+    }
+  }
+  let result = try {
+    saved("bounded-start", "moon", [..owner, "start-profile"])
+    defer saved("bounded-retire", "moon", [..owner, "stop"])
+    @async.with_task_group(group => {
+      group.spawn_bg(() => {
+        while !completed.val {
+          for rank in 0..<2 {
+            let out = @shell.Cmd("ssh", [
+              "-S",
+              if rank == 0 {
+                "/tmp/lunaflux-glm178-context-20261019.sock"
+              } else {
+                "/tmp/lunaflux-glm179-context-20261019.sock"
+              },
+              "-o",
+              "BatchMode=yes",
+              "-o",
+              "ConnectTimeout=5",
+              if rank == 0 {
+                "wlc003s@192.168.2.178"
+              } else {
+                "wlc004s@192.168.2.179"
+              },
+              "awk '/MemAvailable:/ {print $2}' /proc/meminfo",
+            ]).output()
+            out.check()
+            let reserve = @string.parse_int64(out.stdout().trim())
+            watch.write(
+              "at=\{@async.now()} rank=\{rank} host_available_kib=\{reserve}\n",
+            )
+            if reserve < 17825792L {
+              stop_capture()
+              fail(
+                "17 GiB diagnostic headroom stop before the 16 GiB service floor",
+              )
+            }
+          }
+          @async.sleep(250)
+        }
+      })
+      group.spawn_bg(() => saved("service-watch", "moon", [..owner, "watch"]))
+      let ready = Ref(false)
+      for _ in 0..<180 {
+        let client = @http.Client("http://127.0.0.1:18889")
+        let health = try
+          client.get("/health", extra_headers={
+            "Authorization": "Bearer " + credential,
+          }).code ==
+          200
+        catch {
+          _ => false
+        }
+        client.close()
+        if health {
+          ready.val = true
+          break
+        }
+        @async.sleep(2000)
+      }
+      guard ready.val else { fail("readiness timeout") }
+      let warmup : Json = {
+        "model": "glm-5.3",
+        "messages": [
+          { "role": "user", "content": "Reply with the integer 323." },
+        ],
+        "max_tokens": 1,
+        "temperature": 0,
+        "stream": false,
+      }
+      request("warmup", warmup.stringify())
+      saved("bounded-capture-start", "moon", [..trace, "start"])
+      active.val = true
+      defer stop_capture()
+      if @env.get_env_var("LUNAFLUX_TRACE_CAPTURE_MILLIS") is Some(value) {
+        let milliseconds = @string.parse_int(value)
+        guard milliseconds >= 50 && milliseconds <= 1000 else {
+          fail("bounded capture must be 50..1000 ms")
+        }
+        group.spawn_bg(() => {
+          @async.sleep(milliseconds)
+          stop_capture()
+        })
+      }
+      @async.with_timeout(60000, () => {
+        request("profile", @fs.read_file(request_file).text())
+      })
+      stop_capture()
+      completed.val = true
+      saved("bounded-drain", "moon", [..owner, "stop"])
+    })
+    "COMPLETE: one profiled request; inspect trace coverage before attribution"
+  } catch {
+    error => "FAILED: " + error.to_string()
+  }
+  @fs.write_file(root + "/CAPTURE_RESULT.txt", result, create_mode=CreateNew)
+  println(result)
+  guard result.has_prefix("COMPLETE") else { fail(result) }
+}
