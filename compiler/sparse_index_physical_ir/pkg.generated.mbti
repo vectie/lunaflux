@@ -20,6 +20,13 @@ pub fn CandidateScorePlan::program(Self) -> @parallel_ir.Program raise
 pub fn CandidateScorePlan::tiles_per_query(Self) -> Int
 pub fn CandidateScorePlan::workgroups(Self) -> Int
 
+pub struct MatrixScorePlan {
+  // private fields
+}
+pub fn MatrixScorePlan::new(@precision_ir.IndexedSparseAttentionPrecision, candidate_width~ : Int) -> Self?
+pub fn MatrixScorePlan::operand_bytes(Self) -> (Int64, Int64)
+pub fn MatrixScorePlan::tiles(Self) -> CandidateScorePlan
+
 pub struct PoolUpdatePlan {
   // private fields
 }

@@ -23,6 +23,7 @@ priv struct ServicePlan {
   context : Int
   history_capacity : @history.ResidentHistoryCapacity
   sparse_accumulation : @precision.AttentionAccumulationLaw
+  index_scoring : @precision.IndexScoringLaw
   budget : Int64
   reserve : Int64
 }
@@ -91,6 +92,7 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
     context,
     history_capacity,
     sparse_accumulation: service_sparse_accumulation(j),
+    index_scoring: service_index_scoring(j),
     budget: json_int(j, "budget_mib").to_int64() * 1048576L,
     reserve: json_int(j, "reserve_mib").to_int64() * 1048576L,
   }
@@ -280,6 +282,7 @@ fn ServicePlan::stage(
     matrix_staging=Synchronous,
     sparse_matrix_staging=Synchronous,
     sparse_accumulation=self.sparse_accumulation,
+    index_scoring=self.index_scoring,
     expert_scaled_dot_law=BlockScaledMatrixFloat32(block_columns=16),
     expert_transport=PackedRows,
     expert_fragment_slots=2,

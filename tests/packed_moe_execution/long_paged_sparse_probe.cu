@@ -11,6 +11,9 @@
 #ifdef NEXT
 #include "next.cuh"
 #include "selection.cuh"
+#ifdef next_QUANTIZED_INDEX
+#include "quantized_index_oracle.hpp"
+#endif
 #else
 static constexpr bool next_matrix=false;
 #endif
@@ -101,6 +104,9 @@ int main(int argc,char**argv) {
     workers[1][0]=next_workers_0;workers[1][1]=next_workers_1;workers[1][2]=next_workers_2;versions=2;
 #endif
     auto launch=[&](int ver,int stage){
+#ifdef old_SPLIT_INDEX
+      if(ver==0&&stage==1)ck(cudaLaunchKernel((const void*)old_index_scores,dim3(old_grid_3),dim3(old_workers_3),index_args,0,nullptr));
+#endif
 #ifdef next_SPLIT_INDEX
       if(ver==1&&stage==1)ck(cudaLaunchKernel((const void*)next_index_scores,dim3(next_grid_3),dim3(next_workers_3),index_args,0,nullptr));
 #endif
@@ -128,9 +134,27 @@ int main(int argc,char**argv) {
       }
       counts.put({0,0,1,active,0});pos.put(p);
 #endif
-      std::vector<int> original_indices;std::vector<__nv_bfloat16> original_output;
+      auto seed_pool=[&](int ver){
+        ck(cudaMemset(pool_valid.p,0,pool_valid.n*sizeof(int)));
+        for(int first=0;first<history;first+=rows){
+          int live=std::min(rows,history-first);std::vector<int> written(rows,0);
+          for(int i=0;i<live;++i)written[i]=first+i;
+          counts.put({0,0,1,live,0});pos.put(written);launch(ver,0);
+        }
+        counts.put({0,0,1,active,0});pos.put(p);
+      };
+      std::vector<int> original_indices;std::vector<__nv_bfloat16> original_output,original_pools;
       for(int ver=0;ver<versions;++ver) {
-        for(int stage=0;stage<3;++stage)launch(ver,stage);
+        seed_pool(ver);
+        for(int stage=0;stage<2;++stage)launch(ver,stage);
+        if(ver==0){original_pools.resize(size_t(history/4)*128);ck(cudaMemcpy(original_pools.data(),pooled.p,original_pools.size()*sizeof(__nv_bfloat16),cudaMemcpyDeviceToHost));}
+#ifdef next_QUANTIZED_INDEX
+        if(ver==1&&!profile){
+          std::vector<float> s(rows*4096);ck(cudaMemcpy(s.data(),scratch.p,s.size()*sizeof(float),cudaMemcpyDeviceToHost));
+          quantized_index_oracle(original_pools,iq.get(),hw.get(),s,selected.get(),history,active);
+        }
+#endif
+        launch(ver,2);
         ck(cudaDeviceSynchronize());
         auto indices=selected.get();auto output=out.get();
         size_t nonzero=0,selected_count=0;
@@ -148,7 +172,9 @@ int main(int argc,char**argv) {
           printf("comparison history=%d active=%d index_differences=%zu output_differences=%zu relL2=%.9g maxabs=%.9g matrix=%d\n",history,active,di,dy,sqrt(squared/reference),maxabs,next_matrix);
           // These are physical-only changes when both bundles select the
           // matrix law. Require exact outputs in that matched comparison.
+#ifndef next_QUANTIZED_INDEX
           if(di||((!next_matrix||old_matrix)&&dy))return 4;
+#endif
           wide_oracle(indices,output,active);
         }
       }
@@ -156,6 +182,7 @@ int main(int argc,char**argv) {
       cudaEvent_t a,b;ck(cudaEventCreate(&a));ck(cudaEventCreate(&b));
       for(int trial=0;trial<3;++trial)for(int order=0;order<versions;++order){
         int ver=(order+trial)%versions;
+        seed_pool(ver);
         for(int stage=0;stage<3;++stage){
           // Index and attention share scratch; restore the required predecessor.
           launch(ver,0);launch(ver,1);

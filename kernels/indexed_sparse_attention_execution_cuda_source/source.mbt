@@ -48,7 +48,21 @@ pub fn indexed_sparse_attention_source(
     function_symbol=symbols[0],
   )
   let index = @index_physical.RetainedIndexPlan::new(plan)
-  let score_tiles = if plan.paged_history() is Some(_) {
+  let score_tiles = if plan.index_scoring() is RowScaledE4M3Matrix {
+    guard @index_physical.MatrixScorePlan::new(plan, candidate_width=32)
+      is Some(matrix) else {
+      raise @precision.PrecisionPlanError::NoImplementation
+    }
+    let (head_count, dimension, _, _, _) = plan.index_geometry()
+    let (query_bytes, key_bytes) = matrix.operand_bytes()
+    // Static CUDA shared-memory eligibility, not a semantic shape restriction.
+    guard query_bytes + key_bytes + head_count.to_int64() * 132L + 128L <=
+      49152L &&
+      dimension <= 1024 else {
+      raise @precision.PrecisionPlanError::NoImplementation
+    }
+    Some(matrix.tiles())
+  } else if plan.paged_history() is Some(_) {
     index.score_tiles(128)
   } else {
     None
@@ -126,7 +140,7 @@ pub fn IndexedSparseAttentionCudaSource::launch(
   if stage == 2 {
     self.attention.launch()
   } else if stage == 3 && self.score_tiles is Some(tiles) {
-    (tiles.workgroups(), tiles.geometry().2)
+    (tiles.workgroups(), 128)
   } else if stage == 1 {
     (self.index.geometry().0, 128)
   } else if self.plan.paged_history() is Some(_) {

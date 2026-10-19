@@ -17,6 +17,12 @@ test "export long paged sparse probe" {
       maximum_queries=64,
       maximum_history=8192,
       maximum_workspace_bytes=1073741824L,
+      index_scoring=if @env.get_env_var("LUNA_LONG_QUANTIZED_INDEX") ==
+        Some("1") {
+        RowScaledE4M3Matrix
+      } else {
+        OrderedBFloat16
+      },
       attention_accumulation=if @env.get_env_var("LUNA_LONG_MATRIX") ==
         Some("1") {
         TiledFloat32
@@ -35,13 +41,26 @@ test "export long paged sparse probe" {
       symbol_prefix=prefix,
     )
     assert_eq(source.execution_order(), ReadOnlyArray::from_array([0, 3, 1, 2]))
-    assert_eq(source.launch(3), (1024, 128))
+    assert_eq(
+      source.launch(3),
+      (
+        if plan.index_scoring() is RowScaledE4M3Matrix {
+          4096
+        } else {
+          1024
+        },
+        128,
+      ),
+    )
     assert_eq(source.symbol(3), prefix + "_index_scores")
     println("LUNA_LONG_BEGIN")
     println(
       "static const bool \{prefix}_matrix=\{plan.attention_accumulation() is TiledFloat32};",
     )
     println("#define \{prefix}_SPLIT_INDEX 1")
+    if plan.index_scoring() is RowScaledE4M3Matrix {
+      println("#define \{prefix}_QUANTIZED_INDEX 1")
+    }
     println(@utf8.decode(source.source_bytes()))
     for stage in 0..<4 {
       let (grid, workers) = source.launch(stage)

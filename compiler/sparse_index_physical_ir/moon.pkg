@@ -4,3 +4,7 @@ import {
 }
 
 supported_targets = "native"
+
+import {
+  "vectie/lunaflux/compiler/attention_physical_ir" @history,
+} for "test"

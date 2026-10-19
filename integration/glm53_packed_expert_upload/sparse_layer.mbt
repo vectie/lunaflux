@@ -38,6 +38,7 @@ pub fn GlmSparseLayer::new(
   tensor_group? : (Int, Int),
   paged_history? : @history_domain.PagedHistoryDomain,
   attention_accumulation? : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
+  index_scoring? : @precision_ir.IndexScoringLaw = OrderedBFloat16,
 ) -> Self raise {
   let projection = @sparse_model.flash_sparse_projection_plan(
     spec,
@@ -50,6 +51,7 @@ pub fn GlmSparseLayer::new(
     projection_law=matrix_law,
     paged_history?,
     attention_accumulation~,
+    index_scoring~,
     tensor_group?,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(

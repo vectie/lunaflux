@@ -1,4 +1,14 @@
 ///|
+fn service_index_scoring(j : Json) -> @precision.IndexScoringLaw raise {
+  guard j is Object(fields) else { fail("expected service object") }
+  match fields.get("index_scoring") {
+    None | Some(String("ordered-bf16")) => OrderedBFloat16
+    Some(String("row-scaled-e4m3-matrix")) => RowScaledE4M3Matrix
+    _ => fail("unsupported index_scoring")
+  }
+}
+
+///|
 /// A distinct numerical program, selected at startup and identically consumed
 /// by AOT export and execution. External comparisons never authorize rewrites.
 fn service_sparse_accumulation(
@@ -14,6 +24,16 @@ fn service_sparse_accumulation(
 
 ///|
 test "sparse arithmetic is explicit and unknown policies reject" {
+  assert_true(service_index_scoring({}) is OrderedBFloat16)
+  assert_true(
+    service_index_scoring({ "index_scoring": "row-scaled-e4m3-matrix" })
+    is RowScaledE4M3Matrix,
+  )
+  try service_index_scoring({ "index_scoring": "automatic" }) catch {
+    _ => ()
+  } noraise {
+    _ => fail("unknown index scoring accepted")
+  }
   assert_true(service_sparse_accumulation({}) is OrderedFloat32)
   assert_true(
     service_sparse_accumulation({ "sparse_attention_accumulation": "tiled-f32" })

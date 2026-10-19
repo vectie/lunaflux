@@ -37,6 +37,7 @@ async fn main {
     | "run-old"
     | "run-next"
     | "sanitize-next"
+    | "sanitize-next-8g"
     | "counters-old"
     | "counters-next") else {
     fail(
@@ -114,7 +115,13 @@ async fn main {
         "test", "kernels/indexed_sparse_attention_execution_cuda_source/long_probe_test.mbt",
         "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
       ],
-      env={ "LUNA_LONG_PAGED_EXPORT": prefix, "LUNA_LONG_MATRIX": matrix },
+      env={
+        "LUNA_LONG_PAGED_EXPORT": prefix,
+        "LUNA_LONG_MATRIX": matrix,
+        "LUNA_LONG_QUANTIZED_INDEX": @env.get_env_var(
+          "LUNA_LONG_QUANTIZED_INDEX",
+        ).unwrap_or("0"),
+      },
     ).output(max_output_bytes=8388608)
     record(mode, result)
     let parts = result.stdout().split("LUNA_LONG_BEGIN\n").to_array()
@@ -160,6 +167,9 @@ async fn main {
       copy(root + "/selection.cuh", "selection.cuh")
     }
     copy("tests/packed_moe_execution/long_paged_sparse_probe.cu", "probe.cu")
+    copy(
+      "tests/packed_moe_execution/quantized_index_oracle.hpp", "quantized_index_oracle.hpp",
+    )
     record(
       mode,
       remote(
@@ -184,7 +194,13 @@ async fn main {
   guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
   record(
     mode + "-reserve",
-    remote("awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo"),
+    remote(
+      if mode == "sanitize-next-8g" {
+        "awk '/MemAvailable:/ {if($2<25165824)exit 9;print}' /proc/meminfo"
+      } else {
+        "awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo"
+      },
+    ),
   )
   if mode.has_prefix("counters-") {
     let next = mode == "counters-next"
@@ -215,7 +231,7 @@ async fn main {
         " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
         ncu +
         " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name 'regex:^(old|next)_(index|index_scores|attention_retained_scores_v1)$' --launch-count " +
-        (if next { "5" } else { "2" }) +
+        (if next { "6" } else { "3" }) +
         " --metrics " +
         metrics +
         " --export " +
@@ -245,7 +261,7 @@ async fn main {
     return
   }
   for
-    tool in (if mode == "sanitize-next" {
+    tool in (if mode.has_prefix("sanitize-next") {
       ["memcheck", "racecheck", "synccheck", "initcheck"]
     } else {
       ["run"]
@@ -267,7 +283,12 @@ async fn main {
         mode +
         "-" +
         tool +
-        " -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=1200 " +
+        (if mode == "sanitize-next-8g" {
+          " -p MemoryMax=8G"
+        } else {
+          " -p MemoryMax=2G"
+        }) +
+        " -p MemorySwapMax=0 -p RuntimeMaxSec=1200 " +
         prefix +
         root +
         (if mode == "run-old" { "/old-probe" } else { "/next-probe" }) +

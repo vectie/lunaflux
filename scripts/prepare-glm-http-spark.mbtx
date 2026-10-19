@@ -140,6 +140,12 @@ async fn main {
   guard sparse_arithmetic is ("ordered-f32" | "tiled-f32") else {
     fail("unsupported explicit sparse arithmetic")
   }
+  let index_scoring = @env.get_env_var("LUNAFLUX_GLM_INDEX_SCORING").unwrap_or(
+    "ordered-bf16",
+  )
+  guard index_scoring is ("ordered-bf16" | "row-scaled-e4m3-matrix") else {
+    fail("unsupported explicit index scoring")
+  }
   let admission_lanes = positive_setting(
     "LUNAFLUX_GLM_HTTP_ADMISSION_LANES",
     slots * 2,
@@ -186,6 +192,7 @@ async fn main {
       "history_pages": pages,
       "context": context,
       "sparse_attention_accumulation": sparse_arithmetic,
+      "index_scoring": index_scoring,
       "budget_mib": 102400,
       "reserve_mib": 2048,
       "model_label": "0000000000000000000000000000000000000000000000000000000000000001",

@@ -34,8 +34,35 @@ fn paged_pool_source(
     @precision.SparseExpression::Publish.expression(),
     ["accumulator"],
   )
+  let quantized = plan.index_scoring() is RowScaledE4M3Matrix
+  let includes = if quantized { "#include <cuda_fp8.h>" } else { "" }
+  let temporary = if quantized {
+    "__shared__ __nv_bfloat16 pooled_row[\{dimension}]; __shared__ float maxima[128];"
+  } else {
+    ""
+  }
+  let write = if quantized {
+    "pooled_row[component]=\{publish};"
+  } else {
+    "pooled[(uint64_t)candidate*\{dimension}+component]=\{publish};"
+  }
+  let quantize = if quantized {
+    (
+      $| __syncthreads();
+      $| float maximum=0.0f;for(int component=threadIdx.x;component<\{dimension};component+=blockDim.x)maximum=fmaxf(maximum,fabsf(__bfloat162float(pooled_row[component])));
+      $| maxima[threadIdx.x]=maximum;__syncthreads();
+      $| for(int stride=64;stride>0;stride>>=1){if(threadIdx.x<stride)maxima[threadIdx.x]=fmaxf(maxima[threadIdx.x],maxima[threadIdx.x+stride]);__syncthreads();}
+      $| const float scale=__fdiv_rn(fmaxf(maxima[0],1.0e-12f),448.0f);
+      $| unsigned char *encoded=(unsigned char *)pooled+(uint64_t)candidate*\{dimension+4};
+      $| for(int component=threadIdx.x;component<\{dimension};component+=blockDim.x)encoded[component]=__nv_cvt_float_to_fp8(__fdiv_rn(__bfloat162float(pooled_row[component]),scale),__NV_SATFINITE,__NV_E4M3);
+      $| if(threadIdx.x==0)*((float *)(encoded+\{dimension}))=scale;
+    )
+  } else {
+    ""
+  }
   let source =
     $|#include <cuda_bf16.h>
+    $|\{includes}
     $|#include <stdint.h>
     $|#include <math.h>
     $|__device__ __forceinline__ int \{symbol}_written_pool(int row,const int32_t *counts,const int32_t *positions,const int32_t *sequences,const int32_t *offsets,const int32_t *pages,const int32_t *generations) {
@@ -57,6 +84,7 @@ fn paged_pool_source(
     $| for(int earlier=threadIdx.x;earlier<row;earlier+=blockDim.x)if(\{symbol}_written_pool(earlier,query_counts,positions,row_sequences,page_offsets,page_ids,page_generations)==candidate)atomicExch(&owner,0);
     $| __syncthreads();if(!owner)return;
     $| const int first=candidate*\{pool};
+    $| \{temporary}
     $| const int generation=valid[first];bool ready=generation>0;
     $| for(int i=1;i<\{pool};++i)ready=ready&&valid[first+i]==generation;
     $| if(threadIdx.x==0)pool_valid[candidate]=ready?generation:0;
@@ -70,8 +98,9 @@ fn paged_pool_source(
     $|   for(int offset=0;offset<\{pool};++offset){int raw=first+offset;float logit=\{logit};denominator=\{denominator};}
     $|   for(int offset=0;offset<\{pool};++offset){int raw=first+offset;float logit=\{logit};__nv_bfloat16 probability=\{probability};accumulator=\{dot};}
     $|  }
-    $|  pooled[(uint64_t)candidate*\{dimension}+component]=\{publish};
+    $|  \{write}
     $| }
+    $| \{quantize}
     $|}
   @utf8.encode(source)
 }
@@ -153,18 +182,22 @@ fn paged_index_source(
     $|  }
     $|  scores[candidate]=score;
     $| }
-  let producer = match score_plan {
-    Some(tile) =>
-      (
-        $|extern "C" __global__ void \{score_symbol}\{ports} {
-        $| const int live=counts[3];if(live<=0||live>\{queries})return;
-        $| const int query=blockIdx.x%live,tile=blockIdx.x/live;
-        $| if(tile>=\{tile.tiles_per_query()})return;
-        $| \{geometry}
-        $| \{scores}
-        $|}
-      )
-    None => ""
+  let producer = if plan.index_scoring() is RowScaledE4M3Matrix {
+    matrix_index_source(plan, score_symbol, ports, geometry)
+  } else {
+    match score_plan {
+      Some(tile) =>
+        (
+          $|extern "C" __global__ void \{score_symbol}\{ports} {
+          $| const int live=counts[3];if(live<=0||live>\{queries})return;
+          $| const int query=blockIdx.x%live,tile=blockIdx.x/live;
+          $| if(tile>=\{tile.tiles_per_query()})return;
+          $| \{geometry}
+          $| \{scores}
+          $|}
+        )
+      None => ""
+    }
   }
   let inline_scores = if score_plan is None { scores } else { "" }
   let source =

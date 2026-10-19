@@ -18,6 +18,7 @@ pub struct IndexedSparseAttentionPrecision {
   priv workspace : Int64
   priv paging : @history.PagedHistoryDomain?
   priv accumulation : AttentionAccumulationLaw
+  priv scoring : IndexScoringLaw
 }
 
 ///|
@@ -36,6 +37,7 @@ pub fn IndexedSparseAttentionPrecision::new(
   maximum_workspace_bytes~ : Int64,
   paged_history? : @history.PagedHistoryDomain,
   attention_accumulation? : AttentionAccumulationLaw = OrderedFloat32,
+  index_scoring? : IndexScoringLaw = OrderedBFloat16,
 ) -> Self raise PrecisionPlanError {
   guard index_head_count > 0 &&
     index_head_count <= 1024 &&
@@ -67,6 +69,14 @@ pub fn IndexedSparseAttentionPrecision::new(
       raise IllegalPlacement
     }
   }
+  if index_scoring is RowScaledE4M3Matrix {
+    guard paged_history is Some(_) &&
+      index_head_count % 16 == 0 &&
+      index_head_dimension % 32 == 0 &&
+      index_head_dimension <= 1024 else {
+      raise NoImplementation
+    }
+  }
   let physical_history = paged_history
     .map(d => d.physical_rows())
     .unwrap_or(maximum_history)
@@ -86,8 +96,8 @@ pub fn IndexedSparseAttentionPrecision::new(
   }
   let sizes = [
     expert_checked_mul(
-      expert_checked_mul(pools, index_head_dimension.to_int64()),
-      2L,
+      pools,
+      index_scoring.pooled_row_bytes(index_head_dimension),
     ),
     expert_checked_mul(expert_checked_mul(pools, pool_size.to_int64()), 4L),
     expert_checked_mul(pools, 4L),
@@ -114,6 +124,7 @@ pub fn IndexedSparseAttentionPrecision::new(
     workspace,
     paging: paged_history,
     accumulation: attention_accumulation,
+    scoring: index_scoring,
   }
 }
 
@@ -176,4 +187,11 @@ pub fn IndexedSparseAttentionPrecision::attention_accumulation(
   self : Self,
 ) -> AttentionAccumulationLaw {
   self.accumulation
+}
+
+///|
+pub fn IndexedSparseAttentionPrecision::index_scoring(
+  self : Self,
+) -> IndexScoringLaw {
+  self.scoring
 }
