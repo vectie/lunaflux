@@ -1,9 +1,10 @@
 # Pooled-key reuse and matrix sparse attention
 
-Status: compiler implementation and measured full-model experiments completed;
-online promotion is blocked by service qualification. Restoration of the prior
-build also fails the host-reserve gate. **The GLM endpoint is offline.** No
-candidate described below is claimed to be an online runtime.
+Latest status: **GLM is online on tested runtime98c629fd**, after private
+64-request/memory qualification and public route, context, streaming and
+cancellation checks. The earlier offline/restoration failures below remain
+historical evidence. Long-prefill performance is improved, not at parity:
+7,973-input/one-output completion is41.679s versus vLLM17.642s (2.36x).
 
 ## Measured scope
 
@@ -479,8 +480,9 @@ Pinned ARM98c629fd builds successfully,1.3GiB reported peak and zero swap.
 Fresh full-service AOT preparation is
 `/tmp/lunaflux-glm-http-live-index-20261019-v1`; its actual generated rank
 source contains all11 score-producer symbols and the live-domain mapping.
-Public GLM remains offline pending completed service qualification; source
-presence and isolated kernel gains alone do not authorize a speed claim there.
+At this preparation boundary public GLM was still offline pending completed
+service qualification; source presence and isolated kernel gains alone did
+not authorize a speed claim there. The later public acceptance is below.
 
 ### Combined full-model latency: gains survive, but the gap remains
 
@@ -571,3 +573,40 @@ v2 private test uses that actual wire contract, while the later public test
 keeps the original customer request unchanged. Private manifests also
 deliberately leave `production_ready=false`, so metrics503 is not worker
 failure. Public readiness remains a separate true/200 gate.
+
+### Public deployment and final acceptance
+
+The private v2 acceptance completes arithmetic323, multi-turn42, a coherent
+two-sentence Chinese streamed answer, the literal7,973-token orchid-70
+request, concurrent144/81, disconnect after a real generated token, and a
+subsequent323 request. Counters show clean request retirement and no worker
+failure. The private pair then stops and releases its GPU ownership before
+the durable pair starts; no reference or second GPU experiment overlaps.
+
+The existing LunaNexa installer relocates the accepted98c629fd executable,
+rank AOT modules and unchanged8192/8-slot/16-lane/513-page manifest to:
+`~/.local/share/lunanexa/glm53-lunaflux-98c629fd` on each Spark. Previous
+release roots and unit definitions are preserved. Checkpoint hard links and
+declared inventory labels are reused without payload hashing or integrity
+scans. The existing paired lifecycle controller starts the exact user units;
+each retains100GiB `MemoryMax`, zero swap and no automatic unit restart.
+
+Public root `/tmp/lunanexa-glm-public-live-index-20261019-v1` verifies the
+unchanged company-facing `glm-5.3.flash` requests, including `stream_options`:
+model listing,323,42, Chinese SSE with usage/finish/DONE,7,973-token context,
+two concurrent answers, disconnect after actual content (744ms), and a fresh
+answer afterward. `FINAL_PUBLIC_ACCEPTANCE.json` records readiness true,
+eight admissions, seven completions, one cancellation, zero failures,
+deadlines, worker failures or restarts, zero queued/active requests and all513
+KV pages free. Both exact owners are active in the98c629fd release roots.
+
+The public observation window records minimum available host memory
+18,329,656/19,767,424KiB and GPU peaks96,881/96,909MiB, with zero unit swap.
+The runtime revision and validated-online state are updated in the existing
+route metadata. The finite acceptance observer ends; the persistent paired
+lifecycle controller remains Running. The temporary local company credential
+is deleted after validation. No unrelated dirty files are staged.
+
+This restores service within the tested envelope. It does not erase the
+one private answer-format failure, establish arbitrary-prompt quality, or
+close the remaining quantized matrix-index/compressed-cache performance gap.
