@@ -149,9 +149,9 @@ async fn main {
   let moe_reduction = @env.get_env_var("LUNAFLUX_GLM_MOE_REDUCTION").unwrap_or(
     "expert-partials-f32",
   )
-  let projection_reduction = @env.get_env_var("LUNAFLUX_GLM_PROJECTION_REDUCTION").unwrap_or(
-    "f32-before-round",
-  )
+  let projection_reduction = @env.get_env_var(
+    "LUNAFLUX_GLM_PROJECTION_REDUCTION",
+  ).unwrap_or("f32-before-round")
   guard recurrent is ("ordered-token-f32" | "chunk-triangular-f32") &&
     staging is ("synchronous" | "buffered-k32") &&
     transport is ("packed-rows" | "bulk-tiles-128x2x48") &&
