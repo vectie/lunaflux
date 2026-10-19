@@ -53,7 +53,9 @@ pub fn CandidateScorePlan::program(self : Self) -> @parallel.Program raise {
         @parallel.Access::new(buffer=0, mode=Write),
       ]),
       @parallel.Step::new(Compute(1), [
-        @parallel.Access::new(buffer=0, mode=Read),
+        // Cooperative-maxima selection retires winning validity flags;
+        // immutable-rank selection is a read-only subset of this effect.
+        @parallel.Access::new(buffer=0, mode=ReadWrite),
       ]),
     ],
   )
