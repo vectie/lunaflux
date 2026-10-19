@@ -107,6 +107,26 @@ resident slots and the same physical history pool unchanged. A regression
 checks that independent mapping. The old partial run is retained under
 `/tmp/lunaflux-glm-service-benchmark-luna-20261019-v3`.
 
+The queue repair is source-pinned at47a1f351. Its clean ARM release build
+passes (1.1GiB reported build peak, zero unit swap); full local native tests
+pass5,294/5,294 with the unchanged warning exclusions. Fresh export directly
+matches the prior eight-slot CUDA sources, so AOT kernels are reused without
+payload digests. No numerical kernel implementation changes in this repair.
+
+Reference configurationv4 (8resident ceiling,64prefill tokens,256MiB KV,
+capture maximum8) loads and serves within the resource envelope. However its
+hybrid cache has only three blocks; at2K/C16 the observed active count is one
+with fifteen waiting. It is not an adequate reference for effective batching.
+The partial first-use campaign is retained under
+`/tmp/lunaflux-glm-service-benchmark-vllm-20261019-v2`; it was deliberately
+stopped after2K/C16 and before the longer cohorts to test a768MiB KV candidate,
+not declared a full pass.
+The baseline also emits substantially different reasoning/output lengths and
+some repeated/truncated answers on identical serialized prompts. Compare
+answer correctness and actual token counts separately; its longer completion
+time is not proof of equal-work engine slowdown. First-use JIT warnings are
+retained and require a warmed measurement pass before steady-state claims.
+
 ## GPU sampling
 
 The full-logit path now has a backend-neutral total-order permutation plan in

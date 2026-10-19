@@ -241,8 +241,8 @@ async fn await_health(base : String) -> Unit {
 async fn main {
   guard @env.args() is [_, root, base, model, credential, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-service-benchmark-") &&
-    mode is ("short" | "long" | "all") else {
-    fail("NEW_ROOT BASE MODEL CREDENTIAL_FILE_OR_NONE short|long|all")
+    mode is ("short" | "long" | "edge" | "all") else {
+    fail("NEW_ROOT BASE MODEL CREDENTIAL_FILE_OR_NONE short|long|edge|all")
   }
   @fs.mkdir(root)
   if @env.get_env_var("LUNAFLUX_BENCH_WAIT_READY") == Some("1") {
@@ -256,7 +256,9 @@ async fn main {
   }
   let results : Array[Json] = []
   ignore(request(root, base, model, auth, 16, 0, "warmup"))
-  let words = if mode == "short" {
+  let words = if mode == "edge" {
+    [7936]
+  } else if mode == "short" {
     [128]
   } else if mode == "long" {
     [2048, 6144, 7936]
