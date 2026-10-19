@@ -1,5 +1,61 @@
 # GLM full-service wiring
 
+### Completed matched capacity benchmark — 19 October, 11:12 CST
+
+The v8 reference campaign completed and released both GPUs normally. The full
+answer vectors are `/tmp/lunaflux-glm-service-benchmark-luna-20261019-v4` and
+`/tmp/lunaflux-glm-service-benchmark-vllm-safe-20261019-v1`; their external
+comparison is `/tmp/lunaflux-glm-context-comparison-20261019-v1.json`.
+All64 measured requests in each engine returned the exact requested label and
+finished naturally. This is a repeated-label retrieval workload, not broad
+reasoning quality or a claim of universally equivalent numerics.
+
+| Actual input tokens | Clients | LunaFlux cohort wall (s) | vLLM cohort wall (s) | Time ratio |
+| ---: | ---: | ---: | ---: | ---: |
+| 165 | 1 | 1.950 | 1.120 | 1.74x |
+| 165 | 4 | 5.780 | 4.689 | 1.23x |
+| 165 | 8 | 16.256 | 12.022 | 1.35x |
+| 165 | 16 | 25.049 | 21.805 | 1.15x |
+| 2,085 | 1 | 21.703 | 6.423 | 3.38x |
+| 2,085 | 4 | 71.769 | 25.970 | 2.76x |
+| 2,085 | 8 | 141.091 | 51.853 | 2.72x |
+| 2,085 | 16 | 283.130 | 103.095 | 2.75x |
+| 6,181 | 1 | 76.174 | 14.588 | 5.22x |
+| 6,181 | 4 | 301.519 | 57.623 | 5.23x |
+| 7,973 | 1 | 108.520 | 18.362 | 5.91x |
+
+Literal serialized prompts, prompt token counts, greedy sampling and the128-token
+output budget match. Actual completion lengths often differ (for example10 vs6
+tokens at2K/C1); the7,973-token case has10 output tokens in both. Cohort wall is
+not per-request latency, and generated-token throughput is not a pure decode
+benchmark. The reference used its physically qualified256MiB hybrid cache,
+eight-sequence ceiling,64-token prefill budget and graph capture maximum8;
+sampled active requests never exceeded one and sampled preemption deltas were
+zero. LunaFlux sampled active requests reached six on short input and two on
+long input. Neither active-request sampling nor the configured slot ceiling
+proves an actual GPU-step batch size.
+
+The warmed reference one-token control repeat completed in0.799/6.072/14.242/
+17.622s for165/2,085/6,181/7,973 input tokens. These are latency controls, not
+complete answers. They reinforce that the large long-input gap is before or
+at the first generated token, not merely unequal completion lengths. The fixed
+LunaFlux executable still needs its own repeat before the deployment handoff.
+
+During the monitored v8 campaign, minimum available host memory was17,628,096/
+18,922,568KiB and maximum sampled GPU residency93,204/93,204MiB. The prior full
+native campaign observed17,399,408/19,099,724KiB and97,951/97,979MiB. Both remain
+within100GiB GPU and16GiB host-reserve limits. These are sampled observations,
+not unobserved allocator-peak claims.
+
+This phase did not capture instruction-level counters or a GPU timeline. Source
+inspection identifies pooled-history scans and repeated sparse-index scoring as
+testable suspects; it does not assign them measured percentages of the gap.
+Do not claim the context-capacity IR is a performance fix or infer a complete
+cause from aggregate timings. Comparison remains external to the compiler.
+
+The5f864415 fixed native service is now loading privately for token-limit,
+complete-answer, lifecycle and8K-edge acceptance. Public cutover is still pending.
+
 ### Latest validation checkpoint — 19 October, 10:30 CST
 
 Revision5f864415 includes the token-limit text repair and preserves the pinned
