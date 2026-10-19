@@ -17,6 +17,7 @@ pub struct MoeProgram {
   priv mut closed : Bool
   priv mut shared_tensor_boundary : ExpertTensorBoundary?
   priv collective_region : @parallel.CoalescedSumPlan?
+  priv reduction_placement : @precision.MoeReductionPlacement
   priv mut producer_fork : @parallel.ForkJoinSpan?
 }
 
@@ -49,10 +50,18 @@ pub fn MoeProgram::new(
   shared : @source.PackedExpertMlpCudaSource,
   combine : @combine.MoeCombineSource,
   routing? : @router.MoeRoutingCudaSource,
-  coalesce_reductions? : Bool = false,
+  coalesce_reductions~ : Bool = false,
+  reduction_placement~ : @precision.MoeReductionPlacement = ExpertPartialsFloat32,
 ) -> Self raise @device.DeviceError {
   let (rows, hidden, _, experts, selected) = routed.plan().geometry()
   let (sr, sh, _, se, ss) = shared.plan().geometry()
+  if reduction_placement == LocalCombinedBFloat16 {
+    guard !coalesce_reductions &&
+      routed.plan().down_publication() == ReduceFloat32BeforeRound &&
+      shared.plan().down_publication() == ReduceFloat32BeforeRound else {
+      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    }
+  }
   guard rows == sr &&
     hidden == sh &&
     se == 1 &&
@@ -136,6 +145,7 @@ pub fn MoeProgram::new(
     closed: false,
     shared_tensor_boundary: None,
     collective_region,
+    reduction_placement,
     producer_fork: None,
   }
 }
@@ -179,8 +189,27 @@ pub fn MoeProgram::transient_scratch_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn MoeProgram::coalesced_tensor_width(self : Self) -> Int? {
+pub fn MoeProgram::coalesced_tensor_width(self : Self) -> Int32? {
   self.collective_region.map(region => region.width())
+}
+
+///|
+/// A single collective for either concatenated F32 lanes or combined BF16.
+/// The width does not conflate their distinct numerical programs.
+pub fn MoeProgram::combined_tensor_width(self : Self) -> Int32? {
+  if self.reduction_placement == LocalCombinedBFloat16 {
+    Some(self.routed.plan().geometry().1)
+  } else {
+    self.coalesced_tensor_width()
+  }
+}
+
+///|
+pub fn MoeProgram::tensor_kind(self : Self) -> @device.TensorCollectiveKind {
+  match self.reduction_placement {
+    ExpertPartialsFloat32 => F32SumAllReduce
+    LocalCombinedBFloat16 => Bf16SumAllReduce
+  }
 }
 
 ///|
@@ -248,7 +277,7 @@ pub fn MoeProgram::abort(self : Self) -> Unit raise @device.DeviceError {
 ///|
 pub fn MoeProgram::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
   plan_sequence~ : UInt64,
   global_sequence~ : UInt64,
 ) -> Unit raise @device.DeviceError {

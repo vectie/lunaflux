@@ -3,12 +3,12 @@
 /// pipeline stage. Input/output are four-stream BF16 residual frames. This is
 /// not an embedding, vocabulary head, sampler or distributed transport owner.
 pub struct GlmDecoderSlice {
-  priv first_layer : Int
-  priv end_layer : Int
-  priv model_layer_count : Int
-  priv maximum_rows : Int
+  priv first_layer : Int32
+  priv end_layer : Int32
+  priv model_layer_count : Int32
+  priv maximum_rows : Int32
   priv residual_bytes : Int64
-  priv buffer_count : Int
+  priv buffer_count : Int32
   priv layers : Array[GlmDecoderLayer]
   priv buffers : Array[@device.Allocation]
   priv scratch_plan : @parallel.SerialScratch
@@ -17,12 +17,12 @@ pub struct GlmDecoderSlice {
   priv expert_scratch_buffers : Array[@device.Allocation]
   priv descriptors : Array[@device.Allocation]
   priv mut queue : @device.OrderedKernelExecutor?
-  priv tensor_group : (Int, Int)?
+  priv tensor_group : (Int32, Int32)?
   priv mut collective_queue : @collective_program.CollectiveKernelProgram?
-  priv mut collective_count : Int
+  priv mut collective_count : Int32
   priv mut plan_sequence : UInt64
   priv mut global_sequence : UInt64
-  priv mut launch_count : Int
+  priv mut launch_count : Int32
   priv mut status : RecurrentLayerState
 }
 
@@ -33,31 +33,32 @@ pub struct GlmDecoderSlice {
 /// DSA layers cannot be prepared as multi-request attention.
 pub fn GlmDecoderSlice::new(
   spec : @glm53_spec.Glm53FlashSpec,
-  first_layer~ : Int,
-  end_layer~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
-  maximum_history~ : Int,
+  first_layer~ : Int32,
+  end_layer~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
+  maximum_history~ : Int32,
   index_layer_norm_epsilon~ : Double,
   maximum_layer_state_bytes~ : Int64,
   maximum_layer_workspace_bytes~ : Int64,
   maximum_layer_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
-  recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  sparse_matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  sparse_accumulation? : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
-  index_scoring? : @precision_ir.IndexScoringLaw = OrderedBFloat16,
-  sparse_cache? : @precision_ir.SparseCacheLaw = ExpandedBFloat16,
-  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  expert_transport? : @matrix.ExpertTransport = IndexedRows,
-  expert_fragment_slots? : Int = 1,
-  expert_scale_partitions? : Int = 1,
-  shared_matrix_columns? : Int = 64,
-  tensor_group? : (Int, Int),
+  hc_reduction~ : @precision_ir.HyperControlReduction = Ordered,
+  recurrent_evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  sparse_matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  sparse_accumulation~ : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
+  index_scoring~ : @precision_ir.IndexScoringLaw = OrderedBFloat16,
+  sparse_cache~ : @precision_ir.SparseCacheLaw = ExpandedBFloat16,
+  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport~ : @matrix.ExpertTransport = IndexedRows,
+  expert_fragment_slots~ : Int32 = 1,
+  expert_scale_partitions~ : Int32 = 1,
+  moe_reduction~ : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  shared_matrix_columns~ : Int32 = 64,
+  tensor_group? : (Int32, Int32),
   paged_history? : @history_domain.PagedHistoryDomain,
 ) -> Self raise {
   guard first_layer >= 0 &&
@@ -113,6 +114,7 @@ pub fn GlmDecoderSlice::new(
                 shared_matrix_columns~,
                 expert_fragment_slots~,
                 expert_scale_partitions~,
+                moe_reduction~,
                 tensor_group?,
               ),
             )
@@ -145,6 +147,7 @@ pub fn GlmDecoderSlice::new(
             shared_matrix_columns~,
             expert_fragment_slots~,
             expert_scale_partitions~,
+            moe_reduction~,
             tensor_group?,
           ),
         )
@@ -190,7 +193,7 @@ pub fn GlmDecoderSlice::new(
 }
 
 ///|
-pub fn GlmDecoderSlice::layer_range(self : Self) -> (Int, Int) {
+pub fn GlmDecoderSlice::layer_range(self : Self) -> (Int32, Int32) {
   (self.first_layer, self.end_layer)
 }
 
@@ -245,7 +248,7 @@ pub fn GlmDecoderSlice::device_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn GlmDecoderSlice::launch_count(self : Self) -> Int {
+pub fn GlmDecoderSlice::launch_count(self : Self) -> Int32 {
   self.launch_count
 }
 
@@ -260,7 +263,7 @@ pub fn GlmDecoderSlice::prepare(
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   sequence_offsets~ : @device.Allocation,
@@ -269,24 +272,24 @@ pub fn GlmDecoderSlice::prepare(
   sparse_reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
-  prefix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
-  suffix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
+  prefix_launches~ : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix_launches~ : ArrayView[@device.OrderedKernelLaunch] = [],
   vocabulary_boundary? : (
-    Int,
+    Int32,
     @device.Allocation,
     @device.Allocation,
-    Int,
-    Int,
+    Int32,
+    Int32,
   ),
   collective? : @device.TensorCollectiveOwner,
-  generation? : UInt64 = 1UL,
-  retirement? : @parallel.RetirementPolicy = EachCollective,
-  replay? : @parallel.ReplayPolicy = Eager,
-  replay_budget_bytes? : Int64 = 0L,
-  overlap_experts? : Bool = false,
-  fuse_hyper? : Bool = false,
-  fuse_controls? : Bool = false,
-  defer_hyper? : Bool = false,
+  generation~ : UInt64 = 1UL,
+  retirement~ : @parallel.RetirementPolicy = EachCollective,
+  replay~ : @parallel.ReplayPolicy = Eager,
+  replay_budget_bytes~ : Int64 = 0L,
+  overlap_experts~ : Bool = false,
+  fuse_hyper~ : Bool = false,
+  fuse_controls~ : Bool = false,
+  defer_hyper~ : Bool = false,
   input_positions? : @device.Allocation,
   page_ports? : @history_frame.SparseHistoryPagePorts,
 ) -> Unit raise {
@@ -366,6 +369,7 @@ pub fn GlmDecoderSlice::prepare(
           width~,
           operation_id=(self.first_layer + index) * 3 + sublayer,
           buffer=partials,
+          bfloat16=layer.tensor_kind(sublayer) == Bf16SumAllReduce,
         ),
       )
     }

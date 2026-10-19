@@ -17,10 +17,10 @@ priv struct ServicePlan {
   runtime_label : String
   tokenizer_label : String
   credential_file : String
-  rows : Int
-  slots : Int
-  admission_lanes : Int
-  context : Int
+  rows : Int32
+  slots : Int32
+  admission_lanes : Int32
+  context : Int32
   history_capacity : @history.ResidentHistoryCapacity
   sparse_accumulation : @precision.AttentionAccumulationLaw
   index_scoring : @precision.IndexScoringLaw
@@ -39,7 +39,7 @@ fn json_string(j : Json, key : String) -> String raise {
 }
 
 ///|
-fn json_int(j : Json, key : String) -> Int raise {
+fn json_int(j : Json, key : String) -> Int32 raise {
   guard j is Object(fields) &&
     fields.get(key) is Some(Number(value, ..)) &&
     value >= 0.0 &&
@@ -197,9 +197,9 @@ fn ServicePlan::inference(
 
 ///|
 fn glm_inference_limits(
-  context : Int,
-  vocabulary : Int,
-  maximum_token_bytes? : Int = 4096,
+  context : Int32,
+  vocabulary : Int32,
+  maximum_token_bytes~ : Int32 = 4096,
 ) -> @inference.InferenceLimits raise {
   let maximum_stop_bytes = 256
   @inference.InferenceLimits::new(
@@ -256,7 +256,7 @@ fn ServicePlan::frame(
 fn ServicePlan::stage(
   self : Self,
   spec : @spec.Glm53FlashSpec,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @glm.GlmDecoderStage raise {
   guard ordinal is (0 | 1) && self.context <= spec.context_length() else {
     fail("invalid GLM rank or context")
@@ -292,6 +292,7 @@ fn ServicePlan::stage(
     expert_transport=self.execution.transport,
     expert_fragment_slots=2,
     expert_scale_partitions=self.execution.scale_partitions,
+    moe_reduction=self.execution.moe_reduction,
     hc_reduction=Tree(partitions=256),
     shared_matrix_columns=64,
     tensor_group=(ordinal, 2),

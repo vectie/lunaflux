@@ -5,23 +5,24 @@
 /// existing collective-aware MoE program and is not silently substituted here.
 pub fn GlmRecurrentLayer::with_moe_block(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
   maximum_state_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
-  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  expert_transport? : @matrix.ExpertTransport = IndexedRows,
-  shared_matrix_columns? : Int = 64,
-  expert_fragment_slots? : Int = 1,
-  expert_scale_partitions? : Int = 1,
-  tensor_group? : (Int, Int),
+  evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  hc_reduction~ : @precision_ir.HyperControlReduction = Ordered,
+  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport~ : @matrix.ExpertTransport = IndexedRows,
+  shared_matrix_columns~ : Int32 = 64,
+  expert_fragment_slots~ : Int32 = 1,
+  expert_scale_partitions~ : Int32 = 1,
+  moe_reduction~ : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  tensor_group? : (Int32, Int32),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -60,6 +61,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
         shared_matrix_columns~,
         expert_fragment_slots~,
         expert_scale_partitions~,
+        moe_reduction~,
         tensor_group?,
       ),
     ),
@@ -72,18 +74,19 @@ pub fn GlmRecurrentLayer::with_moe_block(
 /// attention family does not alter routing, expert arithmetic or ownership.
 fn make_moe_ffn(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index : Int,
-  maximum_rows : Int,
+  layer_index : Int32,
+  maximum_rows : Int32,
   maximum_expert_bytes : Int64,
   accuracy : @precision_ir.Accuracy,
-  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  expert_transport? : @matrix.ExpertTransport = IndexedRows,
-  shared_matrix_columns? : Int = 64,
-  expert_fragment_slots? : Int = 1,
-  expert_scale_partitions? : Int = 1,
-  tensor_group? : (Int, Int),
+  hc_reduction~ : @precision_ir.HyperControlReduction = Ordered,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport~ : @matrix.ExpertTransport = IndexedRows,
+  shared_matrix_columns~ : Int32 = 64,
+  expert_fragment_slots~ : Int32 = 1,
+  expert_scale_partitions~ : Int32 = 1,
+  moe_reduction~ : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  tensor_group? : (Int32, Int32),
 ) -> GlmFfn raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -147,7 +150,9 @@ fn make_moe_ffn(
   let program = @packed_expert_mlp.MoeProgram::new(
     // Two-rank F32 sums keep exactly the same pair of operands per lane;
     // broader topologies require their own reduction-order validation.
-    coalesce_reductions=matrix_law == ShapeAwareFloat32 &&
+    reduction_placement=moe_reduction,
+    coalesce_reductions=moe_reduction == ExpertPartialsFloat32 &&
+      matrix_law == ShapeAwareFloat32 &&
       tensor_group is Some((_, 2)),
     @expert_source.packed_expert_mlp_source(
       routed,

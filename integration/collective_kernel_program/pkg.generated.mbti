@@ -25,7 +25,7 @@ pub struct ReductionBoundary {
   // private fields
 }
 pub fn ReductionBoundary::fixed_gather(before_kernel~ : Int, local_width~ : Int, world~ : Int, operation_id~ : Int, send~ : @device.Allocation, receive~ : @device.Allocation) -> Self raise @device.DeviceError
-pub fn ReductionBoundary::new(before_kernel~ : Int, width~ : Int, operation_id~ : Int, buffer~ : @device.Allocation) -> Self
+pub fn ReductionBoundary::new(before_kernel~ : Int, width~ : Int, operation_id~ : Int, buffer~ : @device.Allocation, bfloat16? : Bool) -> Self
 pub fn ReductionBoundary::remap(Self, @parallel_ir.AdjacentFusion) -> Self raise @parallel_ir.ParallelError
 
 // Type aliases

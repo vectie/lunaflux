@@ -12,11 +12,12 @@ pub extend MoeCombineRounding with Eq::{equal, not_equal}
 pub extend MoeCombineRounding with @debug.Debug::{to_repr}
 
 ///|
-/// Two F32 inputs: globally reduced routed output and replicated shared
-/// output. The latter is added once, never included in expert-rank reduction.
+/// Two F32 inputs and one BF16 publication. Reduction placement is separate:
+/// global routed + replicated shared, or rank-local routed + sharded shared.
+/// Callers must not reduce a replicated shared contribution more than once.
 pub struct MoeCombinePrecision {
-  priv maximum_rows : Int
-  priv hidden : Int
+  priv maximum_rows : Int32
+  priv hidden : Int32
   priv rounding : MoeCombineRounding
   priv input_bytes : Int64
   priv output_bytes : Int64
@@ -24,8 +25,8 @@ pub struct MoeCombinePrecision {
 
 ///|
 pub fn MoeCombinePrecision::new(
-  maximum_rows~ : Int,
-  hidden~ : Int,
+  maximum_rows~ : Int32,
+  hidden~ : Int32,
   rounding~ : MoeCombineRounding,
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
@@ -39,7 +40,7 @@ pub fn MoeCombinePrecision::new(
 }
 
 ///|
-pub fn MoeCombinePrecision::geometry(self : Self) -> (Int, Int) {
+pub fn MoeCombinePrecision::geometry(self : Self) -> (Int32, Int32) {
   (self.maximum_rows, self.hidden)
 }
 

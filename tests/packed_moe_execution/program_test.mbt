@@ -1,11 +1,13 @@
 ///|
-extern "C" fn live_resources() -> Int = "lunaflux_device_worker_fake_live_children"
+extern "C" fn live_resources() -> Int32 = "lunaflux_device_worker_fake_live_children"
 
 ///|
 fn program_fixture(
   routing? : @router.MoeRoutingCudaSource,
-  complete_local? : Bool = false,
-  dot_law? : @precision.DenseDotLaw = ScalarFloat32,
+  complete_local~ : Bool = false,
+  dot_law~ : @precision.DenseDotLaw = ScalarFloat32,
+  tensor~ : Bool = false,
+  reduction_placement~ : @precision.MoeReductionPlacement = ExpertPartialsFloat32,
 ) -> (@moe.MoeProgram, Int64, Int64) raise {
   let operand = @precision.plan_operand(
     role=Weight,
@@ -21,7 +23,7 @@ fn program_fixture(
     up=operand,
     down=operand,
     expert_count=4,
-    local_experts=if complete_local { [3, 1, 0, 2] } else { [3, 1] },
+    local_experts=if complete_local || tensor { [3, 1, 0, 2] } else { [3, 1] },
     selected_experts=2,
     maximum_rows=2,
     dot_law~,
@@ -38,6 +40,26 @@ fn program_fixture(
     dot_law~,
     memory_ceiling=100000L,
   )
+  let routed = if tensor {
+    @precision.ExpertTensorPartition::new(
+      routed,
+      rank=0,
+      world_size=2,
+      memory_ceiling=100000L,
+    ).rank_plan()
+  } else {
+    routed
+  }
+  let shared = if tensor {
+    @precision.ExpertTensorPartition::new(
+      shared,
+      rank=0,
+      world_size=2,
+      memory_ceiling=100000L,
+    ).rank_plan()
+  } else {
+    shared
+  }
   (
     @moe.MoeProgram::new(
       @source.packed_expert_mlp_source(routed, symbol="routed"),
@@ -52,6 +74,8 @@ fn program_fixture(
         symbol="finalize",
       ),
       routing?,
+      reduction_placement~,
+      coalesce_reductions=tensor && reduction_placement == ExpertPartialsFloat32,
     ),
     routed.bank_bytes(),
     shared.bank_bytes(),

@@ -29,10 +29,10 @@ fn GlmFfn::is_tensor_parallel(self : Self) -> Bool {
 }
 
 ///|
-fn GlmFfn::tensor_width(self : Self) -> Int? {
+fn GlmFfn::tensor_width(self : Self) -> Int32? {
   match self.branch {
     Moe(moe) =>
-      match moe.program.coalesced_tensor_width() {
+      match moe.program.combined_tensor_width() {
         Some(width) => Some(width)
         None => moe.tensor_partition.map(p => p.collective_width())
       }
@@ -43,7 +43,7 @@ fn GlmFfn::tensor_width(self : Self) -> Int? {
 ///|
 fn GlmFfn::tensor_boundary(
   self : Self,
-) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   if self.branch is Dense(mlp) &&
     mlp.tensor_boundary() is Some((cut, buffer, width)) {
     return Some((self.envelope.prefix().length() + cut, buffer, width))
@@ -62,7 +62,7 @@ fn GlmFfn::tensor_boundary(
 }
 
 ///|
-fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int, Int)] {
+fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int32, Int32)] {
   let widths = []
   let ffn = match self {
     Recurrent(layer) => {
@@ -82,7 +82,7 @@ fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int, Int)] {
     widths.push((1, width))
     if ffn.branch is Moe(moe) &&
       moe.shared_partition is Some(partition) &&
-      moe.program.coalesced_tensor_width() is None {
+      moe.program.combined_tensor_width() is None {
       widths.push((2, partition.collective_width()))
     }
   }
@@ -92,7 +92,7 @@ fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int, Int)] {
 ///|
 fn GlmDecoderLayer::tensor_boundaries(
   self : Self,
-) -> Array[(Int, Int, @device.Allocation, Int)] raise @device.DeviceError {
+) -> Array[(Int32, Int32, @device.Allocation, Int32)] raise @device.DeviceError {
   let boundaries = []
   let ffn = match self {
     Recurrent(layer) => {
@@ -147,7 +147,7 @@ pub fn GlmDecoderSlice::tensor_contract(
         @device.TensorCollectiveSite::new(
           sequence=sites.length() + 1,
           operation_id=(self.first_layer + i) * 3 + sublayer,
-          kind=F32SumAllReduce,
+          kind=layer.tensor_kind(sublayer),
           full_width=width,
           local_width=width,
         ),
@@ -186,4 +186,20 @@ pub fn GlmDecoderStage::tensor_contract(
     label,
     vocabulary_shard?=self.text.vocabulary_shard,
   )
+}
+
+///|
+fn GlmDecoderLayer::tensor_kind(
+  self : Self,
+  sublayer : Int32,
+) -> @device.TensorCollectiveKind {
+  let ffn = match self {
+    Recurrent(layer) => layer.ffn
+    Sparse(layer) => Some(layer.ffn)
+  }
+  if sublayer == 1 && ffn is Some(ffn) && ffn.branch is Moe(moe) {
+    moe.program.tensor_kind()
+  } else {
+    F32SumAllReduce
+  }
 }

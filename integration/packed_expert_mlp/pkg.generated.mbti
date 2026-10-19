@@ -31,6 +31,7 @@ pub struct ExpertTensorBoundary {
   // private fields
 }
 pub fn ExpertTensorBoundary::before_kernel(Self) -> Int
+pub fn ExpertTensorBoundary::kind(Self) -> @device.TensorCollectiveKind
 pub fn ExpertTensorBoundary::partials(Self) -> @device.Allocation
 pub fn ExpertTensorBoundary::width(Self) -> Int
 
@@ -49,8 +50,9 @@ pub fn MoeProgram::abort(Self) -> Unit raise @device.DeviceError
 pub fn MoeProgram::borrow_retired_frontiers(Self) -> ArrayView[(String, @device.Allocation)] raise @device.DeviceError
 pub fn MoeProgram::close(Self) -> Unit raise @device.DeviceError
 pub fn MoeProgram::coalesced_tensor_width(Self) -> Int?
+pub fn MoeProgram::combined_tensor_width(Self) -> Int?
 pub fn MoeProgram::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
-pub fn MoeProgram::new(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @luna_cuda_precision.MoeCombineSource, routing? : @moe_routing_cuda_source.MoeRoutingCudaSource, coalesce_reductions? : Bool) -> Self raise @device.DeviceError
+pub fn MoeProgram::new(@selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @selected_expert_mlp_cuda_source.PackedExpertMlpCudaSource, @luna_cuda_precision.MoeCombineSource, routing? : @moe_routing_cuda_source.MoeRoutingCudaSource, coalesce_reductions? : Bool, reduction_placement? : @precision_ir.MoeReductionPlacement) -> Self raise @device.DeviceError
 pub fn MoeProgram::poll(Self) -> Bool raise @device.DeviceError
 pub fn MoeProgram::prepare(Self, @device.Context, @device.Module, @device.Stream, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, selected_indices~ : @device.Allocation, selected_weights~ : @device.Allocation, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation, reduction? : MoeReduction) -> Unit raise @device.DeviceError
 pub fn MoeProgram::prepare_routed(Self, @device.Context, @device.Module, @device.Stream, maximum_workspace_bytes~ : Int64, counts~ : @device.Allocation, input~ : @device.Allocation, router_weight~ : @device.Allocation, correction_bias? : @device.Allocation, token_ids? : @device.Allocation, token_table? : @device.Allocation, token_table_offset? : Int64, routed_bank~ : @device.Allocation, shared_bank~ : @device.Allocation, output~ : @device.Allocation, reduction? : MoeReduction) -> Unit raise @device.DeviceError
@@ -60,6 +62,7 @@ pub fn MoeProgram::producer_fork(Self) -> @parallel_ir.ForkJoinSpan?
 pub fn MoeProgram::shared_tensor_boundary(Self) -> ExpertTensorBoundary? raise @device.DeviceError
 pub fn MoeProgram::source_bytes(Self) -> Bytes raise
 pub fn MoeProgram::submit(Self, live_rows~ : Int, plan_sequence~ : UInt64, global_sequence~ : UInt64) -> Unit raise @device.DeviceError
+pub fn MoeProgram::tensor_kind(Self) -> @device.TensorCollectiveKind
 pub fn MoeProgram::transient_scratch_bytes(Self) -> Int64
 pub fn MoeProgram::workspace_bytes(Self) -> Int64
 

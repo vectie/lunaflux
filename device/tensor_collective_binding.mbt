@@ -1,8 +1,8 @@
 ///|
 pub fn TensorCollectiveOwner::validate_group(
   self : Self,
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
 ) -> Unit raise DeviceError {
   guard self.contract.rank == rank && self.contract.world_size == world_size else {
     raise InvalidArgument(TensorCollectiveExecute)
@@ -12,7 +12,7 @@ pub fn TensorCollectiveOwner::validate_group(
 ///|
 pub fn TensorCollectiveOwner::validate_site_count(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise DeviceError {
   guard count == self.contract.sequences.length() else {
     raise InvalidArgument(TensorCollectiveExecute)
@@ -25,10 +25,10 @@ pub fn TensorCollectiveOwner::validate_site_count(
 /// collective. No device operation or request-path validation is performed.
 pub fn TensorCollectiveOwner::validate_sum_site(
   self : Self,
-  site_sequence~ : Int,
-  operation_id~ : Int,
-  maximum_rows~ : Int,
-  width~ : Int,
+  site_sequence~ : Int32,
+  operation_id~ : Int32,
+  maximum_rows~ : Int32,
+  width~ : Int32,
 ) -> Unit raise DeviceError {
   self.validate_f32_site(
     site_sequence~,
@@ -43,11 +43,36 @@ pub fn TensorCollectiveOwner::validate_sum_site(
 ///|
 pub fn TensorCollectiveOwner::validate_f32_site(
   self : Self,
-  site_sequence~ : Int,
-  operation_id~ : Int,
-  maximum_rows~ : Int,
-  width~ : Int,
-  local_width~ : Int,
+  site_sequence~ : Int32,
+  operation_id~ : Int32,
+  maximum_rows~ : Int32,
+  width~ : Int32,
+  local_width~ : Int32,
+  kind~ : TensorCollectiveKind,
+) -> Unit raise DeviceError {
+  guard kind is (F32SumAllReduce | F32AllGather) else {
+    raise InvalidArgument(TensorCollectiveExecute)
+  }
+  self.validate_site(
+    site_sequence~,
+    operation_id~,
+    maximum_rows~,
+    width~,
+    local_width~,
+    kind~,
+  )
+}
+
+///|
+/// Startup binding for the explicitly typed collective effect. Element size
+/// belongs to that effect, not to an assumption in an execution queue.
+pub fn TensorCollectiveOwner::validate_site(
+  self : Self,
+  site_sequence~ : Int32,
+  operation_id~ : Int32,
+  maximum_rows~ : Int32,
+  width~ : Int32,
+  local_width~ : Int32,
   kind~ : TensorCollectiveKind,
 ) -> Unit raise DeviceError {
   let index = site_sequence - 1
@@ -58,7 +83,6 @@ pub fn TensorCollectiveOwner::validate_f32_site(
     width > 0 &&
     self.contract.sequences[index] == site_sequence &&
     self.contract.operation_ids[index] == operation_id &&
-    kind is (F32SumAllReduce | F32AllGather) &&
     self.contract.kinds[index] == tensor_collective_kind_code(kind) &&
     self.contract.full_widths[index] == width &&
     self.contract.local_widths[index] == local_width else {

@@ -1,15 +1,16 @@
 ///|
-/// A complete routed/shared launch frame with an obligatory F32 reduction
-/// before the returned publication index. A decoder must splice this boundary
+/// A complete routed/shared launch frame with an obligatory typed reduction
+/// before the returned consumer index. A decoder must splice this boundary
 /// into a collective-aware queue, not enqueue the frame as a local sequence.
 pub struct ExpertTensorBoundary {
-  priv before_kernel : Int
+  priv before_kernel : Int32
   priv partials : @device.Allocation
-  priv width : Int
+  priv width : Int32
+  priv kind : @device.TensorCollectiveKind
 }
 
 ///|
-pub fn ExpertTensorBoundary::before_kernel(self : Self) -> Int {
+pub fn ExpertTensorBoundary::before_kernel(self : Self) -> Int32 {
   self.before_kernel
 }
 
@@ -19,8 +20,13 @@ pub fn ExpertTensorBoundary::partials(self : Self) -> @device.Allocation {
 }
 
 ///|
-pub fn ExpertTensorBoundary::width(self : Self) -> Int {
+pub fn ExpertTensorBoundary::width(self : Self) -> Int32 {
   self.width
+}
+
+///|
+pub fn ExpertTensorBoundary::kind(self : Self) -> @device.TensorCollectiveKind {
+  self.kind
 }
 
 ///|
@@ -34,7 +40,7 @@ pub fn MoeProgram::shared_tensor_boundary(
 }
 
 ///|
-/// Independent producer coordinates are valid only for the coalesced frame;
+/// Independent producer coordinates are valid for joined tensor frames;
 /// bind_experts owns distinct writable scratch for the two branches.
 pub fn MoeProgram::producer_fork(self : Self) -> @parallel.ForkJoinSpan? {
   self.producer_fork
@@ -89,9 +95,13 @@ pub fn MoeProgram::prepare_routed_tensor_frame(
   self.launches.append(shared)
   self.launches.push(finalize)
   {
-    before_kernel: routed.length() -
-    (if self.collective_region is Some(_) { 0 } else { 1 }),
+    before_kernel: if self.reduction_placement == LocalCombinedBFloat16 {
+      self.launches.length()
+    } else {
+      routed.length() - (if self.collective_region is Some(_) { 0 } else { 1 })
+    },
     partials,
-    width: self.coalesced_tensor_width().unwrap_or(hidden * selected),
+    width: self.combined_tensor_width().unwrap_or(hidden * selected),
+    kind: self.tensor_kind(),
   }
 }

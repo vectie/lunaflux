@@ -6,9 +6,10 @@ fn run_collective_program(
   bucketed~ : Bool = false,
   decode_graph~ : Bool = false,
   cancel~ : Bool = false,
-  cancel_rows~ : Int = 1,
+  cancel_rows~ : Int32 = 1,
   fork~ : Bool = false,
   abort_idle~ : Bool = false,
+  bfloat16~ : Bool = false,
 ) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
@@ -55,14 +56,14 @@ fn run_collective_program(
       @device.TensorCollectiveSite::new(
         sequence=1,
         operation_id=3,
-        kind=F32SumAllReduce,
+        kind=if bfloat16 { Bf16SumAllReduce } else { F32SumAllReduce },
         full_width=8,
         local_width=8,
       ),
       @device.TensorCollectiveSite::new(
         sequence=2,
         operation_id=8,
-        kind=F32SumAllReduce,
+        kind=if bfloat16 { Bf16SumAllReduce } else { F32SumAllReduce },
         full_width=8,
         local_width=8,
       ),
@@ -107,12 +108,14 @@ fn run_collective_program(
         width=8,
         operation_id=3,
         buffer~,
+        bfloat16~,
       ),
       @collective_program.ReductionBoundary::new(
         before_kernel=3,
         width=8,
         operation_id=8,
         buffer~,
+        bfloat16~,
       ),
     ],
     owner~,
@@ -254,4 +257,13 @@ test "idle peer teardown drops retained collective graphs before abort" {
   run_collective_program(true, collective_graph=true, abort_idle=true)
   run_collective_program(true, bucketed=true, abort_idle=true)
   run_collective_program(true, decode_graph=true, abort_idle=true)
+}
+
+///|
+test "BF16 local-combine boundaries preserve eager replay forks and cancellation" {
+  run_collective_program(false, bfloat16=true)
+  run_collective_program(true, bfloat16=true, fork=true)
+  run_collective_program(true, bfloat16=true, replay=true)
+  run_collective_program(true, bfloat16=true, decode_graph=true)
+  run_collective_program(true, bfloat16=true, decode_graph=true, cancel=true)
 }

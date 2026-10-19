@@ -5,7 +5,8 @@ priv struct ExecutionPolicy {
   recurrent : @precision.RecurrentEvaluationLaw
   staging : @matrix.MatrixStaging
   transport : @matrix.ExpertTransport
-  scale_partitions : Int
+  scale_partitions : Int32
+  moe_reduction : @precision.MoeReductionPlacement
 }
 
 ///|
@@ -34,7 +35,13 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     Some(Number(32.0, ..)) => 32
     _ => fail("unsupported expert_scale_partitions")
   }
-  { recurrent, staging, transport, scale_partitions, }
+  let moe_reduction : @precision.MoeReductionPlacement = match
+    fields.get("moe_reduction") {
+    None | Some(String("expert-partials-f32")) => ExpertPartialsFloat32
+    Some(String("local-combined-bf16")) => LocalCombinedBFloat16
+    _ => fail("unsupported moe_reduction")
+  }
+  { recurrent, staging, transport, scale_partitions, moe_reduction, }
 }
 
 ///|
@@ -47,7 +54,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
     Synchronous => "synchronous"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
   }
-  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions}"
+  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)}"
 }
 
 ///|
@@ -57,6 +64,7 @@ test "HTTP execution defaults preserve the validated numerical and physical plan
   assert_true(p.staging is Synchronous)
   assert_true(p.transport is PackedRows)
   assert_eq(p.scale_partitions, 1)
+  assert_eq(p.moe_reduction, ExpertPartialsFloat32)
 }
 
 ///|
@@ -76,8 +84,10 @@ test "HTTP compiler alternatives compose independently without implicit selectio
     "expert_transport": "bulk-tiles-128x2x48",
     "projection_staging": "buffered-k32",
     "recurrent_evaluation": "chunk-triangular-f32",
+    "moe_reduction": "local-combined-bf16",
   })
   assert_true(all.recurrent is ChunkTriangularFloat32)
+  assert_eq(all.moe_reduction, LocalCombinedBFloat16)
   assert_true(all.staging is Buffered(inner_tile=32))
   assert_true(all.description().contains("expert_scale_partitions=32"))
 }
@@ -91,6 +101,7 @@ test "unknown execution choices cannot silently use the serving baseline" {
     { "expert_transport": "automatic" },
     { "projection_staging": "buffered-k128" },
     { "recurrent_evaluation": "automatic" },
+    { "moe_reduction": "automatic" },
   ]
   for value in cases {
     try execution_policy(value) catch {

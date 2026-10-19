@@ -8,15 +8,15 @@ pub struct GlmDecoderStage {
   priv decoder : GlmDecoderSlice
   priv text : GlmTextIo
   priv residual_bytes : Int64
-  priv maximum_rows : Int
-  priv maximum_history : Int
-  priv vocabulary : Int
-  priv maximum_sequences : Int
-  priv maximum_outputs : Int
+  priv maximum_rows : Int32
+  priv maximum_history : Int32
+  priv vocabulary : Int32
+  priv maximum_sequences : Int32
+  priv maximum_outputs : Int32
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
   priv mut activation_leased : Bool
-  priv mut active_rows : Int
+  priv mut active_rows : Int32
   priv mut submission_epoch : UInt64
   priv mut status : RecurrentLayerState
 }
@@ -25,33 +25,34 @@ pub struct GlmDecoderStage {
 pub fn GlmDecoderStage::new(
   spec : @glm53_spec.Glm53FlashSpec,
   range : @pipeline.DecoderStageRange,
-  maximum_rows~ : Int,
-  maximum_history~ : Int,
+  maximum_rows~ : Int32,
+  maximum_history~ : Int32,
   index_layer_norm_epsilon~ : Double,
   maximum_layer_state_bytes~ : Int64,
   maximum_layer_workspace_bytes~ : Int64,
   maximum_layer_expert_bytes~ : Int64,
   maximum_text_workspace_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
-  recurrent_evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  sparse_matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  sparse_accumulation? : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
-  index_scoring? : @precision_ir.IndexScoringLaw = OrderedBFloat16,
-  sparse_cache? : @precision_ir.SparseCacheLaw = ExpandedBFloat16,
-  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  expert_transport? : @matrix.ExpertTransport = IndexedRows,
-  expert_fragment_slots? : Int = 1,
-  expert_scale_partitions? : Int = 1,
-  shared_matrix_columns? : Int = 64,
-  tensor_group? : (Int, Int),
-  shard_vocabulary? : Bool = false,
-  vocabulary_publication? : @parallel.VocabularyPublication = GreedyCandidates,
-  maximum_sequences? : Int = 1,
-  cache_slots? : Int = 1,
-  maximum_output_rows? : Int = 1,
+  hc_reduction~ : @precision_ir.HyperControlReduction = Ordered,
+  recurrent_evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  sparse_matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  sparse_accumulation~ : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
+  index_scoring~ : @precision_ir.IndexScoringLaw = OrderedBFloat16,
+  sparse_cache~ : @precision_ir.SparseCacheLaw = ExpandedBFloat16,
+  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport~ : @matrix.ExpertTransport = IndexedRows,
+  expert_fragment_slots~ : Int32 = 1,
+  expert_scale_partitions~ : Int32 = 1,
+  moe_reduction~ : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  shared_matrix_columns~ : Int32 = 64,
+  tensor_group? : (Int32, Int32),
+  shard_vocabulary~ : Bool = false,
+  vocabulary_publication~ : @parallel.VocabularyPublication = GreedyCandidates,
+  maximum_sequences~ : Int32 = 1,
+  cache_slots~ : Int32 = 1,
+  maximum_output_rows~ : Int32 = 1,
   paged_history? : @history_domain.PagedHistoryDomain,
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
@@ -138,6 +139,7 @@ pub fn GlmDecoderStage::new(
       expert_transport~,
       expert_fragment_slots~,
       expert_scale_partitions~,
+      moe_reduction~,
       shared_matrix_columns~,
       tensor_group?,
     ),
@@ -170,7 +172,7 @@ pub fn GlmDecoderStage::new(
 }
 
 ///|
-pub fn GlmDecoderStage::layer_range(self : Self) -> (Int, Int) {
+pub fn GlmDecoderStage::layer_range(self : Self) -> (Int32, Int32) {
   self.range.layer_range()
 }
 
@@ -210,17 +212,17 @@ pub fn GlmDecoderStage::prepare_inputs(
   root : @approved_fs.ApprovedRoot,
   ports : GlmDecoderInputs,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   collective? : @device.TensorCollectiveOwner,
-  generation? : UInt64 = 1UL,
-  retirement? : @parallel.RetirementPolicy = EachCollective,
-  replay? : @parallel.ReplayPolicy = Eager,
-  replay_budget_bytes? : Int64 = 0L,
-  overlap_experts? : Bool = false,
-  fuse_hyper? : Bool = false,
-  fuse_controls? : Bool = false,
-  defer_hyper? : Bool = false,
+  generation~ : UInt64 = 1UL,
+  retirement~ : @parallel.RetirementPolicy = EachCollective,
+  replay~ : @parallel.ReplayPolicy = Eager,
+  replay_budget_bytes~ : Int64 = 0L,
+  overlap_experts~ : Bool = false,
+  fuse_hyper~ : Bool = false,
+  fuse_controls~ : Bool = false,
+  defer_hyper~ : Bool = false,
 ) -> Unit raise {
   guard self.status is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -325,7 +327,7 @@ pub fn GlmDecoderStage::output_residual(
 }
 
 ///|
-pub fn GlmDecoderStage::launch_count(self : Self) -> Int {
+pub fn GlmDecoderStage::launch_count(self : Self) -> Int32 {
   self.decoder.launch_count()
 }
 
@@ -337,7 +339,7 @@ pub fn GlmDecoderStage::append_descriptors(
 }
 
 ///|
-pub fn GlmDecoderStage::submit(self : Self, live_rows~ : Int) -> Unit raise {
+pub fn GlmDecoderStage::submit(self : Self, live_rows~ : Int32) -> Unit raise {
   guard self.status is Ready && !self.activation_leased else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
   }

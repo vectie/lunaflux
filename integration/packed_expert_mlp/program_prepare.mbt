@@ -294,6 +294,20 @@ fn MoeProgram::bind_experts(
     shared=shared.output,
     output~,
   )
+  if self.reduction_placement == LocalCombinedBFloat16 {
+    // Each branch includes local publication. Join before combine; BF16 TP
+    // follows combine and precedes the caller's residual consumer.
+    self.producer_fork = Some(
+      @parallel.ForkJoinSpan::new(
+        first=0,
+        split=routed_launches.length(),
+        join=routed_launches.length() + shared_launches.length(),
+      ) catch {
+        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      },
+    )
+    return (routed_launches, shared_launches, finalize, output)
+  }
   if self.collective_region is Some(region_plan) {
     let joined = self.allocate(context, region_plan.storage_bytes())
     let functions = self.load_functions(aot_module, [
@@ -348,6 +362,7 @@ fn MoeProgram::bind_experts(
       before_kernel: routed_launches.length() + shared_launches.length() - 1,
       partials: shared.weighted,
       width: hidden,
+      kind: F32SumAllReduce,
     })
   }
   (

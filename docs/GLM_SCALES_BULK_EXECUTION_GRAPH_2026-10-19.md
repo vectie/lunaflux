@@ -263,3 +263,22 @@ existing wire descriptors and profiler injection, with measured profiler
 headroom reserved before resident weights. Do not rerun an unrestricted
 whole-request node trace or raise the 100/16 GiB limits. Until that evidence
 exists, this report does not claim complete 8K critical-path attribution.
+
+## Follow-up: local combination before TP (implementation plan)
+
+The measured MoE boundary transports eight routed F32 partials and one shared
+F32 partial per token. The alternative publishes each rank's expert results
+locally, combines them into one BF16 hidden vector, then performs one BF16
+sum-allreduce before HC. For 64 rows and 4096 channels this changes the
+collective buffer from 9 MiB to 0.5 MiB and removes concatenation pack/unpack.
+
+This is a different finite-precision program, **not** a bitwise-equivalent
+reassociation. The numerical IR names the choice; the parallel plan joins both
+producers before reduction; the device boundary carries the element type.
+Both expert branches must be sharded, never replicated shared contributions.
+Existing serving defaults remain unchanged during testing.
+
+Qualification covers source/plan propagation, typed collective/fork boundaries,
+bounded GPU correctness, complete answers, and retracing the same scales+bulk
+workload against the retained matched vLLM trace. No overall throughput
+campaign, payload hashing, or automatic promotion.
