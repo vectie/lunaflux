@@ -1,5 +1,23 @@
 # GLM full-service wiring
 
+### Latest validation checkpoint — 19 October, 10:30 CST
+
+Revision5f864415 includes the token-limit text repair and preserves the pinned
+ARM toolchain's `Int` spelling. The earlier a88f380b ARM attempt failed because
+the desktop formatter rewrote nine signatures to unsupported `Int32`; it is
+retained at `/tmp/lunaflux-checkpoint-build-glm-text-limit-20261019-v1`, not a
+successful build. The fresh v2 ARM release build succeeds:336 tasks,1.4GiB
+reported peak,zero unit swap. Exported CUDA sources directly match the accepted
+eight-slot AOT and are reused without hashes. The new private root is
+`/tmp/lunaflux-glm-http-context8k-text-limit-20261019-v1`; it is not yet running
+or publicly deployed. Full local native tests pass5,297/5,297, in the existing
+dirty migration workspace with unchanged warning exclusions.
+
+The supplied existing company credential authenticates public model listing.
+This proves authorization only, not inference availability or final acceptance.
+vLLMv6 currently owns both GPUs; the fixed native service must wait for its
+bounded baseline to finish and release them.
+
 ## Context/concurrency extension, 19 October (in progress)
 
 The public 2048-context/four-slot recipe tied physical history to
