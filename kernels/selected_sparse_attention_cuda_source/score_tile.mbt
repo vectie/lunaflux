@@ -6,6 +6,7 @@ fn score_tile_source(
   dimension : Int,
   kv_heads : Int,
   scalar : String,
+  branch_storage? : String,
 ) -> String raise {
   guard dimension >= 32 && schedule.score_tile(32) is Some(tile) else {
     return scalar
@@ -17,10 +18,16 @@ fn score_tile_source(
     "tile_keys[component*\{keys}+(worker^(component*2))]",
   ])
   let score = expression(Score, ["dot", "scale"])
+  let storage = match branch_storage {
+    None =>
+      "__shared__ __nv_bfloat16 tile_keys[\{keys*components}],tile_query[\{components}];"
+    Some(pointer) =>
+      "__nv_bfloat16 *tile_keys=(__nv_bfloat16*)\{pointer},*tile_query=tile_keys+\{keys*components};"
+  }
   (
     $|if(visible>=\{keys}) {
     $| // Cooperative key rows, swizzled copy ownership, ordered score folds.
-    $| __shared__ __nv_bfloat16 tile_keys[\{keys*components}],tile_query[\{components}];
+    $| \{storage}
     $| for(int first=0;first<visible;first+=\{keys}) {
     $|  float dot=0.0f;
     $|  const int item=first+worker;

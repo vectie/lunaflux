@@ -95,7 +95,11 @@ pub fn selected_sparse_source(
     $|  scores[item] = \{score};
     $|}
   let ordered_scores = score_tile_source(
-    schedule, qk_dimension, kv_heads, scalar_scores,
+    schedule,
+    qk_dimension,
+    kv_heads,
+    scalar_scores,
+    branch_storage?=reuse.map(_ => "branch_storage"),
   )
   let denominator = expression(DenominatorUpdate, [
     "denominator", "scores[item]", "maximum",
@@ -162,6 +166,11 @@ pub fn selected_sparse_source(
   } else {
     "extern \"C\" __global__ void " + symbol
   }
+  let branch_port = if reuse is Some(_) {
+    ",unsigned char *branch_storage"
+  } else {
+    ""
+  }
   let source =
     $|#include <cuda_bf16.h>
     $|#include <stdint.h>
@@ -172,7 +181,7 @@ pub fn selected_sparse_source(
     $|  const int32_t *query_positions, const int32_t *key_count,
     $|  const int32_t *key_valid, const __nv_bfloat16 *queries,
     $|  const __nv_bfloat16 *keys, const __nv_bfloat16 *values,
-    $|  const int32_t *selected_indices, __nv_bfloat16 *output, void *scratch\{extra_ports}) {
+    $|  const int32_t *selected_indices, __nv_bfloat16 *output, void *scratch\{extra_ports}\{branch_port}) {
     $|  const int group = blockIdx.x, worker = threadIdx.x;
     $|  if (group >= \{schedule.workgroups()}) return;
     $|  const int query = group / \{query_heads}, head = group % \{query_heads};
@@ -232,6 +241,21 @@ pub fn selected_sparse_source(
     $|  \{output_body}
     $|}
   if reuse is Some(plan) {
+    // Every lane takes the same count-based alternative. Its row copy tile
+    // and cohort membership mask are disjoint lifetimes, never two concurrent
+    // producers. Use the existing physical lifetime plan, not the sum of both.
+    let row_bytes = schedule
+      .score_tile(32)
+      .map(t => t.storage_cells() * 2L)
+      .unwrap_or(1L)
+    let mask_bytes = plan.cohort_rows().to_int64() *
+      ((maximum_history.to_int64() + 31L) / 32L) *
+      4L
+    let branch = @tile.SequentialScratch::new(
+      producer_bytes=row_bytes,
+      consumer_bytes=mask_bytes,
+      overlapping=false,
+    ).unwrap()
     let cohort_symbol = symbol + "_cohort"
     let cohort_source = @utf8.decode(
       query_reuse_source(
@@ -246,8 +270,9 @@ pub fn selected_sparse_source(
     }
     let dispatch =
       $|extern "C" __global__ void \{symbol}(const int32_t *counts,const int32_t *query_positions,const int32_t *key_count,const int32_t *key_valid,const __nv_bfloat16 *queries,const __nv_bfloat16 *keys,const __nv_bfloat16 *values,const int32_t *selected_indices,__nv_bfloat16 *output,void *scratch\{extra_ports}){
-      $| if(counts[3]>=\{plan.cohort_rows()})\{cohort_symbol}(counts,query_positions,key_count,key_valid,queries,keys,values,selected_indices,output,scratch\{extra_names});
-      $| else \{row_symbol}(counts,query_positions,key_count,key_valid,queries,keys,values,selected_indices,output,scratch\{extra_names});
+      $| __shared__ __align__(16) unsigned char branch_storage[\{branch.allocation_bytes()}];
+      $| if(counts[3]>=\{plan.cohort_rows()})\{cohort_symbol}(counts,query_positions,key_count,key_valid,queries,keys,values,selected_indices,output,scratch\{extra_names},branch_storage);
+      $| else \{row_symbol}(counts,query_positions,key_count,key_valid,queries,keys,values,selected_indices,output,scratch\{extra_names},branch_storage);
       $|}
     return {
       schedule,

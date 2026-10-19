@@ -52,12 +52,12 @@ fn query_reuse_source(
     $|__device__ __forceinline__ void \{symbol}_matrix(unsigned a0,unsigned a1,unsigned a2,unsigned a3,unsigned b0,unsigned b1,float *d){
     $| asm volatile("mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 {%0,%1,%2,%3},{%4,%5,%6,%7},{%8,%9},{%0,%1,%2,%3};":"+f"(d[0]),"+f"(d[1]),"+f"(d[2]),"+f"(d[3]):"r"(a0),"r"(a1),"r"(a2),"r"(a3),"r"(b0),"r"(b1));
     $|}
-    $|__device__ __forceinline__ void \{symbol}(const int32_t *counts,const int32_t *query_positions,const int32_t *key_count,const int32_t *key_valid,const __nv_bfloat16 *queries,const __nv_bfloat16 *keys,const __nv_bfloat16 *values,const int32_t *selected_indices,__nv_bfloat16 *output,void *scratch\{ports}){
+    $|__device__ __forceinline__ void \{symbol}(const int32_t *counts,const int32_t *query_positions,const int32_t *key_count,const int32_t *key_valid,const __nv_bfloat16 *queries,const __nv_bfloat16 *keys,const __nv_bfloat16 *values,const int32_t *selected_indices,__nv_bfloat16 *output,void *scratch\{ports},unsigned char *branch_storage){
     $| const int worker=threadIdx.x,lane=worker&31,warp=worker/32,g=lane/4,t=lane%4;
     $| const int head=blockIdx.x%\{qh},first_query=(blockIdx.x/\{qh})*16,kv_head=head/\{qh/kvh};
     $| if(first_query>=\{rows})return;
     $| const int live=\{live};const __nv_bfloat16 zero=__float2bfloat16_rn(0.0f);
-    $| __shared__ unsigned mask[16][\{words}];
+    $| unsigned (*mask)[\{words}]=(unsigned (*)[\{words}])branch_storage;
     $| __shared__ int valid[16],sequence_id[16],position[16],physical[64],limit,any;
     $| __shared__ __nv_bfloat16 operands[\{storage}],probabilities[16][16];
     $| for(int i=worker;i<16*\{vd};i+=256){int r=i/\{vd},c=i%\{vd},query=first_query+r;if(query<\{rows})output[((uint64_t)query*\{qh}+head)*\{vd}+c]=zero;}

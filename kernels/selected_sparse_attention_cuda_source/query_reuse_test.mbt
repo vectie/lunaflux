@@ -28,6 +28,8 @@ test "query reuse keeps distinct masks and sequence cohorts" {
   assert_true(text.contains("__float2bfloat16_rn"))
   assert_true(text.contains("if(counts[3]>=16)reuse_fixture_cohort"))
   assert_true(text.contains("else reuse_fixture_single"))
+  assert_true(text.contains("unsigned char branch_storage[128]"))
+  assert_false(text.contains("__shared__ unsigned mask"))
   // The cohort renderer has its own matrix primitive. No row-zero-only MMA
   // is emitted for incomplete cohorts; their ordered reductions are retained.
   assert_false(text.contains("reuse_fixture_mma("))
