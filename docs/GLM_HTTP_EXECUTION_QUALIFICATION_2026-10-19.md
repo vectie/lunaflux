@@ -83,3 +83,41 @@ It reserves a full 64-row triangular workspace for every slot, despite the
 frame having only 64 total token rows. Packed per-sequence workspace or
 cross-layer transient reuse is a separate physical-plan improvement; neither
 is implemented or qualified by merely exposing the HTTP selector.
+
+## Initial HTTP results (remaining cohorts pending)
+
+Native binary is pinned to `72ce7bd1`. All rows below use expanded BF16 cache,
+row-scaled matrix index scoring, 64 physical rows and the same 8192 envelope.
+Each cell lists two independent request sweeps in seconds, one output token,
+C1, no cached prompt tokens. Startup and the excluded warmup are not timed.
+
+| HTTP selection | 165 input | 2085 input | 6181 input | 7973 input |
+|---|---:|---:|---:|---:|
+| Control | 1.237 / 1.233 | 10.908 / 11.021 | 30.280 / 30.973 | 39.517 / 38.808 |
+| 32 scale partitions only | 1.140 / 1.128 | 9.828 / 9.884 | 26.416 / 26.563 | 34.137 / 34.175 |
+
+At 7973 tokens the two-sweep mean improves 12.78%; this is HTTP latency, not
+an extrapolation from a selected kernel. Fresh reference and remaining axes
+are pending. The scale path preserves the observed 11/11 automatic task checks,
+four concurrent distinct identifiers and six cancellation/reuse cycles.
+A separately labelled mixed-load full-context request finishes `orchid-70`
+exactly, with 7973 input / 10 output tokens and normal stop; its 36.188 s group
+time is **not** mixed into the isolated latency table. Manual translation,
+function, SQL and summary semantics are correct; both control and scale SQL
+answers add an unwanted Markdown fence to the SQL-only request.
+
+Raw roots: `/tmp/lunaflux-glm-http-policy-{base,scales}-20261019-v1`,
+`/tmp/lunaflux-glm-service-benchmark-policy-{base,scales}-20261019-v1-r{1,2}`,
+`/tmp/lunaflux-glm-broad-policy-{base,scales}-20261019-v1`.
+Control sampled host minimum: 18,423,984 KiB; scales: 18,439,456 KiB.
+Both peak GPU samples: 96,905 MiB; process swap: zero.
+
+The scale harness verdict is retained as **FAILED**, not overwritten: its
+watcher interpreted the deliberate coordinator drain as unexpected rank loss
+after all request checks completed. The journal records the requested stop,
+successful coordinator retirement and peer exit 0; both GPUs were verified
+empty before the next run. Fix the external watcher by publishing stop intent
+before either stop request; only the partial-pair-loss check consults it.
+Memory-limit and failed-rank checks remain active. Three watcher regression
+tests pass. Requalify final selected combinations with the corrected runner;
+do not misrepresent this old verdict as a clean harness completion.

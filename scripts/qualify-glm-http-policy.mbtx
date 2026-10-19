@@ -4,6 +4,7 @@ import {
   "moonbitlang/async@0.22.4/fs",
   "moonbitlang/async@0.22.4/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/json",
 }
 
 // External, finite HTTP qualification. No compiler selection or model oracle.
@@ -70,6 +71,28 @@ async fn main {
           "latency",
         ])
         println("\{tag}: latency repeat \{repetition} complete")
+      }
+      let long_root = "/tmp/lunaflux-glm-service-benchmark-policy-" +
+        tag +
+        "-answers"
+      command(root, "long-answer", [
+        "LUNAFLUX_BENCH_MAX_TOKENS=128",
+        "moon",
+        "run",
+        "scripts/benchmark-glm-context-service.mbtx",
+        long_root,
+        "http://127.0.0.1:18889",
+        "glm-5.3",
+        artifact + "/acceptance.credential",
+        "edge",
+      ])
+      guard @json.parse(
+          @fs.read_file(long_root + "/words-7936-c1-lane0.json").text(),
+        )
+        is { "answer_exact": True, "finish_reason": "stop", .. } else {
+        fail(
+          "full-context retrieval did not finish with the required exact answer",
+        )
       }
       command(root, "broad", [
         "moon",

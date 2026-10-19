@@ -83,6 +83,23 @@ fn stop_order() -> Array[Int32] {
 }
 
 ///|
+fn unexpected_rank_loss(
+  active : Int32,
+  paired : Bool,
+  requested_stop : Bool,
+) -> Bool {
+  paired && active == 1 && !requested_stop
+}
+
+///|
+test "requested drain is distinct from unexpected rank loss" {
+  assert_true(unexpected_rank_loss(1, true, false))
+  assert_false(unexpected_rank_loss(1, true, true))
+  assert_false(unexpected_rank_loss(1, false, false))
+  assert_false(unexpected_rank_loss(2, true, false))
+}
+
+///|
 fn stop_properties() -> String {
   // SIGTERM goes to the owning main process only. A timeout still kills the
   // entire cgroup, so an abandoned child cannot survive a failed drain.
@@ -160,6 +177,15 @@ async fn main {
     guard failures.is_empty() else { fail(failures.join("\n")) }
   }
   if mode == "stop" {
+    // External lifecycle evidence, published before requesting either stop.
+    // Memory and failed-rank checks remain active during intentional draining.
+    if !@fs.exists(root + "/stop-requested.txt") {
+      @fs.write_file(
+        root + "/stop-requested.txt",
+        "paired owner drain requested\n",
+        create_mode=CreateNew,
+      )
+    }
     stop()
     return
   }
@@ -304,7 +330,11 @@ async fn main {
     }
     if active == 2 {
       pair_observed = true
-    } else if pair_observed {
+    } else if unexpected_rank_loss(
+        active,
+        pair_observed,
+        @fs.exists(root + "/stop-requested.txt"),
+      ) {
       stop()
       fail("one resident rank exited; paired owner stopped")
     }
