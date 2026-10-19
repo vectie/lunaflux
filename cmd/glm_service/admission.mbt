@@ -155,20 +155,18 @@ fn prepare_service(
     has_predecessor=false,
     predecessor_value=0UL,
   )
+  let framed = @framed.FramedWireLimits::new(inference, max_frame_bytes=2097152)
+  let preparation_storage = plan.preparation_storage(tokenizer, inference, framed)
   @session.prepare_owned_luna_online_framed_service_approved(
     tokenizer,
     tokenizer.digest(),
     plan.identity(),
     inference,
-    @framed.FramedWireLimits::new(inference, max_frame_bytes=2097152),
+    framed,
     plan.slots * 2,
     @admission.LunaRequestPreparationStepBudget::new(4096),
     @admission.LunaRequestPreparationWorkLimit::new(100000000UL),
-    @admission.LunaRequestPreparationStorageBudget::new(
-      int_cells=134217728UL,
-      byte_cells=134217728UL,
-      reference_cells=1048576UL,
-    ),
+    preparation_storage,
     @framed.LunaFramedEventStepBudget::new(4096),
     plan.blueprint(spec),
     @service.WorkerServiceBinding::new(

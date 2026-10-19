@@ -24,6 +24,22 @@ async fn main {
   }
   if mode == "export" || mode == "plan" {
     let spec = inspect_spec(root)
+    let inference = plan.inference(spec)
+    let tokenizer = @text_input.load_checkpoint_tokenizer(
+      root,
+      plan.model_root,
+      "tokenizer.json",
+      plan.tokenizer_label,
+      vocabulary_size=spec.vocabulary_size(),
+      maximum_tokens=plan.context,
+    )
+    ignore(
+      plan.preparation_storage(
+        tokenizer,
+        inference,
+        @framed.FramedWireLimits::new(inference, max_frame_bytes=2097152),
+      ),
+    )
     let checkpoint = inspect_checkpoint(root, kernels, plan)
     for ordinal in 0..<2 {
       let stage = plan.stage(spec, ordinal)

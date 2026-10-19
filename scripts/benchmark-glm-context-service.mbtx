@@ -144,9 +144,9 @@ async fn main {
   let auth = if credential == "none" { "unused" } else { @fs.read_file(credential).text().trim().to_owned() }
   let results : Array[Json] = []
   ignore(request(root,base,model,auth,16,0,"warmup"))
-  let words = if mode == "short" { [128] } else if mode == "long" { [2048,6144] } else { [128,2048,6144] }
+  let words = if mode == "short" { [128] } else if mode == "long" { [2048,6144,7936] } else { [128,2048,6144,7936] }
   for w in words {
-    for concurrency in (if w == 6144 { [1,4] } else { [1,4,8,16] }) {
+    for concurrency in (if w == 7936 { [1] } else if w == 6144 { [1,4] } else { [1,4,8,16] }) {
       let start = @async.now()
       let mut completed_at = start
       let observations : Array[Json] = []

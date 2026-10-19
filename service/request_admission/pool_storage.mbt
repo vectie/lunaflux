@@ -21,13 +21,12 @@ fn checked_multiply_cells(
 }
 
 ///|
-fn validate_pool_storage(
+fn required_pool_storage(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
   lane_count : Int,
-  budget : LunaRequestPreparationStorageBudget,
-) -> (Int, Int) raise RequestAdmissionError {
+) -> (Int, Int, LunaRequestPreparationStorageBudget) raise RequestAdmissionError {
   if lane_count <= 0 || lane_count > LUNA_PREPARATION_MAX_LANES {
     raise Invalid(LunaPreparationPool)
   }
@@ -113,12 +112,53 @@ fn validate_pool_storage(
     checked_add_cells(7UL, output_reference_cells),
     lanes,
   )
-  if total_int > budget.int_cells ||
-    total_byte > budget.byte_cells ||
-    total_references > budget.reference_cells {
+  (
+    input_capacity,
+    output_capacity,
+    {
+      int_cells: total_int,
+      byte_cells: total_byte,
+      reference_cells: total_references,
+    },
+  )
+}
+
+///|
+fn validate_pool_storage(
+  tokenizer : @tokenizer.TokenizerSpec,
+  inference : @inference.InferenceLimits,
+  framed_limits : @framed_wire.FramedWireLimits,
+  lane_count : Int,
+  budget : LunaRequestPreparationStorageBudget,
+) -> (Int, Int) raise RequestAdmissionError {
+  let (input_capacity, output_capacity, required) = required_pool_storage(
+    tokenizer, inference, framed_limits, lane_count,
+  )
+  if required.int_cells > budget.int_cells ||
+    required.byte_cells > budget.byte_cells ||
+    required.reference_cells > budget.reference_cells {
     raise Invalid(LunaPreparationStorage)
   }
   (input_capacity, output_capacity)
+}
+
+///|
+/// Pure startup sizing, shared by preflight and allocation. Counts backing
+/// cells, not allocator headers or total process memory.
+pub fn LunaRequestPreparationStorageBudget::required(
+  tokenizer : @tokenizer.TokenizerSpec,
+  inference : @inference.InferenceLimits,
+  framed_limits : @framed_wire.FramedWireLimits,
+  lane_count : Int,
+) -> Self raise RequestAdmissionError {
+  required_pool_storage(tokenizer, inference, framed_limits, lane_count).2
+}
+
+///|
+pub fn LunaRequestPreparationStorageBudget::cells(
+  self : Self,
+) -> (UInt64, UInt64, UInt64) {
+  (self.int_cells, self.byte_cells, self.reference_cells)
 }
 
 ///|

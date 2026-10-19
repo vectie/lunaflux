@@ -39,6 +39,7 @@ import {
   "vectie/lunaflux/engine/worker_process" @worker_process,
   "vectie/lunaflux/deploy/worker_executable_file" @executable,
   "vectie/lunaflux/integration/checkpoint_text_input" @text_input,
+  "vectie/lunaflux/tokenizer",
   "vectie/lunaflux/service/online_session" @session,
   "vectie/lunaflux/service/online_tcp" @tcp,
   "vectie/lunaflux/service/framed_wire" @framed,
