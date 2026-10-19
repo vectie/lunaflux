@@ -1,9 +1,11 @@
-# Current GLM scales + bulk: measured execution graph
+# GLM scales + bulk: execution graph and local-MoE TP correction
 
-This is a new trace of the qualified **combined** artifact, not a relabelling
-of the older latent-cache trace. No overall benchmark, payload hash, integrity
-scan, compiler policy change or production kernel edit was performed. Trace
-collection and analysis remain outside the compiler.
+The initial sections retain the qualified **combined** artifact's trace, not
+the older latent-cache path. That initial investigation changed no production
+code. The follow-up below implements and retraces **local MoE combination
+before TP**, with complete-answer checks. Neither phase ran an overall
+benchmark, payload hash or integrity scan. Trace collection and comparison
+remain outside the compiler.
 
 ## What was actually captured
 
@@ -100,8 +102,10 @@ Uncovered time is not automatically GPU idle, CPU overhead or avoidable delay.
 
 ## Actual first-MoE graph, with timestamps and fork/join placement
 
-This is layer 3 in the first chunk, physical rows 64. Timestamps are ms from
-each engine's own router start; clocks are not aligned between engines.
+This is layer 3 in the first chunk, physical rows 64. Native timestamps are ms
+from its router/producer start; the reference origin is its preceding FFN
+HC-pre kernel, not the same logical router instruction. Clocks are not aligned
+between engines. These envelopes are not exactly matched end-to-end timings.
 Arrows denote producer/consumer dependencies, not drawn-to-scale widths.
 
 ```mermaid
@@ -315,6 +319,12 @@ an oversized F32 buffer would have hidden this bug.
   the exact-size capture regression passed afterward. The workspace contains
   unrelated user changes, so this is not described as a clean-worktree suite.
   Existing migration-warning exclusions are unchanged.
+  The final full rerun passed **5,324/5,327**; three large DeepSeek fixture
+  writes failed with `No space left on device`. Only the regenerable
+  `_build/native/debug/test` cache (5.6 GiB) was removed; source, models and
+  evidence were retained. A fresh **135/135** `tests/packed_moe_execution`
+  rerun then passed, including all three failed fixtures and BF16 capture.
+  The final native check also passed with the existing warning exclusions.
 - Clean pinned ARM service build at `07d0ca98` succeeded. The new host artifact
   `/tmp/lunaflux-glm-http-local-moe-20261019-v2` reuses the preceding AOT only
   after direct generated-source comparison, without computing payload hashes.
@@ -343,3 +353,146 @@ Planned device allocation is **102,730,776,220 bytes/rank**, 396,361,728 bytes
 not a measured speedup. Resident qualification retains the 100 GiB device/unit
 limit and independent 16 GiB host-availability watcher. Pre-existing global
 host swap is not attributed to these no-swap task units.
+
+### Complete-answer qualification of the local-combine candidate
+
+`/tmp/lunaflux-glm-http-qualification-local-moe-20261019-v2` completed using
+the source-pinned `07d0ca98` host executable and exact reused AOT. The external
+controller used `--correctness-only`: no short/long latency sweeps or overall
+performance benchmark ran.
+
+- The **7,973-token** retrieval returned **`orchid-70`**, `finish_reason=stop`,
+  with a 128-token output budget.
+- All **11 automated** checks in `glm_complete_answers_v1.json` passed. All
+  **15 answers terminated normally** with a 512-token budget, rather than
+  judging truncated one-token outputs.
+- Manual inspection: translation accurately preserves the cat-under-table
+  sentence; `return sorted(set(values))` implements the requested integer
+  function; the summary preserves all four supplied facts without invention.
+- SQL aggregation and tie-breaking are semantically correct, but its Markdown
+  fence violates “Return only SQL.” The retained scales+bulk baseline emits
+  the identical fenced answer. This remains a **formatting failure**, not a
+  new numeric regression or a waived check. Do not call the corpus 15/15 strict
+  instruction passes.
+- JSON chat, SSE, Responses API, four concurrent routed requests, cancellation
+  and slot reuse passed. These are finite service checks, not a broad context/
+  concurrency certification or a claim that two arithmetic programs are equal.
+
+The qualification watcher sampled minimum host availability **18,854,556 KiB
+(17.9811 GiB)** and maximum GPU allocation **96,528 MiB (94.2656 GiB)** across
+the two Sparks. Both owned units had zero swap and retired successfully before
+the profiler service started. Full answers and raw responses remain in
+`/tmp/lunaflux-glm-broad-policy-local-moe-20261019-v2` and
+`/tmp/lunaflux-glm-service-benchmark-policy-local-moe-20261019-v2-answers`.
+
+External `analyze-glm-moe-reduction.mbtx` follows each observed local combine
+(or old pack/reference routing finalization) to its next same-stream NCCL
+kernel. It rejects intervening unrelated kernels, requires all 42 MoE sites,
+and keeps peer-arrival and transport inseparable rather than inventing wire
+time. Its dependency regression passes; the retained captures independently
+reproduce **35.066048 ms + 4.394656 ms pack/unpack** for the old path and
+**8.260864 ms** for vLLM. New-candidate attribution follows the fresh capture,
+not these historical values.
+
+### Fresh local-combine trace: the targeted gap is removed
+
+Capture: `/tmp/lunaflux-glm-http-local-moe-trace-20261019-v2/rank1.sqlite`.
+It references the qualified `07d0ca98` host/AOT artifact described above, the
+same literal request, scales32/bulk transport, row64, context8192/slots8, and
+software node tracing. The bounded recording contains exactly one complete
+chunk, **185591520–497164480 ns**, followed by a partial chunk which is
+excluded. All 42 routed gate/up, 42 down, 42 local combine and 42 BF16 MoE
+collective sites are observed. The one-output request completed after capture
+stopped; its overall duration is deliberately not used or reported.
+The actual scale launch still has grid32/block256; bulk gate/up still has
+grid48/block288/static shared78,368 bytes. Thus this is the latest scales+bulk
+execution with the new reduction boundary, not an older expert fallback.
+
+| First complete chunk, rank 1 | Previous scales+bulk | Local-combine candidate | Retained vLLM |
+|---|---:|---:|---:|
+| MoE payload per 64-row site | 9 MiB F32 | **0.5 MiB BF16** | 0.5 MiB BF16 |
+| MoE collective kernel time, 42 sites | 35.066048 ms | **6.758272 ms** | 8.260864 ms |
+| MoE pack/unpack time | 4.394656 ms / 84 calls | **0 / 0** | no separate counterpart |
+| All collective kernel time | 59.750560 ms | 31.469024 ms | 17.670304 ms |
+| Non-MoE collective time | 24.684512 ms | 24.710752 ms | 9.409440 ms |
+| Routed gate/up sum | 118.793440 ms | 118.573280 ms | 112.605934 ms |
+| Routed down sum | 54.680512 ms | 54.560640 ms | 61.313952 ms |
+| Shared-only kernel coverage | 0.406113 ms | 0.102432 ms | 4.060640 ms |
+| Compute–collective overlap | 0 | 0 | 0 |
+
+The observed MoE collective time falls **80.7%**, or **82.9% including removed
+pack/unpack**. In this selected window it is below the retained reference;
+this is not a throughput claim or an assertion that all TP overhead is solved.
+The native kernel is actually `ncclDevKernel_AllReduce_bf16_RING`, **not** the
+reference's `AllReduce_Sum_bf16_RING_LL`: the improvement does not require
+assuming an LL protocol switch.
+
+The native embedding-to-embedding interval changes 344.189824 → 311.572960 ms
+(-32.616864 ms). Removed MoE TP/packing accounts for 32.702432 ms of measured
+kernel spans, while non-MoE collective and routed GEMM times remain close.
+That accounting supports the intended mechanism instead of attributing the
+gain to an unmeasured general overlap improvement. These are single profiled
+windows; their difference is not a repeated latency estimate. Reference outer
+anchors still differ, so **do not infer a full-request or model-level gap**
+from these intervals.
+
+First MoE, native router origin **206914560 ns**, times in ms:
+
+```mermaid
+flowchart LR
+    X["FFN input"] --> R["Router + row preparation<br/>0.000–0.211"]
+    X --> S["Shared gate/up<br/>0.107–2.216"]
+    R --> G["Routed gate/up<br/>0.211–2.627"]
+    G --> D["Activation/packing → down<br/>down 2.724–4.051"]
+    D --> RP["Local routed publication<br/>4.050–4.078"]
+    S --> SD["Shared down/publication<br/>2.214–2.445"]
+    RP --> C["Join → local BF16 combine<br/>4.078–4.084"]
+    SD --> C
+    C --> T["BF16 TP incl. peer wait<br/>4.089–4.231 (0.141 ms)"]
+    T --> H["HC / next layer"]
+```
+
+Small overlapping endpoints in same-stream trace records (sub-microsecond to
+a few microseconds) are profiler timestamp artifacts, not permission to omit
+producer joins. The graph's dependency arrows come from the actual effect
+plan; the observed launches verify that selection. Shared publication is now
+before the join and remains hidden under routed work. No transport pack/unpack
+symbols execute. The corresponding first old/reference MoE collective spans
+were **0.803072 / 0.160640 ms**, compared with **0.141472 ms** now.
+
+What remains visible, not fixed by this change:
+
+- **Other collectives** remain about 24.71 ms in the native region versus
+  9.41 ms in the reference region. Their counts/outer coverage differ slightly;
+  this is a next attribution target, not proof that transport alone explains
+  that difference. Rank-1 NCCL durations include peer-arrival waits.
+- KDA projections 38.312224 ms, sparse projections 21.786400 ms, HC 9.979424 ms
+  and dense FFN 6.500672 ms remain in the native graph. This implementation
+  does not optimize those kernels.
+- GPU uncovered time is 6.314784 ms; shared/other overlap is 108.326624 ms.
+  Neither means that every blank interval is avoidable CPU time or that shared
+  work has no resource contention. No usable paired-rank arrival measurement
+  was added, and no late-history conclusion is drawn from this early chunk.
+
+Trace minimum sampled host availability: **17,948,892 KiB = 17.1174 GiB**;
+maximum GPU use: **96,538 MiB = 94.2754 GiB**; owned swap zero. Both diagnostic
+units exited successfully and released GPUs before SQLite conversion. The
+8.8 MiB SQLite was collected; raw profiler output remained remote. Evidence:
+`/tmp/lunaflux-glm-local-moe-window-20261019-v1`,
+`/tmp/lunaflux-glm-local-moe-overlap-20261019-v1`, and
+`/tmp/lunaflux-glm-moe-{old,local,vllm}-20261019-v1.json`.
+
+### Restoration and deployment status
+
+The original `lunanexa-glm-lunaflux-rank0/rank1` service configuration was
+restored after trace conversion. Both units are active; authenticated backend
+health returns healthy, and a fresh complete chat answer for 17×19 returns
+**`323`**, `finish_reason=stop`. Post-restoration samples: .178 **96,881 MiB
+GPU / 18,496,068 KiB host available**; .179 **96,909 MiB GPU / 20,103,072 KiB
+host available**; owned swap zero. The original deployed artifact is unchanged.
+
+The new local-combine law is implemented, wired to HTTP, source-pinned and
+physically tested, but remains **opt-in** (`moe_reduction=local-combined-bf16`)
+rather than silently replacing the service restored at the user's request.
+No overall benchmark, payload hashing, new tolerance, reference substitution,
+or unrelated workspace migration was introduced by this task.
