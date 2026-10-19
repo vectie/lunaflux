@@ -75,7 +75,10 @@ deployment or performance claim.
   all 48 sites in model order, rather than subtracting unrelated head collectives.
   Baseline reductions: recurrent 18.615424 ms, sparse 4.281792 ms, dense
   1.558720 ms. vLLM: 6.616512 / 2.014016 / 0.577600 ms respectively.
-  Native post-reduction publication totals only 0.196960 ms.
+  Native post-reduction publication totals only 0.216288 ms. The first
+  analyzer version missed the three dense `_publish` names (reported
+  0.196960 ms); their 0.019328 ms is now included, with a name regression
+  test. The 48 collective durations were unaffected.
 
 The company credential's temporary file is no longer present. An operator
 model-list request correctly returns HTTP 401 (that authority is not a company
@@ -116,3 +119,118 @@ The full warning-denied native suite also completed: **5,330/5,330 pass**, using
 the existing `-20-25-29-35-79-92` migration-warning exclusions. These exclusions
 were not widened. No new CUDA source or native ABI was added: the changed
 placement binds existing BF16 projection lowering and typed BF16 collectives.
+
+## First bounded node trace
+
+Root: `/tmp/lunaflux-glm-http-projection-tp-trace-20261020-v1`.
+The 500 ms collection includes one complete first 64-row chunk; anchors are
+181,282,704–486,230,448 ns. The truncated final chunk is excluded. The request
+drained successfully and both diagnostic owners retired before CPU-only
+SQLite export. All **90 reduction kernels are now BF16** (48 projections plus
+42 locally combined MoE); the one vocabulary gather remains unchanged.
+
+| Observed GPU span, ms | New-MoE baseline / F32 projections | BF16 projections, first capture | vLLM retained trace |
+|---|---:|---:|---:|
+| 34 KDA projection reductions | 18.615424 | 8.489632 | 6.616512 |
+| 11 sparse projection reductions | 4.281792 | 3.040992 | 2.014016 |
+| 3 dense-down reductions | 1.558720 | 7.201696 | 0.577600 |
+| **All 48 projection reductions** | **24.455936** | **18.732320** | **9.208128** |
+| Post-reduction cast kernels | 0.216288 | 0 | 0 |
+| 42 MoE reductions | 6.758272 | 7.285344 | 8.260864 |
+| Vocabulary gather | 0.254816 | 0.265120 | 0.054368 |
+
+The first-capture projection reduction span falls 23.4%, but dense layer 0/1
+contain 3.788064 / 3.225632 ms waits. The next, incomplete chunk contains all
+three dense sites at 0.193408 / 0.592800 / 0.168224 ms. This variability is
+retained; it is not evidence that wire transfer consumes the long spans.
+A repeated first-chunk capture is required before selecting the deployment.
+
+The actual trace confirms propagation beyond export: direct BF16 projection
+publication, BF16 NCCL entry points and no 48 post-collective casts. Actual
+projection producers total 17.288192 ms versus 17.646976 ms before and
+11.993984 ms in vLLM. Shared-expert work still overlaps routed work:
+107.686464 ms overlap, only 0.110560 ms shared-only. Compute/collective
+overlap is zero in this observed window. Kernel union is 297.776608 ms;
+copy-inclusive coverage 297.816608 ms, uncovered 7.131136 ms, largest gap
+3.147360 ms. These are execution-graph allocations, not whole-request timing
+or throughput, and they do not separate peer arrival from collective execution.
+
+Analyzer outputs:
+`/tmp/lunaflux-glm-projection-after-20261020-v1.json`,
+`/tmp/lunaflux-glm-projection-moe-after-20261020-v1.json`,
+`/tmp/lunaflux-glm-projection-pass-20261020-v1`, and
+`/tmp/lunaflux-glm-projection-overlap-20261020-v1`.
+
+## Repeated capture and deployment decision
+
+The identical artifact/request was captured again, without compiler or NCCL
+tuning changes, at
+`/tmp/lunaflux-glm-http-projection-tp-trace-20261020-v2`. One complete first
+chunk lies between 132,595,552–437,838,496 ns. Both diagnostic owners retired
+successfully. The 48 projection reductions again improve in total, to
+**20.749760 ms** (15.2% below the retained 24.455936 ms baseline; the first
+capture was 23.4% below). This is a two-capture observed range, not a confidence
+interval or whole-model speedup.
+
+| Repeated capture | ms |
+|---|---:|
+| KDA projection reductions, 34 | 8.954176 |
+| Sparse projection reductions, 11 | 1.666592 |
+| Dense-down reductions, 3 | 10.128992 |
+| MoE reductions, 42 | 6.799872 |
+| Vocabulary gather, 1 | 0.259840 |
+| Actual projection producer kernels | 17.613920 |
+| All collective spans | 27.809472 |
+| Compute/collective overlap | 0 |
+
+Dense layer 0/1 waits are 4.528736 / 5.446688 ms in this repeat; layer 2 is
+0.153568 ms. The next incomplete chunk's same three sites are
+0.485760 / 0.492192 / 0.494272 ms. Thus the early dense wait is repeatable
+but not uniform across chunks. **It is unresolved**, not explained away as
+random noise, and it must not be called a bandwidth or numerical-kernel bug
+from this one-rank trace. The missing ingress GPU timeline still prevents
+separating late peer arrival, peer computation and collective progress.
+Inspection also confirms only decode has collective-inclusive replay; this
+64-row prefill keeps compute-interval graphs and separate NCCL submissions.
+No new environment forwarding or unrelated process-launcher change was made
+merely to get a prettier profiling result.
+
+Shared overlap remains 108.362912 ms, with only 0.104864 ms shared-only. The
+kernel union is 300.588000 ms; copy-inclusive coverage 300.624832 ms,
+uncovered 4.618112 ms, largest gap 2.967712 ms. The retained reference has
+different outer anchors, so no overall/native-vLLM speedup is calculated.
+Projection producer time also remains above the reference's 11.993984 ms;
+halving collective payload cannot remove that compute difference.
+
+Both captures remain within the memory envelope. Across watcher samples,
+maximum GPU use is 96,489 MiB; minimum host availability is 18,264,876 KiB
+(17.42 GiB). Owned swap is zero. SQLite conversion ran after GPU retirement.
+
+The deployment decision retains this one explicit numerical alternative:
+complete-answer/lifecycle checks pass without a new task failure, and both
+bounded captures reduce total projection-TP span while removing 48 casts and
+48 MiB of F32 arenas. This is **not a claim that all non-MoE TP overhead is
+fixed or that vLLM parity is reached**. The first two dense waits remain a
+specific measurement target. No overall benchmark or payload hashing ran.
+
+## Serving restored
+
+The source-pinned `eb152338` artifact is now installed in both durable roots:
+`/home/wlc003s/.local/share/lunanexa/glm53-lunaflux-eb152338` and
+`/home/wlc004s/.local/share/lunanexa/glm53-lunaflux-eb152338`. The previous
+`07d0ca98` roots and exact unit snapshots are retained. Checkpoint files were
+hard-linked, not copied/scanned; no payload digest was calculated.
+
+Both `lunanexa-glm-lunaflux-rank{0,1}.service` units are active under the paired
+lifecycle controller. Backend `/health` returned healthy, and a fresh live
+17×19 request returned `323` with `stop`. The existing LunaNexa route and
+controller deployment now name `eb152338`; controller rollout succeeded.
+The existing 8,192-token shared capacity, eight resident slots and sixteen
+admission lanes were preserved, not advertised as eight simultaneous 8K
+requests. Private backend checks do not replace the missing fresh company-key
+public-route acceptance check described above.
+
+Deployment, rollback unit snapshots, accepted configs, live answer, route
+patch and memory observation are retained under
+`/tmp/lunanexa-glm-projection-release-20261020-v1`. The runtime label is an
+existing declared artifact association, not a newly computed payload hash.

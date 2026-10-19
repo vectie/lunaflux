@@ -173,8 +173,10 @@ is `AllReduce_Sum_bf16_RING_LL`, on the combined hidden output:
 ```
 
 Thus this native MoE boundary moves **18× the payload**, not 18× the measured
-time. It also has separate pack/unpack passes and a different selected NCCL
-protocol. The source agreement is checked against installed snapshots, with
+time. It also has separate pack/unpack passes and different NCCL entry-point
+naming. The reference symbol explicitly includes `LL`; the native symbol
+does not encode a protocol suffix, so that name alone does not prove its
+protocol selection. The source agreement is checked against installed snapshots, with
 `../vlm/vllm/model_executor/layers/fused_moe/runner/moe_runner.py` as the local
 implementation counterpart (late reduction around lines 455–487, ordering
 around 715–770). This is not an allegation that vLLM's arithmetic is the only

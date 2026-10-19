@@ -41,6 +41,15 @@ fn marker(layer : Int32, kind : String) -> String {
 }
 
 ///|
+fn publication_marker(layer : Int32, kind : String) -> String {
+  match kind {
+    "dense" => "glm_dense_ffn_\{layer}_publish"
+    "sparse" => "glm_sparse_\{layer}_output_publish"
+    _ => "glm_recurrent_\{layer}_16"
+  }
+}
+
+///|
 test "projection sites include attention and early dense but exclude MoE and head" {
   let values = sites()
   assert_eq(values.length(), 48)
@@ -49,6 +58,9 @@ test "projection sites include attention and early dense but exclude MoE and hea
   assert_eq(values.filter(x => x.1 == "dense").length(), 3)
   assert_eq(values[1], (0, "dense"))
   assert_eq(values[47], (44, "recurrent"))
+  assert_eq(publication_marker(0, "dense"), "glm_dense_ffn_0_publish")
+  assert_eq(publication_marker(3, "sparse"), "glm_sparse_3_output_publish")
+  assert_eq(publication_marker(4, "recurrent"), "glm_recurrent_4_16")
 }
 
 ///|
@@ -134,8 +146,7 @@ async fn main {
       if next.stream != event.stream {
         continue
       }
-      if next.name == producer.name + "_publish" ||
-        (kind == "recurrent" && next.name == "glm_recurrent_\{layer}_16") {
+      if next.name == publication_marker(layer, kind) {
         publication = next.end - next.start
       }
       break
