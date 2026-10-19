@@ -1,5 +1,6 @@
 ///|
 import {
+  "moonbitlang/async@0.22.4",
   "moonbitlang/async@0.22.4/fs",
   "moonbitlang/async@0.22.4/shell",
   "moonbitlang/core/env",
@@ -33,7 +34,7 @@ async fn main {
       fields["history_pages"] = Json(context / 16 + 1)
       let name = "context-\{context}-slots-\{slots}"
       let path = root + "/" + name + ".json"
-      @fs.write_file(path, Json::Object(fields).stringify(), create_mode=CreateNew)
+      @fs.write_file(path, Json(fields).stringify(), create_mode=CreateNew)
       @shell.Cmd("scp", ["-o", "ControlPath=" + socket, path, host + ":" + path]).output().check()
       let out = remote("systemd-run --user --wait --pipe --unit=glm-capacity-" + name +
         " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +

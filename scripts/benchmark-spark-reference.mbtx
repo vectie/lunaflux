@@ -269,6 +269,18 @@ fn vllm_trace_capacity(compact : Bool) -> (Int, Int) {
 }
 
 ///|
+fn reference_positive(name : String, fallback : Int, maximum : Int) -> Int raise {
+  match @env.get_env_var(name) {
+    None => fallback
+    Some(s) => {
+      let n = @string.parse_int(s)
+      guard n > 0 && n <= maximum else { fail("invalid " + name) }
+      n
+    }
+  }
+}
+
+///|
 fn reference_trace_granularity(value : String?) -> String raise {
   match value {
     None | Some("node") => "node"
@@ -344,7 +356,19 @@ async fn main {
   // It is never applied to ordinary graph-enabled benchmark cohorts.
   let compact_profile = profile &&
     @env.get_env_var("LUNAFLUX_REFERENCE_PROFILE_COMPACT") == Some("1")
-  let (context, kv_bytes) = vllm_trace_capacity(compact_profile)
+  let (trace_context, trace_kv_bytes) = vllm_trace_capacity(compact_profile)
+  let context = if profile { trace_context } else {
+    reference_positive("LUNAFLUX_REFERENCE_CONTEXT", trace_context, 1048576)
+  }
+  let kv_bytes = if profile { trace_kv_bytes.to_int64() } else {
+    reference_positive("LUNAFLUX_REFERENCE_KV_MIB", trace_kv_bytes / 1048576, 8192).to_int64() * 1048576L
+  }
+  let sequences = if profile { 1 } else {
+    reference_positive("LUNAFLUX_REFERENCE_SEQUENCES", 1, 64)
+  }
+  let batch_tokens = if profile { context } else {
+    reference_positive("LUNAFLUX_REFERENCE_BATCH_TOKENS", context, 32768)
+  }
   guard !profile || (glm && !sg) else {
     fail("bounded profile is GLM/vLLM only")
   }
@@ -373,7 +397,13 @@ async fn main {
           }
         }
         observations <+ "tick=\{tick} rank=\{rank}\n\{status.stdout()}"
+        let gpu = remote(last,
+          "nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits")
+        let used = gpu.stdout().split("\n").filter(s => !s.trim().is_empty())
+          .fold(init=0L,(sum,s) => sum + @string.parse_int64(s.trim()))
+        observations <+ "gpu_mib=\{used}\n"
         if status.exit_code() != 0 ||
+          gpu.exit_code() != 0 || used > 102400L ||
           available_kib(status.stdout()) < 16777216L ||
           status.stdout().contains("SubState=failed") {
           failed = true
@@ -481,7 +511,7 @@ async fn main {
       engine +
       "\ntp=2\npp=1\ncontext=\{context}" +
       (if sg { "" } else { "\nkv_bytes=\{kv_bytes}" }) +
-      "\nconcurrency=1\nmax_output=" +
+      "\nmaximum_sequences=\{sequences}\nbatch_tokens=\{batch_tokens}\nconcurrency=1\nmax_output=" +
       (if profile { "2" } else { "8" }) +
       "\nspeculation=false\nprefix_cache=false\ncorpus=" +
       corpus +
@@ -733,7 +763,7 @@ async fn main {
     } else {
       "vllm serve /model --served-model-name matched-model --tensor-parallel-size 2 --nnodes 2 --node-rank " +
       rank +
-      " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len \{context} --max-num-seqs 1 --max-num-batched-tokens \{context} --gpu-memory-utilization 0.80 --kv-cache-memory-bytes \{kv_bytes} --no-enable-prefix-caching --trust-remote-code" +
+      " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len \{context} --max-num-seqs \{sequences} --max-num-batched-tokens \{batch_tokens} --gpu-memory-utilization 0.80 --kv-cache-memory-bytes \{kv_bytes} --no-enable-prefix-caching --trust-remote-code" +
       (if glm { " --language-model-only" } else { "" }) +
       (if eager_profile { " --enforce-eager" } else { "" }) +
       (if last { " --headless" } else { "" })
