@@ -1,0 +1,226 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// External service measurements; never imported by compiler or serving code.
+
+///|
+fn field(value : Json, key : String) -> Json raise {
+  guard value is Object(fields) && fields.get(key) is Some(found) else {
+    fail("missing field " + key)
+  }
+  found
+}
+
+///|
+fn number(value : Json, key : String) -> Double raise {
+  guard field(value, key) is Number(n, ..) else { fail("numeric field " + key) }
+  n
+}
+
+///|
+fn requests(group : Json) -> Array[Json] raise {
+  guard field(group, "requests") is Array(rows) else { fail("requests") }
+  rows
+}
+
+///|
+fn distribution(rows : Array[Json], key : String) -> Json raise {
+  let values : Array[Double] = []
+  for row in rows {
+    if field(row, key) is Number(n, ..) {
+      values.push(n)
+    }
+  }
+  values.sort()
+  if values.is_empty() {
+    return { "observed": 0 }
+  }
+  {
+    "observed": values.length(),
+    "min_ms": values[0],
+    "median_ms": (
+      values[values.length() / 2] + values[(values.length() - 1) / 2]
+    ) /
+    2.0,
+    "p95_ms": values[(values.length() * 95 + 99) / 100 - 1],
+    "max_ms": values[values.length() - 1],
+  }
+}
+
+///|
+fn summarize(group : Json) -> Json raise {
+  let rows = requests(group)
+  let mut output = 0.0
+  let mut prompt = 0.0
+  let mut exact = 0
+  let mut stopped = 0
+  for row in rows {
+    let usage = field(row, "usage")
+    output += number(usage, "completion_tokens")
+    prompt += number(usage, "prompt_tokens")
+    if field(row, "answer_exact") == true {
+      exact += 1
+    }
+    if field(row, "finish_reason") == "stop" {
+      stopped += 1
+    }
+  }
+  let wall = number(group, "wall_ms")
+  {
+    "wall_ms": wall,
+    "prompt_tokens": prompt,
+    "output_tokens": output,
+    "output_tokens_per_second": output * 1000.0 / wall,
+    "exact_answers": exact,
+    "stop_finished": stopped,
+    "requests": rows.length(),
+    "request_completion": distribution(rows, "elapsed_ms"),
+    "first_visible": distribution(rows, "first_visible_content_ms"),
+    "first_content_or_reasoning": distribution(
+      rows, "first_content_or_reasoning_ms",
+    ),
+  }
+}
+
+///|
+async fn observations(root : String, group : Json, native : Bool) -> Json {
+  let words = number(group, "filler_words").to_int()
+  let concurrency = number(group, "concurrency").to_int()
+  guard @json.parse(
+      @fs.read_file(root + "/words-\{words}-c\{concurrency}.metrics.json").text(),
+    )
+    is Array(samples) else {
+    fail("metric samples")
+  }
+  let mut active = 0.0
+  let mut waiting = 0.0
+  let mut cache = 0.0
+  let mut observed = 0
+  for sample in samples {
+    if sample is { "body": String(body), .. } {
+      observed += 1
+      if native {
+        let gauges = field(@json.parse(body), "gauges")
+        active = Double::max(active, number(gauges, "active_requests"))
+        waiting = Double::max(waiting, number(gauges, "queue_depth"))
+        cache = Double::max(cache, number(gauges, "kv_pages_used"))
+      } else {
+        for line in body.split("\n") {
+          for
+            (metric, kind) in [
+              ("vllm:num_requests_running", 0),
+              ("vllm:num_requests_waiting", 1),
+              ("vllm:kv_cache_usage_perc", 2),
+            ] {
+            if line.has_prefix(metric + "{") || line.has_prefix(metric + " ") {
+              let value = @string.parse_double(
+                line.split(" ").last().unwrap().trim(),
+              )
+              if kind == 0 {
+                active = Double::max(active, value)
+              } else if kind == 1 {
+                waiting = Double::max(waiting, value)
+              } else {
+                cache = Double::max(cache, value)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  {
+    "successful_samples": observed,
+    "total_samples": samples.length(),
+    "sampled_max_active_not_step_batch": active,
+    "sampled_max_waiting": waiting,
+    "sampled_max_kv": cache,
+    "kv_unit": if native {
+      "pages"
+    } else {
+      "fraction"
+    },
+    "sampling_interval_ms": 500,
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, native, reference, output] else {
+    fail("NATIVE_ROOT REFERENCE_ROOT NEW_REPORT_JSON")
+  }
+  guard @json.parse(@fs.read_file(native + "/summary.json").text()) is Array(ns) &&
+    @json.parse(@fs.read_file(reference + "/summary.json").text()) is Array(rs) &&
+    ns.length() == rs.length() else {
+    fail("complete matching campaign required")
+  }
+  let comparisons : Array[Json] = []
+  for i, n in ns {
+    let r = rs[i]
+    guard field(n, "filler_words") == field(r, "filler_words") &&
+      field(n, "concurrency") == field(r, "concurrency") else {
+      fail("workload groups differ")
+    }
+    let nr = requests(n)
+    let rr = requests(r)
+    guard nr.length() == rr.length() else { fail("request count differs") }
+    let mut matching_prompt_counts = 0
+    let mut matching_output_counts = 0
+    for lane, a in nr {
+      let b = rr[lane]
+      guard field(a, "serialized_prompt") == field(b, "serialized_prompt") &&
+        field(a, "expected") == field(b, "expected") else {
+        fail("literal prompts differ")
+      }
+      if field(field(a, "usage"), "prompt_tokens") ==
+        field(field(b, "usage"), "prompt_tokens") {
+        matching_prompt_counts += 1
+      }
+      if field(field(a, "usage"), "completion_tokens") ==
+        field(field(b, "usage"), "completion_tokens") {
+        matching_output_counts += 1
+      }
+    }
+    let entry : Json = {
+      "filler_words": field(n, "filler_words"),
+      "concurrency": field(n, "concurrency"),
+      "lunaflux": summarize(n),
+      "vllm": summarize(r),
+      "completion_time_ratio": number(n, "wall_ms") / number(r, "wall_ms"),
+      "matching_prompt_token_counts": matching_prompt_counts,
+      "matching_output_token_counts": matching_output_counts,
+      "literal_serialized_prompts_match": true,
+      "lunaflux_observations": observations(native, n, true),
+      "vllm_observations": observations(reference, r, false),
+    }
+    comparisons.push(entry)
+    println(entry.stringify())
+  }
+  @fs.write_file(
+    output,
+    Json(comparisons).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+}
+
+///|
+test "throughput uses completed batch wall time and retains correctness counts" {
+  let row : Json = {
+    "usage": { "prompt_tokens": 100, "completion_tokens": 10 },
+    "answer_exact": true,
+    "finish_reason": "stop",
+    "elapsed_ms": 1000,
+    "first_visible_content_ms": 900,
+    "first_content_or_reasoning_ms": 500,
+  }
+  let report = summarize({ "wall_ms": 2000, "requests": [row, row] })
+  assert_eq(number(report, "output_tokens_per_second"), 10.0)
+  assert_eq(number(report, "exact_answers"), 2.0)
+  assert_eq(number(field(report, "first_visible"), "p95_ms"), 900.0)
+}
