@@ -61,3 +61,25 @@ At 8192 context / 64 physical rows / 8 slots / 513 history pages, export plans
 100 GiB does not establish the separate 16 GiB host reserve; validate both.
 Eight slots do **not** mean eight simultaneous full-8192 histories: the shared
 page budget permits one full-context history, as the capacity log reports.
+
+## Memory qualification frontier
+
+The resident base run reaches about 17.7 GiB MemAvailable on rank 0 while
+serving. The chunk candidate's additional 2,709,520,384 planned bytes would
+leave approximately 15.2 GiB at that observed base footprint. This is a
+projection, **not** a measured chunk-run memory violation. Do not launch the
+same 8-slot/8K chunk configuration under a known insufficient host margin;
+its AOT build passed, but this HTTP envelope is not qualified and has no timing
+result. Fix workspace lifetimes or qualify a separately labelled capacity
+before enabling it. Do not silently reduce context/concurrency for a favorable
+entry in the matched table.
+
+The allocation is explainable in the existing physical IR, not an unexplained
+OOM: `ChunkDeltaPlan::new` reserves
+`4 * heads * sequences * (6*R*K + 3*R*R + 2*R*V)` bytes.
+Here R=64, K=V=128, TP-local heads=32 and sequences=8: 76 MiB per
+recurrent layer, times 34 layers = exactly the 2,709,520,384-byte delta.
+It reserves a full 64-row triangular workspace for every slot, despite the
+frame having only 64 total token rows. Packed per-sequence workspace or
+cross-layer transient reuse is a separate physical-plan improvement; neither
+is implemented or qualified by merely exposing the HTTP selector.

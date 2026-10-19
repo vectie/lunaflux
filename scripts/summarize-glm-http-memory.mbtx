@@ -1,0 +1,62 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn observations(text : String) -> (Int64, Int64, Int64, Int32) raise {
+  let mut minimum = 9223372036854775807L
+  let mut maximum_gpu = 0L
+  let mut maximum_swap = 0L
+  let mut samples = 0
+  for line in text.split("\n") {
+    if line.has_prefix("rank=") {
+      for field in line.split(" ") {
+        if field.has_prefix("host_available_kib=") {
+          let value = @string.parse_int64(field[19:])
+          if value < minimum {
+            minimum = value
+          }
+          samples += 1
+        } else if field.has_prefix("gpu_mib=") {
+          let value = @string.parse_int64(field[8:])
+          if value > maximum_gpu {
+            maximum_gpu = value
+          }
+        }
+      }
+    } else if line.has_prefix("MemorySwapPeak=") {
+      let value = @string.parse_int64(line[15:])
+      if value > maximum_swap {
+        maximum_swap = value
+      }
+    }
+  }
+  guard samples > 0 else { fail("no native HTTP memory observations") }
+  (minimum, maximum_gpu, maximum_swap, samples)
+}
+
+///|
+test "summary retains the worse rank and actual swap peak" {
+  assert_eq(
+    observations(
+      "rank=0 host_available_kib=18000000 gpu_mib=96800\nMemorySwapPeak=0\nrank=1 host_available_kib=17900000 gpu_mib=96900\nMemorySwapPeak=4096\n",
+    ),
+    (17900000L, 96900L, 4096L, 2),
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, path] else { fail("NATIVE_MEMORY_WATCH_FILE") }
+  let (available, gpu, swap, samples) = observations(@fs.read_file(path).text())
+  println(
+    "samples=\{samples} minimum_host_available_kib=\{available} maximum_gpu_mib=\{gpu} maximum_process_swap_bytes=\{swap}",
+  )
+  println(
+    "sampled_envelope_pass=\{available>=16777216L && gpu<=102400L && swap==0L}; sampled observations are not continuous peak proof",
+  )
+}
