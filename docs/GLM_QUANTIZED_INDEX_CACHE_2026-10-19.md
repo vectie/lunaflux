@@ -107,3 +107,52 @@ row publication at 1/15/16/17 live rows. Independent F64 bounds and repeated
 deterministic output pass; memcheck/full leak, racecheck, synccheck and initcheck
 all pass at 2 GiB/no swap. v1's offline harness compile failure is retained.
 Full-model answers and HTTP performance remain separate acceptance gates.
+
+The third actual-source fixture adds zero live rows and a column-contiguous
+producer for transposed head weights. CUDA stages these into a padded
+column-major shared operand; this changes physical layout, not the declared
+matrix arithmetic. v3 passes deterministic/F64-bound checks at 0/1/15/16/17
+live rows and all four sanitizer tools, including full leak checking, at
+2 GiB/no swap. The updated generic loader and external broad-answer evaluator
+are committed in `cbffec1f`; the full native suite passes **5,319/5,319** and
+the warning-denied native check passes with the unchanged migration exclusions.
+
+## Index-only full-model measurements
+
+Pinned `35fd22a2` service: E4M3 matrix index, expanded BF16 attention cache,
+TP2, context 8192, 8 resident slots, 16 admission lanes, 64 physical prefill
+rows and 513 history pages. Source export and execution both identify the
+selected index program. This is a private experiment, not a production rollout.
+
+| Actual input tokens / one output | Retained serving baseline (s) | Index-only steady repeat (s) | Retained matched vLLM (s) |
+| --- | ---: | ---: | ---: |
+| 165 / 1 | 1.234 | 1.278 | 0.808 |
+| 2085 / 1 | 11.097 | 11.017 | 6.057 |
+| 6181 / 1 | 31.770 | 29.795 | 15.018 |
+| 7973 / 1 | 41.679 | 38.306 | 17.642 |
+
+The near-8K gain is **8.1%** versus the retained serving baseline, not the
+score kernel's roughly tenfold profiled improvement. Completion still takes
+**2.17x** the retained vLLM time. Short-context timings do not demonstrate a
+gain. These are individual observations, not confidence intervals.
+
+The 128-output-budget retrieval campaign completes **64/64 exact answers**,
+all with stop termination, over short/2K concurrency 1/4/8/16 and longer C1/C4
+cases. This establishes those task answers only. Variable output lengths in
+the answer campaign are not equal-work throughput. The fixed-one-token table
+uses literal serialized-prompt and input/output-token checks instead.
+
+Evidence roots:
+
+- `/tmp/lunaflux-glm-service-benchmark-matrix-index-latency-20261019-v1`
+  (first sweep retained) and `...-v2` (steady repeat above).
+- `/tmp/lunaflux-glm-service-benchmark-matrix-index-answers-20261019-v1`.
+- `/tmp/lunaflux-glm-matrix-index-latency-compare-20261019-v2.json` and
+  `/tmp/lunaflux-glm-matrix-index-answers-compare-20261019-v1.json`.
+- `/tmp/lunaflux-glm-http-matrix-index-20261019-v1/memory-watch.txt`:
+  device peaks 96,877/96,905 MiB; minimum host available
+  18,301,652/20,100,156 KiB; zero owned swap. Both workers stopped cleanly.
+
+The new latent-cache full-model run and refreshed vLLM comparison are still
+pending. No claim about their performance or complete-answer quality follows
+from the small-shape kernel fixture.
