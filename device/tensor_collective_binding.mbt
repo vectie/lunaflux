@@ -1,8 +1,8 @@
 ///|
 pub fn TensorCollectiveOwner::validate_group(
   self : Self,
-  rank~ : Int32,
-  world_size~ : Int32,
+  rank~ : Int,
+  world_size~ : Int,
 ) -> Unit raise DeviceError {
   guard self.contract.rank == rank && self.contract.world_size == world_size else {
     raise InvalidArgument(TensorCollectiveExecute)
@@ -12,7 +12,7 @@ pub fn TensorCollectiveOwner::validate_group(
 ///|
 pub fn TensorCollectiveOwner::validate_site_count(
   self : Self,
-  count : Int32,
+  count : Int,
 ) -> Unit raise DeviceError {
   guard count == self.contract.sequences.length() else {
     raise InvalidArgument(TensorCollectiveExecute)
@@ -25,10 +25,10 @@ pub fn TensorCollectiveOwner::validate_site_count(
 /// collective. No device operation or request-path validation is performed.
 pub fn TensorCollectiveOwner::validate_sum_site(
   self : Self,
-  site_sequence~ : Int32,
-  operation_id~ : Int32,
-  maximum_rows~ : Int32,
-  width~ : Int32,
+  site_sequence~ : Int,
+  operation_id~ : Int,
+  maximum_rows~ : Int,
+  width~ : Int,
 ) -> Unit raise DeviceError {
   self.validate_f32_site(
     site_sequence~,
@@ -43,11 +43,11 @@ pub fn TensorCollectiveOwner::validate_sum_site(
 ///|
 pub fn TensorCollectiveOwner::validate_f32_site(
   self : Self,
-  site_sequence~ : Int32,
-  operation_id~ : Int32,
-  maximum_rows~ : Int32,
-  width~ : Int32,
-  local_width~ : Int32,
+  site_sequence~ : Int,
+  operation_id~ : Int,
+  maximum_rows~ : Int,
+  width~ : Int,
+  local_width~ : Int,
   kind~ : TensorCollectiveKind,
 ) -> Unit raise DeviceError {
   guard kind is (F32SumAllReduce | F32AllGather) else {
@@ -68,11 +68,11 @@ pub fn TensorCollectiveOwner::validate_f32_site(
 /// belongs to that effect, not to an assumption in an execution queue.
 pub fn TensorCollectiveOwner::validate_site(
   self : Self,
-  site_sequence~ : Int32,
-  operation_id~ : Int32,
-  maximum_rows~ : Int32,
-  width~ : Int32,
-  local_width~ : Int32,
+  site_sequence~ : Int,
+  operation_id~ : Int,
+  maximum_rows~ : Int,
+  width~ : Int,
+  local_width~ : Int,
   kind~ : TensorCollectiveKind,
 ) -> Unit raise DeviceError {
   let index = site_sequence - 1

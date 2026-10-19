@@ -50,8 +50,8 @@ pub fn MoeProgram::new(
   shared : @source.PackedExpertMlpCudaSource,
   combine : @combine.MoeCombineSource,
   routing? : @router.MoeRoutingCudaSource,
-  coalesce_reductions~ : Bool = false,
-  reduction_placement~ : @precision.MoeReductionPlacement = ExpertPartialsFloat32,
+  coalesce_reductions? : Bool = false,
+  reduction_placement? : @precision.MoeReductionPlacement = ExpertPartialsFloat32,
 ) -> Self raise @device.DeviceError {
   let (rows, hidden, _, experts, selected) = routed.plan().geometry()
   let (sr, sh, _, se, ss) = shared.plan().geometry()
@@ -189,14 +189,14 @@ pub fn MoeProgram::transient_scratch_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn MoeProgram::coalesced_tensor_width(self : Self) -> Int32? {
+pub fn MoeProgram::coalesced_tensor_width(self : Self) -> Int? {
   self.collective_region.map(region => region.width())
 }
 
 ///|
 /// A single collective for either concatenated F32 lanes or combined BF16.
 /// The width does not conflate their distinct numerical programs.
-pub fn MoeProgram::combined_tensor_width(self : Self) -> Int32? {
+pub fn MoeProgram::combined_tensor_width(self : Self) -> Int? {
   if self.reduction_placement == LocalCombinedBFloat16 {
     Some(self.routed.plan().geometry().1)
   } else {
@@ -277,7 +277,7 @@ pub fn MoeProgram::abort(self : Self) -> Unit raise @device.DeviceError {
 ///|
 pub fn MoeProgram::submit(
   self : Self,
-  live_rows~ : Int32,
+  live_rows~ : Int,
   plan_sequence~ : UInt64,
   global_sequence~ : UInt64,
 ) -> Unit raise @device.DeviceError {

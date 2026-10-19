@@ -1,13 +1,13 @@
 ///|
-extern "C" fn live_resources() -> Int32 = "lunaflux_device_worker_fake_live_children"
+extern "C" fn live_resources() -> Int = "lunaflux_device_worker_fake_live_children"
 
 ///|
 fn program_fixture(
   routing? : @router.MoeRoutingCudaSource,
-  complete_local~ : Bool = false,
-  dot_law~ : @precision.DenseDotLaw = ScalarFloat32,
-  tensor~ : Bool = false,
-  reduction_placement~ : @precision.MoeReductionPlacement = ExpertPartialsFloat32,
+  complete_local? : Bool = false,
+  dot_law? : @precision.DenseDotLaw = ScalarFloat32,
+  tensor? : Bool = false,
+  reduction_placement? : @precision.MoeReductionPlacement = ExpertPartialsFloat32,
 ) -> (@moe.MoeProgram, Int64, Int64) raise {
   let operand = @precision.plan_operand(
     role=Weight,

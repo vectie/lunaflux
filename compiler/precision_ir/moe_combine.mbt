@@ -16,8 +16,8 @@ pub extend MoeCombineRounding with @debug.Debug::{to_repr}
 /// global routed + replicated shared, or rank-local routed + sharded shared.
 /// Callers must not reduce a replicated shared contribution more than once.
 pub struct MoeCombinePrecision {
-  priv maximum_rows : Int32
-  priv hidden : Int32
+  priv maximum_rows : Int
+  priv hidden : Int
   priv rounding : MoeCombineRounding
   priv input_bytes : Int64
   priv output_bytes : Int64
@@ -25,8 +25,8 @@ pub struct MoeCombinePrecision {
 
 ///|
 pub fn MoeCombinePrecision::new(
-  maximum_rows~ : Int32,
-  hidden~ : Int32,
+  maximum_rows~ : Int,
+  hidden~ : Int,
   rounding~ : MoeCombineRounding,
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
@@ -40,7 +40,7 @@ pub fn MoeCombinePrecision::new(
 }
 
 ///|
-pub fn MoeCombinePrecision::geometry(self : Self) -> (Int32, Int32) {
+pub fn MoeCombinePrecision::geometry(self : Self) -> (Int, Int) {
   (self.maximum_rows, self.hidden)
 }
 

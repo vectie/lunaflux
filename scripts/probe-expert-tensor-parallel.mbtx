@@ -9,18 +9,32 @@ import {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, mode] &&
+  guard @env.args() is [_, root, mode, .. rest] &&
     root.has_prefix("/tmp/lunaflux-expert-tp-") &&
-    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
-    mode is ("prepare" | "run" | "memcheck" | "collect") else {
-    fail("NEW_ROOT prepare|run|memcheck|collect")
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
+    mode
+    is ("prepare"
+    | "prepare-local"
+    | "run"
+    | "memcheck"
+    | "racecheck"
+    | "synccheck"
+    | "collect") else {
+    fail(
+      "NEW_ROOT prepare|prepare-local SOURCE|run|memcheck|racecheck|synccheck|collect",
+    )
   }
   let image = "nvcr.io/nvidia/sglang:26.09-py3"
   let hosts = ["wlc003s@192.168.2.178", "wlc004s@192.168.2.179"]
   let sockets = [
-    "/tmp/lunaflux-checkpoint-live-20261010.sock", "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
+      "/tmp/lunaflux-checkpoint-live-20261010.sock",
+    ),
+    @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+      "/tmp/lunaflux-checkpoint-live179-20261010.sock",
+    ),
   ]
-  async fn remote(rank : Int, command : String) -> @shell.Output {
+  async fn remote(rank : Int32, command : String) -> @shell.Output {
     @shell.Cmd("ssh", [
       "-o",
       "BatchMode=yes",
@@ -45,46 +59,78 @@ async fn main {
     )
     output.check()
   }
-  async fn copy(rank : Int, source : String, target : String) -> Unit {
+  async fn copy(rank : Int32, source : String, target : String) -> Unit {
     @shell.Cmd("scp", ["-o", "ControlPath=" + sockets[rank], source, target])
     .output()
     .check()
   }
-  if mode == "prepare" {
+  if mode == "prepare" || mode == "prepare-local" {
     @fs.mkdir(root)
-    let out = @shell.Cmd("env", [
-      "LUNA_EXPORT_EXPERT_TP=1", "moon", "test", "kernels/selected_expert_mlp_cuda_source",
-      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92", "--filter",
-      "*tensor parallel source*",
-    ]).output(max_output_bytes=8388608)
-    record("export", out)
-    let text = StringBuilder()
-    let mut capture = false
-    for line in out.stdout().split("\n") {
-      if line.has_prefix("LUNA_SOURCE_BEGIN") {
-        capture = true
-        continue
+    if mode == "prepare-local" {
+      guard rest is [source] else { fail("exported SOURCE required") }
+      let original = @fs.read_file(source).text()
+      let parts = StringBuilder()
+      parts <+ "#include <cuda_bf16.h>\n"
+      for
+        name in [
+          "glm_routed_3_combine", "glm_shared_3_combine", "glm_moe_combine_3",
+        ] {
+        let marker = "extern \"C\" __global__ void " + name + "("
+        guard original.split(marker).to_array() is [_, tail] else {
+          fail("missing or duplicate kernel " + name)
+        }
+        guard tail.find("\n}") is Some(end) else { fail("unterminated kernel") }
+        parts <+ "\{marker}\{tail[:end+2]}\n"
       }
-      if line.has_prefix("LUNA_SOURCE_END") {
-        capture = false
-        continue
+      @fs.write_file(
+        root + "/experts.cuh",
+        parts.to_string(),
+        create_mode=CreateNew,
+      )
+    } else {
+      let out = @shell.Cmd("env", [
+        "LUNA_EXPORT_EXPERT_TP=1", "moon", "test", "kernels/selected_expert_mlp_cuda_source",
+        "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+        "--filter", "*tensor parallel source*",
+      ]).output(max_output_bytes=8388608)
+      record("export", out)
+      let text = StringBuilder()
+      let mut capture = false
+      for line in out.stdout().split("\n") {
+        if line.has_prefix("LUNA_SOURCE_BEGIN") {
+          capture = true
+          continue
+        }
+        if line.has_prefix("LUNA_SOURCE_END") {
+          capture = false
+          continue
+        }
+        if capture {
+          text <+ "\{line}\n"
+        }
       }
-      if capture {
-        text <+ "\{line}\n"
+      guard !text.to_string().is_empty() else {
+        fail("missing selected source")
       }
+      @fs.write_file(
+        root + "/experts.cuh",
+        text.to_string(),
+        create_mode=CreateNew,
+      )
     }
-    guard !text.to_string().is_empty() else { fail("missing selected source") }
-    @fs.write_file(
-      root + "/experts.cuh",
-      text.to_string(),
-      create_mode=CreateNew,
-    )
     for rank in 0..<2 {
       record("mkdir-\{rank}", remote(rank, "mkdir " + root))
       for
         (path, name) in [
           (root + "/experts.cuh", "experts.cuh"),
-          ("tests/packed_moe_execution/tensor_parallel_probe.cu", "probe.cu"),
+          (
+            if mode == "prepare-local" {
+              "tests/packed_moe_execution/local_combine_tp_probe.cu"
+            } else {
+              "tests/packed_moe_execution/tensor_parallel_probe.cu"
+            },
+            "probe.cu",
+          ),
         ] {
         copy(rank, path, hosts[rank] + ":" + root + "/" + name)
       }
@@ -104,7 +150,7 @@ async fn main {
     }
     return
   }
-  if mode == "run" || mode == "memcheck" {
+  if mode is ("run" | "memcheck" | "racecheck" | "synccheck") {
     for rank in 0..<2 {
       let owners = remote(
         rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
@@ -139,18 +185,21 @@ async fn main {
       }
       let interface = if rank == 0 { "enp1s0f1np1" } else { "enp1s0f0np0" }
       let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
-      let entry = if mode == "memcheck" {
+      let entry = if mode != "run" {
         "/toolkit/bin/compute-sanitizer"
       } else {
         "/probe/probe"
       }
-      let tool_mount = if mode == "memcheck" {
+      let tool_mount = if mode != "run" {
         " -v /usr/local/cuda-13.0:/toolkit:ro"
       } else {
         ""
       }
-      let program = if mode == "memcheck" {
-        " --error-exitcode 9 --tool memcheck --leak-check full /probe/probe"
+      let program = if mode != "run" {
+        " --error-exitcode 9 --tool " +
+        mode +
+        (if mode == "memcheck" { " --leak-check full" } else { "" }) +
+        " /probe/probe"
       } else {
         ""
       }

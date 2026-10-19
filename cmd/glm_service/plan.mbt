@@ -17,10 +17,10 @@ priv struct ServicePlan {
   runtime_label : String
   tokenizer_label : String
   credential_file : String
-  rows : Int32
-  slots : Int32
-  admission_lanes : Int32
-  context : Int32
+  rows : Int
+  slots : Int
+  admission_lanes : Int
+  context : Int
   history_capacity : @history.ResidentHistoryCapacity
   sparse_accumulation : @precision.AttentionAccumulationLaw
   index_scoring : @precision.IndexScoringLaw
@@ -39,7 +39,7 @@ fn json_string(j : Json, key : String) -> String raise {
 }
 
 ///|
-fn json_int(j : Json, key : String) -> Int32 raise {
+fn json_int(j : Json, key : String) -> Int raise {
   guard j is Object(fields) &&
     fields.get(key) is Some(Number(value, ..)) &&
     value >= 0.0 &&
@@ -197,9 +197,9 @@ fn ServicePlan::inference(
 
 ///|
 fn glm_inference_limits(
-  context : Int32,
-  vocabulary : Int32,
-  maximum_token_bytes~ : Int32 = 4096,
+  context : Int,
+  vocabulary : Int,
+  maximum_token_bytes? : Int = 4096,
 ) -> @inference.InferenceLimits raise {
   let maximum_stop_bytes = 256
   @inference.InferenceLimits::new(
@@ -256,7 +256,7 @@ fn ServicePlan::frame(
 fn ServicePlan::stage(
   self : Self,
   spec : @spec.Glm53FlashSpec,
-  ordinal : Int32,
+  ordinal : Int,
 ) -> @glm.GlmDecoderStage raise {
   guard ordinal is (0 | 1) && self.context <= spec.context_length() else {
     fail("invalid GLM rank or context")

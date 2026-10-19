@@ -4,14 +4,14 @@
 /// One request owns one history; this is not multi-request cache scheduling.
 pub struct GlmSparseLayer {
   priv spec : @glm53_spec.Glm53FlashSpec
-  priv layer_index : Int32
-  priv maximum_rows : Int32
+  priv layer_index : Int
+  priv maximum_rows : Int
   priv decoder : @sparse_frame.IndexedSparseDecoderFrame
   priv ffn : GlmFfn
-  priv tensor_group : (Int32, Int32)?
+  priv tensor_group : (Int, Int)?
   priv weights : @upload.CheckpointDeviceWeights
   priv mut queue : @device.OrderedKernelExecutor?
-  priv mut launch_count : Int32
+  priv mut launch_count : Int
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut status : RecurrentLayerState
 }
@@ -19,28 +19,28 @@ pub struct GlmSparseLayer {
 ///|
 pub fn GlmSparseLayer::new(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int32,
-  maximum_queries~ : Int32,
-  maximum_history~ : Int32,
+  layer_index~ : Int,
+  maximum_queries~ : Int,
+  maximum_history~ : Int,
   index_layer_norm_epsilon~ : Double,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  hc_reduction~ : @precision_ir.HyperControlReduction = Ordered,
-  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
-  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
-  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  expert_transport~ : @matrix.ExpertTransport = IndexedRows,
-  shared_matrix_columns~ : Int32 = 64,
-  expert_fragment_slots~ : Int32 = 1,
-  expert_scale_partitions~ : Int32 = 1,
-  moe_reduction~ : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
-  tensor_group? : (Int32, Int32),
+  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
+  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging? : @matrix.MatrixStaging = Synchronous,
+  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  expert_transport? : @matrix.ExpertTransport = IndexedRows,
+  shared_matrix_columns? : Int = 64,
+  expert_fragment_slots? : Int = 1,
+  expert_scale_partitions? : Int = 1,
+  moe_reduction? : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  tensor_group? : (Int, Int),
   paged_history? : @history_domain.PagedHistoryDomain,
-  attention_accumulation~ : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
-  index_scoring~ : @precision_ir.IndexScoringLaw = OrderedBFloat16,
-  sparse_cache~ : @precision_ir.SparseCacheLaw = ExpandedBFloat16,
+  attention_accumulation? : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
+  index_scoring? : @precision_ir.IndexScoringLaw = OrderedBFloat16,
+  sparse_cache? : @precision_ir.SparseCacheLaw = ExpandedBFloat16,
 ) -> Self raise {
   let projection = @sparse_model.flash_sparse_projection_plan(
     spec,
@@ -153,7 +153,7 @@ pub fn GlmSparseLayer::prepare(
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int32,
+  chunk_bytes~ : Int,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   reset_flag~ : @device.Allocation,
@@ -185,7 +185,7 @@ fn GlmSparseLayer::prepare_layer(
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int32,
+  chunk_bytes~ : Int,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   reset_flag~ : @device.Allocation,
@@ -274,7 +274,7 @@ pub fn GlmSparseLayer::append_descriptor(
 ///|
 pub fn GlmSparseLayer::submit(
   self : Self,
-  live_rows~ : Int32,
+  live_rows~ : Int,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Ready && self.queue is Some(queue) else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)

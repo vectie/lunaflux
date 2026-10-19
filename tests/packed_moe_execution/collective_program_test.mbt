@@ -1,15 +1,15 @@
 ///|
 fn run_collective_program(
   queued : Bool,
-  replay~ : Bool = false,
-  collective_graph~ : Bool = false,
-  bucketed~ : Bool = false,
-  decode_graph~ : Bool = false,
-  cancel~ : Bool = false,
-  cancel_rows~ : Int32 = 1,
-  fork~ : Bool = false,
-  abort_idle~ : Bool = false,
-  bfloat16~ : Bool = false,
+  replay? : Bool = false,
+  collective_graph? : Bool = false,
+  bucketed? : Bool = false,
+  decode_graph? : Bool = false,
+  cancel? : Bool = false,
+  cancel_rows? : Int = 1,
+  fork? : Bool = false,
+  abort_idle? : Bool = false,
+  bfloat16? : Bool = false,
 ) -> Unit raise {
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
