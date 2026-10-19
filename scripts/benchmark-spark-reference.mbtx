@@ -369,6 +369,10 @@ async fn main {
   let batch_tokens = if profile { context } else {
     reference_positive("LUNAFLUX_REFERENCE_BATCH_TOKENS", context, 32768)
   }
+  let capture_option = match @env.get_env_var("LUNAFLUX_REFERENCE_CAPTURE_MAX") {
+    None => ""
+    Some(_) => " --max-cudagraph-capture-size \{reference_positive("LUNAFLUX_REFERENCE_CAPTURE_MAX", 16, 512)}"
+  }
   guard !profile || (glm && !sg) else {
     fail("bounded profile is GLM/vLLM only")
   }
@@ -522,6 +526,7 @@ async fn main {
         ""
       }) +
       (if sg { "\nsglang_options=" + sglang_options(glm) } else { "" }) +
+      (if capture_option.is_empty() { "" } else { "\ncapture_option=" + capture_option }) +
       "\n",
       create_mode=CreateNew,
     )
@@ -765,6 +770,7 @@ async fn main {
       rank +
       " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len \{context} --max-num-seqs \{sequences} --max-num-batched-tokens \{batch_tokens} --gpu-memory-utilization 0.80 --kv-cache-memory-bytes \{kv_bytes} --no-enable-prefix-caching --trust-remote-code" +
       (if glm { " --language-model-only" } else { "" }) +
+      capture_option +
       (if eager_profile { " --enforce-eager" } else { "" }) +
       (if last { " --headless" } else { "" })
     }

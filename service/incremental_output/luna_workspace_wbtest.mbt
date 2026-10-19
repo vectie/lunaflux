@@ -1,7 +1,9 @@
 ///|
-test "decoded delta admits a full token plus three carried UTF-8 bytes" {
+test "decoded delta uses actual pieces rather than the vocabulary admission ceiling" {
   let tokenizer = fixture_tokenizer()
-  for delta in [10, 11] {
+  assert_eq(tokenizer.limits().max_token_bytes, 8)
+  assert_eq(tokenizer.maximum_decoded_piece_bytes(), 6)
+  for delta in [8, 9] {
     let inference = @inference.InferenceLimits::new(
       max_text_bytes=64,
       max_input_tokens=64,
@@ -25,10 +27,33 @@ test "decoded delta admits a full token plus three carried UTF-8 bytes" {
         LunaIncrementalOutputStepBudget::new(1),
       )
     catch {
-      Invalid(rule=DecodeEnvelope, issue=Unsupported) => assert_eq(delta, 10)
+      Invalid(rule=DecodeEnvelope, issue=Unsupported) => assert_eq(delta, 8)
       error => raise error
     } noraise {
-      workspace => assert_eq(workspace.scratch.length(), 11)
+      workspace => {
+        assert_eq(workspace.scratch.length(), 9)
+        let work = workspace.begin(stops([]), special_policy=Preserve)
+        wb_drive_output_work(work)
+        let lease = work.take_lease()
+        let output = FixedArray::make(9, b'!')
+        assert_eq(
+          lease
+          .push_token_status(256, output, destination_offset=0)
+          .copied_bytes(),
+          6,
+        )
+        lease.release()
+        let with_stop = workspace.begin(
+          stops([b"END"]),
+          special_policy=Preserve,
+        )
+        try wb_drive_output_work(with_stop) catch {
+          Invalid(rule=DecodeEnvelope, issue=Unsupported) => ()
+          error => raise error
+        } noraise {
+          _ => fail("stop carry must still fit the decoded envelope")
+        }
+      }
     }
   }
 }

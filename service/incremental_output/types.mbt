@@ -124,6 +124,7 @@ pub struct LunaIncrementalOutputStepBudget {
 
 ///|
 pub struct LunaIncrementalOutputWorkspace {
+  priv maximum_decoded_piece_bytes : Int
   priv tokenizer : @tokenizer.TokenizerSpec
   priv inference : @inference.InferenceLimits
   priv budget : LunaIncrementalOutputStepBudget

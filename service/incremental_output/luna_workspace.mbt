@@ -140,7 +140,7 @@ fn LunaIncrementalOutputWorkspace::progress_setup_pattern(
   self : LunaIncrementalOutputWorkspace,
 ) -> Unit raise IncrementalOutputError {
   if self.setup_pattern >= self.stop_count {
-    let token_bytes = self.tokenizer.limits().max_token_bytes
+    let token_bytes = self.maximum_decoded_piece_bytes
     let delta_bytes = self.inference.max_decoded_delta_bytes()
     if self.longest_pattern > delta_bytes - token_bytes - 3 {
       self.fail_setup(DecodeEnvelope, Unsupported)

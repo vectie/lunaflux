@@ -99,10 +99,12 @@ fn new_luna_incremental_output_workspace(
     inference, pattern_capacity, stop_string_byte_capacity,
   )
   let delta_bytes = inference.max_decoded_delta_bytes()
-  if tokenizer.limits().max_token_bytes > delta_bytes - 3 {
+  let maximum_decoded_piece_bytes = tokenizer.maximum_decoded_piece_bytes()
+  if maximum_decoded_piece_bytes > delta_bytes - 3 {
     raise invalid(DecodeEnvelope, Unsupported)
   }
   {
+    maximum_decoded_piece_bytes,
     tokenizer,
     inference,
     budget,
