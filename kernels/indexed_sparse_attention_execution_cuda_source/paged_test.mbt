@@ -30,7 +30,12 @@ fn paged_fixture(
 
 ///|
 test "paged sparse storage follows physical pool and bindings follow request domain" {
-  let plan = paged_fixture(true)
+  let shared = @env.get_env_var("LUNA_PAGED_SPARSE_LATENT") == Some("1")
+  let plan = if shared {
+    paged_fixture(true).latent_cache(4)
+  } else {
+    paged_fixture(true)
+  }
   let history = @precision.IndexedSparseHistoryPrecision::new(
     plan,
     maximum_state_bytes=100000L,
@@ -39,6 +44,7 @@ test "paged sparse storage follows physical pool and bindings follow request dom
   assert_eq(plan.frame_bytes()[0], 128L)
   assert_eq(history.buffer_bytes()[0], 256L)
   assert_eq(history.buffer_bytes()[6], 76L)
+  assert_eq(history.buffer_owner(3), if shared { 2 } else { 3 })
   let source = @indexed_sparse_attention_execution_cuda_source.indexed_sparse_attention_source(
     plan,
     symbol_prefix="paged",
@@ -59,10 +65,17 @@ test "paged sparse storage follows physical pool and bindings follow request dom
   assert_false(text.contains("counts[2] != 1"))
   if @env.get_env_var("LUNA_PAGED_SPARSE_EXPORT") == Some("1") {
     let dense = @indexed_sparse_attention_execution_cuda_source.indexed_sparse_attention_source(
-      paged_fixture(false),
+      if shared {
+        paged_fixture(false).latent_cache(4)
+      } else {
+        paged_fixture(false)
+      },
       symbol_prefix="dense",
     )
     println("LUNA_PAGED_BEGIN")
+    if shared {
+      println("#define LUNA_SHARED_LATENT_CACHE 1")
+    }
     println(@utf8.decode(source.source_bytes()))
     println(@utf8.decode(append.source_bytes()))
     println(@utf8.decode(dense.source_bytes()))

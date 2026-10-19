@@ -6,6 +6,9 @@
 #include <array>
 #include <cstring>
 #include "source.cuh"
+#ifndef LUNA_SHARED_LATENT_CACHE
+#define LUNA_SHARED_LATENT_CACHE 0
+#endif
 static void ck(cudaError_t e){if(e!=cudaSuccess){fprintf(stderr,"%s\n",cudaGetErrorString(e));exit(2);}}
 using B=__nv_bfloat16;
 template<class T> static T *make(int n){T *p;ck(cudaMalloc(&p,n*sizeof(T)));ck(cudaMemset(p,0,n*sizeof(T)));return p;}
@@ -21,10 +24,11 @@ struct Buffers {
   void close(){void *ps[]={counts,hc,reset,append,positions,input_pos,row_seq,offsets,pages,gens,valid,raw,pool_valid,pool_count,selected,iq,hw,q,ki,g,k,v,hi,hg,hk,hv,ape,pool,out,scratch};for(void*p:ps)ck(cudaFree(p));}
 };
 static B value(int identity,int position,int component,int plane){return __float2bfloat16_rn(float(((identity+1)*29+position*13+component*7+plane*11)%37-18)/16.f);}
-struct History {std::vector<B> i,g,k,v; int size()const{return i.size()/4;} void add(int id,int pos){for(int c=0;c<4;c++){i.push_back(value(id,pos,c,0));g.push_back(value(id,pos,c,1));k.push_back(value(id,pos,c,2));v.push_back(value(id,pos,c,3));}}};
+struct History {std::vector<B> i,g,k,v; int size()const{return i.size()/4;} void add(int id,int pos){for(int c=0;c<4;c++){i.push_back(value(id,pos,c,0));g.push_back(value(id,pos,c,1));k.push_back(value(id,pos,c,2));v.push_back(value(id,pos,c,LUNA_SHARED_LATENT_CACHE?2:3));}}};
 static unsigned bits(B x){unsigned short u;memcpy(&u,&x,2);return u;}
 int main(){
   Buffers p,d;std::array<History,4> histories;
+  B *retained_values=LUNA_SHARED_LATENT_CACHE?p.hk:p.hv;
   const int page_map[4][4]={{5,1,0,7},{3,4,7,0},{6,2,0,7},{5,1,0,7}};
   std::vector<std::vector<std::pair<int,int>>> steps={{{0,3},{1,4}},{{1,2},{0,2},{2,2}},{{0,1},{1,1}},{{2,1},{3,2}},{{3,3},{1,1}}};
   for(int step=0;step<(int)steps.size();step++){
@@ -36,7 +40,7 @@ int main(){
         int at=base+r;owners.push_back(id);pos.push_back(at);row_seq.push_back(sequence);
         for(int c=0;c<8;c++){iq.push_back(value(id,at,c,4));q.push_back(value(id,at,c,5));}
         for(int c=0;c<2;c++)hw.push_back(value(id,at,c,6));
-        for(int c=0;c<4;c++){ki.push_back(value(id,at,c,0));g.push_back(value(id,at,c,1));k.push_back(value(id,at,c,2));v.push_back(value(id,at,c,3));}
+        for(int c=0;c<4;c++){ki.push_back(value(id,at,c,0));g.push_back(value(id,at,c,1));k.push_back(value(id,at,c,2));v.push_back(value(id,at,c,LUNA_SHARED_LATENT_CACHE?2:3));}
         histories[id].add(id,at);
       }
       for(int page=0;page<(base+n+3)/4;page++){pages.push_back(page_map[id][page]);gens.push_back(id==3?2:1);}
@@ -46,13 +50,13 @@ int main(){
     put(p.input_pos,pos);put(p.row_seq,row_seq);put(p.offsets,offsets);put(p.pages,pages);put(p.gens,gens);
     put(p.iq,iq);put(p.hw,hw);put(p.q,q);put(p.ki,ki);put(p.g,g);put(p.k,k);put(p.v,v);
     ph_begin<<<1,256>>>(p.counts,p.reset,p.hc,p.valid,p.append,p.positions,p.input_pos,p.row_seq,p.offsets,p.pages,p.gens);
-    ph_copy<<<1,256>>>(p.append,p.ki,p.g,p.k,p.v,p.hi,p.hg,p.hk,p.hv);
+    ph_copy<<<1,256>>>(p.append,p.ki,p.g,p.k,LUNA_SHARED_LATENT_CACHE?p.k:p.v,p.hi,p.hg,p.hk,retained_values);
     ph_publish<<<1,256>>>(p.append,p.hc,p.valid);
     paged_pool<<<8,128>>>(p.hc,p.hi,p.hg,p.valid,p.ape,p.pool,p.raw,p.pool_valid,p.pool_count,p.counts,p.positions,p.row_seq,p.offsets,p.pages,p.gens);
     paged_index<<<8,128>>>(p.counts,p.positions,p.iq,p.hw,p.pool,p.raw,p.pool_valid,p.pool_count,p.valid,p.selected,p.scratch,p.row_seq,p.offsets,p.pages,p.gens);
-    paged_attention_retained_scores_v1<<<16,256>>>(p.counts,p.positions,p.hc+3,p.valid,p.q,p.hk,p.hv,p.selected,p.out,p.scratch,p.row_seq,p.offsets,p.pages,p.gens);
+    paged_attention_retained_scores_v1<<<16,256>>>(p.counts,p.positions,p.hc+3,p.valid,p.q,p.hk,retained_values,p.selected,p.out,p.scratch,p.row_seq,p.offsets,p.pages,p.gens);
     ck(cudaDeviceSynchronize());if(get(p.append,3)[2]){fprintf(stderr,"append failure\n");return 3;}
-    auto actual=get(p.out,rows*8);auto actual_indices=get(p.selected,rows*5);auto physical=get(p.hv,128);auto valid=get(p.valid,32);
+    auto actual=get(p.out,rows*8);auto actual_indices=get(p.selected,rows*5);auto physical=get(retained_values,128);auto valid=get(p.valid,32);
     for(int row=0;row<rows;row++)for(int c=0;c<4;c++){
       int id=owners[row],at=pos[row],phys=page_map[id][at/4]*4+at%4;
       if(bits(physical[phys*4+c])!=bits(histories[id].v[at*4+c])||valid[phys]!=(id==3?2:1)){fprintf(stderr,"wrong physical append\n");return 4;}
