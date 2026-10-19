@@ -31,6 +31,49 @@ stays offline until real service acceptance on both Sparks. Keep the existing
 canonical scheduler, tokenizer, request/event semantics and HTTP adapters;
 do not wrap the serial CLI in a second admission queue.
 
+### Capacity and host-memory findings (campaign still in progress)
+
+The actual checkpoint-bound device plans, including the 2 GiB reserve, are:
+
+| Logical context | Slots | Physical pages (16 tokens/page) | Planned bytes/rank |
+| --- | ---: | ---: | ---: |
+| 8,192 | 4 | 513 | 103,650,745,500 |
+| 8,192 | 8 | 513 | 103,953,452,188 |
+| 8,192 | 16 | 513 | 104,558,865,564 |
+| 16,384 | 8 | 1,025 | 106,958,957,724 |
+| 16,384 | 16 | 1,025 | 107,564,371,100 (over 100 GiB) |
+| 32,768 | 4 | 2,049 | 112,667,262,108 (over 100 GiB) |
+
+Device-plan admission is not host-memory qualification. The current expanded
+DSA K/V representation is a real capacity cost; it must not be described as
+equivalent to vLLM's compressed FP8 MLA cache. Sixteen short requests and sixteen
+full-length histories are distinct workloads. Physical observations decide
+which configuration can be installed.
+
+Startup also exposed two host-plan integration defects. A fixed four-slot
+admission-storage allowance could not instantiate the larger lane pool.
+`LunaRequestPreparationStorageBudget::required` now computes the same immutable
+cell requirements that the allocator validates. Separately, the tokenizer's
+4,096-byte vocabulary *admission ceiling* was being used as the maximum decoded
+piece, inflating every buffered HTTP response. The admitted vocabulary's actual
+maximum is 512 bytes; output workspace validation and sizing now share that
+bound plus stop-text and UTF-8 carry. The bound is retained at preparation,
+not rescanned in token steps. The output-token allowance remains 8,192.
+
+Admission lanes are independent of recurrent resident slots. The explicit
+16-slot/16-lane candidate admits at most sixteen owned requests, not sixteen
+active plus sixteen queued. Its preparation backing is 688,816,544 bytes and
+buffered response backing 795,995,874 bytes, together below the 2 GiB reserve.
+Object/allocator overhead and all other runtime memory still require physical
+host-floor observation. Earlier startup failures remain evidence, not passes.
+
+The first vLLM 8K/C16 attempt used 1,536 MiB KV memory and default graph captures
+through 32. During graph warm-up, rank0 host availability reached 16,595,224 KiB,
+below the required 16,777,216 KiB. The watcher stopped both ranks before any
+timed requests. This is not an inference performance result or a license to
+relax the reserve. A distinct retry uses 512 MiB KV and capture maximum 16.
+Its actual capacity, answers and timings must be reported separately.
+
 ## GPU sampling
 
 The full-logit path now has a backend-neutral total-order permutation plan in

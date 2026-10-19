@@ -136,11 +136,29 @@ async fn observe(base : String, origin : Int64) -> Json {
 }
 
 ///|
+async fn await_health(base : String) -> Unit {
+  for _ in 0..<240 {
+    let healthy = try @async.with_timeout(3000, () => {
+      let client = @http.Client(base)
+      defer client.close()
+      client.get("/health").code == 200
+    }) catch { _ => false }
+    if healthy { return }
+    @async.sleep(5000)
+  }
+  fail("service did not become healthy within the bounded startup wait")
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, base, model, credential, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-service-benchmark-") &&
     mode is ("short" | "long" | "all") else { fail("NEW_ROOT BASE MODEL CREDENTIAL_FILE_OR_NONE short|long|all") }
   @fs.mkdir(root)
+  if @env.get_env_var("LUNAFLUX_BENCH_WAIT_READY") == Some("1") {
+    // Startup/loading is deliberately outside request and warmup timings.
+    await_health(base)
+  }
   let auth = if credential == "none" { "unused" } else { @fs.read_file(credential).text().trim().to_owned() }
   let results : Array[Json] = []
   ignore(request(root,base,model,auth,16,0,"warmup"))
