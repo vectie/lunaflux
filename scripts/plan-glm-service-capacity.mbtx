@@ -1,0 +1,46 @@
+///|
+import {
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, build] &&
+    root.has_prefix("/tmp/lunaflux-glm-capacity-") &&
+    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    [root, build].all(s => !s.contains("..") && s.iter().all(c =>
+      c is ('a'..='z' | '0'..='9' | '/' | '-'))) else { fail("NEW_ROOT BUILD_ROOT") }
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap()
+  let host = "wlc003s@192.168.2.178"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(max_output_bytes=4194304)
+  }
+  @fs.mkdir(root)
+  remote("mkdir " + root).check()
+  let original = "/home/wlc003s/.local/share/lunanexa/glm53-lunaflux-71061272"
+  let config = remote("cat " + original + "/service.json")
+  config.check()
+  guard @json.parse(config.stdout()) is Object(fields) else { fail("service plan") }
+  remote("cp -n " + original + "/SHARDS.sha256 " + root + "/SHARDS.sha256").check()
+  fields["kernel_root"] = Json(root)
+  for context in [8192, 16384, 32768] {
+    for slots in [4, 8, 16] {
+      fields["context"] = Json(context)
+      fields["slots"] = Json(slots)
+      fields["history_pages"] = Json(context / 16 + 1)
+      let name = "context-\{context}-slots-\{slots}"
+      let path = root + "/" + name + ".json"
+      @fs.write_file(path, Json::Object(fields).stringify(), create_mode=CreateNew)
+      @shell.Cmd("scp", ["-o", "ControlPath=" + socket, path, host + ":" + path]).output().check()
+      let out = remote("systemd-run --user --wait --pipe --unit=glm-capacity-" + name +
+        " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+        build + "/source/_build/native/release/build/cmd/glm_service/glm_service.exe plan " + root + " " + name + ".json")
+      @fs.write_file(root + "/" + name + ".txt", out.stdout() + out.stderr(), create_mode=CreateNew)
+      println(out.stdout())
+      out.check()
+    }
+  }
+}

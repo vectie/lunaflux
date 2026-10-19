@@ -3,8 +3,8 @@
 /// context/slot envelope. Omitted pages preserve the existing service recipe.
 fn service_history_capacity(
   json : Json,
-  slots : Int32,
-  context : Int32,
+  slots : Int,
+  context : Int,
 ) -> @history.ResidentHistoryCapacity raise {
   guard slots > 0 &&
     slots <= 256 &&

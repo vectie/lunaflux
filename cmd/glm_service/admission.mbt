@@ -55,8 +55,8 @@ fn ServicePlan::source(
 /// The cap is the existing SchedulerConfig waiting-age validation ceiling,
 /// not a device/kernel tuning constant. Page pressure and deadlines are still
 /// handled by the scheduler's existing resource and cancellation rules.
-fn service_waiting_age_steps(context : Int32) -> Int32 {
-  Int32::min(context, 1_000_000)
+fn service_waiting_age_steps(context : Int) -> Int {
+  Int::min(context, 1_000_000)
 }
 
 ///|
