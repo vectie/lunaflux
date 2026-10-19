@@ -17,9 +17,10 @@ priv struct ServicePlan {
   runtime_label : String
   tokenizer_label : String
   credential_file : String
-  rows : Int
-  slots : Int
-  context : Int
+  rows : Int32
+  slots : Int32
+  context : Int32
+  history_capacity : @history.ResidentHistoryCapacity
   budget : Int64
   reserve : Int64
 }
@@ -33,7 +34,7 @@ fn json_string(j : Json, key : String) -> String raise {
 }
 
 ///|
-fn json_int(j : Json, key : String) -> Int raise {
+fn json_int(j : Json, key : String) -> Int32 raise {
   guard j is Object(fields) &&
     fields.get(key) is Some(Number(value, ..)) &&
     value >= 0.0 &&
@@ -61,6 +62,10 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
     fail("service plan exceeds startup envelope")
   }
   let j = @json.parse(@utf8.decode(bytes))
+  let rows = json_int(j, "rows")
+  let slots = json_int(j, "slots")
+  let context = json_int(j, "context")
+  let history_capacity = service_history_capacity(j, slots, context)
   let p = ServicePlan::{
     model_root: json_string(j, "model_root"),
     kernel_root: json_string(j, "kernel_root"),
@@ -77,9 +82,10 @@ fn parse_plan(bytes : Bytes) -> ServicePlan raise {
     runtime_label: json_string(j, "runtime_label"),
     tokenizer_label: json_string(j, "tokenizer_label"),
     credential_file: json_string(j, "credential_file"),
-    rows: json_int(j, "rows"),
-    slots: json_int(j, "slots"),
-    context: json_int(j, "context"),
+    rows,
+    slots,
+    context,
+    history_capacity,
     budget: json_int(j, "budget_mib").to_int64() * 1048576L,
     reserve: json_int(j, "reserve_mib").to_int64() * 1048576L,
   }
@@ -144,12 +150,7 @@ fn read_bounded(
 
 ///|
 fn ServicePlan::history(self : Self) -> @history.PagedHistoryDomain {
-  @history.PagedHistoryDomain::new(
-    rows_per_page=16,
-    physical_pages=self.slots * (self.context / 16),
-    maximum_context=self.context,
-    maximum_sequences=self.slots,
-  ).unwrap()
+  self.history_capacity.domain()
 }
 
 ///|
@@ -162,7 +163,7 @@ fn ServicePlan::worker_limits(
     max_decode_rows=self.slots,
     max_plan_rows=self.slots,
     max_plan_tokens=self.rows,
-    max_plan_pages=self.slots * (self.context / 16),
+    max_plan_pages=self.history().table_capacity(),
     max_capabilities=self.slots,
     max_completion_slots=self.slots,
     max_sequence_tokens=self.context,
@@ -180,8 +181,8 @@ fn ServicePlan::inference(
 
 ///|
 fn glm_inference_limits(
-  context : Int,
-  vocabulary : Int,
+  context : Int32,
+  vocabulary : Int32,
 ) -> @inference.InferenceLimits raise {
   let maximum_token_bytes = 4096
   let maximum_stop_bytes = 256
@@ -236,7 +237,7 @@ fn ServicePlan::frame(
 fn ServicePlan::stage(
   self : Self,
   spec : @spec.Glm53FlashSpec,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @glm.GlmDecoderStage raise {
   guard ordinal is (0 | 1) && self.context <= spec.context_length() else {
     fail("invalid GLM rank or context")

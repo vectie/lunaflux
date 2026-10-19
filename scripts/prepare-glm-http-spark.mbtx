@@ -18,6 +18,9 @@ fn host(rank : Int) -> String {
 
 ///|
 fn socket(rank : Int) -> String {
+  if @env.get_env_var(if rank == 0 {
+      "LUNAFLUX_SPARK_178_SOCKET"
+    } else { "LUNAFLUX_SPARK_179_SOCKET" }) is Some(path) { return path }
   if rank == 0 {
     "/tmp/lunaflux-glm178-prefill-20261018.sock"
   } else {
@@ -120,6 +123,10 @@ async fn main {
       v.to_int()
     }
   }
+  let slots = positive_setting("LUNAFLUX_GLM_HTTP_SLOTS", 4, 64)
+  let pages = positive_setting(
+    "LUNAFLUX_GLM_HTTP_HISTORY_PAGES", slots * (context / 16), 67108864,
+  )
   copy(
     0,
     host(0) +
@@ -148,7 +155,8 @@ async fn main {
       "listen_address": "127.0.0.1:18888",
       "executable": root + "/glm_service.exe",
       "rows": 64,
-      "slots": 4,
+      "slots": slots,
+      "history_pages": pages,
       "context": context,
       "budget_mib": 102400,
       "reserve_mib": 2048,
@@ -293,4 +301,18 @@ async fn main {
   println(
     "AOT prepared on both Sparks; no GPU execution or public listener started",
   )
+}
+
+///|
+fn positive_setting(name : String, default : Int, maximum : Int) -> Int raise {
+  match @env.get_env_var(name) {
+    None => default
+    Some(s) => {
+      guard @json.parse(s) is Number(v, ..) && v >= 1.0 &&
+        v <= maximum.to_double() && v.to_int().to_double() == v else {
+        fail("invalid " + name)
+      }
+      v.to_int()
+    }
+  }
 }

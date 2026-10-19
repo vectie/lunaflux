@@ -1,5 +1,31 @@
 # GLM full-service wiring
 
+## Context/concurrency extension, 19 October (in progress)
+
+The public 2048-context/four-slot recipe tied physical history to
+`slots * context`. `ResidentHistoryCapacity` now separates logical length,
+resident recurrent-state slots and the shared physical page pool. The service
+accepts explicit `history_pages`, forwards the same immutable domain to the
+frame and decoder lowering, and gives the scheduler that exact physical pool.
+One maximum-length request plus the decode reserve must fit. For example,
+513 sixteen-token pages can serve one8192-token request, four2048-token requests
+or sixteen512-token requests; sixteen slots do not promise sixteen8K histories.
+The old omitted-field recipe preserves four-slot/2K allocation.
+
+The first bounded campaign targets8K/16K/32K and concurrency1/4/8/16. CPU-only
+`glm_service plan` reports actual checkpoint-bound device estimates before
+export or GPU allocation. Reject plans above100GiB; a physical plan also needs
+at least16GiB observed host availability throughout loading and inference.
+Comparison stays in external MoonBit automation, uses matched prompts/output
+budgets, and reports queueing, TTFT, completion, output counts and memory. No
+payload hashes, changed arithmetic or compiler reference-engine dependency.
+
+At the first live check both GPUs were already free: rank1 had aborted at
+02:04:01CST and the manager stopped rank0 at02:04:03. The peer recorded SIGABRT,
+not an OOM, with zero unit swap. The cause is not established and must not be
+described as fixed by the capacity change. Existing public acceptance results
+are historical, not evidence of continued service availability.
+
 This continues the complete-answer campaign, not its replacement. Public HTTP
 stays offline until real service acceptance on both Sparks. Keep the existing
 canonical scheduler, tokenizer, request/event semantics and HTTP adapters;

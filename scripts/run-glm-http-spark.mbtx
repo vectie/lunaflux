@@ -18,6 +18,9 @@ fn host(rank : Int32) -> String {
 
 ///|
 fn socket(rank : Int32) -> String {
+  if @env.get_env_var(if rank == 0 {
+      "LUNAFLUX_SPARK_178_SOCKET"
+    } else { "LUNAFLUX_SPARK_179_SOCKET" }) is Some(path) { return path }
   if rank == 0 {
     "/tmp/lunaflux-glm178-prefill-20261018.sock"
   } else {

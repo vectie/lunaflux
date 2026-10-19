@@ -33,7 +33,7 @@ fn ServicePlan::source(
       supports_bf16=true,
       supports_cublas_lt=true,
       tokens_per_page=16,
-      total_page_count=self.slots * (self.context / 16),
+      total_page_count=self.history().geometry().1,
     ),
     @wire.WorkerBootstrapCeilings::new(
       max_model_config_bytes=1048576,
@@ -55,8 +55,8 @@ fn ServicePlan::source(
 /// The cap is the existing SchedulerConfig waiting-age validation ceiling,
 /// not a device/kernel tuning constant. Page pressure and deadlines are still
 /// handled by the scheduler's existing resource and cancellation rules.
-fn service_waiting_age_steps(context : Int) -> Int {
-  Int::min(context, 1_000_000)
+fn service_waiting_age_steps(context : Int32) -> Int32 {
+  Int32::min(context, 1_000_000)
 }
 
 ///|
@@ -71,20 +71,20 @@ fn ServicePlan::blueprint(
       max_active_requests=self.slots,
       max_waiting_requests=self.slots,
       prefill_chunk_tokens=self.rows,
-      emergency_decode_page_reserve=1,
+      emergency_decode_page_reserve=self.history_capacity.decode_reserve_pages(),
       waiting_age_threshold_steps=service_waiting_age_steps(self.context),
       output_event_capacity=self.slots * 4,
     ),
     @cache.new(
       tokens_per_page=16,
-      total_page_count=self.slots * (self.context / 16),
+      total_page_count=self.history().geometry().1,
       block_table_pages_per_request=self.context / 16,
       prefix_enabled=false,
       max_prefix_entries=0,
       max_prefix_nodes=0,
       max_prefix_tokens_per_entry=0,
       max_prefix_pages=0,
-      max_active_references_per_page=self.slots,
+      max_active_references_per_page=1,
       max_cached_references_per_page=1,
       layout_version=1,
     ),

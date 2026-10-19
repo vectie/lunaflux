@@ -1,5 +1,13 @@
 # Online attention physical state dialect
 
+`ResidentHistoryCapacity` separates per-request context, request slots and
+aggregate physical pages for full-history serving. Its pure constructor proves
+that one maximum-length request fits alongside the decode reserve; it reports
+the concurrency supported at any requested length. It lowers to the existing
+`PagedHistoryDomain`, consumed by the batch frame and sparse-history kernels.
+The scheduler owns allocation/eviction/retirement. No model name, comparison
+result, hashing or request-time compilation participates in this capacity law.
+
 `OnlineFold` is an immutable, backend-neutral register-state program for the
 ordered online-softmax recurrence. QK produces raw scores; the value phase
 applies scale/visibility and computes a local maximum, then merges

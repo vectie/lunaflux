@@ -263,6 +263,14 @@ pub fn QueryOperandLifetime::retained_dimensions(Self) -> Int
 pub fn QueryOperandLifetime::retained_fragments(Self) -> Int
 pub fn QueryOperandLifetime::to_repr(Self) -> @debug.Repr
 
+pub struct ResidentHistoryCapacity {
+  // private fields
+}
+pub fn ResidentHistoryCapacity::decode_reserve_pages(Self) -> Int
+pub fn ResidentHistoryCapacity::domain(Self) -> PagedHistoryDomain
+pub fn ResidentHistoryCapacity::new(rows_per_page~ : Int, physical_pages~ : Int, maximum_context~ : Int, maximum_sequences~ : Int, decode_reserve_pages~ : Int) -> Self?
+pub fn ResidentHistoryCapacity::resident_sequences_at(Self, Int) -> Int?
+
 pub struct RetainedCopyOwnership {
   // private fields
 } derive(Eq, @debug.Debug)

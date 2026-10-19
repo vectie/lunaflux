@@ -22,13 +22,19 @@ async fn main {
     run_rank(plan, root, kernels, None, None)
     return
   }
-  if mode == "export" {
+  if mode == "export" || mode == "plan" {
     let spec = inspect_spec(root)
     let checkpoint = inspect_checkpoint(root, kernels, plan)
     for ordinal in 0..<2 {
       let stage = plan.stage(spec, ordinal)
       defer stage.close()
       let required = stage.required_device_bytes(checkpoint)
+      println(
+        "capacity rank=\{ordinal} planned_total=\{required+plan.reserve} budget=\{plan.budget} context=\{plan.context} slots=\{plan.slots} physical_pages=\{plan.history().geometry().1} full_context_concurrency=\{plan.history_capacity.resident_sequences_at(plan.context).unwrap()}",
+      )
+      if mode == "plan" {
+        continue
+      }
       guard required <= plan.budget - plan.reserve else {
         fail("GLM exceeds memory envelope before export")
       }
@@ -40,6 +46,9 @@ async fn main {
       println(
         "export rank=\{ordinal} total=\{required+plan.reserve} executable=\{plan.executable}",
       )
+    }
+    if mode == "plan" {
+      return
     }
     let sampling = @sampling.FullVocabularySamplingProgram::new(
       values=spec.vocabulary_size(),
