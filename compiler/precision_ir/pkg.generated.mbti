@@ -755,6 +755,7 @@ pub fn ProjectionExpression::program(Self) -> NumericExpression raise PrecisionP
 pub(all) enum ProjectionPublication {
   LocalBFloat16
   ReduceFloat32BeforeRound
+  ReduceBFloat16AfterRound
 } derive(Eq, @debug.Debug)
 pub fn ProjectionPublication::equal(Self, Self) -> Bool
 pub fn ProjectionPublication::not_equal(Self, Self) -> Bool

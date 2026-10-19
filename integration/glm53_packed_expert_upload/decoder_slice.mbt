@@ -57,6 +57,7 @@ pub fn GlmDecoderSlice::new(
   expert_fragment_slots? : Int = 1,
   expert_scale_partitions? : Int = 1,
   moe_reduction? : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   shared_matrix_columns? : Int = 64,
   tensor_group? : (Int, Int),
   paged_history? : @history_domain.PagedHistoryDomain,
@@ -91,6 +92,7 @@ pub fn GlmDecoderSlice::new(
                 evaluation=recurrent_evaluation,
                 matrix_law~,
                 matrix_staging~,
+                tensor_publication~,
                 tensor_group?,
               ),
             )
@@ -115,6 +117,7 @@ pub fn GlmDecoderSlice::new(
                 expert_fragment_slots~,
                 expert_scale_partitions~,
                 moe_reduction~,
+                tensor_publication~,
                 tensor_group?,
               ),
             )
@@ -148,6 +151,7 @@ pub fn GlmDecoderSlice::new(
             expert_fragment_slots~,
             expert_scale_partitions~,
             moe_reduction~,
+            tensor_publication~,
             tensor_group?,
           ),
         )
@@ -274,13 +278,7 @@ pub fn GlmDecoderSlice::prepare(
   output~ : @device.Allocation,
   prefix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
   suffix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
-  vocabulary_boundary? : (
-    Int,
-    @device.Allocation,
-    @device.Allocation,
-    Int,
-    Int,
-  ),
+  vocabulary_boundary? : (Int, @device.Allocation, @device.Allocation, Int, Int),
   collective? : @device.TensorCollectiveOwner,
   generation? : UInt64 = 1UL,
   retirement? : @parallel.RetirementPolicy = EachCollective,

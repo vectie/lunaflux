@@ -13,6 +13,8 @@ pub struct DenseMlpFrame {
   priv source : @source.DenseMlpCudaSource
   priv mut product : @device.Allocation?
   priv mut partials : @device.Allocation?
+  // Borrowed output for BF16 reduction; unlike partials, not owned here.
+  priv mut tensor_output : @device.Allocation?
   priv functions : Array[@device.Function]
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut status : State
@@ -24,6 +26,7 @@ pub fn DenseMlpFrame::new(source : @source.DenseMlpCudaSource) -> Self {
     source,
     product: None,
     partials: None,
+    tensor_output: None,
     functions: [],
     launches: [],
     status: Fresh,
@@ -155,17 +158,25 @@ pub fn DenseMlpFrame::prepare(
       ),
     )
   }
+  if plan.publication() == ReduceBFloat16AfterRound {
+    self.tensor_output = Some(output)
+  }
   self.status = Prepared
 }
 
 ///|
 pub fn DenseMlpFrame::tensor_width(self : Self) -> Int? {
-  if self.source.plan().publication() == ReduceFloat32BeforeRound {
+  if self.source.plan().publication() != LocalBFloat16 {
     let (hidden, _, _) = self.source.plan().geometry()
     Some(hidden)
   } else {
     None
   }
+}
+
+///|
+pub fn DenseMlpFrame::tensor_is_bfloat16(self : Self) -> Bool {
+  self.source.plan().publication() == ReduceBFloat16AfterRound
 }
 
 ///|
@@ -175,7 +186,9 @@ pub fn DenseMlpFrame::tensor_boundary(
   guard self.status is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }
-  if self.partials is Some(buffer) && self.tensor_width() is Some(width) {
+  if self.tensor_output is Some(buffer) && self.tensor_width() is Some(width) {
+    Some((self.launches.length(), buffer, width))
+  } else if self.partials is Some(buffer) && self.tensor_width() is Some(width) {
     Some((self.launches.length() - 1, buffer, width))
   } else {
     None
@@ -199,6 +212,7 @@ pub fn DenseMlpFrame::close(self : Self) -> Unit raise @device.DeviceError {
   }
   self.status = Failed
   self.launches.clear()
+  self.tensor_output = None
   while self.functions.last() is Some(function) {
     function.close()
     ignore(self.functions.pop())

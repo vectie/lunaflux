@@ -29,11 +29,14 @@ pub fn TensorAxisPartition::range(self : Self) -> (Int, Int) {
 }
 
 ///|
-/// A reduction is an explicit effect between F32 partial production and the
-/// single BF16 publication. It is never an implicit part of a local GEMM.
+/// Publication and inter-rank addition are ordered numerical operations.
+/// Round-before-reduce is a different program, not an algebraic equivalence:
+/// each rank rounds locally, then the collective publishes a BF16 sum.
+/// Transport remains an explicit effect outside the local projection.
 pub(all) enum ProjectionPublication {
   LocalBFloat16
   ReduceFloat32BeforeRound
+  ReduceBFloat16AfterRound
 } derive(Eq, Debug)
 
 ///|

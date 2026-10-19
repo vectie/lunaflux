@@ -64,12 +64,18 @@ pub fn RecurrentDeltaProgram::launches(
 ///|
 pub fn RecurrentDeltaProgram::tensor_width(self : Self) -> Int? {
   match self.block {
-    Some(block) if block.plan().publication() == ReduceFloat32BeforeRound => {
+    Some(block) if block.plan().publication() != LocalBFloat16 => {
       let (hidden, _) = block.plan().projection_geometry()
       Some(hidden)
     }
     _ => None
   }
+}
+
+///|
+pub fn RecurrentDeltaProgram::tensor_is_bfloat16(self : Self) -> Bool {
+  self.block is Some(block) &&
+  block.plan().publication() == ReduceBFloat16AfterRound
 }
 
 ///|

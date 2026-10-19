@@ -193,12 +193,24 @@ fn GlmDecoderLayer::tensor_kind(
   self : Self,
   sublayer : Int,
 ) -> @device.TensorCollectiveKind {
+  if sublayer == 0 {
+    let rounded = match self {
+      Recurrent(layer) => layer.program.tensor_is_bfloat16()
+      Sparse(layer) => layer.decoder.tensor_is_bfloat16()
+    }
+    return if rounded { Bf16SumAllReduce } else { F32SumAllReduce }
+  }
   let ffn = match self {
     Recurrent(layer) => layer.ffn
     Sparse(layer) => Some(layer.ffn)
   }
   if sublayer == 1 && ffn is Some(ffn) && ffn.branch is Moe(moe) {
     moe.program.tensor_kind()
+  } else if sublayer == 1 &&
+    ffn is Some(ffn) &&
+    ffn.branch is Dense(mlp) &&
+    mlp.tensor_is_bfloat16() {
+    Bf16SumAllReduce
   } else {
     F32SumAllReduce
   }

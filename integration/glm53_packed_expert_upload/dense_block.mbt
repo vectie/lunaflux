@@ -13,6 +13,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
   hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
+  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is DenseSwiGlu else {
@@ -29,6 +30,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
     matrix_law~,
     matrix_staging~,
     hc_reduction~,
+    tensor_publication~,
     tensor_group?,
   )
   let envelope = @precision_ir.HyperConnectionPrecision::new(
@@ -54,11 +56,7 @@ pub fn GlmRecurrentLayer::with_dense_block(
       tensor_group,
     ),
     maximum_rows~,
-    publication=if tensor_group is Some(_) {
-      ReduceFloat32BeforeRound
-    } else {
-      LocalBFloat16
-    },
+    publication=projection_publication(tensor_group, tensor_publication),
   )
   {
     spec,

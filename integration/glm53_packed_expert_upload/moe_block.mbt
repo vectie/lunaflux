@@ -22,6 +22,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
   expert_fragment_slots? : Int = 1,
   expert_scale_partitions? : Int = 1,
   moe_reduction? : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   tensor_group? : (Int, Int),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is RoutedMixtureOfExperts else {
@@ -38,6 +39,7 @@ pub fn GlmRecurrentLayer::with_moe_block(
     matrix_law~,
     matrix_staging~,
     hc_reduction~,
+    tensor_publication~,
     tensor_group?,
   )
   {

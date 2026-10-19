@@ -149,11 +149,15 @@ async fn main {
   let moe_reduction = @env.get_env_var("LUNAFLUX_GLM_MOE_REDUCTION").unwrap_or(
     "expert-partials-f32",
   )
+  let projection_reduction = @env.get_env_var("LUNAFLUX_GLM_PROJECTION_REDUCTION").unwrap_or(
+    "f32-before-round",
+  )
   guard recurrent is ("ordered-token-f32" | "chunk-triangular-f32") &&
     staging is ("synchronous" | "buffered-k32") &&
     transport is ("packed-rows" | "bulk-tiles-128x2x48") &&
     scale_partitions is (1 | 32) &&
-    moe_reduction is ("expert-partials-f32" | "local-combined-bf16") else {
+    moe_reduction is ("expert-partials-f32" | "local-combined-bf16") &&
+    projection_reduction is ("f32-before-round" | "bf16-after-round") else {
     fail("unsupported explicit execution policy")
   }
   let sparse_arithmetic = @env.get_env_var("LUNAFLUX_GLM_SPARSE_ARITHMETIC").unwrap_or(
@@ -227,6 +231,7 @@ async fn main {
       "expert_transport": transport,
       "expert_scale_partitions": scale_partitions,
       "moe_reduction": moe_reduction,
+      "projection_reduction": projection_reduction,
       "budget_mib": 102400,
       "reserve_mib": 2048,
       "model_label": "0000000000000000000000000000000000000000000000000000000000000001",

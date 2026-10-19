@@ -38,3 +38,16 @@ test "dense partial plan budgets F32 output independently of BF16 product" {
   assert_true(plan.publication() == ReduceFloat32BeforeRound)
   ignore(plan.program())
 }
+
+///|
+test "round-before-reduce publishes locally without an F32 partial arena" {
+  let plan = DenseSwiGluPrecision::new(
+    hidden_width=64,
+    intermediate_width=32,
+    maximum_rows=3,
+    publication=ReduceBFloat16AfterRound,
+  )
+  assert_eq(plan.workspace_bytes(), plan.product_bytes())
+  assert_eq(plan.publication(), ReduceBFloat16AfterRound)
+  ignore(plan.program())
+}

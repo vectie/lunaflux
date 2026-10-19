@@ -64,6 +64,7 @@ pub fn recurrent_block_plan(
   maximum_state_bytes~ : Int64,
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   tensor_group? : (Int, Int),
 ) -> @precision_ir.RecurrentBlockPrecision raise {
   @precision_ir.RecurrentBlockPrecision::new(
@@ -90,12 +91,24 @@ pub fn recurrent_block_plan(
     control_rank=spec.linear_head_dimension(),
     output_normalization_epsilon=spec.rms_norm_epsilon(),
     projection_law=matrix_law,
-    publication=if tensor_group is Some(_) {
-      ReduceFloat32BeforeRound
-    } else {
-      LocalBFloat16
-    },
+    publication=projection_publication(tensor_group, tensor_publication),
   )
+}
+
+///|
+/// Model construction resolves presence of TP; the numerical law itself is
+/// generic and never selected from reference-engine measurements at runtime.
+fn projection_publication(
+  group : (Int, Int)?,
+  publication : @precision_ir.ProjectionPublication,
+) -> @precision_ir.ProjectionPublication raise {
+  if group is None {
+    return LocalBFloat16
+  }
+  guard publication != LocalBFloat16 else {
+    raise @precision_ir.PrecisionPlanError::IllegalPlacement
+  }
+  publication
 }
 
 ///|

@@ -25,6 +25,7 @@ pub fn IndexedSparseDecoderFrame::prepare(Self, @device.Context, @device.Module,
 pub fn IndexedSparseDecoderFrame::source_bytes(Self) -> Bytes
 pub fn IndexedSparseDecoderFrame::state_bytes(Self) -> Int64
 pub fn IndexedSparseDecoderFrame::tensor_boundary(Self) -> (Int, @device.Allocation, Int)? raise @device.DeviceError
+pub fn IndexedSparseDecoderFrame::tensor_is_bfloat16(Self) -> Bool
 pub fn IndexedSparseDecoderFrame::tensor_width(Self) -> Int?
 pub fn IndexedSparseDecoderFrame::transient_scratch_bytes(Self) -> Int64
 pub fn IndexedSparseDecoderFrame::workspace_bytes(Self) -> Int64

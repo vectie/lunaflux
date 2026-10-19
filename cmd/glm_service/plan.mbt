@@ -293,6 +293,7 @@ fn ServicePlan::stage(
     expert_fragment_slots=2,
     expert_scale_partitions=self.execution.scale_partitions,
     moe_reduction=self.execution.moe_reduction,
+    tensor_publication=self.execution.tensor_publication,
     hc_reduction=Tree(partitions=256),
     shared_matrix_columns=64,
     tensor_group=(ordinal, 2),

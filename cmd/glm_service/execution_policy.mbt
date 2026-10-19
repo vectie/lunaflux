@@ -7,6 +7,7 @@ priv struct ExecutionPolicy {
   transport : @matrix.ExpertTransport
   scale_partitions : Int
   moe_reduction : @precision.MoeReductionPlacement
+  tensor_publication : @precision.ProjectionPublication
 }
 
 ///|
@@ -41,7 +42,20 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     Some(String("local-combined-bf16")) => LocalCombinedBFloat16
     _ => fail("unsupported moe_reduction")
   }
-  { recurrent, staging, transport, scale_partitions, moe_reduction, }
+  let tensor_publication : @precision.ProjectionPublication = match
+    fields.get("projection_reduction") {
+    None | Some(String("f32-before-round")) => ReduceFloat32BeforeRound
+    Some(String("bf16-after-round")) => ReduceBFloat16AfterRound
+    _ => fail("unsupported projection_reduction")
+  }
+  {
+    recurrent,
+    staging,
+    transport,
+    scale_partitions,
+    moe_reduction,
+    tensor_publication,
+  }
 }
 
 ///|
@@ -54,7 +68,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
     Synchronous => "synchronous"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
   }
-  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)}"
+  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)}"
 }
 
 ///|
@@ -65,6 +79,7 @@ test "HTTP execution defaults preserve the validated numerical and physical plan
   assert_true(p.transport is PackedRows)
   assert_eq(p.scale_partitions, 1)
   assert_eq(p.moe_reduction, ExpertPartialsFloat32)
+  assert_eq(p.tensor_publication, ReduceFloat32BeforeRound)
 }
 
 ///|
@@ -85,9 +100,11 @@ test "HTTP compiler alternatives compose independently without implicit selectio
     "projection_staging": "buffered-k32",
     "recurrent_evaluation": "chunk-triangular-f32",
     "moe_reduction": "local-combined-bf16",
+    "projection_reduction": "bf16-after-round",
   })
   assert_true(all.recurrent is ChunkTriangularFloat32)
   assert_eq(all.moe_reduction, LocalCombinedBFloat16)
+  assert_eq(all.tensor_publication, ReduceBFloat16AfterRound)
   assert_true(all.staging is Buffered(inner_tile=32))
   assert_true(all.description().contains("expert_scale_partitions=32"))
 }
@@ -102,6 +119,7 @@ test "unknown execution choices cannot silently use the serving baseline" {
     { "projection_staging": "buffered-k128" },
     { "recurrent_evaluation": "automatic" },
     { "moe_reduction": "automatic" },
+    { "projection_reduction": "automatic" },
   ]
   for value in cases {
     try execution_policy(value) catch {

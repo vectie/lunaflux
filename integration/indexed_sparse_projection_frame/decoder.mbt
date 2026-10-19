@@ -219,6 +219,11 @@ pub fn IndexedSparseDecoderFrame::prepare(
       ]),
     ),
   )
+  if plan.publication() == ReduceBFloat16AfterRound {
+    self.tensor_boundary = Some(
+      (self.launches.length(), projection_output, hidden_width),
+    )
+  }
   if partial {
     self.tensor_boundary = Some(
       (self.launches.length(), projection_output, hidden_width),
@@ -258,12 +263,17 @@ pub fn IndexedSparseDecoderFrame::prepare(
 
 ///|
 pub fn IndexedSparseDecoderFrame::tensor_width(self : Self) -> Int? {
-  if self.source.plan().publication() == ReduceFloat32BeforeRound {
+  if self.source.plan().publication() != LocalBFloat16 {
     let (hidden, _, _) = self.source.plan().projection().geometry()
     Some(hidden)
   } else {
     None
   }
+}
+
+///|
+pub fn IndexedSparseDecoderFrame::tensor_is_bfloat16(self : Self) -> Bool {
+  self.source.plan().publication() == ReduceBFloat16AfterRound
 }
 
 ///|

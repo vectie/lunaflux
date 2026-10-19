@@ -36,6 +36,7 @@ pub fn GlmSparseLayer::new(
   expert_fragment_slots? : Int = 1,
   expert_scale_partitions? : Int = 1,
   moe_reduction? : @precision_ir.MoeReductionPlacement = ExpertPartialsFloat32,
+  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   tensor_group? : (Int, Int),
   paged_history? : @history_domain.PagedHistoryDomain,
   attention_accumulation? : @precision_ir.AttentionAccumulationLaw = OrderedFloat32,
@@ -73,11 +74,7 @@ pub fn GlmSparseLayer::new(
     envelope,
     maximum_state_bytes~,
     maximum_workspace_bytes~,
-    publication=if tensor_group is Some(_) {
-      ReduceFloat32BeforeRound
-    } else {
-      LocalBFloat16
-    },
+    publication=projection_publication(tensor_group, tensor_publication),
   )
   let ffn = make_moe_ffn(
     spec,

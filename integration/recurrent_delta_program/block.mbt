@@ -413,7 +413,9 @@ fn append_block_suffix(
     channels,
     hidden,
   )
-  if plan.publication() == ReduceFloat32BeforeRound {
+  if plan.publication() == ReduceBFloat16AfterRound {
+    owner.tensor_boundary = Some((launches.length(), output, hidden))
+  } else if plan.publication() == ReduceFloat32BeforeRound {
     owner.tensor_boundary = Some((launches.length(), frame[12], hidden))
     let cells = rows.to_int64() * hidden.to_int64()
     append_block_launch(
