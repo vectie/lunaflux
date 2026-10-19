@@ -31,7 +31,7 @@ int main(){
  Buffer<unsigned char> scratch(attention_scratch);
  query.put(q);weight.put(w);latent.put(cache);key_count.put({history});valid.put(std::vector<int>(history,1));
  std::vector<int> pos(rows);for(int i=0;i<rows;++i)pos[i]=history-rows+i;positions.put(pos);
- for(int live:{1,15,16,17}){
+ for(int live:{0,1,15,16,17}){
   counts.put({0,0,1,live,0});std::vector<int> ids(rows*selected_width,-1);
   for(int row=0;row<live;++row)for(int i=0;i<32;++i)ids[row*selected_width+i]=i;
   selected.put(ids);
