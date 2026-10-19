@@ -1,7 +1,7 @@
 ///|
 fn LunaOnlineInstance::multi_begin_cancel(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
   cut : SessionTerminalCut,
 ) -> Bool {
   let lane = self.multi.lanes[lane_index]
@@ -24,7 +24,7 @@ fn LunaOnlineInstance::multi_begin_cancel(
 ///|
 fn LunaOnlineInstance::multi_publish_usage(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
   kind : SessionEventKind,
 ) -> Unit {
   let lane = self.multi.lanes[lane_index]
@@ -39,7 +39,7 @@ fn LunaOnlineInstance::multi_publish_usage(
 ///|
 fn LunaOnlineInstance::multi_prepare_cut_terminal(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   let lane = self.multi.lanes[lane_index]
   let kind = if lane.terminal_cut == CallerCancellationCut {
@@ -65,7 +65,7 @@ fn LunaOnlineInstance::multi_prepare_cut_terminal(
 ///|
 fn LunaOnlineInstance::multi_prepare_natural_terminal(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
   reason : @worker_service.OnlineWorkerTerminalReason,
 ) -> Unit raise LunaOnlineInstanceError {
   let lane = self.multi.lanes[lane_index]
@@ -87,7 +87,11 @@ fn LunaOnlineInstance::multi_prepare_natural_terminal(
     self.multi_publish_usage(lane_index, CompletionUsageEvent)
     return
   }
-  let tail = claim.finish_into_status(lane.output, destination_offset=0)
+  let tail = if reason == OnlineMaximumOutputReached {
+    claim.finish_token_limit_into_status(lane.output, destination_offset=0)
+  } else {
+    claim.finish_into_status(lane.output, destination_offset=0)
+  }
   if !tail.is_ready() {
     lane.failure_kind = OutputLatchedFailure
     lane.final_tail_length = 0
@@ -101,7 +105,7 @@ fn LunaOnlineInstance::multi_prepare_natural_terminal(
 ///|
 fn LunaOnlineInstance::multi_prepare_worker_failure_race_terminal(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
   reason : @worker_service.OnlineWorkerTerminalReason,
 ) -> Unit raise LunaOnlineInstanceError {
   let lane = self.multi.lanes[lane_index]
@@ -131,7 +135,7 @@ fn LunaOnlineInstance::multi_prepare_worker_failure_race_terminal(
 ///|
 fn LunaOnlineInstance::multi_prepare_string_terminal(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   let lane = self.multi.lanes[lane_index]
   lane.string_cut = NoStringCut
@@ -143,7 +147,7 @@ fn LunaOnlineInstance::multi_prepare_string_terminal(
 ///|
 fn LunaOnlineInstance::multi_begin_output_failure(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   let lane = self.multi.lanes[lane_index]
   lane.failure_kind = OutputLatchedFailure
@@ -155,7 +159,7 @@ fn LunaOnlineInstance::multi_begin_output_failure(
 ///|
 fn LunaOnlineInstance::multi_decode_token(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
   publication : @worker_service.OnlineWorkerPublication,
 ) -> Unit {
   let lane = self.multi.lanes[lane_index]
@@ -226,7 +230,7 @@ fn LunaOnlineInstance::multi_decode_token(
 ///|
 fn LunaOnlineInstance::multi_consume_publication(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit raise LunaOnlineInstanceError {
   let lane = self.multi.lanes[lane_index]
   let publication = self.lease_owner().take_publication() catch {

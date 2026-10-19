@@ -52,6 +52,15 @@ retained. `finish_into` copies an unmatched stop prefix for the semantic Luna
 `Completed` tail but rejects a
 truncated UTF-8 scalar.
 
+The explicit `OutputTextBoundary::TokenLimit` finalization is different from
+complete text: a caller-imposed token budget can end inside a byte-tokenized
+scalar. It emits the complete retained prefix, discards only the incomplete
+final scalar, and keeps the token-limit finish reason and actual token usage.
+Natural EOS still uses `CompleteText`; malformed bytes still fail during
+publication. This is a text-boundary contract, not a numerical tolerance or
+compiler reference policy. Both single- and multi-request session owners select
+it only from `OnlineMaximumOutputReached`.
+
 `push_token_status` and `finish_into_status` are the narrow
 allocation-free owner-resident variants used after an online session consumes
 authenticated scheduler evidence. They return scalar status and mutate only on

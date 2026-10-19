@@ -192,6 +192,30 @@ at `/tmp/lunaflux-glm-http-context8k-acceptance-20261019-v2-queued-burst`.
 This is not relabelled as an admission-rejection test. The legacy rejection
 mode remains unchanged; service memory is observed independently throughout.
 
+Broader answers then exposed a separate text-terminal failure. At exactly512
+generated tokens the Chinese transaction explanation reports usage and then
+`output_invalid`; a repeat with SSE reproduces the boundary at41.511s in
+`/tmp/lunaflux-glm-http-chinese-output-20261019-v1`. Both workers remain healthy.
+The session used strict complete-text finalization even for an explicit token
+budget, so an incomplete final UTF-8 byte-token scalar rejected the entire
+buffered response. This is not an arithmetic failure, and the successful label
+campaign did not cover it. The512-token English explanation also truncates;
+it is not a complete-answer pass.
+
+The text layer now distinguishes immutable `CompleteText` and `TokenLimit`
+boundaries. Only a scheduler-proven output-token limit may omit the incomplete
+final scalar and publish the complete retained prefix with actual usage and a
+length finish. Natural EOS remains strict; malformed bytes remain failures.
+The policy reaches both single- and multi-request session owners without CUDA
+or reference-engine dependencies. Three regressions cover1/2/3-byte partial
+scalars, retained stop prefixes, destination retry and malformed bytes.
+158 affected tests and the native check pass with unchanged warning exclusions.
+This correction still requires a fresh pinned ARM service test before cutover;
+the rejected public candidate is not promoted. The prior pair has drained,
+both units exit0, and both GPUs are released. The external watch notices the
+deliberate staggered retirement and exits with its paired-stop diagnostic;
+that is not a memory-limit violation.
+
 Capacity is not throughput scaling. The observed native queue commonly has
 one or two active requests during these short-answer prefills, while additional
 requests wait. The selected eight-slot AOT source still has a single-thread

@@ -280,6 +280,22 @@ pub fn LunaPreparedRequestClaim::finish_into_status(
 }
 
 ///|
+/// Only the scheduler's explicit output-token budget terminal may discard an
+/// incomplete final UTF-8 scalar. Natural EOS retains strict completion.
+pub fn LunaPreparedRequestClaim::finish_token_limit_into_status(
+  self : LunaPreparedRequestClaim,
+  destination : FixedArray[Byte],
+  destination_offset~ : Int,
+) -> @incremental_output.IncrementalOutputStatus {
+  match self.pooled_output {
+    Some(output) => output.finish_into_status(
+      destination, destination_offset~, boundary=TokenLimit,
+    )
+    None => @incremental_output.IncrementalOutputStatus::rejected()
+  }
+}
+
+///|
 fn LunaPreparedRequestClaim::release_resources_only(
   self : LunaPreparedRequestClaim,
 ) -> Unit raise RequestAdmissionError {

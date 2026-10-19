@@ -192,23 +192,34 @@ pub fn LunaIncrementalOutputLease::finish_into_status(
   self : LunaIncrementalOutputLease,
   destination : FixedArray[Byte],
   destination_offset~ : Int,
+  boundary? : OutputTextBoundary = CompleteText,
 ) -> IncrementalOutputStatus {
   let workspace = try self.require_workspace() catch {
     _ => return IncrementalOutputStatus::rejected()
   } noraise {
     value => value
   }
-  if workspace.lifecycle != OUTPUT_ACTIVE || workspace.utf8_remaining != 0 {
+  if workspace.lifecycle != OUTPUT_ACTIVE {
     return IncrementalOutputStatus(1, 0, false)
   }
+  let incomplete_bytes = if workspace.utf8_remaining == 0 { 0 } else {
+    match boundary {
+      CompleteText => return IncrementalOutputStatus(1, 0, false)
+      TokenLimit => workspace.utf8_seen
+    }
+  }
+  let count = workspace.pending_count - incomplete_bytes
   if destination_offset < 0 ||
     destination_offset > destination.length() ||
-    workspace.pending_count > destination.length() - destination_offset {
+    count > destination.length() - destination_offset {
     return IncrementalOutputStatus(2, 0, false)
   }
-  let count = workspace.pending_count
   copy_range(workspace.pending, 0, destination, destination_offset, count)
   workspace.pending_count = 0
+  workspace.utf8_remaining = 0
+  workspace.utf8_codepoint = 0
+  workspace.utf8_minimum = 0
+  workspace.utf8_seen = 0
   workspace.decoder_at_start = true
   workspace.lifecycle = OUTPUT_FINISHED
   IncrementalOutputStatus(0, count, false)

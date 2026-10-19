@@ -48,6 +48,7 @@ pub struct LunaPreparedRequestClaim {
   // private fields
 }
 pub fn LunaPreparedRequestClaim::finish_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
+pub fn LunaPreparedRequestClaim::finish_token_limit_into_status(Self, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
 pub fn LunaPreparedRequestClaim::is_stop_token(Self, Int) -> Bool
 pub fn LunaPreparedRequestClaim::push_token_into_status(Self, Int, FixedArray[Byte], destination_offset~ : Int) -> @incremental_output.IncrementalOutputStatus
 pub fn LunaPreparedRequestClaim::release(Self) -> Unit raise RequestAdmissionError

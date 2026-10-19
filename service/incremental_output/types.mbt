@@ -1,4 +1,13 @@
 ///|
+/// A complete text must finish every scalar. A caller-imposed token budget may
+/// cut the tokenizer's byte pieces inside the final scalar; publish only the
+/// complete prefix in that case. Neither boundary accepts malformed bytes.
+pub(all) enum OutputTextBoundary {
+  CompleteText
+  TokenLimit
+}
+
+///|
 pub(all) enum IncrementalOutputRule {
   DecodeEnvelope
   Token

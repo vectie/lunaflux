@@ -197,7 +197,11 @@ fn LunaOnlineInstance::prepare_natural_terminal(
     self.mark_event_published(CompletionUsageEvent)
     return
   }
-  let tail = claim.finish_into_status(self.output, destination_offset=0)
+  let tail = if reason == OnlineMaximumOutputReached {
+    claim.finish_token_limit_into_status(self.output, destination_offset=0)
+  } else {
+    claim.finish_into_status(self.output, destination_offset=0)
+  }
   if !tail.is_ready() {
     self.failure_kind = OutputLatchedFailure
     self.final_tail_length = 0
