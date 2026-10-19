@@ -14,6 +14,8 @@ test "complete local router/expert frame joins a caller queue without hot alloca
   let external = [20L, 128L, 256L, 16L, routed_bytes, shared_bytes, 128L].map(bytes => {
     context.allocate(bytes)
   })
+  let scratch = context.allocate(program.transient_scratch_bytes())
+  defer (scratch.close() catch { _ => () })
   defer (for allocation in external.rev() {
     allocation.close() catch {
       _ => ()
@@ -30,6 +32,7 @@ test "complete local router/expert frame joins a caller queue without hot alloca
     routed_bank=external[4],
     shared_bank=external[5],
     output=external[6],
+    transient_scratch=scratch,
   )
   let launches = program.launches()
   assert_eq(launches.length(), 10)
@@ -56,6 +59,9 @@ test "complete local router/expert frame joins a caller queue without hot alloca
   queue.abort()
   queue.close()
   program.close()
+  // A borrower must not release the owner's reusable storage.
+  context.copy_from_fixed_host(scratch, [0, 0], 0L, 0L, 2L)
+  scratch.close()
   for allocation in external.rev() {
     allocation.close()
   }

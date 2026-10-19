@@ -14,11 +14,20 @@ fn MoeProgram::expert_buffers(
   self : Self,
   context : @device.Context,
   source : @source.PackedExpertMlpCudaSource,
+  activation_scratch? : @device.Allocation,
 ) -> ExpertBuffers raise @device.DeviceError {
   let plan = source.plan()
   let sizes = expert_workspace_sizes(source)
   let map = self.allocate(context, sizes[0])
-  let activation = self.allocate(context, sizes[1])
+  let activation = match activation_scratch {
+    Some(buffer) => {
+      guard buffer.byte_count() >= sizes[1] else {
+        raise @device.DeviceError::InvalidArgument(AllocationCreate)
+      }
+      buffer
+    }
+    None => self.allocate(context, sizes[1])
+  }
   let weighted = self.allocate(context, sizes[2])
   let output = self.allocate(context, sizes[3])
   let quantized_input = if sizes[4] > 0L {
@@ -211,6 +220,7 @@ fn MoeProgram::bind_experts(
   shared_bank~ : @device.Allocation,
   output~ : @device.Allocation,
   prefix~ : ArrayView[@device.OrderedKernelLaunch],
+  transient_scratch? : @device.Allocation,
 ) -> (
   Array[@device.OrderedKernelLaunch],
   Array[@device.OrderedKernelLaunch],
@@ -225,7 +235,11 @@ fn MoeProgram::bind_experts(
   let finalize_functions = self.load_functions(aot_module, [
     self.combine.symbol(),
   ])
-  let routed = self.expert_buffers(context, self.routed)
+  let routed = self.expert_buffers(
+    context,
+    self.routed,
+    activation_scratch?=transient_scratch,
+  )
   let shared = self.expert_buffers(context, self.shared)
   for (name, buffers) in [("routed", routed), ("shared", shared)] {
     self.frontiers.append([

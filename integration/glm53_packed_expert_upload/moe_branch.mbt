@@ -25,6 +25,7 @@ fn GlmMoeBranch::prepare(
   output~ : @device.Allocation,
   router_weight~ : @device.Allocation,
   correction_bias~ : @device.Allocation,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   let routed = context.allocate(self.routed.bank_bytes())
   self.banks.push(routed)
@@ -91,6 +92,7 @@ fn GlmMoeBranch::prepare(
         routed_bank=routed,
         shared_bank=shared,
         output~,
+        transient_scratch?,
       ),
     )
   } else {
@@ -105,6 +107,7 @@ fn GlmMoeBranch::prepare(
       routed_bank=routed,
       shared_bank=shared,
       output~,
+      transient_scratch?,
     )
   }
 }

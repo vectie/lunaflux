@@ -107,6 +107,10 @@ pub fn GlmDecoderSlice::close(self : Self) -> Unit raise @device.DeviceError {
   for layer in self.layers.rev() {
     layer.close()
   }
+  while self.expert_scratch_buffers.last() is Some(buffer) {
+    buffer.close()
+    ignore(self.expert_scratch_buffers.pop())
+  }
   while self.scratch_buffers.last() is Some(buffer) {
     buffer.close()
     ignore(self.scratch_buffers.pop())

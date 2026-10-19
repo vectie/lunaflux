@@ -188,6 +188,7 @@ fn GlmSparseLayer::prepare_layer(
   input_positions? : @device.Allocation,
   page_ports? : @history_frame.SparseHistoryPagePorts,
   transient_scratch? : @device.Allocation,
+  expert_scratch? : @device.Allocation,
 ) -> Unit raise {
   let frames = self.workspace_bytes() + self.state_bytes()
   guard stream is None || !self.ffn.is_tensor_parallel() else {
@@ -222,6 +223,7 @@ fn GlmSparseLayer::prepare_layer(
     counts~,
     output~,
     weight_offset=ffn_offset,
+    transient_scratch?=expert_scratch,
   )
   self.decoder.prepare(
     context,

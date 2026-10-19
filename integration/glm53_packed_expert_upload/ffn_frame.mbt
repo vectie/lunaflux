@@ -40,6 +40,14 @@ fn GlmFfn::bank_bytes(self : Self) -> Int64 {
 }
 
 ///|
+fn GlmFfn::transient_scratch_bytes(self : Self) -> Int64 {
+  match self.branch {
+    Dense(_) => 0L
+    Moe(moe) => moe.program.transient_scratch_bytes()
+  }
+}
+
+///|
 fn GlmFfn::owned_bank_bytes(self : Self) -> Int64 {
   match self.branch {
     Dense(_) => 0L
@@ -81,6 +89,7 @@ fn GlmFfn::prepare(
   counts~ : @device.Allocation,
   output~ : @device.Allocation,
   weight_offset? : Int = 19,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   let input = context.allocate(self.input_bytes)
   self.input = Some(input)
@@ -129,6 +138,7 @@ fn GlmFfn::prepare(
         output=self.envelope.branch_output(),
         router_weight=weights.allocation(weight_offset),
         correction_bias=weights.allocation(weight_offset + 1),
+        transient_scratch?,
       )
       moe.program.launches()
     }

@@ -154,6 +154,7 @@ fn GlmRecurrentLayer::prepare_layer(
   reset_flags~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
+  expert_scratch? : @device.Allocation,
 ) -> Unit raise {
   let banks = match self.ffn {
     None => 0L
@@ -195,6 +196,7 @@ fn GlmRecurrentLayer::prepare_layer(
         limits~,
         counts~,
         output~,
+        transient_scratch?=expert_scratch,
       )
       ffn.input()
     }

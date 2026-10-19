@@ -13,6 +13,8 @@ pub struct GlmDecoderSlice {
   priv buffers : Array[@device.Allocation]
   priv scratch_plan : @parallel.SerialScratch
   priv scratch_buffers : Array[@device.Allocation]
+  priv expert_scratch_plan : @parallel.SerialScratch
+  priv expert_scratch_buffers : Array[@device.Allocation]
   priv descriptors : Array[@device.Allocation]
   priv mut queue : @device.OrderedKernelExecutor?
   priv tensor_group : (Int, Int)?
@@ -167,6 +169,10 @@ pub fn GlmDecoderSlice::new(
       layers.map(layer => layer.transient_scratch_bytes())[:],
     ),
     scratch_buffers: [],
+    expert_scratch_plan: @parallel.SerialScratch::new(
+      layers.map(layer => layer.expert_scratch_bytes())[:],
+    ),
+    expert_scratch_buffers: [],
     descriptors: [],
     queue: None,
     tensor_group,
@@ -198,7 +204,8 @@ pub fn GlmDecoderSlice::workspace_bytes(self : Self) -> Int64 {
     bytes,
     layer,
   ) => bytes + layer.workspace_bytes()) -
-  self.scratch_plan.saved_bytes()
+  self.scratch_plan.saved_bytes() -
+  self.expert_scratch_plan.saved_bytes()
 }
 
 ///|
@@ -210,7 +217,9 @@ pub fn GlmDecoderSlice::required_device_bytes(
   for layer in self.layers {
     bytes += layer.required_device_bytes(checkpoint)
   }
-  bytes - self.scratch_plan.saved_bytes()
+  bytes -
+  self.scratch_plan.saved_bytes() -
+  self.expert_scratch_plan.saved_bytes()
 }
 
 ///|
@@ -223,6 +232,11 @@ pub fn GlmDecoderSlice::device_bytes(self : Self) -> Int64 {
     0L
   } else {
     self.scratch_plan.saved_bytes()
+  }) -
+  (if self.expert_scratch_buffers.is_empty() {
+    0L
+  } else {
+    self.expert_scratch_plan.saved_bytes()
   })
 }
 
@@ -286,7 +300,10 @@ pub fn GlmDecoderSlice::prepare(
     init=self.residual_bytes * self.buffer_count.to_int64(),
     (bytes, layer_bytes) => bytes + layer_bytes,
   )
-  guard total - self.scratch_plan.saved_bytes() <= maximum_device_bytes else {
+  guard total -
+    self.scratch_plan.saved_bytes() -
+    self.expert_scratch_plan.saved_bytes() <=
+    maximum_device_bytes else {
     raise @precision_ir.PrecisionPlanError::MemoryBudgetExceeded
   }
   self.status = Failed
@@ -298,6 +315,14 @@ pub fn GlmDecoderSlice::prepare(
   // No persistent pooled key, page metadata or selected index is aliased.
   if self.scratch_plan.bytes() > 0L {
     self.scratch_buffers.push(context.allocate(self.scratch_plan.bytes()))
+  }
+  // A routed producer may overlap its shared producer, never another layer.
+  // Give only routed activation/transport a separate serial arena. All forks,
+  // down consumers and TP publications retire before the next layer writes it.
+  if self.expert_scratch_plan.bytes() > 0L {
+    self.expert_scratch_buffers.push(
+      context.allocate(self.expert_scratch_plan.bytes()),
+    )
   }
   let mut launches = prefix_launches.to_owned()
   let mut boundaries = []
@@ -326,6 +351,7 @@ pub fn GlmDecoderSlice::prepare(
       input_positions?,
       page_ports?,
       transient_scratch?=self.scratch_buffers.get(0),
+      expert_scratch?=self.expert_scratch_buffers.get(0),
       hidden=input,
       output=next,
     )

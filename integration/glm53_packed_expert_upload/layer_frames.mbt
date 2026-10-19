@@ -15,6 +15,7 @@ pub fn GlmRecurrentLayer::prepare_frame(
   sequence_offsets~ : @device.Allocation,
   sequence_slots~ : @device.Allocation,
   reset_flags~ : @device.Allocation,
+  expert_scratch? : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
 ) -> Unit raise {
@@ -31,6 +32,7 @@ pub fn GlmRecurrentLayer::prepare_frame(
     sequence_offsets~,
     sequence_slots~,
     reset_flags~,
+    expert_scratch?,
     hidden~,
     output~,
   )
@@ -63,6 +65,7 @@ pub fn GlmSparseLayer::prepare_frame(
   input_positions? : @device.Allocation,
   page_ports? : @history_frame.SparseHistoryPagePorts,
   transient_scratch? : @device.Allocation,
+  expert_scratch? : @device.Allocation,
 ) -> Unit raise {
   self.prepare_layer(
     context,
@@ -80,6 +83,7 @@ pub fn GlmSparseLayer::prepare_frame(
     input_positions?,
     page_ports?,
     transient_scratch?,
+    expert_scratch?,
   )
 }
 

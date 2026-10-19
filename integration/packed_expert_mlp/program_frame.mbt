@@ -18,6 +18,7 @@ pub fn MoeProgram::prepare_routed_frame(
   routed_bank~ : @device.Allocation,
   shared_bank~ : @device.Allocation,
   output~ : @device.Allocation,
+  transient_scratch? : @device.Allocation,
 ) -> Unit raise @device.DeviceError {
   self.check_fresh(maximum_workspace_bytes)
   guard self.routed.plan().down_publication() == LocalBFloat16 &&
@@ -47,6 +48,7 @@ pub fn MoeProgram::prepare_routed_frame(
     shared_bank~,
     output~,
     prefix~,
+    transient_scratch?,
   )
   self.launches.append(routed)
   self.launches.append(shared)

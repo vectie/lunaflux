@@ -171,6 +171,14 @@ pub fn MoeProgram::workspace_bytes(self : Self) -> Int64 {
 }
 
 ///|
+/// Routed activation and packed-row transport die after this program's joined
+/// consumers. A caller with serialized programs may lend this region; shared
+/// producer storage, persistent maps and quantization flags remain separate.
+pub fn MoeProgram::transient_scratch_bytes(self : Self) -> Int64 {
+  self.routed.activation_bytes()
+}
+
+///|
 pub fn MoeProgram::coalesced_tensor_width(self : Self) -> Int? {
   self.collective_region.map(region => region.width())
 }

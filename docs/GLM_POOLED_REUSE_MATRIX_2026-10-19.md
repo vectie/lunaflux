@@ -334,3 +334,21 @@ Thus neither the new candidate nor the previous build may be described as
 successfully online after this iteration. No unrelated workload is killed and
 the reserve is not relaxed. Additional measured residency headroom is required
 before restarting customer service; response correctness alone is insufficient.
+
+## Follow-up: bounded serial expert storage
+
+The next memory experiment keeps context8192,8 slots,16 admission lanes and513
+pages. Packed routed-expert activation/row-transport buffers are currently
+owned separately by every MoE layer, although each layer's producers join and
+its down/collective/publication consumers retire before the next layer begins.
+Use the existing pure `SerialScratch` plan to lend one routed-activation buffer
+across these serialized layers. Keep shared-expert activation separate because
+the two producers may overlap; do not alias weights, routing state, quantizer
+error flags, recurrent state, KV or HC values. This changes storage ownership,
+not arithmetic or CUDA source. Measure planned bytes and actual GPU/host
+residency and rerun the complete-answer concurrency gate before promotion.
+The host-reserve failure itself is not yet attributed to a leak.
+
+The pure full-service plan reports42 routed frames of19,957,776 bytes each.
+One shared routed arena instead of42 saves818,268,816 bytes (780.36 MiB) per
+rank. This is a planned allocation reduction, not yet measured host headroom.
