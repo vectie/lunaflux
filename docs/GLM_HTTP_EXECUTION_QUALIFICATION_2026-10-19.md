@@ -207,3 +207,37 @@ are verified empty before starting the next native owner. The installed Python
 resource tracker warns about two shared-memory objects at shutdown; retain
 that warning, not an "empty stderr" claim. No profiling overhead is included
 in these unprofiled HTTP timings.
+
+## Source-to-execution audit: what is proved and what is not
+
+Do not turn a source difference or component speedup into a claimed explanation
+of the entire HTTP gap. The user's objection is valid: that requires matching
+the source, selected artifact, actual work domain and measured execution.
+The existing full vLLM trace and partial native trace have different coverage;
+neither their kernel sums nor old native ratios decompose the new profile.
+
+This campaign rechecks local `../vlm` at `10f9b5d74` against the installed
+`487ecf187` source snapshots. Direct `cmp` (not hashing) proves the local
+`vllm/model_executor/layers/fused_moe/experts/flashinfer_cutlass_moe.py` identical
+to the installed snapshot. Local GLM model files are not the installed
+`glm5next` implementation; use the captured installed model/backend for those
+branches. The reference runtime explicitly selects `FLASHINFER_CUTLASS`, not
+the also-installed B12x expert backend.
+
+| Boundary | Source plus execution evidence | Valid conclusion / remaining limit |
+|---|---|---|
+| Global activation scales | Local `modelopt.py:1509` loads input-scale parameters; `flashinfer_cutlass_moe.py:306` passes global scales to the selected backend. Native `grouped_fp4.mbt:131` builds maximum scans; combined `rank1.cu:7607` and `:7664` emit 32 producers. Earlier trace recorded the original one-CTA scans. | Native dynamically recomputes global maxima; reference uses loaded global-scale metadata, in addition to its online block quantization. Scale-only HTTP latency improves in this experiment. Removing the remaining scan would change the declared quantization program, not merely its parallel schedule. |
+| Routed GEMM | Actual reference kernel symbol is `MainloopSm120ArrayTmaWarpSpecializedBlockScaled` with 128x128x256 tile, 48 CTAs, 384 threads, 168 registers and 89,088 dynamic shared bytes. Native combined `rank1.cu:7787` has 32 producer/256 consumer threads, two slots and one-dimensional bulk copies. | Bulk transport is genuinely selected, but is not the same CUTLASS tensor-map/layout/MMA schedule. Bulk-only HTTP gain is measured; no assertion that matching the tile name or instruction count closes the gap. |
+| Recurrent attention | Installed `models-glm5next-nvidia-kda.py:571` selects `chunk_kda_with_fused_gate` when prefill exists; trace contains 4,250 invocations of each named KKT sub-stage. Native export/runtime still explicitly select ordered KDA. | Different executable decomposition is established. Current eight-slot chunk workspace fails the conservative host-reserve forecast; no current HTTP gain may be quoted for that alternative. |
+| Sparse attention | Installed backend `forward_mqa` converts selected indices to physical indices before dispatch. Trace selects `sparse_mla_decode_dsv3_2_kernel` plus merge even during prefill. The actual decode header iterates selected entries, splits work and bulk-gathers double-buffered KV. Native combined cohort loops `base < limit` across full history before applying the membership mask, then stores scores in global scratch. | Full-history QK versus selected-key QK remains a concrete work-domain difference in the CURRENT expanded-cache artifact, not just the earlier losing latent artifact. At 8K/top2K this is roughly four times the candidate pairs, not a proved four-times wall penalty. Do not cite the unselected `prefill_kernel.cuh` as the executed reference. |
+| Index bypass | Installed `sparse_attn_indexer_kpool.py:441` uses context<=topK metadata to bypass scoring. Trace records 1,023 score calls = 93 late passes x 11 layers, not all 125 passes. | Early-prefix scoring work is avoidable in the reference. The entire reference index score+selection sum is only 22.690 ms; this observation cannot explain a many-second gap by itself. |
+
+Source snapshots and actual kernel records are the roots linked in
+`GLM_QUANTIZED_INDEX_CACHE_2026-10-19.md`. Current native source is
+`/tmp/lunaflux-glm-http-policy-combined-20261019-v1/rank1.cu`.
+The reference's recorded 0.605 s uncovered GPU intervals and native early
+shared-expert overlap do not prove a current submission/overlap bottleneck.
+Current full-gap attribution remains unmeasured; no fresh hardware-counter
+capture is claimed by this HTTP campaign. Further compiler changes require a
+bounded matched-chain experiment of the selected source, not another guess
+based on an isolated source difference or extrapolation of an interrupted trace.
