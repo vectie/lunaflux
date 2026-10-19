@@ -209,8 +209,8 @@ async fn main {
         root +
         " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
         ncu +
-        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name 'regex:^(old|next)_(index|attention_retained_scores_v1)$' --launch-count " +
-        (if next { "4" } else { "2" }) +
+        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --kernel-name-base function --kernel-name 'regex:^(old|next)_(index|index_scores|attention_retained_scores_v1)$' --launch-count " +
+        (if next { "5" } else { "2" }) +
         " --metrics " +
         metrics +
         " --export " +

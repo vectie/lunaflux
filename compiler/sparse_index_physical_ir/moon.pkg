@@ -1,5 +1,6 @@
 import {
   "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
 }
 
 supported_targets = "native"

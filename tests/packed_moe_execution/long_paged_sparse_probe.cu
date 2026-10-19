@@ -100,7 +100,11 @@ int main(int argc,char**argv) {
     grid[1][0]=next_grid_0;grid[1][1]=next_grid_1;grid[1][2]=next_grid_2;
     workers[1][0]=next_workers_0;workers[1][1]=next_workers_1;workers[1][2]=next_workers_2;versions=2;
 #endif
-    auto launch=[&](int ver,int stage){ck(cudaLaunchKernel(kernels[ver][stage],dim3(grid[ver][stage]),dim3(workers[ver][stage]),stage==0?(ver==0?pool_args:incremental_pool_args):stage==1?index_args:att_args,0,nullptr));};
+    auto launch=[&](int ver,int stage){
+#ifdef next_SPLIT_INDEX
+      if(ver==1&&stage==1)ck(cudaLaunchKernel((const void*)next_index_scores,dim3(next_grid_3),dim3(next_workers_3),index_args,0,nullptr));
+#endif
+      ck(cudaLaunchKernel(kernels[ver][stage],dim3(grid[ver][stage]),dim3(workers[ver][stage]),stage==0?(ver==0?pool_args:incremental_pool_args):stage==1?index_args:att_args,0,nullptr));};
     for(int history: (profile||sanitize?std::vector<int>{8000}:std::vector<int>{64,256,2048,4096,8000,7997})) {
       int active=history==7997?29:64;
       counts.put({0,0,1,active,0});key_count.put({history});

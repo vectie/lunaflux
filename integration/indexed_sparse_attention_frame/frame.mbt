@@ -192,7 +192,9 @@ pub fn IndexedSparseAttentionFrame::prepare(
           block_z=1,
           shared_memory_bytes=0,
         ),
-        @device.KernelArguments::new(arguments[stage]),
+        @device.KernelArguments::new(
+          arguments[if stage == 3 { 1 } else { stage }],
+        ),
       ),
     )
   }

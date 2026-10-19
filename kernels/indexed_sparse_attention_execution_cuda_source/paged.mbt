@@ -80,6 +80,8 @@ fn paged_pool_source(
 fn paged_index_source(
   plan : @precision.IndexedSparseAttentionPrecision,
   symbol : String,
+  score_plan : @index_physical.CandidateScorePlan?,
+  score_symbol : String,
 ) -> Bytes raise {
   let domain = plan.paged_history().unwrap()
   let (page_rows, pages, history, sequences) = domain.geometry()
@@ -119,13 +121,8 @@ fn paged_index_source(
   } else {
     ""
   }
-  let source =
-    $|#include <cuda_bf16.h>
-    $|#include <stdint.h>
-    $|#include <math.h>
-    $|extern "C" __global__ void \{symbol}(const int32_t *counts,const int32_t *query_positions,const __nv_bfloat16 *queries,const __nv_bfloat16 *head_weights,const __nv_bfloat16 *candidate_keys,const int32_t *candidate_raw_indices,const int32_t *candidate_valid,const int32_t *candidate_count,const int32_t *key_valid,int32_t *selected_indices,float *scratch,const int32_t *row_sequences,const int32_t *page_offsets,const int32_t *page_ids,const int32_t *page_generations) {
-    $| const int query=blockIdx.x,output_base=query*\{width};if(query>=\{queries})return;
-    $| for(int i=threadIdx.x;i<\{width};i+=blockDim.x)selected_indices[output_base+i]=-1;
+  let ports = "(const int32_t *counts,const int32_t *query_positions,const __nv_bfloat16 *queries,const __nv_bfloat16 *head_weights,const __nv_bfloat16 *candidate_keys,const int32_t *candidate_raw_indices,const int32_t *candidate_valid,const int32_t *candidate_count,const int32_t *key_valid,int32_t *selected_indices,float *scratch,const int32_t *row_sequences,const int32_t *page_offsets,const int32_t *page_ids,const int32_t *page_generations)"
+  let geometry =
     $| if(counts[2]<=0||counts[2]>\{sequences}||counts[3]<=0||counts[3]>\{queries}||query>=counts[3])return;
     $| const int sequence=row_sequences[query],position=query_positions[query];
     $| if(sequence<0||sequence>=counts[2]||position<0||position>=\{history})return;
@@ -133,8 +130,18 @@ fn paged_index_source(
     $| if(first_page<0||end_page<first_page||end_page>\{domain.table_capacity()})return;
     $| const int candidates=(position+1)/\{pool},limit=candidates<\{top_k/pool}?candidates:\{top_k/pool};
     $| float *scores=scratch+(unsigned long long)query*\{capacity*2}ULL;int *available=(int *)(scores+\{capacity});
+  let (first, end, stride) = match score_plan {
+    Some(tile) =>
+      (
+        "(blockIdx.x%\{tile.tiles_per_query()})*\{tile.geometry().2}+threadIdx.x",
+        "min(candidates,(int)(blockIdx.x%\{tile.tiles_per_query()}+1)*\{tile.geometry().2})",
+        "blockDim.x",
+      )
+    None => ("threadIdx.x", "candidates", "blockDim.x")
+  }
+  let scores =
     $| const float dimension_scale=rsqrtf(\{dimension}.0f),head_scale=rsqrtf(\{heads}.0f);
-    $| for(int candidate=threadIdx.x;candidate<candidates;candidate+=blockDim.x) {
+    $| for(int candidate=\{first};candidate<\{end};candidate+=\{stride}) {
     $|  const int raw=candidate*\{pool},at=first_page+raw/\{page_rows};
     $|  int physical=-1;if(at<end_page){int page=page_ids[at];if(page>=0&&page<\{pages})physical=page*\{page_rows/pool}+candidate%\{page_rows/pool};}
     $|  bool valid=physical>=0&&candidate_valid[physical]>0&&candidate_valid[physical]==page_generations[at];
@@ -146,6 +153,28 @@ fn paged_index_source(
     $|  }
     $|  scores[candidate]=score;
     $| }
+  let producer = match score_plan {
+    Some(tile) =>
+      (
+        $|extern "C" __global__ void \{score_symbol}\{ports} {
+        $| const int query=blockIdx.x/\{tile.tiles_per_query()};
+        $| \{geometry}
+        $| \{scores}
+        $|}
+      )
+    None => ""
+  }
+  let inline_scores = if score_plan is None { scores } else { "" }
+  let source =
+    $|#include <cuda_bf16.h>
+    $|#include <stdint.h>
+    $|#include <math.h>
+    $|\{producer}
+    $|extern "C" __global__ void \{symbol}\{ports} {
+    $| const int query=blockIdx.x,output_base=query*\{width};if(query>=\{queries})return;
+    $| for(int i=threadIdx.x;i<\{width};i+=blockDim.x)selected_indices[output_base+i]=-1;
+    $| \{geometry}
+    $| \{inline_scores}
     $| __syncthreads();
     $| \{selection}
     $| if(threadIdx.x!=0)return;

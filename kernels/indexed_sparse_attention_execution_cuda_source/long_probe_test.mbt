@@ -34,12 +34,16 @@ test "export long paged sparse probe" {
       plan,
       symbol_prefix=prefix,
     )
+    assert_eq(source.execution_order(), ReadOnlyArray::from_array([0, 3, 1, 2]))
+    assert_eq(source.launch(3), (1024, 128))
+    assert_eq(source.symbol(3), prefix + "_index_scores")
     println("LUNA_LONG_BEGIN")
     println(
       "static const bool \{prefix}_matrix=\{plan.attention_accumulation() is TiledFloat32};",
     )
+    println("#define \{prefix}_SPLIT_INDEX 1")
     println(@utf8.decode(source.source_bytes()))
-    for stage in 0..<3 {
+    for stage in 0..<4 {
       let (grid, workers) = source.launch(stage)
       println(
         "static const int \{prefix}_grid_\{stage}=\{grid}, \{prefix}_workers_\{stage}=\{workers};",

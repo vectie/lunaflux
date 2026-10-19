@@ -10,6 +10,7 @@ pub struct IndexedSparseAttentionCudaSource {
   priv order : ReadOnlyArray[Int]
   priv attention : @attention.SelectedSparseCudaSource
   priv index : @index_physical.RetainedIndexPlan
+  priv score_tiles : @index_physical.CandidateScorePlan?
 }
 
 ///|
@@ -21,7 +22,7 @@ pub fn indexed_sparse_attention_source(
   let (qh, kvh, qkd, vd) = plan.attention_geometry()
   let (queries, history) = plan.capacity()
   let program = plan.program()
-  let order = program
+  let semantic_order = program
     .lower(Ordered)
     .commands(ComputeLane)
     .map(command => {
@@ -38,6 +39,7 @@ pub fn indexed_sparse_attention_source(
     symbol_prefix + "_pool",
     symbol_prefix + "_index",
     symbol_prefix + "_attention_retained_scores_v1",
+    symbol_prefix + "_index_scores",
   ]
   let pool = @pooling.dsa_key_pool_compression_bf16_source(
     head_dimension=id,
@@ -46,8 +48,28 @@ pub fn indexed_sparse_attention_source(
     function_symbol=symbols[0],
   )
   let index = @index_physical.RetainedIndexPlan::new(plan)
+  let score_tiles = if plan.paged_history() is Some(_) {
+    index.score_tiles(128)
+  } else {
+    None
+  }
+  let order = []
+  for stage in semantic_order {
+    if stage == 1 && score_tiles is Some(tiles) {
+      let refinement = tiles.program()
+      for command in refinement.lower(Ordered).commands(ComputeLane) {
+        guard command is Execute(step~) &&
+          refinement.steps()[step].action() is Compute(part) else {
+          raise @precision.PrecisionPlanError::NoImplementation
+        }
+        order.push(if part == 0 { 3 } else { 1 })
+      }
+    } else {
+      order.push(stage)
+    }
+  }
   let index_source = if plan.paged_history() is Some(_) {
-    paged_index_source(plan, symbols[1])
+    paged_index_source(plan, symbols[1], score_tiles, symbols[3])
   } else {
     retained_index_source(plan, index, symbols[1])
   }
@@ -66,9 +88,10 @@ pub fn indexed_sparse_attention_source(
   )
   {
     plan,
-    order,
+    order: ReadOnlyArray::from_array(order),
     attention,
     index,
+    score_tiles,
     symbols: ReadOnlyArray::from_array(symbols),
     source: (if plan.paged_history() is Some(_) {
       paged_pool_source(plan, symbols[0])
@@ -102,6 +125,8 @@ pub fn IndexedSparseAttentionCudaSource::launch(
 ) -> (Int, Int) {
   if stage == 2 {
     self.attention.launch()
+  } else if stage == 3 && self.score_tiles is Some(tiles) {
+    (tiles.workgroups(), tiles.geometry().2)
   } else if stage == 1 {
     (self.index.geometry().0, 128)
   } else if self.plan.paged_history() is Some(_) {

@@ -2,6 +2,7 @@
 package "vectie/lunaflux/compiler/sparse_index_physical_ir"
 
 import {
+  "vectie/lunaflux/compiler/parallel_ir",
   "vectie/lunaflux/compiler/precision_ir",
 }
 
@@ -10,6 +11,14 @@ import {
 // Errors
 
 // Types and methods
+pub struct CandidateScorePlan {
+  // private fields
+}
+pub fn CandidateScorePlan::geometry(Self) -> (Int, Int, Int)
+pub fn CandidateScorePlan::program(Self) -> @parallel_ir.Program raise
+pub fn CandidateScorePlan::tiles_per_query(Self) -> Int
+pub fn CandidateScorePlan::workgroups(Self) -> Int
+
 pub struct PoolUpdatePlan {
   // private fields
 }
@@ -23,6 +32,7 @@ pub struct RetainedIndexPlan {
 pub fn RetainedIndexPlan::geometry(Self) -> (Int, Int)
 pub fn RetainedIndexPlan::new(@precision_ir.IndexedSparseAttentionPrecision) -> Self
 pub fn RetainedIndexPlan::published_slots(Self) -> Int
+pub fn RetainedIndexPlan::score_tiles(Self, Int) -> CandidateScorePlan?
 pub fn RetainedIndexPlan::scratch_bytes(Self) -> Int64
 pub fn RetainedIndexPlan::selection(Self, Int) -> StableSelectionSchedule?
 
