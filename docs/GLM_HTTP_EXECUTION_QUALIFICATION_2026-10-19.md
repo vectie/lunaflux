@@ -39,3 +39,25 @@ validated service after all candidate owners retire, including on failure.
 Every run is capped at 100 GiB per Spark with no swap and a separate 16 GiB
 host MemAvailable reserve. Do not repeat full-resident Nsight captures that
 already exceeded this reserve; use bounded selected-source probes instead.
+
+## Startup integration
+
+`84dd08a1` connects four explicit startup fields to `ServicePlan.stage`, shared
+by export and resident execution. `72ce7bd1` preserves the pinned ARM compiler's
+`Int` spelling: the first build rejected a formatter-induced `Int32` migration;
+that failed build is retained, not counted as qualification. The second clean
+commit-pinned build completes (336 tasks, 1.4 GiB peak, zero swap).
+
+The default bundle directly matches the previous index-only AOT sources on
+both ranks; it reuses those binaries without payload hashing. Native service
+tests: 14/14. The external finite HTTP runner performs two latency sweeps,
+complete task answers, request-identity concurrency and cancellation/reuse;
+its memory watcher retires both owned ranks on a resource or rank failure.
+It does not insert comparisons or selection into the compiler.
+
+At 8192 context / 64 physical rows / 8 slots / 513 history pages, export plans
+102,829,853,884 bytes per rank for base/buffered, 102,829,864,636 for scales,
+103,127,127,196 for bulk experts and 105,539,374,268 for chunk KDA. A plan below
+100 GiB does not establish the separate 16 GiB host reserve; validate both.
+Eight slots do **not** mean eight simultaneous full-8192 histories: the shared
+page budget permits one full-context history, as the capacity log reports.

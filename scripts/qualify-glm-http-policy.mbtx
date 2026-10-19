@@ -1,0 +1,82 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// External, finite HTTP qualification. No compiler selection or model oracle.
+// The existing watcher owns the 100 GiB GPU / 16 GiB host / zero-swap envelope.
+///|
+fn valid_tag(tag : String) -> Bool {
+  !tag.is_empty() && tag.all(c => c is ('a'..='z' | '0'..='9' | '-'))
+}
+
+///|
+test "qualification tags cannot name a different artifact or shell command" {
+  assert_true(valid_tag("scales-20261019-v1"))
+  assert_false(valid_tag(""))
+  assert_false(valid_tag("../base"))
+  assert_false(valid_tag("base; stop"))
+}
+
+///|
+async fn command(root : String, name : String, args : Array[String]) -> Unit {
+  let output = @shell.Cmd("env", args).output(max_output_bytes=8388608)
+  @fs.write_file(root + "/" + name + ".stdout", output.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/" + name + ".stderr", output.stderr(), create_mode=CreateNew)
+  output.check()
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, artifact, tag] &&
+    artifact.has_prefix("/tmp/lunaflux-glm-http-") &&
+    artifact[23:].all(c => c is ('a'..='z' | '0'..='9' | '-')) &&
+    valid_tag(tag) else {
+    fail("PREPARED_HTTP_ARTIFACT_ROOT NEW_QUALIFICATION_TAG")
+  }
+  let root = "/tmp/lunaflux-glm-http-qualification-" + tag
+  @fs.mkdir(root)
+  let owner = ["moon", "run", "scripts/run-glm-http-spark.mbtx", artifact]
+  command(root, "start", [..owner, "start"])
+  let result = try {
+    @async.with_task_group(group => {
+      group.spawn_bg(() => command(root, "watch", [..owner, "watch"]))
+      defer {
+        command(root, "stop", [..owner, "stop"])
+      }
+      for repetition in 1..=2 {
+        command(root, "latency-\{repetition}", [
+          "LUNAFLUX_BENCH_WAIT_READY=1", "LUNAFLUX_BENCH_MAX_TOKENS=1",
+          "moon", "run", "scripts/benchmark-glm-context-service.mbtx",
+          "/tmp/lunaflux-glm-service-benchmark-policy-" + tag + "-r\{repetition}",
+          "http://127.0.0.1:18889", "glm-5.3", artifact + "/acceptance.credential", "latency",
+        ])
+        println("\{tag}: latency repeat \{repetition} complete")
+      }
+      command(root, "broad", [
+        "moon", "run", "scripts/benchmark-glm-broad-http.mbtx",
+        "/tmp/lunaflux-glm-broad-policy-" + tag,
+        "http://127.0.0.1:18889", "glm-5.3", artifact + "/acceptance.credential",
+      ])
+      for mode in ["smoke", "routing", "cancel"] {
+        command(root, mode, [
+          "LUNAFLUX_GLM_HTTP_LOCAL_FORWARD=1", "moon", "run",
+          "scripts/validate-glm-http-spark.mbtx", root + "-" + mode, mode,
+        ])
+        println("\{tag}: \{mode} complete")
+      }
+    })
+    "completed; review broad task grades and outputs before promotion"
+  } catch {
+    error => "FAILED; not qualified: " + error.to_string()
+  }
+  @fs.write_file(root + "/RESULT.txt", result, create_mode=CreateNew)
+  try command(root, "terminal", [..owner, "status"]) catch {
+    error => println("terminal collection: " + error.to_string())
+  }
+  println(result)
+  guard !result.has_prefix("FAILED") else { fail(result) }
+}
