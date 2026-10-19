@@ -1,7 +1,9 @@
 # Pooled-key reuse and matrix sparse attention
 
-Status: experimental implementation and bounded GPU qualification in progress.
-This document does not claim a new full-model speed or online deployment.
+Status: compiler implementation and measured full-model experiments completed;
+online promotion is blocked by service qualification. Restoration of the prior
+build also fails the host-reserve gate. **The GLM endpoint is offline.** No
+candidate described below is claimed to be an online runtime.
 
 ## Measured scope
 
@@ -222,3 +224,113 @@ cannot support a reuse cohort still retain their explicit matrix alternative.
 No output parser, reference or acceptance condition is changed. The candidate
 must pass generated-source checks, the mixed-query analytic/sanitizer fixture,
 and a fresh full-service answer/memory check before any promotion.
+
+The initial shared-scratch campaign has now completed: all64 requests finish,
+63/64 meet the exact-label requirement. The only failure is the short C16
+case above; the remaining2K C1/4/8/16,6K C1/4 and8K C1 groups are exact.
+The8K complete answer takes44.375 seconds with10 output tokens, versus the
+fresh reference18.457 seconds with10 output tokens. The failed qualification
+stops its private ranks without changing the public service installation.
+The watcher's one-rank-exit message occurs during this intentional paired
+shutdown, not from a memory-limit breach.
+
+| Actual input tokens, one output | Previous LunaFlux | Shared-scratch matrix | Fresh vLLM | Current ratio |
+|---|---:|---:|---:|---:|
+|165|1.281 s|1.231 s|0.808 s|1.52x|
+|2,085|13.452 s|11.902 s|6.057 s|1.97x|
+|6,181|42.323 s|32.636 s|15.018 s|2.17x|
+|7,973|55.779 s|43.177 s|17.642 s|2.45x|
+
+These are matched warm observations, not statistical confidence intervals.
+All serialized prompts and actual prompt/output counts are checked by the
+external comparison report. Service startup/model loading is excluded.
+
+Across354 samples per native rank, minimum available host memory was
+16,821,888/18,885,480 KiB and peak GPU allocation97,663/97,690 MiB.
+Both ranks remain below100 GiB and above the16 GiB reserve; the rank0
+margin is narrow. The fresh reference's208 samples per rank record minima
+17,558,236/18,567,744 KiB and peaks94,546/94,544 MiB. Neither used owned-unit
+swap. Do not confuse system-wide `MemAvailable` with cgroup resident bytes.
+
+Small-row control5cc72d4c passes all5,310 native tests with existing migration
+warning exclusions, and the12-case actual-source GPU fixture at
+`/tmp/lunaflux-query-reuse-20261019-v3` passes the independent analytical
+calculation, three deterministic replays, memcheck/full leak/race/sync/init.
+This establishes local execution safety, not yet complete-answer quality.
+
+## Ordered-small-row retest and rejected promotion
+
+Pinned5cc72d4c builds on ARM (336 tasks,1.5 GiB reported peak, zero unit swap).
+Both AOT exports select matrix cohorts in all11 sparse layers and the ordered
+row program below16 live queries. The29 short C1/4/8/16 answers are exact,
+including the previously failed lane12. This supports the small-row control,
+but does not prove a sole arithmetic cause: physical batching also varies.
+No stop rule, parser, prompt or reference is changed.
+
+The first/second fixed-output vectors are
+1.230/11.516/34.027/45.472 and1.230/12.228/35.285/45.909 seconds.
+The second8K result is17.7% below the frozen55.779-second native baseline,
+but remains2.60x the fresh17.642-second vLLM result. Do not advertise the
+earlier43.177-second experimental result as this candidate's speed.
+Actual full-model cubin resource metadata also exposes a tradeoff:
+48 registers/27,608 shared bytes became56 registers/44,056 shared bytes per
+sparse-attention block. The combined entry point reserves both ordered-row
+and matrix-cohort shared arrays. This is a concrete resource cost, not yet
+an exact attribution of every millisecond of the timing difference.
+
+The long answer campaign then fails the unchanged memory gate during2K C8.
+All29 short answers and the complete2K C1/C4 groups pass before that failure;
+the full64-answer campaign does NOT complete. Rank0 available host memory
+falls to16,748,440 KiB (28,776 KiB below the16 GiB threshold). Peak GPU
+allocation remains97,663/97,690 MiB and owned-unit swap stays zero. The
+watchdog stops both private ranks and incomplete responses are retained at
+`/tmp/lunaflux-glm-service-benchmark-cohort-ordered-long-20261019-v1`.
+No tolerance waiver, cache flush, capacity reduction or unrelated workload
+termination is used to turn this into a pass.
+
+The previous shared-scratch run passed with only44,672 KiB rank0 headroom;
+that margin is not robust enough to qualify deployment. GPU allocation is
+288 MiB lower than the previous online build, so the host-availability
+failure must not be casually described as a demonstrated new GPU allocation
+leak. Further host/device residency attribution and extra headroom are needed.
+Pending deployment/route files were prepared locally only; they were never
+installed or applied. Restore the prior13a9ff61 service and verify its
+customer-facing route before closing this iteration.
+
+The final boundedv12 diagnostic accidentally omitted its legacy
+`LUNA_LONG_MATRIX=1` environment setting. Its exported header and run report
+explicitly say `matrix=false`/`matrix=0`: it is an ordered-attention,
+pooled-reuse control, NOT a hardware capture of5cc72d4c's selected service
+matrix branch. Its all64-row sanitizer gates pass, but its timing/counters
+must not be substituted for the matrix measurements. The last measured
+matrix counters remainv11 (before the ordered-small-row resource change).
+The service AOT/configuration independently confirms matrix selection in
+all11 layers; the diagnostic misconfiguration did not affect HTTP results.
+
+The external probe runner now offers explicit `export-matrix`, passes the
+numerical selection directly to the exporter, and checks the returned
+selection marker. Legacy `export-next` and its environment override remain
+supported. The regression passes;v13 is an explicit matrix source export
+only, NOT another executed GPU experiment. No compiler/reference dependency
+or production startup validation is added by this diagnostic correction.
+
+## Restoration attempt: API pass, memory failure, endpoint offline
+
+The retained13a9ff61 production units were restarted through the existing
+paired controller without installing any candidate or applying route patches.
+The existing company route passes model listing,323 arithmetic,42 multi-turn,
+a coherent complete Chinese SSE explanation, and the literal7,973-token
+orchid-70 answer. Backend metrics at that instant show4 admissions/completions,
+zero failures/restarts, zero active/queued requests and all513 KV pages free.
+Those successful replies do not qualify ongoing service residency.
+
+The concurrent production observer then records rank0 `MemAvailable` of
+16,636,728 KiB (140,488 KiB below16 GiB) and stops both exact owned units.
+GPU peaks remain97,951/97,979 MiB and owned-unit swap remains zero.
+Rank1 minimum is19,052,732 KiB. Root:
+`/tmp/lunanexa-glm-restored-baseline-observation-20261019-v1`.
+The controller is explicitly stopped afterward to clear desired-running state.
+Thus neither the new candidate nor the previous build may be described as
+successfully online after this iteration. No unrelated workload is killed and
+the reserve is not relaxed. Additional measured residency headroom is required
+before restarting customer service; response correctness alone is insufficient.

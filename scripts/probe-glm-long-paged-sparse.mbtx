@@ -7,13 +7,31 @@ import {
 }
 
 ///|
+fn export_matrix_setting(mode : String, ambient : String?) -> String {
+  if mode == "export-matrix" {
+    "1"
+  } else {
+    ambient.unwrap_or("0")
+  }
+}
+
+///|
+test "matrix export explicitly selects arithmetic without ambient state" {
+  assert_eq(export_matrix_setting("export-matrix", None), "1")
+  assert_eq(export_matrix_setting("export-matrix", Some("0")), "1")
+  assert_eq(export_matrix_setting("export-next", None), "0")
+  assert_eq(export_matrix_setting("export-next", Some("1")), "1")
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, mode] &&
     root.has_prefix("/tmp/lunaflux-long-paged-sparse-") &&
-    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
+    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
     mode
     is ("export-old"
     | "export-next"
+    | "export-matrix"
     | "compile-old"
     | "compile-next"
     | "run-old"
@@ -22,7 +40,7 @@ async fn main {
     | "counters-old"
     | "counters-next") else {
     fail(
-      "NEW_ROOT export-old|export-next|compile-old|compile-next|run-old|run-next|sanitize-next|counters-old|counters-next",
+      "NEW_ROOT export-old|export-next|export-matrix|compile-old|compile-next|run-old|run-next|sanitize-next|counters-old|counters-next",
     )
   }
   let host = "wlc004s@192.168.2.179"
@@ -60,6 +78,10 @@ async fn main {
   let tag = root[5:].to_owned()
   if mode.has_prefix("export-") {
     let prefix = if mode == "export-old" { "old" } else { "next" }
+    let matrix = export_matrix_setting(
+      mode,
+      @env.get_env_var("LUNA_LONG_MATRIX"),
+    )
     if prefix == "old" {
       @fs.mkdir(root)
     }
@@ -87,11 +109,17 @@ async fn main {
         "test", "kernels/indexed_sparse_attention_execution_cuda_source/long_probe_test.mbt",
         "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
       ],
-      env={ "LUNA_LONG_PAGED_EXPORT": prefix },
+      env={ "LUNA_LONG_PAGED_EXPORT": prefix, "LUNA_LONG_MATRIX": matrix },
     ).output(max_output_bytes=8388608)
     record(mode, result)
     let parts = result.stdout().split("LUNA_LONG_BEGIN\n").to_array()
     guard parts.length() == 2 else { fail("missing export") }
+    let matrix_selected = matrix == "1"
+    guard parts[1].contains(
+      "static const bool \{prefix}_matrix=\{matrix_selected};",
+    ) else {
+      fail("exported numerical selection differs from requested probe")
+    }
     @fs.write_file(
       root + "/" + prefix + ".cuh",
       parts[1].split("LUNA_LONG_END").to_array()[0].to_owned(),
