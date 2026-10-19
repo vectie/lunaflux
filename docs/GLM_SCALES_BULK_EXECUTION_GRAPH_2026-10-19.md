@@ -282,3 +282,64 @@ Qualification covers source/plan propagation, typed collective/fork boundaries,
 bounded GPU correctness, complete answers, and retracing the same scales+bulk
 workload against the retained matched vLLM trace. No overall throughput
 campaign, payload hashing, or automatic promotion.
+
+### Implemented numerical and effect boundaries
+
+`MoeReductionPlacement::LocalCombinedBFloat16` is an explicit alternative to
+the unchanged `ExpertPartialsFloat32` default. Both shared and routed branches
+must produce TP-sharded partials. Their existing local publications execute on
+the two producer streams, the fork joins, and the final local BF16 combination
+precedes one BF16 sum-allreduce. A replicated shared branch is rejected.
+
+The immutable numerical law propagates through the MoE program, recurrent and
+sparse GLM FFN, decoder stage, typed reduction boundary, and existing private
+NCCL binding. HTTP export and execution consume the same stage plan. No
+comparison result, reference output, or vLLM-specific decision enters the
+compiler. The existing router/expert precision programs remain separate.
+
+This is not a claim of identical finite-precision arithmetic to either the old
+path or vLLM. In particular, the current local path retains per-expert BF16
+publication, route weighting, routed-output rounding, and the final local BF16
+addition before the inter-rank BF16 sum. Independent complete-answer checks
+are required in addition to checking that the declared program executes.
+
+The new typed boundary exposed a startup graph-capture bug: initialization
+still multiplied the element count by four. Commit `07d0ca98` makes validation
+and initialization use the same element-size query. An exact-size BF16 buffer
+regression covers ordinary, padded, and bucketed collective replay; allocating
+an oversized F32 buffer would have hidden this bug.
+
+### Qualification evidence before full-model replay
+
+- Full local native suite: **5,327/5,327** passed before the capture-size repair;
+  the exact-size capture regression passed afterward. The workspace contains
+  unrelated user changes, so this is not described as a clean-worktree suite.
+  Existing migration-warning exclusions are unchanged.
+- Clean pinned ARM service build at `07d0ca98` succeeded. The new host artifact
+  `/tmp/lunaflux-glm-http-local-moe-20261019-v2` reuses the preceding AOT only
+  after direct generated-source comparison, without computing payload hashes.
+- The actual three exported local publication/combine kernels were extracted
+  from `rank1.cu`, not independently reimplemented in the GPU probe. Signed
+  TP partials, nontrivial routing weights, permuted expert IDs, two producer
+  streams, and live-row sequence **1, 3, 64, 2** are checked against an
+  independent CPU execution of the declared rounding program.
+- The uninstrumented **two-Spark NCCL** probe matched all active values on both
+  ranks (4,096 / 12,288 / 262,144 / 8,192), preserved inactive sentinels, and
+  released resources. Its historical root ends in `local-race-20261019-v1`,
+  but it was run in `run` mode: **it is not a racecheck result**.
+- Actual local kernels, with the NCCL call excluded, passed both-rank
+  memcheck/full-leak, racecheck and synccheck under **2 GiB/no owned swap**.
+  Evidence roots are `local-mem-20261019-v3`, `local-race-20261019-v2` and
+  `local-sync-20261019-v1` beneath `/tmp/lunaflux-expert-tp-`.
+- NCCL-inclusive memcheck attempts v1/v2 failed during communicator
+  initialization with `cudaErrorNoKernelImageForDevice`, 40 reported errors
+  and zero leaks. v2 used the same installed NCCL library as serving. These
+  failures are retained; the paired collective is **not claimed sanitizer
+  clean**, and no error was suppressed. This is separate from the passing
+  exported-kernel checks and the passing uninstrumented paired collective.
+
+Planned device allocation is **102,730,776,220 bytes/rank**, 396,361,728 bytes
+(378 MiB) below the previous scales+bulk plan. This is an allocation reduction,
+not a measured speedup. Resident qualification retains the 100 GiB device/unit
+limit and independent 16 GiB host-availability watcher. Pre-existing global
+host swap is not attributed to these no-swap task units.

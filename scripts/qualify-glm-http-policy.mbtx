@@ -81,6 +81,7 @@ async fn main {
         tag +
         "-answers"
       command(root, "long-answer", [
+        "LUNAFLUX_BENCH_WAIT_READY=1",
         "LUNAFLUX_BENCH_MAX_TOKENS=128",
         "moon",
         "run",
