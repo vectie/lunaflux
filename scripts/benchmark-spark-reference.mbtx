@@ -122,10 +122,10 @@ fn checkpoint(glm : Bool, last : Bool) -> String {
 
 ///|
 fn payload(
-  tokens : Array[Int],
+  tokens : Array[Int32],
   glm : Bool,
   sglang : Bool,
-  output? : Int = 8,
+  output~ : Int32 = 8,
 ) -> Json {
   let stops : Array[Json] = [Json(if glm { 154827 } else { 1 })]
   if sglang {
@@ -258,7 +258,7 @@ test "GLM recipe limits scratch and captures without enabling speculation" {
 }
 
 ///|
-fn vllm_trace_capacity(compact : Bool) -> (Int, Int) {
+fn vllm_trace_capacity(compact : Bool) -> (Int32, Int32) {
   // The hybrid recurrent model needs 0.14 GiB even at context 64; retain
   // 256 MiB, not merely a token-proportional 128 MiB KV estimate.
   if compact {
@@ -269,15 +269,37 @@ fn vllm_trace_capacity(compact : Bool) -> (Int, Int) {
 }
 
 ///|
-fn reference_positive(name : String, fallback : Int, maximum : Int) -> Int raise {
-  match @env.get_env_var(name) {
+fn reference_positive(
+  name : String,
+  fallback : Int32,
+  maximum : Int32,
+) -> Int32 raise {
+  reference_value(@env.get_env_var(name), fallback, maximum)
+}
+
+///|
+fn reference_value(
+  value : String?,
+  fallback : Int32,
+  maximum : Int32,
+) -> Int32 raise {
+  match value {
     None => fallback
     Some(s) => {
       let n = @string.parse_int(s)
-      guard n > 0 && n <= maximum else { fail("invalid " + name) }
+      guard n > 0 && n <= maximum else { fail("invalid reference capacity") }
       n
     }
   }
+}
+
+///|
+test "explicit long trace capacities override short diagnostic defaults" {
+  let (context, kv_bytes) = vllm_trace_capacity(true)
+  assert_eq(reference_value(Some("8192"), context, 1048576), 8192)
+  assert_eq(reference_value(Some("256"), kv_bytes / 1048576, 8192), 256)
+  assert_eq(reference_value(Some("64"), 8192, 32768), 64)
+  assert_eq(reference_value(None, context, 1048576), 64)
 }
 
 ///|
@@ -318,7 +340,7 @@ async fn main {
   guard @env.args() is [_, root, family, engine, mode, .. rest] &&
     root.has_prefix("/tmp/lunaflux-reference-bench-") &&
     !root.contains("..") &&
-    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
     family is ("glm" | "deepseek") &&
     engine is ("vllm" | "sglang") &&
     mode
@@ -357,21 +379,27 @@ async fn main {
   let compact_profile = profile &&
     @env.get_env_var("LUNAFLUX_REFERENCE_PROFILE_COMPACT") == Some("1")
   let (trace_context, trace_kv_bytes) = vllm_trace_capacity(compact_profile)
-  let context = if profile { trace_context } else {
-    reference_positive("LUNAFLUX_REFERENCE_CONTEXT", trace_context, 1048576)
-  }
-  let kv_bytes = if profile { trace_kv_bytes.to_int64() } else {
-    reference_positive("LUNAFLUX_REFERENCE_KV_MIB", trace_kv_bytes / 1048576, 8192).to_int64() * 1048576L
-  }
-  let sequences = if profile { 1 } else {
-    reference_positive("LUNAFLUX_REFERENCE_SEQUENCES", 1, 64)
-  }
-  let batch_tokens = if profile { context } else {
-    reference_positive("LUNAFLUX_REFERENCE_BATCH_TOKENS", context, 32768)
-  }
-  let capture_option = match @env.get_env_var("LUNAFLUX_REFERENCE_CAPTURE_MAX") {
+  // Explicit capacities apply equally to timing and tracing. The historical
+  // short diagnostic defaults remain, but must not silently replace a matched
+  // long-context workload when profiling is requested.
+  let context = reference_positive(
+    "LUNAFLUX_REFERENCE_CONTEXT", trace_context, 1048576,
+  )
+  let kv_bytes = reference_positive(
+      "LUNAFLUX_REFERENCE_KV_MIB",
+      trace_kv_bytes / 1048576,
+      8192,
+    ).to_int64() *
+    1048576L
+  let sequences = reference_positive("LUNAFLUX_REFERENCE_SEQUENCES", 1, 64)
+  let batch_tokens = reference_positive(
+    "LUNAFLUX_REFERENCE_BATCH_TOKENS", context, 32768,
+  )
+  let capture_option = match
+    @env.get_env_var("LUNAFLUX_REFERENCE_CAPTURE_MAX") {
     None => ""
-    Some(_) => " --max-cudagraph-capture-size \{reference_positive("LUNAFLUX_REFERENCE_CAPTURE_MAX", 16, 512)}"
+    Some(_) =>
+      " --max-cudagraph-capture-size \{reference_positive("LUNAFLUX_REFERENCE_CAPTURE_MAX", 16, 512)}"
   }
   guard !profile || (glm && !sg) else {
     fail("bounded profile is GLM/vLLM only")
@@ -401,13 +429,18 @@ async fn main {
           }
         }
         observations <+ "tick=\{tick} rank=\{rank}\n\{status.stdout()}"
-        let gpu = remote(last,
-          "nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits")
-        let used = gpu.stdout().split("\n").filter(s => !s.trim().is_empty())
-          .fold(init=0L,(sum,s) => sum + @string.parse_int64(s.trim()))
+        let gpu = remote(
+          last, "nvidia-smi --query-compute-apps=used_memory --format=csv,noheader,nounits",
+        )
+        let used = gpu
+          .stdout()
+          .split("\n")
+          .filter(s => !s.trim().is_empty())
+          .fold(init=0L, (sum, s) => sum + @string.parse_int64(s.trim()))
         observations <+ "gpu_mib=\{used}\n"
         if status.exit_code() != 0 ||
-          gpu.exit_code() != 0 || used > 102400L ||
+          gpu.exit_code() != 0 ||
+          used > 102400L ||
           available_kib(status.stdout()) < 16777216L ||
           status.stdout().contains("SubState=failed") {
           failed = true
@@ -487,7 +520,7 @@ async fn main {
     }
     for i in 0..<(if profile { 1 } else { 6 }) {
       let text = @fs.read_file(corpus + "/input-\{i}-tokens.txt").text().trim()
-      let tokens : Array[Int] = []
+      let tokens : Array[Int32] = []
       for item in text.split(",") {
         tokens.push(@string.parse_int(item))
       }
@@ -526,7 +559,11 @@ async fn main {
         ""
       }) +
       (if sg { "\nsglang_options=" + sglang_options(glm) } else { "" }) +
-      (if capture_option.is_empty() { "" } else { "\ncapture_option=" + capture_option }) +
+      (if capture_option.is_empty() {
+        ""
+      } else {
+        "\ncapture_option=" + capture_option
+      }) +
       "\n",
       create_mode=CreateNew,
     )
@@ -686,7 +723,9 @@ async fn main {
         )
       }
     }
-    if !profile && glm && !sg &&
+    if !profile &&
+      glm &&
+      !sg &&
       @env.get_env_var("LUNAFLUX_REFERENCE_STREAM_DIAGNOSTIC") == Some("1") {
       let diagnostic = @shell.Cmd("moon", [
         "run", "scripts/measure-glm-reference-stream.mbtx", root,

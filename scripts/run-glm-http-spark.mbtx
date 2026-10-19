@@ -91,6 +91,36 @@ fn stop_properties() -> String {
 }
 
 ///|
+fn profile_options(
+  granularity : String?,
+  ranks : String?,
+  rank : Int32,
+) -> String raise {
+  guard ranks is (None | Some("egress") | Some("both")) else {
+    fail("profile ranks must be egress or both")
+  }
+  let trace = match granularity {
+    None | Some("node") => "node"
+    Some("graph") => "graph:host-only"
+    _ => fail("profile granularity must be node or graph")
+  }
+  if rank == 1 || ranks == Some("both") {
+    " --trace=cuda --cuda-graph-trace=" + trace + " --cuda-flush-interval=0 "
+  } else {
+    ""
+  }
+}
+
+///|
+test "low overhead tracing preserves both ranks without collecting graph nodes" {
+  assert_true(
+    profile_options(Some("graph"), Some("both"), 0).contains("graph:host-only"),
+  )
+  assert_eq(profile_options(None, None, 0), "")
+  assert_true(profile_options(None, None, 1).contains("node"))
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, mode] &&
     root.has_prefix("/tmp/lunaflux-glm-http-") &&
@@ -160,6 +190,15 @@ async fn main {
       guard available(mem.stdout()) >= 16777216L else { fail("host reserve") }
     }
     for rank in [1, 0] {
+      let profile = if mode == "start-profile" {
+        profile_options(
+          @env.get_env_var("LUNAFLUX_NATIVE_GRAPH_TRACE"),
+          @env.get_env_var("LUNAFLUX_NATIVE_TRACE_RANKS"),
+          rank,
+        )
+      } else {
+        ""
+      }
       let interface = if rank == 0 { "enp1s0f1np1" } else { "enp1s0f0np0" }
       let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
       let command = "systemd-run --user --unit=" +
@@ -175,12 +214,12 @@ async fn main {
           "/usr/bin/strace -ff -tt -xx -s 8192 -e trace=read,write,recvfrom,sendto,close,shutdown,exit_group -e trace-fds=0,1,2 -z -o " +
           root +
           "/worker-wire "
-        } else if mode == "start-profile" && rank == 1 {
+        } else if !profile.is_empty() {
           // Collection starts explicitly after readiness. Only the egress rank
           // is instrumented; no profiler code enters the engine or its IR.
           "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys launch --session-new=" +
           tag +
-          " --trace=cuda --cuda-graph-trace=node --cuda-flush-interval=1000 "
+          profile
         } else {
           ""
         }) +

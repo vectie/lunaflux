@@ -1,0 +1,77 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Reuse exact qualified artifacts. The new directory owns only trace outputs
+// and launch metadata; no recompilation, checkpoint scan, or payload hashing.
+
+///|
+async fn main {
+  guard @env.args() is [_, source, root] &&
+    [source, root].all(p => {
+      p.has_prefix("/tmp/lunaflux-glm-http-") &&
+      !p.contains("..") &&
+      p.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/'))
+    }) else {
+    fail("EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT")
+  }
+  @fs.mkdir(root)
+  @fs.write_file(
+    root + "/acceptance.credential",
+    @fs.read_file(source + "/acceptance.credential"),
+    create_mode=CreateNew,
+  )
+  for rank in 0..<2 {
+    let socket = if rank == 0 {
+      "/tmp/lunaflux-glm178-context-20261019.sock"
+    } else {
+      "/tmp/lunaflux-glm179-context-20261019.sock"
+    }
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    let config = @fs.read_file(source + "/service-\{rank}.json")
+    @fs.write_file(
+      root + "/service-\{rank}.json",
+      config,
+      create_mode=CreateNew,
+    )
+    for
+      command in [
+        "mkdir " + root,
+        "ln -s " + source + "/glm_service.exe " + root + "/glm_service.exe",
+        "ln -s " + source + "/SHARDS.sha256 " + root + "/SHARDS.sha256",
+        "ln -s " +
+        source +
+        "/acceptance.credential " +
+        root +
+        "/acceptance.credential",
+      ] {
+      @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command])
+      .output()
+      .check()
+    }
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      root + "/service-\{rank}.json",
+      host + ":" + root + "/service.json",
+    ])
+    .output()
+    .check()
+  }
+  @shell.Cmd("chmod", ["600", root + "/acceptance.credential"]).output().check()
+  @fs.write_file(
+    root + "/scope.txt",
+    "Artifacts/config reused from " +
+    source +
+    "\nTrace changes collection only; run a paired host/GPU memory watcher.\n",
+    create_mode=CreateNew,
+  )
+}

@@ -1,0 +1,137 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Trace accounting only. Graph envelopes are opaque, not GPU-busy evidence.
+// SQL interval sweeps avoid a quadratic event-by-event overlap calculation.
+
+///|
+fn coverage_sql(events : String) -> String {
+  "WITH e AS MATERIALIZED (" +
+  events +
+  "), points AS (" +
+  "SELECT start t,1 delta,CASE WHEN kind='compute' THEN 1 ELSE 0 END c,CASE WHEN kind='collective' THEN 1 ELSE 0 END n,CASE WHEN kind='copy' THEN 1 ELSE 0 END m,CASE WHEN kind='graph' THEN 1 ELSE 0 END g FROM e UNION ALL " +
+  "SELECT end,-1,CASE WHEN kind='compute' THEN -1 ELSE 0 END,CASE WHEN kind='collective' THEN -1 ELSE 0 END,CASE WHEN kind='copy' THEN -1 ELSE 0 END,CASE WHEN kind='graph' THEN -1 ELSE 0 END FROM e), " +
+  "p AS (SELECT t,sum(delta) d,sum(c) c,sum(n) n,sum(m) m,sum(g) g FROM points GROUP BY t), " +
+  "s AS (SELECT t,lead(t) OVER (ORDER BY t)-t dt,sum(d) OVER (ORDER BY t) live,sum(c) OVER (ORDER BY t) compute,sum(n) OVER (ORDER BY t) collective,sum(m) OVER (ORDER BY t) copy,sum(g) OVER (ORDER BY t) graph FROM p) " +
+  "SELECT (max(t)-min(t))/1e6 span_ms,sum(CASE WHEN live>0 THEN dt ELSE 0 END)/1e6 covered_union_ms,sum(CASE WHEN live=0 THEN dt ELSE 0 END)/1e6 uncovered_ms,sum(CASE WHEN compute>0 THEN dt ELSE 0 END)/1e6 compute_union_ms,sum(CASE WHEN collective>0 THEN dt ELSE 0 END)/1e6 collective_union_ms,sum(CASE WHEN copy>0 THEN dt ELSE 0 END)/1e6 copy_union_ms,sum(CASE WHEN graph>0 THEN dt ELSE 0 END)/1e6 opaque_graph_union_ms,sum(CASE WHEN compute>0 AND collective>0 THEN dt ELSE 0 END)/1e6 compute_collective_overlap_ms FROM s;"
+}
+
+///|
+async test "sweep accounts for overlap and idle without calling graphs busy" {
+  let events = "SELECT 0 start,10 end,'compute' kind UNION ALL SELECT 5,15,'collective' UNION ALL SELECT 20,30,'graph'"
+  let result = @shell.Cmd("sqlite3", [":memory:", coverage_sql(events)]).output()
+  result.check()
+  assert_eq(
+    result.stdout().trim(),
+    "3.0e-05|2.5e-05|5.0e-06|1.0e-05|1.0e-05|0.0|1.0e-05|5.0e-06",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output] else {
+    fail("TRACE_SQLITE NEW_ANALYSIS_ROOT")
+  }
+  let tables = @shell.Cmd("sqlite3", [
+    "-readonly", db, "SELECT name FROM sqlite_master WHERE type='table';",
+  ]).output()
+  tables.check()
+  guard tables.stdout().contains("CUPTI_ACTIVITY_KIND_RUNTIME") else {
+    fail("no CUDA trace")
+  }
+  let events : Array[String] = []
+  let queries : Array[(String, String)] = []
+  if tables.stdout().contains("CUPTI_ACTIVITY_KIND_KERNEL") {
+    events.push(
+      "SELECT k.start,k.end,CASE WHEN s.value LIKE '%nccl%' THEN 'collective' ELSE 'compute' END kind FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName",
+    )
+    queries.push(
+      (
+        "kernels", "SELECT s.value name,count(*) calls,sum(k.end-k.start)/1e6 sum_ms,avg(k.end-k.start)/1e3 mean_us,min(k.end-k.start)/1e3 min_us,max(k.end-k.start)/1e3 max_us,k.gridX,k.gridY,k.gridZ,k.blockX,k.blockY,k.blockZ,k.registersPerThread,k.staticSharedMemory,k.dynamicSharedMemory,k.streamId,k.graphNodeId IS NOT NULL AND k.graphNodeId!=0 in_graph FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.demangledName GROUP BY s.value,k.gridX,k.gridY,k.gridZ,k.blockX,k.blockY,k.blockZ,k.registersPerThread,k.staticSharedMemory,k.dynamicSharedMemory,k.streamId,in_graph ORDER BY sum_ms DESC;",
+      ),
+    )
+    queries.push(
+      (
+        "chronology", "SELECT k.start,k.end,s.value name,k.gridX,k.gridY,k.gridZ,k.blockX,k.streamId,k.correlationId,k.graphNodeId FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start;",
+      ),
+    )
+  }
+  for
+    (table, kind) in [
+      ("CUPTI_ACTIVITY_KIND_GRAPH_TRACE", "graph"),
+      ("CUPTI_ACTIVITY_KIND_MEMCPY", "copy"),
+      ("CUPTI_ACTIVITY_KIND_MEMSET", "copy"),
+    ] {
+    if tables.stdout().contains(table) {
+      events.push("SELECT start,end,'" + kind + "' kind FROM " + table)
+      queries.push((table, "SELECT * FROM " + table + " ORDER BY start;"))
+    }
+  }
+  guard !events.is_empty() else { fail("no GPU activity") }
+  queries.push(("coverage", coverage_sql(events.join(" UNION ALL "))))
+  queries.push(
+    (
+      "activity-gaps",
+      "WITH e AS MATERIALIZED (" +
+      events.join(" UNION ALL ") +
+      "), ordered AS (SELECT start,end,max(end) OVER (ORDER BY start,end ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) previous_end FROM e) " +
+      "SELECT previous_end,start,(start-previous_end)/1e6 gap_ms FROM ordered WHERE start>previous_end ORDER BY gap_ms DESC LIMIT 1000;",
+    ),
+  )
+  queries.push(
+    (
+      "api", "SELECT s.value name,count(*) calls,sum(a.end-a.start)/1e6 cpu_sum_ms,max(a.end-a.start)/1e6 max_ms FROM CUPTI_ACTIVITY_KIND_RUNTIME a JOIN StringIds s ON s.id=a.nameId GROUP BY s.value ORDER BY cpu_sum_ms DESC;",
+    ),
+  )
+  for table in ["CUPTI_ACTIVITY_KIND_RUNTIME", "CUPTI_ACTIVITY_KIND_DRIVER"] {
+    if tables.stdout().contains(table) {
+      queries.push(
+        (
+          table + "-chronology",
+          "SELECT a.start,a.end,a.globalTid,a.correlationId,s.value name FROM " +
+          table +
+          " a JOIN StringIds s ON a.nameId=s.id ORDER BY a.start;",
+        ),
+      )
+    }
+  }
+  if tables.stdout().contains("NVTX_EVENTS") {
+    queries.push(
+      (
+        "nvtx", "SELECT n.start,n.end,n.globalTid,COALESCE(n.text,s.value) name FROM NVTX_EVENTS n LEFT JOIN StringIds s ON n.textId=s.id ORDER BY n.start;",
+      ),
+    )
+  }
+  queries.push(("gpu", "SELECT * FROM TARGET_INFO_GPU;"))
+  queries.push(("diagnostics", "SELECT * FROM DIAGNOSTIC_EVENT;"))
+  @fs.mkdir(output)
+  for (name, sql) in queries {
+    let result = @shell.Cmd("sqlite3", ["-readonly", "-header", "-csv", db, sql]).output(
+      max_output_bytes=134217728,
+    )
+    @fs.write_file(
+      output + "/" + name + ".csv",
+      result.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      output + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+    if name == "coverage" {
+      println(result.stdout())
+    }
+  }
+  @fs.write_file(
+    output + "/SCOPE.txt",
+    "Capture-window activity only. Kernel sums overlap; graph envelopes do not prove GPU busy time. Rank clocks are not calibrated; do not subtract cross-host absolute timestamps. API sums are not serial host critical path. No benchmark dependency enters compiler/runtime.\n",
+    create_mode=CreateNew,
+  )
+}

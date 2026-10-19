@@ -1,0 +1,63 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Read the installed selected implementation, not an unrelated checkout.
+// Source snapshots only; no checkpoint traversal or payload integrity scan.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, container, .. rest] &&
+    (rest.is_empty() || rest is ["flashinfer"]) &&
+    root.has_prefix("/tmp/lunaflux-") &&
+    !root.contains("..") &&
+    container.has_prefix("lunaflux-reference-bench-") &&
+    container.all(c => c is ('a'..<='z' | '0'..<='9' | '-')) else {
+    fail("NEW_ROOT RUNNING_REFERENCE_CONTAINER")
+  }
+  @fs.mkdir(root)
+  let flashinfer = !rest.is_empty()
+  let paths = if flashinfer {
+    [
+      "mla/_sparse_mla_sm120.py", "data/csrc/sparse_mla_sm120.cu", "data/csrc/sparse_mla_sm120_prefill.cu",
+      "data/csrc/sparse_mla_sm120_decode_dsv3_2.cu", "data/include/flashinfer/attention/sparse_mla_sm120/prefill_kernel.cuh",
+      "data/include/flashinfer/attention/sparse_mla_sm120/decode_dsv3_2_kernel.cuh",
+    ]
+  } else {
+    [
+      "models/glm5next/nvidia/model.py", "models/glm5next/nvidia/attention.py", "models/glm5next/nvidia/kda.py",
+      "model_executor/layers/attention/mla_attention.py", "model_executor/layers/attention/sparse_mla_attention.py",
+      "model_executor/layers/sparse_attn_indexer_kpool.py", "models/glm5next/nvidia/ops/kpool_compress.py",
+      "v1/attention/backends/mla/indexer.py", "v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py",
+      "model_executor/layers/fused_moe/runner/shared_experts.py", "model_executor/layers/fused_moe/runner/moe_runner.py",
+      "compilation/breakable_cudagraph.py", "third_party/deep_gemm/include/deep_gemm/impls/sm120_fp8_paged_mqa_logits.cuh",
+      "third_party/deep_gemm/include/deep_gemm/impls/sm120_fp8_mqa_logits.cuh",
+    ]
+  }
+  for path in paths {
+    let result = @shell.Cmd("ssh", [
+      "-S",
+      "/tmp/lunaflux-glm179-context-20261019.sock",
+      "-o",
+      "BatchMode=yes",
+      "wlc004s@192.168.2.179",
+      "docker exec " +
+      container +
+      " cat /usr/local/lib/python3.12/dist-packages/" +
+      (if flashinfer { "flashinfer/" } else { "vllm/" }) +
+      path,
+    ]).output(max_output_bytes=2097152)
+    let name = path.split("/").to_array().join("-")
+    @fs.write_file(root + "/" + name, result.stdout(), create_mode=CreateNew)
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+}

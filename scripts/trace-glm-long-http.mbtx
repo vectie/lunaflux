@@ -1,0 +1,139 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline collection controller. No instrumentation in model or compiler IR.
+// The independent paired memory watcher must remain active throughout.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, engine, mode] &&
+    root.has_prefix("/tmp/lunaflux-") &&
+    !root.contains("..") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/')) &&
+    engine is ("native" | "vllm") &&
+    mode is ("start" | "stop" | "collect") else {
+    fail("RUNNING_TRACE_ROOT native|vllm start|stop|collect")
+  }
+  let tag = root[5:].to_owned()
+  async fn remote(rank : Int32, command : String) -> @shell.Output {
+    @shell.Cmd("ssh", [
+      "-S",
+      if rank == 0 {
+        "/tmp/lunaflux-glm178-context-20261019.sock"
+      } else {
+        "/tmp/lunaflux-glm179-context-20261019.sock"
+      },
+      "-o",
+      "BatchMode=yes",
+      if rank == 0 {
+        "wlc003s@192.168.2.178"
+      } else {
+        "wlc004s@192.168.2.179"
+      },
+      command,
+    ]).output(max_output_bytes=8388608)
+  }
+  async fn record(label : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"
+  let ranks = match @env.get_env_var("LUNAFLUX_TRACE_COLLECT_RANKS") {
+    None | Some("both") => [0, 1]
+    Some("egress") => [1]
+    _ => fail("LUNAFLUX_TRACE_COLLECT_RANKS must be both or egress")
+  }
+  if mode == "collect" {
+    for rank in ranks {
+      // Import only after GPU owners retire: report conversion also consumes
+      // unified host memory and must not compete with resident weights.
+      let owners = remote(
+        rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else {
+        fail("retire GPU owners before trace conversion")
+      }
+      record(
+        "export-\{rank}",
+        remote(
+          rank,
+          "systemd-run --user --wait --pipe --unit=" +
+          tag +
+          "-export-\{rank} -p MemoryMax=4G -p MemorySwapMax=0 -p RuntimeMaxSec=600 " +
+          nsys +
+          " export --type=sqlite --output=" +
+          root +
+          "/timeline.sqlite " +
+          root +
+          "/timeline.nsys-rep",
+        ),
+      )
+      for suffix in ["nsys-rep", "sqlite"] {
+        @shell.Cmd("scp", [
+          "-o",
+          "ControlPath=" +
+          (if rank == 0 {
+            "/tmp/lunaflux-glm178-context-20261019.sock"
+          } else {
+            "/tmp/lunaflux-glm179-context-20261019.sock"
+          }),
+          (if rank == 0 {
+            "wlc003s@192.168.2.178"
+          } else {
+            "wlc004s@192.168.2.179"
+          }) +
+          ":" +
+          root +
+          "/timeline." +
+          suffix,
+          root + "/rank\{rank}." + suffix,
+        ])
+        .output()
+        .check()
+      }
+    }
+  } else if engine == "vllm" {
+    record(
+      "capture-" + mode,
+      remote(
+        0,
+        "curl --fail --silent --show-error --max-time 90 -X POST http://127.0.0.1:28880/" +
+        mode +
+        "_profile",
+      ),
+    )
+  } else {
+    @async.with_task_group(group => {
+      for rank in 0..<2 {
+        group.spawn_bg(() => {
+          let command = nsys +
+            " " +
+            mode +
+            " --session=" +
+            tag +
+            (if mode == "start" {
+              " --sample=none --cpuctxsw=none --output=" + root + "/timeline"
+            } else {
+              ""
+            })
+          record("capture-" + mode + "-\{rank}", remote(rank, command))
+        })
+      }
+    })
+  }
+}

@@ -1,0 +1,253 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Installed GLM-5.3 reference attribution, outside the compiler. The observed
+// 45-layer/90-HC-boundary contract is checked, not inferred from generic GEMM
+// names. Graph interiors must be visible before reporting complete attribution.
+
+///|
+struct Event {
+  start : Int64
+  end : Int64
+  stream : Int64
+  name : String
+}
+
+///|
+fn union_ns(events : Array[Event]) -> Int64 {
+  let sorted = events.copy()
+  sorted.sort_by((a, b) => a.start.compare(b.start))
+  for e in sorted; right = 0L, total = 0L {
+    continue right.max(e.end), total + (e.end - right.max(e.start)).max(0L)
+  } nobreak {
+    total
+  }
+}
+
+///|
+fn summary(events : Array[Event]) -> Json {
+  {
+    "calls": events.length(),
+    "sum_ms": events.fold(init=0L, (n, e) => n + e.end - e.start).to_double() /
+    1000000.0,
+    "union_ms": union_ns(events).to_double() / 1000000.0,
+  }
+}
+
+///|
+fn global_kind(name : String) -> String? {
+  if name.contains("nccl") {
+    Some("collective")
+  } else if name.contains("mhc_") || name.contains("hc_prenorm") {
+    Some("hyper_connection")
+  } else {
+    None
+  }
+}
+
+///|
+fn matrix(name : String) -> Bool {
+  name
+  is ("kernel"
+  | "Kernel2"
+  | "gemmSN_NN_kernel"
+  | "gemvNSP_kernel"
+  | "splitKreduce_kernel")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, output] else {
+    fail("REFERENCE_SQLITE NEW_OUTPUT")
+  }
+  async fn query(sql : String) -> String {
+    let out = @shell.Cmd("sqlite3", ["-readonly", "-json", db, sql]).output(
+      max_output_bytes=134217728,
+    )
+    out.check()
+    out.stdout()
+  }
+  let tables = query(
+    "SELECT name FROM sqlite_master WHERE name='CUPTI_ACTIVITY_KIND_GRAPH_TRACE';",
+  )
+  if !tables.trim().is_empty() && tables.contains("GRAPH_TRACE") {
+    let count = query("SELECT count(*) n FROM CUPTI_ACTIVITY_KIND_GRAPH_TRACE;")
+    guard @json.parse(count) is Array([{ "n": Number(0, ..), .. }]) else {
+      fail("opaque GPU graphs prevent complete operator attribution")
+    }
+  }
+  let owners = query(
+    "SELECT DISTINCT deviceId,contextId,globalPid FROM CUPTI_ACTIVITY_KIND_KERNEL;",
+  )
+  guard @json.parse(owners) is Array([_]) else {
+    fail("one GPU/context/process required")
+  }
+  let raw = query(
+    "SELECT k.start,k.end,k.streamId stream,s.value name FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start;",
+  )
+  guard @json.parse(raw) is Array(rows) else { fail("kernel rows") }
+  let events = rows.map(row => {
+    guard row
+      is {
+        "start": Number(a, ..),
+        "end": Number(b, ..),
+        "stream": Number(s, ..),
+        "name": String(name),
+        ..
+      } else {
+      fail("event")
+    }
+    Event::{
+      start: a.to_int64(),
+      end: b.to_int64(),
+      stream: s.to_int64(),
+      name,
+    }
+  })
+  let anchors = events.filter(e => {
+    e.name == "mhc_pre_big_fuse_with_norm_tilelang_kernel"
+  })
+  let finals = events.filter(e => e.name == "mhc_post_tilelang_kernel")
+  guard !anchors.is_empty() &&
+    anchors.length() % 90 == 0 &&
+    finals.length() == anchors.length() / 90 else {
+    fail("expected 90 HC pre anchors and one final HC post per 45-layer pass")
+  }
+  let groups : Array[Array[Event]] = Array::makei(anchors.length(), _ => [])
+  let totals : Map[String, Array[Event]] = Map([])
+  fn add(kind : String, e : Event) -> Unit {
+    if !totals.contains(kind) {
+      totals[kind] = []
+    }
+    totals[kind].push(e)
+  }
+  for e in events; cursor = 0 {
+    let mut at = cursor
+    while at + 1 < anchors.length() && e.start >= anchors[at + 1].start {
+      at += 1
+    }
+    if global_kind(e.name) is Some(kind) {
+      add(kind, e)
+    } else if e.start < anchors[0].start || e.start >= finals[at / 90].start {
+      add("embedding_head_sampling_tail", e)
+    } else {
+      groups[at].push(e)
+    }
+    continue at
+  }
+  let regions : Array[Json] = []
+  for i, es in groups {
+    let layer = i % 90 / 2
+    let attention = i % 2 == 0
+    let kda = es.any(e => {
+      e.name.contains("kda") || e.name.contains("delta_rule")
+    })
+    let family = if attention {
+      if kda {
+        "kda"
+      } else {
+        "sparse"
+      }
+    } else if layer < 3 {
+      "dense_ffn"
+    } else {
+      "moe"
+    }
+    let quant = es.filter(e => {
+      e.stream == anchors[i].stream && e.name == "cvt_fp16_to_fp4"
+    })
+    if family == "moe" && quant.length() != 1 {
+      fail("one main-stream routed quantizer required per MoE region")
+    }
+    let mut routed = 0
+    for e in es {
+      let kind = if attention {
+        if matrix(e.name) {
+          family + "_projection"
+        } else if !kda && e.name.contains("sparse_mla") {
+          "sparse_attention_core"
+        } else if !kda && e.name.contains("mqa_logits") {
+          "index_scores"
+        } else if !kda && (e.name.contains("topk") || e.name.contains("top_k")) {
+          "index_selection"
+        } else {
+          family + "_other"
+        }
+      } else if family == "dense_ffn" {
+        family
+      } else if e.stream != anchors[i].stream {
+        "shared_expert"
+      } else if e.start < quant[0].start {
+        "router"
+      } else if e.name == "device_kernel" {
+        let kind = if routed == 0 { "routed_gate_up" } else { "routed_down" }
+        routed += 1
+        kind
+      } else {
+        "routed_glue"
+      }
+      add(kind, e)
+    }
+    if family == "moe" && routed != 2 {
+      fail("exactly two routed CUTLASS launches required")
+    }
+    regions.push({
+      "pass": i / 90,
+      "layer": layer,
+      "family": family,
+      "events": summary(es),
+    })
+  }
+  guard totals.values().fold(init=0, (n, es) => n + es.length()) ==
+    events.length() else {
+    fail("attribution is not exhaustive")
+  }
+  let encoded : Map[String, Json] = Map([])
+  let others : Array[Event] = []
+  for kind, es in totals {
+    encoded[kind] = summary(es)
+    if kind != "shared_expert" {
+      for e in es {
+        others.push(e)
+      }
+    }
+  }
+  let shared = union_ns(totals.get("shared_expert").unwrap_or([]))
+  let overlap = shared + union_ns(others) - union_ns(events)
+  let result : Json = {
+    "passes": finals.length(),
+    "kernels": summary(events),
+    "categories": Json(encoded),
+    "shared_overlap_ms": overlap.to_double() / 1000000.0,
+    "shared_uncovered_ms": (shared - overlap).to_double() / 1000000.0,
+    "scope": "GPU kernel accounting, not a sum of causal wall-time contributions. Opaque graphs rejected. Other-source kernels and launch geometry remain in the raw long-trace export.",
+  }
+  @fs.mkdir(output)
+  @fs.write_file(
+    output + "/summary.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/regions.json",
+    Json(regions).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}
+
+///|
+test "overlapping intervals are not additive GPU time" {
+  fn e(a : Int64, b : Int64) -> Event {
+    { start: a, end: b, stream: 1, name: "kernel", }
+  }
+  assert_eq(union_ns([e(0, 10), e(3, 5), e(9, 15), e(18, 21)]), 18L)
+  assert_eq(global_kind("ncclDevKernel_AllReduce"), Some("collective"))
+  assert_eq(global_kind("mhc_fused_tilelang_kernel"), Some("hyper_connection"))
+}

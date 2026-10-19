@@ -153,6 +153,83 @@ Evidence roots:
   device peaks 96,877/96,905 MiB; minimum host available
   18,301,652/20,100,156 KiB; zero owned swap. Both workers stopped cleanly.
 
-The new latent-cache full-model run and refreshed vLLM comparison are still
-pending. No claim about their performance or complete-answer quality follows
-from the small-shape kernel fixture.
+The subsequent latent-cache full-model run and refreshed vLLM comparison are
+recorded below. They are separate from the small-shape kernel fixture.
+
+### Paged cache qualification and refreshed reference
+
+`/tmp/lunaflux-paged-sparse-latent-20261019-v1` exports the actual shared-cache
+history writer. Its five mixed-request steps, noncontiguous physical pages,
+recycled generations and same-generation overwrite match independent dense
+per-request histories exactly. K/V ports alias one physical output allocation
+in the GPU test. All four sanitizers and full leak checking pass at 2 GiB/no
+swap. This extends the earlier attention-math fixture to the changed paged
+write path; it is not a claim about model-answer quality.
+
+The first full AOT compilation attempt used a 2 GiB CPU cap while vLLM loaded.
+Both compilers reached that cap and were explicitly stopped to avoid sustained
+memory pressure. Their v1 logs are retained; this is not a successful compile
+or a measured kernel failure. The identical pinned source is being rebuilt
+in a new v2 root at 4 GiB/no swap after the reference pair retired. Both v2
+compiles completed; observed peaks were 2,589,188,096 / 3,832,655,872 bytes.
+
+Fresh reference root:
+`/tmp/lunaflux-reference-bench-glm-latent-cache-20261019-v1`.
+The same installed vLLM build, NVFP4 checkpoint, TP2, context8192, sequence
+limit8, 64-row chunking and 256 MiB KV budget are retained; prefix reuse and
+speculation are disabled. Steady fixed-one-output measurements at
+165/2085/6181/7973 input tokens are **0.788/6.047/14.349/18.033 seconds**.
+Both sweeps are preserved under
+`/tmp/lunaflux-glm-service-benchmark-vllm-latent-cache-latency-20261019-v{1,2}`.
+
+The separate 15-prompt external corpus passes all 11 automatic task checks.
+Manual inspection confirms the translation, Python function, SQL semantics
+and bounded summary; SQL has a Markdown-fence formatting violation against
+the literal instruction. Root:
+`/tmp/lunaflux-glm-broad-vllm-latent-cache-20261019-v1`.
+Framework agreement is not the acceptance criterion; the prompt's task is.
+
+Reference device peaks are 94,544 MiB on both ranks; host available minima
+are 17,626,708/18,521,100 KiB. Both GPU owners are released. The reference
+reports 10,240 cache tokens, whereas native513 physical pages provide8,208
+history rows. C1 requests fit both; concurrent results must retain this
+capacity distinction instead of attributing all waiting to kernel speed.
+
+## Latent-cache full-model result: not a performance winner
+
+Pinned `cbffec1f`, root `/tmp/lunaflux-glm-http-latent-cache-20261019-v2`,
+selects both matrix index scoring and BF16 latent sparse cache in export and
+execution. All 64 retrieval requests finish normally with exact answers. The
+15 broader prompts pass the 11 automated checks; manual inspection finds
+correct translation, Python, SQL semantics and summary, but the SQL response
+adds Markdown fences despite the formatting instruction. The vLLM broad run
+has the same formatting issue; agreement is not the acceptance criterion.
+
+| Actual input / one output | Index only, s | Latent cache repeat, s | Fresh vLLM repeat, s |
+| --- | ---: | ---: | ---: |
+| 165 / 1 | 1.278 | 1.226 | 0.788 |
+| 2085 / 1 | 11.017 | 11.300 | 6.047 |
+| 6181 / 1 | 29.795 | 31.964 | 14.349 |
+| 7973 / 1 | 38.306 | 42.515 | 18.033 |
+
+The near-8K latent path is **11.0% slower than index-only** and **2.358x the
+fresh vLLM completion time**. The first latent sweep was
+1.310/11.039/31.752/42.353 s and is retained. Reduced cache storage did not
+demonstrate reduced total execution time. Do not promote this experimental
+cache based on its correctness fixtures or memory savings.
+
+Evidence: `/tmp/lunaflux-glm-service-benchmark-latent-cache-latency-20261019-v{1,2}`,
+`/tmp/lunaflux-glm-latent-cache-latency-compare-20261019-v2.json`,
+`/tmp/lunaflux-glm-service-benchmark-latent-cache-answers-20261019-v1`, and
+`/tmp/lunaflux-glm-broad-latent-cache-20261019-v1`.
+The service memory watcher records GPU peaks94,144/94,172MiB and host minima
+21,076,060/22,847,440KiB, no owned swap. Both private workers retired cleanly.
+
+The user requested deeper reference tracing before another kernel change.
+The next phase therefore freezes implementation and traces the installed
+selected vLLM build and exact native artifacts at the real long workload.
+The old reference profiler silently substituted a short-context envelope;
+explicit context/KV/sequence/chunk settings now apply to profiling as well.
+Graph-level collection omits graph interiors and cannot by itself prove
+GPU-busy time or operator attribution. Full-node profiling previously crossed
+the host reserve; those failures remain visible and are not successful traces.
