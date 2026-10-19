@@ -5,7 +5,7 @@ priv struct ExecutionPolicy {
   recurrent : @precision.RecurrentEvaluationLaw
   staging : @matrix.MatrixStaging
   transport : @matrix.ExpertTransport
-  scale_partitions : Int32
+  scale_partitions : Int
 }
 
 ///|
