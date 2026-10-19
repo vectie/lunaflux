@@ -25,6 +25,16 @@ async fn main {
     )
   }
   let image = "nvcr.io/nvidia/sglang:26.09-py3"
+  let nccl_mount = match @env.get_env_var("LUNAFLUX_PROBE_NCCL_DIRECTORY") {
+    None => ""
+    Some(path) => {
+      guard path.has_prefix("/tmp/lunaflux-") &&
+        path.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+        fail("invalid explicit NCCL directory")
+      }
+      " -v " + path + ":/probe-nccl:ro -e LD_LIBRARY_PATH=/probe-nccl"
+    }
+  }
   let hosts = ["wlc003s@192.168.2.178", "wlc004s@192.168.2.179"]
   let sockets = [
     @env.get_env_var("LUNAFLUX_SPARK_178_SOCKET").unwrap_or(
@@ -222,6 +232,7 @@ async fn main {
           " -e NCCL_IB_DISABLE=0 -v " +
           root +
           ":/probe" +
+          nccl_mount +
           tool_mount +
           " --entrypoint " +
           entry +
