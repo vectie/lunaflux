@@ -41,11 +41,14 @@ async fn command(root : String, name : String, args : Array[String]) -> Unit {
 
 ///|
 async fn main {
-  guard @env.args() is [_, artifact, tag] &&
+  guard @env.args() is [_, artifact, tag, .. options] &&
     artifact.has_prefix("/tmp/lunaflux-glm-http-") &&
     artifact[23:].all(c => c is ('a'..<='z' | '0'..<='9' | '-')) &&
-    valid_tag(tag) else {
-    fail("PREPARED_HTTP_ARTIFACT_ROOT NEW_QUALIFICATION_TAG")
+    valid_tag(tag) &&
+    options is ([] | ["--correctness-only"]) else {
+    fail(
+      "PREPARED_HTTP_ARTIFACT_ROOT NEW_QUALIFICATION_TAG [--correctness-only]",
+    )
   }
   let root = "/tmp/lunaflux-glm-http-qualification-" + tag
   @fs.mkdir(root)
@@ -55,22 +58,24 @@ async fn main {
     @async.with_task_group(group => {
       group.spawn_bg(() => command(root, "watch", [..owner, "watch"]))
       defer command(root, "stop", [..owner, "stop"])
-      for repetition in 1..<=2 {
-        command(root, "latency-\{repetition}", [
-          "LUNAFLUX_BENCH_WAIT_READY=1",
-          "LUNAFLUX_BENCH_MAX_TOKENS=1",
-          "moon",
-          "run",
-          "scripts/benchmark-glm-context-service.mbtx",
-          "/tmp/lunaflux-glm-service-benchmark-policy-" +
-          tag +
-          "-r\{repetition}",
-          "http://127.0.0.1:18889",
-          "glm-5.3",
-          artifact + "/acceptance.credential",
-          "latency",
-        ])
-        println("\{tag}: latency repeat \{repetition} complete")
+      if options.is_empty() {
+        for repetition in 1..<=2 {
+          command(root, "latency-\{repetition}", [
+            "LUNAFLUX_BENCH_WAIT_READY=1",
+            "LUNAFLUX_BENCH_MAX_TOKENS=1",
+            "moon",
+            "run",
+            "scripts/benchmark-glm-context-service.mbtx",
+            "/tmp/lunaflux-glm-service-benchmark-policy-" +
+            tag +
+            "-r\{repetition}",
+            "http://127.0.0.1:18889",
+            "glm-5.3",
+            artifact + "/acceptance.credential",
+            "latency",
+          ])
+          println("\{tag}: latency repeat \{repetition} complete")
+        }
       }
       let long_root = "/tmp/lunaflux-glm-service-benchmark-policy-" +
         tag +
