@@ -10,6 +10,37 @@ import {
 // External service acceptance. Never part of the compiler or model runtime.
 
 ///|
+fn capacity_setting(
+  raw : String?,
+  fallback : Int32,
+  maximum : Int32,
+) -> Int32 raise {
+  match raw {
+    None => fallback
+    Some(value) => {
+      guard @json.parse(value) is Number(n, ..) &&
+        n > 0.0 &&
+        n <= maximum.to_double() &&
+        n.to_int().to_double() == n else {
+        fail("invalid capacity probe geometry")
+      }
+      n.to_int()
+    }
+  }
+}
+
+///|
+test "external capacity probe follows configured admission, preserving old defaults" {
+  assert_eq(capacity_setting(None, 9, 65), 9)
+  assert_eq(capacity_setting(Some("17"), 9, 65), 17)
+  try capacity_setting(Some("0"), 9, 65) catch {
+    _ => ()
+  } noraise {
+    _ => fail("empty capacity probe")
+  }
+}
+
+///|
 let node = "wlc003s@192.168.2.178"
 
 ///|
@@ -350,9 +381,19 @@ async fn main {
       }
     }
   } else if mode == "capacity" {
-    let rejected = FixedArray::make(9, false)
+    let clients = capacity_setting(
+      @env.get_env_var("LUNAFLUX_GLM_HTTP_CAPACITY_CLIENTS"),
+      9,
+      65,
+    )
+    let tokens = capacity_setting(
+      @env.get_env_var("LUNAFLUX_GLM_HTTP_CAPACITY_TOKENS"),
+      512,
+      8192,
+    )
+    let rejected = FixedArray::make(clients, false)
     @async.with_task_group(group => {
-      for i in 0..<9 {
+      for i in 0..<clients {
         group.spawn_bg(() => {
           let body = request(
             root,
@@ -360,7 +401,7 @@ async fn main {
             "/v1/chat/completions",
             chat(
               "Write a detailed story about a lighthouse in a storm. Use several complete paragraphs.",
-              false, 512,
+              false, tokens,
             ),
             capacity_probe=true,
           )
@@ -374,10 +415,10 @@ async fn main {
       }
     })
     let count = rejected.iter().filter(x => x).count()
-    guard count > 0 && count < 9 else {
+    guard count > 0 && count < clients else {
       fail("capacity probe did not exercise both admission and rejection")
     }
-    println("capacity rejections: \{count}/9")
+    println("capacity rejections: \{count}/\{clients}")
     let body = request(
       root,
       "after-capacity",

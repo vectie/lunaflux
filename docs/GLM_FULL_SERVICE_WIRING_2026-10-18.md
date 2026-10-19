@@ -96,6 +96,17 @@ commit-pinned ARM aggregate-test claim. The pinned38d2d266 ARM release build
 passes. The earlier2GiB ARM aggregate compile was OOM-killed, and the interrupted
 two-job local compile is retained; neither is described as a test pass.
 
+The eight-resident candidate loaded within the memory limits and completed
+the short C1/C4/C8 cohorts. The C16 burst exposed a separate admission defect:
+all new requests enter Waiting before resident assignment, but the service
+set waiting capacity to eight resident slots despite sixteen preparation
+lanes. Seven requests received HTTP429 and the external client canceled its
+remaining peers. This is not a successful C16 campaign. The scheduler policy
+now sizes Waiting for the complete admission burst while leaving eight GPU
+resident slots and the same physical history pool unchanged. A regression
+checks that independent mapping. The old partial run is retained under
+`/tmp/lunaflux-glm-service-benchmark-luna-20261019-v3`.
+
 ## GPU sampling
 
 The full-logit path now has a backend-neutral total-order permutation plan in

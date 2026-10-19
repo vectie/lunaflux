@@ -60,20 +60,48 @@ fn service_waiting_age_steps(context : Int) -> Int {
 }
 
 ///|
+/// Every admitted request enters Waiting before the next scheduler step can
+/// assign resident state. The queue must accept a complete admission burst,
+/// not merely the lanes left after resident slots have already been filled.
+fn service_scheduler_config(
+  rows : Int,
+  slots : Int,
+  admission_lanes : Int,
+  context : Int,
+  decode_reserve : Int,
+) -> @scheduling.SchedulerConfig raise {
+  @scheduling.new(
+    step_token_budget=rows,
+    max_active_requests=slots,
+    max_waiting_requests=admission_lanes,
+    prefill_chunk_tokens=rows,
+    emergency_decode_page_reserve=decode_reserve,
+    waiting_age_threshold_steps=service_waiting_age_steps(context),
+    output_event_capacity=slots * 4,
+  )
+}
+
+///|
+test "complete admission burst fits before first resident assignment" {
+  let config = service_scheduler_config(64, 8, 16, 8192, 1)
+  assert_eq(config.max_active_requests(), 8)
+  assert_eq(config.max_waiting_requests(), 16)
+  assert_eq(config.step_token_budget(), 64)
+}
+
+///|
 fn ServicePlan::blueprint(
   self : Self,
   spec : @spec.Glm53FlashSpec,
 ) -> @scheduler.SchedulerBlueprint raise {
   let limits = self.worker_limits(spec)
   let capacity = @resolved.resolve(
-    @scheduling.new(
-      step_token_budget=self.rows,
-      max_active_requests=self.slots,
-      max_waiting_requests=self.slots,
-      prefill_chunk_tokens=self.rows,
-      emergency_decode_page_reserve=self.history_capacity.decode_reserve_pages(),
-      waiting_age_threshold_steps=service_waiting_age_steps(self.context),
-      output_event_capacity=self.slots * 4,
+    service_scheduler_config(
+      self.rows,
+      self.slots,
+      self.admission_lanes,
+      self.context,
+      self.history_capacity.decode_reserve_pages(),
     ),
     @cache.new(
       tokens_per_page=16,
