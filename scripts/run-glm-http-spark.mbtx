@@ -162,8 +162,8 @@ fn profile_options(
   events~ : Bool = false,
   progress~ : Bool = false,
 ) -> String raise {
-  guard trace_method is ("cuda" | "cuda-hw" | "cuda,osrt") else {
-    fail("trace method must be cuda, cuda-hw or cuda,osrt")
+  guard trace_method is ("cuda" | "cuda-hw" | "cuda,osrt" | "osrt") else {
+    fail("trace method must be cuda, cuda-hw, cuda,osrt or osrt")
   }
   guard ranks is (None | Some("egress") | Some("both")) else {
     fail("profile ranks must be egress or both")
@@ -177,10 +177,18 @@ fn profile_options(
     " --trace=" +
     trace_method +
     (if progress { ",nvtx" } else { "" }) +
-    " --cuda-graph-trace=" +
-    trace +
-    " --cuda-flush-interval=0 --cuda-event-trace=" +
-    (if events { "true" } else { "false" }) +
+    (if trace_method is ("cuda,osrt" | "osrt") {
+      // Observe millisecond-scale handoff waits without retaining every tiny
+      // libc operation in the resident model's tight host-memory envelope.
+      " --osrt-threshold=100000 --osrt-backtrace-threshold=1000000"
+    } else {
+      ""
+    }) +
+    (if trace_method == "osrt" { "" } else {
+      " --cuda-graph-trace=" + trace +
+      " --cuda-flush-interval=0 --cuda-event-trace=" +
+      (if events { "true" } else { "false" })
+    }) +
     " "
   } else {
     ""
@@ -229,7 +237,11 @@ test "proxy progress observation adds only external NVTX tracing" {
 test "host handoff tracing is an explicit offline observation" {
   let flags = profile_options(None, Some("both"), 0, trace_method="cuda,osrt")
   assert_true(flags.contains("--trace=cuda,osrt"))
+  assert_true(flags.contains("--osrt-threshold=100000"))
   assert_false(profile_options(None, Some("both"), 0).contains("osrt"))
+  let host_only = profile_options(None, Some("both"), 0, trace_method="osrt")
+  assert_true(host_only.contains("--trace=osrt"))
+  assert_false(host_only.contains("cuda-graph-trace"))
 }
 
 ///|
@@ -357,8 +369,10 @@ async fn main {
           @env.get_env_var("LUNAFLUX_NATIVE_GRAPH_TRACE"),
           @env.get_env_var("LUNAFLUX_NATIVE_TRACE_RANKS"),
           rank,
-          trace_method=@env.get_env_var("LUNAFLUX_NATIVE_TRACE_METHOD").unwrap_or(
-            "cuda",
+          trace_method=(if rank == 0 {
+            @env.get_env_var("LUNAFLUX_NATIVE_TRACE_METHOD_INGRESS")
+          } else { None }).unwrap_or(
+            @env.get_env_var("LUNAFLUX_NATIVE_TRACE_METHOD").unwrap_or("cuda"),
           ),
           events=@env.get_env_var("LUNAFLUX_NATIVE_TRACE_EVENTS") == Some("1"),
           progress=progress != None,

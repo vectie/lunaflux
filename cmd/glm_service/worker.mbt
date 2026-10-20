@@ -202,7 +202,13 @@ async fn worker_exchange(
       if channel.progress_read_frame_or_eof() is Some(n) {
         break n
       }
-      @async.sleep(1)
+      // All device and peer-commit effects have retired at this boundary.
+      // Wait for the actual plan/retirement pipe instead of imposing a timer
+      // even when the next frame arrives during that millisecond. The bounded
+      // wait consumes no bytes and does not start/extend the idle-frame
+      // deadline; the next progress call retains framing and EOF ownership.
+      ignore(channel.wait_readable(maximum_wait_millis=1))
+      @async.pause()
     }
     if count == 0 {
       break

@@ -95,3 +95,39 @@ its use of asynchronous movement is not an equivalent schedule.
 Decision: keep both alternatives explicit, nondefault and unselected in GLM.
 The two-candidate budget is exhausted; no unchanged full-model run is needed.
 This does **not** fix the remaining projection gap.
+
+## Handoff candidate (not yet qualified)
+
+The existing GLM child unconditionally sleeps one millisecond whenever its
+nonblocking inherited-pipe read is pending. This is after the previous
+two-rank commit and before the next plan or request-retirement frame. A frame
+arriving during that interval cannot wake the sleep.
+
+The candidate uses the existing bounded inherited-channel readability wait
+instead, followed by a cooperative cancellation point. It retains the same
+one-millisecond maximum idle blocking bound, pending-frame parser, EOF path,
+absolute deadlines, request-retirement protocol and two-rank commit ordering.
+It does not move HTTP, model or CUDA decisions into the scheduler or add an IR
+layer: the logical plan is unchanged; this changes one runtime effect's wake
+condition. No GPU work is outstanding while this wait is used.
+
+This source-level timer explains at most one portion of the handoff. It is
+not yet proof of the whole 9 ms interval, nor permission to skip commit.
+The first CPU-enriched capture
+`/tmp/lunaflux-glm-http-handoff-osrt-20261020-v1` stopped at the 17 GiB
+diagnostic headroom threshold (lowest observed 17,465,084 KiB, above the
+16 GiB floor). Its failed result is retained. A second unchanged-baseline
+capture filters OS-runtime events shorter than 100 µs and backtraces shorter
+than 1 ms to bound profiler overhead; no model capacity is reduced.
+
+## Revised projection hypothesis
+
+The two vector-copy nonwins motivate one further **different** experiment:
+publish contiguous operand row ranges using the existing expert path's
+byte-counted transfer mechanism. Keep M32/N32/K64, two slots, four consumer
+subgroups and ascending K16 arithmetic fixed. One producer subgroup issues
+row copies; publication completion and reader retirement remain explicit.
+This isolates transfer granularity, not a new numerical program or a larger
+tile. The new pure `BulkBuffered` schedule has an aligned-row domain; private
+CUDA lowering owns byte barriers and instructions. Its budget is one K64
+candidate. It is not selected by serving configuration.

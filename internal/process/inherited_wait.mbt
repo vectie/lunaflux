@@ -81,8 +81,10 @@ pub fn InheritedChannel::wait_pending_writable(
 }
 
 ///|
-/// Performs a bounded readability wait without consuming bytes. This is used
-/// only to pace nonblocking device progress before a command read is active.
+/// Performs a bounded readability wait without consuming bytes or changing
+/// frame deadlines. A pending reader still checks its own absolute deadline
+/// on the next progress call. This also supports idle frame reads whose finite
+/// deadline begins only after the first prefix byte.
 pub fn InheritedChannel::wait_readable(
   self : InheritedChannel,
   maximum_wait_millis~ : Int,
