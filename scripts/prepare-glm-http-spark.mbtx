@@ -109,7 +109,7 @@ async fn main {
     _ => fail("NEW_ROOT PINNED_ARM_BUILD_ROOT [PREVIOUS_AOT_ROOT]")
   }
   guard root.has_prefix("/tmp/lunaflux-glm-http-") &&
-    build.has_prefix("/tmp/lunaflux-checkpoint-build-") &&
+    (build.has_prefix("/tmp/lunaflux-checkpoint-build-") || build.has_prefix("/tmp/lunaflux-glm-service-arm-")) &&
     [root, build, previous.unwrap_or(root)].all(s => {
       !s.contains("..") &&
       s
@@ -143,6 +143,9 @@ async fn main {
   let transport = @env.get_env_var("LUNAFLUX_GLM_EXPERT_TRANSPORT").unwrap_or(
     "packed-rows",
   )
+  let sparse_staging = @env.get_env_var(
+    "LUNAFLUX_GLM_SPARSE_PROJECTION_STAGING",
+  ).map(value => @json.parse(value))
   let scale_partitions = positive_setting(
     "LUNAFLUX_GLM_EXPERT_SCALE_PARTITIONS", 1, 32,
   )
@@ -238,6 +241,9 @@ async fn main {
       "runtime_label": "0000000000000000000000000000000000000000000000000000000000000002",
       "tokenizer_label": "0000000000000000000000000000000000000000000000000000000000000003",
       "credential_file": "acceptance.credential",
+    }
+    if sparse_staging is Some(value) && plan is Object(fields) {
+      fields["sparse_projection_staging"] = value
     }
     @fs.write_file(
       root + "/service-\{rank}.json",

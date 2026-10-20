@@ -30,6 +30,28 @@ pub fn MatrixTilePlan::new(
     inner <= 1073741760 else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
+  // Resolve an explicitly supplied physical workset budget before lowering.
+  // This is not a model-name rule or an automatic claim about hardware cache.
+  let staging = match staging {
+    WorksetBoundedTiles(inner_tile~, maximum_weight_bytes~, maximum_tiles~) => {
+      guard maximum_weight_bytes > 0L &&
+        maximum_tiles > 0 &&
+        inner_tile is (32 | 64 | 128) else {
+        raise @precision.PrecisionPlanError::NoImplementation
+      }
+      let active_tiles = (rows.to_int64() + 15L) /
+        16L *
+        ((columns.to_int64() + 63L) / 64L)
+      if columns.to_int64() * inner.to_int64() * 2L <= maximum_weight_bytes &&
+        active_tiles <= maximum_tiles.to_int64() &&
+        inner % inner_tile == 0 {
+        SynchronousTiles(inner_tile~)
+      } else {
+        Synchronous
+      }
+    }
+    other => other
+  }
   guard tile_columns is (16 | 32 | 64) &&
     (tile_columns == 64 || staging == Synchronous) else {
     raise @precision.PrecisionPlanError::NoImplementation
@@ -45,12 +67,14 @@ pub fn MatrixTilePlan::new(
   }
   let tile_inner = match staging {
     Synchronous => 32
-    Buffered(inner_tile~) => {
+    SynchronousTiles(inner_tile~) | Buffered(inner_tile~) => {
       guard inner_tile is (32 | 64 | 128) else {
         raise @precision.PrecisionPlanError::NoImplementation
       }
       inner_tile
     }
+    WorksetBoundedTiles(..) =>
+      raise @precision.PrecisionPlanError::NoImplementation
   }
   {
     rows,

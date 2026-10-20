@@ -4,12 +4,13 @@
 priv struct ExecutionPolicy {
   recurrent : @precision.RecurrentEvaluationLaw
   staging : @matrix.MatrixStaging
+  sparse_staging : @matrix.MatrixStaging
   transport : @matrix.ExpertTransport
-  scale_partitions : Int
+  scale_partitions : Int32
   moe_reduction : @precision.MoeReductionPlacement
   tensor_publication : @precision.ProjectionPublication
   exact_capacity_replay : Bool
-  collective_window_sites : Int
+  collective_window_sites : Int32
 }
 
 ///|
@@ -32,6 +33,35 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     Some(String("bulk-tiles-128x2x48")) =>
       PackedBulkTiles(columns=128, consumer_teams=2, workers=48)
     _ => fail("unsupported expert_transport")
+  }
+  let sparse_staging : @matrix.MatrixStaging = match
+    fields.get("sparse_projection_staging") {
+    None => staging
+    Some(
+      {
+        "kind": "workset-bounded-synchronous",
+        "inner_tile": Number(k, ..),
+        "maximum_weight_bytes": Number(bytes, ..),
+        "maximum_tiles": Number(tiles, ..),
+        ..
+      }
+    ) => {
+      guard (k == 32.0 || k == 64.0 || k == 128.0) &&
+        bytes >= 1.0 &&
+        bytes <= 2147483647.0 &&
+        bytes.to_int().to_double() == bytes &&
+        tiles >= 1.0 &&
+        tiles <= 2147483647.0 &&
+        tiles.to_int().to_double() == tiles else {
+        fail("invalid sparse staging resource envelope")
+      }
+      WorksetBoundedTiles(
+        inner_tile=k.to_int(),
+        maximum_weight_bytes=bytes.to_int().to_int64(),
+        maximum_tiles=tiles.to_int(),
+      )
+    }
+    _ => fail("unsupported sparse_projection_staging")
   }
   let scale_partitions = match fields.get("expert_scale_partitions") {
     None | Some(Number(1.0, ..)) => 1
@@ -69,6 +99,7 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
   {
     recurrent,
     staging,
+    sparse_staging,
     transport,
     scale_partitions,
     moe_reduction,
@@ -86,15 +117,18 @@ fn ExecutionPolicy::description(self : Self) -> String {
   }
   let staging = match self.staging {
     Synchronous => "synchronous"
+    SynchronousTiles(inner_tile~) => "synchronous-k\{inner_tile}"
+    WorksetBoundedTiles(inner_tile~, maximum_weight_bytes~, maximum_tiles~) =>
+      "bounded-synchronous-k\{inner_tile}-bytes\{maximum_weight_bytes}-tiles\{maximum_tiles}"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
   }
-  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
+  "recurrent=\{recurrent} projection_staging=\{staging} sparse_projection_staging=\{Repr(self.sparse_staging)} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
 }
 
 ///|
 fn ExecutionPolicy::replay(
   self : Self,
-  capacity : Int,
+  capacity : Int32,
 ) -> @parallel.ReplayPolicy {
   if self.exact_capacity_replay && capacity > 1 {
     if self.collective_window_sites > 0 {
@@ -122,10 +156,51 @@ test "HTTP execution defaults preserve the validated numerical and physical plan
   let p = execution_policy({})
   assert_true(p.recurrent is OrderedTokenFloat32)
   assert_true(p.staging is Synchronous)
+  assert_eq(p.sparse_staging, p.staging)
   assert_true(p.transport is PackedRows)
   assert_eq(p.scale_partitions, 1)
   assert_eq(p.moe_reduction, ExpertPartialsFloat32)
   assert_eq(p.tensor_publication, ReduceFloat32BeforeRound)
+}
+
+///|
+test "sparse projection workset selection is independent of fused recurrent scratch" {
+  let p = execution_policy({
+    "sparse_projection_staging": {
+      "kind": "workset-bounded-synchronous",
+      "inner_tile": 128,
+      "maximum_weight_bytes": 16777216,
+      "maximum_tiles": 192,
+    },
+  })
+  assert_true(p.staging is Synchronous)
+  assert_true(
+    p.sparse_staging
+    is WorksetBoundedTiles(
+      inner_tile=128,
+      maximum_weight_bytes=16777216L,
+      maximum_tiles=192
+    ),
+  )
+  assert_true(
+    p.description().contains("sparse_projection_staging=WorksetBoundedTiles"),
+  )
+  for bytes in [0.0, -1.0, 1.5] {
+    try
+      execution_policy({
+        "sparse_projection_staging": {
+          "kind": "workset-bounded-synchronous",
+          "inner_tile": 128,
+          "maximum_weight_bytes": bytes,
+          "maximum_tiles": 192,
+        },
+      })
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid physical workset")
+    }
+  }
 }
 
 ///|

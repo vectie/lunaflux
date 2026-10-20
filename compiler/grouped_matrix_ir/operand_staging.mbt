@@ -4,7 +4,13 @@
 /// tile. Each consumer still visits the same ascending reduction fragments.
 pub(all) enum MatrixStaging {
   Synchronous
-  Buffered(inner_tile~ : Int)
+  SynchronousTiles(inner_tile~ : Int32)
+  WorksetBoundedTiles(
+    inner_tile~ : Int32,
+    maximum_weight_bytes~ : Int64,
+    maximum_tiles~ : Int32
+  )
+  Buffered(inner_tile~ : Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -19,9 +25,9 @@ pub fn MatrixTilePlan::staging(self : Self) -> MatrixStaging {
 }
 
 ///|
-pub fn MatrixTilePlan::operand_slots(self : Self) -> Int {
+pub fn MatrixTilePlan::operand_slots(self : Self) -> Int32 {
   match self.staging {
-    Synchronous => 1
+    Synchronous | SynchronousTiles(_) | WorksetBoundedTiles(..) => 1
     Buffered(_) => 2
   }
 }

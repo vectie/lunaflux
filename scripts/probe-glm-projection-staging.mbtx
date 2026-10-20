@@ -1,0 +1,279 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode, .. options] &&
+    root.has_prefix("/tmp/lunaflux-glm-projection-staging-") &&
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail(
+      "NEW_ROOT export | prepare HEADER | profile VARIANT | run VARIANT | sanitize VARIANT",
+    )
+  }
+  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
+    "/tmp/lunaflux-glm179-context-20261019.sock",
+  )
+  let host = "wlc004s@192.168.2.179"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(label : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  let unit = root[5:].to_owned()
+  let first_shape = @string.parse_int(
+    @env.get_env_var("LUNA_PROJECTION_FIRST_SHAPE").unwrap_or("0"),
+  )
+  let end_shape = @string.parse_int(
+    @env.get_env_var("LUNA_PROJECTION_END_SHAPE").unwrap_or("4"),
+  )
+  guard first_shape >= 0 && end_shape > first_shape && end_shape <= 11 else {
+    fail("shape range")
+  }
+  if mode == "export" {
+    guard options.is_empty() else { fail("no export arguments") }
+    @fs.mkdir(root)
+    let out = @shell.Cmd("env", [
+      "LUNA_EXPORT_SYNCHRONOUS_TILES=1", "moon", "test", "kernels/tiled_matrix_cuda_source/synchronous_tiles_test.mbt",
+      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+    ]).output(max_output_bytes=16777216)
+    record("export", out)
+    guard out.stdout().split("LUNA_SOURCE_BEGIN prefill\n").to_array()
+      is [_, source] else {
+      fail("missing source")
+    }
+    @fs.write_file(
+      root + "/prefill.cuh",
+      source.split("LUNA_SOURCE_END").to_array()[0].to_owned(),
+      create_mode=CreateNew,
+    )
+    return
+  }
+  if mode == "prepare" {
+    guard options is [header] else { fail("source header required") }
+    @fs.mkdir(root)
+    record("mkdir", remote("mkdir " + root))
+    for
+      (source, target) in [
+        (header, "prefill.cuh"),
+        ("tests/packed_moe_execution/projection_staging_probe.cu", "probe.cu"),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        source,
+        host + ":" + root + "/" + target,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo",
+      ),
+    )
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+        root +
+        "/probe.cu -o " +
+        root +
+        "/probe",
+      ),
+    )
+    return
+  }
+  guard options is [variant] &&
+    variant is ("0" | "1" | "2" | "3") &&
+    mode is ("profile" | "run" | "sanitize") else {
+    fail("bounded mode/variant")
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  record(
+    mode + "-" + variant + "-reserve",
+    remote("awk '/MemAvailable:/ {if($2<33554432)exit 9;print}' /proc/meminfo"),
+  )
+  if mode == "run" {
+    let uuid = remote("nvidia-smi --query-gpu=uuid --format=csv,noheader")
+    uuid.check()
+    let workloads : Array[Json] = []
+    for shape in first_shape..<end_shape {
+      for rows in [1, 3, 22, 36, 64] {
+        workloads.push({
+          "label": "s\{shape}-r\{rows}",
+          "args": [shape.to_string(), rows.to_string(), variant, "timing"],
+        })
+      }
+    }
+    let contract : Json = {
+      "schema": "lunaflux-projection-staging-trial-v1",
+      "gpu_uuid": uuid.stdout().trim().to_owned(),
+      "reserve_kib": 33554432,
+      "minimum_gain": 0.01,
+      "require_bitwise": true,
+      "program": root + "/probe",
+      "artifacts": [root + "/prefill.cuh"],
+      "workloads": workloads,
+    }
+    let file = root + "/paired-v" + variant + ".json"
+    @fs.write_file(file, contract.stringify(indent=2), create_mode=CreateNew)
+    for shape in first_shape..<end_shape {
+      for rows in [0, 1, 3, 22, 36, 64, 65] {
+        let label = "paired-s\{shape}-r\{rows}-v" + variant
+        record(
+          label,
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            unit +
+            "-" +
+            label +
+            " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 " +
+            root +
+            "/probe \{shape} \{rows} " +
+            variant +
+            " timing",
+          ),
+        )
+        if rows > 0 && rows <= 64 {
+          record(
+            label + "-summary",
+            @shell.Cmd("moon", [
+              "run",
+              "benchmarks/gpu_pipeline/ako_trial.mbtx",
+              "--summarize-paired",
+              root + "/" + label + ".stdout",
+              root + "/" + label + ".json",
+            ]).output(),
+          )
+        }
+      }
+      println("paired shape=\{shape} variant=\{variant} complete")
+    }
+    record(
+      "run-" + variant + "-released",
+      remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader; free -b",
+      ),
+    )
+    return
+  }
+  for shape in first_shape..<end_shape {
+    if mode == "profile" {
+      let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+      let label = "profile-s\{shape}-v" + variant
+      record(
+        label,
+        remote(
+          "systemd-run --user --wait --pipe --unit=" +
+          unit +
+          "-" +
+          label +
+          " --property=RuntimeMaxSec=300 docker run --name " +
+          unit +
+          "-" +
+          label +
+          " --gpus all --network none --memory=4g --memory-swap=4g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+          root +
+          ":" +
+          root +
+          " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+          ncu +
+          " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --launch-count 1 --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_mio_throttle_per_warp_active.pct,smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__shared_mem_per_block_static --export " +
+          root +
+          "/" +
+          label +
+          " " +
+          root +
+          "/probe \{shape} 64 " +
+          variant +
+          " profile",
+        ),
+      )
+      record(
+        label + "-raw",
+        remote(
+          ncu + " --import " + root + "/" + label + ".ncu-rep --page raw --csv",
+        ),
+      )
+    } else {
+      for
+        rows in (if mode == "run" {
+          [0, 1, 3, 22, 36, 64, 65]
+        } else {
+          [1, 3, 64]
+        }) {
+        let args = " \{shape} \{rows} " +
+          variant +
+          (if mode == "run" { " timing" } else { " sanitize" })
+        for
+          tool in (if mode == "run" {
+            ["timing"]
+          } else {
+            ["memcheck", "racecheck", "synccheck"]
+          }) {
+          let label = "\{tool}-s\{shape}-r\{rows}-v" + variant
+          let command = if tool == "timing" {
+            root + "/probe"
+          } else {
+            "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+            tool +
+            " --error-exitcode 9 " +
+            (if tool == "memcheck" {
+              "--leak-check full "
+            } else if tool == "racecheck" {
+              "--racecheck-num-workers 1 --force-synchronization-limit 1 "
+            } else {
+              ""
+            }) +
+            root +
+            "/probe"
+          }
+          record(
+            label,
+            remote(
+              "systemd-run --user --wait --pipe --unit=" +
+              unit +
+              "-" +
+              label +
+              " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+              command +
+              args,
+            ),
+          )
+        }
+      }
+    }
+    println("\{mode} shape=\{shape} variant=\{variant} complete")
+  }
+  record(
+    mode + "-" + variant + "-released",
+    remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader; free -b"),
+  )
+}

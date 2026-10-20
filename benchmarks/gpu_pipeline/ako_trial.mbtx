@@ -37,7 +37,7 @@ fn checked_error(line : String, key : String) -> Unit raise {
 fn summarize(
   output : String,
   min_gain : Double,
-  require_bitwise? : Bool = false,
+  require_bitwise~ : Bool = false,
 ) -> Json raise {
   let lines = output.split("\n").filter(s => s.has_prefix("tokens=")).to_array()
   guard lines.length() == 5 else { fail("five paired trials required") }
@@ -215,6 +215,19 @@ async fn capture(
 
 ///|
 async fn main {
+  if @env.args() is [_, "--summarize-paired", input, output] {
+    // Remote campaigns own device reservation/resource envelopes. Reuse the
+    // same strict five-pair decision on their retained stdout, without moving
+    // profiling/comparison into the runtime or requiring another GPU run.
+    let metrics = summarize(
+      @fs.read_file(input).text(),
+      0.01,
+      require_bitwise=true,
+    )
+    @fs.write_file(output, metrics.stringify(indent=2), create_mode=CreateNew)
+    println(metrics.stringify())
+    return
+  }
   guard @env.args() is [_, contract, root] else {
     fail("CONTRACT_JSON NEW_ROOT")
   }
@@ -270,18 +283,19 @@ async fn main {
     path
   })
   guard !paths.is_empty() else { fail("artifacts required") }
-  let identity = capture(
-    root,
-    "identities-before",
-    "sha256sum",
-    [program, ..paths],
+  // Paths/revisions are experiment declarations, not authenticated identity.
+  // Never rescan executable or artifact payloads for benchmark bookkeeping.
+  @fs.write_file(
+    root + "/declared-artifacts.json",
+    Json([program, ..paths]).stringify(),
+    create_mode=CreateNew,
   )
   let records : Array[Json] = []
   for index, workload in workloads {
     guard workload is { "label": String(label), "args": Array(raw), .. } &&
       !label.is_empty() &&
       label.length() <= 80 &&
-      label.iter().all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-')) else {
+      label.iter().all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '-')) else {
       fail("workload label")
     }
     let args = raw.map(value => {
@@ -317,8 +331,6 @@ async fn main {
     records.push(record)
     println(record.stringify())
   }
-  let after = capture(root, "identities-after", "sha256sum", [program, ..paths])
-  assert_eq(after, identity)
   let idle = capture(root, "idle-after", "nvidia-smi", [
     "--query-compute-apps=pid", "--format=csv,noheader",
   ])

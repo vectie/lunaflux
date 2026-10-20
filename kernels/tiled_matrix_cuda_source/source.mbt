@@ -10,13 +10,13 @@ pub fn matrix_tile_body(
   result~ : String,
   input_vector? : String,
   weight_vector? : String,
-  vector_guard? : String = "true",
-  external_scratch? : Bool = false,
-  weight_column_first? : Bool = false,
+  vector_guard~ : String = "true",
+  external_scratch~ : Bool = false,
+  weight_column_first~ : Bool = false,
 ) -> String raise @precision.PrecisionPlanError {
   // Expression operands have no address/extent contract for asynchronous
   // copies. Never silently discard an explicitly requested staging policy.
-  guard plan.staging() == Synchronous else {
+  guard plan.operand_slots() == 1 else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   let (_, _, inner) = plan.geometry()
