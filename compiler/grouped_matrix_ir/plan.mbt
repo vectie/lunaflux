@@ -39,7 +39,10 @@ pub fn MatrixTilePlan::new(
       (tile_rows == 16 && tile_columns is (16 | 32 | 64)) ||
       (tile_rows == 32 && tile_columns == 32)
     ) &&
-    (tile_rows == 16 || staging is (Synchronous | SynchronousTiles(_))) else {
+    (
+      tile_rows == 16 ||
+      staging is (Synchronous | SynchronousTiles(_) | Buffered(_))
+    ) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   // The supplied envelope selects between two legal physical candidates.
@@ -75,6 +78,7 @@ pub fn MatrixTilePlan::new(
     other => other
   }
   guard (tile_rows == 16 && tile_columns == 64) ||
+    (tile_rows == 32 && tile_columns == 32) ||
     staging is (Synchronous | SynchronousTiles(_)) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }

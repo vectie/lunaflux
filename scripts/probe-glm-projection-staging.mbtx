@@ -50,12 +50,14 @@ async fn main {
   guard first_shape >= 0 && end_shape > first_shape && end_shape <= 12 else {
     fail("shape range")
   }
-  if mode is ("export" | "export-rows") {
+  if mode is ("export" | "export-rows" | "export-buffered-rows") {
     guard options.is_empty() else { fail("no export arguments") }
     @fs.mkdir(root)
     let out = @shell.Cmd("env", [
       if fused {
         "LUNA_EXPORT_FUSED_ROW_REUSE=1"
+      } else if mode == "export-buffered-rows" {
+        "LUNA_EXPORT_BUFFERED_ROWS=1"
       } else if mode == "export" {
         "LUNA_EXPORT_SYNCHRONOUS_TILES=1"
       } else {
@@ -65,6 +67,8 @@ async fn main {
       "test",
       if fused {
         "kernels/tiled_matrix_cuda_source/row_reuse_fused_test.mbt"
+      } else if mode == "export-buffered-rows" {
+        "kernels/tiled_matrix_cuda_source/buffered_rows_test.mbt"
       } else if mode == "export" {
         "kernels/tiled_matrix_cuda_source/synchronous_tiles_test.mbt"
       } else {

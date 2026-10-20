@@ -9,6 +9,15 @@ fn buffered_dense_body(
 ) -> String {
   let (_, columns, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
+  // Row and column ownership are independent of operand transport. Both legal
+  // geometries still give each warp one 16x16 accumulator and the same K fold.
+  let a_offset = if m == 16 { "kk" } else { "(warp/\{n/16})*16*\{k}+kk" }
+  let b_column = if m == 16 { "warp" } else { "(warp%\{n/16})" }
+  let c_offset = if m == 16 {
+    "warp*16"
+  } else {
+    "(warp/\{n/16})*16*\{n}+(warp%\{n/16})*16"
+  }
   let scratch = if external_scratch {
     ""
   } else {
@@ -59,14 +68,14 @@ fn buffered_dense_body(
     $|    for(int kk=0;kk<\{k};kk+=16) {
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a,16,16,16,__nv_bfloat16,nvcuda::wmma::row_major> a;
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_b,16,16,16,__nv_bfloat16,nvcuda::wmma::col_major> b;
-    $|      nvcuda::wmma::load_matrix_sync(a,tile_a+slot*\{m*k}+kk,\{k});
-    $|      nvcuda::wmma::load_matrix_sync(b,tile_b+slot*\{n*k}+warp*16*\{k}+kk,\{k});
+    $|      nvcuda::wmma::load_matrix_sync(a,tile_a+slot*\{m*k}+\{a_offset},\{k});
+    $|      nvcuda::wmma::load_matrix_sync(b,tile_b+slot*\{n*k}+\{b_column}*16*\{k}+kk,\{k});
     $|      nvcuda::wmma::mma_sync(accumulator,a,b,accumulator);
     $|    }
     $|    asm volatile("cp.async.wait_group 0;" ::: "memory");
     $|    __syncthreads(); // publish next slot and retire current readers
     $|  }
-    $|  nvcuda::wmma::store_matrix_sync(result+warp*16,accumulator,\{n},nvcuda::wmma::mem_row_major);
+    $|  nvcuda::wmma::store_matrix_sync(result+\{c_offset},accumulator,\{n},nvcuda::wmma::mem_row_major);
     $|  __syncthreads();
     $|}
   )

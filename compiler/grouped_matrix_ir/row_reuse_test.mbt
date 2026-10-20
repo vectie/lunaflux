@@ -34,7 +34,8 @@ test "unsupported ownership and copy combinations reject" {
       (0, 32, @grouped_matrix_ir.Synchronous),
       (64, 16, Synchronous),
       (32, 64, Synchronous),
-      (32, 32, Buffered(inner_tile=32)),
+      (32, 32, Buffered(inner_tile=48)),
+      (16, 32, Buffered(inner_tile=32)),
     ] {
     try
       @grouped_matrix_ir.MatrixTilePlan::new(
@@ -52,6 +53,25 @@ test "unsupported ownership and copy combinations reject" {
     } noraise {
       _ => fail("unsupported schedule accepted")
     }
+  }
+}
+
+///|
+test "row reuse composes with the explicit two-slot lifetime" {
+  for k in [32, 64, 128] {
+    let plan = @grouped_matrix_ir.MatrixTilePlan::new(
+      rows=64,
+      columns=4096,
+      inner=8192,
+      law=ShapeAwareFloat32,
+      tile_rows=32,
+      tile_columns=32,
+      staging=Buffered(inner_tile=k),
+    )
+    assert_eq(plan.tile(), (32, 32, k))
+    assert_eq(plan.operand_slots(), 2)
+    let segments = @grouped_matrix_ir.SegmentedMatrixPlan::new([plan, plan])
+    assert_eq(segments.scratch_elements(), (64 * k, 64 * k, 1024))
   }
 }
 
