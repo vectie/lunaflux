@@ -5,6 +5,7 @@ priv struct ExecutionPolicy {
   recurrent : @precision.RecurrentEvaluationLaw
   staging : @matrix.MatrixStaging
   sparse_staging : @matrix.MatrixStaging
+  recurrent_tile_rows : Int
   transport : @matrix.ExpertTransport
   scale_partitions : Int
   moe_reduction : @precision.MoeReductionPlacement
@@ -25,7 +26,14 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
   let staging : @matrix.MatrixStaging = match fields.get("projection_staging") {
     None | Some(String("synchronous")) => Synchronous
     Some(String("buffered-k32")) => Buffered(inner_tile=32)
+    Some(String("synchronous-k64")) => SynchronousTiles(inner_tile=64)
     _ => fail("unsupported projection_staging")
+  }
+  let recurrent_tile_rows = match fields.get("recurrent_projection_tile_rows") {
+    None | Some(Number(16.0, ..)) => 16
+    Some(Number(32.0, ..)) if staging is (Synchronous | SynchronousTiles(_)) =>
+      32
+    _ => fail("unsupported recurrent_projection_tile_rows")
   }
   let transport : @matrix.ExpertTransport = match
     fields.get("expert_transport") {
@@ -100,6 +108,7 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     recurrent,
     staging,
     sparse_staging,
+    recurrent_tile_rows,
     transport,
     scale_partitions,
     moe_reduction,
@@ -122,7 +131,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
       "bounded-synchronous-k\{inner_tile}-bytes\{maximum_weight_bytes}-tiles\{maximum_tiles}"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
   }
-  "recurrent=\{recurrent} projection_staging=\{staging} sparse_projection_staging=\{Repr(self.sparse_staging)} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
+  "recurrent=\{recurrent} projection_staging=\{staging} recurrent_projection_tile_rows=\{self.recurrent_tile_rows} sparse_projection_staging=\{Repr(self.sparse_staging)} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
 }
 
 ///|

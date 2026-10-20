@@ -9,7 +9,7 @@ import {
 }
 
 // Values
-pub fn recurrent_block_source(@precision_ir.RecurrentBlockPrecision, symbol_prefix~ : String, fuse_input_projections? : Bool, matrix_staging? : @grouped_matrix_ir.MatrixStaging) -> RecurrentBlockCudaSource raise
+pub fn recurrent_block_source(@precision_ir.RecurrentBlockPrecision, symbol_prefix~ : String, fuse_input_projections? : Bool, matrix_staging? : @grouped_matrix_ir.MatrixStaging, matrix_tile_rows? : Int) -> RecurrentBlockCudaSource raise
 
 // Errors
 

@@ -23,6 +23,7 @@ pub fn SegmentedMatrixPlan::new(
     guard sr == rows &&
       sk == inner &&
       segment.law() == segments[0].law() &&
+      segment.tile() == segments[0].tile() &&
       segment.staging() == segments[0].staging() else {
       raise @precision.PrecisionPlanError::IllegalPlacement
     }
@@ -57,7 +58,9 @@ pub fn SegmentedMatrixPlan::tile_count(self : Self) -> Int {
 ///|
 /// Mutually exclusive regions share one scratch lifetime. Matrix tile geometry
 /// is common to all segments, while allocation element sizes belong to lowering.
-pub fn SegmentedMatrixPlan::scratch_elements(self : Self) -> (Int, Int, Int) {
+pub fn SegmentedMatrixPlan::scratch_elements(
+  self : Self,
+) -> (Int, Int, Int) {
   let (m, n, k) = self.segments[0].tile()
   let slots = self.segments[0].operand_slots()
   (slots * m * k, slots * n * k, m * n)

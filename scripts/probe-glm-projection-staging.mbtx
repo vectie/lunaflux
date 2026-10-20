@@ -40,21 +40,41 @@ async fn main {
     out.check()
   }
   let unit = root[5:].to_owned()
+  let fused = @env.get_env_var("LUNA_PROJECTION_FUSED") == Some("1")
   let first_shape = @string.parse_int(
     @env.get_env_var("LUNA_PROJECTION_FIRST_SHAPE").unwrap_or("0"),
   )
   let end_shape = @string.parse_int(
     @env.get_env_var("LUNA_PROJECTION_END_SHAPE").unwrap_or("4"),
   )
-  guard first_shape >= 0 && end_shape > first_shape && end_shape <= 11 else {
+  guard first_shape >= 0 && end_shape > first_shape && end_shape <= 12 else {
     fail("shape range")
   }
-  if mode == "export" {
+  if mode is ("export" | "export-rows") {
     guard options.is_empty() else { fail("no export arguments") }
     @fs.mkdir(root)
     let out = @shell.Cmd("env", [
-      "LUNA_EXPORT_SYNCHRONOUS_TILES=1", "moon", "test", "kernels/tiled_matrix_cuda_source/synchronous_tiles_test.mbt",
-      "--target", "native", "--deny-warn", "--warn-list", "-20-25-29-35-79-92",
+      if fused {
+        "LUNA_EXPORT_FUSED_ROW_REUSE=1"
+      } else if mode == "export" {
+        "LUNA_EXPORT_SYNCHRONOUS_TILES=1"
+      } else {
+        "LUNA_EXPORT_ROW_REUSE=1"
+      },
+      "moon",
+      "test",
+      if fused {
+        "kernels/tiled_matrix_cuda_source/row_reuse_fused_test.mbt"
+      } else if mode == "export" {
+        "kernels/tiled_matrix_cuda_source/synchronous_tiles_test.mbt"
+      } else {
+        "kernels/tiled_matrix_cuda_source/row_reuse_test.mbt"
+      },
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-20-25-29-35-79-92",
     ]).output(max_output_bytes=16777216)
     record("export", out)
     guard out.stdout().split("LUNA_SOURCE_BEGIN prefill\n").to_array()
@@ -75,7 +95,14 @@ async fn main {
     for
       (source, target) in [
         (header, "prefill.cuh"),
-        ("tests/packed_moe_execution/projection_staging_probe.cu", "probe.cu"),
+        (
+          if fused {
+            "tests/packed_moe_execution/projection_row_reuse_fused_probe.cu"
+          } else {
+            "tests/packed_moe_execution/projection_staging_probe.cu"
+          },
+          "probe.cu",
+        ),
       ] {
       @shell.Cmd("scp", [
         "-o",

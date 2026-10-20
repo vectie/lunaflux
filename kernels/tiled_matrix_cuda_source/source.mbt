@@ -2,7 +2,7 @@
 /// Private CUDA lowering shared by dense and indirect grouped matrices.
 /// Every thread must enter this body. Load expressions bind matrix_row,
 /// matrix_column and matrix_inner; callers supply zero for masked operands.
-/// Result is a CTA-shared F32 [16,64] array. There is no model selection here.
+/// Result is a CTA-shared F32 tile. There is no model selection here.
 pub fn matrix_tile_body(
   plan : @matrix.MatrixTilePlan,
   input~ : String,
@@ -10,9 +10,9 @@ pub fn matrix_tile_body(
   result~ : String,
   input_vector? : String,
   weight_vector? : String,
-  vector_guard~ : String = "true",
-  external_scratch~ : Bool = false,
-  weight_column_first~ : Bool = false,
+  vector_guard? : String = "true",
+  external_scratch? : Bool = false,
+  weight_column_first? : Bool = false,
 ) -> String raise @precision.PrecisionPlanError {
   // Expression operands have no address/extent contract for asynchronous
   // copies. Never silently discard an explicitly requested staging policy.
@@ -21,6 +21,14 @@ pub fn matrix_tile_body(
   }
   let (_, _, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
+  let consumer_count = m / 16 * (n / 16)
+  let a_offset = if m == 16 { "kk" } else { "(warp/\{n/16})*16*\{k}+kk" }
+  let b_column = if m == 16 { "warp" } else { "(warp%\{n/16})" }
+  let c_offset = if m == 16 {
+    "warp*16"
+  } else {
+    "(warp/\{n/16})*16*\{n}+(warp%\{n/16})*16"
+  }
   guard !weight_column_first || (!external_scratch && weight_vector is None) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
@@ -83,19 +91,19 @@ pub fn matrix_tile_body(
     $|    \{load_a}
     $|    \{load_b}
     $|    __syncthreads();
-    $|    if(warp<\{n/16}) {
+    $|    if(warp<\{consumer_count}) {
     $|    #pragma unroll
     $|    for(int kk=0;kk<\{k};kk+=16) {
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a,16,16,16,__nv_bfloat16,nvcuda::wmma::row_major> a;
     $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_b,16,16,16,__nv_bfloat16,nvcuda::wmma::col_major> b;
-    $|      nvcuda::wmma::load_matrix_sync(a,tile_a+kk,\{k});
-    $|      nvcuda::wmma::load_matrix_sync(b,tile_b+warp*16*\{b_pitch}+kk,\{b_pitch});
+    $|      nvcuda::wmma::load_matrix_sync(a,tile_a+\{a_offset},\{k});
+    $|      nvcuda::wmma::load_matrix_sync(b,tile_b+\{b_column}*16*\{b_pitch}+kk,\{b_pitch});
     $|      nvcuda::wmma::mma_sync(accumulator,a,b,accumulator);
     $|    }
     $|    }
     $|    __syncthreads();
     $|  }
-    $|  if(warp<\{n/16}) nvcuda::wmma::store_matrix_sync(\{result}+warp*16,accumulator,\{n},nvcuda::wmma::mem_row_major);
+    $|  if(warp<\{consumer_count}) nvcuda::wmma::store_matrix_sync(\{result}+\{c_offset},accumulator,\{n},nvcuda::wmma::mem_row_major);
     $|  __syncthreads();
     $|}
   )
@@ -120,12 +128,13 @@ fn dense_render(
   device_region~ : Bool,
 ) -> String raise @precision.PrecisionPlanError {
   let (rows, columns, inner) = plan.geometry()
-  guard plan.tile().1 == 64 else {
+  let (m, n, _) = plan.tile()
+  guard (m, n) is ((16, 64) | (32, 32)) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   let tile_id = if device_region { "tile_id" } else { "blockIdx.x" }
   let tile_count = if device_region { "tile_count" } else { "gridDim.x" }
-  let blocks_n = (columns + 63) / 64
+  let blocks_n = (columns + n - 1) / n
   let body = if plan.operand_slots() == 2 {
     buffered_dense_body(plan, external_scratch=device_region)
   } else {
@@ -186,7 +195,7 @@ fn dense_render(
   let result_scratch = if device_region {
     ""
   } else {
-    "__shared__ __align__(32) float result[1024];"
+    "__shared__ __align__(32) float result[\{m*n}];"
   }
   let text =
     $|#include <cuda_bf16.h>
@@ -194,12 +203,12 @@ fn dense_render(
     $|\{qualifier} void \{symbol}(\{coordinates}const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output) {
     $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows}) return;
     $|  \{decode}
-    $|  const int row_base=(\{tile_id}/\{blocks_n})*16,column_base=(\{tile_id}%\{blocks_n})*64;
+    $|  const int row_base=(\{tile_id}/\{blocks_n})*\{m},column_base=(\{tile_id}%\{blocks_n})*\{n};
     $|  if(row_base>=live_rows) return;
     $|  \{result_scratch}
     $|  \{body}
-    $|  for(int i=threadIdx.x;i<1024;i+=128) {
-    $|    int row=row_base+i/64,column=column_base+i%64;
+    $|  for(int i=threadIdx.x;i<\{m*n};i+=128) {
+    $|    int row=row_base+i/\{n},column=column_base+i%\{n};
     $|    if(row<live_rows&&column<\{columns}) output[(unsigned long long)row*\{columns}+column]=\{output_value};
     $|  }
     $|}

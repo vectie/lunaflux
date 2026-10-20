@@ -20,6 +20,7 @@ pub fn MatrixTilePlan::new(
   law~ : @precision.DenseDotLaw,
   staging? : MatrixStaging = Synchronous,
   tile_columns? : Int = 64,
+  tile_rows? : Int = 16,
 ) -> Self raise @precision.PrecisionPlanError {
   guard law != ScalarFloat32 &&
     rows > 0 &&
@@ -32,6 +33,10 @@ pub fn MatrixTilePlan::new(
   }
   // Resolve an explicitly supplied physical workset budget before lowering.
   // This is not a model-name rule or an automatic claim about hardware cache.
+  guard (tile_rows == 16 && tile_columns is (16 | 32 | 64)) ||
+    (tile_rows == 32 && tile_columns == 32) else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
   let staging = match staging {
     WorksetBoundedTiles(inner_tile~, maximum_weight_bytes~, maximum_tiles~) => {
       guard maximum_weight_bytes > 0L &&
@@ -39,9 +44,12 @@ pub fn MatrixTilePlan::new(
         inner_tile is (32 | 64 | 128) else {
         raise @precision.PrecisionPlanError::NoImplementation
       }
-      let active_tiles = (rows.to_int64() + 15L) /
-        16L *
-        ((columns.to_int64() + 63L) / 64L)
+      let active_tiles = (rows.to_int64() + tile_rows.to_int64() - 1L) /
+        tile_rows.to_int64() *
+        (
+          (columns.to_int64() + tile_columns.to_int64() - 1L) /
+          tile_columns.to_int64()
+        )
       if columns.to_int64() * inner.to_int64() * 2L <= maximum_weight_bytes &&
         active_tiles <= maximum_tiles.to_int64() &&
         inner % inner_tile == 0 {
@@ -52,12 +60,12 @@ pub fn MatrixTilePlan::new(
     }
     other => other
   }
-  guard tile_columns is (16 | 32 | 64) &&
-    (tile_columns == 64 || staging == Synchronous) else {
+  guard (tile_rows == 16 && tile_columns == 64) ||
+    staging is (Synchronous | SynchronousTiles(_)) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
-  guard (rows.to_int64() + 15L) /
-    16L *
+  guard (rows.to_int64() + tile_rows.to_int64() - 1L) /
+    tile_rows.to_int64() *
     (
       (columns.to_int64() + tile_columns.to_int64() - 1L) /
       tile_columns.to_int64()
@@ -76,16 +84,7 @@ pub fn MatrixTilePlan::new(
     WorksetBoundedTiles(..) =>
       raise @precision.PrecisionPlanError::NoImplementation
   }
-  {
-    rows,
-    columns,
-    inner,
-    tile_rows: 16,
-    tile_columns,
-    tile_inner,
-    law,
-    staging,
-  }
+  { rows, columns, inner, tile_rows, tile_columns, tile_inner, law, staging, }
 }
 
 ///|
@@ -100,8 +99,8 @@ pub fn MatrixTilePlan::tile(self : Self) -> (Int, Int, Int) {
 
 ///|
 pub fn MatrixTilePlan::tile_count(self : Self) -> Int {
-  let matrix = (self.rows + 15) /
-    16 *
+  let matrix = (self.rows + self.tile_rows - 1) /
+    self.tile_rows *
     ((self.columns + self.tile_columns - 1) / self.tile_columns)
   if self.law == ShapeAwareFloat32 {
     Int::max(matrix, (self.columns + 3) / 4)

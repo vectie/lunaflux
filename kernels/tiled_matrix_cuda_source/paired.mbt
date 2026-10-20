@@ -9,13 +9,14 @@ pub fn paired_matrix_tile_body(
   results~ : (String, String),
   input_vector? : String,
   weight_vectors? : (String, String),
-  vector_guard~ : String = "true",
+  vector_guard? : String = "true",
 ) -> String raise @precision.PrecisionPlanError {
   guard plan.operand_slots() == 1 else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   let (_, _, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
+  guard m == 16 else { raise @precision.PrecisionPlanError::NoImplementation }
   let scalar_a =
     $|for(int i=threadIdx.x;i<\{m*k};i+=128) {
     $|  const int matrix_row=i/\{k},matrix_inner=base_k+i%\{k};

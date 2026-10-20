@@ -5,6 +5,7 @@ import {
   "moonbitlang/async@0.21.3/shell",
   "moonbitlang/core/env",
   "moonbitlang/core/json",
+  "moonbitlang/core/string",
 }
 
 ///|
@@ -109,7 +110,10 @@ async fn main {
     _ => fail("NEW_ROOT PINNED_ARM_BUILD_ROOT [PREVIOUS_AOT_ROOT]")
   }
   guard root.has_prefix("/tmp/lunaflux-glm-http-") &&
-    (build.has_prefix("/tmp/lunaflux-checkpoint-build-") || build.has_prefix("/tmp/lunaflux-glm-service-arm-")) &&
+    (
+      build.has_prefix("/tmp/lunaflux-checkpoint-build-") ||
+      build.has_prefix("/tmp/lunaflux-glm-service-arm-")
+    ) &&
     [root, build, previous.unwrap_or(root)].all(s => {
       !s.contains("..") &&
       s
@@ -156,7 +160,7 @@ async fn main {
     "LUNAFLUX_GLM_PROJECTION_REDUCTION",
   ).unwrap_or("f32-before-round")
   guard recurrent is ("ordered-token-f32" | "chunk-triangular-f32") &&
-    staging is ("synchronous" | "buffered-k32") &&
+    staging is ("synchronous" | "buffered-k32" | "synchronous-k64") &&
     transport is ("packed-rows" | "bulk-tiles-128x2x48") &&
     scale_partitions is (1 | 32) &&
     moe_reduction is ("expert-partials-f32" | "local-combined-bf16") &&
@@ -231,6 +235,9 @@ async fn main {
       "sparse_cache": sparse_cache,
       "recurrent_evaluation": recurrent,
       "projection_staging": staging,
+      "recurrent_projection_tile_rows": @string.parse_int(
+        @env.get_env_var("LUNAFLUX_GLM_RECURRENT_TILE_ROWS").unwrap_or("16"),
+      ),
       "expert_transport": transport,
       "expert_scale_partitions": scale_partitions,
       "moe_reduction": moe_reduction,

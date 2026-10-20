@@ -284,6 +284,7 @@ fn ServicePlan::stage(
     recurrent_evaluation=self.execution.recurrent,
     matrix_law=ShapeAwareFloat32,
     matrix_staging=self.execution.staging,
+    matrix_tile_rows=self.execution.recurrent_tile_rows,
     sparse_matrix_staging=self.execution.sparse_staging,
     sparse_accumulation=self.sparse_accumulation,
     index_scoring=self.index_scoring,

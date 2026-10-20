@@ -34,6 +34,7 @@ pub fn GlmRecurrentLayer::new(
   evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
+  matrix_tile_rows? : Int = 16,
   tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   tensor_group? : (Int, Int),
 ) -> Self raise {
@@ -54,6 +55,7 @@ pub fn GlmRecurrentLayer::new(
     symbol_prefix="glm_recurrent_" + layer_index.to_string(),
     fuse_input_projections=matrix_law == ShapeAwareFloat32,
     matrix_staging~,
+    matrix_tile_rows~,
   )
   {
     spec,
