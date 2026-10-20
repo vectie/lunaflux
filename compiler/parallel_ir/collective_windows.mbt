@@ -106,12 +106,10 @@ test "window horizons reject zero and preserve one-window limits" {
   )
   assert_eq(p.collective_window_count(1), 1)
   assert_eq(p.collective_window(1, 0), (0, 8, 0, 2))
-  let empty = OrderedSubmissionPlan::new(
+  assert_true((try? OrderedSubmissionPlan::new(
     kernel_count=8,
     [],
     retirement=WholeFrame,
     replay=CaptureWindowedCollectives(64, 1),
-  )
-  assert_eq(empty.collective_window_count(1), 1)
-  assert_eq(empty.collective_window(1, 0), (0, 8, 0, 0))
+  )) is Err(_))
 }
