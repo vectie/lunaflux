@@ -5,6 +5,7 @@ fn run_collective_program(
   collective_graph? : Bool = false,
   bucketed? : Bool = false,
   decode_graph? : Bool = false,
+  exact_graph? : Bool = false,
   cancel? : Bool = false,
   cancel_rows? : Int = 1,
   fork? : Bool = false,
@@ -16,7 +17,10 @@ fn run_collective_program(
   let stream = context.create_stream()
   defer (stream.close() catch { _ => () })
   // Exact-size BF16 storage catches accidental F32-sized capture initialization.
-  let buffer = context.allocate(if bfloat16 { 32L } else { 64L })
+  let maximum_rows = if exact_graph { 3 } else { 2 }
+  let buffer = context.allocate(
+    maximum_rows.to_int64() * (if bfloat16 { 16L } else { 32L }),
+  )
   defer (buffer.close() catch { _ => () })
   let module = context.load_module(b"fake\x00")
   defer (module.close() catch { _ => () })
@@ -52,7 +56,7 @@ fn run_collective_program(
     ),
     rank=0,
     world_size=2,
-    max_query_tokens=2,
+    max_query_tokens=maximum_rows,
     sites=[
       @device.TensorCollectiveSite::new(
         sequence=1,
@@ -121,9 +125,11 @@ fn run_collective_program(
     ],
     owner~,
     generation=1UL,
-    maximum_rows=2,
+    maximum_rows~,
     retirement=if queued { WholeFrame } else { EachCollective },
-    replay=if decode_graph {
+    replay=if exact_graph {
+      CaptureExactCollectives(3)
+    } else if decode_graph {
       CaptureDecodeCollectives
     } else if bucketed {
       CaptureBucketedCollectives
@@ -144,7 +150,9 @@ fn run_collective_program(
   defer (queue.abort() catch { _ => () })
   assert_eq(
     queue.replay_graph_count(),
-    if decode_graph {
+    if exact_graph {
+      5
+    } else if decode_graph {
       4
     } else if bucketed {
       2
@@ -158,10 +166,26 @@ fn run_collective_program(
   )
   let before = enqueues()
   let syncs = blocking_syncs()
+  // The fake executor counts primary descriptors during captured replay;
+  // the real CUDA graph also contains the one captured auxiliary descriptor.
+  // Branch ownership/joins are checked here, actual branch execution on GPU.
+  let counted_per_frame = if fork &&
+    (replay || collective_graph || bucketed || decode_graph || exact_graph) {
+    4UL
+  } else {
+    5UL
+  }
   begin_allocations()
   for sequence in 1UL..<17UL {
+    let live_rows = if exact_graph {
+      (sequence % 3UL).to_int() + 1
+    } else if sequence % 2UL == 0UL {
+      2
+    } else {
+      1
+    }
     queue.submit(
-      live_rows=if sequence % 2UL == 0UL { 2 } else { 1 },
+      live_rows~,
       plan_sequence=sequence,
       global_sequence=2UL * sequence - 1UL,
     )
@@ -170,9 +194,12 @@ fn run_collective_program(
     }
     if !collective_graph &&
       !bucketed &&
+      !(exact_graph && live_rows != 2) &&
       !(decode_graph && sequence % 2UL != 0UL) &&
-      enqueues() != before + (sequence - 1UL) * 5UL + 1UL {
-      abort("consumer submitted before first reduction")
+      enqueues() != before + (sequence - 1UL) * counted_per_frame + 1UL {
+      fail(
+        "consumer submitted before first reduction: sequence=\{sequence} rows=\{live_rows} fork=\{fork}",
+      )
     }
     while !queue.poll() {
       ()
@@ -180,7 +207,7 @@ fn run_collective_program(
   }
   let allocations = end_allocations()
   assert_eq(allocations, 0UL)
-  assert_eq(enqueues() - before, 80UL)
+  assert_eq(enqueues() - before, 16UL * counted_per_frame)
   assert_eq(blocking_syncs() - syncs, 0UL)
   if abort_idle {
     queue.abort()
@@ -213,6 +240,22 @@ fn run_collective_program(
   }
   queue.close()
   owner.close()
+}
+
+///|
+test "exact effect graphs alternate with partial-row intervals without allocation" {
+  run_collective_program(true, exact_graph=true)
+  run_collective_program(true, exact_graph=true, bfloat16=true, fork=true)
+  run_collective_program(true, exact_graph=true, abort_idle=true)
+  for rows in 1..<4 {
+    run_collective_program(
+      true,
+      exact_graph=true,
+      bfloat16=true,
+      cancel=true,
+      cancel_rows=rows,
+    )
+  }
 }
 
 ///|

@@ -58,3 +58,11 @@ graph replay preserves the same dependencies. This is distinct from
 compute/communication overlap. The selected GLM shared/routed implementation
 and bounded GPU replay/cancellation tests are recorded in
 [the October18 measurements](../../docs/GLM_PREFILL_AND_BRANCH_OVERLAP_2026-10-18.md).
+
+`CaptureExactCollectives(rows)` prepares whole effect frames for one row and
+exactly `rows`, plus interval graphs for every unmatched count. Unlike padded
+bucket replay, a partial prefill never communicates inactive rows. Its three
+graph families are budgeted before binding, retain the same collective order,
+and use whole-frame retirement/cancellation. This is an explicit alternative,
+not a default performance claim; profiler/comparison evidence remains outside
+the compiler.

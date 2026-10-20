@@ -8,6 +8,7 @@ priv struct ExecutionPolicy {
   scale_partitions : Int
   moe_reduction : @precision.MoeReductionPlacement
   tensor_publication : @precision.ProjectionPublication
+  exact_capacity_replay : Bool
 }
 
 ///|
@@ -48,6 +49,11 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     Some(String("bf16-after-round")) => ReduceBFloat16AfterRound
     _ => fail("unsupported projection_reduction")
   }
+  let exact_capacity_replay = match fields.get("collective_replay") {
+    None | Some(String("decode-only")) => false
+    Some(String("exact-capacity")) => true
+    _ => fail("unsupported collective_replay")
+  }
   {
     recurrent,
     staging,
@@ -55,6 +61,7 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     scale_partitions,
     moe_reduction,
     tensor_publication,
+    exact_capacity_replay,
   }
 }
 
@@ -68,7 +75,29 @@ fn ExecutionPolicy::description(self : Self) -> String {
     Synchronous => "synchronous"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
   }
-  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)}"
+  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay}"
+}
+
+///|
+fn ExecutionPolicy::replay(
+  self : Self,
+  capacity : Int,
+) -> @parallel.ReplayPolicy {
+  if self.exact_capacity_replay && capacity > 1 {
+    CaptureExactCollectives(capacity)
+  } else {
+    CaptureDecodeCollectives
+  }
+}
+
+///|
+test "exact prefill replay is explicit and does not change numerical choices" {
+  assert_true(execution_policy({}).replay(64) is CaptureDecodeCollectives)
+  let p = execution_policy({ "collective_replay": "exact-capacity" })
+  assert_true(p.replay(64) is CaptureExactCollectives(64))
+  assert_true(p.replay(1) is CaptureDecodeCollectives)
+  assert_true(p.tensor_publication is ReduceFloat32BeforeRound)
+  assert_true(p.description().contains("exact_capacity_replay=true"))
 }
 
 ///|
@@ -120,6 +149,7 @@ test "unknown execution choices cannot silently use the serving baseline" {
     { "recurrent_evaluation": "automatic" },
     { "moe_reduction": "automatic" },
     { "projection_reduction": "automatic" },
+    { "collective_replay": "automatic" },
   ]
   for value in cases {
     try execution_policy(value) catch {

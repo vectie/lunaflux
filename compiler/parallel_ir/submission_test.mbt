@@ -126,3 +126,66 @@ test "decode effects and prefill intervals have independent legal replay regimes
     660L,
   )
 }
+
+///|
+test "exact-row replay never pads partial chunks and budgets the fallback graphs" {
+  let p = OrderedSubmissionPlan::new(
+    kernel_count=3,
+    [1, 2],
+    retirement=WholeFrame,
+    replay=CaptureExactCollectives(64),
+  )
+  assert_eq(p.collective_row_buckets(128), [1, 64])
+  assert_eq(p.interval_queue_offset(), 2)
+  assert_true(p.captures_interval_graphs())
+  for live in 0..<129 {
+    assert_eq(p.replay_collectives(live), live == 1 || live == 64)
+  }
+  assert_eq(p.collective_bucket(1), 0)
+  assert_eq(p.collective_bucket(64), 1)
+  assert_eq(
+    p.replay_reserve_bytes(bytes_per_kernel=100L, bytes_per_interval=10L),
+    990L,
+  )
+  try p.collective_row_buckets(63) catch {
+    _ => ()
+  } noraise {
+    _ => fail("captured rows exceed operand capacity")
+  }
+  for rows in [-1, 0, 1] {
+    try
+      OrderedSubmissionPlan::new(
+        kernel_count=3,
+        [1],
+        retirement=WholeFrame,
+        replay=CaptureExactCollectives(rows),
+      )
+    catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid exact rows accepted")
+    }
+  }
+  try
+    OrderedSubmissionPlan::new(
+      kernel_count=3,
+      [1],
+      retirement=EachCollective,
+      replay=CaptureExactCollectives(64),
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("effect graphs require whole-frame retirement")
+  }
+  try
+    p.replay_reserve_bytes(
+      bytes_per_kernel=1024819115206086201L,
+      bytes_per_interval=1L,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("three-frame budget overflow accepted")
+  }
+}

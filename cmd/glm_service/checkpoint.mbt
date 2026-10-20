@@ -107,7 +107,7 @@ fn prepare_rank(
       limits~,
       collective~,
       retirement=WholeFrame,
-      replay=CaptureDecodeCollectives,
+      replay=plan.execution.replay(plan.rows),
       replay_budget_bytes=plan.reserve / 4L,
       overlap_experts=true,
       fuse_hyper=true,

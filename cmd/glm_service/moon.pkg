@@ -16,6 +16,7 @@ import {
   "vectie/lunaflux/runtime/monotonic_clock" @clock,
   "vectie/lunaflux/engine/precision_materialize" @materialize,
   "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/parallel_ir" @parallel,
   "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
   "vectie/lunaflux/compiler/decoder_pipeline_plan" @placement,
   "vectie/lunaflux/compiler/attention_physical_ir" @history,
