@@ -1,0 +1,113 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-nsys-worker-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail("NEW_ROOT")
+  }
+  @fs.mkdir(root)
+  let socket = "/tmp/lunaflux-glm178-context-20261019.sock"
+  let host = "wlc003s@192.168.2.178"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output()
+  }
+  remote("mkdir " + root).check()
+  for
+    file in [
+      "tests/process_native_fixture/nsys_exec_bridge.c", "tests/process_native_fixture/nsys_exec_probe.c",
+      "internal/process/process_approved_spawn.c", "internal/process/process_approved_spawn.h",
+    ] {
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      file,
+      host + ":" + root + "/",
+    ])
+    .output()
+    .check()
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  for
+    (name, command) in [
+      (
+        "bridge",
+        "cc -shared -fPIC -Wall -Wextra -Werror " +
+        root +
+        "/nsys_exec_bridge.c -o " +
+        root +
+        "/bridge.so",
+      ),
+      (
+        "probe",
+        "cc -std=c11 -Wall -Wextra -Werror -Wno-deprecated-declarations -I/usr/local/cuda/include -I" +
+        root +
+        " " +
+        root +
+        "/nsys_exec_probe.c " +
+        root +
+        "/process_approved_spawn.c -pthread -L/usr/local/cuda/lib64/stubs -lcuda -o " +
+        root +
+        "/probe",
+      ),
+      (
+        "capture",
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        " -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=120 /usr/bin/env TMPDIR=" +
+        root +
+        " LD_PRELOAD=" +
+        root +
+        "/bridge.so /opt/nvidia/nsight-systems/2025.3.2/bin/nsys profile --trace=cuda --sample=none --cpuctxsw=none --output=" +
+        root +
+        "/child " +
+        root +
+        "/probe parent",
+      ),
+      (
+        "export",
+        "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys export --type=sqlite --output=" +
+        root +
+        "/child.sqlite " +
+        root +
+        "/child.nsys-rep",
+      ),
+    ] {
+    let result = remote(command)
+    @fs.write_file(
+      root + "/" + name + ".txt",
+      result.stdout() + result.stderr(),
+      create_mode=CreateNew,
+    )
+    result.check()
+  }
+  @shell.Cmd("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    host + ":" + root + "/child.sqlite",
+    root + "/child.sqlite",
+  ])
+  .output()
+  .check()
+  let count = @shell.Cmd("sqlite3", [
+    "-readonly",
+    root + "/child.sqlite",
+    "SELECT count(*) FROM CUPTI_ACTIVITY_KIND_MEMSET;",
+  ]).output()
+  count.check()
+  guard count.stdout().trim() == "1" else { fail("child GPU activity absent") }
+  println(
+    "Actual approved child GPU activity captured; production executable and spawn source unchanged",
+  )
+}

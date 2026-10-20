@@ -1,0 +1,206 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline only. Do not equate unsynchronized host clocks or collective duration
+// with wire time. Each matching two-rank collective must start on each rank
+// before it can complete on the other. Their intersection bounds a constant
+// offset; it does NOT assume simultaneous collective completion.
+
+///|
+struct Event {
+  start : Int64
+  end : Int64
+  stream : Int64
+  name : String
+  launch_end : Int64?
+}
+
+///|
+fn bounds(a : Array[Event], b : Array[Event]) -> (Int64, Int64) raise {
+  guard a.length() == b.length() && !a.is_empty() else {
+    fail("unmatched collective count")
+  }
+  let mut lo = -9223372036854775807L
+  let mut hi = 9223372036854775807L
+  for i in 0..<a.length() {
+    guard a[i].name == b[i].name else {
+      fail("unmatched collective kind/order")
+    }
+    lo = lo.max(b[i].start - a[i].end)
+    hi = hi.min(b[i].end - a[i].start)
+  }
+  guard lo <= hi else {
+    fail("inconsistent causal alignment; no time attribution")
+  }
+  (lo, hi)
+}
+
+///|
+test "causal offset bounds do not assume synchronized completions" {
+  let a = [
+    Event::{
+      start: 100L,
+      end: 200L,
+      stream: 1L,
+      name: "sum",
+      launch_end: None,
+    },
+    Event::{
+      start: 300L,
+      end: 400L,
+      stream: 1L,
+      name: "sum",
+      launch_end: None,
+    },
+  ]
+  let b = [
+    Event::{
+      start: 1150L,
+      end: 1210L,
+      stream: 2L,
+      name: "sum",
+      launch_end: None,
+    },
+    Event::{
+      start: 1310L,
+      end: 1360L,
+      stream: 2L,
+      name: "sum",
+      launch_end: None,
+    },
+  ]
+  assert_eq(bounds(a, b), (950L, 1060L))
+}
+
+///|
+async fn events(db : String, begin : Int64, end : Int64) -> Array[Event] {
+  let r = @shell.Cmd("sqlite3", [
+    "-readonly",
+    "-json",
+    db,
+    "SELECT k.start,k.end,k.streamId stream,s.value name,(SELECT CASE WHEN COUNT(*)=1 THEN MAX(r.end) ELSE NULL END FROM CUPTI_ACTIVITY_KIND_RUNTIME r WHERE r.correlationId=k.correlationId) launch_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
+  ]).output(max_output_bytes=16777216)
+  r.check()
+  guard @json.parse(r.stdout()) is Array(rows) else { fail("events") }
+  rows.map(row => {
+    guard row
+      is {
+        "start": Number(a, ..),
+        "end": Number(b, ..),
+        "stream": Number(s, ..),
+        "name": String(name),
+        ..
+      } else {
+      fail("event fields")
+    }
+    Event::{
+      start: a.to_int64(),
+      end: b.to_int64(),
+      stream: s.to_int64(),
+      name,
+      launch_end: match row {
+        { "launch_end": Number(n, ..), .. } => Some(n.to_int64())
+        _ => None
+      },
+    }
+  })
+}
+
+///|
+fn ms(n : Int64) -> Json {
+  Json(n.to_double() / 1000000.0)
+}
+
+///|
+fn launch_lead(e : Event) -> Json {
+  // Only a unique correlation is accepted. Positive means submission already
+  // completed before GPU start; this is queue/dependency time, not lost time.
+  match e.launch_end {
+    Some(end) => ms(e.start - end)
+    None => null
+  }
+}
+
+///|
+test "queued launch is not an exposed host wait" {
+  let e = Event::{
+    start: 100L,
+    end: 200L,
+    stream: 1L,
+    name: "sum",
+    launch_end: Some(40L),
+  }
+  assert_eq(launch_lead(e), Json(0.00006))
+  assert_eq(launch_lead({ ..e, launch_end: None, }), null)
+}
+
+///|
+fn prior(events : Array[Event], c : Event) -> Event raise {
+  let mut result : Event? = None
+  for e in events {
+    if e.stream == c.stream && e.end <= c.start {
+      result = Some(e)
+    }
+  }
+  guard result is Some(e) else { fail("producer absent") }
+  e
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, d0, b0, e0, d1, b1, e1, output] else {
+    fail("DB0 BEGIN0 END0 DB1 BEGIN1 END1 NEW_JSON")
+  }
+  let a = events(d0, @string.parse_int64(b0), @string.parse_int64(e0))
+  let b = events(d1, @string.parse_int64(b1), @string.parse_int64(e1))
+  let ca = a.filter(x => x.name.contains("nccl"))
+  let cb = b.filter(x => x.name.contains("nccl"))
+  let (lo, hi) = bounds(ca, cb)
+  let rows : Array[Json] = []
+  for i in 0..<ca.length() {
+    let x = ca[i]
+    let y = cb[i]
+    let px = prior(a, x)
+    let py = prior(b, y)
+    guard px.name == py.name else { fail("producer order differs") }
+    rows.push({
+      "ordinal": i,
+      "producer": px.name,
+      "collective": x.name,
+      "rank0_start_ns": Json(x.start),
+      "rank0_end_ns": Json(x.end),
+      "rank1_start_ns": Json(y.start),
+      "rank1_end_ns": Json(y.end),
+      "rank0_duration_ms": ms(x.end - x.start),
+      "rank1_duration_ms": ms(y.end - y.start),
+      "rank0_launch_lead_ms": launch_lead(x),
+      "rank1_launch_lead_ms": launch_lead(y),
+      "rank0_producer_ms": ms(px.end - px.start),
+      "rank1_producer_ms": ms(py.end - py.start),
+      "rank0_producer_to_collective_gap_ms": ms(x.start - px.end),
+      "rank1_producer_to_collective_gap_ms": ms(y.start - py.end),
+      "rank1_early_arrival_lower_ms": ms((x.start + lo - y.start).max(0L)),
+      "rank1_early_arrival_upper_ms": ms((x.start + hi - y.start).max(0L)),
+      "rank0_early_arrival_lower_ms": ms((y.start - x.start - hi).max(0L)),
+      "rank0_early_arrival_upper_ms": ms((y.start - x.start - lo).max(0L)),
+    })
+  }
+  let report : Json = {
+    "scope": "two-rank causal alignment, fixed-offset capture; early-arrival bound is not wire time",
+    "rank0_to_rank1_offset_lower_ns": Json(lo),
+    "rank0_to_rank1_offset_upper_ns": Json(hi),
+    "alignment_uncertainty_ms": ms(hi - lo),
+    "sites": rows,
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(
+    "\{rows.length()} matched collectives; offset interval width \{(hi-lo).to_double()/1000000.0} ms",
+  )
+}

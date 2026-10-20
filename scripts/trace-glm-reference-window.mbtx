@@ -1,0 +1,143 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/async@0.22.4/http",
+  "moonbitlang/core/json",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+}
+
+// External reference only: a single literal request and bounded capture.
+// Model warmup and the response drain are not timing benchmarks.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, request_file] &&
+    root.has_prefix("/tmp/lunaflux-reference-bench-") else {
+    fail("PREPARED_ROOT LITERAL_CHAT_REQUEST")
+  }
+  let owner = [
+    "run", "scripts/benchmark-spark-reference.mbtx", root, "glm", "vllm",
+  ]
+  let trace = ["run", "scripts/trace-glm-long-http.mbtx", root, "vllm"]
+  async fn saved(label : String, args : Array[String]) -> Unit {
+    let r = @shell.Cmd("moon", args).output(max_output_bytes=8388608)
+    @fs.write_file(
+      root + "/window-" + label + ".stdout",
+      r.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/window-" + label + ".stderr",
+      r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+  }
+  async fn request(label : String, body : String) -> Unit {
+    @fs.write_file(
+      root + "/window-" + label + ".request.json",
+      body,
+      create_mode=CreateNew,
+    )
+    let client = @http.Client("http://127.0.0.1:18890")
+    defer client.close()
+    let response = client.post("/v1/chat/completions", body, extra_headers={
+      "Content-Type": "application/json",
+      "Content-Length": @utf8.encode(body).length().to_string(),
+    })
+    let output = client.read_all().text()
+    @fs.write_file(
+      root + "/window-" + label + ".response",
+      output,
+      create_mode=CreateNew,
+    )
+    guard response.code == 200 && output.contains("finish_reason") else {
+      fail("incomplete reference response")
+    }
+  }
+  guard @json.parse(@fs.read_file(request_file).text()) is Object(fields) else {
+    fail("request object")
+  }
+  fields["model"] = "matched-model"
+  fields["stream"] = false
+  let stopped = Ref(false)
+  let capture_drained = Ref(false)
+  let retired = Ref(false)
+  async fn retire() -> Unit {
+    if !retired.val {
+      retired.val = true
+      saved("retire", [..owner, "stop"])
+    }
+  }
+  async fn stop_capture() -> Unit {
+    if !stopped.val {
+      stopped.val = true
+      defer {
+        capture_drained.val = true
+      }
+      saved("capture-stop", [..trace, "stop"])
+    } else {
+      // The timer owns the first stop RPC. Do not kill its workers while that
+      // RPC is still draining the profiler buffers.
+      while !capture_drained.val {
+        @async.sleep(10)
+      }
+    }
+  }
+  let result = try {
+    defer retire()
+    saved("start", [..owner, "start-profile"])
+    @async.with_task_group(group => {
+      group.spawn_bg(() => saved("watch", [..owner, "watch"]))
+      let ready = Ref(false)
+      // Loading the 181 GiB TP checkpoint can exceed ten minutes even though
+      // only one shard bank is resident. The independent memory watch remains
+      // active throughout readiness; this is not a request timing budget.
+      for _ in 0..<900 {
+        let client = @http.Client("http://127.0.0.1:18890")
+        let ok = try client.get("/health").code == 200 catch {
+          _ => false
+        }
+        client.close()
+        if ok {
+          ready.val = true
+          break
+        }
+        @async.sleep(2000)
+      }
+      guard ready.val else { fail("reference readiness timeout") }
+      request(
+        "warmup",
+        (
+          {
+            "model": "matched-model",
+            "messages": [
+              { "role": "user", "content": "Reply with the integer 323." },
+            ],
+            "max_tokens": 1,
+            "temperature": 0,
+            "stream": false,
+          } : Json).stringify(),
+      )
+      saved("capture-start", [..trace, "start"])
+      defer stop_capture()
+      group.spawn_bg(() => {
+        @async.sleep(150)
+        stop_capture()
+      })
+      @async.with_timeout(90000, () => {
+        request("profile", Json(fields).stringify())
+      })
+      stop_capture()
+      retire()
+    })
+    "COMPLETE: inspect both GPU traces, matched token count and memory before comparison"
+  } catch {
+    error => "FAILED: " + error.to_string()
+  }
+  @fs.write_file(root + "/WINDOW_RESULT.txt", result, create_mode=CreateNew)
+  println(result)
+}

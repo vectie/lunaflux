@@ -4,23 +4,66 @@ import {
   "moonbitlang/async@0.22.4/fs",
   "moonbitlang/async@0.22.4/shell",
   "moonbitlang/core/env",
+  "moonbitlang/core/json",
 }
 
 // Reuse exact qualified artifacts. The new directory owns only trace outputs
 // and launch metadata; no recompilation, checkpoint scan, or payload hashing.
 
 ///|
+fn trace_files(rank : Int32, isolated : Bool) -> Array[String] {
+  if !isolated {
+    return ["glm_service.exe", "SHARDS.sha256", "acceptance.credential"]
+  }
+  let files = [
+    "glm_service.exe",
+    "SHARDS.sha256",
+    "rank\{rank}.cubin",
+    "sampling.cubin",
+  ]
+  if rank == 0 {
+    files.push("acceptance.credential")
+  }
+  files
+}
+
+///|
+test "isolated manifests retain each rank's modules without requiring peer-only files" {
+  assert_eq(trace_files(0, true), [
+    "glm_service.exe", "SHARDS.sha256", "rank0.cubin", "sampling.cubin", "acceptance.credential",
+  ])
+  assert_eq(trace_files(1, true), [
+    "glm_service.exe", "SHARDS.sha256", "rank1.cubin", "sampling.cubin",
+  ])
+  assert_eq(trace_files(1, false), [
+    "glm_service.exe", "SHARDS.sha256", "acceptance.credential",
+  ])
+}
+
+///|
 async fn main {
-  guard @env.args() is [_, source, root] &&
+  guard @env.args() is [_, source, root, .. options] &&
+    options is ([] | ["--eight-admission-lanes"]) &&
     [source, root].all(p => {
       p.has_prefix("/tmp/lunaflux-glm-http-") &&
       !p.contains("..") &&
       p.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/'))
     }) else {
-    fail("EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT")
+    fail(
+      "EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT [--eight-admission-lanes]",
+    )
   }
   @fs.mkdir(root)
-  @fs.write_file(root + "/artifact-root.txt", source, create_mode=CreateNew)
+  let isolated_manifest = !options.is_empty()
+  @fs.write_file(
+    root + "/artifact-root.txt",
+    if isolated_manifest {
+      root
+    } else {
+      source
+    },
+    create_mode=CreateNew,
+  )
   @fs.write_file(
     root + "/acceptance.credential",
     @fs.read_file(source + "/acceptance.credential"),
@@ -37,23 +80,42 @@ async fn main {
     } else {
       "wlc004s@192.168.2.179"
     }
-    let config = @fs.read_file(source + "/service-\{rank}.json")
+    let original = @fs.read_file(source + "/service-\{rank}.json").text()
+    let config = if isolated_manifest {
+      guard @json.parse(original) is Object(fields) &&
+        fields["slots"] == Json(8) else {
+        fail("eight resident slots required")
+      }
+      fields["admission_lanes"] = Json(8)
+      fields["kernel_root"] = Json(root)
+      Json(fields).stringify()
+    } else {
+      original
+    }
     @fs.write_file(
       root + "/service-\{rank}.json",
       config,
       create_mode=CreateNew,
     )
-    for
-      command in [
-        "mkdir " + root,
-        "ln -s " + source + "/glm_service.exe " + root + "/glm_service.exe",
-        "ln -s " + source + "/SHARDS.sha256 " + root + "/SHARDS.sha256",
-        "ln -s " +
+    @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      "-o",
+      "BatchMode=yes",
+      host,
+      "mkdir " + root,
+    ])
+    .output()
+    .check()
+    for file in trace_files(rank, isolated_manifest) {
+      let command = (if isolated_manifest { "ln " } else { "ln -s " }) +
         source +
-        "/acceptance.credential " +
+        "/" +
+        file +
+        " " +
         root +
-        "/acceptance.credential",
-      ] {
+        "/" +
+        file
       @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command])
       .output()
       .check()
@@ -72,7 +134,12 @@ async fn main {
     root + "/scope.txt",
     "Artifacts/config reused from " +
     source +
-    "\nTrace changes collection only; run a paired host/GPU memory watcher.\n",
+    "\nTrace uses unchanged executable/CUBINs and GPU geometry; run a paired host/GPU memory watcher.\n" +
+    (if isolated_manifest {
+      "Offline C1 trace admits eight waiting lanes instead of sixteen to reserve profiler host memory. Resident slots=8, context=8192, rows=64 unchanged. Not a production configuration change.\n"
+    } else {
+      "Admission configuration unchanged.\n"
+    }),
     create_mode=CreateNew,
   )
 }

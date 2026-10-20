@@ -92,6 +92,32 @@ fn unexpected_rank_loss(
 }
 
 ///|
+fn unexpected_failure(
+  state : String,
+  requested_stop : Bool,
+  profiled : Bool,
+) -> Bool {
+  state.contains("ActiveState=failed") &&
+  !(requested_stop &&
+  profiled &&
+  state.contains("ExecMainStatus=143\n") &&
+  state.contains("Result=exit-code\n"))
+}
+
+///|
+test "only requested Nsight TERM wrapper exit is expected, never an application crash" {
+  let term = "ActiveState=failed\nExecMainStatus=143\nResult=exit-code\n"
+  assert_false(unexpected_failure(term, true, true))
+  assert_true(unexpected_failure(term, false, true))
+  assert_true(unexpected_failure(term, true, false))
+  assert_true(
+    unexpected_failure(
+      "ActiveState=failed\nExecMainStatus=6\nResult=core-dump\n", true, true,
+    ),
+  )
+}
+
+///|
 test "requested drain is distinct from unexpected rank loss" {
   assert_true(unexpected_rank_loss(1, true, false))
   assert_false(unexpected_rank_loss(1, true, true))
@@ -280,6 +306,25 @@ async fn main {
       let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
       if !profile.is_empty() {
         remote(rank, "mkdir " + root + "/nsys-tmp").check()
+        @fs.write_file(
+          root + "/profile-rank\{rank}.txt",
+          "external Nsight launcher\n",
+          create_mode=CreateNew,
+        )
+      }
+      let bridge = if !profile.is_empty() && rank == 0 {
+        match @env.get_env_var("LUNAFLUX_NATIVE_TRACE_BRIDGE") {
+          None => ""
+          Some(path) => {
+            guard path.has_prefix("/tmp/lunaflux-nsys-worker-") &&
+              path.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-' | '.')) else {
+              fail("invalid offline profiler bridge")
+            }
+            "/usr/bin/env LD_PRELOAD=" + path + " "
+          }
+        }
+      } else {
+        ""
       }
       let command = "systemd-run --user --unit=" +
         tag +
@@ -303,6 +348,7 @@ async fn main {
           // Collection starts explicitly after readiness. Only the egress rank
           // is instrumented by default; both ranks are an explicit option.
           // No profiler code enters the engine or its IR.
+          bridge +
           "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys launch --session-new=" +
           tag +
           profile
@@ -366,7 +412,11 @@ async fn main {
       if state.stdout().contains("ActiveState=active") {
         active += 1
       }
-      if state.stdout().contains("ActiveState=failed") {
+      if unexpected_failure(
+          state.stdout(),
+          @fs.exists(root + "/stop-requested.txt"),
+          @fs.exists(root + "/profile-rank\{rank}.txt"),
+        ) {
         stop()
         fail("rank failed; both owned units stopped")
       }
