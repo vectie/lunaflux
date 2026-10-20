@@ -3,12 +3,12 @@
 /// consult device measurements. An explicit fragment envelope precedes the
 /// legacy row-reuse envelope; absent that selection, wider staging wins.
 pub struct MatrixRowReuse {
-  priv minimum_rows : Int32
-  priv minimum_inner : Int32
-  priv wide_inner : Int32
-  priv wide_tile : Int32
-  priv fragment_inner : Int32?
-  priv fragment_columns : Int32
+  priv minimum_rows : Int
+  priv minimum_inner : Int
+  priv wide_inner : Int
+  priv wide_tile : Int
+  priv fragment_inner : Int?
+  priv fragment_columns : Int
 } derive(Debug)
 
 ///|
@@ -16,12 +16,12 @@ pub extend MatrixRowReuse with @debug.Debug::{to_repr}
 
 ///|
 pub fn MatrixRowReuse::new(
-  minimum_rows~ : Int32,
-  minimum_inner~ : Int32,
-  wide_inner~ : Int32,
-  wide_tile~ : Int32,
-  fragment_inner? : Int32,
-  fragment_columns~ : Int32 = 4096,
+  minimum_rows~ : Int,
+  minimum_inner~ : Int,
+  wide_inner~ : Int,
+  wide_tile~ : Int,
+  fragment_inner? : Int,
+  fragment_columns~ : Int = 4096,
 ) -> Self raise @precision.PrecisionPlanError {
   guard minimum_rows >= 32 &&
     minimum_inner > 0 &&
