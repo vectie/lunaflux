@@ -9,6 +9,7 @@ pub struct IndexedSparseDecoderCudaSource {
   priv output : Bytes
   priv output_symbol : String
   priv output_launch : (Int, Int)
+  priv output_operand_alignment : Int64
   priv expansion : (Bytes, String, (Int, Int))?
 }
 
@@ -39,6 +40,7 @@ pub fn indexed_sparse_decoder_source(
   } else {
     None
   }
+  let mut output_operand_alignment = 2L
   let (output, output_launch) = if projection.projection_law() != ScalarFloat32 {
     let tile = @matrix.MatrixTilePlan::new(
       rows~,
@@ -48,6 +50,11 @@ pub fn indexed_sparse_decoder_source(
       staging~,
     )
     let tile = if row_reuse is Some(policy) { policy.apply(tile) } else { tile }
+    if tile.staging() is FragmentPipeline(row_tile~) {
+      output_operand_alignment = @matrix.MatrixFragmentPipeline::new(
+        tile, row_tile~,
+      ).operand_alignment()
+    }
     (
       @tiled.dense_source(tile, symbol=output_symbol, partial_float32=partial),
       (tile.tile_count(), 128),
@@ -106,8 +113,16 @@ pub fn indexed_sparse_decoder_source(
     }),
     output_symbol,
     output_launch,
+    output_operand_alignment,
     expansion,
   }
+}
+
+///|
+pub fn IndexedSparseDecoderCudaSource::output_operand_alignment(
+  self : Self,
+) -> Int64 {
+  self.output_operand_alignment
 }
 
 ///|

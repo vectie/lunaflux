@@ -121,6 +121,12 @@ pub fn IndexedSparseProjectionFrame::prepare(
     args.push([counts, b[2], w[5], b[13]])
   }
   for stage in plan.execution_order() {
+    let alignment = self.source.operand_alignment(stage)
+    if alignment > 2L {
+      // Only the two dense operands need the async-copy atom alignment.
+      args[stage][1] = args[stage][1].requiring_alignment(alignment)
+      args[stage][2] = args[stage][2].requiring_alignment(alignment)
+    }
     let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))
     self.functions.push(function)
     let (grid, block) = self.source.launch(stage)

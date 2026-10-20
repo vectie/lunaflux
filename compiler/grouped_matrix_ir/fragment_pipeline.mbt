@@ -40,6 +40,11 @@ pub fn MatrixFragmentPipeline::fragment_slots(_self : Self) -> Int {
 }
 
 ///|
+pub fn MatrixFragmentPipeline::operand_alignment(_self : Self) -> Int64 {
+  16L
+}
+
+///|
 pub fn MatrixFragmentPipeline::shared_bytes(self : Self) -> Int {
   self.operand_slots() * (self.row_tile + 64) * 64 * 2
 }

@@ -103,6 +103,19 @@ pub fn KernelArgument::device_region(
 }
 
 ///|
+/// Strengthen an existing launch requirement while composing the immutable
+/// argument table at startup. This adds no token-step operation or scan.
+pub fn KernelArgument::requiring_alignment(
+  self : Self,
+  alignment : Int64,
+) -> Self raise DeviceError {
+  guard is_valid_argument_alignment(alignment) else {
+    raise invalid_launch_argument()
+  }
+  { ..self, alignment: Int64::max(self.alignment, alignment) }
+}
+
+///|
 /// Immutable, reusable kernel parameter storage prepared outside the launch
 /// path. Argument order is preserved exactly.
 pub struct KernelArguments {

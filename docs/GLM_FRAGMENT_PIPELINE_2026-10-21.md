@@ -86,3 +86,42 @@ tested candidate source. Targeted native tests: 57/57. Native check passes with
 the repository's existing migration-warning exclusions. Targeted `moon info`
 reports 2137 existing migration warnings, zero errors. No unrelated migration
 files are part of this change.
+
+## Integration checks and retained failures
+
+`99742cbe` builds successfully on the pinned ARM toolchain. The initial
+`ed39b1c3` build failed because the newer desktop formatter rewrote `Int` as
+`Int32`, unsupported by that pinned compiler. Restoring the compatible spelling
+fixes the build without changing arithmetic or unrelated toolchain files.
+
+An additional sparse-decoder regression proves policy forwarding and the
+unchanged launch domain; affected native tests now pass 61/61. Full strict
+native check/test were attempted and stop on existing repository migration
+warnings (including deprecated `try?` in `compiler/parallel_ir`), not a claimed
+full-suite pass. Logs:
+`/tmp/lunaflux-glm-fragment-phase-checks-20261021-v1`.
+
+The same M32 candidate on .178 has median 422.150 → 322.949 us, minimum paired
+improvement 18.12%, with active/inactive outputs bitwise identical.
+Root: `/tmp/lunaflux-glm-projection-staging-fragments-rank0-20261021-v1`.
+Additional .179 shapes also pass identical-output checks, but their generic
+M32/K64 baseline is not necessarily each shape's current serving selector;
+they are not used to claim serving gains or broaden the selected envelope.
+
+Both serving rank exports select the new policy only for the large sparse
+output shape (fragment inner threshold8192, columns4096). Their 11 sparse
+output entries contain the actual pipeline; all other projection selections
+remain unchanged. Initial full-rank AOT compilation at root
+`/tmp/lunaflux-glm-http-fragments-aot-20261021-v1` hit its CPU-only 4 GiB cgroup
+cap, with zero owned swap. It did not load a model or exhaust device memory.
+A retry at `...-v2` uses an 8 GiB CPU cap after a 24 GiB host-headroom check.
+The requested runtime 100 GiB/16 GiB limits are unchanged.
+
+The 8 GiB compile retry succeeds on both ranks. Before executing that artifact,
+the physical plan's 16-byte copy-operand alignment is also forwarded through
+source launch metadata into the existing startup argument table. Only selected
+matrix inputs/weights acquire that requirement; other ports retain their
+existing alignment. There is no new runtime scan or token-step operation.
+The emitted kernel bytes are unchanged by this metadata correction.
+Expanded affected tests pass 81/81; targeted interface generation has 578
+existing migration warnings and zero errors.

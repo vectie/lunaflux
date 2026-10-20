@@ -6,6 +6,7 @@ pub struct IndexedSparseProjectionCudaSource {
   priv symbols : ReadOnlyArray[String]
   priv sources : Bytes
   priv geometry : ReadOnlyArray[(Int, Int)]
+  priv operand_alignments : ReadOnlyArray[Int64]
 }
 
 ///|
@@ -46,6 +47,7 @@ pub fn indexed_sparse_projection_source(
     names.length(),
     (rows, 256),
   )
+  let operand_alignments = Array::make(names.length(), 2L)
   for (input, output, stage) in dense {
     if stage == 5 && plan.cache_law() is LatentBFloat16 {
       continue
@@ -65,6 +67,11 @@ pub fn indexed_sparse_projection_source(
       }
       sources[stage] = @tiled.dense_source(tile, symbol=symbols[stage])
       launches[stage] = (tile.tile_count(), 128)
+      if tile.staging() is FragmentPipeline(row_tile~) {
+        operand_alignments[stage] = @matrix.MatrixFragmentPipeline::new(
+          tile, row_tile~,
+        ).operand_alignment()
+      }
       continue
     }
     sources[stage] = @projection.dense_projection_bf16_source(
@@ -118,7 +125,15 @@ pub fn indexed_sparse_projection_source(
     symbols: ReadOnlyArray::from_array(symbols),
     sources: sources.fold(init=b"", (result, source) => result + source + b"\n"),
     geometry: ReadOnlyArray::from_array(launches),
+    operand_alignments: ReadOnlyArray::from_array(operand_alignments),
   }
+}
+
+///|
+pub fn IndexedSparseProjectionCudaSource::operand_alignment(
+  self : Self, stage : Int,
+) -> Int64 {
+  self.operand_alignments[stage]
 }
 
 ///|

@@ -62,6 +62,7 @@ pub struct MatrixFragmentPipeline {
 pub fn MatrixFragmentPipeline::fragment_slots(Self) -> Int
 pub fn MatrixFragmentPipeline::matrix(Self) -> MatrixTilePlan
 pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixFragmentPipeline::operand_alignment(Self) -> Int64
 pub fn MatrixFragmentPipeline::operand_byte_offset(Self, Int) -> Int
 pub fn MatrixFragmentPipeline::operand_slots(Self) -> Int
 pub fn MatrixFragmentPipeline::shared_bytes(Self) -> Int

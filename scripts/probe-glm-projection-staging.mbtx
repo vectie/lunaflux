@@ -17,10 +17,22 @@ async fn main {
       "NEW_ROOT export | prepare HEADER | profile VARIANT | run VARIANT | sanitize VARIANT",
     )
   }
-  let socket = @env.get_env_var("LUNAFLUX_SPARK_179_SOCKET").unwrap_or(
-    "/tmp/lunaflux-glm179-context-20261019.sock",
+  let rank = @env.get_env_var("LUNA_PROJECTION_RANK").unwrap_or("1")
+  guard rank is ("0" | "1") else { fail("rank must be 0 or 1") }
+  let socket = @env.get_env_var(
+    if rank == "0" { "LUNAFLUX_SPARK_178_SOCKET" } else { "LUNAFLUX_SPARK_179_SOCKET" },
+  ).unwrap_or(
+    if rank == "0" {
+      "/tmp/lunaflux-glm178-context-20261019.sock"
+    } else {
+      "/tmp/lunaflux-glm179-context-20261019.sock"
+    },
   )
-  let host = "wlc004s@192.168.2.179"
+  let host = if rank == "0" {
+    "wlc003s@192.168.2.178"
+  } else {
+    "wlc004s@192.168.2.179"
+  }
   async fn remote(command : String) -> @shell.Output {
     @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
       max_output_bytes=16777216,

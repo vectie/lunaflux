@@ -260,6 +260,7 @@ pub struct KernelArgument {
   // private fields
 }
 pub fn KernelArgument::device_region(Allocation, offset~ : Int64, byte_count~ : Int64, alignment~ : Int64) -> Self raise DeviceError
+pub fn KernelArgument::requiring_alignment(Self, Int64) -> Self raise DeviceError
 
 pub struct KernelArguments {
   // private fields

@@ -206,8 +206,10 @@ pub fn IndexedSparseDecoderFrame::prepare(
           byte_count=20L,
           alignment=4L,
         ),
-        region(attention_output, plan.attention_output_bytes()),
-        region(output_weight, plan.output_weight_bytes()),
+        region(attention_output, plan.attention_output_bytes())
+          .requiring_alignment(self.source.output_operand_alignment()),
+        region(output_weight, plan.output_weight_bytes())
+          .requiring_alignment(self.source.output_operand_alignment()),
         region(
           projection_output,
           if partial {
