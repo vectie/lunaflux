@@ -10,24 +10,28 @@ import {
   "moonbitlang/core/encoding/utf8",
 }
 
-// One diagnostic request, not a latency sweep. Startup, warmup and report
+// One diagnostic request or a fixed cold/warm pair, not a latency sweep. Startup, warmup and report
 // conversion are outside the capture. The launcher selects observed ranks;
 // separate rank traces do not imply synchronized clocks or full coverage.
 // No compiler/runtime instrumentation.
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, request_file] &&
+  guard @env.args() is [_, root, request_file, .. options] &&
+    options is ([] | ["--cold-warm"]) &&
     root.has_prefix("/tmp/lunaflux-glm-http-") &&
     root.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/')) else {
-    fail("PREPARED_NATIVE_TRACE_ROOT LITERAL_REQUEST_JSON")
+    fail("PREPARED_NATIVE_TRACE_ROOT LITERAL_REQUEST_JSON [--cold-warm]")
   }
   async fn saved(
     label : String,
     program : String,
     args : Array[String],
+    environment : Map[String, String],
   ) -> Unit {
-    let out = @shell.Cmd(program, args).output(max_output_bytes=8388608)
+    let out = @shell.Cmd(program, args, env=environment).output(
+      max_output_bytes=8388608,
+    )
     @fs.write_file(
       root + "/" + label + ".stdout",
       out.stdout(),
@@ -55,10 +59,85 @@ async fn main {
   let active = Ref(false)
   let completed = Ref(false)
   let stopped = Ref(false)
+  let phase_label = Ref("")
+  let progress_plugin = @env.get_env_var("LUNAFLUX_NCCL_PROGRESS_PLUGIN")
+  async fn progress(mode : String, label : String) -> Unit {
+    if progress_plugin is Some(path) {
+      guard path.rev_find("/") is Some(i) else { fail("progress plugin path") }
+      for rank in 0..<2 {
+        saved(
+          "progress-" + label + "-rank\{rank}",
+          "ssh",
+          [
+            "-S",
+            if rank == 0 {
+              "/tmp/lunaflux-glm178-context-20261019.sock"
+            } else {
+              "/tmp/lunaflux-glm179-context-20261019.sock"
+            },
+            "-o",
+            "BatchMode=yes",
+            if rank == 0 {
+              "wlc003s@192.168.2.178"
+            } else {
+              "wlc004s@192.168.2.179"
+            },
+            path[:i].to_owned() + "/progress-control " + root + " " + mode,
+          ],
+          {},
+        )
+      }
+    }
+  }
+  async fn network(label : String) -> Unit {
+    if options.is_empty() {
+      return
+    }
+    for rank in 0..<2 {
+      let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
+      saved(
+        "network-" + label + "-rank\{rank}",
+        "ssh",
+        [
+          "-S",
+          if rank == 0 {
+            "/tmp/lunaflux-glm178-context-20261019.sock"
+          } else {
+            "/tmp/lunaflux-glm179-context-20261019.sock"
+          },
+          "-o",
+          "BatchMode=yes",
+          if rank == 0 {
+            "wlc003s@192.168.2.178"
+          } else {
+            "wlc004s@192.168.2.179"
+          },
+          "grep -H . /sys/class/infiniband/" +
+          hca +
+          "/ports/1/counters/* /sys/class/infiniband/" +
+          hca +
+          "/ports/1/hw_counters/*",
+        ],
+        {},
+      )
+    }
+  }
   async fn stop_capture() -> Unit {
     if active.val && !stopped.val {
       stopped.val = true
-      saved("bounded-stop", "moon", [..trace, "stop"])
+      // Stop callback retention before report flushing: flushing is not part
+      // of the fixed GPU window and must not exhaust the finite event pool.
+      progress("0", "stop" + phase_label.val)
+      saved(
+        "bounded-stop" + phase_label.val,
+        "moon",
+        [..trace, "stop"],
+        if phase_label.val == "" {
+          {}
+        } else {
+          { "LUNAFLUX_TRACE_LABEL": phase_label.val[1:].to_owned() }
+        },
+      )
     }
   }
   async fn request(name : String, text : String) -> Unit {
@@ -82,8 +161,9 @@ async fn main {
     }
   }
   let result = try {
-    saved("bounded-start", "moon", [..owner, "start-profile"])
-    defer saved("bounded-retire", "moon", [..owner, "stop"])
+    progress("init", "init")
+    saved("bounded-start", "moon", [..owner, "start-profile"], {})
+    defer saved("bounded-retire", "moon", [..owner, "stop"], {})
     @async.with_task_group(group => {
       group.spawn_bg(() => {
         while !completed.val {
@@ -121,7 +201,9 @@ async fn main {
           @async.sleep(250)
         }
       })
-      group.spawn_bg(() => saved("service-watch", "moon", [..owner, "watch"]))
+      group.spawn_bg(() => {
+        saved("service-watch", "moon", [..owner, "watch"], {})
+      })
       let ready = Ref(false)
       for _ in 0..<180 {
         let client = @http.Client("http://127.0.0.1:18889")
@@ -151,23 +233,62 @@ async fn main {
         "stream": false,
       }
       request("warmup", warmup.stringify())
-      saved("bounded-capture-start", "moon", [..trace, "start"])
-      active.val = true
-      defer stop_capture()
-      if @env.get_env_var("LUNAFLUX_TRACE_CAPTURE_MILLIS") is Some(value) {
-        let milliseconds = @string.parse_int(value)
-        guard milliseconds >= 50 && milliseconds <= 1000 else {
-          fail("bounded capture must be 50..1000 ms")
-        }
-        group.spawn_bg(() => {
-          @async.sleep(milliseconds)
+      for
+        (label, phase) in (if options.is_empty() {
+          [("", "1")]
+        } else {
+          [("cold", "1"), ("warm", "2")]
+        }) {
+        phase_label.val = if label == "" { "" } else { "-" + label }
+        stopped.val = false
+        network(label + "-before")
+        progress(phase, "start" + phase_label.val)
+        saved(
+          "bounded-capture-start" + phase_label.val,
+          "moon",
+          [..trace, "start"],
+          if label == "" {
+            {}
+          } else {
+            { "LUNAFLUX_TRACE_LABEL": label }
+          },
+        )
+        active.val = true
+        defer stop_capture()
+        @async.with_task_group(capture => {
+          if @env.get_env_var("LUNAFLUX_TRACE_CAPTURE_MILLIS") is Some(value) {
+            let milliseconds = @string.parse_int(value)
+            guard milliseconds >= 50 && milliseconds <= 1000 else {
+              fail("bounded capture must be 50..1000 ms")
+            }
+            capture.spawn_bg(() => {
+              @async.sleep(milliseconds)
+              stop_capture()
+            })
+          }
+          @async.with_timeout(60000, () => {
+            request(
+              "profile" + phase_label.val,
+              @fs.read_file(request_file).text(),
+            )
+          })
           stop_capture()
         })
+        active.val = false
+        network(label + "-after")
+        if !options.is_empty() {
+          let body = @fs.read_file(
+            root + "/profile" + phase_label.val + ".response",
+          ).text()
+          guard body.contains("\"prompt_tokens\":7973") &&
+            body.contains("\"cached_tokens\":0") &&
+            body.contains("[DONE]") else {
+            fail(
+              "cold/warm workload differs or prompt reused; no matched claim",
+            )
+          }
+        }
       }
-      @async.with_timeout(60000, () => {
-        request("profile", @fs.read_file(request_file).text())
-      })
-      stop_capture()
       if @env.get_env_var("LUNAFLUX_TRACE_CORRECTNESS") == Some("1") {
         // Outside the measured window: exercise partial chunks and retirement
         // after the long request has already exercised exact and tail rows.
@@ -193,9 +314,9 @@ async fn main {
         }
       }
       completed.val = true
-      saved("bounded-drain", "moon", [..owner, "stop"])
+      saved("bounded-drain", "moon", [..owner, "stop"], {})
     })
-    "COMPLETE: one profiled request; inspect trace coverage before attribution"
+    "COMPLETE: fixed diagnostic request scope; inspect cold/warm and proxy coverage before attribution"
   } catch {
     error => "FAILED: " + error.to_string()
   }

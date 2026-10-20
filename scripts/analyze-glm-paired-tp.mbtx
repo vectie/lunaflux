@@ -90,7 +90,7 @@ async fn events(db : String, begin : Int64, end : Int64) -> Array[Event] {
     "-readonly",
     "-json",
     db,
-    "SELECT k.start,k.end,k.streamId stream,s.value name,COALESCE(k.graphNodeId,0) graph_node,(SELECT CASE WHEN COUNT(*)=1 THEN MAX(r.end) ELSE NULL END FROM CUPTI_ACTIVITY_KIND_RUNTIME r WHERE r.correlationId=k.correlationId) launch_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
+    "WITH runtime AS (SELECT correlationId,COUNT(*) n,MAX(end) last_end FROM CUPTI_ACTIVITY_KIND_RUNTIME GROUP BY correlationId) SELECT k.start,k.end,k.streamId stream,s.value name,COALESCE(k.graphNodeId,0) graph_node,CASE WHEN r.n=1 THEN r.last_end ELSE NULL END launch_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName LEFT JOIN runtime r ON r.correlationId=k.correlationId WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
   ]).output(max_output_bytes=16777216)
   r.check()
   guard @json.parse(r.stdout()) is Array(rows) else { fail("events") }

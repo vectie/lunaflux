@@ -160,6 +160,7 @@ fn profile_options(
   rank : Int32,
   trace_method~ : String = "cuda",
   events~ : Bool = false,
+  progress~ : Bool = false,
 ) -> String raise {
   guard trace_method is ("cuda" | "cuda-hw") else {
     fail("trace method must be cuda or cuda-hw")
@@ -175,6 +176,7 @@ fn profile_options(
   if rank == 1 || ranks == Some("both") {
     " --trace=" +
     trace_method +
+    (if progress { ",nvtx" } else { "" }) +
     " --cuda-graph-trace=" +
     trace +
     " --cuda-flush-interval=0 --cuda-event-trace=" +
@@ -211,6 +213,16 @@ test "hardware trace and event observation remain explicit diagnostic options" {
   } noraise {
     _ => fail("unknown tracing method accepted")
   }
+}
+
+///|
+test "proxy progress observation adds only external NVTX tracing" {
+  assert_true(
+    profile_options(None, Some("both"), 0, progress=true).contains(
+      "--trace=cuda,nvtx",
+    ),
+  )
+  assert_false(profile_options(None, Some("both"), 0).contains("nvtx"))
 }
 
 ///|
@@ -284,6 +296,19 @@ async fn main {
     let nccl_level = nccl_diagnostic_level(
       @env.get_env_var("LUNAFLUX_NCCL_DIAGNOSTIC_LEVEL"),
     )
+    let progress = @env.get_env_var("LUNAFLUX_NCCL_PROGRESS_PLUGIN")
+    if progress is Some(path) {
+      guard mode == "start-profile" &&
+        @env.get_env_var("LUNAFLUX_NATIVE_TRACE_RANKS") == Some("both") &&
+        @env.get_env_var("LUNAFLUX_NATIVE_TRACE_BRIDGE") != None &&
+        path.has_prefix("/tmp/lunaflux-nccl-progress-") &&
+        path.has_suffix("/libnccl-profiler-progress.so") &&
+        path.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/' | '.')) else {
+        fail(
+          "progress observation requires the explicit paired diagnostic plugin/bridge",
+        )
+      }
+    }
     guard nccl_level != "INFO" ||
       (
         mode == "start-profile" &&
@@ -329,6 +354,7 @@ async fn main {
             "cuda",
           ),
           events=@env.get_env_var("LUNAFLUX_NATIVE_TRACE_EVENTS") == Some("1"),
+          progress=progress != None,
         )
       } else {
         ""
@@ -363,6 +389,14 @@ async fn main {
         nccl_level +
         (if nccl_level == "INFO" {
           " --setenv=NCCL_DEBUG_FILE=" + root + "/nccl-%p.log"
+        } else {
+          ""
+        }) +
+        (if progress is Some(path) {
+          " --setenv=NCCL_PROFILER_PLUGIN=" +
+          path +
+          " --setenv=LUNAFLUX_NCCL_PROGRESS_ROOT=" +
+          root
         } else {
           ""
         }) +

@@ -1,0 +1,323 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbitlang/core/json",
+}
+
+// External software progress evidence, not wire-time or compiler correctness.
+
+///|
+struct Progress {
+  id : Int64
+  parent : Int64
+  kind : Int64
+  phase : Int64
+  seq : Int64
+  channel : Int64
+  send : Int64
+  count : Int64
+  begin : Int64
+  end : Int64
+  states : Array[Int64]
+  cpu_states : Array[Int64]
+  cpu_end : Int64
+}
+
+///|
+fn parse_record(line : StringView) -> Progress raise {
+  let fields = line.split("\t").map(x => x.to_owned()).collect()
+  guard fields.length() is (49 | 82) else { fail("progress columns") }
+  fn n(i : Int32) -> Int64 raise {
+    @string.parse_int64(fields[i])
+  }
+  {
+    id: n(0),
+    parent: n(1),
+    kind: n(2),
+    phase: n(3),
+    seq: n(5),
+    channel: n(6),
+    send: n(7),
+    count: n(11),
+    begin: n(13),
+    end: n(14),
+    states: Array::makei(32, i => n(17 + i)),
+    cpu_states: if fields.length() == 82 {
+      Array::makei(32, i => n(50 + i))
+    } else {
+      Array::make(32, 0L)
+    },
+    cpu_end: if fields.length() == 82 {
+      n(49)
+    } else {
+      0L
+    },
+  }
+}
+
+///|
+fn intervals(e : Progress) -> Array[(String, Int64, Int64)] {
+  let result : Array[(String, Int64, Int64)] = []
+  if e.kind != 16L {
+    return result
+  }
+  let route = if e.send == 1L {
+    [(8, "gpu_data"), (20, "peer_ready"), (9, "send_completion")]
+  } else {
+    [(10, "receive_completion"), (11, "flush"), (12, "gpu_consumption")]
+  }
+  for i in 0..<route.length() {
+    let (s, name) = route[i]
+    let begin = e.states[s]
+    let end = if i + 1 < route.length() {
+      e.states[route[i + 1].0]
+    } else {
+      e.end
+    }
+    if begin > 0L && end >= begin {
+      result.push((name, begin, end))
+    }
+  }
+  result
+}
+
+///|
+test "progress gaps require both observed endpoints" {
+  let states = Array::make(32, 0L)
+  states[8] = 100L
+  states[20] = 170L
+  states[9] = 180L
+  let e : Progress = {
+    id: 1L,
+    parent: 0L,
+    kind: 16L,
+    phase: 1L,
+    seq: 3L,
+    channel: 0L,
+    send: 1L,
+    count: 0L,
+    begin: 90L,
+    end: 230L,
+    states,
+    cpu_states: Array::make(32, 0L),
+    cpu_end: 0L,
+  }
+  assert_eq(intervals(e), [
+    ("gpu_data", 100L, 170L),
+    ("peer_ready", 170L, 180L),
+    ("send_completion", 180L, 230L),
+  ])
+  states[20] = 0L
+  assert_eq(intervals(e), [("send_completion", 180L, 230L)])
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, tsv, output, .. options] &&
+    options.length() is (0 | 2) else {
+    fail("PROGRESS_TSV NEW_JSON [SQLITE PHASE]")
+  }
+  let text = @fs.read_file(tsv).text()
+  let rows : Array[Progress] = []
+  for line in text.split("\n") {
+    if !line.is_empty() && !line.has_prefix("#") && !line.has_prefix("id\t") {
+      rows.push(parse_record(line))
+    }
+  }
+  let parent : Map[Int64, Progress] = Map([])
+  for e in rows {
+    parent[e.id] = e
+  }
+  let kernels : Array[(Int64, Int64)] = []
+  let offsets : Array[Int64] = []
+  let selected_phase = if options.is_empty() {
+    0L
+  } else {
+    @string.parse_int64(options[1])
+  }
+  if !options.is_empty() {
+    async fn query(sql : String) -> Array[Json] {
+      let out = @shell.Cmd("sqlite3", ["-readonly", "-json", options[0], sql]).output(
+        max_output_bytes=16777216,
+      )
+      out.check()
+      guard @json.parse(out.stdout()) is Array(result) else {
+        fail("query rows")
+      }
+      result
+    }
+    for
+      row in query(
+        "SELECT start,text FROM NVTX_EVENTS WHERE text LIKE 'LF_NCCL phase=\{selected_phase} %' ORDER BY start;",
+      ) {
+      guard row is { "start": Number(start, ..), "text": String(mark), .. } &&
+        mark.split("mono=").collect() is [_, value] else {
+        fail("NVTX marker")
+      }
+      offsets.push(@string.parse_int64(value) - start.to_int64())
+    }
+    guard !offsets.is_empty() else {
+      fail("no clock markers; no GPU/proxy alignment")
+    }
+    offsets.sort()
+    for
+      row in query(
+        "SELECT k.start,k.end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE s.value LIKE '%nccl%' ORDER BY k.start LIMIT 64;",
+      ) {
+      guard row is { "start": Number(a, ..), "end": Number(b, ..), .. } else {
+        fail("kernel")
+      }
+      kernels.push((a.to_int64(), b.to_int64()))
+    }
+  }
+  let data : Array[Json] = []
+  for phase in [1L, 2L, 3L] {
+    if selected_phase != 0L && phase != selected_phase {
+      continue
+    }
+    let mut ordinal = 0
+    for coll in rows.filter(e => e.kind == 2L && e.phase == phase) {
+      if !options.is_empty() && ordinal >= kernels.length() {
+        break
+      }
+      let members : Array[Progress] = []
+      for e in rows {
+        if e.kind != 16L {
+          continue
+        }
+        if parent.get(e.parent) is Some(op) && op.parent == coll.id {
+          members.push(e)
+        }
+      }
+      let longest : Map[String, Json] = Map([])
+      let maxima : Map[String, Int64] = Map([])
+      let clipped : Map[String, Json] = Map([])
+      let clipped_max : Map[String, Int64] = Map([])
+      let ctrl : Array[Json] = []
+      if !offsets.is_empty() {
+        let offset = offsets[offsets.length() / 2]
+        let (a, b) = kernels[ordinal]
+        for e in rows {
+          if e.kind != 32L ||
+            e.phase != phase ||
+            e.states[17] == 0L ||
+            e.states[18] < e.states[17] {
+            continue
+          }
+          let overlap = (e.states[18].min(b + offset) -
+          e.states[17].max(a + offset)).max(0L)
+          if overlap > 0L {
+            ctrl.push({
+              "event": Json(e.id),
+              "begin": Json(e.states[17]),
+              "end": Json(e.states[18]),
+              "appended_ops": Json(e.count),
+              "overlap_ms": Json(overlap.to_double() / 1000000.0),
+              "full_append_ms": Json(
+                (e.states[18] - e.states[17]).to_double() / 1000000.0,
+              ),
+              "thread_cpu_ms": Json(
+                (e.cpu_states[18] - e.cpu_states[17]).to_double() / 1000000.0,
+              ),
+            })
+          }
+        }
+      }
+      for e in members {
+        for (name, begin, end) in intervals(e) {
+          let state_ids = match name {
+            "gpu_data" => (8, 20)
+            "peer_ready" => (20, 9)
+            "send_completion" => (9, -1)
+            "receive_completion" => (10, 11)
+            "flush" => (11, 12)
+            _ => (12, -1)
+          }
+          let cpu_begin = e.cpu_states[state_ids.0]
+          let cpu_end = if state_ids.1 < 0 {
+            e.cpu_end
+          } else {
+            e.cpu_states[state_ids.1]
+          }
+          let cpu : Json = if cpu_begin > 0L && cpu_end >= cpu_begin {
+            Json((cpu_end - cpu_begin).to_double() / 1000000.0)
+          } else {
+            null
+          }
+          if end - begin > maxima.get(name).unwrap_or(-1L) {
+            maxima[name] = end - begin
+            longest[name] = {
+              "ms": Json((end - begin).to_double() / 1000000.0),
+              "begin": Json(begin),
+              "end": Json(end),
+              "channel": Json(e.channel),
+              "step_event": Json(e.id),
+              "full_state_thread_cpu_ms": cpu,
+            }
+          }
+          if !offsets.is_empty() {
+            let offset = offsets[offsets.length() / 2]
+            let (a, b) = kernels[ordinal]
+            let overlap = (end.min(b + offset) - begin.max(a + offset)).max(0L)
+            if overlap > clipped_max.get(name).unwrap_or(-1L) {
+              clipped_max[name] = overlap
+              clipped[name] = {
+                "overlap_ms": Json(overlap.to_double() / 1000000.0),
+                "full_state_ms": Json((end - begin).to_double() / 1000000.0),
+                "full_state_thread_cpu_ms": cpu,
+                "channel": Json(e.channel),
+                "step_event": Json(e.id),
+                "begin": Json(begin),
+                "end": Json(end),
+              }
+            }
+          }
+        }
+      }
+      data.push({
+        "ordinal": Json(ordinal),
+        "phase": Json(phase),
+        "id": Json(coll.id),
+        "seq": Json(coll.seq),
+        "callback_begin": Json(coll.begin),
+        "callback_end": Json(coll.end),
+        "steps": Json(members.length()),
+        "max_single_step_state": Json(longest),
+        "max_single_step_overlap": Json(clipped),
+        "proxy_append_overlaps": ctrl,
+        "gpu_duration_ms": if options.is_empty() {
+          null
+        } else {
+          Json(
+            (kernels[ordinal].1 - kernels[ordinal].0).to_double() / 1000000.0,
+          )
+        },
+      })
+      ordinal += 1
+    }
+  }
+  let report : Json = {
+    "scope": "unclipped software progress states; queue/GPU waits can precede kernel execution; maxima are not additive or wire time",
+    "header": Json(text.split("\n").collect()[0].to_owned()),
+    "events": Json(rows.length()),
+    "collectives": data,
+    "monotonic_minus_timeline_median_ns": if offsets.is_empty() {
+      null
+    } else {
+      Json(offsets[offsets.length() / 2])
+    },
+    "clock_marker_offset_spread_ns": if offsets.is_empty() {
+      null
+    } else {
+      Json(offsets[offsets.length() - 1] - offsets[0])
+    },
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(
+    "\{rows.length()} events, \{data.length()} collective callbacks; retain phase and coverage limits",
+  )
+}

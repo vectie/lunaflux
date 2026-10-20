@@ -1,0 +1,129 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// External profiler build. Uses the upstream v2.31.2-1 example ABI headers,
+// not a new dependency of LunaFlux. No payload digests or GPU execution.
+
+///|
+async fn main {
+  guard @env.args() is [_, source, root] &&
+    source.has_prefix("/tmp/lunaflux-nccl-proxy-source-") &&
+    root.has_prefix("/tmp/lunaflux-nccl-progress-") &&
+    [source, root].all(p => {
+      !p.contains("..") &&
+      p.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '-' | '/' | '.'))
+    }) else {
+    fail("EXTRACTED_NCCL_SOURCE NEW_PROBE_ROOT")
+  }
+  @fs.mkdir(root)
+  @fs.write_file(
+    root + "/upstream.txt",
+    "NVIDIA/nccl v2.31.2-1, plugins/profiler/example/nccl; ABI headers only; no integrity scan\n",
+    create_mode=CreateNew,
+  )
+  for rank in 0..<2 {
+    let socket = if rank == 0 {
+      "/tmp/lunaflux-glm178-context-20261019.sock"
+    } else {
+      "/tmp/lunaflux-glm179-context-20261019.sock"
+    }
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    async fn remote(command : String) -> @shell.Output {
+      @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+        max_output_bytes=8388608,
+      )
+    }
+    remote("mkdir " + root).check()
+    @shell.Cmd("scp", [
+      "-r",
+      "-o",
+      "ControlPath=" + socket,
+      source + "/plugins/profiler/example/nccl",
+      host + ":" + root + "/",
+    ])
+    .output()
+    .check()
+    for file in ["nccl_progress_probe.cc", "nccl_progress_probe_test.cc"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        "tests/process_native_fixture/" + file,
+        host + ":" + root + "/",
+      ])
+      .output()
+      .check()
+    }
+    for
+      (name, args) in [
+        (
+          "plugin",
+          "-shared -fPIC " +
+          root +
+          "/nccl_progress_probe.cc -o " +
+          root +
+          "/libnccl-profiler-progress.so -ldl",
+        ),
+        (
+          "control",
+          "-DPROGRESS_CONTROL " +
+          root +
+          "/nccl_progress_probe.cc -o " +
+          root +
+          "/progress-control -ldl",
+        ),
+        (
+          "test",
+          "-fsanitize=address,undefined -fno-omit-frame-pointer -pthread " +
+          root +
+          "/nccl_progress_probe_test.cc -o " +
+          root +
+          "/test -ldl",
+        ),
+      ] {
+      let out = remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-" +
+        name +
+        " -p MemoryMax=1G -p MemorySwapMax=0 -p RuntimeMaxSec=180 /usr/bin/g++ -std=c++14 -O2 -Wall -Wextra -Werror -I" +
+        root +
+        "/nccl -I/usr/local/cuda/include " +
+        args,
+      )
+      @fs.write_file(
+        root + "/rank\{rank}-" + name + ".txt",
+        out.stdout() + out.stderr(),
+        create_mode=CreateNew,
+      )
+      out.check()
+    }
+    remote("mkdir " + root + "/test-output").check()
+    let out = remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      root[5:].to_owned() +
+      "-asan -p MemoryMax=1G -p MemorySwapMax=0 -p RuntimeMaxSec=60 /usr/bin/env ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 " +
+      root +
+      "/test " +
+      root +
+      "/test-output",
+    )
+    @fs.write_file(
+      root + "/rank\{rank}-asan.txt",
+      out.stdout() + out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  println(
+    "both ARM builds and bounded ASan/UBSan/leak fixture complete; no GPU work",
+  )
+}

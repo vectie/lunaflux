@@ -1,0 +1,71 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Post-retirement external evidence only; no hashing or compiler dependency.
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-glm-http-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/')) else {
+    fail("TRACE_ROOT")
+  }
+  for rank in 0..<2 {
+    let socket = if rank == 0 {
+      "/tmp/lunaflux-glm178-context-20261019.sock"
+    } else {
+      "/tmp/lunaflux-glm179-context-20261019.sock"
+    }
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    async fn remote(command : String) -> @shell.Output {
+      @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+        max_output_bytes=4194304,
+      )
+    }
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else {
+      fail("retire GPU owners before collection")
+    }
+    let files = remote(
+      "find " +
+      root +
+      " -maxdepth 1 -type f -name 'progress-rank*.tsv' -o -name 'nccl-*.log'",
+    )
+    files.check()
+    for line in files.stdout().split("\n") {
+      let path = line.trim().to_owned()
+      if path.is_empty() {
+        continue
+      }
+      guard path.has_prefix(root + "/") &&
+        path.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/' | '.')) else {
+        fail("unexpected record path")
+      }
+      let destination = root +
+        "/rank\{rank}-" +
+        path[root.length() + 1:].to_owned()
+      guard !@fs.exists(destination) else { fail("retain existing evidence") }
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        host + ":" + path,
+        destination,
+      ])
+      .output()
+      .check()
+      println(destination)
+    }
+  }
+}

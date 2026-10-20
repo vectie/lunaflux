@@ -117,3 +117,29 @@ inside that call; individual allocator calls were not instrumented, so do not
 assign the entire append duration to `calloc`. The CPU-timestamp observer
 itself adds overhead. Compare the bounded candidate using the same observer.
 The window alternative is still nondefault and unqualified for promotion.
+
+## Windowed source and interrupted first trial
+
+Source `6c10bf37` implements the explicit horizon through parallel IR,
+prepared-window ownership, capture and HTTP policy. The committed ARM build
+is `/tmp/lunaflux-glm-service-arm-windows-20261020-v1`; qualified CUBINs are
+unchanged. Alternate exact/tail/decode execution, auxiliary forks, cancellation
+and zero-allocation replay pass affected tests. The empty-cut test initially
+expected construction to succeed, contrary to the existing nonempty contract;
+`8c9bc575` corrects that test without changing executable behavior.
+
+The first 16-site run, `/tmp/lunaflux-glm-http-nccl-window16-20261020-v1`,
+retains both GPU/proxy traces, but a local disk-full error lost the warm HTTP
+response and final status. It is **not a completed correctness qualification**.
+Both exact diagnostic owners were stopped and their files collected; no
+memory-limit waiver was made. Only regenerable local release/script build
+caches were removed. Source, models, artifacts and evidence were preserved.
+
+Its preserved cold trace is encouraging: rank 1's first four collectives
+are 1.164864, 0.254208, 0.246816 and 0.227648 ms; maximum overlapping proxy
+append is 0.438017 ms rather than 6.075124 ms. Four launch correlations in
+the first 64 collectives prove actual 16-site partitioning. This is not yet
+an accepted fix: repeat the complete fixed pair after the disk failure.
+The full native campaign also encountered 30 disk-space fixture failures
+plus the old test expectation (5,306/5,337); a fresh run is required, not a
+tolerance waiver or a claim of a passing suite.
