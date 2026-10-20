@@ -205,3 +205,8 @@ causal explanation/fix for the remaining approximately 3 ms simultaneous
 progress stall, and a fresh matched vLLM trace within the host reserve.
 The finite campaign stops with that negative result visible, production
 restored, and no new kernel/transport policy guessed into production.
+
+Follow-up: `GLM_NCCL_COLD_WARM_2026-10-20.md` now records paired cold/warm
+proxy-control observation and an explicit bounded-collective-window IR
+candidate. It supersedes the missing-progress-evidence status above, not
+the preserved measurements or the failed fresh-vLLM qualification.

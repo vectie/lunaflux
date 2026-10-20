@@ -143,3 +143,71 @@ an accepted fix: repeat the complete fixed pair after the disk failure.
 The full native campaign also encountered 30 disk-space fixture failures
 plus the old test expectation (5,306/5,337); a fresh run is required, not a
 tolerance waiver or a claim of a passing suite.
+
+## Completed same-observer repeat
+
+`/tmp/lunaflux-glm-http-nccl-window16-20261020-v2` completes both literal
+requests: 7,973 input, zero cached, one output token and `[DONE]` each.
+The subsequent request returns `323`, `stop`, 26 input/six output tokens.
+The long requests exercise exact 64-row frames and the 37-row tail; the
+smoke checks subsequent request retirement. This is not broad model quality.
+
+| First-chunk measurement, ms | Whole graph cold R0/R1 | Window16 cold R0/R1 | Whole graph warm R0/R1 | Window16 warm R0/R1 |
+| --- | --- | --- | --- | --- |
+| First dense FFN reduction (ordinal 1) | 5.458784 / 5.850144 | 0.270880 / 0.200896 | 0.262720 / 0.244224 | 0.261824 / 0.227968 |
+| Previously suspect ordinal 2 | 0.236256 / 0.282208 | 0.253536 / 0.227328 | 0.237920 / 0.224864 | 0.250272 / 0.229504 |
+| First 64 collective-span sum | 31.330304 / 25.561184 | 25.633120 / 15.756512 | 21.203648 / 49.834496 | 23.896864 / 16.068512 |
+| First-to-64th collective wall span | 211.950848 / 205.091776 | 205.588064 / 197.663040 | 236.593632 / 230.391200 | 204.496192 / 198.265952 |
+
+These are diagnostic windows, **not request latency or throughput**. In
+particular warm rank 0's collective sum increases; the shorter warm wall
+span must not all be credited to communication. Its compute sum also changes
+from 291.969184 to 252.631263 ms. Compute sums exceed wall span because shared
+and routed work overlap. No sum across ranks is a wall-time metric.
+
+Maximum cold append interval overlapping the observed NCCL nodes falls from
+4.406759/6.075124 ms to 0.480193/0.264441 ms. Both repeats retain all first
+64 collective records without event overflow. Their actual four graph-launch
+correlations replace one for this prefix. The largest post-first collective
+is now 1.193760/0.856000 ms cold and 0.924064/0.927936 ms warm; not every
+collective has become a constant-time operation.
+
+The remaining first collective is a **different cause**: rank 0 takes
+8.178816 ms cold, with 7.780512--8.096512 ms of early arrival bounded from
+both-rank causality. Rank 1 takes 0.235520 ms. This is not a surviving
+8 ms network/proxy transfer. Offset-bound width is 0.316 ms; local NVTX
+marker spreads are reported separately, never used to synchronize hosts.
+
+Source and execution relationship:
+
+```
+Before: one whole-frame graph -> bulk publication of future proxy operations
+        proxy thread: progress -> append burst (up to 6.08 ms) -> progress
+        GPU ranks:    NCCL waiting during append -> consumer
+
+After:  pure ReplayPolicy(maximum_sites=16)
+        -> joined collective cuts -> owned graph windows -> ordered replay
+        graph 0: sites 0..15 -> graph 1: sites 16..31 -> ...
+        one terminal request fence; auxiliary forks/join and tail route retained
+```
+
+No NIC error, retry or congestion counter increments were observed in either
+completed phase. These counter intervals cover the complete diagnostic
+request, not individual collective wire time. On rank 1, cold RX/TX data
+counters increase 2,113,183,493 / 2,113,269,069 four-byte units. There is real
+RoCE traffic; absence of errors alone would not prove absence of queuing.
+
+GPU maxima are 94.2422/94.2705 GiB; host minima 17.3842/17.7628 GiB.
+All available owned-unit swap readings are zero. Three startup/retirement
+readings are `[not set]`, not nonzero swap: retain the initial overly broad
+boolean summary and use `envelope-network-summary-v2.json` plus raw logs.
+Both GPU owners retire. After clearing regenerable caches, the full native
+suite passes **5,337/5,337** with unchanged migration-warning exclusions.
+Both ARM observer builds pass ASan/UBSan/leak tests, now including ProxyCtrl
+append/count/CPU-timestamp assertions. The native graph capture/lease/cancel
+ASan+UBSan gate and explicit ownership balances pass; CUDA kernels/ABI did
+not change. GPU execution is separately evidenced by these HTTP traces.
+
+The source-pinned 16-site option remains explicit/nondefault. A final trace
+without the proxy plugin checks whether instrumentation created the apparent
+remedy; no overall benchmark or new production policy is implied here.
