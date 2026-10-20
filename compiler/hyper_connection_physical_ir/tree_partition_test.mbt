@@ -10,6 +10,11 @@ test "subgroup placement preserves every descending tree level" {
     )
     assert_eq(local.iter().to_array(), [16, 8, 4, 2, 1])
   }
-  assert_true((try? ReductionTreePartition::new(256, 48)) is Err(_))
-  assert_true((try? ReductionTreePartition::new(16, 32)) is Err(_))
+  for (workers, width) in [(256, 48), (16, 32)] {
+    try ReductionTreePartition::new(workers, width) catch {
+      _ => ()
+    } noraise {
+      _ => fail("illegal subgroup accepted")
+    }
+  }
 }

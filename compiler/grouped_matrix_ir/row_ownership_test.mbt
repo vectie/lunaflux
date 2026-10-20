@@ -30,13 +30,16 @@ test "row reuse envelope preserves wide staging and numerical law" {
     assert_eq(selected.law(), plan.law())
     assert_eq(selected.geometry(), plan.geometry())
   }
-  assert_true(
-    (try? MatrixRowReuse::new(
+  try
+    MatrixRowReuse::new(
       minimum_rows=0,
       minimum_inner=1,
       wide_inner=1,
       wide_tile=64,
-    ))
-    is Err(_),
-  )
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("illegal row envelope accepted")
+  }
 }

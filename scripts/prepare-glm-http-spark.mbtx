@@ -194,7 +194,7 @@ async fn main {
     1024,
   )
   let compile_memory_mib = positive_setting(
-    "LUNAFLUX_GLM_HTTP_COMPILE_MEMORY_MIB", 4096, 4096,
+    "LUNAFLUX_GLM_HTTP_COMPILE_MEMORY_MIB", 4096, 8192,
   )
   let pages = positive_setting(
     "LUNAFLUX_GLM_HTTP_HISTORY_PAGES",
@@ -359,6 +359,14 @@ async fn main {
     return
   }
   for rank in 0..<2 {
+    record(
+      root,
+      "compile-reserve-\{rank}",
+      remote(
+        rank,
+        "awk '/MemAvailable:/ {if($2<\{(compile_memory_mib+16384)*1024})exit 9;print}' /proc/meminfo",
+      ),
+    )
     let unit = tag + "-compile-\{rank}"
     record(
       root,

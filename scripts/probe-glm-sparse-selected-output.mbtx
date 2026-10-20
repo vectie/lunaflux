@@ -1,0 +1,241 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline source-exact replay, not a production compiler dependency.
+
+///|
+fn extract(source : String, replacement : String) -> String raise {
+  let marker = "extern \"C\" __global__ void glm_sparse_3_output("
+  guard source.split(marker).to_array() is [_, rest] else {
+    fail("exactly one selected output entry required")
+  }
+  let mut opened = false
+  let mut depth = 0
+  for i in 0..<rest.length() {
+    if rest[i] == '{' {
+      opened = true
+      depth += 1
+    } else if rest[i] == '}' {
+      depth -= 1
+      if opened && depth == 0 {
+        return "extern \"C\" __global__ void " +
+          replacement +
+          "(" +
+          rest[:i + 1].to_owned() +
+          "\n"
+      }
+    }
+  }
+  fail("unterminated selected entry")
+}
+
+///|
+test "selected source extraction preserves nested body and excludes following entries" {
+  assert_eq(
+    extract(
+      "header\nextern \"C\" __global__ void glm_sparse_3_output(int x) {if(x){x++;}}\ntrailer",
+      "selected_after",
+    ),
+    "extern \"C\" __global__ void selected_after(int x) {if(x){x++;}}\n",
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode, .. options] &&
+    root.has_prefix("/tmp/lunaflux-glm-sparse-selected-output-") &&
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail(
+      "NEW_ROOT prepare OLD_RANK_CU NEW_RANK_CU | run | profile 0/1/2 | sanitize",
+    )
+  }
+  let socket = "/tmp/lunaflux-glm179-context-20261019.sock"
+  let host = "wlc004s@192.168.2.179"
+  let unit = root[5:].to_owned()
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(label : String, out : @shell.Output) -> Unit {
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  if mode == "prepare" {
+    guard options is [before, after] else { fail("source paths required") }
+    @fs.mkdir(root)
+    @fs.write_file(
+      root + "/scope.txt",
+      "before=" +
+      before +
+      "\nafter=" +
+      after +
+      "\nExtracted glm_sparse_3_output; only symbol names changed." +
+      "\nM64/N4096/K8192; captured native grid1024/block128; BF16 publication." +
+      "\ncuBLAS is a bounded component comparator, not a vLLM service run or correctness oracle.\n",
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/selected.cuh",
+      extract(@fs.read_file(before).text(), "selected_before") +
+      extract(@fs.read_file(after).text(), "selected_after"),
+      create_mode=CreateNew,
+    )
+    record("mkdir", remote("mkdir " + root))
+    for
+      (from, to) in [
+        (root + "/selected.cuh", "selected.cuh"),
+        (
+          "tests/packed_moe_execution/sparse_output_selected_probe.cu", "probe.cu",
+        ),
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        from,
+        host + ":" + root + "/" + to,
+      ])
+      .output()
+      .check()
+    }
+    record(
+      "compile-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo",
+      ),
+    )
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+        "/usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+        root +
+        "/probe.cu -lcublas -o " +
+        root +
+        "/probe",
+      ),
+    )
+    return
+  }
+  guard mode is ("run" | "profile" | "sanitize") else { fail("mode") }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  let label = mode + (if options is [v] { "-" + v } else { "" })
+  record(
+    label + "-reserve",
+    remote("awk '/MemAvailable:/ {if($2<33554432)exit 9;print}' /proc/meminfo"),
+  )
+  if mode == "run" {
+    guard options.is_empty() else { fail("no run arguments") }
+    record(
+      label,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-run --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=180 " +
+        root +
+        "/probe",
+      ),
+    )
+  } else if mode == "sanitize" {
+    guard options.is_empty() else { fail("no sanitize arguments") }
+    for tool in ["memcheck", "racecheck", "synccheck"] {
+      for variant in ["0", "1"] {
+        record(
+          tool + "-" + variant,
+          remote(
+            "systemd-run --user --wait --pipe --unit=" +
+            unit +
+            "-" +
+            tool +
+            "-" +
+            variant +
+            " --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=600 " +
+            "/usr/local/cuda-13.0/bin/compute-sanitizer --tool " +
+            tool +
+            (if tool == "memcheck" { " --leak-check full" } else { "" }) +
+            " --error-exitcode 9 " +
+            root +
+            "/probe " +
+            variant,
+          ),
+        )
+      }
+    }
+  } else {
+    guard options is [variant] && variant is ("0" | "1" | "2") else {
+      fail("variant")
+    }
+    let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+    record(
+      label,
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-" +
+        label +
+        " --property=RuntimeMaxSec=300 docker run --name " +
+        unit +
+        "-" +
+        label +
+        " --gpus all --network none --memory=4g --memory-swap=4g --cap-add SYS_ADMIN --security-opt seccomp=unconfined -v " +
+        root +
+        ":" +
+        root +
+        " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+        ncu +
+        " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907" +
+        " --config-file off --clock-control none --cache-control none --launch-count 1" +
+        " --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active," +
+        "smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct," +
+        "lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active," +
+        "launch__registers_per_thread,launch__shared_mem_per_block_static,launch__shared_mem_per_block_dynamic" +
+        " --export " +
+        root +
+        "/" +
+        label +
+        " " +
+        root +
+        "/probe " +
+        variant,
+      ),
+    )
+    record(
+      label + "-raw",
+      remote(
+        ncu + " --import " + root + "/" + label + ".ncu-rep --page raw --csv",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/" + label + ".ncu-rep",
+      root + "/" + label + ".ncu-rep",
+    ])
+    .output()
+    .check()
+  }
+  record(
+    label + "-released",
+    remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader; free -b"),
+  )
+}

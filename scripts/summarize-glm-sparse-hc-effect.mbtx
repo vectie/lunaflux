@@ -1,0 +1,118 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn category(name : String, kind : String) -> String {
+  if name.has_suffix("_deferred_post_pre") {
+    "changed_deferred_hc"
+  } else if name.has_prefix("glm_sparse_") {
+    if name.has_suffix("_output") {
+      "changed_sparse_output"
+    } else if name.has_suffix("_projection_q_b") {
+      "changed_query_b"
+    } else if name.has_suffix("_projection_index_q") {
+      "changed_index_q"
+    } else {
+      "unchanged_" + kind
+    }
+  } else {
+    "unchanged_" + kind
+  }
+}
+
+///|
+fn totals(j : Json) -> Map[String, (Int32, Double)] raise {
+  guard j is Array(rows) else { fail("leaves") }
+  let sums : Map[String, (Int32, Double)] = Map([])
+  for row in rows {
+    guard row
+      is {
+        "name": String(name),
+        "kind": String(kind),
+        "duration_ms": Number(ms, ..),
+        ..
+      } else {
+      fail("leaf")
+    }
+    let key = category(name, kind)
+    let (n, t) = sums.get(key).unwrap_or((0, 0.0))
+    sums[key] = (n + 1, t + ms)
+  }
+  sums
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, before, after, output] else {
+    fail("BEFORE AFTER NEW_REPORT")
+  }
+  let a = totals(@json.parse(@fs.read_file(before + "/leaves.json").text()))
+  let b = totals(@json.parse(@fs.read_file(after + "/leaves.json").text()))
+  guard a.length() == b.length() else { fail("categories differ") }
+  let rows : Array[Json] = []
+  let mut calls = 0
+  let mut old = 0.0
+  let mut next = 0.0
+  for key, (n, t) in a {
+    guard b.get(key) is Some((m, u)) && n == m else {
+      fail("unmatched calls " + key)
+    }
+    rows.push({
+      "category": Json(key),
+      "calls": Json(n),
+      "before_ms": Json(t),
+      "after_ms": Json(u),
+      "saved_ms": Json(t - u),
+    })
+    if key.has_prefix("changed_") {
+      guard n == (if key == "changed_deferred_hc" { 89 } else { 11 }) else {
+        fail("unexpected changed leaf count " + key)
+      }
+      calls += n
+      old += t
+      next += u
+    }
+  }
+  guard calls == 122 else { fail("all changed entries must execute") }
+  let report : Json = {
+    "before": before,
+    "after": after,
+    "selected_calls": calls,
+    "selected_before_ms": old,
+    "selected_after_ms": next,
+    "selected_saved_ms": old - next,
+    "categories": rows,
+    "scope": "Matched first64 chunks; leaf sums are not disjoint wall time or throughput.",
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(report.stringify(indent=2))
+}
+
+///|
+test "only actual selected sparse and HC leaves are counted as changed" {
+  assert_eq(
+    category("glm_sparse_3_output", "sparse_projection"),
+    "changed_sparse_output",
+  )
+  assert_eq(
+    category("glm_sparse_3_projection_q_b", "sparse_projection"),
+    "changed_query_b",
+  )
+  assert_eq(
+    category("glm_sparse_3_projection_index_q", "sparse_projection"),
+    "changed_index_q",
+  )
+  assert_eq(
+    category("glm_hyper_ffn_3_deferred_post_pre", "hyper_connection"),
+    "changed_deferred_hc",
+  )
+  assert_eq(
+    category("glm_sparse_3_projection_kv_b", "sparse_projection"),
+    "unchanged_sparse_projection",
+  )
+}
