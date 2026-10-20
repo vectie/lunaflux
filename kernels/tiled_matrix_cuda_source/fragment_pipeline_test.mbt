@@ -35,8 +35,10 @@ test "export explicit fragment pipelines" {
   if @env.get_env_var("LUNA_EXPORT_FRAGMENT_PIPELINE") != Some("1") {
     return
   }
+  let partial_float32 = @env.get_env_var("LUNA_FRAGMENT_BF16") != Some("1")
   let shapes = [(4096, 4096), (4096, 8192), (1536, 4096), (128, 4096)]
   println("LUNA_SOURCE_BEGIN prefill")
+  if !partial_float32 { println("#define LUNA_PROJECTION_BF16_OUTPUT 1") }
   for i, (columns, inner) in shapes {
     let matrix = @matrix.MatrixTilePlan::new(
       rows=64,
@@ -52,7 +54,7 @@ test "export explicit fragment pipelines" {
         @tiled_matrix_cuda_source.dense_source(
           matrix,
           symbol="p\{i}_s0",
-          partial_float32=true,
+          partial_float32~,
         ),
       ),
     )
@@ -69,7 +71,7 @@ test "export explicit fragment pipelines" {
           @tiled_matrix_cuda_source.dense_source(
             plan,
             symbol="p\{i}_s\{j}",
-            partial_float32=true,
+            partial_float32~,
           ),
         ),
       )

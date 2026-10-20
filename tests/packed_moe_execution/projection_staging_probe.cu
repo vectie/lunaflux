@@ -8,6 +8,14 @@
 #include <vector>
 #include "prefill.cuh"
 
+#if defined(LUNA_PROJECTION_BF16_OUTPUT)
+using Output = __nv_bfloat16;
+static double output_value(Output x) { return __bfloat162float(x); }
+#else
+using Output = float;
+static double output_value(Output x) { return x; }
+#endif
+
 static void ck(cudaError_t e) {
   if (e != cudaSuccess) { fprintf(stderr, "%s\n", cudaGetErrorString(e)); exit(2); }
 }
@@ -26,7 +34,7 @@ int main(int argc, char **argv) {
   const int grid=std::max((n+3)/4,4*((n+63)/64));
   auto *counts=allocate<int>(4);
   auto *x=allocate<__nv_bfloat16>(64*k), *w=allocate<__nv_bfloat16>((size_t)n*k);
-  auto *y=allocate<float>(64*n);
+  auto *y=allocate<Output>(64*n);
   std::vector<__nv_bfloat16> hx(64*k),hw((size_t)n*k);
   unsigned seed=713;
   for(auto *values:{&hx,&hw}) for(auto &v:*values) {
@@ -43,18 +51,18 @@ int main(int argc, char **argv) {
   };
   if(profile) { launch(candidate); ck(cudaDeviceSynchronize()); }
   else {
-    std::vector<float> old(64*n),fresh(64*n);
-    ck(cudaMemset(y,0x55,old.size()*4)); launch(0);
-    ck(cudaMemcpy(old.data(),y,old.size()*4,cudaMemcpyDeviceToHost));
-    ck(cudaMemset(y,0x55,fresh.size()*4)); launch(candidate);
-    ck(cudaMemcpy(fresh.data(),y,fresh.size()*4,cudaMemcpyDeviceToHost));
-    bool exact=memcmp(old.data(),fresh.data(),old.size()*4)==0;
+    std::vector<Output> old(64*n),fresh(64*n);
+    ck(cudaMemset(y,0x55,old.size()*sizeof(Output))); launch(0);
+    ck(cudaMemcpy(old.data(),y,old.size()*sizeof(Output),cudaMemcpyDeviceToHost));
+    ck(cudaMemset(y,0x55,fresh.size()*sizeof(Output))); launch(candidate);
+    ck(cudaMemcpy(fresh.data(),y,fresh.size()*sizeof(Output),cudaMemcpyDeviceToHost));
+    bool exact=memcmp(old.data(),fresh.data(),old.size()*sizeof(Output))==0;
     if(!exact) { fprintf(stderr,"different output/inactive bytes\n"); return 4; }
     double oracle=0;
     if(rows>0 && rows<=64) for(int r:{0,rows-1}) for(int col:{0,n/2,n-1}) {
       double sum=0;
       for(int j=0;j<k;j++) sum+=double(__bfloat162float(hx[r*k+j]))*__bfloat162float(hw[(size_t)col*k+j]);
-      oracle=std::max(oracle,std::abs(double(fresh[r*n+col])-sum));
+      oracle=std::max(oracle,std::abs(output_value(fresh[r*n+col])-sum));
     }
     if(!(oracle<=0.003)) return 5;
     printf("correctness=passed shape=%d rows=%d candidate=%d grid=%d block=128 bitwise=true oracle_maxabs=%.12g\n",shape,rows,candidate,grid,oracle);

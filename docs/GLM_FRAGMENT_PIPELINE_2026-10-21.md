@@ -125,3 +125,67 @@ existing alignment. There is no new runtime scan or token-step operation.
 The emitted kernel bytes are unchanged by this metadata correction.
 Expanded affected tests pass 81/81; targeted interface generation has 578
 existing migration warnings and zero errors.
+
+## Serving BF16 leaf, not only the F32 diagnostic
+
+The BF16 export in
+`/tmp/lunaflux-glm-projection-staging-fragments-bf16-export-20261021-v1`
+matches the emitted serving `glm_sparse_3_output` function body and parameter
+types exactly (entry symbol differs), checked directly without a digest.
+The diagnostic harness now supports either output type; its F32 default and
+existing oracle threshold are unchanged.
+
+Physical root:
+`/tmp/lunaflux-glm-projection-staging-fragments-bf16-20261021-v1`.
+For rows64, old median429.620789 us → candidate309.265594 us (28.01% lower).
+The median paired improvement is 25.23%, the smallest 23.95%; these are distinct
+statistics. All tested output/inactive bytes remain identical. Rows1/3/64
+memcheck/full leak, racecheck and synccheck report zero errors/leaks/hazards.
+Its profiler capture has 17,119,232 warp instructions, 6,294,154 L2 read sectors,
+46 registers, 24 KiB static shared storage and 9.902% tensor activity.
+Profiled duration is 371.392 us, not the unprofiled graph median.
+
+## Two-rank capture: incomplete, not a decoder speedup claim
+
+Final executable: source-pinned `b1788d1d`, ARM build
+`/tmp/lunaflux-glm-service-arm-fragments-20261021-v3`.
+Both rank AOTs were re-exported and directly compared with the already compiled
+v2 sources before reusing their CUBINs. No payload hashing.
+
+Root: `/tmp/lunaflux-glm-http-fragments-trace-20261021-v1`.
+Configuration retains rows64/slots8/context8192/pages513, scales+bulk experts,
+local MoE combine, BF16 projection TP and exact-capacity 16-site graph windows.
+The existing offline trace's eight admission lanes are unchanged.
+
+Both ranks loaded; the HTTP warmup returned 200 and one generated token, with
+empty visible content and `finish_reason=length`. This is startup/execution
+evidence, **not a semantic answer-quality pass**. The cold capture began but
+the 250 ms host watcher then observed rank0 MemAvailable=17,694,056 KiB
+(16.874 GiB). It aborted at the existing 17 GiB diagnostic headroom threshold,
+before the user's 16 GiB floor. The request was cancelled and both owners
+retired. Slower paired samples record GPU<=96,539 MiB (94.276 GiB) and owned
+swap0; these are sampled observations, not a continuous peak proof.
+
+Rank0's partial report was written. Rank1's report importer lost the agent
+during cancellation; its 25,884,061-byte raw QDSTRM was retained. Rank0 wrapper
+exit143 and rank1 `RemoteChannelError.Disconnected`/exit1 are retained, not
+rewritten as success. There is no completed cold/warm pair, no new valid
+45-layer wall-time allocation, and no comparison pretending the old retained
+vLLM graph is a fresh matched capture. No overall benchmark was run.
+
+## Restoration
+
+The qualified normal GLM recipe is restored; both original user units are
+active/successful. Health is `healthy`; the arithmetic request returned exactly
+`323` with `finish_reason=stop`. The fragment policy remains explicit/opt-in,
+not silently promoted by a component result.
+
+Evidence: `/tmp/lunaflux-glm-fragments-restoration-20261021-v1`.
+Sampled minimum host availability is 17.4757/19.1411 GiB; maximum GPU use is
+94.1904/94.2188 GiB for ranks0/1, with no nonzero owned swap observed.
+The restoration watcher is retired. The unrelated dirty toolchain files are
+preserved. No overall benchmark or payload hashing was performed.
+
+AKO's measured selection gate retained M32 rather than the larger M64 schedule,
+and kept the serving profile opt-in when the full two-rank trace could not
+complete. No source/counter result is presented as a whole-decoder speedup.
