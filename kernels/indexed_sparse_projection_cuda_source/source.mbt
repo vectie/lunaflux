@@ -13,6 +13,7 @@ pub fn indexed_sparse_projection_source(
   plan : @precision.IndexedSparseProjectionPrecision,
   symbol_prefix~ : String,
   staging? : @matrix.MatrixStaging = Synchronous,
+  row_reuse? : @matrix.MatrixRowReuse,
 ) -> IndexedSparseProjectionCudaSource raise {
   guard staging == Synchronous || plan.projection_law() != ScalarFloat32 else {
     raise @precision.PrecisionPlanError::NoImplementation
@@ -57,6 +58,11 @@ pub fn indexed_sparse_projection_source(
         law=plan.projection_law(),
         staging~,
       )
+      let tile = if row_reuse is Some(policy) {
+        policy.apply(tile)
+      } else {
+        tile
+      }
       sources[stage] = @tiled.dense_source(tile, symbol=symbols[stage])
       launches[stage] = (tile.tile_count(), 128)
       continue

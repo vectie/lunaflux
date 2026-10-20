@@ -56,6 +56,13 @@ pub fn IndirectMatrixTraversal::new(capacity_groups~ : Int, column_tiles~ : Int,
 pub fn IndirectMatrixTraversal::tile_count(Self, Int) -> Int raise @precision_ir.PrecisionPlanError
 pub fn IndirectMatrixTraversal::workers(Self) -> Int
 
+pub struct MatrixRowReuse {
+  // private fields
+} derive(@debug.Debug)
+pub fn MatrixRowReuse::apply(Self, MatrixTilePlan) -> MatrixTilePlan raise
+pub fn MatrixRowReuse::new(minimum_rows~ : Int, minimum_inner~ : Int, wide_inner~ : Int, wide_tile~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixRowReuse::to_repr(Self) -> @debug.Repr
+
 pub(all) enum MatrixStaging {
   Synchronous
   SynchronousTiles(inner_tile~ : Int)

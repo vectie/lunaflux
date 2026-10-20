@@ -71,6 +71,12 @@ pub struct PostSquareFusion {
 pub fn PostSquareFusion::geometry(Self) -> (Int, Int, Int, Int)
 pub fn PostSquareFusion::new(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision) -> Self raise @precision_ir.PrecisionPlanError
 
+pub struct ReductionTreePartition {
+  // private fields
+}
+pub fn ReductionTreePartition::levels(Self) -> (ReadOnlyArray[Int], ReadOnlyArray[Int])
+pub fn ReductionTreePartition::new(Int, Int) -> Self raise @precision_ir.PrecisionPlanError
+
 // Type aliases
 
 // Traits

@@ -10,9 +10,9 @@ import {
 // Values
 pub fn block_control_v1_bf16_f32_source(stream_width~ : Int, hidden_width~ : Int, maximum_rows~ : Int, sinkhorn_iterations~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, function_symbol~ : String) -> DecoderHyperConnectionCudaSource raise DecoderHyperConnectionCudaSourceError
 
-pub fn deferred_post_pre_dispatch_source(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision, @hyper_connection_physical_ir.DeferredPostPreDispatch, symbol~ : String) -> Bytes raise
+pub fn deferred_post_pre_dispatch_source(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision, @hyper_connection_physical_ir.DeferredPostPreDispatch, symbol~ : String, subgroup_width? : Int) -> Bytes raise
 
-pub fn deferred_post_pre_source(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision, controls_per_group~ : Int, symbol~ : String) -> Bytes raise
+pub fn deferred_post_pre_source(@precision_ir.HyperConnectionPrecision, @precision_ir.HyperConnectionPrecision, controls_per_group~ : Int, symbol~ : String, subgroup_width? : Int) -> Bytes raise
 
 pub fn fused_control_tail_source(@precision_ir.HyperConnectionPrecision, symbol_prefix~ : String) -> Bytes raise
 

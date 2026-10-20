@@ -9,9 +9,9 @@ import {
 }
 
 // Values
-pub fn indexed_sparse_decoder_source(@precision_ir.IndexedSparseDecoderPrecision, symbol_prefix~ : String, staging? : @grouped_matrix_ir.MatrixStaging) -> IndexedSparseDecoderCudaSource raise
+pub fn indexed_sparse_decoder_source(@precision_ir.IndexedSparseDecoderPrecision, symbol_prefix~ : String, staging? : @grouped_matrix_ir.MatrixStaging, row_reuse? : @grouped_matrix_ir.MatrixRowReuse) -> IndexedSparseDecoderCudaSource raise
 
-pub fn indexed_sparse_projection_source(@precision_ir.IndexedSparseProjectionPrecision, symbol_prefix~ : String, staging? : @grouped_matrix_ir.MatrixStaging) -> IndexedSparseProjectionCudaSource raise
+pub fn indexed_sparse_projection_source(@precision_ir.IndexedSparseProjectionPrecision, symbol_prefix~ : String, staging? : @grouped_matrix_ir.MatrixStaging, row_reuse? : @grouped_matrix_ir.MatrixRowReuse) -> IndexedSparseProjectionCudaSource raise
 
 // Errors
 

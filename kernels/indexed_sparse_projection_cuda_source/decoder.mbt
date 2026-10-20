@@ -17,6 +17,7 @@ pub fn indexed_sparse_decoder_source(
   plan : @precision.IndexedSparseDecoderPrecision,
   symbol_prefix~ : String,
   staging? : @matrix.MatrixStaging = Synchronous,
+  row_reuse? : @matrix.MatrixRowReuse,
 ) -> IndexedSparseDecoderCudaSource raise {
   let projection = plan.projection()
   let attention = projection.attention()
@@ -46,6 +47,7 @@ pub fn indexed_sparse_decoder_source(
       law=projection.projection_law(),
       staging~,
     )
+    let tile = if row_reuse is Some(policy) { policy.apply(tile) } else { tile }
     (
       @tiled.dense_source(tile, symbol=output_symbol, partial_float32=partial),
       (tile.tile_count(), 128),
@@ -77,6 +79,7 @@ pub fn indexed_sparse_decoder_source(
       projection,
       symbol_prefix=symbol_prefix + "_projection",
       staging~,
+      row_reuse?,
     ),
     history: @sparse.indexed_sparse_history_source(
       plan.history(),

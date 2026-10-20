@@ -4,6 +4,7 @@ pub fn deferred_post_pre_dispatch_source(
   consumer : @precision.HyperConnectionPrecision,
   dispatch : @physical.DeferredPostPreDispatch,
   symbol~ : String,
+  subgroup_width? : Int = 32,
 ) -> Bytes raise {
   let text = StringBuilder()
   let arms = StringBuilder()
@@ -15,6 +16,7 @@ pub fn deferred_post_pre_dispatch_source(
         consumer,
         controls_per_group=group,
         symbol=name,
+        subgroup_width~,
       ),
     )
     text.write_string(

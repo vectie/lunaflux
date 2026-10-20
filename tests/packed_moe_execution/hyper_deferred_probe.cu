@@ -28,11 +28,11 @@ void run(int id,int s,int h,int r,Launch launch,bool sanitizer){
  auto clear=[&](){CK(cudaMemset(y,0x5a,r*s*h*2));CK(cudaMemset(scratch,0x5a,scratch_count*4));};
  for(int live: {0,1,r-1,r,r+1}){
   put(counts,std::vector<int>{1,0,1,live,0});clear();invoke(0);CK(cudaDeviceSynchronize());auto oy=get(y,r*s*h);auto os=get(scratch,scratch_count);
-  for(int variant:{1,2,4,8}){clear();invoke(variant);CK(cudaDeviceSynchronize());equal(oy,get(y,r*s*h));equal(os,get(scratch,scratch_count));}
+  for(int variant:{1,2,4,8,9,10}){clear();invoke(variant);CK(cudaDeviceSynchronize());equal(oy,get(y,r*s*h));equal(os,get(scratch,scratch_count));}
  }
  if(!sanitizer){
   for(int live:{1,22,36,64}){if(live>r)continue;put(counts,std::vector<int>{1,0,1,live,0});
-   cudaGraphExec_t graphs[2];const int variants[]={0,8};
+   cudaGraphExec_t graphs[2];const int variants[]={9,10};
    for(int k=0;k<2;++k){invoke(variants[k]);CK(cudaDeviceSynchronize());
     CK(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));
     for(int i=0;i<100;++i)invoke(variants[k]);

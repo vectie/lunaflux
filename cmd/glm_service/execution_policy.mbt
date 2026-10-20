@@ -5,6 +5,7 @@ priv struct ExecutionPolicy {
   recurrent : @precision.RecurrentEvaluationLaw
   staging : @matrix.MatrixStaging
   sparse_staging : @matrix.MatrixStaging
+  sparse_row_reuse : @matrix.MatrixRowReuse?
   recurrent_tile_rows : Int
   recurrent_reuse_minimum_inner : Int
   transport : @matrix.ExpertTransport
@@ -85,6 +86,33 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     Some(Number(32.0, ..)) => 32
     _ => fail("unsupported expert_scale_partitions")
   }
+  let sparse_row_reuse = match fields.get("sparse_projection_row_reuse") {
+    None => None
+    Some(
+      {
+        "minimum_rows": Number(r, ..),
+        "minimum_inner": Number(k, ..),
+        "wide_inner": Number(w, ..),
+        "wide_tile": Number(t, ..),
+        ..
+      }
+    ) => {
+      for n in [r, k, w, t] {
+        guard n >= 0.0 && n <= 1073741760.0 && n.to_int().to_double() == n else {
+          fail("invalid sparse row ownership envelope")
+        }
+      }
+      Some(
+        @matrix.MatrixRowReuse::new(
+          minimum_rows=r.to_int(),
+          minimum_inner=k.to_int(),
+          wide_inner=w.to_int(),
+          wide_tile=t.to_int(),
+        ),
+      )
+    }
+    _ => fail("unsupported sparse_projection_row_reuse")
+  }
   let moe_reduction : @precision.MoeReductionPlacement = match
     fields.get("moe_reduction") {
     None | Some(String("expert-partials-f32")) => ExpertPartialsFloat32
@@ -117,6 +145,7 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     recurrent,
     staging,
     sparse_staging,
+    sparse_row_reuse,
     recurrent_tile_rows,
     recurrent_reuse_minimum_inner,
     transport,
@@ -141,7 +170,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
       "bounded-synchronous-k\{inner_tile}-bytes\{maximum_weight_bytes}-tiles\{maximum_tiles}"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
   }
-  "recurrent=\{recurrent} projection_staging=\{staging} recurrent_projection_tile_rows=\{self.recurrent_tile_rows} recurrent_reuse_minimum_inner=\{self.recurrent_reuse_minimum_inner} sparse_projection_staging=\{Repr(self.sparse_staging)} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
+  "recurrent=\{recurrent} projection_staging=\{staging} recurrent_projection_tile_rows=\{self.recurrent_tile_rows} recurrent_reuse_minimum_inner=\{self.recurrent_reuse_minimum_inner} sparse_projection_staging=\{Repr(self.sparse_staging)} sparse_projection_row_reuse=\{Repr(self.sparse_row_reuse)} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
 }
 
 ///|

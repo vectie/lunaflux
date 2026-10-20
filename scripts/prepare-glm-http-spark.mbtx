@@ -150,6 +150,9 @@ async fn main {
   let sparse_staging = @env.get_env_var(
     "LUNAFLUX_GLM_SPARSE_PROJECTION_STAGING",
   ).map(value => @json.parse(value))
+  let sparse_row_reuse = @env.get_env_var(
+    "LUNAFLUX_GLM_SPARSE_PROJECTION_ROW_REUSE",
+  ).map(value => @json.parse(value))
   let scale_partitions = positive_setting(
     "LUNAFLUX_GLM_EXPERT_SCALE_PARTITIONS", 1, 32,
   )
@@ -256,6 +259,9 @@ async fn main {
     }
     if sparse_staging is Some(value) && plan is Object(fields) {
       fields["sparse_projection_staging"] = value
+    }
+    if sparse_row_reuse is Some(value) && plan is Object(fields) {
+      fields["sparse_projection_row_reuse"] = value
     }
     @fs.write_file(
       root + "/service-\{rank}.json",

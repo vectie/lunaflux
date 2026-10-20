@@ -12,7 +12,7 @@ import {
 async fn main {
   guard @env.args() is [_, root, target] &&
     root.has_prefix("/tmp/lunaflux-glm-hc-vocab-") &&
-    root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) &&
+    root.iter().all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
     target is ("tail" | "vocab" | "deferred") else {
     fail("EXISTING_PROBE_ROOT tail|vocab|deferred")
   }
@@ -37,7 +37,17 @@ async fn main {
   let paired_tail = target == "tail" &&
     @env.get_env_var("LUNA_HC_TAIL_BASELINE_HEADER").filter(p => !p.is_empty())
     is Some(_)
-  let filter = if paired_tail {
+  let wide_reduction = @env.get_env_var("LUNA_HC_REDUCTION_PAIR") ==
+    Some("wide")
+  let paired_reduction = target == "deferred" &&
+    (wide_reduction || @env.get_env_var("LUNA_HC_REDUCTION_PAIR") == Some("1"))
+  let filter = if paired_reduction {
+    if wide_reduction {
+      "regex:^(wide_dispatch2|shared_dispatch2)$"
+    } else {
+      "regex:^(dispatch2|shared_dispatch2)$"
+    }
+  } else if paired_tail {
     "regex:^(oldtail2_tail_function_tree_tiles_v1|tail2_tail_function_tree_tiles_v1)$"
   } else if target == "tail" {
     "regex:^tail2_(function_tree_tiles_v1|sinkhorn|tail_function_tree_tiles_v1)$"
@@ -79,7 +89,13 @@ async fn main {
       "0"
     }) +
     " --launch-count " +
-    (if paired_tail { "2" } else if target == "deferred" { "6" } else { "3" }) +
+    (if paired_tail || paired_reduction {
+      "2"
+    } else if target == "deferred" {
+      "6"
+    } else {
+      "3"
+    }) +
     " --metrics " +
     metrics +
     " --export " +

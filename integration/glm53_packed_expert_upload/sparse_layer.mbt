@@ -30,6 +30,7 @@ pub fn GlmSparseLayer::new(
   hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
+  matrix_row_reuse? : @matrix.MatrixRowReuse,
   expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   expert_transport? : @matrix.ExpertTransport = IndexedRows,
   shared_matrix_columns? : Int = 64,
@@ -97,6 +98,7 @@ pub fn GlmSparseLayer::new(
       plan,
       symbol_prefix="glm_sparse_" + layer_index.to_string(),
       staging=matrix_staging,
+      row_reuse?=matrix_row_reuse,
     ),
   )
   guard ffn.workspace_bytes() <=

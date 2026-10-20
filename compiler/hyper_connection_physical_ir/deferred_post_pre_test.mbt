@@ -11,7 +11,7 @@ test "deferred post pre partitions controls without changing numerical ownership
     control_square_law=VectorizedTreeFloat32(partitions=256, vector_width=1),
     control_dot_law=StripedTreeFloat32(partitions=256),
   )
-  for group in [1, 2, 4] {
+  for group in [1, 2, 4, 8] {
     let fused = @hyper_connection_physical_ir.DeferredPostPrePlan::new(
       plan,
       plan,
@@ -21,7 +21,7 @@ test "deferred post pre partitions controls without changing numerical ownership
     assert_eq(fused.workgroups(), 64 * 24 / group)
     assert_eq(fused.retained_values_per_worker(), 64)
   }
-  for group in [0, 5] {
+  for group in [0, 9] {
     assert_true(
       (try? @hyper_connection_physical_ir.DeferredPostPrePlan::new(
         plan,

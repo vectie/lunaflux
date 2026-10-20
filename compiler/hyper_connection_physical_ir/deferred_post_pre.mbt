@@ -23,7 +23,7 @@ pub fn DeferredPostPrePlan::new(
     producer, consumer,
   ).geometry()
   guard controls_per_group > 0 &&
-    controls_per_group <= 4 &&
+    controls_per_group <= 8 &&
     workgroup_budget > 0 else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
@@ -31,7 +31,9 @@ pub fn DeferredPostPrePlan::new(
 }
 
 ///|
-pub fn DeferredPostPrePlan::geometry(self : Self) -> (Int, Int, Int, Int, Int) {
+pub fn DeferredPostPrePlan::geometry(
+  self : Self,
+) -> (Int, Int, Int, Int, Int) {
   (self.streams, self.hidden, self.rows, self.workers, self.controls_per_group)
 }
 

@@ -7,6 +7,7 @@ pub fn deferred_post_pre_source(
   consumer : @precision.HyperConnectionPrecision,
   controls_per_group~ : Int,
   symbol~ : String,
+  subgroup_width? : Int = 32,
 ) -> Bytes raise {
   let plan = @physical.DeferredPostPrePlan::new(
     producer,
@@ -21,6 +22,16 @@ pub fn deferred_post_pre_source(
   let controls = streams * (streams + 2)
   let groups = (controls + group - 1) / group
   let retained = plan.retained_values_per_worker()
+  guard subgroup_width is (1 | 32) else {
+    raise @precision.PrecisionPlanError::NoImplementation
+  }
+  let subgroup_width = if workers >= subgroup_width {
+    subgroup_width
+  } else {
+    1
+  }
+  let square_tree = deferred_tree_source(workers, 1, subgroup_width)
+  let dot_tree = deferred_tree_source(workers, group, subgroup_width)
   let law = producer.mix_law()
   let branch = @arithmetic.scalar_expression(law.expression(BranchProduct), [
     "post[row * \{streams} + destination]",
@@ -78,7 +89,7 @@ pub fn deferred_post_pre_source(
       $|   const float x=values[i]; if(worker+i*\{workers}<\{flat}) sum=__fadd_rn(sum,isfinite(x)?__fmul_rn(x,x):NAN);
       $| }
       $| reduction[0][worker]=sum; __syncthreads();
-      $| for(int stride=\{workers/2};stride>0;stride>>=1) { if(worker<stride) reduction[0][worker]=__fadd_rn(reduction[0][worker],reduction[0][worker+stride]); __syncthreads(); }
+      $| \{square_tree}
       $| const float inverse=\{root}; if(tile==0 && worker==0) scratch[row]=inverse;
       $| if(!isfinite(inverse)) { __syncthreads(); continue; }
       $| __syncthreads(); // every inverse reader retires before dot scratch reuse
@@ -98,13 +109,7 @@ pub fn deferred_post_pre_source(
       $| #pragma unroll
       $| for(int c=0;c<\{group};++c) reduction[c][worker]=dots[c];
       $| __syncthreads();
-      $| for(int stride=\{workers/2};stride>0;stride>>=1) {
-      $|   if(worker<stride) {
-      $|     #pragma unroll
-      $|     for(int c=0;c<\{group};++c) reduction[c][worker]=__fadd_rn(reduction[c][worker],reduction[c][worker+stride]);
-      $|   }
-      $|   __syncthreads();
-      $| }
+      $| \{dot_tree}
       $| if(worker==0) {
       $|   #pragma unroll
       $|   for(int c=0;c<\{group};++c) if(tile*\{group}+c<\{controls}) scratch[\{rows}+row*\{controls}+tile*\{group}+c]=reduction[c][0];

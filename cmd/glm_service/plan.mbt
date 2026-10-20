@@ -287,6 +287,7 @@ fn ServicePlan::stage(
     matrix_tile_rows=self.execution.recurrent_tile_rows,
     matrix_reuse_minimum_inner=self.execution.recurrent_reuse_minimum_inner,
     sparse_matrix_staging=self.execution.sparse_staging,
+    sparse_matrix_row_reuse?=self.execution.sparse_row_reuse,
     sparse_accumulation=self.sparse_accumulation,
     index_scoring=self.index_scoring,
     sparse_cache=self.sparse_cache,

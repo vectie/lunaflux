@@ -62,10 +62,43 @@ async test "export deferred HC post pre alternatives" {
           ),
         ),
       )
+      let wider = @physical.DeferredPostPreDispatch::new(
+        precision,
+        precision,
+        buckets.map(b => (b.0, if b.0 > 32 { 8 } else { b.1 })),
+        workgroup_budget=128,
+      )
+      text <+ "\n"
+      text.write_string(
+        @utf8.decode(
+          @control.deferred_post_pre_dispatch_source(
+            precision,
+            precision,
+            wider,
+            symbol="wide_dispatch\{index}",
+          ),
+        ),
+      )
+      text <+ "\n"
+      text.write_string(
+        @utf8.decode(
+          @control.deferred_post_pre_dispatch_source(
+            precision,
+            precision,
+            dispatch,
+            symbol="shared_dispatch\{index}",
+            subgroup_width=1,
+          ),
+        ),
+      )
       text <+
         "\nvoid launch\{index}(int variant,int *counts,float *post,float *combine,__nv_bfloat16 *residual,__nv_bfloat16 *branch,__nv_bfloat16 *output,__nv_bfloat16 *weight,float *scratch,cudaStream_t stream) {\n"
       text <+
         "if(variant==8) dispatch\{index}<<<\{dispatch.workgroups()},256,0,stream>>>(counts,post,combine,residual,branch,output,weight,scratch);\n"
+      text <+
+        "if(variant==9) shared_dispatch\{index}<<<\{dispatch.workgroups()},256,0,stream>>>(counts,post,combine,residual,branch,output,weight,scratch);\n"
+      text <+
+        "if(variant==10) wide_dispatch\{index}<<<\{wider.workgroups()},256,0,stream>>>(counts,post,combine,residual,branch,output,weight,scratch);\n"
       text <+
         "if(variant==0) { \{source.symbol(3)}<<<\{(rows*streams*hidden+255)/256},256,0,stream>>>(counts,post,combine,residual,branch,output); \{source.symbol(4)}<<<\{rows},256,0,stream>>>(counts,output,scratch); \{source.symbol(5)}<<<\{rows*streams*(streams+2)},256,0,stream>>>(counts,output,weight,scratch); }\n"
       for group in [1, 2, 4] {
