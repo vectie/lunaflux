@@ -2,6 +2,7 @@
 priv enum State {
   Ready
   Preparing
+  Dispatching
   Executing
   Committing
   Releasing
@@ -103,7 +104,7 @@ pub async fn BatchedTensorPipeline::progress(
   local_now_millis~ : UInt64,
 ) -> Bool {
   guard !self.busy &&
-    self.state is (Preparing | Executing | Committing | Releasing) else {
+    self.state is (Preparing | Dispatching | Executing | Committing | Releasing) else {
     raise @frame.BatchFrameError::Busy
   }
   self.busy = true
@@ -126,10 +127,22 @@ pub async fn BatchedTensorPipeline::progress(
         self.remote_ready = self.remote.poll(local_now_millis~)
       }
       if self.local_ready && self.remote_ready {
-        self.local.submit()
         self.remote.run(local_now_millis~)
         self.local_ready = false
         self.remote_ready = false
+        self.state = Dispatching
+        // A long local graph enqueue must not delay the peer's run command.
+        // Only the bounded send retires here; neither rank may publish yet.
+        if self.remote.dispatch_run(local_now_millis~) {
+          self.local.submit()
+          self.state = Executing
+        }
+      }
+      false
+    }
+    Dispatching => {
+      if self.remote.dispatch_run(local_now_millis~) {
+        self.local.submit()
         self.state = Executing
       }
       false

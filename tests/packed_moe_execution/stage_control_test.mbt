@@ -97,7 +97,35 @@ async test "plain stage control carries exact metadata waits for activation and 
   assert_eq(metadata[0], b'\x01')
   assert_eq(metadata[8], b'\x01')
   assert_eq(metadata[12], b'\x02')
+  try client.dispatch_run(local_now_millis=0UL) catch {
+    @stage_control.StageControlError::InvalidState => ()
+    error => raise error
+  } noraise {
+    _ => fail("dispatched before run command was prepared")
+  }
   client.run(local_now_millis=0UL)
+  let mut dispatched = false
+  for _ in 0..<512 {
+    if client.dispatch_run(local_now_millis=0UL) {
+      dispatched = true
+      break
+    }
+    @async.pause()
+  }
+  assert_true(dispatched)
+  assert_eq(enqueues(), enqueued)
+  try client.dispatch_run(local_now_millis=0UL) catch {
+    @stage_control.StageControlError::InvalidState => ()
+    error => raise error
+  } noraise {
+    _ => fail("dispatched the same run twice")
+  }
+  try client.commit(pipeline_failed=false, local_now_millis=0UL) catch {
+    @stage_control.StageControlError::InvalidState => ()
+    error => raise error
+  } noraise {
+    _ => fail("published a dispatched but unretired run")
+  }
   for _ in 0..<8 {
     server.poll(local_now_millis=0UL)
     assert_false(client.poll(local_now_millis=0UL))

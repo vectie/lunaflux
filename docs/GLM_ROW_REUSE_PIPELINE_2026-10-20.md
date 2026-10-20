@@ -103,6 +103,14 @@ nonblocking inherited-pipe read is pending. This is after the previous
 two-rank commit and before the next plan or request-retirement frame. A frame
 arriving during that interval cannot wake the sleep.
 
+More specifically, `progress_read_frame_or_eof` intentionally returns `None`
+after consuming the four-byte header, even if the entire payload is already
+queued. The old caller confuses "no complete frame yet" with "no readable
+data": it forces a timer sleep at **every header-to-payload transition**.
+The new inherited-pipe fixture proves `None`, followed by immediate readable
+payload, unchanged absolute deadline, exact bytes and clean EOF. This is a
+source-level defect independent of any attribution of the whole GPU gap.
+
 The candidate uses the existing bounded inherited-channel readability wait
 instead, followed by a cooperative cancellation point. It retains the same
 one-millisecond maximum idle blocking bound, pending-frame parser, EOF path,
@@ -128,6 +136,89 @@ byte-counted transfer mechanism. Keep M32/N32/K64, two slots, four consumer
 subgroups and ascending K16 arithmetic fixed. One producer subgroup issues
 row copies; publication completion and reader retirement remain explicit.
 This isolates transfer granularity, not a new numerical program or a larger
-tile. The new pure `BulkBuffered` schedule has an aligned-row domain; private
-CUDA lowering owns byte barriers and instructions. Its budget is one K64
-candidate. It is not selected by serving configuration.
+tile. The trial used an aligned-row domain; private CUDA lowering owned byte
+barriers and instructions. Its budget was one K64 candidate.
+
+It failed: N4096/K8192 takes 1741.741 µs versus paired baseline 412.085 µs.
+The other three large shapes also regress about 3–4x. Output and inactive
+bytes remain bitwise across all tested row counts. Therefore the temporary
+`BulkBuffered` enum and source dispatch were removed before committing any
+production-facing support. The experiment's MoonBit emitter/export and exact
+CUDA source are preserved outside the compiler at
+`/tmp/lunaflux-glm-projection-staging-bulk-rows-export-20261020-v1`;
+raw measurements remain in
+`/tmp/lunaflux-glm-projection-staging-bulk-rows-20261020-v1`.
+
+Small independent 128-byte row transfers plus byte-barrier accounting are not
+vLLM's two-dimensional TMA tensor-map pipeline. A common instruction family
+does not imply an equivalent implementation. The unsuccessful candidate is
+not a serving path or a performance fix.
+
+## Peer dispatch frontier (second independent handoff candidate)
+
+The retained latest rank-0 warm trace has six successive `cuGraphLaunch`
+CPU calls at 152625936--158970400 ns. The first NCCL node runs at
+153948768--160739072 ns. Thus 5.022 ms of that node's interval occurs while
+the same host is still enqueuing the remaining graph windows. These are
+profiled CPU intervals, not estimates of uninstrumented driver cost.
+
+The causal source ordering is unambiguous:
+
+```
+both inputs ready
+  -> local.submit() [enqueue all graph windows]
+  -> remote.run() [only prepares the framed command]
+  -> later remote.poll() [actually writes the socket]
+```
+
+The peer cannot begin its enqueue until after that local submission interval.
+This creates avoidable early-arrival waiting; it does not establish that all
+6.790 ms of the first NCCL span is attributable to this cause.
+The local vLLM executor (`vllm/v1/executor/multiproc_executor.py`,
+`collective_rpc`) broadcasts the work before collecting responses. It does
+not execute one rank's whole host enqueue before dispatching its peers.
+
+The candidate changes the runtime effect boundary, not mathematical IR:
+
+```
+both inputs ready -> prepare peer RUN -> bounded send retirement
+                                      |-> local graph enqueue
+                                      `-> peer receives RUN -> peer graph enqueue
+both executions retired -> remote commit receipt -> local commit -> publication
+```
+
+An explicit `Dispatching` state handles a partial socket write without
+spinning, extending deadlines, or starting local GPU work too early. The
+existing remote channel performs at most one zero-wait write per progress.
+Dispatch is not execution acknowledgement and cannot publish tokens.
+Cancellation still drains both ranks before KV reuse. The compiler's ordered
+device effects and captured graph artifacts remain unchanged. No comparison
+or transport implementation enters the pure model/compiler layers.
+
+Four CPU-enriched attempts stopped at the unchanged 17 GiB diagnostic guard,
+before the 16 GiB user floor. They are not valid complete handoff captures.
+The final mixed OSRT-only/CUDA attempt is
+`/tmp/lunaflux-glm-http-handoff-cpu-ingress-20261020-v2`, with its last rank-1
+observation 17,797,692 KiB available. The next ablation uses graph-level CUDA
+tracing on both ranks; it deliberately cannot provide per-kernel allocation
+or CPU syscall attribution.
+
+**Trace setup correction:** those four attempts and the subsequent
+`handoff-graph-control-20261020-v1` used the sparse/HC artifact-export
+configuration, which omitted `collective_replay` and
+`collective_window_sites`. Their AOT kernels were current but their host
+submission policy was not the latest 16-site graph path. They must not be
+used as performance controls, or as evidence that the latest graph path
+cannot fit instrumentation. The graph-only attempt also stopped at the
+17 GiB guard. All failed roots are retained.
+
+The corrected control
+`/tmp/lunaflux-glm-http-handoff-exact-control-20261020-v1`
+copies the actual previously traced
+`/tmp/lunaflux-glm-http-sparse-hc-candidate-trace-20261020-v3` configuration.
+Both rank manifests explicitly select exact capacity / 16 sites, 64 rows,
+eight slots and context8192. The offline trace runner now supports a required
+expected replay policy and checks both launch and artifact manifests before
+starting any GPU owner. Its regression rejects an omitted or different window
+policy. This is bounded offline experiment metadata, not request-path checks
+or payload hashing. No resident-slot reduction was made.

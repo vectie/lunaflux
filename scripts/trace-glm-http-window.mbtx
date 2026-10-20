@@ -16,12 +16,57 @@ import {
 // No compiler/runtime instrumentation.
 
 ///|
+fn require_replay_scope(config : Json, sites : Int32) -> Unit raise {
+  guard config is Object(fields) &&
+    fields.get("collective_replay") == Some(Json("exact-capacity")) &&
+    fields.get("collective_window_sites") == Some(Json(sites)) else {
+    fail("trace control omitted the requested exact collective window policy")
+  }
+}
+
+///|
+test "latest-path trace cannot silently revert to decode-only collectives" {
+  require_replay_scope(
+    { "collective_replay": "exact-capacity", "collective_window_sites": 16 },
+    16,
+  )
+  let wrongs : Array[Json] = [
+    {},
+    { "collective_replay": "exact-capacity" },
+    { "collective_replay": "exact-capacity", "collective_window_sites": 8 },
+  ]
+  for wrong in wrongs {
+    try require_replay_scope(wrong, 16) catch {
+      _ => ()
+    } noraise {
+      _ => fail("accepted a different trace execution policy")
+    }
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, request_file, .. options] &&
     options is ([] | ["--cold-warm"]) &&
     root.has_prefix("/tmp/lunaflux-glm-http-") &&
     root.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/')) else {
     fail("PREPARED_NATIVE_TRACE_ROOT LITERAL_REQUEST_JSON [--cold-warm]")
+  }
+  if @env.get_env_var("LUNAFLUX_TRACE_EXPECT_REPLAY_SITES") is Some(value) {
+    let sites = @string.parse_int(value)
+    guard sites > 0 else { fail("positive expected replay sites") }
+    let artifact = @fs.read_file(root + "/artifact-root.txt")
+      .text()
+      .trim()
+      .to_owned()
+    for path in [root, artifact] {
+      for rank in 0..<2 {
+        require_replay_scope(
+          @json.parse(@fs.read_file(path + "/service-\{rank}.json").text()),
+          sites,
+        )
+      }
+    }
   }
   async fn saved(
     label : String,

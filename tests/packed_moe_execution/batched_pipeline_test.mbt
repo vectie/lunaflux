@@ -40,9 +40,24 @@ async test "batched TP publication waits for both ranks and preserves other live
     8L,
   )
   let retired = Ref(false)
+  let remote_at_submit : Ref[@stage_control.DecoderStageClient?] = Ref(None)
+  let local_submissions = Ref(0)
   local.bind_executor(
     context,
-    submit=_ => (),
+    submit=_ => {
+      guard remote_at_submit.val is Some(remote) else {
+        fail("missing peer at local submission")
+      }
+      // A second RUN must already be illegal when local graph submission
+      // starts. The old local-first order leaves the peer InputsReady here.
+      try remote.run(local_now_millis=0UL) catch {
+        @stage_control.StageControlError::InvalidState => ()
+        error => raise error
+      } noraise {
+        _ => fail("local frame submitted before peer RUN was prepared")
+      }
+      local_submissions.val += 1
+    },
     poll=() => retired.val,
     close=() => (),
     append_descriptors=[],
@@ -71,6 +86,7 @@ async test "batched TP publication waits for both ranks and preserves other live
     maximum_buffer_bytes=budget,
     timeout_millis=1000UL,
   )
+  remote_at_submit.val = Some(remote)
   defer (remote.close() catch { _ => () })
   let server = @stage_control.DecoderStageServer::new_batched(
     terminal,
@@ -125,6 +141,7 @@ async test "batched TP publication waits for both ranks and preserves other live
   assert_eq(completion.entry(1).token_id(), 8)
   assert_eq(host.processed_tokens(7UL, 0UL), 2)
   assert_eq(host.processed_tokens(8UL, 0UL), 2)
+  assert_eq(local_submissions.val, 1)
   pipeline.release_request(7UL, 0UL, local_now_millis=0UL)
   batch_pipeline_exchange(pipeline, server)
   assert_eq(host.processed_tokens(8UL, 0UL), 2)
@@ -137,6 +154,7 @@ async test "batched TP publication waits for both ranks and preserves other live
   pipeline.completion().validate_for(next)
   assert_eq(host.processed_tokens(7UL, 1UL), 2)
   assert_eq(host.processed_tokens(8UL, 0UL), 3)
+  assert_eq(local_submissions.val, 2)
   try pipeline.release_request(7UL, 0UL, local_now_millis=0UL) catch {
     @batch_frame.BatchFrameError::GenerationMismatch => ()
     error => raise error

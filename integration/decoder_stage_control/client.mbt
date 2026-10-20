@@ -222,7 +222,8 @@ pub fn DecoderStageClient::release_one(
 ) -> Unit raise {
   guard self.batched_outputs &&
     !self.busy &&
-    self.state is Idle && request_id > 0UL else {
+    self.state is Idle &&
+    request_id > 0UL else {
     raise StageControlError::InvalidState
   }
   header(self.message, release_one_kind, self.epoch, 0, 0)
@@ -343,10 +344,7 @@ pub async fn DecoderStageClient::poll(
   }
   match self.state {
     Sending(kind) => {
-      if self.channel.poll_send(local_now_millis) {
-        self.channel.begin_receive(local_now_millis)
-        self.state = Receiving(kind)
-      }
+      ignore(self.flush_command(kind, local_now_millis))
       false
     }
     Receiving(kind) =>

@@ -27,6 +27,7 @@ pub struct DecoderStageClient {
 }
 pub fn DecoderStageClient::close(Self) -> Unit raise
 pub fn DecoderStageClient::commit(Self, pipeline_failed~ : Bool, local_now_millis~ : UInt64) -> Unit raise
+pub async fn DecoderStageClient::dispatch_run(Self, local_now_millis~ : UInt64) -> Bool
 pub fn DecoderStageClient::draft_count(Self) -> Int raise
 pub fn DecoderStageClient::draft_token_at(Self, Int) -> Int raise
 pub fn DecoderStageClient::execution_failed(Self) -> Bool raise
