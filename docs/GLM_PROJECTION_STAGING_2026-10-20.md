@@ -78,3 +78,8 @@ workspace bytes and numerical laws are unchanged. Native affected tests78/78
 pass with the existing migration-warning exclusions. The unfiltered warning-
 denied check still rejects pre-existing deprecated APIs; no new suppression
 was added. Targeted `moon info` reports121 existing warnings, zero errors.
+
+The first committed ARM build (`6dd2dee2`, staging-v1) stopped before GPU
+execution: the newer local formatter introduced `Int32`, unavailable in the
+pinned ARM toolchain. Keep the existing cross-toolchain `Int` spelling; do not
+change the experiment's compiler toolchain. Its failed journal is preserved.
