@@ -98,7 +98,14 @@ async fn main {
   ).is_empty()
   let threads = if runtime_present {
     query(
-      "SELECT COUNT(*) matched_runtime_launches,COUNT(DISTINCT r.globalTid) distinct_launch_threads FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=r.correlationId JOIN StringIds s ON s.id=k.shortName WHERE s.value LIKE '%nccl%' AND k.start>=\{begin} AND k.end<=\{end};",
+      "SELECT COUNT(*) matched_kernel_runtime_pairs,COUNT(DISTINCT r.rowid) distinct_runtime_submissions,COUNT(DISTINCT r.globalTid) distinct_launch_threads FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=r.correlationId JOIN StringIds s ON s.id=k.shortName WHERE s.value LIKE '%nccl%' AND k.start>=\{begin} AND k.end<=\{end};",
+    )
+  } else {
+    []
+  }
+  let runtime_apis = if runtime_present {
+    query(
+      "SELECT api.value api,COUNT(DISTINCT r.rowid) distinct_calls,MIN(r.start) first_start,MAX(r.end) last_end FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds api ON api.id=r.nameId WHERE EXISTS(SELECT 1 FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.correlationId=r.correlationId AND s.value LIKE '%nccl%' AND k.start>=\{begin} AND k.end<=\{end}) GROUP BY api.value;",
     )
   } else {
     []
@@ -107,6 +114,7 @@ async fn main {
     "scope": "selected NCCL spans and profiler overlap; correlation is not causation; never subtract overlap from GPU duration",
     "profiler_table_present": has_overhead,
     "thread_counts": threads,
+    "runtime_apis": runtime_apis,
     "profiler_spans": overhead,
     "collectives": result,
   }

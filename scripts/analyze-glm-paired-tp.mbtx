@@ -20,6 +20,7 @@ struct Event {
   stream : Int64
   name : String
   launch_end : Int64?
+  graph_node : Int64
 }
 
 ///|
@@ -51,6 +52,7 @@ test "causal offset bounds do not assume synchronized completions" {
       stream: 1L,
       name: "sum",
       launch_end: None,
+      graph_node: 0L,
     },
     Event::{
       start: 300L,
@@ -58,6 +60,7 @@ test "causal offset bounds do not assume synchronized completions" {
       stream: 1L,
       name: "sum",
       launch_end: None,
+      graph_node: 0L,
     },
   ]
   let b = [
@@ -67,6 +70,7 @@ test "causal offset bounds do not assume synchronized completions" {
       stream: 2L,
       name: "sum",
       launch_end: None,
+      graph_node: 0L,
     },
     Event::{
       start: 1310L,
@@ -74,6 +78,7 @@ test "causal offset bounds do not assume synchronized completions" {
       stream: 2L,
       name: "sum",
       launch_end: None,
+      graph_node: 0L,
     },
   ]
   assert_eq(bounds(a, b), (950L, 1060L))
@@ -85,7 +90,7 @@ async fn events(db : String, begin : Int64, end : Int64) -> Array[Event] {
     "-readonly",
     "-json",
     db,
-    "SELECT k.start,k.end,k.streamId stream,s.value name,(SELECT CASE WHEN COUNT(*)=1 THEN MAX(r.end) ELSE NULL END FROM CUPTI_ACTIVITY_KIND_RUNTIME r WHERE r.correlationId=k.correlationId) launch_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
+    "SELECT k.start,k.end,k.streamId stream,s.value name,COALESCE(k.graphNodeId,0) graph_node,(SELECT CASE WHEN COUNT(*)=1 THEN MAX(r.end) ELSE NULL END FROM CUPTI_ACTIVITY_KIND_RUNTIME r WHERE r.correlationId=k.correlationId) launch_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
   ]).output(max_output_bytes=16777216)
   r.check()
   guard @json.parse(r.stdout()) is Array(rows) else { fail("events") }
@@ -96,6 +101,7 @@ async fn events(db : String, begin : Int64, end : Int64) -> Array[Event] {
         "end": Number(b, ..),
         "stream": Number(s, ..),
         "name": String(name),
+        "graph_node": Number(graph_node, ..),
         ..
       } else {
       fail("event fields")
@@ -105,6 +111,7 @@ async fn events(db : String, begin : Int64, end : Int64) -> Array[Event] {
       end: b.to_int64(),
       stream: s.to_int64(),
       name,
+      graph_node: graph_node.to_int64(),
       launch_end: match row {
         { "launch_end": Number(n, ..), .. } => Some(n.to_int64())
         _ => None
@@ -120,6 +127,11 @@ fn ms(n : Int64) -> Json {
 
 ///|
 fn launch_lead(e : Event) -> Json {
+  // A graph node shares the whole-graph launch correlation. Its launch-end
+  // delta is not a separately submitted collective's queue/arrival time.
+  if e.graph_node != 0L {
+    return null
+  }
   // Only a unique correlation is accepted. Positive means submission already
   // completed before GPU start; this is queue/dependency time, not lost time.
   match e.launch_end {
@@ -136,9 +148,11 @@ test "queued launch is not an exposed host wait" {
     stream: 1L,
     name: "sum",
     launch_end: Some(40L),
+    graph_node: 0L,
   }
   assert_eq(launch_lead(e), Json(0.00006))
   assert_eq(launch_lead({ ..e, launch_end: None, }), null)
+  assert_eq(launch_lead({ ..e, graph_node: 17L, }), null)
 }
 
 ///|
@@ -179,6 +193,8 @@ async fn main {
       "rank1_duration_ms": ms(y.end - y.start),
       "rank0_launch_lead_ms": launch_lead(x),
       "rank1_launch_lead_ms": launch_lead(y),
+      "rank0_graph_node": Json(x.graph_node),
+      "rank1_graph_node": Json(y.graph_node),
       "rank1_early_arrival_lower_ms": ms((x.start + lo - y.start).max(0L)),
       "rank1_early_arrival_upper_ms": ms((x.start + hi - y.start).max(0L)),
       "rank0_early_arrival_lower_ms": ms((y.start - x.start - hi).max(0L)),
