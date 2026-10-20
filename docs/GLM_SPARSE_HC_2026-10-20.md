@@ -93,3 +93,15 @@ moving only the suffix into one subgroup. The eight-control candidate changes
 producer reuse, not control ordering. Comparison remains external.
 
 Both-rank traced results, validation gates and restoration are pending.
+
+The width8 trial loses at some36-row pairs. Final catalog selection restricts
+width8 to live64, retaining widths1/2/4 elsewhere. Final complete-wrapper
+root `/tmp/lunaflux-glm-hc-vocab-reduction-bucketed-20261020-v1` retains a
+small36-row regression even with four-control ownership (typically
+27.8→28.6 us): adding a bucket changes the shared compiled resource envelope.
+This is visible, not claimed solved by the branch alone. All seven64-row
+pairs still improve (53.84–58.30→36.48–40.01 us). No production promotion
+is inferred from this long-prefill qualification.
+
+The intermediate whole-AOT v1 compilation was explicitly stopped after
+refining this row domain; no GPU model run used it. Its source/logs remain.

@@ -62,12 +62,7 @@ async test "export deferred HC post pre alternatives" {
           ),
         ),
       )
-      let wider = @physical.DeferredPostPreDispatch::new(
-        precision,
-        precision,
-        buckets.map(b => (b.0, if b.0 > 32 { 8 } else { b.1 })),
-        workgroup_budget=128,
-      )
+      let wider = source.deferred_dispatch()
       text <+ "\n"
       text.write_string(
         @utf8.decode(

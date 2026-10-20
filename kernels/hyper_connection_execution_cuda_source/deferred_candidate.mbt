@@ -11,7 +11,13 @@ fn deferred_candidate(
     buckets.push((Int::min(rows, 32), 2))
   }
   if rows > 32 {
-    buckets.push((rows, 8))
+    buckets.push((Int::min(rows, 63), 4))
+  }
+  if rows >= 64 {
+    buckets.push((64, 8))
+  }
+  if rows > 64 {
+    buckets.push((rows, 4))
   }
   @physical.DeferredPostPreDispatch::new(
     plan,

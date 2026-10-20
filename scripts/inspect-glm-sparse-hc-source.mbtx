@@ -1,0 +1,94 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+// External dispatch/source audit; never part of compiler selection.
+
+///|
+fn entries(source : String) -> Map[String, String] raise {
+  let pieces = source
+    .split("__device__ __forceinline__ void glm_")
+    .join("extern \"C\" __global__ void glm_")
+    .split("extern \"C\" __global__ void ")
+    .to_array()
+  let result : Map[String, String] = { "<preamble>": pieces[0].to_owned() }
+  for piece in pieces[1:] {
+    guard piece.find("(") is Some(end) else { fail("signature") }
+    let name = piece[:end].to_owned()
+    guard !result.contains(name) else { fail("duplicate entry") }
+    result[name] = piece.to_owned()
+  }
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, before, after, output] else {
+    fail("OLD NEW REPORT")
+  }
+  let a = entries(@fs.read_file(before).text())
+  let b = entries(@fs.read_file(after).text())
+  let changed : Array[Json] = []
+  let added : Array[Json] = []
+  let mut same = 0
+  for name, body in a {
+    guard b.get(name) is Some(next) else { fail("missing entry") }
+    if body == next {
+      same += 1
+      continue
+    }
+    if name.contains("_deferred_post_pre_bucket") {
+      guard next.contains("__shfl_down_sync") else {
+        fail("missing local tree")
+      }
+    } else if name.has_suffix("_deferred_post_pre") {
+      guard next.contains("counts[3]<=63") && next.contains("_bucket3(") else {
+        fail("row dispatch missing")
+      }
+    } else {
+      guard name.has_prefix("glm_sparse_") &&
+        (
+          name.has_suffix("_output") ||
+          name.has_suffix("_projection_q_b") ||
+          name.has_suffix("_projection_index_q")
+        ) else {
+        fail("unexpected changed source " + name)
+      }
+      let k = if name.has_suffix("_output") { 64 } else { 32 }
+      guard next.contains("(warp/2)*16*\{k}+kk") && next.contains("kk+=16") else {
+        fail("matrix ownership/fold")
+      }
+      guard body.split("const int row_base=").to_array()[0] ==
+        next.split("const int row_base=").to_array()[0] else {
+        fail("decode changed")
+      }
+    }
+    changed.push(Json(name))
+  }
+  for name, body in b {
+    if !a.contains(name) {
+      guard name.has_suffix("_deferred_post_pre_bucket3") &&
+        body.contains("reduction[8][256]") else {
+        fail("unexpected added entry")
+      }
+      added.push(Json(name))
+    }
+  }
+  @fs.write_file(
+    output,
+    Json({
+      "changed": Json(changed),
+      "added": Json(added),
+      "unchanged": Json(same),
+      "before": Json(before),
+      "after": Json(after),
+    }).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(
+    "changed=\{changed.length()} added=\{added.length()} unchanged=\{same}",
+  )
+}
