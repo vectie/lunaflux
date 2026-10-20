@@ -22,6 +22,9 @@ pub(all) enum ReplayPolicy {
   // Exact one-row and selected-row effect frames; all other row counts retain
   // ordinary-count interval replay. Never round a partial chunk up to a bucket.
   CaptureExactCollectives(Int)
+  // Exact-row replay with a finite collective horizon per ordered graph.
+  // Decode retains one graph; unmatched row counts retain interval replay.
+  CaptureWindowedCollectives(Int, Int)
 } derive(Eq)
 
 ///|
@@ -48,12 +51,16 @@ pub fn OrderedSubmissionPlan::new(
     is (CapturePaddedCollectives
     | CaptureBucketedCollectives
     | CaptureDecodeCollectives
-    | CaptureExactCollectives(_))) ||
+    | CaptureExactCollectives(_)
+    | CaptureWindowedCollectives(_, _))) ||
     retirement == WholeFrame else {
     raise Capacity
   }
   if replay is CaptureExactCollectives(rows) {
     guard rows > 1 else { raise Capacity }
+  }
+  if replay is CaptureWindowedCollectives(rows, sites) {
+    guard rows > 1 && sites > 0 else { raise Capacity }
   }
   for i, cut in collective_cuts {
     guard cut > 0 &&
@@ -118,7 +125,7 @@ pub fn OrderedSubmissionPlan::collective_row_buckets(
   guard capacity > 0 else { raise Capacity }
   match self.replay {
     CaptureDecodeCollectives => [1]
-    CaptureExactCollectives(rows) => {
+    CaptureExactCollectives(rows) | CaptureWindowedCollectives(rows, _) => {
       guard rows <= capacity else { raise Capacity }
       [1, rows]
     }
@@ -139,13 +146,17 @@ pub fn OrderedSubmissionPlan::has_collective_graphs(self : Self) -> Bool {
   is (CapturePaddedCollectives
   | CaptureBucketedCollectives
   | CaptureDecodeCollectives
-  | CaptureExactCollectives(_))
+  | CaptureExactCollectives(_)
+  | CaptureWindowedCollectives(_, _))
 }
 
 ///|
 pub fn OrderedSubmissionPlan::captures_interval_graphs(self : Self) -> Bool {
   self.replay
-  is (CaptureIntervals | CaptureDecodeCollectives | CaptureExactCollectives(_))
+  is (CaptureIntervals
+  | CaptureDecodeCollectives
+  | CaptureExactCollectives(_)
+  | CaptureWindowedCollectives(_, _))
 }
 
 ///|
@@ -155,7 +166,8 @@ pub fn OrderedSubmissionPlan::replay_collectives(
 ) -> Bool {
   live > 0 &&
   (match self.replay {
-    CaptureExactCollectives(rows) => live == 1 || live == rows
+    CaptureExactCollectives(rows) | CaptureWindowedCollectives(rows, _) =>
+      live == 1 || live == rows
     CaptureDecodeCollectives => live == 1
     CaptureBucketedCollectives | CapturePaddedCollectives => true
     _ => false
@@ -164,7 +176,9 @@ pub fn OrderedSubmissionPlan::replay_collectives(
 
 ///|
 pub fn OrderedSubmissionPlan::interval_queue_offset(self : Self) -> Int {
-  if self.replay is CaptureExactCollectives(_) {
+  if self.replay is CaptureWindowedCollectives(_, _) {
+    1 + self.collective_window_count(1)
+  } else if self.replay is CaptureExactCollectives(_) {
     2
   } else if self.replay == CaptureDecodeCollectives {
     1
@@ -178,7 +192,10 @@ pub fn OrderedSubmissionPlan::collective_bucket(
   self : Self,
   live : Int,
 ) -> Int {
-  if self.replay is (CaptureBucketedCollectives | CaptureExactCollectives(_)) &&
+  if self.replay
+    is (CaptureBucketedCollectives
+    | CaptureExactCollectives(_)
+    | CaptureWindowedCollectives(_, _)) &&
     live > 1 {
     1
   } else {
@@ -205,7 +222,8 @@ pub fn OrderedSubmissionPlan::replay_reserve_bytes(
     raise Capacity
   }
   let reserve = kernels * bytes_per_kernel + intervals * bytes_per_interval
-  if self.replay is CaptureExactCollectives(_) {
+  if self.replay
+    is (CaptureExactCollectives(_) | CaptureWindowedCollectives(_, _)) {
     // Two whole effect frames plus interval graphs for unmatched row counts.
     guard reserve <= 3074457345618258602L else { raise Capacity }
     reserve * 3L

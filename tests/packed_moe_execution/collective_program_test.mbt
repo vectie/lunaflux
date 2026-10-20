@@ -6,6 +6,7 @@ fn run_collective_program(
   bucketed? : Bool = false,
   decode_graph? : Bool = false,
   exact_graph? : Bool = false,
+  window_graph? : Bool = false,
   cancel? : Bool = false,
   cancel_rows? : Int = 1,
   fork? : Bool = false,
@@ -127,7 +128,9 @@ fn run_collective_program(
     generation=1UL,
     maximum_rows~,
     retirement=if queued { WholeFrame } else { EachCollective },
-    replay=if exact_graph {
+    replay=if window_graph {
+      CaptureWindowedCollectives(3, 1)
+    } else if exact_graph {
       CaptureExactCollectives(3)
     } else if decode_graph {
       CaptureDecodeCollectives
@@ -150,7 +153,9 @@ fn run_collective_program(
   defer (queue.abort() catch { _ => () })
   assert_eq(
     queue.replay_graph_count(),
-    if exact_graph {
+    if window_graph {
+      6
+    } else if exact_graph {
       5
     } else if decode_graph {
       4
@@ -252,6 +257,35 @@ test "exact effect graphs alternate with partial-row intervals without allocatio
       true,
       exact_graph=true,
       bfloat16=true,
+      cancel=true,
+      cancel_rows=rows,
+    )
+  }
+}
+
+///|
+test "bounded effect windows preserve replay, forks and cancellation without allocation" {
+  run_collective_program(true, exact_graph=true, window_graph=true)
+  run_collective_program(
+    true,
+    exact_graph=true,
+    window_graph=true,
+    bfloat16=true,
+    fork=true,
+  )
+  run_collective_program(
+    true,
+    exact_graph=true,
+    window_graph=true,
+    abort_idle=true,
+  )
+  for rows in 1..<4 {
+    run_collective_program(
+      true,
+      exact_graph=true,
+      window_graph=true,
+      bfloat16=true,
+      fork=true,
       cancel=true,
       cancel_rows=rows,
     )

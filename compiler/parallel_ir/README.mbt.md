@@ -66,3 +66,11 @@ graph families are budgeted before binding, retain the same collective order,
 and use whole-frame retirement/cancellation. This is an explicit alternative,
 not a default performance claim; profiler/comparison evidence remains outside
 the compiler.
+
+`CaptureWindowedCollectives(rows, maximum_sites)` additionally bounds the
+communication horizon of each exact-prefill graph. Windows partition existing
+joined collective cuts, preserving reductions and the final compute tail.
+Decode stays one graph; partial rows use unchanged interval replay. All windows
+share an ordered device stream and whole-frame retirement; no intermediate
+host wait or token-path allocation is introduced. The positive site limit is
+an explicit resource choice, not a vendor constant or numerical guarantee.

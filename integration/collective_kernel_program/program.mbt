@@ -71,6 +71,7 @@ pub struct CollectiveKernelProgram {
   priv mut plan_sequence : UInt64
   priv mut global_sequence : UInt64
   priv mut graph_index : Int
+  priv mut graph_end : Int
 }
 
 ///|
@@ -174,8 +175,15 @@ pub fn CollectiveKernelProgram::new(
       }
     }
   }
-  for _ in graph_rows {
-    queues.push(PreparedQueue::new(context, stream, launches, forks))
+  for bucket, _ in graph_rows {
+    for window in 0..<plan.collective_window_count(bucket) {
+      let (first, end, _, _) = plan.collective_window(bucket, window) catch {
+        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      }
+      queues.push(
+        prepare_window_queue(context, stream, launches, forks, first, end),
+      )
+    }
   }
   if plan.captures_interval_graphs() {
     for i in 0..<plan.interval_count() {
@@ -207,13 +215,18 @@ pub fn CollectiveKernelProgram::new(
   }
   for i, rows in graph_rows {
     capture_collective_frame(
-      queues[i],
+      queues[if i == 0 {
+        0
+      } else {
+        1
+      }:(if i == 0 { 0 } else { 1 }) + plan.collective_window_count(i)],
+      plan,
+      i,
       stream,
       boundaries,
       owner,
       generation,
       rows,
-      launches.length(),
       capture_timeout_millis,
     )
   }
@@ -232,6 +245,7 @@ pub fn CollectiveKernelProgram::new(
     plan_sequence: 0UL,
     global_sequence: 0UL,
     graph_index: 0,
+    graph_end: 0,
   }
 }
 
@@ -301,10 +315,14 @@ pub fn CollectiveKernelProgram::submit(
   self.site = 0
   self.next_kernel = 0
   if self.plan.replay_collectives(live_rows) {
-    self.graph_index = self.plan.collective_bucket(live_rows)
+    self.graph_index = self.plan.collective_queue_first(live_rows)
+    self.graph_end = self.graph_index +
+      self.plan.collective_window_count(self.plan.collective_bucket(live_rows))
     self.owner.begin_graph(self.generation, plan_sequence, global_sequence)
-    self.queues[self.graph_index].launch_captured()
-    self.queues[self.graph_index].record_completion()
+    for i in self.graph_index..<self.graph_end {
+      self.queues[i].launch_captured()
+      self.queues[i].record_completion()
+    }
     self.state = Graph
     return
   }
@@ -322,13 +340,20 @@ pub fn CollectiveKernelProgram::poll(
     errdefer {
       self.state = Failed
     }
-    if !self.queues[self.graph_index].poll_completion() {
+    if !self.queues[self.graph_end - 1].poll_completion() {
       return false
+    }
+    for i in self.graph_index..<self.graph_end {
+      if !self.queues[i].poll_completion() {
+        return false
+      }
     }
     if !self.owner.complete_graph() {
       return false
     }
-    self.queues[self.graph_index].reset()
+    for i in self.graph_index..<self.graph_end {
+      self.queues[i].reset()
+    }
     self.state = Idle
     return true
   }

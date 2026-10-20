@@ -136,7 +136,10 @@ pub struct OrderedSubmissionPlan {
 }
 pub fn OrderedSubmissionPlan::captures_interval_graphs(Self) -> Bool
 pub fn OrderedSubmissionPlan::collective_bucket(Self, Int) -> Int
+pub fn OrderedSubmissionPlan::collective_queue_first(Self, Int) -> Int
 pub fn OrderedSubmissionPlan::collective_row_buckets(Self, Int) -> Array[Int] raise ParallelError
+pub fn OrderedSubmissionPlan::collective_window(Self, Int, Int) -> (Int, Int, Int, Int) raise ParallelError
+pub fn OrderedSubmissionPlan::collective_window_count(Self, Int) -> Int
 pub fn OrderedSubmissionPlan::has_collective_graphs(Self) -> Bool
 pub fn OrderedSubmissionPlan::interval(Self, Int) -> (Int, Int)
 pub fn OrderedSubmissionPlan::interval_count(Self) -> Int
@@ -178,6 +181,7 @@ pub(all) enum ReplayPolicy {
   CaptureBucketedCollectives
   CaptureDecodeCollectives
   CaptureExactCollectives(Int)
+  CaptureWindowedCollectives(Int, Int)
 } derive(Eq)
 pub fn ReplayPolicy::equal(Self, Self) -> Bool
 pub fn ReplayPolicy::not_equal(Self, Self) -> Bool

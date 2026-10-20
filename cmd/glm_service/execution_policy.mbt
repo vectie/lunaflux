@@ -9,6 +9,7 @@ priv struct ExecutionPolicy {
   moe_reduction : @precision.MoeReductionPlacement
   tensor_publication : @precision.ProjectionPublication
   exact_capacity_replay : Bool
+  collective_window_sites : Int
 }
 
 ///|
@@ -54,6 +55,17 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     Some(String("exact-capacity")) => true
     _ => fail("unsupported collective_replay")
   }
+  let collective_window_sites = match fields.get("collective_window_sites") {
+    None => 0
+    Some(Number(n, ..)) if n >= 1.0 &&
+      n <= 2147483647.0 &&
+      n.to_int().to_double() == n &&
+      exact_capacity_replay => n.to_int()
+    _ =>
+      fail(
+        "collective_window_sites requires exact replay and a positive integer",
+      )
+  }
   {
     recurrent,
     staging,
@@ -62,6 +74,7 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
     moe_reduction,
     tensor_publication,
     exact_capacity_replay,
+    collective_window_sites,
   }
 }
 
@@ -75,7 +88,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
     Synchronous => "synchronous"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
   }
-  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay}"
+  "recurrent=\{recurrent} projection_staging=\{staging} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
 }
 
 ///|
@@ -84,7 +97,11 @@ fn ExecutionPolicy::replay(
   capacity : Int,
 ) -> @parallel.ReplayPolicy {
   if self.exact_capacity_replay && capacity > 1 {
-    CaptureExactCollectives(capacity)
+    if self.collective_window_sites > 0 {
+      CaptureWindowedCollectives(capacity, self.collective_window_sites)
+    } else {
+      CaptureExactCollectives(capacity)
+    }
   } else {
     CaptureDecodeCollectives
   }
@@ -150,6 +167,9 @@ test "unknown execution choices cannot silently use the serving baseline" {
     { "moe_reduction": "automatic" },
     { "projection_reduction": "automatic" },
     { "collective_replay": "automatic" },
+    { "collective_window_sites": 16 },
+    { "collective_replay": "exact-capacity", "collective_window_sites": 0 },
+    { "collective_replay": "exact-capacity", "collective_window_sites": 1.5 },
   ]
   for value in cases {
     try execution_policy(value) catch {
@@ -158,4 +178,15 @@ test "unknown execution choices cannot silently use the serving baseline" {
       _ => fail("unsupported execution choice accepted")
     }
   }
+}
+
+///|
+test "bounded graph horizon is explicit and independent of arithmetic" {
+  let p = execution_policy({
+    "collective_replay": "exact-capacity",
+    "collective_window_sites": 16,
+  })
+  assert_true(p.replay(64) is CaptureWindowedCollectives(64, 16))
+  assert_true(p.replay(1) is CaptureDecodeCollectives)
+  assert_true(p.tensor_publication is ReduceFloat32BeforeRound)
 }
