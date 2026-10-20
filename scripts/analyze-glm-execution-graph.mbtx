@@ -1,0 +1,487 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline selected-symbol attribution, never compiler legality or correctness.
+// Compare the same decoder boundary: first HC pre through final HC post.
+// Keep raw sums separate from disjoint wall allocation and observed overlap.
+
+///|
+struct Event {
+  start : Int64
+  end : Int64
+  stream : Int64
+  name : String
+  correlation : Int64
+  node : Int64
+}
+
+///|
+struct Tagged {
+  event : Event
+  kind : String
+}
+
+///|
+fn ms(value : Int64) -> Double {
+  value.to_double() / 1000000.0
+}
+
+///|
+fn union_ns(events : Array[Event]) -> Int64 {
+  let sorted = events.copy()
+  sorted.sort_by((a, b) => a.start.compare(b.start))
+  for e in sorted; right = 0L, total = 0L {
+    continue right.max(e.end), total + (e.end - right.max(e.start)).max(0L)
+  } nobreak {
+    total
+  }
+}
+
+///|
+fn native_kind(name : String) -> String {
+  if name.contains("nccl") {
+    return "collective"
+  }
+  if name.contains("hyper") {
+    return "hyper_connection"
+  }
+  if name.has_prefix("glm_shared_") {
+    return "shared_expert"
+  }
+  if name.has_prefix("glm_router_") {
+    return "router"
+  }
+  if name.has_prefix("glm_routed_") {
+    if name.has_suffix("_gate_up") {
+      return "routed_gate_up"
+    }
+    if name.has_suffix("_down") {
+      return "routed_down"
+    }
+    return "routed_glue"
+  }
+  if name.has_prefix("glm_moe_") {
+    return "routed_glue"
+  }
+  if name.has_prefix("glm_dense_") {
+    return "dense_ffn"
+  }
+  if name.has_prefix("glm_recurrent_") {
+    if ["_inputs", "_4", "_9", "_15", "_16"].any(s => name.has_suffix(s)) {
+      return "kda_projection"
+    }
+    return "kda_other"
+  }
+  if name.has_prefix("glm_sparse_") {
+    if name.contains("_projection_") ||
+      ["_output", "_output_publish", "_value_expand"].any(s => {
+        name.has_suffix(s)
+      }) {
+      return "sparse_projection"
+    }
+    if name.has_suffix("_attention_index_scores") {
+      return "index_scores"
+    }
+    if name.has_suffix("_attention_index") {
+      return "index_selection"
+    }
+    if name.contains("_attention_attention_") {
+      return "sparse_attention_core"
+    }
+    return "sparse_other"
+  }
+  "unclassified"
+}
+
+///|
+fn matrix(name : String) -> Bool {
+  name.has_prefix("nvjet_") ||
+  name
+  is ("kernel"
+  | "Kernel2"
+  | "gemmSN_NN_kernel"
+  | "gemvNSP_kernel"
+  | "splitKreduce_kernel")
+}
+
+///|
+fn allocation(items : Array[Tagged], begin : Int64, end : Int64) -> Json {
+  let edges : Array[(Int64, String, Int32)] = []
+  for item in items {
+    edges.push((item.event.start, item.kind, 1))
+    edges.push((item.event.end, item.kind, -1))
+  }
+  edges.sort_by((a, b) => a.0.compare(b.0))
+  let active : Map[String, Int32] = Map([])
+  let durations : Map[String, Int64] = Map([])
+  fn add(a : Int64, b : Int64) -> Unit {
+    if b <= a {
+      return
+    }
+    let kinds = active
+      .iter()
+      .filter_map(pair => if pair.1 > 0 { Some(pair.0) } else { None })
+      .to_array()
+    kinds.sort()
+    let key = if kinds.is_empty() { "kernel_free" } else { kinds.join(" + ") }
+    durations[key] = durations.get(key).unwrap_or(0L) + b - a
+  }
+  for (time, kind, delta) in edges; previous = begin {
+    add(previous, time)
+    active[kind] = active.get(kind).unwrap_or(0) + delta
+    continue time
+  } nobreak {
+    add(previous, end)
+  }
+  let result : Map[String, Json] = Map([])
+  for kind, duration in durations {
+    result[kind] = Json(ms(duration))
+  }
+  Json(result)
+}
+
+///|
+fn describe(items : Array[Tagged], begin : Int64, end : Int64) -> Json {
+  let items = items.filter_map(item => {
+    let start = item.event.start.max(begin)
+    let finish = item.event.end.min(end)
+    if start < finish {
+      Some({ ..item, event: { ..item.event, start, end: finish, }, })
+    } else {
+      None
+    }
+  })
+  let kinds : Map[String, Array[Event]] = Map([])
+  let correlations : Map[Int64, Unit] = Map([])
+  for item in items {
+    if !kinds.contains(item.kind) {
+      kinds[item.kind] = []
+    }
+    kinds[item.kind].push(item.event)
+    if item.kind == "collective" && item.event.node != 0L {
+      correlations[item.event.correlation] = ()
+    }
+  }
+  let categories : Map[String, Json] = Map([])
+  for kind, events in kinds {
+    categories[kind] = {
+      "calls": events.length(),
+      "sum_ms": ms(events.fold(init=0L, (n, e) => n + e.end - e.start)),
+      "union_ms": ms(union_ns(events)),
+    }
+  }
+  let events = items.map(x => x.event)
+  let shared = union_ns(
+    items.filter(x => x.kind == "shared_expert").map(x => x.event),
+  )
+  let others = union_ns(
+    items.filter(x => x.kind != "shared_expert").map(x => x.event),
+  )
+  let compute = union_ns(
+    items.filter(x => x.kind != "collective").map(x => x.event),
+  )
+  let collective = union_ns(
+    items.filter(x => x.kind == "collective").map(x => x.event),
+  )
+  let all = union_ns(events)
+  let overlap = shared + others - all
+  {
+    "begin_ns": Json(begin),
+    "end_ns": Json(end),
+    "wall_ms": ms(end - begin),
+    "kernel_union_ms": ms(all),
+    "kernel_sum_ms": ms(events.fold(init=0L, (n, e) => n + e.end - e.start)),
+    "kernel_free_ms": ms(end - begin - all),
+    "compute_union_ms": ms(compute),
+    "collective_union_ms": ms(collective),
+    "compute_collective_overlap_ms": ms(compute + collective - all),
+    "shared_overlap_ms": ms(overlap),
+    "shared_uncovered_ms": ms(shared - overlap),
+    "collective_graph_correlations": correlations.length(),
+    "categories": Json(categories),
+    "disjoint_wall_ms": allocation(items, begin, end),
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, mode, db, output, pass_arg] &&
+    mode is ("native" | "vllm") else {
+    fail("native|vllm SQLITE NEW_OUTPUT PASS_INDEX")
+  }
+  let pass = @string.parse_int(pass_arg)
+  guard pass >= 0 else { fail("nonnegative pass") }
+  let raw = @shell.Cmd("sqlite3", [
+    "-readonly", "-json", db, "SELECT k.start,k.end,k.streamId stream,s.value name,k.correlationId correlation,coalesce(k.graphNodeId,0) node FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start;",
+  ]).output(max_output_bytes=134217728)
+  raw.check()
+  guard @json.parse(raw.stdout()) is Array(rows) else { fail("kernel rows") }
+  let all = rows.map(row => {
+    guard row
+      is {
+        "start": Number(a, ..),
+        "end": Number(b, ..),
+        "stream": Number(s, ..),
+        "name": String(name),
+        "correlation": Number(c, ..),
+        "node": Number(n, ..),
+        ..
+      } else {
+      fail("event")
+    }
+    Event::{
+      start: a.to_int64(),
+      end: b.to_int64(),
+      stream: s.to_int64(),
+      name,
+      correlation: c.to_int64(),
+      node: n.to_int64(),
+    }
+  })
+  let starts = all.filter(e => {
+    if mode == "native" {
+      e.name == "glm_hyper_attn_0_square_tree_tiles_v1"
+    } else {
+      e.name == "sm120_tf32_hc_prenorm_gemm_impl"
+    }
+  })
+  let offset = if mode == "native" { pass } else { pass * 90 }
+  guard offset < starts.length() else { fail("missing pass start") }
+  let begin = starts[offset].start
+  let finals = all.filter(e => {
+    e.start >= begin &&
+    (if mode == "native" {
+      e.name == "glm_hyper_ffn_44_post"
+    } else {
+      e.name == "mhc_post_tilelang_kernel"
+    })
+  })
+  // This installed reference emits one post after each sublayer at rows64.
+  // Verify the complete 90-anchor region, not an assumed final trace timestamp.
+  let final_index = if mode == "native" { 0 } else { 89 }
+  guard final_index < finals.length() else { fail("missing final publication") }
+  let end = finals[final_index].end
+  let events = all.filter(e => e.start >= begin && e.end <= end)
+  let anchors = if mode == "native" {
+    events.filter(e => {
+      e.name == "glm_hyper_attn_0_square_tree_tiles_v1" ||
+      e.name.has_suffix("_deferred_post_pre")
+    })
+  } else {
+    events.filter(e => e.name == "sm120_tf32_hc_prenorm_gemm_impl")
+  }
+  guard anchors.length() == 90 &&
+    events.filter(e => e.name.contains("nccl")).length() == 90 else {
+    fail("complete chunk requires 90 HC entries and 90 decoder reductions")
+  }
+  let groups : Array[Array[Event]] = Array::makei(90, _ => [])
+  for e in events; cursor = 0 {
+    let mut at = cursor
+    while at + 1 < 90 && e.start >= anchors[at + 1].start {
+      at += 1
+    }
+    groups[at].push(e)
+    continue at
+  }
+  let tagged : Array[Tagged] = []
+  let regions : Array[Json] = []
+  let leaves : Array[Json] = []
+  for i, es in groups {
+    let layer = i / 2
+    let attention = i % 2 == 0
+    let kda = es.any(e => {
+      e.name.contains("recurrent") ||
+      e.name.contains("kda") ||
+      e.name.contains("delta_rule")
+    })
+    let family = if attention {
+      if kda {
+        "kda"
+      } else {
+        "sparse"
+      }
+    } else if layer < 3 {
+      "dense_ffn"
+    } else {
+      "moe"
+    }
+    let quant = es.filter(e => {
+      e.stream == anchors[i].stream && e.name == "cvt_fp16_to_fp4"
+    })
+    if mode == "vllm" && family == "moe" && quant.length() != 1 {
+      fail("one main-stream quantizer required for reference MoE")
+    }
+    let region : Array[Tagged] = []
+    let mut routed = 0
+    for e in es {
+      let kind = if mode == "native" {
+        native_kind(e.name)
+      } else if e.name.contains("nccl") {
+        "collective"
+      } else if e.name.contains("mhc_") || e.name.contains("hc_prenorm") {
+        "hyper_connection"
+      } else if attention {
+        if matrix(e.name) {
+          family + "_projection"
+        } else if !kda && e.name.contains("sparse_mla") {
+          "sparse_attention_core"
+        } else if !kda && e.name.contains("mqa_logits") {
+          "index_scores"
+        } else if !kda && ["topk", "top_k", "topK"].any(s => e.name.contains(s)) {
+          "index_selection"
+        } else {
+          family + "_other"
+        }
+      } else if family == "dense_ffn" {
+        family
+      } else if e.stream != anchors[i].stream {
+        "shared_expert"
+      } else if e.start < quant[0].start {
+        "router"
+      } else if e.name == "device_kernel" {
+        let result = if routed == 0 { "routed_gate_up" } else { "routed_down" }
+        routed += 1
+        result
+      } else {
+        "routed_glue"
+      }
+      guard kind != "unclassified" else {
+        fail("unclassified selected symbol: " + e.name)
+      }
+      let item = Tagged::{ event: e, kind, }
+      tagged.push(item)
+      region.push(item)
+      leaves.push({
+        "region": i,
+        "layer": layer,
+        "family": family,
+        "kind": kind,
+        "name": e.name,
+        "start_ns": Json(e.start),
+        "end_ns": Json(e.end),
+        "start_ms": ms(e.start - begin),
+        "duration_ms": ms(e.end - e.start),
+        "stream": Json(e.stream),
+        "graph_node": Json(e.node),
+        "correlation": Json(e.correlation),
+      })
+    }
+    if family == "moe" {
+      guard region.filter(x => x.kind == "routed_gate_up").length() == 1 &&
+        region.filter(x => x.kind == "routed_down").length() == 1 else {
+        fail("one routed gate/up and down per MoE")
+      }
+    }
+    regions.push({
+      "region": i,
+      "layer": layer,
+      "family": family,
+      "timing": describe(
+        region,
+        anchors[i].start,
+        if i == 89 {
+          end
+        } else {
+          anchors[i + 1].start
+        },
+      ),
+    })
+  }
+  @fs.mkdir(output)
+  let result : Json = {
+    "mode": mode,
+    "database": db,
+    "pass": pass,
+    "scope": "45 decoder layers, first HC pre through final HC post; excludes embedding/head/sampling/HTTP. Kernel-free is not necessarily device idle. No cross-host clock assumption or wire-time attribution.",
+    "timing": describe(tagged, begin, end),
+  }
+  @fs.write_file(
+    output + "/summary.json",
+    result.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/regions.json",
+    Json(regions).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  @fs.write_file(
+    output + "/leaves.json",
+    Json(leaves).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(result.stringify(indent=2))
+}
+
+///|
+test "wall allocation distinguishes overlap and empty time" {
+  fn t(a : Int64, b : Int64, kind : String) -> Tagged {
+    {
+      event: {
+        start: a,
+        end: b,
+        stream: 1,
+        name: kind,
+        correlation: 0,
+        node: 0,
+      },
+      kind,
+    }
+  }
+  assert_eq(
+    allocation(
+      [t(0, 10, "routed"), t(3, 8, "shared"), t(12, 15, "collective")],
+      0,
+      20,
+    ),
+    {
+      "routed": 0.000005,
+      "routed + shared": 0.000005,
+      "collective": 0.000003,
+      "kernel_free": 0.000007,
+    },
+  )
+  assert_eq(
+    native_kind("glm_sparse_3_hyper_deferred_post_pre"),
+    "hyper_connection",
+  )
+  assert_eq(native_kind("glm_routed_3_quantize_0_global"), "routed_glue")
+  assert_eq(native_kind("glm_recurrent_0_delta"), "kda_other")
+}
+
+///|
+test "region clips boundary-crossing work and preserves disjoint time" {
+  let item : Tagged = {
+    event: {
+      start: 5,
+      end: 25,
+      stream: 1,
+      name: "shared",
+      correlation: 0,
+      node: 0,
+    },
+    kind: "shared_expert",
+  }
+  let result = describe([item], 10, 30)
+  guard result
+    is {
+      "wall_ms": Number(wall, ..),
+      "kernel_union_ms": Number(work, ..),
+      "kernel_free_ms": Number(gap, ..),
+      "disjoint_wall_ms": allocation,
+      ..
+    } else {
+    fail("timing fields")
+  }
+  assert_eq(wall, 0.00002)
+  assert_eq(work, 0.000015)
+  assert_eq(gap, 0.000005)
+  assert_eq(allocation, { "shared_expert": 0.000015, "kernel_free": 0.000005 })
+}

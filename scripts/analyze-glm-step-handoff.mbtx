@@ -1,0 +1,182 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// External trace complement: decoder completion through the next decoder's
+// first HC operation. Includes prediction, TP, transfers and host handoff.
+// Uncovered trace time is not automatically NCCL wire time or scheduler time.
+
+///|
+struct Span {
+  start : Int64
+  end : Int64
+}
+
+///|
+fn union_ns(spans : Array[Span]) -> Int64 {
+  let sorted = spans.copy()
+  sorted.sort_by((a, b) => a.start.compare(b.start))
+  for s in sorted; right = 0L, total = 0L {
+    continue right.max(s.end), total + (s.end - right.max(s.start)).max(0L)
+  } nobreak {
+    total
+  }
+}
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(fields) else { fail("object") }
+  fields[key]
+}
+
+///|
+fn integer(j : Json) -> Int64 raise {
+  match j {
+    Number(n, ..) => n.to_int64()
+    String(s) =>
+      // Int64 evidence is serialized losslessly as decimal JSON strings.
+      @string.parse_int64(s)
+    _ => fail("integer")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, summary, output] else {
+    fail("EXECUTION_GRAPH_SUMMARY NEW_OUTPUT_JSON")
+  }
+  let report = @json.parse(@fs.read_file(summary).text())
+  guard field(report, "database") is String(db) &&
+    field(report, "mode") is String(mode) else {
+    fail("scope")
+  }
+  let timing = field(report, "timing")
+  let begin = integer(field(timing, "end_ns"))
+  async fn query(sql : String) -> Json {
+    let r = @shell.Cmd("sqlite3", ["-readonly", "-json", db, sql]).output(
+      max_output_bytes=16777216,
+    )
+    r.check()
+    if r.stdout().trim().is_empty() {
+      Json(([] : Array[Json]))
+    } else {
+      @json.parse(r.stdout())
+    }
+  }
+  let anchor = if mode == "native" {
+    "glm_hyper_attn_0_square_tree_tiles_v1"
+  } else {
+    "sm120_tf32_hc_prenorm_gemm_impl"
+  }
+  guard query(
+      "SELECT min(k.start) start FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.start>\{begin} AND s.value='\{anchor}';",
+    )
+    is Array([{ "start": Number(n, ..), .. }]) else {
+    fail("missing next decoder boundary; truncated tail")
+  }
+  let end = n.to_int64()
+  let spans : Array[Span] = []
+  let kinds : Map[String, Json] = Map([])
+  for
+    (kind, table, sql) in [
+      (
+        "kernels", "CUPTI_ACTIVITY_KIND_KERNEL", "SELECT k.start,k.end,s.value name,k.streamId stream FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName",
+      ),
+      (
+        "copies", "CUPTI_ACTIVITY_KIND_MEMCPY", "SELECT k.start,k.end,k.bytes,k.copyKind,k.streamId stream FROM CUPTI_ACTIVITY_KIND_MEMCPY k",
+      ),
+      (
+        "memsets", "CUPTI_ACTIVITY_KIND_MEMSET", "SELECT k.start,k.end,k.bytes,k.streamId stream FROM CUPTI_ACTIVITY_KIND_MEMSET k",
+      ),
+    ] {
+    // Nsight omits optional activity tables when no such activity was recorded.
+    // Distinguish that from a malformed query against a present table.
+    let present = query(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='\{table}';",
+      )
+      is Array([_, ..])
+    guard present || kind != "kernels" else {
+      fail("missing kernel activity table")
+    }
+    let raw = if present {
+      query(
+        sql + " WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
+      )
+    } else {
+      Json(([] : Array[Json]))
+    }
+    guard raw is Array(rows) else { fail("rows") }
+    let intervals = rows.map(row => Span::{
+      start: integer(field(row, "start")),
+      end: integer(field(row, "end")),
+    })
+    for s in intervals {
+      spans.push(s)
+    }
+    kinds[kind] = {
+      "table_present": present,
+      "records": raw,
+      "union_ms": union_ns(intervals).to_double() / 1000000.0,
+    }
+  }
+  let runtime = query(
+    "SELECT s.value name,count(*) calls,sum(r.end-r.start)/1e6 sum_ms,max(r.end-r.start)/1e6 max_ms FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE r.start>=\{begin} AND r.end<=\{end} GROUP BY s.value ORDER BY sum_ms DESC;",
+  )
+  let gaps : Array[Json] = []
+  spans.sort_by((a, b) => a.start.compare(b.start))
+  for s in spans; right = begin {
+    if s.start > right {
+      gaps.push({
+        "start_ns": Json(right),
+        "end_ns": Json(s.start),
+        "ms": (s.start - right).to_double() / 1000000.0,
+      })
+    }
+    continue right.max(s.end)
+  } nobreak {
+    if right < end {
+      gaps.push({
+        "start_ns": Json(right),
+        "end_ns": Json(end),
+        "ms": (end - right).to_double() / 1000000.0,
+      })
+    }
+  }
+  let result : Json = {
+    "database": db,
+    "mode": mode,
+    "begin_ns": Json(begin),
+    "end_ns": Json(end),
+    "wall_ms": (end - begin).to_double() / 1000000.0,
+    "visible_device_union_ms": union_ns(spans).to_double() / 1000000.0,
+    "uncovered_device_trace_ms": (end - begin - union_ns(spans)).to_double() /
+    1000000.0,
+    "activity": Json(kinds),
+    "runtime": runtime,
+    "gaps": Json(gaps),
+    "scope": "Observed kernels/copies/memsets only. CPU API sums may overlap; not causal exclusive host attribution. No synchronized peer clock or overall request timing.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(
+    "\{mode}: handoff \{(end-begin).to_double()/1000000.0} ms; uncovered device trace \{(end-begin-union_ns(spans)).to_double()/1000000.0} ms",
+  )
+}
+
+///|
+test "handoff does not double count concurrent copies" {
+  assert_eq(
+    union_ns([
+      { start: 10, end: 20, },
+      { start: 15, end: 25, },
+      { start: 30, end: 32, },
+    ]),
+    17L,
+  )
+  assert_eq(integer(Json(123456789012L)), 123456789012L)
+}
