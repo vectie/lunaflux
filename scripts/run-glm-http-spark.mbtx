@@ -83,6 +83,26 @@ fn stop_order() -> Array[Int32] {
 }
 
 ///|
+fn nccl_diagnostic_level(value : String?) -> String raise {
+  match value {
+    None | Some("WARN") => "WARN"
+    Some("INFO") => "INFO"
+    _ => fail("offline NCCL diagnostic level must be WARN or INFO")
+  }
+}
+
+///|
+test "NCCL startup diagnostics do not permit per-collective TRACE logging" {
+  assert_eq(nccl_diagnostic_level(None), "WARN")
+  assert_eq(nccl_diagnostic_level(Some("INFO")), "INFO")
+  try nccl_diagnostic_level(Some("TRACE")) catch {
+    _ => ()
+  } noraise {
+    _ => fail("unbounded diagnostic logging accepted")
+  }
+}
+
+///|
 fn unexpected_rank_loss(
   active : Int32,
   paired : Bool,
@@ -261,6 +281,17 @@ async fn main {
     return
   }
   if mode == "start" || mode == "start-traced" || mode == "start-profile" {
+    let nccl_level = nccl_diagnostic_level(
+      @env.get_env_var("LUNAFLUX_NCCL_DIAGNOSTIC_LEVEL"),
+    )
+    guard nccl_level != "INFO" ||
+      (
+        mode == "start-profile" &&
+        @env.get_env_var("LUNAFLUX_NATIVE_TRACE_RANKS") == Some("both") &&
+        @env.get_env_var("LUNAFLUX_NATIVE_TRACE_BRIDGE") != None
+      ) else {
+      fail("INFO requires both-rank offline bridge and file-directed logging")
+    }
     guard !@fs.exists(root + "/stop-requested.txt") else {
       fail("retired qualification root; use a fresh run root for a new owner")
     }
@@ -328,7 +359,14 @@ async fn main {
       }
       let command = "systemd-run --user --unit=" +
         tag +
-        "-rank\{rank} --setenv=LD_LIBRARY_PATH=/tmp/lunaflux-glm-expert-tp-complete-answers-20261018-v1/nccl --setenv=NCCL_DEBUG=WARN --setenv=NCCL_SOCKET_IFNAME=" +
+        "-rank\{rank} --setenv=LD_LIBRARY_PATH=/tmp/lunaflux-glm-expert-tp-complete-answers-20261018-v1/nccl --setenv=NCCL_DEBUG=" +
+        nccl_level +
+        (if nccl_level == "INFO" {
+          " --setenv=NCCL_DEBUG_FILE=" + root + "/nccl-%p.log"
+        } else {
+          ""
+        }) +
+        " --setenv=NCCL_SOCKET_IFNAME=" +
         interface +
         " --setenv=NCCL_IB_HCA=" +
         hca +

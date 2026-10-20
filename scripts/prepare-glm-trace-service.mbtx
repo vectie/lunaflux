@@ -43,18 +43,29 @@ test "isolated manifests retain each rank's modules without requiring peer-only 
 ///|
 async fn main {
   guard @env.args() is [_, source, root, .. options] &&
-    options is ([] | ["--eight-admission-lanes"]) &&
+    options is ([] | ["--eight-admission-lanes"] | ["--exact-replay", _]) &&
     [source, root].all(p => {
       p.has_prefix("/tmp/lunaflux-glm-http-") &&
       !p.contains("..") &&
       p.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/'))
     }) else {
     fail(
-      "EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT [--eight-admission-lanes]",
+      "EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT [--eight-admission-lanes | --exact-replay CANDIDATE_EXE]",
     )
   }
   @fs.mkdir(root)
   let isolated_manifest = !options.is_empty()
+  let candidate = match options {
+    ["--exact-replay", executable] => {
+      guard executable.has_prefix("/tmp/lunaflux-glm-service-arm-") &&
+        executable.has_suffix("/glm_service.exe") &&
+        @fs.exists(executable) else {
+        fail("missing candidate service")
+      }
+      Some(executable)
+    }
+    _ => None
+  }
   @fs.write_file(
     root + "/artifact-root.txt",
     if isolated_manifest {
@@ -88,6 +99,10 @@ async fn main {
       }
       fields["admission_lanes"] = Json(8)
       fields["kernel_root"] = Json(root)
+      if candidate is Some(_) {
+        fields["collective_replay"] = Json("exact-capacity")
+        fields["executable"] = Json(root + "/glm_service.exe")
+      }
       Json(fields).stringify()
     } else {
       original
@@ -108,6 +123,17 @@ async fn main {
     .output()
     .check()
     for file in trace_files(rank, isolated_manifest) {
+      if file == "glm_service.exe" && candidate is Some(executable) {
+        @shell.Cmd("scp", [
+          "-o",
+          "ControlPath=" + socket,
+          executable,
+          host + ":" + root + "/glm_service.exe",
+        ])
+        .output()
+        .check()
+        continue
+      }
       let command = (if isolated_manifest { "ln " } else { "ln -s " }) +
         source +
         "/" +
@@ -134,7 +160,13 @@ async fn main {
     root + "/scope.txt",
     "Artifacts/config reused from " +
     source +
-    "\nTrace uses unchanged executable/CUBINs and GPU geometry; run a paired host/GPU memory watcher.\n" +
+    (if candidate is Some(executable) {
+      "\nCandidate executable=" +
+      executable +
+      "; exact-capacity collective replay. Qualified CUBINs and GPU geometry unchanged.\n"
+    } else {
+      "\nTrace uses unchanged executable/CUBINs and GPU geometry; run a paired host/GPU memory watcher.\n"
+    }) +
     (if isolated_manifest {
       "Offline C1 trace admits eight waiting lanes instead of sixteen to reserve profiler host memory. Resident slots=8, context=8192, rows=64 unchanged. Not a production configuration change.\n"
     } else {

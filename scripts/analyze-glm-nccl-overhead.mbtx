@@ -1,0 +1,117 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// External measurement validation. Profiler overlap is correlation, not time
+// to subtract from a kernel or evidence to feed into compiler legality.
+
+///|
+fn overlap_union(
+  begin : Int64,
+  end : Int64,
+  ranges : Array[(Int64, Int64)],
+) -> Int64 {
+  let clipped = ranges.filter_map(pair => {
+    let (a, b) = pair
+    if a < end && b > begin {
+      Some((a.max(begin), b.min(end)))
+    } else {
+      None
+    }
+  })
+  clipped.sort_by((a, b) => a.0.compare(b.0))
+  let mut total = 0L
+  let mut tail = begin
+  for (a, b) in clipped {
+    total += (b - a.max(tail)).max(0L)
+    tail = tail.max(b)
+  }
+  total
+}
+
+///|
+test "nested profiler spans are not additive and overlap is clipped" {
+  assert_eq(overlap_union(10L, 30L, [(0L, 15L), (12L, 20L), (25L, 40L)]), 15L)
+  assert_eq(overlap_union(10L, 30L, [(0L, 40L), (12L, 20L)]), 20L)
+  assert_eq(overlap_union(10L, 30L, []), 0L)
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, db, b, e, output] else {
+    fail("SQLITE BEGIN END NEW_JSON")
+  }
+  let begin = @string.parse_int64(b)
+  let end = @string.parse_int64(e)
+  guard begin >= 0L && end > begin else { fail("invalid interval") }
+  async fn query(sql : String) -> Array[Json] {
+    let r = @shell.Cmd("sqlite3", ["-readonly", "-json", db, sql]).output(
+      max_output_bytes=16777216,
+    )
+    r.check()
+    if r.stdout().trim().is_empty() {
+      return []
+    }
+    guard @json.parse(r.stdout()) is Array(rows) else { fail("query rows") }
+    rows
+  }
+  let has_overhead = !query(
+    "SELECT name FROM sqlite_master WHERE name='PROFILER_OVERHEAD';",
+  ).is_empty()
+  let overhead = if has_overhead {
+    query(
+      "SELECT p.start,p.end,s.value name FROM PROFILER_OVERHEAD p JOIN StringIds s ON s.id=p.nameId WHERE p.start<\{end} AND p.end>\{begin} ORDER BY p.start;",
+    )
+  } else {
+    []
+  }
+  let ranges = overhead.map(row => {
+    guard row is { "start": Number(a, ..), "end": Number(b, ..), .. } else {
+      fail("overhead fields")
+    }
+    (a.to_int64(), b.to_int64())
+  })
+  let kernels = query(
+    "SELECT k.start,k.end,s.value name,k.correlationId,k.globalPid FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE s.value LIKE '%nccl%' AND k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
+  )
+  let result = kernels.map(row => {
+    guard row is Object(fields) &&
+      row is { "start": Number(a, ..), "end": Number(b, ..), .. } else {
+      fail("kernel fields")
+    }
+    fields["duration_ms"] = Json(
+      (b.to_int64() - a.to_int64()).to_double() / 1000000.0,
+    )
+    fields["profiler_overlap_union_ms"] = Json(
+      overlap_union(a.to_int64(), b.to_int64(), ranges).to_double() / 1000000.0,
+    )
+    Json(fields)
+  })
+  let runtime_present = !query(
+    "SELECT name FROM sqlite_master WHERE name='CUPTI_ACTIVITY_KIND_RUNTIME';",
+  ).is_empty()
+  let threads = if runtime_present {
+    query(
+      "SELECT COUNT(*) matched_runtime_launches,COUNT(DISTINCT r.globalTid) distinct_launch_threads FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN CUPTI_ACTIVITY_KIND_KERNEL k ON k.correlationId=r.correlationId JOIN StringIds s ON s.id=k.shortName WHERE s.value LIKE '%nccl%' AND k.start>=\{begin} AND k.end<=\{end};",
+    )
+  } else {
+    []
+  }
+  let report : Json = {
+    "scope": "selected NCCL spans and profiler overlap; correlation is not causation; never subtract overlap from GPU duration",
+    "profiler_table_present": has_overhead,
+    "thread_counts": threads,
+    "profiler_spans": overhead,
+    "collectives": result,
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(
+    "\{result.length()} collective spans; profiler table present=\{has_overhead}",
+  )
+}

@@ -168,6 +168,30 @@ async fn main {
         request("profile", @fs.read_file(request_file).text())
       })
       stop_capture()
+      if @env.get_env_var("LUNAFLUX_TRACE_CORRECTNESS") == Some("1") {
+        // Outside the measured window: exercise partial chunks and retirement
+        // after the long request has already exercised exact and tail rows.
+        let correctness : Json = {
+          "model": "glm-5.3",
+          "messages": [
+            {
+              "role": "user",
+              "content": "What is 17 * 19? Reply with only the integer.",
+            },
+          ],
+          "max_tokens": 128,
+          "temperature": 0,
+          "stream": false,
+        }
+        @async.with_timeout(60000, () => {
+          request("correctness", correctness.stringify())
+        })
+        guard @fs.read_file(root + "/correctness.response")
+          .text()
+          .contains("323") else {
+          fail("arithmetic correctness request did not produce 323")
+        }
+      }
       completed.val = true
       saved("bounded-drain", "moon", [..owner, "stop"])
     })

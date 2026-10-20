@@ -6,6 +6,7 @@ import {
   "moonbitlang/async@0.22.4/http",
   "moonbitlang/core/json",
   "moonbitlang/core/env",
+  "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
 }
 
@@ -66,6 +67,12 @@ async fn main {
   let stopped = Ref(false)
   let capture_drained = Ref(false)
   let retired = Ref(false)
+  let reserve_log = @fs.open(
+    root + "/window-reserve.txt",
+    mode=WriteOnly,
+    create_mode=CreateNew,
+  )
+  defer reserve_log.close()
   async fn retire() -> Unit {
     if !retired.val {
       retired.val = true
@@ -91,6 +98,43 @@ async fn main {
     defer retire()
     saved("start", [..owner, "start-profile"])
     @async.with_task_group(group => {
+      // The full owner watch also checks device usage and terminal status.
+      // Keep a faster, earlier host-reserve stop during checkpoint warmup:
+      // the previous five-second observation crossed the user's 16 GiB floor.
+      group.spawn_bg(() => {
+        while !retired.val {
+          for rank in 0..<2 {
+            let out = @shell.Cmd("ssh", [
+              "-S",
+              if rank == 0 {
+                "/tmp/lunaflux-glm178-context-20261019.sock"
+              } else {
+                "/tmp/lunaflux-glm179-context-20261019.sock"
+              },
+              "-o",
+              "BatchMode=yes",
+              "-o",
+              "ConnectTimeout=5",
+              if rank == 0 {
+                "wlc003s@192.168.2.178"
+              } else {
+                "wlc004s@192.168.2.179"
+              },
+              "awk '/MemAvailable:/ {print $2}' /proc/meminfo",
+            ]).output()
+            out.check()
+            let available = @string.parse_int64(out.stdout().trim())
+            reserve_log.write(
+              "at=\{@async.now()} rank=\{rank} host_available_kib=\{available}\n",
+            )
+            if available < 18874368L {
+              retire()
+              fail("18 GiB trace headroom stop before the 16 GiB host reserve")
+            }
+          }
+          @async.sleep(250)
+        }
+      })
       group.spawn_bg(() => saved("watch", [..owner, "watch"]))
       let ready = Ref(false)
       // Loading the 181 GiB TP checkpoint can exceed ten minutes even though

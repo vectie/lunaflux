@@ -17,7 +17,9 @@ static const char *const keys[] = {
   "NSYS_CUDA_DRIVER_TYPE", "NSYS_TSC_SUPPORT", "NSYS_CUDA_GPU_TIME_CONVERSION",
   "NSYS_PROFILING_SESSION_ID", "NSYS_SESSION_TEMP_DIR",
   "NSYS_TARGET_STD_REDIRECT_ACTION", "CUDA_INJECTION64_PATH",
-  "NSYS_CONTROL_CUPTI_FEATURES", "CUPTI_PROFILE_MODE", "QUADD_CUDA_CONFIG"
+  "NSYS_CONTROL_CUPTI_FEATURES", "CUPTI_PROFILE_MODE", "QUADD_CUDA_CONFIG",
+  /* NCCL INFO must never write into the worker's framed stdout transport. */
+  "NCCL_DEBUG_FILE"
 };
 static char snapshot[sizeof(keys) / sizeof(keys[0])][PATH_MAX + 1];
 static size_t count;

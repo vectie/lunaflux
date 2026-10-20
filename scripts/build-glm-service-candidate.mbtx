@@ -1,0 +1,107 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// CPU-only, committed-source service build; no checkpoint reads or digests.
+
+///|
+async fn main {
+  guard @env.args() is [_, root, commit] &&
+    root.has_prefix("/tmp/lunaflux-glm-service-arm-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
+    commit.length() == 40 &&
+    commit.all(c => c is ('a'..<='f' | '0'..<='9')) else {
+    fail("NEW_ROOT COMMIT")
+  }
+  @fs.mkdir(root)
+  let socket = "/tmp/lunaflux-glm178-context-20261019.sock"
+  let host = "wlc003s@192.168.2.178"
+  let toolchain = "/tmp/lunaflux-glm-arm-build-20261010.WGAwEo3b/toolchain"
+  let dependencies = "/tmp/lunaflux-checkpoint-build-glm-projection-tp-20261019-v1/source/.mooncakes"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=8388608,
+    )
+  }
+  @shell.Cmd("git", [
+    "archive",
+    "--format=tar.gz",
+    "--output=" + root + "/source.tar.gz",
+    commit,
+  ])
+  .output()
+  .check()
+  remote("mkdir " + root + " " + root + "/source").check()
+  @shell.Cmd("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    root + "/source.tar.gz",
+    host + ":" + root + "/source.tar.gz",
+  ])
+  .output()
+  .check()
+  for
+    command in [
+      "tar -xf " + root + "/source.tar.gz -C " + root + "/source",
+      "cp -a " + dependencies + " " + root + "/source/.mooncakes",
+      "systemd-run --user --unit=" +
+      root[5:].to_owned() +
+      " -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=1800 --working-directory=" +
+      root +
+      "/source /usr/bin/env MOON_HOME=" +
+      toolchain +
+      " PATH=" +
+      toolchain +
+      "/bin:/usr/bin:/bin MOON_CC=gcc " +
+      toolchain +
+      "/bin/moon build cmd/glm_service --release --target native --deny-warn --warn-list -20-25-29-35-79-92 -j 2",
+    ] {
+    remote(command).check()
+  }
+  let unit = root[5:].to_owned() + ".service"
+  for _ in 0..<1800 {
+    let status = remote(
+      "systemctl --user show " +
+      unit +
+      " -p ActiveState -p Result -p ExecMainStatus -p MemoryPeak -p MemorySwapPeak",
+    )
+    status.check()
+    if !status.stdout().contains("ActiveState=active") &&
+      !status.stdout().contains("ActiveState=activating") {
+      @fs.write_file(
+        root + "/status.txt",
+        status.stdout(),
+        create_mode=CreateNew,
+      )
+      let journal = remote("journalctl --user -u " + unit + " --no-pager")
+      @fs.write_file(
+        root + "/journal.txt",
+        journal.stdout(),
+        create_mode=CreateNew,
+      )
+      guard status.stdout().contains("Result=success") &&
+        status.stdout().contains("ExecMainStatus=0") else {
+        fail("committed service build failed; see journal")
+      }
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        host +
+        ":" +
+        root +
+        "/source/_build/native/release/build/cmd/glm_service/glm_service.exe",
+        root + "/glm_service.exe",
+      ])
+      .output()
+      .check()
+      println("committed ARM service build complete; no GPU execution claim")
+      return
+    }
+    @async.sleep(1000)
+  }
+  fail("CPU build timed out")
+}

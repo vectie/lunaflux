@@ -155,8 +155,9 @@ fn prior(events : Array[Event], c : Event) -> Event raise {
 
 ///|
 async fn main {
-  guard @env.args() is [_, d0, b0, e0, d1, b1, e1, output] else {
-    fail("DB0 BEGIN0 END0 DB1 BEGIN1 END1 NEW_JSON")
+  guard @env.args() is [_, d0, b0, e0, d1, b1, e1, output, .. options] &&
+    options is ([] | ["--collectives-only"]) else {
+    fail("DB0 BEGIN0 END0 DB1 BEGIN1 END1 NEW_JSON [--collectives-only]")
   }
   let a = events(d0, @string.parse_int64(b0), @string.parse_int64(e0))
   let b = events(d1, @string.parse_int64(b1), @string.parse_int64(e1))
@@ -167,12 +168,8 @@ async fn main {
   for i in 0..<ca.length() {
     let x = ca[i]
     let y = cb[i]
-    let px = prior(a, x)
-    let py = prior(b, y)
-    guard px.name == py.name else { fail("producer order differs") }
-    rows.push({
+    let row : Json = {
       "ordinal": i,
-      "producer": px.name,
       "collective": x.name,
       "rank0_start_ns": Json(x.start),
       "rank0_end_ns": Json(x.end),
@@ -182,15 +179,25 @@ async fn main {
       "rank1_duration_ms": ms(y.end - y.start),
       "rank0_launch_lead_ms": launch_lead(x),
       "rank1_launch_lead_ms": launch_lead(y),
-      "rank0_producer_ms": ms(px.end - px.start),
-      "rank1_producer_ms": ms(py.end - py.start),
-      "rank0_producer_to_collective_gap_ms": ms(x.start - px.end),
-      "rank1_producer_to_collective_gap_ms": ms(y.start - py.end),
       "rank1_early_arrival_lower_ms": ms((x.start + lo - y.start).max(0L)),
       "rank1_early_arrival_upper_ms": ms((x.start + hi - y.start).max(0L)),
       "rank0_early_arrival_lower_ms": ms((y.start - x.start - hi).max(0L)),
       "rank0_early_arrival_upper_ms": ms((y.start - x.start - lo).max(0L)),
-    })
+    }
+    guard row is Object(fields) else { fail("report object") }
+    if options.is_empty() {
+      let px = prior(a, x)
+      let py = prior(b, y)
+      guard px.name == py.name else { fail("producer order differs") }
+      fields["producer"] = Json(px.name)
+      fields["rank0_producer_ms"] = ms(px.end - px.start)
+      fields["rank1_producer_ms"] = ms(py.end - py.start)
+      fields["rank0_producer_to_collective_gap_ms"] = ms(x.start - px.end)
+      fields["rank1_producer_to_collective_gap_ms"] = ms(y.start - py.end)
+    } else {
+      fields["producer"] = null
+    }
+    rows.push(Json(fields))
   }
   let report : Json = {
     "scope": "two-rank causal alignment, fixed-offset capture; early-arrival bound is not wire time",
