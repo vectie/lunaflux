@@ -1,0 +1,97 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// External source inspection only. Normalize entry delimiters, not arithmetic.
+
+///|
+fn parts(source : String) -> Map[String, String] raise {
+  let normalized = source
+    .split("__device__ __forceinline__ void glm_recurrent_")
+    .join("extern \"C\" __global__ void glm_recurrent_")
+  let pieces = normalized.split("extern \"C\" __global__ void ").to_array()
+  let out : Map[String, String] = Map([])
+  out["<preamble>"] = pieces[0].to_owned()
+  for piece in pieces[1:] {
+    guard piece.find("(") is Some(end) else { fail("signature") }
+    let name = piece[:end].to_owned()
+    guard !out.contains(name) else { fail("duplicate " + name) }
+    out[name] = piece.to_owned()
+  }
+  out
+}
+
+///|
+fn allowed(name : String) -> Bool {
+  name.has_prefix("glm_recurrent_") &&
+  (
+    name.has_suffix("_15") ||
+    name.has_suffix("_inputs") ||
+    [0, 1, 2, 3, 4, 5].any(i => name.has_suffix("_inputs_region_\{i}"))
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, before, after, output] else {
+    fail("BASE NEW REPORT")
+  }
+  let a = parts(@fs.read_file(before).text())
+  let b = parts(@fs.read_file(after).text())
+  guard a.length() == b.length() else { fail("entry count changed") }
+  let changed : Array[Json] = []
+  let unchanged : Array[Json] = []
+  for name, body in a {
+    guard b.get(name) is Some(next) else { fail("missing " + name) }
+    if body == next {
+      unchanged.push(Json(name))
+    } else {
+      guard allowed(name) else { fail("unexpected change " + name) }
+      if name.has_suffix("_inputs") {
+        guard body.contains("tile_a[512],tile_b[2048]") &&
+          next.contains("tile_a[1024],tile_b[1024]") else {
+          fail("scratch ownership")
+        }
+      } else {
+        guard body.contains("base_k+=32") &&
+          next.contains("base_k+=32") &&
+          next.contains("(warp/2)*16*32+kk") else {
+          fail("physical/numerical fold")
+        }
+        let prefix = "const int row_base="
+        guard body.split(prefix).to_array()[0] ==
+          next.split(prefix).to_array()[0] else {
+          fail("decode changed")
+        }
+      }
+      changed.push(Json(name))
+    }
+  }
+  @fs.write_file(
+    output,
+    Json({
+      "before": Json(before),
+      "after": Json(after),
+      "changed": Json(changed),
+      "unchanged": Json(unchanged),
+    }).stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println("changed=\{changed.length()} unchanged=\{unchanged.length()}")
+}
+
+///|
+test "fused helper ownership and allowed changes are explicit" {
+  let p = parts(
+    "head\n__device__ __forceinline__ void lf_precision_write(float*){}\n__device__ __forceinline__ void lf_precision_write(short*){}\n__device__ __forceinline__ void glm_recurrent_4_inputs_region_0(){}\nextern \"C\" __global__ void entry(){}",
+  )
+  assert_eq(p.length(), 3)
+  assert_true(allowed("glm_recurrent_4_inputs_region_0"))
+  assert_true(allowed("glm_recurrent_4_15"))
+  assert_false(allowed("glm_recurrent_4_4"))
+  assert_false(allowed("glm_sparse_3_projection_q_a"))
+}

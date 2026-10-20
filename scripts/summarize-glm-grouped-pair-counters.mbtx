@@ -57,9 +57,12 @@ async fn main {
           key == "smsp__inst_executed.sum" ||
           key == "launch__registers_per_thread" ||
           key == "launch__shared_mem_per_block" ||
+          key.has_prefix("launch__occupancy_limit_") ||
           key == "sm__warps_active.avg.pct_of_peak_sustained_active" ||
           key ==
           "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_elapsed" ||
+          key ==
+          "sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active" ||
           key == "smsp__average_warp_latency_per_inst_issued.ratio" ||
           key.has_prefix("smsp__average_warps_issue_stalled_") ||
           key.has_prefix("smsp__warp_issue_stalled_") ||

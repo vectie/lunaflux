@@ -1,0 +1,102 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn totals(j : Json) -> Map[String, (Int32, Double)] raise {
+  guard j is Array(rows) else { fail("leaves") }
+  let sums : Map[String, (Int32, Double)] = Map([])
+  for row in rows {
+    guard row
+      is {
+        "name": String(name),
+        "kind": String(kind),
+        "duration_ms": Number(ms, ..),
+        ..
+      } else {
+      fail("leaf")
+    }
+    let key = if name.has_prefix("glm_recurrent_") && name.has_suffix("_inputs") {
+      "changed_inputs"
+    } else if name.has_prefix("glm_recurrent_") && name.has_suffix("_15") {
+      "changed_output"
+    } else {
+      "unchanged_" + kind
+    }
+    let (n, t) = sums.get(key).unwrap_or((0, 0.0))
+    sums[key] = (n + 1, t + ms)
+  }
+  sums
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, before, after, output] else {
+    fail("BEFORE AFTER NEW_REPORT")
+  }
+  let a = totals(@json.parse(@fs.read_file(before + "/leaves.json").text()))
+  let b = totals(@json.parse(@fs.read_file(after + "/leaves.json").text()))
+  guard a.length() == b.length() else { fail("categories differ") }
+  let rows : Array[Json] = []
+  let mut calls = 0
+  let mut old = 0.0
+  let mut next = 0.0
+  for key, (n, t) in a {
+    guard b.get(key) is Some((m, u)) && n == m else {
+      fail("unmatched calls " + key)
+    }
+    rows.push({
+      "category": Json(key),
+      "calls": Json(n),
+      "before_ms": Json(t),
+      "after_ms": Json(u),
+      "saved_ms": Json(t - u),
+    })
+    if key.has_prefix("changed_") {
+      calls += n
+      old += t
+      next += u
+    }
+  }
+  guard calls == 68 else { fail("all 34 input/output pairs must execute") }
+  let report : Json = {
+    "before": before,
+    "after": after,
+    "selected_calls": calls,
+    "selected_before_ms": old,
+    "selected_after_ms": next,
+    "selected_saved_ms": old - next,
+    "categories": rows,
+    "scope": "Matched first decoder chunks; sums are not disjoint wall time or throughput.",
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(report.stringify(indent=2))
+}
+
+///|
+test "control projections remain in the unchanged family" {
+  let t = totals([
+    {
+      "name": "glm_recurrent_0_4",
+      "kind": "kda_projection",
+      "duration_ms": 0.1,
+    },
+    {
+      "name": "glm_recurrent_0_inputs",
+      "kind": "kda_projection",
+      "duration_ms": 0.3,
+    },
+    {
+      "name": "glm_recurrent_0_15",
+      "kind": "kda_projection",
+      "duration_ms": 0.2,
+    },
+  ])
+  assert_eq(t["changed_inputs"], (1, 0.3))
+  assert_eq(t["changed_output"], (1, 0.2))
+  assert_eq(t["unchanged_kda_projection"], (1, 0.1))
+}
