@@ -6,14 +6,14 @@ priv struct ExecutionPolicy {
   staging : @matrix.MatrixStaging
   sparse_staging : @matrix.MatrixStaging
   sparse_row_reuse : @matrix.MatrixRowReuse?
-  recurrent_tile_rows : Int
-  recurrent_reuse_minimum_inner : Int
+  recurrent_tile_rows : Int32
+  recurrent_reuse_minimum_inner : Int32
   transport : @matrix.ExpertTransport
-  scale_partitions : Int
+  scale_partitions : Int32
   moe_reduction : @precision.MoeReductionPlacement
   tensor_publication : @precision.ProjectionPublication
   exact_capacity_replay : Bool
-  collective_window_sites : Int
+  collective_window_sites : Int32
 }
 
 ///|
@@ -94,6 +94,8 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
         "minimum_inner": Number(k, ..),
         "wide_inner": Number(w, ..),
         "wide_tile": Number(t, ..),
+        "fragment_inner"? : fragment_inner,
+        "fragment_columns"? : fragment_columns,
         ..
       }
     ) => {
@@ -108,6 +110,20 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
           minimum_inner=k.to_int(),
           wide_inner=w.to_int(),
           wide_tile=t.to_int(),
+          fragment_inner?=match fragment_inner {
+            None => None
+            Some(Number(k, ..)) if k >= 64.0 &&
+              k <= 1073741760.0 &&
+              k.to_int().to_double() == k => Some(k.to_int())
+            _ => fail("invalid fragment pipeline inner envelope")
+          },
+          fragment_columns=match fragment_columns {
+            None => 4096
+            Some(Number(n, ..)) if n >= 1.0 &&
+              n <= 1073741760.0 &&
+              n.to_int().to_double() == n => n.to_int()
+            _ => fail("invalid fragment pipeline column envelope")
+          },
         ),
       )
     }
@@ -169,6 +185,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
     WorksetBoundedTiles(inner_tile~, maximum_weight_bytes~, maximum_tiles~) =>
       "bounded-synchronous-k\{inner_tile}-bytes\{maximum_weight_bytes}-tiles\{maximum_tiles}"
     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
+    FragmentPipeline(row_tile~) => "fragment-pipeline-m\{row_tile}"
   }
   "recurrent=\{recurrent} projection_staging=\{staging} recurrent_projection_tile_rows=\{self.recurrent_tile_rows} recurrent_reuse_minimum_inner=\{self.recurrent_reuse_minimum_inner} sparse_projection_staging=\{Repr(self.sparse_staging)} sparse_projection_row_reuse=\{Repr(self.sparse_row_reuse)} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
 }
@@ -176,7 +193,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
 ///|
 fn ExecutionPolicy::replay(
   self : Self,
-  capacity : Int,
+  capacity : Int32,
 ) -> @parallel.ReplayPolicy {
   if self.exact_capacity_replay && capacity > 1 {
     if self.collective_window_sites > 0 {

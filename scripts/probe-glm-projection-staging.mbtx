@@ -50,11 +50,14 @@ async fn main {
   guard first_shape >= 0 && end_shape > first_shape && end_shape <= 12 else {
     fail("shape range")
   }
-  if mode is ("export" | "export-rows" | "export-buffered-rows") {
+  if mode
+    is ("export" | "export-rows" | "export-buffered-rows" | "export-fragments") {
     guard options.is_empty() else { fail("no export arguments") }
     @fs.mkdir(root)
     let out = @shell.Cmd("env", [
-      if fused {
+      if mode == "export-fragments" {
+        "LUNA_EXPORT_FRAGMENT_PIPELINE=1"
+      } else if fused {
         "LUNA_EXPORT_FUSED_ROW_REUSE=1"
       } else if mode == "export-buffered-rows" {
         "LUNA_EXPORT_BUFFERED_ROWS=1"
@@ -65,7 +68,9 @@ async fn main {
       },
       "moon",
       "test",
-      if fused {
+      if mode == "export-fragments" {
+        "kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt"
+      } else if fused {
         "kernels/tiled_matrix_cuda_source/row_reuse_fused_test.mbt"
       } else if mode == "export-buffered-rows" {
         "kernels/tiled_matrix_cuda_source/buffered_rows_test.mbt"
@@ -135,6 +140,21 @@ async fn main {
         "/probe",
       ),
     )
+    return
+  }
+  if mode == "source" {
+    guard options is [variant] && variant is ("0" | "1" | "2" | "3") else {
+      fail("bounded source variant")
+    }
+    for shape in first_shape..<end_shape {
+      record(
+        "source-s\{shape}-v" + variant,
+        remote(
+          "/usr/local/cuda-13.0/bin/cuobjdump -sass -fun p\{shape}_s" +
+          variant + " " + root + "/probe",
+        ),
+      )
+    }
     return
   }
   guard options is [variant] &&

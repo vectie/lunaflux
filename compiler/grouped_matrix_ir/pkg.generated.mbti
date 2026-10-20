@@ -56,11 +56,23 @@ pub fn IndirectMatrixTraversal::new(capacity_groups~ : Int, column_tiles~ : Int,
 pub fn IndirectMatrixTraversal::tile_count(Self, Int) -> Int raise @precision_ir.PrecisionPlanError
 pub fn IndirectMatrixTraversal::workers(Self) -> Int
 
+pub struct MatrixFragmentPipeline {
+  // private fields
+}
+pub fn MatrixFragmentPipeline::fragment_slots(Self) -> Int
+pub fn MatrixFragmentPipeline::matrix(Self) -> MatrixTilePlan
+pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixFragmentPipeline::operand_byte_offset(Self, Int) -> Int
+pub fn MatrixFragmentPipeline::operand_slots(Self) -> Int
+pub fn MatrixFragmentPipeline::shared_bytes(Self) -> Int
+pub fn MatrixFragmentPipeline::tile(Self) -> (Int, Int, Int)
+pub fn MatrixFragmentPipeline::tile_count(Self) -> Int
+
 pub struct MatrixRowReuse {
   // private fields
 } derive(@debug.Debug)
 pub fn MatrixRowReuse::apply(Self, MatrixTilePlan) -> MatrixTilePlan raise
-pub fn MatrixRowReuse::new(minimum_rows~ : Int, minimum_inner~ : Int, wide_inner~ : Int, wide_tile~ : Int) -> Self raise @precision_ir.PrecisionPlanError
+pub fn MatrixRowReuse::new(minimum_rows~ : Int, minimum_inner~ : Int, wide_inner~ : Int, wide_tile~ : Int, fragment_inner? : Int, fragment_columns? : Int) -> Self raise @precision_ir.PrecisionPlanError
 pub fn MatrixRowReuse::to_repr(Self) -> @debug.Repr
 
 pub(all) enum MatrixStaging {
@@ -68,6 +80,7 @@ pub(all) enum MatrixStaging {
   SynchronousTiles(inner_tile~ : Int)
   WorksetBoundedTiles(inner_tile~ : Int, maximum_weight_bytes~ : Int64, maximum_tiles~ : Int)
   Buffered(inner_tile~ : Int)
+  FragmentPipeline(row_tile~ : Int)
 } derive(Eq, @debug.Debug)
 pub fn MatrixStaging::equal(Self, Self) -> Bool
 pub fn MatrixStaging::not_equal(Self, Self) -> Bool

@@ -10,9 +10,9 @@ pub fn matrix_tile_body(
   result~ : String,
   input_vector? : String,
   weight_vector? : String,
-  vector_guard? : String = "true",
-  external_scratch? : Bool = false,
-  weight_column_first? : Bool = false,
+  vector_guard~ : String = "true",
+  external_scratch~ : Bool = false,
+  weight_column_first~ : Bool = false,
 ) -> String raise @precision.PrecisionPlanError {
   // Expression operands have no address/extent contract for asynchronous
   // copies. Never silently discard an explicitly requested staging policy.
@@ -113,8 +113,15 @@ pub fn matrix_tile_body(
 pub fn dense_source(
   plan : @matrix.MatrixTilePlan,
   symbol~ : String,
-  partial_float32? : Bool = false,
+  partial_float32~ : Bool = false,
 ) -> Bytes raise @precision.PrecisionPlanError {
+  if plan.staging() is FragmentPipeline(row_tile~) {
+    return fragment_pipeline_source(
+      @matrix.MatrixFragmentPipeline::new(plan, row_tile~),
+      symbol~,
+      partial_float32~,
+    )
+  }
   @utf8.encode(
     dense_render(plan, symbol~, partial_float32~, device_region=false),
   )

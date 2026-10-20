@@ -2,26 +2,26 @@
 /// Immutable logical tile geometry; backend launch topology is deliberately
 /// absent. Matrix arithmetic authorization comes from precision IR.
 pub struct MatrixTilePlan {
-  priv rows : Int
-  priv columns : Int
-  priv inner : Int
-  priv tile_rows : Int
-  priv tile_columns : Int
-  priv tile_inner : Int
+  priv rows : Int32
+  priv columns : Int32
+  priv inner : Int32
+  priv tile_rows : Int32
+  priv tile_columns : Int32
+  priv tile_inner : Int32
   priv law : @precision.DenseDotLaw
   priv staging : MatrixStaging
 }
 
 ///|
 pub fn MatrixTilePlan::new(
-  rows~ : Int,
-  columns~ : Int,
-  inner~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
+  inner~ : Int32,
   law~ : @precision.DenseDotLaw,
-  staging? : MatrixStaging = Synchronous,
-  tile_columns? : Int = 64,
-  tile_rows? : Int = 16,
-  minimum_row_reuse_inner? : Int = 0,
+  staging~ : MatrixStaging = Synchronous,
+  tile_columns~ : Int32 = 64,
+  tile_rows~ : Int32 = 16,
+  minimum_row_reuse_inner~ : Int32 = 0,
 ) -> Self raise @precision.PrecisionPlanError {
   guard law != ScalarFloat32 &&
     rows > 0 &&
@@ -31,6 +31,27 @@ pub fn MatrixTilePlan::new(
     columns <= 1073741760 &&
     inner <= 1073741760 else {
     raise @precision.PrecisionPlanError::NoImplementation
+  }
+  if staging is FragmentPipeline(row_tile~) {
+    guard row_tile is (32 | 64) && inner % 64 == 0 else {
+      raise @precision.PrecisionPlanError::NoImplementation
+    }
+    guard (rows.to_int64() + row_tile.to_int64() - 1L) /
+      row_tile.to_int64() *
+      ((columns.to_int64() + 63L) / 64L) <=
+      2147483647L else {
+      raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    }
+    return {
+      rows,
+      columns,
+      inner,
+      tile_rows: row_tile,
+      tile_columns: 64,
+      tile_inner: 64,
+      law,
+      staging,
+    }
   }
   // Resolve an explicitly supplied physical workset budget before lowering.
   // This is not a model-name rule or an automatic claim about hardware cache.
@@ -99,29 +120,29 @@ pub fn MatrixTilePlan::new(
       }
       inner_tile
     }
-    WorksetBoundedTiles(..) =>
+    WorksetBoundedTiles(..) | FragmentPipeline(..) =>
       raise @precision.PrecisionPlanError::NoImplementation
   }
   { rows, columns, inner, tile_rows, tile_columns, tile_inner, law, staging, }
 }
 
 ///|
-pub fn MatrixTilePlan::geometry(self : Self) -> (Int, Int, Int) {
+pub fn MatrixTilePlan::geometry(self : Self) -> (Int32, Int32, Int32) {
   (self.rows, self.columns, self.inner)
 }
 
 ///|
-pub fn MatrixTilePlan::tile(self : Self) -> (Int, Int, Int) {
+pub fn MatrixTilePlan::tile(self : Self) -> (Int32, Int32, Int32) {
   (self.tile_rows, self.tile_columns, self.tile_inner)
 }
 
 ///|
-pub fn MatrixTilePlan::tile_count(self : Self) -> Int {
+pub fn MatrixTilePlan::tile_count(self : Self) -> Int32 {
   let matrix = (self.rows + self.tile_rows - 1) /
     self.tile_rows *
     ((self.columns + self.tile_columns - 1) / self.tile_columns)
   if self.law == ShapeAwareFloat32 {
-    Int::max(matrix, (self.columns + 3) / 4)
+    Int32::max(matrix, (self.columns + 3) / 4)
   } else {
     matrix
   }
@@ -137,13 +158,13 @@ pub fn MatrixTilePlan::law(self : Self) -> @precision.DenseDotLaw {
 /// live group count, group expert IDs and padded original job IDs. It is
 /// bounded by capacity, not by the number of experts or token values.
 pub struct ExpertGroupingPlan {
-  priv jobs : Int
+  priv jobs : Int32
   priv shared_input_staging : Bool
-  priv column_tile : Int
+  priv column_tile : Int32
   priv transport : ExpertTransport
-  priv fragment_slots : Int
-  priv matrix_columns : Int
-  priv scale_partitions : Int
+  priv fragment_slots : Int32
+  priv matrix_columns : Int32
+  priv scale_partitions : Int32
 }
 
 ///|
@@ -152,8 +173,8 @@ pub(all) enum ExpertTransport {
   IndexedBuffered
   PackedRows
   PackedPipeline
-  PackedBulk(columns~ : Int, consumer_teams~ : Int, workers~ : Int)
-  PackedBulkTiles(columns~ : Int, consumer_teams~ : Int, workers~ : Int)
+  PackedBulk(columns~ : Int32, consumer_teams~ : Int32, workers~ : Int32)
+  PackedBulkTiles(columns~ : Int32, consumer_teams~ : Int32, workers~ : Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -164,14 +185,14 @@ pub extend ExpertTransport with @debug.Debug::{to_repr}
 
 ///|
 pub fn ExpertGroupingPlan::new(
-  maximum_rows~ : Int,
-  selected_experts~ : Int,
-  shared_input_staging? : Bool = false,
-  column_tile? : Int = 32,
-  transport? : ExpertTransport = IndexedRows,
-  fragment_slots? : Int = 1,
-  matrix_columns? : Int = 64,
-  scale_partitions? : Int = 1,
+  maximum_rows~ : Int32,
+  selected_experts~ : Int32,
+  shared_input_staging~ : Bool = false,
+  column_tile~ : Int32 = 32,
+  transport~ : ExpertTransport = IndexedRows,
+  fragment_slots~ : Int32 = 1,
+  matrix_columns~ : Int32 = 64,
+  scale_partitions~ : Int32 = 1,
 ) -> Self raise @precision.PrecisionPlanError {
   guard scale_partitions > 0 &&
     scale_partitions <= 256 &&
@@ -214,21 +235,21 @@ pub fn ExpertGroupingPlan::new(
 
 ///|
 /// Physical maximum producers; independent of expert grouping and arithmetic.
-pub fn ExpertGroupingPlan::scale_partitions(self : Self) -> Int {
+pub fn ExpertGroupingPlan::scale_partitions(self : Self) -> Int32 {
   self.scale_partitions
 }
 
 ///|
 /// Independent output-column ownership for the indexed BF16 matrix schedule.
 /// It changes parallel work distribution, not any dot-product reduction order.
-pub fn ExpertGroupingPlan::matrix_columns(self : Self) -> Int {
+pub fn ExpertGroupingPlan::matrix_columns(self : Self) -> Int32 {
   self.matrix_columns
 }
 
 ///|
 /// Read-ahead ownership inside a published operand epoch, independent of the
 /// global-to-local transport and the accumulator's ascending numerical fold.
-pub fn ExpertGroupingPlan::fragment_slots(self : Self) -> Int {
+pub fn ExpertGroupingPlan::fragment_slots(self : Self) -> Int32 {
   self.fragment_slots
 }
 
@@ -238,12 +259,12 @@ pub fn ExpertGroupingPlan::transport(self : Self) -> ExpertTransport {
 }
 
 ///|
-pub fn ExpertGroupingPlan::maximum_groups(self : Self) -> Int {
+pub fn ExpertGroupingPlan::maximum_groups(self : Self) -> Int32 {
   self.jobs
 }
 
 ///|
-pub fn ExpertGroupingPlan::rows_per_group(_self : Self) -> Int {
+pub fn ExpertGroupingPlan::rows_per_group(_self : Self) -> Int32 {
   16
 }
 
@@ -262,13 +283,13 @@ pub fn ExpertGroupingPlan::shared_input_staging(self : Self) -> Bool {
 ///|
 /// Output ownership width. Independent output columns may reuse an operand
 /// without changing any column's ordered reduction or numerical law.
-pub fn ExpertGroupingPlan::column_tile(self : Self) -> Int {
+pub fn ExpertGroupingPlan::column_tile(self : Self) -> Int32 {
   self.column_tile
 }
 
 ///|
 /// Physical independent consumer domains; arithmetic is unchanged.
-pub fn ExpertGroupingPlan::consumer_teams(self : Self) -> Int {
+pub fn ExpertGroupingPlan::consumer_teams(self : Self) -> Int32 {
   match self.transport {
     PackedBulk(consumer_teams~, ..) | PackedBulkTiles(consumer_teams~, ..) =>
       consumer_teams
@@ -278,7 +299,7 @@ pub fn ExpertGroupingPlan::consumer_teams(self : Self) -> Int {
 
 ///|
 /// A finite persistent worker pool partitions the live indirect tile domain.
-pub fn ExpertGroupingPlan::persistent_workers(self : Self) -> Int? {
+pub fn ExpertGroupingPlan::persistent_workers(self : Self) -> Int32? {
   match self.transport {
     PackedBulk(workers~, ..) | PackedBulkTiles(workers~, ..) => Some(workers)
     _ => None

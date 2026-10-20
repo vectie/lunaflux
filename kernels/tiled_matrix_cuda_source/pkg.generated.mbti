@@ -9,6 +9,8 @@ import {
 // Values
 pub fn dense_source(@grouped_matrix_ir.MatrixTilePlan, symbol~ : String, partial_float32? : Bool) -> Bytes raise @precision_ir.PrecisionPlanError
 
+pub fn fragment_pipeline_source(@grouped_matrix_ir.MatrixFragmentPipeline, symbol~ : String, partial_float32? : Bool) -> Bytes
+
 pub fn head_projection_source(@grouped_matrix_ir.HeadProjectionPlan, symbol~ : String) -> Bytes raise @precision_ir.PrecisionPlanError
 
 pub fn matrix_tile_body(@grouped_matrix_ir.MatrixTilePlan, input~ : String, weight~ : String, result~ : String, input_vector? : String, weight_vector? : String, vector_guard? : String, external_scratch? : Bool, weight_column_first? : Bool) -> String raise @precision_ir.PrecisionPlanError
