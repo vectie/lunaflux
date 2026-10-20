@@ -149,6 +149,8 @@ Paired reports:
 `/tmp/lunaflux-glm-http-dense-egress-20261020-v1` completes the same literal
 request and retires both owners with the corrected diagnostic watcher. It
 profiles rank 1 only, retaining the eight-admission-lane diagnostic envelope.
+Minimum observed host availability is 18,952,668 KiB (18.07 GiB), maximum GPU
+use 96,489 MiB, and owned service swap zero.
 The first dense reductions are **0.150784 / 0.542528 / 1.766240 ms**.
 The preceding layer-1 recurrent reduction instead takes **6.484000 ms**.
 Thus long spans can move between sites with unchanged kernels. This does
@@ -175,6 +177,13 @@ transport progress, or profiling disturbance. By contrast, recurrent layer
 30 has a demonstrated rank-1 early-arrival lower bound of 0.386080 ms.
 There are multiple kinds of delay; they must not all be called dense-FFN waits.
 
+The native all-reduce launch has 32 CTAs × 640 threads, 96 registers/thread
+and 61,760 dynamic shared bytes. The retained reference includes that same
+geometry/resource footprint (and some 19-CTA reductions). Different symbol
+spelling is therefore insufficient to assert either a protocol difference or
+an occupancy/resource cause. Actual protocol/progress still needs independent
+evidence before changing the device submission policy.
+
 The external paired analyzer now also reports a launch lead only for a unique
 runtime correlation; ambiguous/missing correlations remain null. Evidence:
 `/tmp/lunaflux-glm-dense-pair-launch-lead-20261020-v6.json`. No graph construction
@@ -182,11 +191,90 @@ or host-API total is substituted for a measured exposed dependency.
 
 No production IR/scheduling change has been justified by these captures.
 It would be incorrect to attribute the smaller spans to a compiler fix, or
-to claim the historical spikes' cause is proved. Fresh paired vLLM and service
-restoration evidence follow when complete.
+to claim the historical spikes' cause is proved.
+
+## Fresh paired reference: failed memory qualification
+
+`/tmp/lunaflux-reference-bench-glm-dense-pair-20261020-v1` was a fresh vLLM
+attempt with both ranks profiled, context 8,192, batch tokens 64, maximum
+sequences/capture size 8, KV budget 256 MiB and both Docker containers limited
+to 96 GiB with equal memory/swap limits. The single request was to preserve
+the literal prompt, with only the model alias and streaming encoding changed.
+No request latency/throughput benchmark was planned or run.
+
+Checkpoint loading took 597.46 seconds. The desktop readiness loop was
+temporarily paused while its **independent memory watcher and remote owners
+continued running**, to avoid restarting this load because of the first
+controller's ten-minute readiness budget. The checked-in controller now allows
+30 minutes for bounded startup and waits for the capture-stop RPC before
+retirement. Neither change affects model execution or measured GPU intervals.
+
+During post-load warmup the watcher observes **15,631,756 KiB (14.91 GiB)**
+available host memory on rank 0, below the mandatory 16 GiB reserve, at
+**94,557 MiB** GPU use. It stops both owned containers. This is a **failed
+memory qualification**, including a sampled reserve violation, not a passing
+bounded run. Both GPUs subsequently show no owners and over 117 GiB host
+memory available. No profiler-start/request trace was collected, so the table
+above remains explicitly a comparison with the retained reference. The failure
+and terminal journals are preserved; no reference result is invented.
+
+The installed reference also warns that `w1_weight_scale_2` must match
+`w3_weight_scale_2` and accuracy may be affected. That warning remains in the
+logs; a reference engine is not a correctness oracle.
+
+The configured GPU ceiling was not exceeded. The reserve guard is reactive;
+these failed startup samples show why its stop action is not proof that every
+instant stayed above the reserve. No additional paired-reference attempt or
+memory-limit relaxation is made in this bounded campaign.
+
+## Restoration and validation
 
 At the start of this turn, the existing GLM service was already stopped:
 rank 1 recorded an ABRT at 02:44, not a systemd OOM result, with zero swap;
 the paired controller stopped rank 0. The installed artifact is `eb152338`.
 The failure journal is preserved under
 `/tmp/lunaflux-glm-dense-restoration-20261020-v1/before-rank{0,1}.txt`.
+
+Both qualified `eb152338` production units were restarted through the existing
+LunaNexa paired controller after all reference owners retired. Backend health
+returns `healthy`; the complete `17 multiplied by 19` request returns **323**,
+`finish_reason=stop`, 26 input / 6 output tokens with a 128-token budget. This
+is restoration correctness, not a timing campaign or a fresh authenticated
+customer-route acceptance test. Production still has 16 admission lanes; the
+eight-lane profiling manifest and interposer are not installed there.
+
+Observed restoration minima: rank 0 **18,817,576 KiB (17.95 GiB)** host
+availability; rank 1 **20,582,752 KiB (19.63 GiB)**. GPU maxima are
+**96,451 / 96,480 MiB**; both units report success, active, zero owned swap.
+The temporary observer exits after the answer check; the production ranks
+remain running. Evidence: `memory.txt` and `answer.request.json.reply` under
+the restoration root. The earlier ABRT is retained, not retroactively called
+an OOM or fixed by this investigation.
+
+## What is fixed, and what remains
+
+Fixed: missing ingress-child GPU observability, misclassification of a requested
+Nsight-wrapper shutdown, and the lack of a two-rank causal/launch-lead report.
+These are external diagnostic repairs. The eight new/affected script tests
+pass (launcher 5, preparation 1, analyzer 2); the reference-owner regressions
+also pass 9/9. The reference-window and probe scripts compile but contain no
+unit tests. The actual approved-spawn child GPU fixture passed on Spark.
+No fresh full native-suite or production-kernel sanitizer claim is made for
+this tooling-only change.
+
+**No production TP performance fix is qualified.** Model numerical contracts,
+the pure `OrderedSubmissionPlan`, typed communication effects, CUDA/NCCL
+lowering and serving selection remain unchanged. The code still submits
+consumer work after NCCL submission, not after every collective completes.
+The observed multi-millisecond queue lead confirms submission ahead of GPU
+execution at the selected early sites; it does not prove optimal submission
+in every workload.
+
+The next causal boundary is collective progress after both ranks have entered,
+separate from demonstrated early-arrival skew at other sites. A fresh paired
+reference first needs a qualified startup memory envelope; any reduction of
+startup-only graph capture must verify that the selected 64-row prefill path
+is unchanged. Do not rerun the failed envelope, force a protocol from kernel
+names, or promote a scheduling change merely because one trace has shorter
+waits. The independently measured dense producer gap remains a different
+optimization target, not an explanation of the historical TP spikes.
