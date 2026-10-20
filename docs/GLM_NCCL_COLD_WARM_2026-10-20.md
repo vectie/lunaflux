@@ -264,3 +264,25 @@ production policy from this one trace workload: the earlier eager-serving
 rank-0 59-node sum was 17.301760 ms, and a whole-service or broad-workload
 promotion campaign was explicitly outside this task. Restore the qualified
 serving configuration, not a silently selected experimental policy.
+
+## Restoration and handoff
+
+The qualified `eb152338` LunaFlux GLM configuration is restored through the
+existing LunaNexa lifecycle control. Both user units are active, `/health`
+returns `healthy`, and a fresh backend chat returns **323**, `stop`, 26 input
+and six output tokens. Production remains decode-only collective capture;
+the new exact-row/window policy is opt-in. No route/model/kernel promotion
+or customer-key requalification is claimed.
+
+Startup-through-answer observation in
+`/tmp/lunaflux-glm-nccl-restoration-20261020-v2` records GPU maxima
+**94.1904/94.2188 GiB**, host minima **17.8354/19.5084 GiB**, and zero in all
+available owned swap readings. Startup unavailability is retained separately;
+final active-unit swap peaks are both zero. The original response is
+`/tmp/lunaflux-glm-nccl-restored-answer-20261020-v2.json.reply`.
+
+Completed: the measured cold proxy-ingestion stall has a demonstrated,
+generic IR remedy, with cold/warm and no-plugin corroboration. Remaining:
+separate rank-entry skew, broader policy-promotion evidence, and a fresh
+vLLM load that fits the unchanged host reserve. No hashing, memory-limit
+waiver, overall throughput campaign or unproven production-default change.
