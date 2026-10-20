@@ -5,6 +5,12 @@ the rank to execute, receives its execution result/token, then commits or
 poisons the whole step. A partial rank aborts its local completion writer; it
 never publishes a model response. Only a terminal rank supplies sampled output.
 
+`run` prepares the command; `dispatch_run` can separately retire its bounded
+socket write before a coordinator begins a long local enqueue. The latter does
+not wait for a remote result, acknowledge device execution, or permit commit.
+Partial writes remain pending with the original deadline. Ordinary `poll`
+uses the same send transition and retains its existing exchange semantics.
+
 Activation bytes travel separately. `arm_activation` starts the receiver after
 rank metadata retirement; `ready_to_submit` must remain false until its upload
 retires. The server's queue cannot run before that condition. The enclosing

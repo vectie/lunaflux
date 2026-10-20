@@ -10,6 +10,35 @@ import {
 // The independent paired memory watcher must remain active throughout.
 
 ///|
+fn collection_ranks(
+  selection : String?,
+  launched : String?,
+) -> Array[Int32] raise {
+  let effective = if selection is None { launched } else { selection }
+  guard !(launched == Some("egress") && effective == Some("both")) else {
+    fail("cannot collect an uninstrumented ingress rank")
+  }
+  match effective {
+    None | Some("both") => [0, 1]
+    Some("egress") => [1]
+    _ => fail("trace ranks must be both or egress")
+  }
+}
+
+///|
+test "collector inherits the native launch rank scope" {
+  assert_eq(collection_ranks(None, Some("egress")), [1])
+  assert_eq(collection_ranks(None, Some("both")), [0, 1])
+  assert_eq(collection_ranks(Some("egress"), Some("both")), [1])
+  assert_eq(collection_ranks(None, None), [0, 1])
+  try collection_ranks(Some("both"), Some("egress")) catch {
+    _ => ()
+  } noraise {
+    _ => fail("accepted an uninstrumented rank")
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, engine, mode] &&
     root.has_prefix("/tmp/lunaflux-") &&
@@ -62,11 +91,14 @@ async fn main {
     out.check()
   }
   let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"
-  let ranks = match @env.get_env_var("LUNAFLUX_TRACE_RANKS") {
-    None | Some("both") => [0, 1]
-    Some("egress") => [1]
-    _ => fail("LUNAFLUX_TRACE_RANKS must be both or egress")
-  }
+  let ranks = collection_ranks(
+    @env.get_env_var("LUNAFLUX_TRACE_RANKS"),
+    if engine == "native" {
+      @env.get_env_var("LUNAFLUX_NATIVE_TRACE_RANKS")
+    } else {
+      None
+    },
+  )
   if mode == "collect" {
     for rank in ranks {
       // Import only after GPU owners retire: report conversion also consumes

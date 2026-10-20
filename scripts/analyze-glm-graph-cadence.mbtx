@@ -1,0 +1,203 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// Offline graph-level ablation, not per-kernel attribution or a serving
+// benchmark. Captures must start before the first complete request frame.
+
+///|
+struct Span {
+  start : Int64
+  end : Int64
+}
+
+///|
+struct Window {
+  span : Span
+  instance : Int64
+  correlation : Int64
+}
+
+///|
+fn field(j : Json, key : String) -> Json raise {
+  guard j is Object(fields) else { fail("object") }
+  fields[key]
+}
+
+///|
+fn number(j : Json, key : String) -> Int64 raise {
+  guard field(j, key) is Number(n, ..) else { fail("numeric " + key) }
+  n.to_int64()
+}
+
+///|
+fn union_ns(spans : Array[Span], begin : Int64, end : Int64) -> Int64 {
+  let ordered = spans.copy()
+  ordered.sort_by((a, b) => a.start.compare(b.start))
+  for s in ordered; right = begin, total = 0L {
+    let finish = s.end.min(end)
+    continue right.max(finish), total + (finish - right.max(s.start)).max(0L)
+  } nobreak {
+    total
+  }
+}
+
+///|
+fn validate_windows(windows : Array[Window], count : Int32) -> Unit raise {
+  guard count > 0 && windows.length() > count else {
+    fail("need a complete effect frame and the next frame's first window")
+  }
+  for i in 0..<windows.length() {
+    guard windows[i].span.end >= windows[i].span.start &&
+      (i == 0 || windows[i].span.start >= windows[i - 1].span.end) else {
+      fail("expected serial effect windows on one stream")
+    }
+    if i < count {
+      for j in 0..<i {
+        guard windows[i].instance != windows[j].instance else {
+          fail("window count exceeds the distinct captured effect cycle")
+        }
+      }
+    } else {
+      guard windows[i].instance == windows[i % count].instance else {
+        fail("different graph cycle or incomplete initial frame")
+      }
+    }
+  }
+}
+
+///|
+test "window cycle rejects the wrong frame boundary" {
+  let windows = [
+    { span: { start: 0, end: 10, }, instance: 1, correlation: 1, },
+    { span: { start: 11, end: 20, }, instance: 2, correlation: 2, },
+    { span: { start: 30, end: 40, }, instance: 1, correlation: 3, },
+  ]
+  validate_windows(windows, 2)
+  try validate_windows(windows, 1) catch {
+    _ => ()
+  } noraise {
+    _ => fail("accepted wrong graph cycle")
+  }
+  assert_eq(
+    union_ns(
+      [{ start: 5, end: 12, }, { start: 11, end: 15, }, { start: 19, end: 25, }],
+      10,
+      20,
+    ),
+    6L,
+  )
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, database, windows_text, output] else {
+    fail("GRAPH_LEVEL_SQLITE WINDOWS_PER_EFFECT_FRAME NEW_REPORT_JSON")
+  }
+  let count = @string.parse_int(windows_text)
+  async fn query(sql : String) -> Array[Json] {
+    let result = @shell.Cmd("sqlite3", ["-readonly", "-json", database, sql]).output(
+      max_output_bytes=8388608,
+    )
+    result.check()
+    if result.stdout().trim().is_empty() {
+      return []
+    }
+    guard @json.parse(result.stdout()) is Array(rows) else {
+      fail("query rows")
+    }
+    rows
+  }
+  let raw = query(
+    "SELECT start,end,graphExecId,correlationId,globalPid,streamId FROM CUPTI_ACTIVITY_KIND_GRAPH_TRACE ORDER BY start;",
+  )
+  guard !raw.is_empty() else { fail("no graph-level activities") }
+  let pid = number(raw[0], "globalPid")
+  let stream = number(raw[0], "streamId")
+  let windows = raw.map(j => {
+    guard number(j, "globalPid") == pid && number(j, "streamId") == stream else {
+      fail("mixed process/stream graph scope")
+    }
+    Window::{
+      span: { start: number(j, "start"), end: number(j, "end"), },
+      instance: number(j, "graphExecId"),
+      correlation: number(j, "correlationId"),
+    }
+  })
+  validate_windows(windows, count)
+  let frames : Array[Json] = []
+  for ordinal in 0..<(windows.length() / count) {
+    let first = ordinal * count
+    let last = first + count - 1
+    let begin = windows[first].span.start
+    let end = windows[last].span.end
+    let correlations = windows[first:last + 1]
+      .map(w => w.correlation.to_string())
+      .join(",")
+    let launch = query(
+      "SELECT r.start,r.end,(r.end-r.start)/1e6 ms,s.value name FROM CUPTI_ACTIVITY_KIND_RUNTIME r JOIN StringIds s ON s.id=r.nameId WHERE r.correlationId IN (\{correlations}) AND s.value LIKE '%GraphLaunch%' ORDER BY r.start;",
+    )
+    guard launch.length() == count else { fail("unmatched graph launches") }
+    let row : Map[String, Json] = Map([
+      ("ordinal", Json(ordinal)),
+      ("begin_ns", Json(begin)),
+      ("end_ns", Json(end)),
+      ("effect_frame_ms", Json((end - begin).to_double() / 1000000.0)),
+      ("launch_cpu", Json(launch)),
+      (
+        "launch_cpu_span_ms",
+        Json(
+          (number(launch[count - 1], "end") - number(launch[0], "start")).to_double() /
+          1000000.0,
+        ),
+      ),
+    ])
+    if last + 1 < windows.length() {
+      let next = windows[last + 1].span.start
+      let activity : Array[Span] = []
+      for
+        table in [
+          "CUPTI_ACTIVITY_KIND_MEMCPY", "CUPTI_ACTIVITY_KIND_MEMSET", "CUPTI_ACTIVITY_KIND_KERNEL",
+        ] {
+        if !query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='\{table}';",
+          ).is_empty() {
+          for
+            j in query(
+              "SELECT start,end FROM \{table} WHERE start<\{next} AND end>\{end};",
+            ) {
+            activity.push({ start: number(j, "start"), end: number(j, "end"), })
+          }
+        }
+      }
+      row["handoff_ms"] = Json((next - end).to_double() / 1000000.0)
+      row["next_frame_start_ns"] = Json(next)
+      row["start_to_next_start_ms"] = Json(
+        (next - begin).to_double() / 1000000.0,
+      )
+      row["handoff_visible_device_ms"] = Json(
+        union_ns(activity, end, next).to_double() / 1000000.0,
+      )
+      row["handoff_uncovered_device_trace_ms"] = Json(
+        (next - end - union_ns(activity, end, next)).to_double() / 1000000.0,
+      )
+    }
+    frames.push(Json(row))
+  }
+  let result : Json = {
+    "database": database,
+    "windows_per_effect_frame": count,
+    "observed_windows": windows.length(),
+    "incomplete_tail_windows": windows.length() % count,
+    "frames": Json(frames),
+    "scope": "One rank, observed serial graph windows including TP; no per-kernel breakdown, synchronized peer clock, or whole-request throughput. CPU launch spans overlap GPU execution. Handoff is not proof of NCCL wire time.",
+  }
+  @fs.write_file(output, result.stringify(indent=2), create_mode=CreateNew)
+  println(Json(frames).stringify(indent=2))
+}

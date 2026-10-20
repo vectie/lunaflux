@@ -1,5 +1,12 @@
 # Row-reusing projection pipeline and chunk handoff
 
+Outcome: two runtime ordering/wakeup defects are corrected. Their combined
+candidate shortens the four observed chunk cadences by 0.37–0.97%; this is not
+a whole-request benchmark or a solution to the main projection gap. Three
+projection transport candidates lose and remain unselected or were removed.
+The final ablation uses matched rank-1 graph tracing; it does not replace the
+earlier two-rank, per-kernel allocation. Full results and limitations follow.
+
 ## Contract and experiment budget
 
 This follows the `09bd656d` sparse/HC candidate, not the earlier M16 projection
@@ -28,7 +35,9 @@ paired measurements, and selected-path traces justify a change.
 A separate handoff investigation concerns the 9.013 ms warm rank-1 interval
 without recorded GPU work. It must identify CPU/control dependencies before
 removing waits. Cancellation, KV retirement and two-rank commit ordering are
-not optional. One handoff change may be tested after causal tracing.
+not optional. The original handoff budget was one change. The subsequently
+observed local-before-peer submission dependency adds one separately measured
+candidate; no other handoff changes are bundled into these ablations.
 
 ## Validation and operating boundaries
 
@@ -222,3 +231,136 @@ expected replay policy and checks both launch and artifact manifests before
 starting any GPU owner. Its regression rejects an omitted or different window
 policy. This is bounded offline experiment metadata, not request-path checks
 or payload hashing. No resident-slot reduction was made.
+
+The corrected simultaneous graph control also reached the 17 GiB early guard
+(last rank-0 observation 17,814,200 KiB; rank1 remained above that guard).
+The next control therefore traces rank1 only while both ranks execute.
+Its first root, `handoff-exact-egress-control-20261020-v1`, loaded and warmed
+successfully but the collector still addressed rank0 because it used a second,
+independent rank-selection variable. Collection failed before the measured
+request. The collector now inherits the native launch scope unless an explicit
+collection subset is supplied; a regression covers egress/both selections.
+The corrected v2 root retains the same eight-slot manifests and kernels.
+These failed harness attempts are not numerical failures or performance data.
+
+## Completed runtime ablations
+
+All three completed variants use the latest sparse/HC AOT artifacts, exact
+64-row replay, 16 collective sites/window, eight resident slots and context 8192.
+Both GPUs execute; **only rank 1 is instrumented**, at graph granularity.
+The literal cold and warm requests each complete with 7973 prompt tokens,
+zero cached tokens, one output token and `[DONE]`. Each variant then answers
+`323`, finish reason `stop`, to `17 * 19`. This exercises the exact 64-row and
+partial 37-row paths and request retirement; it is not broad answer-quality
+qualification or a throughput benchmark.
+
+| Variant | Executable | Evidence root |
+| --- | --- | --- |
+| Unchanged latest control | retained sparse/HC candidate | `/tmp/lunaflux-glm-http-handoff-exact-egress-control-20261020-v2` |
+| Pipe readiness only | `d8c900ca` | `/tmp/lunaflux-glm-http-handoff-readiness-20261020-v1` |
+| Readiness + early peer dispatch | `b573c1f4` | `/tmp/lunaflux-glm-http-handoff-peer-dispatch-20261020-v1` |
+
+The new external `analyze-glm-graph-cadence.mbtx` reads the actual graph spans,
+verifies the six-window instance cycle, matches CPU graph-launch correlations
+and excludes the incomplete tail from complete-frame comparisons. It does not
+infer kernel times from graph durations or assume synchronized host clocks.
+Reports are `cadence-{cold,warm}.json` beside each SQLite.
+
+Observed handoff, end of a complete effect frame to next frame start:
+
+| Request / chunk ordinal | Control ms | Readiness ms | Both fixes ms |
+| --- | ---: | ---: | ---: |
+| Cold / 0 | 3.675488 | 2.177248 | 1.040608 |
+| Cold / 1 | 3.489376 | 1.392224 | 1.210624 |
+| Warm / 0 | 3.423008 | 3.739872 | 2.377568 |
+| Warm / 1 | 3.973120 | 1.055040 | 1.634944 |
+
+Full start-to-next-start cadence, including that handoff:
+
+| Request / chunk ordinal | Control ms | Readiness ms | Both fixes ms |
+| --- | ---: | ---: | ---: |
+| Cold / 0 | 278.611200 | 279.275520 | 276.776064 |
+| Cold / 1 | 222.666496 | 229.817952 | 220.508160 |
+| Warm / 0 | 279.058560 | 280.038528 | 278.022336 |
+| Warm / 1 | 217.982176 | 215.773056 | 216.914720 |
+
+The combined candidate improves all four observed cadences by 1.036–2.158 ms,
+or 0.37–0.97%. This is a small positive boundary result, **not elimination of
+the projection gap**. Readiness alone improves three of four handoffs but
+does not consistently improve cadence. Adding early dispatch also does not
+uniformly beat readiness in every row: warm chunk 1 worsens 1.142 ms. In cold
+chunk 1 the readiness-only GPU frame is 228.426 ms versus 219.177 ms for control
+and 219.298 ms for the combined variant. No causal explanation for that
+unchanged-kernel variation is established; it must not be counted as 9 ms
+saved by socket dispatch.
+
+The combined first effect frame is 275.735 ms cold / 275.645 ms warm. Its unchanged
+control is 274.936/275.636 ms: **the GPU effect frame itself did not get faster**.
+The demonstrated cadence benefit comes from shortening the boundary. These
+graph spans include TP and differ in scope from the earlier kernel-classified
+decoder allocation. They are not replacement per-stage numbers.
+
+### Re-evaluation of the quoted earlier graph
+
+- The prior latest node-level sparse/HC trace had already moved the cold
+  decoder from 290.09 ms to 277.364 ms, compared with retained vLLM 256.071 ms;
+  its warm result was 282.440 ms and was not a consistent whole-chunk win.
+- The remaining projection excess in that cold allocation was 15.963 ms.
+  None of the three projection transports tried here earns serving selection.
+- The old 9.352 ms warm rank-1 handoff is **not a stable application-only cost**.
+  With engine source unchanged, the lighter single-rank graph control observes
+  3.423 ms at the same first boundary. Rank coverage and trace granularity both
+  changed; this does not isolate either one's overhead individually.
+- The retained vLLM handoff is 4.011 ms. It remains a historical observation,
+  not a fresh matched graph-granularity ablation. Do not subtract it from the
+  new measurements and advertise a new cross-engine speedup or gap.
+- This capture has no internal NCCL nodes or rank-0 GPU timeline. The source
+  dispatch dependency is removed, but a fresh two-rank NCCL wait decomposition
+  has **not** been obtained. Earlier arrival/wire-time bounds remain historical.
+- HC small-row compiled resource envelopes, KDA non-projection work, dense
+  FFNs and shared/routed contention are not declared fixed by this change.
+
+### Gates and deployment boundary
+
+All completed variants peak at 96,539 MiB observed device allocation (94.28 GiB).
+Sampled host minima are 18,125,756 / 18,136,332 / 18,334,160 KiB, respectively;
+owned process swap peaks are zero. Fast headroom monitoring and the 100 GiB
+device / 16 GiB host limits remain active. These are sampled observations,
+not a claim of continuous peak visibility.
+
+Local affected gates pass: 137 packed-execution tests, 19 GLM command tests,
+19 grouped-matrix tests, 14 tiled-source tests, inherited-pipe deadline/wakeup
+fixtures, and the offline runner/analyzer regressions. The final command
+check passes with the repository's existing migration-warning exclusions;
+none were added. Source-pinned ARM builds pass under 2 GiB/no swap (the
+peer-dispatch build reports 1.5 GiB memory peak).
+
+Full `moon check --target native --deny-warn` still stops on 21 pre-existing
+migration diagnostics, including `try?` and implicit derived methods.
+Full warning-denied `moon test` also fails during checking on existing
+migration diagnostics, before a full test campaign can execute. The unrelated
+dirty toolchain migration was preserved, not staged or waived.
+
+The prior qualified GLM deployment is restored unchanged, not replaced by the
+private candidate. Both user services are active with `Result=success`,
+`ExecMainStatus=0`, zero owned-process swap, healthy backend and a real `323`
+answer (`finish_reason=stop`). Restoration observations have retired.
+Evidence: `/tmp/lunaflux-glm-handoff-restoration-20261020-v1`.
+Its sampled minimum host availability is 17.362/19.222 GiB and maximum GPU
+allocation is 94.190/94.219 GiB on ranks 0/1.
+
+The new host runtime is committed and physically tested, but this limited
+four-interval result is not a broad production-performance qualification.
+No losing projection path or unproven numerical policy is promoted.
+
+### Remaining work, not claimed complete
+
+The projection experiment rules out these small-tile copy substitutions for
+the measured shapes. A genuine rectangular tensor-transfer pipeline with
+larger useful work per publication is distinct from the rejected 64 small
+row-copy variant; its descriptor/ownership implementation and qualification
+are still missing. HC needs independently compiled small-row/full-row resource
+envelopes, not merely a runtime branch in one wide-register kernel. The other
+previously measured KDA/dense-FFN costs and shared-branch resource contention
+also remain open. Neither faster pipe wakeup nor moving peer dispatch solves
+those mathematical-work/kernel-efficiency gaps.
