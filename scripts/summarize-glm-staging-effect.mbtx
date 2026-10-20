@@ -1,0 +1,113 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+fn category(name : String, kind : String) -> String {
+  for
+    suffix in [
+      "_projection_q_a", "_projection_kv_a", "_projection_index_k", "_projection_pool_gate",
+      "_projection_index_weights",
+    ] {
+    if name.has_prefix("glm_sparse_") && name.has_suffix(suffix) {
+      return "changed" + suffix
+    }
+  }
+  "unchanged_" + kind
+}
+
+///|
+fn totals(j : Json) -> Map[String, (Int32, Double)] raise {
+  guard j is Array(rows) else { fail("leaves array") }
+  let sums : Map[String, (Int32, Double)] = Map([])
+  for row in rows {
+    guard row
+      is {
+        "name": String(name),
+        "kind": String(kind),
+        "duration_ms": Number(ms, ..),
+        ..
+      } else {
+      fail("leaf timing")
+    }
+    let key = category(name, kind)
+    let (n, total) = sums.get(key).unwrap_or((0, 0.0))
+    sums[key] = (n + 1, total + ms)
+  }
+  sums
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, before, after, output] else {
+    fail("BASELINE_DECODER_REPORT CANDIDATE_DECODER_REPORT NEW_OUTPUT_JSON")
+  }
+  let a = totals(@json.parse(@fs.read_file(before + "/leaves.json").text()))
+  let b = totals(@json.parse(@fs.read_file(after + "/leaves.json").text()))
+  guard a.length() == b.length() else { fail("different leaf categories") }
+  let rows : Array[Json] = []
+  let mut selected = 0
+  let mut old_selected = 0.0
+  let mut new_selected = 0.0
+  for key, (n, old) in a {
+    guard b.get(key) is Some((m, next)) && n == m else {
+      fail("different actual call count: " + key)
+    }
+    rows.push({
+      "category": key,
+      "calls": n,
+      "before_sum_ms": old,
+      "after_sum_ms": next,
+      "saved_ms": old - next,
+    })
+    if key.has_prefix("changed_") {
+      selected += n
+      old_selected += old
+      new_selected += next
+    }
+  }
+  guard selected == 55 else {
+    fail("all 55 qualified leaves must actually execute")
+  }
+  let report : Json = {
+    "baseline": before,
+    "candidate": after,
+    "selected_calls": selected,
+    "selected_before_sum_ms": old_selected,
+    "selected_after_sum_ms": new_selected,
+    "selected_saved_ms": old_selected - new_selected,
+    "categories": rows,
+    "scope": "Matched first decoder chunks. Kernel sums are not disjoint wall allocation; unchanged bodies expose cross-run variation, not causal gains. See execution-graph summaries for union/overlap/TP.",
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(report.stringify(indent=2))
+}
+
+///|
+test "only the selected leaves contribute to changed totals" {
+  assert_eq(
+    category("glm_sparse_3_projection_q_a", "sparse_projection"),
+    "changed_projection_q_a",
+  )
+  assert_eq(
+    category("glm_sparse_3_projection_q_b", "sparse_projection"),
+    "unchanged_sparse_projection",
+  )
+  let t = totals([
+    {
+      "name": "glm_sparse_3_projection_q_a",
+      "kind": "sparse_projection",
+      "duration_ms": 0.2,
+    },
+    {
+      "name": "glm_sparse_7_projection_q_a",
+      "kind": "sparse_projection",
+      "duration_ms": 0.3,
+    },
+  ])
+  assert_eq(t["changed_projection_q_a"], (2, 0.5))
+}

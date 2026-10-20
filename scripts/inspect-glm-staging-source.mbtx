@@ -1,0 +1,86 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+// Offline selected-source comparison. No digest, checkpoint reads or runtime
+// dependency. Changed symbols must belong to the explicitly qualified leaves.
+
+///|
+fn selected_leaf(name : String) -> Bool {
+  name.has_prefix("glm_sparse_") &&
+  [
+    "_projection_q_a", "_projection_kv_a", "_projection_index_k", "_projection_pool_gate",
+    "_projection_index_weights",
+  ].any(suffix => name.has_suffix(suffix))
+}
+
+///|
+fn parts(text : String) -> Map[String, String] raise {
+  let result : Map[String, String] = Map([])
+  let sections = text.split("extern \"C\" __global__ void ").to_array()
+  result["<preamble>"] = sections[0].to_owned()
+  for i in 1..<sections.length() {
+    let body = sections[i].to_owned()
+    guard body.find("(") is Some(end) else { fail("missing kernel signature") }
+    let name = body[:end].to_owned()
+    guard !result.contains(name) else { fail("duplicate selected symbol") }
+    result[name] = body
+  }
+  result
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, baseline, candidate, output] else {
+    fail("BASELINE_CUDA CANDIDATE_CUDA NEW_REPORT_JSON")
+  }
+  let before = parts(@fs.read_file(baseline).text())
+  let after = parts(@fs.read_file(candidate).text())
+  guard before.length() == after.length() else { fail("entry count changed") }
+  let changed : Array[Json] = []
+  let unchanged : Array[Json] = []
+  for name, source in before {
+    guard after.get(name) is Some(next) else { fail("missing " + name) }
+    if source == next {
+      unchanged.push(Json(name))
+    } else {
+      guard selected_leaf(name) &&
+        source.contains("base_k+=32") &&
+        next.contains("base_k+=128") &&
+        next.contains("kk+=16") else {
+        fail("unexpected selected source change: " + name)
+      }
+      changed.push({ "symbol": name, "old_k": 32, "new_k": 128 })
+    }
+  }
+  let report : Json = {
+    "baseline": baseline,
+    "candidate": candidate,
+    "changed": changed,
+    "unchanged": unchanged,
+    "scope": "Direct generated-source comparison; execution and output checks are separate.",
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println("changed=\{changed.length()} unchanged=\{unchanged.length()}")
+}
+
+///|
+test "only qualified standalone leaves are admitted" {
+  assert_true(selected_leaf("glm_sparse_3_projection_q_a"))
+  assert_false(selected_leaf("glm_sparse_3_projection_q_b"))
+  assert_false(selected_leaf("glm_recurrent_4_inputs"))
+}
+
+///|
+test "selected body parser preserves the source without a digest" {
+  let p = parts(
+    "header\nextern \"C\" __global__ void a() {}\nextern \"C\" __global__ void b(int x) {}",
+  )
+  assert_eq(p.length(), 3)
+  assert_eq(p["a"], "a() {}\n")
+  assert_eq(p["<preamble>"], "header\n")
+}
