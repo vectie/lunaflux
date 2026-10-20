@@ -211,3 +211,56 @@ not change. GPU execution is separately evidenced by these HTTP traces.
 The source-pinned 16-site option remains explicit/nondefault. A final trace
 without the proxy plugin checks whether instrumentation created the apparent
 remedy; no overall benchmark or new production policy is implied here.
+
+## No-proxy-plugin control: measured stall removed
+
+`/tmp/lunaflux-glm-http-nccl-window16-light-20261020-v1` runs the same
+source-pinned option and fixed pair, with no `NCCL_PROFILER_PLUGIN` or custom
+proxy callbacks. Both NCCL logs report that no default profiler plugin was
+found. Nsight CUDA tracing remains: this is **not an unprofiled performance
+campaign**. Both 7,973-token/zero-cache/one-output requests finish, followed
+by `323` with `stop`. All diagnostic owners retire.
+
+Only **59** collective nodes are common to all four traces; do not compare
+their sums directly to the previous 64-node table.
+
+| Same sites, GPU ms | Prior exact whole graph, cold R0/R1 (no proxy plugin) | Window16 cold R0/R1 | Window16 warm R0/R1 |
+| --- | --- | --- | --- |
+| First dense FFN, ordinal 1 | See prior retained graph | 0.208096 / 0.150624 | 0.212096 / 0.161472 |
+| Original residual-stall site, ordinal 2 | 3.194368 / 3.148288 | **0.165408 / 0.173856** | **0.176608 / 0.176448** |
+| Second dense FFN, ordinal 3 | See prior retained graph | 0.177984 / 0.161504 | 0.178048 / 0.178688 |
+| First 59 collective-span sum | 23.928608 / 18.978048 | 20.843232 / 11.472768 | 19.904224 / 11.253248 |
+
+The maximum after ordinal 0 is 0.725568/0.841056 ms cold and
+0.680864/0.790816 ms warm. The old multi-ms post-arrival spike did not merely
+move to another site in this observed prefix. This control corroborates the
+remedy without custom proxy instrumentation; it does not measure individual
+allocator costs or claim every possible context/concurrency is qualified.
+
+The first collective still lasts 8.119488/0.174176 ms cold and
+6.323040/0.171328 ms warm. Causal alignment bounds rank 0 early arrival at
+7.808352--8.062432 ms cold and 6.010432--6.267424 ms warm. That separate
+rank-entry skew remains; fixing proxy ingestion is not fixing every TP wait.
+Four actual graph-launch correlations cover this 59-node prefix. Preserve
+the first node in all sums; excluding it would conceal the remaining cost.
+
+The retained vLLM rank-1 first two dense-FFN reductions are
+0.239808/0.174592 ms, versus native 0.150624/0.161504 cold here and
+0.161472/0.178688 warm. This is a **retained operator-level reference**, not
+a fresh vLLM run or framework-wide victory. Its NCCL version and output-token
+limit differ as documented in the preceding report. No unsafe new full-model
+vLLM load or overall throughput benchmark was attempted.
+
+The no-plugin control reaches GPU maxima 94.2422/94.2705 GiB and host minima
+17.4593/18.1598 GiB. All available owned swap readings are zero; three
+startup/retirement readings are unavailable. NIC error/retry/congestion
+counters remain unchanged. Evidence includes `paired-{cold,warm}-59.json`,
+`prefix-summary.json`, `envelope-network-summary-v2.json`, both SQLite
+timelines, complete HTTP responses and raw unit/memory/NCCL logs.
+
+Decision: retain the successful **explicit** windowed replay capability and
+the whole-frame alternative. Do not automatically replace the qualified
+production policy from this one trace workload: the earlier eager-serving
+rank-0 59-node sum was 17.301760 ms, and a whole-service or broad-workload
+promotion campaign was explicitly outside this task. Restore the qualified
+serving configuration, not a silently selected experimental policy.
