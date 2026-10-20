@@ -285,6 +285,7 @@ fn ServicePlan::stage(
     matrix_law=ShapeAwareFloat32,
     matrix_staging=self.execution.staging,
     matrix_tile_rows=self.execution.recurrent_tile_rows,
+    matrix_reuse_minimum_inner=self.execution.recurrent_reuse_minimum_inner,
     sparse_matrix_staging=self.execution.sparse_staging,
     sparse_accumulation=self.sparse_accumulation,
     index_scoring=self.index_scoring,

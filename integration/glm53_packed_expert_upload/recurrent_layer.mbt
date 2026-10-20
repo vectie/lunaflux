@@ -35,6 +35,7 @@ pub fn GlmRecurrentLayer::new(
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
   matrix_tile_rows? : Int = 16,
+  matrix_reuse_minimum_inner? : Int = 0,
   tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   tensor_group? : (Int, Int),
 ) -> Self raise {
@@ -56,6 +57,7 @@ pub fn GlmRecurrentLayer::new(
     fuse_input_projections=matrix_law == ShapeAwareFloat32,
     matrix_staging~,
     matrix_tile_rows~,
+    matrix_reuse_minimum_inner~,
   )
   {
     spec,

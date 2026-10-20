@@ -21,6 +21,7 @@ pub fn MatrixTilePlan::new(
   staging? : MatrixStaging = Synchronous,
   tile_columns? : Int = 64,
   tile_rows? : Int = 16,
+  minimum_row_reuse_inner? : Int = 0,
 ) -> Self raise @precision.PrecisionPlanError {
   guard law != ScalarFloat32 &&
     rows > 0 &&
@@ -33,9 +34,22 @@ pub fn MatrixTilePlan::new(
   }
   // Resolve an explicitly supplied physical workset budget before lowering.
   // This is not a model-name rule or an automatic claim about hardware cache.
-  guard (tile_rows == 16 && tile_columns is (16 | 32 | 64)) ||
-    (tile_rows == 32 && tile_columns == 32) else {
+  guard minimum_row_reuse_inner >= 0 &&
+    (
+      (tile_rows == 16 && tile_columns is (16 | 32 | 64)) ||
+      (tile_rows == 32 && tile_columns == 32)
+    ) &&
+    (tile_rows == 16 || staging is (Synchronous | SynchronousTiles(_))) else {
     raise @precision.PrecisionPlanError::NoImplementation
+  }
+  // The supplied envelope selects between two legal physical candidates.
+  // Short reductions retain the default ownership/staging, not a padded
+  // row-reuse schedule whose publication overhead can exceed useful work.
+  let (tile_rows, tile_columns, staging) = if tile_rows == 32 &&
+    inner < minimum_row_reuse_inner {
+    (16, 64, Synchronous)
+  } else {
+    (tile_rows, tile_columns, staging)
   }
   let staging = match staging {
     WorksetBoundedTiles(inner_tile~, maximum_weight_bytes~, maximum_tiles~) => {

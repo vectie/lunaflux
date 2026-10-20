@@ -16,11 +16,8 @@ test "row reuse reaches fused recurrent source and leaves sparse numerics alone"
       accuracy=@precision_ir.Accuracy::new(absolute=0.125, relative=0.125),
       matrix_law=ShapeAwareFloat32,
       matrix_tile_rows~,
-      matrix_staging=if matrix_tile_rows == 16 {
-        Synchronous
-      } else {
-        SynchronousTiles(inner_tile=64)
-      },
+      matrix_reuse_minimum_inner=4096,
+      matrix_staging=Synchronous,
       tensor_group=(0, 2),
     )
   })
@@ -31,8 +28,15 @@ test "row reuse reaches fused recurrent source and leaves sparse numerics alone"
   let next = @utf8.decode(stages[1].source_bytes())
   let marker = "void glm_recurrent_4_inputs("
   let fused = next.split(marker).to_array()[1].split("extern \"C\"").to_array()[0]
-  assert_true(fused.contains("tile_a[2048],tile_b[2048]"))
-  assert_true(next.contains("(warp/2)*16*64+kk"))
+  assert_true(fused.contains("tile_a[1024],tile_b[1024]"))
+  assert_true(next.contains("(warp/2)*16*32+kk"))
+  for role in [4, 9] {
+    let marker = "void glm_recurrent_4_\{role}("
+    assert_eq(
+      old.split(marker).to_array()[1].split("extern \"C\"").to_array()[0],
+      next.split(marker).to_array()[1].split("extern \"C\"").to_array()[0],
+    )
+  }
   let sparse = "void glm_sparse_3_projection_q_a("
   assert_eq(
     old.split(sparse).to_array()[1].split("extern \"C\"").to_array()[0],

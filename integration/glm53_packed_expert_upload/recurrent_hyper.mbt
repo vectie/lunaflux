@@ -12,6 +12,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
   matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
   matrix_tile_rows? : Int = 16,
+  matrix_reuse_minimum_inner? : Int = 0,
   hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
   tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
   tensor_group? : (Int, Int),
@@ -27,6 +28,7 @@ pub fn GlmRecurrentLayer::with_hyper_connection(
     matrix_law~,
     matrix_staging~,
     matrix_tile_rows~,
+    matrix_reuse_minimum_inner~,
     tensor_publication~,
     tensor_group?,
   )

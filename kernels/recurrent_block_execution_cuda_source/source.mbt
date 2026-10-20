@@ -8,6 +8,7 @@ pub struct RecurrentBlockCudaSource {
   priv input_region : @matrix.SegmentedMatrixPlan?
   priv matrix_staging : @matrix.MatrixStaging
   priv matrix_tile_rows : Int
+  priv matrix_reuse_minimum_inner : Int
 }
 
 ///|
@@ -19,6 +20,7 @@ pub fn recurrent_block_source(
   fuse_input_projections? : Bool = false,
   matrix_staging? : @matrix.MatrixStaging = Synchronous,
   matrix_tile_rows? : Int = 16,
+  matrix_reuse_minimum_inner? : Int = 0,
 ) -> RecurrentBlockCudaSource raise {
   guard matrix_tile_rows is (16 | 32) &&
     (matrix_tile_rows == 16 || plan.projection_law() != ScalarFloat32) else {
@@ -61,6 +63,7 @@ pub fn recurrent_block_source(
             staging=matrix_staging,
             tile_rows=matrix_tile_rows,
             tile_columns=1024 / matrix_tile_rows,
+            minimum_row_reuse_inner=matrix_reuse_minimum_inner,
           )
         }),
       ),
@@ -91,6 +94,7 @@ pub fn recurrent_block_source(
           staging=matrix_staging,
           tile_rows=matrix_tile_rows,
           tile_columns=1024 / matrix_tile_rows,
+          minimum_row_reuse_inner=matrix_reuse_minimum_inner,
         ),
         symbol~,
         partial_float32=partial,
@@ -182,6 +186,7 @@ pub fn recurrent_block_source(
     input_region,
     matrix_staging,
     matrix_tile_rows,
+    matrix_reuse_minimum_inner,
   }
 }
 
@@ -201,6 +206,7 @@ pub fn RecurrentBlockCudaSource::projection_launch(
       staging=self.matrix_staging,
       tile_rows=self.matrix_tile_rows,
       tile_columns=1024 / self.matrix_tile_rows,
+      minimum_row_reuse_inner=self.matrix_reuse_minimum_inner,
     )
     (tile.tile_count(), 128)
   } else {

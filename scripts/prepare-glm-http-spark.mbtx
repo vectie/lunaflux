@@ -238,6 +238,11 @@ async fn main {
       "recurrent_projection_tile_rows": @string.parse_int(
         @env.get_env_var("LUNAFLUX_GLM_RECURRENT_TILE_ROWS").unwrap_or("16"),
       ),
+      "recurrent_reuse_minimum_inner": @string.parse_int(
+        @env.get_env_var("LUNAFLUX_GLM_RECURRENT_REUSE_MINIMUM_INNER").unwrap_or(
+          "0",
+        ),
+      ),
       "expert_transport": transport,
       "expert_scale_partitions": scale_partitions,
       "moe_reduction": moe_reduction,

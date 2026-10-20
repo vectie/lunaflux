@@ -54,3 +54,20 @@ test "unsupported ownership and copy combinations reject" {
     }
   }
 }
+
+///|
+test "supplied reuse envelope preserves short reductions" {
+  for k in [128, 1536, 4096, 8192] {
+    let p = @grouped_matrix_ir.MatrixTilePlan::new(
+      rows=64,
+      columns=4096,
+      inner=k,
+      law=ShapeAwareFloat32,
+      tile_rows=32,
+      tile_columns=32,
+      staging=SynchronousTiles(inner_tile=64),
+      minimum_row_reuse_inner=4096,
+    )
+    assert_eq(p.tile(), if k < 4096 { (16, 64, 32) } else { (32, 32, 64) })
+  }
+}
