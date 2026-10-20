@@ -1,0 +1,697 @@
+diff --git a/compiler/grouped_matrix_ir/operand_staging.mbt b/compiler/grouped_matrix_ir/operand_staging.mbt
+index 321b9ab5..bcc16233 100644
+--- a/compiler/grouped_matrix_ir/operand_staging.mbt
++++ b/compiler/grouped_matrix_ir/operand_staging.mbt
+@@ -11,6 +11,9 @@ pub(all) enum MatrixStaging {
+     maximum_tiles~ : Int
+   )
+   Buffered(inner_tile~ : Int)
++  // Whole rectangular operands have independent producer completion epochs.
++  // Device descriptors/ABI are deliberately absent from this physical law.
++  RectangularBuffered(inner_tile~ : Int)
+ } derive(Eq, Debug)
+
+ ///|
+@@ -28,6 +31,6 @@ pub fn MatrixTilePlan::staging(self : Self) -> MatrixStaging {
+ pub fn MatrixTilePlan::operand_slots(self : Self) -> Int {
+   match self.staging {
+     Synchronous | SynchronousTiles(_) | WorksetBoundedTiles(..) => 1
+-    Buffered(_) => 2
++    Buffered(_) | RectangularBuffered(_) => 2
+   }
+ }
+diff --git a/compiler/grouped_matrix_ir/plan.mbt b/compiler/grouped_matrix_ir/plan.mbt
+index 6f93b35e..3549a207 100644
+--- a/compiler/grouped_matrix_ir/plan.mbt
++++ b/compiler/grouped_matrix_ir/plan.mbt
+@@ -37,11 +37,12 @@ pub fn MatrixTilePlan::new(
+   guard minimum_row_reuse_inner >= 0 &&
+     (
+       (tile_rows == 16 && tile_columns is (16 | 32 | 64)) ||
+-      (tile_rows == 32 && tile_columns == 32)
++      (tile_rows == 32 && tile_columns == 32) ||
++      (tile_rows == 64 && tile_columns == 128 && staging is RectangularBuffered(_))
+     ) &&
+     (
+       tile_rows == 16 ||
+-      staging is (Synchronous | SynchronousTiles(_) | Buffered(_))
++      staging is (Synchronous | SynchronousTiles(_) | Buffered(_) | RectangularBuffered(_))
+     ) else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+@@ -79,6 +80,7 @@ pub fn MatrixTilePlan::new(
+   }
+   guard (tile_rows == 16 && tile_columns == 64) ||
+     (tile_rows == 32 && tile_columns == 32) ||
++    (tile_rows == 64 && tile_columns == 128 && staging is RectangularBuffered(_)) ||
+     staging is (Synchronous | SynchronousTiles(_)) else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+@@ -93,7 +95,7 @@ pub fn MatrixTilePlan::new(
+   }
+   let tile_inner = match staging {
+     Synchronous => 32
+-    SynchronousTiles(inner_tile~) | Buffered(inner_tile~) => {
++    SynchronousTiles(inner_tile~) | Buffered(inner_tile~) | RectangularBuffered(inner_tile~) => {
+       guard inner_tile is (32 | 64 | 128) else {
+         raise @precision.PrecisionPlanError::NoImplementation
+       }
+@@ -102,6 +104,9 @@ pub fn MatrixTilePlan::new(
+     WorksetBoundedTiles(..) =>
+       raise @precision.PrecisionPlanError::NoImplementation
+   }
++  guard !(staging is RectangularBuffered(_)) || inner % 8 == 0 else {
++    raise @precision.PrecisionPlanError::NoImplementation
++  }
+   { rows, columns, inner, tile_rows, tile_columns, tile_inner, law, staging, }
+ }
+
+diff --git a/kernels/tiled_matrix_cuda_source/source.mbt b/kernels/tiled_matrix_cuda_source/source.mbt
+index d77548f6..cee383f4 100644
+--- a/kernels/tiled_matrix_cuda_source/source.mbt
++++ b/kernels/tiled_matrix_cuda_source/source.mbt
+@@ -129,6 +129,11 @@ fn dense_render(
+ ) -> String raise @precision.PrecisionPlanError {
+   let (rows, columns, inner) = plan.geometry()
+   let (m, n, _) = plan.tile()
++  // Rectangular transfer needs explicit descriptor bindings. Never lower it
++  // as vector copies just because both transports own two slots.
++  guard !(plan.staging() is RectangularBuffered(_)) else {
++    raise @precision.PrecisionPlanError::NoImplementation
++  }
+   guard (m, n) is ((16, 64) | (32, 32)) else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+
+diff --git a/compiler/grouped_matrix_ir/partitioned.mbt b/compiler/grouped_matrix_ir/partitioned.mbt
+new file mode 100644
+--- /dev/null
++++ b/compiler/grouped_matrix_ir/partitioned.mbt
+@@ -0,0 +1,51 @@
++///|
++/// Immutable matrix/partial-publication plan. Backends own descriptor layout,
++/// synchronization instructions and actual launch topology.
++pub struct PartitionedMatrixPlan {
++  priv matrix : MatrixTilePlan
++  priv law : @precision.MatrixPartitionLaw
++  priv stages : Int
++}
++
++///|
++pub fn PartitionedMatrixPlan::new(
++  matrix : MatrixTilePlan,
++  law~ : @precision.MatrixPartitionLaw,
++  stages~ : Int,
++) -> Self raise @precision.PrecisionPlanError {
++  let (rows, columns, inner) = matrix.geometry()
++  let (_, _, tile_inner) = matrix.tile()
++  let ContiguousFloat32(partitions~) = law
++  guard partitions > 1 && partitions <= 32 && stages is (2 | 3 | 4) &&
++    matrix.staging() is RectangularBuffered(_) &&
++    inner % (partitions * tile_inner) == 0 &&
++    rows.to_int64() * columns.to_int64() * partitions.to_int64() <= 536870911L else {
++    raise @precision.PrecisionPlanError::NoImplementation
++  }
++  { matrix, law, stages }
++}
++
++///|
++pub fn PartitionedMatrixPlan::matrix(self : Self) -> MatrixTilePlan { self.matrix }
++
++///|
++pub fn PartitionedMatrixPlan::partitions(self : Self) -> Int {
++  let ContiguousFloat32(partitions~) = self.law
++  partitions
++}
++
++///|
++pub fn PartitionedMatrixPlan::stages(self : Self) -> Int { self.stages }
++
++///|
++pub fn PartitionedMatrixPlan::partial_bytes(self : Self) -> Int64 {
++  let (rows, columns, _) = self.matrix.geometry()
++  rows.to_int64() * columns.to_int64() * self.partitions().to_int64() * 4L
++}
++
++///|
++pub fn PartitionedMatrixPlan::tile_count(self : Self) -> Int {
++  let (rows, columns, _) = self.matrix.geometry()
++  let (m, n, _) = self.matrix.tile()
++  (rows + m - 1) / m * ((columns + n - 1) / n) * self.partitions()
++}
+diff --git a/compiler/precision_ir/matrix_partition.mbt b/compiler/precision_ir/matrix_partition.mbt
+new file mode 100644
+--- /dev/null
++++ b/compiler/precision_ir/matrix_partition.mbt
+@@ -0,0 +1,13 @@
++///|
++/// Explicit alternate numerical program: independent contiguous matrix
++/// partials, followed by ascending-partition F32 additions and one final
++/// publication round. This is not an equality rewrite of an unsplit fold.
++pub(all) enum MatrixPartitionLaw {
++  ContiguousFloat32(partitions~ : Int)
++} derive(Debug, Eq)
++
++///|
++pub extend MatrixPartitionLaw with Eq::{equal, not_equal}
++
++///|
++pub extend MatrixPartitionLaw with @debug.Debug::{to_repr}
+diff --git a/kernels/tiled_matrix_cuda_source/rectangular.mbt b/kernels/tiled_matrix_cuda_source/rectangular.mbt
+new file mode 100644
+--- /dev/null
++++ b/kernels/tiled_matrix_cuda_source/rectangular.mbt
+@@ -0,0 +1,89 @@
++///|
++/// Private NVIDIA realization of rectangular publication epochs. Descriptor
++/// storage is prepared once from the immutable extents and fixed device
++/// bindings. The ordinary four-pointer ABI cannot call this entry.
++pub fn rectangular_dense_source(
++  plan : @matrix.MatrixTilePlan,
++  symbol~ : String,
++  partial_float32? : Bool = false,
++) -> Bytes raise @precision.PrecisionPlanError {
++  let (rows, columns, inner) = plan.geometry()
++  let (m, n, k) = plan.tile()
++  guard plan.staging() is RectangularBuffered(_) &&
++    ((m, n) is ((16, 64) | (32, 32))) else {
++    raise @precision.PrecisionPlanError::NoImplementation
++  }
++  let blocks_n = (columns + n - 1) / n
++  let a_offset = "(warp/\{n/16})*16*\{k}+kk"
++  let b_offset = "(warp%\{n/16})*16*\{k}+kk"
++  let c_offset = "(warp/\{n/16})*16*\{n}+(warp%\{n/16})*16"
++  let output_type = if partial_float32 { "float" } else { "__nv_bfloat16" }
++  let publication = if partial_float32 { "result[i]" } else { "__float2bfloat16_rn(result[i])" }
++  let decode = if plan.law() == ShapeAwareFloat32 {
++    let body = shape_decode_body(
++      inner~, columns~, maximum_rows=rows,
++      tile_id="blockIdx.x", tile_count="gridDim.x",
++      left="__bfloat162float(input[inner])",
++      right="__bfloat162float(weight[(unsigned long long)column*\{inner}+inner])",
++      publish="output[column]=\{if partial_float32 { "value" } else { "__float2bfloat16_rn(value)" }};",
++    )
++    "if(live_rows==1) { \{body}\n return; }"
++  } else { "" }
++  @utf8.encode((
++    $|#include <cuda.h>
++    $|#include <cuda_bf16.h>
++    $|#include <mma.h>
++    $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output,const CUtensorMap *map_a,const CUtensorMap *map_b) {
++    $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows}) return;
++    $|  \{decode}
++    $|  const int row_base=(blockIdx.x/\{blocks_n})*\{m},column_base=(blockIdx.x%\{blocks_n})*\{n};
++    $|  if(row_base>=live_rows) return;
++    $|  __shared__ __align__(128) __nv_bfloat16 tile_a[\{2*m*k}],tile_b[\{2*n*k}];
++    $|  __shared__ __align__(32) float result[\{m*n}];
++    $|  __shared__ __align__(8) unsigned long long ready[2];
++    $|  const unsigned int bar0=__cvta_generic_to_shared(ready),bar1=__cvta_generic_to_shared(ready+1);
++    $|  if(threadIdx.x==0) {
++    $|    asm volatile("mbarrier.init.shared.b64 [%0], 1;" :: "r"(bar0) : "memory");
++    $|    asm volatile("mbarrier.init.shared.b64 [%0], 1;" :: "r"(bar1) : "memory");
++    $|    asm volatile("fence.proxy.async.shared::cta;" ::: "memory");
++    $|  }
++    $|  __syncthreads();
++    $|  if(threadIdx.x==0) {
++    $|    const unsigned int a=__cvta_generic_to_shared(tile_a),b=__cvta_generic_to_shared(tile_b);
++    $|    asm volatile("mbarrier.arrive.expect_tx.shared::cta.b64 _, [%0], %1;" :: "r"(bar0),"r"(\{2*(m+n)*k}) : "memory");
++    $|    asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];" :: "r"(a),"l"(map_a),"r"(0),"r"(row_base),"r"(bar0) : "memory");
++    $|    asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];" :: "r"(b),"l"(map_b),"r"(0),"r"(column_base),"r"(bar0) : "memory");
++    $|  }
++    $|  const int warp=threadIdx.x/32;
++    $|  nvcuda::wmma::fragment<nvcuda::wmma::accumulator,16,16,16,float> accumulator;
++    $|  nvcuda::wmma::fill_fragment(accumulator,0.0f);
++    $|  for(int base_k=0,epoch=0;base_k<\{inner};base_k+=\{k},++epoch) {
++    $|    const int slot=epoch&1; const unsigned int bar=slot?bar1:bar0,parity=(epoch/2)&1;
++    $|    asm volatile("{ .reg .pred done; WAIT: mbarrier.try_wait.parity.shared::cta.b64 done, [%0], %1; @!done bra WAIT; }" :: "r"(bar),"r"(parity) : "memory");
++    $|    if(threadIdx.x==0 && base_k+\{k}<\{inner}) {
++    $|      const int next=slot^1,coordinate=base_k+\{k}; const unsigned int nb=next?bar1:bar0;
++    $|      const unsigned int a=__cvta_generic_to_shared(tile_a+next*\{m*k}),b=__cvta_generic_to_shared(tile_b+next*\{n*k});
++    $|      asm volatile("mbarrier.arrive.expect_tx.shared::cta.b64 _, [%0], %1;" :: "r"(nb),"r"(\{2*(m+n)*k}) : "memory");
++    $|      asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];" :: "r"(a),"l"(map_a),"r"(coordinate),"r"(row_base),"r"(nb) : "memory");
++    $|      asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];" :: "r"(b),"l"(map_b),"r"(coordinate),"r"(column_base),"r"(nb) : "memory");
++    $|    }
++    $|    #pragma unroll
++    $|    for(int kk=0;kk<\{k};kk+=16) {
++    $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a,16,16,16,__nv_bfloat16,nvcuda::wmma::row_major> a;
++    $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_b,16,16,16,__nv_bfloat16,nvcuda::wmma::col_major> b;
++    $|      nvcuda::wmma::load_matrix_sync(a,tile_a+slot*\{m*k}+\{a_offset},\{k});
++    $|      nvcuda::wmma::load_matrix_sync(b,tile_b+slot*\{n*k}+\{b_offset},\{k});
++    $|      nvcuda::wmma::mma_sync(accumulator,a,b,accumulator);
++    $|    }
++    $|    // Retire all readers before the next epoch may reuse this slot.
++    $|    __syncthreads();
++    $|  }
++    $|  nvcuda::wmma::store_matrix_sync(result+\{c_offset},accumulator,\{n},nvcuda::wmma::mem_row_major);
++    $|  __syncthreads();
++    $|  for(int i=threadIdx.x;i<\{m*n};i+=128) {
++    $|    int row=row_base+i/\{n},column=column_base+i%\{n};
++    $|    if(row<live_rows&&column<\{columns}) output[(unsigned long long)row*\{columns}+column]=\{publication};
++    $|  }
++    $|}
++  ))
++}
+diff --git a/kernels/tiled_matrix_cuda_source/rectangular_test.mbt b/kernels/tiled_matrix_cuda_source/rectangular_test.mbt
+new file mode 100644
+--- /dev/null
++++ b/kernels/tiled_matrix_cuda_source/rectangular_test.mbt
+@@ -0,0 +1,58 @@
++///|
++test "rectangular transport requires explicit descriptor ABI" {
++  let plan = @matrix.MatrixTilePlan::new(
++    rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32,
++    tile_rows=32, tile_columns=32, staging=RectangularBuffered(inner_tile=64),
++  )
++  assert_eq(plan.tile(), (32, 32, 64))
++  assert_eq(plan.operand_slots(), 2)
++  try @tiled_matrix_cuda_source.dense_source(plan, symbol="wrong_abi") catch {
++    _ => ()
++  } noraise { _ => fail("descriptor-less lowering accepted") }
++  let text = @utf8.decode(
++    @tiled_matrix_cuda_source.rectangular_dense_source(plan, symbol="rectangular"),
++  )
++  assert_true(text.contains("const CUtensorMap *map_a"))
++  assert_true(text.contains("cp.async.bulk.tensor.2d"))
++  assert_true(text.contains("mbarrier.try_wait.parity"))
++  assert_true(text.contains("Retire all readers"))
++  assert_true(text.contains("if(live_rows==1)"))
++  assert_true(text.contains("kk+=16"))
++  try @matrix.MatrixTilePlan::new(
++    rows=64, columns=65, inner=33, law=MatrixFloat32,
++    staging=RectangularBuffered(inner_tile=64),
++  ) catch { _ => () } noraise { _ => fail("unaligned tensor stride accepted") }
++}
++
++///|
++test "export rectangular publication through actual lowering" {
++  if @env.get_env_var("LUNA_EXPORT_RECTANGULAR") != Some("1") { return }
++  let shapes = [(4096,4096),(4096,8192),(8192,1536),(4096,1536),(65,40),(65,136)]
++  println("LUNA_SOURCE_BEGIN prefill")
++  println("#define PROJECTION_TENSOR_MAPS 1")
++  for i, (columns,inner) in shapes {
++    for j in 0..<4 {
++      let plan = @matrix.MatrixTilePlan::new(
++        rows=64, columns~, inner~, law=ShapeAwareFloat32,
++        tile_rows=32, tile_columns=32,
++        staging=if j == 1 {
++          RectangularBuffered(inner_tile=64)
++        } else {
++          SynchronousTiles(inner_tile=if inner>=8192 {64} else {32})
++        },
++      )
++      println(@utf8.decode(if j == 1 {
++        @tiled_matrix_cuda_source.rectangular_dense_source(
++          plan,symbol="p\{i}_s\{j}",partial_float32=true,
++        )
++      } else {
++        @tiled_matrix_cuda_source.dense_source(
++          plan,symbol="p\{i}_s\{j}",partial_float32=true,
++        )
++      }))
++    }
++  }
++  println("static void *functions[][4]={\{[for i in 0..<shapes.length() => "{"+[for j in 0..<4 => "(void*)p\{i}_s\{j}"].join(",")+"}"].join(",")}};")
++  println("static const int widths[]={\{shapes.map(s=>s.0.to_string()).join(",")}},inners[]={\{shapes.map(s=>s.1.to_string()).join(",")}};")
++  println("LUNA_SOURCE_END")
++}
+diff --git a/kernels/tiled_matrix_cuda_source/partitioned_rectangular.mbt b/kernels/tiled_matrix_cuda_source/partitioned_rectangular.mbt
+new file mode 100644
+--- /dev/null
++++ b/kernels/tiled_matrix_cuda_source/partitioned_rectangular.mbt
+@@ -0,0 +1,99 @@
++///|
++/// Two-stage device realization of an explicit partitioned numerical program.
++/// Shared operand storage is reused for publication only after every operand
++/// reader and transfer has retired. Partial results never escape this chain.
++pub fn partitioned_rectangular_source(
++  plan : @matrix.PartitionedMatrixPlan,
++  symbol~ : String,
++  partial_float32? : Bool = false,
++) -> Bytes raise @precision.PrecisionPlanError {
++  let matrix = plan.matrix()
++  let (rows, columns, inner) = matrix.geometry()
++  let (m, n, k) = matrix.tile()
++  guard (m, n, k) == (64, 128, 64) else {
++    raise @precision.PrecisionPlanError::NoImplementation
++  }
++  let stages = plan.stages()
++  let partitions = plan.partitions()
++  let extent = inner / partitions
++  let tiles_n = (columns + n - 1) / n
++  let tiles = (rows + m - 1) / m * tiles_n
++  let output_type = if partial_float32 { "float" } else { "__nv_bfloat16" }
++  let publication = if partial_float32 { "sum" } else { "__float2bfloat16_rn(sum)" }
++  @utf8.encode((
++    $|#include <cuda.h>
++    $|#include <cuda_bf16.h>
++    $|#include <mma.h>
++    $|__device__ __forceinline__ void \{symbol}_load(int slot,int coordinate,int row_base,int column_base,const CUtensorMap *map_a,const CUtensorMap *map_b,__nv_bfloat16 *tile_a,__nv_bfloat16 *tile_b,unsigned long long *ready) {
++    $|  const unsigned int bar=__cvta_generic_to_shared(ready+slot);
++    $|  const unsigned int a=__cvta_generic_to_shared(tile_a+slot*\{m*k}),b=__cvta_generic_to_shared(tile_b+slot*\{n*k});
++    $|  asm volatile("fence.proxy.async.shared::cta;" ::: "memory");
++    $|  asm volatile("mbarrier.arrive.expect_tx.shared::cta.b64 _, [%0], %1;" :: "r"(bar),"r"(\{2*(m+n)*k}) : "memory");
++    $|  asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];" :: "r"(a),"l"(map_a),"r"(coordinate),"r"(row_base),"r"(bar) : "memory");
++    $|  asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];" :: "r"(b),"l"(map_b),"r"(coordinate),"r"(column_base),"r"(bar) : "memory");
++    $|}
++    $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,float *partials,const CUtensorMap *map_a,const CUtensorMap *map_b) {
++    $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows}) return;
++    $|  const int partition=blockIdx.x/\{tiles},tile=blockIdx.x%\{tiles};
++    $|  if(partition>=\{partitions}) return;
++    $|  const int row_base=(tile/\{tiles_n})*\{m},column_base=(tile%\{tiles_n})*\{n};
++    $|  if(row_base>=live_rows) return;
++    $|  extern __shared__ __align__(128) unsigned char scratch[];
++    $|  __nv_bfloat16 *tile_a=reinterpret_cast<__nv_bfloat16 *>(scratch),*tile_b=tile_a+\{stages*m*k};
++    $|  __shared__ __align__(8) unsigned long long ready[\{stages}];
++    $|  if(threadIdx.x==0) {
++    $|    #pragma unroll
++    $|    for(int s=0;s<\{stages};++s) {
++    $|      const unsigned int address=__cvta_generic_to_shared(ready+s);
++    $|      asm volatile("mbarrier.init.shared.b64 [%0], 1;" :: "r"(address) : "memory");
++    $|    }
++    $|    asm volatile("fence.proxy.async.shared::cta;" ::: "memory");
++    $|  }
++    $|  __syncthreads();
++    $|  const int begin=partition*\{extent};
++    $|  if(threadIdx.x==0) {
++    $|    #pragma unroll
++    $|    for(int s=0;s<\{stages};++s) if(s*\{k}<\{extent}) \{symbol}_load(s,begin+s*\{k},row_base,column_base,map_a,map_b,tile_a,tile_b,ready);
++    $|  }
++    $|  const int warp=threadIdx.x/32;
++    $|  nvcuda::wmma::fragment<nvcuda::wmma::accumulator,16,16,16,float> accumulators[8];
++    $|  #pragma unroll
++    $|  for(int c=0;c<8;++c) nvcuda::wmma::fill_fragment(accumulators[c],0.0f);
++    $|  for(int offset=0,epoch=0;offset<\{extent};offset+=\{k},++epoch) {
++    $|    const int slot=epoch%\{stages}; const unsigned int bar=__cvta_generic_to_shared(ready+slot),parity=(epoch/\{stages})&1;
++    $|    asm volatile("{ .reg .pred done; WAIT: mbarrier.try_wait.parity.shared::cta.b64 done, [%0], %1; @!done bra WAIT; }" :: "r"(bar),"r"(parity) : "memory");
++    $|    #pragma unroll
++    $|    for(int kk=0;kk<\{k};kk+=16) {
++    $|      nvcuda::wmma::fragment<nvcuda::wmma::matrix_a,16,16,16,__nv_bfloat16,nvcuda::wmma::row_major> a;
++    $|      nvcuda::wmma::load_matrix_sync(a,tile_a+slot*\{m*k}+warp*16*\{k}+kk,\{k});
++    $|      #pragma unroll
++    $|      for(int c=0;c<8;++c) {
++    $|        nvcuda::wmma::fragment<nvcuda::wmma::matrix_b,16,16,16,__nv_bfloat16,nvcuda::wmma::col_major> b;
++    $|        nvcuda::wmma::load_matrix_sync(b,tile_b+slot*\{n*k}+c*16*\{k}+kk,\{k});
++    $|        nvcuda::wmma::mma_sync(accumulators[c],a,b,accumulators[c]);
++    $|      }
++    $|    }
++    $|    __syncthreads();
++    $|    if(threadIdx.x==0 && offset+\{stages*k}<\{extent}) \{symbol}_load(slot,begin+offset+\{stages*k},row_base,column_base,map_a,map_b,tile_a,tile_b,ready);
++    $|  }
++    $|  // All pending publications and readers have retired; reuse storage.
++    $|  float *result=reinterpret_cast<float *>(scratch);
++    $|  #pragma unroll
++    $|  for(int c=0;c<8;++c) nvcuda::wmma::store_matrix_sync(result+warp*16*\{n}+c*16,accumulators[c],\{n},nvcuda::wmma::mem_row_major);
++    $|  __syncthreads();
++    $|  for(int i=threadIdx.x;i<\{m*n};i+=128) {
++    $|    int row=row_base+i/\{n},column=column_base+i%\{n};
++    $|    if(row<live_rows&&column<\{columns}) partials[((unsigned long long)partition*\{rows}+row)*\{columns}+column]=result[i];
++    $|  }
++    $|}
++    $|extern "C" __global__ void \{symbol}_reduce(const int *counts,const float *partials,\{output_type} *output) {
++    $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows}) return;
++    $|  for(unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;i<(unsigned long long)live_rows*\{columns};i+=(unsigned long long)gridDim.x*blockDim.x) {
++    $|    float sum=0.0f;
++    $|    #pragma unroll
++    $|    for(int p=0;p<\{partitions};++p) sum=__fadd_rn(sum,partials[(unsigned long long)p*\{rows*columns}+i]);
++    $|    output[i]=\{publication};
++    $|  }
++    $|}
++  ))
++}
+diff --git a/kernels/tiled_matrix_cuda_source/partitioned_rectangular_test.mbt b/kernels/tiled_matrix_cuda_source/partitioned_rectangular_test.mbt
+new file mode 100644
+--- /dev/null
++++ b/kernels/tiled_matrix_cuda_source/partitioned_rectangular_test.mbt
+@@ -0,0 +1,43 @@
++///|
++test "partitioned rectangular plan has explicit numerical and scratch ownership" {
++  let tile = @matrix.MatrixTilePlan::new(
++    rows=64, columns=4096, inner=8192, law=MatrixFloat32,
++    tile_rows=64, tile_columns=128, staging=RectangularBuffered(inner_tile=64),
++  )
++  let plan = @matrix.PartitionedMatrixPlan::new(
++    tile, law=ContiguousFloat32(partitions=8), stages=4,
++  )
++  assert_eq(plan.tile_count(), 256)
++  assert_eq(plan.partial_bytes(), 8388608L)
++  let text = @utf8.decode(@tiled_matrix_cuda_source.partitioned_rectangular_source(plan,symbol="partitioned"))
++  assert_true(text.contains("accumulators[8]"))
++  assert_true(text.contains("epoch%4"))
++  assert_true(text.contains("sum=__fadd_rn"))
++  assert_true(text.contains("All pending publications and readers have retired"))
++  try @matrix.PartitionedMatrixPlan::new(tile,law=ContiguousFloat32(partitions=3),stages=4) catch {
++    _ => ()
++  } noraise { _ => fail("unaligned partition accepted") }
++}
++
++///|
++test "export partitioned rectangular candidate" {
++  if @env.get_env_var("LUNA_EXPORT_PARTITIONED_RECTANGULAR") != Some("1") { return }
++  let shapes=[(4096,4096),(4096,8192),(8192,1536),(4096,1536),(65,512)]
++  println("LUNA_SOURCE_BEGIN prefill")
++  for i,(columns,inner) in shapes {
++    let baseline=@matrix.MatrixTilePlan::new(
++      rows=64,columns~,inner~,law=ShapeAwareFloat32,tile_rows=32,tile_columns=32,
++      staging=SynchronousTiles(inner_tile=if inner>=8192 {64} else {32}),
++    )
++    let matrix=@matrix.MatrixTilePlan::new(
++      rows=64,columns~,inner~,law=MatrixFloat32,tile_rows=64,tile_columns=128,
++      staging=RectangularBuffered(inner_tile=64),
++    )
++    let plan=@matrix.PartitionedMatrixPlan::new(matrix,law=ContiguousFloat32(partitions=8),stages=4)
++    println(@utf8.decode(@tiled_matrix_cuda_source.dense_source(baseline,symbol="p\{i}_base",partial_float32=true)))
++    println(@utf8.decode(@tiled_matrix_cuda_source.partitioned_rectangular_source(plan,symbol="p\{i}_parts",partial_float32=true)))
++  }
++  println("static void *functions[][3]={\{[for i in 0..<shapes.length() => "{(void*)p\{i}_base,(void*)p\{i}_parts,(void*)p\{i}_parts_reduce}"].join(",")}};")
++  println("static const int widths[]={\{shapes.map(s=>s.0.to_string()).join(",")}},inners[]={\{shapes.map(s=>s.1.to_string()).join(",")}};")
++  println("LUNA_SOURCE_END")
++}
+diff --git a/benchmarks/gpu_pipeline/ako_trial.mbtx b/benchmarks/gpu_pipeline/ako_trial.mbtx
+index 66df4b9a..489b002c 100644
+--- a/benchmarks/gpu_pipeline/ako_trial.mbtx
++++ b/benchmarks/gpu_pipeline/ako_trial.mbtx
+@@ -215,14 +215,15 @@ async fn capture(
+
+ ///|
+ async fn main {
+-  if @env.args() is [_, "--summarize-paired", input, output] {
++  if @env.args() is [_, mode, input, output] &&
++    mode is ("--summarize-paired" | "--summarize-numerical-paired") {
+     // Remote campaigns own device reservation/resource envelopes. Reuse the
+     // same strict five-pair decision on their retained stdout, without moving
+     // profiling/comparison into the runtime or requiring another GPU run.
+     let metrics = summarize(
+       @fs.read_file(input).text(),
+       0.01,
+-      require_bitwise=true,
++      require_bitwise=mode == "--summarize-paired",
+     )
+     @fs.write_file(output, metrics.stringify(indent=2), create_mode=CreateNew)
+     println(metrics.stringify())
+diff --git a/scripts/probe-glm-projection-staging.mbtx b/scripts/probe-glm-projection-staging.mbtx
+index e2d8e577..01f56595 100644
+--- a/scripts/probe-glm-projection-staging.mbtx
++++ b/scripts/probe-glm-projection-staging.mbtx
+@@ -41,6 +41,7 @@ async fn main {
+   }
+   let unit = root[5:].to_owned()
+   let fused = @env.get_env_var("LUNA_PROJECTION_FUSED") == Some("1")
++  let partitioned = @env.get_env_var("LUNA_PROJECTION_PARTITIONED") == Some("1")
+   let first_shape = @string.parse_int(
+     @env.get_env_var("LUNA_PROJECTION_FIRST_SHAPE").unwrap_or("0"),
+   )
+@@ -50,12 +51,16 @@ async fn main {
+   guard first_shape >= 0 && end_shape > first_shape && end_shape <= 12 else {
+     fail("shape range")
+   }
+-  if mode is ("export" | "export-rows" | "export-buffered-rows") {
++  if mode is ("export" | "export-rows" | "export-buffered-rows" | "export-rectangular" | "export-partitioned") {
+     guard options.is_empty() else { fail("no export arguments") }
+     @fs.mkdir(root)
+     let out = @shell.Cmd("env", [
+-      if fused {
++      if mode == "export-partitioned" {
++        "LUNA_EXPORT_PARTITIONED_RECTANGULAR=1"
++      } else if fused {
+         "LUNA_EXPORT_FUSED_ROW_REUSE=1"
++      } else if mode == "export-rectangular" {
++        "LUNA_EXPORT_RECTANGULAR=1"
+       } else if mode == "export-buffered-rows" {
+         "LUNA_EXPORT_BUFFERED_ROWS=1"
+       } else if mode == "export" {
+@@ -65,8 +70,12 @@ async fn main {
+       },
+       "moon",
+       "test",
+-      if fused {
++      if mode == "export-partitioned" {
++        "kernels/tiled_matrix_cuda_source/partitioned_rectangular_test.mbt"
++      } else if fused {
+         "kernels/tiled_matrix_cuda_source/row_reuse_fused_test.mbt"
++      } else if mode == "export-rectangular" {
++        "kernels/tiled_matrix_cuda_source/rectangular_test.mbt"
+       } else if mode == "export-buffered-rows" {
+         "kernels/tiled_matrix_cuda_source/buffered_rows_test.mbt"
+       } else if mode == "export" {
+@@ -100,7 +109,9 @@ async fn main {
+       (source, target) in [
+         (header, "prefill.cuh"),
+         (
+-          if fused {
++          if partitioned {
++            "tests/packed_moe_execution/partitioned_projection_probe.cu"
++          } else if fused {
+             "tests/packed_moe_execution/projection_row_reuse_fused_probe.cu"
+           } else {
+             "tests/packed_moe_execution/projection_staging_probe.cu"
+@@ -130,7 +141,7 @@ async fn main {
+         unit +
+         "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+         root +
+-        "/probe.cu -o " +
++        "/probe.cu -lcuda -o " +
+         root +
+         "/probe",
+       ),
+@@ -168,7 +179,7 @@ async fn main {
+       "gpu_uuid": uuid.stdout().trim().to_owned(),
+       "reserve_kib": 33554432,
+       "minimum_gain": 0.01,
+-      "require_bitwise": true,
++      "require_bitwise": !partitioned,
+       "program": root + "/probe",
+       "artifacts": [root + "/prefill.cuh"],
+       "workloads": workloads,
+@@ -198,7 +209,7 @@ async fn main {
+             @shell.Cmd("moon", [
+               "run",
+               "benchmarks/gpu_pipeline/ako_trial.mbtx",
+-              "--summarize-paired",
++              if partitioned { "--summarize-numerical-paired" } else { "--summarize-paired" },
+               root + "/" + label + ".stdout",
+               root + "/" + label + ".json",
+             ]).output(),
+@@ -236,7 +247,9 @@ async fn main {
+           root +
+           " -v /opt/nvidia:/opt/nvidia:ro --entrypoint " +
+           ncu +
+-          " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --launch-count 1 --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_mio_throttle_per_warp_active.pct,smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__shared_mem_per_block_static --export " +
++          " ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 --config-file off --clock-control none --cache-control none --launch-count " +
++          (if partitioned { "2" } else { "1" }) +
++          " --metrics gpu__time_duration.sum,smsp__inst_executed.sum,sm__warps_active.avg.pct_of_peak_sustained_active,smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_mio_throttle_per_warp_active.pct,smsp__warp_issue_stalled_short_scoreboard_per_warp_active.pct,lts__t_sectors_op_read.sum,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active,launch__registers_per_thread,launch__shared_mem_per_block_static --export " +
+           root +
+           "/" +
+           label +
+diff --git a/tests/packed_moe_execution/projection_staging_probe.cu b/tests/packed_moe_execution/projection_staging_probe.cu
+index 3b7282dd..53b83bc4 100644
+--- a/tests/packed_moe_execution/projection_staging_probe.cu
++++ b/tests/packed_moe_execution/projection_staging_probe.cu
+@@ -37,7 +37,22 @@ int main(int argc, char **argv) {
+   ck(cudaMemcpy(counts,c,sizeof(c),cudaMemcpyHostToDevice));
+   ck(cudaMemcpy(x,hx.data(),hx.size()*2,cudaMemcpyHostToDevice));
+   ck(cudaMemcpy(w,hw.data(),hw.size()*2,cudaMemcpyHostToDevice));
++#ifdef PROJECTION_TENSOR_MAPS
++  // Startup-only descriptor binding. Never included in timed/captured work.
++  auto *map_a=allocate<CUtensorMap>(1),*map_b=allocate<CUtensorMap>(1);
++  auto map=[&](void*data,int outer,CUtensorMap*target){
++    alignas(64) CUtensorMap descriptor;
++    cuuint64_t dims[]={cuuint64_t(k),cuuint64_t(outer)},strides[]={cuuint64_t(k)*2};
++    cuuint32_t box[]={64,32},element[]={1,1};
++    auto status=cuTensorMapEncodeTiled(&descriptor,CU_TENSOR_MAP_DATA_TYPE_BFLOAT16,2,data,dims,strides,box,element,CU_TENSOR_MAP_INTERLEAVE_NONE,CU_TENSOR_MAP_SWIZZLE_NONE,CU_TENSOR_MAP_L2_PROMOTION_NONE,CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
++    if(status!=CUDA_SUCCESS){fprintf(stderr,"tensor map error %d\n",int(status));exit(6);}
++    ck(cudaMemcpy(target,&descriptor,sizeof(descriptor),cudaMemcpyHostToDevice));
++  };
++  map(x,64,map_a);map(w,n,map_b);
++  void *args[]={&counts,&x,&w,&y,&map_a,&map_b};
++#else
+   void *args[]={&counts,&x,&w,&y};
++#endif
+   auto launch=[&](int v,cudaStream_t stream=0) {
+     ck(cudaLaunchKernel(functions[shape][v],dim3(grid),dim3(128),args,0,stream));
+   };
+@@ -86,5 +101,8 @@ int main(int argc, char **argv) {
+     }
+   }
+   ck(cudaFree(counts)); ck(cudaFree(x)); ck(cudaFree(w)); ck(cudaFree(y));
++#ifdef PROJECTION_TENSOR_MAPS
++  ck(cudaFree(map_a));ck(cudaFree(map_b));
++#endif
+   ck(cudaDeviceReset()); puts("released=true");
+ }
+diff --git a/tests/packed_moe_execution/partitioned_projection_probe.cu b/tests/packed_moe_execution/partitioned_projection_probe.cu
+new file mode 100644
+--- /dev/null
++++ b/tests/packed_moe_execution/partitioned_projection_probe.cu
+@@ -0,0 +1,72 @@
++#include <cuda_runtime.h>
++#include <cuda_bf16.h>
++#include <algorithm>
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <vector>
++#include "prefill.cuh"
++static void ck(cudaError_t s){if(s!=cudaSuccess){fprintf(stderr,"%s\n",cudaGetErrorString(s));exit(2);}}
++template<class T>T*allocate(size_t n){T*p;ck(cudaMalloc(&p,n*sizeof(T)));return p;}
++int main(int argc,char**argv){
++ if(argc!=5)return 2;
++ const int shape=atoi(argv[1]),rows=atoi(argv[2]),candidate=atoi(argv[3]);
++ const bool profile=!strcmp(argv[4],"profile"),sanitize=!strcmp(argv[4],"sanitize");
++ if(shape<0||shape>=int(sizeof(widths)/sizeof(widths[0]))||rows<0||rows>65||candidate<0||candidate>1)return 2;
++ const int n=widths[shape],k=inners[shape],base_grid=std::max((n+3)/4,4*((n+63)/64));
++ auto counts=allocate<int>(4);auto x=allocate<__nv_bfloat16>(64*k),w=allocate<__nv_bfloat16>(size_t(n)*k);
++ auto y=allocate<float>(64*n),partials=allocate<float>(size_t(8)*64*n);
++ auto map_a=allocate<CUtensorMap>(1),map_b=allocate<CUtensorMap>(1);
++ std::vector<__nv_bfloat16> hx(64*k),hw(size_t(n)*k);unsigned seed=713;
++ for(auto*v:{&hx,&hw})for(auto&e:*v){seed=1664525u*seed+1013904223u;e=__float2bfloat16_rn(float(int(seed>>16)-32768)*.000001f);}
++ int c[]={0,1,1,rows};ck(cudaMemcpy(counts,c,sizeof(c),cudaMemcpyHostToDevice));
++ ck(cudaMemcpy(x,hx.data(),hx.size()*2,cudaMemcpyHostToDevice));ck(cudaMemcpy(w,hw.data(),hw.size()*2,cudaMemcpyHostToDevice));
++ auto map=[&](void*data,int outer,int tile_rows,CUtensorMap*target){
++  alignas(64)CUtensorMap descriptor;cuuint64_t dims[]={cuuint64_t(k),cuuint64_t(outer)},strides[]={cuuint64_t(k)*2};
++  cuuint32_t box[]={64,cuuint32_t(tile_rows)},element[]={1,1};
++  auto status=cuTensorMapEncodeTiled(&descriptor,CU_TENSOR_MAP_DATA_TYPE_BFLOAT16,2,data,dims,strides,box,element,CU_TENSOR_MAP_INTERLEAVE_NONE,CU_TENSOR_MAP_SWIZZLE_NONE,CU_TENSOR_MAP_L2_PROMOTION_NONE,CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
++  if(status!=CUDA_SUCCESS){fprintf(stderr,"tensor map %d\n",int(status));exit(6);}
++  ck(cudaMemcpy(target,&descriptor,sizeof(descriptor),cudaMemcpyHostToDevice));
++ };
++ map(x,64,64,map_a);map(w,n,128,map_b);
++ ck(cudaFuncSetAttribute(functions[shape][1],cudaFuncAttributeMaxDynamicSharedMemorySize,98304));
++ void*base_args[]={&counts,&x,&w,&y};
++ void*part_args[]={&counts,&x,&w,&partials,&map_a,&map_b};
++ void*reduce_args[]={&counts,&partials,&y};
++ auto launch=[&](int v,cudaStream_t stream=0){
++  if(v==0)ck(cudaLaunchKernel(functions[shape][0],base_grid,128,base_args,0,stream));
++  else{
++   ck(cudaLaunchKernel(functions[shape][1],8*((n+127)/128),128,part_args,98304,stream));
++   ck(cudaLaunchKernel(functions[shape][2],(64*n+255)/256,256,reduce_args,0,stream));
++  }
++ };
++ if(profile){launch(candidate);ck(cudaDeviceSynchronize());}
++ else{
++  std::vector<float>a(64*n),b(64*n);ck(cudaMemset(y,0x55,a.size()*4));launch(0);ck(cudaMemcpy(a.data(),y,a.size()*4,cudaMemcpyDeviceToHost));
++  ck(cudaMemset(y,0x55,b.size()*4));launch(1);ck(cudaMemcpy(b.data(),y,b.size()*4,cudaMemcpyDeviceToHost));
++  double delta=0,oracle=0;size_t bf16_diff=0;
++  for(size_t i=0;i<a.size();++i){
++   bool active=rows>0&&rows<=64&&i<size_t(rows)*n;
++   if(!active){if(memcmp(&a[i],&b[i],4)){fprintf(stderr,"inactive mismatch index=%zu baseline=%.12g candidate=%.12g\n",i,a[i],b[i]);return 4;}continue;}
++   double d=std::abs(double(a[i])-b[i]);if(!std::isfinite(d)){fprintf(stderr,"nonfinite index=%zu baseline=%.12g candidate=%.12g\n",i,a[i],b[i]);return 4;}delta=std::max(delta,d);
++   auto av=__float2bfloat16_rn(a[i]),bv=__float2bfloat16_rn(b[i]);bf16_diff+=memcmp(&av,&bv,2)!=0;
++  }
++  if(delta>0.000001){fprintf(stderr,"arithmetic mismatch maxabs=%.12g bf16_differences=%zu\n",delta,bf16_diff);return 4;} // Predeclared F32 arithmetic check, not a model-quality waiver.
++  if(rows>0&&rows<=64)for(int r:{0,rows-1})for(int col:{0,n/2,n-1}){
++   double sum=0;for(int j=0;j<k;++j)sum+=double(__bfloat162float(hx[r*k+j]))*__bfloat162float(hw[size_t(col)*k+j]);
++   oracle=std::max(oracle,std::abs(double(b[r*n+col])-sum));
++  }
++  if(!(oracle<=0.003))return 5;
++  printf("correctness=passed shape=%d rows=%d candidate=%d maxabs=%.12g bf16_differences=%zu oracle_maxabs=%.12g numerical_law=contiguous8_f32_sum\n",shape,rows,candidate,delta,bf16_diff,oracle);
++  if(!sanitize&&rows>0&&rows<=64){
++   cudaStream_t stream;ck(cudaStreamCreate(&stream));cudaGraph_t graphs[2];cudaGraphExec_t executions[2];
++   for(int v=0;v<2;++v){ck(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));for(int i=0;i<20;++i)launch(v,stream);ck(cudaStreamEndCapture(stream,&graphs[v]));ck(cudaGraphInstantiate(&executions[v],graphs[v],nullptr,nullptr,0));ck(cudaGraphLaunch(executions[v],stream));}
++   ck(cudaStreamSynchronize(stream));cudaEvent_t start,end;ck(cudaEventCreate(&start));ck(cudaEventCreate(&end));
++   for(int trial=0;trial<5;++trial){float times[2];for(int order=0;order<2;++order){int v=trial%2?1-order:order;ck(cudaEventRecord(start,stream));ck(cudaGraphLaunch(executions[v],stream));ck(cudaEventRecord(end,stream));ck(cudaEventSynchronize(end));float ms;ck(cudaEventElapsedTime(&ms,start,end));times[v]=ms*50.f;}printf("tokens=%d rows=%d trial=%d old_us=%.9g new_us=%.9g bitwise=%s maxabs=%.12g oracle_maxabs=%.12g\n",rows,rows,trial,times[0],times[1],delta==0?"true":"false",delta,oracle);}
++   ck(cudaEventDestroy(start));ck(cudaEventDestroy(end));for(int i=0;i<2;++i){ck(cudaGraphExecDestroy(executions[i]));ck(cudaGraphDestroy(graphs[i]));}ck(cudaStreamDestroy(stream));
++  }
++ }
++ for(void*p:{(void*)counts,(void*)x,(void*)w,(void*)y,(void*)partials,(void*)map_a,(void*)map_b})ck(cudaFree(p));
++ ck(cudaDeviceReset());puts("released=true");
++}

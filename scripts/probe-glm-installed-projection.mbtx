@@ -1,0 +1,207 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline dispatch evidence only. Reuses the retained source-exact BF16
+// projection fixture; no model load, payload scan or compiler dependency.
+
+///|
+fn dispatch_route(mode : String, options : ArrayView[String]) -> String? raise {
+  match (mode, options) {
+    ("prepare" | "run", []) => None
+    ("profile", []) => None
+    ("profile" | "source", [value]) if value
+      is ("0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9") =>
+      Some(value)
+    _ => fail("only profile/source accept a bounded dispatch route")
+  }
+}
+
+///|
+test "installed dispatch route cannot be silently ignored" {
+  assert_eq(dispatch_route("profile", ["0"]), Some("0"))
+  assert_eq(dispatch_route("source", ["0"]), Some("0"))
+  assert_eq(dispatch_route("run", []), None)
+  for (mode, args) in [
+    ("run", ["0"]), ("prepare", ["1"]), ("profile", ["10"]), ("source", []),
+  ] {
+    try dispatch_route(mode, args) catch {
+      _ => ()
+    } noraise {
+      _ => fail("ignored or unbounded route")
+    }
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode, .. options] &&
+    root.has_prefix("/tmp/lunaflux-glm-installed-projection-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) &&
+    mode is ("prepare" | "run" | "profile" | "source") else {
+    fail("NEW_ROOT prepare | run | profile [ROUTE_0_TO_9] | source ROUTE_0_TO_9")
+  }
+  let socket = "/tmp/lunaflux-glm179-context-20261019.sock"
+  let host = "wlc004s@192.168.2.179"
+  let image = "ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907"
+  let fixture = "/tmp/lunaflux-glm-sparse-selected-output-20261020-v1"
+  let lib = "/usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib"
+  let route = dispatch_route(mode, options)
+  let label = mode +
+    (match route {
+      None => ""
+      Some(v) => "-" + v
+    })
+  let unit = root[5:].to_owned() + "-" + label
+  let ncu = "/opt/nvidia/nsight-compute/2025.3.1/ncu"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+      max_output_bytes=16777216,
+    )
+  }
+  async fn record(label : String, out : @shell.Output) {
+    @fs.write_file(
+      root + "/" + label + ".stdout",
+      out.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + label + ".stderr",
+      out.stderr(),
+      create_mode=CreateNew,
+    )
+    out.check()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    record("mkdir", remote("mkdir " + root))
+    @fs.write_file(
+      root + "/scope.txt",
+      "Existing selected BF16 fixture M64/N4096/K8192, native grid1024/block128.\n" +
+      "Installed vLLM image; explicit PyTorch-bundled cuBLAS library path.\n" +
+      "No full-model performance or numerical-oracle claim.\n",
+      create_mode=CreateNew,
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      "tests/packed_moe_execution/installed_projection_dispatch_probe.cu",
+      host + ":" + root + "/dispatch.cu",
+    ])
+    .output()
+    .check()
+    record(
+      "compile-reserve",
+      remote(
+        "awk '/MemAvailable:/ {if($2<18874368)exit 9;print}' /proc/meminfo",
+      ),
+    )
+    record(
+      "compile",
+      remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        unit +
+        "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 " +
+        "/usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 " +
+        root +
+        "/dispatch.cu -lcublas -lcublasLt -o " +
+        root +
+        "/dispatch",
+      ),
+    )
+    return
+  }
+  if mode == "source" {
+    guard route is Some(value) else { fail("source route required") }
+    record(
+      label,
+      remote(
+        ncu + " --import " + root + "/profile-" + value +
+        ".ncu-rep --page source --print-source sass",
+      ),
+    )
+    return
+  }
+  let owners = remote(
+    "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+  )
+  owners.check()
+  guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+  record(
+    label + "-reserve",
+    remote("awk '/MemAvailable:/ {if($2<33554432)exit 9;print}' /proc/meminfo"),
+  )
+  let args = if mode == "profile" {
+    "--entrypoint " +
+    ncu +
+    " " +
+    image +
+    " --config-file off --clock-control none --cache-control none --launch-count 8" +
+    " --metrics gpu__time_duration.sum,smsp__inst_executed.sum,lts__t_sectors_op_read.sum," +
+    "sm__warps_active.avg.pct_of_peak_sustained_active,sm__pipe_tensor_cycles_active.avg.pct_of_peak_sustained_active," +
+    "smsp__warp_issue_stalled_barrier_per_warp_active.pct,smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct," +
+    "launch__registers_per_thread,launch__shared_mem_per_block_static,launch__shared_mem_per_block_dynamic" +
+    " --export " +
+    root +
+    "/" +
+    label +
+    " " +
+    (match route {
+      None => fixture + "/probe 2"
+      Some(v) => root + "/dispatch " + v
+    })
+  } else {
+    "--entrypoint " + fixture + "/probe " + image
+  }
+  record(
+    label,
+    remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      unit +
+      " --property=RuntimeMaxSec=300 docker run --name " +
+      unit +
+      " --gpus all --network none --memory=4g --memory-swap=4g" +
+      (if mode == "profile" {
+        " --cap-add SYS_ADMIN --security-opt seccomp=unconfined"
+      } else {
+        ""
+      }) +
+      " -e LD_LIBRARY_PATH=" +
+      lib +
+      " -v " +
+      fixture +
+      ":" +
+      fixture +
+      ":ro -v " +
+      root +
+      ":" +
+      root +
+      " -v /opt/nvidia:/opt/nvidia:ro " +
+      args,
+    ),
+  )
+  if mode == "profile" {
+    record(
+      label + "-raw",
+      remote(
+        ncu + " --import " + root + "/" + label + ".ncu-rep --page raw --csv",
+      ),
+    )
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      host + ":" + root + "/" + label + ".ncu-rep",
+      root + "/" + label + ".ncu-rep",
+    ])
+    .output()
+    .check()
+  }
+  record(
+    label + "-released",
+    remote("nvidia-smi --query-compute-apps=pid --format=csv,noheader; free -b"),
+  )
+}
