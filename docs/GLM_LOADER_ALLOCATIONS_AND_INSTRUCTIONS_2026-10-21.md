@@ -273,3 +273,236 @@ active, private health is healthy, and the complete arithmetic response is
 94.239/94.268 GiB and host minima 17.074/18.947 GiB, ranks 0/1; owned swap is zero.
 The observer retired after saving the terminal units, health and answer.
 This verifies service restoration, not a public-key test or broad model quality.
+
+## Follow-up: process ownership, copy-on-write loading, and instruction-local waits
+
+This follow-up is a separate bounded campaign: two loading trials and two
+projection schedules. The previous results above are retained, not overwritten.
+**Weight loading now completes; vLLM readiness and a fresh two-rank execution
+trace still do not. Neither new projection schedule qualifies for serving.**
+
+### Loading completion is not readiness
+
+The first trial adds before-read/before-consumer/consumer-returned snapshots for
+large tensors. The independent process observer captures the API, engine and
+worker PSS categories, not just the worker. Its initial concurrent file writes
+failed; the partial log is retained and cannot explain the final peak. The
+observer is repaired by giving each rank its own file/handle.
+
+The second trial uses an explicit external-loader alternative: independent
+copy-on-write, page-aligned mappings per yielded tensor. Clean pages remain
+file-backed; retained tensors own their mappings and mutations cannot change
+the checkpoint or following tensors. The CPU fixture checks retained BF16,
+F32, U8, I64 and E4M3 bytes and mutation isolation. No reusable-buffer alias,
+payload hashing, inference arithmetic, compiler import or serving-default
+change is introduced.
+
+The phase snapshots expose the missing peak at identical tensor indices:
+`lm_head.weight`128212 followed by `embed_tokens.weight`128213, each
+1,268,776,960 bytes. The previous yielded tensor remains owned by the consumer
+while the iterator prepares the next one. Before the embedding consumer runs,
+the owned-reader worker has **4,172,516 KiB anonymous PSS (3.979 GiB)** versus
+**2,055,380 KiB (1.960 GiB)** for the mapped reader, a2.019GiB reduction at that
+frontier. The older post-yield-only samples missed this simultaneous ownership.
+The mapped reader does not allocate anonymous payload pages before yielding;
+its PSS still rises during the consumer. This is not a zero-copy inference claim.
+
+Both ranks finish all **150,226 tensors**. Rank 1 reports 88.46 GiB model memory
+and 220.803 seconds loading. This is a loading result, not a throughput test.
+The installed reference's `w1_weight_scale_2`/`w3_weight_scale_2` accuracy warning
+is retained; completion is not a model-correctness pass.
+The next stop is during CUDA-graph warmup, after KV setup and kernel warmup.
+The previously implicated worker reader buffer is not an adequate explanation
+for this later phase.
+
+| Trial | Host minimum from controller R0/R1, GiB | GPU sampled maximum R0/R1, GiB | Result |
+| --- | ---: | ---: | --- |
+| Owned-reader phase/process observation | 17.413 / 19.035 | 89.628 / 89.628 | Stop during loading |
+| Copy-on-write reader | 19.142 / 17.542 | 92.334 / 92.334 | Loading complete; stop during graph warmup |
+
+**The independent observer continued through retirement and caught a lower
+rank-0 host sample: 16,588,668 KiB = 15.820 GiB, below the requested 16 GiB
+floor. Rank 1 reached 16.852 GiB.** The controller-only table is therefore not
+the full observed envelope. The 18 GiB early guard did request retirement, but
+the process continued allocating during the stop interval. Both containers
+were retired; no third full-model loading trial was attempted. Owned process
+swap is zero in the captured rollups; unrelated system swap is nonzero and
+changed. Do not describe this campaign as satisfying the host-memory gate.
+
+At rank 0's lowest independent sample, worker anonymous PSS is 2,285,604 KiB,
+up from roughly 1.44–1.50 million KiB while loading. The API and engine stay
+near 1,156,080 and 691,076 KiB respectively. Rank 1's worker reaches
+2,343,500 KiB. This identifies the growing **process** during warmup, not the
+individual Python/CUDA allocation call. GPU use also rises; PSS and device
+accounting must not be summed as disjoint physical memory.
+
+The installed model's weight/scale retention helpers and local
+`../vlm/vllm/v1/worker/gpu/{model_runner.py,cudagraph_utils.py}` explain why
+loading, KV setup and graph capture have separate lifetimes. They do not prove
+which individual graph allocation caused this stop. Future full capture needs
+a bounded warmup allocation/lifetime fix first, not another relaxation of the
+reserve or an unlabelled eager replacement.
+
+Evidence:
+
+- `/tmp/lunaflux-reference-bench-glm-loader-processes-20261021-v1`
+- `/tmp/lunaflux-reference-bench-glm-loader-cow-20261021-v1`, including both
+  `process-ownership-{0,1}.jsonl` and completed worker-reader logs
+- `/tmp/lunaflux-loader-observer-cow-20261021-v1`, source and CPU fixture
+
+### The waits are now located in executed instructions
+
+Fresh instruction-local profiles use the same M64/N4096/K8192 leaf operands
+and installed vLLM dispatch as the earlier matched probe. Both profiles collect
+two PC-sampling passes at 1,024-cycle intervals, with **zero dropped bytes**.
+They are isolated leaves, not full-model graphs or throughput benchmarks.
+
+Native accepted `p1_s0` has 39,712 samples:
+
+- 23,928 long-scoreboard samples; 22,720 (94.95%) occur immediately after
+  `DEPBAR.LE SB0, 0x1`, the asynchronous operand wait.
+- 8,961 barrier samples; 8,801 (98.21%) occur after the deferred publication
+  barrier. Only 160 are at the shared-reader retirement boundary.
+- 17,119,232 executed warp instructions; profile duration 367.232 us.
+
+The installed vLLM `nvjet_sm121_tst_mma_128x64x64_4_32x64x64_tmaAB_bz_TNNN`
+has 26,252 samples: 3,601 long-scoreboard, 67 barrier and **16,811 sleeping**.
+Its executed SASS contains predicated `UTMALDG.3D`, transaction-phase checks,
+`NANOSLEEP.RAND.WARP.SYNCS`, and independent HMMA accumulators. It executes
+2,293,460 warp instructions; profile duration 340.864 us.
+
+Thus the reference has not eliminated waiting: much of its sampled waiting is
+represented as phase-driven sleep. Its smaller scoreboard/barrier counters
+cannot be interpreted as an equally sized wall-time saving. Sample counts and
+profile durations are not additive critical-path allocations. The native
+arithmetic instruction immediately after a wait is the sampled blocked PC,
+not evidence that the arithmetic operation itself caused memory latency.
+
+Root: `/tmp/lunaflux-glm-projection-wait-pc-20261021-v1`, including both NCU
+reports, raw metrics and source/SASS CSV. Cache and clocks are uncontrolled and
+the reports retain those warnings. The earlier 4.46x instruction ratio belongs
+to a rejected candidate; this accepted leaf's ratio is approximately 7.46x,
+which still does not imply 7.46x execution time.
+
+### Tested schedule changes and why they were not enabled
+
+Both alternatives were expressed in immutable `MatrixFragmentPipeline`
+resource/lifetime choices and private lowering, with the same ascending K16
+fold, BF16 publication and runtime grid1024/block128. No barrier was removed.
+
+1. Retain all four K16 fragments in registers, retire shared readers, refill
+   epoch+2, then execute all four MMAs. Shared allocation stays24KiB.
+2. Keep the existing two-register-slot lookahead but use three operand epochs
+   and `wait_group 2`. Shared allocation rises24→36KiB.
+
+Five alternating pairs,20 graph launches per pair, seed713 and unchanged
+correctness/performance gates:
+
+| Live rows | Full-fragment residency baseline→candidate median, us | Three operand epochs baseline→candidate median, us |
+| ---: | ---: | ---: |
+| 1 | 312.901→289.874 | 291.302→306.389; decode branch only |
+| 3 | 299.578→300.274 | 297.312→296.886 |
+| 22 | 317.445→306.771 | 301.314→300.512 |
+| 36 | 305.352→318.998 | 314.490→464.800 |
+| 64 | 325.019→318.722 | 309.621→481.006 |
+
+The full-residency64-row median looks1.94% better, but paired gains range
+−5.40% to+5.08% and fail the minimum-pair gate;36 rows regress. Row1 bypasses
+the tiled path and cannot establish a benefit from its changed copy schedule.
+The third epoch regresses the target64-row median55.35%.
+
+| Candidate counter,64 rows | Full-fragment residency | Three operand epochs |
+| --- | ---: | ---: |
+| Warp instructions | 15,225,856 | 17,702,400 |
+| L2 read sectors | 6,294,202 | 6,294,538 |
+| Registers/thread | 88 | 47 |
+| Active warps,% peak | 22.377 | 14.993 |
+| Long-scoreboard share,% | 65.385 | 56.046 |
+| Barrier share,% | 21.695 | 27.793 |
+| Tensor activity,% peak | 10.625 | 7.993 |
+| Profile duration,us | 336.896 | 527.328 |
+
+Earlier refill does not materially remove the observed wait shares or traffic.
+More shared buffering lowers the scoreboard share while reducing resident work
+and making completion substantially worse. These controlled non-wins rule out
+these two simple schedule changes; they do not prove that no better ownership,
+bulk-transfer or producer/consumer schedule exists.
+
+All active/inactive outputs pass the existing byte and sampled F64 gates at
+rows0/1/3/22/36/64/65. No sanitizer or serving qualification is claimed for
+these rejected schedules. The initial full-residency source had a misplaced
+preprocessor directive and failed compilation; its v1 artifacts are retained.
+Corrected v2 and the separate third-epoch v3 are retained. All compiler/kernel
+edits were withdrawn and archived in
+`benchmarks/experiments/glm_operand_residency_20261021.patch`; no new policy is
+selected by serving and there is no permanent experimental IR/API burden.
+
+Roots: `/tmp/lunaflux-glm-projection-staging-resident-20261021-v2` and `-v3`,
+with separate `resident-export` roots. The patch applies to the accepted source
+and preserves the precise generated alternatives for reproduction.
+
+### Fresh accepted-path retrace, not a candidate speedup
+
+`/tmp/lunaflux-glm-http-process-waits-followup-20261021-v1` captures both ranks,
+cold and warm, one complete64-token chunk across45 layers/90 collectives per
+window. Selected execution remains scales+bulk, local MoE combine, BF16 TP,
+accepted fragment pipeline and16-site collective graph windows. No rejected
+candidate was deployed. The fixed prompt has7,973 uncached tokens; the response
+drain is not an overall benchmark. The separate correctness request returns323.
+Final trace records are12,942/24,207, with dropped/invalid/errors/refused all0.
+
+| Disjoint allocation,ms | R0 cold | R1 cold | R0 warm | R1 warm | Historical vLLM R1 cold |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| KDA projections | 33.676 | 58.003 | 33.363 | 34.234 | 26.705 |
+| Sparse projections | 15.279 | 25.065 | 15.518 | 15.710 | 9.373 |
+| HC | 6.748 | 10.034 | 6.831 | 7.129 | 3.950 |
+| KDA other | 8.740 | 16.479 | 8.761 | 9.032 | 4.423 |
+| Dense FFN | 5.805 | 5.858 | 5.827 | 5.875 | 2.282 |
+| TP including waits | 107.244 | 21.628 | 19.081 | 17.414 | 17.469 |
+| MoE union,overlap counted once | 183.191 | 221.370 | 184.172 | 184.086 | 184.459 |
+| Sparse core/index | 1.811 | 3.163 | 1.898 | 1.845 | 2.116 |
+| Kernel-free gaps | 0.586 | 0.930 | 0.514 | 0.532 | 5.256 |
+| Cross-family overlap,subtract | 0.008 | 0.007 | 0.005 | 0.005 | 0.038 |
+| **Decoder total** | **363.088** | **362.536** | **275.971** | **275.863** | **256.071** |
+
+The historical column is the retained October19 trace, not a fresh matched
+control or a rate/throughput comparison. The warm native trace is close to
+the earlier accepted-path warm275.810ms; this unchanged executable is not a
+new optimization win. The cold capture shows broad rank1 compute elongation,
+not just a single TP kernel. No clock/power/page-fault attribution was collected
+for that event, so its cause remains unassigned rather than guessed.
+
+Clock-alignment uncertainty is0.244ms cold /0.249ms warm. Across cold TP sites,
+rank0 early-arrival waiting totals80.186–98.373ms of its107.244ms collective
+intervals. Its first collective is1.060ms with0.498–0.741ms early arrival;
+rank1's first collective is0.439ms. The first two dense-FFN reductions onrank1
+are0.176/0.167ms cold and0.171/0.171ms warm. Maximum residual intervals after
+both ranks start are bounded above2.185/2.068ms cold and0.707/0.711ms warm,
+ranks0/1. These are overlap bounds, not isolated network wire times.
+
+No compute/TP overlap is observed. Shared-expert covered/uncovered times are
+107.485/0.142ms and126.916/0.194ms cold,108.845/0.091ms and108.253/0.096ms warm,
+ranks0/1. Adding the shared stream's entire duration to MoE would double-count.
+Decoder→next-chunk handoff is2.564/2.715ms cold and1.584/1.728ms warm;
+uncovered device intervals are2.085/2.225ms and1.251/1.388ms respectively.
+The filtered trace does not assign those intervals to a specific CPU cause.
+
+The native trace stays within the requested sampled envelope: GPU maxima
+94.241/94.270GiB, host minima17.555/19.315GiB, owned swap0. This does **not**
+erase the separate reference warmup reserve violation described above.
+
+After withdrawing both experiments, affected grouped-matrix/tiled-source tests
+pass37/37 and warning-denied native check passes with the existing migration
+exclusions. Loader-source tests pass3/3; the observer and fixture runner check
+successfully, and the mapped-reader CPU fixture passes. Scoped `moon info`
+reports121 existing migration warnings,0errors. Task scripts were formatted;
+unrelated dirty migration files remain untouched. No new full-release-suite or
+sanitizer success is claimed for the rejected experiments.
+
+Restoration evidence: `/tmp/lunaflux-glm-process-waits-restoration-20261021-v1`.
+Both accepted GLM units are active, private health is healthy, and the fresh
+answer is323 with `finish_reason=stop`. GPU maxima94.239/94.268GiB, host
+minima17.526/19.287GiB, owned swap0. No experimental projection was installed.
+The loading lifetime improvement is retained only in the external reference
+loader; warmup allocations and a qualified projection wait reduction remain
+open. No overall benchmark or payload hash was run.

@@ -1,0 +1,239 @@
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline.mbt b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+index dafe0c25..19c96acb 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+@@ -5,18 +5,22 @@
+ pub struct MatrixFragmentPipeline {
+   priv matrix : MatrixTilePlan
+   priv row_tile : Int
++  priv resident_fragments : Int
++  priv buffered_epochs : Int
+ }
+
+ ///|
+ pub fn MatrixFragmentPipeline::new(
+   matrix : MatrixTilePlan,
+   row_tile~ : Int,
++  resident_fragments~ : Int = 2,
++  buffered_epochs~ : Int = 2,
+ ) -> Self raise @precision.PrecisionPlanError {
+   let (_, _, inner) = matrix.geometry()
+-  guard row_tile is (32 | 64) && inner % 64 == 0 else {
++  guard row_tile is (32 | 64) && inner % 64 == 0 && resident_fragments is (2 | 4) && buffered_epochs is (2 | 3) else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+-  { matrix, row_tile, }
++  { matrix, row_tile, resident_fragments, buffered_epochs, }
+ }
+
+ ///|
+@@ -30,13 +34,13 @@ pub fn MatrixFragmentPipeline::tile(self : Self) -> (Int, Int, Int) {
+ }
+
+ ///|
+-pub fn MatrixFragmentPipeline::operand_slots(_self : Self) -> Int {
+-  2
++pub fn MatrixFragmentPipeline::operand_slots(self : Self) -> Int {
++  self.buffered_epochs
+ }
+
+ ///|
+-pub fn MatrixFragmentPipeline::fragment_slots(_self : Self) -> Int {
+-  2
++pub fn MatrixFragmentPipeline::fragment_slots(self : Self) -> Int {
++  self.resident_fragments
+ }
+
+ ///|
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+index a3baaa7f..53f6c9ff 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+@@ -30,6 +30,20 @@ test "fragment pipeline preserves fold and owns disjoint swizzled atoms" {
+   }
+ }
+
++///|
++test "complete epoch residency changes register lifetime not arithmetic or shared budget" {
++  let matrix = @grouped_matrix_ir.MatrixTilePlan::new(rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32)
++  let normal = @grouped_matrix_ir.MatrixFragmentPipeline::new(matrix, row_tile=32)
++  let resident = @grouped_matrix_ir.MatrixFragmentPipeline::new(matrix, row_tile=32, resident_fragments=4)
++  assert_eq(normal.fragment_slots(), 2)
++  assert_eq(resident.fragment_slots(), 4)
++  assert_eq(normal.shared_bytes(), resident.shared_bytes())
++  assert_eq(normal.tile_count(), resident.tile_count())
++  assert_eq(normal.matrix().law(), resident.matrix().law())
++  try @grouped_matrix_ir.MatrixFragmentPipeline::new(matrix, row_tile=32, resident_fragments=3)
++  catch { _ => () } noraise { _ => fail("unsupported partial residency") }
++}
++
+ ///|
+ test "fragment envelope preserves unrelated shapes and arithmetic" {
+   let policy = @grouped_matrix_ir.MatrixRowReuse::new(
+diff --git a/compiler/grouped_matrix_ir/pkg.generated.mbti b/compiler/grouped_matrix_ir/pkg.generated.mbti
+index 7bbfc92a..1242fb73 100644
+--- a/compiler/grouped_matrix_ir/pkg.generated.mbti
++++ b/compiler/grouped_matrix_ir/pkg.generated.mbti
+@@ -61,7 +61,7 @@ pub struct MatrixFragmentPipeline {
+ }
+ pub fn MatrixFragmentPipeline::fragment_slots(Self) -> Int
+ pub fn MatrixFragmentPipeline::matrix(Self) -> MatrixTilePlan
+-pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int) -> Self raise @precision_ir.PrecisionPlanError
++pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int, resident_fragments? : Int) -> Self raise @precision_ir.PrecisionPlanError
+ pub fn MatrixFragmentPipeline::operand_alignment(Self) -> Int64
+ pub fn MatrixFragmentPipeline::operand_byte_offset(Self, Int) -> Int
+ pub fn MatrixFragmentPipeline::operand_slots(Self) -> Int
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+index d50dbaee..1bc0743b 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+@@ -76,6 +76,36 @@ pub fn fragment_pipeline_source(
+       $|}
+     )
+   }
++  let body = if plan.fragment_slots() == 4 {
++    (
++      $|// Retain the full operand epoch before recycling its shared slot.
++      $|#pragma unroll
++      $|for(int q=0;q<4;++q) {
++      $|  \{load("q", "q*16")}
++      $|}
++      $|__syncthreads(); // retire readers before producer overwrites this slot
++      $|{int copy_slot=slot,copy_k=(epoch+\{plan.operand_slots()})*64;\{copies}}
++      $|asm volatile("cp.async.commit_group;":::"memory");
++      $|#pragma unroll
++      $|for(int q=0;q<4;++q) {
++      $|  \{mma("q")}
++      $|}
++    )
++  } else {
++    (
++      $|\{load("0", "0")}
++      $|#pragma unroll
++      $|for(int q=0;q<3;++q) {
++      $|  const int next=(q+1)&1,current=q&1;
++      $|  \{load("next", "(q+1)*16")}
++      $|  \{mma("current")}
++      $|}
++      $|__syncthreads(); // all final fragments are in registers; retire readers
++      $|{int copy_slot=slot,copy_k=(epoch+\{plan.operand_slots()})*64;\{copies}}
++      $|asm volatile("cp.async.commit_group;":::"memory");
++      $|\{mma("1")}
++    )
++  }
+   @utf8.encode(
+     (
+       $|#include <cuda_bf16.h>
+@@ -84,30 +114,20 @@ pub fn fragment_pipeline_source(
+       $|  \{decode}
+       $|  const int row_base=(blockIdx.x/\{(columns+63)/64})*\{m},column_base=(blockIdx.x%\{(columns+63)/64})*64;
+       $|  if(row_base>=live_rows)return;
+-      $|  __shared__ __align__(1024) __nv_bfloat16 tile_a[\{2*m*k}],tile_b[\{2*n*k}];
++      $|  __shared__ __align__(1024) __nv_bfloat16 tile_a[\{plan.operand_slots()*m*k}],tile_b[\{plan.operand_slots()*n*k}];
+       $|  const int lane=threadIdx.x%32,warp=threadIdx.x/32;
+       $|  const int warp_row=(warp/\{4/(m/16)})*16,warp_column=(warp%\{4/(m/16)})*\{warp_columns};
+       $|  float acc[\{fragments}][4]={};
+-      $|  unsigned a[2][4],b[2][\{fragments}][2];
++      $|  unsigned a[\{plan.fragment_slots()}][4],b[\{plan.fragment_slots()}][\{fragments}][2];
+       $|  // Prologue: two independently committed operand epochs.
+-      $|  for(int copy_slot=0;copy_slot<2;++copy_slot) {int copy_k=copy_slot*64;\{copies}
++      $|  for(int copy_slot=0;copy_slot<\{plan.operand_slots()};++copy_slot) {int copy_k=copy_slot*64;\{copies}
+       $|    asm volatile("cp.async.commit_group;":::"memory");
+       $|  }
+       $|  for(int epoch=0;epoch<\{inner/64};++epoch) {
+-      $|    const int slot=epoch&1;
+-      $|    asm volatile("cp.async.wait_group 1;":::"memory");
++      $|    const int slot=\{if plan.operand_slots() == 2 {"epoch&1"} else {"epoch%3"}};
++      $|    asm volatile("cp.async.wait_group \{plan.operand_slots()-1};":::"memory");
+       $|    __syncthreads(); // publish this epoch; the later copy stays outstanding
+-      $|    \{load("0", "0")}
+-      $|    #pragma unroll
+-      $|    for(int q=0;q<3;++q) {
+-      $|      const int next=(q+1)&1,current=q&1;
+-      $|      \{load("next", "(q+1)*16")}
+-      $|      \{mma("current")}
+-      $|    }
+-      $|    __syncthreads(); // all final fragments are in registers; retire readers
+-      $|    {int copy_slot=slot,copy_k=(epoch+2)*64;\{copies}}
+-      $|    asm volatile("cp.async.commit_group;":::"memory");
+-      $|    \{mma("1")}
++      $|    \{body}
+       $|  }
+       $|  asm volatile("cp.async.wait_group 0;":::"memory");
+       $|  #pragma unroll
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+index aae12df7..44da4f18 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+@@ -30,12 +30,29 @@ test "explicit fragment pipeline emits reuse lookahead and epoch waits" {
+   )
+ }
+
++///|
++test "full fragment residency retires shared readers before refill and ascending MMA" {
++  let matrix = @matrix.MatrixTilePlan::new(rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32)
++  let plan = @matrix.MatrixFragmentPipeline::new(matrix, row_tile=32, resident_fragments=4)
++  let text = @utf8.decode(@tiled_matrix_cuda_source.fragment_pipeline_source(plan, symbol="resident"))
++  assert_true(text.contains("unsigned a[4][4],b[4][4][2]"))
++  guard text.split("// Retain the full operand epoch").to_array() is [_, body] else {fail("missing schedule")}
++  guard body.split("// retire readers before producer overwrites").to_array() is [readers, producer] else {fail("missing retirement")}
++  assert_true(readers.contains("ldmatrix.sync"))
++  assert_false(readers.contains("mma.sync"))
++  guard producer.split("cp.async.commit_group").to_array() is [refill, consumers] else {fail("missing commit")}
++  assert_true(refill.contains("copy_k=(epoch+2)*64"))
++  assert_true(consumers.contains("for(int q=0;q<4;++q)"))
++  assert_true(consumers.contains("mma.sync"))
++}
++
+ ///|
+ test "export explicit fragment pipelines" {
+   if @env.get_env_var("LUNA_EXPORT_FRAGMENT_PIPELINE") != Some("1") {
+     return
+   }
+   let partial_float32 = @env.get_env_var("LUNA_FRAGMENT_BF16") != Some("1")
++  let resident = @env.get_env_var("LUNA_FRAGMENT_RESIDENT") == Some("1")
+   let shapes = [(4096, 4096), (4096, 8192), (1536, 4096), (128, 4096)]
+   println("LUNA_SOURCE_BEGIN prefill")
+   if !partial_float32 { println("#define LUNA_PROJECTION_BF16_OUTPUT 1") }
+@@ -51,11 +68,14 @@ test "export explicit fragment pipelines" {
+     )
+     println(
+       @utf8.decode(
+-        @tiled_matrix_cuda_source.dense_source(
+-          matrix,
+-          symbol="p\{i}_s0",
+-          partial_float32~,
+-        ),
++        if resident {
++          @tiled_matrix_cuda_source.fragment_pipeline_source(
++            @matrix.MatrixFragmentPipeline::new(matrix, row_tile=32),
++            symbol="p\{i}_s0", partial_float32~,
++          )
++        } else {
++          @tiled_matrix_cuda_source.dense_source(matrix, symbol="p\{i}_s0", partial_float32~)
++        },
+       ),
+     )
+     for j in 1..<4 {
+@@ -68,11 +88,16 @@ test "export explicit fragment pipelines" {
+       )
+       println(
+         @utf8.decode(
+-          @tiled_matrix_cuda_source.dense_source(
+-            plan,
+-            symbol="p\{i}_s\{j}",
+-            partial_float32~,
+-          ),
++          if resident {
++            @tiled_matrix_cuda_source.fragment_pipeline_source(
++              @matrix.MatrixFragmentPipeline::new(plan,
++                row_tile=32, resident_fragments=if j == 2 { 2 } else { 4 },
++                buffered_epochs=if j == 2 { 3 } else { 2 }),
++              symbol="p\{i}_s\{j}", partial_float32~,
++            )
++          } else {
++            @tiled_matrix_cuda_source.dense_source(plan, symbol="p\{i}_s\{j}", partial_float32~)
++          },
+         ),
+       )
+     }

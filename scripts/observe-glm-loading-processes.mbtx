@@ -1,0 +1,88 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+}
+
+// External diagnostics only. The independent campaign guard owns retirement;
+// this observer cannot change model state, the reserve, or process allocation.
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-reference-bench-") else {
+    fail("CAMPAIGN_ROOT")
+  }
+  @async.with_task_group(group => {
+    for rank in 0..<2 {
+      group.spawn_bg(() => {
+        // File writes may suspend; each rank owns its handle, so concurrent
+        // observers never enter the same async file writer.
+        let log = @fs.open(
+          root + "/process-ownership-\{rank}.jsonl",
+          mode=WriteOnly,
+          create_mode=CreateNew,
+        )
+        defer log.close()
+        let host = if rank == 0 {
+          "wlc003s@192.168.2.178"
+        } else {
+          "wlc004s@192.168.2.179"
+        }
+        let socket = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+        let container = root[5:].to_owned() + "-\{rank}"
+        async fn remote(command : String) -> @shell.Output {
+          @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output(
+            max_output_bytes=1048576,
+          )
+        }
+        for tick in 0..<1200 {
+          if @fs.exists(root + "/WINDOW_RESULT.txt") {
+            return
+          }
+          let system = remote(
+            "cat /proc/meminfo; ps -eo pid,ppid,rss,comm --sort=-rss | head -16",
+          )
+          system.check()
+          let top = remote("docker top " + container + " -eo pid,ppid,rss,comm")
+          let pids : Array[String] = []
+          for line in top.stdout().split("\n") {
+            let fields = line.split(" ").filter(s => !s.is_empty()).to_array()
+            if fields is [pid, ..] && pid.all(c => c is ('0'..<='9')) {
+              pids.push(pid.to_owned())
+            }
+          }
+          let detail = if pids.is_empty() {
+            "container not present"
+          } else {
+            let paths = pids.map(p => "/proc/" + p + "/smaps_rollup").join(" ")
+            remote(
+              "docker exec " +
+              container +
+              " grep -H -E '^(Rss|Pss|Pss_Anon|Pss_File|Pss_Shmem|Anonymous|Swap|Locked):' " +
+              paths,
+            ).stdout()
+          }
+          log.write(
+            (
+              {
+                "rank": rank,
+                "tick": tick,
+                "at": @async.now(),
+                "system": system.stdout(),
+                "owned_processes": top.stdout(),
+                "smaps": detail,
+              } : Json).stringify() +
+            "\n",
+          )
+          @async.sleep(1000)
+        }
+        fail("bounded observer timeout")
+      })
+    }
+  })
+}

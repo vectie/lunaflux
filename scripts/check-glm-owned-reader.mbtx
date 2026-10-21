@@ -27,6 +27,8 @@ async fn main {
     #|    for name, tensor in actual.items():
     #|        assert tensor.dtype == expected[name].dtype and tensor.shape == expected[name].shape
     #|        assert torch.equal(tensor.view(torch.uint8), expected[name].view(torch.uint8)), name
+    #|    actual["float"][0] = 123.0
+    #|    assert load_file(paths[0])["float"][0].item() == 0.0
     #|    print("owned tensors survive iterator retirement; BF16/F32/U8/I64/E4M3 bytes exact; no GPU payload")
   @fs.write_file(root + "/fixture.py", fixture, create_mode=CreateNew)
   let socket = "/tmp/lunaflux-glm179-context-20261019.sock"

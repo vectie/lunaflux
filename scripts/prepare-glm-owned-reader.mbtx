@@ -7,7 +7,7 @@ import {
 }
 
 // External reference loading experiment only, not a production loader. The
-// full-model loading trial still hits the reserve guard. Independent storage
+// full-model startup still hits the reserve guard during graph warmup. Independent storage
 // permits consumers to retain tensors; no integrity scan or inference math.
 
 ///|
@@ -21,6 +21,12 @@ fn owned_reader() -> String {
     #|    from safetensors.torch import _getdtype
     #|    _lf_i = 0
     #|    with open(f"/run-result/owned-reader-{_lf_os.getpid()}.jsonl", "x", buffering=1) as _lf_log:
+    #|        def _lf_snapshot(phase, name, size):
+    #|            with open("/proc/self/smaps_rollup") as _lf_f:
+    #|                rollup = _lf_f.read()
+    #|            _lf_log.write(_lf_json.dumps(dict(index=_lf_i,phase=phase,name=name,bytes=size,
+    #|                time_ns=_lf_time.monotonic_ns(),gpu_allocated=torch.cuda.memory_allocated(),
+    #|                gpu_reserved=torch.cuda.memory_reserved(),smaps_rollup=rollup))+"\n")
     #|        for _lf_path in hf_weights_files:
     #|            with open(_lf_path, "rb", buffering=0) as _lf_file:
     #|                _lf_length = int.from_bytes(_lf_file.read(8), "little")
@@ -29,6 +35,9 @@ fn owned_reader() -> String {
     #|                _lf_items = sorted(((n,m) for n,m in _lf_metadata.items() if n != "__metadata__"), key=lambda x:x[1]["data_offsets"][0])
     #|                for name, _lf_meta in _lf_items:
     #|                    _lf_begin, _lf_end = _lf_meta["data_offsets"]
+    #|                    _lf_large = _lf_end-_lf_begin >= 67108864
+    #|                    if _lf_large:
+    #|                        _lf_snapshot("before_read", name, _lf_end-_lf_begin)
     #|                    _lf_raw = torch.empty(_lf_end-_lf_begin, dtype=torch.uint8, device="cpu")
     #|                    _lf_view = memoryview(_lf_raw.numpy())
     #|                    _lf_file.seek(8+_lf_length+_lf_begin)
@@ -39,17 +48,53 @@ fn owned_reader() -> String {
     #|                            raise EOFError(f"short tensor read: {name}")
     #|                        _lf_read += _lf_n
     #|                    tensor = _lf_raw.view(_getdtype(_lf_meta["dtype"])).reshape(_lf_meta["shape"])
+    #|                    if _lf_large:
+    #|                        _lf_snapshot("before_consumer", name, _lf_end-_lf_begin)
     #|                    yield name, tensor
     #|                    del tensor, _lf_view, _lf_raw
-    #|                    if _lf_i % 128 == 0 or _lf_end-_lf_begin >= 67108864:
-    #|                        with open("/proc/self/smaps_rollup") as _lf_f:
-    #|                            _lf_rollup = _lf_f.read()
-    #|                        _lf_log.write(_lf_json.dumps(dict(index=_lf_i,name=name,bytes=_lf_end-_lf_begin,
-    #|                            time_ns=_lf_time.monotonic_ns(),gpu_allocated=torch.cuda.memory_allocated(),
-    #|                            gpu_reserved=torch.cuda.memory_reserved(),smaps_rollup=_lf_rollup))+"\n")
+    #|                    if _lf_i % 128 == 0 or _lf_large:
+    #|                        _lf_snapshot("consumer_returned", name, _lf_end-_lf_begin)
     #|                    _lf_i += 1
     #|        _lf_log.write(_lf_json.dumps(dict(complete=True,tensors=_lf_i))+"\n")
   )
+}
+
+///|
+// Offline alternative: each yielded tensor owns a separate copy-on-write file
+// mapping. Retained or mutated tensors never alias the following tensor. Clean
+// pages remain file-backed instead of duplicating a full tensor in anonymous RAM.
+fn mapped_reader() -> String {
+  let begin = "                    _lf_raw = torch.empty"
+  let end = "                    if _lf_large:\n                        _lf_snapshot(\"before_consumer\""
+  let source = owned_reader().replace(
+    old="    import json as _lf_json",
+    new="    import mmap as _lf_mmap\n    import json as _lf_json",
+  )
+  let parts = source.split(begin).to_array()
+  let tail = parts[1].split(end).to_array()
+  let mapping =
+    #|                    _lf_size = _lf_end-_lf_begin
+    #|                    if _lf_size:
+    #|                        _lf_offset = 8+_lf_length+_lf_begin
+    #|                        _lf_base = _lf_offset//_lf_mmap.ALLOCATIONGRANULARITY*_lf_mmap.ALLOCATIONGRANULARITY
+    #|                        _lf_raw = _lf_mmap.mmap(_lf_file.fileno(), _lf_offset-_lf_base+_lf_size,
+    #|                            access=_lf_mmap.ACCESS_COPY, offset=_lf_base)
+    #|                        _lf_view = memoryview(_lf_raw)[_lf_offset-_lf_base:]
+    #|                        tensor = torch.frombuffer(_lf_view, dtype=_getdtype(_lf_meta["dtype"])).reshape(_lf_meta["shape"])
+    #|                    else:
+    #|                        _lf_raw = None; _lf_view = None
+    #|                        tensor = torch.empty(_lf_meta["shape"], dtype=_getdtype(_lf_meta["dtype"]), device="cpu")
+  parts[0].to_owned() + mapping + "\n" + end + tail[1].to_owned()
+}
+
+///|
+test "mapped tensors have independent copy-on-write lifetime" {
+  let source = mapped_reader()
+  assert_true(source.contains("access=_lf_mmap.ACCESS_COPY"))
+  assert_true(source.contains("torch.frombuffer(_lf_view"))
+  assert_false(source.contains("readinto("))
+  assert_false(source.contains("_lf_raw.close()"))
+  assert_true(source.contains("yield name, tensor"))
 }
 
 ///|
@@ -64,7 +109,7 @@ test "owned reader keeps retained tensors independent without double staging" {
 }
 
 ///|
-fn replace_iterator(original : String) -> String raise {
+fn replace_iterator(original : String, mapped~ : Bool = false) -> String raise {
   let marker = "def runai_safetensors_weights_iterator("
   guard original.split(marker).to_array() is [before, after] else {
     fail("iterator")
@@ -80,7 +125,7 @@ fn replace_iterator(original : String) -> String raise {
   before.to_owned() +
   marker +
   signature.to_owned() +
-  owned_reader() +
+  (if mapped { mapped_reader() } else { owned_reader() }) +
   "\n\n\ndef fastsafetensors_weights_iterator(" +
   rest.to_owned()
 }
@@ -104,12 +149,15 @@ test "only the installed Runai iterator body is replaced" {
 
 ///|
 async fn main {
-  guard @env.args() is [_, root, original_path] &&
+  guard @env.args() is [_, root, original_path, .. options] &&
     root.has_prefix("/tmp/lunaflux-loader-observer-") else {
-    fail("NEW_ROOT INSTALLED_WEIGHT_UTILS_SOURCE")
+    fail("NEW_ROOT INSTALLED_WEIGHT_UTILS_SOURCE [--mapped]")
+  }
+  guard options.is_empty() || options == ["--mapped"] else {
+    fail("unknown option")
   }
   let original = @fs.read_file(original_path).text()
-  let replaced = replace_iterator(original)
+  let replaced = replace_iterator(original, mapped=options == ["--mapped"])
   @fs.mkdir(root)
   @fs.write_file(root + "/original.py", original, create_mode=CreateNew)
   @fs.write_file(root + "/weight_utils.py", replaced, create_mode=CreateNew)
