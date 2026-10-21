@@ -321,6 +321,66 @@ fn reference_trace_rank(value : String?, last : Bool) -> Bool raise {
 }
 
 ///|
+fn reference_loader_options(value : String?, sglang : Bool) -> String raise {
+  match value {
+    None => ""
+    Some("runai-minimum" | "runai-compact-host") if !sglang =>
+      // Installed RunaiModelStreamerLoader: zero means the largest tensor,
+      // not unlimited (-1) or the library's default 40 GB buffer. Keep CPU
+      // streaming local to each TP rank; distributed streaming changes ownership.
+      " --load-format runai_streamer --model-loader-extra-config '{\"distributed\":false,\"concurrency\":1,\"memory_limit\":0}'"
+    _ =>
+      fail(
+        "reference loader must be runai-minimum or runai-compact-host on vLLM",
+      )
+  }
+}
+
+///|
+fn reference_loader_environment(value : String?) -> String {
+  if value == Some("runai-compact-host") {
+    // CPU heap-retention experiment, not an inference-arithmetic switch.
+    " -e MALLOC_ARENA_MAX=2 -e MALLOC_TRIM_THRESHOLD_=131072"
+  } else {
+    ""
+  }
+}
+
+///|
+test "bounded reference loader changes loading only, default stays unchanged" {
+  assert_eq(reference_loader_options(None, false), "")
+  assert_eq(reference_loader_options(None, true), "")
+  let options = reference_loader_options(Some("runai-minimum"), false)
+  assert_true(options.contains("--load-format runai_streamer"))
+  assert_true(options.contains("\"memory_limit\":0"))
+  assert_true(options.contains("\"concurrency\":1"))
+  assert_true(options.contains("\"distributed\":false"))
+  assert_false(options.contains("--max-model-len"))
+  assert_false(options.contains("--enforce-eager"))
+  assert_eq(
+    reference_loader_options(Some("runai-compact-host"), false),
+    options,
+  )
+  assert_eq(reference_loader_environment(None), "")
+  assert_true(
+    reference_loader_environment(Some("runai-compact-host")).contains(
+      "MALLOC_ARENA_MAX=2",
+    ),
+  )
+  for
+    (value, sglang) in [
+      (Some("runai-minimum"), true),
+      (Some("unlimited"), false),
+    ] {
+    try reference_loader_options(value, sglang) catch {
+      _ => ()
+    } noraise {
+      _ => fail("unsupported reference loader accepted")
+    }
+  }
+}
+
+///|
 test "reference graph trace explicitly omits captured nodes, not eager kernels" {
   assert_eq(reference_trace_granularity(None), "node")
   assert_eq(reference_trace_granularity(Some("graph")), "graph:host-only")
@@ -362,6 +422,13 @@ async fn main {
   let glm = family == "glm"
   let sg = engine == "sglang"
   let image = reference_image(glm, sg)
+  let loader_options = reference_loader_options(
+    @env.get_env_var("LUNAFLUX_REFERENCE_LOADER"),
+    sg,
+  )
+  let loader_environment = reference_loader_environment(
+    @env.get_env_var("LUNAFLUX_REFERENCE_LOADER"),
+  )
   let tag = root[5:].to_owned()
   let profile = mode is ("prepare-profile" | "start-profile" | "query-profile")
   let activity_library = if profile {
@@ -558,6 +625,10 @@ async fn main {
       "\nengine=" +
       engine +
       "\ntp=2\npp=1\ncontext=\{context}" +
+      "\nloader_options=" +
+      loader_options +
+      "\nloader_environment=" +
+      loader_environment +
       (if sg { "" } else { "\nkv_bytes=\{kv_bytes}" }) +
       "\nmaximum_sequences=\{sequences}\nbatch_tokens=\{batch_tokens}\nconcurrency=1\nmax_output=" +
       (if profile { "2" } else { "8" }) +
@@ -588,14 +659,14 @@ async fn main {
   }
   guard rest.is_empty() else { fail("unexpected arguments") }
   if mode == "stop" {
-    for last in [false, true] {
+    stop_ranks(last => {
       let rank = if last { "1" } else { "0" }
       record(
         root,
         "stop-" + rank,
-        remote(last, "docker stop --time 30 " + tag + "-" + rank),
+        remote(last, "docker stop --time 5 " + tag + "-" + rank),
       )
-    }
+    })
     return
   }
   if mode == "status" {
@@ -830,6 +901,7 @@ async fn main {
       rank +
       " --master-addr 10.0.0.1 --master-port 29570 --distributed-executor-backend mp --host 127.0.0.1 --port 28880 --max-model-len \{context} --max-num-seqs \{sequences} --max-num-batched-tokens \{batch_tokens} --gpu-memory-utilization 0.80 --kv-cache-memory-bytes \{kv_bytes} --no-enable-prefix-caching --trust-remote-code" +
       (if glm { " --language-model-only" } else { "" }) +
+      loader_options +
       capture_option +
       (if eager_profile { " --enforce-eager" } else { "" }) +
       (if last { " --headless" } else { "" })
@@ -869,6 +941,7 @@ async fn main {
         } else {
           ""
         }) +
+        loader_environment +
         " -e HF_HUB_OFFLINE=1 -e TRANSFORMERS_OFFLINE=1 -e VLLM_HOST_IP=" +
         ip +
         " -e NCCL_SOCKET_IFNAME=" +

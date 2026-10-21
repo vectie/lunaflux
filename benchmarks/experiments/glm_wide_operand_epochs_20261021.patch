@@ -1,0 +1,491 @@
+diff --git a/cmd/glm_service/execution_policy.mbt b/cmd/glm_service/execution_policy.mbt
+index 6a969a1f..5b844fbe 100644
+--- a/cmd/glm_service/execution_policy.mbt
++++ b/cmd/glm_service/execution_policy.mbt
+@@ -96,6 +96,7 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
+         "wide_tile": Number(t, ..),
+         "fragment_inner"? : fragment_inner,
+         "fragment_columns"? : fragment_columns,
++        "fragment_tile_inner"? : fragment_tile_inner,
+         ..
+       }
+     ) => {
+@@ -124,6 +125,11 @@ fn execution_policy(j : Json) -> ExecutionPolicy raise {
+               n.to_int().to_double() == n => n.to_int()
+             _ => fail("invalid fragment pipeline column envelope")
+           },
++          fragment_tile_inner=match fragment_tile_inner {
++            None | Some(Number(64.0, ..)) => 64
++            Some(Number(128.0, ..)) => 128
++            _ => fail("unsupported fragment pipeline reduction tile")
++          },
+         ),
+       )
+     }
+@@ -185,7 +191,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
+     WorksetBoundedTiles(inner_tile~, maximum_weight_bytes~, maximum_tiles~) =>
+       "bounded-synchronous-k\{inner_tile}-bytes\{maximum_weight_bytes}-tiles\{maximum_tiles}"
+     Buffered(inner_tile~) => "buffered-k\{inner_tile}"
+-    FragmentPipeline(row_tile~) => "fragment-pipeline-m\{row_tile}"
++    FragmentPipeline(row_tile~, inner_tile~) => "fragment-pipeline-m\{row_tile}-k\{inner_tile}"
+   }
+   "recurrent=\{recurrent} projection_staging=\{staging} recurrent_projection_tile_rows=\{self.recurrent_tile_rows} recurrent_reuse_minimum_inner=\{self.recurrent_reuse_minimum_inner} sparse_projection_staging=\{Repr(self.sparse_staging)} sparse_projection_row_reuse=\{Repr(self.sparse_row_reuse)} expert_transport=\{Repr(self.transport)} expert_scale_partitions=\{self.scale_partitions} moe_reduction=\{Repr(self.moe_reduction)} projection_reduction=\{Repr(self.tensor_publication)} exact_capacity_replay=\{self.exact_capacity_replay} collective_window_sites=\{self.collective_window_sites}"
+ }
+diff --git a/cmd/glm_service/sparse_row_reuse_wbtest.mbt b/cmd/glm_service/sparse_row_reuse_wbtest.mbt
+index b3a78c97..7b0f9322 100644
+--- a/cmd/glm_service/sparse_row_reuse_wbtest.mbt
++++ b/cmd/glm_service/sparse_row_reuse_wbtest.mbt
+@@ -28,6 +28,23 @@ test "sparse row ownership is explicit startup configuration" {
+   }
+ }
+ 
++///|
++test "explicit wide fragment epochs propagate from immutable serving policy" {
++  let policy = execution_policy({
++    "sparse_projection_row_reuse": {
++      "minimum_rows": 32, "minimum_inner": 1536, "wide_inner": 8192,
++      "wide_tile": 64, "fragment_inner": 8192, "fragment_columns": 4096,
++      "fragment_tile_inner": 128,
++    },
++  })
++  let original = @matrix.MatrixTilePlan::new(
++    rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32,
++  )
++  let selected = policy.sparse_row_reuse.unwrap().apply(original)
++  assert_true(selected.staging() is FragmentPipeline(row_tile=32, inner_tile=128))
++  assert_eq(selected.law(), original.law())
++}
++
+ ///|
+ test "fragment pipeline is explicit startup shape selection" {
+   let policy = execution_policy({
+@@ -47,6 +64,6 @@ test "fragment pipeline is explicit startup shape selection" {
+     law=ShapeAwareFloat32,
+   )
+   let selected = policy.sparse_row_reuse.unwrap().apply(old)
+-  assert_true(selected.staging() is FragmentPipeline(row_tile=32))
++  assert_true(selected.staging() is FragmentPipeline(row_tile=32, inner_tile=64))
+   assert_true(policy.description().contains("fragment_inner"))
+ }
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline.mbt b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+index dafe0c25..2db879f9 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+@@ -5,18 +5,22 @@
+ pub struct MatrixFragmentPipeline {
+   priv matrix : MatrixTilePlan
+   priv row_tile : Int
++  priv inner_tile : Int
+ }
+ 
+ ///|
+ pub fn MatrixFragmentPipeline::new(
+   matrix : MatrixTilePlan,
+   row_tile~ : Int,
++  inner_tile~ : Int = 64,
+ ) -> Self raise @precision.PrecisionPlanError {
+   let (_, _, inner) = matrix.geometry()
+-  guard row_tile is (32 | 64) && inner % 64 == 0 else {
++  guard row_tile is (32 | 64) && inner_tile is (64 | 128) &&
++    (row_tile == 32 || inner_tile == 64) &&
++    inner % inner_tile == 0 else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+-  { matrix, row_tile, }
++  { matrix, row_tile, inner_tile, }
+ }
+ 
+ ///|
+@@ -26,7 +30,7 @@ pub fn MatrixFragmentPipeline::matrix(self : Self) -> MatrixTilePlan {
+ 
+ ///|
+ pub fn MatrixFragmentPipeline::tile(self : Self) -> (Int, Int, Int) {
+-  (self.row_tile, 64, 64)
++  (self.row_tile, 64, self.inner_tile)
+ }
+ 
+ ///|
+@@ -46,7 +50,7 @@ pub fn MatrixFragmentPipeline::operand_alignment(_self : Self) -> Int64 {
+ 
+ ///|
+ pub fn MatrixFragmentPipeline::shared_bytes(self : Self) -> Int {
+-  self.operand_slots() * (self.row_tile + 64) * 64 * 2
++  self.operand_slots() * (self.row_tile + 64) * self.inner_tile * 2
+ }
+ 
+ ///|
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+index a3baaa7f..aa8d0935 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+@@ -61,7 +61,7 @@ test "fragment envelope preserves unrelated shapes and arithmetic" {
+       columns >= 4096 &&
+       inner >= 8192 &&
+       inner % 64 == 0
+-    assert_eq(selected.staging() is FragmentPipeline(_), expected)
++    assert_eq(selected.staging() is FragmentPipeline(..), expected)
+     if expected {
+       assert_eq(selected.tile(), (32, 64, 64))
+       assert_eq(selected.operand_slots(), 2)
+@@ -73,3 +73,33 @@ test "fragment envelope preserves unrelated shapes and arithmetic" {
+     }
+   }
+ }
++
++///|
++test "wider operand epochs preserve matrix fold and account shared memory" {
++  let policy = @grouped_matrix_ir.MatrixRowReuse::new(
++    minimum_rows=32, minimum_inner=1536, wide_inner=8192, wide_tile=64,
++    fragment_inner=8192, fragment_columns=4096, fragment_tile_inner=128,
++  )
++  let matrix = @grouped_matrix_ir.MatrixTilePlan::new(
++    rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32,
++  )
++  let selected = policy.apply(matrix)
++  assert_eq(selected.tile(), (32, 64, 128))
++  assert_eq(selected.law(), matrix.law())
++  assert_eq(selected.geometry(), matrix.geometry())
++  assert_eq(selected.tile_count(), 1024)
++  let pipeline = @grouped_matrix_ir.MatrixFragmentPipeline::new(
++    selected, row_tile=32, inner_tile=128,
++  )
++  assert_eq(pipeline.shared_bytes(), 49152)
++  assert_eq(pipeline.fragment_slots(), 2)
++  assert_eq(pipeline.operand_slots(), 2)
++  // A deeper tile is not legal merely because the mathematical K is positive.
++  try @grouped_matrix_ir.MatrixTilePlan::new(
++    rows=64, columns=4096, inner=8256, law=ShapeAwareFloat32,
++    staging=FragmentPipeline(row_tile=32, inner_tile=128),
++  ) catch { _ => () } noraise { _ => fail("partial epoch accepted") }
++  try @grouped_matrix_ir.MatrixFragmentPipeline::new(
++    matrix, row_tile=32, inner_tile=96,
++  ) catch { _ => () } noraise { _ => fail("unsupported epoch accepted") }
++}
+diff --git a/compiler/grouped_matrix_ir/operand_staging.mbt b/compiler/grouped_matrix_ir/operand_staging.mbt
+index 940a35f2..47971868 100644
+--- a/compiler/grouped_matrix_ir/operand_staging.mbt
++++ b/compiler/grouped_matrix_ir/operand_staging.mbt
+@@ -11,7 +11,7 @@ pub(all) enum MatrixStaging {
+     maximum_tiles~ : Int
+   )
+   Buffered(inner_tile~ : Int)
+-  FragmentPipeline(row_tile~ : Int)
++  FragmentPipeline(row_tile~ : Int, inner_tile~ : Int)
+ } derive(Eq, Debug)
+ 
+ ///|
+@@ -29,6 +29,6 @@ pub fn MatrixTilePlan::staging(self : Self) -> MatrixStaging {
+ pub fn MatrixTilePlan::operand_slots(self : Self) -> Int {
+   match self.staging {
+     Synchronous | SynchronousTiles(_) | WorksetBoundedTiles(..) => 1
+-    Buffered(_) | FragmentPipeline(_) => 2
++    Buffered(_) | FragmentPipeline(..) => 2
+   }
+ }
+diff --git a/compiler/grouped_matrix_ir/pkg.generated.mbti b/compiler/grouped_matrix_ir/pkg.generated.mbti
+index 7bbfc92a..2ed98de9 100644
+--- a/compiler/grouped_matrix_ir/pkg.generated.mbti
++++ b/compiler/grouped_matrix_ir/pkg.generated.mbti
+@@ -61,7 +61,7 @@ pub struct MatrixFragmentPipeline {
+ }
+ pub fn MatrixFragmentPipeline::fragment_slots(Self) -> Int
+ pub fn MatrixFragmentPipeline::matrix(Self) -> MatrixTilePlan
+-pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int) -> Self raise @precision_ir.PrecisionPlanError
++pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int, inner_tile? : Int) -> Self raise @precision_ir.PrecisionPlanError
+ pub fn MatrixFragmentPipeline::operand_alignment(Self) -> Int64
+ pub fn MatrixFragmentPipeline::operand_byte_offset(Self, Int) -> Int
+ pub fn MatrixFragmentPipeline::operand_slots(Self) -> Int
+@@ -73,7 +73,7 @@ pub struct MatrixRowReuse {
+   // private fields
+ } derive(@debug.Debug)
+ pub fn MatrixRowReuse::apply(Self, MatrixTilePlan) -> MatrixTilePlan raise
+-pub fn MatrixRowReuse::new(minimum_rows~ : Int, minimum_inner~ : Int, wide_inner~ : Int, wide_tile~ : Int, fragment_inner? : Int, fragment_columns? : Int) -> Self raise @precision_ir.PrecisionPlanError
++pub fn MatrixRowReuse::new(minimum_rows~ : Int, minimum_inner~ : Int, wide_inner~ : Int, wide_tile~ : Int, fragment_inner? : Int, fragment_columns? : Int, fragment_tile_inner? : Int) -> Self raise @precision_ir.PrecisionPlanError
+ pub fn MatrixRowReuse::to_repr(Self) -> @debug.Repr
+ 
+ pub(all) enum MatrixStaging {
+@@ -81,7 +81,7 @@ pub(all) enum MatrixStaging {
+   SynchronousTiles(inner_tile~ : Int)
+   WorksetBoundedTiles(inner_tile~ : Int, maximum_weight_bytes~ : Int64, maximum_tiles~ : Int)
+   Buffered(inner_tile~ : Int)
+-  FragmentPipeline(row_tile~ : Int)
++  FragmentPipeline(row_tile~ : Int, inner_tile~ : Int)
+ } derive(Eq, @debug.Debug)
+ pub fn MatrixStaging::equal(Self, Self) -> Bool
+ pub fn MatrixStaging::not_equal(Self, Self) -> Bool
+diff --git a/compiler/grouped_matrix_ir/plan.mbt b/compiler/grouped_matrix_ir/plan.mbt
+index 20b931dc..a9117f34 100644
+--- a/compiler/grouped_matrix_ir/plan.mbt
++++ b/compiler/grouped_matrix_ir/plan.mbt
+@@ -32,8 +32,10 @@ pub fn MatrixTilePlan::new(
+     inner <= 1073741760 else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+-  if staging is FragmentPipeline(row_tile~) {
+-    guard row_tile is (32 | 64) && inner % 64 == 0 else {
++  if staging is FragmentPipeline(row_tile~, inner_tile~) {
++    guard row_tile is (32 | 64) && inner_tile is (64 | 128) &&
++      (row_tile == 32 || inner_tile == 64) &&
++      inner % inner_tile == 0 else {
+       raise @precision.PrecisionPlanError::NoImplementation
+     }
+     guard (rows.to_int64() + row_tile.to_int64() - 1L) /
+@@ -48,7 +50,7 @@ pub fn MatrixTilePlan::new(
+       inner,
+       tile_rows: row_tile,
+       tile_columns: 64,
+-      tile_inner: 64,
++      tile_inner: inner_tile,
+       law,
+       staging,
+     }
+diff --git a/compiler/grouped_matrix_ir/row_ownership.mbt b/compiler/grouped_matrix_ir/row_ownership.mbt
+index 3b91ac46..e04d6e07 100644
+--- a/compiler/grouped_matrix_ir/row_ownership.mbt
++++ b/compiler/grouped_matrix_ir/row_ownership.mbt
+@@ -9,6 +9,7 @@ pub struct MatrixRowReuse {
+   priv wide_tile : Int
+   priv fragment_inner : Int?
+   priv fragment_columns : Int
++  priv fragment_tile_inner : Int
+ } derive(Debug)
+ 
+ ///|
+@@ -22,6 +23,7 @@ pub fn MatrixRowReuse::new(
+   wide_tile~ : Int,
+   fragment_inner? : Int,
+   fragment_columns~ : Int = 4096,
++  fragment_tile_inner~ : Int = 64,
+ ) -> Self raise @precision.PrecisionPlanError {
+   guard minimum_rows >= 32 &&
+     minimum_inner > 0 &&
+@@ -29,7 +31,7 @@ pub fn MatrixRowReuse::new(
+     wide_tile is (32 | 64) else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+-  guard fragment_columns > 0 &&
++  guard fragment_columns > 0 && fragment_tile_inner is (64 | 128) &&
+     (fragment_inner is None || fragment_inner.unwrap() > 0) else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+@@ -40,6 +42,7 @@ pub fn MatrixRowReuse::new(
+     wide_tile,
+     fragment_inner,
+     fragment_columns,
++    fragment_tile_inner,
+   }
+ }
+ 
+@@ -52,21 +55,21 @@ pub fn MatrixRowReuse::apply(
+   if self.fragment_inner is Some(minimum) &&
+     rows >= self.minimum_rows &&
+     inner >= minimum &&
+-    inner % 64 == 0 &&
++    inner % self.fragment_tile_inner == 0 &&
+     columns >= self.fragment_columns {
+     return MatrixTilePlan::new(
+       rows~,
+       columns~,
+       inner~,
+       law=plan.law(),
+-      staging=FragmentPipeline(row_tile=32),
++      staging=FragmentPipeline(row_tile=32, inner_tile=self.fragment_tile_inner),
+     )
+   }
+   // Never undo a separately qualified wider-K or buffered transport plan.
+   if rows < self.minimum_rows ||
+     inner < self.minimum_inner ||
+     plan.tile() != (16, 64, 32) ||
+-    plan.staging is (Buffered(_) | FragmentPipeline(_)) {
++    plan.staging is (Buffered(_) | FragmentPipeline(..)) {
+     return plan
+   }
+   MatrixTilePlan::new(
+diff --git a/kernels/indexed_sparse_projection_cuda_source/decoder.mbt b/kernels/indexed_sparse_projection_cuda_source/decoder.mbt
+index 1260b7a5..7bcefc53 100644
+--- a/kernels/indexed_sparse_projection_cuda_source/decoder.mbt
++++ b/kernels/indexed_sparse_projection_cuda_source/decoder.mbt
+@@ -50,9 +50,9 @@ pub fn indexed_sparse_decoder_source(
+       staging~,
+     )
+     let tile = if row_reuse is Some(policy) { policy.apply(tile) } else { tile }
+-    if tile.staging() is FragmentPipeline(row_tile~) {
++    if tile.staging() is FragmentPipeline(row_tile~, inner_tile~) {
+       output_operand_alignment = @matrix.MatrixFragmentPipeline::new(
+-        tile, row_tile~,
++        tile, row_tile~, inner_tile~,
+       ).operand_alignment()
+     }
+     (
+diff --git a/kernels/indexed_sparse_projection_cuda_source/fragment_pipeline_test.mbt b/kernels/indexed_sparse_projection_cuda_source/fragment_pipeline_test.mbt
+index 694380bd..38d20f65 100644
+--- a/kernels/indexed_sparse_projection_cuda_source/fragment_pipeline_test.mbt
++++ b/kernels/indexed_sparse_projection_cuda_source/fragment_pipeline_test.mbt
+@@ -56,4 +56,18 @@ test "sparse decoder forwards independent fragment policy and launch geometry" {
+   )
+   assert_eq(wider.operand_alignment(2), 16L)
+   assert_eq(wider.operand_alignment(0), 2L)
++  let epochs = @indexed_sparse_projection_cuda_source.indexed_sparse_decoder_source(
++    plan, symbol_prefix="scope",
++    row_reuse=@matrix.MatrixRowReuse::new(
++      minimum_rows=32, minimum_inner=1536, wide_inner=8192, wide_tile=64,
++      fragment_inner=8192, fragment_columns=4096, fragment_tile_inner=128,
++    ),
++  )
++  let text = @utf8.decode(epochs.source_bytes())
++  assert_true(text.contains("epoch<64"))
++  assert_true(text.contains("tile_a[8192]"))
++  assert_true(text.contains("tile_b[16384]"))
++  assert_eq(epochs.output_launch(), selected.output_launch())
++  assert_eq(epochs.output_operand_alignment(), selected.output_operand_alignment())
++  assert_eq(epochs.projection().source_bytes(), selected.projection().source_bytes())
+ }
+diff --git a/kernels/indexed_sparse_projection_cuda_source/source.mbt b/kernels/indexed_sparse_projection_cuda_source/source.mbt
+index 856965d3..02bf8378 100644
+--- a/kernels/indexed_sparse_projection_cuda_source/source.mbt
++++ b/kernels/indexed_sparse_projection_cuda_source/source.mbt
+@@ -67,9 +67,9 @@ pub fn indexed_sparse_projection_source(
+       }
+       sources[stage] = @tiled.dense_source(tile, symbol=symbols[stage])
+       launches[stage] = (tile.tile_count(), 128)
+-      if tile.staging() is FragmentPipeline(row_tile~) {
++      if tile.staging() is FragmentPipeline(row_tile~, inner_tile~) {
+         operand_alignments[stage] = @matrix.MatrixFragmentPipeline::new(
+-          tile, row_tile~,
++          tile, row_tile~, inner_tile~,
+         ).operand_alignment()
+       }
+       continue
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+index d50dbaee..ef801718 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+@@ -36,7 +36,7 @@ pub fn fragment_pipeline_source(
+       let (extent, tile, pointer, base, limit) = item
+       (
+         $|for(int i=threadIdx.x;i<\{extent*k/8};i+=128) {
+-        $|  const int r=\{base}+i/8,c=copy_k+(i%8)*8;
++        $|  const int r=\{base}+i/\{k/8},c=copy_k+(i%\{k/8})*8;
+         $|  const int valid=r<\{limit}&&c<\{inner}?16:0;
+         $|  const unsigned logical=i*16;
+         $|  const unsigned physical=logical^((logical>>3)&112u);
+@@ -50,14 +50,14 @@ pub fn fragment_pipeline_source(
+   fn load(slot : String, kk : String) -> String {
+     (
+       $|{
+-      $|  unsigned a_byte=((warp_row+lane%16)*64+\{kk}+(lane/16)*8)*2;
++      $|  unsigned a_byte=((warp_row+lane%16)*\{k}+\{kk}+(lane/16)*8)*2;
+       $|  a_byte^=(a_byte>>3)&112u;
+       $|  unsigned a_addr=(unsigned)__cvta_generic_to_shared((char*)(tile_a+slot*\{m*k})+a_byte);
+       $|  asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];"
+       $|    :"=r"(a[\{slot}][0]),"=r"(a[\{slot}][1]),"=r"(a[\{slot}][2]),"=r"(a[\{slot}][3]):"r"(a_addr));
+       $|  #pragma unroll
+       $|  for(int j=0;j<\{fragments};++j) {
+-      $|    unsigned b_byte=((warp_column+j*8+lane%8)*64+\{kk}+((lane/8)%2)*8)*2;
++      $|    unsigned b_byte=((warp_column+j*8+lane%8)*\{k}+\{kk}+((lane/8)%2)*8)*2;
+       $|    b_byte^=(b_byte>>3)&112u;
+       $|    unsigned b_addr=(unsigned)__cvta_generic_to_shared((char*)(tile_b+slot*\{n*k})+b_byte);
+       $|    asm volatile("ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0,%1}, [%2];"
+@@ -90,22 +90,22 @@ pub fn fragment_pipeline_source(
+       $|  float acc[\{fragments}][4]={};
+       $|  unsigned a[2][4],b[2][\{fragments}][2];
+       $|  // Prologue: two independently committed operand epochs.
+-      $|  for(int copy_slot=0;copy_slot<2;++copy_slot) {int copy_k=copy_slot*64;\{copies}
++      $|  for(int copy_slot=0;copy_slot<2;++copy_slot) {int copy_k=copy_slot*\{k};\{copies}
+       $|    asm volatile("cp.async.commit_group;":::"memory");
+       $|  }
+-      $|  for(int epoch=0;epoch<\{inner/64};++epoch) {
++      $|  for(int epoch=0;epoch<\{inner/k};++epoch) {
+       $|    const int slot=epoch&1;
+       $|    asm volatile("cp.async.wait_group 1;":::"memory");
+       $|    __syncthreads(); // publish this epoch; the later copy stays outstanding
+       $|    \{load("0", "0")}
+       $|    #pragma unroll
+-      $|    for(int q=0;q<3;++q) {
++      $|    for(int q=0;q<\{k/16-1};++q) {
+       $|      const int next=(q+1)&1,current=q&1;
+       $|      \{load("next", "(q+1)*16")}
+       $|      \{mma("current")}
+       $|    }
+       $|    __syncthreads(); // all final fragments are in registers; retire readers
+-      $|    {int copy_slot=slot,copy_k=(epoch+2)*64;\{copies}}
++      $|    {int copy_slot=slot,copy_k=(epoch+2)*\{k};\{copies}}
+       $|    asm volatile("cp.async.commit_group;":::"memory");
+       $|    \{mma("1")}
+       $|  }
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+index aae12df7..bca79831 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+@@ -22,7 +22,7 @@ test "explicit fragment pipeline emits reuse lookahead and epoch waits" {
+     columns=4096,
+     inner=8192,
+     law=ShapeAwareFloat32,
+-    staging=FragmentPipeline(row_tile=32),
++    staging=FragmentPipeline(row_tile=32, inner_tile=64),
+   )
+   assert_eq(
+     @tiled_matrix_cuda_source.dense_source(selected, symbol="pipe"),
+@@ -36,6 +36,7 @@ test "export explicit fragment pipelines" {
+     return
+   }
+   let partial_float32 = @env.get_env_var("LUNA_FRAGMENT_BF16") != Some("1")
++  let wider = @env.get_env_var("LUNA_FRAGMENT_WIDE") == Some("1")
+   let shapes = [(4096, 4096), (4096, 8192), (1536, 4096), (128, 4096)]
+   println("LUNA_SOURCE_BEGIN prefill")
+   if !partial_float32 { println("#define LUNA_PROJECTION_BF16_OUTPUT 1") }
+@@ -47,7 +48,9 @@ test "export explicit fragment pipelines" {
+       law=ShapeAwareFloat32,
+       tile_rows=32,
+       tile_columns=32,
+-      staging=SynchronousTiles(inner_tile=64),
++      staging=if wider {
++        FragmentPipeline(row_tile=32, inner_tile=64)
++      } else { SynchronousTiles(inner_tile=64) },
+     )
+     println(
+       @utf8.decode(
+@@ -64,7 +67,8 @@ test "export explicit fragment pipelines" {
+         columns~,
+         inner~,
+         law=ShapeAwareFloat32,
+-        staging=FragmentPipeline(row_tile=if j == 2 { 64 } else { 32 }),
++        staging=FragmentPipeline(row_tile=if j == 2 { 64 } else { 32 },
++          inner_tile=if wider && j == 1 { 128 } else { 64 }),
+       )
+       println(
+         @utf8.decode(
+@@ -85,3 +89,17 @@ test "export explicit fragment pipelines" {
+   )
+   println("LUNA_SOURCE_END")
+ }
++
++///|
++test "wide epochs reach actual address, fragment and retirement loops" {
++  let plan = @matrix.MatrixTilePlan::new(
++    rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32,
++    staging=FragmentPipeline(row_tile=32, inner_tile=128),
++  )
++  let source = @utf8.decode(@tiled_matrix_cuda_source.dense_source(plan, symbol="wide"))
++  for text in ["tile_a[8192]", "tile_b[16384]", "i/16", "i%16",
++    "epoch<64", "q<7", "(epoch+2)*128", "cp.async.wait_group 1;",
++    "if(live_rows==1)"] {
++    assert_true(source.contains(text))
++  }
++}
+diff --git a/kernels/tiled_matrix_cuda_source/source.mbt b/kernels/tiled_matrix_cuda_source/source.mbt
+index 7557d71e..c9d79df4 100644
+--- a/kernels/tiled_matrix_cuda_source/source.mbt
++++ b/kernels/tiled_matrix_cuda_source/source.mbt
+@@ -115,9 +115,9 @@ pub fn dense_source(
+   symbol~ : String,
+   partial_float32~ : Bool = false,
+ ) -> Bytes raise @precision.PrecisionPlanError {
+-  if plan.staging() is FragmentPipeline(row_tile~) {
++  if plan.staging() is FragmentPipeline(row_tile~, inner_tile~) {
+     return fragment_pipeline_source(
+-      @matrix.MatrixFragmentPipeline::new(plan, row_tile~),
++      @matrix.MatrixFragmentPipeline::new(plan, row_tile~, inner_tile~),
+       symbol~,
+       partial_float32~,
+     )

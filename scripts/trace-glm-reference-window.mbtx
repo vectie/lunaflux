@@ -14,6 +14,40 @@ import {
 // Model warmup and the response drain are not timing benchmarks.
 
 ///|
+fn reference_mem_available(snapshot : String) -> Int64 raise {
+  for line in snapshot.split("\n") {
+    if line.has_prefix("MemAvailable:") {
+      let parts = line.split(" ").filter(s => !s.is_empty()).to_array()
+      guard parts is [_, number, "kB"] else { fail("host memory units") }
+      let available = @string.parse_int64(number)
+      guard available >= 0 else { fail("negative host memory") }
+      return available
+    }
+  }
+  fail("missing host memory")
+}
+
+///|
+test "reserve observer reads available memory, not free or cached memory" {
+  assert_eq(
+    reference_mem_available(
+      "MemFree: 100 kB\nMemAvailable:   17841092 kB\nCached: 20000000 kB\n",
+    ),
+    17841092L,
+  )
+  for
+    invalid in [
+      "MemFree: 100 kB\n", "MemAvailable: 18 GiB\n", "MemAvailable: -1 kB\n",
+    ] {
+    try reference_mem_available(invalid) catch {
+      _ => ()
+    } noraise {
+      _ => fail("invalid memory observation accepted")
+    }
+  }
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, request_file] &&
     root.has_prefix("/tmp/lunaflux-reference-bench-") else {
@@ -125,14 +159,22 @@ async fn main {
               } else {
                 "wlc004s@192.168.2.179"
               },
-              "awk '/MemAvailable:/ {print $2}' /proc/meminfo",
+              "awk '/^(MemAvailable|MemFree|Cached|Active\\(file\\)|Inactive\\(file\\)|AnonPages|Mlocked|Unevictable|SReclaimable|SUnreclaim):/ {print}' /proc/meminfo",
             ]).output()
             out.check()
-            let available = @string.parse_int64(out.stdout().trim())
+            let available = reference_mem_available(out.stdout())
             reserve_log.write(
               "at=\{@async.now()} rank=\{rank} host_available_kib=\{available}\n",
             )
+            reserve_log.write(out.stdout())
             if available < 18874368L {
+              // Save the actual stop cause before the concurrent owner watch
+              // observes our requested retirement and cancels this task.
+              @fs.write_file(
+                root + "/RESERVE_STOP.txt",
+                "rank=\{rank} host_available_kib=\{available} early_threshold_kib=18874368 user_floor_kib=16777216\n",
+                create_mode=CreateNew,
+              )
               retire()
               fail("18 GiB trace headroom stop before the 16 GiB host reserve")
             }
