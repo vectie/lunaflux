@@ -1,5 +1,12 @@
 # Low-memory two-rank tracing and idle-rank abort
 
+Follow-up: the filtered collector has now completed a lossless native two-rank
+cold/warm full-model capture. See [the October21 filtered retrace](GLM_FILTERED_TWO_RANK_TRACE_2026-10-21.md)
+for complete-chunk allocation, overlap and paired TP bounds. Its fresh vLLM
+attempt was stopped by loading headroom protection; the reference comparison
+remains explicitly historical. The failures and budget below describe the
+earlier campaign and are retained, not overwritten.
+
 ## Scope and budget
 
 Latest b1788d1d accepted projection artifacts, scales+bulk experts, local MoE
