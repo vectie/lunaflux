@@ -45,6 +45,28 @@ test "latest-path trace cannot silently revert to decode-only collectives" {
 }
 
 ///|
+async fn wait_capture_drained(drained : Ref[Bool]) -> Unit {
+  while !drained.val {
+    @async.sleep(10)
+  }
+}
+
+///|
+async test "a second stop caller waits for drain before starting another phase" {
+  let drained = Ref(false)
+  let issued = Ref(false)
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      issued.val = true
+      @async.sleep(20)
+      drained.val = true
+    })
+    wait_capture_drained(drained)
+    assert_true(issued.val && drained.val)
+  })
+}
+
+///|
 async fn main {
   guard @env.args() is [_, root, request_file, .. options] &&
     options is ([] | ["--cold-warm"]) &&
@@ -104,7 +126,33 @@ async fn main {
   let active = Ref(false)
   let completed = Ref(false)
   let stopped = Ref(false)
+  let capture_drained = Ref(false)
   let phase_label = Ref("")
+  async fn memory_snapshot(label : String) -> Unit {
+    for rank in 0..<2 {
+      saved(
+        "memory-" + label + "-rank\{rank}",
+        "ssh",
+        [
+          "-S",
+          if rank == 0 {
+            "/tmp/lunaflux-glm178-context-20261019.sock"
+          } else {
+            "/tmp/lunaflux-glm179-context-20261019.sock"
+          },
+          "-o",
+          "BatchMode=yes",
+          if rank == 0 {
+            "wlc003s@192.168.2.178"
+          } else {
+            "wlc004s@192.168.2.179"
+          },
+          "cat /proc/meminfo; ps -eo pid,ppid,rss,comm --sort=-rss | head -20",
+        ],
+        {},
+      )
+    }
+  }
   let progress_plugin = @env.get_env_var("LUNAFLUX_NCCL_PROGRESS_PLUGIN")
   async fn progress(mode : String, label : String) -> Unit {
     if progress_plugin is Some(path) {
@@ -170,6 +218,9 @@ async fn main {
   async fn stop_capture() -> Unit {
     if active.val && !stopped.val {
       stopped.val = true
+      defer {
+        capture_drained.val = true
+      }
       // Stop callback retention before report flushing: flushing is not part
       // of the fixed GPU window and must not exhaust the finite event pool.
       progress("0", "stop" + phase_label.val)
@@ -183,6 +234,11 @@ async fn main {
           { "LUNAFLUX_TRACE_LABEL": phase_label.val[1:].to_owned() }
         },
       )
+      memory_snapshot("stopped" + phase_label.val)
+    } else if active.val {
+      // A timer may already own the stop RPC. Retiring the model or starting
+      // the next capture must wait for that RPC to drain, not just be issued.
+      wait_capture_drained(capture_drained)
     }
   }
   async fn request(name : String, text : String) -> Unit {
@@ -278,6 +334,7 @@ async fn main {
         "stream": false,
       }
       request("warmup", warmup.stringify())
+      memory_snapshot("ready")
       for
         (label, phase) in (if options.is_empty() {
           [("", "1")]
@@ -286,6 +343,7 @@ async fn main {
         }) {
         phase_label.val = if label == "" { "" } else { "-" + label }
         stopped.val = false
+        capture_drained.val = false
         network(label + "-before")
         progress(phase, "start" + phase_label.val)
         saved(
@@ -300,6 +358,7 @@ async fn main {
         )
         active.val = true
         defer stop_capture()
+        memory_snapshot("started" + phase_label.val)
         @async.with_task_group(capture => {
           if @env.get_env_var("LUNAFLUX_TRACE_CAPTURE_MILLIS") is Some(value) {
             let milliseconds = @string.parse_int(value)

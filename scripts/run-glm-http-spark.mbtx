@@ -162,14 +162,14 @@ fn profile_options(
   events~ : Bool = false,
   progress~ : Bool = false,
 ) -> String raise {
-  guard trace_method is ("cuda" | "cuda-hw" | "cuda,osrt" | "osrt") else {
-    fail("trace method must be cuda, cuda-hw, cuda,osrt or osrt")
+  guard trace_method is ("cuda" | "cuda-hw" | "cuda-sw" | "cuda,osrt" | "osrt") else {
+    fail("trace method must be cuda, cuda-hw, cuda-sw, cuda,osrt or osrt")
   }
   guard ranks is (None | Some("egress") | Some("both")) else {
     fail("profile ranks must be egress or both")
   }
   let trace = match granularity {
-    None | Some("node") => "node"
+    None | Some("node") => "node:host-only"
     Some("graph") => "graph:host-only"
     _ => fail("profile granularity must be node or graph")
   }
@@ -184,8 +184,11 @@ fn profile_options(
     } else {
       ""
     }) +
-    (if trace_method == "osrt" { "" } else {
-      " --cuda-graph-trace=" + trace +
+    (if trace_method == "osrt" {
+      ""
+    } else {
+      " --cuda-graph-trace=" +
+      trace +
       " --cuda-flush-interval=0 --cuda-event-trace=" +
       (if events { "true" } else { "false" })
     }) +
@@ -354,6 +357,22 @@ async fn main {
       fail("invalid artifact root")
     }
     for rank in 0..<2 {
+      if mode == "start-profile" &&
+        @env.get_env_var("LUNAFLUX_TRACE_DEFER_REPORT") == Some("1") {
+        let nsys = @env.get_env_var("LUNAFLUX_NSYS_EXECUTABLE").unwrap_or(
+          "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys",
+        )
+        let capability = remote(rank, nsys + " stop --help")
+        capability.check()
+        guard capability.stdout().contains("--defer-report") else {
+          fail("selected profiler cannot defer conversion; no model launched")
+        }
+        @fs.write_file(
+          root + "/profiler-capability-rank\{rank}.txt",
+          capability.stdout(),
+          create_mode=CreateNew,
+        )
+      }
       let owners = remote(
         rank, "nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits",
       )
@@ -371,7 +390,9 @@ async fn main {
           rank,
           trace_method=(if rank == 0 {
             @env.get_env_var("LUNAFLUX_NATIVE_TRACE_METHOD_INGRESS")
-          } else { None }).unwrap_or(
+          } else {
+            None
+          }).unwrap_or(
             @env.get_env_var("LUNAFLUX_NATIVE_TRACE_METHOD").unwrap_or("cuda"),
           ),
           events=@env.get_env_var("LUNAFLUX_NATIVE_TRACE_EVENTS") == Some("1"),
@@ -442,7 +463,10 @@ async fn main {
           // is instrumented by default; both ranks are an explicit option.
           // No profiler code enters the engine or its IR.
           bridge +
-          "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys launch --session-new=" +
+          @env.get_env_var("LUNAFLUX_NSYS_EXECUTABLE").unwrap_or(
+            "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys",
+          ) +
+          " launch --session-new=" +
           tag +
           profile
         } else {

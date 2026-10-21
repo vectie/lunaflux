@@ -48,20 +48,21 @@ async fn main {
     is ([]
     | ["--eight-admission-lanes"]
     | ["--exact-replay", _]
-    | ["--windowed-replay", _, _]) &&
+    | ["--windowed-replay", _, _]
+    | ["--windowed-replay", _, _, "--admission-lanes", _]) &&
     [source, root].all(p => {
       p.has_prefix("/tmp/lunaflux-glm-http-") &&
       !p.contains("..") &&
       p.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/'))
     }) else {
     fail(
-      "EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT [--eight-admission-lanes | --exact-replay CANDIDATE_EXE | --windowed-replay CANDIDATE_EXE MAXIMUM_SITES]",
+      "EXISTING_SERVICE_ROOT NEW_TRACE_SERVICE_ROOT [--eight-admission-lanes | --exact-replay CANDIDATE_EXE | --windowed-replay CANDIDATE_EXE MAXIMUM_SITES [--admission-lanes LANES]]",
     )
   }
   @fs.mkdir(root)
   let isolated_manifest = !options.is_empty()
   let candidate = match options {
-    ["--exact-replay", executable] | ["--windowed-replay", executable, _] => {
+    ["--exact-replay", executable] | ["--windowed-replay", executable, ..] => {
       guard executable.has_prefix("/tmp/lunaflux-glm-service-arm-") &&
         executable.has_suffix("/glm_service.exe") &&
         @fs.exists(executable) else {
@@ -72,12 +73,20 @@ async fn main {
     _ => None
   }
   let horizon = match options {
-    ["--windowed-replay", _, value] => {
+    ["--windowed-replay", _, value, ..] => {
       let n = @string.parse_int(value)
       guard n > 0 else { fail("positive collective horizon") }
       Some(n)
     }
     _ => None
+  }
+  let lanes = match options {
+    [_, _, _, "--admission-lanes", value] => {
+      let n = @string.parse_int(value)
+      guard n > 0 && n <= 64 else { fail("admission lanes must be 1..64") }
+      n
+    }
+    _ => 8
   }
   @fs.write_file(
     root + "/artifact-root.txt",
@@ -110,7 +119,7 @@ async fn main {
         fields["slots"] == Json(8) else {
         fail("eight resident slots required")
       }
-      fields["admission_lanes"] = Json(8)
+      fields["admission_lanes"] = Json(lanes)
       fields["kernel_root"] = Json(root)
       if candidate is Some(_) {
         fields["collective_replay"] = Json("exact-capacity")
@@ -184,7 +193,7 @@ async fn main {
       "\nTrace uses unchanged executable/CUBINs and GPU geometry; run a paired host/GPU memory watcher.\n"
     }) +
     (if isolated_manifest {
-      "Offline C1 trace admits eight waiting lanes instead of sixteen to reserve profiler host memory. Resident slots=8, context=8192, rows=64 unchanged. Not a production configuration change.\n"
+      "Offline prepared owner admission_lanes=\{lanes}. Resident slots=8, context=8192, rows=64 unchanged. Not a production configuration change.\n"
     } else {
       "Admission configuration unchanged.\n"
     }),

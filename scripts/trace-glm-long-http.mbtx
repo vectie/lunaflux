@@ -45,8 +45,8 @@ async fn main {
     !root.contains("..") &&
     root.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/')) &&
     engine is ("native" | "vllm") &&
-    mode is ("start" | "stop" | "collect") else {
-    fail("RUNNING_TRACE_ROOT native|vllm start|stop|collect")
+    mode is ("start" | "stop" | "finalize" | "collect") else {
+    fail("RUNNING_TRACE_ROOT native|vllm start|stop|finalize|collect")
   }
   let tag = root[5:].to_owned()
   let label_suffix = match @env.get_env_var("LUNAFLUX_TRACE_LABEL") {
@@ -90,7 +90,9 @@ async fn main {
     )
     out.check()
   }
-  let nsys = "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys"
+  let nsys = @env.get_env_var("LUNAFLUX_NSYS_EXECUTABLE").unwrap_or(
+    "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys",
+  )
   let ranks = collection_ranks(
     @env.get_env_var("LUNAFLUX_TRACE_RANKS"),
     if engine == "native" {
@@ -99,7 +101,7 @@ async fn main {
       None
     },
   )
-  if mode == "collect" {
+  if mode is ("collect" | "finalize") {
     for rank in ranks {
       // Import only after GPU owners retire: report conversion also consumes
       // unified host memory and must not compete with resident weights.
@@ -109,6 +111,28 @@ async fn main {
       owners.check()
       guard owners.stdout().trim().is_empty() else {
         fail("retire GPU owners before trace conversion")
+      }
+      if mode == "finalize" {
+        guard engine == "native" &&
+          @env.get_env_var("LUNAFLUX_TRACE_DEFER_REPORT") == Some("1") else {
+          fail("finalize requires a deferred native capture")
+        }
+        record(
+          "finalize-\{rank}",
+          remote(
+            rank,
+            "systemd-run --user --wait --pipe --unit=" +
+            tag +
+            "-finalize-\{rank} -p MemoryMax=4G -p MemorySwapMax=0 -p RuntimeMaxSec=600 " +
+            "/usr/bin/env TMPDIR=" +
+            root +
+            "/nsys-tmp " +
+            nsys +
+            " finalize --session=" +
+            tag,
+          ),
+        )
+        continue
       }
       record(
         "export" + label_suffix + "-\{rank}",
@@ -190,6 +214,9 @@ async fn main {
               root +
               "/timeline" +
               label_suffix
+            } else if @env.get_env_var("LUNAFLUX_TRACE_DEFER_REPORT") ==
+              Some("1") {
+              " --defer-report"
             } else {
               ""
             })

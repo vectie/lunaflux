@@ -1,0 +1,179 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/async@0.22.4/http",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+}
+
+// Functional HTTP acceptance only. No latency/throughput aggregation, compiler
+// dependency, model comparison or payload digest. The paired owner enforces
+// device100GiB / host16GiB / owned-swap0 and retires on failure.
+
+///|
+fn complete_answer(body : String) -> String raise {
+  guard @json.parse(body)
+    is {
+      "choices": [
+        {
+          "message": { "content": String(text), .. },
+          "finish_reason": "stop",
+          ..
+        },
+      ],
+      ..
+    } &&
+    !text.trim().is_empty() else {
+    fail("answer is empty or incomplete")
+  }
+  text
+}
+
+///|
+test "finite or truncated responses are not complete answers" {
+  assert_eq(
+    complete_answer(
+      "{\"choices\":[{\"message\":{\"content\":\"323\"},\"finish_reason\":\"stop\"}]}",
+    ),
+    "323",
+  )
+  try
+    complete_answer(
+      "{\"choices\":[{\"message\":{\"content\":\"323\"},\"finish_reason\":\"length\"}]}",
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("accepted truncated output")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, artifact, root, literal_long_request] &&
+    [artifact, root].all(p => {
+      p.has_prefix("/tmp/lunaflux-glm-http-") &&
+      p.all(c => c is ('a'..<='z' | '0'..<='9' | '-' | '/'))
+    }) else {
+    fail("PREPARED_ARTIFACT NEW_EVIDENCE_ROOT LITERAL_LONG_REQUEST")
+  }
+  @fs.mkdir(root)
+  let credential = @fs.read_file(artifact + "/acceptance.credential")
+    .text()
+    .trim()
+    .to_owned()
+  let owner = ["run", "scripts/run-glm-http-spark.mbtx", artifact]
+  async fn saved(name : String, args : Array[String]) -> Unit {
+    let r = @shell.Cmd("moon", args).output(max_output_bytes=8388608)
+    @fs.write_file(
+      root + "/" + name + ".stdout",
+      r.stdout(),
+      create_mode=CreateNew,
+    )
+    @fs.write_file(
+      root + "/" + name + ".stderr",
+      r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+  }
+  async fn answer(name : String, payload : Json) -> String {
+    let text = payload.stringify()
+    @fs.write_file(
+      root + "/" + name + ".request.json",
+      text,
+      create_mode=CreateNew,
+    )
+    let client = @http.Client("http://127.0.0.1:18889")
+    defer client.close()
+    let response = client.post("/v1/chat/completions", text, extra_headers={
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + credential,
+      "Content-Length": @utf8.encode(text).length().to_string(),
+    })
+    let body = client.read_all().text()
+    @fs.write_file(
+      root + "/" + name + ".response.json",
+      body,
+      create_mode=CreateNew,
+    )
+    guard response.code == 200 else { fail("HTTP failure: " + body) }
+    complete_answer(body)
+  }
+  let result = try {
+    saved("start", [..owner, "start"])
+    defer saved("stop", [..owner, "stop"])
+    @async.with_task_group(group => {
+      group.spawn_bg(() => saved("watch", [..owner, "watch"]))
+      let ready = Ref(false)
+      for _ in 0..<300 {
+        let client = @http.Client("http://127.0.0.1:18889")
+        let ok = try
+          client.get("/health", extra_headers={
+            "Authorization": "Bearer " + credential,
+          }).code ==
+          200
+        catch {
+          _ => false
+        }
+        client.close()
+        if ok {
+          ready.val = true
+          break
+        }
+        @async.sleep(2000)
+      }
+      guard ready.val else { fail("readiness timeout") }
+      guard @json.parse(@fs.read_file(literal_long_request).text())
+        is Object(fields) else {
+        fail("literal request")
+      }
+      fields["max_tokens"] = Json(128)
+      fields["stream"] = false
+      let long = @async.with_timeout(300000, () => answer("long", Json(fields)))
+      guard long.trim() == "orchid-70" else {
+        fail("long retrieval answer: " + long)
+      }
+      guard @json.parse(@fs.read_file(root + "/long.response.json").text())
+        is { "usage": { "prompt_tokens": 7973, .. }, .. } else {
+        fail("changed long prompt")
+      }
+      for mode in ["smoke", "routing", "sampling", "cancel", "controls"] {
+        saved(mode, [
+          "run",
+          "scripts/validate-glm-http-spark.mbtx",
+          root + "-" + mode,
+          mode,
+        ])
+      }
+      for
+        i, prompt in [
+          "Explain why 0.1 + 0.2 is not exactly 0.3 in binary floating point. Give a practical comparison method in two sentences.",
+          "用中文解释银行转账为何需要事务，给出一个失败后回滚的例子。最多三句话。",
+          "Write a Python function merge_sorted(a, b) that merges two sorted integer lists. Handle empty lists. Give the time complexity.",
+          "A box contains 3 red and 2 blue balls. Draw two without replacement. What is the probability both are red? Explain briefly.",
+        ] {
+        let text = @async.with_timeout(120000, () => {
+          answer("broad-\{i}", {
+            "model": "glm-5.3",
+            "messages": [{ "role": "user", "content": prompt }],
+            "max_tokens": 512,
+            "temperature": 0,
+            "stream": false,
+          })
+        })
+        println("REVIEW \{i}: " + text)
+      }
+      saved("drain", [..owner, "stop"])
+    })
+    "COMPLETE: review broad answer semantics; exact long retrieval, protocol, routing, sampling, cancellation and controls passed. No performance benchmark."
+  } catch {
+    e => "FAILED: " + e.to_string()
+  }
+  @fs.write_file(root + "/RESULT.txt", result, create_mode=CreateNew)
+  println(result)
+  guard !result.has_prefix("FAILED") else { fail(result) }
+}

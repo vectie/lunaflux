@@ -9,14 +9,17 @@ import {
 ///|
 async fn main {
   guard @env.args() is [_, root, .. options] &&
-    options is ([] | ["--hardware"]) &&
+    options is ([] | ["--hardware"] | ["--software"]) &&
     root.has_prefix("/tmp/lunaflux-nsys-worker-") &&
     root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
-    fail("NEW_ROOT [--hardware]")
+    fail("NEW_ROOT [--hardware | --software]")
   }
   @fs.mkdir(root)
   let socket = "/tmp/lunaflux-glm178-context-20261019.sock"
   let host = "wlc003s@192.168.2.178"
+  let nsys = @env.get_env_var("LUNAFLUX_NSYS_EXECUTABLE").unwrap_or(
+    "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys",
+  )
   async fn remote(command : String) -> @shell.Output {
     @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output()
   }
@@ -70,8 +73,14 @@ async fn main {
         root +
         " LD_PRELOAD=" +
         root +
-        "/bridge.so /opt/nvidia/nsight-systems/2025.3.2/bin/nsys profile --trace=" +
-        (if options.is_empty() { "cuda" } else { "cuda-hw" }) +
+        "/bridge.so " +
+        nsys +
+        " profile --trace=" +
+        (match options {
+          ["--hardware"] => "cuda-hw"
+          ["--software"] => "cuda-sw"
+          _ => "cuda"
+        }) +
         " --sample=none --cpuctxsw=none --output=" +
         root +
         "/child " +
@@ -80,7 +89,8 @@ async fn main {
       ),
       (
         "export",
-        "/opt/nvidia/nsight-systems/2025.3.2/bin/nsys export --type=sqlite --output=" +
+        nsys +
+        " export --type=sqlite --output=" +
         root +
         "/child.sqlite " +
         root +
