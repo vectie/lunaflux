@@ -429,6 +429,14 @@ async fn main {
   let loader_environment = reference_loader_environment(
     @env.get_env_var("LUNAFLUX_REFERENCE_LOADER"),
   )
+  let loader_observer = @env.get_env_var("LUNAFLUX_REFERENCE_LOADER_OBSERVER")
+  if loader_observer is Some(path) {
+    guard !sg &&
+      path.has_prefix("/tmp/lunaflux-loader-observer-") &&
+      path.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+      fail("external loader observer root")
+    }
+  }
   let tag = root[5:].to_owned()
   let profile = mode is ("prepare-profile" | "start-profile" | "query-profile")
   let activity_library = if profile {
@@ -629,6 +637,8 @@ async fn main {
       loader_options +
       "\nloader_environment=" +
       loader_environment +
+      "\nloader_observer=" +
+      loader_observer.unwrap_or("") +
       (if sg { "" } else { "\nkv_bytes=\{kv_bytes}" }) +
       "\nmaximum_sequences=\{sequences}\nbatch_tokens=\{batch_tokens}\nconcurrency=1\nmax_output=" +
       (if profile { "2" } else { "8" }) +
@@ -926,6 +936,13 @@ async fn main {
         ":/model:ro -v " +
         root +
         ":/run-result" +
+        (if loader_observer is Some(path) {
+          " -v " +
+          path +
+          "/weight_utils.py:/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/weight_utils.py:ro"
+        } else {
+          ""
+        }) +
         (if activity_rank {
           " --pid=host -v " +
           activity_library.unwrap() +

@@ -1,0 +1,126 @@
+diff --git a/scripts/qualify-low-memory-tracer.mbtx b/scripts/qualify-low-memory-tracer.mbtx
+index 4e5663f2..fce5b776 100644
+--- a/scripts/qualify-low-memory-tracer.mbtx
++++ b/scripts/qualify-low-memory-tracer.mbtx
+@@ -92,6 +92,9 @@ async fn main {
+       library +
+       "/activity_trace.so LUNAFLUX_ACTIVITY_ROOT=" +
+       root +
++      (if @env.get_env_var("LUNAFLUX_ACTIVITY_DEFER_INIT") == Some("1") {
++        " LUNAFLUX_ACTIVITY_DEFER_INIT=1"
++      } else { "" }) +
+       " " +
+       root +
+       "/probe parent",
+diff --git a/tests/process_native_fixture/activity_trace.c b/tests/process_native_fixture/activity_trace.c
+index a50f7ff0..a3e5e014 100644
+--- a/tests/process_native_fixture/activity_trace.c
++++ b/tests/process_native_fixture/activity_trace.c
+@@ -37,12 +37,14 @@ static atomic_int shutting_down;
+ static int initialized;
+ static int enabled;
+ static int sealed;
++static int activity_initialized;
+ static const CUpti_ActivityKind kinds[] = {
+   CUPTI_ACTIVITY_KIND_CONCURRENT_KERNEL, CUPTI_ACTIVITY_KIND_MEMCPY,
+   CUPTI_ACTIVITY_KIND_MEMSET, CUPTI_ACTIVITY_KIND_DRIVER,
+   CUPTI_ACTIVITY_KIND_RUNTIME
+ };
+ static int checked(CUptiResult r);
++static int initialize_activity(void);
+
+ /* Omit polling/context binding BEFORE records are allocated. The observed
+  * native rank generated 857563 context binds and 857257 event queries in one
+@@ -170,7 +172,7 @@ static uint64_t stamp(void) {
+ static void status(FILE *out, const char *event) {
+   struct timespec before, after;
+   clock_gettime(CLOCK_REALTIME, &before);
+-  uint64_t gpu_clock = stamp();
++  uint64_t gpu_clock = activity_initialized ? stamp() : 0;
+   clock_gettime(CLOCK_REALTIME, &after);
+   fprintf(out, "%s pid=%d windows=%u records=%" PRIu64
+           " dropped=%" PRIu64 " invalid=%" PRIu64 " errors=%" PRIu64
+@@ -197,6 +199,7 @@ static void *control(void *unused) {
+     command[n] = 0;
+     if (!strcmp(command, "start")) {
+       if (sealed) { ++errors; continue; }
++      if (!activity_initialized && !initialize_activity()) { ++errors; continue; }
+       // Initialize injection before CUDA/graph creation, but record only after
+       // model readiness. Startup's incomplete API records must not occupy the
+       // bounded window collector. Keep graph IDs from already-created graphs.
+@@ -249,11 +252,11 @@ static void finish(void) {
+   if (!initialized) return;
+   atomic_store(&shutting_down, 1);
+   pthread_join(controller, NULL);
+-  checked(cuptiActivityFlushPeriod(0));
++  if (activity_initialized) checked(cuptiActivityFlushPeriod(0));
+   if (enabled)
+     for (unsigned i=0; i<sizeof(kinds)/sizeof(kinds[0]); ++i)
+       checked(cuptiActivityDisable(kinds[i]));
+-  checked(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
++  if (activity_initialized) checked(cuptiActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
+   pthread_mutex_lock(&lock);
+   if (!sealed) status(records, "FINAL");
+   fclose(records); records = NULL;
+@@ -261,11 +264,7 @@ static void finish(void) {
+   close(control_fd); unlink(endpoint);
+ }
+
+-int InitializeInjection(void) {
+-  if (initialized) return 1;
+-  const char *path = getenv("LUNAFLUX_ACTIVITY_ROOT");
+-  if (!path || strlen(path) >= sizeof(root)) return 0;
+-  strcpy(root, path);
++static int initialize_activity(void) {
+   unsigned version = 0;
+   if (!checked(cuptiGetVersion(&version)) || version != CUPTI_API_VERSION) return 0;
+   size_t size = BUFFER_BYTES, pool = 4, pre = 2, n = sizeof(size);
+@@ -274,16 +273,27 @@ int InitializeInjection(void) {
+       !checked(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_POOL_LIMIT, &n, &pool)) ||
+       !checked(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_DEVICE_BUFFER_PRE_ALLOCATE_VALUE, &n, &pre)) ||
+       !checked(cuptiActivitySetAttribute(CUPTI_ACTIVITY_ATTR_PER_THREAD_ACTIVITY_BUFFER, &one, &per_thread))) return 0;
++  if (!checked(cuptiActivityRegisterCallbacks(request_buffer, complete_buffer))) return 0;
++  if (!checked(cuptiActivityFlushPeriod(10))) return 0;
++  activity_initialized = 1;
++  return 1;
++}
++
++int InitializeInjection(void) {
++  if (initialized) return 1;
++  const char *path = getenv("LUNAFLUX_ACTIVITY_ROOT");
++  if (!path || strlen(path) >= sizeof(root)) return 0;
++  strcpy(root, path);
++  const char *defer = getenv("LUNAFLUX_ACTIVITY_DEFER_INIT");
++  const int deferred = defer && !strcmp(defer, "1");
++  if (!deferred && !initialize_activity()) return 0;
+   char file[600];
+   snprintf(file, sizeof(file), "%s/activity-%d.tsv", root, getpid());
+   records = fopen(file, "wx");
+   if (!records) return 0;
+   fprintf(records, "SCHEMA1 pid=%d cupti=%u host_bytes=%d device_pool=%zu device_buffer_bytes=%zu api_scope=launch-wait-copy-without-poll-or-context-bind\n",
+-          getpid(), version, BUFFERS*BUFFER_BYTES, pool, size);
+-  if (!checked(cuptiActivityRegisterCallbacks(request_buffer, complete_buffer))) return 0;
+-  // Drain completed window records promptly. Activity itself remains disabled
+-  // during startup. No GPU synchronization is requested.
+-  if (!checked(cuptiActivityFlushPeriod(10))) return 0;
++          getpid(), CUPTI_API_VERSION, BUFFERS*BUFFER_BYTES, (size_t)4, (size_t)BUFFER_BYTES);
++  fprintf(records, "INIT deferred=%d startup_activity_initialized=%d\n", deferred, activity_initialized);
+   struct sockaddr_un address = {.sun_family = AF_UNIX};
+   if (snprintf(endpoint, sizeof(endpoint), "%s/control-%d.sock", root, getpid()) >= (int)sizeof(endpoint)) return 0;
+   strcpy(address.sun_path, endpoint);
+diff --git a/scripts/benchmark-spark-reference.mbtx b/scripts/benchmark-spark-reference.mbtx
+index c6e35cdf..7c1206f5 100644
+--- a/scripts/benchmark-spark-reference.mbtx
++++ b/scripts/benchmark-spark-reference.mbtx
+@@ -935,7 +947,10 @@ async fn main {
+           " -v /usr/local/cuda/lib64/libcupti.so.13:/usr/lib/aarch64-linux-gnu/libcupti.so.13:ro" +
+           " -e CUDA_INJECTION64_PATH=" +
+           activity_library.unwrap() +
+-          "/activity_trace.so -e LUNAFLUX_ACTIVITY_ROOT=/run-result/activity"
++          "/activity_trace.so -e LUNAFLUX_ACTIVITY_ROOT=/run-result/activity" +
++          (if @env.get_env_var("LUNAFLUX_ACTIVITY_DEFER_INIT") == Some("1") {
++            " -e LUNAFLUX_ACTIVITY_DEFER_INIT=1"
++          } else { "" })
+         } else if profile {
+           " -v /opt/nvidia/nsight-systems/2025.3.2:/opt/nvidia/nsight-systems/2025.3.2:ro"
+         } else {

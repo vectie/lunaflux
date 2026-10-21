@@ -1,0 +1,108 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// Offline instrumentation of the installed external reference, not compiler
+// semantics or runtime code. All orchestration/source transformation is MoonBit.
+
+///|
+fn replacement() -> String {
+  let source =
+    #|        import os as _lf_os
+    #|        import json as _lf_json
+    #|        import weakref as _lf_weakref
+    #|        import time as _lf_time
+    #|        _lf_live = []
+    #|        _lf_i = -1
+    #|        _lf_log = open(f"/run-result/loader-owner-{_lf_os.getpid()}.jsonl", "x", buffering=1)
+    #|        try:
+    #|            for _lf_i, (name, tensor) in enumerate(tensor_iter):
+    #|                _lf_bytes = tensor.numel() * tensor.element_size()
+    #|                _lf_owned = tensor.clone()
+    #|                if _lf_bytes >= 1048576:
+    #|                    _lf_live.append((_lf_i, name, _lf_bytes, _lf_weakref.ref(_lf_owned)))
+    #|                yield name, _lf_owned
+    #|                del _lf_owned
+    #|                if _lf_i % 128 == 0 or _lf_bytes >= 67108864:
+    #|                    _lf_live = [x for x in _lf_live if x[3]() is not None]
+    #|                    _lf_retained = [(i, n, b) for i, n, b, r in _lf_live if i < _lf_i - 2]
+    #|                    with open("/proc/self/smaps_rollup") as _lf_f:
+    #|                        _lf_rollup = _lf_f.read()
+    #|                    with open("/proc/self/status") as _lf_f:
+    #|                        _lf_status = [s for s in _lf_f if s.startswith(("VmRSS:", "RssAnon:", "RssFile:", "RssShmem:"))]
+    #|                    _lf_entry = dict(time_ns=_lf_time.monotonic_ns(), index=_lf_i, name=name, bytes=_lf_bytes,
+    #|                        gpu_allocated=torch.cuda.memory_allocated(), gpu_reserved=torch.cuda.memory_reserved(),
+    #|                        retained_after_two_yields=_lf_retained, smaps_rollup=_lf_rollup, status=_lf_status)
+    #|                    _lf_log.write(_lf_json.dumps(_lf_entry) + "\n")
+    #|            _lf_log.write(_lf_json.dumps(dict(complete=True, tensors=_lf_i+1)) + "\n")
+    #|        finally:
+    #|            _lf_log.close()
+  source
+}
+
+///|
+test "observer retains only weak references and preserves yielded clone" {
+  assert_true(replacement().contains("_lf_owned = tensor.clone()"))
+  assert_true(replacement().contains("yield name, _lf_owned"))
+  assert_true(replacement().contains("_lf_weakref.ref(_lf_owned)"))
+  assert_true(replacement().contains("del _lf_owned"))
+  assert_false(replacement().contains("synchronize("))
+  assert_false(replacement().contains("empty_cache("))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-loader-observer-") else {
+    fail("NEW_OBSERVER_ROOT")
+  }
+  @fs.mkdir(root)
+  let source = @shell.Cmd("ssh", [
+    "-S", "/tmp/lunaflux-glm179-context-20261019.sock", "-o", "BatchMode=yes", "wlc004s@192.168.2.179",
+    "docker run --rm --network none --memory 128m --memory-swap 128m --entrypoint /bin/cat ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 /usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/weight_utils.py",
+  ]).output(max_output_bytes=2097152)
+  source.check()
+  let original = source.stdout()
+  let needle = "        for name, tensor in tensor_iter:\n            yield name, tensor.clone()"
+  let parts = original.split(needle).to_array()
+  guard parts is [before, after] else { fail("installed iterator changed") }
+  @fs.write_file(root + "/original.py", original, create_mode=CreateNew)
+  @fs.write_file(
+    root + "/weight_utils.py",
+    before.to_owned() + replacement() + after.to_owned(),
+    create_mode=CreateNew,
+  )
+  for rank in 0..<2 {
+    let socket = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      "-o",
+      "BatchMode=yes",
+      host,
+      "mkdir " + root,
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      root + "/weight_utils.py",
+      host + ":" + root + "/weight_utils.py",
+    ])
+    .output()
+    .check()
+  }
+  println(
+    "Prepared external loader lifetime observer; math, copies and source buffer unchanged.",
+  )
+}
