@@ -38,7 +38,7 @@ index b3a78c97..7b0f9322 100644
 @@ -28,6 +28,23 @@ test "sparse row ownership is explicit startup configuration" {
    }
  }
- 
+
 +///|
 +test "explicit wide fragment epochs propagate from immutable serving policy" {
 +  let policy = execution_policy({
@@ -77,7 +77,7 @@ index dafe0c25..2db879f9 100644
    priv row_tile : Int
 +  priv inner_tile : Int
  }
- 
+
  ///|
  pub fn MatrixFragmentPipeline::new(
    matrix : MatrixTilePlan,
@@ -94,25 +94,25 @@ index dafe0c25..2db879f9 100644
 -  { matrix, row_tile, }
 +  { matrix, row_tile, inner_tile, }
  }
- 
+
  ///|
 @@ -26,7 +30,7 @@ pub fn MatrixFragmentPipeline::matrix(self : Self) -> MatrixTilePlan {
- 
+
  ///|
  pub fn MatrixFragmentPipeline::tile(self : Self) -> (Int, Int, Int) {
 -  (self.row_tile, 64, 64)
 +  (self.row_tile, 64, self.inner_tile)
  }
- 
+
  ///|
 @@ -46,7 +50,7 @@ pub fn MatrixFragmentPipeline::operand_alignment(_self : Self) -> Int64 {
- 
+
  ///|
  pub fn MatrixFragmentPipeline::shared_bytes(self : Self) -> Int {
 -  self.operand_slots() * (self.row_tile + 64) * 64 * 2
 +  self.operand_slots() * (self.row_tile + 64) * self.inner_tile * 2
  }
- 
+
  ///|
 diff --git a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
 index a3baaa7f..aa8d0935 100644
@@ -172,7 +172,7 @@ index 940a35f2..47971868 100644
 -  FragmentPipeline(row_tile~ : Int)
 +  FragmentPipeline(row_tile~ : Int, inner_tile~ : Int)
  } derive(Eq, Debug)
- 
+
  ///|
 @@ -29,6 +29,6 @@ pub fn MatrixTilePlan::staging(self : Self) -> MatrixStaging {
  pub fn MatrixTilePlan::operand_slots(self : Self) -> Int {
@@ -202,7 +202,7 @@ index 7bbfc92a..2ed98de9 100644
 -pub fn MatrixRowReuse::new(minimum_rows~ : Int, minimum_inner~ : Int, wide_inner~ : Int, wide_tile~ : Int, fragment_inner? : Int, fragment_columns? : Int) -> Self raise @precision_ir.PrecisionPlanError
 +pub fn MatrixRowReuse::new(minimum_rows~ : Int, minimum_inner~ : Int, wide_inner~ : Int, wide_tile~ : Int, fragment_inner? : Int, fragment_columns? : Int, fragment_tile_inner? : Int) -> Self raise @precision_ir.PrecisionPlanError
  pub fn MatrixRowReuse::to_repr(Self) -> @debug.Repr
- 
+
  pub(all) enum MatrixStaging {
 @@ -81,7 +81,7 @@ pub(all) enum MatrixStaging {
    SynchronousTiles(inner_tile~ : Int)
@@ -249,7 +249,7 @@ index 3b91ac46..e04d6e07 100644
    priv fragment_columns : Int
 +  priv fragment_tile_inner : Int
  } derive(Debug)
- 
+
  ///|
 @@ -22,6 +23,7 @@ pub fn MatrixRowReuse::new(
    wide_tile~ : Int,
@@ -275,7 +275,7 @@ index 3b91ac46..e04d6e07 100644
 +    fragment_tile_inner,
    }
  }
- 
+
 @@ -52,21 +55,21 @@ pub fn MatrixRowReuse::apply(
    if self.fragment_inner is Some(minimum) &&
      rows >= self.minimum_rows &&
