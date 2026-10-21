@@ -112,6 +112,12 @@ warnings denied, retaining only the launcher's existing deprecated-string
 warning exclusion20. No runtime/compiler or native ABI code changed in this
 iteration; no new full-suite or sanitizer result is claimed. The kernel's
 earlier BF16 correctness/sanitizer gates remain in the fragment-pipeline report.
+The full native warning-denied check/test were also attempted at
+`/tmp/lunaflux-glm-deferred-phase-checks-20261021-v1`: exit255/1 on existing
+migration warnings, including deprecated `try?` in
+`compiler/parallel_ir/collective_windows.mbt:85`. No warning policy is weakened
+and unrelated in-progress migrations are not staged. Formatting is scoped to
+the changed scripts to preserve the dirty workspace.
 
 ## Deployment
 
@@ -120,8 +126,44 @@ Both stopped LunaNexa units have been relocated to the qualified opaque
 backups. Checkpoint files are hard-linked, not scanned or hashed. The full
 16-lane manifest is carried unchanged except deployment paths, existing
 identity labels and backend address. Paired startup and post-restore checks
-are pending; this section does not yet claim the endpoint is healthy.
+complete on the corrected v3 restoration attempt: both USER units are active,
+Result=success, owned swap0. The backend is healthy and the existing private
+gateway returns323 with `finish_reason=stop`. The runtime route metadata now
+identifies `b1788d1d`; the LunaNexa controller rollout completes. Customer API-key
+testing is not repeated in this iteration (the temporary company credential
+from the earlier test is no longer present).
+
+Restoration v3 sampled host minima are17.216/18.944GiB; GPU maxima are
+94.239/94.268GiB for ranks0/1, with zero owned swap. Evidence:
+`/tmp/lunaflux-glm-fragments-restoration-20261021-v3`,
+`/tmp/lunanexa-glm-fragments-install-20261021-v1`, and
+`/tmp/lunanexa-glm-fragments-route-20261021-v1`. Both public units remain
+running after the diagnostic observer exits.
+
+One initial private-gateway request incorrectly used the public alias
+`glm-5.3.flash` and returned400. The corrected request uses the native
+`glm-5.3` identifier; both request files are retained. This is a harness naming
+error, not a numerical failure or a change to the existing public alias map.
+
+The first restoration watcher incorrectly observed the old failed rank1 unit
+while the new start RPC was still in progress. It requested a stop; startup
+owners eventually retired through their existing stop timeout. Evidence at
+`/tmp/lunaflux-glm-fragments-restoration-20261021-v2` is retained, not reported
+as a new numerical failure. The retry explicitly waits for the start RPC and
+both new active PIDs before attaching its watcher (v3). No memory guard or
+failure condition is suppressed.
+
+The pre-existing approximately2h22m rank1 abort remains unexplained. Apport
+records SIGABRT but discards the dump because this executable is not a packaged
+system binary. No contemporaneous kernel fault was returned by the scoped
+journal query. Successful current acceptance/restoration is not a soak test
+or a claim to have repaired that separate long-lived-service failure.
 
 The latest two-rank node retrace remains incomplete. The historical vLLM
 October19 trace is not replaced by these failed attempts. No new execution
 graph allocation, TP-wait comparison or full-decoder speedup is asserted.
+The remaining tracing issue is target-process instrumentation memory, not an
+excuse to lower the reserve. A bounded minimal activity collector is a distinct
+next implementation direction; graph-only or separately captured ranks would
+lose parts of the requested node/peer-arrival evidence and are not equivalent
+substitutes for the unfinished paired trace.
