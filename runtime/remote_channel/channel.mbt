@@ -23,10 +23,10 @@ pub struct RemoteChannel {
   priv mut sending : Bool
   priv mut reading : Bool
   priv mut writing : Bool
-  priv mut receive_cursor : Int32
-  priv mut receive_length : Int32
-  priv mut send_cursor : Int32
-  priv mut send_length : Int32
+  priv mut receive_cursor : Int
+  priv mut receive_length : Int
+  priv mut send_cursor : Int
+  priv mut send_length : Int
   priv mut receive_deadline : UInt64
   priv mut receive_waiting : Bool
   priv mut send_deadline : UInt64
@@ -36,7 +36,7 @@ pub struct RemoteChannel {
 ///|
 pub fn RemoteChannel::new(
   connection : @socket.Tcp,
-  max_frame_bytes~ : Int32,
+  max_frame_bytes~ : Int,
   timeout_millis~ : UInt64,
 ) -> RemoteChannel raise RemoteChannelError {
   if max_frame_bytes < 1 ||
@@ -129,7 +129,7 @@ fn RemoteChannel::deadline(
 pub fn RemoteChannel::begin_send(
   self : RemoteChannel,
   source : FixedArray[Byte],
-  length : Int32,
+  length : Int,
   local_now_millis : UInt64,
 ) -> Unit raise RemoteChannelError {
   if !self.open || self.sending {
@@ -223,7 +223,7 @@ pub async fn RemoteChannel::poll_receive(
   destination : FixedArray[Byte],
   local_now_millis : UInt64,
   allow_idle_eof~ : Bool = false,
-) -> Int32? {
+) -> Int? {
   self.observe(local_now_millis)
   if !self.receiving || self.reading {
     raise InvalidState
