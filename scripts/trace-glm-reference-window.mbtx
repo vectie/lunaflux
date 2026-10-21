@@ -106,6 +106,8 @@ async fn main {
   let stopped = Ref(false)
   let capture_drained = Ref(false)
   let retired = Ref(false)
+  let warmup_probe = @env.get_env_var("LUNAFLUX_REFERENCE_WARMUP_OBSERVER")
+    is Some(_)
   let reserve_log = @fs.open(
     root + "/window-reserve.txt",
     mode=WriteOnly,
@@ -115,6 +117,33 @@ async fn main {
   async fn retire() -> Unit {
     if !retired.val {
       retired.val = true
+      if warmup_probe {
+        // A diagnostic at the host-memory boundary cannot allow a five-second
+        // graceful-stop allocation tail. Kill only this campaign's containers.
+        @async.with_task_group(group => {
+          for rank in 0..<2 {
+            group.spawn_bg(() => {
+              let r = @shell.Cmd("ssh", [
+                "-S",
+                "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock",
+                "-o",
+                "BatchMode=yes",
+                if rank == 0 {
+                  "wlc003s@192.168.2.178"
+                } else {
+                  "wlc004s@192.168.2.179"
+                },
+                "docker kill " + root[5:].to_owned() + "-\{rank}",
+              ]).output()
+              @fs.write_file(
+                root + "/window-immediate-retire-\{rank}.txt",
+                r.stdout() + r.stderr(),
+                create_mode=CreateNew,
+              )
+            })
+          }
+        })
+      }
       saved("retire", [..owner, "stop"])
     }
   }
@@ -167,16 +196,17 @@ async fn main {
               "at=\{@async.now()} rank=\{rank} host_available_kib=\{available}\n",
             )
             reserve_log.write(out.stdout())
-            if available < 18874368L {
+            let early_floor = if warmup_probe { 19398656L } else { 18874368L }
+            if available < early_floor {
               // Save the actual stop cause before the concurrent owner watch
               // observes our requested retirement and cancels this task.
               @fs.write_file(
                 root + "/RESERVE_STOP.txt",
-                "rank=\{rank} host_available_kib=\{available} early_threshold_kib=18874368 user_floor_kib=16777216\n",
+                "rank=\{rank} host_available_kib=\{available} early_threshold_kib=\{early_floor} user_floor_kib=16777216\n",
                 create_mode=CreateNew,
               )
               retire()
-              fail("18 GiB trace headroom stop before the 16 GiB host reserve")
+              fail("trace headroom stop before the 16 GiB host reserve")
             }
           }
           @async.sleep(250)

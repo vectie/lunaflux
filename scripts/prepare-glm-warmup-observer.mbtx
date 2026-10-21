@@ -1,0 +1,184 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// External installed-vLLM diagnostic only. No inference/compiler dependency.
+
+///|
+fn observer() -> String {
+  (
+    #|def _lf_phase(phase, desc=None, snapshot=False):
+    #|    import json, os, time
+    #|    with open('/proc/meminfo') as f:
+    #|        available = next(int(l.split()[1]) for l in f if l.startswith('MemAvailable:'))
+    #|    with open('/proc/self/smaps_rollup') as f:
+    #|        rollup = f.read()
+    #|    stats = torch.cuda.memory_stats()
+    #|    record = dict(phase=phase,desc=str(desc),time_ns=time.monotonic_ns(),available_kib=available,
+    #|        allocated=torch.cuda.memory_allocated(),reserved=torch.cuda.memory_reserved(),
+    #|        active=stats.get('active_bytes.all.current'),inactive_split=stats.get('inactive_split_bytes.all.current'),
+    #|        device_free=torch.cuda.mem_get_info()[0],smaps_rollup=rollup)
+    #|    with open(f'/run-result/warmup-{os.getpid()}.jsonl','a',buffering=1) as f:
+    #|        f.write(json.dumps(record)+'\n')
+    #|    if snapshot or available < 19398656:
+    #|        torch.cuda.memory._dump_snapshot(f'/run-result/warmup-{os.getpid()}-{phase}-{time.monotonic_ns()}.pickle')
+    #|    if available < 19398656:
+    #|        raise RuntimeError('offline warmup probe stopped above 16 GiB host reserve')
+    #|
+  )
+}
+
+///|
+fn instrument(source : String) -> String raise {
+  let anchor = "        with graph_capture(device=self.device):\n"
+  guard source.split(anchor).to_array() is [before, after] else {
+    fail("unique V2 capture scope")
+  }
+  let wrapped = before.to_owned() +
+    "        torch.cuda.memory._record_memory_history(enabled='all', context='all', stacks='python', max_entries=4096)\n" +
+    "        _lf_phase('capture_begin')\n" +
+    anchor +
+    after.to_owned()
+  let replacements = [
+    (
+      "                    forward_fn = create_forward_fn(desc, warmup=True)", "                    _lf_phase('prepare_warmup', desc)\n                    forward_fn = create_forward_fn(desc, warmup=True)\n                    _lf_phase('prepared_warmup', desc)",
+    ),
+    (
+      "                    forward_fn(CUDAGraphMode.NONE)", "                    forward_fn(CUDAGraphMode.NONE)\n                    _lf_phase('warmup_returned', desc, snapshot=True)",
+    ),
+    (
+      "                        forward_fn = create_forward_fn(desc, warmup=False)",
+      "                        _lf_phase('prepare_capture', desc)\n                        forward_fn = create_forward_fn(desc, warmup=False)\n                        _lf_phase('prepared_capture', desc)",
+    ),
+    (
+      "                            forward_fn(CUDAGraphMode.PIECEWISE)\n                            continue",
+      "                            forward_fn(CUDAGraphMode.PIECEWISE)\n                            _lf_phase('captured_piecewise', desc, snapshot=True)\n                            continue",
+    ),
+    (
+      "        self._graphs_captured = True", "        _lf_phase('capture_complete', snapshot=True)\n        torch.cuda.memory._record_memory_history(enabled=None)\n        self._graphs_captured = True",
+    ),
+  ]
+  let mut result = wrapped
+  for (old, fresh) in replacements {
+    // The indented NONE call also occurs inside the FULL graph. Replace only
+    // the exact leading indentation, never inject host observations into capture.
+    let old = "\n" + old
+    guard result.split(old).to_array() is [a, b] else {
+      fail("unique capture anchor: " + old)
+    }
+    result = a.to_owned() + "\n" + fresh + b.to_owned()
+  }
+  result + "\n" + observer()
+}
+
+///|
+fn release_warmup(source : String) -> String {
+  source
+  .replace(
+    old="        _lf_phase('capture_begin')",
+    new="        _lf_release('capture_begin')\n        _lf_phase('capture_begin')",
+  )
+  .replace(
+    old="                    _lf_phase('warmup_returned', desc, snapshot=True)",
+    new="                    torch.accelerator.synchronize()\n                    if desc.cg_mode == CUDAGraphMode.FULL or self.use_breakable_cg:\n                        del forward_fn\n                    _lf_release('warmup_released')\n                    _lf_phase('warmup_released', desc, snapshot=True)",
+  ) +
+  "\n" +
+  (
+    #|def _lf_release(phase):
+    #|    import ctypes, json, os
+    #|    def state():
+    #|        with open('/proc/self/smaps_rollup') as f:
+    #|            rollup = f.read()
+    #|        with open('/proc/meminfo') as f:
+    #|            available = next(int(l.split()[1]) for l in f if l.startswith('MemAvailable:'))
+    #|        return dict(available_kib=available,allocated=torch.cuda.memory_allocated(),reserved=torch.cuda.memory_reserved(),smaps_rollup=rollup)
+    #|    before = state()
+    #|    torch.accelerator.synchronize()
+    #|    gc.collect()
+    #|    torch.accelerator.empty_cache()
+    #|    ctypes.CDLL(None).malloc_trim(0)
+    #|    after = state()
+    #|    with open(f'/run-result/warmup-release-{os.getpid()}.jsonl','a',buffering=1) as f:
+    #|        f.write(json.dumps(dict(phase=phase,before=before,after=after))+'\n')
+  )
+}
+
+///|
+test "observer stays outside full capture and keeps forward math" {
+  let source = "class C:\n    def capture(self):\n        with graph_capture(device=self.device):\n                    forward_fn = create_forward_fn(desc, warmup=True)\n                    forward_fn(CUDAGraphMode.NONE)\n                        forward_fn = create_forward_fn(desc, warmup=False)\n                            forward_fn(CUDAGraphMode.PIECEWISE)\n                            continue\n                            forward_fn(CUDAGraphMode.NONE)\n        self._graphs_captured = True\n"
+  let result = instrument(source)
+  assert_true(
+    result.contains(
+      "\n                            forward_fn(CUDAGraphMode.NONE)\n        _lf_phase",
+    ),
+  )
+  assert_false(result.contains("hashlib"))
+  assert_false(result.contains("empty_cache"))
+  let released = release_warmup(result)
+  assert_true(
+    released.contains("del forward_fn\n                    _lf_release"),
+  )
+  assert_true(
+    released.contains(
+      "torch.accelerator.synchronize()\n    gc.collect()\n    torch.accelerator.empty_cache()",
+    ),
+  )
+  assert_true(
+    released.contains(
+      "\n                            forward_fn(CUDAGraphMode.NONE)\n        _lf_phase",
+    ),
+  )
+  assert_false(released.contains("CUDAGraphMode.NONE:\n"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, source, .. options] &&
+    root.has_prefix("/tmp/lunaflux-warmup-observer-") &&
+    (options.is_empty() || options == ["--release"]) else {
+    fail("NEW_ROOT INSTALLED_CUDAGRAPH_UTILS [--release]")
+  }
+  @fs.mkdir(root)
+  let original = @fs.read_file(source).text()
+  @fs.write_file(root + "/original.py", original, create_mode=CreateNew)
+  let observed = instrument(original)
+  @fs.write_file(
+    root + "/cudagraph_utils.py",
+    if options.is_empty() {
+      observed
+    } else {
+      release_warmup(observed)
+    },
+    create_mode=CreateNew,
+  )
+  for rank in 0..<2 {
+    let socket = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      "-o",
+      "BatchMode=yes",
+      host,
+      "mkdir " + root,
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      root + "/cudagraph_utils.py",
+      host + ":" + root + "/cudagraph_utils.py",
+    ])
+    .output()
+    .check()
+  }
+}

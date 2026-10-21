@@ -1,0 +1,257 @@
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline.mbt b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+index dafe0c25..a25ae837 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+@@ -5,18 +5,33 @@
+ pub struct MatrixFragmentPipeline {
+   priv matrix : MatrixTilePlan
+   priv row_tile : Int
++  priv transfer : FragmentOperandTransfer
+ }
+
++///|
++/// Transfer ownership is distinct from the ascending arithmetic fold. A
++/// rectangular producer publishes one operand epoch to all matrix consumers.
++pub(all) enum FragmentOperandTransfer {
++  LaneVectors
++  Rectangular(leader_wait~ : Bool)
++} derive(Eq, Debug)
++
+ ///|
+ pub fn MatrixFragmentPipeline::new(
+   matrix : MatrixTilePlan,
+   row_tile~ : Int,
++  transfer? : FragmentOperandTransfer = LaneVectors,
+ ) -> Self raise @precision.PrecisionPlanError {
+   let (_, _, inner) = matrix.geometry()
+   guard row_tile is (32 | 64) && inner % 64 == 0 else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+-  { matrix, row_tile, }
++  { matrix, row_tile, transfer }
++}
++
++///|
++pub fn MatrixFragmentPipeline::transfer(self : Self) -> FragmentOperandTransfer {
++  self.transfer
+ }
+
+ ///|
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+index a3baaa7f..597792f3 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+@@ -1,3 +1,17 @@
++///|
++test "rectangular epoch keeps arithmetic ownership independent of waiter" {
++  let matrix = @grouped_matrix_ir.MatrixTilePlan::new(rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32)
++  for leader_wait in [true,false] {
++    let plan = @grouped_matrix_ir.MatrixFragmentPipeline::new(matrix, row_tile=32, transfer=Rectangular(leader_wait~))
++    assert_eq(plan.matrix().geometry(), matrix.geometry())
++    assert_eq(plan.matrix().law(), matrix.law())
++    assert_eq(plan.tile(), (32,64,64))
++    assert_eq(plan.operand_slots(), 2)
++    assert_eq(plan.shared_bytes(),24576)
++    assert_eq(plan.transfer(), Rectangular(leader_wait~))
++  }
++}
++
+ ///|
+ test "fragment pipeline preserves fold and owns disjoint swizzled atoms" {
+   let matrix = @grouped_matrix_ir.MatrixTilePlan::new(
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+index d50dbaee..7f423f69 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+@@ -28,7 +28,19 @@ pub fn fragment_pipeline_source(
+   } else {
+     ""
+   }
+-  let copies = [
++  let rectangular = plan.transfer() is Rectangular(_)
++  let copies = if rectangular {
++    (
++      $|if(threadIdx.x==0 && copy_k<\{inner}) {
++      $|  unsigned bar=(unsigned)__cvta_generic_to_shared(ready+copy_slot);
++      $|  unsigned ad=(unsigned)__cvta_generic_to_shared(tile_a+copy_slot*\{m*k});
++      $|  unsigned bd=(unsigned)__cvta_generic_to_shared(tile_b+copy_slot*\{n*k});
++      $|  asm volatile("mbarrier.arrive.expect_tx.shared::cta.b64 _, [%0], %1;"::"r"(bar),"r"(\{2*(m+n)*k}):"memory");
++      $|  asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];"::"r"(ad),"l"(map_a),"r"(copy_k),"r"(row_base),"r"(bar):"memory");
++      $|  asm volatile("cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes [%0], [%1, {%2,%3}], [%4];"::"r"(bd),"l"(map_b),"r"(copy_k),"r"(column_base),"r"(bar):"memory");
++      $|}
++    )
++  } else { [
+       (m, "tile_a", "input", "row_base", "live_rows"),
+       (n, "tile_b", "weight", "column_base", columns.to_string()),
+     ]
+@@ -46,7 +58,33 @@ pub fn fragment_pipeline_source(
+         $|}
+       )
+     })
+-    .join("\n")
++    .join("\n") }
++  let initialization = if rectangular {
++    (
++      $|__shared__ __align__(8) unsigned long long ready[2];
++      $|if(threadIdx.x==0) {
++      $|  unsigned b0=(unsigned)__cvta_generic_to_shared(ready),b1=(unsigned)__cvta_generic_to_shared(ready+1);
++      $|  asm volatile("mbarrier.init.shared.b64 [%0], 1;"::"r"(b0):"memory");
++      $|  asm volatile("mbarrier.init.shared.b64 [%0], 1;"::"r"(b1):"memory");
++      $|  asm volatile("fence.proxy.async.shared::cta;":::"memory");
++      $|}
++      $|__syncthreads();
++    )
++  } else { "" }
++  let commit = if rectangular { "" } else { "asm volatile(\"cp.async.commit_group;\":::\"memory\");" }
++  let wait = if rectangular {
++    let predicate = if plan.transfer() is Rectangular(leader_wait=true) { "threadIdx.x==0" } else { "true" }
++    (
++      $|if(\{predicate}) {
++      $|  unsigned bar=(unsigned)__cvta_generic_to_shared(ready+slot),parity=(epoch/2)&1,done=0;
++      $|  do {
++      $|    asm volatile("{ .reg .pred p; mbarrier.try_wait.parity.shared::cta.b64 p, [%1], %2; selp.b32 %0, 1, 0, p; }":"=r"(done):"r"(bar),"r"(parity):"memory");
++      $|    if(!done)__nanosleep(64);
++      $|  } while(!done);
++      $|}
++    )
++  } else { "asm volatile(\"cp.async.wait_group 1;\":::\"memory\");" }
++  let drain = if rectangular { "" } else { "asm volatile(\"cp.async.wait_group 0;\":::\"memory\");" }
+   fn load(slot : String, kk : String) -> String {
+     (
+       $|{
+@@ -79,23 +117,25 @@ pub fn fragment_pipeline_source(
+   @utf8.encode(
+     (
+       $|#include <cuda_bf16.h>
+-      $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output) {
++      $|\{if rectangular { "#include <cuda.h>" } else { "" }}
++      $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output\{if rectangular { ",const CUtensorMap *map_a,const CUtensorMap *map_b" } else { "" }}) {
+       $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows})return;
+       $|  \{decode}
+       $|  const int row_base=(blockIdx.x/\{(columns+63)/64})*\{m},column_base=(blockIdx.x%\{(columns+63)/64})*64;
+       $|  if(row_base>=live_rows)return;
+       $|  __shared__ __align__(1024) __nv_bfloat16 tile_a[\{2*m*k}],tile_b[\{2*n*k}];
++      $|  \{initialization}
+       $|  const int lane=threadIdx.x%32,warp=threadIdx.x/32;
+       $|  const int warp_row=(warp/\{4/(m/16)})*16,warp_column=(warp%\{4/(m/16)})*\{warp_columns};
+       $|  float acc[\{fragments}][4]={};
+       $|  unsigned a[2][4],b[2][\{fragments}][2];
+       $|  // Prologue: two independently committed operand epochs.
+       $|  for(int copy_slot=0;copy_slot<2;++copy_slot) {int copy_k=copy_slot*64;\{copies}
+-      $|    asm volatile("cp.async.commit_group;":::"memory");
++      $|    \{commit}
+       $|  }
+       $|  for(int epoch=0;epoch<\{inner/64};++epoch) {
+       $|    const int slot=epoch&1;
+-      $|    asm volatile("cp.async.wait_group 1;":::"memory");
++      $|    \{wait}
+       $|    __syncthreads(); // publish this epoch; the later copy stays outstanding
+       $|    \{load("0", "0")}
+       $|    #pragma unroll
+@@ -106,10 +146,10 @@ pub fn fragment_pipeline_source(
+       $|    }
+       $|    __syncthreads(); // all final fragments are in registers; retire readers
+       $|    {int copy_slot=slot,copy_k=(epoch+2)*64;\{copies}}
+-      $|    asm volatile("cp.async.commit_group;":::"memory");
++      $|    \{commit}
+       $|    \{mma("1")}
+       $|  }
+-      $|  asm volatile("cp.async.wait_group 0;":::"memory");
++      $|  \{drain}
+       $|  #pragma unroll
+       $|  for(int j=0;j<\{fragments};++j) {
+       $|    #pragma unroll
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+index aae12df7..2ae4b451 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+@@ -1,3 +1,17 @@
++///|
++test "rectangular fragments use matching swizzle and explicit sleeping wait" {
++  let matrix = @matrix.MatrixTilePlan::new(rows=64, columns=4096, inner=8192, law=ShapeAwareFloat32)
++  for leader_wait in [true,false] {
++    let plan=@matrix.MatrixFragmentPipeline::new(matrix,row_tile=32,transfer=Rectangular(leader_wait~))
++    let source=@utf8.decode(@tiled_matrix_cuda_source.fragment_pipeline_source(plan,symbol="rect"))
++    for expected in ["CUtensorMap *map_a", "mbarrier.arrive.expect_tx", "cp.async.bulk.tensor.2d", "__nanosleep(64)", "ldmatrix.sync.aligned.m8n8.x4", "retire readers"] {
++      assert_true(source.contains(expected))
++    }
++    assert_false(source.contains("cp.async.wait_group"))
++    assert_false(source.contains("cp.async.commit_group"))
++  }
++}
++
+ ///|
+ test "explicit fragment pipeline emits reuse lookahead and epoch waits" {
+   let matrix = @matrix.MatrixTilePlan::new(
+@@ -37,9 +51,20 @@ test "export explicit fragment pipelines" {
+   }
+   let partial_float32 = @env.get_env_var("LUNA_FRAGMENT_BF16") != Some("1")
+   let shapes = [(4096, 4096), (4096, 8192), (1536, 4096), (128, 4096)]
++  let rectangular = @env.get_env_var("LUNA_FRAGMENT_RECTANGULAR") == Some("1")
+   println("LUNA_SOURCE_BEGIN prefill")
+   if !partial_float32 { println("#define LUNA_PROJECTION_BF16_OUTPUT 1") }
++  if rectangular { println("#define PROJECTION_FRAGMENT_TENSOR_MAPS 1") }
+   for i, (columns, inner) in shapes {
++    if rectangular {
++      for j in 0..<4 {
++        let matrix = @matrix.MatrixTilePlan::new(rows=64, columns~, inner~, law=ShapeAwareFloat32)
++        let plan = @matrix.MatrixFragmentPipeline::new(matrix, row_tile=32,
++          transfer=if j==0 { LaneVectors } else { Rectangular(leader_wait=j==2) })
++        println(@utf8.decode(@tiled_matrix_cuda_source.fragment_pipeline_source(plan, symbol="p\{i}_s\{j}", partial_float32~)))
++      }
++      continue
++    }
+     let matrix = @matrix.MatrixTilePlan::new(
+       rows=64,
+       columns~,
+diff --git a/scripts/probe-glm-projection-staging.mbtx b/scripts/probe-glm-projection-staging.mbtx
+index 40740e87..43d19636 100644
+--- a/scripts/probe-glm-projection-staging.mbtx
++++ b/scripts/probe-glm-projection-staging.mbtx
+@@ -147,7 +147,7 @@ async fn main {
+         unit +
+         "-compile --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=300 /usr/local/cuda-13.0/bin/nvcc -O3 -lineinfo -arch=sm_121 -std=c++17 " +
+         root +
+-        "/probe.cu -o " +
++        "/probe.cu -lcuda -o " +
+         root +
+         "/probe",
+       ),
+diff --git a/tests/packed_moe_execution/projection_staging_probe.cu b/tests/packed_moe_execution/projection_staging_probe.cu
+index c1ad9556..c9ddae76 100644
+--- a/tests/packed_moe_execution/projection_staging_probe.cu
++++ b/tests/packed_moe_execution/projection_staging_probe.cu
+@@ -45,7 +45,23 @@ int main(int argc, char **argv) {
+   ck(cudaMemcpy(counts,c,sizeof(c),cudaMemcpyHostToDevice));
+   ck(cudaMemcpy(x,hx.data(),hx.size()*2,cudaMemcpyHostToDevice));
+   ck(cudaMemcpy(w,hw.data(),hw.size()*2,cudaMemcpyHostToDevice));
++#ifdef PROJECTION_FRAGMENT_TENSOR_MAPS
++  // Offline immutable binding, outside graph/timed work. No per-step encoding.
++  auto *map_a=allocate<CUtensorMap>(1),*map_b=allocate<CUtensorMap>(1);
++  auto map=[&](void *data,int outer,int tile_rows,CUtensorMap *target) {
++    alignas(64) CUtensorMap descriptor;
++    cuuint64_t dims[]={cuuint64_t(k),cuuint64_t(outer)},strides[]={cuuint64_t(k)*2};
++    cuuint32_t box[]={64,cuuint32_t(tile_rows)},element[]={1,1};
++    auto status=cuTensorMapEncodeTiled(&descriptor,CU_TENSOR_MAP_DATA_TYPE_BFLOAT16,2,data,dims,strides,box,element,
++      CU_TENSOR_MAP_INTERLEAVE_NONE,CU_TENSOR_MAP_SWIZZLE_128B,CU_TENSOR_MAP_L2_PROMOTION_NONE,CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE);
++    if(status!=CUDA_SUCCESS){fprintf(stderr,"tensor map error %d\n",int(status));exit(6);}
++    ck(cudaMemcpy(target,&descriptor,sizeof(descriptor),cudaMemcpyHostToDevice));
++  };
++  map(x,64,32,map_a);map(w,n,64,map_b);
++  void *args[]={&counts,&x,&w,&y,&map_a,&map_b};
++#else
+   void *args[]={&counts,&x,&w,&y};
++#endif
+   auto launch=[&](int v,cudaStream_t stream=0) {
+     ck(cudaLaunchKernel(functions[shape][v],dim3(grid),dim3(128),args,0,stream));
+   };
+@@ -94,5 +110,8 @@ int main(int argc, char **argv) {
+     }
+   }
+   ck(cudaFree(counts)); ck(cudaFree(x)); ck(cudaFree(w)); ck(cudaFree(y));
++#ifdef PROJECTION_FRAGMENT_TENSOR_MAPS
++  ck(cudaFree(map_a));ck(cudaFree(map_b));
++#endif
+   ck(cudaDeviceReset()); puts("released=true");
+ }
+
