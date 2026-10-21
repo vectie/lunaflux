@@ -182,3 +182,32 @@ previous `b1788d1d` releases and unit backups remain available. No observer is
 linked or injected into the public service. Installation reads existing declared
 labels only; there is no payload hashing. Deployment evidence:
 `/tmp/lunanexa-glm-idlewait-install-20261021-v1`.
+
+### Restored service
+
+Both public USER units are active on the `ed6be466` release. The actual rank1
+GPU PID1011947 resolves to that release's executable. The private backend is
+healthy and returns exactly `323`, `finish_reason=stop`, after restoration.
+LunaNexa's opaque runtime revision metadata now identifies `ed6be466`; its
+controller rollout completed. The existing customer API key was not retested.
+
+Restoration watcher evidence at
+`/tmp/lunaflux-glm-idlewait-restoration-20261021-v1` records rank0/1 sampled host
+minima17.171/18.993 GiB, GPU maxima94.239/94.268 GiB, and zero owned swap. The
+watcher is retired; it is not a continuing multi-hour monitor. The service remains
+running without diagnostic injection.
+
+In a31.285-second post-answer observation, rank1 accumulated four CPU ticks at
+100 ticks/second:0.128% of one core, versus the old approximately97% idle polling
+observation. This supports elimination of the busy-idle trigger. It is not a
+multi-hour soak or proof that the external async library has no other ID-wrap
+path. Raw `/proc` samples and the calculation are in `idle-cpu-stat.txt` and
+`idle-cpu.json` in the restoration root.
+
+Remaining work is explicit: run a bounded full-model capture with the now
+fixture-qualified, pre-allocation-filtered v8 collector; require clean final
+records and a complete45-layer chunk on both ranks; then use the identical
+observer scope for vLLM within the memory reserve. No latest two-rank timing
+table, speedup, TP-wait attribution or fresh vLLM result exists for this turn.
+The accepted projection numerical/sanitizer evidence remains in
+`GLM_FRAGMENT_PIPELINE_2026-10-21.md`; no kernel numerical policy changed here.
