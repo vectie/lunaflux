@@ -16,6 +16,12 @@ fn replacement() -> String {
     #|        import json as _lf_json
     #|        import weakref as _lf_weakref
     #|        import time as _lf_time
+    #|        import ctypes as _lf_ctypes
+    #|        class _LfMallinfo(_lf_ctypes.Structure):
+    #|            _fields_ = [(n, _lf_ctypes.c_size_t) for n in ("arena", "ordblks", "smblks", "hblks", "hblkhd", "usmblks", "fsmblks", "uordblks", "fordblks", "keepcost")]
+    #|        _lf_libc = _lf_ctypes.CDLL(None)
+    #|        _lf_libc.mallinfo2.restype = _LfMallinfo
+    #|        _lf_buffer = streamer.file_streamer.file_streamer.requests_iterator.buffer
     #|        _lf_live = []
     #|        _lf_i = -1
     #|        _lf_log = open(f"/run-result/loader-owner-{_lf_os.getpid()}.jsonl", "x", buffering=1)
@@ -37,6 +43,13 @@ fn replacement() -> String {
     #|                    _lf_entry = dict(time_ns=_lf_time.monotonic_ns(), index=_lf_i, name=name, bytes=_lf_bytes,
     #|                        gpu_allocated=torch.cuda.memory_allocated(), gpu_reserved=torch.cuda.memory_reserved(),
     #|                        retained_after_two_yields=_lf_retained, smaps_rollup=_lf_rollup, status=_lf_status)
+    #|                    _lf_mall = _lf_libc.mallinfo2()
+    #|                    _lf_entry["allocator"] = {n: getattr(_lf_mall, n) for n, _ in _LfMallinfo._fields_}
+    #|                    _lf_entry["reader_buffer"] = dict(bytes=_lf_buffer.nbytes, address=int(_lf_buffer.ctypes.data))
+    #|                    if _lf_i % 1024 == 0:
+    #|                        with open("/proc/self/smaps") as _lf_f:
+    #|                            with open(f"/run-result/loader-maps-{_lf_os.getpid()}-{_lf_i}.txt", "x") as _lf_out:
+    #|                                _lf_out.write(_lf_f.read())
     #|                    _lf_log.write(_lf_json.dumps(_lf_entry) + "\n")
     #|            _lf_log.write(_lf_json.dumps(dict(complete=True, tensors=_lf_i+1)) + "\n")
     #|        finally:
@@ -52,6 +65,9 @@ test "observer retains only weak references and preserves yielded clone" {
   assert_true(replacement().contains("del _lf_owned"))
   assert_false(replacement().contains("synchronize("))
   assert_false(replacement().contains("empty_cache("))
+  assert_true(replacement().contains("mallinfo2()"))
+  assert_true(replacement().contains("reader_buffer"))
+  assert_false(replacement().contains("malloc_trim("))
 }
 
 ///|

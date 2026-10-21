@@ -1,0 +1,142 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// External reference loading experiment only, not a production loader. The
+// full-model loading trial still hits the reserve guard. Independent storage
+// permits consumers to retain tensors; no integrity scan or inference math.
+
+///|
+fn owned_reader() -> String {
+  (
+    #|    if is_distributed:
+    #|        raise ValueError("owned CPU reader requires local checkpoint files")
+    #|    import json as _lf_json
+    #|    import os as _lf_os
+    #|    import time as _lf_time
+    #|    from safetensors.torch import _getdtype
+    #|    _lf_i = 0
+    #|    with open(f"/run-result/owned-reader-{_lf_os.getpid()}.jsonl", "x", buffering=1) as _lf_log:
+    #|        for _lf_path in hf_weights_files:
+    #|            with open(_lf_path, "rb", buffering=0) as _lf_file:
+    #|                _lf_length = int.from_bytes(_lf_file.read(8), "little")
+    #|                _lf_metadata = _lf_json.loads(_lf_file.read(_lf_length))
+    #|                # Preserve the streamer's physical tensor order, not JSON order.
+    #|                _lf_items = sorted(((n,m) for n,m in _lf_metadata.items() if n != "__metadata__"), key=lambda x:x[1]["data_offsets"][0])
+    #|                for name, _lf_meta in _lf_items:
+    #|                    _lf_begin, _lf_end = _lf_meta["data_offsets"]
+    #|                    _lf_raw = torch.empty(_lf_end-_lf_begin, dtype=torch.uint8, device="cpu")
+    #|                    _lf_view = memoryview(_lf_raw.numpy())
+    #|                    _lf_file.seek(8+_lf_length+_lf_begin)
+    #|                    _lf_read = 0
+    #|                    while _lf_read < len(_lf_view):
+    #|                        _lf_n = _lf_file.readinto(_lf_view[_lf_read:])
+    #|                        if not _lf_n:
+    #|                            raise EOFError(f"short tensor read: {name}")
+    #|                        _lf_read += _lf_n
+    #|                    tensor = _lf_raw.view(_getdtype(_lf_meta["dtype"])).reshape(_lf_meta["shape"])
+    #|                    yield name, tensor
+    #|                    del tensor, _lf_view, _lf_raw
+    #|                    if _lf_i % 128 == 0 or _lf_end-_lf_begin >= 67108864:
+    #|                        with open("/proc/self/smaps_rollup") as _lf_f:
+    #|                            _lf_rollup = _lf_f.read()
+    #|                        _lf_log.write(_lf_json.dumps(dict(index=_lf_i,name=name,bytes=_lf_end-_lf_begin,
+    #|                            time_ns=_lf_time.monotonic_ns(),gpu_allocated=torch.cuda.memory_allocated(),
+    #|                            gpu_reserved=torch.cuda.memory_reserved(),smaps_rollup=_lf_rollup))+"\n")
+    #|                    _lf_i += 1
+    #|        _lf_log.write(_lf_json.dumps(dict(complete=True,tensors=_lf_i))+"\n")
+  )
+}
+
+///|
+test "owned reader keeps retained tensors independent without double staging" {
+  let source = owned_reader()
+  assert_true(source.contains("readinto(_lf_view[_lf_read:])"))
+  assert_true(source.contains("yield name, tensor"))
+  assert_true(source.contains("_getdtype(_lf_meta[\"dtype\"])"))
+  assert_false(source.contains("clone()"))
+  assert_false(source.contains("empty_cache"))
+  assert_false(source.contains("hashlib"))
+}
+
+///|
+fn replace_iterator(original : String) -> String raise {
+  let marker = "def runai_safetensors_weights_iterator("
+  guard original.split(marker).to_array() is [before, after] else {
+    fail("iterator")
+  }
+  guard after.split("\ndef fastsafetensors_weights_iterator(").to_array()
+    is [body, rest] else {
+    fail("next function")
+  }
+  guard body.split("    with SafetensorsStreamer() as streamer:").to_array()
+    is [signature, _] else {
+    fail("body")
+  }
+  before.to_owned() +
+  marker +
+  signature.to_owned() +
+  owned_reader() +
+  "\n\n\ndef fastsafetensors_weights_iterator(" +
+  rest.to_owned()
+}
+
+///|
+test "only the installed Runai iterator body is replaced" {
+  let source = "PREAMBLE\ndef runai_safetensors_weights_iterator(args):\n    with SafetensorsStreamer() as streamer:\n        old_body()\n\ndef fastsafetensors_weights_iterator(args):\n    unchanged()\n"
+  let result = replace_iterator(source)
+  assert_true(
+    result.has_prefix(
+      "PREAMBLE\ndef runai_safetensors_weights_iterator(args):\n",
+    ),
+  )
+  assert_true(
+    result.has_suffix(
+      "def fastsafetensors_weights_iterator(args):\n    unchanged()\n",
+    ),
+  )
+  assert_false(result.contains("old_body()"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, original_path] &&
+    root.has_prefix("/tmp/lunaflux-loader-observer-") else {
+    fail("NEW_ROOT INSTALLED_WEIGHT_UTILS_SOURCE")
+  }
+  let original = @fs.read_file(original_path).text()
+  let replaced = replace_iterator(original)
+  @fs.mkdir(root)
+  @fs.write_file(root + "/original.py", original, create_mode=CreateNew)
+  @fs.write_file(root + "/weight_utils.py", replaced, create_mode=CreateNew)
+  for rank in 0..<2 {
+    let socket = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      "-o",
+      "BatchMode=yes",
+      host,
+      "mkdir " + root,
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      root + "/weight_utils.py",
+      host + ":" + root + "/weight_utils.py",
+    ])
+    .output()
+    .check()
+  }
+}

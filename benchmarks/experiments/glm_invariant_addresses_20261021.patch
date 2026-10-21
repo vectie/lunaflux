@@ -1,0 +1,153 @@
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline.mbt b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+index dafe0c25..3043b928 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+@@ -5,18 +5,27 @@
+ pub struct MatrixFragmentPipeline {
+   priv matrix : MatrixTilePlan
+   priv row_tile : Int
++  priv invariant_addresses : Bool
+ }
+
+ ///|
+ pub fn MatrixFragmentPipeline::new(
+   matrix : MatrixTilePlan,
+   row_tile~ : Int,
++  invariant_addresses~ : Bool = false,
+ ) -> Self raise @precision.PrecisionPlanError {
+   let (_, _, inner) = matrix.geometry()
+   guard row_tile is (32 | 64) && inner % 64 == 0 else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+-  { matrix, row_tile, }
++  { matrix, row_tile, invariant_addresses, }
++}
++
++///|
++/// Operand ownership and swizzled lane offsets are independent of the K epoch.
++/// Retain those addresses while advancing only the contiguous reduction offset.
++pub fn MatrixFragmentPipeline::invariant_addresses(self : Self) -> Bool {
++  self.invariant_addresses
+ }
+
+ ///|
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+index d50dbaee..e32360ad 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+@@ -15,6 +15,7 @@ pub fn fragment_pipeline_source(
+   let fragments = warp_columns / 8
+   let output_type = if partial_float32 { "float" } else { "__nv_bfloat16" }
+   let value = if partial_float32 { "v" } else { "__float2bfloat16_rn(v)" }
++  let invariant = plan.invariant_addresses()
+   let decode = if matrix.law() == ShapeAwareFloat32 {
+     let body = shape_decode_body(
+       inner~,
+@@ -28,12 +29,48 @@ pub fn fragment_pipeline_source(
+   } else {
+     ""
+   }
+-  let copies = [
++  let operands = [
+       (m, "tile_a", "input", "row_base", "live_rows"),
+       (n, "tile_b", "weight", "column_base", columns.to_string()),
+     ]
++  let address_setup = if invariant {
++    operands.map(item => {
++      let (extent, tile, pointer, base, limit) = item
++      (
++        $|const unsigned \{tile}_base=(unsigned)__cvta_generic_to_shared(\{tile});
++        $|const unsigned \{tile}_logical=threadIdx.x*16;
++        $|const unsigned \{tile}_copy=\{tile}_logical^((\{tile}_logical>>3)&112u);
++        $|const __nv_bfloat16 *\{tile}_src[\{extent*k/1024}];
++        $|int \{tile}_valid[\{extent*k/1024}];
++        $|#pragma unroll
++        $|for(int atom=0;atom<\{extent*k/1024};++atom) {
++        $|  const int r=\{base}+threadIdx.x/8+atom*16;
++        $|  \{tile}_valid[atom]=r<\{limit}?16:0;
++        $|  \{tile}_src[atom]=\{pointer}+(r<\{limit}?(unsigned long long)r*\{inner}+(threadIdx.x%8)*8:0ULL);
++        $|}
++      )
++    }).join("\n") + (
++      $|unsigned a_lane=((warp_row+lane%16)*64+(lane/16)*8)*2;
++      $|a_lane^=(a_lane>>3)&112u;
++      $|unsigned b_lane=((warp_column+lane%8)*64+((lane/8)%2)*8)*2;
++      $|b_lane^=(b_lane>>3)&112u;
++    )
++  } else { "" }
++  let copies = operands
+     .map(item => {
+       let (extent, tile, pointer, base, limit) = item
++      if invariant {
++        return (
++          $|if(copy_k<\{inner}) {
++          $|  #pragma unroll
++          $|  for(int atom=0;atom<\{extent*k/1024};++atom) {
++          $|    unsigned dst=\{tile}_base+copy_slot*\{extent*k*2}+\{tile}_copy+atom*2048;
++          $|    const __nv_bfloat16 *src=\{tile}_src[atom]+copy_k;
++          $|    asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;"::"r"(dst),"l"(src),"r"(\{tile}_valid[atom]):"memory");
++          $|  }
++          $|}
++        )
++      }
+       (
+         $|for(int i=threadIdx.x;i<\{extent*k/8};i+=128) {
+         $|  const int r=\{base}+i/8,c=copy_k+(i%8)*8;
+@@ -48,6 +85,21 @@ pub fn fragment_pipeline_source(
+     })
+     .join("\n")
+   fn load(slot : String, kk : String) -> String {
++    if invariant {
++      return (
++        $|{
++        $|  unsigned a_addr=tile_a_base+slot*\{m*k*2}+(a_lane^((\{kk})*2));
++        $|  asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];"
++        $|    :"=r"(a[\{slot}][0]),"=r"(a[\{slot}][1]),"=r"(a[\{slot}][2]),"=r"(a[\{slot}][3]):"r"(a_addr));
++        $|  #pragma unroll
++        $|  for(int j=0;j<\{fragments};++j) {
++        $|    unsigned b_addr=tile_b_base+slot*\{n*k*2}+j*1024+(b_lane^((\{kk})*2));
++        $|    asm volatile("ldmatrix.sync.aligned.m8n8.x2.shared.b16 {%0,%1}, [%2];"
++        $|      :"=r"(b[\{slot}][j][0]),"=r"(b[\{slot}][j][1]):"r"(b_addr));
++        $|  }
++        $|}
++      )
++    }
+     (
+       $|{
+       $|  unsigned a_byte=((warp_row+lane%16)*64+\{kk}+(lane/16)*8)*2;
+@@ -87,6 +139,7 @@ pub fn fragment_pipeline_source(
+       $|  __shared__ __align__(1024) __nv_bfloat16 tile_a[\{2*m*k}],tile_b[\{2*n*k}];
+       $|  const int lane=threadIdx.x%32,warp=threadIdx.x/32;
+       $|  const int warp_row=(warp/\{4/(m/16)})*16,warp_column=(warp%\{4/(m/16)})*\{warp_columns};
++      $|  \{address_setup}
+       $|  float acc[\{fragments}][4]={};
+       $|  unsigned a[2][4],b[2][\{fragments}][2];
+       $|  // Prologue: two independently committed operand epochs.
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+index aae12df7..159aded3 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+@@ -36,6 +36,7 @@ test "export explicit fragment pipelines" {
+     return
+   }
+   let partial_float32 = @env.get_env_var("LUNA_FRAGMENT_BF16") != Some("1")
++  let invariant = @env.get_env_var("LUNA_FRAGMENT_INVARIANT") == Some("1")
+   let shapes = [(4096, 4096), (4096, 8192), (1536, 4096), (128, 4096)]
+   println("LUNA_SOURCE_BEGIN prefill")
+   if !partial_float32 { println("#define LUNA_PROJECTION_BF16_OUTPUT 1") }
+@@ -49,6 +50,15 @@ test "export explicit fragment pipelines" {
+       tile_columns=32,
+       staging=SynchronousTiles(inner_tile=64),
+     )
++    if invariant {
++      for j in 0..<4 {
++        let plan = @matrix.MatrixFragmentPipeline::new(matrix,
++          row_tile=if j == 2 {64} else {32}, invariant_addresses=j is (1 | 2))
++        println(@utf8.decode(@tiled_matrix_cuda_source.fragment_pipeline_source(plan,
++          symbol="p\{i}_s\{j}",partial_float32~)))
++      }
++      continue
++    }
+     println(
+       @utf8.decode(
+         @tiled_matrix_cuda_source.dense_source(

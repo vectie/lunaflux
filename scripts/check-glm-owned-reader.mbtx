@@ -1,0 +1,59 @@
+///|
+// External vLLM fixture only: CPU container, no GPU, network, or payload hashes.
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-loader-observer-") else {
+    fail("PREPARED_ROOT")
+  }
+  let fixture =
+    #|import os, tempfile, torch
+    #|from safetensors.torch import save_file, load_file
+    #|from vllm.model_executor.model_loader.weight_utils import runai_safetensors_weights_iterator
+    #|with tempfile.TemporaryDirectory() as d:
+    #|    expected = {"bf16":torch.arange(128).to(torch.bfloat16), "float":torch.arange(33).float(), "u8":torch.arange(23,dtype=torch.uint8), "i64":torch.arange(3,dtype=torch.int64), "fp8":torch.arange(16).to(torch.float8_e4m3fn)}
+    #|    paths = [d+"/a.safetensors",d+"/b.safetensors"]
+    #|    save_file(expected,paths[0]);save_file({"later":torch.arange(2048).float()},paths[1])
+    #|    expected["later"] = torch.arange(2048).float()
+    #|    actual = dict(runai_safetensors_weights_iterator(paths,False,False))
+    #|    assert actual.keys() == expected.keys()
+    #|    for name, tensor in actual.items():
+    #|        assert tensor.dtype == expected[name].dtype and tensor.shape == expected[name].shape
+    #|        assert torch.equal(tensor.view(torch.uint8), expected[name].view(torch.uint8)), name
+    #|    print("owned tensors survive iterator retirement; BF16/F32/U8/I64/E4M3 bytes exact; no GPU payload")
+  @fs.write_file(root + "/fixture.py", fixture, create_mode=CreateNew)
+  let socket = "/tmp/lunaflux-glm179-context-20261019.sock"
+  let host = "wlc004s@192.168.2.179"
+  @shell.Cmd("scp", [
+    "-o",
+    "ControlPath=" + socket,
+    root + "/fixture.py",
+    host + ":" + root + "/fixture.py",
+  ])
+  .output()
+  .check()
+  let r = @shell.Cmd("ssh", [
+    "-S",
+    socket,
+    "-o",
+    "BatchMode=yes",
+    host,
+    "docker run --rm --network none --memory 2g --memory-swap 2g -v " +
+    root +
+    ":/run-result -v " +
+    root +
+    "/weight_utils.py:/usr/local/lib/python3.12/dist-packages/vllm/model_executor/model_loader/weight_utils.py:ro --entrypoint python3 ghcr.nju.edu.cn/miaai-lab/glm-5.3-flash-2x-dgx-sparks:exl3-e3-20260907 /run-result/fixture.py",
+  ]).output(max_output_bytes=1048576)
+  @fs.write_file(root + "/fixture.stdout", r.stdout(), create_mode=CreateNew)
+  @fs.write_file(root + "/fixture.stderr", r.stderr(), create_mode=CreateNew)
+  println(r.stdout())
+  println(r.stderr())
+  r.check()
+}
