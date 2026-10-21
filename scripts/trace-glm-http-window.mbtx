@@ -112,7 +112,12 @@ async fn main {
     out.check()
   }
   let owner = ["run", "scripts/run-glm-http-spark.mbtx", root]
-  let trace = ["run", "scripts/trace-glm-long-http.mbtx", root, "native"]
+  let activity = @env.get_env_var("LUNAFLUX_ACTIVITY_LIBRARY_ROOT") != None
+  let trace = if activity {
+    ["run", "scripts/trace-glm-activity.mbtx", root]
+  } else {
+    ["run", "scripts/trace-glm-long-http.mbtx", root, "native"]
+  }
   let credential = @fs.read_file(root + "/acceptance.credential")
     .text()
     .trim()
@@ -263,7 +268,12 @@ async fn main {
   }
   let result = try {
     progress("init", "init")
-    saved("bounded-start", "moon", [..owner, "start-profile"], {})
+    saved(
+      "bounded-start",
+      "moon",
+      [..owner, if activity { "start-activity" } else { "start-profile" }],
+      {},
+    )
     defer saved("bounded-retire", "moon", [..owner, "stop"], {})
     @async.with_task_group(group => {
       group.spawn_bg(() => {
@@ -416,6 +426,9 @@ async fn main {
           .contains("323") else {
           fail("arithmetic correctness request did not produce 323")
         }
+      }
+      if activity {
+        saved("bounded-seal", "moon", [..trace, "seal"], {})
       }
       completed.val = true
       saved("bounded-drain", "moon", [..owner, "stop"], {})

@@ -22,7 +22,12 @@ async fn main {
   let owner = [
     "run", "scripts/benchmark-spark-reference.mbtx", root, "glm", "vllm",
   ]
-  let trace = ["run", "scripts/trace-glm-long-http.mbtx", root, "vllm"]
+  let activity = @env.get_env_var("LUNAFLUX_ACTIVITY_LIBRARY_ROOT") is Some(_)
+  let trace = if activity {
+    ["run", "scripts/trace-glm-activity.mbtx", root]
+  } else {
+    ["run", "scripts/trace-glm-long-http.mbtx", root, "vllm"]
+  }
   async fn saved(label : String, args : Array[String]) -> Unit {
     let r = @shell.Cmd("moon", args).output(max_output_bytes=8388608)
     @fs.write_file(
@@ -169,13 +174,16 @@ async fn main {
       saved("capture-start", [..trace, "start"])
       defer stop_capture()
       group.spawn_bg(() => {
-        @async.sleep(150)
+        @async.sleep(if activity { 700 } else { 150 })
         stop_capture()
       })
       @async.with_timeout(90000, () => {
         request("profile", Json(fields).stringify())
       })
       stop_capture()
+      if activity {
+        saved("capture-seal", [..trace, "seal"])
+      }
       retire()
     })
     "COMPLETE: inspect both GPU traces, matched token count and memory before comparison"

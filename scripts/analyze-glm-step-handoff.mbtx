@@ -38,7 +38,14 @@ fn field(j : Json, key : String) -> Json raise {
 ///|
 fn integer(j : Json) -> Int64 raise {
   match j {
-    Number(n, ..) => n.to_int64()
+    Number(n, repr~) =>
+      match repr {
+        Some(text) => @string.parse_int64(text)
+        None => {
+          guard n.abs() <= 9007199254740991.0 else { fail("lossy timestamp") }
+          n.to_int64()
+        }
+      }
     String(s) =>
       // Int64 evidence is serialized losslessly as decimal JSON strings.
       @string.parse_int64(s)
@@ -77,10 +84,10 @@ async fn main {
   guard query(
       "SELECT min(k.start) start FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName WHERE k.start>\{begin} AND s.value='\{anchor}';",
     )
-    is Array([{ "start": Number(n, ..), .. }]) else {
+    is Array([{ "start": n, .. }]) else {
     fail("missing next decoder boundary; truncated tail")
   }
-  let end = n.to_int64()
+  let end = integer(n)
   let spans : Array[Span] = []
   let kinds : Map[String, Json] = Map([])
   for

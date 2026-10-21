@@ -219,15 +219,15 @@ async fn main {
   let pass = @string.parse_int(pass_arg)
   guard pass >= 0 else { fail("nonnegative pass") }
   let raw = @shell.Cmd("sqlite3", [
-    "-readonly", "-json", db, "SELECT k.start,k.end,k.streamId stream,s.value name,k.correlationId correlation,coalesce(k.graphNodeId,0) node FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start;",
+    "-readonly", "-json", db, "SELECT CAST(k.start AS TEXT) start,CAST(k.end AS TEXT) end,k.streamId stream,s.value name,k.correlationId correlation,coalesce(k.graphNodeId,0) node FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName ORDER BY k.start;",
   ]).output(max_output_bytes=134217728)
   raw.check()
   guard @json.parse(raw.stdout()) is Array(rows) else { fail("kernel rows") }
   let all = rows.map(row => {
     guard row
       is {
-        "start": Number(a, ..),
-        "end": Number(b, ..),
+        "start": String(a),
+        "end": String(b),
         "stream": Number(s, ..),
         "name": String(name),
         "correlation": Number(c, ..),
@@ -237,8 +237,8 @@ async fn main {
       fail("event")
     }
     Event::{
-      start: a.to_int64(),
-      end: b.to_int64(),
+      start: @string.parse_int64(a),
+      end: @string.parse_int64(b),
       stream: s.to_int64(),
       name,
       correlation: c.to_int64(),

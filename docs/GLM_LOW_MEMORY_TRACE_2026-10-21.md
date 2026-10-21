@@ -4,8 +4,9 @@
 
 Latest b1788d1d accepted projection artifacts, scales+bulk experts, local MoE
 combine, BF16 projection TP, 16-site graph windows, 64-token chunks. This is a
-selected execution-graph retrace, not an overall benchmark. Two new full-model
-capture configurations maximum. Keep GPU usage below 100 GiB per Spark and
+selected execution-graph retrace, not an overall benchmark. The initial budget
+was two full-model collector configurations. Both failed before a capture window;
+one final window-only configuration was then explicitly announced. Keep GPU usage below 100 GiB per Spark and
 host availability above 16 GiB; use earlier stops during loading. No payload
 hashing. Restore the accepted GLM service after owned diagnostic workers retire.
 
@@ -31,7 +32,9 @@ midpoint from2147483640 complete normally. Starting at-8 causes SIGABRT at
 counter4 in `Coroutine::unwrap` called by `with_event_loop.inner`. Evidence:
 `/tmp/lunaflux-idle-repro-20261021-v1/{ordinary,signed,collision}.txt`.
 This demonstrates the collision mechanism; a live natural-abort stack has not
-yet been captured. The historical missing core is not presented as evidence.
+been captured. The live debugger was deliberately interrupted and detached
+before stopping the old pair; its saved SIGINT snapshot is not an abort stack.
+The historical missing core is not presented as evidence.
 
 The runtime repair suspends an indefinitely idle stage on its socket, retaining
 at most one prefix byte in already-owned storage. A fresh-clock poll starts the
@@ -43,7 +46,12 @@ Local transport tests pass12/12, including idle wakeup, fragmented prefix
 deadline, cancellation and EOF. Targeted stage-control execution and retirement
 tests pass2/2. The service check passes with the already-existing migration
 warning exclusions; an unrestricted warning-denied check still fails on
-unrelated migration warnings. No warning policy was changed.
+unrelated migration warnings. No warning policy was changed. Implementation
+`5540ad40` and deployed-toolchain spelling correction `ed6be466` are pushed.
+The clean, commit-pinned ARM build in
+`/tmp/lunaflux-glm-service-arm-idlewait-20261021-v2` completed within its 2 GiB,
+no-swap CPU-only unit. The earlier build failure from local formatter `Int32`
+spelling is retained; it was not a CUDA or runtime failure.
 
 ## Collector design and qualification status
 
@@ -51,8 +59,13 @@ The external CUPTI13.0.1 injection fixture has eight fixed1MiB host buffers,
 a four-buffer1MiB device activity pool, no stack sampling, and no module-image
 snapshots. Actual internal CUPTI overhead still requires measurement. It loads
 at CUDA initialization in the real approved-spawn GPU child, not in the HTTP
-parent. Four timestamped capture windows are supported; raw events stream to
-disk. Conversion and symbol demangling occur after model retirement.
+parent. The final collector registers buffers/control at initialization but
+enables activity collection only at the first post-readiness `start`. Four
+timestamped capture windows are supported; completed buffers flush every 10 ms
+and raw events stream to disk. Conversion and symbol demangling occur after
+model retirement. `seal`, issued only after HTTP work drains, forces the final
+activity flush without synchronizing CUDA, then writes completeness evidence.
+This does not rely on Python workers running `atexit` rather than `_exit`.
 
 Kernel/graph/stream/correlation IDs, CUDA API intervals, copies and memsets are
 retained. Cross-machine clocks are not assumed aligned. Buffer refusals, dropped
@@ -62,6 +75,110 @@ The compiler neither imports the collector nor treats reference comparisons as
 correctness evidence.
 
 CPU ASan/UBSan buffer ownership, exhaustion/reuse and serialization tests passed
-in a256MiB/no-swap user unit. Both-rank CPU builds pass. GPU graph/approved-child
-coverage and full-model memory/retrace results are pending; these CPU checks do
-not establish trace completeness or service qualification.
+in a256MiB/no-swap user unit. Both-rank CPU builds pass. The final library is
+`/tmp/lunaflux-activity-20261021-v7`; its actual approved-child GPU fixture
+`/tmp/lunaflux-activity-fixture-20261021-v8` creates its graph before tracing is
+enabled, executes one million pre-window API calls, captures two windows, seals,
+and deliberately calls `_exit(0)`. All16 kernels/eight graph nodes are present,
+with50 total records and zero dropped/refused/invalid/error records. This proves
+fixture coverage, not full-model numerical correctness or trace completeness.
+
+## Failed captures retained, not used as timing evidence
+
+- Native full-model roots `.../lunaflux-glm-http-activity-20261021-v1` and `v2`
+  loaded and passed warmup, but the initial and periodic-flush collectors refused
+  96,975 and105,375 rank-1 buffer requests during startup, respectively. Capture
+  control rejected them before the long request. Neither is a valid decoder
+  trace. A tiny API-burst fixture did not reproduce this full startup behavior.
+- Window-only root `.../lunaflux-glm-http-activity-20261021-v3` failed before GPU
+  model loading: the harness launched before asynchronous artifact preparation
+  finished, causing `ApprovedFsError.Unavailable`. This is an orchestration
+  failure, not a projection kernel or memory failure. The final attempt waits
+  for both remote manifests/executables and preparation completion.
+- The former non-streaming acceptance payload was inappropriate for the
+  cold/warm trace harness's SSE completion assertion. No earlier failed attempt
+  reached that request. The final trace retains its literal messages, requests
+  one output token and SSE, and requires7,973 uncached prompt tokens in both
+  responses. It is not an overall throughput or latency benchmark.
+
+Offline conversion preserves integer nanosecond timestamps, including values
+above2^53; it never routes them through a floating-point JSON number. Updated
+execution/TP/handoff analyzers preserve that precision. The trace owner selects
+the actual GPU worker by joining its owned control endpoints to GPU process IDs,
+not a guessed Python PID or arbitrary memory threshold. Missing or ambiguous
+ownership fails the capture. Comparison remains outside the compiler.
+
+## Actual full-window failure and bounded correction
+
+The final window-only attempt, `/tmp/lunaflux-glm-http-activity-20261021-v4`,
+starts both collectors with zero drops/errors. During its first cold window,
+rank1 emits1,719,959 retained records and ultimately reports859,722 dropped and
+refused records. Stop-time counts were1,708,459 retained and701,397 dropped;
+the larger terminal counts include later buffer draining. Both ranks retire
+cleanly; the incomplete cold request is not a correctness result.
+
+The retained records identify the pressure directly:
+
+| Rank1 record | Count |
+| --- | ---: |
+| `cuCtxSetCurrent` | 857,563 |
+| `cuEventQuery` | 857,257 |
+| All other driver records | 170 |
+| GPU kernels | 4,902 |
+| GPU copies | 67 |
+
+These are counts in an incomplete capture, **not an unbiased execution-frequency
+estimate or valid timing allocation**. Context binding and event polling account
+for over99% of retained records. The relevant native polling owner is
+`internal/cuda/ordered_executor.c`; this active-GPU polling is distinct from the
+idle socket-coroutine churn repaired above. The tracer must not confuse the two.
+
+Library `/tmp/lunaflux-activity-20261021-v8` now disables context-bind/event-query/
+stream-query activity through CUPTI's per-API filter, **before record allocation**.
+Filtering text after buffering would not resolve this pressure. GPU events,
+launches, copies, explicit waits and synchronization remain enabled. The schema
+declares the omitted API scope, so individual polling CPU time cannot be inferred
+from this filtered trace. No production polling policy or compiler pass changed.
+
+Fixture `/tmp/lunaflux-activity-fixture-20261021-v9` adds one million context
+bind/query pairs **inside each of two windows**, four million calls total, while
+preserving the graph-before-enable and `_exit` conditions. All16 expected kernels
+and eight graph nodes are present, with zero dropped/refused/invalid/error
+records. Latest collector CPU ASan/UBSan ownership/schema checks also pass in
+the256MiB/no-swap unit. This is a qualified fixture, not a completed full-model
+retrace. The full-model capture budget is exhausted; no new vLLM timing or
+two-rank overlap/TP comparison is claimed. The retained October19 vLLM trace
+remains historical, and is not relabeled as a fresh measurement.
+
+The failed v4 attempt stayed within its sampled memory envelope:
+rank0/1 GPU maxima94.241/94.270 GiB; host minima17.276/19.079 GiB; owned swap0.
+Source: `memory-envelope.json` plus raw fast/slow watcher logs in that root.
+These are sampled bounds, not a claim of continuous physical peak measurement.
+
+## Unprofiled runtime qualification and release boundary
+
+`/tmp/lunaflux-glm-http-idlewait-validation-20261021-v2` uses the commit-pinned
+`ed6be466` runtime and unchanged accepted projection AOT/geometry, without any
+tracer. The7,973-token SSE request completes, followed by a ten-second idle
+interval and the complete arithmetic answer `323` with `finish_reason=stop`.
+Both owned workers retire successfully. This validates request completion and
+idle wakeup, not model quality across a new corpus or a multi-hour abort soak.
+Sampled rank0/1 host minima17.159/18.980 GiB, GPU maxima94.239/94.268 GiB,
+owned swap0. The earlier validation-v1 harness failed before launch because it
+used obsolete default SSH socket paths; the v2 invocation supplies the live
+sockets explicitly. That failure is retained and is not a runtime defect.
+
+Targeted `moon info` succeeds. The final full warning-denied native check and
+test commands were attempted and remain blocked by pre-existing migration
+warnings promoted to errors (including `implicit_impl_as_method`); no full-suite
+pass is claimed. Transport tests pass12/12 with the same pre-existing warning
+exclusions. The offline owner/converter/execution/TP/handoff regression tests
+pass26/26. No warning policy or unrelated migration file was changed.
+Raw phase results: `/tmp/lunaflux-low-memory-phase-checks-20261021-v1`.
+
+The new runtime is installed into separate `glm53-lunaflux-ed6be466` release
+directories. Existing accepted cubins/configuration remain unchanged; the
+previous `b1788d1d` releases and unit backups remain available. No observer is
+linked or injected into the public service. Installation reads existing declared
+labels only; there is no payload hashing. Deployment evidence:
+`/tmp/lunanexa-glm-idlewait-install-20261021-v1`.

@@ -1,0 +1,151 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, library, root, mode] &&
+    library.has_prefix("/tmp/lunaflux-activity-") &&
+    root.has_prefix("/tmp/lunaflux-activity-") &&
+    [library, root].all(s => {
+      s.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-'))
+    }) &&
+    mode is ("prepare" | "run") else {
+    fail("LIBRARY NEW_ROOT prepare|run")
+  }
+  let sock = "/tmp/lunaflux-glm178-context-20261019.sock"
+  let host = "wlc003s@192.168.2.178"
+  async fn remote(command : String) -> @shell.Output {
+    @shell.Cmd("ssh", ["-S", sock, "-o", "BatchMode=yes", host, command]).output()
+  }
+  if mode == "prepare" {
+    @fs.mkdir(root)
+    remote("mkdir " + root).check()
+    for
+      file in [
+        "tests/process_native_fixture/activity_trace_probe.cu", "internal/process/process_approved_spawn.c",
+        "internal/process/process_approved_spawn.h",
+      ] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + sock,
+        file,
+        host + ":" + root + "/",
+      ])
+      .output()
+      .check()
+    }
+    for
+      (name, command) in [
+        (
+          "spawn",
+          "cc -std=c11 -c " +
+          root +
+          "/process_approved_spawn.c -o " +
+          root +
+          "/spawn.o",
+        ),
+        (
+          "probe",
+          "/usr/local/cuda/bin/nvcc -O2 -arch=sm_121 -I" +
+          root +
+          " " +
+          root +
+          "/activity_trace_probe.cu " +
+          root +
+          "/spawn.o -lcuda -o " +
+          root +
+          "/probe",
+        ),
+      ] {
+      let r = remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-" +
+        name +
+        " -p MemoryMax=1G -p MemorySwapMax=0 -p RuntimeMaxSec=120 " +
+        command,
+      )
+      @fs.write_file(
+        root + "/" + name + ".txt",
+        r.stdout() + r.stderr(),
+        create_mode=CreateNew,
+      )
+      r.check()
+    }
+  } else {
+    let owners = remote(
+      "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+    )
+    owners.check()
+    guard owners.stdout().trim().is_empty() else { fail("GPU occupied") }
+    let r = remote(
+      "systemd-run --user --wait --pipe --unit=" +
+      root[5:].to_owned() +
+      " -p MemoryMax=2G -p MemorySwapMax=0 -p RuntimeMaxSec=120 /usr/bin/env LD_PRELOAD=" +
+      library +
+      "/nsys_exec_bridge.so CUDA_INJECTION64_PATH=" +
+      library +
+      "/activity_trace.so LUNAFLUX_ACTIVITY_ROOT=" +
+      root +
+      " " +
+      root +
+      "/probe parent",
+    )
+    @fs.write_file(
+      root + "/run.txt",
+      r.stdout() + r.stderr(),
+      create_mode=CreateNew,
+    )
+    r.check()
+    let files = remote("find " + root + " -maxdepth 1 -name 'activity-*.tsv'")
+    files.check()
+    let paths = files
+      .stdout()
+      .trim()
+      .split("\n")
+      .map(s => s.to_owned())
+      .to_array()
+    guard paths.length() == 1 else { fail("expected only actual CUDA child") }
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + sock,
+      host + ":" + paths[0],
+      root + "/child.tsv",
+    ])
+    .output()
+    .check()
+    let lines = @fs.read_file(root + "/child.tsv").text().split("\n").to_array()
+    guard lines[0].contains(
+        "api_scope=launch-wait-copy-without-poll-or-context-bind",
+      ) &&
+      !lines.any(s => {
+        s.contains("\tcuCtxSetCurrent") || s.contains("\tcuEventQuery")
+      }) else {
+      fail("observed polling flood was not excluded before record allocation")
+    }
+    for window in ["1", "2"] {
+      let kernels = lines.filter(s => s.has_prefix(window + "\tK\t"))
+      guard kernels.length() == 8 else {
+        fail("eight kernels required per window")
+      }
+      guard kernels.filter(s => s.split("\t").to_array()[6] != "0").length() ==
+        4 else {
+        fail("four graph nodes required")
+      }
+    }
+    guard lines.any(s => {
+      s.has_prefix("FINAL ") &&
+      s.contains("dropped=0 invalid=0 errors=0 refused=0")
+    }) else {
+      fail("unclean terminal trace")
+    }
+    println(
+      "complete actual-child graph-node capture, two windows, no drops/errors; no model workload",
+    )
+  }
+}

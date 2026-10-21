@@ -259,10 +259,13 @@ async fn main {
     is ("start"
     | "start-traced"
     | "start-profile"
+    | "start-activity"
     | "watch"
     | "stop"
     | "status") else {
-    fail("ROOT start|start-traced|start-profile|watch|stop|status")
+    fail(
+      "ROOT start|start-traced|start-profile|start-activity|watch|stop|status",
+    )
   }
   let tag = root.split("/").last().unwrap().to_string()
   async fn stop() -> Unit {
@@ -314,7 +317,22 @@ async fn main {
     }
     return
   }
-  if mode == "start" || mode == "start-traced" || mode == "start-profile" {
+  if mode == "start" ||
+    mode == "start-traced" ||
+    mode == "start-profile" ||
+    mode == "start-activity" {
+    let activity_library = if mode == "start-activity" {
+      let path = @env.get_env_var("LUNAFLUX_ACTIVITY_LIBRARY_ROOT").unwrap_or(
+        "",
+      )
+      guard path.has_prefix("/tmp/lunaflux-activity-") &&
+        path.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+        fail("qualified activity library root required")
+      }
+      Some(path)
+    } else {
+      None
+    }
     let nccl_level = nccl_diagnostic_level(
       @env.get_env_var("LUNAFLUX_NCCL_DIAGNOSTIC_LEVEL"),
     )
@@ -403,6 +421,9 @@ async fn main {
       }
       let interface = if rank == 0 { "enp1s0f1np1" } else { "enp1s0f0np0" }
       let hca = if rank == 0 { "rocep1s0f1" } else { "rocep1s0f0" }
+      if activity_library is Some(_) {
+        remote(rank, "mkdir " + root + "/activity").check()
+      }
       if !profile.is_empty() {
         remote(rank, "mkdir " + root + "/nsys-tmp").check()
         @fs.write_file(
@@ -454,7 +475,19 @@ async fn main {
         " --property=MemoryMax=100G --property=MemorySwapMax=0 --property=RuntimeMaxSec=10800" +
         stop_properties() +
         " " +
-        (if mode == "start-traced" && rank == 0 {
+        (if activity_library is Some(library) {
+          "/usr/bin/env CUDA_INJECTION64_PATH=" +
+          library +
+          "/activity_trace.so LUNAFLUX_ACTIVITY_ROOT=" +
+          root +
+          "/activity" +
+          (if rank == 0 {
+            " LD_PRELOAD=" + library + "/nsys_exec_bridge.so"
+          } else {
+            ""
+          }) +
+          " "
+        } else if mode == "start-traced" && rank == 0 {
           "/usr/bin/strace -ff -tt -xx -s 8192 -e trace=read,write,recvfrom,sendto,close,shutdown,exit_group -e trace-fds=0,1,2 -z -o " +
           root +
           "/worker-wire "

@@ -1,0 +1,174 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+// Reference launch uses host PIDs so CUDA process ownership can be joined with
+// collector endpoints. CUDA-initializing parents are not model-worker traces.
+
+///|
+fn select_worker(
+  paths : Array[String],
+  owners : String,
+  root : String,
+) -> String raise {
+  let mut best = -1
+  let mut selected = ""
+  let mut tied = false
+  for row in owners.trim().split("\n") {
+    let fields = row.split(",").to_array()
+    guard fields.length() == 2 else { fail("GPU owner fields") }
+    let pid = @string.parse_int(fields[0].trim())
+    let memory = @string.parse_int(
+      fields[1].trim().strip_suffix(" MiB").unwrap_or(fields[1].trim()),
+    )
+    let endpoint = root + "/activity/control-\{pid}.sock"
+    if paths.contains(endpoint) {
+      if memory > best {
+        best = memory
+        selected = endpoint
+        tied = false
+      } else if memory == best {
+        tied = true
+      }
+    }
+  }
+  guard best >= 0 && !tied else { fail("ambiguous actual GPU worker") }
+  selected
+}
+
+///|
+test "model activity is selected by observed GPU ownership, not parent PID" {
+  let paths = [
+    "/tmp/x/activity/control-11.sock", "/tmp/x/activity/control-22.sock",
+  ]
+  assert_eq(
+    select_worker(paths, "11, 1 MiB\n22, 95000 MiB\n", "/tmp/x"),
+    paths[1],
+  )
+  try select_worker(paths, "11, 20 MiB\n22, 20 MiB", "/tmp/x") catch {
+    _ => ()
+  } noraise {
+    _ => fail("ambiguous worker accepted")
+  }
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, mode] &&
+    mode is ("start" | "stop" | "status" | "seal" | "collect") &&
+    root.has_prefix("/tmp/lunaflux-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail("ROOT start|stop|status|seal|collect")
+  }
+  let library = @env.get_env_var("LUNAFLUX_ACTIVITY_LIBRARY_ROOT").unwrap_or("")
+  guard library.has_prefix("/tmp/lunaflux-activity-") &&
+    library.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail("library root")
+  }
+  let label = @env.get_env_var("LUNAFLUX_TRACE_LABEL").unwrap_or("single")
+  guard label.all(c => c is ('a'..<='z' | '0'..<='9' | '-')) else {
+    fail("label")
+  }
+  for rank in 0..<2 {
+    let sock = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    async fn remote(command : String) -> @shell.Output {
+      @shell.Cmd("ssh", ["-S", sock, "-o", "BatchMode=yes", host, command]).output()
+    }
+    if mode == "collect" {
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid --format=csv,noheader",
+      )
+      owners.check()
+      guard owners.stdout().trim().is_empty() else {
+        fail("retire both model owners before collection")
+      }
+      let files = remote(
+        "find " + root + "/activity -maxdepth 1 -name 'activity-*.tsv'",
+      )
+      files.check()
+      let paths = files
+        .stdout()
+        .trim()
+        .split("\n")
+        .map(s => s.to_owned())
+        .to_array()
+      let chosen = if @fs.exists(root + "/activity-worker-rank\{rank}.txt") {
+        let control = @fs.read_file(root + "/activity-worker-rank\{rank}.txt")
+          .text()
+          .trim()
+          .to_owned()
+        control
+        .replace_all(old="/control-", new="/activity-")
+        .replace_all(old=".sock", new=".tsv")
+      } else if paths.length() == 1 {
+        paths[0]
+      } else {
+        ""
+      }
+      guard paths.contains(chosen) &&
+        chosen.has_prefix(root + "/activity/activity-") else {
+        fail("one actual GPU worker trace per rank required")
+      }
+      guard !@fs.exists(root + "/rank\{rank}-activity.tsv") else {
+        fail("preserve existing rank trace")
+      }
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + sock,
+        host + ":" + chosen,
+        root + "/rank\{rank}-activity.tsv",
+      ])
+      .output()
+      .check()
+    } else {
+      let files = remote(
+        "find " + root + "/activity -maxdepth 1 -name 'control-*.sock'",
+      )
+      files.check()
+      let paths = files
+        .stdout()
+        .trim()
+        .split("\n")
+        .map(s => s.to_owned())
+        .to_array()
+      let owners = remote(
+        "nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader",
+      )
+      owners.check()
+      let chosen = select_worker(paths, owners.stdout(), root)
+      let selection = root + "/activity-worker-rank\{rank}.txt"
+      if @fs.exists(selection) {
+        guard @fs.read_file(selection).text() == chosen else {
+          fail("GPU worker changed during capture")
+        }
+      } else {
+        @fs.write_file(selection, chosen, create_mode=CreateNew)
+      }
+      @fs.write_file(
+        root + "/activity-owners-" + mode + "-" + label + "-rank\{rank}.txt",
+        owners.stdout(),
+        create_mode=CreateNew,
+      )
+      let result = remote(library + "/activity_control " + chosen + " " + mode)
+      @fs.write_file(
+        root + "/activity-" + mode + "-" + label + "-rank\{rank}.txt",
+        result.stdout() + result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+      guard result.stdout().contains("dropped=0 invalid=0 errors=0 refused=0") else {
+        fail("incomplete activity capture")
+      }
+    }
+  }
+}

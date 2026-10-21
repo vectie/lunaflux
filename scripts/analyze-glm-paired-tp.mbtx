@@ -90,15 +90,15 @@ async fn events(db : String, begin : Int64, end : Int64) -> Array[Event] {
     "-readonly",
     "-json",
     db,
-    "WITH runtime AS (SELECT correlationId,COUNT(*) n,MAX(end) last_end FROM CUPTI_ACTIVITY_KIND_RUNTIME GROUP BY correlationId) SELECT k.start,k.end,k.streamId stream,s.value name,COALESCE(k.graphNodeId,0) graph_node,CASE WHEN r.n=1 THEN r.last_end ELSE NULL END launch_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName LEFT JOIN runtime r ON r.correlationId=k.correlationId WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
+    "WITH runtime AS (SELECT correlationId,COUNT(*) n,MAX(end) last_end FROM CUPTI_ACTIVITY_KIND_RUNTIME GROUP BY correlationId) SELECT CAST(k.start AS TEXT) start,CAST(k.end AS TEXT) end,k.streamId stream,s.value name,COALESCE(k.graphNodeId,0) graph_node,CASE WHEN r.n=1 THEN CAST(r.last_end AS TEXT) ELSE NULL END launch_end FROM CUPTI_ACTIVITY_KIND_KERNEL k JOIN StringIds s ON s.id=k.shortName LEFT JOIN runtime r ON r.correlationId=k.correlationId WHERE k.start>=\{begin} AND k.end<=\{end} ORDER BY k.start;",
   ]).output(max_output_bytes=16777216)
   r.check()
   guard @json.parse(r.stdout()) is Array(rows) else { fail("events") }
   rows.map(row => {
     guard row
       is {
-        "start": Number(a, ..),
-        "end": Number(b, ..),
+        "start": String(a),
+        "end": String(b),
         "stream": Number(s, ..),
         "name": String(name),
         "graph_node": Number(graph_node, ..),
@@ -107,13 +107,13 @@ async fn events(db : String, begin : Int64, end : Int64) -> Array[Event] {
       fail("event fields")
     }
     Event::{
-      start: a.to_int64(),
-      end: b.to_int64(),
+      start: @string.parse_int64(a),
+      end: @string.parse_int64(b),
       stream: s.to_int64(),
       name,
       graph_node: graph_node.to_int64(),
       launch_end: match row {
-        { "launch_end": Number(n, ..), .. } => Some(n.to_int64())
+        { "launch_end": String(n), .. } => Some(@string.parse_int64(n))
         _ => None
       },
     }

@@ -19,7 +19,8 @@ static const char *const keys[] = {
   "NSYS_TARGET_STD_REDIRECT_ACTION", "CUDA_INJECTION64_PATH", "NVTX_INJECTION64_PATH",
   "NSYS_CONTROL_CUPTI_FEATURES", "CUPTI_PROFILE_MODE", "QUADD_CUDA_CONFIG",
   /* NCCL INFO must never write into the worker's framed stdout transport. */
-  "NCCL_DEBUG_FILE", "NCCL_PROFILER_PLUGIN", "LUNAFLUX_NCCL_PROGRESS_ROOT"
+  "NCCL_DEBUG_FILE", "NCCL_PROFILER_PLUGIN", "LUNAFLUX_NCCL_PROGRESS_ROOT",
+  "LUNAFLUX_ACTIVITY_ROOT"
 };
 static char snapshot[sizeof(keys) / sizeof(keys[0])][PATH_MAX + 1];
 static size_t count;

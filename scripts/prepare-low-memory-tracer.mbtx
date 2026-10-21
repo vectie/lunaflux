@@ -1,0 +1,73 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-activity-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail("NEW_ROOT")
+  }
+  @fs.mkdir(root)
+  for rank in 0..<2 {
+    let socket = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    async fn remote(command : String) -> @shell.Output {
+      @shell.Cmd("ssh", ["-S", socket, "-o", "BatchMode=yes", host, command]).output()
+    }
+    remote("mkdir " + root).check()
+    for file in ["activity_trace.c", "activity_control.c", "nsys_exec_bridge.c"] {
+      @shell.Cmd("scp", [
+        "-o",
+        "ControlPath=" + socket,
+        "tests/process_native_fixture/" + file,
+        host + ":" + root + "/",
+      ])
+      .output()
+      .check()
+    }
+    for
+      (name, flags) in [
+        (
+          "activity_trace", "-shared -fPIC -I/usr/local/cuda/include -L/usr/local/cuda/lib64 -Wl,-rpath,/usr/local/cuda/lib64 -lcupti -pthread",
+        ),
+        ("activity_control", ""),
+        ("nsys_exec_bridge", "-shared -fPIC"),
+      ] {
+      let suffix = if name == "activity_control" { "" } else { ".so" }
+      let result = remote(
+        "systemd-run --user --wait --pipe --unit=" +
+        root[5:].to_owned() +
+        "-" +
+        name.replace_all(old="_", new="-") +
+        " -p MemoryMax=256M -p MemorySwapMax=0 -p RuntimeMaxSec=120 cc -std=c11 -O2 -Wall -Wextra -Werror " +
+        root +
+        "/" +
+        name +
+        ".c -o " +
+        root +
+        "/" +
+        name +
+        suffix +
+        " " +
+        flags,
+      )
+      @fs.write_file(
+        root + "/build-rank\{rank}-" + name + ".txt",
+        result.stdout() + result.stderr(),
+        create_mode=CreateNew,
+      )
+      result.check()
+    }
+    println("rank\{rank}: collector and control fixture compiled; no GPU work")
+  }
+}

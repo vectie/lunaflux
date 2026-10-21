@@ -1,0 +1,186 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+fn quote(value : String) -> String {
+  "'" + value.replace_all(old="'", new="''") + "'"
+}
+
+///|
+fn numeric(value : StringView) -> String raise {
+  // Parse as Int64, never Double: GPU timestamps can exceed 2^53.
+  @string.parse_int64(value).to_string()
+}
+
+///|
+fn short_kernel(value : String) -> String {
+  let function = value.strip_prefix("void ").unwrap_or(value[:])
+  let prefix = function.split("<").next().unwrap().split("(").next().unwrap()
+  prefix.split("::").to_array().last().unwrap().trim().to_owned()
+}
+
+///|
+test "SQL string escaping and nanosecond precision" {
+  assert_eq(quote("a'b"), "'a''b'")
+  assert_eq(numeric("18000000000000001"), "18000000000000001")
+  assert_eq(short_kernel("void cutlass::Kernel<X::Y>(int*)"), "Kernel")
+  assert_eq(short_kernel("glm_recurrent_12_inputs"), "glm_recurrent_12_inputs")
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, source, window, output] else {
+    fail("TRACE_TSV WINDOW NEW_SQLITE")
+  }
+  let wanted = @string.parse_int(window)
+  guard wanted > 0 && wanted <= 4 && !@fs.exists(output) else {
+    fail("invalid window or output exists")
+  }
+  let text = @fs.read_file(source).text()
+  let lines = text.split("\n").to_array()
+  guard lines[0].has_prefix("SCHEMA1 ") &&
+    lines.any(s => {
+      s.has_prefix("FINAL ") &&
+      s.contains("dropped=0 invalid=0 errors=0 refused=0")
+    }) else {
+    fail("missing clean final flush; partial capture retained, not converted")
+  }
+  let selected = lines.filter(s => s.has_prefix(window + "\t"))
+  guard !selected.is_empty() else { fail("empty capture") }
+  let symbols : Map[String, Unit] = Map([])
+  for line in selected {
+    let fields = line.split("\t").to_array()
+    guard fields.length() == 17 else { fail("activity record field count") }
+    if fields[1] == "K" {
+      symbols[fields[16].to_owned()] = ()
+    }
+  }
+  let raw = symbols.keys().to_array()
+  raw.sort()
+  let demangled : Map[String, String] = Map([])
+  if !raw.is_empty() {
+    let result = @shell.Cmd("c++filt", [], stdin=Text(raw.join("\n") + "\n")).output()
+    result.check()
+    let decoded = result.stdout().trim_end().split("\n").to_array()
+    guard decoded.length() == raw.length() else {
+      fail("demangler output count")
+    }
+    for i in 0..<raw.length() {
+      demangled[raw[i]] = decoded[i].to_owned()
+    }
+  }
+  let sql = StringBuilder()
+  let schema =
+    #|PRAGMA journal_mode=OFF;
+    #|BEGIN;
+    #|CREATE TABLE StringIds(id INTEGER PRIMARY KEY,value TEXT);
+    #|CREATE TABLE CUPTI_ACTIVITY_KIND_KERNEL(start INTEGER,end INTEGER,streamId INTEGER,correlationId INTEGER,graphNodeId INTEGER,graphId INTEGER,shortName INTEGER,demangledName INTEGER,gridX INTEGER,gridY INTEGER,gridZ INTEGER,blockX INTEGER,blockY INTEGER,blockZ INTEGER,registersPerThread INTEGER,staticSharedMemory INTEGER,dynamicSharedMemory INTEGER);
+    #|CREATE TABLE CUPTI_ACTIVITY_KIND_MEMCPY(start INTEGER,end INTEGER,streamId INTEGER,correlationId INTEGER,graphNodeId INTEGER,graphId INTEGER,bytes INTEGER,copyKind INTEGER);
+    #|CREATE TABLE CUPTI_ACTIVITY_KIND_MEMSET(start INTEGER,end INTEGER,streamId INTEGER,correlationId INTEGER,graphNodeId INTEGER,graphId INTEGER,bytes INTEGER);
+    #|CREATE TABLE CUPTI_ACTIVITY_KIND_RUNTIME(start INTEGER,end INTEGER,correlationId INTEGER,nameId INTEGER,globalTid INTEGER);
+    #|CREATE TABLE CUPTI_ACTIVITY_KIND_DRIVER(start INTEGER,end INTEGER,correlationId INTEGER,nameId INTEGER,globalTid INTEGER);
+    #|CREATE TABLE TRACE_PROVENANCE(source TEXT,window INTEGER,collector TEXT);
+    #|CREATE TABLE TRACE_SYMBOLS(raw TEXT,demangled TEXT,short TEXT);
+  sql.write_string(schema)
+  sql.write_string(
+    "INSERT INTO TRACE_PROVENANCE VALUES(" +
+    quote(source) +
+    ",\{wanted}," +
+    quote(
+      "bounded CUPTI activity collector; not an Nsight report; " +
+      lines[0].to_owned(),
+    ) +
+    ");\n",
+  )
+  let names : Map[String, Int32] = Map([])
+  fn name_id(name : String) -> Int32 {
+    if names.get(name) is Some(id) {
+      return id
+    }
+    let id = names.length() + 1
+    names[name] = id
+    sql.write_string(
+      "INSERT INTO StringIds VALUES(\{id}," + quote(name) + ");\n",
+    )
+    id
+  }
+  for line in selected {
+    let c = line.split("\t").to_array()
+    guard c.length() == 17 else { fail("activity record field count") }
+    let numbers = c[2:16].map(numeric)
+    guard @string.parse_int64(c[3]) >= @string.parse_int64(c[2]) else {
+      fail("negative duration")
+    }
+    let name = c[16].to_owned()
+    let id = name_id(name)
+    let common = numbers[0:6].to_owned().join(",")
+    match c[1].to_owned() {
+      "K" => {
+        let full = demangled[name]
+        let short = short_kernel(full)
+        let full_id = name_id(full)
+        let short_id = name_id(short)
+        sql.write_string(
+          "INSERT INTO TRACE_SYMBOLS VALUES(" +
+          quote(name) +
+          "," +
+          quote(full) +
+          "," +
+          quote(short) +
+          ");\n",
+        )
+        sql.write_string(
+          "INSERT INTO CUPTI_ACTIVITY_KIND_KERNEL VALUES(" +
+          common +
+          ",\{short_id},\{full_id}," +
+          numbers[8:14].to_owned().join(",") +
+          ",NULL,NULL,NULL);\n",
+        )
+      }
+      "C" =>
+        sql.write_string(
+          "INSERT INTO CUPTI_ACTIVITY_KIND_MEMCPY VALUES(" +
+          common +
+          "," +
+          numbers[7] +
+          ",NULL);\n",
+        )
+      "Z" =>
+        sql.write_string(
+          "INSERT INTO CUPTI_ACTIVITY_KIND_MEMSET VALUES(" +
+          common +
+          "," +
+          numbers[7] +
+          ");\n",
+        )
+      "D" | "R" as kind => {
+        let table = if kind == "D" { "DRIVER" } else { "RUNTIME" }
+        sql.write_string(
+          "INSERT INTO CUPTI_ACTIVITY_KIND_" +
+          table +
+          " VALUES(" +
+          numbers[0] +
+          "," +
+          numbers[1] +
+          "," +
+          numbers[3] +
+          ",\{id}," +
+          numbers[6] +
+          ");\n",
+        )
+      }
+      _ => fail("unexpected activity kind")
+    }
+  }
+  sql.write_string("COMMIT;\n")
+  @shell.Cmd("sqlite3", [output], stdin=Text(sql.to_string())).output().check()
+  println(
+    "converted \{selected.length()} records; profiler provenance retained, no inferred resource counters",
+  )
+}

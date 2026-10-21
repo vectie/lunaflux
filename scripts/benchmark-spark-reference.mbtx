@@ -364,6 +364,17 @@ async fn main {
   let image = reference_image(glm, sg)
   let tag = root[5:].to_owned()
   let profile = mode is ("prepare-profile" | "start-profile" | "query-profile")
+  let activity_library = if profile {
+    @env.get_env_var("LUNAFLUX_ACTIVITY_LIBRARY_ROOT")
+  } else {
+    None
+  }
+  if activity_library is Some(path) {
+    guard path.has_prefix("/tmp/lunaflux-activity-") &&
+      path.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+      fail("activity library root")
+    }
+  }
   let granularity = reference_trace_granularity(
     @env.get_env_var("LUNAFLUX_REFERENCE_GRAPH_TRACE"),
   )
@@ -553,7 +564,13 @@ async fn main {
       "\nspeculation=false\nprefix_cache=false\ncorpus=" +
       corpus +
       (if profile {
-        "\nprofile=cuda-profiler-api\nprofile_output=2\nprofile_requests=1\n" +
+        "\nprofile=" +
+        (if activity_library is Some(_) {
+          "bounded-cupti-activity"
+        } else {
+          "cuda-profiler-api"
+        }) +
+        "\nprofile_output=2\nprofile_requests=1\n" +
         "profile_eager=\{eager_profile}\nprofile_compact=\{compact_profile}\nprofile_graph_trace=\{granularity}\nprofile_ingress=\{trace_ingress}\nprofile_egress=true\n"
       } else {
         ""
@@ -795,6 +812,10 @@ async fn main {
   }
   for last in [true, false] {
     let capture_rank = profile && reference_trace_rank(trace_ranks, last)
+    let activity_rank = capture_rank && activity_library is Some(_)
+    if activity_rank {
+      remote(last, "mkdir " + root + "/activity").check()
+    }
     let rank = if last { "1" } else { "0" }
     let ip = if last { "10.0.0.2" } else { "10.0.0.1" }
     let interface = if last { "enp1s0f0np0" } else { "enp1s0f1np1" }
@@ -833,7 +854,17 @@ async fn main {
         ":/model:ro -v " +
         root +
         ":/run-result" +
-        (if profile {
+        (if activity_rank {
+          " --pid=host -v " +
+          activity_library.unwrap() +
+          ":" +
+          activity_library.unwrap() +
+          ":ro" +
+          " -v /usr/local/cuda/lib64/libcupti.so.13:/usr/lib/aarch64-linux-gnu/libcupti.so.13:ro" +
+          " -e CUDA_INJECTION64_PATH=" +
+          activity_library.unwrap() +
+          "/activity_trace.so -e LUNAFLUX_ACTIVITY_ROOT=/run-result/activity"
+        } else if profile {
           " -v /opt/nvidia/nsight-systems/2025.3.2:/opt/nvidia/nsight-systems/2025.3.2:ro"
         } else {
           ""
@@ -859,13 +890,19 @@ async fn main {
         " -e NCCL_IB_HCA=" +
         hca +
         " -e NCCL_IB_DISABLE=0 -e HF_HOME=/run-result/hf --entrypoint " +
-        (if capture_rank { nsys } else if sg { "python3" } else { "vllm" }) +
+        (if capture_rank && !activity_rank {
+          nsys
+        } else if sg {
+          "python3"
+        } else {
+          "vllm"
+        }) +
         " " +
         image +
         " " +
-        (if capture_rank { profile_args } else { "" }) +
+        (if capture_rank && !activity_rank { profile_args } else { "" }) +
         command[if sg { 8 } else { 5 }:].to_owned() +
-        (if profile {
+        (if profile && activity_library is None {
           " --profiler-config '{\"profiler\":\"cuda\"}'"
         } else {
           ""
