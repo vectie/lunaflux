@@ -9,7 +9,7 @@ async fn run_rank(
   let ordinal = if channel is Some(_) { 0 } else { 1 }
   let spec = inspect_spec(root)
   let limits = plan.worker_limits(spec)
-  let inference = plan.inference(spec,plan.load_tokenizer(root,spec))
+  let inference = plan.inference(spec, plan.load_tokenizer(root, spec))
   if startup is Some(s) {
     guard s.worker_limits() == limits &&
       s.inference_limits() == inference &&
@@ -153,7 +153,9 @@ async fn run_rank(
     try {
       while !server.is_terminal() {
         server.poll(local_now_millis=clock.now_millis())
-        @async.pause()
+        if !server.wait_idle_receive() {
+          @async.pause()
+        }
       }
     } catch {
       error => {

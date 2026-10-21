@@ -23,10 +23,10 @@ pub struct RemoteChannel {
   priv mut sending : Bool
   priv mut reading : Bool
   priv mut writing : Bool
-  priv mut receive_cursor : Int
-  priv mut receive_length : Int
-  priv mut send_cursor : Int
-  priv mut send_length : Int
+  priv mut receive_cursor : Int32
+  priv mut receive_length : Int32
+  priv mut send_cursor : Int32
+  priv mut send_length : Int32
   priv mut receive_deadline : UInt64
   priv mut receive_waiting : Bool
   priv mut send_deadline : UInt64
@@ -36,7 +36,7 @@ pub struct RemoteChannel {
 ///|
 pub fn RemoteChannel::new(
   connection : @socket.Tcp,
-  max_frame_bytes~ : Int,
+  max_frame_bytes~ : Int32,
   timeout_millis~ : UInt64,
 ) -> RemoteChannel raise RemoteChannelError {
   if max_frame_bytes < 1 ||
@@ -129,7 +129,7 @@ fn RemoteChannel::deadline(
 pub fn RemoteChannel::begin_send(
   self : RemoteChannel,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   local_now_millis : UInt64,
 ) -> Unit raise RemoteChannelError {
   if !self.open || self.sending {
@@ -159,7 +159,7 @@ pub fn RemoteChannel::begin_send(
 pub fn RemoteChannel::begin_receive(
   self : RemoteChannel,
   local_now_millis : UInt64,
-  idle? : Bool = false,
+  idle~ : Bool = false,
 ) -> Unit raise RemoteChannelError {
   if !self.open || self.receiving {
     raise InvalidState
@@ -222,11 +222,17 @@ pub async fn RemoteChannel::poll_receive(
   self : RemoteChannel,
   destination : FixedArray[Byte],
   local_now_millis : UInt64,
-  allow_idle_eof? : Bool = false,
-) -> Int? {
+  allow_idle_eof~ : Bool = false,
+) -> Int32? {
   self.observe(local_now_millis)
   if !self.receiving || self.reading {
     raise InvalidState
+  }
+  if self.receive_waiting && self.receive_cursor > 0 {
+    // An idle socket wait retained the first prefix byte. The owner supplies a
+    // fresh clock after wakeup, not the stale timestamp from before suspension.
+    self.receive_deadline = self.deadline(local_now_millis)
+    self.receive_waiting = false
   }
   self.reading = true
   defer {

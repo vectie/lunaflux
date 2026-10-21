@@ -25,6 +25,12 @@ Idle between requests has no frame deadline. Once a first byte arrives, the
 frame deadline is absolute; metadata/activation/execution also have bounded
 phase deadlines. A failed/poisoned rank is not silently reused.
 
+`wait_idle_receive` may suspend only in `Receiving` with an `Idle` or `Released`
+phase. Prepared work, activation transfer, GPU execution, state transactions and
+commit effects continue to use `poll`. The GLM remote worker uses this explicit
+effect boundary rather than spinning up/cancelling async tasks while idle. No
+compiler, model plan, graph selection or comparison policy changes are needed.
+
 After an acknowledged request release, an orderly EOF at the next frame boundary
 terminates the server cleanly. Commit alone does not release request ownership:
 EOF before release or within any next prefix/body remains a failure. A released

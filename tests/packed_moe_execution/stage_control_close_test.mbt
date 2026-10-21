@@ -70,6 +70,10 @@ async test "peer EOF is clean only after acknowledged request retirement" {
     }
     client.close()
     let mut failed = false
+    if released {
+      assert_true(server.wait_idle_receive())
+      assert_true(server.is_terminal())
+    }
     for _ in 0..<16 {
       server.poll(local_now_millis=0UL) catch {
         @channel.RemoteChannelError::Disconnected => {

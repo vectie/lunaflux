@@ -21,3 +21,10 @@ The transport does not authenticate a peer, supply encryption, or produce a
 worker Ready capability. A deployment must supply an admitted control channel
 before exchanging plans. The async socket lane is outside the scheduler;
 this package does not claim allocation-free async task polling.
+
+At an indefinitely idle receive boundary, `wait_idle_receive` suspends on the
+socket instead of repeatedly creating zero-timeout task groups. It retains only
+the first prefix byte in existing private storage. The caller must resume
+`poll_receive` with a fresh monotonic timestamp; that starts the non-extending
+frame deadline before any further read. Cancellation closes the transport.
+Do not use this wait while another effect owner needs cooperative progress.

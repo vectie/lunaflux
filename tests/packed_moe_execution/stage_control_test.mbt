@@ -91,6 +91,7 @@ async test "plain stage control carries exact metadata waits for activation and 
   let enqueued = enqueues()
   client.prepare(plan, epoch=1UL, local_now_millis=0UL)
   control_exchange(client, server)
+  assert_false(server.wait_idle_receive())
   assert_eq(enqueues(), enqueued)
   let metadata = FixedArray::make(20, b'\x00')
   context.copy_to_fixed_host(counts, metadata, 0L, 0L, 20L)

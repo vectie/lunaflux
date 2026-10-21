@@ -1,0 +1,30 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/socket",
+}
+
+// CPU-only reproducer of the serving rank's zero-wait socket poll. A debugger
+// may set this disposable process's coroutine counter near wrap; never do that
+// to the serving model. The live first coroutine stays suspended on the socket.
+
+///|
+async fn main {
+  let listener = @socket.TcpServer(@socket.Addr::parse("127.0.0.1:0"))
+  defer listener.close()
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      let peer = @socket.Tcp::connect(listener.addr)
+      defer peer.close()
+      @async.sleep(10000)
+    })
+    let (connection, _) = listener.accept()
+    defer connection.close()
+    let input = FixedArray::make(4, b'\x00')
+    println("disposable idle socket ready")
+    for _ in 0..<1000000 {
+      ignore(@async.with_timeout_opt(0, () => connection.read(input)))
+      @async.pause()
+    }
+  })
+}

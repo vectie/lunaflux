@@ -1,0 +1,43 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root] &&
+    root.has_prefix("/tmp/lunaflux-idle-repro-") &&
+    root.all(c => c is ('a'..<='z' | '0'..<='9' | '/' | '-')) else {
+    fail("DISPOSABLE_REPRO_ROOT")
+  }
+  let exe = root + "/_build/native/release/build/idle_reproducer.exe"
+  let symbol = "_M0FP411moonbitlang5async8internal9coroutine9scheduler"
+  for
+    (label, value) in [
+      ("ordinary", 100),
+      ("signed", 2147483640),
+      ("collision", -8),
+    ] {
+    let cmd = "systemd-run --user --wait --pipe --unit=lunaflux-idle-" +
+      label +
+      "-20261021-v1 -p MemoryMax=256M -p MemorySwapMax=0 -p RuntimeMaxSec=60 gdb -q -nx -batch -ex 'set pagination off' -ex 'set debuginfod enabled off' -ex 'break moonbit_println' -ex run -ex 'set *((int*)*(void**)&" +
+      symbol +
+      ") = \{value}' -ex 'disable 1' -ex continue -ex 'bt 30' -ex 'p *((int*)*(void**)&" +
+      symbol +
+      ")' " +
+      exe
+    let r = @shell.Cmd("ssh", [
+      "-S", "/tmp/lunaflux-glm178-context-20261019.sock", "-o", "BatchMode=yes",
+      "wlc003s@192.168.2.178", cmd,
+    ]).output()
+    @fs.write_file(
+      root + "/" + label + ".txt",
+      r.stdout() + r.stderr(),
+      create_mode=CreateNew,
+    )
+    println(label + ": debugger result retained")
+  }
+}
