@@ -1,0 +1,151 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// External installed-reference instrumentation. Removed from the reference
+// before timing; never imported by the compiler or production service.
+
+///|
+fn profile_observer(release_unused~ : Bool = false) -> String {
+  let source =
+    #|def _lf_observe_profile(original):
+    #|    def observed(self, *args, **kwargs):
+    #|        import json, os, threading, time
+    #|        stop = threading.Event()
+    #|        lock = threading.Lock()
+    #|        state = dict(phase='profile_enter',events=0)
+    #|        path = f'/run-result/dummy-profile-{os.getpid()}'
+    #|        log = open(path+'.jsonl','x',buffering=1)
+    #|        def record(phase, allocator=True):
+    #|            with open('/proc/meminfo') as f:
+    #|                available = next(int(l.split()[1]) for l in f if l.startswith('MemAvailable:'))
+    #|            with open('/proc/self/smaps_rollup') as f:
+    #|                smaps = f.read()
+    #|            row = dict(phase=phase,time_ns=time.monotonic_ns(),available_kib=available,smaps_rollup=smaps)
+    #|            if allocator:
+    #|                row.update(allocated=torch.cuda.memory_allocated(),reserved=torch.cuda.memory_reserved(),peak=torch.cuda.max_memory_allocated())
+    #|            with lock:
+    #|                if state['events'] < 4096:
+    #|                    log.write(json.dumps(row)+'\n')
+    #|                    state['events'] += 1
+    #|            return available
+    #|        def boundary(phase):
+    #|            state['phase'] = phase
+    #|            available = record(phase)
+    #|            if available < 19922944:
+    #|                torch.cuda.memory._dump_snapshot(path+'-headroom.pickle')
+    #|                raise RuntimeError('dummy-profile probe retired above 16 GiB host reserve')
+    #|        def watch():
+    #|            while not stop.wait(.1):
+    #|                record('during:'+state['phase'],allocator=False)
+    #|        torch.cuda.memory._record_memory_history(enabled='all',context='all',stacks='python',max_entries=4096)
+    #|        handles = []
+    #|        thread = threading.Thread(target=watch,daemon=True)
+    #|        try:
+    #|            boundary('profile_enter')
+    #|            for name, module in self.model.named_modules():
+    #|                tail = name.split('.')[-1]
+    #|                if '.layers.' in name and (tail.isdigit() or tail in ('mlp','self_attn','linear_attn')):
+    #|                    handles.append(module.register_forward_pre_hook(lambda m,a,n=name: boundary('before:'+n)))
+    #|                    handles.append(module.register_forward_hook(lambda m,a,o,n=name: boundary('after:'+n)))
+    #|            thread.start()
+    #|            result = original(self,*args,**kwargs)
+    #|            boundary('profile_complete')
+    #|            torch.cuda.memory._dump_snapshot(path+'-complete.pickle')
+    #|            return result
+    #|        finally:
+    #|            stop.set()
+    #|            if thread.is_alive(): thread.join()
+    #|            for handle in handles: handle.remove()
+    #|            torch.cuda.memory._record_memory_history(enabled=None)
+    #|            log.close()
+    #|    return observed
+    #|
+    #|GPUModelRunner.profile_run = _lf_observe_profile(GPUModelRunner.profile_run)
+  if release_unused {
+    source.replace(
+      old="        def boundary(phase):\n",
+      new=(
+        #|        def boundary(phase):
+        #|            if phase.startswith('after:'):
+        #|                record('release_before:'+phase)
+        #|                torch.cuda.synchronize()
+        #|                gc.collect()
+        #|                torch.cuda.empty_cache()
+        #|                import ctypes
+        #|                ctypes.CDLL(None).malloc_trim(0)
+        #|
+      ),
+    )
+  } else {
+    source
+  }
+}
+
+///|
+test "profile observations wrap existing math and retire all observers" {
+  let source = profile_observer()
+  assert_true(source.contains("result = original(self,*args,**kwargs)"))
+  assert_true(source.contains("GPUModelRunner.profile_run ="))
+  assert_true(source.contains("for handle in handles: handle.remove()"))
+  assert_true(source.contains("thread.join()"))
+  assert_false(source.contains("empty_cache"))
+  assert_false(source.contains("hashlib"))
+  assert_false(source.contains("num_tokens ="))
+  let released = profile_observer(release_unused=true)
+  assert_true(released.contains("if phase.startswith('after:')"))
+  assert_true(released.contains("record('release_before:'+phase)"))
+  assert_true(released.contains("result = original(self,*args,**kwargs)"))
+  assert_false(released.contains("reset_peak_memory"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, source, .. options] &&
+    options is ([] | ["--release-unused"]) &&
+    root.has_prefix("/tmp/lunaflux-dummy-observer-") else {
+    fail("NEW_ROOT INSTALLED_V2_MODEL_RUNNER [--release-unused]")
+  }
+  let original = @fs.read_file(source).text()
+  guard original.contains("class GPUModelRunner(") &&
+    original.contains("    def profile_run(self)") else {
+    fail("installed V2 runner")
+  }
+  @fs.mkdir(root)
+  @fs.write_file(root + "/original.py", original, create_mode=CreateNew)
+  @fs.write_file(
+    root + "/model_runner.py",
+    original + "\n" + profile_observer(release_unused=!options.is_empty()),
+    create_mode=CreateNew,
+  )
+  for rank in 0..<2 {
+    let socket = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      "-o",
+      "BatchMode=yes",
+      host,
+      "mkdir " + root,
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      root + "/model_runner.py",
+      host + ":" + root + "/model_runner.py",
+    ])
+    .output()
+    .check()
+  }
+}

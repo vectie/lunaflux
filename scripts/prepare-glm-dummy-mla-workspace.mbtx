@@ -1,0 +1,86 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+}
+
+// External vLLM reference correction, not a compiler or runtime dependency.
+// The installed SM120 backend explicitly cannot execute dense-MHA prefill.
+
+///|
+fn correct_dummy_workspace(source : String) -> String raise {
+  let begin = "        if attn_metadata is None:\n"
+  let end = "\n            # The zero fill is required when used with DP + EP"
+  guard source.split(begin).to_array() is [prefix, rest] &&
+    rest.split(end).to_array() is [allocation, suffix] &&
+    allocation.contains("self.chunked_prefill_workspace_size") &&
+    allocation.contains("_ = torch.empty(") else {
+    fail("unique installed MLA dummy workspace")
+  }
+  let guarded = allocation
+    .split("\n")
+    .map(line => if line.is_empty() { "" } else { "    " + line.to_owned() })
+    .join("\n")
+  prefix.to_owned() +
+  begin +
+  "            # Do not simulate a dense workspace for an MQA-only backend.\n" +
+  "            if not (self.impl.is_sparse and not self.impl.supports_dense_mha_prefill):\n" +
+  guarded +
+  end +
+  suffix.to_owned()
+}
+
+///|
+test "dummy workspace follows backend capability without changing real forward" {
+  let original = "real_before\n        if attn_metadata is None:\n            _ = torch.empty(self.chunked_prefill_workspace_size)\n\n            # The zero fill is required when used with DP + EP\n            return output.fill_(0)\nreal_after\n"
+  let fixed = correct_dummy_workspace(original)
+  assert_true(
+    fixed.contains(
+      "if not (self.impl.is_sparse and not self.impl.supports_dense_mha_prefill):\n                _ = torch.empty",
+    ),
+  )
+  assert_true(fixed.has_prefix("real_before\n"))
+  assert_true(fixed.has_suffix("return output.fill_(0)\nreal_after\n"))
+  assert_false(fixed.contains("empty_cache"))
+}
+
+///|
+async fn main {
+  guard @env.args() is [_, root, source] &&
+    root.has_prefix("/tmp/lunaflux-mla-profile-fix-") else {
+    fail("NEW_ROOT INSTALLED_MLA_SOURCE")
+  }
+  let original = @fs.read_file(source).text()
+  let fixed = correct_dummy_workspace(original)
+  @fs.mkdir(root)
+  @fs.write_file(root + "/original.py", original, create_mode=CreateNew)
+  @fs.write_file(root + "/mla_attention.py", fixed, create_mode=CreateNew)
+  for rank in 0..<2 {
+    let socket = "/tmp/lunaflux-glm\{178+rank}-context-20261019.sock"
+    let host = if rank == 0 {
+      "wlc003s@192.168.2.178"
+    } else {
+      "wlc004s@192.168.2.179"
+    }
+    @shell.Cmd("ssh", [
+      "-S",
+      socket,
+      "-o",
+      "BatchMode=yes",
+      host,
+      "mkdir " + root,
+    ])
+    .output()
+    .check()
+    @shell.Cmd("scp", [
+      "-o",
+      "ControlPath=" + socket,
+      root + "/mla_attention.py",
+      host + ":" + root + "/mla_attention.py",
+    ])
+    .output()
+    .check()
+  }
+}

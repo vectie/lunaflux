@@ -1,0 +1,165 @@
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline.mbt b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+index e9b3f3a6..74f7b634 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline.mbt
+@@ -5,18 +5,20 @@
+ pub struct MatrixFragmentPipeline {
+   priv matrix : MatrixTilePlan
+   priv row_tile : Int
++  priv column_tile : Int
+ }
+ 
+ ///|
+ pub fn MatrixFragmentPipeline::new(
+   matrix : MatrixTilePlan,
+   row_tile~ : Int,
++  column_tile~ : Int = 64,
+ ) -> Self raise @precision.PrecisionPlanError {
+   let (_, _, inner) = matrix.geometry()
+-  guard row_tile is (32 | 64) && inner % 64 == 0 else {
++  guard row_tile is (32 | 64) && column_tile is (64 | 128) && inner % 64 == 0 else {
+     raise @precision.PrecisionPlanError::NoImplementation
+   }
+-  { matrix, row_tile, }
++  { matrix, row_tile, column_tile, }
+ }
+ 
+ ///|
+@@ -26,7 +28,7 @@ pub fn MatrixFragmentPipeline::matrix(self : Self) -> MatrixTilePlan {
+ 
+ ///|
+ pub fn MatrixFragmentPipeline::tile(self : Self) -> (Int, Int, Int) {
+-  (self.row_tile, 64, 64)
++  (self.row_tile, self.column_tile, 64)
+ }
+ 
+ ///|
+@@ -46,7 +48,7 @@ pub fn MatrixFragmentPipeline::operand_alignment(_self : Self) -> Int64 {
+ 
+ ///|
+ pub fn MatrixFragmentPipeline::shared_bytes(self : Self) -> Int {
+-  self.operand_slots() * (self.row_tile + 64) * 64 * 2
++  self.operand_slots() * (self.row_tile + self.column_tile) * 64 * 2
+ }
+ 
+ ///|
+@@ -54,7 +56,7 @@ pub fn MatrixFragmentPipeline::tile_count(self : Self) -> Int {
+   let (rows, columns, _) = self.matrix.geometry()
+   let matrix = (rows + self.row_tile - 1) /
+     self.row_tile *
+-    ((columns + 63) / 64)
++    ((columns + self.column_tile - 1) / self.column_tile)
+   if self.matrix.law() == ShapeAwareFloat32 {
+     Int::max(matrix, (columns + 3) / 4)
+   } else {
+diff --git a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+index a3baaa7f..df7fadfe 100644
+--- a/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
++++ b/compiler/grouped_matrix_ir/fragment_pipeline_test.mbt
+@@ -73,3 +73,37 @@ test "fragment envelope preserves unrelated shapes and arithmetic" {
+     }
+   }
+ }
++
++///|
++test "wide fragment columns share operands without splitting reductions" {
++  let matrix = @grouped_matrix_ir.MatrixTilePlan::new(
++    rows=64,
++    columns=4096,
++    inner=8192,
++    law=ShapeAwareFloat32,
++  )
++  for row_tile in [32, 64] {
++    let p = @grouped_matrix_ir.MatrixFragmentPipeline::new(
++      matrix,
++      row_tile~,
++      column_tile=128,
++    )
++    assert_eq(p.matrix().law(), ShapeAwareFloat32)
++    assert_eq(p.matrix().geometry(), matrix.geometry())
++    assert_eq(p.tile(), (row_tile, 128, 64))
++    assert_eq(p.tile_count(), 1024)
++    assert_eq(p.shared_bytes(), 2 * (row_tile + 128) * 128)
++    assert_eq(p.fragment_slots(), 2)
++  }
++  try
++    @grouped_matrix_ir.MatrixFragmentPipeline::new(
++      matrix,
++      row_tile=32,
++      column_tile=96,
++    )
++  catch {
++    _ => ()
++  } noraise {
++    _ => fail("unsupported fragment columns accepted")
++  }
++}
+diff --git a/compiler/grouped_matrix_ir/pkg.generated.mbti b/compiler/grouped_matrix_ir/pkg.generated.mbti
+index 7bbfc92a..8fdbe9b6 100644
+--- a/compiler/grouped_matrix_ir/pkg.generated.mbti
++++ b/compiler/grouped_matrix_ir/pkg.generated.mbti
+@@ -61,7 +61,7 @@ pub struct MatrixFragmentPipeline {
+ }
+ pub fn MatrixFragmentPipeline::fragment_slots(Self) -> Int
+ pub fn MatrixFragmentPipeline::matrix(Self) -> MatrixTilePlan
+-pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int) -> Self raise @precision_ir.PrecisionPlanError
++pub fn MatrixFragmentPipeline::new(MatrixTilePlan, row_tile~ : Int, column_tile? : Int) -> Self raise @precision_ir.PrecisionPlanError
+ pub fn MatrixFragmentPipeline::operand_alignment(Self) -> Int64
+ pub fn MatrixFragmentPipeline::operand_byte_offset(Self, Int) -> Int
+ pub fn MatrixFragmentPipeline::operand_slots(Self) -> Int
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+index d50dbaee..20af5347 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline.mbt
+@@ -82,7 +82,7 @@ pub fn fragment_pipeline_source(
+       $|extern "C" __global__ void \{symbol}(const int *counts,const __nv_bfloat16 *input,const __nv_bfloat16 *weight,\{output_type} *output) {
+       $|  const int live_rows=counts[3]; if(live_rows<=0||live_rows>\{rows})return;
+       $|  \{decode}
+-      $|  const int row_base=(blockIdx.x/\{(columns+63)/64})*\{m},column_base=(blockIdx.x%\{(columns+63)/64})*64;
++      $|  const int row_base=(blockIdx.x/\{(columns+n-1)/n})*\{m},column_base=(blockIdx.x%\{(columns+n-1)/n})*\{n};
+       $|  if(row_base>=live_rows)return;
+       $|  __shared__ __align__(1024) __nv_bfloat16 tile_a[\{2*m*k}],tile_b[\{2*n*k}];
+       $|  const int lane=threadIdx.x%32,warp=threadIdx.x/32;
+diff --git a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+index aae12df7..0be31ca2 100644
+--- a/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
++++ b/kernels/tiled_matrix_cuda_source/fragment_pipeline_test.mbt
+@@ -37,9 +37,37 @@ test "export explicit fragment pipelines" {
+   }
+   let partial_float32 = @env.get_env_var("LUNA_FRAGMENT_BF16") != Some("1")
+   let shapes = [(4096, 4096), (4096, 8192), (1536, 4096), (128, 4096)]
++  let wide = @env.get_env_var("LUNA_FRAGMENT_WIDE_COLUMNS") == Some("1")
+   println("LUNA_SOURCE_BEGIN prefill")
+-  if !partial_float32 { println("#define LUNA_PROJECTION_BF16_OUTPUT 1") }
++  if !partial_float32 {
++    println("#define LUNA_PROJECTION_BF16_OUTPUT 1")
++  }
+   for i, (columns, inner) in shapes {
++    if wide {
++      let matrix = @matrix.MatrixTilePlan::new(
++        rows=64,
++        columns~,
++        inner~,
++        law=ShapeAwareFloat32,
++      )
++      for j in 0..<4 {
++        let plan = @matrix.MatrixFragmentPipeline::new(
++          matrix,
++          row_tile=if j == 2 { 64 } else { 32 },
++          column_tile=if j is (1 | 2) { 128 } else { 64 },
++        )
++        println(
++          @utf8.decode(
++            @tiled_matrix_cuda_source.fragment_pipeline_source(
++              plan,
++              symbol="p\{i}_s\{j}",
++              partial_float32~,
++            ),
++          ),
++        )
++      }
++      continue
++    }
+     let matrix = @matrix.MatrixTilePlan::new(
+       rows=64,
+       columns~,

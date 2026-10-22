@@ -107,7 +107,8 @@ async fn main {
   let capture_drained = Ref(false)
   let retired = Ref(false)
   let warmup_probe = @env.get_env_var("LUNAFLUX_REFERENCE_WARMUP_OBSERVER")
-    is Some(_)
+    is Some(_) ||
+    @env.get_env_var("LUNAFLUX_REFERENCE_DUMMY_OBSERVER") is Some(_)
   let reserve_log = @fs.open(
     root + "/window-reserve.txt",
     mode=WriteOnly,
