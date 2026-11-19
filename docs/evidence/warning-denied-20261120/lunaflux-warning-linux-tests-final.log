@@ -1,0 +1,19 @@
+SKIP real flagship tokenizer: set LUNA_MINICPM_V47_ASSET_DIR to resolved pinned assets
+SKIP image marker join: set LUNA_MINICPM_V47_ASSET_DIR to resolved pinned assets
+SKIP actual bootstrap assets: set LUNA_MINICPM_V47_ASSET_DIR
+SKIP actual request assets: set LUNA_MINICPM_V47_ASSET_DIR
+SKIP actual media tokenizer: set LUNA_MINICPM_V47_ASSET_DIR
+SKIP actual media tokenizer: set LUNA_MINICPM_V47_ASSET_DIR
+SKIP actual media tokenizer: set LUNA_MINICPM_V47_ASSET_DIR
+SKIP actual media tokenizer: set LUNA_MINICPM_V47_ASSET_DIR
+SKIP real image prompt tokenizer: set LUNA_MINICPM_V47_ASSET_DIR
+SKIP MiniCPM5 assets: set LUNA_MINICPM5_ASSET_DIR containing config.json and tokenizer.json from revision 42433e90dad95123ab87729fd7011e7110629556
+[vectie/lunaflux] test integration/deepseek_v4_decoder/prediction_capture_test.mbt:24 ("DSpark captured target order survives arbitrary contiguous stage partition") failed
+expect test failed at /workspace/integration/deepseek_v4_decoder/prediction_capture_test.mbt:37:3-37:78
+Diff: (- expected, + actual)
+----
+-[40, 41, 42]
++<ReadOnlyArray: [40, 41, 42]>
+----
+
+Total tests: 5546, passed: 5545, failed: 1.

@@ -1,5 +1,10 @@
 # Source publication validation — 19 November 2026
 
+Follow-up: the [20 November warning-denied validation](WARNING_DENIED_VALIDATION_20261120.md)
+closes the warning gate recorded below. The stronger native check and all
+5,546 native tests pass with warning 73 enabled and warnings denied. This
+19 November record remains the historical publication result.
+
 Pending changes were committed by compiler migration, model/media adapters,
 device/kernel execution, serving, qualification tests, operational scripts,
 configuration interfaces and documentation. Model weights and generated

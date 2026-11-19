@@ -1,0 +1,83 @@
+{
+  "format": "lunaflux.warning-denied-validation.v1",
+  "recorded_date": "2026-11-20",
+  "validated_source_revision": "9919d39436d81f82d95b54ee3d9a3f39bb2b55be",
+  "code_commits": [
+    "16e3a3fef93e62e9de688b80ae3d327fd654f527",
+    "cbb043dc1850a20e6674f5c1c69036e1480d69f6",
+    "9919d39436d81f82d95b54ee3d9a3f39bb2b55be"
+  ],
+  "source_archive_sha256": "8c61a1253846716cf5513983bac793890fb201f0f93bfa41c94fdcdbc77c8be2",
+  "source_archive_scope": "Tracked and non-ignored source/test files, before this validation documentation; same code as validated_source_revision.",
+  "warnings_disabled": false,
+  "assertion_tolerances_relaxed": false,
+  "fixtures_reduced": false,
+  "tests_removed_or_disabled": false,
+  "native_linux": {
+    "passed": true,
+    "summary": "Total tests: 5546, passed: 5546, failed: 0.",
+    "command": "moon test --target native --deny-warn --warn-list +73 -j 8",
+    "platform": "Linux AArch64",
+    "moonc_version": "v0.10.15+943464bfa",
+    "container_image_sha256": "5b1332bafb8e0bd31065cfd4a7ea2d57b81dd68f96c4cb6b4ebac477bf921b23",
+    "network": "disabled",
+    "hardware_devices_passed_through": false,
+    "existing_optional_asset_notices": 10,
+    "new_optional_asset_skips": 0,
+    "log": "warning-denied-20261120/lunaflux-warning-linux-tests-73-final.log",
+    "log_sha256": "97e2ff0c6a7694df1c3130e07ce6fae7b622eea703e13ba42178cc5b26aa5f06"
+  },
+  "checks": [
+    {
+      "command": "moon info",
+      "passed": true,
+      "log": "warning-denied-20261120/lunaflux-warning-info-final.log",
+      "log_sha256": "5e0f87e5229608478bab9960ea652d6a31e67a185103885ee52eabe4b11da6b5"
+    },
+    {
+      "command": "moon fmt",
+      "passed": true,
+      "log": "warning-denied-20261120/lunaflux-warning-fmt-final.log",
+      "log_sha256": "a0f1135be98d77883ddd8c42ebc7c3b3e450f0e7da5cc7723fd7d4d70faf50cc"
+    },
+    {
+      "command": "moon check --target native --deny-warn --warn-list +73",
+      "platform": "macOS",
+      "passed": true,
+      "log": "warning-denied-20261120/lunaflux-warning-check-73-final.log",
+      "log_sha256": "a08634f8801ff41644041eb17d3b29e81082a7982b2c63f23a99559e546301ac"
+    },
+    {
+      "command": "moon check --target native --deny-warn --warn-list +73",
+      "platform": "Linux AArch64",
+      "passed": true,
+      "log": "warning-denied-20261120/lunaflux-warning-linux-check-73-final.log",
+      "log_sha256": "5fca65e10f353e8602291f5f7296d7701db2845e6c69677a283b00ffbe0a46d3"
+    },
+    {
+      "command": "scripts/validate-moonbit-annotations.sh",
+      "passed": true,
+      "log": "warning-denied-20261120/lunaflux-warning-annotations-final.log",
+      "log_sha256": "56bde1faa4bdb515ae499eb374272fcae86e7aff716616020dcc3c462dfb8d89"
+    },
+    {
+      "command": "moon test --target native --deny-warn --warn-list +73 -p vectie/lunaflux/integration/deepseek_v4_decoder",
+      "passed": true,
+      "summary": "Total tests: 24, passed: 24, failed: 0.",
+      "log": "warning-denied-20261120/lunaflux-warning-capture-regression.log",
+      "log_sha256": "66a1c3ce434e515e8c87bd3fb701c31a79b97ec9dad1ee5b991eab34e5541d7d"
+    }
+  ],
+  "initial_full_linux_run": {
+    "passed": false,
+    "summary": "Total tests: 5546, passed: 5545, failed: 1.",
+    "log": "warning-denied-20261120/lunaflux-warning-linux-tests-final.log",
+    "log_sha256": "2c39e2128838eac80d324895d62827a313ca458e14da38f07da628e7ccb03fb3",
+    "failure": "Debug renders a ReadOnlyArray wrapper differently from legacy Show. Replaced layer display snapshots with exact value and order equality; same expected layers."
+  },
+  "supplementary_debt_policy": {
+    "passed": false,
+    "reason": "Whole-checkout audit includes generated/vendor artifacts and pre-existing oversized tracked files. No new size-limit crossing remains; this audit is separate from compiler warning qualification."
+  },
+  "scope": "Native software warning gates only. Existing optional asset notices do not qualify physical CUDA, FPGA, NCCL or full-model inference numerics."
+}
