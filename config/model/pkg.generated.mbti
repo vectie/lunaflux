@@ -12,6 +12,9 @@ pub fn new(String, String, ArrayView[String]) -> ModelConfig raise ModelConfigEr
 pub(all) suberror ModelConfigError {
   Invalid(field~ : ModelField, issue~ : ModelIssue, index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigError::equal(Self, Self) -> Bool
+pub fn ModelConfigError::not_equal(Self, Self) -> Bool
+pub fn ModelConfigError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ModelConfig {
@@ -21,7 +24,10 @@ pub struct ModelConfig {
 } derive(Eq, @debug.Debug)
 pub fn ModelConfig::architecture_allowlist(Self) -> ReadOnlyArray[String]
 pub fn ModelConfig::artifact_path(Self) -> String
+pub fn ModelConfig::equal(Self, Self) -> Bool
 pub fn ModelConfig::expected_digest(Self) -> String
+pub fn ModelConfig::not_equal(Self, Self) -> Bool
+pub fn ModelConfig::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelField {
   ArtifactPath
@@ -29,6 +35,9 @@ pub(all) enum ModelField {
   ArchitectureAllowlist
   ArchitectureName
 } derive(Eq, @debug.Debug)
+pub fn ModelField::equal(Self, Self) -> Bool
+pub fn ModelField::not_equal(Self, Self) -> Bool
+pub fn ModelField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelIssue {
   Empty
@@ -37,6 +46,9 @@ pub(all) enum ModelIssue {
   InvalidFormat
   Duplicate
 } derive(Eq, @debug.Debug)
+pub fn ModelIssue::equal(Self, Self) -> Bool
+pub fn ModelIssue::not_equal(Self, Self) -> Bool
+pub fn ModelIssue::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

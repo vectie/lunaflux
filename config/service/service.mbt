@@ -34,9 +34,9 @@ pub(all) suberror ServiceConfigError {
 /// Immutable process and diagnostic settings.
 pub struct ServiceConfig {
   listen_host : String
-  listen_port : Int
-  max_request_bytes : Int
-  graceful_drain_milliseconds : Int
+  listen_port : Int32
+  max_request_bytes : Int32
+  graceful_drain_milliseconds : Int32
   diagnostic_mode : DiagnosticMode
 } derive(Debug, Eq)
 
@@ -44,9 +44,9 @@ pub struct ServiceConfig {
 /// Constructs validated service settings.
 pub fn new(
   listen_host : String,
-  listen_port : Int,
-  max_request_bytes : Int,
-  graceful_drain_milliseconds : Int,
+  listen_port : Int32,
+  max_request_bytes : Int32,
+  graceful_drain_milliseconds : Int32,
   diagnostic_mode : DiagnosticMode,
 ) -> ServiceConfig raise ServiceConfigError {
   if listen_host.length() == 0 {
@@ -93,17 +93,19 @@ pub fn ServiceConfig::listen_host(self : ServiceConfig) -> String {
 }
 
 ///|
-pub fn ServiceConfig::listen_port(self : ServiceConfig) -> Int {
+pub fn ServiceConfig::listen_port(self : ServiceConfig) -> Int32 {
   self.listen_port
 }
 
 ///|
-pub fn ServiceConfig::max_request_bytes(self : ServiceConfig) -> Int {
+pub fn ServiceConfig::max_request_bytes(self : ServiceConfig) -> Int32 {
   self.max_request_bytes
 }
 
 ///|
-pub fn ServiceConfig::graceful_drain_milliseconds(self : ServiceConfig) -> Int {
+pub fn ServiceConfig::graceful_drain_milliseconds(
+  self : ServiceConfig,
+) -> Int32 {
   self.graceful_drain_milliseconds
 }
 
@@ -111,3 +113,33 @@ pub fn ServiceConfig::graceful_drain_milliseconds(self : ServiceConfig) -> Int {
 pub fn ServiceConfig::diagnostic_mode(self : ServiceConfig) -> DiagnosticMode {
   self.diagnostic_mode
 }
+
+///|
+pub extend DiagnosticMode with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend DiagnosticMode with Eq::{not_equal, equal}
+
+///|
+pub extend ServiceField with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ServiceField with Eq::{not_equal, equal}
+
+///|
+pub extend ServiceIssue with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ServiceIssue with Eq::{not_equal, equal}
+
+///|
+pub extend ServiceConfigError with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ServiceConfigError with Eq::{not_equal, equal}
+
+///|
+pub extend ServiceConfig with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ServiceConfig with Eq::{not_equal, equal}

@@ -24,15 +24,28 @@ pub(all) suberror ReleaseEvidenceError {
   InvalidObservation
   MissingObservation
 } derive(Eq, @debug.Debug)
+pub fn ReleaseEvidenceError::equal(Self, Self) -> Bool
+pub fn ReleaseEvidenceError::not_equal(Self, Self) -> Bool
+pub fn ReleaseEvidenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ReleaseArtifactDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ReleaseArtifactDigest::as_hex(Self) -> String
+pub fn ReleaseArtifactDigest::equal(Self, Self) -> Bool
 pub fn ReleaseArtifactDigest::from_sha256(StringView) -> Self raise ReleaseEvidenceError
+pub fn ReleaseArtifactDigest::hash(Self) -> Int
+pub fn ReleaseArtifactDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ReleaseArtifactDigest::not_equal(Self, Self) -> Bool
+pub fn ReleaseArtifactDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseCampaignDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ReleaseCampaignDigest::as_hex(Self) -> String
+pub fn ReleaseCampaignDigest::equal(Self, Self) -> Bool
 pub fn ReleaseCampaignDigest::from_sha256(StringView) -> Self raise ReleaseEvidenceError
+pub fn ReleaseCampaignDigest::hash(Self) -> Int
+pub fn ReleaseCampaignDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ReleaseCampaignDigest::not_equal(Self, Self) -> Bool
+pub fn ReleaseCampaignDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseCampaignLimits {
   // private fields
@@ -49,40 +62,52 @@ pub fn ReleaseCampaignRecord::campaign_id(Self) -> UInt64
 pub fn ReleaseCampaignRecord::canonical_bytes(Self) -> Bytes
 pub fn ReleaseCampaignRecord::declared_status(Self) -> ReleaseEvidenceStatus
 pub fn ReleaseCampaignRecord::digest(Self) -> ReleaseCampaignDigest
+pub fn ReleaseCampaignRecord::equal(Self, Self) -> Bool
 pub fn ReleaseCampaignRecord::evidence_at(Self, Int) -> ReleaseEvidenceEntry?
 pub fn ReleaseCampaignRecord::evidence_count(Self) -> Int
 pub fn ReleaseCampaignRecord::image(Self) -> ReleaseImageDigest
 pub fn ReleaseCampaignRecord::new(campaign_id~ : UInt64, subject~ : ReleaseSubjectDigest, image~ : ReleaseImageDigest, physical_target~ : ReleaseTargetDigest, evidence~ : ArrayView[ReleaseEvidenceEntry], reviewers~ : ArrayView[ReleaseReviewerEntry], limits~ : ReleaseCampaignLimits) -> Self raise ReleaseEvidenceError
+pub fn ReleaseCampaignRecord::not_equal(Self, Self) -> Bool
 pub fn ReleaseCampaignRecord::physical_target(Self) -> ReleaseTargetDigest
 pub fn ReleaseCampaignRecord::reviewer_at(Self, Int) -> ReleaseReviewerEntry?
 pub fn ReleaseCampaignRecord::reviewer_count(Self) -> Int
 pub fn ReleaseCampaignRecord::subject(Self) -> ReleaseSubjectDigest
+pub fn ReleaseCampaignRecord::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseEvidenceArtifact {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ReleaseEvidenceArtifact::byte_length(Self) -> Int64
 pub fn ReleaseEvidenceArtifact::digest(Self) -> ReleaseArtifactDigest
+pub fn ReleaseEvidenceArtifact::equal(Self, Self) -> Bool
 pub fn ReleaseEvidenceArtifact::locator(Self) -> String
 pub fn ReleaseEvidenceArtifact::new(StringView, byte_length~ : Int64, digest~ : ReleaseArtifactDigest, limits~ : ReleaseCampaignLimits) -> Self raise ReleaseEvidenceError
+pub fn ReleaseEvidenceArtifact::not_equal(Self, Self) -> Bool
+pub fn ReleaseEvidenceArtifact::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseEvidenceEntry {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ReleaseEvidenceEntry::artifact(Self) -> ReleaseEvidenceArtifact?
+pub fn ReleaseEvidenceEntry::equal(Self, Self) -> Bool
 pub fn ReleaseEvidenceEntry::losing_workload_count(Self) -> Int
 pub fn ReleaseEvidenceEntry::new(role~ : ReleaseEvidenceRole, status~ : ReleaseEvidenceStatus, artifact~ : ReleaseEvidenceArtifact?, workload_count~ : Int, losing_workload_count~ : Int) -> Self raise ReleaseEvidenceError
+pub fn ReleaseEvidenceEntry::not_equal(Self, Self) -> Bool
 pub fn ReleaseEvidenceEntry::role(Self) -> ReleaseEvidenceRole
 pub fn ReleaseEvidenceEntry::status(Self) -> ReleaseEvidenceStatus
+pub fn ReleaseEvidenceEntry::to_repr(Self) -> @debug.Repr
 pub fn ReleaseEvidenceEntry::workload_count(Self) -> Int
 
 pub struct ReleaseEvidenceObservation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ReleaseEvidenceObservation::equal(Self, Self) -> Bool
 pub fn ReleaseEvidenceObservation::from_payload(role~ : ReleaseEvidenceRole, StringView, Bytes, limits~ : ReleaseCampaignLimits) -> Self raise ReleaseEvidenceError
 pub fn ReleaseEvidenceObservation::locator(Self) -> String
 pub fn ReleaseEvidenceObservation::new(role~ : ReleaseEvidenceRole, StringView, byte_length~ : Int64, digest~ : ReleaseArtifactDigest, limits~ : ReleaseCampaignLimits) -> Self raise ReleaseEvidenceError
+pub fn ReleaseEvidenceObservation::not_equal(Self, Self) -> Bool
 pub fn ReleaseEvidenceObservation::role(Self) -> ReleaseEvidenceRole
+pub fn ReleaseEvidenceObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReleaseEvidenceRole {
   PhysicalTarget
@@ -102,6 +127,9 @@ pub(all) enum ReleaseEvidenceRole {
   ExternalAdapterPath
   OperationalLifecycle
 } derive(Eq, @debug.Debug)
+pub fn ReleaseEvidenceRole::equal(Self, Self) -> Bool
+pub fn ReleaseEvidenceRole::not_equal(Self, Self) -> Bool
+pub fn ReleaseEvidenceRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReleaseEvidenceStatus {
   Pending
@@ -109,45 +137,77 @@ pub(all) enum ReleaseEvidenceStatus {
   Failed
   NotRun
 } derive(Eq, @debug.Debug)
+pub fn ReleaseEvidenceStatus::equal(Self, Self) -> Bool
+pub fn ReleaseEvidenceStatus::not_equal(Self, Self) -> Bool
+pub fn ReleaseEvidenceStatus::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseImageDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ReleaseImageDigest::as_hex(Self) -> String
+pub fn ReleaseImageDigest::equal(Self, Self) -> Bool
 pub fn ReleaseImageDigest::from_sha256(StringView) -> Self raise ReleaseEvidenceError
+pub fn ReleaseImageDigest::hash(Self) -> Int
+pub fn ReleaseImageDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ReleaseImageDigest::not_equal(Self, Self) -> Bool
+pub fn ReleaseImageDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseReviewerEntry {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ReleaseReviewerEntry::attestation(Self) -> ReleaseEvidenceArtifact?
+pub fn ReleaseReviewerEntry::equal(Self, Self) -> Bool
 pub fn ReleaseReviewerEntry::identity(Self) -> ReleaseReviewerIdentityDigest?
 pub fn ReleaseReviewerEntry::new(role~ : ReleaseReviewerRole, status~ : ReleaseEvidenceStatus, identity~ : ReleaseReviewerIdentityDigest?, attestation~ : ReleaseEvidenceArtifact?) -> Self raise ReleaseEvidenceError
+pub fn ReleaseReviewerEntry::not_equal(Self, Self) -> Bool
 pub fn ReleaseReviewerEntry::role(Self) -> ReleaseReviewerRole
 pub fn ReleaseReviewerEntry::status(Self) -> ReleaseEvidenceStatus
+pub fn ReleaseReviewerEntry::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseReviewerIdentityDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ReleaseReviewerIdentityDigest::as_hex(Self) -> String
+pub fn ReleaseReviewerIdentityDigest::equal(Self, Self) -> Bool
 pub fn ReleaseReviewerIdentityDigest::from_sha256(StringView) -> Self raise ReleaseEvidenceError
+pub fn ReleaseReviewerIdentityDigest::hash(Self) -> Int
+pub fn ReleaseReviewerIdentityDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ReleaseReviewerIdentityDigest::not_equal(Self, Self) -> Bool
+pub fn ReleaseReviewerIdentityDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseReviewerObservation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ReleaseReviewerObservation::equal(Self, Self) -> Bool
 pub fn ReleaseReviewerObservation::from_payload(role~ : ReleaseReviewerRole, StringView, Bytes, limits~ : ReleaseCampaignLimits) -> Self raise ReleaseEvidenceError
 pub fn ReleaseReviewerObservation::locator(Self) -> String
 pub fn ReleaseReviewerObservation::new(role~ : ReleaseReviewerRole, StringView, byte_length~ : Int64, digest~ : ReleaseArtifactDigest, limits~ : ReleaseCampaignLimits) -> Self raise ReleaseEvidenceError
+pub fn ReleaseReviewerObservation::not_equal(Self, Self) -> Bool
 pub fn ReleaseReviewerObservation::role(Self) -> ReleaseReviewerRole
+pub fn ReleaseReviewerObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReleaseReviewerRole {
   SecurityReviewer
   OperationsReviewer
   PerformanceReviewer
 } derive(Eq, @debug.Debug)
+pub fn ReleaseReviewerRole::equal(Self, Self) -> Bool
+pub fn ReleaseReviewerRole::not_equal(Self, Self) -> Bool
+pub fn ReleaseReviewerRole::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseSubjectDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ReleaseSubjectDigest::as_hex(Self) -> String
+pub fn ReleaseSubjectDigest::equal(Self, Self) -> Bool
 pub fn ReleaseSubjectDigest::from_sha256(StringView) -> Self raise ReleaseEvidenceError
+pub fn ReleaseSubjectDigest::hash(Self) -> Int
+pub fn ReleaseSubjectDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ReleaseSubjectDigest::not_equal(Self, Self) -> Bool
+pub fn ReleaseSubjectDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseTargetDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ReleaseTargetDigest::as_hex(Self) -> String
+pub fn ReleaseTargetDigest::equal(Self, Self) -> Bool
 pub fn ReleaseTargetDigest::from_sha256(StringView) -> Self raise ReleaseEvidenceError
+pub fn ReleaseTargetDigest::hash(Self) -> Int
+pub fn ReleaseTargetDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ReleaseTargetDigest::not_equal(Self, Self) -> Bool
+pub fn ReleaseTargetDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ReleaseVerificationPolicy {
   // private fields
@@ -158,8 +218,11 @@ pub struct VerifiedReleaseCampaign {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn VerifiedReleaseCampaign::campaign_digest(Self) -> ReleaseCampaignDigest
+pub fn VerifiedReleaseCampaign::equal(Self, Self) -> Bool
 pub fn VerifiedReleaseCampaign::is_accepted(Self) -> Bool
+pub fn VerifiedReleaseCampaign::not_equal(Self, Self) -> Bool
 pub fn VerifiedReleaseCampaign::status(Self) -> ReleaseEvidenceStatus
+pub fn VerifiedReleaseCampaign::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

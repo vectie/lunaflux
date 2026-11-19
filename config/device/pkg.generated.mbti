@@ -12,13 +12,19 @@ pub fn new(ArrayView[Int], Int64) -> DeviceConfig raise DeviceConfigError
 pub(all) suberror DeviceConfigError {
   Invalid(field~ : DeviceField, issue~ : DeviceIssue, index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn DeviceConfigError::equal(Self, Self) -> Bool
+pub fn DeviceConfigError::not_equal(Self, Self) -> Bool
+pub fn DeviceConfigError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DeviceConfig {
   visible_devices : ReadOnlyArray[Int]
   memory_ceiling_bytes : Int64
 } derive(Eq, @debug.Debug)
+pub fn DeviceConfig::equal(Self, Self) -> Bool
 pub fn DeviceConfig::memory_ceiling_bytes(Self) -> Int64
+pub fn DeviceConfig::not_equal(Self, Self) -> Bool
+pub fn DeviceConfig::to_repr(Self) -> @debug.Repr
 pub fn DeviceConfig::visible_devices(Self) -> ReadOnlyArray[Int]
 
 pub(all) enum DeviceField {
@@ -26,6 +32,9 @@ pub(all) enum DeviceField {
   DeviceId
   MemoryCeilingBytes
 } derive(Eq, @debug.Debug)
+pub fn DeviceField::equal(Self, Self) -> Bool
+pub fn DeviceField::not_equal(Self, Self) -> Bool
+pub fn DeviceField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceIssue {
   Empty
@@ -34,6 +43,9 @@ pub(all) enum DeviceIssue {
   AboveMaximum
   Duplicate
 } derive(Eq, @debug.Debug)
+pub fn DeviceIssue::equal(Self, Self) -> Bool
+pub fn DeviceIssue::not_equal(Self, Self) -> Bool
+pub fn DeviceIssue::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -12,6 +12,9 @@ pub fn new(step_token_budget~ : Int, max_active_requests~ : Int, max_waiting_req
 pub(all) suberror SchedulerConfigError {
   Invalid(field~ : SchedulerField, issue~ : SchedulerIssue)
 } derive(Eq, @debug.Debug)
+pub fn SchedulerConfigError::equal(Self, Self) -> Bool
+pub fn SchedulerConfigError::not_equal(Self, Self) -> Bool
+pub fn SchedulerConfigError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct SchedulerConfig {
@@ -24,12 +27,15 @@ pub struct SchedulerConfig {
   output_event_capacity : Int
 } derive(Eq, @debug.Debug)
 pub fn SchedulerConfig::emergency_decode_page_reserve(Self) -> Int
+pub fn SchedulerConfig::equal(Self, Self) -> Bool
 pub fn SchedulerConfig::max_active_requests(Self) -> Int
 pub fn SchedulerConfig::max_waiting_requests(Self) -> Int
+pub fn SchedulerConfig::not_equal(Self, Self) -> Bool
 pub fn SchedulerConfig::output_event_capacity(Self) -> Int
 pub fn SchedulerConfig::plan_buffer_count(Self) -> Int
 pub fn SchedulerConfig::prefill_chunk_tokens(Self) -> Int
 pub fn SchedulerConfig::step_token_budget(Self) -> Int
+pub fn SchedulerConfig::to_repr(Self) -> @debug.Repr
 pub fn SchedulerConfig::waiting_age_threshold_steps(Self) -> Int
 
 pub(all) enum SchedulerField {
@@ -41,6 +47,9 @@ pub(all) enum SchedulerField {
   WaitingAgeThresholdSteps
   OutputEventCapacity
 } derive(Eq, @debug.Debug)
+pub fn SchedulerField::equal(Self, Self) -> Bool
+pub fn SchedulerField::not_equal(Self, Self) -> Bool
+pub fn SchedulerField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SchedulerIssue {
   BelowMinimum
@@ -49,6 +58,9 @@ pub(all) enum SchedulerIssue {
   CombinedRequestCapacityExceeded
   BelowMaximumRowsPerStep
 } derive(Eq, @debug.Debug)
+pub fn SchedulerIssue::equal(Self, Self) -> Bool
+pub fn SchedulerIssue::not_equal(Self, Self) -> Bool
+pub fn SchedulerIssue::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -1,20 +1,20 @@
 ///|
-const MAX_TOKENS_PER_PAGE : Int = 262_144
+const MAX_TOKENS_PER_PAGE : Int32 = 262_144
 
 ///|
-const MAX_TOTAL_PAGE_COUNT : Int = 1_048_576
+const MAX_TOTAL_PAGE_COUNT : Int32 = 1_048_576
 
 ///|
-const MAX_BLOCK_TABLE_PAGES_PER_REQUEST : Int = 262_144
+const MAX_BLOCK_TABLE_PAGES_PER_REQUEST : Int32 = 262_144
 
 ///|
-const MAX_PREFIX_CAPACITY : Int = 1_048_576
+const MAX_PREFIX_CAPACITY : Int32 = 1_048_576
 
 ///|
-const MAX_REFERENCES_PER_PAGE : Int = 1_048_576
+const MAX_REFERENCES_PER_PAGE : Int32 = 1_048_576
 
 ///|
-const MAX_LAYOUT_VERSION : Int = 1_000_000
+const MAX_LAYOUT_VERSION : Int32 = 1_000_000
 
 ///|
 /// Fields accepted by the cache configuration constructor.
@@ -52,18 +52,18 @@ pub(all) suberror CacheConfigError {
 ///|
 /// Immutable physical page and optional prefix-index capacity settings.
 pub struct CacheConfig {
-  tokens_per_page : Int
-  total_page_count : Int
-  block_table_pages_per_request : Int
+  tokens_per_page : Int32
+  total_page_count : Int32
+  block_table_pages_per_request : Int32
   prefix_enabled : Bool
-  max_prefix_entries : Int
-  max_prefix_nodes : Int
-  max_prefix_tokens_per_entry : Int
-  max_prefix_pages : Int
-  max_prefix_scope_bytes : Int
-  max_active_references_per_page : Int
-  max_cached_references_per_page : Int
-  layout_version : Int
+  max_prefix_entries : Int32
+  max_prefix_nodes : Int32
+  max_prefix_tokens_per_entry : Int32
+  max_prefix_pages : Int32
+  max_prefix_scope_bytes : Int32
+  max_active_references_per_page : Int32
+  max_cached_references_per_page : Int32
+  layout_version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -73,18 +73,18 @@ pub struct CacheConfig {
 /// entry, aggregate node, per-entry token, and logical page-cell capacities
 /// are all explicit and nonzero.
 pub fn new(
-  tokens_per_page~ : Int,
-  total_page_count~ : Int,
-  block_table_pages_per_request~ : Int,
+  tokens_per_page~ : Int32,
+  total_page_count~ : Int32,
+  block_table_pages_per_request~ : Int32,
   prefix_enabled~ : Bool,
-  max_prefix_entries~ : Int,
-  max_prefix_nodes~ : Int,
-  max_prefix_tokens_per_entry~ : Int,
-  max_prefix_pages~ : Int,
-  max_active_references_per_page~ : Int,
-  max_cached_references_per_page~ : Int,
-  layout_version~ : Int,
-  max_prefix_scope_bytes? : Int = 0,
+  max_prefix_entries~ : Int32,
+  max_prefix_nodes~ : Int32,
+  max_prefix_tokens_per_entry~ : Int32,
+  max_prefix_pages~ : Int32,
+  max_active_references_per_page~ : Int32,
+  max_cached_references_per_page~ : Int32,
+  layout_version~ : Int32,
+  max_prefix_scope_bytes~ : Int32 = 0,
 ) -> CacheConfig raise CacheConfigError {
   require_positive_bounded(tokens_per_page, MAX_TOKENS_PER_PAGE, TokensPerPage)
   require_positive_bounded(
@@ -152,14 +152,14 @@ pub fn new(
 }
 
 ///|
-pub fn CacheConfig::max_prefix_scope_bytes(self : CacheConfig) -> Int {
+pub fn CacheConfig::max_prefix_scope_bytes(self : CacheConfig) -> Int32 {
   self.max_prefix_scope_bytes
 }
 
 ///|
 fn require_positive_bounded(
-  value : Int,
-  maximum : Int,
+  value : Int32,
+  maximum : Int32,
   field : CacheField,
 ) -> Unit raise CacheConfigError {
   if value <= 0 {
@@ -172,7 +172,7 @@ fn require_positive_bounded(
 
 ///|
 fn require_prefix_capacity(
-  value : Int,
+  value : Int32,
   field : CacheField,
   prefix_enabled : Bool,
 ) -> Unit raise CacheConfigError {
@@ -189,17 +189,17 @@ fn require_prefix_capacity(
 }
 
 ///|
-pub fn CacheConfig::tokens_per_page(self : CacheConfig) -> Int {
+pub fn CacheConfig::tokens_per_page(self : CacheConfig) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
-pub fn CacheConfig::total_page_count(self : CacheConfig) -> Int {
+pub fn CacheConfig::total_page_count(self : CacheConfig) -> Int32 {
   self.total_page_count
 }
 
 ///|
-pub fn CacheConfig::block_table_pages_per_request(self : CacheConfig) -> Int {
+pub fn CacheConfig::block_table_pages_per_request(self : CacheConfig) -> Int32 {
   self.block_table_pages_per_request
 }
 
@@ -209,36 +209,60 @@ pub fn CacheConfig::prefix_enabled(self : CacheConfig) -> Bool {
 }
 
 ///|
-pub fn CacheConfig::max_prefix_entries(self : CacheConfig) -> Int {
+pub fn CacheConfig::max_prefix_entries(self : CacheConfig) -> Int32 {
   self.max_prefix_entries
 }
 
 ///|
-pub fn CacheConfig::max_prefix_nodes(self : CacheConfig) -> Int {
+pub fn CacheConfig::max_prefix_nodes(self : CacheConfig) -> Int32 {
   self.max_prefix_nodes
 }
 
 ///|
-pub fn CacheConfig::max_prefix_tokens_per_entry(self : CacheConfig) -> Int {
+pub fn CacheConfig::max_prefix_tokens_per_entry(self : CacheConfig) -> Int32 {
   self.max_prefix_tokens_per_entry
 }
 
 ///|
-pub fn CacheConfig::max_prefix_pages(self : CacheConfig) -> Int {
+pub fn CacheConfig::max_prefix_pages(self : CacheConfig) -> Int32 {
   self.max_prefix_pages
 }
 
 ///|
-pub fn CacheConfig::max_active_references_per_page(self : CacheConfig) -> Int {
+pub fn CacheConfig::max_active_references_per_page(self : CacheConfig) -> Int32 {
   self.max_active_references_per_page
 }
 
 ///|
-pub fn CacheConfig::max_cached_references_per_page(self : CacheConfig) -> Int {
+pub fn CacheConfig::max_cached_references_per_page(self : CacheConfig) -> Int32 {
   self.max_cached_references_per_page
 }
 
 ///|
-pub fn CacheConfig::layout_version(self : CacheConfig) -> Int {
+pub fn CacheConfig::layout_version(self : CacheConfig) -> Int32 {
   self.layout_version
 }
+
+///|
+pub extend CacheField with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend CacheField with Eq::{not_equal, equal}
+
+///|
+pub extend CacheIssue with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend CacheIssue with Eq::{not_equal, equal}
+
+///|
+pub extend CacheConfigError with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend CacheConfigError with Eq::{not_equal, equal}
+
+///|
+pub extend CacheConfig with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend CacheConfig with Eq::{not_equal, equal}
