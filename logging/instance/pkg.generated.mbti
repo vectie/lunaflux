@@ -9,6 +9,8 @@ pub(all) suberror LunaInstanceLogError {
   LunaInstanceLogStaleSnapshot
   LunaInstanceLogSnapshotGenerationExhausted
 } derive(Eq)
+pub fn LunaInstanceLogError::equal(Self, Self) -> Bool
+pub fn LunaInstanceLogError::not_equal(Self, Self) -> Bool
 
 // Types and methods
 pub struct LunaInstanceLog {
@@ -47,6 +49,8 @@ pub(all) enum LunaInstanceLogEvent {
   LunaDrainStarted
   LunaInstanceClosed
 } derive(Eq)
+pub fn LunaInstanceLogEvent::equal(Self, Self) -> Bool
+pub fn LunaInstanceLogEvent::not_equal(Self, Self) -> Bool
 
 pub(all) enum LunaInstanceLogReason {
   LunaLogNoReason
@@ -63,6 +67,8 @@ pub(all) enum LunaInstanceLogReason {
   LunaLogServiceDraining
   LunaLogInternal
 } derive(Eq)
+pub fn LunaInstanceLogReason::equal(Self, Self) -> Bool
+pub fn LunaInstanceLogReason::not_equal(Self, Self) -> Bool
 
 pub(all) enum LunaInstanceLogRule {
   LunaInstanceLogCapacityRule
@@ -72,6 +78,8 @@ pub(all) enum LunaInstanceLogRule {
   LunaInstanceLogDurationRule
   LunaInstanceLogSnapshotRule
 } derive(Eq)
+pub fn LunaInstanceLogRule::equal(Self, Self) -> Bool
+pub fn LunaInstanceLogRule::not_equal(Self, Self) -> Bool
 
 pub struct LunaInstanceLogSnapshot {
   // private fields

@@ -1,0 +1,10 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/env",
+  "vectie/lunaflux/tests/lunachip_adapter" @fixture,
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

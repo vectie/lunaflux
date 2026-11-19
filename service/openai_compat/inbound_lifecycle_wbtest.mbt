@@ -38,7 +38,7 @@ test "Luna OpenAI inbound pins Busy abort stale reuse and epoch exhaustion" {
 ///|
 test "Luna OpenAI inbound stale HTTP fails every retained phase" {
   let inference = openai_wb_fixture_limits()
-  let targets : FixedArray[Int] = [
+  let targets : FixedArray[Int32] = [
     LUNA_INBOUND_TOP_KEY,
     LUNA_INBOUND_STRING,
     LUNA_INBOUND_STRING_EMIT,
@@ -136,7 +136,7 @@ test "Luna OpenAI inbound sizing is exact and forged limits fail before allocati
     ),
     202UL,
   )
-  assert_eq(LunaOpenAIInboundWorkspace::required_reference_cells(), 8UL)
+  assert_eq(LunaOpenAIInboundWorkspace::required_reference_cells(), 9UL)
   let forged : LunaOpenAIInboundLimits = {
     max_messages: 2147483647,
     required_stop_tokens: [],

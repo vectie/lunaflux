@@ -17,7 +17,8 @@ fn LunaOpenAIInboundWorkspace::authenticate_http(
 ) -> Unit raise LunaOpenAICompatError {
   if self.http_views.length() != 1 ||
     !self.http_views[0].is_live() ||
-    (self.http_views[0].body_length() catch { _ => -1 }) != self.body_length {
+    (self.http_views[0].body_length() catch { _ => -1 }) !=
+    self.source_body_length {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatHttp)
   }
 }
@@ -177,6 +178,7 @@ fn LunaOpenAIInboundWorkspace::progress_inbound_one(
         _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatHttp)
       }
       self.http_views.clear()
+      self.normalized_body = None
       self.request_ids.clear()
       self.phase = LUNA_INBOUND_READY
     }
@@ -222,7 +224,7 @@ pub fn LunaOpenAIInboundWork::state(
 ///|
 pub fn LunaOpenAIInboundWork::last_work_units(
   self : Self,
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   self.require_workspace().last_work_units
 }
 
@@ -246,6 +248,7 @@ pub fn LunaOpenAIInboundWork::failure(
 
 ///|
 fn LunaOpenAIInboundWorkspace::cleanup_children(self : Self) -> Unit {
+  self.normalized_body = None
   if self.handoff_writes.length() == 1 {
     self.handoff_writes[0].abort() catch {
       _ => abort("Luna OpenAI handoff write cleanup invariant")
@@ -330,7 +333,7 @@ pub fn LunaOpenAIInboundView::streaming_response(
 ///|
 pub fn LunaOpenAIInboundView::length(
   self : Self,
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   let lease = self.handoff()
   lease.prompt_length() catch {
     _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatFrame)
@@ -341,10 +344,10 @@ pub fn LunaOpenAIInboundView::length(
 pub fn LunaOpenAIInboundView::copy_chunk_to(
   self : Self,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise LunaOpenAICompatError {
+  destination_offset~ : Int32,
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise LunaOpenAICompatError {
   let lease = self.handoff()
   let total = lease.prompt_length() catch {
     _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatFrame)

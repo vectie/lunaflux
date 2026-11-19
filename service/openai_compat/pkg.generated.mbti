@@ -64,6 +64,7 @@ pub struct LunaOpenAICompatView {
 pub fn LunaOpenAICompatView::copy_chunk_to(Self, FixedArray[Byte], destination_offset~ : Int, source_offset~ : Int, length~ : Int) -> Int raise LunaOpenAICompatError
 pub fn LunaOpenAICompatView::failed_response(Self) -> Bool raise LunaOpenAICompatError
 pub fn LunaOpenAICompatView::length(Self) -> Int raise LunaOpenAICompatError
+pub fn LunaOpenAICompatView::maximum_copy_bytes(Self) -> Int raise LunaOpenAICompatError
 pub fn LunaOpenAICompatView::release(Self) -> Unit raise LunaOpenAICompatError
 
 pub struct LunaOpenAICompatWork {
@@ -132,6 +133,7 @@ pub struct LunaOpenAIInboundWorkspace {
   // private fields
 }
 pub fn LunaOpenAIInboundWorkspace::begin(Self, @http1.LunaHttp1View, @inference.RequestId) -> LunaOpenAIInboundWork raise LunaOpenAICompatError
+pub fn LunaOpenAIInboundWorkspace::begin_normalized(Self, @http1.LunaHttp1View, @inference.RequestId, Bytes) -> LunaOpenAIInboundWork raise LunaOpenAICompatError
 pub fn LunaOpenAIInboundWorkspace::new(@inference.InferenceLimits, LunaOpenAICompatStepBudget, LunaOpenAIInboundLimits, LunaOpenAIChatTemplate, FixedArray[Byte], model_alias_offset~ : Int, model_alias_length~ : Int, @spec.ModelIdentity, @inference.CacheScope, max_new_tokens~ : Int, context_ceiling~ : Int, @inference.SamplingParameters, @inference.SamplingSeed, @inference.DeadlineBudget) -> Self raise LunaOpenAICompatError
 pub fn LunaOpenAIInboundWorkspace::required_byte_cells(@inference.InferenceLimits) -> UInt64 raise LunaOpenAICompatError
 pub fn LunaOpenAIInboundWorkspace::required_int_cells(@inference.InferenceLimits, LunaOpenAIInboundLimits) -> UInt64 raise LunaOpenAICompatError

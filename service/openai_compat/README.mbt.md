@@ -1,5 +1,13 @@
 # OpenAI compatibility
 
+`LunaOpenAIInboundWorkspace::begin_normalized` accepts immutable, model-normalized
+text JSON alongside the original authenticated HTTP view. The source view's
+liveness/body identity remains checked through admission; its lease is released
+at publication as in `begin`. Replacement JSON is bounded to 1 MiB and released
+on success/failure/abort. It adds one retained reference cell to the inbound
+workspace. Model adapters own image/content normalization and preserve generation
+fields for the canonical parser; this package imports no image/model decoder.
+
 This package is LunaFlux's transport-neutral outbound compatibility codec. It
 cooperatively maps an authenticated `@luna_event.LunaEventView` to canonical
 Server-Sent Events or a single buffered JSON response for either the Responses

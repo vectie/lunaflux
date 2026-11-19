@@ -1,0 +1,21 @@
+{
+  "format": "lunaflux.minicpm-v47-media-requests.v1",
+  "requests": [
+    {
+      "id": "compare-two-views",
+      "system": "Describe the scene. Propose a robot skill only when the observations support it.",
+      "user": [
+        { "type": "text", "text": "Compare these two views." },
+        { "type": "image", "path": "rgb.png" },
+        { "type": "image", "path": "baseline.jpg" }
+      ],
+      "maximum_new_tokens": 32
+    },
+    {
+      "id": "text-after-image",
+      "system": "Select a robot skill from the supplied catalog.",
+      "user": [ { "type": "text", "text": "Stand still." } ],
+      "maximum_new_tokens": 16
+    }
+  ]
+}

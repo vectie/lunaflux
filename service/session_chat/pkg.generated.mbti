@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/service/session_chat"
+
+import {
+  "moonbitlang/async/socket",
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/service/api_auth",
+  "vectie/lunaflux/service/http1",
+  "vectie/lunaflux/service/luna_event",
+  "vectie/lunaflux/service/openai_compat",
+}
+
+// Values
+
+// Errors
+pub(all) suberror SessionChatError {
+  UnsupportedRequest
+  InvalidLifecycle
+} derive(@debug.Debug)
+
+// Types and methods
+pub struct Service {
+  // private fields
+}
+pub fn Service::close(Self) -> Unit
+pub fn Service::is_ready(Self) -> Bool
+pub fn Service::new(@inference.InferenceLimits, @api_auth.LunaApiAuthPolicy, @openai_compat.LunaOpenAIInboundWorkspace, @openai_compat.LunaOpenAICompatWorkspace, timeout_ms~ : Int, generate~ : async (@inference.LunaTextRequestHandoffLease, @luna_event.LunaEventOwner, async (@luna_event.LunaEventView) -> Unit) -> Unit, ready~ : () -> Bool) -> Self raise
+pub async fn Service::serve(Self, @socket.TcpServer) -> Unit
+pub fn Service::with_handler(@inference.InferenceLimits, @api_auth.LunaApiAuthPolicy, @openai_compat.LunaOpenAICompatWorkspace, timeout_ms~ : Int, maximum_body_bytes? : Int, handle~ : async (@http1.LunaHttp1View, @inference.RequestId, @luna_event.LunaEventOwner, (Bool) -> Unit raise, async (@luna_event.LunaEventView) -> Unit) -> Unit, ready~ : () -> Bool) -> Self raise
+
+// Type aliases
+
+// Traits

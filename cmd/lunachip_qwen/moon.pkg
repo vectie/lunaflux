@@ -1,0 +1,26 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/socket",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/math",
+  "moonbitlang/core/bench",
+  "moonbitlang/x/crypto",
+  "vectie/lunaflux/device/lunachip" @device,
+  "vectie/lunaflux/model/qwen3_lunachip" @layout,
+  "vectie/lunaflux/model/qwen3_weights" @weights,
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/safetensors_reader" @reader,
+  "vectie/lunaflux/model/config_reader" @config,
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/runtime/approved_fs" @approved,
+  "vectie/lunaflux/integration/lunachip_qwen" @qwen,
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_reader" @tokenizer_json,
+}
+
+supported_targets = "native"
+
+pkgtype(kind: "executable")

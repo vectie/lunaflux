@@ -25,7 +25,7 @@ pub fn LunaOpenAIInboundWorkspace::required_int_cells(
 
 ///|
 pub fn LunaOpenAIInboundWorkspace::required_reference_cells() -> UInt64 {
-  5UL + @inference.LunaTextRequestHandoffStorage::required_reference_cells()
+  6UL + @inference.LunaTextRequestHandoffStorage::required_reference_cells()
 }
 
 ///|
@@ -35,12 +35,12 @@ pub fn LunaOpenAIInboundWorkspace::new(
   limits : LunaOpenAIInboundLimits,
   template : LunaOpenAIChatTemplate,
   deployment_model_alias : FixedArray[Byte],
-  model_alias_offset~ : Int,
-  model_alias_length~ : Int,
+  model_alias_offset~ : Int32,
+  model_alias_length~ : Int32,
   identity : @spec.ModelIdentity,
   cache_scope : @inference.CacheScope,
-  max_new_tokens~ : Int,
-  context_ceiling~ : Int,
+  max_new_tokens~ : Int32,
+  context_ceiling~ : Int32,
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
@@ -49,7 +49,8 @@ pub fn LunaOpenAIInboundWorkspace::new(
   ignore(LunaOpenAIInboundWorkspace::required_int_cells(inference, limits))
   budget.validate()
   template.validate_for(inference)
-  if limits.required_stop_tokens.length() > inference.max_stop_token_ids() || limits.required_stop_tokens.any(t => t > inference.max_token_id()) {
+  if limits.required_stop_tokens.length() > inference.max_stop_token_ids() ||
+    limits.required_stop_tokens.any(t => t > inference.max_token_id()) {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits)
   }
   if !luna_openai_range_is_valid(
@@ -113,6 +114,8 @@ pub fn LunaOpenAIInboundWorkspace::new(
     sampling_seed,
     deadline,
     http_views: Array(capacity=1),
+    normalized_body: None,
+    source_body_length: 0,
     request_ids: Array(capacity=1),
     handoff_writes: Array(capacity=1),
     handoff_works: Array(capacity=1),
@@ -195,6 +198,8 @@ pub fn LunaOpenAIInboundWorkspace::new(
 ///|
 fn LunaOpenAIInboundWorkspace::reset_operation(self : Self) -> Unit {
   self.http_views.clear()
+  self.normalized_body = None
+  self.source_body_length = 0
   self.request_ids.clear()
   self.handoff_writes.clear()
   self.handoff_works.clear()
@@ -279,10 +284,30 @@ pub fn LunaOpenAIInboundWorkspace::begin(
     LunaHttp1ChatCompletions => 2
   }
   self.body_length = length
+  self.source_body_length = length
   self.http_views.push(http)
   self.request_ids.push(request_id)
   self.phase = LUNA_INBOUND_PARSE_START
   { workspace: self, epoch: self.epoch, }
+}
+
+///|
+/// Model-owned content normalization retains the original authenticated HTTP
+/// lease and route through publication. The immutable replacement JSON is
+/// text-only and bounded to 1 MiB; callers own its model/content semantics.
+pub fn LunaOpenAIInboundWorkspace::begin_normalized(
+  self : Self,
+  http : @http1.LunaHttp1View,
+  request_id : @inference.RequestId,
+  body : Bytes,
+) -> LunaOpenAIInboundWork raise LunaOpenAICompatError {
+  guard !body.is_empty() && body.length() <= 1048576 else {
+    raise LunaOpenAICompatInvalid(LunaOpenAICompatCapacity)
+  }
+  let work = self.begin(http, request_id)
+  self.normalized_body = Some(body)
+  self.body_length = body.length()
+  work
 }
 
 ///|
@@ -296,8 +321,14 @@ fn LunaOpenAIInboundWorkspace::http(self : Self) -> @http1.LunaHttp1View {
 ///|
 fn LunaOpenAIInboundWorkspace::body_byte(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaOpenAICompatError {
+  if self.normalized_body is Some(body) {
+    guard index >= 0 && index < body.length() else {
+      raise LunaOpenAICompatInvalid(LunaOpenAICompatHttp)
+    }
+    return body[index]
+  }
   self.http().body_byte_at(index) catch {
     _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatHttp)
   }

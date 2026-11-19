@@ -120,3 +120,39 @@ test "buffered storage is explicit and budget includes text and escaped output" 
   }
   owner.retire(event)
 }
+
+///|
+test "transport can discover the live view copy quantum" {
+  let limits = openai_fixture_limits()
+  let owner = @luna_event.LunaEventOwner::new(limits)
+  owner.publish_accepted(
+    openai_fixture_identity(),
+    @inference.EffectiveLimits::new(
+      max_new_tokens=4,
+      context_ceiling=16,
+      limits,
+    ),
+  )
+  let event = owner.view()
+  let workspace = openai_workspace(limits, 17, buffered=true)
+  let work = workspace.begin(
+    event,
+    LunaOpenAIChatCompletions,
+    response_sequence=1UL,
+    streaming=false,
+  )
+  while work.state() is LunaOpenAICompatPending {
+    ignore(work.progress())
+  }
+  let view = work.take_view()
+  assert_eq(view.maximum_copy_bytes(), 17)
+  view.release()
+  assert_true(
+    try view.maximum_copy_bytes() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
+  owner.retire(event)
+}

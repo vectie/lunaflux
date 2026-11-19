@@ -1,0 +1,18 @@
+{
+  "format": "lunaflux.minicpm-v47-text-requests.v1",
+  "requests": [
+    {
+      "id": "select-skill",
+      "system": "Choose a skill from the supplied catalog and return a JSON proposal. Do not invent robot observations or skill IDs.",
+      "user": "Catalog: stand. Observed state: stationary. Request: keep standing.",
+      "maximum_new_tokens": 128,
+      "context_ceiling": 4096
+    },
+    {
+      "id": "describe-contract",
+      "system": "Explain the supplied robot task contract briefly.",
+      "user": "The planner proposes skills. MoonRobo validates and supervises them. The local actor loop runs independently.",
+      "maximum_new_tokens": 64
+    }
+  ]
+}

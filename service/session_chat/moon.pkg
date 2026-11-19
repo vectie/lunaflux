@@ -1,0 +1,19 @@
+import {
+  "vectie/lunaflux/service/http1",
+  "vectie/lunaflux/service/openai_compat" @compat,
+  "vectie/lunaflux/service/api_auth" @auth,
+  "vectie/lunaflux/service/luna_event" @event,
+  "vectie/lunaflux/contracts/inference",
+  "moonbitlang/core/debug",
+  "moonbitlang/async",
+  "moonbitlang/async/socket",
+}
+
+import {
+  "vectie/lunaflux/model/spec",
+  "moonbitlang/async/http",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
+} for "test"
+
+supported_targets = "native"

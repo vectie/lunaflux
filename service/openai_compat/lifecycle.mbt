@@ -127,7 +127,7 @@ pub fn LunaOpenAICompatWork::state(
 ///|
 pub fn LunaOpenAICompatWork::last_work_units(
   self : LunaOpenAICompatWork,
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   self.require_workspace().last_work_units
 }
 
@@ -187,8 +187,18 @@ fn LunaOpenAICompatView::require_workspace(
 ///|
 pub fn LunaOpenAICompatView::length(
   self : LunaOpenAICompatView,
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   self.require_workspace().length
+}
+
+///|
+/// Maximum byte count accepted by one copy_chunk_to call for this live view.
+/// Transport adapters can honor the renderer's work quantum without retaining
+/// a second copy of its configuration.
+pub fn LunaOpenAICompatView::maximum_copy_bytes(
+  self : Self,
+) -> Int32 raise LunaOpenAICompatError {
+  self.require_workspace().budget.work_units()
 }
 
 ///|
@@ -202,10 +212,10 @@ pub fn LunaOpenAICompatView::failed_response(
 pub fn LunaOpenAICompatView::copy_chunk_to(
   self : LunaOpenAICompatView,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise LunaOpenAICompatError {
+  destination_offset~ : Int32,
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise LunaOpenAICompatError {
   let workspace = self.require_workspace()
   if length <= 0 || length > workspace.budget.work_units() {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatDestination)

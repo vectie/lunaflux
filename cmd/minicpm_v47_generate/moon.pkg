@@ -1,0 +1,25 @@
+import {
+  "vectie/lunaflux/integration/minicpm_v47_bootstrap" @bootstrap,
+  "vectie/lunaflux/integration/minicpm_v47_runtime" @runtime,
+  "vectie/lunaflux/integration/minicpm_v47" @prompt,
+  "vectie/lunaflux/integration/minicpm_v47_chat" @chat,
+  "vectie/lunaflux/integration/minicpm_v47_image_runtime" @image_runtime,
+  "vectie/lunaflux/integration/minicpm_v47_multimodal" @multimodal,
+  "vectie/lunaflux/integration/minicpm_v47_media" @media,
+  "vectie/lunaflux/media/rgb8",
+  "vectie/lunaflux/service/api_auth" @auth,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/tokenizer",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/socket",
+}
+
+pkgtype(kind: "executable")
+
+supported_targets = "native"

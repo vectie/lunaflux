@@ -1,0 +1,25 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_weights" @weights,
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/safetensors_reader",
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/integration/minicpm_v47_recurrent" @recurrent,
+  "vectie/lunaflux/integration/minicpm_v47_moe" @moe,
+  "vectie/lunaflux/integration/minicpm_v47_attention" @attention,
+  "vectie/lunaflux/integration/minicpm_v47_decoder" @decoder,
+  "vectie/lunaflux/integration/minicpm_v47_text" @text,
+  "vectie/lunaflux/integration/minicpm_v47_vision" @vision,
+  "vectie/lunaflux/integration/minicpm_v47_multimodal" @multimodal,
+  "vectie/lunaflux/integration/minicpm_v47_bootstrap" @bootstrap,
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+}
+
+pkgtype(kind: "executable")
+
+supported_targets = "native"
