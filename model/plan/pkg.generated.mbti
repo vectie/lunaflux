@@ -20,19 +20,28 @@ pub(all) suberror PlanValidationError {
   LimitExceeded(ModelPlanLimitKind)
   CanonicalEncodingMismatch
 } derive(Eq, @debug.Debug)
+pub fn PlanValidationError::equal(Self, Self) -> Bool
+pub fn PlanValidationError::not_equal(Self, Self) -> Bool
+pub fn PlanValidationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ActivationRef {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ActivationRef::as_int(Self) -> Int
+pub fn ActivationRef::equal(Self, Self) -> Bool
 pub fn ActivationRef::new(Int) -> Self raise PlanValidationError
+pub fn ActivationRef::not_equal(Self, Self) -> Bool
+pub fn ActivationRef::to_repr(Self) -> @debug.Repr
 
 pub struct CodebookTensorRef {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CodebookTensorRef::equal(Self, Self) -> Bool
 pub fn CodebookTensorRef::new(TensorRef) -> Self
+pub fn CodebookTensorRef::not_equal(Self, Self) -> Bool
 pub fn CodebookTensorRef::tensor(Self) -> TensorRef
+pub fn CodebookTensorRef::to_repr(Self) -> @debug.Repr
 
 pub struct KernelCapabilityId {
   // private fields
@@ -41,8 +50,10 @@ pub fn KernelCapabilityId::as_int(Self) -> Int
 pub fn KernelCapabilityId::causal_attention() -> Self
 pub fn KernelCapabilityId::dense_projection() -> Self
 pub fn KernelCapabilityId::embedding_lookup() -> Self
+pub fn KernelCapabilityId::equal(Self, Self) -> Bool
 pub fn KernelCapabilityId::from_stable_int(Int) -> Self raise PlanValidationError
 pub fn KernelCapabilityId::gated_mlp() -> Self
+pub fn KernelCapabilityId::not_equal(Self, Self) -> Bool
 pub fn KernelCapabilityId::paged_causal_attention() -> Self
 pub fn KernelCapabilityId::positioned_rotary_embedding() -> Self
 pub fn KernelCapabilityId::qk_rms_norm() -> Self
@@ -50,55 +61,76 @@ pub fn KernelCapabilityId::qkv_projection() -> Self
 pub fn KernelCapabilityId::residual_add() -> Self
 pub fn KernelCapabilityId::rms_norm() -> Self
 pub fn KernelCapabilityId::rotary_embedding() -> Self
+pub fn KernelCapabilityId::to_repr(Self) -> @debug.Repr
 
 pub struct KvCacheGeometry {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KvCacheGeometry::dtype(Self) -> @spec.ModelDType
+pub fn KvCacheGeometry::equal(Self, Self) -> Bool
 pub fn KvCacheGeometry::head_dimension(Self) -> Int
 pub fn KvCacheGeometry::kv_head_count(Self) -> Int
 pub fn KvCacheGeometry::layer_count(Self) -> Int
 pub fn KvCacheGeometry::layout(Self) -> KvCacheLayout
 pub fn KvCacheGeometry::new(layer_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int, dtype~ : @spec.ModelDType, layout~ : KvCacheLayout) -> Self raise PlanValidationError
+pub fn KvCacheGeometry::not_equal(Self, Self) -> Bool
+pub fn KvCacheGeometry::to_repr(Self) -> @debug.Repr
 
 pub(all) enum KvCacheLayout {
   LayerMajorSplitKeyValueV1
 } derive(Eq, @debug.Debug)
+pub fn KvCacheLayout::equal(Self, Self) -> Bool
+pub fn KvCacheLayout::not_equal(Self, Self) -> Bool
 pub fn KvCacheLayout::stable_version(Self) -> Int
+pub fn KvCacheLayout::to_repr(Self) -> @debug.Repr
 
 pub struct KvLayerId {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KvLayerId::as_int(Self) -> Int
+pub fn KvLayerId::equal(Self, Self) -> Bool
 pub fn KvLayerId::new(Int) -> Self raise PlanValidationError
+pub fn KvLayerId::not_equal(Self, Self) -> Bool
+pub fn KvLayerId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelInputRef {
   TokenIds
 } derive(Eq, @debug.Debug)
+pub fn ModelInputRef::equal(Self, Self) -> Bool
+pub fn ModelInputRef::not_equal(Self, Self) -> Bool
+pub fn ModelInputRef::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelKvExecution {
   StatelessFullContext
   PagedKeyValue
 } derive(Eq, @debug.Debug)
+pub fn ModelKvExecution::equal(Self, Self) -> Bool
+pub fn ModelKvExecution::not_equal(Self, Self) -> Bool
+pub fn ModelKvExecution::to_repr(Self) -> @debug.Repr
 
 pub struct ModelNumericBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ModelNumericBinding::canonical_bytes(Self) -> Bytes
 pub fn ModelNumericBinding::digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
+pub fn ModelNumericBinding::equal(Self, Self) -> Bool
+pub fn ModelNumericBinding::not_equal(Self, Self) -> Bool
 pub fn ModelNumericBinding::operations(Self) -> ReadOnlyArray[OperationNumericBinding]
 pub fn ModelNumericBinding::schema(Self) -> @numeric_contract.ModelNumericSchema
 pub fn ModelNumericBinding::tensors(Self) -> ReadOnlyArray[PlanTensor]
+pub fn ModelNumericBinding::to_repr(Self) -> @debug.Repr
 
 pub struct ModelPlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ModelPlan::equal(Self, Self) -> Bool
 pub fn ModelPlan::final_output(Self) -> ActivationRef
 pub fn ModelPlan::identity(Self) -> @spec.ModelIdentity
 pub fn ModelPlan::kv_cache_geometry(Self) -> KvCacheGeometry
 pub fn ModelPlan::kv_execution(Self) -> ModelKvExecution
 pub fn ModelPlan::new_stateless(content_digest~ : @spec.ContentDigest, limits~ : ModelPlanLimits, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, numeric_schema~ : @numeric_contract.ModelNumericSchema) -> Self raise PlanValidationError
 pub fn ModelPlan::new_with_kv_execution(content_digest~ : @spec.ContentDigest, limits~ : ModelPlanLimits, shape_constraints~ : ShapeConstraints, kv_cache_geometry~ : KvCacheGeometry, workspace_bounds~ : WorkspaceBounds, operations~ : ArrayView[PlanOperation], final_output~ : ActivationRef, kv_execution~ : ModelKvExecution, numeric_schema~ : @numeric_contract.ModelNumericSchema) -> Self raise PlanValidationError
+pub fn ModelPlan::not_equal(Self, Self) -> Bool
 pub fn ModelPlan::numeric_binding(Self) -> ModelNumericBinding
 pub fn ModelPlan::observed_operation_prefix(Self, output_demand~ : Bool) -> Int
 pub fn ModelPlan::operations(Self) -> ReadOnlyArray[PlanOperation]
@@ -106,6 +138,7 @@ pub fn ModelPlan::required_capabilities(Self) -> ReadOnlyArray[KernelCapabilityI
 pub fn ModelPlan::shape_constraints(Self) -> ShapeConstraints
 pub fn ModelPlan::tensor(Self, TensorRef) -> PlanTensor?
 pub fn ModelPlan::tensor_count(Self) -> Int
+pub fn ModelPlan::to_repr(Self) -> @debug.Repr
 pub fn ModelPlan::workspace_bounds(Self) -> WorkspaceBounds
 
 pub(all) enum ModelPlanLimitKind {
@@ -118,18 +151,27 @@ pub(all) enum ModelPlanLimitKind {
   CanonicalBytes
   IncoherentLimits
 } derive(Eq, @debug.Debug)
+pub fn ModelPlanLimitKind::equal(Self, Self) -> Bool
+pub fn ModelPlanLimitKind::not_equal(Self, Self) -> Bool
+pub fn ModelPlanLimitKind::to_repr(Self) -> @debug.Repr
 
 pub struct ModelPlanLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ModelPlanLimits::equal(Self, Self) -> Bool
 pub fn ModelPlanLimits::new(max_operations~ : Int, max_numeric_tensors~ : Int, max_total_value_inputs~ : Int, max_value_inputs_per_operation~ : Int, max_runtime_inputs_per_operation~ : Int, max_outputs_per_operation~ : Int, max_canonical_bytes~ : Int) -> Self raise PlanValidationError
+pub fn ModelPlanLimits::not_equal(Self, Self) -> Bool
 pub fn ModelPlanLimits::production() -> Self
+pub fn ModelPlanLimits::to_repr(Self) -> @debug.Repr
 
 pub struct OperationId {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn OperationId::as_int(Self) -> Int
+pub fn OperationId::equal(Self, Self) -> Bool
 pub fn OperationId::new(Int) -> Self raise PlanValidationError
+pub fn OperationId::not_equal(Self, Self) -> Bool
+pub fn OperationId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OperationKind {
   Embedding
@@ -143,12 +185,18 @@ pub(all) enum OperationKind {
   GatedMlp
   LanguageModelHead
 } derive(Eq, @debug.Debug)
+pub fn OperationKind::equal(Self, Self) -> Bool
+pub fn OperationKind::not_equal(Self, Self) -> Bool
+pub fn OperationKind::to_repr(Self) -> @debug.Repr
 
 pub struct OperationNumericBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn OperationNumericBinding::equal(Self, Self) -> Bool
 pub fn OperationNumericBinding::execution(Self) -> @numeric_contract.OperationExecutionContract
+pub fn OperationNumericBinding::not_equal(Self, Self) -> Bool
 pub fn OperationNumericBinding::operation(Self) -> OperationId
+pub fn OperationNumericBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OperationRuntimeInput {
   StepCounts
@@ -158,6 +206,9 @@ pub(all) enum OperationRuntimeInput {
   PageTableOffsets
   PageTablePageIndices
 } derive(Eq, @debug.Debug)
+pub fn OperationRuntimeInput::equal(Self, Self) -> Bool
+pub fn OperationRuntimeInput::not_equal(Self, Self) -> Bool
+pub fn OperationRuntimeInput::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OperationShape {
   EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
@@ -169,11 +220,17 @@ pub(all) enum OperationShape {
   ElementwiseShape(width~ : Int)
   GatedMlpShape(hidden_size~ : Int, intermediate_size~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn OperationShape::equal(Self, Self) -> Bool
+pub fn OperationShape::not_equal(Self, Self) -> Bool
+pub fn OperationShape::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PersistentStateAccess {
   NoPersistentState
   KvCacheReadWrite(KvLayerId)
 } derive(Eq, @debug.Debug)
+pub fn PersistentStateAccess::equal(Self, Self) -> Bool
+pub fn PersistentStateAccess::not_equal(Self, Self) -> Bool
+pub fn PersistentStateAccess::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PlanGraphRule {
   EmptyOperationList
@@ -199,6 +256,9 @@ pub(all) enum PlanGraphRule {
   NumericOperationBinding
   NumericActivationType
 } derive(Eq, @debug.Debug)
+pub fn PlanGraphRule::equal(Self, Self) -> Bool
+pub fn PlanGraphRule::not_equal(Self, Self) -> Bool
+pub fn PlanGraphRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PlanIdentifierKind {
   Operation
@@ -207,10 +267,14 @@ pub(all) enum PlanIdentifierKind {
   KernelCapability
   KvLayer
 } derive(Eq, @debug.Debug)
+pub fn PlanIdentifierKind::equal(Self, Self) -> Bool
+pub fn PlanIdentifierKind::not_equal(Self, Self) -> Bool
+pub fn PlanIdentifierKind::to_repr(Self) -> @debug.Repr
 
 pub struct PlanOperation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PlanOperation::equal(Self, Self) -> Bool
 pub fn PlanOperation::id(Self) -> OperationId
 pub fn PlanOperation::inputs(Self) -> ReadOnlyArray[ValueRef]
 pub fn PlanOperation::kind(Self) -> OperationKind
@@ -218,11 +282,13 @@ pub fn PlanOperation::kv_layer(Self) -> KvLayerId?
 pub fn PlanOperation::new_stateless(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64) -> Self raise PlanValidationError
 pub fn PlanOperation::new_with_execution(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64, kv_layer~ : KvLayerId, runtime_inputs~ : ArrayView[OperationRuntimeInput], persistent_state~ : PersistentStateAccess) -> Self raise PlanValidationError
 pub fn PlanOperation::new_with_runtime_inputs(id~ : OperationId, kind~ : OperationKind, inputs~ : ArrayView[ValueRef], outputs~ : ArrayView[ActivationRef], shape~ : OperationShape, required_capability~ : KernelCapabilityId, workspace_bytes~ : Int64, runtime_inputs~ : ArrayView[OperationRuntimeInput]) -> Self raise PlanValidationError
+pub fn PlanOperation::not_equal(Self, Self) -> Bool
 pub fn PlanOperation::outputs(Self) -> ReadOnlyArray[ActivationRef]
 pub fn PlanOperation::persistent_state(Self) -> PersistentStateAccess
 pub fn PlanOperation::required_capability(Self) -> KernelCapabilityId
 pub fn PlanOperation::runtime_inputs(Self) -> ReadOnlyArray[OperationRuntimeInput]
 pub fn PlanOperation::shape(Self) -> OperationShape
+pub fn PlanOperation::to_repr(Self) -> @debug.Repr
 pub fn PlanOperation::workspace_bytes(Self) -> Int64
 
 pub(all) enum PlanShapeRule {
@@ -236,16 +302,22 @@ pub(all) enum PlanShapeRule {
   UnsupportedKvCacheDType
   OperationShapeMismatch
 } derive(Eq, @debug.Debug)
+pub fn PlanShapeRule::equal(Self, Self) -> Bool
+pub fn PlanShapeRule::not_equal(Self, Self) -> Bool
+pub fn PlanShapeRule::to_repr(Self) -> @debug.Repr
 
 pub struct PlanTensor {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PlanTensor::codebook(Self) -> CodebookTensorRef?
+pub fn PlanTensor::equal(Self, Self) -> Bool
+pub fn PlanTensor::not_equal(Self, Self) -> Bool
 pub fn PlanTensor::reference(Self) -> TensorRef
 pub fn PlanTensor::role(Self) -> PlanTensorRole
 pub fn PlanTensor::scale(Self) -> ScaleTensorRef?
 pub fn PlanTensor::shape(Self) -> @numeric_contract.NumericShape
 pub fn PlanTensor::storage(Self) -> @numeric_contract.TensorStorageContract
+pub fn PlanTensor::to_repr(Self) -> @debug.Repr
 pub fn PlanTensor::zero_point(Self) -> ZeroPointTensorRef?
 
 pub(all) enum PlanTensorRole {
@@ -254,17 +326,24 @@ pub(all) enum PlanTensorRole {
   ZeroPointMetadataTensor
   CodebookMetadataTensor
 } derive(Eq, @debug.Debug)
+pub fn PlanTensorRole::equal(Self, Self) -> Bool
+pub fn PlanTensorRole::not_equal(Self, Self) -> Bool
+pub fn PlanTensorRole::to_repr(Self) -> @debug.Repr
 
 pub struct ScaleTensorRef {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ScaleTensorRef::equal(Self, Self) -> Bool
 pub fn ScaleTensorRef::new(TensorRef) -> Self
+pub fn ScaleTensorRef::not_equal(Self, Self) -> Bool
 pub fn ScaleTensorRef::tensor(Self) -> TensorRef
+pub fn ScaleTensorRef::to_repr(Self) -> @debug.Repr
 
 pub struct ShapeConstraints {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ShapeConstraints::attention_head_count(Self) -> Int
+pub fn ShapeConstraints::equal(Self, Self) -> Bool
 pub fn ShapeConstraints::head_dimension(Self) -> Int
 pub fn ShapeConstraints::hidden_size(Self) -> Int
 pub fn ShapeConstraints::intermediate_size(Self) -> Int
@@ -273,32 +352,46 @@ pub fn ShapeConstraints::kv_width(Self) -> Int
 pub fn ShapeConstraints::max_batch_rows(Self) -> Int
 pub fn ShapeConstraints::max_sequence_tokens(Self) -> Int
 pub fn ShapeConstraints::new(max_batch_rows~ : Int, max_sequence_tokens~ : Int, vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int) -> Self raise PlanValidationError
+pub fn ShapeConstraints::not_equal(Self, Self) -> Bool
 pub fn ShapeConstraints::query_width(Self) -> Int
+pub fn ShapeConstraints::to_repr(Self) -> @debug.Repr
 pub fn ShapeConstraints::vocabulary_size(Self) -> Int
 
 pub struct TensorRef {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorRef::as_int(Self) -> Int
+pub fn TensorRef::equal(Self, Self) -> Bool
 pub fn TensorRef::new(Int) -> Self raise PlanValidationError
+pub fn TensorRef::not_equal(Self, Self) -> Bool
+pub fn TensorRef::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ValueRef {
   ModelInput(ModelInputRef)
   Tensor(TensorRef)
   Activation(ActivationRef)
 } derive(Eq, @debug.Debug)
+pub fn ValueRef::equal(Self, Self) -> Bool
+pub fn ValueRef::not_equal(Self, Self) -> Bool
+pub fn ValueRef::to_repr(Self) -> @debug.Repr
 
 pub struct WorkspaceBounds {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn WorkspaceBounds::equal(Self, Self) -> Bool
 pub fn WorkspaceBounds::max_temporary_bytes(Self) -> Int64
 pub fn WorkspaceBounds::new(max_temporary_bytes~ : Int64) -> Self raise PlanValidationError
+pub fn WorkspaceBounds::not_equal(Self, Self) -> Bool
+pub fn WorkspaceBounds::to_repr(Self) -> @debug.Repr
 
 pub struct ZeroPointTensorRef {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ZeroPointTensorRef::equal(Self, Self) -> Bool
 pub fn ZeroPointTensorRef::new(TensorRef) -> Self
+pub fn ZeroPointTensorRef::not_equal(Self, Self) -> Bool
 pub fn ZeroPointTensorRef::tensor(Self) -> TensorRef
+pub fn ZeroPointTensorRef::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

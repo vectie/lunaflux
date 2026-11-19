@@ -19,13 +19,19 @@ pub(all) suberror ModelSpecError {
   UnknownDType
   InvalidDigest
 } derive(Eq, @debug.Debug)
+pub fn ModelSpecError::equal(Self, Self) -> Bool
+pub fn ModelSpecError::not_equal(Self, Self) -> Bool
+pub fn ModelSpecError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ContentDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ContentDigest::as_hex(Self) -> String
+pub fn ContentDigest::equal(Self, Self) -> Bool
 pub fn ContentDigest::from_sha256(String) -> Self raise ModelSpecError
+pub fn ContentDigest::not_equal(Self, Self) -> Bool
+pub fn ContentDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum HeadRelationship {
   HiddenNotDivisibleByAttentionHeads
@@ -33,19 +39,26 @@ pub(all) enum HeadRelationship {
   KvHeadsExceedAttentionHeads
   HeadDimensionMismatch
 } derive(Eq, @debug.Debug)
+pub fn HeadRelationship::equal(Self, Self) -> Bool
+pub fn HeadRelationship::not_equal(Self, Self) -> Bool
+pub fn HeadRelationship::to_repr(Self) -> @debug.Repr
 
 pub struct LlamaModelMetadata {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LlamaModelMetadata::content_digest(Self) -> ContentDigest
+pub fn LlamaModelMetadata::equal(Self, Self) -> Bool
 pub fn LlamaModelMetadata::from_verified_content(LlamaModelSpec, ContentDigest) -> Self raise ModelSpecError
+pub fn LlamaModelMetadata::not_equal(Self, Self) -> Bool
 pub fn LlamaModelMetadata::spec(Self) -> LlamaModelSpec
+pub fn LlamaModelMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct LlamaModelSpec {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LlamaModelSpec::attention_head_count(Self) -> Int
 pub fn LlamaModelSpec::context_length(Self) -> Int
+pub fn LlamaModelSpec::equal(Self, Self) -> Bool
 pub fn LlamaModelSpec::head_dimension(Self) -> Int
 pub fn LlamaModelSpec::hidden_size(Self) -> Int
 pub fn LlamaModelSpec::intermediate_size(Self) -> Int
@@ -53,9 +66,11 @@ pub fn LlamaModelSpec::kv_dtype(Self) -> ModelDType
 pub fn LlamaModelSpec::kv_head_count(Self) -> Int
 pub fn LlamaModelSpec::layer_count(Self) -> Int
 pub fn LlamaModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, context_length~ : Int, rope_theta~ : Double, rms_norm_epsilon? : Double, weight_dtype~ : ModelDType, kv_dtype~ : ModelDType) -> Self raise ModelSpecError
+pub fn LlamaModelSpec::not_equal(Self, Self) -> Bool
 pub fn LlamaModelSpec::numeric_schema(Self) -> @numeric_contract.ModelNumericSchema
 pub fn LlamaModelSpec::rms_norm_epsilon(Self) -> Double
 pub fn LlamaModelSpec::rope_theta(Self) -> Double
+pub fn LlamaModelSpec::to_repr(Self) -> @debug.Repr
 pub fn LlamaModelSpec::vocabulary_size(Self) -> Int
 pub fn LlamaModelSpec::weight_dtype(Self) -> ModelDType
 
@@ -64,7 +79,10 @@ pub(all) enum ModelDType {
   Float16
   Float32
 } derive(Eq, @debug.Debug)
+pub fn ModelDType::equal(Self, Self) -> Bool
+pub fn ModelDType::not_equal(Self, Self) -> Bool
 pub fn ModelDType::parse(StringView) -> Self raise ModelSpecError
+pub fn ModelDType::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelDimension {
   BatchRows
@@ -76,19 +94,28 @@ pub(all) enum ModelDimension {
   KvHeadCount
   ContextLength
 } derive(Eq, @debug.Debug)
+pub fn ModelDimension::equal(Self, Self) -> Bool
+pub fn ModelDimension::not_equal(Self, Self) -> Bool
+pub fn ModelDimension::to_repr(Self) -> @debug.Repr
 
 pub struct ModelIdentity {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ModelIdentity::content(Self) -> ContentDigest
+pub fn ModelIdentity::equal(Self, Self) -> Bool
 pub fn ModelIdentity::new(ContentDigest, PlanDigest) -> Self raise ModelSpecError
+pub fn ModelIdentity::not_equal(Self, Self) -> Bool
 pub fn ModelIdentity::plan(Self) -> PlanDigest
+pub fn ModelIdentity::to_repr(Self) -> @debug.Repr
 
 pub struct PlanDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PlanDigest::as_hex(Self) -> String
+pub fn PlanDigest::equal(Self, Self) -> Bool
 pub fn PlanDigest::from_sha256(String) -> Self raise ModelSpecError
+pub fn PlanDigest::not_equal(Self, Self) -> Bool
+pub fn PlanDigest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

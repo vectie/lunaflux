@@ -15,12 +15,18 @@ pub(all) suberror Qwen3DetokenizerError {
   DetokenizerFinished
   TokenDecodeFailed
 } derive(Eq, @debug.Debug)
+pub fn Qwen3DetokenizerError::equal(Self, Self) -> Bool
+pub fn Qwen3DetokenizerError::not_equal(Self, Self) -> Bool
+pub fn Qwen3DetokenizerError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror Qwen3TokenBridgeError {
   MalformedRequest
   UnsupportedRequest
   RequestTooLarge
 } derive(Eq, @debug.Debug)
+pub fn Qwen3TokenBridgeError::equal(Self, Self) -> Bool
+pub fn Qwen3TokenBridgeError::not_equal(Self, Self) -> Bool
+pub fn Qwen3TokenBridgeError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Qwen3IncrementalDetokenizer {

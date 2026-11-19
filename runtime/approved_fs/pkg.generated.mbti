@@ -36,6 +36,9 @@ pub(all) suberror ApprovedFsError {
   Busy(ApprovedFsOperation)
   OperationFailed(ApprovedFsOperation)
 } derive(Eq, @debug.Debug)
+pub fn ApprovedFsError::equal(Self, Self) -> Bool
+pub fn ApprovedFsError::not_equal(Self, Self) -> Bool
+pub fn ApprovedFsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ApprovedFile {
@@ -51,11 +54,16 @@ pub struct ApprovedFileStamp {
   // private fields
 } derive(Eq)
 pub fn ApprovedFileStamp::byte_count(Self) -> Int64
+pub fn ApprovedFileStamp::equal(Self, Self) -> Bool
+pub fn ApprovedFileStamp::not_equal(Self, Self) -> Bool
 
 pub(all) enum ApprovedFsObject {
   Root
   File
 } derive(Eq, @debug.Debug)
+pub fn ApprovedFsObject::equal(Self, Self) -> Bool
+pub fn ApprovedFsObject::not_equal(Self, Self) -> Bool
+pub fn ApprovedFsObject::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ApprovedFsOperation {
   Open
@@ -63,6 +71,9 @@ pub(all) enum ApprovedFsOperation {
   Stat
   Close
 } derive(Eq, @debug.Debug)
+pub fn ApprovedFsOperation::equal(Self, Self) -> Bool
+pub fn ApprovedFsOperation::not_equal(Self, Self) -> Bool
+pub fn ApprovedFsOperation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ApprovedFsRule {
   RootPath
@@ -71,6 +82,9 @@ pub(all) enum ApprovedFsRule {
   ReadRange
   Lifecycle
 } derive(Eq, @debug.Debug)
+pub fn ApprovedFsRule::equal(Self, Self) -> Bool
+pub fn ApprovedFsRule::not_equal(Self, Self) -> Bool
+pub fn ApprovedFsRule::to_repr(Self) -> @debug.Repr
 
 pub struct ApprovedRelativeLocator {
   // private fields
@@ -98,6 +112,9 @@ pub(all) enum ApprovedRootRole {
   Model
   Kernel
 } derive(Eq, @debug.Debug)
+pub fn ApprovedRootRole::equal(Self, Self) -> Bool
+pub fn ApprovedRootRole::not_equal(Self, Self) -> Bool
+pub fn ApprovedRootRole::to_repr(Self) -> @debug.Repr
 
 pub struct PreparedWorkerApprovedRoots {
   // private fields

@@ -12,24 +12,36 @@ import {
 pub(all) suberror Glm53SpecError {
   InvalidLayerIndex
 } derive(Eq, @debug.Debug)
+pub fn Glm53SpecError::equal(Self, Self) -> Bool
+pub fn Glm53SpecError::not_equal(Self, Self) -> Bool
+pub fn Glm53SpecError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Glm53AttentionKind {
   DeepSeekSparseAttention
   KimiDeltaAttention
 } derive(Eq, @debug.Debug)
+pub fn Glm53AttentionKind::equal(Self, Self) -> Bool
+pub fn Glm53AttentionKind::not_equal(Self, Self) -> Bool
+pub fn Glm53AttentionKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Glm53FeedForwardKind {
   DenseSwiGlu
   RoutedMixtureOfExperts
 } derive(Eq, @debug.Debug)
+pub fn Glm53FeedForwardKind::equal(Self, Self) -> Bool
+pub fn Glm53FeedForwardKind::not_equal(Self, Self) -> Bool
+pub fn Glm53FeedForwardKind::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53FlashMetadata {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Glm53FlashMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn Glm53FlashMetadata::equal(Self, Self) -> Bool
 pub fn Glm53FlashMetadata::from_verified_content(Glm53FlashSpec, @spec.ContentDigest) -> Self
+pub fn Glm53FlashMetadata::not_equal(Self, Self) -> Bool
 pub fn Glm53FlashMetadata::spec(Self) -> Glm53FlashSpec
+pub fn Glm53FlashMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53FlashSpec {
   // private fields
@@ -39,6 +51,7 @@ pub fn Glm53FlashSpec::attention_head_count(Self) -> Int
 pub fn Glm53FlashSpec::attention_kind(Self, Int) -> Glm53AttentionKind raise Glm53SpecError
 pub fn Glm53FlashSpec::context_length(Self) -> Int
 pub fn Glm53FlashSpec::dense_intermediate_size(Self) -> Int
+pub fn Glm53FlashSpec::equal(Self, Self) -> Bool
 pub fn Glm53FlashSpec::expert_group_count(Self) -> Int
 pub fn Glm53FlashSpec::expert_group_score_topk(Self) -> Int
 pub fn Glm53FlashSpec::experts_per_token(Self) -> Int
@@ -69,6 +82,7 @@ pub fn Glm53FlashSpec::model_type(Self) -> String
 pub fn Glm53FlashSpec::moe_intermediate_size(Self) -> Int
 pub fn Glm53FlashSpec::mtp_layer_count(Self) -> Int
 pub fn Glm53FlashSpec::normalizes_selected_expert_probabilities(Self) -> Bool
+pub fn Glm53FlashSpec::not_equal(Self, Self) -> Bool
 pub fn Glm53FlashSpec::official() -> Self
 pub fn Glm53FlashSpec::profile(Self) -> Glm53ProfileId
 pub fn Glm53FlashSpec::q_lora_rank(Self) -> Int
@@ -81,6 +95,7 @@ pub fn Glm53FlashSpec::selected_expert_group_count(Self) -> Int
 pub fn Glm53FlashSpec::shared_expert_count(Self) -> Int
 pub fn Glm53FlashSpec::swiglu_limit(Self) -> Double
 pub fn Glm53FlashSpec::text_model_type(Self) -> String
+pub fn Glm53FlashSpec::to_repr(Self) -> @debug.Repr
 pub fn Glm53FlashSpec::uses_float32_moe_router(Self) -> Bool
 pub fn Glm53FlashSpec::uses_moe_correction_bias(Self) -> Bool
 pub fn Glm53FlashSpec::value_head_dimension(Self) -> Int
@@ -103,8 +118,11 @@ pub struct Glm53FullMetadata {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Glm53FullMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn Glm53FullMetadata::equal(Self, Self) -> Bool
 pub fn Glm53FullMetadata::from_verified_content(Glm53FullSpec, @spec.ContentDigest) -> Self
+pub fn Glm53FullMetadata::not_equal(Self, Self) -> Bool
 pub fn Glm53FullMetadata::spec(Self) -> Glm53FullSpec
+pub fn Glm53FullMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53FullSpec {
   // private fields
@@ -115,6 +133,7 @@ pub fn Glm53FullSpec::attention_kind(Self, Int) -> Glm53AttentionKind raise Glm5
 pub fn Glm53FullSpec::computes_index_topk(Self, Int) -> Bool raise Glm53SpecError
 pub fn Glm53FullSpec::context_length(Self) -> Int
 pub fn Glm53FullSpec::dense_intermediate_size(Self) -> Int
+pub fn Glm53FullSpec::equal(Self, Self) -> Bool
 pub fn Glm53FullSpec::expert_group_count(Self) -> Int
 pub fn Glm53FullSpec::expert_group_score_topk(Self) -> Int
 pub fn Glm53FullSpec::experts_per_token(Self) -> Int
@@ -132,6 +151,7 @@ pub fn Glm53FullSpec::model_type(Self) -> String
 pub fn Glm53FullSpec::moe_intermediate_size(Self) -> Int
 pub fn Glm53FullSpec::mtp_layer_count(Self) -> Int
 pub fn Glm53FullSpec::normalizes_selected_expert_probabilities(Self) -> Bool
+pub fn Glm53FullSpec::not_equal(Self, Self) -> Bool
 pub fn Glm53FullSpec::official() -> Self
 pub fn Glm53FullSpec::profile(Self) -> Glm53ProfileId
 pub fn Glm53FullSpec::q_lora_rank(Self) -> Int
@@ -145,6 +165,7 @@ pub fn Glm53FullSpec::routed_expert_count(Self) -> Int
 pub fn Glm53FullSpec::routed_scaling_factor(Self) -> Double
 pub fn Glm53FullSpec::selected_expert_group_count(Self) -> Int
 pub fn Glm53FullSpec::shared_expert_count(Self) -> Int
+pub fn Glm53FullSpec::to_repr(Self) -> @debug.Repr
 pub fn Glm53FullSpec::uses_float32_moe_router(Self) -> Bool
 pub fn Glm53FullSpec::uses_moe_correction_bias(Self) -> Bool
 pub fn Glm53FullSpec::value_head_dimension(Self) -> Int
@@ -154,6 +175,9 @@ pub(all) enum Glm53ProfileId {
   FullText
   FlashMultimodal
 } derive(Eq, @debug.Debug)
+pub fn Glm53ProfileId::equal(Self, Self) -> Bool
+pub fn Glm53ProfileId::not_equal(Self, Self) -> Bool
+pub fn Glm53ProfileId::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -41,7 +41,9 @@ test "canonical evidence is digest-pinned and release-artifact compatible" {
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
   let admitted = @deployment_bundle.admit_deployment_bundle_evidence(
     bytes,
-    expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(digest),
+    expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(
+      digest,
+    ),
     limits=fixture_limits(),
   )
   assert_eq(admitted.architecture(), X86_64)
@@ -86,7 +88,9 @@ test "substitution and noncanonical evidence fail closed" {
   try
     @deployment_bundle.admit_deployment_bundle_evidence(
       extra,
-      expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(extra_digest),
+      expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(
+        extra_digest,
+      ),
       limits=fixture_limits(),
     )
   catch {
@@ -113,7 +117,9 @@ test "short and mutable-tag base references fail without partial admission" {
     try
       @deployment_bundle.admit_deployment_bundle_evidence(
         changed,
-        expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(changed_digest),
+        expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(
+          changed_digest,
+        ),
         limits=fixture_limits(),
       )
     catch {

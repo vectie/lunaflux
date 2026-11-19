@@ -15,7 +15,11 @@ test "submission fences preserve every compute interval and collective cut" {
   }
   for cuts in [[], [0], [7], [3, 3], [4, 2]] {
     try
-      @parallel_ir.OrderedSubmissionPlan::new(kernel_count=7, cuts, retirement=WholeFrame)
+      @parallel_ir.OrderedSubmissionPlan::new(
+        kernel_count=7,
+        cuts,
+        retirement=WholeFrame,
+      )
     catch {
       _ => ()
     } noraise {

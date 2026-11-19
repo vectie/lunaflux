@@ -161,7 +161,9 @@ test "selected SentencePiece JSON profile is exact and executable" {
 
 ///|
 test "nearby SentencePiece normalizer template decoder and model profiles fail closed" {
-  let variants : Array[(String, @json_reader.JsonComponent, @json_reader.UnsupportedFeature)] = [
+  let variants : Array[
+    (String, @json_reader.JsonComponent, @json_reader.UnsupportedFeature),
+  ] = [
     (
       sentencepiece_document(normalized_content="_"),
       Normalizer,

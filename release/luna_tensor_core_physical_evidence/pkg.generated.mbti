@@ -18,6 +18,9 @@ pub(all) suberror LunaTensorCorePhysicalEvidenceError {
   LunaTensorCorePhysicalEvidenceMismatch(LunaTensorCorePhysicalEvidenceRule)
   LunaTensorCorePhysicalEvidenceLimitExceeded
 } derive(Eq, @debug.Debug)
+pub fn LunaTensorCorePhysicalEvidenceError::equal(Self, Self) -> Bool
+pub fn LunaTensorCorePhysicalEvidenceError::not_equal(Self, Self) -> Bool
+pub fn LunaTensorCorePhysicalEvidenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdmittedLunaTensorCorePhysicalEvidence {
@@ -41,7 +44,12 @@ pub fn AdmittedLunaTensorCorePhysicalEvidence::source_digest(Self) -> String
 
 pub struct LunaTensorCorePhysicalEvidenceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTensorCorePhysicalEvidenceDigest::as_hex(Self) -> String
+pub fn LunaTensorCorePhysicalEvidenceDigest::equal(Self, Self) -> Bool
 pub fn LunaTensorCorePhysicalEvidenceDigest::from_sha256(String) -> Self raise LunaTensorCorePhysicalEvidenceError
+pub fn LunaTensorCorePhysicalEvidenceDigest::hash(Self) -> Int
+pub fn LunaTensorCorePhysicalEvidenceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTensorCorePhysicalEvidenceDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTensorCorePhysicalEvidenceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTensorCorePhysicalEvidenceLimits {
   // private fields
@@ -64,6 +72,9 @@ pub(all) enum LunaTensorCorePhysicalEvidenceRule {
   Seal
   Authority
 } derive(Eq, @debug.Debug)
+pub fn LunaTensorCorePhysicalEvidenceRule::equal(Self, Self) -> Bool
+pub fn LunaTensorCorePhysicalEvidenceRule::not_equal(Self, Self) -> Bool
+pub fn LunaTensorCorePhysicalEvidenceRule::to_repr(Self) -> @debug.Repr
 
 pub struct QualifiedLunaTileBf16Mma16x16x16Artifact {
   // private fields

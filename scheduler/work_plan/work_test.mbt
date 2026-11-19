@@ -17,11 +17,19 @@ test "aged prefill budget preserves decode and prompt forward progress" {
     2032,
   )
   assert_eq(
-    @work_plan.aged_prefill_token_budget(token_budget=2, row_limit=2, runnable_decodes=2),
+    @work_plan.aged_prefill_token_budget(
+      token_budget=2,
+      row_limit=2,
+      runnable_decodes=2,
+    ),
     1,
   )
   assert_eq(
-    @work_plan.aged_prefill_token_budget(token_budget=1, row_limit=2, runnable_decodes=1),
+    @work_plan.aged_prefill_token_budget(
+      token_budget=1,
+      row_limit=2,
+      runnable_decodes=1,
+    ),
     1,
   )
   assert_eq(
@@ -41,7 +49,11 @@ test "aged prefill budget preserves decode and prompt forward progress" {
     2048,
   )
   assert_eq(
-    @work_plan.aged_prefill_token_budget(token_budget=0, row_limit=32, runnable_decodes=16),
+    @work_plan.aged_prefill_token_budget(
+      token_budget=0,
+      row_limit=32,
+      runnable_decodes=16,
+    ),
     0,
   )
 }

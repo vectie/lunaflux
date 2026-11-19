@@ -3,7 +3,11 @@ test "tensor axes are disjoint complete logical partitions" {
   for world in [2, 4, 8] {
     let mut covered = 0
     for rank in 0..<world {
-      let (start, count) = @precision_ir.TensorAxisPartition::new(64, rank~, world_size=world).range()
+      let (start, count) = @precision_ir.TensorAxisPartition::new(
+        64,
+        rank~,
+        world_size=world,
+      ).range()
       assert_eq(start, covered)
       covered += count
     }
@@ -16,7 +20,9 @@ test "tensor axes are disjoint complete logical partitions" {
       (64, -1, 2),
       (64, 0, 1),
     ] {
-    try @precision_ir.TensorAxisPartition::new(width, rank~, world_size~) catch {
+    try
+      @precision_ir.TensorAxisPartition::new(width, rank~, world_size~)
+    catch {
       IllegalPlacement => ()
       e => raise e
     } noraise {

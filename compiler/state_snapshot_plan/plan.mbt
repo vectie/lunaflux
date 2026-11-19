@@ -57,10 +57,12 @@ pub fn StateSnapshotPlan::offsets(self : Self) -> ReadOnlyArray[Int64] {
 
 ///|
 pub extend StateSnapshotPlanError with Eq::{equal, not_equal}
+
 ///|
 pub extend StateSnapshotPlanError with @debug.Debug::{to_repr}
 
 ///|
 pub extend StateSnapshotPlan with Eq::{equal, not_equal}
+
 ///|
 pub extend StateSnapshotPlan with @debug.Debug::{to_repr}

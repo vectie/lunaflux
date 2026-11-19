@@ -19,6 +19,9 @@ pub(all) suberror Qwen3ModelSpecError {
   UnsupportedKvDType
   UntiedEmbeddings
 } derive(Eq, @debug.Debug)
+pub fn Qwen3ModelSpecError::equal(Self, Self) -> Bool
+pub fn Qwen3ModelSpecError::not_equal(Self, Self) -> Bool
+pub fn Qwen3ModelSpecError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Qwen3HeadRelationship {
@@ -27,6 +30,9 @@ pub(all) enum Qwen3HeadRelationship {
   OddHeadDimension
   ProjectionWidthOverflow
 } derive(Eq, @debug.Debug)
+pub fn Qwen3HeadRelationship::equal(Self, Self) -> Bool
+pub fn Qwen3HeadRelationship::not_equal(Self, Self) -> Bool
+pub fn Qwen3HeadRelationship::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Qwen3ModelDimension {
   Vocabulary
@@ -38,19 +44,26 @@ pub(all) enum Qwen3ModelDimension {
   HeadDimension
   ContextLength
 } derive(Eq, @debug.Debug)
+pub fn Qwen3ModelDimension::equal(Self, Self) -> Bool
+pub fn Qwen3ModelDimension::not_equal(Self, Self) -> Bool
+pub fn Qwen3ModelDimension::to_repr(Self) -> @debug.Repr
 
 pub struct Qwen3ModelMetadata {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Qwen3ModelMetadata::content_digest(Self) -> @spec.ContentDigest
+pub fn Qwen3ModelMetadata::equal(Self, Self) -> Bool
 pub fn Qwen3ModelMetadata::from_verified_content(Qwen3ModelSpec, @spec.ContentDigest) -> Self raise Qwen3ModelSpecError
+pub fn Qwen3ModelMetadata::not_equal(Self, Self) -> Bool
 pub fn Qwen3ModelMetadata::spec(Self) -> Qwen3ModelSpec
+pub fn Qwen3ModelMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct Qwen3ModelSpec {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Qwen3ModelSpec::attention_head_count(Self) -> Int
 pub fn Qwen3ModelSpec::context_length(Self) -> Int
+pub fn Qwen3ModelSpec::equal(Self, Self) -> Bool
 pub fn Qwen3ModelSpec::has_query_key_norm(Self) -> Bool
 pub fn Qwen3ModelSpec::head_dimension(Self) -> Int
 pub fn Qwen3ModelSpec::hidden_size(Self) -> Int
@@ -60,12 +73,14 @@ pub fn Qwen3ModelSpec::kv_head_count(Self) -> Int
 pub fn Qwen3ModelSpec::kv_projection_width(Self) -> Int
 pub fn Qwen3ModelSpec::layer_count(Self) -> Int
 pub fn Qwen3ModelSpec::new(vocabulary_size~ : Int, hidden_size~ : Int, intermediate_size~ : Int, layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int, context_length~ : Int, rope_theta~ : Double, rms_norm_epsilon? : Double, weight_dtype~ : @spec.ModelDType, kv_dtype~ : @spec.ModelDType, tied_embeddings~ : Bool) -> Self raise Qwen3ModelSpecError
+pub fn Qwen3ModelSpec::not_equal(Self, Self) -> Bool
 pub fn Qwen3ModelSpec::numeric_schema(Self) -> @numeric_contract.ModelNumericSchema
 pub fn Qwen3ModelSpec::query_head_count(Self) -> Int
 pub fn Qwen3ModelSpec::query_projection_width(Self) -> Int
 pub fn Qwen3ModelSpec::rms_norm_epsilon(Self) -> Double
 pub fn Qwen3ModelSpec::rope_theta(Self) -> Double
 pub fn Qwen3ModelSpec::tied_embeddings(Self) -> Bool
+pub fn Qwen3ModelSpec::to_repr(Self) -> @debug.Repr
 pub fn Qwen3ModelSpec::vocabulary_size(Self) -> Int
 pub fn Qwen3ModelSpec::weight_dtype(Self) -> @spec.ModelDType
 

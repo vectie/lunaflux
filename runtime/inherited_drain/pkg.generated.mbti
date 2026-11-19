@@ -12,6 +12,9 @@ pub fn prepare_inherited_drain_v1() -> InheritedDrainPreparation raise Inherited
 pub(all) suberror InheritedDrainError {
   InheritedDrainFailed(InheritedDrainRule)
 } derive(Eq, @debug.Debug)
+pub fn InheritedDrainError::equal(Self, Self) -> Bool
+pub fn InheritedDrainError::not_equal(Self, Self) -> Bool
+pub fn InheritedDrainError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct InheritedDrainChannel {
@@ -38,12 +41,18 @@ pub(all) enum InheritedDrainProgress {
   InheritedDrainChannelLost
   InheritedDrainClosed
 } derive(Eq, @debug.Debug)
+pub fn InheritedDrainProgress::equal(Self, Self) -> Bool
+pub fn InheritedDrainProgress::not_equal(Self, Self) -> Bool
+pub fn InheritedDrainProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum InheritedDrainResponse {
   InheritedDrainAccepted
   InheritedDrainAlreadyDraining
   InheritedDrainAlreadyClosed
 } derive(Eq, @debug.Debug)
+pub fn InheritedDrainResponse::equal(Self, Self) -> Bool
+pub fn InheritedDrainResponse::not_equal(Self, Self) -> Bool
+pub fn InheritedDrainResponse::to_repr(Self) -> @debug.Repr
 
 pub(all) enum InheritedDrainRule {
   DescriptorUnavailable
@@ -51,6 +60,9 @@ pub(all) enum InheritedDrainRule {
   InvalidState
   ChannelLost
 } derive(Eq, @debug.Debug)
+pub fn InheritedDrainRule::equal(Self, Self) -> Bool
+pub fn InheritedDrainRule::not_equal(Self, Self) -> Bool
+pub fn InheritedDrainRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

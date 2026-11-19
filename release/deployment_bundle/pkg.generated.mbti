@@ -20,12 +20,18 @@ pub(all) suberror DeploymentBundleError {
   DigestMismatch
   ReleaseEvidenceRejected
 } derive(Eq, @debug.Debug)
+pub fn DeploymentBundleError::equal(Self, Self) -> Bool
+pub fn DeploymentBundleError::not_equal(Self, Self) -> Bool
+pub fn DeploymentBundleError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DeploymentBundleArchitecture {
   X86_64
   Aarch64
 } derive(Eq, @debug.Debug)
+pub fn DeploymentBundleArchitecture::equal(Self, Self) -> Bool
+pub fn DeploymentBundleArchitecture::not_equal(Self, Self) -> Bool
+pub fn DeploymentBundleArchitecture::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeploymentBundleArea {
   Evidence
@@ -45,10 +51,18 @@ pub(all) enum DeploymentBundleArea {
   Assembler
   Policy
 } derive(Eq, @debug.Debug)
+pub fn DeploymentBundleArea::equal(Self, Self) -> Bool
+pub fn DeploymentBundleArea::not_equal(Self, Self) -> Bool
+pub fn DeploymentBundleArea::to_repr(Self) -> @debug.Repr
 
 pub struct DeploymentBundleDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn DeploymentBundleDigest::as_hex(Self) -> String
+pub fn DeploymentBundleDigest::equal(Self, Self) -> Bool
 pub fn DeploymentBundleDigest::from_sha256(StringView) -> Self raise DeploymentBundleError
+pub fn DeploymentBundleDigest::hash(Self) -> Int
+pub fn DeploymentBundleDigest::hash_combine(Self, Hasher) -> Unit
+pub fn DeploymentBundleDigest::not_equal(Self, Self) -> Bool
+pub fn DeploymentBundleDigest::to_repr(Self) -> @debug.Repr
 
 pub struct DeploymentBundleEvidence {
   // private fields

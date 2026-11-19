@@ -74,8 +74,24 @@ test "RGB processor pads odd videos without mixing temporal pairs" {
 
 ///|
 test "RGB smart resize bounds and constant resampling" {
-  assert_eq(@minimax_h3_vision_conditioner.resized_shape(48, 48, min_pixels=1024, max_pixels=100000), (64, 64))
-  assert_eq(@minimax_h3_vision_conditioner.resized_shape(80, 80, min_pixels=1024, max_pixels=100000), (64, 64))
+  assert_eq(
+    @minimax_h3_vision_conditioner.resized_shape(
+      48,
+      48,
+      min_pixels=1024,
+      max_pixels=100000,
+    ),
+    (64, 64),
+  )
+  assert_eq(
+    @minimax_h3_vision_conditioner.resized_shape(
+      80,
+      80,
+      min_pixels=1024,
+      max_pixels=100000,
+    ),
+    (64, 64),
+  )
   let frame = Bytes::from_array(Array::make(16 * 16 * 3, 255))
   let p = @minimax_h3_vision_conditioner.preprocess_rgb(
     [frame],

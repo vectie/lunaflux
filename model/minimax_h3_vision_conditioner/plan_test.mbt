@@ -58,10 +58,22 @@ test "vision geometry and budgets reject partial merge groups" {
 
 ///|
 test "vision checkpoint groups include pre and post shuffle norms" {
-  assert_eq(@minimax_h3_vision_conditioner.frontend_weights().regions[0].bytes, 1152L * 1536L * 2L)
-  assert_eq(@minimax_h3_vision_conditioner.block_weights(26).regions.length(), 12)
-  assert_eq(@minimax_h3_vision_conditioner.merger_weights(0).regions[0].bytes, 1152L * 2L)
-  assert_eq(@minimax_h3_vision_conditioner.merger_weights(1).regions[0].bytes, 4608L * 2L)
+  assert_eq(
+    @minimax_h3_vision_conditioner.frontend_weights().regions[0].bytes,
+    1152L * 1536L * 2L,
+  )
+  assert_eq(
+    @minimax_h3_vision_conditioner.block_weights(26).regions.length(),
+    12,
+  )
+  assert_eq(
+    @minimax_h3_vision_conditioner.merger_weights(0).regions[0].bytes,
+    1152L * 2L,
+  )
+  assert_eq(
+    @minimax_h3_vision_conditioner.merger_weights(1).regions[0].bytes,
+    4608L * 2L,
+  )
   assert_eq(
     @minimax_h3_vision_conditioner.merger_weights(3).regions[0].name,
     "model.visual.deepstack_merger_list.2.norm.weight",

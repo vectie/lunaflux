@@ -27,6 +27,9 @@ pub(all) suberror RankGroupWireError {
   ProtocolFault(RankGroupWireRule)
   TranscriptFaulted(RankGroupWireRule)
 } derive(Eq, @debug.Debug)
+pub fn RankGroupWireError::equal(Self, Self) -> Bool
+pub fn RankGroupWireError::not_equal(Self, Self) -> Bool
+pub fn RankGroupWireError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct RankGroupWireBinding {
@@ -56,16 +59,22 @@ pub struct RankGroupWireDecodedHeader {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn RankGroupWireDecodedHeader::direction(Self) -> RankGroupWireDirection
+pub fn RankGroupWireDecodedHeader::equal(Self, Self) -> Bool
 pub fn RankGroupWireDecodedHeader::kind(Self) -> RankGroupWireKind
 pub fn RankGroupWireDecodedHeader::length(Self) -> Int
+pub fn RankGroupWireDecodedHeader::not_equal(Self, Self) -> Bool
 pub fn RankGroupWireDecodedHeader::payload_length(Self) -> Int
 pub fn RankGroupWireDecodedHeader::sequence_value(Self) -> UInt64
 pub fn RankGroupWireDecodedHeader::slot(Self) -> RankGroupWireSlot?
+pub fn RankGroupWireDecodedHeader::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RankGroupWireDirection {
   ParentToChild
   ChildToParent
 } derive(Eq, @debug.Debug)
+pub fn RankGroupWireDirection::equal(Self, Self) -> Bool
+pub fn RankGroupWireDirection::not_equal(Self, Self) -> Bool
+pub fn RankGroupWireDirection::to_repr(Self) -> @debug.Repr
 
 pub struct RankGroupWireFrameBuffer {
   // private fields
@@ -94,6 +103,9 @@ pub(all) enum RankGroupWireKind {
   Close
   Closed
 } derive(Eq, @debug.Debug)
+pub fn RankGroupWireKind::equal(Self, Self) -> Bool
+pub fn RankGroupWireKind::not_equal(Self, Self) -> Bool
+pub fn RankGroupWireKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RankGroupWireLifecycle {
   NewGroup
@@ -109,6 +121,9 @@ pub(all) enum RankGroupWireLifecycle {
   ClosedGroup
   Faulted
 } derive(Eq, @debug.Debug)
+pub fn RankGroupWireLifecycle::equal(Self, Self) -> Bool
+pub fn RankGroupWireLifecycle::not_equal(Self, Self) -> Bool
+pub fn RankGroupWireLifecycle::to_repr(Self) -> @debug.Repr
 
 pub struct RankGroupWireLimits {
   // private fields
@@ -121,6 +136,9 @@ pub(all) enum RankGroupWirePlanFailure {
   CollectiveFailure
   RankExecutionFailure
 } derive(Eq, @debug.Debug)
+pub fn RankGroupWirePlanFailure::equal(Self, Self) -> Bool
+pub fn RankGroupWirePlanFailure::not_equal(Self, Self) -> Bool
+pub fn RankGroupWirePlanFailure::to_repr(Self) -> @debug.Repr
 
 pub struct RankGroupWireRankTranscript {
   // private fields
@@ -163,11 +181,17 @@ pub(all) enum RankGroupWireRule {
   FrameEpoch
   Destination
 } derive(Eq, @debug.Debug)
+pub fn RankGroupWireRule::equal(Self, Self) -> Bool
+pub fn RankGroupWireRule::not_equal(Self, Self) -> Bool
+pub fn RankGroupWireRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RankGroupWireSlot {
   A
   B
 } derive(Eq, @debug.Debug)
+pub fn RankGroupWireSlot::equal(Self, Self) -> Bool
+pub fn RankGroupWireSlot::not_equal(Self, Self) -> Bool
+pub fn RankGroupWireSlot::to_repr(Self) -> @debug.Repr
 
 pub struct RankGroupWireTranscript {
   // private fields

@@ -37,29 +37,41 @@ pub fn select_projection_tile(ProjectionTileCompilerRequest) -> SelectedProjecti
 pub(all) suberror ProjectionTileCompilerError {
   InvalidProjectionTileCompilation(ProjectionTileCompilerRule)
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileCompilerError::equal(Self, Self) -> Bool
+pub fn ProjectionTileCompilerError::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileCompilerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AttentionIngressHeadMap {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionIngressHeadMap::equal(Self, Self) -> Bool
 pub fn AttentionIngressHeadMap::geometry(Self) -> (Int, Int, Int)
 pub fn AttentionIngressHeadMap::head_at(Self, Int, Int) -> Int?
+pub fn AttentionIngressHeadMap::not_equal(Self, Self) -> Bool
+pub fn AttentionIngressHeadMap::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionIngressNumerics {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionIngressNumerics::epsilon(Self) -> Float
+pub fn AttentionIngressNumerics::equal(Self, Self) -> Bool
 pub fn AttentionIngressNumerics::group_heads(Self, heads~ : Int, workgroup_lanes~ : Int) -> AttentionIngressHeadMap raise ProjectionTileCompilerError
+pub fn AttentionIngressNumerics::not_equal(Self, Self) -> Bool
 pub fn AttentionIngressNumerics::pair_retention(Self) -> @elementwise_physical_ir.SplitPairRetention?
 pub fn AttentionIngressNumerics::rotary_basis(Self) -> ReadOnlyArray[Float]
 pub fn AttentionIngressNumerics::shape(Self) -> (Int, Int)
+pub fn AttentionIngressNumerics::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionIngressPacking {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionIngressPacking::canonical_bytes(Self) -> Bytes
 pub fn AttentionIngressPacking::effects(Self) -> ReadOnlyArray[AttentionIngressReuseEffect]
+pub fn AttentionIngressPacking::equal(Self, Self) -> Bool
 pub fn AttentionIngressPacking::geometry(Self) -> (Int, Int, Int, Int)
+pub fn AttentionIngressPacking::not_equal(Self, Self) -> Bool
+pub fn AttentionIngressPacking::to_repr(Self) -> @debug.Repr
 pub fn AttentionIngressPacking::weight_row(Self, Int, Int) -> (Int, Int)?
 
 pub(all) enum AttentionIngressReuseEffect {
@@ -67,10 +79,16 @@ pub(all) enum AttentionIngressReuseEffect {
   ConsumeCompleteHeads
   RetireRowRotary
 } derive(Eq, @debug.Debug)
+pub fn AttentionIngressReuseEffect::equal(Self, Self) -> Bool
+pub fn AttentionIngressReuseEffect::not_equal(Self, Self) -> Bool
+pub fn AttentionIngressReuseEffect::to_repr(Self) -> @debug.Repr
 
 pub struct OptimizedProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn OptimizedProjectionTileCompilation::equal(Self, Self) -> Bool
+pub fn OptimizedProjectionTileCompilation::not_equal(Self, Self) -> Bool
+pub fn OptimizedProjectionTileCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct PhysicalProjectionTileCompilation {
   scheduled : ScheduledProjectionTileCompilation
@@ -99,11 +117,14 @@ pub fn PhysicalProjectionTileCompilation::with_sibling_execution(Self, Projectio
 pub struct ProjectionAttentionIngressEpilogue {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionAttentionIngressEpilogue::equal(Self, Self) -> Bool
 pub fn ProjectionAttentionIngressEpilogue::new(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, norm_epsilon~ : Double, rope_theta~ : Double) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionAttentionIngressEpilogue::not_equal(Self, Self) -> Bool
 pub fn ProjectionAttentionIngressEpilogue::numeric_parameters(Self) -> (Double, Double)
 pub fn ProjectionAttentionIngressEpilogue::numerics(Self, reduction_lanes~ : Int) -> AttentionIngressNumerics raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::packing(Self, heads_per_group~ : Int, reduction_lanes~ : Int) -> AttentionIngressPacking raise ProjectionTileCompilerError
 pub fn ProjectionAttentionIngressEpilogue::shape(Self) -> (Int, Int, Int)
+pub fn ProjectionAttentionIngressEpilogue::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionColumnFoldPlan {
   // private fields
@@ -121,12 +142,18 @@ pub enum ProjectionFoldBootstrapEffect {
   AwaitInitialOperands
   PublishInitialOperands
 } derive(Eq, @debug.Debug)
+pub fn ProjectionFoldBootstrapEffect::equal(Self, Self) -> Bool
+pub fn ProjectionFoldBootstrapEffect::not_equal(Self, Self) -> Bool
+pub fn ProjectionFoldBootstrapEffect::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionFoldChoice {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionFoldChoice::equal(Self, Self) -> Bool
 pub fn ProjectionFoldChoice::maximum_token_rows(Self) -> Int?
 pub fn ProjectionFoldChoice::new(ProjectionFoldRole, stages~ : Int, transfer_tiles~ : Int, fragment_stages~ : Int, row_tiles? : Int, output_tiles? : Int, hoist_addresses? : Bool, consumer_groups? : Int, maximum_token_rows? : Int) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionFoldChoice::not_equal(Self, Self) -> Bool
+pub fn ProjectionFoldChoice::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionFoldEffect {
   IssueFutureOperand
@@ -134,26 +161,34 @@ pub(all) enum ProjectionFoldEffect {
   AwaitOperandTransfers
   PublishOperandSlot
 } derive(Eq, @debug.Debug)
+pub fn ProjectionFoldEffect::equal(Self, Self) -> Bool
+pub fn ProjectionFoldEffect::not_equal(Self, Self) -> Bool
+pub fn ProjectionFoldEffect::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionFoldEffectPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionFoldEffectPlan::bootstrap(Self) -> ReadOnlyArray[ProjectionFoldBootstrapEffect]
+pub fn ProjectionFoldEffectPlan::equal(Self, Self) -> Bool
 pub fn ProjectionFoldEffectPlan::future_distance(Self) -> Int
 pub fn ProjectionFoldEffectPlan::geometry(Self) -> (Int, Int, Int)
 pub fn ProjectionFoldEffectPlan::has_pending_transfers(Self) -> Bool
 pub fn ProjectionFoldEffectPlan::iteration(Self) -> ReadOnlyArray[ProjectionFoldEffect]
+pub fn ProjectionFoldEffectPlan::not_equal(Self, Self) -> Bool
 pub fn ProjectionFoldEffectPlan::overlaps(Self) -> Bool
 pub fn ProjectionFoldEffectPlan::pending_group_limit(Self) -> Int
 pub fn ProjectionFoldEffectPlan::prime_count(Self) -> Int
+pub fn ProjectionFoldEffectPlan::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionFoldPipeline {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionFoldPipeline::effect_plan(Self, ProjectionTransferExecution) -> ProjectionFoldEffectPlan
+pub fn ProjectionFoldPipeline::equal(Self, Self) -> Bool
 pub fn ProjectionFoldPipeline::fragment_program(Self, rows~ : Int, columns~ : Int) -> @physical_tile_ir.FragmentProgram?
 pub fn ProjectionFoldPipeline::fragment_stage_count(Self) -> Int
 pub fn ProjectionFoldPipeline::minimum_rows(Self) -> Int
+pub fn ProjectionFoldPipeline::not_equal(Self, Self) -> Bool
 pub fn ProjectionFoldPipeline::output_tiles(Self) -> Int
 pub fn ProjectionFoldPipeline::row_width(Self) -> Int
 pub fn ProjectionFoldPipeline::single_row_outputs(Self) -> Int
@@ -161,6 +196,7 @@ pub fn ProjectionFoldPipeline::slot(Self, Int) -> Int?
 pub fn ProjectionFoldPipeline::stage_count(Self) -> Int
 pub fn ProjectionFoldPipeline::tile_count(Self) -> Int
 pub fn ProjectionFoldPipeline::tile_width(Self) -> Int
+pub fn ProjectionFoldPipeline::to_repr(Self) -> @debug.Repr
 pub fn ProjectionFoldPipeline::transfer_count(Self) -> Int
 pub fn ProjectionFoldPipeline::transfer_width(Self) -> Int
 pub fn ProjectionFoldPipeline::workgroup_count(Self, maximum_rows~ : Int, output_columns~ : Int, matrix_columns~ : Int) -> Int?
@@ -170,6 +206,9 @@ pub(all) enum ProjectionFoldRole {
   SiblingFold
   IntermediateFold
 } derive(Eq, @debug.Debug)
+pub fn ProjectionFoldRole::equal(Self, Self) -> Bool
+pub fn ProjectionFoldRole::not_equal(Self, Self) -> Bool
+pub fn ProjectionFoldRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionIterationAxis {
   ProjectionRowAxis
@@ -180,16 +219,25 @@ pub(all) enum ProjectionIterationAxis {
   ProjectionHeadAxis
   ProjectionHeadComponentAxis
 } derive(Eq, @debug.Debug)
+pub fn ProjectionIterationAxis::equal(Self, Self) -> Bool
+pub fn ProjectionIterationAxis::not_equal(Self, Self) -> Bool
+pub fn ProjectionIterationAxis::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionIterationKind {
   ProjectionParallelMap
   ProjectionSequentialFold
 } derive(Eq, @debug.Debug)
+pub fn ProjectionIterationKind::equal(Self, Self) -> Bool
+pub fn ProjectionIterationKind::not_equal(Self, Self) -> Bool
+pub fn ProjectionIterationKind::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionLoopCombinator {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionLoopCombinator::components(Self) -> (ProjectionIterationKind, ProjectionIterationAxis, Int, Int)
+pub fn ProjectionLoopCombinator::equal(Self, Self) -> Bool
+pub fn ProjectionLoopCombinator::not_equal(Self, Self) -> Bool
+pub fn ProjectionLoopCombinator::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionMapBoundary {
   InputWritten
@@ -197,31 +245,46 @@ pub(all) enum ProjectionMapBoundary {
   ResultWritten
   ResultRead
 } derive(Eq, @debug.Debug)
+pub fn ProjectionMapBoundary::equal(Self, Self) -> Bool
+pub fn ProjectionMapBoundary::not_equal(Self, Self) -> Bool
+pub fn ProjectionMapBoundary::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionMapEffectPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionMapEffectPlan::at(Self, ProjectionMapBoundary) -> ProjectionStorageFence?
+pub fn ProjectionMapEffectPlan::equal(Self, Self) -> Bool
+pub fn ProjectionMapEffectPlan::not_equal(Self, Self) -> Bool
+pub fn ProjectionMapEffectPlan::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionMaterializationEffects {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionMaterializationEffects::equal(Self, Self) -> Bool
+pub fn ProjectionMaterializationEffects::not_equal(Self, Self) -> Bool
 pub fn ProjectionMaterializationEffects::publication(Self) -> ProjectionStorageFence
 pub fn ProjectionMaterializationEffects::release(Self) -> ProjectionStorageFence?
+pub fn ProjectionMaterializationEffects::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionMaterializationScope {
   ConsumerGroupStorage
   WorkgroupStorage
 } derive(Eq, @debug.Debug)
+pub fn ProjectionMaterializationScope::equal(Self, Self) -> Bool
 pub fn ProjectionMaterializationScope::materialization_effects(Self, reused~ : Bool) -> ProjectionMaterializationEffects
+pub fn ProjectionMaterializationScope::not_equal(Self, Self) -> Bool
+pub fn ProjectionMaterializationScope::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionOperandTransferPlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionOperandTransferPlan::equal(Self, Self) -> Bool
 pub fn ProjectionOperandTransferPlan::input_map(Self) -> ProjectionVectorTransferMap
 pub fn ProjectionOperandTransferPlan::new(input_rows~ : Int, weight_rows~ : Int, row_width~ : Int, vector_width~ : Int, owners~ : Int) -> Self?
+pub fn ProjectionOperandTransferPlan::not_equal(Self, Self) -> Bool
 pub fn ProjectionOperandTransferPlan::slot_elements(Self) -> Int
 pub fn ProjectionOperandTransferPlan::storage(Self, @physical_tile_ir.OperandLayout, stages~ : Int) -> @physical_tile_ir.OperandStorage?
+pub fn ProjectionOperandTransferPlan::to_repr(Self) -> @debug.Repr
 pub fn ProjectionOperandTransferPlan::weight_map(Self) -> ProjectionVectorTransferMap
 pub fn ProjectionOperandTransferPlan::weight_offset(Self) -> Int
 
@@ -269,31 +332,46 @@ pub struct ProjectionProductFoldDistribution {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionProductFoldDistribution::consumer_groups(Self) -> Int
+pub fn ProjectionProductFoldDistribution::equal(Self, Self) -> Bool
+pub fn ProjectionProductFoldDistribution::not_equal(Self, Self) -> Bool
 pub fn ProjectionProductFoldDistribution::output_groups(Self) -> Int
 pub fn ProjectionProductFoldDistribution::row_groups(Self) -> Int
 pub fn ProjectionProductFoldDistribution::rows_per_group(Self) -> Int
+pub fn ProjectionProductFoldDistribution::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionResultDemand {
   AllTokenRows
   QueryRowEnds
 } derive(Eq, @debug.Debug)
+pub fn ProjectionResultDemand::equal(Self, Self) -> Bool
 pub fn ProjectionResultDemand::map_effect_plan(Self) -> ProjectionMapEffectPlan
+pub fn ProjectionResultDemand::not_equal(Self, Self) -> Bool
+pub fn ProjectionResultDemand::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionRowSegment {
   operand : Int
   row_begin : Int
   row_end : Int
 } derive(Eq, @debug.Debug)
+pub fn ProjectionRowSegment::equal(Self, Self) -> Bool
+pub fn ProjectionRowSegment::not_equal(Self, Self) -> Bool
+pub fn ProjectionRowSegment::to_repr(Self) -> @debug.Repr
 
 pub enum ProjectionRowSelection {
   Operand(Int)
   Skip(width~ : Int, operand~ : Int, ProjectionRowSelection)
 } derive(Eq, @debug.Debug)
+pub fn ProjectionRowSelection::equal(Self, Self) -> Bool
+pub fn ProjectionRowSelection::not_equal(Self, Self) -> Bool
+pub fn ProjectionRowSelection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionRowTailPolicy {
   ScalarRowTail
   ZeroPaddedMatrixRowTail
 } derive(Eq, @debug.Debug)
+pub fn ProjectionRowTailPolicy::equal(Self, Self) -> Bool
+pub fn ProjectionRowTailPolicy::not_equal(Self, Self) -> Bool
+pub fn ProjectionRowTailPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionScalarFoldPlan {
   // private fields
@@ -355,31 +433,51 @@ pub(all) enum ProjectionSingleRowNumerics {
   PreserveDotOrder
   AllowDeterministicDotTree
 } derive(Eq, @debug.Debug)
+pub fn ProjectionSingleRowNumerics::equal(Self, Self) -> Bool
+pub fn ProjectionSingleRowNumerics::not_equal(Self, Self) -> Bool
+pub fn ProjectionSingleRowNumerics::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionSingleRowReduction {
   OrderedDot
   StridedPairwiseDot(Int)
 } derive(Eq, @debug.Debug)
+pub fn ProjectionSingleRowReduction::equal(Self, Self) -> Bool
+pub fn ProjectionSingleRowReduction::not_equal(Self, Self) -> Bool
+pub fn ProjectionSingleRowReduction::to_repr(Self) -> @debug.Repr
 
 pub enum ProjectionStorageFence {
   WorkgroupFence
   ConsumerGroupFence
 } derive(Eq, @debug.Debug)
+pub fn ProjectionStorageFence::equal(Self, Self) -> Bool
+pub fn ProjectionStorageFence::not_equal(Self, Self) -> Bool
+pub fn ProjectionStorageFence::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileBinding::equal(Self, Self) -> Bool
 pub fn ProjectionTileBinding::expression(Self) -> ProjectionTileExpression
 pub fn ProjectionTileBinding::id(Self) -> ProjectionTileValueId
 pub fn ProjectionTileBinding::kind(Self) -> ProjectionTileValueKind
+pub fn ProjectionTileBinding::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileBinding::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileCompilationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileCompilationDigest::as_hex(Self) -> String
+pub fn ProjectionTileCompilationDigest::equal(Self, Self) -> Bool
+pub fn ProjectionTileCompilationDigest::hash(Self) -> Int
+pub fn ProjectionTileCompilationDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileCompilationDigest::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileCompilationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileCompilerRequest {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileCompilerRequest::equal(Self, Self) -> Bool
 pub fn ProjectionTileCompilerRequest::new(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, demand~ : ProjectionResultDemand, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
+pub fn ProjectionTileCompilerRequest::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileCompilerRequest::to_repr(Self) -> @debug.Repr
 pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan, maximum_rows~ : Int, maximum_tokens~ : Int, epilogue~ : ProjectionAttentionIngressEpilogue, single_row_numerics? : ProjectionSingleRowNumerics) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_concatenated_weights(Self, ArrayView[Int]) -> Self raise ProjectionTileCompilerError
 pub fn ProjectionTileCompilerRequest::with_fold_choices(Self, ArrayView[ProjectionFoldChoice]) -> Self raise ProjectionTileCompilerError
@@ -394,11 +492,17 @@ pub(all) enum ProjectionTileCompilerRule {
   InvalidRewritePipeline
   InvalidSchedule
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileCompilerRule::equal(Self, Self) -> Bool
+pub fn ProjectionTileCompilerRule::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileCompilerRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionTileEpilogue {
   ProjectionStoreRows
   ProjectionAttentionIngress(ProjectionAttentionIngressEpilogue)
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileEpilogue::equal(Self, Self) -> Bool
+pub fn ProjectionTileEpilogue::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileEpilogue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionTileExpression {
   ProjectionTileInput
@@ -411,15 +515,28 @@ pub(all) enum ProjectionTileExpression {
   ProjectionStoreAndCommitPagedKv(ProjectionTileValueId)
   ProjectionStore(ProjectionTileValueId)
 } derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileExpression::equal(Self, Self) -> Bool
+pub fn ProjectionTileExpression::hash(Self) -> Int
+pub fn ProjectionTileExpression::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileExpression::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileExpression::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileOptimization {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionTileOptimization::digest(Self) -> ProjectionTileOptimizationDigest
+pub fn ProjectionTileOptimization::equal(Self, Self) -> Bool
+pub fn ProjectionTileOptimization::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileOptimization::to_repr(Self) -> @debug.Repr
 pub fn ProjectionTileOptimization::trace(Self) -> ReadOnlyArray[ProjectionTileRewriteStep]
 
 pub struct ProjectionTileOptimizationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileOptimizationDigest::as_hex(Self) -> String
+pub fn ProjectionTileOptimizationDigest::equal(Self, Self) -> Bool
+pub fn ProjectionTileOptimizationDigest::hash(Self) -> Int
+pub fn ProjectionTileOptimizationDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileOptimizationDigest::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileOptimizationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileProgram {
   // private fields
@@ -429,11 +546,19 @@ pub fn ProjectionTileProgram::concatenated_weights(Self) -> ReadOnlyArray[Projec
 pub fn ProjectionTileProgram::demand(Self) -> ProjectionResultDemand
 pub fn ProjectionTileProgram::digest(Self) -> ProjectionTileProgramDigest
 pub fn ProjectionTileProgram::epilogue(Self) -> ProjectionTileEpilogue
+pub fn ProjectionTileProgram::equal(Self, Self) -> Bool
+pub fn ProjectionTileProgram::not_equal(Self, Self) -> Bool
 pub fn ProjectionTileProgram::root(Self) -> ProjectionTileValueId
 pub fn ProjectionTileProgram::shape(Self) -> @luna_projection_strategy.ProjectionShape
+pub fn ProjectionTileProgram::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileProgramDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileProgramDigest::as_hex(Self) -> String
+pub fn ProjectionTileProgramDigest::equal(Self, Self) -> Bool
+pub fn ProjectionTileProgramDigest::hash(Self) -> Int
+pub fn ProjectionTileProgramDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileProgramDigest::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileProgramDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionTileRewriteRule {
   PruneUnobservedTokenRows
@@ -446,12 +571,18 @@ pub(all) enum ProjectionTileRewriteRule {
   HoistRotaryInverseFrequencies
   FuseRotaryPairEvaluation
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTileRewriteRule::equal(Self, Self) -> Bool
+pub fn ProjectionTileRewriteRule::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileRewriteRule::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileRewriteStep {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionTileRewriteStep::changed(Self) -> Bool
+pub fn ProjectionTileRewriteStep::equal(Self, Self) -> Bool
+pub fn ProjectionTileRewriteStep::not_equal(Self, Self) -> Bool
 pub fn ProjectionTileRewriteStep::rule(Self) -> ProjectionTileRewriteRule
+pub fn ProjectionTileRewriteStep::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileSchedule {
   // private fields
@@ -460,6 +591,7 @@ pub fn ProjectionTileSchedule::column_fold_plan(Self, consumer_groups~ : Int, ma
 pub fn ProjectionTileSchedule::companion_output_tiles_per_workgroup(Self) -> Int?
 pub fn ProjectionTileSchedule::demand(Self) -> ProjectionResultDemand
 pub fn ProjectionTileSchedule::digest(Self) -> ProjectionTileScheduleDigest
+pub fn ProjectionTileSchedule::equal(Self, Self) -> Bool
 pub fn ProjectionTileSchedule::fuses_attention_ingress_epilogue(Self) -> Bool
 pub fn ProjectionTileSchedule::fuses_rotary_pairs(Self) -> Bool
 pub fn ProjectionTileSchedule::hoists_rotary_inverse_frequencies(Self) -> Bool
@@ -467,18 +599,30 @@ pub fn ProjectionTileSchedule::intermediate_pipeline(Self) -> ProjectionFoldPipe
 pub fn ProjectionTileSchedule::loops(Self) -> ReadOnlyArray[ProjectionLoopCombinator]
 pub fn ProjectionTileSchedule::mapped_fragment_program(Self, Int) -> @physical_tile_ir.FragmentProgram?
 pub fn ProjectionTileSchedule::matrix_pipeline(Self) -> ProjectionFoldPipeline?
+pub fn ProjectionTileSchedule::not_equal(Self, Self) -> Bool
 pub fn ProjectionTileSchedule::output_tiles_per_workgroup(Self) -> Int
 pub fn ProjectionTileSchedule::reuse_intermediate_tile(Self) -> Bool
 pub fn ProjectionTileSchedule::row_tail_policy(Self) -> ProjectionRowTailPolicy
 pub fn ProjectionTileSchedule::selected_input_row_resident(Self) -> Bool
 pub fn ProjectionTileSchedule::sibling_pipeline(Self) -> ProjectionFoldPipeline?
 pub fn ProjectionTileSchedule::single_row_reduction(Self) -> ProjectionSingleRowReduction
+pub fn ProjectionTileSchedule::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileScheduleDigest::as_hex(Self) -> String
+pub fn ProjectionTileScheduleDigest::equal(Self, Self) -> Bool
+pub fn ProjectionTileScheduleDigest::hash(Self) -> Int
+pub fn ProjectionTileScheduleDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileScheduleDigest::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileScheduleDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTileValueId(Int) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionTileValueId::as_int(Self) -> Int
+pub fn ProjectionTileValueId::equal(Self, Self) -> Bool
+pub fn ProjectionTileValueId::hash(Self) -> Int
+pub fn ProjectionTileValueId::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileValueId::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileValueId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionTileValueKind {
   ProjectionInputRows
@@ -490,6 +634,11 @@ pub(all) enum ProjectionTileValueKind {
   ProjectionPositionedRows
   ProjectionOutputRows
 } derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileValueKind::equal(Self, Self) -> Bool
+pub fn ProjectionTileValueKind::hash(Self) -> Int
+pub fn ProjectionTileValueKind::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileValueKind::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileValueKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionTileWeightRole {
   ProjectionDenseWeight
@@ -499,12 +648,20 @@ pub(all) enum ProjectionTileWeightRole {
   ProjectionQueryNormWeight
   ProjectionKeyNormWeight
 } derive(Eq, Hash, @debug.Debug)
+pub fn ProjectionTileWeightRole::equal(Self, Self) -> Bool
+pub fn ProjectionTileWeightRole::hash(Self) -> Int
+pub fn ProjectionTileWeightRole::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionTileWeightRole::not_equal(Self, Self) -> Bool
+pub fn ProjectionTileWeightRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionTransferExecution {
   SerialTransfer
   CompletedPrefetch
   OverlappedTransfer
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTransferExecution::equal(Self, Self) -> Bool
+pub fn ProjectionTransferExecution::not_equal(Self, Self) -> Bool
+pub fn ProjectionTransferExecution::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTransferSegment {
   operand : Int
@@ -513,20 +670,29 @@ pub struct ProjectionTransferSegment {
   worker_end : Int
   operand_vector_origin : Int
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTransferSegment::equal(Self, Self) -> Bool
+pub fn ProjectionTransferSegment::not_equal(Self, Self) -> Bool
+pub fn ProjectionTransferSegment::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionVectorTransferMap {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionVectorTransferMap::equal(Self, Self) -> Bool
 pub fn ProjectionVectorTransferMap::geometry(Self) -> (Int, Int, Int)
 pub fn ProjectionVectorTransferMap::new(vectors~ : Int, owners~ : Int) -> Self?
+pub fn ProjectionVectorTransferMap::not_equal(Self, Self) -> Bool
+pub fn ProjectionVectorTransferMap::to_repr(Self) -> @debug.Repr
 pub fn ProjectionVectorTransferMap::vector_at(Self, Int, Int) -> Int?
 
 pub struct ProjectionWeightTransferPlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionWeightTransferPlan::equal(Self, Self) -> Bool
 pub fn ProjectionWeightTransferPlan::new(ProjectionVectorTransferMap, ArrayView[ProjectionRowSegment], row_width~ : Int, vector_width~ : Int) -> Self?
+pub fn ProjectionWeightTransferPlan::not_equal(Self, Self) -> Bool
 pub fn ProjectionWeightTransferPlan::row_selection(Self) -> ProjectionRowSelection
 pub fn ProjectionWeightTransferPlan::row_vectors(Self) -> Int
+pub fn ProjectionWeightTransferPlan::to_repr(Self) -> @debug.Repr
 pub fn ProjectionWeightTransferPlan::vector_map(Self) -> ProjectionVectorTransferMap
 
 pub struct ScheduledProjectionTileCompilation {
@@ -534,20 +700,29 @@ pub struct ScheduledProjectionTileCompilation {
 } derive(Eq, @debug.Debug)
 pub fn ScheduledProjectionTileCompilation::digest(Self) -> ProjectionTileCompilationDigest
 pub fn ScheduledProjectionTileCompilation::eliminated_bindings(Self) -> (Int, Int)
+pub fn ScheduledProjectionTileCompilation::equal(Self, Self) -> Bool
+pub fn ScheduledProjectionTileCompilation::not_equal(Self, Self) -> Bool
 pub fn ScheduledProjectionTileCompilation::optimization(Self) -> ProjectionTileOptimization
 pub fn ScheduledProjectionTileCompilation::program(Self) -> ProjectionTileProgram
 pub fn ScheduledProjectionTileCompilation::refine_physical(Self, (Int) -> @physical_tile_ir.OperandLayout?, (Int) -> ProjectionTransferExecution, owners_per_group~ : Int, sibling_ownership? : ProjectionSiblingOwnership, sibling_transport? : ProjectionSiblingTransport) -> PhysicalProjectionTileCompilation?
 pub fn ScheduledProjectionTileCompilation::schedule(Self) -> ProjectionTileSchedule
 pub fn ScheduledProjectionTileCompilation::selected_row_gather(Self) -> ProjectionSelectedRowGather?
 pub fn ScheduledProjectionTileCompilation::source_program(Self) -> ProjectionTileProgram
+pub fn ScheduledProjectionTileCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct SelectedProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn SelectedProjectionTileCompilation::equal(Self, Self) -> Bool
+pub fn SelectedProjectionTileCompilation::not_equal(Self, Self) -> Bool
+pub fn SelectedProjectionTileCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct SemanticProjectionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn SemanticProjectionTileCompilation::equal(Self, Self) -> Bool
+pub fn SemanticProjectionTileCompilation::not_equal(Self, Self) -> Bool
+pub fn SemanticProjectionTileCompilation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

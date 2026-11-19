@@ -13,14 +13,20 @@ pub(all) suberror StateSnapshotPlanError {
   InvalidStateSize
   SnapshotBudgetExceeded
 } derive(Eq, @debug.Debug)
+pub fn StateSnapshotPlanError::equal(Self, Self) -> Bool
+pub fn StateSnapshotPlanError::not_equal(Self, Self) -> Bool
+pub fn StateSnapshotPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct StateSnapshotPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn StateSnapshotPlan::backup_bytes(Self) -> Int64
+pub fn StateSnapshotPlan::equal(Self, Self) -> Bool
+pub fn StateSnapshotPlan::not_equal(Self, Self) -> Bool
 pub fn StateSnapshotPlan::offsets(Self) -> ReadOnlyArray[Int64]
 pub fn StateSnapshotPlan::sizes(Self) -> ReadOnlyArray[Int64]
+pub fn StateSnapshotPlan::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

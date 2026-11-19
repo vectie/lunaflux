@@ -21,9 +21,17 @@ test "activation scaling rounds upward and dot is block-local" {
   values[0] = 448.0F
   assert_eq(@block_fp8_ue8m0_reference.activation_scale_ue8m0_code(values), 127)
   let weights = Array::make(128, 0x38)
-  let result = @block_fp8_ue8m0_reference.block128_dot_bf16_boundary(values, weights, [127])
+  let result = @block_fp8_ue8m0_reference.block128_dot_bf16_boundary(
+    values,
+    weights,
+    [127],
+  )
   assert_eq(result, 448.0F)
-  try @block_fp8_ue8m0_reference.block128_dot_bf16_boundary(values, weights, [127, 127]) catch {
+  try
+    @block_fp8_ue8m0_reference.block128_dot_bf16_boundary(values, weights, [
+      127, 127,
+    ])
+  catch {
     InvalidShape => ()
     _ => fail("wrong shape failure")
   } noraise {
@@ -39,7 +47,9 @@ test "512-wide projection dot preserves four ordered block boundaries" {
     values[block * 128] = Float::from_int(block + 1)
   }
   assert_eq(
-    @block_fp8_ue8m0_reference.block128_dot_bf16_boundary(values, weights, [127, 127, 127, 127]),
+    @block_fp8_ue8m0_reference.block128_dot_bf16_boundary(values, weights, [
+      127, 127, 127, 127,
+    ]),
     10.0F,
   )
 }

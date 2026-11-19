@@ -69,7 +69,9 @@ pub fn DeviceStateSnapshot::poll_completion(self : Self) -> Bool raise {
   }
   let phase = self.phase
   let ready = {
-    errdefer { self.phase = Failed }
+    errdefer {
+      self.phase = Failed
+    }
     self.copy.poll_completion()
   }
   if ready {

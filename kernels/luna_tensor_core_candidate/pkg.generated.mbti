@@ -13,6 +13,9 @@ pub fn lower_luna_tile_bf16_mma16x16x16_tensor_core_candidate(@luna_tile_ir.Luna
 pub(all) suberror LunaTileTensorCoreCandidateError {
   LunaTileTensorCoreRejected(LunaTileTensorCoreRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaTileTensorCoreCandidateError::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreCandidateError::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreCandidateError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaTileBf16Mma16x16x16Candidate {
@@ -21,7 +24,9 @@ pub struct LunaTileBf16Mma16x16x16Candidate {
 pub fn LunaTileBf16Mma16x16x16Candidate::canonical_bytes(Self) -> Bytes
 pub fn LunaTileBf16Mma16x16x16Candidate::digest(Self) -> LunaTileTensorCoreCandidateDigest
 pub fn LunaTileBf16Mma16x16x16Candidate::entry_point(Self) -> String
+pub fn LunaTileBf16Mma16x16x16Candidate::equal(Self, Self) -> Bool
 pub fn LunaTileBf16Mma16x16x16Candidate::manifest_bindable(Self) -> Bool
+pub fn LunaTileBf16Mma16x16x16Candidate::not_equal(Self, Self) -> Bool
 pub fn LunaTileBf16Mma16x16x16Candidate::parallel_plan_digest(Self) -> @luna_tile_ir.LunaTileParallelDigest
 pub fn LunaTileBf16Mma16x16x16Candidate::program_digest(Self) -> @luna_tile_ir.LunaTileProgramDigest
 pub fn LunaTileBf16Mma16x16x16Candidate::promotion_authorized(Self) -> Bool
@@ -29,19 +34,31 @@ pub fn LunaTileBf16Mma16x16x16Candidate::serial_oracle_digest(Self) -> @luna_til
 pub fn LunaTileBf16Mma16x16x16Candidate::source_bytes(Self) -> Bytes
 pub fn LunaTileBf16Mma16x16x16Candidate::source_digest(Self) -> LunaTileTensorCoreSourceDigest
 pub fn LunaTileBf16Mma16x16x16Candidate::tile_count(Self) -> Int
+pub fn LunaTileBf16Mma16x16x16Candidate::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileBf16Mma16x16x16Contract {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileBf16Mma16x16x16Contract::equal(Self, Self) -> Bool
 pub fn LunaTileBf16Mma16x16x16Contract::new(compute_major~ : Int, compute_minor~ : Int, m~ : Int, n~ : Int, k~ : Int, left_layout~ : LunaTileTensorCoreMatrixLayout, right_layout~ : LunaTileTensorCoreMatrixLayout, accumulator~ : LunaTileTensorCoreAccumulator, output_layout~ : LunaTileTensorCoreMatrixLayout, left_alignment_bytes~ : Int, right_alignment_bytes~ : Int, accumulator_alignment_bytes~ : Int, output_alignment_bytes~ : Int, epilogue~ : LunaTileTensorCoreEpilogue, block_threads~ : Int, maximum_registers_per_thread~ : Int) -> Self raise LunaTileTensorCoreCandidateError
+pub fn LunaTileBf16Mma16x16x16Contract::not_equal(Self, Self) -> Bool
+pub fn LunaTileBf16Mma16x16x16Contract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileTensorCoreAccumulator {
   TensorCoreAccumulatorF32
   TensorCoreAccumulatorBf16
 } derive(Eq, @debug.Debug)
+pub fn LunaTileTensorCoreAccumulator::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreAccumulator::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreAccumulator::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileTensorCoreCandidateDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileTensorCoreCandidateDigest::as_hex(Self) -> String
+pub fn LunaTileTensorCoreCandidateDigest::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreCandidateDigest::hash(Self) -> Int
+pub fn LunaTileTensorCoreCandidateDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileTensorCoreCandidateDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreCandidateDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileTensorCoreCandidateLimits {
   // private fields
@@ -53,11 +70,17 @@ pub(all) enum LunaTileTensorCoreEpilogue {
   TensorCoreBiasEpilogue
   TensorCoreSiluEpilogue
 } derive(Eq, @debug.Debug)
+pub fn LunaTileTensorCoreEpilogue::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreEpilogue::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreEpilogue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileTensorCoreMatrixLayout {
   TensorCoreRowMajor
   TensorCoreColumnMajor
 } derive(Eq, @debug.Debug)
+pub fn LunaTileTensorCoreMatrixLayout::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreMatrixLayout::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreMatrixLayout::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileTensorCoreRule {
   Contract
@@ -73,9 +96,17 @@ pub(all) enum LunaTileTensorCoreRule {
   ParallelIdentity
   SourceLimit
 } derive(Eq, @debug.Debug)
+pub fn LunaTileTensorCoreRule::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreRule::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileTensorCoreSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileTensorCoreSourceDigest::as_hex(Self) -> String
+pub fn LunaTileTensorCoreSourceDigest::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreSourceDigest::hash(Self) -> Int
+pub fn LunaTileTensorCoreSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileTensorCoreSourceDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreSourceDigest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

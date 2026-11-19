@@ -18,14 +18,20 @@ pub struct Decision {
   subject : DecisionSubject
   reason : DecisionReason
 } derive(Eq, @debug.Debug)
+pub fn Decision::equal(Self, Self) -> Bool
+pub fn Decision::not_equal(Self, Self) -> Bool
 pub fn Decision::reason(Self) -> DecisionReason
 pub fn Decision::subject(Self) -> DecisionSubject
+pub fn Decision::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DecisionReason {
   ExplicitConfiguration
   FirstAllowedArchitecture
   FirstVisibleDevice
 } derive(Eq, @debug.Debug)
+pub fn DecisionReason::equal(Self, Self) -> Bool
+pub fn DecisionReason::not_equal(Self, Self) -> Bool
+pub fn DecisionReason::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DecisionSubject {
   DiagnosticMode
@@ -33,6 +39,9 @@ pub(all) enum DecisionSubject {
   PrimaryDevice
   MemoryCeiling
 } derive(Eq, @debug.Debug)
+pub fn DecisionSubject::equal(Self, Self) -> Bool
+pub fn DecisionSubject::not_equal(Self, Self) -> Bool
+pub fn DecisionSubject::to_repr(Self) -> @debug.Repr
 
 pub struct ResolvedPlan {
   diagnostic_mode : @service.DiagnosticMode
@@ -43,9 +52,12 @@ pub struct ResolvedPlan {
 } derive(Eq, @debug.Debug)
 pub fn ResolvedPlan::decisions(Self) -> ReadOnlyArray[Decision]
 pub fn ResolvedPlan::diagnostic_mode(Self) -> @service.DiagnosticMode
+pub fn ResolvedPlan::equal(Self, Self) -> Bool
 pub fn ResolvedPlan::memory_ceiling_bytes(Self) -> Int64
+pub fn ResolvedPlan::not_equal(Self, Self) -> Bool
 pub fn ResolvedPlan::primary_device(Self) -> Int
 pub fn ResolvedPlan::selected_architecture(Self) -> String
+pub fn ResolvedPlan::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

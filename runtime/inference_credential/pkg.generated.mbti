@@ -13,6 +13,9 @@ pub fn prepare_optional_inherited_inference_credential_v1() -> InheritedInferenc
 pub(all) suberror InheritedInferenceCredentialError {
   InheritedInferenceCredentialFailed(InheritedInferenceCredentialRule)
 } derive(Eq, @debug.Debug)
+pub fn InheritedInferenceCredentialError::equal(Self, Self) -> Bool
+pub fn InheritedInferenceCredentialError::not_equal(Self, Self) -> Bool
+pub fn InheritedInferenceCredentialError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct InheritedInferenceAuthPolicy {
@@ -33,6 +36,9 @@ pub(all) enum InheritedInferenceCredentialProgress {
   InheritedInferenceCredentialReady
   InheritedInferenceCredentialFailedProgress
 } derive(Eq, @debug.Debug)
+pub fn InheritedInferenceCredentialProgress::equal(Self, Self) -> Bool
+pub fn InheritedInferenceCredentialProgress::not_equal(Self, Self) -> Bool
+pub fn InheritedInferenceCredentialProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum InheritedInferenceCredentialRule {
   CredentialDescriptorUnavailable
@@ -42,6 +48,9 @@ pub(all) enum InheritedInferenceCredentialRule {
   CredentialStateInvalid
   CredentialPolicyInvalid
 } derive(Eq, @debug.Debug)
+pub fn InheritedInferenceCredentialRule::equal(Self, Self) -> Bool
+pub fn InheritedInferenceCredentialRule::not_equal(Self, Self) -> Bool
+pub fn InheritedInferenceCredentialRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

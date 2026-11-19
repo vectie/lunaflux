@@ -20,7 +20,11 @@ test "value ownership is bijective for full and ragged dimensions" {
     }
   }
   assert_eq(
-    @attention_physical_ir.ValueComponentOwnership::new(dimensions=0, owners=32, maximum_fragment=4),
+    @attention_physical_ir.ValueComponentOwnership::new(
+      dimensions=0,
+      owners=32,
+      maximum_fragment=4,
+    ),
     None,
   )
 }

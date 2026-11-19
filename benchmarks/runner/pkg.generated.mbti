@@ -28,6 +28,9 @@ pub(all) suberror BenchmarkRunnerError {
   BenchmarkRunnerAlreadyFinished
   BenchmarkRunnerEvidenceRejected
 } derive(Eq, @debug.Debug)
+pub fn BenchmarkRunnerError::equal(Self, Self) -> Bool
+pub fn BenchmarkRunnerError::not_equal(Self, Self) -> Bool
+pub fn BenchmarkRunnerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 type BenchmarkRequestState
@@ -50,7 +53,10 @@ pub fn BenchmarkTrialCollector::terminate_captured(Self, request_ordinal~ : Int,
 pub struct CapturedMonotonicTimestamp {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CapturedMonotonicTimestamp::equal(Self, Self) -> Bool
 pub fn CapturedMonotonicTimestamp::from_nanoseconds(Int64) -> Self raise BenchmarkRunnerError
+pub fn CapturedMonotonicTimestamp::not_equal(Self, Self) -> Bool
+pub fn CapturedMonotonicTimestamp::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -23,6 +23,9 @@ pub(all) suberror AdvancedDecoderPlanError {
   InvalidAuxiliaryPrediction
   CanonicalPlanTooLarge
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderPlanError::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderPlanError::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum AdvancedAttentionPlan {
@@ -31,8 +34,11 @@ pub(all) enum AdvancedAttentionPlan {
   DeterministicCompressed(compression_ratio~ : Int, window_size~ : Int)
 } derive(Eq, @debug.Debug)
 pub fn AdvancedAttentionPlan::deterministic_compressed(compression_ratio~ : Int, window_size~ : Int) -> Self raise AdvancedDecoderPlanError
+pub fn AdvancedAttentionPlan::equal(Self, Self) -> Bool
 pub fn AdvancedAttentionPlan::indexed_compressed(compression_ratio~ : Int, index_head_count~ : Int, index_head_dimension~ : Int, index_top_k~ : Int) -> Self raise AdvancedDecoderPlanError
+pub fn AdvancedAttentionPlan::not_equal(Self, Self) -> Bool
 pub fn AdvancedAttentionPlan::sliding_window_causal(Int) -> Self raise AdvancedDecoderPlanError
+pub fn AdvancedAttentionPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderDimension {
   VocabularySize
@@ -47,29 +53,38 @@ pub(all) enum AdvancedDecoderDimension {
   OutputGroupCount
   MaximumPositionCount
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderDimension::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderDimension::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderDimension::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderExecutionPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AdvancedDecoderExecutionPlan::auxiliary_prediction(Self) -> AuxiliaryPredictionPlan
 pub fn AdvancedDecoderExecutionPlan::content_digest(Self) -> @spec.ContentDigest
+pub fn AdvancedDecoderExecutionPlan::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderExecutionPlan::hyper_connection(Self) -> HyperConnectionPlan
 pub fn AdvancedDecoderExecutionPlan::layers(Self) -> ReadOnlyArray[AdvancedDecoderLayerPlan]
 pub fn AdvancedDecoderExecutionPlan::low_rank_attention(Self) -> LowRankAttentionPlan
 pub fn AdvancedDecoderExecutionPlan::moe(Self) -> MoeExecutionPlan
 pub fn AdvancedDecoderExecutionPlan::new(schema_version~ : Int, profile_identity~ : String, content_digest~ : @spec.ContentDigest, shape~ : AdvancedDecoderShape, low_rank_attention~ : LowRankAttentionPlan, position_encoding~ : PositionEncodingPlan, hyper_connection~ : HyperConnectionPlan, moe~ : MoeExecutionPlan, layers~ : ArrayView[AdvancedDecoderLayerPlan], auxiliary_prediction~ : AuxiliaryPredictionPlan) -> Self raise AdvancedDecoderPlanError
+pub fn AdvancedDecoderExecutionPlan::not_equal(Self, Self) -> Bool
 pub fn AdvancedDecoderExecutionPlan::plan_digest(Self) -> @spec.PlanDigest
 pub fn AdvancedDecoderExecutionPlan::position_encoding(Self) -> PositionEncodingPlan
 pub fn AdvancedDecoderExecutionPlan::profile_identity(Self) -> String
 pub fn AdvancedDecoderExecutionPlan::schema_version(Self) -> Int
 pub fn AdvancedDecoderExecutionPlan::shape(Self) -> AdvancedDecoderShape
+pub fn AdvancedDecoderExecutionPlan::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderLayerPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AdvancedDecoderLayerPlan::attention(Self) -> AdvancedAttentionPlan
+pub fn AdvancedDecoderLayerPlan::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderLayerPlan::layer_index(Self) -> Int
 pub fn AdvancedDecoderLayerPlan::new(layer_index~ : Int, attention~ : AdvancedAttentionPlan) -> Self raise AdvancedDecoderPlanError
+pub fn AdvancedDecoderLayerPlan::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderLayerPlan::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderShape {
   // private fields
@@ -77,80 +92,107 @@ pub struct AdvancedDecoderShape {
 pub fn AdvancedDecoderShape::attention_head_count(Self) -> Int
 pub fn AdvancedDecoderShape::attention_head_dimension(Self) -> Int
 pub fn AdvancedDecoderShape::decoder_layer_count(Self) -> Int
+pub fn AdvancedDecoderShape::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderShape::hidden_size(Self) -> Int
 pub fn AdvancedDecoderShape::kv_head_count(Self) -> Int
 pub fn AdvancedDecoderShape::maximum_position_count(Self) -> Int
 pub fn AdvancedDecoderShape::new(vocabulary_size~ : Int, hidden_size~ : Int, decoder_layer_count~ : Int, attention_head_count~ : Int, kv_head_count~ : Int, attention_head_dimension~ : Int, rope_head_dimension~ : Int, query_low_rank~ : Int, output_low_rank~ : Int, output_group_count~ : Int, maximum_position_count~ : Int) -> Self raise AdvancedDecoderPlanError
+pub fn AdvancedDecoderShape::not_equal(Self, Self) -> Bool
 pub fn AdvancedDecoderShape::output_group_count(Self) -> Int
 pub fn AdvancedDecoderShape::output_low_rank(Self) -> Int
 pub fn AdvancedDecoderShape::query_low_rank(Self) -> Int
 pub fn AdvancedDecoderShape::rope_head_dimension(Self) -> Int
+pub fn AdvancedDecoderShape::to_repr(Self) -> @debug.Repr
 pub fn AdvancedDecoderShape::vocabulary_size(Self) -> Int
 
 pub(all) enum AuxiliaryPredictionPlan {
   MultiTokenPrediction(layer_count~ : Int)
   MultiTokenPredictionWithDspark(layer_count~ : Int, dspark~ : DsparkExecutionPlan)
 } derive(Eq, @debug.Debug)
+pub fn AuxiliaryPredictionPlan::equal(Self, Self) -> Bool
 pub fn AuxiliaryPredictionPlan::multi_token_prediction(Int) -> Self raise AdvancedDecoderPlanError
 pub fn AuxiliaryPredictionPlan::multi_token_prediction_with_dspark(layer_count~ : Int, dspark~ : DsparkExecutionPlan) -> Self raise AdvancedDecoderPlanError
+pub fn AuxiliaryPredictionPlan::not_equal(Self, Self) -> Bool
+pub fn AuxiliaryPredictionPlan::to_repr(Self) -> @debug.Repr
 
 pub struct DsparkExecutionPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn DsparkExecutionPlan::block_size(Self) -> Int
+pub fn DsparkExecutionPlan::equal(Self, Self) -> Bool
 pub fn DsparkExecutionPlan::markov_rank(Self) -> Int
 pub fn DsparkExecutionPlan::new(block_size~ : Int, noise_token_id~ : Int, target_layer_ids~ : ArrayView[Int], markov_rank~ : Int, decoder_layer_count~ : Int) -> Self raise AdvancedDecoderPlanError
 pub fn DsparkExecutionPlan::noise_token_id(Self) -> Int
+pub fn DsparkExecutionPlan::not_equal(Self, Self) -> Bool
 pub fn DsparkExecutionPlan::target_layer_ids(Self) -> ReadOnlyArray[Int]
+pub fn DsparkExecutionPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExpertActivation {
   SwiGlu
   ClampedSwiGlu(Double)
 } derive(Eq, @debug.Debug)
+pub fn ExpertActivation::equal(Self, Self) -> Bool
+pub fn ExpertActivation::not_equal(Self, Self) -> Bool
+pub fn ExpertActivation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExpertScoreFunction {
   SqrtSoftplus
   Sigmoid
 } derive(Eq, @debug.Debug)
+pub fn ExpertScoreFunction::equal(Self, Self) -> Bool
+pub fn ExpertScoreFunction::not_equal(Self, Self) -> Bool
+pub fn ExpertScoreFunction::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExpertSelectionMethod {
   NoAuxiliaryLossTokenChoice
   TokenHashThenNoAuxiliaryLossTokenChoice(hash_layer_count~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn ExpertSelectionMethod::equal(Self, Self) -> Bool
+pub fn ExpertSelectionMethod::not_equal(Self, Self) -> Bool
+pub fn ExpertSelectionMethod::to_repr(Self) -> @debug.Repr
 
 pub struct HyperConnectionPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn HyperConnectionPlan::control_epsilon(Self) -> Double
 pub fn HyperConnectionPlan::epsilon(Self) -> Double
+pub fn HyperConnectionPlan::equal(Self, Self) -> Bool
 pub fn HyperConnectionPlan::new(width~ : Int, control_epsilon~ : Double, normalization_epsilon~ : Double, sinkhorn_iterations~ : Int) -> Self raise AdvancedDecoderPlanError
 pub fn HyperConnectionPlan::normalization_epsilon(Self) -> Double
+pub fn HyperConnectionPlan::not_equal(Self, Self) -> Bool
 pub fn HyperConnectionPlan::sinkhorn_iterations(Self) -> Int
+pub fn HyperConnectionPlan::to_repr(Self) -> @debug.Repr
 pub fn HyperConnectionPlan::width(Self) -> Int
 
 pub struct LowRankAttentionPlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LowRankAttentionPlan::equal(Self, Self) -> Bool
 pub fn LowRankAttentionPlan::new(query_rank~ : Int, output_rank~ : Int, output_group_count~ : Int, query_key_norm_epsilon~ : Double) -> Self raise AdvancedDecoderPlanError
+pub fn LowRankAttentionPlan::not_equal(Self, Self) -> Bool
 pub fn LowRankAttentionPlan::output_group_count(Self) -> Int
 pub fn LowRankAttentionPlan::output_rank(Self) -> Int
 pub fn LowRankAttentionPlan::query_key_norm_epsilon(Self) -> Double
 pub fn LowRankAttentionPlan::query_rank(Self) -> Int
+pub fn LowRankAttentionPlan::to_repr(Self) -> @debug.Repr
 
 pub struct MoeExecutionPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MoeExecutionPlan::activation(Self) -> ExpertActivation
+pub fn MoeExecutionPlan::equal(Self, Self) -> Bool
 pub fn MoeExecutionPlan::experts_per_token(Self) -> Int
 pub fn MoeExecutionPlan::hash_routed_layer_count(Self) -> Int
 pub fn MoeExecutionPlan::intermediate_size(Self) -> Int
 pub fn MoeExecutionPlan::new(routed_expert_count~ : Int, shared_expert_count~ : Int, experts_per_token~ : Int, intermediate_size~ : Int, routed_scaling_factor~ : Double, normalize_selected_probabilities~ : Bool, score_function~ : ExpertScoreFunction, selection_method~ : ExpertSelectionMethod, activation~ : ExpertActivation) -> Self raise AdvancedDecoderPlanError
 pub fn MoeExecutionPlan::normalize_selected_probabilities(Self) -> Bool
+pub fn MoeExecutionPlan::not_equal(Self, Self) -> Bool
 pub fn MoeExecutionPlan::routed_expert_count(Self) -> Int
 pub fn MoeExecutionPlan::routed_scaling_factor(Self) -> Double
 pub fn MoeExecutionPlan::score_function(Self) -> ExpertScoreFunction
 pub fn MoeExecutionPlan::selection_method(Self) -> ExpertSelectionMethod
 pub fn MoeExecutionPlan::shared_expert_count(Self) -> Int
+pub fn MoeExecutionPlan::to_repr(Self) -> @debug.Repr
 
 pub struct PositionEncodingPlan {
   // private fields
@@ -158,10 +200,13 @@ pub struct PositionEncodingPlan {
 pub fn PositionEncodingPlan::beta_fast(Self) -> Double
 pub fn PositionEncodingPlan::beta_slow(Self) -> Double
 pub fn PositionEncodingPlan::compressed_rope_theta(Self) -> Double
+pub fn PositionEncodingPlan::equal(Self, Self) -> Bool
 pub fn PositionEncodingPlan::new(rope_theta~ : Double, compressed_rope_theta~ : Double, original_position_count~ : Int, scaling_factor~ : Double, beta_fast~ : Double, beta_slow~ : Double) -> Self raise AdvancedDecoderPlanError
+pub fn PositionEncodingPlan::not_equal(Self, Self) -> Bool
 pub fn PositionEncodingPlan::original_position_count(Self) -> Int
 pub fn PositionEncodingPlan::rope_theta(Self) -> Double
 pub fn PositionEncodingPlan::scaling_factor(Self) -> Double
+pub fn PositionEncodingPlan::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

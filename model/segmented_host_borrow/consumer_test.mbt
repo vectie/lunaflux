@@ -53,9 +53,11 @@ test "consumer rejects the wrong arena length and failed callback" {
 ///|
 test "consumer constructor rejects unbounded identities" {
   try
-    @segmented_host_borrow.SegmentedHostArenaConsumer::new(arena_ordinal=-1, expected_length=1, consume=_ => {
-      true
-    })
+    @segmented_host_borrow.SegmentedHostArenaConsumer::new(
+      arena_ordinal=-1,
+      expected_length=1,
+      consume=_ => true,
+    )
   catch {
     InvalidConsumer => ()
     _ => fail("unexpected invalid-consumer rejection")

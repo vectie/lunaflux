@@ -45,8 +45,12 @@ test "offline fold choices preserve semantics and compose canonically" {
     maximum_token_rows=16,
   )
   assert_eq(
-    @luna_projection_tile_compiler.compile_projection_tile(request.with_fold_choices([global, small])),
-    @luna_projection_tile_compiler.compile_projection_tile(request.with_fold_choices([global])),
+    @luna_projection_tile_compiler.compile_projection_tile(
+      request.with_fold_choices([global, small]),
+    ),
+    @luna_projection_tile_compiler.compile_projection_tile(
+      request.with_fold_choices([global]),
+    ),
   )
   let bounded = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
     dispatch~,
@@ -55,12 +59,20 @@ test "offline fold choices preserve semantics and compose canonically" {
     demand=AllTokenRows,
   )
   assert_eq(
-    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([global, small])),
-    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([small])),
+    @luna_projection_tile_compiler.compile_projection_tile(
+      bounded.with_fold_choices([global, small]),
+    ),
+    @luna_projection_tile_compiler.compile_projection_tile(
+      bounded.with_fold_choices([small]),
+    ),
   )
   assert_eq(
-    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([global, small])),
-    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([small, global])),
+    @luna_projection_tile_compiler.compile_projection_tile(
+      bounded.with_fold_choices([global, small]),
+    ),
+    @luna_projection_tile_compiler.compile_projection_tile(
+      bounded.with_fold_choices([small, global]),
+    ),
   )
   let sibling_geometry = request.with_fold_pipeline(
     SiblingFold,
@@ -70,7 +82,9 @@ test "offline fold choices preserve semantics and compose canonically" {
     row_tiles=4,
     output_tiles=4,
   )
-  let sibling_plan = @luna_projection_tile_compiler.compile_projection_tile(sibling_geometry)
+  let sibling_plan = @luna_projection_tile_compiler.compile_projection_tile(
+    sibling_geometry,
+  )
   assert_eq(sibling_plan.program().digest(), baseline.program().digest())
   assert_eq(sibling_plan.schedule().sibling_pipeline().unwrap().row_width(), 64)
   assert_eq(

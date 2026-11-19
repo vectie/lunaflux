@@ -193,10 +193,13 @@ pub struct TiledPlane {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TiledPlane::elements(Self) -> Int
+pub fn TiledPlane::equal(Self, Self) -> Bool
 pub fn TiledPlane::geometry(Self) -> (Int, Int, Int, Int)
 pub fn TiledPlane::layout(Self) -> OperandLayout
 pub fn TiledPlane::new(rows~ : Int, columns~ : Int, tile_rows~ : Int, layout~ : OperandLayout) -> Self?
+pub fn TiledPlane::not_equal(Self, Self) -> Bool
 pub fn TiledPlane::offset(Self, Int, Int) -> Int?
+pub fn TiledPlane::to_repr(Self) -> @debug.Repr
 
 pub struct VectorOwnership {
   // private fields

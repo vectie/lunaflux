@@ -24,6 +24,9 @@ pub(all) suberror ProjectionTuningError {
   InvalidSnapshot
   ScopeMismatch
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTuningError::equal(Self, Self) -> Bool
+pub fn ProjectionTuningError::not_equal(Self, Self) -> Bool
+pub fn ProjectionTuningError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ProjectionFoldRecord {
@@ -42,7 +45,10 @@ pub fn ProjectionFoldRecord::sibling_transport(Self) -> @luna_projection_tile_co
 pub struct ProjectionTuningScope {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTuningScope::equal(Self, Self) -> Bool
 pub fn ProjectionTuningScope::new(backend~ : @luna_projection_strategy.ProjectionBackendId, architecture~ : @luna_projection_strategy.ProjectionTargetId, device_identity~ : String, toolchain_sha256~ : String) -> Self raise ProjectionTuningError
+pub fn ProjectionTuningScope::not_equal(Self, Self) -> Bool
+pub fn ProjectionTuningScope::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTuningSnapshot {
   // private fields

@@ -37,6 +37,9 @@ pub(all) suberror TokenizerJsonError {
   UnknownMergePiece(index~ : Int, part~ : MergePart)
   Validation(@tokenizer.TokenizerError)
 } derive(Eq, @debug.Debug)
+pub fn TokenizerJsonError::equal(Self, Self) -> Bool
+pub fn TokenizerJsonError::not_equal(Self, Self) -> Bool
+pub fn TokenizerJsonError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum JsonComponent {
@@ -48,6 +51,9 @@ pub(all) enum JsonComponent {
   PostProcessor
   Decoder
 } derive(Eq, @debug.Debug)
+pub fn JsonComponent::equal(Self, Self) -> Bool
+pub fn JsonComponent::not_equal(Self, Self) -> Bool
+pub fn JsonComponent::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JsonField {
   Version
@@ -89,12 +95,18 @@ pub(all) enum JsonField {
   Behavior
   Invert
 } derive(Eq, @debug.Debug)
+pub fn JsonField::equal(Self, Self) -> Bool
+pub fn JsonField::not_equal(Self, Self) -> Bool
+pub fn JsonField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum MergePart {
   Left
   Right
   Result
 } derive(Eq, @debug.Debug)
+pub fn MergePart::equal(Self, Self) -> Bool
+pub fn MergePart::not_equal(Self, Self) -> Bool
+pub fn MergePart::to_repr(Self) -> @debug.Repr
 
 pub(all) enum UnsupportedFeature {
   SchemaVersion
@@ -119,6 +131,9 @@ pub(all) enum UnsupportedFeature {
   Qwen3PreTokenization
   Qwen3AddedTokens
 } derive(Eq, @debug.Debug)
+pub fn UnsupportedFeature::equal(Self, Self) -> Bool
+pub fn UnsupportedFeature::not_equal(Self, Self) -> Bool
+pub fn UnsupportedFeature::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -13,6 +13,9 @@ pub fn optimize_attention_tile_program(@luna_attention_tile_ir.AttentionTileProg
 pub(all) suberror AttentionTileOptimizerError {
   InvalidAttentionTileOptimization(AttentionTileOptimizerRule)
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileOptimizerError::equal(Self, Self) -> Bool
+pub fn AttentionTileOptimizerError::not_equal(Self, Self) -> Bool
+pub fn AttentionTileOptimizerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AttentionTileOptimization {
@@ -20,29 +23,46 @@ pub struct AttentionTileOptimization {
 } derive(Eq, @debug.Debug)
 pub fn AttentionTileOptimization::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileOptimization::digest(Self) -> AttentionTileOptimizationDigest
+pub fn AttentionTileOptimization::equal(Self, Self) -> Bool
+pub fn AttentionTileOptimization::not_equal(Self, Self) -> Bool
 pub fn AttentionTileOptimization::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn AttentionTileOptimization::reduction_topology(Self) -> AttentionTileReductionTopology
 pub fn AttentionTileOptimization::regions(Self) -> ReadOnlyArray[AttentionTileRewriteRegion]
+pub fn AttentionTileOptimization::to_repr(Self) -> @debug.Repr
 pub fn AttentionTileOptimization::trace(Self) -> ReadOnlyArray[AttentionTileRewriteStep]
 
 pub struct AttentionTileOptimizationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileOptimizationDigest::as_hex(Self) -> String
+pub fn AttentionTileOptimizationDigest::equal(Self, Self) -> Bool
+pub fn AttentionTileOptimizationDigest::hash(Self) -> Int
+pub fn AttentionTileOptimizationDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AttentionTileOptimizationDigest::not_equal(Self, Self) -> Bool
+pub fn AttentionTileOptimizationDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileOptimizerRule {
   InvalidRewritePipeline
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileOptimizerRule::equal(Self, Self) -> Bool
+pub fn AttentionTileOptimizerRule::not_equal(Self, Self) -> Bool
+pub fn AttentionTileOptimizerRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileReductionTopology {
   AttentionOrderedOnlineSoftmaxFold
   AttentionPartitionedOnlineSoftmaxFold(Int)
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileReductionTopology::equal(Self, Self) -> Bool
+pub fn AttentionTileReductionTopology::not_equal(Self, Self) -> Bool
+pub fn AttentionTileReductionTopology::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileRewriteRegion {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileRewriteRegion::equal(Self, Self) -> Bool
 pub fn AttentionTileRewriteRegion::members(Self) -> ReadOnlyArray[@luna_attention_tile_ir.AttentionTileValueId]
+pub fn AttentionTileRewriteRegion::not_equal(Self, Self) -> Bool
 pub fn AttentionTileRewriteRegion::root(Self) -> @luna_attention_tile_ir.AttentionTileValueId
 pub fn AttentionTileRewriteRegion::rule(Self) -> AttentionTileRewriteRule
+pub fn AttentionTileRewriteRegion::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileRewriteRule {
   HoistPagedKeyValuePageLookup
@@ -52,13 +72,19 @@ pub(all) enum AttentionTileRewriteRule {
   PartitionOnlineSoftmaxFold
   FactorSharedKeyAcrossQueryMap
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileRewriteRule::equal(Self, Self) -> Bool
+pub fn AttentionTileRewriteRule::not_equal(Self, Self) -> Bool
+pub fn AttentionTileRewriteRule::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileRewriteStep {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionTileRewriteStep::changed(Self) -> Bool
+pub fn AttentionTileRewriteStep::equal(Self, Self) -> Bool
+pub fn AttentionTileRewriteStep::not_equal(Self, Self) -> Bool
 pub fn AttentionTileRewriteStep::region_count(Self) -> Int
 pub fn AttentionTileRewriteStep::rule(Self) -> AttentionTileRewriteRule
+pub fn AttentionTileRewriteStep::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

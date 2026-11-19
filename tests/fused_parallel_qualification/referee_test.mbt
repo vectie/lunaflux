@@ -34,9 +34,13 @@ test "independent fused scalar referees cover every declared shape" {
     let qkv = @fused_parallel_qualification.qkv_qualification_fixture(shape)
     assert_eq(
       qkv.expected_rotated_qkv().length(),
-      shape.token_count() * @fused_parallel_qualification.qualification_output_width(),
+      shape.token_count() *
+      @fused_parallel_qualification.qualification_output_width(),
     )
-    assert_eq(qkv.expected_key_cache().length(), @fused_parallel_qualification.qualification_cache_elements())
+    assert_eq(
+      qkv.expected_key_cache().length(),
+      @fused_parallel_qualification.qualification_cache_elements(),
+    )
     assert_eq(
       qkv.expected_value_cache().length(),
       @fused_parallel_qualification.qualification_cache_elements(),
@@ -54,10 +58,13 @@ test "independent fused scalar referees cover every declared shape" {
     )
     assert_eq(qkv_summary.maximum_absolute_error_ppb(), 0L)
     assert_eq(qkv_summary.maximum_relative_error_ppb(), 0L)
-    let residual = @fused_parallel_qualification.residual_norm_qualification_fixture(shape)
+    let residual = @fused_parallel_qualification.residual_norm_qualification_fixture(
+      shape,
+    )
     assert_eq(
       residual.expected_residual_output().length(),
-      shape.token_count() * @fused_parallel_qualification.qualification_input_width(),
+      shape.token_count() *
+      @fused_parallel_qualification.qualification_input_width(),
     )
     assert_eq(
       try! @fused_parallel_qualification.qualify_residual_norm_bf16_output(
@@ -77,10 +84,17 @@ test "independent fused scalar referees cover every declared shape" {
 
 ///|
 test "hostile referee output corruption fails at its exact cell" {
-  let fixture = @fused_parallel_qualification.qkv_qualification_fixture(@fused_parallel_qualification.declared_qualification_shapes()[2])
+  let fixture = @fused_parallel_qualification.qkv_qualification_fixture(
+    @fused_parallel_qualification.declared_qualification_shapes()[2],
+  )
   let corrupted = fixture.expected_rotated_qkv()[:].to_owned()
   corrupted[129] = 0x4280
-  try @fused_parallel_qualification.qualify_qkv_bf16_output(corrupted, fixture.expected_rotated_qkv()) catch {
+  try
+    @fused_parallel_qualification.qualify_qkv_bf16_output(
+      corrupted,
+      fixture.expected_rotated_qkv(),
+    )
+  catch {
     RefereeMismatch(index=129) => ()
     _ => fail("unexpected referee corruption rejection")
   } noraise {
@@ -99,14 +113,19 @@ test "typed referee rejects non-finite and unbounded intermediate errors" {
       ([0x0001], [0x0000]),
     ] {
     let (actual, expected) = pair
-    try @fused_parallel_qualification.compare_qkv_bf16_output(actual, expected) catch {
+    try
+      @fused_parallel_qualification.compare_qkv_bf16_output(actual, expected)
+    catch {
       RefereeMismatch(index=0) => ()
       _ => fail("unexpected hostile numerical rejection")
     } noraise {
       _ => fail("hostile numerical observation passed")
     }
   }
-  let exact_zero = @fused_parallel_qualification.compare_qkv_bf16_output([0x0000], [0x0000])
+  let exact_zero = @fused_parallel_qualification.compare_qkv_bf16_output(
+    [0x0000],
+    [0x0000],
+  )
   assert_eq(exact_zero.maximum_absolute_error_ppb(), 0L)
   assert_eq(exact_zero.maximum_relative_error_ppb(), 0L)
 }

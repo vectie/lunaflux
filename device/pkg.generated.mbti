@@ -26,6 +26,9 @@ pub fn tensor_collective_group_id_from_bytes(BytesView) -> TensorCollectiveGroup
 pub(all) suberror DeviceCapabilityObservationError {
   InvalidDeviceCapabilityObservation(DeviceCapabilityObservationRule)
 } derive(Eq, @debug.Debug)
+pub fn DeviceCapabilityObservationError::equal(Self, Self) -> Bool
+pub fn DeviceCapabilityObservationError::not_equal(Self, Self) -> Bool
+pub fn DeviceCapabilityObservationError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeviceError {
   Unavailable(DeviceOperation)
@@ -38,10 +41,16 @@ pub(all) suberror DeviceError {
   Unsupported(DeviceOperation)
   InvalidOutput(DeviceOperation)
 } derive(Eq, @debug.Debug)
+pub fn DeviceError::equal(Self, Self) -> Bool
+pub fn DeviceError::not_equal(Self, Self) -> Bool
+pub fn DeviceError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeviceNumericCapabilityError {
   InvalidDeviceNumericCapability(DeviceNumericCapabilityRule)
 } derive(Eq, @debug.Debug)
+pub fn DeviceNumericCapabilityError::equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityError::not_equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Allocation {
@@ -95,9 +104,12 @@ pub struct ContextDeviceIdentity {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ContextDeviceIdentity::capability(Self) -> DeviceCapability
+pub fn ContextDeviceIdentity::equal(Self, Self) -> Bool
 pub fn ContextDeviceIdentity::name(Self) -> String
+pub fn ContextDeviceIdentity::not_equal(Self, Self) -> Bool
 pub fn ContextDeviceIdentity::ordinal(Self) -> Int
 pub fn ContextDeviceIdentity::pci(Self) -> String
+pub fn ContextDeviceIdentity::to_repr(Self) -> @debug.Repr
 pub fn ContextDeviceIdentity::total_memory_bytes(Self) -> Int64
 pub fn ContextDeviceIdentity::uuid(Self) -> String
 
@@ -116,15 +128,21 @@ pub struct DeviceCapability {
 } derive(Eq, @debug.Debug)
 pub fn DeviceCapability::compute_major(Self) -> Int
 pub fn DeviceCapability::compute_minor(Self) -> Int
+pub fn DeviceCapability::equal(Self, Self) -> Bool
 pub fn DeviceCapability::from_observed_facts(compute_major~ : Int, compute_minor~ : Int, total_memory_bytes~ : Int64, supports_bf16~ : Bool, supports_cublas_lt~ : Bool) -> Self raise DeviceCapabilityObservationError
+pub fn DeviceCapability::not_equal(Self, Self) -> Bool
 pub fn DeviceCapability::supports_bf16(Self) -> Bool
 pub fn DeviceCapability::supports_cublas_lt(Self) -> Bool
+pub fn DeviceCapability::to_repr(Self) -> @debug.Repr
 pub fn DeviceCapability::total_memory_bytes(Self) -> Int64
 
 pub(all) enum DeviceCapabilityObservationRule {
   InvalidComputeCapability
   InvalidTotalMemory
 } derive(Eq, @debug.Debug)
+pub fn DeviceCapabilityObservationRule::equal(Self, Self) -> Bool
+pub fn DeviceCapabilityObservationRule::not_equal(Self, Self) -> Bool
+pub fn DeviceCapabilityObservationRule::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceCopyBatch {
   // private fields
@@ -147,9 +165,12 @@ pub struct DeviceInfo {
   capability : DeviceCapability
 } derive(Eq, @debug.Debug)
 pub fn DeviceInfo::capability(Self) -> DeviceCapability
+pub fn DeviceInfo::equal(Self, Self) -> Bool
 pub fn DeviceInfo::name(Self) -> String
+pub fn DeviceInfo::not_equal(Self, Self) -> Bool
 pub fn DeviceInfo::ordinal(Self) -> Int
 pub fn DeviceInfo::pci(Self) -> String
+pub fn DeviceInfo::to_repr(Self) -> @debug.Repr
 pub fn DeviceInfo::uuid(Self) -> String
 
 pub struct DeviceNumericCapability {
@@ -159,32 +180,49 @@ pub fn DeviceNumericCapability::canonical_bytes(Self) -> Bytes
 pub fn DeviceNumericCapability::compute_major(Self) -> Int
 pub fn DeviceNumericCapability::compute_minor(Self) -> Int
 pub fn DeviceNumericCapability::digest(Self) -> DeviceNumericCapabilityDigest
+pub fn DeviceNumericCapability::equal(Self, Self) -> Bool
 pub fn DeviceNumericCapability::feature(Self) -> DeviceNumericFeature
+pub fn DeviceNumericCapability::not_equal(Self, Self) -> Bool
 pub fn DeviceNumericCapability::supports_bf16(Self) -> Bool
 pub fn DeviceNumericCapability::supports_cublas_lt(Self) -> Bool
+pub fn DeviceNumericCapability::to_repr(Self) -> @debug.Repr
 pub fn DeviceNumericCapability::version(Self) -> DeviceNumericCapabilityVersion
 
 pub struct DeviceNumericCapabilityDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn DeviceNumericCapabilityDigest::as_hex(Self) -> String
+pub fn DeviceNumericCapabilityDigest::equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityDigest::hash(Self) -> Int
+pub fn DeviceNumericCapabilityDigest::hash_combine(Self, Hasher) -> Unit
+pub fn DeviceNumericCapabilityDigest::not_equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceNumericCapabilityRule {
   InvalidObservedCapability
   UnsupportedArchitecture
   MissingBf16BoundarySupport
 } derive(Eq, @debug.Debug)
+pub fn DeviceNumericCapabilityRule::equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityRule::not_equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityRule::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceNumericCapabilityVersion {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceNumericCapabilityVersion::as_int(Self) -> Int
+pub fn DeviceNumericCapabilityVersion::equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityVersion::not_equal(Self, Self) -> Bool
+pub fn DeviceNumericCapabilityVersion::to_repr(Self) -> @debug.Repr
 pub fn DeviceNumericCapabilityVersion::v1() -> Self
 
 pub(all) enum DeviceNumericFeature {
   FiniteFp8E4M3W8A8F32AccumulateBf16OutputV1
   SymmetricI8WeightOnlyPerOutputChannelF32ScaleF32AccumulateBf16OutputV1
 } derive(Eq, @debug.Debug)
+pub fn DeviceNumericFeature::equal(Self, Self) -> Bool
+pub fn DeviceNumericFeature::not_equal(Self, Self) -> Bool
+pub fn DeviceNumericFeature::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceOperation {
   DeviceInventory
@@ -241,6 +279,9 @@ pub(all) enum DeviceOperation {
   TensorCollectiveClose
   TensorCollectiveAbort
 } derive(Eq, @debug.Debug)
+pub fn DeviceOperation::equal(Self, Self) -> Bool
+pub fn DeviceOperation::not_equal(Self, Self) -> Bool
+pub fn DeviceOperation::to_repr(Self) -> @debug.Repr
 
 pub struct Event {
   // private fields
@@ -282,18 +323,27 @@ pub fn Module::load_function(Self, Bytes) -> Function raise DeviceError
 pub struct OrderedBf16Projection {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn OrderedBf16Projection::equal(Self, Self) -> Bool
 pub fn OrderedBf16Projection::new(launch_index~ : Int, rows~ : Int, columns~ : Int, inner~ : Int, input_argument~ : Int, weight_argument~ : Int, output_argument~ : Int) -> Self raise DeviceError
+pub fn OrderedBf16Projection::not_equal(Self, Self) -> Bool
+pub fn OrderedBf16Projection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OrderedKernelExecutionMode {
   OrderedKernelEager
   OrderedKernelCaptured
 } derive(Eq, @debug.Debug)
+pub fn OrderedKernelExecutionMode::equal(Self, Self) -> Bool
+pub fn OrderedKernelExecutionMode::not_equal(Self, Self) -> Bool
+pub fn OrderedKernelExecutionMode::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OrderedKernelExecutionPolicy {
   OrderedKernelEagerOnly
   OrderedKernelCaptureRequired
   OrderedKernelCaptureWithEagerFallback
 } derive(Eq, @debug.Debug)
+pub fn OrderedKernelExecutionPolicy::equal(Self, Self) -> Bool
+pub fn OrderedKernelExecutionPolicy::not_equal(Self, Self) -> Bool
+pub fn OrderedKernelExecutionPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct OrderedKernelExecutor {
   // private fields
@@ -322,6 +372,9 @@ pub(all) enum ProbeResult {
   Available(driver_version~ : Int, devices~ : ReadOnlyArray[DeviceInfo])
   Unavailable(UnavailableReason)
 } derive(Eq, @debug.Debug)
+pub fn ProbeResult::equal(Self, Self) -> Bool
+pub fn ProbeResult::not_equal(Self, Self) -> Bool
+pub fn ProbeResult::to_repr(Self) -> @debug.Repr
 
 pub struct Stream {
   // private fields
@@ -344,7 +397,10 @@ pub struct TensorCollectiveContractDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorCollectiveContractDigest::as_hex(Self) -> String
+pub fn TensorCollectiveContractDigest::equal(Self, Self) -> Bool
 pub fn TensorCollectiveContractDigest::from_sha256(StringView) -> Self raise DeviceError
+pub fn TensorCollectiveContractDigest::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveContractDigest::to_repr(Self) -> @debug.Repr
 
 pub struct TensorCollectiveGroupId {
   // private fields
@@ -357,6 +413,9 @@ pub(all) enum TensorCollectiveKind {
   F32SumAllReduce
   F32AllGather
 } derive(Eq, @debug.Debug)
+pub fn TensorCollectiveKind::equal(Self, Self) -> Bool
+pub fn TensorCollectiveKind::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveKind::to_repr(Self) -> @debug.Repr
 
 pub struct TensorCollectiveOwner {
   // private fields
@@ -382,6 +441,9 @@ pub fn TensorCollectiveOwner::validate_site_count(Self, Int) -> Unit raise Devic
 pub fn TensorCollectiveOwner::validate_sum_site(Self, site_sequence~ : Int, operation_id~ : Int, maximum_rows~ : Int, width~ : Int) -> Unit raise DeviceError
 
 type TensorCollectiveOwnerState derive(Eq, @debug.Debug)
+pub fn TensorCollectiveOwnerState::equal(Self, Self) -> Bool
+pub fn TensorCollectiveOwnerState::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveOwnerState::to_repr(Self) -> @debug.Repr
 
 pub struct TensorCollectiveRuntime {
   // private fields
@@ -396,17 +458,26 @@ pub(all) enum TensorCollectiveRuntimeAvailability {
   CollectiveRuntimeAbiIncomplete
   CollectiveRuntimeVersionUnavailable
 } derive(Eq, @debug.Debug)
+pub fn TensorCollectiveRuntimeAvailability::equal(Self, Self) -> Bool
+pub fn TensorCollectiveRuntimeAvailability::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveRuntimeAvailability::to_repr(Self) -> @debug.Repr
 
 pub struct TensorCollectiveRuntimeInventory {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorCollectiveRuntimeInventory::availability(Self) -> TensorCollectiveRuntimeAvailability
+pub fn TensorCollectiveRuntimeInventory::equal(Self, Self) -> Bool
+pub fn TensorCollectiveRuntimeInventory::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveRuntimeInventory::to_repr(Self) -> @debug.Repr
 pub fn TensorCollectiveRuntimeInventory::version_code(Self) -> Int
 
 pub struct TensorCollectiveSite {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorCollectiveSite::equal(Self, Self) -> Bool
 pub fn TensorCollectiveSite::new(sequence~ : Int, operation_id~ : Int, kind~ : TensorCollectiveKind, full_width~ : Int, local_width~ : Int) -> Self raise DeviceError
+pub fn TensorCollectiveSite::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveSite::to_repr(Self) -> @debug.Repr
 
 pub struct TransferPool {
   // private fields
@@ -430,6 +501,9 @@ pub(all) enum UnavailableReason {
   NoDevices
   InventoryFailed
 } derive(Eq, @debug.Debug)
+pub fn UnavailableReason::equal(Self, Self) -> Bool
+pub fn UnavailableReason::not_equal(Self, Self) -> Bool
+pub fn UnavailableReason::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

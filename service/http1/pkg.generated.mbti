@@ -12,6 +12,9 @@ import {
 pub(all) suberror LunaHttp1Error {
   LunaHttp1Failed(rule~ : LunaHttp1Rule, issue~ : LunaHttp1Issue)
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1Error::equal(Self, Self) -> Bool
+pub fn LunaHttp1Error::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1Error::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaHttp1ControlLimits {
@@ -41,6 +44,9 @@ pub(all) enum LunaHttp1ControlRequestState {
   LunaHttp1ControlReady
   LunaHttp1ControlFailed
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1ControlRequestState::equal(Self, Self) -> Bool
+pub fn LunaHttp1ControlRequestState::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1ControlRequestState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaHttp1ControlRequestView {
   // private fields
@@ -63,6 +69,9 @@ pub(all) enum LunaHttp1ControlResponseKind {
   LunaHttp1ControlNotReadyResponse
   LunaHttp1ControlBadRequest
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1ControlResponseKind::equal(Self, Self) -> Bool
+pub fn LunaHttp1ControlResponseKind::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1ControlResponseKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaHttp1ControlRoute {
   LunaHttp1Health
@@ -70,6 +79,9 @@ pub(all) enum LunaHttp1ControlRoute {
   LunaHttp1Metrics
   LunaHttp1Models
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1ControlRoute::equal(Self, Self) -> Bool
+pub fn LunaHttp1ControlRoute::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1ControlRoute::to_repr(Self) -> @debug.Repr
 
 pub struct LunaHttp1ControlWorkspace {
   // private fields
@@ -83,6 +95,9 @@ pub(all) enum LunaHttp1ErrorResponseKind {
   LunaHttp1CapacityError
   LunaHttp1ServiceError
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1ErrorResponseKind::equal(Self, Self) -> Bool
+pub fn LunaHttp1ErrorResponseKind::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1ErrorResponseKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaHttp1Issue {
   LunaHttp1Invalid
@@ -100,6 +115,9 @@ pub(all) enum LunaHttp1Issue {
   LunaHttp1Stale
   LunaHttp1Exhausted
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1Issue::equal(Self, Self) -> Bool
+pub fn LunaHttp1Issue::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1Issue::to_repr(Self) -> @debug.Repr
 
 pub struct LunaHttp1Limits {
   // private fields
@@ -110,11 +128,17 @@ pub(all) enum LunaHttp1Progress {
   LunaHttp1Idle
   LunaHttp1Advanced
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1Progress::equal(Self, Self) -> Bool
+pub fn LunaHttp1Progress::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1Progress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaHttp1ResponseProgress {
   LunaHttp1ResponseIdle
   LunaHttp1ResponseAdvanced
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1ResponseProgress::equal(Self, Self) -> Bool
+pub fn LunaHttp1ResponseProgress::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1ResponseProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaHttp1ResponseStepBudget {
   // private fields
@@ -146,6 +170,9 @@ pub(all) enum LunaHttp1ResponseWorkState {
   LunaHttp1ResponseBuilding
   LunaHttp1ResponseReady
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1ResponseWorkState::equal(Self, Self) -> Bool
+pub fn LunaHttp1ResponseWorkState::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1ResponseWorkState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaHttp1ResponseWorkspace {
   // private fields
@@ -160,6 +187,9 @@ pub(all) enum LunaHttp1Route {
   LunaHttp1Responses
   LunaHttp1ChatCompletions
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1Route::equal(Self, Self) -> Bool
+pub fn LunaHttp1Route::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1Route::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaHttp1Rule {
   LunaHttp1Limits
@@ -177,6 +207,9 @@ pub(all) enum LunaHttp1Rule {
   LunaHttp1Body
   LunaHttp1Lifecycle
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1Rule::equal(Self, Self) -> Bool
+pub fn LunaHttp1Rule::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1Rule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaHttp1StepBudget {
   // private fields
@@ -214,6 +247,9 @@ pub(all) enum LunaHttp1WorkState {
   LunaHttp1Ready
   LunaHttp1Failed
 } derive(Eq, @debug.Debug)
+pub fn LunaHttp1WorkState::equal(Self, Self) -> Bool
+pub fn LunaHttp1WorkState::not_equal(Self, Self) -> Bool
+pub fn LunaHttp1WorkState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaHttp1Workspace {
   // private fields

@@ -3,7 +3,11 @@ test "grouped matrix decode masks instruction rows without inventing tokens" {
   for heads in [1, 2, 4, 8, 16] {
     for keys in [32, 64] {
       for dimensions in [64, 128] {
-        let plan = @attention_physical_ir.GroupedMatrixDecodeFold::new(heads~, keys~, dimensions~).unwrap()
+        let plan = @attention_physical_ir.GroupedMatrixDecodeFold::new(
+          heads~,
+          keys~,
+          dimensions~,
+        ).unwrap()
         assert_eq(plan.fold().geometry(), (16, keys, dimensions))
         assert_eq(plan.numeric_law(), "grouped-head-matrix-bf16-probability-v1")
         assert_eq(plan.fold().exponential_law(), StrictNaturalExponential)
@@ -20,6 +24,13 @@ test "grouped matrix decode masks instruction rows without inventing tokens" {
       (2, 48, 128),
       (2, 32, 80),
     ] {
-    assert_eq(@attention_physical_ir.GroupedMatrixDecodeFold::new(heads~, keys~, dimensions~), None)
+    assert_eq(
+      @attention_physical_ir.GroupedMatrixDecodeFold::new(
+        heads~,
+        keys~,
+        dimensions~,
+      ),
+      None,
+    )
   }
 }

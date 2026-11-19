@@ -34,6 +34,8 @@ pub(all) enum CollectiveElementType {
   Bf16
   F32
 } derive(Eq)
+pub fn CollectiveElementType::equal(Self, Self) -> Bool
+pub fn CollectiveElementType::not_equal(Self, Self) -> Bool
 
 pub(all) enum NcclAvailability {
   Available

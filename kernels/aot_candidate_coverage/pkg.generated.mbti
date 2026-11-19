@@ -24,6 +24,9 @@ pub(all) suberror AotCandidateCoverageError {
   IncompleteCoverage(Int)
   NonBindableCoverage(Int)
 } derive(Eq, @debug.Debug)
+pub fn AotCandidateCoverageError::equal(Self, Self) -> Bool
+pub fn AotCandidateCoverageError::not_equal(Self, Self) -> Bool
+pub fn AotCandidateCoverageError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AotCandidateCoverage {
@@ -44,6 +47,11 @@ pub struct AotCandidateCoverageDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn AotCandidateCoverageDigest::as_hex(Self) -> String
+pub fn AotCandidateCoverageDigest::equal(Self, Self) -> Bool
+pub fn AotCandidateCoverageDigest::hash(Self) -> Int
+pub fn AotCandidateCoverageDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AotCandidateCoverageDigest::not_equal(Self, Self) -> Bool
+pub fn AotCandidateCoverageDigest::to_repr(Self) -> @debug.Repr
 
 pub struct AotCandidateCoverageLimits {
   // private fields
@@ -55,12 +63,18 @@ pub(all) enum AotCandidateCoverageStatus {
   CompleteInert
   CompleteWithBindableClaims
 } derive(Eq, @debug.Debug)
+pub fn AotCandidateCoverageStatus::equal(Self, Self) -> Bool
+pub fn AotCandidateCoverageStatus::not_equal(Self, Self) -> Bool
+pub fn AotCandidateCoverageStatus::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AotCandidateDigestField {
   RequirementsDigest
   SourceDigest
   RecipeDigest
 } derive(Eq, @debug.Debug)
+pub fn AotCandidateDigestField::equal(Self, Self) -> Bool
+pub fn AotCandidateDigestField::not_equal(Self, Self) -> Bool
+pub fn AotCandidateDigestField::to_repr(Self) -> @debug.Repr
 
 pub struct AotCandidateEvidenceInput {
   // private fields

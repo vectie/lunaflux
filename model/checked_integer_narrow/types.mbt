@@ -28,5 +28,6 @@ pub struct CheckedI32Table {
 
 ///|
 pub extend CheckedIntegerNarrowError with Eq::{equal, not_equal}
+
 ///|
 pub extend CheckedIntegerNarrowError with @debug.Debug::{to_repr}

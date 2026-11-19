@@ -12,6 +12,9 @@ import {
 pub(all) suberror InferenceContractError {
   Invalid(field~ : ContractField, issue~ : ContractIssue, index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn InferenceContractError::equal(Self, Self) -> Bool
+pub fn InferenceContractError::not_equal(Self, Self) -> Bool
+pub fn InferenceContractError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AcceptedEvent {
@@ -19,21 +22,30 @@ pub struct AcceptedEvent {
   effective_limits : EffectiveLimits
 } derive(Eq, @debug.Debug)
 pub fn AcceptedEvent::effective_limits(Self) -> EffectiveLimits
+pub fn AcceptedEvent::equal(Self, Self) -> Bool
 pub fn AcceptedEvent::model_identity(Self) -> @spec.ModelIdentity
 pub fn AcceptedEvent::new(model_identity~ : @spec.ModelIdentity, effective_limits~ : EffectiveLimits) -> Self
+pub fn AcceptedEvent::not_equal(Self, Self) -> Bool
+pub fn AcceptedEvent::to_repr(Self) -> @debug.Repr
 
 pub struct AdmissionDeadline {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AdmissionDeadline::at_millis(Self) -> UInt64
+pub fn AdmissionDeadline::equal(Self, Self) -> Bool
 pub fn AdmissionDeadline::from_receipt(UInt64, DeadlineBudget) -> Self raise InferenceContractError
 pub fn AdmissionDeadline::is_expired(Self, UInt64) -> Bool
+pub fn AdmissionDeadline::not_equal(Self, Self) -> Bool
+pub fn AdmissionDeadline::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CachePermission {
   Disabled
   ReadOnly
   ReadWrite
 } derive(Eq, @debug.Debug)
+pub fn CachePermission::equal(Self, Self) -> Bool
+pub fn CachePermission::not_equal(Self, Self) -> Bool
+pub fn CachePermission::to_repr(Self) -> @debug.Repr
 
 pub struct CachePolicy {
   // private fields
@@ -53,10 +65,12 @@ pub struct CompletedEvent {
   final_usage : Usage
   final_delta : DecodedDelta?
 } derive(Eq)
+pub fn CompletedEvent::equal(Self, Self) -> Bool
 pub fn CompletedEvent::final_delta(Self) -> DecodedDelta?
 pub fn CompletedEvent::final_usage(Self) -> Usage
 pub fn CompletedEvent::finish_reason(Self) -> FinishReason
 pub fn CompletedEvent::new(finish_reason~ : FinishReason, final_usage~ : Usage) -> Self
+pub fn CompletedEvent::not_equal(Self, Self) -> Bool
 pub fn CompletedEvent::with_final_delta(finish_reason~ : FinishReason, final_usage~ : Usage, final_delta~ : DecodedDelta, InferenceLimits) -> Self raise InferenceContractError
 
 pub(all) enum ContractField {
@@ -86,6 +100,9 @@ pub(all) enum ContractField {
   UsageOutput
   PublicErrorCode
 } derive(Eq, @debug.Debug)
+pub fn ContractField::equal(Self, Self) -> Bool
+pub fn ContractField::not_equal(Self, Self) -> Bool
+pub fn ContractField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ContractIssue {
   Empty
@@ -102,18 +119,26 @@ pub(all) enum ContractIssue {
   LunaStorageStale
   LunaStorageLifecycle
 } derive(Eq, @debug.Debug)
+pub fn ContractIssue::equal(Self, Self) -> Bool
+pub fn ContractIssue::not_equal(Self, Self) -> Bool
+pub fn ContractIssue::to_repr(Self) -> @debug.Repr
 
 pub struct DeadlineBudget {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeadlineBudget::equal(Self, Self) -> Bool
 pub fn DeadlineBudget::from_milliseconds(UInt64, InferenceLimits) -> Self raise InferenceContractError
 pub fn DeadlineBudget::milliseconds(Self) -> UInt64
+pub fn DeadlineBudget::not_equal(Self, Self) -> Bool
+pub fn DeadlineBudget::to_repr(Self) -> @debug.Repr
 
 pub struct DecodedDelta {
   text : String
   utf8_bytes : Int
 } derive(Eq)
+pub fn DecodedDelta::equal(Self, Self) -> Bool
 pub fn DecodedDelta::from_utf8(BytesView, InferenceLimits) -> Self raise InferenceContractError
+pub fn DecodedDelta::not_equal(Self, Self) -> Bool
 pub fn DecodedDelta::text(Self) -> String
 pub fn DecodedDelta::utf8_bytes(Self) -> Int
 
@@ -121,8 +146,11 @@ pub struct EffectiveLimits {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn EffectiveLimits::context_ceiling(Self) -> Int
+pub fn EffectiveLimits::equal(Self, Self) -> Bool
 pub fn EffectiveLimits::max_new_tokens(Self) -> Int
 pub fn EffectiveLimits::new(max_new_tokens~ : Int, context_ceiling~ : Int, InferenceLimits) -> Self raise InferenceContractError
+pub fn EffectiveLimits::not_equal(Self, Self) -> Bool
+pub fn EffectiveLimits::to_repr(Self) -> @debug.Repr
 
 pub struct FailedEvent {
   code : PublicErrorCode
@@ -137,6 +165,9 @@ pub(all) enum FinishReason {
   TokenLimit
   Cancelled
 } derive(Eq, @debug.Debug)
+pub fn FinishReason::equal(Self, Self) -> Bool
+pub fn FinishReason::not_equal(Self, Self) -> Bool
+pub fn FinishReason::to_repr(Self) -> @debug.Repr
 
 pub struct GenerateRequest {
   // private fields
@@ -159,6 +190,7 @@ pub fn GenerateRequest::trace(Self) -> TraceCorrelation?
 pub struct InferenceLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn InferenceLimits::equal(Self, Self) -> Bool
 pub fn InferenceLimits::max_cache_scope_bytes(Self) -> Int
 pub fn InferenceLimits::max_context_tokens(Self) -> Int
 pub fn InferenceLimits::max_deadline_millis(Self) -> UInt64
@@ -174,6 +206,8 @@ pub fn InferenceLimits::max_token_id(Self) -> Int
 pub fn InferenceLimits::max_top_k(Self) -> Int
 pub fn InferenceLimits::max_trace_bytes(Self) -> Int
 pub fn InferenceLimits::new(max_text_bytes~ : Int, max_input_tokens~ : Int, max_new_tokens~ : Int, max_context_tokens~ : Int, max_token_id~ : Int, max_stop_token_ids~ : Int, max_stop_strings~ : Int, max_stop_string_bytes~ : Int, max_trace_bytes~ : Int, max_cache_scope_bytes~ : Int, max_decoded_delta_bytes~ : Int, max_deadline_millis~ : UInt64, max_top_k~ : Int, max_temperature~ : Double) -> Self raise InferenceContractError
+pub fn InferenceLimits::not_equal(Self, Self) -> Bool
+pub fn InferenceLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Input {
   TokenIds(TokenBuffer)
@@ -387,7 +421,10 @@ pub fn LunaValidatedSampling::sample(temperature~ : Double, has_top_k~ : Bool, t
 pub struct ProtocolVersion {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProtocolVersion::equal(Self, Self) -> Bool
 pub fn ProtocolVersion::from_wire(Int) -> Self raise InferenceContractError
+pub fn ProtocolVersion::not_equal(Self, Self) -> Bool
+pub fn ProtocolVersion::to_repr(Self) -> @debug.Repr
 pub fn ProtocolVersion::v1() -> Self
 pub fn ProtocolVersion::wire_code(Self) -> Int
 
@@ -400,36 +437,50 @@ pub fn PublicErrorCode::from_ascii(BytesView) -> Self raise InferenceContractErr
 pub struct RequestGeneration {
   value : UInt64
 } derive(Eq, @debug.Debug)
+pub fn RequestGeneration::equal(Self, Self) -> Bool
 pub fn RequestGeneration::from_wire(UInt64) -> Self
 pub fn RequestGeneration::initial() -> Self
 pub fn RequestGeneration::next(Self) -> Self raise InferenceContractError
+pub fn RequestGeneration::not_equal(Self, Self) -> Bool
+pub fn RequestGeneration::to_repr(Self) -> @debug.Repr
 pub fn RequestGeneration::value(Self) -> UInt64
 
 pub struct RequestId {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn RequestId::equal(Self, Self) -> Bool
 pub fn RequestId::new(UInt64) -> Self raise InferenceContractError
+pub fn RequestId::not_equal(Self, Self) -> Bool
+pub fn RequestId::to_repr(Self) -> @debug.Repr
 pub fn RequestId::value(Self) -> UInt64
 
 pub(all) enum SamplingMode {
   Greedy
   Sample
 } derive(Eq, @debug.Debug)
+pub fn SamplingMode::equal(Self, Self) -> Bool
+pub fn SamplingMode::not_equal(Self, Self) -> Bool
+pub fn SamplingMode::to_repr(Self) -> @debug.Repr
 
 pub struct SamplingParameters {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn SamplingParameters::equal(Self, Self) -> Bool
 pub fn SamplingParameters::greedy() -> Self
 pub fn SamplingParameters::mode(Self) -> SamplingMode
+pub fn SamplingParameters::not_equal(Self, Self) -> Bool
 pub fn SamplingParameters::sample(temperature~ : Double, top_k? : Int, top_p? : Double, InferenceLimits) -> Self raise InferenceContractError
 pub fn SamplingParameters::temperature(Self) -> Double
+pub fn SamplingParameters::to_repr(Self) -> @debug.Repr
 pub fn SamplingParameters::top_k(Self) -> Int?
 pub fn SamplingParameters::top_p(Self) -> Double?
 
 pub struct SamplingSeed {
   // private fields
 } derive(Eq)
+pub fn SamplingSeed::equal(Self, Self) -> Bool
 pub fn SamplingSeed::new(UInt64) -> Self raise InferenceContractError
+pub fn SamplingSeed::not_equal(Self, Self) -> Bool
 pub fn SamplingSeed::value(Self) -> UInt64
 
 pub struct StopConditions {
@@ -453,6 +504,9 @@ pub(all) enum StreamPreference {
   TokenIdsStreaming
   Buffered
 } derive(Eq, @debug.Debug)
+pub fn StreamPreference::equal(Self, Self) -> Bool
+pub fn StreamPreference::not_equal(Self, Self) -> Bool
+pub fn StreamPreference::to_repr(Self) -> @debug.Repr
 
 pub struct TextInput {
   // private fields
@@ -496,9 +550,12 @@ pub struct Usage {
 } derive(Eq, @debug.Debug)
 pub fn Usage::advance(Self, output_tokens~ : Int, InferenceLimits) -> Self raise InferenceContractError
 pub fn Usage::cached_input_tokens(Self) -> Int
+pub fn Usage::equal(Self, Self) -> Bool
 pub fn Usage::initial(input_tokens~ : Int, cached_input_tokens~ : Int, InferenceLimits) -> Self raise InferenceContractError
 pub fn Usage::input_tokens(Self) -> Int
+pub fn Usage::not_equal(Self, Self) -> Bool
 pub fn Usage::output_tokens(Self) -> Int
+pub fn Usage::to_repr(Self) -> @debug.Repr
 pub fn Usage::total_tokens(Self) -> Int
 
 // Type aliases

@@ -13,6 +13,9 @@ pub(all) suberror MonotonicClockError {
   Unavailable
   OutOfRange
 } derive(Eq, @debug.Debug)
+pub fn MonotonicClockError::equal(Self, Self) -> Bool
+pub fn MonotonicClockError::not_equal(Self, Self) -> Bool
+pub fn MonotonicClockError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct MonotonicClock {
@@ -28,6 +31,9 @@ pub(all) enum MonotonicReadStatus {
   MonotonicReadReady
   MonotonicReadFailed
 } derive(Eq, @debug.Debug)
+pub fn MonotonicReadStatus::equal(Self, Self) -> Bool
+pub fn MonotonicReadStatus::not_equal(Self, Self) -> Bool
+pub fn MonotonicReadStatus::to_repr(Self) -> @debug.Repr
 
 pub struct PreparedMonotonicRead {
   // private fields

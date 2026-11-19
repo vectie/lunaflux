@@ -14,6 +14,9 @@ pub(all) suberror WorkloadExecutionPlanError {
   InvalidDecoderContract
   InvalidDiffusionContract
 } derive(Eq, @debug.Debug)
+pub fn WorkloadExecutionPlanError::equal(Self, Self) -> Bool
+pub fn WorkloadExecutionPlanError::not_equal(Self, Self) -> Bool
+pub fn WorkloadExecutionPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum WorkloadExecutionKind {
@@ -21,18 +24,24 @@ pub(all) enum WorkloadExecutionKind {
   MultimodalConditionalGeneration
   JointAudioVideoDiffusion
 } derive(Eq, @debug.Debug)
+pub fn WorkloadExecutionKind::equal(Self, Self) -> Bool
+pub fn WorkloadExecutionKind::not_equal(Self, Self) -> Bool
+pub fn WorkloadExecutionKind::to_repr(Self) -> @debug.Repr
 
 pub struct WorkloadExecutionPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkloadExecutionPlan::decoder_layer_count(Self) -> Int?
 pub fn WorkloadExecutionPlan::decoder_only(identity~ : @spec.ModelIdentity, schema_version~ : Int, decoder_layer_count~ : Int, maximum_token_context~ : Int) -> Self raise WorkloadExecutionPlanError
+pub fn WorkloadExecutionPlan::equal(Self, Self) -> Bool
 pub fn WorkloadExecutionPlan::identity(Self) -> @spec.ModelIdentity
 pub fn WorkloadExecutionPlan::joint_audio_video_diffusion(identity~ : @spec.ModelIdentity, schema_version~ : Int) -> Self raise WorkloadExecutionPlanError
 pub fn WorkloadExecutionPlan::kind(Self) -> WorkloadExecutionKind
 pub fn WorkloadExecutionPlan::maximum_token_context(Self) -> Int?
 pub fn WorkloadExecutionPlan::multimodal_conditional(identity~ : @spec.ModelIdentity, schema_version~ : Int, decoder_layer_count~ : Int, maximum_token_context~ : Int) -> Self raise WorkloadExecutionPlanError
+pub fn WorkloadExecutionPlan::not_equal(Self, Self) -> Bool
 pub fn WorkloadExecutionPlan::schema_version(Self) -> Int
+pub fn WorkloadExecutionPlan::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

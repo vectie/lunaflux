@@ -22,9 +22,14 @@ test "public phase pipeline preserves explicit deterministic reduction permissio
   )
   let staged = @luna_projection_tile_compiler.schedule_projection_tile(
     @luna_projection_tile_compiler.optimize_projection_tile(
-      @luna_projection_tile_compiler.elaborate_projection_tile(@luna_projection_tile_compiler.select_projection_tile(request)),
+      @luna_projection_tile_compiler.elaborate_projection_tile(
+        @luna_projection_tile_compiler.select_projection_tile(request),
+      ),
     ),
   )
-  assert_eq(staged, @luna_projection_tile_compiler.compile_projection_tile(request))
+  assert_eq(
+    staged,
+    @luna_projection_tile_compiler.compile_projection_tile(request),
+  )
   assert_eq(staged.schedule().single_row_reduction(), StridedPairwiseDot(64))
 }

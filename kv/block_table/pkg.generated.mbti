@@ -34,6 +34,9 @@ pub(all) suberror BlockTableError {
   TokenPositionOutOfBounds(BlockTableId)
   InvariantViolation(BlockTableInvariantRule)
 } derive(Eq, @debug.Debug)
+pub fn BlockTableError::equal(Self, Self) -> Bool
+pub fn BlockTableError::not_equal(Self, Self) -> Bool
+pub fn BlockTableError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct BlockTableAllocationCheckpoint(BlockTableArena, UInt64)
@@ -66,8 +69,13 @@ pub fn BlockTableArena::rollback_to(Self, BlockTableAllocationCheckpoint) -> Uni
 pub fn BlockTableArena::truncate(Self, BlockTableId, Int, BlockTablePageBuffer) -> Unit raise BlockTableError
 
 pub struct BlockTableId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn BlockTableId::equal(Self, Self) -> Bool
 pub fn BlockTableId::generation(Self) -> Int
+pub fn BlockTableId::hash(Self) -> Int
+pub fn BlockTableId::hash_combine(Self, Hasher) -> Unit
 pub fn BlockTableId::index(Self) -> Int
+pub fn BlockTableId::not_equal(Self, Self) -> Bool
+pub fn BlockTableId::to_repr(Self) -> @debug.Repr
 
 pub struct BlockTableIdStorage {
   // private fields
@@ -83,6 +91,9 @@ pub(all) enum BlockTableIdentity {
   AllocationCheckpointEpochIdentity
   TableGenerationIdentity
 } derive(Eq, @debug.Debug)
+pub fn BlockTableIdentity::equal(Self, Self) -> Bool
+pub fn BlockTableIdentity::not_equal(Self, Self) -> Bool
+pub fn BlockTableIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) enum BlockTableInvariantRule {
   CountPartition
@@ -95,6 +106,9 @@ pub(all) enum BlockTableInvariantRule {
   ClearedCells
   GenerationRange
 } derive(Eq, @debug.Debug)
+pub fn BlockTableInvariantRule::equal(Self, Self) -> Bool
+pub fn BlockTableInvariantRule::not_equal(Self, Self) -> Bool
+pub fn BlockTableInvariantRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum BlockTableLimitRule {
   TableCapacity
@@ -104,6 +118,9 @@ pub(all) enum BlockTableLimitRule {
   TokensPerPage
   Generation
 } derive(Eq, @debug.Debug)
+pub fn BlockTableLimitRule::equal(Self, Self) -> Bool
+pub fn BlockTableLimitRule::not_equal(Self, Self) -> Bool
+pub fn BlockTableLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct BlockTableLimits {
   table_capacity : Int
@@ -111,10 +128,13 @@ pub struct BlockTableLimits {
   tokens_per_page : Int
   max_generation : Int
 } derive(Eq, @debug.Debug)
+pub fn BlockTableLimits::equal(Self, Self) -> Bool
 pub fn BlockTableLimits::max_generation(Self) -> Int
 pub fn BlockTableLimits::max_pages_per_table(Self) -> Int
 pub fn BlockTableLimits::new(table_capacity~ : Int, max_pages_per_table~ : Int, tokens_per_page~ : Int, max_generation? : Int) -> Self raise BlockTableError
+pub fn BlockTableLimits::not_equal(Self, Self) -> Bool
 pub fn BlockTableLimits::table_capacity(Self) -> Int
+pub fn BlockTableLimits::to_repr(Self) -> @debug.Repr
 pub fn BlockTableLimits::tokens_per_page(Self) -> Int
 
 pub struct BlockTablePageBuffer {
@@ -140,15 +160,21 @@ pub(all) enum BlockTableResidency {
   Allocated
   Retired
 } derive(Eq, @debug.Debug)
+pub fn BlockTableResidency::equal(Self, Self) -> Bool
+pub fn BlockTableResidency::not_equal(Self, Self) -> Bool
+pub fn BlockTableResidency::to_repr(Self) -> @debug.Repr
 
 pub struct BlockTableSlotSnapshot {
   id : BlockTableId
   residency : BlockTableResidency
   page_count : Int
 } derive(Eq, @debug.Debug)
+pub fn BlockTableSlotSnapshot::equal(Self, Self) -> Bool
 pub fn BlockTableSlotSnapshot::id(Self) -> BlockTableId
+pub fn BlockTableSlotSnapshot::not_equal(Self, Self) -> Bool
 pub fn BlockTableSlotSnapshot::page_count(Self) -> Int
 pub fn BlockTableSlotSnapshot::residency(Self) -> BlockTableResidency
+pub fn BlockTableSlotSnapshot::to_repr(Self) -> @debug.Repr
 
 pub struct BlockTableSnapshot {
   free_tables : Int
@@ -157,10 +183,13 @@ pub struct BlockTableSnapshot {
   slots : ReadOnlyArray[BlockTableSlotSnapshot]
 } derive(Eq, @debug.Debug)
 pub fn BlockTableSnapshot::allocated_table_count(Self) -> Int
+pub fn BlockTableSnapshot::equal(Self, Self) -> Bool
 pub fn BlockTableSnapshot::free_table_count(Self) -> Int
+pub fn BlockTableSnapshot::not_equal(Self, Self) -> Bool
 pub fn BlockTableSnapshot::retired_table_count(Self) -> Int
 pub fn BlockTableSnapshot::slot_at(Self, Int) -> BlockTableSlotSnapshot raise BlockTableError
 pub fn BlockTableSnapshot::slot_count(Self) -> Int
+pub fn BlockTableSnapshot::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

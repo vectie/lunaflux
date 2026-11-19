@@ -47,6 +47,9 @@ pub(all) suberror SegmentedDeviceMaterializationError {
   DeviceFailed(@device.DeviceError)
   CleanupFailed(stage~ : SegmentedDeviceFailureStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
+pub fn SegmentedDeviceMaterializationError::equal(Self, Self) -> Bool
+pub fn SegmentedDeviceMaterializationError::not_equal(Self, Self) -> Bool
+pub fn SegmentedDeviceMaterializationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FailedSegmentedDevicePreparation {
@@ -62,6 +65,9 @@ pub(all) enum SegmentedDeviceFailureStage {
   AllocationRegionValidation
   Transfer
 } derive(Eq, @debug.Debug)
+pub fn SegmentedDeviceFailureStage::equal(Self, Self) -> Bool
+pub fn SegmentedDeviceFailureStage::not_equal(Self, Self) -> Bool
+pub fn SegmentedDeviceFailureStage::to_repr(Self) -> @debug.Repr
 
 pub struct SegmentedDeviceLayout {
   // private fields
@@ -69,18 +75,26 @@ pub struct SegmentedDeviceLayout {
 pub fn SegmentedDeviceLayout::alignment_bytes(Self) -> Int64
 pub fn SegmentedDeviceLayout::device_arena_bytes(Self) -> Int64
 pub fn SegmentedDeviceLayout::digest(Self) -> SegmentedDeviceLayoutDigest
+pub fn SegmentedDeviceLayout::equal(Self, Self) -> Bool
 pub fn SegmentedDeviceLayout::materialized_bytes(Self) -> Int64
+pub fn SegmentedDeviceLayout::not_equal(Self, Self) -> Bool
 pub fn SegmentedDeviceLayout::region(Self, Int) -> SegmentedDeviceTensorRegion?
 pub fn SegmentedDeviceLayout::region_count(Self) -> Int
 pub fn SegmentedDeviceLayout::source_arena_count(Self) -> Int
 pub fn SegmentedDeviceLayout::source_arena_length(Self, Int) -> Int?
 pub fn SegmentedDeviceLayout::source_digest(Self) -> SegmentedHostSourceDigest
 pub fn SegmentedDeviceLayout::source_identity(Self) -> @spec.ModelIdentity
+pub fn SegmentedDeviceLayout::to_repr(Self) -> @debug.Repr
 
 pub struct SegmentedDeviceLayoutDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn SegmentedDeviceLayoutDigest::as_hex(Self) -> String
+pub fn SegmentedDeviceLayoutDigest::equal(Self, Self) -> Bool
+pub fn SegmentedDeviceLayoutDigest::hash(Self) -> Int
+pub fn SegmentedDeviceLayoutDigest::hash_combine(Self, Hasher) -> Unit
+pub fn SegmentedDeviceLayoutDigest::not_equal(Self, Self) -> Bool
+pub fn SegmentedDeviceLayoutDigest::to_repr(Self) -> @debug.Repr
 
 pub struct SegmentedDeviceMaterializationLimits {
   // private fields
@@ -97,14 +111,20 @@ pub struct SegmentedDeviceTensorRegion {
 } derive(Eq, @debug.Debug)
 pub fn SegmentedDeviceTensorRegion::byte_count(Self) -> Int64
 pub fn SegmentedDeviceTensorRegion::device_offset(Self) -> Int64
+pub fn SegmentedDeviceTensorRegion::equal(Self, Self) -> Bool
+pub fn SegmentedDeviceTensorRegion::not_equal(Self, Self) -> Bool
 pub fn SegmentedDeviceTensorRegion::source_arena_ordinal(Self) -> Int
 pub fn SegmentedDeviceTensorRegion::source_offset(Self) -> Int
 pub fn SegmentedDeviceTensorRegion::tensor_ordinal(Self) -> Int
+pub fn SegmentedDeviceTensorRegion::to_repr(Self) -> @debug.Repr
 
 pub struct SegmentedDeviceTensorRegionInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn SegmentedDeviceTensorRegionInput::equal(Self, Self) -> Bool
 pub fn SegmentedDeviceTensorRegionInput::new(tensor_ordinal~ : Int, source_arena_ordinal~ : Int, source_offset~ : Int, byte_count~ : Int) -> Self raise SegmentedDeviceMaterializationError
+pub fn SegmentedDeviceTensorRegionInput::not_equal(Self, Self) -> Bool
+pub fn SegmentedDeviceTensorRegionInput::to_repr(Self) -> @debug.Repr
 
 pub struct SegmentedDeviceWeights {
   // private fields
@@ -117,7 +137,12 @@ pub struct SegmentedHostSourceDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn SegmentedHostSourceDigest::as_hex(Self) -> String
+pub fn SegmentedHostSourceDigest::equal(Self, Self) -> Bool
 pub fn SegmentedHostSourceDigest::from_sha256(String) -> Self raise SegmentedDeviceMaterializationError
+pub fn SegmentedHostSourceDigest::hash(Self) -> Int
+pub fn SegmentedHostSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn SegmentedHostSourceDigest::not_equal(Self, Self) -> Bool
+pub fn SegmentedHostSourceDigest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

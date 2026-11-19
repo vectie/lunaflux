@@ -60,5 +60,6 @@ pub fn TiledPlane::layout(self : Self) -> OperandLayout {
 
 ///|
 pub extend TiledPlane with Eq::{equal, not_equal}
+
 ///|
 pub extend TiledPlane with @debug.Debug::{to_repr}

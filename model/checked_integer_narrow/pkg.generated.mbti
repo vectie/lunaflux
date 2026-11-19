@@ -19,6 +19,9 @@ pub(all) suberror CheckedIntegerNarrowError {
   ValueOutOfRange(row~ : Int, column~ : Int, value~ : Int64)
   DuplicateRowValue(row~ : Int, first_column~ : Int, second_column~ : Int, value~ : Int64)
 } derive(Eq, @debug.Debug)
+pub fn CheckedIntegerNarrowError::equal(Self, Self) -> Bool
+pub fn CheckedIntegerNarrowError::not_equal(Self, Self) -> Bool
+pub fn CheckedIntegerNarrowError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CheckedI32Table {

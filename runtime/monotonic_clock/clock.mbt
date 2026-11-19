@@ -102,10 +102,12 @@ pub fn MonotonicClock::now_millis(
 
 ///|
 pub extend MonotonicClockError with Eq::{equal, not_equal}
+
 ///|
 pub extend MonotonicClockError with @debug.Debug::{to_repr}
 
 ///|
 pub extend MonotonicReadStatus with Eq::{equal, not_equal}
+
 ///|
 pub extend MonotonicReadStatus with @debug.Debug::{to_repr}

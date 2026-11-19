@@ -1,7 +1,9 @@
 ///|
 test "weight transfer composes operand selection and striped ownership" {
   for counts in [[2048, 1024, 1024], [3, 5, 2], [17]] {
-    let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows(counts).unwrap()
+    let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows(
+      counts,
+    ).unwrap()
     for width in [8, 16, 64] {
       for owners in [1, 32, 64, 128, 256] {
         let map = @luna_projection_tile_compiler.ProjectionVectorTransferMap::new(
@@ -34,8 +36,14 @@ test "weight transfer composes operand selection and striped ownership" {
 
 ///|
 test "weight transfer rejects partial rows and invalid vector geometry" {
-  let map = @luna_projection_tile_compiler.ProjectionVectorTransferMap::new(vectors=3, owners=4).unwrap()
-  let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows([3, 7]).unwrap()
+  let map = @luna_projection_tile_compiler.ProjectionVectorTransferMap::new(
+    vectors=3,
+    owners=4,
+  ).unwrap()
+  let segments = @luna_projection_tile_compiler.plan_projection_concatenated_rows([
+      3, 7,
+    ],
+  ).unwrap()
   for (width, vector) in [(0, 8), (8, 0), (7, 8), (16, 8)] {
     assert_eq(
       @luna_projection_tile_compiler.ProjectionWeightTransferPlan::new(
@@ -48,7 +56,12 @@ test "weight transfer rejects partial rows and invalid vector geometry" {
     )
   }
   assert_eq(
-    @luna_projection_tile_compiler.ProjectionWeightTransferPlan::new(map, [], row_width=8, vector_width=8),
+    @luna_projection_tile_compiler.ProjectionWeightTransferPlan::new(
+      map,
+      [],
+      row_width=8,
+      vector_width=8,
+    ),
     None,
   )
 }
