@@ -328,6 +328,11 @@ async test "capacity timeout and peer disconnect retire callback before reuse" {
       delayed.val = false
       let (reused, _) = post(url, request())
       assert_eq(reused.code, 200)
+      // The client can receive the final bytes before the server unwinds its
+      // callback. Readiness is the reuse boundary and must follow retirement.
+      while !service.is_ready() {
+        @async.pause()
+      }
       assert_eq(retired.val, 3)
     }
   })
