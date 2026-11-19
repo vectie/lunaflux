@@ -38,11 +38,11 @@ fn prepare_checkpoint(
   )
   let inspection = inspect_checkpoint(
     root,
-    @json.parse(
+    @json_guard.parse_bounded(
       @utf8.decode(
         read_asset(root, "model.safetensors.index.json", maximum_bytes=4194304L),
       ),
-      max_nesting_depth=32,
+      max_depth=32,
     ),
   )
   let operators = @operators.DecoderOperators::new(model, maximum_rows=32)

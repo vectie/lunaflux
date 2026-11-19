@@ -1,4 +1,5 @@
 import {
+  "vectie/lunaflux/internal/json_guard",
   "vectie/lunaflux/integration/minicpm_v47_bootstrap" @bootstrap,
   "vectie/lunaflux/integration/minicpm_v47_runtime" @runtime,
   "vectie/lunaflux/integration/minicpm_v47" @prompt,
@@ -12,7 +13,6 @@ import {
   "vectie/lunaflux/device",
   "vectie/lunaflux/tokenizer",
   "moonbitlang/core/env",
-  "moonbitlang/core/json",
   "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/async",

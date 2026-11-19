@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn parse_bounded(StringView, max_depth~ : Int) -> Json raise
+
 pub fn reject_duplicate_object_keys(StringView, max_depth~ : Int) -> Unit raise JsonGuardError
 
 // Errors

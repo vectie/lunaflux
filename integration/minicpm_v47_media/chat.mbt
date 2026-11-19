@@ -71,7 +71,7 @@ pub fn normalize_chat(
   }
   let text = @utf8.decode(body)
   @json_guard.reject_duplicate_object_keys(text[:], max_depth=16)
-  guard @json.parse(text, max_nesting_depth=16) is Object(fields) &&
+  guard @json.parse(text) is Object(fields) &&
     fields.get("messages") is Some(Array(messages)) &&
     messages.length() > 0 &&
     messages.length() <= 2 else {

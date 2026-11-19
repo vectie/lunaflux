@@ -78,9 +78,9 @@ async fn main {
   let requests = @bootstrap.prepare_requests(
     model.model,
     model.tokenizer,
-    @json.parse(
+    @json_guard.parse_bounded(
       @utf8.decode(queue.read_exactly(queue_bytes.to_int())),
-      max_nesting_depth=32,
+      max_depth=32,
     ),
   )
   @fs.mkdir(output, recursive=true)

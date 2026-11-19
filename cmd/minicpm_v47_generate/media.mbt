@@ -33,9 +33,9 @@ async fn media_mode(
     model.text.model,
     model.text.tokenizer,
     model.vision,
-    @json.parse(
+    @json_guard.parse_bounded(
       @utf8.decode(queue.read_exactly(bytes.to_int())),
-      max_nesting_depth=32,
+      max_depth=32,
     ),
     load_image=path => {
       let file = media_root.open_file(
