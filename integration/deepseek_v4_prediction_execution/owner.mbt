@@ -218,13 +218,13 @@ pub fn DeepSeekPredictionExecution::submit(
   ignore(base.acquire_prediction_input())
   self.leased = true
   self.ready_result = false
-  queues.submit(phase) catch {
-    e => {
+  {
+    errdefer {
       queues.abort()
       base.release_prediction_input()
       self.leased = false
-      raise e
     }
+    queues.submit(phase)
   }
   self.ready_result = !(phase is Prime)
 }
@@ -245,14 +245,12 @@ pub fn DeepSeekPredictionExecution::poll(self : Self) -> Bool raise {
       return false
     }
     self.seed_pending = false
-    queues.submit(PredictCommitted) catch {
-      error => {
-        queues.abort()
-        base.release_prediction_input()
-        self.leased = false
-        raise error
-      }
+    errdefer {
+      queues.abort()
+      base.release_prediction_input()
+      self.leased = false
     }
+    queues.submit(PredictCommitted)
   }
   if !queues.poll() {
     return false

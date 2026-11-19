@@ -273,13 +273,13 @@ async fn run_verification_pipeline_case(
       cancellation_issued = true
     }
     let done = coordinator.progress(local_now_millis=0UL) catch {
-      error => {
+      error =>
         if failure && cancel_at >= 0 {
           cancellation_failed = true
           break
+        } else {
+          raise error
         }
-        raise error
-      }
     }
     if done {
       retired = true
@@ -356,15 +356,9 @@ async fn run_verification_pipeline_case(
     // Saved target outputs survive the replay's output-free protocol receipt.
     assert_eq(coordinator.token_at(accepted - 1), target[accepted - 1])
     if stop >= 0 {
-      assert_eq(
-        decision.finish_reason(),
-        @greedy_verification.GreedyVerificationFinish::StopToken,
-      )
+      assert_eq(decision.finish_reason(), StopToken)
     } else if remaining == accepted {
-      assert_eq(
-        decision.finish_reason(),
-        @greedy_verification.GreedyVerificationFinish::Length,
-      )
+      assert_eq(decision.finish_reason(), Length)
     }
   }
   if !failure && !fail_replay {

@@ -88,11 +88,11 @@ pub fn[F : PreparedFrame] Pipeline::advance(
   defer {
     self.busy = false
   }
-  self.frames[self.completed].execute() catch {
-    error => {
+  {
+    errdefer {
       self.stage = Failed
-      raise error
     }
+    self.frames[self.completed].execute()
   }
   self.completed += 1
   if self.stage == Cancelled {

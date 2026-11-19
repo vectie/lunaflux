@@ -17,12 +17,12 @@ pub fn DeepSeekPredictionExecution::submit_from_committed(
   ignore(base.acquire_prediction_input())
   self.leased = true
   self.ready_result = false
-  seed.begin(seed_token) catch {
-    error => {
+  {
+    errdefer {
       base.release_prediction_input()
       self.leased = false
-      raise error
     }
+    seed.begin(seed_token)
   }
   self.seed_pending = true
   self.ready_result = true

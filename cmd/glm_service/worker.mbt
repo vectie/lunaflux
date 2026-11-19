@@ -85,14 +85,10 @@ async fn run_rank(
     plan, spec, ordinal, context, stream, aot, sampling, root, checkpoint, stage,
     rank, collective,
   ) catch {
-    error => {
+    error =>
       // Record the original failure before teardown can itself fail. This is
       // startup/failure diagnostics, never text on the framed result channel.
-      @stdio.stderr.write(
-        "GLM rank \{ordinal} preparation failed: \{Repr(error)}\n",
-      )
-      raise error
-    }
+      raise report_rank_preparation_failure(ordinal, error)
   }
   // Ready is a two-rank statement. Keep this startup rendezvous outside the
   // token step and do not expose HTTP before the remote weights/ports exist.
@@ -125,19 +121,17 @@ async fn run_rank(
       inference,
     )
     defer pipeline.close()
+    errdefer {
+      stage.abort_execution()
+      collective.abort()
+    }
     worker_exchange(
       channel,
       startup,
       pipeline,
       clock,
       stage.replay_graph_count() > 0,
-    ) catch {
-      error => {
-        stage.abort_execution()
-        collective.abort()
-        raise error
-      }
-    }
+    )
   } else {
     let server = @control.DecoderStageServer::new_batched(
       rank,
@@ -150,21 +144,28 @@ async fn run_rank(
     )
     defer server.close()
     println("GLM batched rank 1 ready")
-    try {
-      while !server.is_terminal() {
-        server.poll(local_now_millis=clock.now_millis())
-        if !server.wait_idle_receive() {
-          @async.pause()
-        }
-      }
-    } catch {
-      error => {
-        stage.abort_execution()
-        collective.abort()
-        raise error
+    errdefer {
+      stage.abort_execution()
+      collective.abort()
+    }
+    while !server.is_terminal() {
+      server.poll(local_now_millis=clock.now_millis())
+      if !server.wait_idle_receive() {
+        @async.pause()
       }
     }
   }
+}
+
+///|
+async fn report_rank_preparation_failure(
+  ordinal : Int32,
+  error : Error,
+) -> Error {
+  @stdio.stderr.write(
+    "GLM rank \{ordinal} preparation failed: \{Repr(error)}\n",
+  )
+  error
 }
 
 ///|

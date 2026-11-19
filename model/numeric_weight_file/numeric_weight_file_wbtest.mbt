@@ -324,28 +324,22 @@ test "numeric inspection retains declared labels without payload authentication"
   let wrong = try! NumericWeightArtifactDigest::from_sha256(
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   )
-  try
-    prepare_numeric_weight_file(
-      plan,
-      wrong,
-      1,
-      file.length().to_int64(),
-      fixture_limits(),
-      16L,
-      4096L,
-      (destination, destination_offset, position, byte_count) => {
-        for index in 0..<byte_count {
-          destination[destination_offset + index] = file[position.to_int() +
-            index]
-        }
-      },
-      () => 1,
-    )
-  catch {
-    error => raise error
-  } noraise {
-    prepared => assert_eq(prepared.artifact_digest, wrong)
-  }
+  let prepared = prepare_numeric_weight_file(
+    plan,
+    wrong,
+    1,
+    file.length().to_int64(),
+    fixture_limits(),
+    16L,
+    4096L,
+    (destination, destination_offset, position, byte_count) => {
+      for index in 0..<byte_count {
+        destination[destination_offset + index] = file[position.to_int() + index]
+      }
+    },
+    () => 1,
+  )
+  assert_eq(prepared.artifact_digest, wrong)
 }
 
 ///|

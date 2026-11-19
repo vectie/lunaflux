@@ -42,10 +42,7 @@ async fn main {
       try
         run_online_coalesced_evidence(@utf8.encode(executable), fixture_root~)
       catch {
-        error => {
-          println("coalesced-progress failure=\{Repr(error)}")
-          raise error
-        }
+        error => raise report_coalesced_failure(error)
       } noraise {
         _ => println("coalesced-progress passed")
       }
@@ -236,4 +233,10 @@ async fn main {
     [_, executable] => try! run(@utf8.encode(executable), None, None)
     _ => println("worker executable path is required")
   }
+}
+
+///|
+fn report_coalesced_failure(error : Error) -> Error {
+  println("coalesced-progress failure=\{Repr(error)}")
+  error
 }

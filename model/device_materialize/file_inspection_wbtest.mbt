@@ -239,29 +239,22 @@ test "structural reinspection does not hash otherwise valid payloads" {
   changed_data[last] = (changed_data[last].to_int() ^ 1).to_byte()
   let changed = Bytes::from_array(changed_data)
   let opens = Ref(0)
-  try
-    load_inspected_streaming_with_resource(
-      inspection,
-      wb_stamp(changed, modified=19),
-      changed.length().to_int64(),
-      (destination, destination_offset, position, count) => {
-        wb_fill(changed, destination, destination_offset, position, count)
-      },
-      () => wb_stamp(changed, modified=19),
-      _arena_bytes => {
-        opens.val += 1
-        1
-      },
-      (_resource, _source, _source_offset, _destination, _count) => (),
-      _resource => (),
-    )
-  catch {
-    error => raise error
-  } noraise {
-    result => {
-      guard result is ResourceReady(_) else { fail("unexpected cleanup") }
-    }
-  }
+  let result = load_inspected_streaming_with_resource(
+    inspection,
+    wb_stamp(changed, modified=19),
+    changed.length().to_int64(),
+    (destination, destination_offset, position, count) => {
+      wb_fill(changed, destination, destination_offset, position, count)
+    },
+    () => wb_stamp(changed, modified=19),
+    _arena_bytes => {
+      opens.val += 1
+      1
+    },
+    (_resource, _source, _source_offset, _destination, _count) => (),
+    _resource => (),
+  )
+  guard result is ResourceReady(_) else { fail("unexpected cleanup") }
   assert_eq(opens.val, 1)
 }
 

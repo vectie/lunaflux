@@ -94,39 +94,33 @@ async fn Jtag::resident_execute(
     }
   }
   ignore(self.owner.begin(previous, program.count, chain~))
-  try {
-    let snapshot = cycle_snapshot(
-      decode_hex(self.request(request, timeout_ms=610000)),
-      chain~,
-      greedy~,
+  errdefer self.owner.invalidate()
+  let snapshot = cycle_snapshot(
+    decode_hex(self.request(request, timeout_ms=610000)),
+    chain~,
+    greedy~,
+  )
+  assert_true(
+    self.owner.observe(
+      snapshot.sequence,
+      snapshot.after,
+      snapshot.status,
+      snapshot.error,
+      snapshot.count,
+    ),
+    msg="incomplete resident launch",
+  )
+  assert_true(snapshot.core_cycles > 0UL && snapshot.loader_cycles > 0UL)
+  if chain {
+    let segments = ((program.count + 2047) / 2048).reinterpret_as_uint()
+    assert_eq(snapshot.completed_segments, Some(segments))
+    assert_eq(snapshot.instructions + segments, snapshot.count)
+    assert_eq(
+      snapshot.chain_cycles.unwrap().to_uint64(),
+      snapshot.core_cycles + snapshot.loader_cycles + segments.to_uint64(),
     )
-    assert_true(
-      self.owner.observe(
-        snapshot.sequence,
-        snapshot.after,
-        snapshot.status,
-        snapshot.error,
-        snapshot.count,
-      ),
-      msg="incomplete resident launch",
-    )
-    assert_true(snapshot.core_cycles > 0UL && snapshot.loader_cycles > 0UL)
-    if chain {
-      let segments = ((program.count + 2047) / 2048).to_uint()
-      assert_eq(snapshot.completed_segments, Some(segments))
-      assert_eq(snapshot.instructions + segments, snapshot.count)
-      assert_eq(
-        snapshot.chain_cycles.unwrap().to_uint64(),
-        snapshot.core_cycles + snapshot.loader_cycles + segments.to_uint64(),
-      )
-    }
-    snapshot
-  } catch {
-    e => {
-      self.owner.invalidate()
-      raise e
-    }
   }
+  snapshot
 }
 
 ///|
@@ -151,10 +145,10 @@ async fn Jtag::upload_weights(
       @fs.write_file(
         output + "/upload-progress.json",
         Json::object({
-          "uploaded_bytes": uploaded.to_json(),
-          "full_weight_readback": verify.to_json(),
-          "total_bytes": 1192099840L.to_json(),
-          "tensor": t.ordinal.to_json(),
+          "uploaded_bytes": Json(uploaded),
+          "full_weight_readback": Json(verify),
+          "total_bytes": Json(1192099840L),
+          "tensor": Json(t.ordinal),
         }).stringify(),
       )
     }
@@ -205,7 +199,7 @@ async fn Jtag::upload_programs(
   }
   @fs.write_file(
     output + "/resident-programs.json",
-    result.to_json().stringify(indent=2),
+    Json(result).stringify(indent=2),
     create_mode=CreateNew,
   )
   result

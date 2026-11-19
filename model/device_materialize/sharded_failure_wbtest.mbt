@@ -90,28 +90,23 @@ test "sharded preflight reads only bounded metadata, not whole payload" {
   changed_array[last] = (changed_array[last].to_int() ^ 1).to_byte()
   let changed = Bytes::from_array(changed_array)
   let maximum_end = Ref(0L)
-  try
-    prepare_sharded_streaming_load(
-      model,
-      @llama.build(model),
-      0,
-      2,
-      64L,
-      4096L,
-      wb_stamp(changed),
-      changed.length().to_int64(),
-      wb_stream_limits(),
-      (destination, destination_offset, position, count) => {
-        maximum_end.val = maximum_end.val.max(position + count.to_int64())
-        wb_fill(changed, destination, destination_offset, position, count)
-      },
-      () => wb_stamp(changed),
-    )
-  catch {
-    error => raise error
-  } noraise {
-    prepared => assert_eq(maximum_end.val, prepared.payload_offset_bytes)
-  }
+  let prepared = prepare_sharded_streaming_load(
+    model,
+    @llama.build(model),
+    0,
+    2,
+    64L,
+    4096L,
+    wb_stamp(changed),
+    changed.length().to_int64(),
+    wb_stream_limits(),
+    (destination, destination_offset, position, count) => {
+      maximum_end.val = maximum_end.val.max(position + count.to_int64())
+      wb_fill(changed, destination, destination_offset, position, count)
+    },
+    () => wb_stamp(changed),
+  )
+  assert_eq(maximum_end.val, prepared.payload_offset_bytes)
 }
 
 ///|

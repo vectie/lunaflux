@@ -121,13 +121,12 @@ pub fn CheckpointDeviceIndexTables::upload(
     }
   }) catch {
     error => {
-      if narrowing_error is Some(cause) {
-        raise cause
+      let primary : Error = match (narrowing_error, device_error) {
+        (Some(cause), _) => cause
+        (None, Some(cause)) => cause
+        (None, None) => error
       }
-      if device_error is Some(cause) {
-        raise cause
-      }
-      raise error
+      raise primary
     }
   }
   for stream in streams {

@@ -29,24 +29,12 @@ pub fn PredictionPhaseExecution::prepare(
   committed? : ArrayView[@device.OrderedKernelLaunch],
 ) -> Self raise {
   let p = context.create_ordered_kernel_executor(stream, prime)
-  let q = context.create_ordered_kernel_executor(stream, predict) catch {
-    e => {
-      p.close()
-      raise e
-    }
-  }
+  errdefer p.close()
+  let q = context.create_ordered_kernel_executor(stream, predict)
+  errdefer q.close()
   let r = match committed {
     None => None
-    Some(table) =>
-      Some(
-        context.create_ordered_kernel_executor(stream, table) catch {
-          e => {
-            q.close()
-            p.close()
-            raise e
-          }
-        },
-      )
+    Some(table) => Some(context.create_ordered_kernel_executor(stream, table))
   }
   {
     prime: p,

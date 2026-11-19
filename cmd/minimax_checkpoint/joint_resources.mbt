@@ -14,18 +14,18 @@ struct JointModules {
 fn JointModules::load(self : Self, name : String) -> @device.Module raise {
   let bytes = read(self.root, name + ".cubin", self.maximum - self.loaded)
   self.loaded += bytes.length().to_int64()
-  let module = self.context.load_module(bytes)
-  self.modules.push(module)
-  module
+  let device_module = self.context.load_module(bytes)
+  self.modules.push(device_module)
+  device_module
 }
 
 ///|
 fn JointModules::function(
   self : Self,
-  module : String,
+  device_module : String,
   symbol : String,
 ) -> @device.Function raise {
-  let function = self.load(module).load_function(@utf8.encode(symbol))
+  let function = self.load(device_module).load_function(@utf8.encode(symbol))
   self.functions.push(function)
   function
 }
@@ -75,12 +75,8 @@ fn upload_joint_bytes(
   bytes : Bytes,
 ) -> @device.Allocation raise {
   let allocation = context.allocate(bytes.length().to_int64())
-  allocation.copy_from_host(bytes, 0L, 0L, bytes.length().to_int64()) catch {
-    error => {
-      allocation.close()
-      raise error
-    }
-  }
+  errdefer allocation.close()
+  allocation.copy_from_host(bytes, 0L, 0L, bytes.length().to_int64())
   allocation
 }
 

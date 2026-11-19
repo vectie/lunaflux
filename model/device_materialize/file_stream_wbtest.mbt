@@ -168,33 +168,26 @@ test "streaming rejects malformed files but does not verify inventory labels" {
   }
   assert_eq(opens.val, 0)
   let file = wb_stream_file()
-  try
-    load_streaming_with_resource(
-      wb_test_model(),
-      @llama.build(wb_test_model()),
-      wb_stamp(file),
-      file.length().to_int64(),
-      wb_stream_limits(),
-      64L,
-      4096L,
-      (destination, destination_offset, position, count) => {
-        wb_fill(file, destination, destination_offset, position, count)
-      },
-      () => wb_stamp(file),
-      _arena_bytes => {
-        opens.val = opens.val + 1
-        1
-      },
-      (_resource, _source, _source_offset, _destination, _count) => (),
-      _resource => (),
-    )
-  catch {
-    error => raise error
-  } noraise {
-    result => {
-      guard result is ResourceReady(_) else { fail("unexpected cleanup") }
-    }
-  }
+  let result = load_streaming_with_resource(
+    wb_test_model(),
+    @llama.build(wb_test_model()),
+    wb_stamp(file),
+    file.length().to_int64(),
+    wb_stream_limits(),
+    64L,
+    4096L,
+    (destination, destination_offset, position, count) => {
+      wb_fill(file, destination, destination_offset, position, count)
+    },
+    () => wb_stamp(file),
+    _arena_bytes => {
+      opens.val = opens.val + 1
+      1
+    },
+    (_resource, _source, _source_offset, _destination, _count) => (),
+    _resource => (),
+  )
+  guard result is ResourceReady(_) else { fail("unexpected cleanup") }
   assert_eq(opens.val, 1)
 }
 

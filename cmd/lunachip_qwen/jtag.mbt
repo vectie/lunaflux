@@ -38,6 +38,7 @@ async fn Jtag::request(
   timeout_ms~ : Int32 = 120000,
 ) -> String {
   self.sequence += 1
+  errdefer self.owner.invalidate()
   @async.with_timeout(timeout_ms, () => {
     self.connection.write("\{self.sequence} \{request}\n")
     guard self.connection.read_until("\n") is Some(line) else {
@@ -46,12 +47,7 @@ async fn Jtag::request(
     let prefix = "\{self.sequence} OK "
     guard line.has_prefix(prefix) else { fail("board request failed: \{line}") }
     line[prefix.length():].trim_end().to_owned()
-  }) catch {
-    e => {
-      self.owner.invalidate()
-      raise e
-    }
-  }
+  })
 }
 
 ///|
@@ -70,16 +66,10 @@ async fn Jtag::write(self : Self, address : UInt64, bytes : Bytes) -> Unit {
 
 ///|
 async fn Jtag::read(self : Self, address : UInt64, count : Int32) -> Bytes {
-  try {
-    let bytes = decode_hex(self.request("R \{address} \{count}"))
-    assert_eq(bytes.length(), count)
-    bytes
-  } catch {
-    e => {
-      self.owner.invalidate()
-      raise e
-    }
-  }
+  errdefer self.owner.invalidate()
+  let bytes = decode_hex(self.request("R \{address} \{count}"))
+  assert_eq(bytes.length(), count)
+  bytes
 }
 
 ///|
@@ -108,29 +98,23 @@ async fn Jtag::execute_chunk(self : Self, bytes : Bytes) -> Unit {
     msg="device not healthy and idle before upload",
   )
   self.write(base + 0x20000UL, bytes)
-  self.set_word(base + 0x14UL, (bytes.length() / 64).to_uint())
+  self.set_word(base + 0x14UL, (bytes.length() / 64).reinterpret_as_uint())
   ignore(self.owner.begin(self.word(base + 0x38UL), bytes.length() / 64))
-  try {
-    self.set_word(base + 0x10UL, 1U)
-    @async.with_timeout(600000, () => {
-      while true {
-        let before = self.word(base + 0x38UL)
-        let status = self.word(base + 8UL)
-        let error = self.word(base + 12UL)
-        let count = self.word(base + 0x14UL)
-        let after = self.word(base + 0x38UL)
-        if self.owner.observe(before, after, status, error, count) {
-          break
-        }
-        @async.sleep(10)
+  errdefer self.owner.invalidate()
+  self.set_word(base + 0x10UL, 1U)
+  @async.with_timeout(600000, () => {
+    while true {
+      let before = self.word(base + 0x38UL)
+      let status = self.word(base + 8UL)
+      let error = self.word(base + 12UL)
+      let count = self.word(base + 0x14UL)
+      let after = self.word(base + 0x38UL)
+      if self.owner.observe(before, after, status, error, count) {
+        break
       }
-    })
-  } catch {
-    e => {
-      self.owner.invalidate()
-      raise e
+      @async.sleep(10)
     }
-  }
+  })
 }
 
 ///|
