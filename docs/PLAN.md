@@ -1,5 +1,279 @@
 # LunaFlux detailed implementation plan
 
+## MiniCPM flagship Spark integration — 2026-11-17
+
+Physical Spark access is now available through the cluster gateway on port
+32123. On `192.168.2.179`, CUDA13.0.88 compiles all nine prepared modules for
+`sm_121`; the real GB10 driver loads them and the image-scatter kernel passes
+1,000 launches with6,144 exact output-word checks. The native release CLI builds
+with the installed October23 MoonBit toolchain after a source-compatible
+FP64-to-FP32 conversion spelling and three test syntax updates. The affected
+local processor/parallel suite passes42/42. All sixteen checkpoint shards are
+acquired and verified against the pinned HF manifest. The full native text
+resident completes four diagnostic requests with34 sampled steps matching the
+upstream GPU reference, including EOS. Across8,436,896 logit values the maximum
+absolute difference is1.53125; numerical equivalence is not established. Real
+vision returns `Red`/`Blue` and then reuses text state correctly. Native JSON/SSE
+serving and two-host text/image planning to the Ascend shadow actor pass.
+Broader numerical/visual/planner quality and sustained serving remain open;
+see `MINICPM_V47_SPARK.md` and `tests/minicpm_v47_model_oracle`.
+
+Encoded image ingress now applies all eight EXIF orientations for JPEG APP1 and
+PNG eXIf while preserving the raw `Image::decode` API. The pinned upstream
+ingress corpus passes126 orientation cases and72 complete PNG cases. A local
+vendored JPEG fix consumes entropy already buffered before a scan marker;
+54 sampled JPEG cases retain maximum channel difference3 against Pillow.
+The26 affected media tests, release CLI build and standalone codec ASan/UBSan
+probe pass. This establishes sampled CPU media behavior, not model equivalence.
+See `tests/minicpm_v47_image_load_oracle/README.md`.
+
+The independent full-canvas comparison now passes 154 unpadded batch-one cases
+against unchanged Transformers 5.18.0 methods with CPU Torch 2.9.1: 751,830 prompt
+coordinates, 1,848 decode coordinates, rope deltas and 32-row staging all match.
+It covers mixed image/video labels, grouping, slices and both compression modes.
+The generated reference retains original method bytes/license; corpus extraction,
+orchestration and comparison stay MoonBit, with a separate offline C++/CPython
+adapter and no production Python/Torch dependency. Shared crop grids do not
+qualify geometry/pixel processing, batched padding or physical CUDA numerics.
+
+The checkpoint Jinja comparison found and fixed a prompt mismatch: MoonBit's
+default ASCII trim differs from Python/Jinja Unicode/control whitespace trim.
+The model adapter now owns the format rule, reused by native prompts and both
+HTTP services before canonical admission. All 128 initial-profile cases match
+the actual template with offline Jinja2 3.1.6 (24,870 compared bytes); the 70
+affected tests and native ASan fixture pass. ASan retains the prebuilt runtime/
+mimalloc and disables leak detection; explicit native resource counts balance.
+No Jinja/Python dependency enters production, and broader history/tools/thinking,
+full model/device execution and quality remain open.
+
+Independent selected-tokenizer comparison now passes 1,797 distinct input
+strings and 28,043 token IDs against Hugging Face tokenizers 0.23.2, with decoded
+text matching too. The optional offline reference links only into a separate
+test executable; corpus generation/comparison and production tokenization stay
+MoonBit. This covers raw text and LunaFlux-rendered prompts, not independent
+upstream Jinja rendering or logits by itself; the separate Jinja comparison
+above covers the initial chat profile. See `MINICPM_V47_SPARK.md` and the scoped
+`target/minicpm-v47-tokenizer-upstream-v2/report.json` result.
+
+The selected model is [MiniCPM-V 4.7 35B-A3B](MINICPM_V47_SPARK.md), prioritizing
+robot perception/planning capability. Its hybrid attention, routed/shared experts,
+vision encoder, visual compression, tokenizer/processor and exact Spark execution
+are separate implementation gates. The smaller [MiniCPM5 compatibility work](MINICPM5_SPARK.md)
+passes focused tests 90/90 and real metadata tests 1/1, but does not establish
+flagship support. No actor or robot-control dependency enters LunaFlux.
+
+Vision image preparation now has a separate pure MoonBit owner,
+`model/minicpm_v47_processor`: default thumbnail/detail geometry, typed visual
+fragments, matching patch grids, PIL-profile RGB8 resize/normalization and BF16
+NaViT packing. Eight package tests and the real-tokenizer fragment join pass;
+the focused processor/positions/tokenizer suite passes 18/18. An offline oracle
+builds unchanged Pillow12 C resize code, with no Python interpreter, and matches
+all 12,305,664 BF16 words across five nonuniform image cases. The separate full
+PIL pipeline reference now executes unchanged Transformers5.18.0 preprocessing,
+geometry, backend and transform methods: twelve cases match22,682,688 BF16
+words, grids, crop counts, target sizes and output shapes. Its report is
+`target/minicpm-v47-pil-pipeline-v2/comparison/report.json`. Independent canvas
+sequence evidence is recorded below. PNG/JPEG HTTP ingress, native vision and
+embedding insertion are implemented below; torchvision/codec parity, video
+ingress, actual device numerics and model quality remain open.
+
+The next vision increment now prepares the full27-block encoder program with
+the early window merger after block6 and the final MLP projector:318 stages,
+25 entrypoints,459 active vision tensors. It reuses existing norm/biased-linear/
+GELU/residual sources with an optional live-row ABI, preserving their default
+emission. New generic primitives retain head72 and BF16 score/normalized-probability
+rounding, plus raw patch/window/position indexing. The model owner prepares
+crop spans and both merge permutations once per media request. Focused tests
+pass115/115 after native-plan/input checks; existing vision-conditioner tests pass10/10 (its preexisting
+dependency's warning92 excluded at that command only). The actual generated
+source also passes a CPU-spelling ASan/UBSan probe with host CTA barriers;
+this is not NVCC or GPU execution. v16 preparation emits eight modules/63
+entrypoints; all seven text source files remain byte-identical to v15.
+Independent native vision ownership/execution is now implemented. `WeightPlan`
+reuses the common bounded streaming session and `Loaded` owns459 final buffers.
+The scripted driver uploads exactly1,105,972,064 sparse-zero bytes, binds the
+full frame and balances resources. Storage owns15 allocations totaling
+429,178,928 bytes at16384 patches, including405,274,624 scratch bytes. Frame
+owns25 functions; Execution owns one module/stream/queue and returns device-only
+features after completion. Native tests cover16x/4x, zero-allocation queue replay,
+13/10 input copies with no readback, alias/budget rejection, cancellation/reuse,
+partial startup and active close. The generated-C/four-stub ASan smoke passes
+with prebuilt runtime/mimalloc retained and leaks disabled. v17 preparation
+reports these software owners; all eight CUDA source files remain unchanged
+from v16. Media ingress, actual checkpoint arithmetic and exact upstream/device
+comparisons remain open; the native feature/prompt bridge and combined residency
+are implemented below.
+
+The native image-to-decoder bridge now binds typed content/native-token prompts,
+multi-image pixels, canvas positions and a causal-position feature map. A
+generic elementwise BF16 word-copy program inserts features after token
+embedding, adding one prefill launch (925) while decode remains924. Two metadata
+uploads per image request and a clear-header operation support repeated image/
+text requests without feature readback. Runner queue preparation now accepts
+explicit launch spans and retains its host/greedy/cache/stop law. The affected
+suite passes50/50 with actual tokenizer assets. The native scripted pipeline
+passes chunked prefill/decode, zero-allocation steps, cancellation, text reuse,
+partial startup and failed map-copy recovery. Generated-C/four-stub ASan passes
+with prebuilt runtime/mimalloc retained and leaks disabled. A generated-source
+CPU ASan/UBSan probe checks the scatter's raw-word/chunk/decode law. These are
+software checks, not CUDA execution or model arithmetic. v18 prepares nine
+modules/64 entrypoints and preserves the prior eight source files. Combined
+residency, local media and buffered HTTP images are implemented below; exact upstream/device quality remains open.
+
+The separate `integration/minicpm_v47_image_runtime` now owns combined
+text/vision execution and residency. It reuses both bounded weight loaders,
+the shared seven-module decoder owner, vision execution, the insertion frame
+and the existing request controller. Asynchronous vision completion binds
+device features before decoder submission; the owner prevents output reuse
+until decoding retires and covers cancellation/failure recovery in both
+branches. `bootstrap.prepare_images` joins both weight plans from one header
+inspection. Combined payload is 71,008,215,248 bytes at 16,384 raw patches,
+excluding module/driver/queue overhead. The affected suite passes 63/63 with
+actual tokenizer assets; scripted native and generated-C/four-stub ASan checks
+pass zero-allocation token steps, image/text reuse, partial startup and active
+close (prebuilt runtime/mimalloc retained, leak detection disabled; native
+resource counts balance). No CUDA model arithmetic or full checkpoint upload
+is simulated. v19 records combined residency; all nine sources are byte-identical
+to v18 and the nine-command AOT dry run passes. Local media ingress/execution
+is now implemented below; buffered HTTP images are also implemented, while device/upstream quality gates remain.
+
+Local PNG/JPEG media preparation and execution are now implemented. A narrow
+memory-only native codec returns immutable RGB8, also accepted directly from a
+future camera adapter. The model media owner derives prompts, crop layout and
+packed pixels together; preparation remains outside token execution. The
+executable adds `inspect-media`/`run-media` with an explicit ordered mixed-content
+queue and the existing nine-module image Resident. No-GPU inspection of actual
+config/tokenizer/headers plus labelled sparse-zero shards passes; the two-image
+example has 2,080 patches/130 features/180 prompt tokens and text reuse.
+The affected suite passes 45/45 with actual tokenizer assets. Scripted native
+and generated-C ASan cover encoded files through vision/decoder EOS and reuse
+without token-step allocations. The standalone exact decoder ASan/UBSan probe
+checks known colors/alpha/grayscale, baseline/progressive JPEG, precision/size
+rejection and truncated prefixes, with balanced codec allocation counters.
+Full native ASan retains prebuilt runtime/mimalloc; both probes disable leak detection.
+Metadata-transform parity, video/camera SDK adapters, full real
+checkpoint upload and Spark/NVCC numerical/quality qualification remain open.
+
+Buffered HTTP image admission is now implemented. The transport's model-owned
+handler keeps authentication/credit/deadline/disconnect and canonical output
+shared, while MiniCPM normalizes inline PNG/JPEG data URIs into placeholders and
+typed RGB content. Canonical admission retains the source authenticated HTTP
+lease and validates generation controls against bounded replacement JSON.
+`serve-media` uses the nine-module resident; text/image output shares UTF-8,
+stops and usage. The full body uses the existing 16 MiB ceiling. The affected
+suite passes 98/98 with actual tokenizer assets. Native loopback HTTP checks
+image output, no-system text reuse, 401/400/429, enqueue recovery and timeout/
+disconnect while vision is pending. Generated-C/five-object ASan passes with
+prebuilt runtime/mimalloc retained and leaks disabled; native resources balance.
+The allocation-driver regression and release CLI build pass. Real upload,
+Spark/NVCC execution, numerical/visual quality, camera/video SDK adapters and
+metadata-transform parity remain unverified; no physical promotion is claimed.
+
+The real MoonRobo visual planner client now crosses the LunaFlux media endpoint
+in a separate-process software smoke. Encoded PNG/JPEG snapshots pass through
+canonical admission, vision/full-decoder request plumbing and a bounded scripted
+sampled-ID sequence; the complete proposal then crosses MoonRobo's context and
+skill checks and is accepted by its standalone task supervisor. The native model
+fixture closes every resource before exit. The bounded token-script hook passes
+generated-C/five-native-object ASan, and the original driver allocation regression
+passes (prebuilt runtime/mimalloc retained, leak detection disabled). MoonRobo's
+planner/task/skills/runner suite passes 11/11 and its release CLI builds. These
+checks involve no model arithmetic, actor writer or physical robot. Real model
+quality, full checkpoint/device execution and camera SDK qualification remain.
+
+Selected-model implementation now includes actual config and complete BF16
+tensor-header binding, shared hybrid geometry, real tokenizer/marker preparation,
+scalar recurrent/convolution reference, and typed grouped/strided recurrent CUDA
+source lowering. Model-owned operator binding now selects centered/gated norms,
+full-softmax top-eight routing, unclipped recurrent controls and BF16-before-SiLU
+convolution. Routed/shared experts now reuse existing staged kernels with explicit
+BF16 per-contribution combination, exact BF16-to-F32 routing storage, shared
+sigmoid/product rounds and matrix router/gate projections. Packed expert slices
+bind to the existing streaming uploader; a real three-byte-scratch transfer and
+composed MoE numerical test pass. The MoE program now supplies one combined AOT
+source, all nine stage ABIs and one reusable 1,756,224-byte workspace to the
+native frame binder and preparation command. Full-attention projection bindings,
+BF16 prefix/split-half MRoPE and raw strided output gating are implemented.
+Width-256 paged prefill/decode source generation reuses the existing compiler.
+Backend availability filtering now delegates resource rescoring to the common
+functional frontier; unsupported explicit/measured choices stay errors.
+Full-attention ingress now composes those projections/norms/rotary with bit-copy
+QKV packing and the existing paged KV writer. One immutable program owns 13
+ordered launches per phase and a reusable 1,740,800-byte workspace; its native
+frame borrows persistent cache planes and owns only function handles. Preparation
+uses the same stage/region descriptions. Fragmented-page continuation and BF16
+word-pattern fixtures pass. The canvas position owner now handles visual groups,
+slice corners/newlines, independent image/video grids and decode deltas, with
+allocation-free chunk staging. The actual tokenizer/text prompt bridge supplies
+that owner. Analytic fixtures and the FP32 linspace regression pass; an offline
+ATen 2.9.1 CPU oracle matches 533,500 canvas coordinates over 8,196 cases through
+the public prompt API on both axes. Full upstream position/processor comparison
+remains open. The recurrent branch now has its own nine-stage program/native
+frame, including all five BF16 projections, convolution/control/delta and gated
+normalization. Packed QKV pointer views preserve strides without repacking;
+separate history/matrix state budgets follow slot capacity. Its reusable scratch
+is 1,845,248 bytes at 32 rows. The enclosing decoder now joins all 40 layers,
+centered input/post-attention norms and both BF16 residual updates in 920 launches
+per phase. State slices follow model order. Attention/recurrence share an arena;
+MoE retains a separate shared arena because its startup expert map must survive.
+The complete text frame reuses existing text I/O for untied embeddings/head,
+centered final norm, selected-row BF16-rounded logits and greedy selection.
+It has 924 launches/phase and 996,672 bytes of output workspace at one output row.
+The native test double prepares all children and submits 2,772 launches across
+prefill/decode/reset, with zero queue-execution allocations/copies/readbacks and
+balanced resource closes. Caller metadata staging is outside that scope; no GPU
+arithmetic is simulated. Text startup now binds 693 source tensors into 653
+final allocations totaling 69,319,779,584 bytes, streaming ordinary tensors and
+the existing expert slices through one scratch/session. Actual header tests use
+sparse zero payload holes; bounded byte-transfer tests preserve BF16 words and
+padding. `Storage` now owns all 22 mutable allocations (152,271,612 bytes), checks
+the ceiling before allocation and supplies the typed forward objects. Its native
+fixture prepares/executes/closes successfully. The expanded focused native suite
+passes 583/583 after adding the shared protocol/auth/output packages. The offline seven-module AOT helper passes dry-run and compiler
+failure checks; actual NVCC compilation remains unperformed.
+The request adapter now connects chunked prefill/decode, prepared positions,
+effective context/token limits, stop-token handling and completion through two
+reusable native queues. A 33-token scripted request contributes 3,696 launches
+beyond the original 2,772 queue-only probe. Full request steps have zero heap or
+resource creation, ten metadata uploads and producing-only four-byte readback.
+Cancellation/reuse, invalid samples and enqueue-failure recovery pass, as does
+an ASan smoke with prebuilt runtime/mimalloc retained and leak detection disabled.
+This is software-driver lifecycle evidence, not model arithmetic or latency.
+The resident runtime now composes streaming weight ownership with a separate
+execution session that owns seven modules, stream, storage, frame and queues.
+Its explicit payload admission totals 69,473,047,868 bytes at the initial text
+profile, excluding driver/module/queue overhead. The native fixture exercises
+budget rejection before resource creation, cleanup after partial startup, two
+requests on one session and close while work is active. A fresh whole resident
+also joins the actual sparse-header checkpoint plan. The current ABI/ASan smoke
+passes; actual whole-resident checkpoint upload remains untested.
+The executable `cmd/minicpm_v47_generate` now joins that owner to actual asset,
+header and prompt preparation, repeated greedy requests and final decoded result
+receipts. Its `inspect` path passes end to end on actual config/tokenizer/header
+fixtures with sparse zero payloads and no GPU access; the release binary builds.
+Run mode is implemented but unexecuted. Invalid/incomplete UTF-8 output retains
+exact token IDs and records replacement decoding. Source export and startup
+share the same attention/text builders; all seven v15 CUDA sources match v14.
+The `serve` mode now connects the prepared session through existing bounded
+HTTP/OpenAI ingress, canonical handoff/events and buffered JSON/streaming SSE rendering. The model
+adapter reuses incremental UTF-8/string-stop handling and retires native work
+before cancellation/failure reuse. TCP tests cover repeated requests, 401/400,
+429, timeout and disconnect cleanup. Actual-tokenizer/native-driver coverage
+adds EOS/length/string stops, stochastic rejection and enqueue-failure recovery
+across HTTP. Streaming uses the existing renderer and bounded awaited writes;
+the transport test receives UTF-8 deltas before releasing completion and checks
+post-header timeout/disconnect cleanup followed by JSON reuse. Native fixtures
+cover both text and inline-image streams, including cancellation after Accepted
+while vision is pending. These are scripted-driver results, not GPU arithmetic. MoonRobo's
+eight planner/task tests also verify per-request JSON Content-Length framing;
+the convenience HTTP client had otherwise sent unsupported chunked requests.
+Preparation joins all16 shards, exports seven text modules plus an unbound vision
+module (63 entrypoints total), and
+emits 30,720 expert startup ranges without loading the full payload or CUDA.
+Real executable checkpoint upload/generation and device qualification,
+continuous serving, actual vision execution and
+exact Spark qualification remain open.
+
 ## Prediction-level correctness — 2026-10-12
 
 Follow [the numerical correctness rethink](NUMERICAL_CORRECTNESS_RETHINK_2026-10-12.md).

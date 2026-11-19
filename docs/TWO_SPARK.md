@@ -1,5 +1,11 @@
 # Two-Spark execution workstream
 
+Historical workstream document: the branch and qualification status below are
+retained as originally recorded. For the later physical execution, optimization
+workflow and dated results, start with the
+[two-Spark performance guide](TWO_SPARK_PERFORMANCE_GUIDE.md) and its
+[evidence history](TWO_SPARK_PERFORMANCE_HISTORY.md).
+
 Branch: `twospark`. The branch implements the two-node compiler, rank-local
 admission, authenticated control sessions, the existing rank execution
 protocol, worker-service/online composition, recovery receipts, and an

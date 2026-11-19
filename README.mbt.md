@@ -84,6 +84,13 @@ LunaFlux does not own:
 
 For the focused edit/check workflow, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
+The [MiniCPM flagship Spark workstream](docs/MINICPM_V47_SPARK.md) targets
+MiniCPM-V 4.7 35B-A3B for robot understanding and planning. Its hybrid MoE/vision
+implementation now includes full-checkpoint native text/vision execution,
+sampled upstream greedy agreement and JSON/SSE serving on GB10. Broader
+numerical/visual/planner quality and sustained serving remain open; the smaller MiniCPM5
+compatibility fixture is not the selected deployment model.
+
 Current runtime loading does not hash staged weights, tokenizer assets, CUBINs,
 launch/configuration snapshots or worker executables. Legacy digest fields are
 supplied association labels, not verified payload checksums. Executable startup
@@ -528,6 +535,12 @@ The older caller-declared configuration explainer remains available only as
 
 ## Documents
 
+- [Experimental LunaChip / PBlaze3 backend](docs/LUNACHIP_BACKEND.md): device
+  contract, LunaTile compiler slice and full Qwen3-0.6B memory preparation;
+  full-model FPGA inference remains unqualified.
+- [Two-Spark performance engineering guide](docs/TWO_SPARK_PERFORMANCE_GUIDE.md)
+  with [implementation playbook](docs/TWO_SPARK_KERNEL_PLAYBOOK.md) and
+  [experiment history / latest verified measurements](docs/TWO_SPARK_PERFORMANCE_HISTORY.md)
 - [Product contract](docs/PRODUCT_CONTRACT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution-economics compiler policy](docs/EXECUTION_ECONOMICS_2026-10-08.md)

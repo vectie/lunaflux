@@ -757,3 +757,152 @@ gate recovery; failed replacement resources retain their own cleanup obligation.
 Artifact verification and deployment digests stay at startup. The scheduler
 uses fixed remote mailboxes; TLS and heartbeat tasks stay outside it. Physical
 qualification and the pinned TLS server provider remain release gates.
+
+## ADR-0019 — LunaChip is a serialized experimental device backend
+
+**Status:** accepted for software preparation; full-model lowering, numerical
+qualification and physical execution pending.
+
+LunaFlux owns its LunaChip adapter and consumes the published PBlaze3 ABI as
+serialized data. It does not import LunaChip packages or hardware IR. Device
+receipt tracking and checked descriptors live in `device/lunachip`; LunaTile
+lowering in `compiler/lunachip_tile`; Qwen target preparation and weight binding
+in focused model/integration packages. Scheduler policy and the CUDA executor
+receive no FPGA-specific branches.
+
+The 2 GiB target uses BF16 matrix weights with ordered FP32 activations/KV and
+the reference accelerator's approximate nonlinear profile. It cannot silently
+consume the existing BF16 Qwen operation schema or claim CUDA numerical
+equivalence. Model geometry and source tensor binding may be reused. The tied
+embedding/output matrix is allocated once; full-model state stays within a
+checked, explicit memory plan.
+
+The initial executable compiler subset is single-iteration, contiguous FP32
+copy/add/multiply. Other operations and numerical contracts are rejected.
+Preparation produces immutable bounded descriptor chunks, each ending in HALT.
+An exclusive transport owner associates completion with the accepted-START
+sequence and invalidates itself after uncertain submission. This is not yet
+production serving readiness. Promotion requires complete model lowering,
+independent logits/tokens, real transport ownership and physical evidence.
+See [the backend contract and results](LUNACHIP_BACKEND.md).
+
+## ADR-0020 — Explicit ordered BF16 GEMV for the LunaChip target
+
+**Status:** accepted for offline compilation; physical execution and complete
+Qwen inference remain separate gates.
+
+`compiler/lunachip_tile.OrderedBf16Gemv` is a closed mixed-precision operation
+over existing LunaTile tensor views. It means row-major BF16 weights expanded
+exactly to FP32, FP32 activations, separately rounded RNE products, and an
+increasing-column FP32 fold starting at positive zero. Output is FP32. There is
+no bias, existing accumulator, contraction into FMA, or implicit BF16 rounding
+of activation/output. FP32 subnormals and canonical arithmetic NaNs follow the
+published device profile. This is not a new generic LunaTile instruction.
+
+Generic LunaTile MMA requires equal BF16/FP16 operand dtypes and its generic
+CUDA terminal emits `fmaf`; neither its operand contract nor its current
+terminal may be silently treated as this mixed BF16/FP32 operation. The
+existing generic `lower(program, bindings)` continues to reject MMA. Callers
+must explicitly select `OrderedBf16Gemv`, whose constructor validates raw views
+because `LunaTileTensorView::new` itself does not admit them.
+
+Device descriptors remain the existing opcode 4, row-major flag zero. The
+compiler owns fixed disjoint scratch regions and emits LOAD/GEMV/STORE/HALT.
+The Qwen integration selects checked contiguous row tiles from the prepared
+BF16 placement, including the tied output matrix, and constrains both FP32
+vectors to workspace. Full model scheduling and attention are unchanged.
+No packed-weight conversion, native BF16 arithmetic core, production dispatch,
+CUDA fallback or cross-repository package import is introduced.
+
+## ADR-0021 — Explicit full-Qwen diagnostic execution on LunaChip
+
+**Status:** software and two-position physical diagnostic accepted 2026-10-30;
+production and long-context physical acceptance remain separate.
+
+The typed `integration/lunachip_qwen.DecodeStep` capability owns a position's
+28 decoder programs and final normalization/output program. It binds the
+validated Qwen3-0.6B placement to checked device instructions. It is separate
+from generic LunaTile MMA, the production scheduler and CUDA execution routes.
+No scheduler device/model branches or cross-product package imports are added.
+
+`device/lunachip` admits the existing reduction, approximate unary, broadcast,
+stable-SiLU and strided scratch GEMV instructions. The integration preserves
+scratch between bounded launches, writes per-layer K/V to DDR, streams keys
+in 64-position tiles, and accumulates weighted values in position order from
+positive zero. This preserves the published non-fused FP32 fold across tiles.
+All 151936 tied output rows execute in at most 4096-row tiles.
+
+`cmd/lunachip_qwen` is deliberately a diagnostic executable. It prepares all
+requested positions before opening transport, reuses the existing source
+binder and tokenizer, range-reads selected original BF16 tensors, and uses
+host embedding lookup and greedy sampling. An exclusive sequence-checked
+launch owner rejects foreign/stale completion and invalidates on uncertain
+transport. The vendor JTAG bridge performs only transport/programming; it
+does not schedule Qwen or implement transformer arithmetic. Full payload
+hashing, duplicate tied-head loading, Python and CPU operator fallbacks are
+absent. A source association label is not a verified checkpoint digest.
+
+The API admits up to 2048 positions. The CLI intentionally limits diagnostic
+runs to 64 total tokens and 16 generated tokens. Its file I/O, heap allocation,
+polling and independent reference computation are not a production token path.
+Production admission, batched serving, cancellation and sustained performance
+qualification remain separate. BF16 weights with FP32 activations/KV are not
+numerically equivalent to a framework that rounds every activation to BF16.
+
+Acceptance requires full independent logits/token comparisons, exact canonical
+hardware replays, timing/reset/CDC checks of the standalone image, transport
+qualification, and actual physical generation. Host simulation alone cannot
+promote this capability to physical or production readiness.
+
+## ADR-0022 — RGB8 is the media adapter boundary
+
+**Status:** accepted
+
+Camera SDKs and encoded local image files produce the same immutable RGB8 type.
+Model-owned media preparation derives visual prompts, crop layout, normalized
+BF16 pixels and encoder input together. It has no file/network/device authority.
+The existing single-flight image runtime consumes those prepared inputs; no
+codec, resizing, filesystem access or content parsing enters token scheduling.
+
+PNG/JPEG decoding is a narrow, memory-only C boundary using pinned stb_image
+revision `9600522de53973336fa033a289858a4354cbb04c`. Keep that upstream header
+verbatim, including its license, rather than splitting the third-party source
+to satisfy first-party file budgets. The wrapper enables only PNG/JPEG and
+admits dimensions before decode; temporary C buffers are released in the same
+call. No Python, image subprocess or runtime dependency download is introduced.
+The tested RGB8 profile explicitly leaves EXIF/color metadata transforms and
+16-bit input outside its current contract. Raw camera frames bypass codecs.
+
+Local `inspect-media` and `run-media` compose these adapters with the selected
+full MiniCPM-V 4.7 model. HTTP media, camera SDK integration and actual device
+numerical/quality acceptance remain separate integration gates. Generated-C
+ASan checks the real MoonBit ABI; an independent byte-ABI ASan/UBSan probe also
+checks known images, truncated prefixes and balanced codec allocation counters.
+
+## ADR-0023 — Model-owned media admission over shared HTTP transport
+
+**Status:** accepted
+
+The single-flight HTTP exchange owns authentication, request credit, deadline/
+disconnect lifetime and canonical response rendering. `Service::with_handler`
+lets the model adapter scope its own admission; `Service::new` remains the text
+convenience path. Neither transport nor scheduler imports an image decoder or
+branches on MiniCPM model geometry.
+
+After canonical admission, the handler selects buffered or streaming delivery
+once through a narrow callback, before emitting events. The transport retains
+that selection per exchange and uses the existing JSON/SSE renderer and HTTP
+headers. Each awaited write borrows the current event/output view, providing
+bounded backpressure. A post-header failure closes the connection; no second
+HTTP error or fabricated terminal marker is appended. Streaming does not add
+model-aware transport parsing or change single-flight device scheduling.
+
+MiniCPM normalizes inline image parts into native placeholders plus typed RGB
+content. It preserves generation fields for the existing canonical parser and
+rejects duplicate keys before map-backed normalization. `begin_normalized`
+retains the original authenticated HTTP view through publication while reading
+the bounded replacement text JSON. Image preparation tokenizes once, before
+device execution. Text/image sessions share the existing output/stop/usage path.
+Pending vision must retire on cancellation before decoder state or features can
+be reused. This adds no generic media graph, global runtime context, URL fetch,
+filesystem authority, runtime compilation or actor dependency.
