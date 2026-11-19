@@ -1,10 +1,10 @@
 ///|
 fn has_kv_assembly_producers(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  heads : Int,
-  nope : Int,
-  rope : Int,
-  value : Int,
+  heads : Int32,
+  nope : Int32,
+  rope : Int32,
+  value : Int32,
 ) -> Bool {
   let mut packed = false
   let mut rotary = false
@@ -28,8 +28,8 @@ fn has_kv_assembly_producers(
 ///|
 pub fn lower_dsa_kv_attention_assembly_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

@@ -1,11 +1,11 @@
 ///|
-const RANK_GROUP_WIRE_MAX_WORLD_SIZE : Int = 16
+const RANK_GROUP_WIRE_MAX_WORLD_SIZE : Int32 = 16
 
 ///|
-const RANK_GROUP_WIRE_MAX_PAYLOAD_BYTES : Int = 67108220
+const RANK_GROUP_WIRE_MAX_PAYLOAD_BYTES : Int32 = 67108220
 
 ///|
-const RANK_GROUP_WIRE_HEADER_BYTES : Int = 644
+const RANK_GROUP_WIRE_HEADER_BYTES : Int32 = 644
 
 ///|
 pub(all) enum RankGroupWireDirection {
@@ -95,7 +95,7 @@ pub(all) suberror RankGroupWireError {
 
 ///|
 pub struct RankGroupWireLimits {
-  priv max_payload_bytes : Int
+  priv max_payload_bytes : Int32
 }
 
 ///|
@@ -103,8 +103,8 @@ pub struct RankGroupWireBinding {
   priv identity : @spec.ModelIdentity
   priv model_generation_value : UInt64
   priv group_generation_value : UInt64
-  priv rank : Int
-  priv world_size : Int
+  priv rank : Int32
+  priv world_size : Int32
   priv group_digest : String
   priv topology_digest : String
   priv worker_digest : String
@@ -120,7 +120,7 @@ pub struct RankGroupWireFrameBuffer {
   priv limits : RankGroupWireLimits
   priv storage : FixedArray[Byte]
   priv mut epoch : UInt64
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|
@@ -129,19 +129,61 @@ pub struct ValidatedRankGroupWireFrame(RankGroupWireFrameBuffer, UInt64)
 
 ///|
 pub struct RankGroupWireTranscript {
-  priv mut streaming_rank : Int
+  priv mut streaming_rank : Int32
   priv mut streaming_sequence : UInt64
   priv bindings : FixedArray[RankGroupWireBinding]
-  priv rank_states : FixedArray[Int]
+  priv rank_states : FixedArray[Int32]
   priv configured_ranks : FixedArray[Bool]
-  priv world_size : Int
+  priv world_size : Int32
   priv mut lifecycle : RankGroupWireLifecycle
   priv mut previous_sequence_value : UInt64
   priv mut active_sequence_value : UInt64
-  priv mut active_slot_code : Int
-  priv mut phase_count : Int
-  priv mut phase_target_count : Int
+  priv mut active_slot_code : Int32
+  priv mut phase_count : Int32
+  priv mut phase_target_count : Int32
   priv mut fault_rule : RankGroupWireRule
   priv mut plan_failure_value : RankGroupWirePlanFailure?
-  priv mut plan_failure_rank_value : Int
+  priv mut plan_failure_rank_value : Int32
 }
+
+///|
+pub extend RankGroupWireDirection with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWireDirection with Eq::{not_equal, equal}
+
+///|
+pub extend RankGroupWireSlot with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWireSlot with Eq::{not_equal, equal}
+
+///|
+pub extend RankGroupWirePlanFailure with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWirePlanFailure with Eq::{not_equal, equal}
+
+///|
+pub extend RankGroupWireKind with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWireKind with Eq::{not_equal, equal}
+
+///|
+pub extend RankGroupWireLifecycle with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWireLifecycle with Eq::{not_equal, equal}
+
+///|
+pub extend RankGroupWireRule with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWireRule with Eq::{not_equal, equal}
+
+///|
+pub extend RankGroupWireError with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWireError with Eq::{not_equal, equal}

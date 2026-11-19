@@ -2,7 +2,7 @@
 /// Opaque stored representation. Recognition grants no kernel authority.
 #valtype
 pub struct StorageDType {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -39,7 +39,7 @@ pub fn StorageDType::byte_width(self : StorageDType) -> Int64 {
 /// Canonical physical ordering for one stored tensor.
 #valtype
 pub struct StorageLayout {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -51,7 +51,7 @@ pub fn StorageLayout::dense_row_major_v1() -> StorageLayout {
 /// Storage encoding is separate from dtype and applies to one tensor only.
 #valtype
 pub struct StorageEncoding {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -84,7 +84,7 @@ pub fn StorageEncoding::codebook_v1() -> StorageEncoding {
 /// only when the operation has no value in that role.
 #valtype
 pub struct ComputeDType {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -117,7 +117,7 @@ pub fn ComputeDType::f32() -> ComputeDType {
 /// Weight scales remain tensor-local metadata in `TensorStorageContract`.
 #valtype
 pub struct ActivationScalePolicy {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -127,7 +127,7 @@ pub struct ActivationScalePolicy {
 /// kernel authority, or evidence that an implementation exists.
 #valtype
 pub struct ActivationScaleStage {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -187,7 +187,9 @@ pub fn ActivationScalePolicy::dynamic_per_row_block128_ue8m0_v1() -> ActivationS
 ///|
 /// Returns the exact number of ordered dynamic-scale stages owned by a known
 /// policy. Exact/no-scale policies return zero.
-pub fn ActivationScalePolicy::stage_count(self : ActivationScalePolicy) -> Int {
+pub fn ActivationScalePolicy::stage_count(
+  self : ActivationScalePolicy,
+) -> Int32 {
   match self.value {
     0 => 0
     1 | 4 => 1
@@ -200,7 +202,7 @@ pub fn ActivationScalePolicy::stage_count(self : ActivationScalePolicy) -> Int {
 /// Returns one typed stage in canonical order without allocating an array.
 pub fn ActivationScalePolicy::stage_at(
   self : ActivationScalePolicy,
-  index : Int,
+  index : Int32,
 ) -> ActivationScaleStage? {
   match (self.value, index) {
     (1 | 2 | 3 | 4, 0) =>
@@ -214,7 +216,7 @@ pub fn ActivationScalePolicy::stage_at(
 /// Accumulator representation for exactly one operation.
 #valtype
 pub struct AccumulatorDType {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -231,7 +233,7 @@ pub fn AccumulatorDType::i32() -> AccumulatorDType {
 /// Conversion rounding semantics.
 #valtype
 pub struct RoundingPolicy {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -248,7 +250,7 @@ pub fn RoundingPolicy::nearest_ties_to_even_v1() -> RoundingPolicy {
 /// Conversion saturation semantics.
 #valtype
 pub struct SaturationPolicy {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -265,7 +267,7 @@ pub fn SaturationPolicy::finite_storage_range_v1() -> SaturationPolicy {
 /// NaN and infinity handling before conversion or persistence.
 #valtype
 pub struct FiniteValuePolicy {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -277,7 +279,7 @@ pub fn FiniteValuePolicy::reject_non_finite_v1() -> FiniteValuePolicy {
 /// Floating-point operation-order authority for one operation.
 #valtype
 pub struct OperationOrderPolicy {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|

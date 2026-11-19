@@ -3,7 +3,7 @@
 /// pinned official configuration, safetensors index, and three file headers.
 /// This is host metadata authority only; it is not VAE execution authority.
 pub struct MiniMaxH3VideoVaeSchema {
-  priv version : Int
+  priv version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -12,7 +12,7 @@ pub fn MiniMaxH3VideoVaeSchema::official_v1() -> Self {
 }
 
 ///|
-pub fn MiniMaxH3VideoVaeSchema::version(self : Self) -> Int {
+pub fn MiniMaxH3VideoVaeSchema::version(self : Self) -> Int32 {
   self.version
 }
 
@@ -32,7 +32,7 @@ pub fn MiniMaxH3VideoVaeSchema::index_sha256(_self : Self) -> String {
 }
 
 ///|
-pub fn MiniMaxH3VideoVaeSchema::tensor_count(_self : Self) -> Int {
+pub fn MiniMaxH3VideoVaeSchema::tensor_count(_self : Self) -> Int32 {
   703
 }
 
@@ -42,14 +42,14 @@ pub fn MiniMaxH3VideoVaeSchema::tensor_bytes(_self : Self) -> Int64 {
 }
 
 ///|
-pub fn MiniMaxH3VideoVaeSchema::shard_count(_self : Self) -> Int {
+pub fn MiniMaxH3VideoVaeSchema::shard_count(_self : Self) -> Int32 {
   3
 }
 
 ///|
 pub fn MiniMaxH3VideoVaeSchema::shard_filename(
   _self : Self,
-  index : Int,
+  index : Int32,
 ) -> String? {
   match index {
     0 => Some("diffusion_pytorch_model-00001-of-00003.safetensors")
@@ -62,7 +62,7 @@ pub fn MiniMaxH3VideoVaeSchema::shard_filename(
 ///|
 pub fn MiniMaxH3VideoVaeSchema::shard_file_sha256(
   _self : Self,
-  index : Int,
+  index : Int32,
 ) -> String? {
   match index {
     0 =>
@@ -78,7 +78,7 @@ pub fn MiniMaxH3VideoVaeSchema::shard_file_sha256(
 ///|
 pub fn MiniMaxH3VideoVaeSchema::shard_file_bytes(
   _self : Self,
-  index : Int,
+  index : Int32,
 ) -> Int64? {
   match index {
     0 => Some(5061033024L)
@@ -91,7 +91,7 @@ pub fn MiniMaxH3VideoVaeSchema::shard_file_bytes(
 ///|
 pub fn MiniMaxH3VideoVaeSchema::shard_payload_bytes(
   _self : Self,
-  index : Int,
+  index : Int32,
 ) -> Int64? {
   match index {
     0 => Some(5060997120L)
@@ -104,8 +104,8 @@ pub fn MiniMaxH3VideoVaeSchema::shard_payload_bytes(
 ///|
 pub fn MiniMaxH3VideoVaeSchema::shard_tensor_count(
   _self : Self,
-  index : Int,
-) -> Int? {
+  index : Int32,
+) -> Int32? {
   match index {
     0 => Some(303)
     1 => Some(372)
@@ -117,7 +117,7 @@ pub fn MiniMaxH3VideoVaeSchema::shard_tensor_count(
 ///|
 pub fn MiniMaxH3VideoVaeSchema::tensor_name(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> String? {
   if index < 0 || index >= self.tensor_count() {
     return None
@@ -128,7 +128,7 @@ pub fn MiniMaxH3VideoVaeSchema::tensor_name(
 ///|
 pub fn MiniMaxH3VideoVaeSchema::tensor_shape(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> ReadOnlyArray[Int64]? {
   guard self.tensor_name(index) is Some(name) else { return None }
   match video_vae_shape(name) {
@@ -140,7 +140,7 @@ pub fn MiniMaxH3VideoVaeSchema::tensor_shape(
 ///|
 pub fn MiniMaxH3VideoVaeSchema::tensor_dtype(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> @safetensors.TensorDType? {
   if index < 0 || index >= self.tensor_count() {
     None

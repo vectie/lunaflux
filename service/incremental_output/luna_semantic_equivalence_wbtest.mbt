@@ -65,7 +65,7 @@ fn assert_equivalent_destination(
 ///|
 fn assert_semantic_setup_equivalent(
   strings : Array[Bytes],
-  tokens : Array[Int],
+  tokens : Array[Int32],
   special_policy : @tokenizer.DecodeSpecialPolicy,
   finish : Bool,
 ) -> Unit raise {

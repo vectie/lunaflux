@@ -1,7 +1,7 @@
 ///|
 priv struct ReleaseCampaignEncoder {
   bytes : Array[Byte]
-  maximum : Int
+  maximum : Int32
 }
 
 ///|
@@ -28,7 +28,7 @@ fn ReleaseCampaignEncoder::append_u64(
 ///|
 fn ReleaseCampaignEncoder::append_int(
   self : ReleaseCampaignEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit raise ReleaseEvidenceError {
   self.append_u64(Int64::from_int(value).reinterpret_as_uint64())
 }

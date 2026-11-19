@@ -2,8 +2,8 @@
 /// One bounded alternative for the same numeric/operand ABI. Selection is
 /// materialized into execution buckets at startup, never interpreted per token.
 pub struct ReusableFusedRuntimeRowVariant {
-  priv maximum_token_rows : Int
-  priv query_tile_rows : Int
+  priv maximum_token_rows : Int32
+  priv query_tile_rows : Int32
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
   priv module_bytes : Bytes
@@ -12,8 +12,8 @@ pub struct ReusableFusedRuntimeRowVariant {
 
 ///|
 pub fn ReusableFusedRuntimeRowVariant::new(
-  maximum_token_rows~ : Int,
-  query_tile_rows~ : Int,
+  maximum_token_rows~ : Int32,
+  query_tile_rows~ : Int32,
   function_symbol~ : String,
   launch~ : @launch_contract.AotLaunchDimensions,
   module_bytes~ : Bytes,
@@ -53,14 +53,14 @@ pub fn ReusableFusedRuntimeRowVariant::new(
 ///|
 pub fn ReusableFusedRuntimeRowVariant::maximum_token_rows(
   self : ReusableFusedRuntimeRowVariant,
-) -> Int {
+) -> Int32 {
   self.maximum_token_rows
 }
 
 ///|
 pub fn ReusableFusedRuntimeRowVariant::query_tile_rows(
   self : ReusableFusedRuntimeRowVariant,
-) -> Int {
+) -> Int32 {
   self.query_tile_rows
 }
 
@@ -97,7 +97,7 @@ fn reusable_runtime_validate_row_variant(
   abi : ReusableFusedRuntimeKernelAbi,
   symbol : String,
   launch : @launch_contract.AotLaunchDimensions,
-  heads_per_cta : Int,
+  heads_per_cta : Int32,
   variant : ReusableFusedRuntimeRowVariant?,
 ) -> Unit raise FusedArtifactAdmissionError {
   guard variant is Some(v) else { return }

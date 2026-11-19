@@ -4,9 +4,9 @@
 /// a model name. Both source production and startup binding consume this plan.
 pub fn blockwise_decode_split_launch_geometry(
   shape : @luna_attention_strategy.AttentionShape,
-  splits : Int,
-  candidate_id? : Int = 452,
-) -> (Int, Int, Int, Int64) raise PagedAttentionAotError {
+  splits : Int32,
+  candidate_id~ : Int32 = 452,
+) -> (Int32, Int32, Int32, Int64) raise PagedAttentionAotError {
   let (_, _, candidate) = blockwise_decode_split_candidate(
     shape, 1, splits, candidate_id,
   )
@@ -24,11 +24,11 @@ pub fn blockwise_decode_split_launch_geometry(
 /// enumerate or select compiler candidates and has no model-specific policy.
 pub fn blockwise_decode_execution_launch_geometry(
   shape : @luna_attention_strategy.AttentionShape,
-  splits : Int,
+  splits : Int32,
   compute : @luna_attention_strategy.AttentionTileCompute,
-  key_value_tile_rows : Int,
-  pipeline_stages : Int,
-) -> (Int, Int, Int, Int64) raise PagedAttentionAotError {
+  key_value_tile_rows : Int32,
+  pipeline_stages : Int32,
+) -> (Int32, Int32, Int32, Int64) raise PagedAttentionAotError {
   let (heads, kv, d, _) = shape.dimensions()
   guard splits > 1 &&
     splits <= 64 &&
@@ -82,9 +82,9 @@ pub fn blockwise_decode_execution_launch_geometry(
 /// not numeric IDs or a fixed KV32 launch copied into an exporter.
 fn blockwise_decode_split_candidate(
   shape : @luna_attention_strategy.AttentionShape,
-  context : Int,
-  splits : Int,
-  candidate_id : Int,
+  context : Int32,
+  splits : Int32,
+  candidate_id : Int32,
 ) -> (
   @luna_attention_strategy.AttentionCompileProblem,
   @luna_attention_strategy.AttentionCompilerCapabilities,
@@ -161,10 +161,10 @@ pub fn compile_blockwise_decode_split(
   target : @catalog.DeviceTarget,
   page_stride_bytes : Int64,
   physical_page_capacity : Int64,
-  maximum_context_tokens : Int,
-  splits : Int,
+  maximum_context_tokens : Int32,
+  splits : Int32,
   maximum_workspace_bytes : Int64,
-  candidate_id? : Int = 452,
+  candidate_id~ : Int32 = 452,
 ) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise PagedAttentionAotError {
   let (problem, capabilities, candidate) = blockwise_decode_split_candidate(
     shape, maximum_context_tokens, splits, candidate_id,

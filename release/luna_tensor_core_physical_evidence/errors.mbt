@@ -22,3 +22,15 @@ pub(all) suberror LunaTensorCorePhysicalEvidenceError {
   LunaTensorCorePhysicalEvidenceMismatch(LunaTensorCorePhysicalEvidenceRule)
   LunaTensorCorePhysicalEvidenceLimitExceeded
 } derive(Debug, Eq)
+
+///|
+pub extend LunaTensorCorePhysicalEvidenceRule with @debug.Debug::{to_repr}
+
+///|
+pub extend LunaTensorCorePhysicalEvidenceRule with Eq::{not_equal, equal}
+
+///|
+pub extend LunaTensorCorePhysicalEvidenceError with @debug.Debug::{to_repr}
+
+///|
+pub extend LunaTensorCorePhysicalEvidenceError with Eq::{not_equal, equal}

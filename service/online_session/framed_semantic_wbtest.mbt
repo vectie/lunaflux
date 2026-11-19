@@ -10,7 +10,7 @@ fn open_fixture_semantic_stream(
 ///|
 fn stage_fixture_semantic_credit(
   service : LunaOnlineFramedService,
-  kind : Int,
+  kind : Int32,
 ) -> Unit raise {
   if service.event_epoch == 0xffffffffffffffffUL {
     fail("fixture semantic event epoch exhausted")

@@ -5,7 +5,7 @@ fn tp_bootstrap_worker_limits() -> @worker_protocol.WorkerProtocolLimits {
 
 ///|
 fn tp_bootstrap_worker_limits_with_plan_tokens(
-  max_plan_tokens : Int,
+  max_plan_tokens : Int32,
 ) -> @worker_protocol.WorkerProtocolLimits {
   try! @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows=4,
@@ -42,8 +42,8 @@ fn tp_bootstrap_inference_limits() -> @inference.InferenceLimits {
 
 ///|
 fn tp_bootstrap_source(
-  maximum_collective_runtime_version_code? : Int = 21403,
-  kernel_label? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  maximum_collective_runtime_version_code~ : Int32 = 21403,
+  kernel_label~ : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 ) -> @worker_wire.EncodedBootstrapSource raise {
   let ordinary = @worker_wire.admit_bootstrap_source(
     @worker_wire.WorkerBootstrapRoots::new(
@@ -115,11 +115,11 @@ fn tp_bootstrap_source(
 ///|
 fn tp_bootstrap_startup(
   identity : @spec.ModelIdentity,
-  rank : Int,
-  source? : @worker_wire.EncodedBootstrapSource = try! tp_bootstrap_source(),
-  worker_limits? : @worker_protocol.WorkerProtocolLimits = tp_bootstrap_worker_limits(),
-  has_predecessor? : Bool = false,
-  predecessor_value? : UInt64 = 0UL,
+  rank : Int32,
+  source~ : @worker_wire.EncodedBootstrapSource = try! tp_bootstrap_source(),
+  worker_limits~ : @worker_protocol.WorkerProtocolLimits = tp_bootstrap_worker_limits(),
+  has_predecessor~ : Bool = false,
+  predecessor_value~ : UInt64 = 0UL,
 ) -> @worker_wire.WorkerStartupContract {
   try! @worker_wire.WorkerStartupContract::new(
     identity~,

@@ -30,7 +30,7 @@ test "element lookup rejects every scalar dimension boundary" {
     layout_geometry(2, 2, 4),
     layout_limits(4, 3, 3072L),
   )
-  let cases : Array[(Int, Int, Int, @device_layout.DeviceKvIndexKind)] = [
+  let cases : Array[(Int32, Int32, Int32, @device_layout.DeviceKvIndexKind)] = [
     (-1, 0, 0, Token),
     (4, 0, 0, Token),
     (0, -1, 0, KvHead),

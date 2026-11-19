@@ -1,6 +1,6 @@
 ///|
 fn paged_graph_inputs(
-  omit_operation? : Int = -1,
+  omit_operation~ : Int32 = -1,
 ) -> Array[@launch_contract.PagedKvAotLaunchContractInput] raise {
   let profile_id = @launch_contract.KernelProfileId::from_stable_int(1)
   let inputs : Array[@launch_contract.PagedKvAotLaunchContractInput] = []

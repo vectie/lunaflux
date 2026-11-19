@@ -22,7 +22,7 @@ fn admit_collective_attempt(
   inputs : TensorParallelGroupPlanningInputs,
 ) -> (
   @tensor_parallel_admission.TensorParallelRuntimeAdmission,
-  Int,
+  Int32,
   @device.TensorCollectiveGroupId,
 ) raise TensorParallelGroupTransportError {
   let runtime_policy = @tensor_parallel_worker_bootstrap.admit_runtime_policy(
@@ -51,7 +51,7 @@ fn admit_collective_attempt(
 fn validate_rank_capacity(
   inputs : TensorParallelGroupPlanningInputs,
   runtime : @tensor_parallel_admission.TensorParallelRuntimeAdmission,
-  rank : Int,
+  rank : Int32,
   device_plan : @tensor_parallel_device_plan.TensorParallelDevicePlan,
   execution_plan? : @tensor_parallel_execution_plan.TensorParallelExecutionPlan,
   kv_binding? : @tensor_parallel_kv_plan.TensorParallelKvRankBinding,
@@ -249,7 +249,7 @@ fn fresh_execution_inputs(
 fn compose_rank_startups(
   inputs : TensorParallelGroupPlanningInputs,
   generation : @rank_group_protocol.RankGroupGeneration,
-  collective_runtime_version_code : Int,
+  collective_runtime_version_code : Int32,
   rendezvous_id : @device.TensorCollectiveGroupId,
   startups : Array[@worker_wire.WorkerStartupContract],
   inspections : Array[@device_materialize.DeviceShardedWeightFileInspection],

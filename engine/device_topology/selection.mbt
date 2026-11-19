@@ -22,7 +22,7 @@ pub fn AdmittedRankOrderedLocalTopology::topology(
 
 ///|
 fn rank_ordered_topology_from_projection(
-  ordinals : ArrayView[Int],
+  ordinals : ArrayView[Int32],
   target : @catalog.DeviceTarget,
   projection : LocalTopologyProbeProjection,
 ) -> AdmittedRankOrderedLocalTopology raise LocalTopologyError {
@@ -95,7 +95,7 @@ fn rank_ordered_topology_from_projection(
 /// homogeneous target, and complete bidirectional peer mesh. This opens no
 /// device context and creates no collective resource.
 pub fn admit_rank_ordered_local_topology(
-  ordinals : ArrayView[Int],
+  ordinals : ArrayView[Int32],
   target : @catalog.DeviceTarget,
 ) -> AdmittedRankOrderedLocalTopology raise LocalTopologyError {
   rank_ordered_topology_from_projection(

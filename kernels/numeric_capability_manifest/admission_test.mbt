@@ -1,7 +1,7 @@
 ///|
 fn fp8_manifest_limits(
-  entries? : Int = 8,
-  canonical_bytes? : Int = 4096,
+  entries~ : Int32 = 8,
+  canonical_bytes~ : Int32 = 4096,
 ) -> @numeric_capability_manifest.Fp8KernelManifestLimits {
   try! @numeric_capability_manifest.Fp8KernelManifestLimits::new(
     max_entries=entries,

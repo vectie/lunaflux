@@ -1,10 +1,10 @@
 ///|
 fn dense_swiglu_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  hidden_size : Int,
-  intermediate_size : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  hidden_size : Int32,
+  intermediate_size : Int32,
+  maximum_tokens : Int32,
   source_digest : GlmHybridCudaSourceDigest,
 ) -> Bytes {
   @utf8.encode(
@@ -38,8 +38,8 @@ fn dense_swiglu_recipe(
 ///|
 pub fn lower_dense_swiglu_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

@@ -3,7 +3,7 @@ fn checked_nonnegative_add(
   left : Int64,
   right : Int64,
   area : TensorParallelAdmissionArea,
-  rank : Int,
+  rank : Int32,
 ) -> Int64 raise TensorParallelAdmissionError {
   if left < 0L || right < 0L {
     raise reject(area, InvalidMemory, rank)
@@ -20,7 +20,7 @@ fn reservation_total(
   activation_workspace : Int64,
   kv : Int64,
   collective : Int64,
-  rank : Int,
+  rank : Int32,
 ) -> Int64 raise TensorParallelAdmissionError {
   checked_nonnegative_add(
     checked_nonnegative_add(

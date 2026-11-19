@@ -30,9 +30,9 @@ fn hyper_connection_head_operand_text(
 ///|
 fn hyper_connection_head_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  stream_width : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  stream_width : Int32,
   control_epsilon : Double,
   normalization_epsilon : Double,
   target : @catalog.DeviceTarget,
@@ -114,8 +114,8 @@ fn hyper_connection_head_recipe(
 /// and remains non-bindable until separately compiled and qualified.
 pub fn lower_hyper_connection_head_reduce_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

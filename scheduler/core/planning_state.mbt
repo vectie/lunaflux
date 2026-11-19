@@ -19,7 +19,7 @@ fn Scheduler::rollback_tables(
 }
 
 ///|
-fn Scheduler::commit_plan_state(self : Scheduler, side : Int) -> Unit {
+fn Scheduler::commit_plan_state(self : Scheduler, side : Int32) -> Unit {
   let slots = if side == 0 { self.plan_a_slots } else { self.plan_b_slots }
   for row in 0..<self.prefill_count {
     let slot = self.prefill_slots[row]

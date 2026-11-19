@@ -229,7 +229,7 @@ fn parse_inference(
 ///|
 fn parse_ceilings(
   root : Map[String, Json],
-  graph_memory_required? : Bool = false,
+  graph_memory_required~ : Bool = false,
 ) -> RuntimeDescriptorCeilingClaims raise RuntimeDescriptorFileError {
   let object = require_object(root, "ceilings", Root, index=6)
   if graph_memory_required {

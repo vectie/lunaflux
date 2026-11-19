@@ -1,8 +1,8 @@
 ///|
 fn exact_kda_decay_control_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  head_count : Int,
-  head_dimension : Int,
+  head_count : Int32,
+  head_dimension : Int32,
   lower_bound : Double,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {

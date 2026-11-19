@@ -84,18 +84,18 @@ pub(all) enum Qwen35ConfigValueIssue {
 pub(all) suberror Qwen35ConfigError {
   InvalidByteLimit
   InvalidDepthLimit
-  ByteLimitExceeded(limit~ : Int)
-  NestingLimitExceeded(limit~ : Int)
+  ByteLimitExceeded(limit~ : Int32)
+  NestingLimitExceeded(limit~ : Int32)
   InvalidUtf8
   MalformedJson
   NonObjectRoot
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(area~ : Qwen35ConfigArea, index~ : Int)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(area~ : Qwen35ConfigArea, index~ : Int32)
   MissingField(area~ : Qwen35ConfigArea, field~ : Qwen35ConfigField)
   InvalidValue(
     area~ : Qwen35ConfigArea,
     field~ : Qwen35ConfigField,
     issue~ : Qwen35ConfigValueIssue,
-    index~ : Int
+    index~ : Int32
   )
 } derive(Debug, Eq)

@@ -21,25 +21,25 @@ pub(all) suberror JointDiffusionIoPlanError {
 /// not own a tokenizer or raw prompt text.
 pub struct ValidatedTextConditioning {
   priv content_digest : @spec.ContentDigest
-  priv token_count : Int
+  priv token_count : Int32
 } derive(Debug, Eq)
 
 ///|
 /// An image descriptor whose decoded pixels have already been validated.
 pub struct ValidatedImageInput {
   priv content_digest : @spec.ContentDigest
-  priv height : Int
-  priv width : Int
+  priv height : Int32
+  priv width : Int32
 } derive(Debug, Eq)
 
 ///|
 /// A video descriptor whose decoded frames have already been validated.
 pub struct ValidatedVideoInput {
   priv content_digest : @spec.ContentDigest
-  priv height : Int
-  priv width : Int
-  priv frame_count : Int
-  priv frames_per_second : Int
+  priv height : Int32
+  priv width : Int32
+  priv frame_count : Int32
+  priv frames_per_second : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -47,8 +47,8 @@ pub struct ValidatedVideoInput {
 pub struct ValidatedAudioInput {
   priv content_digest : @spec.ContentDigest
   priv sample_count : Int64
-  priv sample_rate : Int
-  priv channel_count : Int
+  priv sample_rate : Int32
+  priv channel_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -107,7 +107,7 @@ pub(all) enum JointDiffusionResultStatus {
 ///|
 /// Immutable request-to-execution boundary for joint audio/video diffusion.
 pub struct JointDiffusionIoPlan {
-  priv schema_version : Int
+  priv schema_version : Int32
   priv identity : @spec.ModelIdentity
   priv request_digest : @spec.PlanDigest
   priv workflow : @joint_diffusion_plan.JointDiffusionWorkflow
@@ -115,17 +115,17 @@ pub struct JointDiffusionIoPlan {
   priv keyframes : ReadOnlyArray[JointKeyframeConditioning]
   priv references : ReadOnlyArray[JointReferenceConditioning]
   priv shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv video_latent_channels : Int
-  priv video_patch_temporal : Int
-  priv video_patch_height : Int
-  priv video_patch_width : Int
-  priv audio_latent_channels : Int
-  priv audio_sample_rate : Int
-  priv audio_output_channels : Int
+  priv video_latent_channels : Int32
+  priv video_patch_temporal : Int32
+  priv video_patch_height : Int32
+  priv video_patch_width : Int32
+  priv audio_latent_channels : Int32
+  priv audio_sample_rate : Int32
+  priv audio_output_channels : Int32
   priv seed : Int64
   priv guidance : JointGuidancePolicy
   priv cancellation : JointCancellationPolicy
-  priv stage_count : Int
+  priv stage_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -135,8 +135,8 @@ pub struct JointDiffusionResultMetadata {
   priv identity : @spec.ModelIdentity
   priv request_digest : @spec.PlanDigest
   priv status : JointDiffusionResultStatus
-  priv completed_stage_count : Int
-  priv video_frame_count : Int?
+  priv completed_stage_count : Int32
+  priv video_frame_count : Int32?
   priv audio_sample_count : Int64?
 } derive(Debug, Eq)
 
@@ -145,10 +145,10 @@ pub struct JointPackedTimestepSelection {
   priv identity : @spec.ModelIdentity
   priv request_digest : @spec.PlanDigest
   priv digest : @spec.PlanDigest
-  priv evaluation_index : Int
-  priv packed_row_count : Int
-  priv distinct_timestep_count : Int
-  priv indices : ReadOnlyArray[Int]
+  priv evaluation_index : Int32
+  priv packed_row_count : Int32
+  priv distinct_timestep_count : Int32
+  priv indices : ReadOnlyArray[Int32]
 } derive(Debug, Eq)
 
 ///|
@@ -157,9 +157,9 @@ pub struct JointPackedModalitySelection {
   priv request_digest : @spec.PlanDigest
   priv packed_timestep_digest : @spec.PlanDigest
   priv digest : @spec.PlanDigest
-  priv packed_row_count : Int
-  priv video_indices : ReadOnlyArray[Int]
-  priv audio_indices : ReadOnlyArray[Int]
+  priv packed_row_count : Int32
+  priv video_indices : ReadOnlyArray[Int32]
+  priv audio_indices : ReadOnlyArray[Int32]
 } derive(Debug, Eq)
 
 ///|

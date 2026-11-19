@@ -58,8 +58,8 @@ fn Scheduler::preflight_admission_request(
 fn Scheduler::install_admission_request(
   self : Scheduler,
   request : TokenizedRequest,
-  retained_index : Int,
-) -> Int {
+  retained_index : Int32,
+) -> Int32 {
   let deadline = request.admission_deadline().at_millis()
   let generation = try! self.allocate_request_generation()
   let index = try! self.allocate_slot()
@@ -100,7 +100,7 @@ fn Scheduler::commit_admission_request(
 ///|
 fn[T] release_admission_stop_tokens(
   scheduler : Scheduler,
-  retained_index : Int,
+  retained_index : Int32,
   error : SchedulerError,
 ) -> T raise SchedulerError {
   try! scheduler.request_stop_tokens[retained_index].release()

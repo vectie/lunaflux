@@ -5,8 +5,8 @@
 /// caller's existing policy. This is an offline backend decision, not dispatch.
 pub fn CudaAttentionTileLowering::compiler_register_ceiling(
   self : CudaAttentionTileLowering,
-  existing_ceiling : Int,
-) -> Int {
+  existing_ceiling : Int32,
+) -> Int32 {
   if self.query_owned_fragments() ||
     (
       self.phase() == Decode &&

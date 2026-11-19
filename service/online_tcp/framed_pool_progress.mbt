@@ -113,7 +113,7 @@ fn LunaOnlineFramedConnectionPool::progress_service_once(
 ///|
 fn LunaOnlineFramedConnectionPool::progress_slot_local(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   match slot.phase {
@@ -190,7 +190,7 @@ async fn LunaOnlineFramedConnectionPool::progress_one_writer(
 ///|
 async fn LunaOnlineFramedConnectionPool::progress_one_input_io(
   self : LunaOnlineFramedConnectionPool,
-  poll_timeout_millis : Int,
+  poll_timeout_millis : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress? {
   for offset in 0..<self.slots.length() {
     let index = (self.io_cursor + offset) % self.slots.length()

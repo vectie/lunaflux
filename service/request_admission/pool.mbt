@@ -6,11 +6,11 @@ fn new_pool_with_clock(
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
   clock_read : () -> UInt64 raise RequestAdmissionError,
-  lane_count : Int,
+  lane_count : Int32,
   step_budget : LunaRequestPreparationStepBudget,
   work_limit : LunaRequestPreparationWorkLimit,
   storage_budget : LunaRequestPreparationStorageBudget,
-  input_special_policy? : @tokenizer.SpecialTokenPolicy = Reject,
+  input_special_policy~ : @tokenizer.SpecialTokenPolicy = Reject,
 ) -> LunaRequestPreparationPool raise RequestAdmissionError {
   if framed_limits.inference_limits() != inference {
     raise Invalid(RequestContract)
@@ -54,11 +54,11 @@ pub fn LunaRequestPreparationPool::new(
   inference~ : @inference.InferenceLimits,
   framed_limits~ : @framed_wire.FramedWireLimits,
   clock~ : @monotonic_clock.MonotonicClock,
-  lane_count~ : Int,
+  lane_count~ : Int32,
   step_budget~ : LunaRequestPreparationStepBudget,
   work_limit~ : LunaRequestPreparationWorkLimit,
   storage_budget~ : LunaRequestPreparationStorageBudget,
-  input_special_policy? : @tokenizer.SpecialTokenPolicy = Reject,
+  input_special_policy~ : @tokenizer.SpecialTokenPolicy = Reject,
 ) -> LunaRequestPreparationPool raise RequestAdmissionError {
   new_pool_with_clock(
     tokenizer,
@@ -92,7 +92,7 @@ pub fn LunaRequestPreparationPool::is_drained(
 ///|
 fn LunaRequestPreparationPool::pop_free_lane(
   self : LunaRequestPreparationPool,
-) -> Int {
+) -> Int32 {
   if self.free_count <= 0 {
     abort("Luna preparation free-ring invariant")
   }
@@ -105,7 +105,7 @@ fn LunaRequestPreparationPool::pop_free_lane(
 ///|
 fn LunaRequestPreparationPool::push_free_lane(
   self : LunaRequestPreparationPool,
-  lane : Int,
+  lane : Int32,
 ) -> Unit {
   if self.free_count >= self.lanes.length() {
     abort("Luna preparation free-ring overflow invariant")
@@ -118,7 +118,7 @@ fn LunaRequestPreparationPool::push_free_lane(
 ///|
 fn LunaRequestPreparationPool::enqueue_active(
   self : LunaRequestPreparationPool,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   if self.active_count >= self.active_ring.length() {
     abort("Luna preparation active-ring overflow invariant")
@@ -132,7 +132,7 @@ fn LunaRequestPreparationPool::enqueue_active(
 ///|
 fn LunaRequestPreparationPool::dequeue_active(
   self : LunaRequestPreparationPool,
-) -> Int {
+) -> Int32 {
   if self.active_count <= 0 {
     abort("Luna preparation active-ring invariant")
   }
@@ -161,7 +161,7 @@ fn validate_pool_time(
 ///|
 fn LunaRequestPreparationPool::reset_lane_to_idle(
   self : LunaRequestPreparationPool,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   let lane = self.lanes[lane_index]
   lane.phase = LUNA_PREPARATION_IDLE
@@ -221,7 +221,7 @@ fn LunaRequestPreparationPool::reset_lane_to_idle(
 ///|
 fn LunaRequestPreparationPool::release_lane(
   self : LunaRequestPreparationPool,
-  lane_index : Int,
+  lane_index : Int32,
   generation : UInt64,
 ) -> Unit raise RequestAdmissionError {
   if lane_index < 0 || lane_index >= self.lanes.length() {
@@ -237,7 +237,7 @@ fn LunaRequestPreparationPool::release_lane(
 ///|
 fn LunaRequestPreparationPool::start_lane(
   self : LunaRequestPreparationPool,
-  lane_index : Int,
+  lane_index : Int32,
   received : ReceivedRequest,
 ) -> Unit raise RequestAdmissionError {
   let lane = self.lanes[lane_index]
@@ -257,9 +257,9 @@ fn LunaRequestPreparationPool::start_lane(
   ) catch {
     _ => raise Invalid(Input)
   }
-  let input_capacity = Int::min(
+  let input_capacity = Int32::min(
     effective.context_ceiling() - effective.max_new_tokens(),
-    Int::min(
+    Int32::min(
       self.inference.max_input_tokens(),
       self.tokenizer.limits().max_output_tokens,
     ),
@@ -320,9 +320,9 @@ fn LunaRequestPreparationPool::start_lane(
 fn preparation_admission(
   pool : LunaRequestPreparationPool,
   kind : LunaRequestPreparationAdmissionKind,
-  lane : Int,
+  lane : Int32,
   generation : UInt64,
-  consumed : Int,
+  consumed : Int32,
 ) -> LunaRequestPreparationAdmission {
   {
     pool,

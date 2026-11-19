@@ -3,8 +3,8 @@
 /// owner as the original strided component fold, so retaining them removes
 /// scratch round trips without changing either reduction order or rounding.
 pub struct SplitPairRetention {
-  priv half : Int
-  priv owners : Int
+  priv half : Int32
+  priv owners : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -15,8 +15,8 @@ pub extend SplitPairRetention with @debug.Debug::{to_repr}
 
 ///|
 pub fn SplitPairRetention::new(
-  width~ : Int,
-  owners~ : Int,
+  width~ : Int32,
+  owners~ : Int32,
 ) -> SplitPairRetention? {
   guard width > 0 && width % 2 == 0 && owners > 0 && width / 2 % owners == 0 else {
     return None
@@ -28,16 +28,16 @@ pub fn SplitPairRetention::new(
 /// (split-half width, cooperative owners, retained pairs per owner).
 pub fn SplitPairRetention::geometry(
   self : SplitPairRetention,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.half, self.owners, self.half / self.owners)
 }
 
 ///|
 pub fn SplitPairRetention::components(
   self : SplitPairRetention,
-  owner : Int,
-  pair : Int,
-) -> (Int, Int)? {
+  owner : Int32,
+  pair : Int32,
+) -> (Int32, Int32)? {
   guard owner >= 0 &&
     owner < self.owners &&
     pair >= 0 &&

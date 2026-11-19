@@ -1,6 +1,6 @@
 ///|
 fn completed_event(
-  request_ordinal : Int,
+  request_ordinal : Int32,
   submitted_at_ns : Int64,
   admitted_at_ns : Int64,
   first_token_at_ns : Int64?,

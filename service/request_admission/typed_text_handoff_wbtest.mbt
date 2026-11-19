@@ -1,7 +1,7 @@
 ///|
 fn begin_typed_fixture(
   storage : @inference.LunaTextRequestHandoffStorage,
-  deadline_millis? : UInt64 = 100UL,
+  deadline_millis~ : UInt64 = 100UL,
 ) -> @inference.LunaTextRequestHandoffLease raise {
   let limits = fixture_inference()
   let write = storage.begin(
@@ -46,7 +46,7 @@ fn begin_typed_fixture(
 ///|
 fn typed_fixture(
   identity : @spec.ModelIdentity,
-  deadline_millis? : UInt64 = 100UL,
+  deadline_millis~ : UInt64 = 100UL,
 ) -> (
   @inference.LunaTextRequestHandoffStorage,
   @inference.LunaTextRequestHandoffLease,

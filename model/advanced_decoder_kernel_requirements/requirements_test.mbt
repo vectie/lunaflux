@@ -5,7 +5,7 @@ fn requirement_content(fill : Char) -> @spec.ContentDigest raise {
 
 ///|
 fn requirement_plan(
-  schema_version : Int,
+  schema_version : Int32,
   content : @spec.ContentDigest,
 ) -> @advanced_decoder_execution_plan.AdvancedDecoderExecutionPlan raise {
   let shape = @advanced_decoder_execution_plan.AdvancedDecoderShape::new(

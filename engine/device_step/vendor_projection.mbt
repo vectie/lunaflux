@@ -3,20 +3,20 @@
 /// Only the terminal device lowering chooses the vendor implementation.
 priv struct PagedVendorProjectionRule {
   operation : @plan.OperationId
-  function_index : Int
-  columns : Int
-  inner : Int
-  input : Int
-  weight : Int
-  output : Int
+  function_index : Int32
+  columns : Int32
+  inner : Int32
+  input : Int32
+  weight : Int32
+  output : Int32
 }
 
 ///|
 fn paged_vendor_projection_rules(
   blueprint : PagedKvExecutionBlueprint,
-  functions : FixedArray[Int],
-  companions : FixedArray[Int],
-  rows : Int,
+  functions : FixedArray[Int32],
+  companions : FixedArray[Int32],
+  rows : Int32,
 ) -> ReadOnlyArray[PagedVendorProjectionRule] raise DeviceStepError {
   if rows == 0 {
     return []
@@ -34,7 +34,7 @@ fn paged_vendor_projection_rules(
     }
     let mut input = -1
     let mut output = -1
-    let weights : Array[Int] = []
+    let weights : Array[Int32] = []
     for index, operand in step.operands() {
       if (down && operand.role() == Workspace) ||
         (!down && operand.role() is ActivationInput(_)) {
@@ -102,8 +102,8 @@ fn prepare_paged_vendor_projection_executor(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   launches : ArrayView[@device.OrderedKernelLaunch],
   resources : PagedGraphResources,
-  original : Int,
-  query_bound : Int,
+  original : Int32,
+  query_bound : Int32,
 ) -> Unit raise DeviceStepError {
   let rows = resources.vendor_projection_exact_rows
   if rows == 0 || query_bound != rows {
@@ -168,7 +168,7 @@ fn prepare_paged_vendor_projection_executor(
 }
 
 ///|
-fn vendor_projection_matches(rows : Int, summary : DeviceStepSummary) -> Bool {
+fn vendor_projection_matches(rows : Int32, summary : DeviceStepSummary) -> Bool {
   rows > 1 && summary.prefill_count > 0 && summary.token_count == rows
 }
 
@@ -177,9 +177,9 @@ fn vendor_projection_matches(rows : Int, summary : DeviceStepSummary) -> Bool {
 /// selection. Decode and partially filled buckets retain their AOT executor.
 fn select_paged_vendor_projection(
   resources : PagedGraphResources,
-  original : Int,
+  original : Int32,
   summary : DeviceStepSummary,
-) -> Int {
+) -> Int32 {
   let candidate = resources.ordered_executors[original].projection_owner_index
   if candidate >= 0 &&
     vendor_projection_matches(resources.vendor_projection_exact_rows, summary) {

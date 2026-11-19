@@ -22,8 +22,8 @@ priv struct RuntimeOpenAiServerPolicy {
   model_alias : FixedArray[Byte]
   response_id_prefix : FixedArray[Byte]
   cache_scope : @inference.CacheScope
-  max_new_tokens : Int
-  context_ceiling : Int
+  max_new_tokens : Int32
+  context_ceiling : Int32
   sampling : @inference.SamplingParameters
   sampling_seed : @inference.SamplingSeed
   deadline : @inference.DeadlineBudget
@@ -44,8 +44,8 @@ pub fn RuntimeOpenAiQualificationPolicy::new(
   model_alias : FixedArray[Byte],
   response_id_prefix : FixedArray[Byte],
   cache_scope : @inference.CacheScope,
-  max_new_tokens : Int,
-  context_ceiling : Int,
+  max_new_tokens : Int32,
+  context_ceiling : Int32,
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
@@ -86,8 +86,8 @@ fn new_openai_server_policy(
   model_alias : FixedArray[Byte],
   response_id_prefix : FixedArray[Byte],
   cache_scope : @inference.CacheScope,
-  max_new_tokens : Int,
-  context_ceiling : Int,
+  max_new_tokens : Int32,
+  context_ceiling : Int32,
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,

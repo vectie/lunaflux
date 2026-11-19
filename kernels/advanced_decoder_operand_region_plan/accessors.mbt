@@ -15,7 +15,7 @@ pub fn AdvancedDecoderOperandRegionPlan::regions(
 ///|
 pub fn AdvancedDecoderOperandRegionPlan::region(
   self : Self,
-  operand_ordinal : Int,
+  operand_ordinal : Int32,
 ) -> AdvancedDecoderOperandRegion? {
   self.regions.get(operand_ordinal)
 }
@@ -34,7 +34,7 @@ pub fn AdvancedDecoderOperandRegionPlanDigest::as_hex(self : Self) -> String {
 }
 
 ///|
-pub fn AdvancedDecoderOperandRegion::operand_ordinal(self : Self) -> Int {
+pub fn AdvancedDecoderOperandRegion::operand_ordinal(self : Self) -> Int32 {
   self.operand_ordinal
 }
 

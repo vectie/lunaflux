@@ -16,7 +16,7 @@ fn BootstrapDigestEncoder::append_u64(
 ///|
 fn BootstrapDigestEncoder::append_int(
   self : BootstrapDigestEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit {
   self.append_u64(value.to_int64().reinterpret_as_uint64())
 }
@@ -80,7 +80,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }

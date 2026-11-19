@@ -146,8 +146,8 @@ pub fn parse_projection_resource_budget(
 pub fn projection_resource_selection_scope(
   bytes : Bytes,
   scope~ : @resource_policy.Scope,
-  max_query_tokens? : Int = 1048576,
-  max_batch_rows? : Int = 1048576,
+  max_query_tokens~ : Int32 = 1048576,
+  max_batch_rows~ : Int32 = 1048576,
 ) -> @resource_policy.Scope raise ProjectionTuningError {
   guard bytes.length() <= 1048576 else { raise InvalidSnapshot }
   let text = @utf8.decode(bytes) catch { _ => raise InvalidSnapshot }

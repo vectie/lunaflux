@@ -27,7 +27,10 @@ fn fp8_cuda_prelude_v2() -> String {
 }
 
 ///|
-fn fp8_v2_serial_entry(maximum_tokens : Int, workspace_cells : Int) -> String {
+fn fp8_v2_serial_entry(
+  maximum_tokens : Int32,
+  workspace_cells : Int32,
+) -> String {
   "  const unsigned long long index = (unsigned long long)blockIdx.x * 256ULL + threadIdx.x;\n" +
   "  if (index != 0ULL) return;\n" +
   "  workspace[0] = lf_v2_failure();\n" +
@@ -46,7 +49,7 @@ fn fp8_v2_serial_entry(maximum_tokens : Int, workspace_cells : Int) -> String {
 fn fp8_dense_source_v2(
   symbol : String,
   parameters : Fp8ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> Bytes {
   let input_width = parameters.input_width.to_string()
   let output_width = parameters.output_width.to_string()
@@ -104,7 +107,7 @@ fn fp8_dense_source_v2(
 fn fp8_qkv_source_v2(
   symbol : String,
   parameters : Fp8ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> Bytes {
   let input_width = parameters.input_width.to_string()
   let output_width = parameters.output_width.to_string()
@@ -164,7 +167,7 @@ fn fp8_qkv_source_v2(
 fn fp8_gated_source_v2(
   symbol : String,
   parameters : Fp8ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> Bytes {
   let hidden = parameters.input_width.to_string()
   let intermediate = parameters.intermediate_width.to_string()
@@ -251,7 +254,7 @@ fn fp8_gated_source_v2(
 fn fp8_projection_source_v2(
   symbol : String,
   parameters : Fp8ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> Bytes {
   match parameters.family {
     QkvProjection => fp8_qkv_source_v2(symbol, parameters, maximum_tokens)

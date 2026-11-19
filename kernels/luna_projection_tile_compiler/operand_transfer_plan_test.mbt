@@ -5,7 +5,7 @@ test "operand transfer domains cover both strips without overlap or truncation" 
       for width in [8, 16, 64] {
         for vector in [1, 2, 4, 8] {
           for owners in [1, 32, 64, 256] {
-            let plan = ProjectionOperandTransferPlan::new(
+            let plan = @luna_projection_tile_compiler.ProjectionOperandTransferPlan::new(
               input_rows=rows,
               weight_rows=columns,
               row_width=width,
@@ -53,7 +53,7 @@ test "operand packing rejects invalid and overflowing storage domains" {
       (2147483647, 2147483647, 2147483647, 1, 32),
     ] {
     assert_eq(
-      ProjectionOperandTransferPlan::new(
+      @luna_projection_tile_compiler.ProjectionOperandTransferPlan::new(
         input_rows=rows,
         weight_rows=columns,
         row_width=width,
@@ -63,7 +63,7 @@ test "operand packing rejects invalid and overflowing storage domains" {
       None,
     )
   }
-  let boundary = ProjectionOperandTransferPlan::new(
+  let boundary = @luna_projection_tile_compiler.ProjectionOperandTransferPlan::new(
     input_rows=2147483646,
     weight_rows=1,
     row_width=1,

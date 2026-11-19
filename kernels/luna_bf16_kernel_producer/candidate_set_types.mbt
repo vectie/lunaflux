@@ -1,26 +1,26 @@
 ///|
-const CANDIDATE_SET_MAX_OPERATIONS : Int = 4096
+const CANDIDATE_SET_MAX_OPERATIONS : Int32 = 4096
 
 ///|
-const CANDIDATE_SET_MAX_FILE_BYTES : Int = 16777216
+const CANDIDATE_SET_MAX_FILE_BYTES : Int32 = 16777216
 
 ///|
-const CANDIDATE_SET_MAX_TOTAL_BYTES : Int = 1073741824
+const CANDIDATE_SET_MAX_TOTAL_BYTES : Int32 = 1073741824
 
 ///|
 pub struct LunaBf16CandidateSetLimits {
-  priv max_operations : Int
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
-  priv max_total_bytes : Int
+  priv max_operations : Int32
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
+  priv max_total_bytes : Int32
 }
 
 ///|
 pub fn LunaBf16CandidateSetLimits::new(
-  max_operations~ : Int,
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
-  max_total_bytes~ : Int,
+  max_operations~ : Int32,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
+  max_total_bytes~ : Int32,
 ) -> LunaBf16CandidateSetLimits raise LunaBf16KernelProducerError {
   if max_operations < 9 ||
     max_operations > CANDIDATE_SET_MAX_OPERATIONS ||
@@ -59,7 +59,7 @@ pub struct LunaBf16CandidateSet {
   priv declaration_sha256 : String
   priv inventory : Bytes
   priv inventory_sha256 : String
-  priv total_bytes : Int
+  priv total_bytes : Int32
 }
 
 ///|
@@ -100,14 +100,14 @@ pub fn LunaBf16CandidateSet::candidates(
 ///|
 pub fn LunaBf16CandidateSet::operation_count(
   self : LunaBf16CandidateSet,
-) -> Int {
+) -> Int32 {
   self.candidates.length()
 }
 
 ///|
 pub fn LunaBf16CandidateSet::candidate_key(
   self : LunaBf16CandidateSet,
-  index : Int,
+  index : Int32,
 ) -> String? {
   self.payloads.get(index).map(payload => payload.key)
 }
@@ -115,7 +115,7 @@ pub fn LunaBf16CandidateSet::candidate_key(
 ///|
 pub fn LunaBf16CandidateSet::candidate_source_bytes(
   self : LunaBf16CandidateSet,
-  index : Int,
+  index : Int32,
 ) -> Bytes? {
   self.payloads.get(index).map(payload => payload.source)
 }
@@ -123,7 +123,7 @@ pub fn LunaBf16CandidateSet::candidate_source_bytes(
 ///|
 pub fn LunaBf16CandidateSet::candidate_recipe_bytes(
   self : LunaBf16CandidateSet,
-  index : Int,
+  index : Int32,
 ) -> Bytes? {
   self.payloads.get(index).map(payload => payload.recipe)
 }
@@ -157,6 +157,6 @@ pub fn LunaBf16CandidateSet::inventory_sha256(
 }
 
 ///|
-pub fn LunaBf16CandidateSet::total_bytes(self : LunaBf16CandidateSet) -> Int {
+pub fn LunaBf16CandidateSet::total_bytes(self : LunaBf16CandidateSet) -> Int32 {
   self.total_bytes
 }

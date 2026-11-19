@@ -40,14 +40,14 @@ pub struct LunaEventOwner {
   priv payload : FixedArray[Byte]
   priv mut model_identity : @spec.ModelIdentity?
   priv mut effective_limits : @inference.EffectiveLimits?
-  priv mut token_id : Int
-  priv mut position : Int
-  priv mut input_tokens : Int
-  priv mut cached_input_tokens : Int
-  priv mut output_tokens : Int
+  priv mut token_id : Int32
+  priv mut position : Int32
+  priv mut input_tokens : Int32
+  priv mut cached_input_tokens : Int32
+  priv mut output_tokens : Int32
   priv mut finish_reason : @inference.FinishReason
   priv mut retryable : Bool
-  priv mut payload_length : Int
+  priv mut payload_length : Int32
   priv mut epoch : UInt64
   priv mut kind : LunaEventSlotKind
   priv mut busy : Bool

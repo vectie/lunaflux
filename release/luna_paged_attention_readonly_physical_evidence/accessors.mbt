@@ -36,28 +36,28 @@ pub fn AdmittedPagedAttentionReadOnlyPhysicalEvidence::input_activation(
 ///|
 pub fn AdmittedPagedAttentionReadOnlyPhysicalEvidence::input_row_width(
   self : AdmittedPagedAttentionReadOnlyPhysicalEvidence,
-) -> Int {
+) -> Int32 {
   self.input_row_width
 }
 
 ///|
 pub fn AdmittedPagedAttentionReadOnlyPhysicalEvidence::dispatch_canary_per_token(
   self : AdmittedPagedAttentionReadOnlyPhysicalEvidence,
-) -> Int {
+) -> Int32 {
   self.dispatch_canary_per_token
 }
 
 ///|
 pub fn AdmittedPagedAttentionReadOnlyPhysicalEvidence::dispatch_canary_cell_count(
   self : AdmittedPagedAttentionReadOnlyPhysicalEvidence,
-) -> Int {
+) -> Int32 {
   self.dispatch_canary_cell_count
 }
 
 ///|
 pub fn AdmittedPagedAttentionReadOnlyPhysicalEvidence::numeric_case_count(
   self : AdmittedPagedAttentionReadOnlyPhysicalEvidence,
-) -> Int {
+) -> Int32 {
   self.numeric_case_count
 }
 

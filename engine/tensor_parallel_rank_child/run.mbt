@@ -1,14 +1,14 @@
 ///|
-const RANK_CHILD_MAX_FRAME_BYTES : Int = 67108864
+const RANK_CHILD_MAX_FRAME_BYTES : Int32 = 67108864
 
 ///|
 // The parent owns the shorter operational deadlines and kill/reap authority.
 // The child admits only the process boundary's canonical maximum so it cannot
 // reject a valid parent policy because of a hidden, shorter local timeout.
-const RANK_CHILD_IO_TIMEOUT_MILLIS : Int = 600000
+const RANK_CHILD_IO_TIMEOUT_MILLIS : Int32 = 600000
 
 ///|
-const RANK_CHILD_ACTIVE_WAIT_MILLIS : Int = 1
+const RANK_CHILD_ACTIVE_WAIT_MILLIS : Int32 = 1
 
 ///|
 fn receive_rank_child_configure(
@@ -99,7 +99,7 @@ fn serve_rank_child_control(ready : TensorParallelRankChildReady) -> Bool {
 /// Every individual read, collective, execution, and write progress call is
 /// bounded. `false` is payload-free failure evidence for the executable's
 /// silent nonzero-exit boundary.
-pub fn run(parallel_policy? : @parallel_ir.Policy = Ordered) -> Bool {
+pub fn run(parallel_policy~ : @parallel_ir.Policy = Ordered) -> Bool {
   let wire_limits = @rank_group_wire.RankGroupWireLimits::new(
     max_payload_bytes=RANK_CHILD_MAX_FRAME_BYTES -
       @rank_group_wire.rank_group_wire_header_bytes(),

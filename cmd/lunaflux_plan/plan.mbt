@@ -2,13 +2,13 @@
 const PLAN_MAX_CONFIG_BYTES : Int64 = 1048576L
 
 ///|
-const PLAN_MAX_JSON_DEPTH : Int = 32
+const PLAN_MAX_JSON_DEPTH : Int32 = 32
 
 ///|
 const PLAN_MAX_KV_BUDGET_BYTES : Int64 = 1099511627776L
 
 ///|
-const PLAN_MAX_TOKENS_PER_PAGE : Int = 4096
+const PLAN_MAX_TOKENS_PER_PAGE : Int32 = 4096
 
 ///|
 const PLAN_MAX_PAGE_COUNT : Int64 = 2147483647L
@@ -41,8 +41,8 @@ fn parse_kv_budget(text : StringView) -> Int64 raise PlanError {
 }
 
 ///|
-fn parse_tokens_per_page(text : StringView) -> Int raise PlanError {
-  let value : Int = @string.parse_int(text) catch {
+fn parse_tokens_per_page(text : StringView) -> Int32 raise PlanError {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise InvalidTokensPerPage
   }
   if value <= 0 || value > PLAN_MAX_TOKENS_PER_PAGE {
@@ -63,7 +63,7 @@ fn plan_config_limits() -> @config_file.ModelConfigFileLimits raise {
 fn derive_kv_layout(
   plan : @plan.ModelPlan,
   kv_budget_bytes : Int64,
-  tokens_per_page : Int,
+  tokens_per_page : Int32,
 ) -> (@device_layout.DeviceKvLayout, Int64) raise {
   let one_page = @device_layout.plan(
     plan.identity(),
@@ -98,7 +98,7 @@ fn admit_plan_evidence(
   config_digest : @config_file.ModelConfigDigest,
   model_digest : @spec.ContentDigest,
   kv_budget_bytes : Int64,
-  tokens_per_page : Int,
+  tokens_per_page : Int32,
 ) -> AdmittedPlanEvidence raise {
   let metadata = @config_file.load(
     root,

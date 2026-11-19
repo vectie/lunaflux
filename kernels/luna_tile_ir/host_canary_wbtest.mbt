@@ -4,7 +4,7 @@ fn run_luna_tile_elementwise_canary(
   left : FixedArray[Double],
   right : FixedArray[Double],
   destination : FixedArray[Double],
-) -> Int raise LunaTileError {
+) -> Int32 raise LunaTileError {
   if left.length() != right.length() || left.length() != destination.length() {
     raise InvalidProgram(Elementwise)
   }

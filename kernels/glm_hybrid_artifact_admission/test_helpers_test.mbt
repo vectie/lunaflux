@@ -7,7 +7,7 @@ fn artifact_test_qualification() -> GlmHybridDeclaredQualificationDigest {
 
 ///|
 fn artifact_test_requirements(
-  fill? : Char = 'a',
+  fill~ : Char = 'a',
 ) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements {
   try! @glm_hybrid_kernel_requirements.derive_requirements(
     artifact_test_plan(fill~),
@@ -20,7 +20,7 @@ fn artifact_test_requirements(
 }
 
 ///|
-fn artifact_test_target(minor? : Int = 0) -> @catalog.DeviceTarget {
+fn artifact_test_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=minor,

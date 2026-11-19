@@ -56,19 +56,19 @@ pub(all) enum ModelConfigValueIssue {
 pub(all) suberror ModelConfigReaderError {
   InvalidByteLimit
   InvalidDepthLimit
-  ByteLimitExceeded(limit~ : Int)
+  ByteLimitExceeded(limit~ : Int32)
   InvalidUtf8
   MalformedJson
   NonObjectRoot
-  NestingLimitExceeded(limit~ : Int)
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(index~ : Int)
+  NestingLimitExceeded(limit~ : Int32)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(index~ : Int32)
   ExecutableMetadata(ExecutableField)
   MissingField(ModelConfigField)
   InvalidValue(
     field~ : ModelConfigField,
     issue~ : ModelConfigValueIssue,
-    index~ : Int
+    index~ : Int32
   )
   Validation(@spec.ModelSpecError)
   Qwen3Validation(@qwen3_spec.Qwen3ModelSpecError)

@@ -1,35 +1,35 @@
 ///|
-const LUNA_OPENAI_POOL_FREE : Int = 0
+const LUNA_OPENAI_POOL_FREE : Int32 = 0
 
 ///|
-const LUNA_OPENAI_POOL_HTTP_RECEIVE : Int = 1
+const LUNA_OPENAI_POOL_HTTP_RECEIVE : Int32 = 1
 
 ///|
-const LUNA_OPENAI_POOL_HTTP_PROGRESS : Int = 2
+const LUNA_OPENAI_POOL_HTTP_PROGRESS : Int32 = 2
 
 ///|
-const LUNA_OPENAI_POOL_INBOUND_PROGRESS : Int = 3
+const LUNA_OPENAI_POOL_INBOUND_PROGRESS : Int32 = 3
 
 ///|
-const LUNA_OPENAI_POOL_HANDOFF_FEED : Int = 4
+const LUNA_OPENAI_POOL_HANDOFF_FEED : Int32 = 4
 
 ///|
-const LUNA_OPENAI_POOL_REQUEST_ACTIVE : Int = 5
+const LUNA_OPENAI_POOL_REQUEST_ACTIVE : Int32 = 5
 
 ///|
-const LUNA_OPENAI_POOL_COMPAT_PROGRESS : Int = 6
+const LUNA_OPENAI_POOL_COMPAT_PROGRESS : Int32 = 6
 
 ///|
-const LUNA_OPENAI_POOL_RESPONSE_PROGRESS : Int = 7
+const LUNA_OPENAI_POOL_RESPONSE_PROGRESS : Int32 = 7
 
 ///|
-const LUNA_OPENAI_POOL_OUTPUT_WRITE : Int = 8
+const LUNA_OPENAI_POOL_OUTPUT_WRITE : Int32 = 8
 
 ///|
-const LUNA_OPENAI_POOL_RETIRING : Int = 9
+const LUNA_OPENAI_POOL_RETIRING : Int32 = 9
 
 ///|
-const LUNA_OPENAI_POOL_CONTROL_WRITE : Int = 10
+const LUNA_OPENAI_POOL_CONTROL_WRITE : Int32 = 10
 
 ///|
 #valtype
@@ -60,9 +60,9 @@ pub(all) enum LunaOnlineOpenAIConnectionPoolProgress {
 
 ///|
 pub struct LunaOnlineOpenAIConnectionPoolLimits {
-  priv connection_capacity : Int
-  priv output_buffer_bytes : Int
-  priv io_poll_timeout_millis : Int
+  priv connection_capacity : Int32
+  priv output_buffer_bytes : Int32
+  priv io_poll_timeout_millis : Int32
 }
 
 ///|
@@ -89,19 +89,19 @@ priv struct LunaOnlineOpenAIConnectionSlot {
   output : LunaOnlineTcpOutputScratch
   output_writes : Array[LunaOnlineTcpOutputWrite]
   flights : Array[LunaOnlineTcpOutputFlight]
-  outbound_copy_quanta : Int
-  mut phase : Int
+  outbound_copy_quanta : Int32
+  mut phase : Int32
   mut generation : UInt64
   mut request_sequence : UInt64
-  mut route_mode : Int
+  mut route_mode : Int32
   mut streaming_response : Bool
-  mut tail_start : Int
-  mut tail_length : Int
-  mut response_kind : Int
-  mut response_copy_cursor : Int
-  mut compat_copy_cursor : Int
-  mut output_length : Int
-  mut output_cursor : Int
+  mut tail_start : Int32
+  mut tail_length : Int32
+  mut response_kind : Int32
+  mut response_copy_cursor : Int32
+  mut compat_copy_cursor : Int32
+  mut output_length : Int32
+  mut output_cursor : Int32
   mut event_terminal : Bool
   mut terminal_observed : Bool
   mut sse_started : Bool
@@ -113,7 +113,7 @@ pub struct LunaOnlineOpenAIConnectionPoolPreparation {
   priv service : @online_session.LunaOnlineFramedServicePreparation
   priv slots : FixedArray[LunaOnlineOpenAIConnectionSlot]
   priv limits : LunaOnlineOpenAIConnectionPoolLimits
-  priv maximum_wait_millis : Int
+  priv maximum_wait_millis : Int32
   priv auth_policy : @api_auth.LunaApiAuthPolicy
   priv production_ready : Bool
   priv mut consumed : Bool
@@ -130,9 +130,9 @@ pub struct LunaOnlineOpenAIConnectionPool {
   priv slots : FixedArray[LunaOnlineOpenAIConnectionSlot]
   priv auth_policy : @api_auth.LunaApiAuthPolicy
   priv telemetry : LunaServerTelemetryBridge
-  priv mut active_connections : Int
-  priv mut ingress_slot : Int
-  priv mut io_cursor : Int
+  priv mut active_connections : Int32
+  priv mut ingress_slot : Int32
+  priv mut io_cursor : Int32
   priv mut accept_turn : Bool
   priv mut service_waiting : Bool
   priv mut next_request_sequence : UInt64
@@ -142,5 +142,5 @@ pub struct LunaOnlineOpenAIConnectionPool {
   priv mut service_drain_started : Bool
   priv mut closed : Bool
   priv production_ready : Bool
-  priv mut cold_start_latency_millis : Int
+  priv mut cold_start_latency_millis : Int32
 }

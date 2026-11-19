@@ -1,7 +1,7 @@
 ///|
 fn luna_http1_response_ready(
   work : LunaHttp1ResponseWork,
-  budget : Int,
+  budget : Int32,
 ) -> LunaHttp1ResponseView raise {
   let mut turns = 0
   while (try! work.state()) != LunaHttp1ResponseReady && turns < 1000 {
@@ -18,7 +18,7 @@ fn luna_http1_response_ready(
 ///|
 fn luna_http1_assert_response(
   view : LunaHttp1ResponseView,
-  status : Int,
+  status : Int32,
   expected : String,
 ) -> Unit raise {
   let encoded = @utf8.encode(expected)

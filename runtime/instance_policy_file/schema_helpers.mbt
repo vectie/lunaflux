@@ -2,7 +2,7 @@
 fn invalid_field(
   area : InstancePolicyArea,
   issue : InstancePolicyIssue,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> InstancePolicyFileError {
   InvalidField(area~, issue~, index~)
 }
@@ -32,7 +32,7 @@ fn require_object(
   object : Map[String, Json],
   name : String,
   area : InstancePolicyArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Map[String, Json] raise InstancePolicyFileError {
   match object.get(name) {
     Some(Object(value)) => value
@@ -46,7 +46,7 @@ fn require_string(
   object : Map[String, Json],
   name : String,
   area : InstancePolicyArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> String raise InstancePolicyFileError {
   match object.get(name) {
     Some(String(value)) => value
@@ -60,7 +60,7 @@ fn require_bool(
   object : Map[String, Json],
   name : String,
   area : InstancePolicyArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Bool raise InstancePolicyFileError {
   match object.get(name) {
     Some(True) => true
@@ -74,14 +74,14 @@ fn require_bool(
 fn parse_uint64_text(
   text : StringView,
   area : InstancePolicyArea,
-  index : Int,
+  index : Int32,
 ) -> UInt64 raise InstancePolicyFileError {
   if text.is_empty() {
     raise invalid_field(area, ExpectedInteger, index~)
   }
   let mut result = 0UL
   for unit in text {
-    if !(unit is ('0'..='9')) {
+    if !(unit is ('0'..<='9')) {
       raise invalid_field(area, ExpectedInteger, index~)
     }
     let digit = (unit.to_int() - '0'.to_int()).to_uint64()
@@ -98,7 +98,7 @@ fn require_uint64(
   object : Map[String, Json],
   name : String,
   area : InstancePolicyArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> UInt64 raise InstancePolicyFileError {
   guard object.get(name) is Some(Number(number, repr~)) else {
     if object.contains(name) {
@@ -126,8 +126,8 @@ fn require_int(
   object : Map[String, Json],
   name : String,
   area : InstancePolicyArea,
-  index? : Int = 0,
-) -> Int raise InstancePolicyFileError {
+  index~ : Int32 = 0,
+) -> Int32 raise InstancePolicyFileError {
   let value = require_uint64(object, name, area, index~)
   if value > 2147483647UL {
     raise invalid_field(area, UnsupportedValue, index~)
@@ -140,14 +140,14 @@ fn require_lower_sha256(
   object : Map[String, Json],
   name : String,
   area : InstancePolicyArea,
-  index : Int,
+  index : Int32,
 ) -> String raise InstancePolicyFileError {
   let value = require_string(object, name, area, index~)
   if value.length() != 64 {
     raise invalid_field(area, UnsupportedValue, index~)
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       raise invalid_field(area, UnsupportedValue, index~)
     }
   }
@@ -159,7 +159,7 @@ fn require_relative_locator(
   object : Map[String, Json],
   name : String,
   area : InstancePolicyArea,
-  index : Int,
+  index : Int32,
 ) -> String raise InstancePolicyFileError {
   let value = require_string(object, name, area, index~)
   ignore(

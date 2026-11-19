@@ -14,7 +14,7 @@ pub fn KernelFrame::new(
   context : @device.Context,
   stream : @device.Stream,
   launches : ArrayView[@device.OrderedKernelLaunch],
-  policy? : @device.OrderedKernelExecutionPolicy = OrderedKernelEagerOnly,
+  policy~ : @device.OrderedKernelExecutionPolicy = OrderedKernelEagerOnly,
 ) -> Self raise @device.DeviceError {
   { queue: context.create_ordered_kernel_executor(stream, launches, policy~), }
 }

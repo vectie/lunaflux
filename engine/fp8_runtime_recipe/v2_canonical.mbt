@@ -1,8 +1,8 @@
 ///|
 fn require_v2_capacity(
   output : Array[Byte],
-  additional : Int,
-  maximum : Int,
+  additional : Int32,
+  maximum : Int32,
 ) -> Unit raise Fp8RuntimeRecipeV2Error {
   if additional < 0 || output.length() > maximum - additional {
     raise InvalidFp8RuntimeRecipeV2(CanonicalBytes)
@@ -13,7 +13,7 @@ fn require_v2_capacity(
 fn append_v2_text(
   output : Array[Byte],
   value : String,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise Fp8RuntimeRecipeV2Error {
   let bytes = @utf8.encode(value)
   require_v2_capacity(output, 8, maximum)
@@ -30,7 +30,7 @@ fn append_v2_text(
 fn append_v2_region(
   output : Array[Byte],
   region : @fp8_launch_abi.Fp8LaunchStorageRegion,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise Fp8RuntimeRecipeV2Error {
   append_v2_text(output, region.storage().as_sha256(), maximum)
   append_v2_text(output, region.storage_bytes().to_string(), maximum)
@@ -43,7 +43,7 @@ fn append_v2_region(
 fn append_v2_stage(
   output : Array[Byte],
   stage : @fp8_launch_abi.Fp8ActivationScaleStageRegion,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise Fp8RuntimeRecipeV2Error {
   append_v2_text(output, stage.ordinal().to_string(), maximum)
   let tag = if stage.stage() ==
@@ -63,7 +63,7 @@ fn append_v2_stage(
 fn append_v2_raw_operand_role(
   output : Array[Byte],
   role : @launch_contract.AotOperandRole,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise Fp8RuntimeRecipeV2Error {
   match role {
     ExternalInput(TokenIds) =>
@@ -120,7 +120,7 @@ fn append_v2_raw_operand_role(
 fn append_v2_raw_launch_authority(
   output : Array[Byte],
   launch : @fp8_launch_abi.Fp8StagedDynamicLaunchAbi,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise Fp8RuntimeRecipeV2Error {
   append_v2_text(output, "paged-numeric-v4", maximum)
   let dimensions = launch.launch_dimensions()
@@ -151,7 +151,7 @@ fn encode_runtime_recipe_v2(
   weight_storage : @fp8_launch_abi.Fp8LaunchStorageIdentity,
   workspace_storage : @fp8_launch_abi.Fp8LaunchStorageIdentity,
   workspace_capacity_bytes : Int64,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise Fp8RuntimeRecipeV2Error {
   let output : Array[Byte] = []
   append_v2_text(output, "lunaflux.fp8-runtime-recipe.v2", maximum)

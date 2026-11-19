@@ -74,13 +74,13 @@ fn dtype_name(
 ///|
 fn fp8_numeric_file(
   plan : @plan.ModelPlan,
-  alias_name_ordinal? : Int = -1,
-  fp8_alias_ordinal? : Int = -1,
-  omit_ordinal? : Int = -1,
-  overlap_ordinal? : Int = -1,
-  wrong_shape_ordinal? : Int = -1,
-  extra? : Bool = false,
-  wrong_schema? : Bool = false,
+  alias_name_ordinal~ : Int32 = -1,
+  fp8_alias_ordinal~ : Int32 = -1,
+  omit_ordinal~ : Int32 = -1,
+  overlap_ordinal~ : Int32 = -1,
+  wrong_shape_ordinal~ : Int32 = -1,
+  extra~ : Bool = false,
+  wrong_schema~ : Bool = false,
 ) -> Bytes {
   let tensors = plan.numeric_binding().schema().tensors()
   let schema_digest = if wrong_schema {

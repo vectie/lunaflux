@@ -1,5 +1,5 @@
 ///|
-const TEST_HEADER_BYTES : Int = 16
+const TEST_HEADER_BYTES : Int32 = 16
 
 ///|
 fn test_model() -> @spec.LlamaModelMetadata raise {
@@ -114,7 +114,7 @@ fn test_bindings() -> @llama_weights.LlamaWeightBindings raise {
 }
 
 ///|
-fn test_file(payload_bytes : Int) -> Bytes {
+fn test_file(payload_bytes : Int32) -> Bytes {
   Bytes::makei(8 + TEST_HEADER_BYTES + payload_bytes, index => {
     if index == 0 {
       TEST_HEADER_BYTES.to_byte()
@@ -134,10 +134,10 @@ fn test_file(payload_bytes : Int) -> Bytes {
 
 ///|
 fn test_limits(
-  max_header_bytes? : Int = 1024,
-  max_tensor_count? : Int = 32,
-  max_payload_bytes? : Int64 = 4096L,
-  max_host_bytes? : Int64 = 4096L,
+  max_header_bytes~ : Int32 = 1024,
+  max_tensor_count~ : Int32 = 32,
+  max_payload_bytes~ : Int64 = 4096L,
+  max_host_bytes~ : Int64 = 4096L,
 ) -> @materialize.MaterializationLimits raise {
   @materialize.MaterializationLimits::new(
     max_header_bytes~,

@@ -1,15 +1,15 @@
 ///|
 fn broad_serving_malformed_metric_fixture(
-  admissions? : UInt64 = 4UL,
-  completions? : UInt64 = 3UL,
-  prompt_tokens? : UInt64 = 4UL,
-  generated_tokens? : UInt64 = 5UL,
-  accepts? : UInt64 = 4UL,
-  disconnects? : UInt64 = 4UL,
-  rejections? : UInt64 = 2UL,
-  queue_depth? : Int = 0,
-  kv_pages_free? : Int = 32,
-  backpressure? : UInt64 = 1UL,
+  admissions~ : UInt64 = 4UL,
+  completions~ : UInt64 = 3UL,
+  prompt_tokens~ : UInt64 = 4UL,
+  generated_tokens~ : UInt64 = 5UL,
+  accepts~ : UInt64 = 4UL,
+  disconnects~ : UInt64 = 4UL,
+  rejections~ : UInt64 = 2UL,
+  queue_depth~ : Int32 = 0,
+  kv_pages_free~ : Int32 = 32,
+  backpressure~ : UInt64 = 1UL,
 ) -> BroadServingMetricSample {
   {
     admissions,
@@ -33,16 +33,16 @@ fn broad_serving_malformed_metric_fixture(
 
 ///|
 fn broad_serving_final_metric_fixture(
-  admissions? : UInt64 = 5UL,
-  completions? : UInt64 = 4UL,
-  prompt_tokens? : UInt64 = 5UL,
-  generated_tokens? : UInt64 = 7UL,
-  accepts? : UInt64 = 5UL,
-  disconnects? : UInt64 = 5UL,
-  rejections? : UInt64 = 2UL,
-  queue_depth? : Int = 0,
-  kv_pages_free? : Int = 32,
-  backpressure? : UInt64 = 1UL,
+  admissions~ : UInt64 = 5UL,
+  completions~ : UInt64 = 4UL,
+  prompt_tokens~ : UInt64 = 5UL,
+  generated_tokens~ : UInt64 = 7UL,
+  accepts~ : UInt64 = 5UL,
+  disconnects~ : UInt64 = 5UL,
+  rejections~ : UInt64 = 2UL,
+  queue_depth~ : Int32 = 0,
+  kv_pages_free~ : Int32 = 32,
+  backpressure~ : UInt64 = 1UL,
 ) -> BroadServingMetricSample {
   broad_serving_malformed_metric_fixture(
     admissions~,

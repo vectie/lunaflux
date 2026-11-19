@@ -4,7 +4,7 @@ pub fn open_fixed() -> InheritedDrainHandle {
 }
 
 ///|
-pub fn open_status(handle : InheritedDrainHandle) -> Int {
+pub fn open_status(handle : InheritedDrainHandle) -> Int32 {
   raw_open_status(handle.native)
 }
 
@@ -12,14 +12,14 @@ pub fn open_status(handle : InheritedDrainHandle) -> Int {
 pub fn try_read(
   handle : InheritedDrainHandle,
   destination : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int {
+  offset : Int32,
+  length : Int32,
+) -> Int32 {
   raw_try_read(handle.native, destination, offset, length)
 }
 
 ///|
-pub fn peek(handle : InheritedDrainHandle) -> Int {
+pub fn peek(handle : InheritedDrainHandle) -> Int32 {
   raw_peek(handle.native)
 }
 
@@ -27,14 +27,14 @@ pub fn peek(handle : InheritedDrainHandle) -> Int {
 pub fn try_write(
   handle : InheritedDrainHandle,
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int {
+  offset : Int32,
+  length : Int32,
+) -> Int32 {
   raw_try_write(handle.native, source, offset, length)
 }
 
 ///|
-pub fn close(handle : InheritedDrainHandle) -> Int {
+pub fn close(handle : InheritedDrainHandle) -> Int32 {
   raw_close(handle.native)
 }
 

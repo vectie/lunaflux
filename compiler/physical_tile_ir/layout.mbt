@@ -3,11 +3,11 @@
 /// selecting them for bank geometry is a backend responsibility. A producer
 /// and consumer must bind the same value, not separate address formulas.
 pub struct OperandLayout {
-  priv columns : Int
-  priv vector : Int
-  priv rotations : Int
-  priv row_group : Int
-  priv row_stride : Int
+  priv columns : Int32
+  priv vector : Int32
+  priv rotations : Int32
+  priv row_group : Int32
+  priv row_stride : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -18,11 +18,11 @@ pub extend OperandLayout with @debug.Debug::{to_repr}
 
 ///|
 pub fn OperandLayout::new(
-  columns~ : Int,
-  vector~ : Int,
-  rotations~ : Int,
-  row_group~ : Int,
-  row_stride? : Int = columns,
+  columns~ : Int32,
+  vector~ : Int32,
+  rotations~ : Int32,
+  row_group~ : Int32,
+  row_stride~ : Int32 = columns,
 ) -> OperandLayout? {
   guard columns > 0 &&
     vector > 0 &&
@@ -42,21 +42,23 @@ pub fn OperandLayout::new(
 ///|
 /// Physical distance between rows. Padding has no logical ownership and is
 /// never included in copy coverage or numerical reductions.
-pub fn OperandLayout::row_stride(self : OperandLayout) -> Int {
+pub fn OperandLayout::row_stride(self : OperandLayout) -> Int32 {
   self.row_stride
 }
 
 ///|
-pub fn OperandLayout::geometry(self : OperandLayout) -> (Int, Int, Int, Int) {
+pub fn OperandLayout::geometry(
+  self : OperandLayout,
+) -> (Int32, Int32, Int32, Int32) {
   (self.columns, self.vector, self.rotations, self.row_group)
 }
 
 ///|
 pub fn OperandLayout::offset(
   self : OperandLayout,
-  row : Int,
-  column : Int,
-) -> Int? {
+  row : Int32,
+  column : Int32,
+) -> Int32? {
   guard row >= 0 && column >= 0 && column < self.columns else { return None }
   let mask = row / self.row_group % self.rotations * self.vector
   let offset = row.to_int64() * self.row_stride.to_int64() +

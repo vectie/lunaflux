@@ -60,7 +60,7 @@ async test "export selected sparse paired probe" {
         maximum_history=t,
         symbol="new_\{i}",
         published_slots?=if prefix {
-          Some(Int::min(w, t / 4 * 4 + 3))
+          Some(Int32::min(w, t / 4 * 4 + 3))
         } else {
           None
         },

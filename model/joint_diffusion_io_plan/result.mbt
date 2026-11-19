@@ -1,7 +1,7 @@
 ///|
 pub fn JointDiffusionResultMetadata::succeeded(
   request : JointDiffusionIoPlan,
-  video_frame_count~ : Int,
+  video_frame_count~ : Int32,
   audio_sample_count~ : Int64,
 ) -> JointDiffusionResultMetadata raise JointDiffusionIoPlanError {
   if video_frame_count != request.shape().frames() ||
@@ -22,7 +22,7 @@ pub fn JointDiffusionResultMetadata::succeeded(
 pub fn JointDiffusionResultMetadata::cancelled(
   request : JointDiffusionIoPlan,
   reason~ : JointCancellationReason,
-  completed_stage_count~ : Int,
+  completed_stage_count~ : Int32,
 ) -> JointDiffusionResultMetadata raise JointDiffusionIoPlanError {
   if completed_stage_count < 0 || completed_stage_count >= request.stage_count() {
     raise InvalidCancellationProgress
@@ -59,12 +59,14 @@ pub fn JointDiffusionResultMetadata::status(
 }
 
 ///|
-pub fn JointDiffusionResultMetadata::completed_stage_count(self : Self) -> Int {
+pub fn JointDiffusionResultMetadata::completed_stage_count(
+  self : Self,
+) -> Int32 {
   self.completed_stage_count
 }
 
 ///|
-pub fn JointDiffusionResultMetadata::video_frame_count(self : Self) -> Int? {
+pub fn JointDiffusionResultMetadata::video_frame_count(self : Self) -> Int32? {
   self.video_frame_count
 }
 

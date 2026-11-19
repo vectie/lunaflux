@@ -1,8 +1,8 @@
 ///|
 fn exact_kda_output_projection_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  input_width : Int,
-  output_width : Int,
+  input_width : Int32,
+  output_width : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if input_width != 8192 ||

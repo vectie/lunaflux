@@ -28,7 +28,7 @@ fn LunaFramedEventView::require_workspace(
 ///|
 pub fn LunaFramedEventView::length(
   self : LunaFramedEventView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().length
 }
 
@@ -38,10 +38,10 @@ pub fn LunaFramedEventView::length(
 pub fn LunaFramedEventView::copy_chunk_to(
   self : LunaFramedEventView,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise FramedWireError {
+  destination_offset~ : Int32,
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   if length <= 0 ||
     length > workspace.budget.work_units() ||

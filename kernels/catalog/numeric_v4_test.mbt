@@ -79,7 +79,7 @@ fn numeric_v4_constraints() -> @plan.ShapeConstraints {
 }
 
 ///|
-fn numeric_v4_plan(mode : Int) -> @plan.ModelPlan {
+fn numeric_v4_plan(mode : Int32) -> @plan.ModelPlan {
   let operations = numeric_v4_operations()
   let selected = [try! @plan.OperationId::new(1)]
   let numeric_schema = match mode {
@@ -108,7 +108,7 @@ fn numeric_v4_plan(mode : Int) -> @plan.ModelPlan {
 ///|
 fn numeric_v4_digest(
   plan : @plan.ModelPlan,
-  operation_index : Int,
+  operation_index : Int32,
 ) -> @numeric_contract.OperationExecutionDigest {
   let id = plan.operations()[operation_index].id()
   for binding in plan.numeric_binding().operations() {
@@ -120,7 +120,7 @@ fn numeric_v4_digest(
 }
 
 ///|
-fn numeric_v4_family(stable_id : Int) -> @catalog.AotKernelFamily {
+fn numeric_v4_family(stable_id : Int32) -> @catalog.AotKernelFamily {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "13579bdf02468ace13579bdf02468ace13579bdf02468ace13579bdf02468ace",
   )
@@ -130,10 +130,10 @@ fn numeric_v4_family(stable_id : Int) -> @catalog.AotKernelFamily {
 ///|
 fn numeric_v4_entry(
   plan : @plan.ModelPlan,
-  operation_index : Int,
-  family_id : Int,
-  compute_major? : Int = 8,
-  entry_point_id? : Int = family_id,
+  operation_index : Int32,
+  family_id : Int32,
+  compute_major~ : Int32 = 8,
+  entry_point_id~ : Int32 = family_id,
 ) -> @catalog.CatalogEntry {
   let operation = plan.operations()[operation_index]
   let family = numeric_v4_family(family_id)

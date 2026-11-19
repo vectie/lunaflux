@@ -40,7 +40,7 @@ async test "export deferred HC post pre alternatives" {
       }
       let buckets = [(1, 1)]
       if rows > 1 {
-        buckets.push((Int::min(rows, 32), 2))
+        buckets.push((Int32::min(rows, 32), 2))
       }
       if rows > 32 {
         buckets.push((rows, 4))

@@ -40,7 +40,7 @@ test "required query ownership excludes exchanged schedules across query buckets
     })
     assert_eq(reloads.length(), 18)
     assert_eq(candidates.length(), reloads.length() * 8)
-    let identities : Map[Int, Bool] = Map([])
+    let identities : Map[Int32, Bool] = Map([])
     let both_laws = generate_attention_tile_candidates(
       { ..bucket, allow_approximate_exponential: true, },
       capabilities,

@@ -30,7 +30,7 @@ pub(all) enum PrefixInvariantRule {
 pub(all) suberror PrefixIndexError {
   InvalidLimit(PrefixLimitRule)
   InvalidTokenCount
-  InvalidToken(Int)
+  InvalidToken(Int32)
   StaleKey
   CachePermissionDenied
   InvalidPageCount

@@ -22,7 +22,7 @@ pub fn JointDiffusionOutputProjectionCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionOutputProjectionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -64,14 +64,14 @@ pub fn JointDiffusionOutputProjectionCudaCandidate::row_count(
 ///|
 pub fn JointDiffusionOutputProjectionCudaCandidate::input_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_width
 }
 
 ///|
 pub fn JointDiffusionOutputProjectionCudaCandidate::output_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_width
 }
 

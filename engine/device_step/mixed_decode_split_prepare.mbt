@@ -8,18 +8,18 @@ fn prepare_measured_mixed_decode_split_owners(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   resources : PagedGraphResources,
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
-  candidates : ReadOnlyArray[Int]?,
-  baseline : FixedArray[Int],
-  fallback : Int,
-  phase? : PagedBucketLaunchPhase = BaselineLaunch,
-  capture_budget_reserved? : Bool = false,
-) -> FixedArray[Int] raise DeviceStepError {
+  candidates : ReadOnlyArray[Int32]?,
+  baseline : FixedArray[Int32],
+  fallback : Int32,
+  phase~ : PagedBucketLaunchPhase = BaselineLaunch,
+  capture_budget_reserved~ : Bool = false,
+) -> FixedArray[Int32] raise DeviceStepError {
   let slots = FixedArray::make(table.bucket_count(), -1)
   guard candidates is Some(ids) else { return slots }
   if ids.length() != slots.length() || baseline.length() != slots.length() {
     raise InvalidExecutor(GraphBucket)
   }
-  let prepared : Array[(Int, Int, Int, Int)] = []
+  let prepared : Array[(Int32, Int32, Int32, Int32)] = []
   for slot, candidate in ids {
     if candidate != 7 {
       continue
@@ -78,14 +78,14 @@ fn prepare_measured_mixed_decode_split_owners(
 fn reserve_measured_mixed_capture_budget(
   budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget,
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
-  candidates : ReadOnlyArray[Int]?,
-  nodes : Int,
+  candidates : ReadOnlyArray[Int32]?,
+  nodes : Int32,
 ) -> @luna_execution_graph_strategy.ExecutionGraphVariantBudget raise DeviceStepError {
   guard candidates is Some(ids) else { return budget }
   if ids.length() != table.bucket_count() {
     raise InvalidExecutor(GraphBucket)
   }
-  let domains : Array[(Int, Int)] = []
+  let domains : Array[(Int32, Int32)] = []
   let mut remaining = budget
   for slot, candidate in ids {
     if candidate != 7 {

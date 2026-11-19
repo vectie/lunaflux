@@ -15,7 +15,7 @@ pub fn admit_network_plan(
   execution_limits : @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits,
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
   expected_group_digest : @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrapDigest,
-  collective_runtime_version_code~ : Int,
+  collective_runtime_version_code~ : Int32,
 ) -> TensorParallelDeviceWorkerPlan raise TensorParallelDeviceWorkerError {
   let model_generation = @worker_protocol.ModelPlanGeneration::from_wire(
     remote.worker().model_generation_value(),

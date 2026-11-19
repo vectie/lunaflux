@@ -8,20 +8,20 @@ const TENSOR_CORE_F32_BYTES : Int64 = 65536L
 const TENSOR_CORE_ACCUMULATOR_BYTES : Int64 = 1024L
 
 ///|
-fn tensor_core_bf16_bits(value : Float) -> Int {
+fn tensor_core_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn tensor_core_bf16_float(bits : Int) -> Float {
+fn tensor_core_bf16_float(bits : Int32) -> Float {
   Float::reinterpret_from_uint(bits.reinterpret_as_uint() << 16)
 }
 
 ///|
 fn tensor_core_write_bf16(
   output : FixedArray[Byte],
-  index : Int,
+  index : Int32,
   value : Float,
 ) -> Unit {
   let bits = tensor_core_bf16_bits(value)
@@ -32,7 +32,7 @@ fn tensor_core_write_bf16(
 ///|
 fn tensor_core_write_f32(
   output : FixedArray[Byte],
-  index : Int,
+  index : Int32,
   value : Float,
 ) -> Unit {
   let bits = value.reinterpret_as_uint()
@@ -43,7 +43,7 @@ fn tensor_core_write_f32(
 }
 
 ///|
-fn tensor_core_read_f32(input : Bytes, index : Int) -> Float {
+fn tensor_core_read_f32(input : Bytes, index : Int32) -> Float {
   let offset = index * 4
   let bits = input[offset].to_uint() |
     (input[offset + 1].to_uint() << 8) |
@@ -53,7 +53,11 @@ fn tensor_core_read_f32(input : Bytes, index : Int) -> Float {
 }
 
 ///|
-fn tensor_core_hostile_value(index : Int, cycle : Int, right : Bool) -> Float {
+fn tensor_core_hostile_value(
+  index : Int32,
+  cycle : Int32,
+  right : Bool,
+) -> Float {
   let phase = if right { 19 } else { 7 }
   match (index + cycle * 13 + phase) % 17 {
     0 => 0.0F
@@ -71,7 +75,7 @@ fn tensor_core_hostile_value(index : Int, cycle : Int, right : Bool) -> Float {
 }
 
 ///|
-fn tensor_core_hostile_bf16(cycle : Int, right : Bool) -> FixedArray[Byte] {
+fn tensor_core_hostile_bf16(cycle : Int32, right : Bool) -> FixedArray[Byte] {
   let output = FixedArray::make(TENSOR_CORE_BF16_BYTES.to_int(), b'\x00')
   for index in 0..<16384 {
     tensor_core_write_bf16(
@@ -84,7 +88,7 @@ fn tensor_core_hostile_bf16(cycle : Int, right : Bool) -> FixedArray[Byte] {
 }
 
 ///|
-fn tensor_core_accumulator(cycle : Int) -> FixedArray[Byte] {
+fn tensor_core_accumulator(cycle : Int32) -> FixedArray[Byte] {
   let output = FixedArray::make(TENSOR_CORE_ACCUMULATOR_BYTES.to_int(), b'\x00')
   for index in 0..<256 {
     let value = Float::from_int((index * 3 + cycle * 5) % 19 - 9) * 0.03125F
@@ -94,7 +98,7 @@ fn tensor_core_accumulator(cycle : Int) -> FixedArray[Byte] {
 }
 
 ///|
-fn tensor_core_cpu_oracle(cycle : Int) -> FixedArray[Float] {
+fn tensor_core_cpu_oracle(cycle : Int32) -> FixedArray[Float] {
   let output = FixedArray::make(16384, 0.0F)
   for tile in 0..<64 {
     for row in 0..<16 {

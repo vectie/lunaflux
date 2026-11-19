@@ -59,7 +59,7 @@ fn assert_cooperative_outbound_golden(
     let actual = FixedArray::make(view.length(), b'\x00')
     let mut cursor = 0
     while cursor < actual.length() {
-      let amount = Int::min(budget_units, actual.length() - cursor)
+      let amount = Int32::min(budget_units, actual.length() - cursor)
       assert_eq(
         view.copy_chunk_to(
           actual,

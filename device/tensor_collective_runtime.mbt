@@ -1,5 +1,5 @@
 ///|
-const MINIMUM_NCCL_BF16_VERSION_CODE : Int = 21403
+const MINIMUM_NCCL_BF16_VERSION_CODE : Int32 = 21403
 
 ///|
 fn collective_availability_from_internal(
@@ -37,7 +37,7 @@ pub fn TensorCollectiveRuntimeInventory::availability(
 ///|
 pub fn TensorCollectiveRuntimeInventory::version_code(
   self : TensorCollectiveRuntimeInventory,
-) -> Int {
+) -> Int32 {
   self.version_code
 }
 
@@ -62,8 +62,8 @@ fn error_from_nccl_for(
 ///|
 /// Admits the immutable process-lifetime NCCL dispatch against explicit bounds.
 pub fn admit_tensor_collective_runtime(
-  minimum_version_code~ : Int,
-  maximum_version_code~ : Int,
+  minimum_version_code~ : Int32,
+  maximum_version_code~ : Int32,
 ) -> TensorCollectiveRuntime raise DeviceError {
   // NCCL 2.14.3 is the first admitted nonblocking communicator ABI.
   if minimum_version_code < MINIMUM_NCCL_BF16_VERSION_CODE {
@@ -78,7 +78,7 @@ pub fn admit_tensor_collective_runtime(
 ///|
 pub fn TensorCollectiveRuntime::collective_runtime_version_code(
   self : TensorCollectiveRuntime,
-) -> Int {
+) -> Int32 {
   self.raw.version_code()
 }
 

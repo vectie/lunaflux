@@ -74,7 +74,7 @@ pub fn StreamMeanCaptureFrame::prepare(
 pub fn StreamMeanCaptureFrame::capture(
   self : Self,
   input : @device.Allocation,
-  segment~ : Int,
+  segment~ : Int32,
 ) -> @device.OrderedKernelLaunch raise {
   let (_, _, _, segments) = self.plan().geometry()
   guard self.state is Prepared &&

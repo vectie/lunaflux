@@ -1,7 +1,7 @@
 ///|
 fn wb_service_stop_token_projection(
   limits : @inference.InferenceLimits,
-  token_ids? : ArrayView[Int] = [],
+  token_ids~ : ArrayView[Int32] = [],
 ) -> @inference.LunaRequestStopTokenView {
   wb_service_semantic_stop_authority(limits, token_ids).1
 }
@@ -9,7 +9,7 @@ fn wb_service_stop_token_projection(
 ///|
 fn wb_service_semantic_stop_authority(
   limits : @inference.InferenceLimits,
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
 ) -> (@inference.LunaRequestSemanticLease, @inference.LunaRequestStopTokenView) {
   let storage = try! @inference.LunaRequestSemanticStorage::new(
     limits,

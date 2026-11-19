@@ -1,7 +1,7 @@
 ///|
 fn matrix_plan(
-  heads : Int,
-  width : Int,
+  heads : Int32,
+  width : Int32,
   accumulation : @precision.AttentionAccumulationLaw,
 ) -> @precision.WindowSharedKvPrecision raise {
   @precision.WindowSharedKvPrecision::new(

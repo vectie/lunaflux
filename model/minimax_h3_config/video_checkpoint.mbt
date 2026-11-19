@@ -4,8 +4,8 @@
 pub fn parse_video_vae_checkpoint(
   wrapper : StringView,
   source_config : StringView,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> MiniMaxH3VideoVaeConfig raise MiniMaxH3ConfigError {
   let original = bounded_object(wrapper, max_bytes, max_depth)
   if string_field(original, "_class_name") != "MiniMaxH3VideoVAE" {

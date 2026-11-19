@@ -5,14 +5,14 @@
 pub struct BenchmarkTrial {
   priv engine : BenchmarkEngine
   priv profile : BenchmarkProfile
-  priv ordinal : Int
-  priv order_position : Int
-  priv submitted : Int
-  priv completed : Int
-  priv rejected : Int
-  priv timed_out : Int
-  priv cancelled : Int
-  priv failed : Int
+  priv ordinal : Int32
+  priv order_position : Int32
+  priv submitted : Int32
+  priv completed : Int32
+  priv rejected : Int32
+  priv timed_out : Int32
+  priv cancelled : Int32
+  priv failed : Int32
   priv correctness_passed : Bool
   priv raw_events : BenchmarkDigest
   priv correctness : BenchmarkDigest
@@ -23,14 +23,14 @@ pub struct BenchmarkTrial {
 pub fn BenchmarkTrial::new(
   engine~ : BenchmarkEngine,
   profile~ : BenchmarkProfile,
-  ordinal~ : Int,
-  order_position~ : Int,
-  submitted~ : Int,
-  completed~ : Int,
-  rejected~ : Int,
-  timed_out~ : Int,
-  cancelled~ : Int,
-  failed~ : Int,
+  ordinal~ : Int32,
+  order_position~ : Int32,
+  submitted~ : Int32,
+  completed~ : Int32,
+  rejected~ : Int32,
+  timed_out~ : Int32,
+  cancelled~ : Int32,
+  failed~ : Int32,
   correctness_passed~ : Bool,
   raw_events~ : BenchmarkDigest,
   correctness~ : BenchmarkDigest,
@@ -126,11 +126,11 @@ pub fn BenchmarkTrial::profile(self : BenchmarkTrial) -> BenchmarkProfile {
 }
 
 ///|
-pub fn BenchmarkTrial::ordinal(self : BenchmarkTrial) -> Int {
+pub fn BenchmarkTrial::ordinal(self : BenchmarkTrial) -> Int32 {
   self.ordinal
 }
 
 ///|
-pub fn BenchmarkTrial::order_position(self : BenchmarkTrial) -> Int {
+pub fn BenchmarkTrial::order_position(self : BenchmarkTrial) -> Int32 {
   self.order_position
 }

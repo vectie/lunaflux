@@ -1,5 +1,7 @@
 ///|
-fn completion_kind_to_wire(kind : @worker_protocol.CompletionEntryKind) -> UInt {
+fn completion_kind_to_wire(
+  kind : @worker_protocol.CompletionEntryKind,
+) -> UInt32 {
   match kind {
     PrefillCompletion => 0
     FinalPrefillCompletion => 1
@@ -10,7 +12,7 @@ fn completion_kind_to_wire(kind : @worker_protocol.CompletionEntryKind) -> UInt 
 
 ///|
 fn completion_kind_from_wire(
-  value : UInt,
+  value : UInt32,
 ) -> @worker_protocol.CompletionEntryKind raise WorkerWireError {
   match value {
     0 => PrefillCompletion
@@ -22,7 +24,7 @@ fn completion_kind_from_wire(
 }
 
 ///|
-fn worker_failure_to_wire(failure : @worker_protocol.WorkerFailure) -> UInt {
+fn worker_failure_to_wire(failure : @worker_protocol.WorkerFailure) -> UInt32 {
   match failure {
     ExecutionFailed => 0
     ResourceUnavailable => 1
@@ -32,7 +34,7 @@ fn worker_failure_to_wire(failure : @worker_protocol.WorkerFailure) -> UInt {
 
 ///|
 fn worker_failure_from_wire(
-  value : UInt,
+  value : UInt32,
 ) -> @worker_protocol.WorkerFailure raise WorkerWireError {
   match value {
     0 => ExecutionFailed

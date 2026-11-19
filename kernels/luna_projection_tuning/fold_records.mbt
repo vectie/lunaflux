@@ -5,7 +5,7 @@ pub struct ProjectionFoldRecord {
   priv baseline : String
   priv artifact : String
   priv nanoseconds : Int64
-  priv samples : Int
+  priv samples : Int32
   priv choices : ReadOnlyArray[@compiler.ProjectionFoldChoice]
   priv sibling_ownership : @compiler.ProjectionSiblingOwnership
   priv sibling_transport : @compiler.ProjectionSiblingTransport
@@ -34,7 +34,7 @@ pub fn ProjectionFoldRecord::median_latency_ns(
 }
 
 ///|
-pub fn ProjectionFoldRecord::sample_count(self : ProjectionFoldRecord) -> Int {
+pub fn ProjectionFoldRecord::sample_count(self : ProjectionFoldRecord) -> Int32 {
   self.samples
 }
 
@@ -76,7 +76,7 @@ pub fn ProjectionFoldRecord::sibling_transport(
 
 ///|
 fn fold_digest(value : StringView) -> Bool {
-  value.length() == 64 && value.iter().all(c => c is ('0'..='9' | 'a'..='f'))
+  value.length() == 64 && value.iter().all(c => c is ('0'..<='9' | 'a'..<='f'))
 }
 
 ///|
@@ -117,7 +117,7 @@ pub fn parse_projection_fold_records(
     let sample_count = integer(samples)
     guard nanoseconds > 0L && sample_count >= 3 else { raise InvalidSnapshot }
     let choices : Array[@compiler.ProjectionFoldChoice] = []
-    let roles : Array[(@compiler.ProjectionFoldRole, Int?)] = []
+    let roles : Array[(@compiler.ProjectionFoldRole, Int32?)] = []
     let mut sibling_ownership : @compiler.ProjectionSiblingOwnership = SplitSiblingPlanes
     let mut has_ownership = false
     let mut sibling_transport : @compiler.ProjectionSiblingTransport = BaselineSiblingTransport

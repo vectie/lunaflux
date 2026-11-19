@@ -80,7 +80,7 @@ pub fn RankGroupProcessSupervisor::begin_close(
 ///|
 fn RankGroupProcessSupervisor::child_closed(
   self : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
 ) -> Bool {
   match self.children[rank] {
     PreparedChild(prepared) => prepared.child_owner().is_closed()

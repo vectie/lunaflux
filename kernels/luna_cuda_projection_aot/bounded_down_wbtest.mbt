@@ -47,7 +47,7 @@ test "bounded down distribution changes neither producer nor unbounded program" 
       projection_row_variant_compilation(
         parameters,
         dispatch,
-        Int::min(32, bound),
+        Int32::min(32, bound),
         bound,
         fold_choices=inherited,
       ),
@@ -57,7 +57,7 @@ test "bounded down distribution changes neither producer nor unbounded program" 
       projection_row_variant_compilation(
         parameters,
         dispatch,
-        Int::min(32, bound),
+        Int32::min(32, bound),
         bound,
         fold_choices=choices,
       ),

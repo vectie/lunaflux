@@ -1,15 +1,19 @@
 ///|
 fn Scheduler::deadline_precedes(
   self : Scheduler,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Bool {
   self.deadlines[left] < self.deadlines[right] ||
   (self.deadlines[left] == self.deadlines[right] && left < right)
 }
 
 ///|
-fn Scheduler::deadline_swap(self : Scheduler, left : Int, right : Int) -> Unit {
+fn Scheduler::deadline_swap(
+  self : Scheduler,
+  left : Int32,
+  right : Int32,
+) -> Unit {
   if left == right {
     return
   }
@@ -20,7 +24,7 @@ fn Scheduler::deadline_swap(self : Scheduler, left : Int, right : Int) -> Unit {
 }
 
 ///|
-fn Scheduler::deadline_sift_up(self : Scheduler, start : Int) -> Unit {
+fn Scheduler::deadline_sift_up(self : Scheduler, start : Int32) -> Unit {
   let mut child = start
   while child > 0 {
     let parent = (child - 1) / 2
@@ -36,7 +40,7 @@ fn Scheduler::deadline_sift_up(self : Scheduler, start : Int) -> Unit {
 }
 
 ///|
-fn Scheduler::deadline_sift_down(self : Scheduler, start : Int) -> Unit {
+fn Scheduler::deadline_sift_down(self : Scheduler, start : Int32) -> Unit {
   let mut parent = start
   while parent < self.deadline_heap_count / 2 {
     let left = parent * 2 + 1
@@ -61,7 +65,7 @@ fn Scheduler::deadline_sift_down(self : Scheduler, start : Int) -> Unit {
 }
 
 ///|
-fn Scheduler::deadline_insert(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::deadline_insert(self : Scheduler, slot : Int32) -> Unit {
   if slot < 0 ||
     slot >= self.deadline_heap_positions.length() ||
     self.deadline_heap_positions[slot] != NO_INDEX ||
@@ -77,7 +81,7 @@ fn Scheduler::deadline_insert(self : Scheduler, slot : Int) -> Unit {
 }
 
 ///|
-fn Scheduler::deadline_remove(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::deadline_remove(self : Scheduler, slot : Int32) -> Unit {
   if slot < 0 || slot >= self.deadline_heap_positions.length() {
     abort("scheduler deadline remove range invariant")
   }
@@ -125,8 +129,8 @@ fn Scheduler::deadline_root_due(self : Scheduler, now_millis : UInt64) -> Bool {
 ///|
 fn Scheduler::deadline_due_sift_down(
   self : Scheduler,
-  start : Int,
-  count : Int,
+  start : Int32,
+  count : Int32,
 ) -> Unit {
   let mut parent = start
   while parent < count / 2 {
@@ -150,7 +154,7 @@ fn Scheduler::deadline_due_sift_down(
 fn Scheduler::prepare_deadline_due_heap(
   self : Scheduler,
   now_millis : UInt64,
-) -> Int {
+) -> Int32 {
   self.deadline_live_visits = 0
   self.deadline_due_pops = 0
   let mut due_count = 0
@@ -178,7 +182,7 @@ fn Scheduler::prepare_deadline_due_heap(
 }
 
 ///|
-fn Scheduler::pop_deadline_due(self : Scheduler, count : Int) -> Int {
+fn Scheduler::pop_deadline_due(self : Scheduler, count : Int32) -> Int32 {
   if count <= 0 {
     abort("scheduler deadline due pop invariant")
   }

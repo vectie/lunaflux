@@ -20,7 +20,7 @@ fn allocate_one(
   context : @device.Context,
   resources : PartialDeviceStepResources,
   stage : DeviceStepStage,
-  cells : Int,
+  cells : Int32,
 ) -> @device.Allocation raise DeviceStepError {
   let bytes = byte_capacity(cells)
   let allocation = context.allocate(bytes) catch {
@@ -98,7 +98,7 @@ fn validate_rank_local_plan_binding(
   model_plan : @plan.ModelPlan,
   model_generation : @worker_protocol.ModelPlanGeneration,
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
-  rank : Int,
+  rank : Int32,
   limits : DeviceStepLimits,
 ) -> (@device_layout.DeviceKvLayout, FixedArray[@plan.KernelCapabilityId]) raise DeviceStepError {
   if kv_plan.identity() != model_plan.identity() {
@@ -209,7 +209,7 @@ pub fn prepare_rank_local(
   model_plan : @plan.ModelPlan,
   model_generation : @worker_protocol.ModelPlanGeneration,
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
-  rank : Int,
+  rank : Int32,
   limits : DeviceStepLimits,
   has_accepted_predecessor~ : Bool,
   accepted_predecessor_value~ : UInt64,

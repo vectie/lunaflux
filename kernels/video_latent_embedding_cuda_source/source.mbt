@@ -17,13 +17,13 @@ pub struct EmbeddingSource {
 /// register rows and one zero class row. This device lowering is independent
 /// of model family. Reductions use ordered separately rounded F32 operations.
 pub fn render(
-  batch~ : Int,
-  positions~ : Int,
-  input_channels~ : Int,
-  hidden_channels~ : Int,
-  register_rows~ : Int,
+  batch~ : Int32,
+  positions~ : Int32,
+  input_channels~ : Int32,
+  hidden_channels~ : Int32,
+  register_rows~ : Int32,
   symbol~ : String,
-  output_rounding? : @precision.AutocastFloat? = None,
+  output_rounding~ : @precision.AutocastFloat? = None,
 ) -> EmbeddingSource raise EmbeddingError {
   guard batch > 0 &&
     positions > 0 &&
@@ -42,8 +42,8 @@ pub fn render(
   }
   guard !symbol.is_empty() &&
     symbol.length() <= 128 &&
-    symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise InvalidSymbol
   }
   let output_elements = batch.to_int64() *

@@ -24,10 +24,10 @@ pub(all) suberror CausalShortConvolutionCudaSourceError {
 pub struct CausalShortConvolutionCudaSource {
   priv operation : CausalShortConvolutionOperation
   priv numerical_contract : CausalShortConvolutionNumericalContract
-  priv channel_count : Int
-  priv kernel_size : Int
-  priv maximum_rows : Int
-  priv maximum_sequences : Int
+  priv channel_count : Int32
+  priv kernel_size : Int32
+  priv maximum_rows : Int32
+  priv maximum_sequences : Int32
   priv function_symbol : String
   priv source : Bytes
 }

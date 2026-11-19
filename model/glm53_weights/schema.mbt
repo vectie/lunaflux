@@ -19,7 +19,7 @@ pub fn flash_schema(
 }
 
 ///|
-fn Glm53WeightSchema::hidden_size(self : Self) -> Int {
+fn Glm53WeightSchema::hidden_size(self : Self) -> Int32 {
   match self.profile {
     FullText => @glm53_spec.Glm53FullSpec::official().hidden_size()
     FlashMultimodal => @glm53_spec.Glm53FlashSpec::official().hidden_size()
@@ -27,7 +27,7 @@ fn Glm53WeightSchema::hidden_size(self : Self) -> Int {
 }
 
 ///|
-fn Glm53WeightSchema::vocabulary_size(self : Self) -> Int {
+fn Glm53WeightSchema::vocabulary_size(self : Self) -> Int32 {
   match self.profile {
     FullText => @glm53_spec.Glm53FullSpec::official().vocabulary_size()
     FlashMultimodal => @glm53_spec.Glm53FlashSpec::official().vocabulary_size()
@@ -35,7 +35,7 @@ fn Glm53WeightSchema::vocabulary_size(self : Self) -> Int {
 }
 
 ///|
-fn Glm53WeightSchema::layer_count(self : Self) -> Int {
+fn Glm53WeightSchema::layer_count(self : Self) -> Int32 {
   match self.profile {
     FullText => @glm53_spec.Glm53FullSpec::official().layer_count()
     FlashMultimodal => @glm53_spec.Glm53FlashSpec::official().layer_count()
@@ -60,7 +60,7 @@ pub fn Glm53WeightSchema::global_shape(
 ///|
 fn Glm53WeightSchema::layer_semantics(
   self : Self,
-  layer : Int,
+  layer : Int32,
 ) -> (@glm53_spec.Glm53AttentionKind, @glm53_spec.Glm53FeedForwardKind) raise Glm53WeightsError {
   if layer < 0 || layer >= self.layer_count() {
     raise InvalidLayerIndex
@@ -145,7 +145,7 @@ fn is_hyper_role(role : Glm53TextTensorRole) -> Bool {
 ///|
 fn Glm53WeightSchema::validate_role(
   self : Self,
-  layer : Int,
+  layer : Int32,
   role : Glm53TextTensorRole,
 ) -> Unit raise Glm53WeightsError {
   let (attention, feed_forward) = self.layer_semantics(layer)
@@ -191,7 +191,7 @@ fn Glm53WeightSchema::validate_role(
 /// the encoding accessor fixes their 128x128 block policy.
 pub fn Glm53WeightSchema::text_layer_shape(
   self : Self,
-  layer : Int,
+  layer : Int32,
   role : Glm53TextTensorRole,
 ) -> ReadOnlyArray[Int64] raise Glm53WeightsError {
   self.validate_role(layer, role)

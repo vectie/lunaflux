@@ -31,7 +31,7 @@ pub fn LunaTextRequestHandoffWrite::push_prompt_byte(
 ///|
 pub fn LunaTextRequestHandoffWrite::push_stop_token(
   self : Self,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit raise InferenceContractError {
   self.require().semantic_writes[0].push_stop_token(token_id)
 }
@@ -39,7 +39,7 @@ pub fn LunaTextRequestHandoffWrite::push_stop_token(
 ///|
 pub fn LunaTextRequestHandoffWrite::push_stop_string_length(
   self : Self,
-  byte_length : Int,
+  byte_length : Int32,
 ) -> Unit raise InferenceContractError {
   self.require().semantic_writes[0].push_stop_string_length(byte_length)
 }

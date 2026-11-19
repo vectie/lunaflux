@@ -2,10 +2,10 @@
 struct FusedCampaignObservation {
   qkv_absolute_error_ppb : Int64
   qkv_relative_error_ppb : Int64
-  qkv_dispatch_canary : UInt
+  qkv_dispatch_canary : UInt32
   residual_absolute_error_ppb : Int64
   residual_relative_error_ppb : Int64
-  residual_dispatch_canary : UInt
+  residual_dispatch_canary : UInt32
 }
 
 ///|
@@ -19,7 +19,7 @@ fn campaign_field(token : StringView, key : String) -> String raise {
 }
 
 ///|
-fn campaign_int(token : StringView, key : String) -> Int raise {
+fn campaign_int(token : StringView, key : String) -> Int32 raise {
   let field = campaign_field(token, key)
   let value = @string.parse_int(field, base=10) catch {
     _ => raise FusedCudaProbeRejected("invalid physical integer: " + key)
@@ -45,7 +45,7 @@ fn campaign_int64(token : StringView, key : String) -> Int64 raise {
 }
 
 ///|
-fn campaign_uint(token : StringView, key : String) -> UInt raise {
+fn campaign_uint(token : StringView, key : String) -> UInt32 raise {
   let field = campaign_field(token, key)
   let value = @string.parse_uint(field, base=10) catch {
     _ => raise FusedCudaProbeRejected("invalid physical uint: " + key)

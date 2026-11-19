@@ -1,7 +1,7 @@
 ///|
 fn kda_short_convolution_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaShortConvolution(_, _) {
       return ordinal
@@ -12,7 +12,7 @@ fn kda_short_convolution_ordinal(
 
 ///|
 fn kda_short_convolution_requirements(
-  head_count? : Int = 64,
+  head_count~ : Int32 = 64,
 ) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements {
   glm_aot_requirements(
     pooled=true,

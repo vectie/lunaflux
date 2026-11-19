@@ -1,15 +1,15 @@
 ///|
 pub struct PagedAttentionReadOnlyCompiledLimits {
   priv maximum_module_bytes : Int64
-  priv maximum_receipt_bytes : Int
-  priv maximum_binding_bytes : Int
+  priv maximum_receipt_bytes : Int32
+  priv maximum_binding_bytes : Int32
 }
 
 ///|
 pub fn PagedAttentionReadOnlyCompiledLimits::new(
   maximum_module_bytes~ : Int64,
-  maximum_receipt_bytes~ : Int,
-  maximum_binding_bytes~ : Int,
+  maximum_receipt_bytes~ : Int32,
+  maximum_binding_bytes~ : Int32,
 ) -> PagedAttentionReadOnlyCompiledLimits raise PagedAttentionReadOnlyAotError {
   if maximum_module_bytes <= 0L ||
     maximum_module_bytes > 1073741824L ||
@@ -123,7 +123,7 @@ pub fn PagedAttentionReadOnlyCompiledBinding::promotion_authorized(
 ///|
 fn readonly_receipt_value(
   lines : ArrayView[String],
-  index : Int,
+  index : Int32,
   key : String,
 ) -> String raise PagedAttentionReadOnlyAotError {
   if index < 0 || index >= lines.length() {

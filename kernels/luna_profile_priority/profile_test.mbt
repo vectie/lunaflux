@@ -41,8 +41,8 @@ fn profile_test_target() -> @catalog.DeviceTarget raise {
 
 ///|
 fn profile_test_observation(
-  operation : Int,
-  tokens : Int,
+  operation : Int32,
+  tokens : Int32,
   self_time : Int64,
 ) -> @luna_profile_priority.LunaKernelProfileObservation raise {
   @luna_profile_priority.LunaKernelProfileObservation::new(

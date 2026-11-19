@@ -1,19 +1,19 @@
 ///|
 fn spawned_validation_token_matches(
-  observed_token : Int,
-  observed_position : Int,
-  expected_token : Int,
-  expected_position : Int,
+  observed_token : Int32,
+  observed_position : Int32,
+  expected_token : Int32,
+  expected_position : Int32,
 ) -> Bool {
   observed_token == expected_token && observed_position == expected_position
 }
 
 ///|
 fn spawned_validation_kv_state_valid(
-  active_requests : Int,
-  kv_pages_used : Int,
-  kv_pages_free : Int,
-  total_kv_pages : Int,
+  active_requests : Int32,
+  kv_pages_used : Int32,
+  kv_pages_free : Int32,
+  total_kv_pages : Int32,
 ) -> Bool {
   // Scheduler telemetry is sampled after the semantic event was prepared.
   // Depending on event-consumption timing, it exposes either the single live
@@ -58,11 +58,11 @@ fn require_spawned_accepted(
 fn require_spawned_token(
   service : @online_session.LunaOnlineFramedService,
   semantic : @online_session.LunaOnlineFramedSemanticEvent,
-  expected_token : Int,
-  expected_position : Int,
+  expected_token : Int32,
+  expected_position : Int32,
   previous_plan_sequence : UInt64,
-  total_kv_pages : Int,
-) -> (Int, UInt64) raise RuntimeSpawnedValidationError {
+  total_kv_pages : Int32,
+) -> (Int32, UInt64) raise RuntimeSpawnedValidationError {
   let view = deliver_spawned_validation_event(semantic)
   let observed = try {
     if view.kind() != LunaTokenEventKind {
@@ -121,7 +121,7 @@ fn require_spawned_token(
 ///|
 fn require_spawned_usage(
   semantic : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedValidationError {
   let view = deliver_spawned_validation_event(semantic)
   let valid = try {
@@ -146,7 +146,7 @@ fn require_spawned_usage(
 ///|
 fn require_spawned_completed(
   semantic : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedValidationError {
   let view = deliver_spawned_validation_event(semantic)
   let valid = try {

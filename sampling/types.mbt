@@ -15,18 +15,18 @@ pub(all) suberror SamplingError {
   EmptyInput
   InvalidShape
   LimitExceeded(LimitDimension)
-  ScratchTooSmall(required~ : Int, capacity~ : Int)
+  ScratchTooSmall(required~ : Int32, capacity~ : Int32)
   InvalidSamplingMode
-  CandidateIndexOutOfRange(index~ : Int, count~ : Int)
+  CandidateIndexOutOfRange(index~ : Int32, count~ : Int32)
   InvalidDistribution
-  NonFiniteLogit(row~ : Int, token_id~ : Int)
+  NonFiniteLogit(row~ : Int32, token_id~ : Int32)
 } derive(Debug, Eq)
 
 ///|
 /// Validated limits for one sampling invocation.
 pub struct SamplingLimits {
-  max_rows : Int
-  max_tokens_per_row : Int
+  max_rows : Int32
+  max_tokens_per_row : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -35,8 +35,8 @@ pub struct SamplingLimits {
 /// The reference executor accepts at most 4,096 rows and 1,048,576 tokens per
 /// row. Smaller caller limits are encouraged and enforced by every selector.
 pub fn SamplingLimits::new(
-  max_rows : Int,
-  max_tokens_per_row : Int,
+  max_rows : Int32,
+  max_tokens_per_row : Int32,
 ) -> SamplingLimits raise SamplingError {
   if max_rows <= 0 || max_rows > 4096 {
     raise InvalidLimit(Rows)
@@ -48,12 +48,12 @@ pub fn SamplingLimits::new(
 }
 
 ///|
-pub fn SamplingLimits::max_rows(self : SamplingLimits) -> Int {
+pub fn SamplingLimits::max_rows(self : SamplingLimits) -> Int32 {
   self.max_rows
 }
 
 ///|
-pub fn SamplingLimits::max_tokens_per_row(self : SamplingLimits) -> Int {
+pub fn SamplingLimits::max_tokens_per_row(self : SamplingLimits) -> Int32 {
   self.max_tokens_per_row
 }
 
@@ -61,12 +61,12 @@ pub fn SamplingLimits::max_tokens_per_row(self : SamplingLimits) -> Int {
 /// Deterministic selected token and its finite source logit.
 #valtype
 pub struct Selection {
-  token_id : Int
+  token_id : Int32
   logit : Double
 } derive(Debug, Eq)
 
 ///|
-pub fn Selection::token_id(self : Selection) -> Int {
+pub fn Selection::token_id(self : Selection) -> Int32 {
   self.token_id
 }
 

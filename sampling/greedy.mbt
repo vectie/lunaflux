@@ -1,9 +1,9 @@
 ///|
 fn select_row(
   logits : ArrayView[Double],
-  offset : Int,
-  token_count : Int,
-  row : Int,
+  offset : Int32,
+  token_count : Int32,
+  row : Int32,
 ) -> Selection raise SamplingError {
   let first = logits[offset]
   if first.is_nan() || first.is_inf() {
@@ -81,8 +81,8 @@ pub fn greedy_float(
 /// neither copied nor retained.
 pub fn greedy_rows(
   logits : ArrayView[Double],
-  row_count : Int,
-  tokens_per_row : Int,
+  row_count : Int32,
+  tokens_per_row : Int32,
   limits : SamplingLimits,
 ) -> ReadOnlyArray[Selection] raise SamplingError {
   if logits.is_empty() {

@@ -1,9 +1,9 @@
 ///|
 fn selected_extent(
-  start : Int,
-  count : Int,
-  rows : Int,
-  width : Int,
+  start : Int32,
+  count : Int32,
+  rows : Int32,
+  width : Int32,
 ) -> Int64 raise @device.DeviceError {
   guard start >= 0 &&
     count > 0 &&
@@ -23,8 +23,8 @@ fn selected_extent(
 pub fn ModulationBindings::selected_output_launch(
   self : Self,
   function : @device.Function,
-  start_row~ : Int,
-  selected_rows~ : Int,
+  start_row~ : Int32,
+  selected_rows~ : Int32,
   normalized~ : @device.Allocation,
   normalized_offset~ : Int64,
   parameters~ : @device.Allocation,

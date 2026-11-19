@@ -3,8 +3,8 @@
 pub fn LatentStorage::validate_prediction_rows(
   self : Self,
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  video_rows~ : Int,
-  audio_rows~ : Int,
+  video_rows~ : Int32,
+  audio_rows~ : Int32,
 ) -> Unit raise {
   let plan = self.plan.projections(model, max_bytes=9223372036854775807L)
   guard plan.shape(VideoLatent).rows == video_rows.to_int64() &&
@@ -78,8 +78,8 @@ pub fn LatentStorage::output_projection_launch(
 ///|
 fn output_projection_bytes(
   rows : Int64,
-  hidden : Int,
-  latent : Int,
+  hidden : Int32,
+  latent : Int32,
 ) -> (Int64, Int64, Int64) raise @device.DeviceError {
   guard rows > 0L &&
     hidden > 0 &&

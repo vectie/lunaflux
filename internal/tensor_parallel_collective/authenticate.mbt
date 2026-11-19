@@ -11,7 +11,7 @@ fn ContractEncoder::append_u64(self : ContractEncoder, value : UInt64) -> Unit {
 }
 
 ///|
-fn ContractEncoder::append_int(self : ContractEncoder, value : Int) -> Unit {
+fn ContractEncoder::append_int(self : ContractEncoder, value : Int32) -> Unit {
   self.append_u64(value.to_int64().reinterpret_as_uint64())
 }
 
@@ -43,7 +43,7 @@ fn map_kind(
 pub fn authenticate_rank_plan(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
   expected_identity~ : @spec.ModelIdentity,
-  max_query_tokens~ : Int,
+  max_query_tokens~ : Int32,
 ) -> @device.TensorCollectiveContract raise TensorParallelCollectiveError {
   if rank_plan.identity() != expected_identity {
     raise InvalidRankPlan(RankPlanIdentity)

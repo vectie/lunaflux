@@ -6,9 +6,9 @@ pub fn kda_causal_short_convolution(
   input : ArrayView[Double],
   weights : ArrayView[Double],
   initial_state : ArrayView[Double],
-  sequence_length~ : Int,
-  channel_count~ : Int,
-  kernel_size~ : Int,
+  sequence_length~ : Int32,
+  channel_count~ : Int32,
+  kernel_size~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmKdaConvolutionResult raise GlmHybridReferenceError {
   limits.check_sequence(sequence_length)

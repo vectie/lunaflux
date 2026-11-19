@@ -56,7 +56,7 @@ pub fn RowCapabilityRecipe::model_plan_generation(
 
 ///|
 /// Returns the exact number of capability cells copied for each application.
-pub fn RowCapabilityRecipe::length(self : RowCapabilityRecipe) -> Int {
+pub fn RowCapabilityRecipe::length(self : RowCapabilityRecipe) -> Int32 {
   self.capabilities.length()
 }
 
@@ -65,9 +65,9 @@ pub fn RowCapabilityRecipe::length(self : RowCapabilityRecipe) -> Int {
 /// applications. It performs checked bounded arithmetic without allocating.
 pub fn RowCapabilityRecipe::required_cells(
   self : RowCapabilityRecipe,
-  rows : Int,
+  rows : Int32,
   limits : WorkerProtocolLimits,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   if rows < 0 || rows > limits.max_plan_rows() {
     raise InvalidLimit(PlanRows)
   }

@@ -1,6 +1,6 @@
 ///|
 fn luna_online_control_health_available(
-  failure_rule : Int,
+  failure_rule : Int32,
   closed : Bool,
 ) -> Bool {
   failure_rule == 0 && !closed
@@ -8,10 +8,10 @@ fn luna_online_control_health_available(
 
 ///|
 fn luna_online_control_readiness_available(
-  failure_rule : Int,
+  failure_rule : Int32,
   closed : Bool,
   drain_requested : Bool,
-  listener_count : Int,
+  listener_count : Int32,
   draining : Bool,
   service_ready : Bool,
 ) -> Bool {

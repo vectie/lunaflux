@@ -29,7 +29,7 @@ pub fn AdvancedDecoderCompressedIndexCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderCompressedIndexCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,28 +57,28 @@ pub fn AdvancedDecoderCompressedIndexCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderCompressedIndexCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderCompressedIndexCudaCandidate::compression_ratio(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.compression_ratio
 }
 
 ///|
 pub fn AdvancedDecoderCompressedIndexCudaCandidate::maximum_position_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_position_count
 }
 
 ///|
 pub fn AdvancedDecoderCompressedIndexCudaCandidate::maximum_slots_per_row(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_slots_per_row
 }
 

@@ -1,5 +1,5 @@
 ///|
-fn request_reader_fixture() -> (FixedArray[Byte], Int) raise {
+fn request_reader_fixture() -> (FixedArray[Byte], Int32) raise {
   let frame = RequestFrameBuffer::new(fixture_limits()).encode(
     fixture_request(),
   )
@@ -12,8 +12,8 @@ fn request_reader_fixture() -> (FixedArray[Byte], Int) raise {
 fn feed_request_range(
   reader : IncrementalRequestReader,
   source : FixedArray[Byte],
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Unit raise {
   let mut cursor = start
   while cursor < end {

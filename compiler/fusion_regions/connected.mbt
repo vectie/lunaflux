@@ -3,7 +3,7 @@
 /// equality includes layout, numerics and ownership, not just tensor shape.
 /// The catalog owner interns these contracts; this IR cannot authorize a cast.
 pub struct RegionImplementation {
-  priv id : Int
+  priv id : Int32
   priv region : Region
   priv input : ContinuationClass
   priv output : ContinuationClass
@@ -13,7 +13,7 @@ pub struct RegionImplementation {
 
 ///|
 pub fn RegionImplementation::new(
-  id~ : Int,
+  id~ : Int32,
   region : Region,
   input~ : ContinuationClass,
   output~ : ContinuationClass,
@@ -35,9 +35,9 @@ pub fn RegionImplementation::new(
 /// live storage is planned separately. Scratch and per-workgroup storage are
 /// reusable maxima because these regions execute serially, without overlap.
 pub struct ConnectedPlan {
-  priv id : Int
+  priv id : Int32
   priv partition : Partition
-  priv implementations : ReadOnlyArray[Int]
+  priv implementations : ReadOnlyArray[Int32]
   priv input : ContinuationClass
   priv output : ContinuationClass
   priv workspace_bytes : Int64
@@ -46,7 +46,7 @@ pub struct ConnectedPlan {
 
 ///|
 pub fn ConnectedPlan::new(
-  id~ : Int,
+  id~ : Int32,
   graph : Graph,
   regions : ArrayView[RegionImplementation],
 ) -> ConnectedPlan raise FusionRegionError {
@@ -80,7 +80,7 @@ pub fn ConnectedPlan::new(
 ///|
 pub fn ConnectedPlan::implementation_ids(
   self : ConnectedPlan,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.implementations
 }
 

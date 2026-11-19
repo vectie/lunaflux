@@ -5,15 +5,15 @@ pub struct JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv parameter_digest : @joint_diffusion_vae_reference.JointVaeAudioDecoderInputProjectionDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv decoder_batch_count : Int
-  priv input_channels : Int
-  priv output_channels : Int
-  priv time_count : Int
+  priv decoder_batch_count : Int32
+  priv input_channels : Int32
+  priv output_channels : Int32
+  priv time_count : Int32
   priv input_element_count : Int64
   priv weight_element_count : Int64
   priv bias_element_count : Int64

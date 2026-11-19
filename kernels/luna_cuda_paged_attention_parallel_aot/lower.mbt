@@ -8,7 +8,7 @@ fn parallel_recipe(
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
   entry_point_id : @catalog.AotKernelEntryPointId,
   dimensions : @launch_contract.AotLaunchDimensions,
-  maximum_context_tokens : Int,
+  maximum_context_tokens : Int32,
   tile_program_digest : @luna_tile_ir.LunaTileProgramDigest,
   tile_aot_digest : @luna_tile_ir.LunaTileCudaAotDigest,
   numerical : PagedAttentionParallelNumericalPolicy,

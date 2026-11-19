@@ -5,11 +5,11 @@
 /// after a rejected suffix; generated tokens have a fixed startup capacity.
 pub struct SpeculativeGreedyGeneration {
   priv frames : FixedArray[@wire.PlanFrameBuffer]
-  priv tokens : FixedArray[Int]
-  priv maximum_context : Int
-  priv mut current : Int
-  priv mut committed_rows : Int
-  priv mut count : Int
+  priv tokens : FixedArray[Int32]
+  priv maximum_context : Int32
+  priv mut current : Int32
+  priv mut committed_rows : Int32
+  priv mut count : Int32
   priv mut pending : Bool
   priv mut reason : GenerationFinish
 }
@@ -20,9 +20,9 @@ pub fn SpeculativeGreedyGeneration::new(
   completion : @wire.ValidatedCompletionFrame,
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_new_tokens~ : Int,
-  maximum_context~ : Int,
-  stop_tokens~ : ArrayView[Int],
+  maximum_new_tokens~ : Int32,
+  maximum_context~ : Int32,
+  stop_tokens~ : ArrayView[Int32],
 ) -> Self raise {
   guard maximum_new_tokens > 0 &&
     maximum_new_tokens <= inference.max_new_tokens() &&
@@ -80,7 +80,7 @@ pub fn SpeculativeGreedyGeneration::new(
 /// repaired by an unnecessary length rollback. sequence includes replay epochs.
 pub fn SpeculativeGreedyGeneration::next_verification(
   self : Self,
-  draft_inputs : ArrayView[Int],
+  draft_inputs : ArrayView[Int32],
   sequence_value~ : UInt64,
 ) -> @wire.ValidatedPlanFrame raise {
   guard !self.pending else { raise SerialGenerationError::Busy }
@@ -116,7 +116,7 @@ pub fn SpeculativeGreedyGeneration::next_verification(
 pub fn SpeculativeGreedyGeneration::record_commit(
   self : Self,
   prefix : @greedy.VerifiedGreedyPrefix,
-  target_tokens : ArrayView[Int],
+  target_tokens : ArrayView[Int32],
 ) -> Unit raise {
   guard self.pending && self.reason is (Running | Cancelled) else {
     raise SerialGenerationError::Busy
@@ -155,20 +155,20 @@ pub fn SpeculativeGreedyGeneration::record_commit(
 }
 
 ///|
-pub fn SpeculativeGreedyGeneration::remaining_new_tokens(self : Self) -> Int {
+pub fn SpeculativeGreedyGeneration::remaining_new_tokens(self : Self) -> Int32 {
   self.tokens.length() - self.count
 }
 
 ///|
-pub fn SpeculativeGreedyGeneration::token_count(self : Self) -> Int {
+pub fn SpeculativeGreedyGeneration::token_count(self : Self) -> Int32 {
   self.count
 }
 
 ///|
 pub fn SpeculativeGreedyGeneration::token_at(
   self : Self,
-  index : Int,
-) -> Int raise SerialGenerationError {
+  index : Int32,
+) -> Int32 raise SerialGenerationError {
   guard index >= 0 && index < self.count else { raise InvalidLimit }
   self.tokens[index]
 }

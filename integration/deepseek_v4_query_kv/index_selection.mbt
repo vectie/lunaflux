@@ -1,9 +1,9 @@
 ///|
 pub fn index_selection_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.CompressedIndexSelectionPrecision raise {
   guard layer >= 0 &&
@@ -41,9 +41,9 @@ pub struct DeepSeekLearnedIndexer {
 ///|
 pub fn DeepSeekLearnedIndexer::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
@@ -123,7 +123,7 @@ pub fn DeepSeekLearnedIndexer::prepare(
   hidden~ : @device.Allocation,
   low_rank_queries~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

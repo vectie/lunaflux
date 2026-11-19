@@ -70,7 +70,7 @@ fn inspect_spec(root : @approved_fs.ApprovedRoot) -> @spec.Glm53FlashSpec raise 
 fn prepare_rank(
   plan : ServicePlan,
   spec : @spec.Glm53FlashSpec,
-  ordinal : Int,
+  ordinal : Int32,
   context : @device.Context,
   stream : @device.Stream,
   aot : @device.Module,

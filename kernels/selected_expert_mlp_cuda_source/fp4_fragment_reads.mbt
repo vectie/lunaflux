@@ -3,20 +3,20 @@
 /// shared epoch remains read-only until every action retires. This does not
 /// move a matrix operation across another matrix operation in the same fold.
 fn fp4_fragment_reads(
-  stage : Int,
-  inner : Int,
-  columns : Int,
-  left : Int,
-  right : Int,
-  scales : Int,
+  stage : Int32,
+  inner : Int32,
+  columns : Int32,
+  left : Int32,
+  right : Int32,
+  scales : Int32,
   symbol : String,
   consumer_owner : String,
   paired : Bool,
-  second_right : Int,
-  slots : Int,
-  team_columns? : Int = 32,
-  swizzled? : Bool = true,
-  row_stride? : Int = 128,
+  second_right : Int32,
+  slots : Int32,
+  team_columns~ : Int32 = 32,
+  swizzled~ : Bool = true,
+  row_stride~ : Int32 = 128,
 ) -> String {
   let plan = @physical_tile_ir.OrderedOperandReads::new(items=4, slots~).unwrap()
   let declarations = []

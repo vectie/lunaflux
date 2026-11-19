@@ -2,7 +2,7 @@
 pub struct AudioInputSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  time : Int
+  time : Int32
   value_bytes : Int64
 }
 
@@ -10,7 +10,7 @@ pub struct AudioInputSource {
 /// One module per resolved shape: the shared permutation renderer exports its
 /// stable ABI symbol. Statistics are runtime immutable operands, not constants.
 pub fn build_audio_input(
-  time~ : Int,
+  time~ : Int32,
   max_elements~ : Int64,
 ) -> AudioInputSource raise {
   let permutation = @dense_permutation_plan.Permutation::new(

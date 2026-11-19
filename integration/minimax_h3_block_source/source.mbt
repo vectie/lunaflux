@@ -2,8 +2,8 @@
 pub struct BlockSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  rows : Int
-  distinct_timesteps : Int
+  rows : Int32
+  distinct_timesteps : Int32
   shape : @joint_diffusion_plan.JointDiffusionDenoiserShape
   model : @joint_diffusion_plan.JointDiffusionPlan
   packed_mapping : Bytes
@@ -22,10 +22,10 @@ pub(all) suberror BlockSourceError {
 pub fn build(
   model : @joint_diffusion_plan.JointDiffusionPlan,
   sequence : @minimax_h3_sequence.Sequence,
-  distinct_timesteps~ : Int,
+  distinct_timesteps~ : Int32,
   block_norm_epsilon~ : Double,
   function_prefix~ : String,
-  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
+  probability_law~ : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> BlockSource raise {
   let shape = model.denoiser()
   let rows = sequence.assembly().rows().length()

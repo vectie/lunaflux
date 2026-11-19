@@ -29,7 +29,7 @@ pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::requirements_diges
 ///|
 pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,21 +57,21 @@ pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionHeadReduceCudaCandidate::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 

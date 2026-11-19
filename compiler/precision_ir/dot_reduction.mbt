@@ -10,16 +10,16 @@ pub(all) enum DotReductionLaw {
   CompensatedFloat32
   // Partition p owns p,p+P,...; repeatedly add the upper half into the lower
   // half before the unchanged BF16 publication. No device geometry in this law.
-  StripedTreeFloat32(partitions~ : Int)
+  StripedTreeFloat32(partitions~ : Int32)
   // Group g, partition p, component v owns ((g*P+p)*V+v)+k*G*P*V.
   // Component sums join left-to-right, then each group's P partitions reduce
   // by descending halves. Publication partition q adds g=q,q+Q,... in order;
   // the Q totals join left-to-right. Empty positions are zero identities.
   GroupedVectorFloat32(
-    groups~ : Int,
-    partitions~ : Int,
-    vector_width~ : Int,
-    publication_partitions~ : Int,
+    groups~ : Int32,
+    partitions~ : Int32,
+    vector_width~ : Int32,
+    publication_partitions~ : Int32,
     multiply_add~ : Float32AffineLaw
   )
 } derive(Debug, Eq)
@@ -33,7 +33,7 @@ pub extend DotReductionLaw with Eq::{equal, not_equal}
 ///|
 fn DotReductionLaw::validate(
   self : Self,
-  width : Int,
+  width : Int32,
 ) -> Unit raise PrecisionPlanError {
   match self {
     OrderedFloat32 | CompensatedFloat32 => ()

@@ -3,7 +3,7 @@
 /// decoder kernel vocabulary. This method always fails closed.
 pub fn JointDiffusionKernelRequirement::require_current_generic_decoder_capability(
   self : Self,
-  ordinal~ : Int,
+  ordinal~ : Int32,
 ) -> @plan.KernelCapabilityId raise JointDiffusionKernelRequirementsError {
   raise UnsupportedGenericDecoderKernelOperation(ordinal, self.operation)
 }

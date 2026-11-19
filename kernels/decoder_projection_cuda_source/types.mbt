@@ -31,9 +31,9 @@ pub(all) suberror DecoderProjectionCudaSourceError {
 pub struct DecoderProjectionCudaSource {
   priv operation : DecoderProjectionCudaOperation
   priv numerical_contract : DecoderProjectionNumericalContract
-  priv input_width : Int
-  priv output_width : Int
-  priv maximum_rows : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }
@@ -46,8 +46,8 @@ pub struct FixedRowsDecoderProjectionCudaSource {
   priv operation : DecoderProjectionCudaOperation
   priv numerical_contract : DecoderProjectionNumericalContract
   priv row_count : Int64
-  priv input_width : Int
-  priv output_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
   priv function_symbol : String
   priv source : Bytes
 }
@@ -58,10 +58,10 @@ pub struct FixedRowsDecoderProjectionCudaSource {
 pub struct GroupedDecoderProjectionCudaSource {
   priv operation : DecoderProjectionCudaOperation
   priv numerical_contract : DecoderProjectionNumericalContract
-  priv group_count : Int
-  priv input_width : Int
-  priv output_width : Int
-  priv maximum_rows : Int
+  priv group_count : Int32
+  priv input_width : Int32
+  priv output_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

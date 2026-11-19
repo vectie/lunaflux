@@ -87,7 +87,7 @@ fn fixture_runtime_bytes(
 }
 
 ///|
-fn fixture_operation_width(operation : @plan.PlanOperation) -> Int {
+fn fixture_operation_width(operation : @plan.PlanOperation) -> Int32 {
   match operation.shape() {
     EmbeddingShape(width~, ..) => width
     NormalizationShape(width~, ..) => width
@@ -117,7 +117,7 @@ fn fixture_activation_bytes(
 ///|
 fn fixture_weight_bytes(
   operation : @plan.PlanOperation,
-  weight_index : Int,
+  weight_index : Int32,
 ) -> Int64 {
   match operation.shape() {
     EmbeddingShape(vocabulary_size~, width~) =>

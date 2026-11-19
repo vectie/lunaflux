@@ -268,7 +268,7 @@ test "rank-local transcripts match active and inactive abort terminal flow" {
 
 ///|
 fn polling_local_rank(
-  rank : Int,
+  rank : Int32,
 ) -> (
   @rank_group_wire.RankGroupWireRankTranscript,
   @rank_group_wire.RankGroupWireFrameBuffer,

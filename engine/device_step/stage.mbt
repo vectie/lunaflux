@@ -45,7 +45,7 @@ fn preflight_stage_then_write(
   has_accepted_predecessor : Bool,
   accepted_predecessor_value : UInt64,
   stage_epoch : UInt64,
-  greedy_only? : Bool = false,
+  greedy_only~ : Bool = false,
 ) -> DeviceStepSummary raise DeviceStepError {
   if stage_epoch == 18446744073709551615UL {
     raise StageEpochOverflow
@@ -88,7 +88,7 @@ fn copy_operand(
   stage : DeviceStepStage,
   allocation : @device.Allocation,
   host : FixedArray[Byte],
-  cells : Int,
+  cells : Int32,
 ) -> Unit raise DeviceStepError {
   owner.context.copy_from_fixed_host(
     allocation,

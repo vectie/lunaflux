@@ -1,5 +1,5 @@
 ///|
-fn tensor_core_wmma_source(entry_point : String, tile_count : Int) -> Bytes {
+fn tensor_core_wmma_source(entry_point : String, tile_count : Int32) -> Bytes {
   @utf8.encode(
     "#include <cuda_bf16.h>\n#include <mma.h>\n#include <stdint.h>\n" +
     "#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ != 1200\n" +

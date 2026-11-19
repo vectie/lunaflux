@@ -1,6 +1,6 @@
 ///|
 priv struct QwenFusedProductionSet {
-  first_operation : Int
+  first_operation : Int32
   postprocess : @luna_cuda_qknorm_rope_paged_kv_write_aot.QkNormRopePagedKvWriteCudaCandidate
   full_ingress : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate
   ingress_variants : ReadOnlyArray[
@@ -78,19 +78,19 @@ fn prepare_qwen_fused_production_set(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
-  tuning? : (Bytes, String, String)? = None,
-  resources? : (Bytes, String, String)? = None,
-  decode_resources? : (Bytes, String, String)? = None,
-  decode_tuning? : (Bytes, String, String)? = None,
-  partitioned_resources? : (Bytes, String, String)? = None,
-  ingress_policy_records? : (Bytes, String, String)? = None,
-  ingress_policy_search? : Bool = false,
-  step_rotary_cache? : Bool = false,
-  prefill_approximate_exp2? : Bool = false,
-  ingress_shared_limit? : Int64 = 49152L,
-  decode_candidate? : Int,
-  prefill_candidate? : Int,
-  query_metadata? : Bool = false,
+  tuning~ : (Bytes, String, String)? = None,
+  resources~ : (Bytes, String, String)? = None,
+  decode_resources~ : (Bytes, String, String)? = None,
+  decode_tuning~ : (Bytes, String, String)? = None,
+  partitioned_resources~ : (Bytes, String, String)? = None,
+  ingress_policy_records~ : (Bytes, String, String)? = None,
+  ingress_policy_search~ : Bool = false,
+  step_rotary_cache~ : Bool = false,
+  prefill_approximate_exp2~ : Bool = false,
+  ingress_shared_limit~ : Int64 = 49152L,
+  decode_candidate? : Int32,
+  prefill_candidate? : Int32,
+  query_metadata~ : Bool = false,
 ) -> QwenFusedProductionSet raise Qwen3Bf16CandidateExportCliError {
   let candidates = set.candidates()
   for index in 0..<(candidates.length() - 3) {

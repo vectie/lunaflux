@@ -1,14 +1,14 @@
 ///|
-const RANK_GROUP_WIRE_MAGIC : UInt = 0x5747524c
+const RANK_GROUP_WIRE_MAGIC : UInt32 = 0x5747524c
 
 ///|
-const RANK_GROUP_WIRE_VERSION : UInt = 2
+const RANK_GROUP_WIRE_VERSION : UInt32 = 2
 
 ///|
-const RANK_GROUP_WIRE_CHECKSUM_OFFSET : Int = 12
+const RANK_GROUP_WIRE_CHECKSUM_OFFSET : Int32 = 12
 
 ///|
-fn wire_kind_code(kind : RankGroupWireKind) -> Int {
+fn wire_kind_code(kind : RankGroupWireKind) -> Int32 {
   match kind {
     StreamingRequest => 15
     StreamingReply => 16
@@ -31,7 +31,7 @@ fn wire_kind_code(kind : RankGroupWireKind) -> Int {
 
 ///|
 fn wire_kind_from_code(
-  code : Int,
+  code : Int32,
 ) -> RankGroupWireKind raise RankGroupWireError {
   match code {
     15 => StreamingRequest
@@ -55,7 +55,7 @@ fn wire_kind_from_code(
 }
 
 ///|
-fn wire_slot_code(slot : RankGroupWireSlot?) -> Int {
+fn wire_slot_code(slot : RankGroupWireSlot?) -> Int32 {
   match slot {
     None => -1
     Some(A) => 0
@@ -65,7 +65,7 @@ fn wire_slot_code(slot : RankGroupWireSlot?) -> Int {
 
 ///|
 fn wire_slot_from_code(
-  code : Int,
+  code : Int32,
 ) -> RankGroupWireSlot? raise RankGroupWireError {
   match code {
     -1 => None
@@ -98,7 +98,7 @@ fn kind_uses_sequence(kind : RankGroupWireKind) -> Bool {
 }
 
 ///|
-fn direction_code(direction : RankGroupWireDirection) -> Int {
+fn direction_code(direction : RankGroupWireDirection) -> Int32 {
   match direction {
     ParentToChild => 0
     ChildToParent => 1
@@ -107,7 +107,7 @@ fn direction_code(direction : RankGroupWireDirection) -> Int {
 
 ///|
 fn direction_from_code(
-  code : Int,
+  code : Int32,
 ) -> RankGroupWireDirection raise RankGroupWireError {
   match code {
     0 => ParentToChild
@@ -150,7 +150,7 @@ fn validate_message_shape(
   kind : RankGroupWireKind,
   slot : RankGroupWireSlot?,
   sequence_value : UInt64,
-  payload_length : Int,
+  payload_length : Int32,
 ) -> Unit raise RankGroupWireError {
   match kind {
     Abort | Aborted =>
@@ -197,7 +197,7 @@ fn write_binding(
 ///|
 fn validate_digest_bytes(
   source : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
 ) -> Unit raise RankGroupWireError {
   for index in 0..<64 {
     let value = source[offset + index]
@@ -210,7 +210,7 @@ fn validate_digest_bytes(
 ///|
 fn validate_frame_source(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
 ) -> Unit raise RankGroupWireError {
   if length < RANK_GROUP_WIRE_HEADER_BYTES ||
@@ -277,7 +277,7 @@ fn RankGroupWireFrameBuffer::encode_internal(
   slot : RankGroupWireSlot?,
   sequence_value : UInt64,
   payload : FixedArray[Byte]?,
-  payload_length : Int,
+  payload_length : Int32,
 ) -> ValidatedRankGroupWireFrame raise RankGroupWireError {
   if self.epoch == 0xffffffffffffffffUL {
     raise Invalid(FrameEpoch)
@@ -313,7 +313,7 @@ pub fn RankGroupWireFrameBuffer::new(
 ///|
 pub fn RankGroupWireFrameBuffer::capacity(
   self : RankGroupWireFrameBuffer,
-) -> Int {
+) -> Int32 {
   self.storage.length()
 }
 
@@ -338,7 +338,7 @@ pub fn RankGroupWireFrameBuffer::encode_payload(
   slot : RankGroupWireSlot,
   sequence_value : UInt64,
   payload : FixedArray[Byte],
-  payload_length : Int,
+  payload_length : Int32,
 ) -> ValidatedRankGroupWireFrame raise RankGroupWireError {
   self.encode_internal(
     binding,
@@ -357,7 +357,7 @@ pub fn RankGroupWireFrameBuffer::encode_configure_payload(
   self : RankGroupWireFrameBuffer,
   binding : RankGroupWireBinding,
   payload : FixedArray[Byte],
-  payload_length : Int,
+  payload_length : Int32,
 ) -> ValidatedRankGroupWireFrame raise RankGroupWireError {
   self.encode_internal(
     binding,
@@ -374,7 +374,7 @@ pub fn RankGroupWireFrameBuffer::encode_configure_payload(
 pub fn RankGroupWireFrameBuffer::load(
   self : RankGroupWireFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedRankGroupWireFrame raise RankGroupWireError {
   if self.epoch == 0xffffffffffffffffUL {
     raise Invalid(FrameEpoch)

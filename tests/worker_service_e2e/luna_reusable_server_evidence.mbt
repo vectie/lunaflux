@@ -16,7 +16,7 @@ fn reusable_server_process_limits() -> @worker_process.WorkerProcessLimits raise
 fn prepare_tcp_service(
   executable : Bytes,
   tokenizer : @tokenizer.TokenizerSpec,
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @online_session.LunaOnlineFramedServicePreparation raise {
   let model = @approved_fs.ApprovedRoot::open_absolute(fixture_root)
   let kernel = @approved_fs.ApprovedRoot::open_absolute(fixture_root)
@@ -67,7 +67,7 @@ fn prepare_tcp_service(
 
 ///|
 fn reusable_server_limits(
-  read_chunk_bytes : Int,
+  read_chunk_bytes : Int32,
 ) -> @online_tcp.LunaOnlineTcpLimits raise {
   @online_tcp.LunaOnlineTcpLimits::new(
     read_chunk_bytes~,
@@ -82,8 +82,8 @@ fn reusable_server_limits(
 ///|
 async fn progress_server_to_retired(
   server : @online_tcp.LunaOnlineTcpServer,
-  cancel_after_admission? : Bool = false,
-) -> Int {
+  cancel_after_admission~ : Bool = false,
+) -> Int32 {
   let mut observations = 0
   let mut cancelled = false
   let mut attempts = 0
@@ -153,7 +153,7 @@ fn metrics_histogram_total(
 fn log_event_count(
   snapshot : @instance_log.LunaInstanceLogSnapshot,
   event : @instance_log.LunaInstanceLogEvent,
-) -> Int raise {
+) -> Int32 raise {
   let mut count = 0
   for index in 0..<snapshot.length() {
     if snapshot.event_at(index) == event {
@@ -307,9 +307,9 @@ async fn assert_healthy_server_sequence(executable : Bytes) -> Unit {
 async fn progress_failed_connection(
   server : @online_tcp.LunaOnlineTcpServer,
   client : @socket.Tcp,
-  ordinal : Int,
+  ordinal : Int32,
   disconnect_after_usage : Bool,
-) -> Int {
+) -> Int32 {
   let mut observations = 0
   let mut disconnected = false
   let mut attempts = 0

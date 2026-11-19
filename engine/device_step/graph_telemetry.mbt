@@ -14,9 +14,9 @@ pub(all) enum PagedGraphSelectedPath {
 #valtype
 pub struct PagedGraphSelectedShapeClass {
   priv phase : @device_profile.ExecutionPhase
-  priv batch_rows : Int
-  priv query_tokens_per_row : Int
-  priv context_tokens : Int
+  priv batch_rows : Int32
+  priv query_tokens_per_row : Int32
+  priv context_tokens : Int32
   priv token_rows : Int64
 }
 
@@ -140,21 +140,21 @@ pub fn PagedGraphSelectedShapeClass::phase(
 ///|
 pub fn PagedGraphSelectedShapeClass::batch_rows(
   self : PagedGraphSelectedShapeClass,
-) -> Int {
+) -> Int32 {
   self.batch_rows
 }
 
 ///|
 pub fn PagedGraphSelectedShapeClass::query_tokens_per_row(
   self : PagedGraphSelectedShapeClass,
-) -> Int {
+) -> Int32 {
   self.query_tokens_per_row
 }
 
 ///|
 pub fn PagedGraphSelectedShapeClass::context_tokens(
   self : PagedGraphSelectedShapeClass,
-) -> Int {
+) -> Int32 {
   self.context_tokens
 }
 

@@ -5,7 +5,7 @@
 /// capture as complete prediction input.
 pub fn DeepSeekDecoderSlice::prediction_capture_layers(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.capture_layers
 }
 
@@ -35,7 +35,7 @@ pub fn DeepSeekDecoderSlice::prediction_input(
 ///|
 pub fn DeepSeekDecoderStage::prediction_capture_layers(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.decoder.prediction_capture_layers()
 }
 

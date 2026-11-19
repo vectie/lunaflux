@@ -1,5 +1,5 @@
 ///|
-fn ml_limits(workspace? : Int64 = 4096L) -> AttentionMultiLaunchLimits raise {
+fn ml_limits(workspace~ : Int64 = 4096L) -> AttentionMultiLaunchLimits raise {
   AttentionMultiLaunchLimits::new(
     maximum_workspace_bytes=workspace,
     maximum_symbol_bytes=256,
@@ -39,8 +39,8 @@ fn ml_family(digit : Char) -> @catalog.AotKernelFamily raise {
 
 ///|
 fn ml_entry(
-  id : Int,
-  digit? : Char = 'a',
+  id : Int32,
+  digit~ : Char = 'a',
 ) -> @catalog.AotKernelEntryPoint raise {
   @catalog.AotKernelEntryPoint::new(
     family=ml_family(digit),
@@ -52,14 +52,14 @@ fn ml_entry(
 fn ml_operand(
   role : @launch_contract.AotOperandRole,
   bytes : Int64,
-  alignment? : Int64 = 4L,
+  alignment~ : Int64 = 4L,
 ) -> @launch_contract.AotOperand raise {
   @launch_contract.AotOperand::new(role~, byte_count=bytes, alignment~)
 }
 
 ///|
 fn ml_workspace(
-  limits? : AttentionMultiLaunchLimits = ml_limits(),
+  limits~ : AttentionMultiLaunchLimits = ml_limits(),
 ) -> AttentionDecodeWorkspaceContract raise {
   AttentionDecodeWorkspaceContract::new(
     scalar=F32,
@@ -114,7 +114,7 @@ fn ml_merge_operands(
 }
 
 ///|
-fn ml_dimensions(z : Int) -> @launch_contract.AotLaunchDimensions raise {
+fn ml_dimensions(z : Int32) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=2,
     grid_y=2,

@@ -1,17 +1,17 @@
 ///|
-fn tensor_core_test_id(value : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn tensor_core_test_id(value : Int32) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(value)
 }
 
 ///|
 fn tensor_core_test_tensor(
-  id : Int,
+  id : Int32,
   dtype : @luna_tile_ir.LunaTileDType,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
   strides : ArrayView[Int64],
-  offset? : Int64 = 0L,
-  alignment? : Int64 = 32L,
+  offset~ : Int64 = 0L,
+  alignment~ : Int64 = 32L,
 ) -> @luna_tile_ir.LunaTileTensorView raise {
   @luna_tile_ir.LunaTileTensorView::new(
     id=tensor_core_test_id(id),
@@ -26,7 +26,7 @@ fn tensor_core_test_tensor(
 
 ///|
 fn tensor_core_test_static_region(
-  id : Int,
+  id : Int32,
 ) -> @luna_tile_ir.LunaTileRegion raise {
   @luna_tile_ir.LunaTileRegion::new(
     tensor=tensor_core_test_id(id),
@@ -40,7 +40,7 @@ fn tensor_core_test_static_region(
 
 ///|
 fn tensor_core_test_tiled_region(
-  id : Int,
+  id : Int32,
 ) -> @luna_tile_ir.LunaTileRegion raise {
   @luna_tile_ir.LunaTileRegion::new(
     tensor=tensor_core_test_id(id),
@@ -56,9 +56,9 @@ fn tensor_core_test_tiled_region(
 
 ///|
 fn tensor_core_test_program(
-  tile_count? : Int64 = 64L,
-  barrier_scope? : @luna_tile_ir.LunaTileBarrierScope = Block,
-  global_alignment? : Int64 = 32L,
+  tile_count~ : Int64 = 64L,
+  barrier_scope~ : @luna_tile_ir.LunaTileBarrierScope = Block,
+  global_alignment~ : Int64 = 32L,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let stage = @luna_tile_ir.LunaTileStageId::from_stable_int(1)
   let rows = tile_count * 16L
@@ -185,8 +185,8 @@ fn tensor_core_test_serial(
 fn tensor_core_test_parallel(
   program : @luna_tile_ir.LunaTileProgram,
   serial : @luna_tile_ir.LunaTileCudaTranslationUnit,
-  compute_major? : Int = 12,
-  compute_minor? : Int = 0,
+  compute_major~ : Int32 = 12,
+  compute_minor~ : Int32 = 0,
 ) -> @luna_tile_ir.LunaTileParallelCandidate raise {
   @luna_tile_ir.specialize_luna_tile_parallel_candidate(
     program,
@@ -220,13 +220,13 @@ fn tensor_core_test_parallel(
 
 ///|
 fn tensor_core_test_contract(
-  compute_major? : Int = 12,
-  compute_minor? : Int = 0,
-  m? : Int = 16,
-  right_layout? : @luna_tensor_core_candidate.LunaTileTensorCoreMatrixLayout = TensorCoreRowMajor,
-  accumulator? : @luna_tensor_core_candidate.LunaTileTensorCoreAccumulator = TensorCoreAccumulatorF32,
-  alignment? : Int = 32,
-  epilogue? : @luna_tensor_core_candidate.LunaTileTensorCoreEpilogue = TensorCoreIdentityEpilogue,
+  compute_major~ : Int32 = 12,
+  compute_minor~ : Int32 = 0,
+  m~ : Int32 = 16,
+  right_layout~ : @luna_tensor_core_candidate.LunaTileTensorCoreMatrixLayout = TensorCoreRowMajor,
+  accumulator~ : @luna_tensor_core_candidate.LunaTileTensorCoreAccumulator = TensorCoreAccumulatorF32,
+  alignment~ : Int32 = 32,
+  epilogue~ : @luna_tensor_core_candidate.LunaTileTensorCoreEpilogue = TensorCoreIdentityEpilogue,
 ) -> @luna_tensor_core_candidate.LunaTileBf16Mma16x16x16Contract raise {
   @luna_tensor_core_candidate.LunaTileBf16Mma16x16x16Contract::new(
     compute_major~,
@@ -250,7 +250,7 @@ fn tensor_core_test_contract(
 
 ///|
 fn tensor_core_test_limits(
-  source_bytes? : Int = 131072,
+  source_bytes~ : Int32 = 131072,
 ) -> @luna_tensor_core_candidate.LunaTileTensorCoreCandidateLimits raise {
   @luna_tensor_core_candidate.LunaTileTensorCoreCandidateLimits::new(
     maximum_source_bytes=source_bytes,

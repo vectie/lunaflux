@@ -1,10 +1,10 @@
 ///|
 fn drive_api_auth_verification(
-  workspace : LunaApiAuthVerifierWorkspace,
+  workspace : @api_auth.LunaApiAuthVerifierWorkspace,
   source : FixedArray[Byte],
-  declared_length : Int,
-  offered_bytes : Int,
-) -> (LunaApiAuthDecision, UInt64) raise {
+  declared_length : Int32,
+  offered_bytes : Int32,
+) -> (@api_auth.LunaApiAuthDecision, UInt64) raise {
   let write = workspace.begin_verify(declared_length)
   for index in 0..<offered_bytes {
     let step = write.push_byte(source[index])
@@ -24,16 +24,16 @@ fn drive_api_auth_verification(
 ///|
 test "cooperative Luna API authentication is budget invariant" {
   let expected : FixedArray[Byte] = [b'a', b'b', b'c', b'd']
-  let policy = LunaApiAuthPolicy::new(
+  let policy = @api_auth.LunaApiAuthPolicy::new(
     expected,
     source_offset=0,
     length=4,
     maximum_credential_bytes=8,
   )
   for budget in [1, 17, 65536] {
-    let workspace = LunaApiAuthVerifierWorkspace::new(
+    let workspace = @api_auth.LunaApiAuthVerifierWorkspace::new(
       policy,
-      LunaApiAuthStepBudget::new(budget),
+      @api_auth.LunaApiAuthStepBudget::new(budget),
     )
     let (accepted, accepted_total) = drive_api_auth_verification(
       workspace, expected, 4, 4,
@@ -60,15 +60,15 @@ test "cooperative Luna API authentication is budget invariant" {
 ///|
 test "cooperative Luna API authentication writer is transactional" {
   let expected : FixedArray[Byte] = [b'a', b'b', b'c']
-  let policy = LunaApiAuthPolicy::new(
+  let policy = @api_auth.LunaApiAuthPolicy::new(
     expected,
     source_offset=0,
     length=3,
     maximum_credential_bytes=4,
   )
-  let workspace = LunaApiAuthVerifierWorkspace::new(
+  let workspace = @api_auth.LunaApiAuthVerifierWorkspace::new(
     policy,
-    LunaApiAuthStepBudget::new(1),
+    @api_auth.LunaApiAuthStepBudget::new(1),
   )
   let write = workspace.begin_verify(3)
   ignore(write.push_byte(b'a'))
@@ -121,7 +121,7 @@ test "cooperative Luna API authentication writer is transactional" {
 ///|
 test "cooperative Luna API authentication validates budgets and lengths" {
   for invalid in [0, -1, 65537] {
-    try LunaApiAuthStepBudget::new(invalid) catch {
+    try @api_auth.LunaApiAuthStepBudget::new(invalid) catch {
       LunaApiAuthFailed(rule=LunaApiAuthWorkUnits, issue=LunaApiAuthOutOfRange) =>
         ()
       _ => fail("unexpected step-budget failure")
@@ -130,15 +130,15 @@ test "cooperative Luna API authentication validates budgets and lengths" {
     }
   }
   let expected : FixedArray[Byte] = [b'a']
-  let policy = LunaApiAuthPolicy::new(
+  let policy = @api_auth.LunaApiAuthPolicy::new(
     expected,
     source_offset=0,
     length=1,
     maximum_credential_bytes=1,
   )
-  let workspace = LunaApiAuthVerifierWorkspace::new(
+  let workspace = @api_auth.LunaApiAuthVerifierWorkspace::new(
     policy,
-    LunaApiAuthStepBudget::new(1),
+    @api_auth.LunaApiAuthStepBudget::new(1),
   )
   try workspace.begin_verify(-1) catch {
     LunaApiAuthFailed(rule=LunaApiAuthCredential, issue=LunaApiAuthOutOfRange) =>

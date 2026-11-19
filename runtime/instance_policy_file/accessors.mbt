@@ -119,7 +119,7 @@ pub fn TokenizerPolicyClaims::sha256(self : TokenizerPolicyClaims) -> String {
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_file_bytes(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_file_bytes
 }
 
@@ -127,7 +127,7 @@ pub fn TokenizerPolicyClaims::max_file_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_json_depth(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_json_depth
 }
 
@@ -135,7 +135,7 @@ pub fn TokenizerPolicyClaims::max_json_depth(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_input_bytes(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_input_bytes
 }
 
@@ -143,7 +143,7 @@ pub fn TokenizerPolicyClaims::max_input_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_output_tokens(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_output_tokens
 }
 
@@ -151,7 +151,7 @@ pub fn TokenizerPolicyClaims::max_output_tokens(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_decoded_bytes(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_decoded_bytes
 }
 
@@ -159,7 +159,7 @@ pub fn TokenizerPolicyClaims::max_decoded_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_vocab_entries(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_vocab_entries
 }
 
@@ -167,7 +167,7 @@ pub fn TokenizerPolicyClaims::max_vocab_entries(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_merge_rules(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_merge_rules
 }
 
@@ -175,7 +175,7 @@ pub fn TokenizerPolicyClaims::max_merge_rules(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_token_bytes(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_token_bytes
 }
 
@@ -183,7 +183,7 @@ pub fn TokenizerPolicyClaims::max_token_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerPolicyClaims::max_special_tokens(
   self : TokenizerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_special_tokens
 }
 
@@ -191,7 +191,7 @@ pub fn TokenizerPolicyClaims::max_special_tokens(
 /// Return or validate one exact admitted policy field.
 pub fn SchedulerPolicyClaims::step_token_budget(
   self : SchedulerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.step_token_budget
 }
 
@@ -199,7 +199,7 @@ pub fn SchedulerPolicyClaims::step_token_budget(
 /// Return or validate one exact admitted policy field.
 pub fn SchedulerPolicyClaims::max_active_requests(
   self : SchedulerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_active_requests
 }
 
@@ -207,7 +207,7 @@ pub fn SchedulerPolicyClaims::max_active_requests(
 /// Return or validate one exact admitted policy field.
 pub fn SchedulerPolicyClaims::max_waiting_requests(
   self : SchedulerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_waiting_requests
 }
 
@@ -215,7 +215,7 @@ pub fn SchedulerPolicyClaims::max_waiting_requests(
 /// Return or validate one exact admitted policy field.
 pub fn SchedulerPolicyClaims::prefill_chunk_tokens(
   self : SchedulerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.prefill_chunk_tokens
 }
 
@@ -223,7 +223,7 @@ pub fn SchedulerPolicyClaims::prefill_chunk_tokens(
 /// Return or validate one exact admitted policy field.
 pub fn SchedulerPolicyClaims::emergency_decode_page_reserve(
   self : SchedulerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.emergency_decode_page_reserve
 }
 
@@ -231,7 +231,7 @@ pub fn SchedulerPolicyClaims::emergency_decode_page_reserve(
 /// Return or validate one exact admitted policy field.
 pub fn SchedulerPolicyClaims::waiting_age_threshold_steps(
   self : SchedulerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.waiting_age_threshold_steps
 }
 
@@ -239,19 +239,19 @@ pub fn SchedulerPolicyClaims::waiting_age_threshold_steps(
 /// Return or validate one exact admitted policy field.
 pub fn SchedulerPolicyClaims::output_event_capacity(
   self : SchedulerPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.output_event_capacity
 }
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn CachePolicyClaims::tokens_per_page(self : CachePolicyClaims) -> Int {
+pub fn CachePolicyClaims::tokens_per_page(self : CachePolicyClaims) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn CachePolicyClaims::total_page_count(self : CachePolicyClaims) -> Int {
+pub fn CachePolicyClaims::total_page_count(self : CachePolicyClaims) -> Int32 {
   self.total_page_count
 }
 
@@ -259,7 +259,7 @@ pub fn CachePolicyClaims::total_page_count(self : CachePolicyClaims) -> Int {
 /// Return or validate one exact admitted policy field.
 pub fn CachePolicyClaims::block_table_pages_per_request(
   self : CachePolicyClaims,
-) -> Int {
+) -> Int32 {
   self.block_table_pages_per_request
 }
 
@@ -271,13 +271,13 @@ pub fn CachePolicyClaims::prefix_enabled(self : CachePolicyClaims) -> Bool {
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn CachePolicyClaims::max_prefix_entries(self : CachePolicyClaims) -> Int {
+pub fn CachePolicyClaims::max_prefix_entries(self : CachePolicyClaims) -> Int32 {
   self.max_prefix_entries
 }
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn CachePolicyClaims::max_prefix_nodes(self : CachePolicyClaims) -> Int {
+pub fn CachePolicyClaims::max_prefix_nodes(self : CachePolicyClaims) -> Int32 {
   self.max_prefix_nodes
 }
 
@@ -285,13 +285,13 @@ pub fn CachePolicyClaims::max_prefix_nodes(self : CachePolicyClaims) -> Int {
 /// Return or validate one exact admitted policy field.
 pub fn CachePolicyClaims::max_prefix_tokens_per_entry(
   self : CachePolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_prefix_tokens_per_entry
 }
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn CachePolicyClaims::max_prefix_pages(self : CachePolicyClaims) -> Int {
+pub fn CachePolicyClaims::max_prefix_pages(self : CachePolicyClaims) -> Int32 {
   self.max_prefix_pages
 }
 
@@ -299,7 +299,7 @@ pub fn CachePolicyClaims::max_prefix_pages(self : CachePolicyClaims) -> Int {
 /// Return or validate one exact admitted policy field.
 pub fn CachePolicyClaims::max_prefix_scope_bytes(
   self : CachePolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_prefix_scope_bytes
 }
 
@@ -307,7 +307,7 @@ pub fn CachePolicyClaims::max_prefix_scope_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn CachePolicyClaims::max_active_references_per_page(
   self : CachePolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_active_references_per_page
 }
 
@@ -315,12 +315,12 @@ pub fn CachePolicyClaims::max_active_references_per_page(
 /// Return or validate one exact admitted policy field.
 pub fn CachePolicyClaims::max_cached_references_per_page(
   self : CachePolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_cached_references_per_page
 }
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn CachePolicyClaims::layout_version(self : CachePolicyClaims) -> Int {
+pub fn CachePolicyClaims::layout_version(self : CachePolicyClaims) -> Int32 {
   self.layout_version
 }

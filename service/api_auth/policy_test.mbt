@@ -1,8 +1,8 @@
 ///|
 fn expect_api_auth_error(
-  action : () -> Unit raise LunaApiAuthError,
-  rule : LunaApiAuthRule,
-  issue : LunaApiAuthIssue,
+  action : () -> Unit raise @api_auth.LunaApiAuthError,
+  rule : @api_auth.LunaApiAuthRule,
+  issue : @api_auth.LunaApiAuthIssue,
 ) -> Unit raise {
   try action() catch {
     LunaApiAuthFailed(rule=observed_rule, issue=observed_issue) =>
@@ -17,7 +17,7 @@ fn expect_api_auth_error(
 ///|
 test "Luna API authentication copies and verifies bounded ranges" {
   let expected : FixedArray[Byte] = [b'x', b'a', b'b', b'c', b'y']
-  let policy = LunaApiAuthPolicy::new(
+  let policy = @api_auth.LunaApiAuthPolicy::new(
     expected,
     source_offset=1,
     length=3,
@@ -39,7 +39,7 @@ test "Luna API authentication enforces startup bounds and precedence" {
   expect_api_auth_error(
     () => {
       ignore(
-        LunaApiAuthPolicy::new(
+        @api_auth.LunaApiAuthPolicy::new(
           empty,
           source_offset=0,
           length=0,
@@ -51,7 +51,7 @@ test "Luna API authentication enforces startup bounds and precedence" {
     LunaApiAuthEmpty,
   )
   let maximum = FixedArray::make(4096, b'a')
-  let maximum_policy = LunaApiAuthPolicy::new(
+  let maximum_policy = @api_auth.LunaApiAuthPolicy::new(
     maximum,
     source_offset=0,
     length=4096,
@@ -64,7 +64,7 @@ test "Luna API authentication enforces startup bounds and precedence" {
   expect_api_auth_error(
     () => {
       ignore(
-        LunaApiAuthPolicy::new(
+        @api_auth.LunaApiAuthPolicy::new(
           too_long,
           source_offset=0,
           length=4097,
@@ -78,7 +78,7 @@ test "Luna API authentication enforces startup bounds and precedence" {
   expect_api_auth_error(
     () => {
       ignore(
-        LunaApiAuthPolicy::new(
+        @api_auth.LunaApiAuthPolicy::new(
           too_long,
           source_offset=5000,
           length=4097,
@@ -90,13 +90,13 @@ test "Luna API authentication enforces startup bounds and precedence" {
     LunaApiAuthOutOfRange,
   )
   expect_api_auth_error(
-    () => ignore(LunaApiAuthPolicy::required_byte_cells(0)),
-    LunaApiAuthPolicy,
+    () => ignore(@api_auth.LunaApiAuthPolicy::required_byte_cells(0)),
+    @api_auth.LunaApiAuthPolicy,
     LunaApiAuthInvalid,
   )
   expect_api_auth_error(
-    () => ignore(LunaApiAuthPolicy::required_byte_cells(4097)),
-    LunaApiAuthPolicy,
+    () => ignore(@api_auth.LunaApiAuthPolicy::required_byte_cells(4097)),
+    @api_auth.LunaApiAuthPolicy,
     LunaApiAuthTooLong,
   )
 }
@@ -104,7 +104,7 @@ test "Luna API authentication enforces startup bounds and precedence" {
 ///|
 test "Luna API authentication rejects invalid caller ranges before length" {
   let expected : FixedArray[Byte] = [b'a', b'b', b'c']
-  let policy = LunaApiAuthPolicy::new(
+  let policy = @api_auth.LunaApiAuthPolicy::new(
     expected,
     source_offset=0,
     length=3,

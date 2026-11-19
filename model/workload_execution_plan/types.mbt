@@ -23,7 +23,25 @@ pub(all) suberror WorkloadExecutionPlanError {
 pub struct WorkloadExecutionPlan {
   priv kind : WorkloadExecutionKind
   priv identity : @spec.ModelIdentity
-  priv schema_version : Int
-  priv decoder_layer_count : Int?
-  priv maximum_token_context : Int?
+  priv schema_version : Int32
+  priv decoder_layer_count : Int32?
+  priv maximum_token_context : Int32?
 } derive(Debug, Eq)
+
+///|
+pub extend WorkloadExecutionKind with @debug.Debug::{to_repr}
+
+///|
+pub extend WorkloadExecutionKind with Eq::{not_equal, equal}
+
+///|
+pub extend WorkloadExecutionPlanError with @debug.Debug::{to_repr}
+
+///|
+pub extend WorkloadExecutionPlanError with Eq::{not_equal, equal}
+
+///|
+pub extend WorkloadExecutionPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend WorkloadExecutionPlan with Eq::{not_equal, equal}

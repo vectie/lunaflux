@@ -1,6 +1,6 @@
 ///|
 fn descriptor_fixture(
-  kernel_manifest_locator? : String = "execution.json",
+  kernel_manifest_locator~ : String = "execution.json",
 ) -> String {
   let before =
     #|{"schema_version":"lunaflux.runtime.v1","model":{"config_locator":"config.json","config_sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","weights_locator":"model.safetensors","content_sha256":"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","max_batch_rows":1},"kernels":{"manifest_locator":"

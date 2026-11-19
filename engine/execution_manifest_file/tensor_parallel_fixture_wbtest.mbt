@@ -11,8 +11,8 @@ priv struct TensorParallelManifestFixture {
 fn tp_manifest_stream_entry(
   name : String,
   shape : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String {
   "\"\{name}\":{\"dtype\":\"BF16\",\"shape\":\{shape},\"data_offsets\":[\{start},\{end}]}"
 }
@@ -241,7 +241,7 @@ fn tp_manifest_fixture(
 
 ///|
 fn tp_manifest_launch_limits(
-  operations : Int,
+  operations : Int32,
 ) -> @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits raise {
   @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits::new(
     max_profiles=1,
@@ -252,7 +252,7 @@ fn tp_manifest_launch_limits(
 
 ///|
 fn tp_manifest_execution_limits(
-  operations : Int,
+  operations : Int32,
   artifact_limits : @artifact.KernelArtifactLimits,
 ) -> @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits raise {
   @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits::new(

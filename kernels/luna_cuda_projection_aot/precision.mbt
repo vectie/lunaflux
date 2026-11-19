@@ -6,8 +6,8 @@ pub struct PrecisionProjectionSource {
   priv source : Bytes
   priv precision : @precision.LinearPrecision
   priv physical : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation
-  priv grid : Int
-  priv threads : Int
+  priv grid : Int32
+  priv threads : Int32
 }
 
 ///|
@@ -20,7 +20,7 @@ pub fn precision_projection_source(
     raise Invalid(Source)
   }
   for i, c in symbol {
-    if !(c is ('a'..='z' | 'A'..='Z' | '_')) && !(i > 0 && c is ('0'..='9')) {
+    if !(c is ('a'..<='z' | 'A'..<='Z' | '_')) && !(i > 0 && c is ('0'..<='9')) {
       raise Invalid(Source)
     }
   }
@@ -107,7 +107,7 @@ pub fn PrecisionProjectionSource::source_bytes(
 ///|
 pub fn PrecisionProjectionSource::launch(
   self : PrecisionProjectionSource,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.grid, self.threads)
 }
 

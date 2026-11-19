@@ -23,9 +23,9 @@ pub(all) suberror RouterProjectionCudaSourceError {
 pub struct RouterProjectionCudaSource {
   priv operation : RouterProjectionCudaOperation
   priv numerical_contract : RouterProjectionNumericalContract
-  priv input_width : Int
-  priv output_width : Int
-  priv maximum_rows : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

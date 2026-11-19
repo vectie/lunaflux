@@ -4,8 +4,8 @@ pub(all) enum DecodeNumericLaw {
   OrderedBlockwise
   DualScoreBlockwise
   ContractingBlockwise
-  OwnedSeparate(Int)
-  OwnedContracting(Int)
+  OwnedSeparate(Int32)
+  OwnedContracting(Int32)
   MatrixBf16
 } derive(Debug, Eq)
 
@@ -18,9 +18,9 @@ pub extend DecodeNumericLaw with Eq::{equal, not_equal}
 /// older artifact. KV extent and stage count participate in bundle identity.
 pub struct DecodeExecutionDescriptor {
   priv law : DecodeNumericLaw
-  priv key_value_tile_rows : Int
-  priv pipeline_stages : Int
-  priv partition_count : Int
+  priv key_value_tile_rows : Int32
+  priv pipeline_stages : Int32
+  priv partition_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -29,9 +29,9 @@ pub extend DecodeExecutionDescriptor with Eq::{equal, not_equal}
 ///|
 pub fn DecodeExecutionDescriptor::new(
   law~ : DecodeNumericLaw,
-  key_value_tile_rows~ : Int,
-  pipeline_stages~ : Int,
-  partition_count? : Int = 8,
+  key_value_tile_rows~ : Int32,
+  pipeline_stages~ : Int32,
+  partition_count~ : Int32 = 8,
 ) -> DecodeExecutionDescriptor raise FusedArtifactAdmissionError {
   let legal_law = match law {
     OwnedSeparate(owners) => owners is (4 | 8)
@@ -52,9 +52,9 @@ pub fn DecodeExecutionDescriptor::new(
 ///|
 pub fn DecodeExecutionDescriptor::from_numeric_law(
   name : String,
-  key_value_tile_rows~ : Int,
-  pipeline_stages~ : Int,
-  partition_count? : Int = 8,
+  key_value_tile_rows~ : Int32,
+  pipeline_stages~ : Int32,
+  partition_count~ : Int32 = 8,
 ) -> DecodeExecutionDescriptor raise FusedArtifactAdmissionError {
   let law = match name {
     "blockwise-f32-probability-v1" => OrderedBlockwise
@@ -81,7 +81,7 @@ pub fn DecodeExecutionDescriptor::from_numeric_law(
 /// Eight is the historical bundle contract, never inferred for a newer bundle.
 pub fn DecodeExecutionDescriptor::partition_count(
   self : DecodeExecutionDescriptor,
-) -> Int {
+) -> Int32 {
   self.partition_count
 }
 
@@ -138,7 +138,7 @@ pub fn DecodeExecutionDescriptor::matches_function_symbol(
     if index == 1 && unit == '0' {
       return false
     }
-    if index > 0 && !(unit is ('0'..='9')) {
+    if index > 0 && !(unit is ('0'..<='9')) {
       return false
     }
     index += 1
@@ -171,7 +171,7 @@ pub fn DecodeExecutionDescriptor::compute(
 ///|
 pub fn DecodeExecutionDescriptor::storage_geometry(
   self : DecodeExecutionDescriptor,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.key_value_tile_rows, self.pipeline_stages)
 }
 

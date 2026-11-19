@@ -127,7 +127,7 @@ fn AdmittedRuntimeDescriptor::release_execution_extensions(
 ///|
 fn AdmittedRuntimeDescriptor::release_device(
   self : AdmittedRuntimeDescriptor,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   let (ordinal, target) = match self {
     LegacyRuntimeDescriptor(value) => (value.device_ordinal(), value.target())
     I8RuntimeDescriptor(value) => (value.device_ordinal(), value.target())
@@ -219,10 +219,10 @@ fn encode_release_evidence(
   model_plan_sha256 : String,
   bootstrap_sha256 : String,
   bootstrap_source_sha256 : String,
-  device_ordinal : Int,
-  compute_major : Int,
-  compute_minor : Int,
-  tensor_parallel_group_template_sha256? : String? = None,
+  device_ordinal : Int32,
+  compute_major : Int32,
+  compute_minor : Int32,
+  tensor_parallel_group_template_sha256~ : String? = None,
 ) -> (String, String) {
   let tensor_parallel_group_scope = match
     tensor_parallel_group_template_sha256 {

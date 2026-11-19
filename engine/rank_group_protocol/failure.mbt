@@ -22,7 +22,7 @@ pub fn RankGroupOwner::take_failure(
 /// earlier completed plan; the terminal report carries sequence zero.
 pub fn RankGroupOwner::report_idle_rank_loss(
   self : RankGroupOwner,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupError {
   self.require_lifecycle(Ready)
   validate_rank(rank, self.world_size)
@@ -83,12 +83,14 @@ pub fn RankGroupFailureReport::reason(
 ///|
 pub fn RankGroupFailureReport::failed_rank(
   self : RankGroupFailureReport,
-) -> Int {
+) -> Int32 {
   self.3
 }
 
 ///|
-pub fn RankGroupFailureReport::world_size(self : RankGroupFailureReport) -> Int {
+pub fn RankGroupFailureReport::world_size(
+  self : RankGroupFailureReport,
+) -> Int32 {
   self.4
 }
 
@@ -112,7 +114,7 @@ pub fn RankGroupFailureReport::has_canonical_failure_rank(
 ///|
 pub fn RankGroupOwner::drain_lease(
   self : RankGroupOwner,
-  rank : Int,
+  rank : Int32,
 ) -> RankDrainLease raise RankGroupError {
   self.require_lifecycle(Faulted)
   validate_rank(rank, self.world_size)
@@ -144,7 +146,9 @@ fn RankDrainLease::authenticate(
 }
 
 ///|
-pub fn RankDrainLease::rank(self : RankDrainLease) -> Int raise RankGroupError {
+pub fn RankDrainLease::rank(
+  self : RankDrainLease,
+) -> Int32 raise RankGroupError {
   ignore(self.authenticate())
   self.2
 }
@@ -166,8 +170,8 @@ pub fn RankDrainLease::ack(
 pub fn RankDrainAck::from_wire(
   group_generation_value~ : UInt64,
   plan_sequence_value~ : UInt64,
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
 ) -> RankDrainAck raise RankGroupError {
   validate_world_size(world_size)
   if group_generation_value == 0UL {
@@ -210,7 +214,7 @@ pub fn RankGroupOwner::accept_drain_ack(
 /// dead worker can no longer produce.
 pub fn RankGroupOwner::mark_drain_rank_lost(
   self : RankGroupOwner,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupError {
   self.require_lifecycle(Faulted)
   validate_rank(rank, self.world_size)

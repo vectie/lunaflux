@@ -29,8 +29,8 @@ test "double-slot publication cost is two per tile plus final ownership handoff"
 fn apply_grouped_effects(
   machine : QueryEffectMachine,
   actions : ArrayView[@luna_attention_tile_schedule.AttentionGroupedEffect],
-  epoch : Int,
-  tiles : Int,
+  epoch : Int32,
+  tiles : Int32,
   invalid : Bool,
   omit_wait : Bool,
   omit_publication : Bool,
@@ -78,11 +78,11 @@ fn apply_grouped_effects(
 ///|
 fn exercise_grouped_effects(
   plan : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
-  tiles : Int,
-  invalid_epoch : Int?,
-  omit_wait? : Bool = false,
-  omit_publication? : Bool = false,
-  omit_release? : Bool = false,
+  tiles : Int32,
+  invalid_epoch : Int32?,
+  omit_wait~ : Bool = false,
+  omit_publication~ : Bool = false,
+  omit_release~ : Bool = false,
 ) -> Unit raise {
   let machine = QueryEffectMachine::new(
     if plan.is_pipelined() {

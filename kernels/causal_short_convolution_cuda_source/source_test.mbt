@@ -1,6 +1,6 @@
 ///|
 test "causal short convolution preserves layout state and exact round points" {
-  let rendered = depthwise_causal_silu_bf16_source(
+  let rendered = @causal_short_convolution_cuda_source.depthwise_causal_silu_bf16_source(
     channel_count=8192,
     kernel_size=4,
     maximum_rows=32,
@@ -33,7 +33,7 @@ test "causal short convolution rejects hostile geometry and symbol" {
   for geometry in [(0, 4, 32, 8), (8, 1, 32, 8), (8, 4, 0, 8), (8, 4, 4, 5)] {
     let (channels, kernel, rows, sequences) = geometry
     try
-      depthwise_causal_silu_bf16_source(
+      @causal_short_convolution_cuda_source.depthwise_causal_silu_bf16_source(
         channel_count=channels,
         kernel_size=kernel,
         maximum_rows=rows,
@@ -51,7 +51,7 @@ test "causal short convolution rejects hostile geometry and symbol" {
     }
   }
   try
-    depthwise_causal_silu_bf16_source(
+    @causal_short_convolution_cuda_source.depthwise_causal_silu_bf16_source(
       channel_count=2147483647,
       kernel_size=4,
       maximum_rows=2147483647,
@@ -65,7 +65,7 @@ test "causal short convolution rejects hostile geometry and symbol" {
     _ => fail("overflowing geometry admitted")
   }
   try
-    depthwise_causal_silu_bf16_source(
+    @causal_short_convolution_cuda_source.depthwise_causal_silu_bf16_source(
       channel_count=8,
       kernel_size=4,
       maximum_rows=16,

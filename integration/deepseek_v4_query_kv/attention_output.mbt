@@ -3,7 +3,7 @@
 /// remains explicit in the plan; a distributed decoder must add its collective.
 pub struct DeepSeekAttentionOutput {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv layer : Int
+  priv layer : Int32
   priv frame : @output_frame.GroupedAttentionOutputFrame
   priv weights : @upload.CheckpointDeviceWeights
   priv mut state : State
@@ -12,12 +12,12 @@ pub struct DeepSeekAttentionOutput {
 ///|
 pub fn attention_output_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  accumulation? : @precision.DotReductionLaw = OrderedFloat32,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  accumulation~ : @precision.DotReductionLaw = OrderedFloat32,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.GroupedAttentionOutputPrecision raise {
   let frequency = rotary_frequency_policy(spec, layer~)
   @precision.GroupedAttentionOutputPrecision::new(
@@ -41,7 +41,7 @@ pub fn attention_output_plan(
 pub fn bind_attention_output_weights(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
+  layer~ : Int32,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   let plan = attention_output_plan(
     spec,
@@ -67,12 +67,12 @@ pub fn bind_attention_output_weights(
 ///|
 pub fn DeepSeekAttentionOutput::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  accumulation? : @precision.DotReductionLaw = OrderedFloat32,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  accumulation~ : @precision.DotReductionLaw = OrderedFloat32,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> Self raise {
   let plan = attention_output_plan(
     spec,
@@ -106,7 +106,7 @@ pub fn DeepSeekAttentionOutput::source_bytes(self : Self) -> Bytes {
 pub fn DeepSeekAttentionOutput::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
-  output_borrowed? : Bool = false,
+  output_borrowed~ : Bool = false,
 ) -> Int64 raise {
   bind_attention_output_weights(checkpoint, self.spec, layer=self.layer).fold(
     init=self.frame.workspace_bytes(output_borrowed~),
@@ -126,7 +126,7 @@ pub fn DeepSeekAttentionOutput::prepare(
   attention~ : @device.Allocation,
   output? : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

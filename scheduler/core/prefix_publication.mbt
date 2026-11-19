@@ -1,5 +1,5 @@
 ///|
-fn Scheduler::evict_one_prefix(self : Scheduler) -> Int {
+fn Scheduler::evict_one_prefix(self : Scheduler) -> Int32 {
   if !self.capacity.prefix_enabled() {
     return 0
   }
@@ -44,9 +44,9 @@ fn Scheduler::evict_one_prefix(self : Scheduler) -> Int {
 ///|
 fn Scheduler::evict_for_virtual_room(
   self : Scheduler,
-  virtual_free : Int,
-  required : Int,
-) -> Int {
+  virtual_free : Int32,
+  required : Int32,
+) -> Int32 {
   if !self.capacity.prefix_enabled() {
     return virtual_free
   }
@@ -87,7 +87,7 @@ fn Scheduler::commit_prompt_prefix_plan(
   index : @radix.PrefixIndex,
   tokens : @radix.PrefixTokenBuffer,
   pages : @radix.PrefixPublishBuffer,
-  priority : Int,
+  priority : Int32,
   plan : @radix.PrefixPublishPlan,
 ) -> Unit {
   if !self.prefix_publish_preflight(pages) {
@@ -126,7 +126,7 @@ fn Scheduler::commit_prompt_prefix_plan(
 }
 
 ///|
-fn Scheduler::publish_prompt_prefix(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::publish_prompt_prefix(self : Scheduler, slot : Int32) -> Unit {
   if !self.capacity.prefix_enabled() {
     return
   }
@@ -140,7 +140,7 @@ fn Scheduler::publish_prompt_prefix(self : Scheduler, slot : Int) -> Unit {
   }
   let token_limit = self.prefix_index.unwrap().limits().max_tokens_per_entry()
   let page_size = self.capacity.tokens_per_page()
-  let token_count = Int::min(request.input_tokens().length(), token_limit) /
+  let token_count = Int32::min(request.input_tokens().length(), token_limit) /
     page_size *
     page_size
   if token_count == 0 {

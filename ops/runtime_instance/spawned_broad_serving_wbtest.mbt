@@ -21,7 +21,7 @@ fn broad_serving_wb_identity(foreign : Bool) -> @spec.ModelIdentity raise {
 ///|
 fn broad_serving_wb_frame(
   request_id : UInt64,
-  maximum_new_tokens : Int,
+  maximum_new_tokens : Int32,
   foreign : Bool,
 ) -> FixedArray[Byte] raise {
   let limits = spawned_serving_wb_limits()
@@ -78,7 +78,7 @@ fn broad_serving_wb_contract(
 ///|
 fn broad_serving_wb_accepted(
   contract : RuntimeSpawnedBroadServingValidationContract,
-  maximum_new_tokens : Int,
+  maximum_new_tokens : Int32,
 ) -> @inference.StreamEvent raise {
   Accepted(
     @inference.AcceptedEvent::new(
@@ -94,8 +94,8 @@ fn broad_serving_wb_accepted(
 
 ///|
 fn broad_serving_wb_token(
-  token_id : Int,
-  position : Int,
+  token_id : Int32,
+  position : Int32,
 ) -> @inference.StreamEvent raise {
   Token(
     @inference.TokenEvent::new(
@@ -108,7 +108,7 @@ fn broad_serving_wb_token(
 }
 
 ///|
-fn broad_serving_wb_usage(output_tokens : Int) -> @inference.Usage raise {
+fn broad_serving_wb_usage(output_tokens : Int32) -> @inference.Usage raise {
   @inference.Usage::initial(
     input_tokens=1,
     cached_input_tokens=0,
@@ -118,7 +118,7 @@ fn broad_serving_wb_usage(output_tokens : Int) -> @inference.Usage raise {
 
 ///|
 fn broad_serving_wb_completed(
-  output_tokens : Int,
+  output_tokens : Int32,
   reason : @inference.FinishReason,
 ) -> @inference.StreamEvent raise {
   Completed(

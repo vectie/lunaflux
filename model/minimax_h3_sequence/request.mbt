@@ -5,9 +5,9 @@
 pub fn Sequence::from_request(
   model : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  text_rows~ : Int,
+  text_rows~ : Int32,
   conditioning~ : ArrayView[ConditionBlock],
-  max_rows~ : Int,
+  max_rows~ : Int32,
 ) -> Self raise SequenceError {
   let shape = model.shapes()
   let resolved = shape.resolve_request(

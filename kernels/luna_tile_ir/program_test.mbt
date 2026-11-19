@@ -13,7 +13,7 @@ fn luna_tile_test_limits() -> @luna_tile_ir.LunaTileLimits raise {
 
 ///|
 fn luna_tile_test_tensor(
-  id : Int,
+  id : Int32,
   space : @luna_tile_ir.LunaTileAddressSpace,
 ) -> @luna_tile_ir.LunaTileTensorView raise {
   @luna_tile_ir.LunaTileTensorView::new(
@@ -28,7 +28,7 @@ fn luna_tile_test_tensor(
 }
 
 ///|
-fn luna_tile_test_region(id : Int) -> @luna_tile_ir.LunaTileRegion raise {
+fn luna_tile_test_region(id : Int32) -> @luna_tile_ir.LunaTileRegion raise {
   @luna_tile_ir.LunaTileRegion::new(
     tensor=@luna_tile_ir.LunaTileTensorId::from_stable_int(id),
     origins=[
@@ -41,9 +41,9 @@ fn luna_tile_test_region(id : Int) -> @luna_tile_ir.LunaTileRegion raise {
 
 ///|
 fn luna_tile_residual_tensor(
-  id : Int,
+  id : Int32,
   width : Int64,
-  dtype? : @luna_tile_ir.LunaTileDType = BFloat16,
+  dtype~ : @luna_tile_ir.LunaTileDType = BFloat16,
 ) -> @luna_tile_ir.LunaTileTensorView raise {
   @luna_tile_ir.LunaTileTensorView::new(
     id=@luna_tile_ir.LunaTileTensorId::from_stable_int(id),
@@ -64,10 +64,10 @@ fn luna_tile_residual_tensor(
 
 ///|
 fn luna_tile_residual_program(
-  kind? : @luna_tile_ir.LunaTileElementwiseKind = Add,
-  declared_width? : Int64 = 4L,
-  tensor_width? : Int64 = 4L,
-  dtype? : @luna_tile_ir.LunaTileDType = BFloat16,
+  kind~ : @luna_tile_ir.LunaTileElementwiseKind = Add,
+  declared_width~ : Int64 = 4L,
+  tensor_width~ : Int64 = 4L,
+  dtype~ : @luna_tile_ir.LunaTileDType = BFloat16,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let left = @luna_tile_ir.LunaTileTensorId::from_stable_int(1)
   let right = @luna_tile_ir.LunaTileTensorId::from_stable_int(2)
@@ -97,7 +97,7 @@ fn luna_tile_residual_program(
 
 ///|
 fn luna_tile_test_program(
-  reverse_constraints? : Bool = false,
+  reverse_constraints~ : Bool = false,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let first = @luna_tile_ir.LunaTileDimensionEquals(
     @luna_tile_ir.LunaTileConstraintId::from_stable_int(1),

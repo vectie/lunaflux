@@ -6,25 +6,25 @@ pub(all) suberror AdvancedDecoderKernelRequirementsError {
   UnsupportedSchema
   InvalidSourceIdentity
   PlanExceedsLimits
-  DuplicateSemanticOperation(Int)
+  DuplicateSemanticOperation(Int32)
   RequirementsEncodingTooLarge
-  UnsupportedGenericKernelOperation(Int, AdvancedDecoderSemanticOperation)
+  UnsupportedGenericKernelOperation(Int32, AdvancedDecoderSemanticOperation)
 } derive(Debug, Eq)
 
 ///|
 /// Explicit startup ceilings. Derivation allocates and is never request-path
 /// work.
 pub struct AdvancedDecoderKernelRequirementLimits {
-  priv maximum_layers : Int
-  priv maximum_auxiliary_stages : Int
-  priv maximum_requirements : Int
+  priv maximum_layers : Int32
+  priv maximum_auxiliary_stages : Int32
+  priv maximum_requirements : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn AdvancedDecoderKernelRequirementLimits::new(
-  maximum_layers~ : Int,
-  maximum_auxiliary_stages~ : Int,
-  maximum_requirements~ : Int,
+  maximum_layers~ : Int32,
+  maximum_auxiliary_stages~ : Int32,
+  maximum_requirements~ : Int32,
 ) -> Self raise AdvancedDecoderKernelRequirementsError {
   if maximum_layers <= 0 ||
     maximum_auxiliary_stages <= 0 ||
@@ -39,50 +39,50 @@ pub fn AdvancedDecoderKernelRequirementLimits::new(
 /// Geometry that changes AOT behavior remains in the operation value.
 pub(all) enum AdvancedDecoderSemanticOperation {
   TokenEmbedding
-  QueryLowRankAProjection(Int)
-  QueryLowRankBProjection(Int, Int, Int)
-  KeyValueProjection(Int, Int, Int)
-  QueryKeyRmsNorm(Double, Int, Int)
-  RotaryPositionEncoding(Double, Double, Int, Double, Double, Double)
-  HyperConnectionBlockControlV1(Int, Int, Double, Double)
-  HyperConnectionPreReduceV1(Int)
-  HyperConnectionPostCombineV1(Int)
-  HyperConnectionHeadReduceV1(Int, Double, Double)
-  SlidingWindowCausalAttention(Int)
-  LearnedCompressedIndex(Int, Int, Int, Int)
-  IndexedCompressedAttention(Int)
-  DeterministicCompressedIndex(Int)
-  DeterministicWindowCompressedIndexJoinV1(Int, Int)
-  NonOverlappingCompressedKeyValuePrepareV1(Int, Int)
-  SelectedSparseAttentionV1(Int, Int)
-  AttentionOutputInverseRotaryV1(Double, Int, Double, Double, Double)
-  AttentionOutputAProjectionV1(Int, Int, Int, Int)
-  AttentionOutputBProjectionV1(Int, Int, Int)
+  QueryLowRankAProjection(Int32)
+  QueryLowRankBProjection(Int32, Int32, Int32)
+  KeyValueProjection(Int32, Int32, Int32)
+  QueryKeyRmsNorm(Double, Int32, Int32)
+  RotaryPositionEncoding(Double, Double, Int32, Double, Double, Double)
+  HyperConnectionBlockControlV1(Int32, Int32, Double, Double)
+  HyperConnectionPreReduceV1(Int32)
+  HyperConnectionPostCombineV1(Int32)
+  HyperConnectionHeadReduceV1(Int32, Double, Double)
+  SlidingWindowCausalAttention(Int32)
+  LearnedCompressedIndex(Int32, Int32, Int32, Int32)
+  IndexedCompressedAttention(Int32)
+  DeterministicCompressedIndex(Int32)
+  DeterministicWindowCompressedIndexJoinV1(Int32, Int32)
+  NonOverlappingCompressedKeyValuePrepareV1(Int32, Int32)
+  SelectedSparseAttentionV1(Int32, Int32)
+  AttentionOutputInverseRotaryV1(Double, Int32, Double, Double, Double)
+  AttentionOutputAProjectionV1(Int32, Int32, Int32, Int32)
+  AttentionOutputBProjectionV1(Int32, Int32, Int32)
   ExpertScoreTransform(
     @advanced_decoder_execution_plan.ExpertScoreFunction,
-    Int
+    Int32
   )
-  TokenHashRouting(Int, Int, Int, Int)
-  NoAuxiliaryLossTopK(Int, Int)
-  SelectedExpertWeightFinalize(Int, Int, Bool, Double)
+  TokenHashRouting(Int32, Int32, Int32, Int32)
+  NoAuxiliaryLossTopK(Int32, Int32)
+  SelectedExpertWeightFinalize(Int32, Int32, Bool, Double)
   RoutedExpertFeedForward(
-    Int,
-    Int,
+    Int32,
+    Int32,
     @advanced_decoder_execution_plan.ExpertActivation
   )
   SharedExpertFeedForward(
-    Int,
-    Int,
+    Int32,
+    Int32,
     @advanced_decoder_execution_plan.ExpertActivation
   )
-  RoutedSharedExpertCombine(Int, Bool, Double)
+  RoutedSharedExpertCombine(Int32, Bool, Double)
   MultiTokenPredictionInputProjection
-  DsparkTargetLayerRead(Int)
+  DsparkTargetLayerRead(Int32)
   DsparkMainProjection
-  DsparkNoiseEmbedding(Int, Int)
-  AuxiliaryDecoderStage(Int)
+  DsparkNoiseEmbedding(Int32, Int32)
+  AuxiliaryDecoderStage(Int32)
   AuxiliaryOutputHead
-  DsparkMarkovAdjustment(Int)
+  DsparkMarkovAdjustment(Int32)
   DsparkConfidence
   FinalRmsNorm(Double)
   LanguageModelHead
@@ -140,57 +140,59 @@ pub struct AdvancedDecoderKernelRequirement {
 /// normalization, projection, attention, and logits kernels. Per-operation
 /// geometry remains in `AdvancedDecoderSemanticOperation`.
 pub struct AdvancedDecoderKernelGeometry {
-  priv vocabulary_size : Int
-  priv hidden_size : Int
-  priv decoder_layer_count : Int
-  priv attention_head_count : Int
-  priv kv_head_count : Int
-  priv attention_head_dimension : Int
-  priv rope_head_dimension : Int
-  priv maximum_position_count : Int
+  priv vocabulary_size : Int32
+  priv hidden_size : Int32
+  priv decoder_layer_count : Int32
+  priv attention_head_count : Int32
+  priv kv_head_count : Int32
+  priv attention_head_dimension : Int32
+  priv rope_head_dimension : Int32
+  priv maximum_position_count : Int32
 } derive(Debug, Eq)
 
 ///|
-pub fn AdvancedDecoderKernelGeometry::vocabulary_size(self : Self) -> Int {
+pub fn AdvancedDecoderKernelGeometry::vocabulary_size(self : Self) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn AdvancedDecoderKernelGeometry::hidden_size(self : Self) -> Int {
+pub fn AdvancedDecoderKernelGeometry::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn AdvancedDecoderKernelGeometry::decoder_layer_count(self : Self) -> Int {
+pub fn AdvancedDecoderKernelGeometry::decoder_layer_count(self : Self) -> Int32 {
   self.decoder_layer_count
 }
 
 ///|
-pub fn AdvancedDecoderKernelGeometry::attention_head_count(self : Self) -> Int {
+pub fn AdvancedDecoderKernelGeometry::attention_head_count(
+  self : Self,
+) -> Int32 {
   self.attention_head_count
 }
 
 ///|
-pub fn AdvancedDecoderKernelGeometry::kv_head_count(self : Self) -> Int {
+pub fn AdvancedDecoderKernelGeometry::kv_head_count(self : Self) -> Int32 {
   self.kv_head_count
 }
 
 ///|
 pub fn AdvancedDecoderKernelGeometry::attention_head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.attention_head_dimension
 }
 
 ///|
-pub fn AdvancedDecoderKernelGeometry::rope_head_dimension(self : Self) -> Int {
+pub fn AdvancedDecoderKernelGeometry::rope_head_dimension(self : Self) -> Int32 {
   self.rope_head_dimension
 }
 
 ///|
 pub fn AdvancedDecoderKernelGeometry::maximum_position_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_position_count
 }
 
@@ -223,7 +225,7 @@ pub fn AdvancedDecoderKernelRequirementsDigest::as_hex(self : Self) -> String {
 /// Immutable startup capability requirements derived from exactly one plan.
 pub struct AdvancedDecoderKernelRequirements {
   priv source_identity : @spec.ModelIdentity
-  priv source_schema_version : Int
+  priv source_schema_version : Int32
   priv geometry : AdvancedDecoderKernelGeometry
   priv digest : AdvancedDecoderKernelRequirementsDigest
   priv requirements : ReadOnlyArray[AdvancedDecoderKernelRequirement]
@@ -247,7 +249,7 @@ pub fn AdvancedDecoderKernelRequirements::source_identity(
 ///|
 pub fn AdvancedDecoderKernelRequirements::source_schema_version(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.source_schema_version
 }
 

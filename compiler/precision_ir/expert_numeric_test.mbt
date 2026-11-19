@@ -1,7 +1,7 @@
 ///|
 fn quantized_activation(
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> @precision_ir.QuantizationPlan raise {
   @precision_ir.plan_operand(
     role=Activation,

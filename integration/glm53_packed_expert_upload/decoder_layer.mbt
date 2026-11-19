@@ -74,7 +74,7 @@ fn GlmDecoderLayer::prepare(
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   sequence_offsets~ : @device.Allocation,

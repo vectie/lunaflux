@@ -1,7 +1,7 @@
 ///|
 fn dynamic_plan(
-  shared? : Bool = false,
-  scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  shared~ : Bool = false,
+  scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision_ir.ExpertMlpPrecision raise {
   fn weight() -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
@@ -23,7 +23,7 @@ fn dynamic_plan(
       tile_elements=32,
     )
   }
-  fn quantization(rows : Int) -> @precision_ir.QuantizationPlan raise {
+  fn quantization(rows : Int32) -> @precision_ir.QuantizationPlan raise {
     @precision_ir.plan_operand(
       role=Activation,
       representation=@format.Representation::new(

@@ -31,144 +31,144 @@ pub fn Glm53FullSpec::model_type(self : Self) -> String {
 }
 
 ///|
-pub fn Glm53FullSpec::vocabulary_size(self : Self) -> Int {
+pub fn Glm53FullSpec::vocabulary_size(self : Self) -> Int32 {
   ignore(self)
   154880
 }
 
 ///|
-pub fn Glm53FullSpec::hidden_size(self : Self) -> Int {
+pub fn Glm53FullSpec::hidden_size(self : Self) -> Int32 {
   ignore(self)
   6144
 }
 
 ///|
-pub fn Glm53FullSpec::dense_intermediate_size(self : Self) -> Int {
+pub fn Glm53FullSpec::dense_intermediate_size(self : Self) -> Int32 {
   ignore(self)
   12288
 }
 
 ///|
-pub fn Glm53FullSpec::moe_intermediate_size(self : Self) -> Int {
+pub fn Glm53FullSpec::moe_intermediate_size(self : Self) -> Int32 {
   ignore(self)
   2048
 }
 
 ///|
-pub fn Glm53FullSpec::layer_count(self : Self) -> Int {
+pub fn Glm53FullSpec::layer_count(self : Self) -> Int32 {
   ignore(self)
   78
 }
 
 ///|
-pub fn Glm53FullSpec::attention_head_count(self : Self) -> Int {
+pub fn Glm53FullSpec::attention_head_count(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn Glm53FullSpec::kv_head_count(self : Self) -> Int {
+pub fn Glm53FullSpec::kv_head_count(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn Glm53FullSpec::q_lora_rank(self : Self) -> Int {
+pub fn Glm53FullSpec::q_lora_rank(self : Self) -> Int32 {
   ignore(self)
   2048
 }
 
 ///|
-pub fn Glm53FullSpec::kv_lora_rank(self : Self) -> Int {
+pub fn Glm53FullSpec::kv_lora_rank(self : Self) -> Int32 {
   ignore(self)
   512
 }
 
 ///|
-pub fn Glm53FullSpec::qk_nope_head_dimension(self : Self) -> Int {
+pub fn Glm53FullSpec::qk_nope_head_dimension(self : Self) -> Int32 {
   ignore(self)
   192
 }
 
 ///|
-pub fn Glm53FullSpec::qk_rope_head_dimension(self : Self) -> Int {
+pub fn Glm53FullSpec::qk_rope_head_dimension(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn Glm53FullSpec::qk_head_dimension(self : Self) -> Int {
+pub fn Glm53FullSpec::qk_head_dimension(self : Self) -> Int32 {
   self.qk_nope_head_dimension() + self.qk_rope_head_dimension()
 }
 
 ///|
-pub fn Glm53FullSpec::value_head_dimension(self : Self) -> Int {
+pub fn Glm53FullSpec::value_head_dimension(self : Self) -> Int32 {
   ignore(self)
   256
 }
 
 ///|
-pub fn Glm53FullSpec::index_head_count(self : Self) -> Int {
+pub fn Glm53FullSpec::index_head_count(self : Self) -> Int32 {
   ignore(self)
   32
 }
 
 ///|
-pub fn Glm53FullSpec::index_head_dimension(self : Self) -> Int {
+pub fn Glm53FullSpec::index_head_dimension(self : Self) -> Int32 {
   ignore(self)
   128
 }
 
 ///|
-pub fn Glm53FullSpec::index_topk(self : Self) -> Int {
+pub fn Glm53FullSpec::index_topk(self : Self) -> Int32 {
   ignore(self)
   2048
 }
 
 ///|
-pub fn Glm53FullSpec::context_length(self : Self) -> Int {
+pub fn Glm53FullSpec::context_length(self : Self) -> Int32 {
   ignore(self)
   1048576
 }
 
 ///|
-pub fn Glm53FullSpec::routed_expert_count(self : Self) -> Int {
+pub fn Glm53FullSpec::routed_expert_count(self : Self) -> Int32 {
   ignore(self)
   256
 }
 
 ///|
-pub fn Glm53FullSpec::shared_expert_count(self : Self) -> Int {
+pub fn Glm53FullSpec::shared_expert_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn Glm53FullSpec::experts_per_token(self : Self) -> Int {
+pub fn Glm53FullSpec::experts_per_token(self : Self) -> Int32 {
   ignore(self)
   8
 }
 
 ///|
-pub fn Glm53FullSpec::expert_group_count(self : Self) -> Int {
+pub fn Glm53FullSpec::expert_group_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn Glm53FullSpec::selected_expert_group_count(self : Self) -> Int {
+pub fn Glm53FullSpec::selected_expert_group_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn Glm53FullSpec::expert_group_score_topk(self : Self) -> Int {
+pub fn Glm53FullSpec::expert_group_score_topk(self : Self) -> Int32 {
   ignore(self)
   2
 }
 
 ///|
-pub fn Glm53FullSpec::mtp_layer_count(self : Self) -> Int {
+pub fn Glm53FullSpec::mtp_layer_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
@@ -232,7 +232,7 @@ pub fn Glm53FullSpec::index_share_for_mtp_iteration(self : Self) -> Bool {
 ///|
 pub fn Glm53FullSpec::attention_kind(
   self : Self,
-  layer : Int,
+  layer : Int32,
 ) -> Glm53AttentionKind raise Glm53SpecError {
   if layer < 0 || layer >= self.layer_count() {
     raise InvalidLayerIndex
@@ -243,7 +243,7 @@ pub fn Glm53FullSpec::attention_kind(
 ///|
 pub fn Glm53FullSpec::feed_forward_kind(
   self : Self,
-  layer : Int,
+  layer : Int32,
 ) -> Glm53FeedForwardKind raise Glm53SpecError {
   if layer < 0 || layer >= self.layer_count() {
     raise InvalidLayerIndex
@@ -260,10 +260,16 @@ pub fn Glm53FullSpec::feed_forward_kind(
 /// layer. The official schedule is FFFSSSFSSS... through layer 77.
 pub fn Glm53FullSpec::computes_index_topk(
   self : Self,
-  layer : Int,
+  layer : Int32,
 ) -> Bool raise Glm53SpecError {
   if layer < 0 || layer >= self.layer_count() {
     raise InvalidLayerIndex
   }
   layer < 3 || (layer - 2) % 4 == 0
 }
+
+///|
+pub extend Glm53FullSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53FullSpec with Eq::{not_equal, equal}

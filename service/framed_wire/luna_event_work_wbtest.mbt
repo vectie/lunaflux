@@ -1,7 +1,7 @@
 ///|
 fn luna_drive_event_work(
   semantic : @luna_event.LunaEventView,
-  budget_units : Int,
+  budget_units : Int32,
 ) -> (FixedArray[Byte], UInt64) raise {
   let budget = LunaFramedEventStepBudget::new(budget_units)
   let workspace = LunaFramedEventWorkspace::new(fixture_limits(), budget)
@@ -22,7 +22,7 @@ fn luna_drive_event_work(
   let output = FixedArray::make(view.length(), b'\x00')
   let mut cursor = 0
   while cursor < output.length() {
-    let amount = Int::min(budget_units, output.length() - cursor)
+    let amount = Int32::min(budget_units, output.length() - cursor)
     assert_eq(
       view.copy_chunk_to(
         output,

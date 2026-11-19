@@ -13,12 +13,12 @@ pub(all) suberror AliasFreeActivationCudaSourceError {
 ///|
 pub struct AliasFreeActivationCudaSource {
   priv numerical_contract : AliasFreeActivationNumericalContract
-  priv batch_count : Int
-  priv channel_count : Int
-  priv time_count : Int
-  priv ratio : Int
-  priv kernel_size : Int
-  priv upsample_time : Int
+  priv batch_count : Int32
+  priv channel_count : Int32
+  priv time_count : Int32
+  priv ratio : Int32
+  priv kernel_size : Int32
+  priv upsample_time : Int32
   priv input_element_count : Int64
   priv intermediate_element_count : Int64
   priv output_element_count : Int64

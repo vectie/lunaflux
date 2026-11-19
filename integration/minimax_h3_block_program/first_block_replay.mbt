@@ -31,7 +31,7 @@ pub fn PredictionMetadata::bind_initial_block(
   input : InputProgram,
   rotary : @joint_diffusion_device.RotaryBindings,
   weights : PredictionWeights,
-  block~ : Int,
+  block~ : Int32,
   timestep_embeddings~ : @device.Allocation,
   parameters~ : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise {

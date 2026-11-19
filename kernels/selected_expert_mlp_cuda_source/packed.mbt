@@ -3,7 +3,7 @@ pub struct PackedExpertMlpCudaSource {
   priv plan : @precision_ir.ExpertMlpPrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
-  priv launches : ReadOnlyArray[(Int, Int)]
+  priv launches : ReadOnlyArray[(Int32, Int32)]
   priv packed_rows : @matrix.PackedExpertRows?
   priv bank_preparation : String?
   priv quantization_workspace : (Int64, Int64)
@@ -48,7 +48,7 @@ pub fn PackedExpertMlpCudaSource::symbols(self : Self) -> ReadOnlyArray[String] 
 ///|
 pub fn PackedExpertMlpCudaSource::launches(
   self : Self,
-) -> ReadOnlyArray[(Int, Int)] {
+) -> ReadOnlyArray[(Int32, Int32)] {
   self.launches
 }
 
@@ -121,7 +121,7 @@ pub fn packed_expert_mlp_source(
   let addresses : Array[String] = []
   let quantizers : Array[String] = []
   let quantizer_symbols : Array[String] = []
-  let quantizer_launches : Array[(Int, Int)] = []
+  let quantizer_launches : Array[(Int32, Int32)] = []
   let mut input_type = "const __nv_bfloat16 *"
   let mut activation_type = "const __nv_bfloat16 *"
   let mut input_load = "__bfloat162float(input[row*\{hidden}ULL+column])"

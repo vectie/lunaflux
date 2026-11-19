@@ -2,13 +2,13 @@
 /// GLM binds names only. The pure generic plan partitions each expert's
 /// intermediate dimension and specifies the pre-round collective boundary.
 pub fn tensor_expert_compute_plan(
-  layer_index~ : Int,
-  maximum_rows~ : Int,
-  rank~ : Int,
-  world_size~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
+  rank~ : Int32,
+  world_size~ : Int32,
   accuracy~ : @precision_ir.Accuracy,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
   memory_ceiling~ : Int64,
 ) -> @precision_ir.ExpertTensorPartition raise {
   // The full plan is metadata, not a full allocation. Its capacity ceiling
@@ -33,7 +33,7 @@ pub fn tensor_expert_compute_plan(
 ///|
 pub fn bind_tensor_experts(
   checkpoint : @precision_materialize.PackedCheckpoint,
-  layer_index~ : Int,
+  layer_index~ : Int32,
   partition~ : @precision_ir.ExpertTensorPartition,
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   let weights = bind_experts(
@@ -51,8 +51,8 @@ pub fn upload_tensor_expert_bank(
   root : @approved_fs.ApprovedRoot,
   partition : @precision_ir.ExpertTensorPartition,
   bank : @device.Allocation,
-  layer_index~ : Int,
-  chunk_bytes~ : Int,
+  layer_index~ : Int32,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
 ) -> Unit raise {
   @packed_expert_mlp.upload_bank(

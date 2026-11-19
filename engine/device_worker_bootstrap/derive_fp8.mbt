@@ -38,8 +38,8 @@ fn validate_fp8_source_envelope(
 fn build_fp8_limits(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
-  operation_count : Int,
-  tensor_count : Int,
+  operation_count : Int32,
+  tensor_count : Int32,
 ) -> (
   @device_layout.DeviceKvLimits,
   @device_step.DeviceStepLimits,

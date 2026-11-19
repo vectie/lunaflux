@@ -27,9 +27,9 @@ async fn qwen3_load_metadata(
 fn qwen3_candidate_inputs(
   metadata : @qwen3_spec.Qwen3ModelMetadata,
   toolchain_sha256 : String,
-  compiler_major : UInt,
-  compiler_minor : UInt,
-  compiler_patch : UInt,
+  compiler_major : UInt32,
+  compiler_minor : UInt32,
+  compiler_patch : UInt32,
 ) -> Qwen3PhysicalInputs raise Qwen3PhysicalError {
   qwen3_require(
     qwen3_is_sha256(toolchain_sha256),

@@ -7,9 +7,9 @@ pub fn pool_dsa_index_keys(
   keys : ArrayView[Double],
   gate_scores : ArrayView[Double],
   valid_tokens : ArrayView[Bool],
-  sequence_length~ : Int,
-  head_dimension~ : Int,
-  pool_size~ : Int,
+  sequence_length~ : Int32,
+  head_dimension~ : Int32,
+  pool_size~ : Int32,
   absolute_pool_encoding~ : ArrayView[Double],
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmDsaPooledKeys raise GlmHybridReferenceError {
@@ -97,8 +97,8 @@ pub fn score_dsa_pools(
   query_head_weights : ArrayView[Double],
   pooled : GlmDsaPooledKeys,
   candidate_visible : ArrayView[Bool],
-  query_count~ : Int,
-  head_count~ : Int,
+  query_count~ : Int32,
+  head_count~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> ReadOnlyArray[Double] raise GlmHybridReferenceError {
   limits.check_sequence(query_count)

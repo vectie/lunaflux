@@ -125,7 +125,7 @@ fn tp_model_and_weights() -> (
 }
 
 ///|
-fn tp_family_index(operation : @plan.PlanOperation) -> Int {
+fn tp_family_index(operation : @plan.PlanOperation) -> Int32 {
   match operation.kind() {
     Embedding => 20
     RmsNorm => 21

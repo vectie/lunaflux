@@ -11,7 +11,7 @@ priv enum State {
 /// quantization, compression and cache ownership are deliberately downstream.
 pub struct DeepSeekQueryKv {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv layer : Int
+  priv layer : Int32
   priv frame : @frame.QuantizedQueryKvFrame
   priv weights : @upload.CheckpointDeviceWeights
   priv mut state : State
@@ -20,11 +20,11 @@ pub struct DeepSeekQueryKv {
 ///|
 pub fn DeepSeekQueryKv::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -78,7 +78,7 @@ pub fn DeepSeekQueryKv::prepare(
   counts~ : @device.Allocation,
   hidden~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

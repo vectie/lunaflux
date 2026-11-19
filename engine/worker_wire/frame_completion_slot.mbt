@@ -7,7 +7,7 @@ pub struct FrameCompletionSlot {
   priv mut completion_owner : CompletionFrameBuffer?
   priv mut plan_epoch : UInt64
   priv mut completion_epoch : UInt64
-  priv mut expected_entries : Int
+  priv mut expected_entries : Int32
   priv mut active : Bool
   priv mut published : Bool
 }

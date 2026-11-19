@@ -81,7 +81,7 @@ pub fn BatchedDeviceSampler::binding(
 }
 
 ///|
-pub fn BatchedDeviceSampler::token_at(self : Self, row : Int) -> Int raise {
+pub fn BatchedDeviceSampler::token_at(self : Self, row : Int32) -> Int32 raise {
   guard self.state is Retired && row >= 0 && row < self.count else {
     raise @device.DeviceError::Busy(DeviceCopyCreate)
   }
@@ -108,10 +108,11 @@ pub fn BatchedDeviceSampler::close(self : Self) -> Unit raise {
       3 => self.executor.close()
       4 => self.download.close()
       5 => self.upload.close()
-      6 => while !self.functions.is_empty() {
-        self.functions[self.functions.length()-1].close()
-        ignore(self.functions.pop())
-      }
+      6 =>
+        while !self.functions.is_empty() {
+          self.functions[self.functions.length() - 1].close()
+          ignore(self.functions.pop())
+        }
       7 => self.stream.close()
       8 => self.results.close()
       9 => self.stages.close()

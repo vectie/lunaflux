@@ -18,3 +18,15 @@ pub(all) enum LunaTileTensorCoreRule {
 pub(all) suberror LunaTileTensorCoreCandidateError {
   LunaTileTensorCoreRejected(LunaTileTensorCoreRule)
 } derive(Debug, Eq)
+
+///|
+pub extend LunaTileTensorCoreRule with @debug.Debug::{to_repr}
+
+///|
+pub extend LunaTileTensorCoreRule with Eq::{not_equal, equal}
+
+///|
+pub extend LunaTileTensorCoreCandidateError with @debug.Debug::{to_repr}
+
+///|
+pub extend LunaTileTensorCoreCandidateError with Eq::{not_equal, equal}

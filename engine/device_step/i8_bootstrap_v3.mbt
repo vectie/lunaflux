@@ -16,7 +16,7 @@ fn BootstrapEncoder::append_i8_role(
 ///|
 fn validate_i8_bootstrap_v3(
   blueprint : I8PagedExecutionBlueprint,
-  device_ordinal : Int,
+  device_ordinal : Int32,
   limits : DeviceBootstrapLimits,
 ) -> Unit raise DeviceBootstrapError {
   let artifacts = blueprint.artifacts
@@ -75,7 +75,7 @@ fn validate_i8_bootstrap_v3(
 ///|
 fn encode_i8_bootstrap_v3(
   blueprint : I8PagedExecutionBlueprint,
-  device_ordinal : Int,
+  device_ordinal : Int32,
   limits : DeviceBootstrapLimits,
 ) -> Bytes raise DeviceBootstrapError {
   let artifacts = blueprint.artifacts
@@ -193,7 +193,7 @@ fn encode_i8_bootstrap_v3(
 /// authority must still join before executor preparation.
 pub fn admit_i8_device_worker_bootstrap_v3(
   blueprint : I8PagedExecutionBlueprint,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
   limits : DeviceBootstrapLimits,
 ) -> I8DeviceWorkerBootstrapManifestV3 raise DeviceBootstrapError {
   validate_i8_bootstrap_v3(blueprint, device_ordinal, limits)

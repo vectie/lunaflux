@@ -81,9 +81,9 @@ fn LunaOnlineOpenAIServer::progress_inbound(
 
 ///|
 fn luna_openai_handoff_deadline_owner(
-  receipt_count : Int,
-  stream_count : Int,
-) -> Int {
+  receipt_count : Int32,
+  stream_count : Int32,
+) -> Int32 {
   if receipt_count == 1 {
     1
   } else if receipt_count == 0 && stream_count == 1 {
@@ -129,8 +129,8 @@ fn LunaOnlineOpenAIServer::enforce_handoff_deadline(
 ///|
 fn luna_openai_ingress_consumption_valid(
   kind : @online_session.LunaOnlineFramedIngressKind,
-  consumed : Int,
-  offered : Int,
+  consumed : Int32,
+  offered : Int32,
 ) -> Bool {
   if consumed < 0 || consumed > offered {
     return false

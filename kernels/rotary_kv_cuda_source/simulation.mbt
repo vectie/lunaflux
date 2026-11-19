@@ -3,11 +3,11 @@
 /// It modifies only the prefix and preserves the rotated suffix's BF16 bits.
 fn cache_simulation_source(
   symbol : String,
-  rows : Int,
-  heads : Int,
-  width : Int,
-  prefix : Int,
-  block : Int,
+  rows : Int32,
+  heads : Int32,
+  width : Int32,
+  prefix : Int32,
+  block : Int32,
   floor : Double,
   scale : @precision.SimulatedCacheScale,
 ) -> String raise {

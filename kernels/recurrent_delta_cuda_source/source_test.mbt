@@ -1,6 +1,6 @@
 ///|
 test "recurrent delta source binds mixed BF16 F32 layouts and serial correctness" {
-  let rendered = causal_normalized_recurrent_delta_bf16_f32_source(
+  let rendered = @recurrent_delta_cuda_source.causal_normalized_recurrent_delta_bf16_f32_source(
     head_count=64,
     key_dimension=128,
     value_dimension=128,
@@ -29,7 +29,7 @@ test "recurrent delta source binds mixed BF16 F32 layouts and serial correctness
 test "recurrent delta source rejects invalid geometry epsilon and symbol" {
   for epsilon in [0.0, -0.1, @double.not_a_number] {
     try
-      causal_normalized_recurrent_delta_bf16_f32_source(
+      @recurrent_delta_cuda_source.causal_normalized_recurrent_delta_bf16_f32_source(
         head_count=1,
         key_dimension=1,
         value_dimension=1,
@@ -47,7 +47,7 @@ test "recurrent delta source rejects invalid geometry epsilon and symbol" {
     }
   }
   try
-    causal_normalized_recurrent_delta_bf16_f32_source(
+    @recurrent_delta_cuda_source.causal_normalized_recurrent_delta_bf16_f32_source(
       head_count=1,
       key_dimension=1,
       value_dimension=1,
@@ -64,7 +64,7 @@ test "recurrent delta source rejects invalid geometry epsilon and symbol" {
     _ => fail("invalid symbol admitted")
   }
   try
-    causal_normalized_recurrent_delta_bf16_f32_source(
+    @recurrent_delta_cuda_source.causal_normalized_recurrent_delta_bf16_f32_source(
       head_count=1,
       key_dimension=1,
       value_dimension=1,

@@ -12,7 +12,7 @@ fn plain_bf16_storage() -> @numeric_contract.TensorStorageContract {
 }
 
 ///|
-fn operation_presence(operation : @plan.PlanOperation) -> (Bool, Bool, Int) {
+fn operation_presence(operation : @plan.PlanOperation) -> (Bool, Bool, Int32) {
   let mut has_activation = false
   let mut has_tensor = false
   let mut tensor_count = 0
@@ -32,7 +32,7 @@ fn operation_presence(operation : @plan.PlanOperation) -> (Bool, Bool, Int) {
 ///|
 fn tensor_shape_for_input(
   operation : @plan.PlanOperation,
-  input_index : Int,
+  input_index : Int32,
 ) -> @numeric_contract.NumericShape {
   let dimensions : Array[Int64] = match
     (operation.kind(), operation.shape(), input_index) {

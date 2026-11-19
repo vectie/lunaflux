@@ -29,7 +29,7 @@ pub fn GlmHybridDsaPoolingCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridDsaPoolingCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,22 +48,22 @@ pub fn GlmHybridDsaPoolingCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridDsaPoolingCudaCandidate::head_dimension(self : Self) -> Int {
+pub fn GlmHybridDsaPoolingCudaCandidate::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn GlmHybridDsaPoolingCudaCandidate::pool_size(self : Self) -> Int {
+pub fn GlmHybridDsaPoolingCudaCandidate::pool_size(self : Self) -> Int32 {
   self.pool_size
 }
 
 ///|
-pub fn GlmHybridDsaPoolingCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridDsaPoolingCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
-pub fn GlmHybridDsaPoolingCudaCandidate::pool_capacity(self : Self) -> Int {
+pub fn GlmHybridDsaPoolingCudaCandidate::pool_capacity(self : Self) -> Int32 {
   self.pool_capacity
 }
 

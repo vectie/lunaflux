@@ -49,16 +49,16 @@ pub fn FusedParallelNumericalPolicy::maximum_relative_error_ppb(
 
 ///|
 pub struct FusedParallelAotLimits {
-  priv maximum_source_bytes : Int
-  priv maximum_recipe_bytes : Int
-  priv maximum_promotion_bytes : Int
+  priv maximum_source_bytes : Int32
+  priv maximum_recipe_bytes : Int32
+  priv maximum_promotion_bytes : Int32
 }
 
 ///|
 pub fn FusedParallelAotLimits::new(
-  maximum_source_bytes~ : Int,
-  maximum_recipe_bytes~ : Int,
-  maximum_promotion_bytes~ : Int,
+  maximum_source_bytes~ : Int32,
+  maximum_recipe_bytes~ : Int32,
+  maximum_promotion_bytes~ : Int32,
 ) -> FusedParallelAotLimits raise FusedParallelAotError {
   if maximum_source_bytes <= 0 ||
     maximum_source_bytes > 1048576 ||
@@ -79,14 +79,14 @@ priv struct FusedQkvParameters {
   rope_operation : @plan.OperationId
   attention_operation : @plan.OperationId
   kv_layer : @plan.KvLayerId
-  input_width : Int
-  output_width : Int
-  query_heads : Int
-  kv_heads : Int
-  head_dimension : Int
+  input_width : Int32
+  output_width : Int32
+  query_heads : Int32
+  kv_heads : Int32
+  head_dimension : Int32
   rope_theta : Double
-  tokens_per_page : Int
-  total_page_count : Int
+  tokens_per_page : Int32
+  total_page_count : Int32
   page_stride_bytes : Int64
   component_stride_bytes : Int64
 }
@@ -97,7 +97,7 @@ priv struct FusedResidualNormParameters {
   model_plan : String
   residual_operation : @plan.OperationId
   norm_operation : @plan.OperationId
-  width : Int
+  width : Int32
   epsilon : Double
 }
 
@@ -113,7 +113,7 @@ pub struct FusedQkvRopeKvWriteCudaCandidate {
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv numerical_policy : FusedParallelNumericalPolicy
   priv function_symbol : String
-  priv dispatch_canary : UInt
+  priv dispatch_canary : UInt32
   priv source : Bytes
   priv source_digest : FusedParallelDigest
   priv recipe : Bytes
@@ -154,7 +154,7 @@ pub struct FusedQwenQkvQkNormRopeKvWriteCudaCandidate {
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv numerical_policy : FusedParallelNumericalPolicy
   priv function_symbol : String
-  priv dispatch_canary : UInt
+  priv dispatch_canary : UInt32
   priv source : Bytes
   priv source_digest : FusedParallelDigest
   priv recipe : Bytes
@@ -188,7 +188,7 @@ pub struct FusedResidualRmsNormCudaCandidate {
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv numerical_policy : FusedParallelNumericalPolicy
   priv function_symbol : String
-  priv dispatch_canary : UInt
+  priv dispatch_canary : UInt32
   priv source : Bytes
   priv source_digest : FusedParallelDigest
   priv recipe : Bytes

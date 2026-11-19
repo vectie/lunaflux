@@ -27,8 +27,8 @@ fn fixture_evidence() -> Bytes {
 }
 
 ///|
-fn fixture_limits() -> DeploymentBundleLimits raise DeploymentBundleError {
-  DeploymentBundleLimits::new(
+fn fixture_limits() -> @deployment_bundle.DeploymentBundleLimits raise @deployment_bundle.DeploymentBundleError {
+  @deployment_bundle.DeploymentBundleLimits::new(
     maximum_bytes=8192,
     maximum_base_image_bytes=512,
     maximum_locator_bytes=256,
@@ -39,9 +39,9 @@ fn fixture_limits() -> DeploymentBundleLimits raise DeploymentBundleError {
 test "canonical evidence is digest-pinned and release-artifact compatible" {
   let bytes = fixture_evidence()
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  let admitted = admit_deployment_bundle_evidence(
+  let admitted = @deployment_bundle.admit_deployment_bundle_evidence(
     bytes,
-    expected_digest=DeploymentBundleDigest::from_sha256(digest),
+    expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(digest),
     limits=fixture_limits(),
   )
   assert_eq(admitted.architecture(), X86_64)
@@ -64,11 +64,11 @@ test "canonical evidence is digest-pinned and release-artifact compatible" {
 test "substitution and noncanonical evidence fail closed" {
   let bytes = fixture_evidence()
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
-  let wrong = DeploymentBundleDigest::from_sha256(
+  let wrong = @deployment_bundle.DeploymentBundleDigest::from_sha256(
     "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0",
   )
   try
-    admit_deployment_bundle_evidence(
+    @deployment_bundle.admit_deployment_bundle_evidence(
       bytes,
       expected_digest=wrong,
       limits=fixture_limits(),
@@ -84,9 +84,9 @@ test "substitution and noncanonical evidence fail closed" {
   )
   let extra_digest = @crypto.bytes_to_hex_string(@crypto.sha256(extra))
   try
-    admit_deployment_bundle_evidence(
+    @deployment_bundle.admit_deployment_bundle_evidence(
       extra,
-      expected_digest=DeploymentBundleDigest::from_sha256(extra_digest),
+      expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(extra_digest),
       limits=fixture_limits(),
     )
   catch {
@@ -111,9 +111,9 @@ test "short and mutable-tag base references fail without partial admission" {
     let changed = @utf8.encode(lines.join("\n"))
     let changed_digest = @crypto.bytes_to_hex_string(@crypto.sha256(changed))
     try
-      admit_deployment_bundle_evidence(
+      @deployment_bundle.admit_deployment_bundle_evidence(
         changed,
-        expected_digest=DeploymentBundleDigest::from_sha256(changed_digest),
+        expected_digest=@deployment_bundle.DeploymentBundleDigest::from_sha256(changed_digest),
         limits=fixture_limits(),
       )
     catch {

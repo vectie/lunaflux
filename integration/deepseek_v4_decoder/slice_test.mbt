@@ -46,8 +46,8 @@ test "control laws reach both envelopes without changing default source" {
 ///|
 fn slice(
   spec : @spec.DeepSeekV4ModelSpec,
-  first : Int,
-  end : Int,
+  first : Int32,
+  end : Int32,
 ) -> @deepseek_v4_decoder.DeepSeekDecoderSlice raise {
   @deepseek_v4_decoder.DeepSeekDecoderSlice::new(
     spec,

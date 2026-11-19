@@ -3,7 +3,7 @@ fn valid_identity_component(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
   value.all(c => {
-    c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '.' | '/' | ':')
+    c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_' | '-' | '.' | '/' | ':')
   })
 }
 
@@ -26,7 +26,7 @@ fn validate_auxiliary(
 ///|
 fn validate_layer_schedule(
   layers : ArrayView[GlmHybridLayerPlan],
-  expected_count : Int,
+  expected_count : Int32,
   kda : GlmKdaExecutionPlan?,
 ) -> Unit raise GlmHybridExecutionPlanError {
   if layers.length() != expected_count {
@@ -71,15 +71,15 @@ fn validate_layer_schedule(
 /// Validates and seals a complete GLM hybrid execution plan.
 pub fn GlmHybridExecutionPlan::new(
   content_digest~ : @spec.ContentDigest,
-  schema_version~ : Int,
+  schema_version~ : Int32,
   profile_identity~ : String,
   architecture~ : String,
   model_type~ : String,
-  vocabulary_size~ : Int,
-  hidden_size~ : Int,
-  dense_intermediate_size~ : Int,
-  decoder_layer_count~ : Int,
-  context_length~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_size~ : Int32,
+  dense_intermediate_size~ : Int32,
+  decoder_layer_count~ : Int32,
+  context_length~ : Int32,
   sparse_attention~ : GlmDynamicSparseAttentionPlan,
   kda~ : GlmKdaExecutionPlan?,
   hyper_connection~ : @advanced_decoder_execution_plan.HyperConnectionPlan?,

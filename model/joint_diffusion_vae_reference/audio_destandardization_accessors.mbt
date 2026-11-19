@@ -27,12 +27,14 @@ pub fn JointVaeAudioLatentDestandardization::layout(
 }
 
 ///|
-pub fn JointVaeAudioLatentDestandardization::batch_count(self : Self) -> Int {
+pub fn JointVaeAudioLatentDestandardization::batch_count(self : Self) -> Int32 {
   self.batch_count
 }
 
 ///|
-pub fn JointVaeAudioLatentDestandardization::channel_count(self : Self) -> Int {
+pub fn JointVaeAudioLatentDestandardization::channel_count(
+  self : Self,
+) -> Int32 {
   self.channel_count
 }
 
@@ -53,7 +55,7 @@ pub fn JointVaeAudioLatentDestandardization::element_count(
 ///|
 pub fn JointVaeAudioLatentDestandardization::mean(
   self : Self,
-  channel : Int,
+  channel : Int32,
 ) -> Float? {
   self.means.get(channel)
 }
@@ -61,7 +63,7 @@ pub fn JointVaeAudioLatentDestandardization::mean(
 ///|
 pub fn JointVaeAudioLatentDestandardization::standard_deviation(
   self : Self,
-  channel : Int,
+  channel : Int32,
 ) -> Float? {
   self.standard_deviations.get(channel)
 }

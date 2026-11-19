@@ -1,21 +1,21 @@
 ///|
-const LUNA_CHAT_TEMPLATE_MAX_SEGMENT_BYTES : Int = 512
+const LUNA_CHAT_TEMPLATE_MAX_SEGMENT_BYTES : Int32 = 512
 
 ///|
-const LUNA_CHAT_TEMPLATE_SEGMENTS : Int = 8
+const LUNA_CHAT_TEMPLATE_SEGMENTS : Int32 = 8
 
 ///|
 pub struct LunaOpenAIChatTemplate {
   priv storage : FixedArray[Byte]
-  priv offsets : FixedArray[Int]
-  priv lengths : FixedArray[Int]
-  priv max_rendered_prompt_bytes : Int
+  priv offsets : FixedArray[Int32]
+  priv lengths : FixedArray[Int32]
+  priv max_rendered_prompt_bytes : Int32
 }
 
 ///|
 fn luna_chat_template_total(
   segments : FixedArray[FixedArray[Byte]],
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   if segments.length() != LUNA_CHAT_TEMPLATE_SEGMENTS {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits)
   }
@@ -40,7 +40,7 @@ pub fn LunaOpenAIChatTemplate::required_byte_cells(
   assistant_prefix : FixedArray[Byte],
   assistant_suffix : FixedArray[Byte],
   assistant_cue : FixedArray[Byte],
-  document_prefix? : FixedArray[Byte] = [],
+  document_prefix~ : FixedArray[Byte] = [],
 ) -> UInt64 raise LunaOpenAICompatError {
   luna_chat_template_total([
     system_prefix, system_suffix, user_prefix, user_suffix, assistant_prefix, assistant_suffix,
@@ -63,8 +63,8 @@ pub fn LunaOpenAIChatTemplate::new(
   assistant_prefix : FixedArray[Byte],
   assistant_suffix : FixedArray[Byte],
   assistant_cue : FixedArray[Byte],
-  max_rendered_prompt_bytes~ : Int,
-  document_prefix? : FixedArray[Byte] = [],
+  max_rendered_prompt_bytes~ : Int32,
+  document_prefix~ : FixedArray[Byte] = [],
 ) -> Self raise LunaOpenAICompatError {
   let segments : FixedArray[FixedArray[Byte]] = [
     system_prefix, system_suffix, user_prefix, user_suffix, assistant_prefix, assistant_suffix,
@@ -77,8 +77,14 @@ pub fn LunaOpenAIChatTemplate::new(
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits)
   }
   let storage : FixedArray[Byte] = FixedArray::make(total, 0)
-  let offsets : FixedArray[Int] = FixedArray::make(LUNA_CHAT_TEMPLATE_SEGMENTS, 0)
-  let lengths : FixedArray[Int] = FixedArray::make(LUNA_CHAT_TEMPLATE_SEGMENTS, 0)
+  let offsets : FixedArray[Int32] = FixedArray::make(
+    LUNA_CHAT_TEMPLATE_SEGMENTS,
+    0,
+  )
+  let lengths : FixedArray[Int32] = FixedArray::make(
+    LUNA_CHAT_TEMPLATE_SEGMENTS,
+    0,
+  )
   let mut cursor = 0
   for index, segment in segments {
     offsets[index] = cursor
@@ -123,15 +129,18 @@ fn LunaOpenAIChatTemplate::validate_for(
 }
 
 ///|
-fn LunaOpenAIChatTemplate::segment_length(self : Self, segment : Int) -> Int {
+fn LunaOpenAIChatTemplate::segment_length(
+  self : Self,
+  segment : Int32,
+) -> Int32 {
   self.lengths[segment]
 }
 
 ///|
 fn LunaOpenAIChatTemplate::segment_byte_at(
   self : Self,
-  segment : Int,
-  index : Int,
+  segment : Int32,
+  index : Int32,
 ) -> Byte {
   self.storage[self.offsets[segment] + index]
 }

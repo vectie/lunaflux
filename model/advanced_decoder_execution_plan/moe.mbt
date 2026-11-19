@@ -1,9 +1,9 @@
 ///|
 pub fn MoeExecutionPlan::new(
-  routed_expert_count~ : Int,
-  shared_expert_count~ : Int,
-  experts_per_token~ : Int,
-  intermediate_size~ : Int,
+  routed_expert_count~ : Int32,
+  shared_expert_count~ : Int32,
+  experts_per_token~ : Int32,
+  intermediate_size~ : Int32,
   routed_scaling_factor~ : Double,
   normalize_selected_probabilities~ : Bool,
   score_function~ : ExpertScoreFunction,
@@ -43,7 +43,7 @@ pub fn MoeExecutionPlan::new(
 }
 
 ///|
-pub fn MoeExecutionPlan::hash_routed_layer_count(self : Self) -> Int {
+pub fn MoeExecutionPlan::hash_routed_layer_count(self : Self) -> Int32 {
   match self.selection_method {
     NoAuxiliaryLossTokenChoice => 0
     TokenHashThenNoAuxiliaryLossTokenChoice(hash_layer_count~) =>
@@ -53,7 +53,7 @@ pub fn MoeExecutionPlan::hash_routed_layer_count(self : Self) -> Int {
 
 ///|
 pub fn AdvancedAttentionPlan::sliding_window_causal(
-  window_size : Int,
+  window_size : Int32,
 ) -> AdvancedAttentionPlan raise AdvancedDecoderPlanError {
   if window_size <= 0 {
     raise InvalidLayerAttention
@@ -63,10 +63,10 @@ pub fn AdvancedAttentionPlan::sliding_window_causal(
 
 ///|
 pub fn AdvancedAttentionPlan::indexed_compressed(
-  compression_ratio~ : Int,
-  index_head_count~ : Int,
-  index_head_dimension~ : Int,
-  index_top_k~ : Int,
+  compression_ratio~ : Int32,
+  index_head_count~ : Int32,
+  index_head_dimension~ : Int32,
+  index_top_k~ : Int32,
 ) -> AdvancedAttentionPlan raise AdvancedDecoderPlanError {
   if compression_ratio <= 1 ||
     index_head_count <= 0 ||
@@ -84,8 +84,8 @@ pub fn AdvancedAttentionPlan::indexed_compressed(
 
 ///|
 pub fn AdvancedAttentionPlan::deterministic_compressed(
-  compression_ratio~ : Int,
-  window_size~ : Int,
+  compression_ratio~ : Int32,
+  window_size~ : Int32,
 ) -> AdvancedAttentionPlan raise AdvancedDecoderPlanError {
   if compression_ratio <= 1 || window_size <= 0 {
     raise InvalidLayerAttention
@@ -95,7 +95,7 @@ pub fn AdvancedAttentionPlan::deterministic_compressed(
 
 ///|
 pub fn AdvancedDecoderLayerPlan::new(
-  layer_index~ : Int,
+  layer_index~ : Int32,
   attention~ : AdvancedAttentionPlan,
 ) -> AdvancedDecoderLayerPlan raise AdvancedDecoderPlanError {
   if layer_index < 0 {
@@ -123,11 +123,11 @@ pub fn AdvancedDecoderLayerPlan::new(
 
 ///|
 pub fn DsparkExecutionPlan::new(
-  block_size~ : Int,
-  noise_token_id~ : Int,
-  target_layer_ids~ : ArrayView[Int],
-  markov_rank~ : Int,
-  decoder_layer_count~ : Int,
+  block_size~ : Int32,
+  noise_token_id~ : Int32,
+  target_layer_ids~ : ArrayView[Int32],
+  markov_rank~ : Int32,
+  decoder_layer_count~ : Int32,
 ) -> DsparkExecutionPlan raise AdvancedDecoderPlanError {
   if block_size <= 0 ||
     noise_token_id < 0 ||
@@ -153,7 +153,7 @@ pub fn DsparkExecutionPlan::new(
 
 ///|
 pub fn AuxiliaryPredictionPlan::multi_token_prediction(
-  layer_count : Int,
+  layer_count : Int32,
 ) -> AuxiliaryPredictionPlan raise AdvancedDecoderPlanError {
   if layer_count <= 0 {
     raise InvalidAuxiliaryPrediction
@@ -163,7 +163,7 @@ pub fn AuxiliaryPredictionPlan::multi_token_prediction(
 
 ///|
 pub fn AuxiliaryPredictionPlan::multi_token_prediction_with_dspark(
-  layer_count~ : Int,
+  layer_count~ : Int32,
   dspark~ : DsparkExecutionPlan,
 ) -> AuxiliaryPredictionPlan raise AdvancedDecoderPlanError {
   if layer_count <= 0 {

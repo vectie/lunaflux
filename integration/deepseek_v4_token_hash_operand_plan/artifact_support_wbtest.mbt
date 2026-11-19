@@ -12,7 +12,7 @@ fn artifact_binding_test_module_digest() -> @catalog.AotArtifactDigest {
 }
 
 ///|
-fn artifact_binding_test_entry(ordinal : Int) -> @catalog.AotKernelEntryPoint {
+fn artifact_binding_test_entry(ordinal : Int32) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
       module_digest=artifact_binding_test_module_digest(),
@@ -402,9 +402,9 @@ fn artifact_binding_test_operands(
 fn artifact_binding_test_admission(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
   candidate : @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate,
-  target? : @catalog.DeviceTarget = candidate.target(),
-  hash_symbol? : String = candidate.function_symbol(),
-  hash_candidate? : @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate = candidate,
+  target~ : @catalog.DeviceTarget = candidate.target(),
+  hash_symbol~ : String = candidate.function_symbol(),
+  hash_candidate~ : @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate = candidate,
 ) -> @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmission raise @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionError {
   let query_a = try! @advanced_decoder_cuda_aot.lower_query_a_projection_cuda_aot_candidate(
     requirements,

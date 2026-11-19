@@ -31,16 +31,16 @@ pub struct CudaAttentionTileLowering {
   priv compute : CudaAttentionComputePrimitive
   priv copy : CudaAttentionCopyPrimitive
   priv transfer_readiness : @luna_attention_tile_schedule.AttentionTransferReadiness
-  priv grid_x : Int
-  priv grid_y : Int
-  priv key_value_partitions : Int
-  priv key_value_partition_grain : Int
-  priv block_threads : Int
-  priv query_tile : Int
-  priv key_value_tile : Int
-  priv head_dimension : Int
-  priv pipeline_stages : Int
-  priv vector_bytes : Int
+  priv grid_x : Int32
+  priv grid_y : Int32
+  priv key_value_partitions : Int32
+  priv key_value_partition_grain : Int32
+  priv block_threads : Int32
+  priv query_tile : Int32
+  priv key_value_tile : Int32
+  priv head_dimension : Int32
+  priv pipeline_stages : Int32
+  priv vector_bytes : Int32
   priv shared_memory_bytes : Int64
   priv hoist_paged_key_value_page_lookup : Bool
   priv reuse_online_softmax_tile_storage : Bool

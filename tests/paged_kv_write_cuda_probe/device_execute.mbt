@@ -1,15 +1,15 @@
 ///|
 priv struct KvProbeObservation {
-  token_count : Int
+  token_count : Int32
   key_mutations : Int64
   value_mutations : Int64
-  observed_canary : UInt
-  launches : Int
+  observed_canary : UInt32
+  launches : Int32
   device_uuid : String
   device_pci : String
   device_name_sha256 : String
   device_total_memory_bytes : Int64
-  cuda_driver_version : Int
+  cuda_driver_version : Int32
 }
 
 ///|
@@ -22,7 +22,7 @@ fn kv_upload(
 }
 
 ///|
-fn kv_fill_bytes(count : Int, value : Byte) -> Bytes {
+fn kv_fill_bytes(count : Int32, value : Byte) -> Bytes {
   Bytes::from_array(FixedArray::make(count, value)[:])
 }
 
@@ -30,7 +30,7 @@ fn kv_fill_bytes(count : Int, value : Byte) -> Bytes {
 fn kv_reset_case(
   arena : @device.Allocation,
   case_ : KvWriteCase,
-) -> Array[Int] raise {
+) -> Array[Int32] raise {
   kv_upload(arena, KV_STEP, kv_i32_bytes(case_.step_counts))
   kv_upload(arena, KV_POSITIONS, kv_i32_bytes(case_.positions))
   kv_upload(arena, KV_ROW_OFFSETS, kv_i32_bytes(case_.row_offsets))
@@ -80,8 +80,8 @@ fn kv_guards_unchanged(arena : @device.Allocation) -> Bool raise {
 ///|
 fn kv_scalar_expected(
   case_ : KvWriteCase,
-  qkv : ArrayView[Int],
-) -> (Array[Int], Array[Int]) {
+  qkv : ArrayView[Int32],
+) -> (Array[Int32], Array[Int32]) {
   let key = Array::make(65536, 0x7fc1)
   let value = Array::make(65536, 0x7fc1)
   for token in 0..<case_.positions.length() {
@@ -102,7 +102,7 @@ fn kv_scalar_expected(
 ///|
 fn kv_compare_case(
   case_ : KvWriteCase,
-  qkv : ArrayView[Int],
+  qkv : ArrayView[Int32],
   key_bytes : Bytes,
   value_bytes : Bytes,
 ) -> (Int64, Int64) raise {
@@ -173,7 +173,7 @@ fn run_kv_write_device_probe(
   candidate : @luna_cuda_paged_kv_write_aot.PagedKvWriteCudaCandidate,
   compiled : @luna_cuda_paged_kv_write_aot.PagedKvWriteCompiledArtifact,
   oracle_cubin : Bytes,
-  cycles : Int,
+  cycles : Int32,
   balance : KvProbeBalance,
 ) -> KvProbeObservation raise {
   let (cuda_driver_version, devices) = match @device.probe() {

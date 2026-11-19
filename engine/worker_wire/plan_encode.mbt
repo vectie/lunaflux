@@ -1,7 +1,7 @@
 ///|
 fn write_greedy_sampling_parameters(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
 ) -> Unit {
   write_u32(bytes, offset, 0)
   write_u64(bytes, offset + 4, 1.0.reinterpret_as_uint64())
@@ -14,7 +14,7 @@ fn write_greedy_sampling_parameters(
 ///|
 fn write_sampling_parameters(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   sampling : @inference.SamplingParameters,
 ) -> Unit {
   if sampling.mode() is Greedy {
@@ -55,12 +55,12 @@ fn write_sampling_parameters(
 ///|
 fn validate_plan_counts_for_encode(
   owner : PlanFrameBuffer,
-  token_budget : Int,
-  token_count : Int,
-  page_count : Int,
-  capability_count : Int,
-  prefill_count : Int,
-  decode_count : Int,
+  token_budget : Int32,
+  token_count : Int32,
+  page_count : Int32,
+  capability_count : Int32,
+  prefill_count : Int32,
+  decode_count : Int32,
 ) -> Unit raise WorkerWireError {
   let limits = owner.worker_limits
   if token_budget < token_count ||
@@ -121,11 +121,11 @@ fn validate_sampling_for_encode(
 fn preflight_plan_for_encode(
   owner : PlanFrameBuffer,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  token_count : Int,
-  page_count : Int,
-  capability_count : Int,
-  prefill_count : Int,
-  decode_count : Int,
+  token_count : Int32,
+  page_count : Int32,
+  capability_count : Int32,
+  prefill_count : Int32,
+  decode_count : Int32,
 ) -> Unit raise WorkerWireError {
   let max_token_id = if owner.worker_limits.max_token_id() <
     owner.inference_limits.max_token_id() {
@@ -211,16 +211,16 @@ fn preflight_plan_for_encode(
 ///|
 fn write_plan_header(
   bytes : FixedArray[Byte],
-  frame_offset : Int,
-  length : Int,
+  frame_offset : Int32,
+  length : Int32,
   sequence : UInt64,
   generation : UInt64,
-  token_budget : Int,
-  token_count : Int,
-  page_count : Int,
-  capability_count : Int,
-  prefill_count : Int,
-  decode_count : Int,
+  token_budget : Int32,
+  token_count : Int32,
+  page_count : Int32,
+  capability_count : Int32,
+  prefill_count : Int32,
+  decode_count : Int32,
 ) -> Unit {
   write_u32(bytes, frame_offset, plan_magic)
   write_u32(bytes, frame_offset + 4, wire_version)
@@ -241,7 +241,7 @@ fn write_plan_header(
 ///|
 fn write_prefill_row(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   row : @worker_protocol.SubmittedPrefillRow,
 ) -> Unit raise WorkerWireError {
   let request_id = row.request_id() catch { error => raise Protocol(error) }
@@ -297,7 +297,7 @@ fn write_prefill_row(
 ///|
 fn write_decode_row(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   row : @worker_protocol.SubmittedDecodeRow,
 ) -> Unit raise WorkerWireError {
   let request_id = row.request_id() catch { error => raise Protocol(error) }

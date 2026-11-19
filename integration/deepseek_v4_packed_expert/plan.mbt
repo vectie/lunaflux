@@ -1,7 +1,7 @@
 ///|
 fn activation_plan(
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   accuracy : @precision.Accuracy,
   memory_ceiling : Int64,
 ) -> @precision.QuantizationPlan raise {
@@ -28,9 +28,9 @@ fn activation_plan(
 /// the F32 SwiGLU product before its single BF16 rounding and down quantization.
 pub fn expert_compute_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
-  expert_indices~ : ArrayView[Int],
-  maximum_rows~ : Int,
+  layer_index~ : Int32,
+  expert_indices~ : ArrayView[Int32],
+  maximum_rows~ : Int32,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
 ) -> @precision.ExpertMlpPrecision raise {
@@ -48,8 +48,8 @@ pub fn expert_compute_plan(
 pub fn block_expert_compute_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   block~ : @spec.DeepSeekV4BlockAddress,
-  expert_indices~ : ArrayView[Int],
-  maximum_rows~ : Int,
+  expert_indices~ : ArrayView[Int32],
+  maximum_rows~ : Int32,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
 ) -> @precision.ExpertMlpPrecision raise {
@@ -74,13 +74,13 @@ pub fn block_expert_compute_plan(
 fn compute_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   family : ArrayView[@weights.DeepSeekV4PackedExpertWeight],
-  expert_count~ : Int,
-  selected_experts~ : Int,
-  expert_indices~ : ArrayView[Int],
-  maximum_rows~ : Int,
+  expert_count~ : Int32,
+  selected_experts~ : Int32,
+  expert_indices~ : ArrayView[Int32],
+  maximum_rows~ : Int32,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
-  scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.ExpertMlpPrecision raise {
   let operands = family[:3].map(weight => {
     @precision.plan_operand(
@@ -132,11 +132,11 @@ fn compute_plan(
 /// Routing buffers are initialized once; their constant values are reusable.
 pub fn shared_expert_compute_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
-  scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.ExpertMlpPrecision raise {
   block_shared_expert_compute_plan(
     spec,
@@ -152,10 +152,10 @@ pub fn shared_expert_compute_plan(
 pub fn block_shared_expert_compute_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   block~ : @spec.DeepSeekV4BlockAddress,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   memory_ceiling~ : Int64,
   accuracy~ : @precision.Accuracy,
-  scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision.ExpertMlpPrecision raise {
   compute_plan(
     spec,
@@ -174,7 +174,7 @@ pub fn block_shared_expert_compute_plan(
 pub fn bind_shared_expert(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   bind_block_shared_expert(
     checkpoint,
@@ -206,8 +206,8 @@ pub fn upload_shared_expert_bank(
   spec : @spec.DeepSeekV4ModelSpec,
   plan : @precision.ExpertMlpPrecision,
   bank : @device.Allocation,
-  layer_index~ : Int,
-  chunk_bytes~ : Int,
+  layer_index~ : Int32,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard plan.geometry().3 == 1 &&
@@ -232,8 +232,8 @@ pub fn upload_shared_expert_bank(
 pub fn bind_experts(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
-  expert_indices~ : ArrayView[Int],
+  layer_index~ : Int32,
+  expert_indices~ : ArrayView[Int32],
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   bind_block_experts(
     checkpoint,
@@ -248,7 +248,7 @@ pub fn bind_block_experts(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
   block~ : @spec.DeepSeekV4BlockAddress,
-  expert_indices~ : ArrayView[Int],
+  expert_indices~ : ArrayView[Int32],
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   @weights.packed_block_expert_weights(spec, block~, expert_indices~).map(weight => {
     checkpoint.bind_weight(
@@ -267,8 +267,8 @@ pub fn upload_expert_bank(
   spec : @spec.DeepSeekV4ModelSpec,
   plan : @precision.ExpertMlpPrecision,
   bank : @device.Allocation,
-  layer_index~ : Int,
-  chunk_bytes~ : Int,
+  layer_index~ : Int32,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   let indices = Array::makei(plan.local_experts().length(), i => {

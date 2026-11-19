@@ -224,7 +224,7 @@ fn expected_operand_roles(
 fn operands_are_exact(
   operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation,
   operands : ReadOnlyArray[JointDiffusionLaunchOperand],
-  maximum : Int,
+  maximum : Int32,
 ) -> Bool {
   if operands.length() > maximum {
     return false

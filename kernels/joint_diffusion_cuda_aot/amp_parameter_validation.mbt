@@ -1,7 +1,7 @@
 ///|
 fn validate_amp_parameter_geometry(
   layout : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout,
-  channels : Int,
+  channels : Int32,
 ) -> Unit raise JointDiffusionCudaAotError {
   if layout.regions().length() != 126 || channels <= 0 {
     raise Invalid(Requirement)

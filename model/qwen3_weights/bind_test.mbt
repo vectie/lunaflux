@@ -1,12 +1,12 @@
 ///|
 fn test_qwen3_model(
-  layer_count? : Int = 1,
-  vocabulary_size? : Int = 8,
-  hidden_size? : Int = 4,
-  intermediate_size? : Int = 6,
-  attention_head_count? : Int = 2,
-  kv_head_count? : Int = 1,
-  head_dimension? : Int = 4,
+  layer_count~ : Int32 = 1,
+  vocabulary_size~ : Int32 = 8,
+  hidden_size~ : Int32 = 4,
+  intermediate_size~ : Int32 = 6,
+  attention_head_count~ : Int32 = 2,
+  kv_head_count~ : Int32 = 1,
+  head_dimension~ : Int32 = 4,
 ) -> @qwen3_spec.Qwen3ModelMetadata raise {
   let spec = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size~,
@@ -41,7 +41,7 @@ fn append_raw(
   name : String,
   shape : ArrayView[Int64],
   offset : Ref[Int64],
-  dtype? : String = "BF16",
+  dtype~ : String = "BF16",
 ) -> Unit {
   let start = offset.val
   let end = start + tensor_bytes(shape)
@@ -60,7 +60,7 @@ fn append_raw(
 ///|
 fn qwen3_entries(
   model : @qwen3_spec.Qwen3ModelMetadata,
-  redundant_head? : Bool = false,
+  redundant_head~ : Bool = false,
 ) -> (Array[@safetensors.RawTensorMetadata], Int64) {
   let spec = model.spec()
   let hidden = Int64::from_int(spec.hidden_size())

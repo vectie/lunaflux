@@ -39,26 +39,26 @@ pub struct RuntimeSpawnedLongContextContract {
   priv first_frame : FixedArray[Byte]
   priv second_frame : FixedArray[Byte]
   priv expected_model : @spec.ModelIdentity
-  priv expected_first_token : Int
-  priv expected_second_token : Int
-  priv context_ceiling : Int
-  priv tokens_per_page : Int
-  priv turn_limit : Int
+  priv expected_first_token : Int32
+  priv expected_second_token : Int32
+  priv context_ceiling : Int32
+  priv tokens_per_page : Int32
+  priv turn_limit : Int32
 }
 
 ///|
 /// Scalar evidence published only after both requests and all owned physical
 /// resources have closed.
 pub struct RuntimeSpawnedLongContextResult {
-  priv first_token : Int
-  priv second_token : Int
-  priv request_count : Int
-  priv event_count : Int
-  priv plan_count : Int
+  priv first_token : Int32
+  priv second_token : Int32
+  priv request_count : Int32
+  priv event_count : Int32
+  priv plan_count : Int32
   priv last_plan_sequence : UInt64
-  priv input_tokens_processed : Int
-  priv initial_kv_pages_free : Int
-  priv final_kv_pages_free : Int
+  priv input_tokens_processed : Int32
+  priv initial_kv_pages_free : Int32
+  priv final_kv_pages_free : Int32
 }
 
 ///|
@@ -72,8 +72,8 @@ fn spawned_long_context_error(
 fn long_context_request_matches(
   request : @inference.GenerateRequest,
   expected_model : @spec.ModelIdentity,
-  expected_input_tokens : Int,
-  context_ceiling : Int,
+  expected_input_tokens : Int32,
+  context_ceiling : Int32,
 ) -> Bool {
   let token_count = match request.input() {
     TokenIds(tokens) => tokens.length()
@@ -98,13 +98,13 @@ pub fn RuntimeSpawnedLongContextContract::new(
   first_frame : FixedArray[Byte],
   second_frame : FixedArray[Byte],
   expected_model : @spec.ModelIdentity,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  context_ceiling : Int,
-  tokens_per_page : Int,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  context_ceiling : Int32,
+  tokens_per_page : Int32,
   inference_limits : @inference.InferenceLimits,
-  maximum_frame_bytes : Int,
-  turn_limit : Int,
+  maximum_frame_bytes : Int32,
+  turn_limit : Int32,
 ) -> RuntimeSpawnedLongContextContract raise RuntimeSpawnedLongContextError {
   let framed_limits = @framed_wire.FramedWireLimits::new(
     inference_limits,
@@ -154,35 +154,35 @@ pub fn RuntimeSpawnedLongContextContract::new(
 ///|
 pub fn RuntimeSpawnedLongContextResult::first_token(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.first_token
 }
 
 ///|
 pub fn RuntimeSpawnedLongContextResult::second_token(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.second_token
 }
 
 ///|
 pub fn RuntimeSpawnedLongContextResult::request_count(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.request_count
 }
 
 ///|
 pub fn RuntimeSpawnedLongContextResult::event_count(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.event_count
 }
 
 ///|
 pub fn RuntimeSpawnedLongContextResult::plan_count(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.plan_count
 }
 
@@ -196,20 +196,20 @@ pub fn RuntimeSpawnedLongContextResult::last_plan_sequence(
 ///|
 pub fn RuntimeSpawnedLongContextResult::input_tokens_processed(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.input_tokens_processed
 }
 
 ///|
 pub fn RuntimeSpawnedLongContextResult::initial_kv_pages_free(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.initial_kv_pages_free
 }
 
 ///|
 pub fn RuntimeSpawnedLongContextResult::final_kv_pages_free(
   self : RuntimeSpawnedLongContextResult,
-) -> Int {
+) -> Int32 {
   self.final_kv_pages_free
 }

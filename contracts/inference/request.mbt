@@ -110,13 +110,13 @@ pub fn AdmissionDeadline::is_expired(
 /// Immutable validated stop conditions. It deliberately has no `Debug` because
 /// stop strings are request payload.
 pub struct StopConditions {
-  priv token_ids : ReadOnlyArray[Int]
+  priv token_ids : ReadOnlyArray[Int32]
   priv strings : ReadOnlyArray[String]
 }
 
 ///|
 pub fn StopConditions::new(
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   strings : ArrayView[Bytes],
   limits : InferenceLimits,
 ) -> StopConditions raise InferenceContractError {
@@ -161,7 +161,7 @@ pub fn StopConditions::new(
 }
 
 ///|
-pub fn StopConditions::token_ids(self : StopConditions) -> ReadOnlyArray[Int] {
+pub fn StopConditions::token_ids(self : StopConditions) -> ReadOnlyArray[Int32] {
   self.token_ids
 }
 
@@ -234,8 +234,8 @@ pub struct GenerateRequest {
   priv request_id : RequestId
   priv model_identity : @spec.ModelIdentity
   priv input : Input
-  priv max_new_tokens : Int
-  priv context_ceiling : Int
+  priv max_new_tokens : Int32
+  priv context_ceiling : Int32
   priv sampling : SamplingParameters
   priv sampling_seed : SamplingSeed
   priv stops : StopConditions
@@ -251,8 +251,8 @@ pub fn GenerateRequest::new(
   request_id~ : RequestId,
   model_identity~ : @spec.ModelIdentity,
   input~ : Input,
-  max_new_tokens~ : Int,
-  context_ceiling~ : Int,
+  max_new_tokens~ : Int32,
+  context_ceiling~ : Int32,
   sampling~ : SamplingParameters,
   sampling_seed~ : SamplingSeed,
   stops~ : StopConditions,
@@ -336,12 +336,12 @@ pub fn GenerateRequest::input(self : GenerateRequest) -> Input {
 }
 
 ///|
-pub fn GenerateRequest::max_new_tokens(self : GenerateRequest) -> Int {
+pub fn GenerateRequest::max_new_tokens(self : GenerateRequest) -> Int32 {
   self.max_new_tokens
 }
 
 ///|
-pub fn GenerateRequest::context_ceiling(self : GenerateRequest) -> Int {
+pub fn GenerateRequest::context_ceiling(self : GenerateRequest) -> Int32 {
   self.context_ceiling
 }
 
@@ -381,3 +381,27 @@ pub fn GenerateRequest::cache(self : GenerateRequest) -> CachePolicy {
 pub fn GenerateRequest::trace(self : GenerateRequest) -> TraceCorrelation? {
   self.trace
 }
+
+///|
+pub extend StreamPreference with @debug.Debug::{to_repr}
+
+///|
+pub extend StreamPreference with Eq::{not_equal, equal}
+
+///|
+pub extend CachePermission with @debug.Debug::{to_repr}
+
+///|
+pub extend CachePermission with Eq::{not_equal, equal}
+
+///|
+pub extend DeadlineBudget with @debug.Debug::{to_repr}
+
+///|
+pub extend DeadlineBudget with Eq::{not_equal, equal}
+
+///|
+pub extend AdmissionDeadline with @debug.Debug::{to_repr}
+
+///|
+pub extend AdmissionDeadline with Eq::{not_equal, equal}

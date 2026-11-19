@@ -52,7 +52,7 @@ pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -87,28 +87,28 @@ pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::request_shape(
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::time_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.time_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpCudaCandidate::upsample_time(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.upsample_time
 }
 

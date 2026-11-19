@@ -1,8 +1,8 @@
 ///|
 fn checked_workspace_cells(
-  total : Int,
-  addition : Int,
-) -> Int raise IncrementalOutputError {
+  total : Int32,
+  addition : Int32,
+) -> Int32 raise IncrementalOutputError {
   if addition < 0 || total > 0x7fffffff - addition {
     raise invalid(LunaIncrementalOutputWorkspace, Unsupported)
   }
@@ -11,9 +11,9 @@ fn checked_workspace_cells(
 
 ///|
 fn checked_workspace_product(
-  left : Int,
-  right : Int,
-) -> Int raise IncrementalOutputError {
+  left : Int32,
+  right : Int32,
+) -> Int32 raise IncrementalOutputError {
   if left < 0 || right < 0 || (right > 0 && left > 0x7fffffff / right) {
     raise invalid(LunaIncrementalOutputWorkspace, Unsupported)
   }
@@ -23,9 +23,9 @@ fn checked_workspace_product(
 ///|
 fn preflight_workspace_shape(
   inference : @inference.InferenceLimits,
-  patterns : Int,
-  bytes : Int,
-) -> Int raise IncrementalOutputError {
+  patterns : Int32,
+  bytes : Int32,
+) -> Int32 raise IncrementalOutputError {
   if patterns < 0 ||
     bytes < 0 ||
     patterns > inference.max_stop_strings() ||
@@ -47,7 +47,7 @@ fn preflight_workspace_shape(
 /// Returns the exact number of `Int` backing cells allocated by a workspace.
 pub fn LunaIncrementalOutputWorkspace::required_int_cells(
   inference : @inference.InferenceLimits,
-) -> Int raise IncrementalOutputError {
+) -> Int32 raise IncrementalOutputError {
   let patterns = inference.max_stop_strings()
   let pattern_cells = preflight_workspace_shape(
     inference,
@@ -61,7 +61,7 @@ pub fn LunaIncrementalOutputWorkspace::required_int_cells(
 /// Returns the exact number of `Byte` backing cells allocated by a workspace.
 pub fn LunaIncrementalOutputWorkspace::required_byte_cells(
   inference : @inference.InferenceLimits,
-) -> Int raise IncrementalOutputError {
+) -> Int32 raise IncrementalOutputError {
   let bytes = inference.max_stop_string_bytes()
   let pattern_cells = preflight_workspace_shape(
     inference,
@@ -76,7 +76,7 @@ pub fn LunaIncrementalOutputWorkspace::required_byte_cells(
 /// Returns the exact number of retained semantic-view capability slots.
 pub fn LunaIncrementalOutputWorkspace::required_reference_cells(
   inference : @inference.InferenceLimits,
-) -> Int raise IncrementalOutputError {
+) -> Int32 raise IncrementalOutputError {
   ignore(
     preflight_workspace_shape(
       inference,
@@ -92,8 +92,8 @@ fn new_luna_incremental_output_workspace(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   budget : LunaIncrementalOutputStepBudget,
-  pattern_capacity : Int,
-  stop_string_byte_capacity : Int,
+  pattern_capacity : Int32,
+  stop_string_byte_capacity : Int32,
 ) -> LunaIncrementalOutputWorkspace raise IncrementalOutputError {
   let pattern_cells = preflight_workspace_shape(
     inference, pattern_capacity, stop_string_byte_capacity,
@@ -199,7 +199,7 @@ pub fn LunaIncrementalOutputWorkspace::new_for_luna_request_semantics(
 }
 
 ///|
-fn exact_max_stop_bytes(stops : @inference.StopConditions) -> Int {
+fn exact_max_stop_bytes(stops : @inference.StopConditions) -> Int32 {
   let values = stops.strings()
   let mut maximum = 0
   for value in values {

@@ -6,8 +6,8 @@ fn luna_json_number_delimiter(byte : Byte) -> Bool {
 ///|
 fn LunaOpenAIInboundWorkspace::start_number(
   self : Self,
-  target : Int,
-  return_phase : Int,
+  target : Int32,
+  return_phase : Int32,
 ) -> Unit {
   self.number_target = target
   self.number_return_phase = return_phase
@@ -26,7 +26,7 @@ fn LunaOpenAIInboundWorkspace::start_number(
 ///|
 fn LunaOpenAIInboundWorkspace::add_significand_digit(
   self : Self,
-  digit : Int,
+  digit : Int32,
 ) -> Unit raise LunaOpenAICompatError {
   let value = digit.to_uint64()
   if self.number_significand > (0xffffffffffffffffUL - value) / 10UL {

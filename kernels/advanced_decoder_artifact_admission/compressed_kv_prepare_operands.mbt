@@ -1,7 +1,7 @@
 ///|
 fn compressed_kv_prepare_operands_are_exact(
-  window_size : Int,
-  compression_ratio : Int,
+  window_size : Int32,
+  compression_ratio : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,

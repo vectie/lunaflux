@@ -13,7 +13,7 @@ fn checked_product(
 }
 
 ///|
-fn gap_tag(gap : JointConditioningAotGap) -> Int {
+fn gap_tag(gap : JointConditioningAotGap) -> Int32 {
   match gap {
     DecodedMediaPayloadBuffers => 1
     VideoVaeEncodeExecution => 2
@@ -52,7 +52,9 @@ fn operation_text(
 }
 
 ///|
-fn workflow_tag(workflow : @joint_diffusion_plan.JointDiffusionWorkflow) -> Int {
+fn workflow_tag(
+  workflow : @joint_diffusion_plan.JointDiffusionWorkflow,
+) -> Int32 {
   match workflow {
     TextToAudioVideo => 1
     FirstLastFrameToAudioVideo => 2
@@ -61,7 +63,7 @@ fn workflow_tag(workflow : @joint_diffusion_plan.JointDiffusionWorkflow) -> Int 
 }
 
 ///|
-fn optional_int_text(value : Int?) -> String {
+fn optional_int_text(value : Int32?) -> String {
   match value {
     Some(number) => number.to_string()
     None => "none"
@@ -155,10 +157,10 @@ fn validate_request_shape(
 fn keyframe_geometry(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request : @joint_diffusion_io_plan.JointDiffusionIoPlan,
-  requirement_ordinal : Int,
+  requirement_ordinal : Int32,
   operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation,
-  maximum : Int,
-  channels : Int,
+  maximum : Int32,
+  channels : Int32,
   limits : JointConditioningReferenceLimits,
 ) -> JointConditioningAotAssessment raise JointConditioningReferenceError {
   let count = request.keyframes().length()
@@ -231,12 +233,12 @@ fn keyframe_geometry(
 fn reference_geometry(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request : @joint_diffusion_io_plan.JointDiffusionIoPlan,
-  requirement_ordinal : Int,
+  requirement_ordinal : Int32,
   operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation,
-  maximum_images : Int,
-  maximum_videos : Int,
-  maximum_audio : Int,
-  maximum_total : Int,
+  maximum_images : Int32,
+  maximum_videos : Int32,
+  maximum_audio : Int32,
+  maximum_total : Int32,
   allow_audio_only : Bool,
 ) -> JointConditioningAotAssessment raise JointConditioningReferenceError {
   if request.workflow() != ReferenceToAudioVideo ||
@@ -305,7 +307,7 @@ fn reference_geometry(
 pub fn assess_ordered_conditioning_aot(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request : @joint_diffusion_io_plan.JointDiffusionIoPlan,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   limits~ : JointConditioningReferenceLimits,
 ) -> JointConditioningAotAssessment raise JointConditioningReferenceError {
   validate_request_shape(requirements, request)

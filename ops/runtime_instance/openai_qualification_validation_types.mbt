@@ -43,22 +43,22 @@ pub suberror RuntimeOpenAiQualificationValidationError {
 /// it is never discovered from ambient process or filesystem state.
 pub struct RuntimeOpenAiQualificationValidationContract {
   priv credential : FixedArray[Byte]
-  priv turn_limit : Int
-  priv io_timeout_millis : Int
-  priv maximum_response_bytes : Int
+  priv turn_limit : Int32
+  priv io_timeout_millis : Int32
+  priv maximum_response_bytes : Int32
 }
 
 ///|
 /// Evidence scalars become available only after the listener, service, worker
 /// child, scheduler, and KV authority have terminally closed.
 pub struct RuntimeOpenAiQualificationValidationResult {
-  priv event_count : Int
+  priv event_count : Int32
   priv network_accepts : UInt64
   priv network_disconnects : UInt64
   priv network_rejections : UInt64
   priv admissions : UInt64
   priv completions : UInt64
-  priv kv_pages_free : Int
+  priv kv_pages_free : Int32
 }
 
 ///|
@@ -80,9 +80,9 @@ fn qualification_credential_byte_allowed(value : Byte) -> Bool {
 ///|
 pub fn RuntimeOpenAiQualificationValidationContract::new(
   credential : FixedArray[Byte],
-  turn_limit : Int,
-  io_timeout_millis : Int,
-  maximum_response_bytes : Int,
+  turn_limit : Int32,
+  io_timeout_millis : Int32,
+  maximum_response_bytes : Int32,
 ) -> RuntimeOpenAiQualificationValidationContract raise RuntimeOpenAiQualificationValidationError {
   if credential.length() == 0 ||
     credential.length() > 4096 ||
@@ -107,7 +107,7 @@ pub fn RuntimeOpenAiQualificationValidationContract::new(
 ///|
 pub fn RuntimeOpenAiQualificationValidationResult::event_count(
   self : RuntimeOpenAiQualificationValidationResult,
-) -> Int {
+) -> Int32 {
   self.event_count
 }
 
@@ -149,6 +149,6 @@ pub fn RuntimeOpenAiQualificationValidationResult::completions(
 ///|
 pub fn RuntimeOpenAiQualificationValidationResult::kv_pages_free(
   self : RuntimeOpenAiQualificationValidationResult,
-) -> Int {
+) -> Int32 {
   self.kv_pages_free
 }

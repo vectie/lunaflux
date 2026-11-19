@@ -1,5 +1,5 @@
 ///|
-const PHASE4_POLICY_LINES : Int = 39
+const PHASE4_POLICY_LINES : Int32 = 39
 
 ///|
 fn phase4_policy_digest(value : String) -> String raise Phase4PrefixGateError {
@@ -14,7 +14,7 @@ fn phase4_policy_digest(value : String) -> String raise Phase4PrefixGateError {
 ///|
 fn phase4_policy_engine(
   lines : ArrayView[StringView],
-  base : Int,
+  base : Int32,
   expected_name : String,
 ) -> Phase4PolicyEngine raise Phase4PrefixGateError {
   let name = phase4_require_field(

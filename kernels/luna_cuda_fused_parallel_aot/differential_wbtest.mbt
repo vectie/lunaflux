@@ -3,16 +3,16 @@ priv struct ScalarQkvResult {
   qkv : Array[Float]
   key_cache : Array[Float]
   value_cache : Array[Float]
-  canary : Int
+  canary : Int32
 }
 
 ///|
 fn scalar_dot(
   input : ArrayView[Float],
   weights : ArrayView[Float],
-  row : Int,
-  input_width : Int,
-  column : Int,
+  row : Int32,
+  input_width : Int32,
+  column : Int32,
 ) -> Float {
   let mut sum = 0.0F
   for inner in 0..<input_width {
@@ -40,7 +40,7 @@ fn scalar_baseline_qkv_rope_kv(
   q_weight : ArrayView[Float],
   k_weight : ArrayView[Float],
   v_weight : ArrayView[Float],
-  positions : ArrayView[Int],
+  positions : ArrayView[Int32],
 ) -> ScalarQkvResult {
   let rows = positions.length()
   let input_width = 4
@@ -110,7 +110,7 @@ fn scalar_fused_qkv_rope_kv(
   q_weight : ArrayView[Float],
   k_weight : ArrayView[Float],
   v_weight : ArrayView[Float],
-  positions : ArrayView[Int],
+  positions : ArrayView[Int32],
 ) -> ScalarQkvResult {
   let rows = positions.length()
   let input_width = 4
@@ -230,8 +230,8 @@ fn scalar_residual_then_rmsnorm(
   residual : ArrayView[Float],
   branch : ArrayView[Float],
   weight : ArrayView[Float],
-  width : Int,
-) -> (Array[Float], Array[Float], Int) {
+  width : Int32,
+) -> (Array[Float], Array[Float], Int32) {
   let rows = residual.length() / width
   let sum = Array::make(residual.length(), 0.0F)
   let norm = Array::make(residual.length(), 0.0F)
@@ -256,8 +256,8 @@ fn scalar_fused_residual_rmsnorm(
   residual : ArrayView[Float],
   branch : ArrayView[Float],
   weight : ArrayView[Float],
-  width : Int,
-) -> (Array[Float], Array[Float], Int) {
+  width : Int32,
+) -> (Array[Float], Array[Float], Int32) {
   let rows = residual.length() / width
   let sum = Array::make(residual.length(), 0.0F)
   let norm = Array::make(residual.length(), 0.0F)

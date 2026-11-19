@@ -6,7 +6,7 @@ pub fn upload_timestep(
   packing : @minimax_h3_weights.TimestepWeightPacking,
   expected_identity~ : @spec.ModelIdentity,
   destination_offset~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_timestep_weights(packing, expected_identity~)

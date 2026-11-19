@@ -1,8 +1,8 @@
 ///|
 fn exact_kda_gated_rms_norm_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  head_count : Int,
-  head_dimension : Int,
+  head_count : Int32,
+  head_dimension : Int32,
   epsilon : Double,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {

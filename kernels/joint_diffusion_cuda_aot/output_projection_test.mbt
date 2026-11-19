@@ -2,7 +2,7 @@
 fn output_projection_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoOutputProjection(_, _, _, _, _) if latent == VideoLatent =>

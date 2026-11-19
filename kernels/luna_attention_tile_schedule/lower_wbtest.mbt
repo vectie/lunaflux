@@ -1,8 +1,8 @@
 ///|
 fn schedule_test_program(
-  query_rows? : Int = 128,
-  head_dimension? : Int = 128,
-  candidate_id? : Int,
+  query_rows~ : Int32 = 128,
+  head_dimension~ : Int32 = 128,
+  candidate_id? : Int32,
 ) -> @luna_attention_tile_ir.AttentionTileProgram raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,

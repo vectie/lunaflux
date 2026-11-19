@@ -4,7 +4,7 @@
 /// This value counts output tiles, not hardware threads or warp lanes.
 pub fn ProjectionTileSchedule::companion_output_tiles_per_workgroup(
   self : ProjectionTileSchedule,
-) -> Int? {
+) -> Int32? {
   if self.reuse_intermediate_tile {
     Some(
       self.intermediate_pipeline
@@ -19,6 +19,6 @@ pub fn ProjectionTileSchedule::companion_output_tiles_per_workgroup(
 }
 
 ///|
-fn projection_companion_output_tiles(producer_tiles : Int) -> Int {
-  Int::min(4, producer_tiles)
+fn projection_companion_output_tiles(producer_tiles : Int32) -> Int32 {
+  Int32::min(4, producer_tiles)
 }

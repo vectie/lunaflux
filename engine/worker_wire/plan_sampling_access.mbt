@@ -1,10 +1,10 @@
 ///|
-fn read_wire_has_top_k(bytes : FixedArray[Byte], offset : Int) -> Bool {
+fn read_wire_has_top_k(bytes : FixedArray[Byte], offset : Int32) -> Bool {
   read_u32(bytes, offset + 12) == 1
 }
 
 ///|
-fn read_wire_has_top_p(bytes : FixedArray[Byte], offset : Int) -> Bool {
+fn read_wire_has_top_p(bytes : FixedArray[Byte], offset : Int32) -> Bool {
   read_u32(bytes, offset + 20) == 1
 }
 
@@ -25,7 +25,7 @@ pub fn PlanFramePrefillRow::sampling_has_top_k(
 ///|
 pub fn PlanFramePrefillRow::sampling_top_k_value(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 64)
 }
 
@@ -60,7 +60,7 @@ pub fn PlanFrameDecodeRow::sampling_has_top_k(
 ///|
 pub fn PlanFrameDecodeRow::sampling_top_k_value(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 56)
 }
 

@@ -2,7 +2,7 @@
 fn Scheduler::checked_handle_index(
   self : Scheduler,
   handle : RequestHandle,
-) -> Int raise SchedulerError {
+) -> Int32 raise SchedulerError {
   let index = handle.slot().index()
   if index < 0 ||
     index >= self.slot_states.length() ||
@@ -24,7 +24,7 @@ fn Scheduler::checked_handle_index(
 ///|
 fn Scheduler::scheduler_state(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
 ) -> SchedulerRequestState {
   let state = self.slot_states[slot]
   match state {

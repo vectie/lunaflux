@@ -1,9 +1,9 @@
 ///|
 pub fn LunaOnlineFramedConnectionPoolLimits::new(
-  connection_capacity~ : Int,
-  io_poll_timeout_millis~ : Int,
-  request_work_units~ : Int,
-  event_work_units~ : Int,
+  connection_capacity~ : Int32,
+  io_poll_timeout_millis~ : Int32,
+  request_work_units~ : Int32,
+  event_work_units~ : Int32,
 ) -> LunaOnlineFramedConnectionPoolLimits raise LunaOnlineTcpError {
   if connection_capacity <= 0 ||
     connection_capacity > 65536 ||
@@ -26,13 +26,13 @@ pub fn LunaOnlineFramedConnectionPoolLimits::new(
 ///|
 pub fn LunaOnlineFramedConnectionPoolLimits::connection_capacity(
   self : LunaOnlineFramedConnectionPoolLimits,
-) -> Int {
+) -> Int32 {
   self.connection_capacity
 }
 
 ///|
 pub fn LunaOnlineFramedConnectionPoolLimits::io_poll_timeout_millis(
   self : LunaOnlineFramedConnectionPoolLimits,
-) -> Int {
+) -> Int32 {
   self.io_poll_timeout_millis
 }

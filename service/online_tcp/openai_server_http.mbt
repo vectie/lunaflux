@@ -1,7 +1,7 @@
 ///|
 fn LunaOnlineOpenAIServer::receipt_wait(
   self : LunaOnlineOpenAIServer,
-) -> Int raise LunaOnlineTcpError {
+) -> Int32 raise LunaOnlineTcpError {
   if self.receipts.length() != 1 {
     raise luna_online_tcp_error(LunaOnlineTcpLifecycle)
   }
@@ -22,7 +22,7 @@ fn luna_openai_http_requires_more_input(
 }
 
 ///|
-fn luna_openai_http_resume_phase(state : @http1.LunaHttp1WorkState) -> Int {
+fn luna_openai_http_resume_phase(state : @http1.LunaHttp1WorkState) -> Int32 {
   if luna_openai_http_requires_more_input(state) {
     LUNA_OPENAI_HTTP_RECEIVE
   } else {

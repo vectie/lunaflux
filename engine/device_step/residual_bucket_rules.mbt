@@ -13,7 +13,7 @@ fn paged_qwen_postprocess_bucket_launch(
 fn residual_bucket_rule(
   abi : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi,
   source : @launch_contract.AotLaunchDimensions,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> PagedBucketStepLaunch raise DeviceStepError {
   if abi != ResidualRmsNormProductionAbiV2 {
     return FixedBucketLaunch

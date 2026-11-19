@@ -2,7 +2,7 @@
 /// Geometry source must be generated from checked grids by the model adapter.
 /// It defines prefix_geometry(row,&start,&end,&y,&x,&height,&width).
 pub fn position_source(
-  rows~ : Int,
+  rows~ : Int32,
   geometry~ : String,
   prefix~ : String,
 ) -> Bytes raise SourceError {

@@ -1,7 +1,7 @@
 ///|
 fn qwen_partitioned_prefill_problem(
   maximum_problem : @luna_attention_strategy.AttentionCompileProblem,
-  query_tile : Int,
+  query_tile : Int32,
 ) -> @luna_attention_strategy.AttentionCompileProblem raise Qwen3Bf16CandidateExportCliError {
   if maximum_problem.phase() != Prefill || query_tile <= 0 {
     raise QwenReadOnlyPreparation
@@ -15,7 +15,7 @@ fn qwen_partitioned_prefill_problem(
 fn prepare_qwen_compiler_partitioned_prefill(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   baseline : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
-  resources? : (Bytes, String, String)? = None,
+  resources~ : (Bytes, String, String)? = None,
 ) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   let maximum_problem = baseline.functional().plan().problem()
   let (query_tile, _, _) = baseline
@@ -88,7 +88,7 @@ fn qwen_partitioned_prefill_variant_root(
   variants : ArrayView[
     @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotVariant,
   ],
-  index : Int,
+  index : Int32,
 ) -> String {
   let base = output + "/reusable-qwen-prefill-partitioned-attention"
   if index == 0 {
@@ -112,13 +112,13 @@ fn prepare_qwen_compiler_prefill(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
-  qkv_index : Int,
-  attention_index : Int,
-  tuning? : (Bytes, String, String)? = None,
-  resources? : (Bytes, String, String)? = None,
-  query_metadata? : Bool = false,
-  approximate_exponential? : Bool = false,
-  explicit_candidate? : Int,
+  qkv_index : Int32,
+  attention_index : Int32,
+  tuning~ : (Bytes, String, String)? = None,
+  resources~ : (Bytes, String, String)? = None,
+  query_metadata~ : Bool = false,
+  approximate_exponential~ : Bool = false,
+  explicit_candidate? : Int32,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   guard plan.operations()[qkv_index].shape()
     is ProjectionShape(output_width~, ..) &&
@@ -270,11 +270,11 @@ fn prepare_qwen_compiler_decode(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
-  qkv_index : Int,
-  attention_index : Int,
-  resources? : (Bytes, String, String)? = None,
-  tuning? : (Bytes, String, String)? = None,
-  explicit_candidate? : Int,
+  qkv_index : Int32,
+  attention_index : Int32,
+  resources~ : (Bytes, String, String)? = None,
+  tuning~ : (Bytes, String, String)? = None,
+  explicit_candidate? : Int32,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier raise Qwen3Bf16CandidateExportCliError {
   guard plan.operations()[qkv_index].shape()
     is ProjectionShape(output_width~, ..) &&

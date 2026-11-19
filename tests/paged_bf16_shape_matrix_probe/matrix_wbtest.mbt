@@ -1,5 +1,5 @@
 ///|
-fn matrix_encode_reference(values : FixedArray[Int]) -> Bytes {
+fn matrix_encode_reference(values : FixedArray[Int32]) -> Bytes {
   let output = FixedArray::make(values.length() * 2, b'\x00')
   for index, value in values {
     output[index * 2] = value.to_byte()

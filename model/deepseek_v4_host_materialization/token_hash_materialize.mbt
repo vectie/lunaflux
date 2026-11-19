@@ -1,6 +1,6 @@
 ///|
 pub fn DeepSeekV4TokenHashMaterializationLimits::new(
-  maximum_tables~ : Int,
+  maximum_tables~ : Int32,
   maximum_total_i32_bytes~ : Int64,
 ) -> Self raise DeepSeekV4TokenHashMaterializationError {
   if maximum_tables <= 0 ||

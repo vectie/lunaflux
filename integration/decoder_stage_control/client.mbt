@@ -1,8 +1,8 @@
 ///|
 priv enum ClientState {
   Idle
-  Sending(Int)
-  Receiving(Int)
+  Sending(Int32)
+  Receiving(Int32)
   InputsReady
   Retired
   DraftsReady
@@ -18,15 +18,15 @@ pub struct DecoderStageClient {
   priv channel : @channel.RemoteChannel
   priv message : FixedArray[Byte]
   priv outputs_token : Bool
-  priv maximum_output_rows : Int
-  priv maximum_token : Int
-  priv maximum_draft_tokens : Int
+  priv maximum_output_rows : Int32
+  priv maximum_token : Int32
+  priv maximum_draft_tokens : Int32
   priv batched_outputs : Bool
   priv mut expect_token : Bool
-  priv mut expected_rows : Int
-  priv mut draft_rows : Int
+  priv mut expected_rows : Int32
+  priv mut draft_rows : Int32
   priv mut result_failed : Bool
-  priv mut token : Int
+  priv mut token : Int32
   priv mut commit_failed : Bool
   priv mut tentative : Bool
   priv mut epoch : UInt64
@@ -41,9 +41,9 @@ pub fn DecoderStageClient::new(
   outputs_token~ : Bool,
   maximum_buffer_bytes~ : Int64,
   timeout_millis~ : UInt64,
-  maximum_output_rows? : Int = 1,
-  maximum_draft_tokens? : Int = 0,
-  batched_outputs? : Bool = false,
+  maximum_output_rows~ : Int32 = 1,
+  maximum_draft_tokens~ : Int32 = 0,
+  batched_outputs~ : Bool = false,
 ) -> Self raise {
   guard maximum_buffer_bytes >= required_buffer_bytes(limits) &&
     maximum_output_rows > 0 &&
@@ -86,7 +86,7 @@ pub fn DecoderStageClient::prepare(
   plan : @wire.ValidatedPlanFrame,
   epoch~ : UInt64,
   local_now_millis~ : UInt64,
-  tentative? : Bool = false,
+  tentative~ : Bool = false,
 ) -> Unit raise {
   guard !self.busy && self.state is (Idle | DraftsReady) && epoch > self.epoch else {
     raise StageControlError::InvalidState
@@ -137,9 +137,9 @@ pub fn DecoderStageClient::prepare(
 ///|
 fn DecoderStageClient::command(
   self : Self,
-  kind : Int,
-  reply : Int,
-  flags : Int,
+  kind : Int32,
+  reply : Int32,
+  flags : Int32,
   now : UInt64,
 ) -> Unit raise {
   header(self.message, kind, self.epoch, flags, 0)
@@ -246,8 +246,8 @@ pub fn DecoderStageClient::is_batched(self : Self) -> Bool {
 ///|
 fn DecoderStageClient::receipt(
   self : Self,
-  kind : Int,
-  length : Int,
+  kind : Int32,
+  length : Int32,
 ) -> Unit raise {
   validate_header(self.message, length)
   guard read_i32(self.message, 0) == kind &&
@@ -376,7 +376,7 @@ pub fn DecoderStageClient::outputs_token(self : Self) -> Bool {
 }
 
 ///|
-pub fn DecoderStageClient::sampled_token(self : Self) -> Int raise {
+pub fn DecoderStageClient::sampled_token(self : Self) -> Int32 raise {
   guard self.state is Retired && !self.result_failed && self.expected_rows == 1 else {
     raise StageControlError::InvalidState
   }
@@ -384,12 +384,12 @@ pub fn DecoderStageClient::sampled_token(self : Self) -> Int raise {
 }
 
 ///|
-pub fn DecoderStageClient::output_capacity(self : Self) -> Int {
+pub fn DecoderStageClient::output_capacity(self : Self) -> Int32 {
   self.maximum_output_rows
 }
 
 ///|
-pub fn DecoderStageClient::output_rows(self : Self) -> Int raise {
+pub fn DecoderStageClient::output_rows(self : Self) -> Int32 raise {
   guard self.state is Retired else { raise StageControlError::InvalidState }
   if self.result_failed {
     0
@@ -402,8 +402,8 @@ pub fn DecoderStageClient::output_rows(self : Self) -> Int raise {
 /// Read the retained vector, without another network exchange or allocation.
 pub fn DecoderStageClient::sampled_token_at(
   self : Self,
-  row : Int,
-) -> Int raise {
+  row : Int32,
+) -> Int32 raise {
   guard self.state is Retired &&
     !self.result_failed &&
     row >= 0 &&

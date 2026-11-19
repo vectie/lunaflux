@@ -18,7 +18,7 @@ pub fn IndexedSparseDecoderPrecision::new(
   envelope : HyperConnectionPrecision,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
-  publication? : ProjectionPublication = LocalBFloat16,
+  publication~ : ProjectionPublication = LocalBFloat16,
 ) -> Self raise PrecisionPlanError {
   let attention = projection.attention()
   let (rows, _) = attention.capacity()

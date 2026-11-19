@@ -1,6 +1,6 @@
 ///|
 priv struct StageLayer {
-  index : Int
+  index : Int32
   block : DeepSeekDecoderBlock
   routed : @precision.ExpertMlpPrecision
   shared : @precision.ExpertMlpPrecision
@@ -43,7 +43,7 @@ fn StageLayer::upload(
   context : @device.Context,
   checkpoint : @materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   self.banks.push(context.allocate(self.routed.bank_bytes()))

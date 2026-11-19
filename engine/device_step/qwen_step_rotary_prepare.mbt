@@ -6,7 +6,7 @@ fn qwen_step_rotary_operation(
 ) -> @plan.OperationId raise DeviceStepError {
   let mut greatest = -1
   for step in blueprint.steps() {
-    greatest = Int::max(greatest, step.operation_id().as_int())
+    greatest = Int32::max(greatest, step.operation_id().as_int())
   }
   if greatest == 2147483647 {
     raise InvalidExecutor(ResourceState)

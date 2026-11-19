@@ -1,7 +1,7 @@
 ///|
 pub fn lower_final_adaln_parameter_row_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

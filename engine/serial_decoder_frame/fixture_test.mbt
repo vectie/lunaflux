@@ -45,14 +45,14 @@ fn host_frame() -> @serial_decoder_frame.SerialDecoderFrame raise {
 
 ///|
 fn request_plan(
-  id? : UInt64 = 7UL,
-  generation? : UInt64 = 0UL,
-  position? : Int = 0,
-  tokens? : ArrayView[Int] = [2, 3],
-  decode? : Bool = false,
-  produces? : Bool = false,
-  stochastic? : Bool = false,
-  model_generation? : UInt64 = 9UL,
+  id~ : UInt64 = 7UL,
+  generation~ : UInt64 = 0UL,
+  position~ : Int32 = 0,
+  tokens~ : ArrayView[Int32] = [2, 3],
+  decode~ : Bool = false,
+  produces~ : Bool = false,
+  stochastic~ : Bool = false,
+  model_generation~ : UInt64 = 9UL,
 ) -> (
   @protocol.SubmittedSchedulePlan,
   @wire.ValidatedPlanFrame,
@@ -135,7 +135,7 @@ fn request_plan(
 }
 
 ///|
-fn read_i32(bytes : FixedArray[Byte], index : Int) -> Int {
+fn read_i32(bytes : FixedArray[Byte], index : Int32) -> Int32 {
   for byte in 0..<4; bits = 0U {
     continue bits | (bytes[index * 4 + byte].to_uint() << (byte * 8))
   } nobreak {
@@ -146,9 +146,9 @@ fn read_i32(bytes : FixedArray[Byte], index : Int) -> Int {
 ///|
 fn port_value(
   frame : @serial_decoder_frame.SerialDecoderFrame,
-  port : Int,
-  index? : Int = 0,
-) -> Int raise {
+  port : Int32,
+  index~ : Int32 = 0,
+) -> Int32 raise {
   let bytes = FixedArray::make(frame.input_capacity(port), b'\x00')
   ignore(frame.copy_input(port, bytes))
   read_i32(bytes, index)

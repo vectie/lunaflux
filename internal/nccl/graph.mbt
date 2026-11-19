@@ -3,8 +3,8 @@
 extern "c" fn raw_graph_seal(
   c : NcclCommunicator,
   previous : UInt64,
-  sites : Int,
-) -> Int = "lunaflux_nccl_graph_seal"
+  sites : Int32,
+) -> Int32 = "lunaflux_nccl_graph_seal"
 
 ///|
 #borrow(c)
@@ -13,21 +13,21 @@ extern "c" fn raw_graph_begin(
   generation : UInt64,
   plan : UInt64,
   first : UInt64,
-) -> Int = "lunaflux_nccl_graph_begin"
+) -> Int32 = "lunaflux_nccl_graph_begin"
 
 ///|
 #borrow(c)
-extern "c" fn raw_graph_complete(c : NcclCommunicator) -> Int = "lunaflux_nccl_graph_complete"
+extern "c" fn raw_graph_complete(c : NcclCommunicator) -> Int32 = "lunaflux_nccl_graph_complete"
 
 ///|
 #borrow(c)
-extern "c" fn raw_graph_release(c : NcclCommunicator) -> Int = "lunaflux_nccl_graph_release"
+extern "c" fn raw_graph_release(c : NcclCommunicator) -> Int32 = "lunaflux_nccl_graph_release"
 
 ///|
 pub fn NcclCommunicator::seal_graph(
   self : Self,
   previous : UInt64,
-  sites : Int,
+  sites : Int32,
 ) -> Unit raise NcclError {
   check_status(raw_graph_seal(self, previous, sites), CollectiveExecution)
 }

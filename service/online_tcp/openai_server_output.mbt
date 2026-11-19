@@ -2,9 +2,9 @@
 fn LunaOnlineTcpOutputWrite::copy_http_response(
   self : LunaOnlineTcpOutputWrite,
   view : @http1.LunaHttp1ResponseView,
-  source_offset : Int,
-  length : Int,
-) -> Int raise {
+  source_offset : Int32,
+  length : Int32,
+) -> Int32 raise {
   let scratch = self.require_mutating()
   view.copy_chunk(
     scratch.mutable,
@@ -18,31 +18,31 @@ fn LunaOnlineTcpOutputWrite::copy_http_response(
 fn LunaOnlineTcpOutputWrite::copy_http_response_at(
   self : LunaOnlineTcpOutputWrite,
   view : @http1.LunaHttp1ResponseView,
-  source_offset : Int,
-  destination_offset : Int,
-  length : Int,
-) -> Int raise {
+  source_offset : Int32,
+  destination_offset : Int32,
+  length : Int32,
+) -> Int32 raise {
   let scratch = self.require_mutating()
   view.copy_chunk(scratch.mutable, destination_offset~, source_offset~, length~)
 }
 
 ///|
 fn luna_openai_bounded_copy_length(
-  remaining : Int,
-  capacity : Int,
-  work_quanta : Int,
-) -> Int {
+  remaining : Int32,
+  capacity : Int32,
+  work_quanta : Int32,
+) -> Int32 {
   if remaining <= 0 || capacity <= 0 || work_quanta <= 0 {
     return 0
   }
-  Int::min(remaining, Int::min(capacity, work_quanta))
+  Int32::min(remaining, Int32::min(capacity, work_quanta))
 }
 
 ///|
 fn luna_openai_terminal_confirmed(
   event_terminal : Bool,
-  output_cursor : Int,
-  output_length : Int,
+  output_cursor : Int32,
+  output_length : Int32,
 ) -> Bool {
   event_terminal && output_length > 0 && output_cursor == output_length
 }
@@ -51,9 +51,9 @@ fn luna_openai_terminal_confirmed(
 fn LunaOnlineTcpOutputWrite::copy_openai_response(
   self : LunaOnlineTcpOutputWrite,
   view : @openai_compat.LunaOpenAICompatView,
-  source_offset : Int,
-  length : Int,
-) -> Int raise {
+  source_offset : Int32,
+  length : Int32,
+) -> Int32 raise {
   let scratch = self.require_mutating()
   view.copy_chunk_to(
     scratch.mutable,
@@ -67,10 +67,10 @@ fn LunaOnlineTcpOutputWrite::copy_openai_response(
 fn LunaOnlineTcpOutputWrite::copy_openai_response_at(
   self : LunaOnlineTcpOutputWrite,
   view : @openai_compat.LunaOpenAICompatView,
-  source_offset : Int,
-  destination_offset : Int,
-  length : Int,
-) -> Int raise {
+  source_offset : Int32,
+  destination_offset : Int32,
+  length : Int32,
+) -> Int32 raise {
   let scratch = self.require_mutating()
   view.copy_chunk_to(
     scratch.mutable,
@@ -142,7 +142,7 @@ fn LunaOnlineOpenAIServer::progress_response(
 ///|
 fn LunaOnlineOpenAIServer::output_wait(
   self : LunaOnlineOpenAIServer,
-) -> Int raise LunaOnlineTcpError {
+) -> Int32 raise LunaOnlineTcpError {
   let remaining = if self.receipts.length() == 1 {
     self.receipts[0].remaining_millis() catch {
       _ => raise luna_online_tcp_error(LunaOnlineTcpTimeout)

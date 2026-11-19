@@ -3,7 +3,7 @@ test "tensor axes are disjoint complete logical partitions" {
   for world in [2, 4, 8] {
     let mut covered = 0
     for rank in 0..<world {
-      let (start, count) = TensorAxisPartition::new(64, rank~, world_size=world).range()
+      let (start, count) = @precision_ir.TensorAxisPartition::new(64, rank~, world_size=world).range()
       assert_eq(start, covered)
       covered += count
     }
@@ -16,7 +16,7 @@ test "tensor axes are disjoint complete logical partitions" {
       (64, -1, 2),
       (64, 0, 1),
     ] {
-    try TensorAxisPartition::new(width, rank~, world_size~) catch {
+    try @precision_ir.TensorAxisPartition::new(width, rank~, world_size~) catch {
       IllegalPlacement => ()
       e => raise e
     } noraise {
@@ -27,7 +27,7 @@ test "tensor axes are disjoint complete logical partitions" {
 
 ///|
 test "dense partial plan budgets F32 output independently of BF16 product" {
-  let plan = DenseSwiGluPrecision::new(
+  let plan = @precision_ir.DenseSwiGluPrecision::new(
     hidden_width=64,
     intermediate_width=32,
     maximum_rows=3,
@@ -41,7 +41,7 @@ test "dense partial plan budgets F32 output independently of BF16 product" {
 
 ///|
 test "round-before-reduce publishes locally without an F32 partial arena" {
-  let plan = DenseSwiGluPrecision::new(
+  let plan = @precision_ir.DenseSwiGluPrecision::new(
     hidden_width=64,
     intermediate_width=32,
     maximum_rows=3,

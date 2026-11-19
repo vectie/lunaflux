@@ -10,7 +10,7 @@
 /// the returned array becomes the immutable execution order.
 fn[Step] replace_projection_postprocess_attention_spans(
   baseline : ReadOnlyArray[Step],
-  projection_indices : ReadOnlyArray[Int],
+  projection_indices : ReadOnlyArray[Int32],
   postprocess_steps : ReadOnlyArray[Step],
   readonly_attention_steps : ReadOnlyArray[Step],
 ) -> ReadOnlyArray[Step] raise DeviceStepError {

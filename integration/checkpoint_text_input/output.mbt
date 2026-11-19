@@ -1,12 +1,12 @@
 ///|
-fn parse_decode_ids(source : String, maximum : Int) -> Array[Int] raise {
+fn parse_decode_ids(source : String, maximum : Int32) -> Array[Int32] raise {
   guard maximum > 0 && source.length() <= 1048576 else {
     fail("invalid decoded-token envelope")
   }
   if source.is_empty() {
     return []
   }
-  let ids : Array[Int] = []
+  let ids : Array[Int32] = []
   for piece in source.split(",") {
     guard ids.length() < maximum else {
       fail("decoded tokens exceed model context")
@@ -28,8 +28,8 @@ pub fn load_checkpoint_output_text(
   tokenizer_relative : String,
   tokenizer_label : String,
   source : String,
-  vocabulary_size~ : Int,
-  maximum_tokens~ : Int,
+  vocabulary_size~ : Int32,
+  maximum_tokens~ : Int32,
 ) -> CheckpointTextInput raise {
   let ids = parse_decode_ids(source, maximum_tokens)
   let tokenizer = load_checkpoint_tokenizer(

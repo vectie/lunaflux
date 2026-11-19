@@ -3,7 +3,7 @@ pub struct HyperConnectionCudaSource {
   priv plan : @precision.HyperConnectionPrecision
   priv prefix : String
   priv source : Bytes
-  priv normalization_threads : Int
+  priv normalization_threads : Int32
   priv control_schedule : @physical.ControlSchedule?
   priv post_square : Bool
   priv deferred : Bool
@@ -15,7 +15,7 @@ pub struct HyperConnectionCudaSource {
 pub fn hyper_connection_source(
   plan : @precision.HyperConnectionPrecision,
   symbol_prefix~ : String,
-  parallel_controls? : Bool = true,
+  parallel_controls~ : Bool = true,
 ) -> HyperConnectionCudaSource raise {
   let (streams, hidden, rows) = plan.geometry()
   // Independent physical scheduling does not change the numerical IR. Keep
@@ -175,7 +175,7 @@ pub fn HyperConnectionCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn HyperConnectionCudaSource::normalization_threads(self : Self) -> Int {
+pub fn HyperConnectionCudaSource::normalization_threads(self : Self) -> Int32 {
   self.normalization_threads
 }
 
@@ -202,7 +202,7 @@ pub fn HyperConnectionCudaSource::supports_post_square(self : Self) -> Bool {
 ///|
 pub fn HyperConnectionCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String raise @precision.PrecisionPlanError {
   let suffix = match stage {
     0 =>

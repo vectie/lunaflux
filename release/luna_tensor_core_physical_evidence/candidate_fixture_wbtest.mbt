@@ -9,19 +9,21 @@ priv struct TensorCoreEvidenceCandidateFixture {
 }
 
 ///|
-fn tensor_core_evidence_id(value : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn tensor_core_evidence_id(
+  value : Int32,
+) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(value)
 }
 
 ///|
 fn tensor_core_evidence_tensor(
-  id : Int,
+  id : Int32,
   dtype : @luna_tile_ir.LunaTileDType,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
   strides : ArrayView[Int64],
-  offset? : Int64 = 0L,
-  alignment? : Int64 = 32L,
+  offset~ : Int64 = 0L,
+  alignment~ : Int64 = 32L,
 ) -> @luna_tile_ir.LunaTileTensorView raise {
   @luna_tile_ir.LunaTileTensorView::new(
     id=tensor_core_evidence_id(id),
@@ -36,7 +38,7 @@ fn tensor_core_evidence_tensor(
 
 ///|
 fn tensor_core_evidence_static_region(
-  id : Int,
+  id : Int32,
 ) -> @luna_tile_ir.LunaTileRegion raise {
   @luna_tile_ir.LunaTileRegion::new(
     tensor=tensor_core_evidence_id(id),
@@ -50,7 +52,7 @@ fn tensor_core_evidence_static_region(
 
 ///|
 fn tensor_core_evidence_tiled_region(
-  id : Int,
+  id : Int32,
 ) -> @luna_tile_ir.LunaTileRegion raise {
   @luna_tile_ir.LunaTileRegion::new(
     tensor=tensor_core_evidence_id(id),
@@ -66,7 +68,7 @@ fn tensor_core_evidence_tiled_region(
 
 ///|
 fn tensor_core_evidence_program(
-  tile_count? : Int64 = 64L,
+  tile_count~ : Int64 = 64L,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let rows = tile_count * 16L
   let stage = @luna_tile_ir.LunaTileStageId::from_stable_int(1)
@@ -142,7 +144,7 @@ fn tensor_core_evidence_program(
 
 ///|
 fn tensor_core_evidence_candidate_fixture(
-  tile_count? : Int64 = 64L,
+  tile_count~ : Int64 = 64L,
 ) -> TensorCoreEvidenceCandidateFixture raise {
   let program = tensor_core_evidence_program(tile_count~) catch {
     error => fail("tensor-core evidence program: \{Repr(error)}")

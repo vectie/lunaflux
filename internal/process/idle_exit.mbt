@@ -6,7 +6,7 @@ let idle_child_alive : ChildProcessIdleObservation = {
 }
 
 ///|
-fn idle_child_exited(kind : Int, code : Int) -> ChildProcessIdleObservation {
+fn idle_child_exited(kind : Int32, code : Int32) -> ChildProcessIdleObservation {
   { kind: 1, exit_kind: kind, exit_code: code, }
 }
 

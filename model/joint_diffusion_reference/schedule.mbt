@@ -116,24 +116,27 @@ pub fn ShiftedRectifiedFlowSchedule::plan_digest(
 }
 
 ///|
-pub fn ShiftedRectifiedFlowSchedule::point_count(self : Self) -> Int {
+pub fn ShiftedRectifiedFlowSchedule::point_count(self : Self) -> Int32 {
   self.sigmas.length()
 }
 
 ///|
-pub fn ShiftedRectifiedFlowSchedule::evaluation_count(self : Self) -> Int {
+pub fn ShiftedRectifiedFlowSchedule::evaluation_count(self : Self) -> Int32 {
   self.timesteps.length()
 }
 
 ///|
-pub fn ShiftedRectifiedFlowSchedule::sigma(self : Self, index : Int) -> Double? {
+pub fn ShiftedRectifiedFlowSchedule::sigma(
+  self : Self,
+  index : Int32,
+) -> Double? {
   self.sigmas.get(index)
 }
 
 ///|
 pub fn ShiftedRectifiedFlowSchedule::timestep(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Double? {
   self.timesteps.get(index)
 }

@@ -1,16 +1,16 @@
 ///|
-fn fused_qualification_bf16_bits(value : Float) -> Int {
+fn fused_qualification_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn fused_qualification_bf16_float(bits : Int) -> Float {
+fn fused_qualification_bf16_float(bits : Int32) -> Float {
   Float::reinterpret_from_uint((bits.reinterpret_as_uint() & 0xffffU) << 16)
 }
 
 ///|
-pub fn qualification_bf16_bytes(values : ArrayView[Int]) -> Bytes {
+pub fn qualification_bf16_bytes(values : ArrayView[Int32]) -> Bytes {
   let output = FixedArray::make(values.length() * 2, b'\x00')
   for index, value in values {
     output[index * 2] = value.to_byte()
@@ -34,8 +34,8 @@ fn fused_qualification_error_ppb(value : Float) -> Int64? {
 
 ///|
 fn fused_qualification_compare_bf16(
-  actual : ArrayView[Int],
-  expected : ArrayView[Int],
+  actual : ArrayView[Int32],
+  expected : ArrayView[Int32],
   maximum_absolute_error_ppb : Int64,
   maximum_relative_error_ppb : Int64,
 ) -> FusedQualificationComparisonSummary raise FusedQualificationError {
@@ -100,8 +100,8 @@ fn fused_qualification_compare_bf16(
 /// maxima. Relative error is computed per cell against the exact scalar BF16
 /// expectation; a nonzero result against exact zero fails closed.
 pub fn compare_qkv_bf16_output(
-  actual : ArrayView[Int],
-  expected : ArrayView[Int],
+  actual : ArrayView[Int32],
+  expected : ArrayView[Int32],
 ) -> FusedQualificationComparisonSummary raise FusedQualificationError {
   fused_qualification_compare_bf16(actual, expected, 250000L, 500000L)
 }
@@ -110,8 +110,8 @@ pub fn compare_qkv_bf16_output(
 /// Applies both fixed residual/RMSNorm numerical limits and returns their
 /// measured PPB maxima.
 pub fn compare_residual_norm_bf16_output(
-  actual : ArrayView[Int],
-  expected : ArrayView[Int],
+  actual : ArrayView[Int32],
+  expected : ArrayView[Int32],
 ) -> FusedQualificationComparisonSummary raise FusedQualificationError {
   fused_qualification_compare_bf16(actual, expected, 100000L, 250000L)
 }
@@ -120,8 +120,8 @@ pub fn compare_residual_norm_bf16_output(
 /// Applies the fused QKV/RoPE/KV-write candidate's fixed absolute numerical
 /// contract. Callers cannot widen the qualification tolerance.
 pub fn qualify_qkv_bf16_output(
-  actual : ArrayView[Int],
-  expected : ArrayView[Int],
+  actual : ArrayView[Int32],
+  expected : ArrayView[Int32],
 ) -> Float raise FusedQualificationError {
   compare_qkv_bf16_output(actual, expected).maximum_absolute_error()
 }
@@ -130,8 +130,8 @@ pub fn qualify_qkv_bf16_output(
 /// Applies the fused residual/RMSNorm candidate's fixed absolute numerical
 /// contract. Callers cannot widen the qualification tolerance.
 pub fn qualify_residual_norm_bf16_output(
-  actual : ArrayView[Int],
-  expected : ArrayView[Int],
+  actual : ArrayView[Int32],
+  expected : ArrayView[Int32],
 ) -> Float raise FusedQualificationError {
   compare_residual_norm_bf16_output(actual, expected).maximum_absolute_error()
 }

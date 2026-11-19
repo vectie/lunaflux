@@ -3,20 +3,20 @@
 /// and published into one segment of [row, segment, hidden]. Segment order
 /// is semantic; GPU geometry and model layer numbers are not part of this IR.
 pub struct StreamMeanCapturePrecision {
-  priv streams : Int
-  priv hidden : Int
-  priv rows : Int
-  priv segments : Int
+  priv streams : Int32
+  priv hidden : Int32
+  priv rows : Int32
+  priv segments : Int32
   priv input_bytes : Int64
   priv output_bytes : Int64
 }
 
 ///|
 pub fn StreamMeanCapturePrecision::new(
-  stream_count~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
-  segment_count~ : Int,
+  stream_count~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
+  segment_count~ : Int32,
   maximum_output_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
   guard stream_count > 0 &&
@@ -51,7 +51,7 @@ pub fn StreamMeanCapturePrecision::new(
 ///|
 pub fn StreamMeanCapturePrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (self.streams, self.hidden, self.rows, self.segments)
 }
 

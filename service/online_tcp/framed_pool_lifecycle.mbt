@@ -31,7 +31,7 @@ fn LunaOnlineFramedConnectionSlot::route(
 ///|
 fn LunaOnlineFramedConnectionSlot::receipt_remaining(
   self : LunaOnlineFramedConnectionSlot,
-) -> Int {
+) -> Int32 {
   if self.receipts.length() != 1 {
     return 0
   }
@@ -104,7 +104,7 @@ fn LunaOnlineFramedConnectionSlot::abort_local_authorities(
 ///|
 fn LunaOnlineFramedConnectionPool::close_slot_transport(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> Unit {
   let slot = self.slots[index]
   if slot.connections.length() == 1 {
@@ -118,7 +118,7 @@ fn LunaOnlineFramedConnectionPool::close_slot_transport(
 ///|
 fn LunaOnlineFramedConnectionPool::begin_slot_retirement(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> Unit {
   let slot = self.slots[index]
   if slot.phase == LUNA_FRAMED_POOL_FREE ||
@@ -174,7 +174,7 @@ fn LunaOnlineFramedConnectionSlot::reset_for_reuse(
 ///|
 fn LunaOnlineFramedConnectionPool::try_finish_slot_retirement(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> Bool {
   let slot = self.slots[index]
   if slot.phase != LUNA_FRAMED_POOL_RETIRING || !slot.semantic_events.is_empty() {
@@ -201,7 +201,7 @@ fn LunaOnlineFramedConnectionPool::try_finish_slot_retirement(
 fn LunaOnlineFramedConnectionPool::find_route_slot(
   self : LunaOnlineFramedConnectionPool,
   route : @online_session.LunaOnlineFramedRequestRoute,
-) -> Int {
+) -> Int32 {
   for index, slot in self.slots {
     if slot.routes.length() == 1 && slot.route().same_request(route) {
       return index
@@ -220,7 +220,7 @@ pub fn LunaOnlineFramedConnectionPool::local_addr(
 ///|
 pub fn LunaOnlineFramedConnectionPool::active_connection_count(
   self : LunaOnlineFramedConnectionPool,
-) -> Int {
+) -> Int32 {
   self.active_connections
 }
 

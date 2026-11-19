@@ -1,15 +1,15 @@
 ///|
 pub fn LunaTokenizerWorker::begin_luna_input(
   self : LunaTokenizerWorker,
-  byte_count~ : Int,
+  byte_count~ : Int32,
   special_policy~ : SpecialTokenPolicy,
-  output_limit~ : Int,
+  output_limit~ : Int32,
   truncation~ : TruncationPolicy,
 ) -> LunaTokenizerInputWrite raise TokenizerError {
   if self.phase != LUNA_WORKER_IDLE {
     raise LunaTokenizerWorkerBusy
   }
-  let maximum_output = Int::min(
+  let maximum_output = Int32::min(
     self.output_capacity,
     self.spec.limits.max_output_tokens,
   )
@@ -19,7 +19,7 @@ pub fn LunaTokenizerWorker::begin_luna_input(
   if byte_count < 0 {
     raise LunaInvalidInputWrite
   }
-  let maximum_input = Int::min(
+  let maximum_input = Int32::min(
     self.input_capacity,
     self.spec.limits.max_input_bytes,
   )

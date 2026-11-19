@@ -2,24 +2,24 @@
 /// Hard limits for tiny end-to-end correctness oracles. These deliberately
 /// cannot represent production checkpoint geometry.
 pub struct GlmTinyOracleLimits {
-  priv maximum_tokens : Int
-  priv maximum_width : Int
-  priv maximum_low_rank : Int
-  priv maximum_intermediate : Int
-  priv maximum_experts : Int
-  priv maximum_selected : Int
-  priv maximum_values : Int
+  priv maximum_tokens : Int32
+  priv maximum_width : Int32
+  priv maximum_low_rank : Int32
+  priv maximum_intermediate : Int32
+  priv maximum_experts : Int32
+  priv maximum_selected : Int32
+  priv maximum_values : Int32
 }
 
 ///|
 pub fn GlmTinyOracleLimits::new(
-  maximum_tokens~ : Int,
-  maximum_width~ : Int,
-  maximum_low_rank~ : Int,
-  maximum_intermediate~ : Int,
-  maximum_experts~ : Int,
-  maximum_selected~ : Int,
-  maximum_values~ : Int,
+  maximum_tokens~ : Int32,
+  maximum_width~ : Int32,
+  maximum_low_rank~ : Int32,
+  maximum_intermediate~ : Int32,
+  maximum_experts~ : Int32,
+  maximum_selected~ : Int32,
+  maximum_values~ : Int32,
 ) -> GlmTinyOracleLimits raise GlmHybridReferenceError {
   if maximum_tokens <= 0 ||
     maximum_tokens > 32 ||
@@ -52,8 +52,8 @@ pub fn GlmTinyOracleLimits::new(
 pub(all) enum GlmTinyFeedForwardPlan {
   Dense
   Moe(
-    expert_count~ : Int,
-    experts_per_token~ : Int,
+    expert_count~ : Int32,
+    experts_per_token~ : Int32,
     score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction,
     normalize_selected~ : Bool,
     route_scale~ : Float
@@ -64,20 +64,20 @@ pub(all) enum GlmTinyFeedForwardPlan {
 pub(all) enum GlmTinyCompositionPlan {
   Residual
   MultiStreamHyperConnection(
-    stream_count~ : Int,
-    branch_stream~ : Int,
-    output_stream~ : Int
+    stream_count~ : Int32,
+    branch_stream~ : Int32,
+    output_stream~ : Int32
   )
 } derive(Debug, Eq)
 
 ///|
 pub struct GlmTinyHybridBlockPlan {
-  priv token_count : Int
-  priv head_count : Int
-  priv head_dimension : Int
-  priv low_rank : Int
-  priv sparse_top_k : Int
-  priv intermediate_size : Int
+  priv token_count : Int32
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv low_rank : Int32
+  priv sparse_top_k : Int32
+  priv intermediate_size : Int32
   priv rms_epsilon : Double
   priv feed_forward : GlmTinyFeedForwardPlan
   priv composition : GlmTinyCompositionPlan
@@ -85,12 +85,12 @@ pub struct GlmTinyHybridBlockPlan {
 
 ///|
 pub fn GlmTinyHybridBlockPlan::new(
-  token_count~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
-  low_rank~ : Int,
-  sparse_top_k~ : Int,
-  intermediate_size~ : Int,
+  token_count~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  low_rank~ : Int32,
+  sparse_top_k~ : Int32,
+  intermediate_size~ : Int32,
   rms_epsilon~ : Double,
   feed_forward~ : GlmTinyFeedForwardPlan,
   composition~ : GlmTinyCompositionPlan,
@@ -262,5 +262,5 @@ pub struct GlmTinyHybridBlockResult {
   priv attention_branch : ReadOnlyArray[Double]
   priv feed_forward_branch : ReadOnlyArray[Double]
   priv output : ReadOnlyArray[Double]
-  priv selected_experts : ReadOnlyArray[Int]
+  priv selected_experts : ReadOnlyArray[Int32]
 }

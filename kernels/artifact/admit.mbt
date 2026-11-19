@@ -2,7 +2,7 @@
 fn append_required_entry_point(
   required : Array[@catalog.AotKernelEntryPoint],
   identity : @catalog.AotKernelEntryPoint,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise KernelArtifactError {
   if required.contains(identity) {
     return
@@ -16,7 +16,7 @@ fn append_required_entry_point(
 ///|
 fn required_entry_points(
   contracts : @launch_contract.LaunchContractSet,
-  maximum : Int,
+  maximum : Int32,
 ) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
   let required : Array[@catalog.AotKernelEntryPoint] = []
   for contract in contracts.contracts() {
@@ -28,7 +28,7 @@ fn required_entry_points(
 ///|
 fn required_paged_entry_points(
   contracts : @launch_contract.PagedKvLaunchContractSet,
-  maximum : Int,
+  maximum : Int32,
 ) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
   let required : Array[@catalog.AotKernelEntryPoint] = []
   for contract in contracts.contracts() {
@@ -40,7 +40,7 @@ fn required_paged_entry_points(
 ///|
 fn required_tensor_parallel_entry_points(
   contracts : @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet,
-  maximum : Int,
+  maximum : Int32,
 ) -> Array[@catalog.AotKernelEntryPoint] raise KernelArtifactError {
   let required : Array[@catalog.AotKernelEntryPoint] = []
   for contract in contracts.contracts() {
@@ -52,7 +52,7 @@ fn required_tensor_parallel_entry_points(
 ///|
 fn required_modules(
   entry_points : ArrayView[@catalog.AotKernelEntryPoint],
-  maximum : Int,
+  maximum : Int32,
 ) -> Array[@catalog.AotArtifactDigest] raise KernelArtifactError {
   let required : Array[@catalog.AotArtifactDigest] = []
   for entry_point in entry_points {
@@ -69,19 +69,19 @@ fn required_modules(
 
 ///|
 fn valid_initial(character : Char) -> Bool {
-  character is ('A'..='Z' | 'a'..='z' | '_')
+  character is ('A'..<='Z' | 'a'..<='z' | '_')
 }
 
 ///|
 fn valid_continuation(character : Char) -> Bool {
-  valid_initial(character) || character is ('0'..='9')
+  valid_initial(character) || character is ('0'..<='9')
 }
 
 ///|
 fn validate_symbol(
   entry_point : @catalog.AotKernelEntryPoint,
   symbol : String,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise KernelArtifactError {
   if symbol.is_empty() {
     raise InvalidFunctionSymbol(entry_point~, rule=Empty)
@@ -109,7 +109,7 @@ fn validate_symbol(
 fn module_input_index(
   inputs : ArrayView[KernelModuleInput],
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, input in inputs {
     if module_input_digest(input) == digest {
       return Some(index)
@@ -143,7 +143,7 @@ fn own_module_input(input : KernelModuleInput) -> Bytes {
 fn entry_input_index(
   inputs : ArrayView[KernelEntryPointInput],
   identity : @catalog.AotKernelEntryPoint,
-) -> Int? {
+) -> Int32? {
   for index, input in inputs {
     if input.entry_point == identity {
       return Some(index)
@@ -156,7 +156,7 @@ fn entry_input_index(
 fn digest_index(
   digests : ArrayView[@catalog.AotArtifactDigest],
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, candidate in digests {
     if candidate == digest {
       return Some(index)

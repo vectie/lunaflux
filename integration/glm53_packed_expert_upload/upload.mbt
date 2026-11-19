@@ -10,8 +10,8 @@ pub(all) suberror PackedExpertUploadError {
 /// shared precision path. Returned order is expert-major gate/up/down.
 pub fn bind_experts(
   checkpoint : @precision_materialize.PackedCheckpoint,
-  layer_index~ : Int,
-  expert_indices~ : ArrayView[Int],
+  layer_index~ : Int32,
+  expert_indices~ : ArrayView[Int32],
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   @glm53_weights.nvfp4_expert_weights(layer_index~, expert_indices~).map(weight => {
     checkpoint.bind_weight(
@@ -34,7 +34,7 @@ pub fn upload_experts(
   root : @approved_fs.ApprovedRoot,
   weights : ArrayView[@precision_materialize.PackedCheckpointWeight],
   allocations : ArrayView[@device.Allocation],
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }

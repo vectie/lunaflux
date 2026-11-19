@@ -46,7 +46,7 @@ pub fn RuntimeInstanceOwner::readiness(
 ///|
 pub fn RuntimeStartupMeasurement::cold_start_latency_millis(
   self : RuntimeStartupMeasurement,
-) -> Int {
+) -> Int32 {
   self.cold_start_latency_millis
 }
 

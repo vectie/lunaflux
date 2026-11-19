@@ -1,10 +1,10 @@
 ///|
-const PROJECTION_BUCKET_SLOT_COUNT : Int = 19
+const PROJECTION_BUCKET_SLOT_COUNT : Int32 = 19
 
 ///|
 fn projection_row_bucket_slot(
-  row_count : Int,
-) -> Int raise ProjectionStrategyError {
+  row_count : Int32,
+) -> Int32 raise ProjectionStrategyError {
   if row_count <= 0 || row_count > 1048576 {
     raise InvalidProjectionStrategy(Bucket)
   }
@@ -13,12 +13,14 @@ fn projection_row_bucket_slot(
   } else {
     // Slot zero is decode. Prefill capacities are 2^(slot+2), starting
     // at eight rows. Ceil-log2 derives the slot without a duplicated table.
-    Int::max(1, 30 - (row_count - 1).clz())
+    Int32::max(1, 30 - (row_count - 1).clz())
   }
 }
 
 ///|
-fn projection_bucket_for_slot(slot : Int) -> Int raise ProjectionStrategyError {
+fn projection_bucket_for_slot(
+  slot : Int32,
+) -> Int32 raise ProjectionStrategyError {
   if slot < 0 || slot >= PROJECTION_BUCKET_SLOT_COUNT {
     raise InvalidProjectionStrategy(Bucket)
   }
@@ -31,8 +33,8 @@ fn projection_bucket_for_slot(slot : Int) -> Int raise ProjectionStrategyError {
 
 ///|
 pub fn projection_row_bucket(
-  maximum_rows : Int,
-) -> Int raise ProjectionStrategyError {
+  maximum_rows : Int32,
+) -> Int32 raise ProjectionStrategyError {
   projection_bucket_for_slot(projection_row_bucket_slot(maximum_rows))
 }
 
@@ -64,7 +66,7 @@ fn projection_subgroup_eligible(
 ///|
 fn static_projection_strategy(
   shape : ProjectionShape,
-  row_bucket : Int,
+  row_bucket : Int32,
   capabilities : ProjectionCapabilities,
 ) -> ProjectionStrategy raise ProjectionStrategyError {
   let subgroup = capabilities.subgroup_width()
@@ -122,7 +124,7 @@ fn static_projection_strategy(
 ///|
 pub fn plan_projection_dispatch(
   shape : ProjectionShape,
-  maximum_prefill_rows : Int,
+  maximum_prefill_rows : Int32,
   capabilities : ProjectionCapabilities,
 ) -> ProjectionDispatchPlan raise ProjectionStrategyError {
   let row_bucket = projection_row_bucket(maximum_prefill_rows)
@@ -134,7 +136,7 @@ pub fn plan_projection_dispatch(
 ///|
 fn compatible_projection_candidate(
   shape : ProjectionShape,
-  row_bucket : Int,
+  row_bucket : Int32,
   strategy : ProjectionStrategy,
   capabilities : ProjectionCapabilities,
 ) -> Bool {
@@ -223,7 +225,7 @@ fn select_projection_record_for_bucket(
   target : ProjectionTargetId,
   numeric_type : ProjectionNumericType,
   shape : ProjectionShape,
-  row_bucket : Int,
+  row_bucket : Int32,
   capabilities : ProjectionCapabilities,
 ) -> ProjectionAutotuneRecord? {
   let mut selected : ProjectionAutotuneRecord? = None
@@ -260,7 +262,7 @@ pub fn build_projection_runtime_dispatch(
   target~ : ProjectionTargetId,
   numeric_type~ : ProjectionNumericType,
   shape~ : ProjectionShape,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   capabilities~ : ProjectionCapabilities,
 ) -> ProjectionRuntimeDispatch raise ProjectionStrategyError {
   validate_projection_autotune_records(records)
@@ -290,7 +292,7 @@ pub fn build_projection_runtime_dispatch(
 /// Constant-time, allocation-free token-step selection.
 pub fn ProjectionRuntimeDispatch::select(
   self : ProjectionRuntimeDispatch,
-  row_count : Int,
+  row_count : Int32,
 ) -> ProjectionSelectedStrategy raise ProjectionStrategyError {
   if row_count <= 0 || row_count > self.maximum_rows {
     raise InvalidProjectionStrategy(Bucket)
@@ -304,7 +306,7 @@ pub fn ProjectionRuntimeDispatch::select(
 /// table and call `select` directly.
 pub fn ProjectionRuntimeDispatch::dispatch_plan(
   self : ProjectionRuntimeDispatch,
-  maximum_prefill_rows : Int,
+  maximum_prefill_rows : Int32,
 ) -> ProjectionDispatchPlan raise ProjectionStrategyError {
   let decode = self.select(1).strategy()
   let prefill = self.select(maximum_prefill_rows).strategy()

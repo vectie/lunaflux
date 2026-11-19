@@ -18,14 +18,14 @@ pub struct DeviceMemoryLimits {
 /// context remains a KV/page-table bound and is not multiplied into every
 /// transient activation slot.
 pub struct PagedTokenRowEnvelope {
-  priv max_query_rows : Int
-  priv max_query_tokens : Int
+  priv max_query_rows : Int32
+  priv max_query_tokens : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Stable identifier for a reusable physical activation slot origin.
 pub struct ActivationSlotId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -37,7 +37,7 @@ pub struct ActivationRegion {
   priv logical_bytes : Int64
   priv reserved_bytes : Int64
   priv produced_by : @plan.OperationId
-  priv live_through_step : Int
+  priv live_through_step : Int32
   priv retained_output : Bool
 } derive(Debug, Eq)
 
@@ -71,7 +71,7 @@ pub struct DeviceMemoryPlan {
   priv activation_bytes : Int64
   priv workspace : WorkspaceRegion
   priv arena_bytes : Int64
-  priv slot_count : Int
+  priv slot_count : Int32
   priv regions : ReadOnlyArray[ActivationRegion]
   priv bindings : ReadOnlyArray[OperationMemoryBinding]
   priv final_output : @plan.ActivationRef
@@ -117,8 +117,8 @@ pub fn DeviceMemoryLimits::max_arena_bytes(self : DeviceMemoryLimits) -> Int64 {
 
 ///|
 pub fn PagedTokenRowEnvelope::new(
-  max_query_rows~ : Int,
-  max_query_tokens~ : Int,
+  max_query_rows~ : Int32,
+  max_query_tokens~ : Int32,
 ) -> PagedTokenRowEnvelope raise DeviceMemoryError {
   if max_query_rows <= 0 || max_query_tokens < max_query_rows {
     raise InvalidPlan(ShapeEnvelope)
@@ -129,19 +129,19 @@ pub fn PagedTokenRowEnvelope::new(
 ///|
 pub fn PagedTokenRowEnvelope::max_query_rows(
   self : PagedTokenRowEnvelope,
-) -> Int {
+) -> Int32 {
   self.max_query_rows
 }
 
 ///|
 pub fn PagedTokenRowEnvelope::max_query_tokens(
   self : PagedTokenRowEnvelope,
-) -> Int {
+) -> Int32 {
   self.max_query_tokens
 }
 
 ///|
-pub fn ActivationSlotId::as_int(self : ActivationSlotId) -> Int {
+pub fn ActivationSlotId::as_int(self : ActivationSlotId) -> Int32 {
   self.value
 }
 
@@ -185,7 +185,7 @@ pub fn ActivationRegion::produced_by(
 }
 
 ///|
-pub fn ActivationRegion::live_through_step(self : ActivationRegion) -> Int {
+pub fn ActivationRegion::live_through_step(self : ActivationRegion) -> Int32 {
   self.live_through_step
 }
 
@@ -282,17 +282,17 @@ pub fn DeviceMemoryPlan::arena_bytes(self : DeviceMemoryPlan) -> Int64 {
 }
 
 ///|
-pub fn DeviceMemoryPlan::slot_count(self : DeviceMemoryPlan) -> Int {
+pub fn DeviceMemoryPlan::slot_count(self : DeviceMemoryPlan) -> Int32 {
   self.slot_count
 }
 
 ///|
-pub fn DeviceMemoryPlan::activation_count(self : DeviceMemoryPlan) -> Int {
+pub fn DeviceMemoryPlan::activation_count(self : DeviceMemoryPlan) -> Int32 {
   self.regions.length()
 }
 
 ///|
-pub fn DeviceMemoryPlan::operation_count(self : DeviceMemoryPlan) -> Int {
+pub fn DeviceMemoryPlan::operation_count(self : DeviceMemoryPlan) -> Int32 {
   self.bindings.length()
 }
 

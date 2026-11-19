@@ -2,7 +2,7 @@
 fn owned_online_lease(
   executable : Bytes,
   clock : @monotonic_clock.MonotonicClock,
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @worker_service.OnlineWorkerLease raise {
   let model = @approved_fs.ApprovedRoot::open_absolute(fixture_root)
   let kernel = @approved_fs.ApprovedRoot::open_absolute(fixture_root)

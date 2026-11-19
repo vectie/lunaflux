@@ -1,11 +1,11 @@
 ///|
 pub fn f32_weight_normalized_dilated_conv1d_reference(
-  batch_count~ : Int,
-  channel_count~ : Int,
-  time_count~ : Int,
-  kernel_size~ : Int,
-  dilation~ : Int,
-  padding~ : Int,
+  batch_count~ : Int32,
+  channel_count~ : Int32,
+  time_count~ : Int32,
+  kernel_size~ : Int32,
+  dilation~ : Int32,
+  padding~ : Int32,
   input : ArrayView[Float],
   weight_g : ArrayView[Float],
   weight_v : ArrayView[Float],

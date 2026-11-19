@@ -5,9 +5,9 @@
 pub fn deferred_post_pre_source(
   producer : @precision.HyperConnectionPrecision,
   consumer : @precision.HyperConnectionPrecision,
-  controls_per_group~ : Int,
+  controls_per_group~ : Int32,
   symbol~ : String,
-  subgroup_width? : Int = 32,
+  subgroup_width~ : Int32 = 32,
 ) -> Bytes raise {
   let plan = @physical.DeferredPostPrePlan::new(
     producer,

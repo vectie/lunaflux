@@ -29,7 +29,7 @@ test "materialized consumer keeps asynchronous loads ahead of ordered matrix con
       "input",
       "weight",
       3072,
-      Int::min(4, groups),
+      Int32::min(4, groups),
       1024,
     )
     assert_true(source.contains("cp.async.cg.shared.global"))

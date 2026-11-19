@@ -106,7 +106,7 @@ pub fn first_stage_amp_workspace_layout(
     live_end: 1,
   })
   let mut offset = 0L
-  let workspace_roles : Array[(JointAudioAmpWorkspaceRole, Int64, Int, Int)] = [
+  let workspace_roles : Array[(JointAudioAmpWorkspaceRole, Int64, Int32, Int32)] = [
     (ActivationUpsampleWorkspace, intermediate_bytes, 2, 93),
     (ActivationValueWorkspace, intermediate_bytes, 3, 94),
     (ActivationOutputWorkspace, value_bytes, 5, 95),
@@ -231,7 +231,7 @@ fn role_tag(role : JointAudioAmpWorkspaceRole) -> String {
 }
 
 ///|
-fn storage_tag(storage : JointAudioAmpStorageClass) -> Int {
+fn storage_tag(storage : JointAudioAmpStorageClass) -> Int32 {
   match storage {
     ExternalInput => 0
     Workspace => 1

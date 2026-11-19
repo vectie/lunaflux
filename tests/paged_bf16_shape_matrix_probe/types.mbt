@@ -16,25 +16,25 @@ fn require_matrix(
 ///|
 priv struct ShapeMatrixCase {
   name : String
-  counts : FixedArray[Int]
-  token_ids : FixedArray[Int]
-  positions : FixedArray[Int]
-  row_offsets : FixedArray[Int]
-  sequence_lengths : FixedArray[Int]
-  page_offsets : FixedArray[Int]
-  page_indices : FixedArray[Int]
+  counts : FixedArray[Int32]
+  token_ids : FixedArray[Int32]
+  positions : FixedArray[Int32]
+  row_offsets : FixedArray[Int32]
+  sequence_lengths : FixedArray[Int32]
+  page_offsets : FixedArray[Int32]
+  page_indices : FixedArray[Int32]
 }
 
 ///|
 fn shape_matrix_case(
   name : String,
-  counts : FixedArray[Int],
-  token_ids : FixedArray[Int],
-  positions : FixedArray[Int],
-  row_offsets : FixedArray[Int],
-  sequence_lengths : FixedArray[Int],
-  page_offsets : FixedArray[Int],
-  page_indices : FixedArray[Int],
+  counts : FixedArray[Int32],
+  token_ids : FixedArray[Int32],
+  positions : FixedArray[Int32],
+  row_offsets : FixedArray[Int32],
+  sequence_lengths : FixedArray[Int32],
+  page_offsets : FixedArray[Int32],
+  page_indices : FixedArray[Int32],
 ) -> ShapeMatrixCase {
   {
     name,
@@ -105,12 +105,15 @@ fn shape_matrix_cases() -> FixedArray[ShapeMatrixCase] {
 }
 
 ///|
-fn ShapeMatrixCase::live_tokens(self : ShapeMatrixCase) -> Int {
+fn ShapeMatrixCase::live_tokens(self : ShapeMatrixCase) -> Int32 {
   self.counts[3]
 }
 
 ///|
-fn ShapeMatrixCase::row_for_token(self : ShapeMatrixCase, token : Int) -> Int {
+fn ShapeMatrixCase::row_for_token(
+  self : ShapeMatrixCase,
+  token : Int32,
+) -> Int32 {
   if self.counts[2] == 2 && token >= self.row_offsets[1] {
     1
   } else {

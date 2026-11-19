@@ -15,7 +15,7 @@ fn matrix_affine_source(
 ///|
 fn matrix_sum_helper(
   law : @precision.SumReductionLaw,
-  width : Int,
+  width : Int32,
   symbol : String,
 ) -> String raise DecoderHyperConnectionCudaSourceError {
   match law {

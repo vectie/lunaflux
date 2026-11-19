@@ -1,7 +1,7 @@
 ///|
 fn paired_rms_norm_branch(
-  stream : Int,
-  width : Int,
+  stream : Int32,
+  width : Int32,
   input_name : String,
   weight_name : String,
   output_name : String,
@@ -55,9 +55,9 @@ fn paired_rms_norm_branch(
 /// epsilon and the live row prefix in `counts[3]`. The launch geometry is
 /// `[maximum_rows, 2, 1]` blocks of 256 threads with 1024 shared bytes.
 pub fn paired_rms_norm_bf16_source(
-  first_width~ : Int,
-  second_width~ : Int,
-  maximum_rows~ : Int,
+  first_width~ : Int32,
+  second_width~ : Int32,
+  maximum_rows~ : Int32,
   epsilon~ : Double,
   function_symbol~ : String,
 ) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError {

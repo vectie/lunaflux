@@ -5,10 +5,10 @@
 /// shared by the independent column folds, without reassociating any fold.
 /// Consumers without a column still participate in workgroup effects.
 pub struct ProjectionColumnFoldPlan {
-  priv output_tiles : Int
-  priv consumer_groups : Int
-  priv live_columns : Int
-  priv rounds : Int
+  priv output_tiles : Int32
+  priv consumer_groups : Int32
+  priv live_columns : Int32
+  priv rounds : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -19,9 +19,9 @@ pub extend ProjectionColumnFoldPlan with Eq::{equal, not_equal}
 
 ///|
 pub fn ProjectionColumnFoldPlan::new(
-  output_tiles~ : Int,
-  consumer_groups~ : Int,
-  maximum_live_accumulators~ : Int,
+  output_tiles~ : Int32,
+  consumer_groups~ : Int32,
+  maximum_live_accumulators~ : Int32,
 ) -> ProjectionColumnFoldPlan? {
   guard output_tiles > 0 && consumer_groups > 0 && maximum_live_accumulators > 0 else {
     return None
@@ -43,7 +43,7 @@ pub fn ProjectionColumnFoldPlan::new(
 /// (consumer groups, total rounds, live columns per consumer, windows).
 pub fn ProjectionColumnFoldPlan::geometry(
   self : ProjectionColumnFoldPlan,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (
     self.consumer_groups,
     self.rounds,
@@ -55,10 +55,10 @@ pub fn ProjectionColumnFoldPlan::geometry(
 ///|
 pub fn ProjectionColumnFoldPlan::column_at(
   self : ProjectionColumnFoldPlan,
-  window : Int,
-  slot : Int,
-  consumer : Int,
-) -> Int? {
+  window : Int32,
+  slot : Int32,
+  consumer : Int32,
+) -> Int32? {
   let (_, _, _, windows) = self.geometry()
   guard window >= 0 &&
     window < windows &&
@@ -115,8 +115,8 @@ fn ProjectionTileSchedule::column_fold_axis(
 /// supplies group count and resource budget, never the model builder.
 pub fn ProjectionTileSchedule::column_fold_plan(
   self : ProjectionTileSchedule,
-  consumer_groups~ : Int,
-  maximum_live_accumulators~ : Int,
+  consumer_groups~ : Int32,
+  maximum_live_accumulators~ : Int32,
 ) -> ProjectionColumnFoldPlan? {
   guard self.row_tail_policy == ZeroPaddedMatrixRowTail else { return None }
   let column = self.column_fold_axis(ProjectionOutputColumnAxis)

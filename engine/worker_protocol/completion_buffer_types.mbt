@@ -8,15 +8,15 @@ pub struct CompletionBuffer {
   priv mut epoch : UInt64
   priv mut sequence_value : UInt64
   priv mut model_plan_generation_value : UInt64
-  priv mut entry_count : Int
+  priv mut entry_count : Int32
   priv mut writer_open : Bool
-  priv slot_to_entry : FixedArray[Int]
+  priv slot_to_entry : FixedArray[Int32]
   priv slots : FixedArray[CompletionSlot]
   priv request_ids : FixedArray[@inference.RequestId]
   priv request_generations : FixedArray[@inference.RequestGeneration]
   priv kinds : FixedArray[CompletionEntryKind]
-  priv processed_token_counts : FixedArray[Int]
-  priv token_ids : FixedArray[Int]
+  priv processed_token_counts : FixedArray[Int32]
+  priv token_ids : FixedArray[Int32]
   priv failures : FixedArray[WorkerFailure]
 }
 
@@ -37,7 +37,7 @@ pub struct SubmittedCompletion(CompletionBuffer, UInt64)
 ///|
 /// Immutable scalar entry view tied to one submitted completion epoch.
 #valtype
-pub struct SubmittedCompletionEntry(CompletionBuffer, UInt64, Int)
+pub struct SubmittedCompletionEntry(CompletionBuffer, UInt64, Int32)
 
 ///|
 /// Worker-only proof that the scheduler consumed one submitted epoch.

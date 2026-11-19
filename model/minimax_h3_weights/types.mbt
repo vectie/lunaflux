@@ -54,14 +54,14 @@ pub(all) suberror MiniMaxH3WeightsError {
   ComponentVariantMismatch(MiniMaxH3WeightComponent)
   PlanContentMismatch
   PlanSemanticMismatch
-  UnknownSemanticTensor(index~ : Int)
-  InvalidSemanticRank(index~ : Int)
-  InvalidSemanticDType(index~ : Int)
-  UnsupportedRawLayout(index~ : Int)
-  BindingComponentMismatch(index~ : Int)
-  BindingIdentityMismatch(index~ : Int)
-  DuplicateSemanticTensor(index~ : Int)
-  IncompleteComponent(expected~ : Int, actual~ : Int)
+  UnknownSemanticTensor(index~ : Int32)
+  InvalidSemanticRank(index~ : Int32)
+  InvalidSemanticDType(index~ : Int32)
+  UnsupportedRawLayout(index~ : Int32)
+  BindingComponentMismatch(index~ : Int32)
+  BindingIdentityMismatch(index~ : Int32)
+  DuplicateSemanticTensor(index~ : Int32)
+  IncompleteComponent(expected~ : Int32, actual~ : Int32)
   MaterializationUnavailable(MiniMaxH3WeightComponent)
 } derive(Debug, Eq)
 
@@ -69,7 +69,7 @@ pub(all) suberror MiniMaxH3WeightsError {
 /// Immutable reference to validated safetensors metadata and its assigned
 /// MiniMax H3 operator role. No payload bytes or device pointers are retained.
 pub struct MiniMaxH3SemanticTensorBinding {
-  priv source_index : Int
+  priv source_index : Int32
   priv role : MiniMaxH3TensorRole
   priv tensor : @safetensors.TensorMetadata
 } derive(Debug, Eq)
@@ -81,7 +81,7 @@ pub struct MiniMaxH3SemanticTensorBinding {
 pub struct MiniMaxH3PartialShardBinding {
   priv component : MiniMaxH3WeightComponent
   priv identity : @spec.ModelIdentity
-  priv schema_version : Int
+  priv schema_version : Int32
   priv tensors : ReadOnlyArray[MiniMaxH3SemanticTensorBinding]
 } derive(Debug, Eq)
 
@@ -91,6 +91,6 @@ pub struct MiniMaxH3PartialShardBinding {
 pub struct MiniMaxH3CompleteComponentBinding {
   priv component : MiniMaxH3WeightComponent
   priv identity : @spec.ModelIdentity
-  priv schema_version : Int
+  priv schema_version : Int32
   priv tensors : ReadOnlyArray[MiniMaxH3SemanticTensorBinding]
 } derive(Debug, Eq)

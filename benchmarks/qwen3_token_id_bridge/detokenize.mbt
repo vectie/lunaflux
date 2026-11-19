@@ -7,7 +7,7 @@ pub struct Qwen3IncrementalDetokenizer {
   priv spec : @tokenizer.TokenizerSpec
   priv combined : FixedArray[Byte]
   priv output : FixedArray[Byte]
-  priv mut pending_length : Int
+  priv mut pending_length : Int32
   priv mut started : Bool
   priv mut finished : Bool
   priv strip_initial_space : Bool
@@ -35,12 +35,12 @@ pub fn Qwen3IncrementalDetokenizer::new(
 ///|
 pub fn Qwen3IncrementalDetokenizer::max_delta_bytes(
   self : Qwen3IncrementalDetokenizer,
-) -> Int {
+) -> Int32 {
   self.output.length()
 }
 
 ///|
-fn qwen3_utf8_width(first : Int) -> Int {
+fn qwen3_utf8_width(first : Int32) -> Int32 {
   if first <= 0x7f {
     1
   } else if first >= 0xc2 && first <= 0xdf {
@@ -55,7 +55,7 @@ fn qwen3_utf8_width(first : Int) -> Int {
 }
 
 ///|
-fn qwen3_utf8_second_is_valid(first : Int, second : Int) -> Bool {
+fn qwen3_utf8_second_is_valid(first : Int32, second : Int32) -> Bool {
   second >= 0x80 &&
   second <= 0xbf &&
   !(first == 0xe0 && second < 0xa0) &&
@@ -67,8 +67,8 @@ fn qwen3_utf8_second_is_valid(first : Int, second : Int) -> Bool {
 ///|
 fn Qwen3IncrementalDetokenizer::append_replacement(
   self : Qwen3IncrementalDetokenizer,
-  output_offset : Int,
-) -> Int {
+  output_offset : Int32,
+) -> Int32 {
   self.output[output_offset] = 0xef
   self.output[output_offset + 1] = 0xbf
   self.output[output_offset + 2] = 0xbd
@@ -78,7 +78,7 @@ fn Qwen3IncrementalDetokenizer::append_replacement(
 ///|
 fn Qwen3IncrementalDetokenizer::decode_stable_prefix(
   self : Qwen3IncrementalDetokenizer,
-  length : Int,
+  length : Int32,
 ) -> Bytes {
   let mut input_offset = 0
   let mut output_offset = 0
@@ -139,7 +139,7 @@ fn Qwen3IncrementalDetokenizer::decode_stable_prefix(
 /// maximal byte subsequences use the standard U+FFFD replacement scalar.
 pub fn Qwen3IncrementalDetokenizer::advance(
   self : Qwen3IncrementalDetokenizer,
-  token_id : Int,
+  token_id : Int32,
 ) -> Bytes raise Qwen3DetokenizerError {
   if self.finished {
     raise DetokenizerFinished

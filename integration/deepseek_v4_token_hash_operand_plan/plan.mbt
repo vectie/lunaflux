@@ -1,5 +1,5 @@
 ///|
-let token_hash_operand_ordinal : Int = 2
+let token_hash_operand_ordinal : Int32 = 2
 
 ///|
 let token_hash_table_bytes : Int64 = 129280L * 6L * 4L
@@ -125,7 +125,7 @@ fn plan_from_evidence(
   layout : @segmented_device_materialize.SegmentedDeviceLayout,
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
   candidate : TokenHashCandidateEvidence,
-  layer_index : Int,
+  layer_index : Int32,
 ) -> DeepSeekV4TokenHashOperandPlan raise DeepSeekV4TokenHashOperandPlanError {
   validate_source_evidence(source)
   if layer_index < 0 || layer_index >= 3 {
@@ -214,7 +214,7 @@ pub fn plan_token_hash_table_operand(
   layout : @segmented_device_materialize.SegmentedDeviceLayout,
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
   candidate : @advanced_decoder_cuda_aot.AdvancedDecoderRoutingCudaCandidate,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> DeepSeekV4TokenHashOperandPlan raise DeepSeekV4TokenHashOperandPlanError {
   @deepseek_v4_device_upload.validate_token_hash_sidecar_source(tables, layout) catch {
     error => raise Sidecar(error)

@@ -5,9 +5,9 @@ fn output_slice_region(
   operand_byte_count : Int64,
   operand_alignment : Int64,
   collective : @tensor_parallel_launch_contract.TensorParallelCollectiveAfter,
-  rank : Int,
-  operation : Int,
-  operand : Int,
+  rank : Int32,
+  operation : Int32,
+  operand : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   let whole = activation_region(memory, reference, operation, operand)
   match collective {
@@ -63,8 +63,8 @@ fn bind_operand(
   memory : PlanningMemory,
   launch_set : @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet,
   device_plan : @tensor_parallel_device_plan.TensorParallelDevicePlan,
-  operation : Int,
-  operand : Int,
+  operation : Int32,
+  operand : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   if byte_count <= 0L || !valid_alignment(alignment) {
     raise rejected(Operand, operation~, operand~)
@@ -199,7 +199,7 @@ fn build_operation_bindings(
 fn operation_output_region(
   model : @plan.ModelPlan,
   memory : PlanningMemory,
-  operation : Int,
+  operation : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   let outputs = model.operations()[operation].outputs()
   if outputs.length() != 1 {
@@ -211,11 +211,11 @@ fn operation_output_region(
 ///|
 fn validate_collective_site(
   device_plan : @tensor_parallel_device_plan.TensorParallelDevicePlan,
-  index : Int,
-  operation : Int,
+  index : Int32,
+  operation : Int32,
   expected_kind : @tensor_parallel_plan.TensorCollectiveKind,
-  full_width : Int,
-  local_width : Int,
+  full_width : Int32,
+  local_width : Int32,
 ) -> Unit raise TensorParallelExecutionPlanError {
   guard device_plan.collective(index) is Some(site) else {
     raise rejected(CollectiveCount, operation~)

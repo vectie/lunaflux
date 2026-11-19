@@ -1,20 +1,20 @@
 ///|
-const ONLINE_LANE_EMPTY : Int = 0
+const ONLINE_LANE_EMPTY : Int32 = 0
 
 ///|
-const ONLINE_LANE_LIVE : Int = 1
+const ONLINE_LANE_LIVE : Int32 = 1
 
 ///|
-const ONLINE_LANE_TERMINATION_PENDING : Int = 2
+const ONLINE_LANE_TERMINATION_PENDING : Int32 = 2
 
 ///|
-const ONLINE_LANE_TERMINAL : Int = 3
+const ONLINE_LANE_TERMINAL : Int32 = 3
 
 ///|
 fn luna_online_worker_admission(
   kind : LunaOnlineWorkerAdmissionKind,
   lease : OnlineWorkerLease,
-  lane : Int,
+  lane : Int32,
   generation : UInt64,
 ) -> LunaOnlineWorkerAdmission {
   {
@@ -126,7 +126,7 @@ pub fn LunaOnlineWorkerRequest::publication_route(
 ///|
 fn OnlineWorkerLease::release_lane_retention(
   self : OnlineWorkerLease,
-  lane : Int,
+  lane : Int32,
 ) -> Unit {
   if self.lane_semantic_retentions[lane].is_live() {
     try! self.lane_semantic_retentions[lane].release()
@@ -136,7 +136,7 @@ fn OnlineWorkerLease::release_lane_retention(
 ///|
 fn OnlineWorkerLease::release_lane(
   self : OnlineWorkerLease,
-  lane : Int,
+  lane : Int32,
 ) -> Unit {
   self.release_lane_retention(lane)
   self.lane_handles[lane].clear()
@@ -237,14 +237,14 @@ pub fn OnlineWorkerLease::try_admit_request(
 }
 
 ///|
-pub fn OnlineWorkerLease::request_capacity(self : OnlineWorkerLease) -> Int {
+pub fn OnlineWorkerLease::request_capacity(self : OnlineWorkerLease) -> Int32 {
   self.lane_phases.length()
 }
 
 ///|
 pub fn OnlineWorkerLease::active_request_count(
   self : OnlineWorkerLease,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   ignore(self.require_current())
   self.active_lane_count
 }

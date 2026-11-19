@@ -5,16 +5,16 @@
 pub(all) suberror DeepSeekV4ConfigError {
   InvalidByteLimit
   InvalidDepthLimit
-  ByteLimitExceeded(Int)
+  ByteLimitExceeded(Int32)
   InvalidUtf8
   MalformedJson
   NonObjectRoot
-  NestingLimitExceeded(Int)
-  DuplicateField(Int, Int)
-  UnknownField(Int)
-  ExecutableMetadata(Int)
-  MissingField(Int)
-  InvalidField(Int)
+  NestingLimitExceeded(Int32)
+  DuplicateField(Int32, Int32)
+  UnknownField(Int32)
+  ExecutableMetadata(Int32)
+  MissingField(Int32)
+  InvalidField(Int32)
   UnsupportedProfile
 } derive(Debug, Eq)
 
@@ -34,7 +34,7 @@ let schema_fields : ReadOnlyArray[String] = [
 ]
 
 ///|
-fn field_index(name : StringView) -> Int? {
+fn field_index(name : StringView) -> Int32? {
   for index, field in schema_fields {
     if field[:] == name {
       return Some(index)
@@ -53,7 +53,7 @@ fn required(
 }
 
 ///|
-fn exact_int(value : Json, index : Int) -> Int raise DeepSeekV4ConfigError {
+fn exact_int(value : Json, index : Int32) -> Int32 raise DeepSeekV4ConfigError {
   guard value is Number(number, repr=_) &&
     !number.is_nan() &&
     !number.is_inf() &&
@@ -69,7 +69,7 @@ fn exact_int(value : Json, index : Int) -> Int raise DeepSeekV4ConfigError {
 fn expect_int(
   root : Map[String, Json],
   name : String,
-  expected : Int,
+  expected : Int32,
 ) -> Unit raise DeepSeekV4ConfigError {
   let index = field_index(name).unwrap()
   if exact_int(required(root, name), index) != expected {
@@ -123,7 +123,7 @@ fn expect_bool(
 fn expect_int_array(
   root : Map[String, Json],
   name : String,
-  expected : ReadOnlyArray[Int],
+  expected : ReadOnlyArray[Int32],
 ) -> Unit raise DeepSeekV4ConfigError {
   let index = field_index(name).unwrap()
   guard required(root, name) is Array(values) &&
@@ -141,7 +141,7 @@ fn expect_int_array(
 fn expect_object_keys(
   object : Map[String, Json],
   names : ReadOnlyArray[String],
-  parent_index : Int,
+  parent_index : Int32,
 ) -> Unit raise DeepSeekV4ConfigError {
   if object.length() != names.length() {
     raise InvalidField(parent_index)
@@ -157,7 +157,7 @@ fn expect_object_keys(
 fn nested_required(
   object : Map[String, Json],
   name : String,
-  parent : Int,
+  parent : Int32,
 ) -> Json raise DeepSeekV4ConfigError {
   object.get(name).unwrap_or_else(() => raise InvalidField(parent))
 }
@@ -167,7 +167,7 @@ fn nested_number(
   object : Map[String, Json],
   name : String,
   expected : Double,
-  parent : Int,
+  parent : Int32,
 ) -> Unit raise DeepSeekV4ConfigError {
   match nested_required(object, name, parent) {
     Number(value, repr=_) if !value.is_nan() &&
@@ -182,7 +182,7 @@ fn nested_string(
   object : Map[String, Json],
   name : String,
   expected : String,
-  parent : Int,
+  parent : Int32,
 ) -> Unit raise DeepSeekV4ConfigError {
   match nested_required(object, name, parent) {
     String(value) if value == expected => ()
@@ -194,8 +194,8 @@ fn nested_string(
 fn nested_int(
   object : Map[String, Json],
   name : String,
-  expected : Int,
-  parent : Int,
+  expected : Int32,
+  parent : Int32,
 ) -> Unit raise DeepSeekV4ConfigError {
   if exact_int(nested_required(object, name, parent), parent) != expected {
     raise InvalidField(parent)
@@ -206,8 +206,8 @@ fn nested_int(
 fn nested_int_array(
   object : Map[String, Json],
   name : String,
-  expected : ReadOnlyArray[Int],
-  parent : Int,
+  expected : ReadOnlyArray[Int32],
+  parent : Int32,
 ) -> Unit raise DeepSeekV4ConfigError {
   guard nested_required(object, name, parent) is Array(values) &&
     values.length() == expected.length() else {
@@ -377,7 +377,7 @@ fn validate_exact(
   expect_bool(root, "norm_topk_prob", true)
   expect_bool(root, "tie_word_embeddings", false)
   expect_bool(root, "use_cache", true)
-  let ratios : Array[Int] = []
+  let ratios : Array[Int32] = []
   for index in 0..<spec.attention_profile_count() {
     ratios.push(spec.compression_ratio(index).unwrap())
   }
@@ -398,7 +398,7 @@ fn validate_exact(
 ///|
 fn parse_spec_text(
   document : StringView,
-  max_depth : Int,
+  max_depth : Int32,
 ) -> @deepseek_v4_spec.DeepSeekV4ModelSpec raise DeepSeekV4ConfigError {
   @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
     InvalidDepthLimit => raise InvalidDepthLimit
@@ -418,8 +418,8 @@ fn parse_spec_text(
 /// the configuration. Uses the same bounded schema as metadata parsing.
 pub fn parse_spec_bytes(
   document : BytesView,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @deepseek_v4_spec.DeepSeekV4ModelSpec raise DeepSeekV4ConfigError {
   if max_bytes <= 0 {
     raise InvalidByteLimit
@@ -438,8 +438,8 @@ pub fn parse_spec_bytes(
 pub fn parse_bytes(
   document : BytesView,
   content : @spec.ContentDigest,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError {
   @deepseek_v4_spec.DeepSeekV4ModelMetadata::from_verified_content(
     parse_spec_bytes(document, max_bytes~, max_depth~),
@@ -451,8 +451,8 @@ pub fn parse_bytes(
 pub fn parse_string(
   document : StringView,
   content : @spec.ContentDigest,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata raise DeepSeekV4ConfigError {
   if max_bytes <= 0 {
     raise InvalidByteLimit

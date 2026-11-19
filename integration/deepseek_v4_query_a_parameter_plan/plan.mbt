@@ -35,10 +35,10 @@ pub fn DeepSeekV4QueryAParameterEvidenceInput::new(
   weight_shape~ : ArrayView[Int64],
   scale_shape~ : ArrayView[Int64],
   layout_digest_sha256~ : String,
-  weight_operand_ordinal~ : Int,
+  weight_operand_ordinal~ : Int32,
   weight_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole,
   weight_operand_bytes~ : Int64,
-  scale_operand_ordinal~ : Int,
+  scale_operand_ordinal~ : Int32,
   scale_operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole,
   scale_operand_bytes~ : Int64,
 ) -> Self raise DeepSeekV4QueryAParameterPlanError {

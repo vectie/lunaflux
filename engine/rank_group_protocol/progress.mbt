@@ -150,7 +150,7 @@ pub fn RankGroupOwner::expire_if_due(
 pub fn RankGroupOwner::report_rank_loss(
   self : RankGroupOwner,
   submitted : SubmittedRankGroupPlan,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupError {
   let owner = submitted.authenticate(Executing) catch {
     _ => return self.reject_protocol(Submission, rank)
@@ -168,7 +168,7 @@ pub fn RankGroupOwner::report_rank_loss(
 pub fn RankGroupOwner::report_collective_failure(
   self : RankGroupOwner,
   submitted : SubmittedRankGroupPlan,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupError {
   let owner = submitted.authenticate(Executing) catch {
     _ => return self.reject_protocol(Submission, rank)
@@ -186,7 +186,7 @@ pub fn RankGroupOwner::report_collective_failure(
 pub fn RankGroupOwner::report_rank_execution_failure(
   self : RankGroupOwner,
   submitted : SubmittedRankGroupPlan,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupError {
   let owner = submitted.authenticate(Executing) catch {
     _ => return self.reject_protocol(Submission, rank)
@@ -206,7 +206,7 @@ pub fn RankGroupOwner::report_rank_execution_failure(
 pub fn RankGroupOwner::report_supervisor_failure(
   self : RankGroupOwner,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupError {
   let submitted = self.reauthenticate_submitted(plan)
   self.report_rank_execution_failure(submitted, rank)
@@ -216,7 +216,7 @@ pub fn RankGroupOwner::report_supervisor_failure(
 pub fn RankGroupOwner::report_supervisor_rank_loss(
   self : RankGroupOwner,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupError {
   let submitted = self.reauthenticate_submitted(plan)
   self.report_rank_loss(submitted, rank)

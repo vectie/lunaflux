@@ -3,8 +3,8 @@
 /// matrix. A global logit shift is removed before exponentiation for stability.
 pub fn sinkhorn_normalize(
   logits : ArrayView[Float],
-  width~ : Int,
-  iterations~ : Int,
+  width~ : Int32,
+  iterations~ : Int32,
   epsilon~ : Float,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {
@@ -65,8 +65,8 @@ pub fn sinkhorn_normalize(
 pub fn mix_hyper_connections(
   streams : ArrayView[Float],
   mixing_matrix : ArrayView[Float],
-  stream_count~ : Int,
-  feature_width~ : Int,
+  stream_count~ : Int32,
+  feature_width~ : Int32,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {
   validate_shape(stream_count, feature_width, limits)

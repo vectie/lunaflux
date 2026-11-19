@@ -1,6 +1,6 @@
 ///|
 fn device_plan_test_model(
-  digest? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  digest~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @spec.LlamaModelMetadata raise {
   @spec.LlamaModelMetadata::from_verified_content(
     @spec.LlamaModelSpec::new(
@@ -157,7 +157,7 @@ fn device_plan_test_target() -> @catalog.DeviceTarget raise {
 ///|
 fn device_plan_catalog_for(
   model_plan : @plan.ModelPlan,
-  workspace_bytes? : Int64 = 16L,
+  workspace_bytes~ : Int64 = 16L,
 ) -> @catalog.ResolvedKernelCatalog raise {
   let entries : Array[@catalog.CatalogEntry] = []
   let digest = @catalog.AotArtifactDigest::from_sha256(
@@ -216,8 +216,8 @@ fn device_plan_base_constraints() -> @plan.ShapeConstraints raise {
 
 ///|
 fn device_plan_embedding(
-  tensor_reference : Int,
-  workspace_bytes? : Int64 = 0L,
+  tensor_reference : Int32,
+  workspace_bytes~ : Int64 = 0L,
 ) -> @plan.PlanOperation raise {
   @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),

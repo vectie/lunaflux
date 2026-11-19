@@ -1,9 +1,9 @@
 ///|
 fn scope(
-  device? : String = "device-a",
-  shape? : String = "bf16:32x64x128",
-  program? : String = "source-v1",
-  toolchain? : String = "tool-v1",
+  device~ : String = "device-a",
+  shape~ : String = "bf16:32x64x128",
+  program~ : String = "source-v1",
+  toolchain~ : String = "tool-v1",
 ) -> @resource_policy.Scope {
   @resource_policy.Scope::new(device~, toolchain~, shape~, program~).unwrap()
 }
@@ -11,9 +11,9 @@ fn scope(
 ///|
 fn candidate(
   id : String,
-  shared? : Int64 = 1024L,
-  registers? : Int? = Some(32),
-  residency? : Int? = Some(2),
+  shared~ : Int64 = 1024L,
+  registers~ : Int32? = Some(32),
+  residency~ : Int32? = Some(2),
 ) -> @resource_policy.Candidate {
   let policy = @resource_policy.Policy::new(
     id~,
@@ -38,9 +38,9 @@ fn observation(
   scope : @resource_policy.Scope,
   id : String,
   ns : Int64,
-  artifact? : String = id + "-code-v1",
-  registers? : Int = 32,
-  residency? : Int = 2,
+  artifact~ : String = id + "-code-v1",
+  registers~ : Int32 = 32,
+  residency~ : Int32 = 2,
 ) -> @resource_policy.Observation {
   @resource_policy.Observation::new(
     scope,

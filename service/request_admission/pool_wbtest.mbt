@@ -16,8 +16,8 @@ fn pool_received_at(
 ///|
 fn fixture_preparation_pool(
   now : Ref[UInt64],
-  lane_count : Int,
-  step_work_units : Int,
+  lane_count : Int32,
+  step_work_units : Int32,
   total_work_units : UInt64,
 ) -> LunaRequestPreparationPool raise {
   let tokenizer = fixture_tokenizer()

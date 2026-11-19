@@ -10,8 +10,8 @@ fn json_head_prefix(failed : Bool) -> Bytes {
 ///|
 pub fn LunaHttp1ResponseWorkspace::begin_json(
   self : Self,
-  content_length~ : Int,
-  failed? : Bool = false,
+  content_length~ : Int32,
+  failed~ : Bool = false,
 ) -> LunaHttp1ResponseWork raise LunaHttp1Error {
   guard content_length >= 0 else {
     raise luna_http1_error(LunaHttp1Limits, LunaHttp1Invalid)
@@ -40,7 +40,10 @@ pub fn LunaHttp1ResponseWorkspace::begin_json(
 }
 
 ///|
-fn LunaHttp1ResponseWorkspace::json_head_byte(self : Self, index : Int) -> Byte {
+fn LunaHttp1ResponseWorkspace::json_head_byte(
+  self : Self,
+  index : Int32,
+) -> Byte {
   let prefix = json_head_prefix(self.response_kind == 6)
   if index < prefix.length() {
     return prefix[index]

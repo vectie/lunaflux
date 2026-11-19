@@ -1,14 +1,14 @@
 ///|
 /// Gather a 7-frame latent tile; temporal padding repeats the final latent.
 pub fn tile_gather_source(
-  latent_t~ : Int,
-  latent_h~ : Int,
-  latent_w~ : Int,
-  start_t~ : Int,
-  start_y~ : Int,
-  start_x~ : Int,
-  tile_h~ : Int,
-  tile_w~ : Int,
+  latent_t~ : Int32,
+  latent_h~ : Int32,
+  latent_w~ : Int32,
+  start_t~ : Int32,
+  start_y~ : Int32,
+  start_x~ : Int32,
+  tile_h~ : Int32,
+  tile_w~ : Int32,
   symbol~ : String,
 ) -> Bytes raise EmbeddingError {
   guard latent_t > 0 &&
@@ -73,12 +73,12 @@ pub fn tile_copy_source(
 
 ///|
 pub fn temporal_publish_source(
-  height~ : Int,
-  width~ : Int,
-  chunk~ : Int,
-  chunks~ : Int,
-  available_frames~ : Int,
-  output_frames~ : Int,
+  height~ : Int32,
+  width~ : Int32,
+  chunk~ : Int32,
+  chunks~ : Int32,
+  available_frames~ : Int32,
+  output_frames~ : Int32,
   symbol~ : String,
 ) -> Bytes raise EmbeddingError {
   guard height > 0 &&

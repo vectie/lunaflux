@@ -1,8 +1,8 @@
 ///|
 fn i8_schema_parameter(
-  ordinal : Int,
+  ordinal : Int32,
   shape : ArrayView[Int64],
-  scale : Int,
+  scale : Int32,
 ) -> @numeric_contract.NumericTensorSchema {
   try! @numeric_contract.NumericTensorSchema::new(
     ordinal=@numeric_contract.NumericTensorOrdinal::new(ordinal),
@@ -32,9 +32,9 @@ fn i8_schema_plain(
 
 ///|
 fn i8_schema_scale(
-  ordinal : Int,
+  ordinal : Int32,
   shape : ArrayView[Int64],
-  storage? : @numeric_contract.TensorStorageContract = @numeric_contract.TensorStorageContract::symmetric_i8_weight_only_scale_v1(),
+  storage~ : @numeric_contract.TensorStorageContract = @numeric_contract.TensorStorageContract::symmetric_i8_weight_only_scale_v1(),
 ) -> @numeric_contract.NumericTensorSchema {
   try! @numeric_contract.NumericTensorSchema::new(
     ordinal=@numeric_contract.NumericTensorOrdinal::new(ordinal),

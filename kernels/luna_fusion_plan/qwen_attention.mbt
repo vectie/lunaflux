@@ -1,7 +1,7 @@
 ///|
 fn fusion_operation(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
 ) -> @plan.PlanOperation raise FusionPlanError {
   match plan.operations().get(index) {
     Some(operation) => operation

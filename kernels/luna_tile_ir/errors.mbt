@@ -50,6 +50,6 @@ pub(all) suberror LunaTileError {
   LimitExceeded(LunaTileLimitRule)
   InvalidProgram(LunaTileValidationRule)
   InvalidTensor(LunaTileTensorId, LunaTileValidationRule)
-  InvalidInstruction(index~ : Int, rule~ : LunaTileValidationRule)
+  InvalidInstruction(index~ : Int32, rule~ : LunaTileValidationRule)
   SizeOverflow(LunaTileValidationRule)
 } derive(Debug, Eq)

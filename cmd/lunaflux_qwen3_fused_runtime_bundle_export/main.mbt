@@ -8,12 +8,12 @@ suberror Qwen3FusedRuntimeBundleExportError {
 
 ///|
 priv struct ModuleLaunchInput {
-  first_operation : Int
-  grid_x : Int
-  grid_y : Int
-  grid_z : Int
-  block_x : Int
-  shared_memory_bytes : Int
+  first_operation : Int32
+  grid_x : Int32
+  grid_y : Int32
+  grid_z : Int32
+  block_x : Int32
+  shared_memory_bytes : Int32
   module_path : String
 }
 
@@ -21,8 +21,8 @@ priv struct ModuleLaunchInput {
 priv struct RuntimeBundleArguments {
   device_target : @catalog.DeviceTarget?
   ingress_selection : IngressSelectionBasis
-  ingress_query_tile_rows : Int?
-  ingress_heads_per_cta : Int?
+  ingress_query_tile_rows : Int32?
+  ingress_heads_per_cta : Int32?
   blockwise_decode : Bool
   contracting_decode : Bool
   dual_score_decode : Bool
@@ -43,10 +43,10 @@ priv struct RuntimeBundleArguments {
   attention_prefill_partitioned8_partial : ModuleLaunchInput
   attention_prefill_partitioned8_merge : ModuleLaunchInput
   attention_read : ModuleLaunchInput
-  prefill_query_tile_rows : Int
-  wide_query_tile_rows : Int
-  partitioned_query_tile_rows : Int
-  deep_partitioned_query_tile_rows : Int
+  prefill_query_tile_rows : Int32
+  wide_query_tile_rows : Int32
+  partitioned_query_tile_rows : Int32
+  deep_partitioned_query_tile_rows : Int32
   output_path : String
 }
 
@@ -56,7 +56,7 @@ fn lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -64,8 +64,10 @@ fn lower_sha256(value : StringView) -> Bool {
 }
 
 ///|
-fn positive_int(value : String) -> Int raise Qwen3FusedRuntimeBundleExportError {
-  let parsed : Int = @string.parse_int(value) catch {
+fn positive_int(
+  value : String,
+) -> Int32 raise Qwen3FusedRuntimeBundleExportError {
+  let parsed : Int32 = @string.parse_int(value) catch {
     _ => raise InvalidArguments
   }
   if parsed <= 0 || parsed.to_string() != value {
@@ -77,7 +79,7 @@ fn positive_int(value : String) -> Int raise Qwen3FusedRuntimeBundleExportError 
 ///|
 fn non_negative_int(
   value : String,
-) -> Int raise Qwen3FusedRuntimeBundleExportError {
+) -> Int32 raise Qwen3FusedRuntimeBundleExportError {
   if value == "0" {
     return 0
   }

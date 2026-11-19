@@ -1,6 +1,6 @@
 ///|
 fn artifact_test_plan(
-  fill? : Char = 'a',
+  fill~ : Char = 'a',
 ) -> @glm_hybrid_execution_plan.GlmHybridExecutionPlan {
   let sparse = try! @glm_hybrid_execution_plan.GlmDynamicSparseAttentionPlan::new(
     query_head_count=2,

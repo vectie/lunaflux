@@ -111,7 +111,7 @@ pub fn LunaTileProgram::canonical_bytes(self : LunaTileProgram) -> Bytes {
 }
 
 ///|
-pub fn LunaTileProgram::tensor_count(self : LunaTileProgram) -> Int {
+pub fn LunaTileProgram::tensor_count(self : LunaTileProgram) -> Int32 {
   self.tensors.length()
 }
 
@@ -129,11 +129,11 @@ pub fn LunaTileProgram::uses_dtype(
 }
 
 ///|
-pub fn LunaTileProgram::instruction_count(self : LunaTileProgram) -> Int {
+pub fn LunaTileProgram::instruction_count(self : LunaTileProgram) -> Int32 {
   self.instructions.length()
 }
 
 ///|
-pub fn LunaTileProgram::loop_rank(self : LunaTileProgram) -> Int {
+pub fn LunaTileProgram::loop_rank(self : LunaTileProgram) -> Int32 {
   self.loop_extents.length()
 }

@@ -36,7 +36,7 @@ pub(all) enum FusedStandaloneFallbackRole {
 /// authority and is safe to construct before external release approval.
 pub struct FusedStandaloneFallbackIdentity {
   priv role : FusedStandaloneFallbackRole
-  priv operation : Int
+  priv operation : Int32
   priv source : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv recipe : @luna_cuda_fused_parallel_aot.FusedParallelDigest
 } derive(Debug, Eq)
@@ -44,7 +44,7 @@ pub struct FusedStandaloneFallbackIdentity {
 ///|
 pub fn FusedStandaloneFallbackIdentity::new(
   role~ : FusedStandaloneFallbackRole,
-  operation~ : Int,
+  operation~ : Int32,
   source~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
   recipe~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
 ) -> FusedStandaloneFallbackIdentity raise FusedArtifactAdmissionError {
@@ -69,7 +69,7 @@ pub struct ApprovedFusedKernelModule {
   priv symbol : String
   priv abi : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi
   priv purpose : @luna_cuda_fused_parallel_aot.FusedParallelArtifactPurpose
-  priv dispatch_canary_per_token : UInt
+  priv dispatch_canary_per_token : UInt32
   priv artifact_bytes : Bytes
   priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv receipt_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
@@ -109,8 +109,8 @@ pub struct ApprovedReusableFusedResidualRuntime {
   priv model_content : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv model_plan : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv target : @catalog.DeviceTarget
-  priv residual_operation : Int
-  priv norm_operation : Int
+  priv residual_operation : Int32
+  priv norm_operation : Int32
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
   priv module_bytes : Bytes
@@ -145,13 +145,13 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
 /// contiguous operation span required by the ABI before canonicalization.
 pub struct ReusableFusedRuntimeModuleInput {
   priv abi : ReusableFusedRuntimeKernelAbi
-  priv first_operation : Int
-  priv operation_count : Int
+  priv first_operation : Int32
+  priv operation_count : Int32
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
-  priv query_tile_rows : Int?
-  priv query_metadata_version : Int
-  priv heads_per_cta : Int
+  priv query_tile_rows : Int32?
+  priv query_metadata_version : Int32
+  priv heads_per_cta : Int32
   priv decode_execution : DecodeExecutionDescriptor?
   priv prefill_exponential_law : PrefillExponentialLaw
   priv module_bytes : Bytes
@@ -165,13 +165,13 @@ pub struct ReusableFusedRuntimeModuleInput {
 /// never parses or revalidates the canonical sidecar.
 pub struct ApprovedReusableFusedRuntimeModule {
   priv abi : ReusableFusedRuntimeKernelAbi
-  priv first_operation : Int
-  priv operation_count : Int
+  priv first_operation : Int32
+  priv operation_count : Int32
   priv symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
-  priv query_tile_rows : Int?
-  priv query_metadata_version : Int
-  priv heads_per_cta : Int
+  priv query_tile_rows : Int32?
+  priv query_metadata_version : Int32
+  priv heads_per_cta : Int32
   priv decode_execution : DecodeExecutionDescriptor?
   priv prefill_exponential_law : PrefillExponentialLaw
   priv module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
@@ -190,5 +190,5 @@ pub struct ApprovedReusableFusedRuntimeBundle {
   priv target : @catalog.DeviceTarget
   priv modules : ReadOnlyArray[ApprovedReusableFusedRuntimeModule]
   priv attention_bucket_routes : Bytes?
-  priv vendor_projection_exact_rows : Int
+  priv vendor_projection_exact_rows : Int32
 }

@@ -22,7 +22,7 @@ pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,35 +57,35 @@ pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::request_shape(
 ///|
 pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::stage_index(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stage_index
 }
 
 ///|
 pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::time_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.time_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeAmpActivationCudaCandidate::upsample_time(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.upsample_time
 }
 
@@ -192,7 +192,7 @@ pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -220,7 +220,7 @@ pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::request_shape(
 ///|
 pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::stage_index(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stage_index
 }
 
@@ -241,21 +241,21 @@ pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::workspace_layout_digest(
 ///|
 pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeAmpStageCudaCandidate::time_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.time_count
 }
 

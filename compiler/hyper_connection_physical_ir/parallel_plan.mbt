@@ -3,9 +3,9 @@
 /// plan does not authorize reassociation: the precision input already names
 /// the exact tree. Fusion retains collapse's BF16 publication boundary.
 pub struct ParallelControlPlan {
-  priv rows : Int
-  priv controls : Int
-  priv partitions : Int
+  priv rows : Int32
+  priv controls : Int32
+  priv partitions : Int32
   priv fused_normalization : Bool
 }
 
@@ -40,12 +40,12 @@ pub fn ParallelControlPlan::fuses_normalization(self : Self) -> Bool {
 }
 
 ///|
-pub fn ParallelControlPlan::workers(self : Self) -> Int {
+pub fn ParallelControlPlan::workers(self : Self) -> Int32 {
   self.partitions
 }
 
 ///|
-pub fn ParallelControlPlan::geometry(self : Self) -> (Int, Int) {
+pub fn ParallelControlPlan::geometry(self : Self) -> (Int32, Int32) {
   (self.rows, self.controls)
 }
 
@@ -57,8 +57,8 @@ pub fn ParallelControlPlan::workspace_bytes(self : Self) -> Int64 {
 ///|
 pub fn ParallelControlPlan::workgroups(
   self : Self,
-  stage : Int,
-) -> Int raise @precision.PrecisionPlanError {
+  stage : Int32,
+) -> Int32 raise @precision.PrecisionPlanError {
   match stage {
     0 | 2 => self.rows
     1 => self.rows * self.controls

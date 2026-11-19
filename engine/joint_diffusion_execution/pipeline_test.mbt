@@ -1,7 +1,7 @@
 ///|
 struct PipelineFrame {
-  id : Int
-  log : Array[Int]
+  id : Int32
+  log : Array[Int32]
   fail : Bool
   mut fail_drain : Bool
   mut fail_release : Bool
@@ -40,7 +40,7 @@ impl @joint_diffusion_execution.PreparedFrame for PipelineFrame with fn release(
 }
 
 ///|
-fn pipeline_frames(fail? : Int = -1) -> Array[PipelineFrame] {
+fn pipeline_frames(fail~ : Int32 = -1) -> Array[PipelineFrame] {
   let log = []
   [
     for id in 0..<5 => {

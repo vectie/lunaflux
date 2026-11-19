@@ -83,7 +83,7 @@ fn validate_i8_executor_evidence(
 ///|
 fn collect_i8_paged_functions(
   blueprint : I8PagedExecutionBlueprint,
-) -> (ReadOnlyArray[PagedFunctionBlueprint], FixedArray[Int]) {
+) -> (ReadOnlyArray[PagedFunctionBlueprint], FixedArray[Int32]) {
   let functions : Array[PagedFunctionBlueprint] = []
   let indices = FixedArray::make(blueprint.steps().length(), 0)
   for step_index, step in blueprint.steps() {
@@ -130,7 +130,7 @@ fn validate_i8_physical_regions(
 ///|
 fn prepare_i8_paged_steps(
   blueprint : I8PagedExecutionBlueprint,
-  function_indices : FixedArray[Int],
+  function_indices : FixedArray[Int32],
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation_workspace : @device.Allocation,
@@ -209,7 +209,7 @@ pub fn prepare_i8_paged_graph_executor_v1(
   loaded : I8LoadedExecutionBlueprint,
   has_accepted_predecessor~ : Bool,
   accepted_predecessor_value~ : UInt64,
-  graph_policy? : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
+  graph_policy~ : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let resources = empty_paged_resources()
   // Ownership transfers at function entry. Every later admission or
@@ -384,7 +384,7 @@ priv struct I8OwnedPreparationEvidence {
   weight : @device.Allocation
   completion : PagedCompletionScratch
   functions : ReadOnlyArray[PagedFunctionBlueprint]
-  function_indices : FixedArray[Int]
+  function_indices : FixedArray[Int32]
 }
 
 ///|

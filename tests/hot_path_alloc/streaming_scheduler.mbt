@@ -45,7 +45,7 @@ fn streaming_request() -> HotPathRequestFixture {
 ///|
 fn streaming_command_cycle(
   owner : @scheduler.Scheduler,
-  generation : Int,
+  generation : Int32,
   fixture : HotPathRequestFixture,
   bytes : FixedArray[Byte],
   cap : @streaming_ir.Capability,

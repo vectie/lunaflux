@@ -1,8 +1,8 @@
 ///|
 pub fn AttentionMultiLaunchLimits::new(
   maximum_workspace_bytes~ : Int64,
-  maximum_symbol_bytes~ : Int,
-  maximum_operands_per_launch~ : Int,
+  maximum_symbol_bytes~ : Int32,
+  maximum_operands_per_launch~ : Int32,
 ) -> AttentionMultiLaunchLimits raise AttentionMultiLaunchContractError {
   if maximum_workspace_bytes <= 0L ||
     maximum_symbol_bytes <= 0 ||
@@ -21,7 +21,7 @@ pub fn AttentionMultiLaunchLimits::new(
 ///|
 pub fn AttentionDecodeWorkspaceContract::new(
   scalar~ : AttentionWorkspaceScalar,
-  split_count~ : Int,
+  split_count~ : Int32,
   partial_count~ : Int64,
   maximum_offset_bytes~ : Int64,
   denominator_offset_bytes~ : Int64,

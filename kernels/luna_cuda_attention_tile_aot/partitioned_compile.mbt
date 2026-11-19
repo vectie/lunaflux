@@ -80,7 +80,7 @@ pub fn compile_cuda_partitioned_attention_tile_aot(
 pub fn compile_cuda_partitioned_attention_tile_aot_frontier(
   request : CudaPartitionedAttentionTileAotRequest,
   autotune_records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
-  parallel_workgroup_targets : ArrayView[Int],
+  parallel_workgroup_targets : ArrayView[Int32],
 ) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError {
   let functional = @luna_attention_tile_compiler.compile_partitioned_attention_tile_frontier(
     request.functional_request(autotune_records),
@@ -96,8 +96,8 @@ pub fn compile_cuda_partitioned_attention_tile_aot_frontier(
 /// kernel per workgroup target. Each result contains both partial and merge.
 pub fn enumerate_cuda_partitioned_attention_tiles(
   request : CudaPartitionedAttentionTileAotRequest,
-  candidate_ids : ArrayView[Int],
-  parallel_workgroup_targets : ArrayView[Int],
+  candidate_ids : ArrayView[Int32],
+  parallel_workgroup_targets : ArrayView[Int32],
 ) -> CudaPartitionedAttentionTileAotFrontier raise CudaAttentionTileAotError {
   let functional = @luna_attention_tile_compiler.enumerate_partitioned_attention_tiles(
     request.functional_request([]),
@@ -160,8 +160,8 @@ fn lower_partitioned_attention_frontier(
 
 ///|
 fn partitioned_attention_symbol_suffix(
-  index : Int,
-  partitions : Int,
+  index : Int32,
+  partitions : Int32,
   repeated : Bool,
 ) -> String {
   if index == 0 {
@@ -179,7 +179,7 @@ fn partitioned_attention_symbol_suffix(
 /// an offline timing record to force a candidate through the compiler.
 pub fn specialize_cuda_partitioned_attention_tile_aot(
   request : CudaPartitionedAttentionTileAotRequest,
-  candidate_id : Int,
+  candidate_id : Int32,
 ) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError {
   let functional = @luna_attention_tile_compiler.specialize_partitioned_attention_tile(
     request.functional_request([]),

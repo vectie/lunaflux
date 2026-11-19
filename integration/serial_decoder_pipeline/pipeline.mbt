@@ -19,7 +19,7 @@ pub struct TwoRankDecoderPipeline {
   priv ingress : @rank.SerialDecoderRank
   priv remote : @control.DecoderStageClient
   priv local_completion : @wire.CompletionFrameBuffer
-  priv begin_activation : (UInt64, Int, UInt64) -> Unit raise
+  priv begin_activation : (UInt64, Int32, UInt64) -> Unit raise
   priv poll_activation : async (UInt64) -> Bool
   priv close_activation : () -> Unit raise
   priv timeout_millis : UInt64
@@ -30,7 +30,7 @@ pub struct TwoRankDecoderPipeline {
   priv mut remote_ready : Bool
   priv mut activation_done : Bool
   priv mut step_failed : Bool
-  priv mut token : Int
+  priv mut token : Int32
   priv mut busy : Bool
   priv mut cancel_requested : Bool
   priv mut cancel_retired : Bool
@@ -44,10 +44,10 @@ pub fn TwoRankDecoderPipeline::new(
   remote : @control.DecoderStageClient,
   limits : @protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
-  begin_activation~ : (UInt64, Int, UInt64) -> Unit raise,
+  begin_activation~ : (UInt64, Int32, UInt64) -> Unit raise,
   poll_activation~ : async (UInt64) -> Bool,
   close_activation~ : () -> Unit raise,
-  timeout_millis? : UInt64 = 300000UL,
+  timeout_millis~ : UInt64 = 300000UL,
 ) -> Self raise {
   guard !ingress.outputs_token() &&
     remote.outputs_token() &&

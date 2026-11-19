@@ -11,9 +11,9 @@ pub struct DeepSeekV4KeyValueQuantizedLayout {
   priv contract : DeepSeekV4KeyValueQuantizationContract
   priv weight_shape : ReadOnlyArray[Int64]
   priv scale_shape : ReadOnlyArray[Int64]
-  priv input_width : Int
-  priv output_width : Int
-  priv block_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv block_width : Int32
   priv tensor_parallel_replicated : Bool
 }
 
@@ -56,17 +56,17 @@ pub fn DeepSeekV4KeyValueQuantizedLayout::scale_shape(
 }
 
 ///|
-pub fn DeepSeekV4KeyValueQuantizedLayout::input_width(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueQuantizedLayout::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn DeepSeekV4KeyValueQuantizedLayout::output_width(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueQuantizedLayout::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn DeepSeekV4KeyValueQuantizedLayout::block_width(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueQuantizedLayout::block_width(self : Self) -> Int32 {
   self.block_width
 }
 

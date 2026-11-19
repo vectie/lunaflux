@@ -15,7 +15,7 @@ pub fn AttentionDecodeWorkspaceContract::scalar(
 ///|
 pub fn AttentionDecodeWorkspaceContract::split_count(
   self : AttentionDecodeWorkspaceContract,
-) -> Int {
+) -> Int32 {
   self.split_count
 }
 
@@ -54,7 +54,7 @@ pub fn AttentionDecodeWorkspaceContract::alignment(
 ///|
 pub fn AttentionOrderedLaunchContract::ordinal(
   self : AttentionOrderedLaunchContract,
-) -> Int {
+) -> Int32 {
   self.ordinal
 }
 

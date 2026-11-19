@@ -3,7 +3,7 @@
 /// only the final attention writer adds the disjoint decode companion.
 priv struct PagedAttentionPhaseReplacement {
   operation_id : @plan.OperationId
-  function_index : Int
+  function_index : Int32
   prefill_arguments : @device.KernelArguments
   decode_companion : PreparedPagedGraphStep?
 }
@@ -103,7 +103,7 @@ fn[Step] specialize_attention_phase_list(
 fn mixed_attention_steps(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   resources : PagedGraphResources,
-  partitioned_decode? : Bool = false,
+  partitioned_decode~ : Bool = false,
 ) -> ReadOnlyArray[PreparedPagedGraphStep]? {
   // Reject an incomplete alternative before materializing any graph. Never
   // silently mix measured split choices with ordinary decode companions.
@@ -161,9 +161,9 @@ fn mixed_attention_steps(
 ///|
 fn select_paged_attention_phase_owner(
   resources : PagedGraphResources,
-  owner_index : Int,
+  owner_index : Int32,
   phase : @luna_execution_graph_strategy.ExecutionGraphPhase,
-) -> Int {
+) -> Int32 {
   let mixed = resources.ordered_executors[owner_index].mixed_owner_index
   if phase == MixedGraph && mixed >= 0 {
     mixed

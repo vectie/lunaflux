@@ -8,7 +8,7 @@ fn admit_qwen_attention_routes(
   runtime : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle,
   profile : @launch_contract.PagedKernelProfile,
   has_wide : Bool,
-) -> ReadOnlyArray[Int]? raise FusedGroupedOperationError {
+) -> ReadOnlyArray[Int32]? raise FusedGroupedOperationError {
   guard runtime.attention_bucket_routes() is Some(bytes) else { return None }
   let table = new_paged_graph_bucket_table(profile)
   let routes = @luna_attention_tuning.parse_attention_bucket_routes(
@@ -43,7 +43,7 @@ fn admit_qwen_attention_routes(
 ///|
 fn qwen_measured_attention_candidates(
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-) -> ReadOnlyArray[Int]? {
+) -> ReadOnlyArray[Int32]? {
   match spans {
     [first, ..] => first.measured_attention_candidates
     [] => None
@@ -54,19 +54,19 @@ fn qwen_measured_attention_candidates(
 /// Pure startup mapping. Missing measurements retain legacy policy; measured
 /// baseline choices override heuristics just as measured variant choices do.
 fn map_measured_attention_owners(
-  candidates : ReadOnlyArray[Int]?,
-  baseline : FixedArray[Int],
-  baseline_fallback : Int,
-  wide : FixedArray[Int],
-  wide_fallback : Int,
-  decode_fallback? : Int = -1,
-  decode_split? : FixedArray[Int]? = None,
-  decode_split_fallback? : Int = -1,
-  prefill_split? : FixedArray[Int]? = None,
-  prefill_split_fallback? : Int = -1,
-  deep_prefill_split_fallback? : Int = -1,
-  mixed_decode_split? : FixedArray[Int]? = None,
-) -> ReadOnlyArray[Int] raise DeviceStepError {
+  candidates : ReadOnlyArray[Int32]?,
+  baseline : FixedArray[Int32],
+  baseline_fallback : Int32,
+  wide : FixedArray[Int32],
+  wide_fallback : Int32,
+  decode_fallback~ : Int32 = -1,
+  decode_split~ : FixedArray[Int32]? = None,
+  decode_split_fallback~ : Int32 = -1,
+  prefill_split~ : FixedArray[Int32]? = None,
+  prefill_split_fallback~ : Int32 = -1,
+  deep_prefill_split_fallback~ : Int32 = -1,
+  mixed_decode_split~ : FixedArray[Int32]? = None,
+) -> ReadOnlyArray[Int32] raise DeviceStepError {
   guard candidates is Some(ids) else { return ReadOnlyArray::from_array([]) }
   if ids.length() != baseline.length() || ids.length() != wide.length() {
     raise InvalidExecutor(GraphBucket)
@@ -99,10 +99,10 @@ fn map_measured_attention_owners(
 
 ///|
 fn measured_graph_owner(
-  indices : FixedArray[Int]?,
-  slot : Int,
-  fallback : Int,
-) -> Int {
+  indices : FixedArray[Int32]?,
+  slot : Int32,
+  fallback : Int32,
+) -> Int32 {
   match indices {
     Some(values) => if values[slot] >= 0 { values[slot] } else { fallback }
     None => fallback

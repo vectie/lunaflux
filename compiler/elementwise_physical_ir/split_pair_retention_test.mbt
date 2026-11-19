@@ -1,7 +1,7 @@
 ///|
 test "split pair retention exactly covers strided component ownership" {
   for width in [64, 128, 256] {
-    let plan = SplitPairRetention::new(width~, owners=32).unwrap()
+    let plan = @elementwise_physical_ir.SplitPairRetention::new(width~, owners=32).unwrap()
     let (half, owners, pairs) = plan.geometry()
     let seen = Array::make(width, false)
     for owner in 0..<owners {
@@ -26,6 +26,6 @@ test "split pair retention exactly covers strided component ownership" {
 ///|
 test "split pair retention rejects cross owner and invalid domains" {
   for (width, owners) in [(0, 32), (127, 32), (32, 32), (96, 32), (128, 0)] {
-    assert_eq(SplitPairRetention::new(width~, owners~), None)
+    assert_eq(@elementwise_physical_ir.SplitPairRetention::new(width~, owners~), None)
   }
 }

@@ -3,10 +3,10 @@
 /// recomputing it for every output column. Both stages preserve the existing
 /// bias-first ordered F32 arithmetic contract and use 256 threads per CTA.
 pub fn staged_dense_silu_dense_f32_rows_source(
-  rows~ : Int,
-  input_width~ : Int,
-  hidden_width~ : Int,
-  output_width~ : Int,
+  rows~ : Int32,
+  input_width~ : Int32,
+  hidden_width~ : Int32,
+  output_width~ : Int32,
   function_prefix~ : String,
 ) -> Bytes raise {
   guard rows > 0 else {

@@ -10,7 +10,7 @@ fn bridge_is_sha256(value : StringView) -> Bool {
 fn bridge_parse_positive(
   value : String,
   label : String,
-) -> Int raise BridgeRuntimeError {
+) -> Int32 raise BridgeRuntimeError {
   let parsed = @string.parse_int(value, base=10) catch {
     _ => raise InvalidArgument(label + " is not numeric")
   }
@@ -46,7 +46,7 @@ fn bridge_identity_digest(
 /// not a checksum to verify at runtime.
 async fn bridge_read_file(
   argument : String,
-  maximum_bytes : Int,
+  maximum_bytes : Int32,
   label : String,
 ) -> Bytes raise BridgeRuntimeError {
   let marker = "#sha256="

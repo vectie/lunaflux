@@ -121,7 +121,7 @@ fn fp8_v2_bundle_schema(
 }
 
 ///|
-fn fp8_v2_bundle_plan(content? : String = "6".repeat(64)) -> @plan.ModelPlan {
+fn fp8_v2_bundle_plan(content~ : String = "6".repeat(64)) -> @plan.ModelPlan {
   let operations = fp8_v2_bundle_operations()
   try! @plan.ModelPlan::new_with_kv_execution(
     content_digest=@spec.ContentDigest::from_sha256(content),
@@ -182,7 +182,7 @@ fn fp8_v2_bundle_bytes() -> Bytes {
 }
 
 ///|
-fn fp8_v2_bundle_family(index : Int) -> @catalog.AotKernelFamily {
+fn fp8_v2_bundle_family(index : Int32) -> @catalog.AotKernelFamily {
   @catalog.AotKernelFamily::new(
     module_digest=try! @catalog.AotArtifactDigest::from_sha256(
       kernel_bundle_sha256(fp8_v2_bundle_bytes()),
@@ -192,7 +192,7 @@ fn fp8_v2_bundle_family(index : Int) -> @catalog.AotKernelFamily {
 }
 
 ///|
-fn fp8_v2_bundle_entry(index : Int) -> @catalog.AotKernelEntryPoint {
+fn fp8_v2_bundle_entry(index : Int32) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=fp8_v2_bundle_family(index),
     entry_point_id=try! @catalog.AotKernelEntryPointId::from_stable_int(
@@ -242,7 +242,7 @@ fn fp8_v2_bundle_resolved(
 ///|
 fn fp8_v2_bundle_operands(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
 ) -> Array[@launch_contract.AotOperand] {
   if index == 1 || index == 2 {
     let admitted = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(

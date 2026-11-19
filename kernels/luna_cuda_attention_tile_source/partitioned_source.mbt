@@ -196,7 +196,7 @@ pub fn emit_cuda_partitioned_attention_tile_source(
   partial_symbol : String,
   merge_symbol : String,
   maximum_workspace_bytes : Int64,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
 ) -> CudaPartitionedAttentionTileSource raise CudaAttentionTileSourceError {
   if lowering.phase() == MixedCompatibility ||
     lowering.key_value_partitions() <= 1 ||

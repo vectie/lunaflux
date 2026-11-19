@@ -15,7 +15,7 @@ pub fn AttentionLoopCombinator::axis(
 ///|
 pub fn AttentionLoopCombinator::geometry(
   self : AttentionLoopCombinator,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.extent, self.tile)
 }
 
@@ -50,7 +50,7 @@ pub fn AttentionTileSchedule::memory(
 ///|
 pub fn AttentionTileSchedule::execution_geometry(
   self : AttentionTileSchedule,
-) -> (Int, Int, Int, Int64) {
+) -> (Int32, Int32, Int32, Int64) {
   (
     self.subgroups_per_block,
     self.pipeline_stages,
@@ -62,14 +62,14 @@ pub fn AttentionTileSchedule::execution_geometry(
 ///|
 pub fn AttentionTileSchedule::key_value_partition_grain(
   self : AttentionTileSchedule,
-) -> Int {
+) -> Int32 {
   self.key_value_partition_grain
 }
 
 ///|
 pub fn AttentionTileSchedule::key_value_partitions(
   self : AttentionTileSchedule,
-) -> Int {
+) -> Int32 {
   self.key_value_partitions
 }
 

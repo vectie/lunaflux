@@ -6,16 +6,16 @@ pub(all) suberror TimestepError {
 ///|
 pub struct Timesteps {
   priv values : ReadOnlyArray[Float]
-  priv indices : ReadOnlyArray[Int]
+  priv indices : ReadOnlyArray[Int32]
 }
 
 ///|
 priv struct TimeSelection {
   values : ReadOnlyArray[Float]
-  video : Int
-  audio : Int
-  visual : Int
-  reference : Int
+  video : Int32
+  audio : Int32
+  visual : Int32
+  reference : Int32
 }
 
 ///|
@@ -82,7 +82,7 @@ fn Sequence::select_times(
     }
   }
   values.sort()
-  fn index(value : Float) -> Int {
+  fn index(value : Float) -> Int32 {
     for i, item in values {
       if item == value {
         return i
@@ -111,7 +111,7 @@ fn Sequence::select_times(
 fn Sequence::expand_times(
   self : Self,
   selection : TimeSelection,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   let indices = Array::make(self.assembly.rows().length(), selection.video)
   for segment in self.segments {
     let selected = match segment.kind {
@@ -133,6 +133,6 @@ pub fn Timesteps::values(self : Self) -> ReadOnlyArray[Float] {
 }
 
 ///|
-pub fn Timesteps::indices(self : Self) -> ReadOnlyArray[Int] {
+pub fn Timesteps::indices(self : Self) -> ReadOnlyArray[Int32] {
   self.indices
 }

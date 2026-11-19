@@ -19,3 +19,9 @@ pub fn ModelDType::parse(name : StringView) -> ModelDType raise ModelSpecError {
     _ => raise UnknownDType
   }
 }
+
+///|
+pub extend ModelDType with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelDType with Eq::{not_equal, equal}

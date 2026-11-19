@@ -11,10 +11,10 @@ pub struct PagedAttentionDecodeSplitCudaBundle {
   priv operation_id : @plan.OperationId
   priv profile : @launch_contract.PagedKernelProfile
   priv layout : @device_layout.DeviceKvLayout
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv head_dimension : Int
-  priv tokens_per_page : Int
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv head_dimension : Int32
+  priv tokens_per_page : Int32
   priv page_stride_bytes : Int64
   priv physical_page_capacity : Int64
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
@@ -103,28 +103,28 @@ pub fn PagedAttentionDecodeSplitCudaBundle::device_kv_layout(
 ///|
 pub fn PagedAttentionDecodeSplitCudaBundle::query_heads(
   self : PagedAttentionDecodeSplitCudaBundle,
-) -> Int {
+) -> Int32 {
   self.query_heads
 }
 
 ///|
 pub fn PagedAttentionDecodeSplitCudaBundle::kv_heads(
   self : PagedAttentionDecodeSplitCudaBundle,
-) -> Int {
+) -> Int32 {
   self.kv_heads
 }
 
 ///|
 pub fn PagedAttentionDecodeSplitCudaBundle::head_dimension(
   self : PagedAttentionDecodeSplitCudaBundle,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn PagedAttentionDecodeSplitCudaBundle::tokens_per_page(
   self : PagedAttentionDecodeSplitCudaBundle,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 

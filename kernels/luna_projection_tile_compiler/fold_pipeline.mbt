@@ -2,31 +2,35 @@
 /// Immutable block tiling and lifetime plan for an ordered matrix fold.
 /// A finite transfer ring preserves ordered reduction updates.
 pub struct ProjectionFoldPipeline {
-  priv tile_width : Int
-  priv tile_count : Int
-  priv transfer_width : Int
-  priv row_width : Int
-  priv output_tiles : Int
-  priv minimum_rows : Int
-  priv stages : Int
-  priv fragments : Int?
+  priv tile_width : Int32
+  priv tile_count : Int32
+  priv transfer_width : Int32
+  priv row_width : Int32
+  priv output_tiles : Int32
+  priv minimum_rows : Int32
+  priv stages : Int32
+  priv fragments : Int32?
   priv hoist_addresses : Bool
 } derive(Debug, Eq)
 
 ///|
-pub fn ProjectionFoldPipeline::tile_width(self : ProjectionFoldPipeline) -> Int {
+pub fn ProjectionFoldPipeline::tile_width(
+  self : ProjectionFoldPipeline,
+) -> Int32 {
   self.tile_width
 }
 
 ///|
-pub fn ProjectionFoldPipeline::tile_count(self : ProjectionFoldPipeline) -> Int {
+pub fn ProjectionFoldPipeline::tile_count(
+  self : ProjectionFoldPipeline,
+) -> Int32 {
   self.tile_count
 }
 
 ///|
 pub fn ProjectionFoldPipeline::stage_count(
   self : ProjectionFoldPipeline,
-) -> Int {
+) -> Int32 {
   self.stages
 }
 
@@ -35,7 +39,7 @@ pub fn ProjectionFoldPipeline::stage_count(
 /// reordering the accumulator fold. A single-tile window needs no lookahead.
 pub fn ProjectionFoldPipeline::fragment_stage_count(
   self : ProjectionFoldPipeline,
-) -> Int {
+) -> Int32 {
   if self.fragments is Some(count) {
     return count
   }
@@ -51,33 +55,35 @@ pub fn ProjectionFoldPipeline::fragment_stage_count(
 ///|
 pub fn ProjectionFoldPipeline::transfer_width(
   self : ProjectionFoldPipeline,
-) -> Int {
+) -> Int32 {
   self.transfer_width
 }
 
 ///|
-pub fn ProjectionFoldPipeline::row_width(self : ProjectionFoldPipeline) -> Int {
+pub fn ProjectionFoldPipeline::row_width(
+  self : ProjectionFoldPipeline,
+) -> Int32 {
   self.row_width
 }
 
 ///|
 pub fn ProjectionFoldPipeline::output_tiles(
   self : ProjectionFoldPipeline,
-) -> Int {
+) -> Int32 {
   self.output_tiles
 }
 
 ///|
 pub fn ProjectionFoldPipeline::single_row_outputs(
   _self : ProjectionFoldPipeline,
-) -> Int {
+) -> Int32 {
   4
 }
 
 ///|
 pub fn ProjectionFoldPipeline::minimum_rows(
   self : ProjectionFoldPipeline,
-) -> Int {
+) -> Int32 {
   self.minimum_rows
 }
 
@@ -188,7 +194,7 @@ fn projection_sibling_pipeline(
           }),
           row_width,
           minimum_rows: 2,
-          output_tiles: Int::max(
+          output_tiles: Int32::max(
             1,
             dispatch.prefill().output_tiles_per_workgroup() / 4,
           ),
@@ -276,7 +282,7 @@ fn projection_matrix_pipeline(
           output_tiles: if selected {
             dispatch.prefill().output_tiles_per_workgroup()
           } else {
-            Int::max(1, dispatch.prefill().output_tiles_per_workgroup() / 2)
+            Int32::max(1, dispatch.prefill().output_tiles_per_workgroup() / 2)
           },
           minimum_rows: 2,
         },
@@ -292,10 +298,10 @@ fn projection_matrix_pipeline(
 /// non-power-of-two extents use the same fold, without reading padded weights
 /// or changing the order of floating-point accumulation.
 fn projection_transfer_width(
-  extent : Int,
-  tile : Int,
-  maximum_tiles : Int,
-) -> Int {
+  extent : Int32,
+  tile : Int32,
+  maximum_tiles : Int32,
+) -> Int32 {
   for tiles = maximum_tiles; tiles > 1; tiles = tiles / 2 {
     if extent % (tile * tiles) == 0 {
       return tile * tiles
@@ -310,11 +316,11 @@ fn projection_transfer_width(
 /// window. Dense and materialized folds supply different live-storage budgets;
 /// a device backend still owns physical transfer and shared-memory lowering.
 fn projection_operand_window_tiles(
-  reduction_extent : Int,
-  row_bound : Int,
-  output_tiles : Int,
-  maximum_tiles~ : Int,
-) -> Int {
+  reduction_extent : Int32,
+  row_bound : Int32,
+  output_tiles : Int32,
+  maximum_tiles~ : Int32,
+) -> Int32 {
   if reduction_extent >= 2048 && row_bound <= 16 && output_tiles <= 2 {
     maximum_tiles
   } else {
@@ -330,3 +336,9 @@ pub fn ProjectionTileSchedule::matrix_pipeline(
 ) -> ProjectionFoldPipeline? {
   self.matrix_pipeline
 }
+
+///|
+pub extend ProjectionFoldPipeline with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionFoldPipeline with Eq::{not_equal, equal}

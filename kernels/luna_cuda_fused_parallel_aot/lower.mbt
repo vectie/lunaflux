@@ -69,7 +69,7 @@ pub fn lower_fused_qkv_rope_paged_kv_write_candidate(
     _ => raise FusedParallelUnsupported(StaticResources)
   }
   let function_symbol = "lunaflux_fused_qkv_positioned_rope_paged_kvwrite_bf16_block128_strict_v1"
-  let dispatch_canary : UInt = 257U
+  let dispatch_canary : UInt32 = 257U
   if profile.max_query_tokens().to_int64() * dispatch_canary.to_int64() >
     4294967295L {
     raise FusedParallelUnsupported(Profile)
@@ -210,7 +210,7 @@ pub fn lower_fused_residual_rmsnorm_candidate(
     _ => raise FusedParallelUnsupported(StaticResources)
   }
   let function_symbol = "lunaflux_fused_residual_rmsnorm_bf16_block128_tree_strict_v1"
-  let dispatch_canary : UInt = 263U
+  let dispatch_canary : UInt32 = 263U
   if profile.max_query_tokens().to_int64() * dispatch_canary.to_int64() >
     4294967295L {
     raise FusedParallelUnsupported(Profile)

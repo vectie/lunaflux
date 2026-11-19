@@ -41,7 +41,7 @@ fn GlmRecurrentLayer::bound_weights(
 fn GlmSparseLayer::bound_weights(
   self : Self,
   checkpoint : @precision_materialize.PackedCheckpoint,
-) -> (Array[@precision_materialize.PackedCheckpointWeight], Int) raise {
+) -> (Array[@precision_materialize.PackedCheckpointWeight], Int32) raise {
   let bound = @sparse_model.bind_flash_sparse_projection_weights(
     checkpoint,
     self.spec,

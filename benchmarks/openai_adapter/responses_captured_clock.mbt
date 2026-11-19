@@ -1,7 +1,7 @@
 ///|
 fn OpenAIResponsesTrialObserver::collector_submit_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   input_tokens : Int64,
 ) -> Unit raise OpenAIBaselineAdapterError {
   match self.captured_timestamp {
@@ -23,7 +23,7 @@ fn OpenAIResponsesTrialObserver::collector_submit_observed(
 ///|
 fn OpenAIResponsesTrialObserver::collector_admit_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> Unit raise OpenAIBaselineAdapterError {
   match self.captured_timestamp {
     Some(timestamp) =>
@@ -40,7 +40,7 @@ fn OpenAIResponsesTrialObserver::collector_admit_observed(
 ///|
 fn OpenAIResponsesTrialObserver::collector_first_token_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> Unit raise OpenAIBaselineAdapterError {
   match self.captured_timestamp {
     Some(timestamp) =>
@@ -57,7 +57,7 @@ fn OpenAIResponsesTrialObserver::collector_first_token_observed(
 ///|
 fn OpenAIResponsesTrialObserver::collector_terminate_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   outcome : @evidence.BenchmarkRequestOutcome,
   generated_tokens : Int64,
 ) -> Unit raise OpenAIBaselineAdapterError {

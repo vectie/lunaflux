@@ -6,7 +6,7 @@ pub struct WorkerMistralBootstrapModelSource {
   priv model : WorkerBootstrapModelSource
   priv numeric_weight_artifact_digest : String
   priv weight_manifest_digest : String
-  priv sliding_window_tokens : Int
+  priv sliding_window_tokens : Int32
 }
 
 ///|
@@ -16,7 +16,7 @@ pub fn WorkerMistralBootstrapModelSource::new(
   config_digest_sha256~ : StringView,
   numeric_weight_artifact_sha256~ : StringView,
   weight_manifest_sha256~ : StringView,
-  sliding_window_tokens~ : Int,
+  sliding_window_tokens~ : Int32,
 ) -> Self raise WorkerWireError {
   if !bootstrap_source_is_sha256(numeric_weight_artifact_sha256) ||
     !bootstrap_source_is_sha256(weight_manifest_sha256) ||
@@ -70,6 +70,6 @@ pub fn WorkerMistralBootstrapModelSource::weight_manifest_digest(
 ///|
 pub fn WorkerMistralBootstrapModelSource::sliding_window_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.sliding_window_tokens
 }

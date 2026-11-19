@@ -4,7 +4,7 @@ const MAX_ARENA_BYTES : Int64 = 9223372036854775807L
 ///|
 fn translate_layout_failure(
   body : () -> @device_layout.DeviceKvLayout raise,
-  rank : Int,
+  rank : Int32,
 ) -> @device_layout.DeviceKvLayout raise TensorParallelKvPlanError {
   body() catch {
     @device_layout.DeviceKvLayoutError::SizeOverflow(_) =>
@@ -23,8 +23,8 @@ fn admit_facts(
   devices : ArrayView[RankDeviceFacts],
   runtime_target : @catalog.DeviceTarget,
   runtime_ranks : ArrayView[RankRuntimeFacts],
-  tokens_per_page : Int,
-  total_page_count : Int,
+  tokens_per_page : Int32,
+  total_page_count : Int32,
 ) -> TensorParallelKvPlan raise TensorParallelKvPlanError {
   let world_size = devices.length()
   if world_size <= 0 || runtime_ranks.length() != world_size {
@@ -146,8 +146,8 @@ pub fn admit(
   generation : @worker_protocol.ModelPlanGeneration,
   runtime : @tensor_parallel_admission.TensorParallelRuntimeAdmission,
   devices : ArrayView[@tensor_parallel_device_plan.TensorParallelDevicePlan],
-  tokens_per_page~ : Int,
-  total_page_count~ : Int,
+  tokens_per_page~ : Int32,
+  total_page_count~ : Int32,
 ) -> TensorParallelKvPlan raise TensorParallelKvPlanError {
   let facts : Array[RankDeviceFacts] = []
   for device in devices {

@@ -64,7 +64,7 @@ pub fn PagedKvWriteFakeCampaignReport::candidate_digest(
 ///|
 pub fn PagedKvWriteFakeCampaignReport::observation_count(
   self : PagedKvWriteFakeCampaignReport,
-) -> Int {
+) -> Int32 {
   self.observation_count
 }
 

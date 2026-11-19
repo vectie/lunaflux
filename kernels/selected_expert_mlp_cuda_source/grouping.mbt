@@ -3,8 +3,8 @@
 /// grouping plan and stored alongside products, never a token-path allocation.
 fn grouping_kernel(
   symbol : String,
-  rows : Int,
-  selected : Int,
+  rows : Int32,
+  selected : Int32,
   metadata : Int64,
 ) -> String raise {
   let jobs = rows * selected
@@ -41,8 +41,8 @@ fn grouping_kernel(
 ///|
 fn parallel_grouping_kernel(
   symbol : String,
-  rows : Int,
-  selected : Int,
+  rows : Int32,
+  selected : Int32,
   metadata : Int64,
   assignment : @matrix.StableAssignmentPlan,
 ) -> String {

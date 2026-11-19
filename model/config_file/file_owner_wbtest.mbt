@@ -15,7 +15,7 @@ test "terminal close failure prevents successful body publication" {
 ///|
 test "terminal close failure preserves an earlier body failure" {
   let closed = Ref(false)
-  let outcome : Result[Int, ModelConfigFileError] = Err(DigestMismatch)
+  let outcome : Result[Int32, ModelConfigFileError] = Err(DigestMismatch)
   try
     finish_file_body(outcome, () => {
       closed.val = true

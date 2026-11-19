@@ -15,7 +15,7 @@ fn private_network_listener(host : StringView) -> Bool {
 fn external_protocol_admitted(
   protocol : @instance_policy_file.ExternalProtocolPolicyClaims,
   service : @service.ServiceConfig,
-  openai_service_available? : Bool = false,
+  openai_service_available~ : Bool = false,
 ) -> Bool {
   let transport_admitted = match protocol.transport_security() {
     LoopbackPlaintext => loopback_listener(service.listen_host())

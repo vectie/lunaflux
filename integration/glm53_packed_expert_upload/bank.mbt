@@ -2,13 +2,13 @@
 /// GLM's family-specific shape/clamp is translated once into the generic
 /// precision/expert plan. No model-name decisions reach execution or lowering.
 pub fn expert_compute_plan(
-  layer_index~ : Int,
-  expert_indices~ : ArrayView[Int],
-  maximum_rows~ : Int,
+  layer_index~ : Int32,
+  expert_indices~ : ArrayView[Int32],
+  maximum_rows~ : Int32,
   memory_ceiling~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  expert_scaled_dot_law? : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  expert_scaled_dot_law~ : @precision_ir.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> @precision_ir.ExpertMlpPrecision raise {
   let family = @glm53_weights.nvfp4_expert_weights(
     layer_index~,
@@ -77,8 +77,8 @@ pub fn upload_expert_bank(
   root : @approved_fs.ApprovedRoot,
   plan : @precision_ir.ExpertMlpPrecision,
   bank : @device.Allocation,
-  layer_index~ : Int,
-  chunk_bytes~ : Int,
+  layer_index~ : Int32,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }

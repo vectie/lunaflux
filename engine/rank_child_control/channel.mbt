@@ -24,7 +24,7 @@ fn RankChildChannel::begin_read_frame_or_eof(
 ///|
 fn RankChildChannel::progress_read_frame_or_eof(
   self : RankChildChannel,
-) -> Int? raise @process.ProcessError {
+) -> Int32? raise @process.ProcessError {
   match self {
     Local(channel) => channel.progress_read_frame_or_eof()
     Remote(mailbox, retained) => {
@@ -42,8 +42,8 @@ fn RankChildChannel::progress_read_frame_or_eof(
 fn RankChildChannel::begin_write_frame(
   self : RankChildChannel,
   bytes : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
+  offset~ : Int32,
+  byte_count~ : Int32,
 ) -> Unit raise @process.ProcessError {
   match self {
     Local(channel) => channel.begin_write_frame(bytes, offset~, byte_count~)
@@ -70,7 +70,7 @@ fn RankChildChannel::progress_write_frame(
 ///|
 fn RankChildChannel::wait_pending_readable(
   self : RankChildChannel,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise @process.ProcessError {
   match self {
     Local(channel) => channel.wait_pending_readable(maximum_wait_millis~)
@@ -81,7 +81,7 @@ fn RankChildChannel::wait_pending_readable(
 ///|
 fn RankChildChannel::wait_pending_writable(
   self : RankChildChannel,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise @process.ProcessError {
   match self {
     Local(channel) => channel.wait_pending_writable(maximum_wait_millis~)
@@ -92,7 +92,7 @@ fn RankChildChannel::wait_pending_writable(
 ///|
 fn RankChildChannel::wait_readable(
   self : RankChildChannel,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise @process.ProcessError {
   match self {
     Local(channel) => channel.wait_readable(maximum_wait_millis~)

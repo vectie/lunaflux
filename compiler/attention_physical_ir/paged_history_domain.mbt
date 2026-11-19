@@ -4,19 +4,19 @@
 /// sequences borrow pages from the same physical pool. Allocation, page
 /// ownership and retirement remain runtime effects, outside this plan.
 pub struct PagedHistoryDomain {
-  priv rows_per_page : Int
-  priv pages : Int
-  priv context : Int
-  priv sequences : Int
-  priv pages_per_sequence : Int
+  priv rows_per_page : Int32
+  priv pages : Int32
+  priv context : Int32
+  priv sequences : Int32
+  priv pages_per_sequence : Int32
 }
 
 ///|
 pub fn PagedHistoryDomain::new(
-  rows_per_page~ : Int,
-  physical_pages~ : Int,
-  maximum_context~ : Int,
-  maximum_sequences~ : Int,
+  rows_per_page~ : Int32,
+  physical_pages~ : Int32,
+  maximum_context~ : Int32,
+  maximum_sequences~ : Int32,
 ) -> Self? {
   guard rows_per_page > 0 &&
     physical_pages > 0 &&
@@ -41,22 +41,24 @@ pub fn PagedHistoryDomain::new(
 }
 
 ///|
-pub fn PagedHistoryDomain::geometry(self : Self) -> (Int, Int, Int, Int) {
+pub fn PagedHistoryDomain::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32) {
   (self.rows_per_page, self.pages, self.context, self.sequences)
 }
 
 ///|
-pub fn PagedHistoryDomain::table_capacity(self : Self) -> Int {
+pub fn PagedHistoryDomain::table_capacity(self : Self) -> Int32 {
   self.pages_per_sequence * self.sequences
 }
 
 ///|
-pub fn PagedHistoryDomain::physical_rows(self : Self) -> Int {
+pub fn PagedHistoryDomain::physical_rows(self : Self) -> Int32 {
   self.pages * self.rows_per_page
 }
 
 ///|
-pub fn PagedHistoryDomain::pages_for(self : Self, tokens : Int) -> Int? {
+pub fn PagedHistoryDomain::pages_for(self : Self, tokens : Int32) -> Int32? {
   guard tokens >= 0 && tokens <= self.context else { return None }
   Some(if tokens == 0 { 0 } else { (tokens - 1) / self.rows_per_page + 1 })
 }
@@ -66,9 +68,9 @@ pub fn PagedHistoryDomain::pages_for(self : Self, tokens : Int) -> Int? {
 /// physical page selected from the sequence's table at position/page_rows.
 pub fn PagedHistoryDomain::physical_row(
   self : Self,
-  page : Int,
-  position : Int,
-) -> Int? {
+  page : Int32,
+  position : Int32,
+) -> Int32? {
   guard page >= 0 &&
     page < self.pages &&
     position >= 0 &&

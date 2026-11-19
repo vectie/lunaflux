@@ -1,6 +1,6 @@
 ///|
 pub fn PrefixLookupBuffer::new(
-  page_capacity : Int,
+  page_capacity : Int32,
 ) -> PrefixLookupBuffer raise PrefixIndexError {
   if !valid_capacity(page_capacity) {
     raise InvalidLimit(PageCapacity)
@@ -19,17 +19,17 @@ pub fn PrefixLookupBuffer::new(
 }
 
 ///|
-pub fn PrefixLookupBuffer::capacity(self : PrefixLookupBuffer) -> Int {
+pub fn PrefixLookupBuffer::capacity(self : PrefixLookupBuffer) -> Int32 {
   self.pages.capacity()
 }
 
 ///|
-pub fn PrefixLookupBuffer::page_count(self : PrefixLookupBuffer) -> Int {
+pub fn PrefixLookupBuffer::page_count(self : PrefixLookupBuffer) -> Int32 {
   self.page_count
 }
 
 ///|
-pub fn PrefixLookupBuffer::matched_tokens(self : PrefixLookupBuffer) -> Int {
+pub fn PrefixLookupBuffer::matched_tokens(self : PrefixLookupBuffer) -> Int32 {
   self.matched_tokens
 }
 
@@ -60,7 +60,7 @@ pub fn PrefixLookupBuffer::entry_id(
 ///|
 pub fn PrefixLookupBuffer::page_at(
   self : PrefixLookupBuffer,
-  index : Int,
+  index : Int32,
 ) -> @page_allocator.PageId raise PrefixIndexError {
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds
@@ -86,7 +86,7 @@ pub fn PrefixLookupBuffer::clear(self : PrefixLookupBuffer) -> Unit {
 
 ///|
 pub fn PrefixEvictionBuffer::new(
-  page_capacity : Int,
+  page_capacity : Int32,
 ) -> PrefixEvictionBuffer raise PrefixIndexError {
   if !valid_capacity(page_capacity) {
     raise InvalidLimit(PageCapacity)
@@ -103,12 +103,12 @@ pub fn PrefixEvictionBuffer::new(
 }
 
 ///|
-pub fn PrefixEvictionBuffer::capacity(self : PrefixEvictionBuffer) -> Int {
+pub fn PrefixEvictionBuffer::capacity(self : PrefixEvictionBuffer) -> Int32 {
   self.pages.capacity()
 }
 
 ///|
-pub fn PrefixEvictionBuffer::page_count(self : PrefixEvictionBuffer) -> Int {
+pub fn PrefixEvictionBuffer::page_count(self : PrefixEvictionBuffer) -> Int32 {
   self.page_count
 }
 
@@ -126,7 +126,7 @@ pub fn PrefixEvictionBuffer::entry(
 ///|
 pub fn PrefixEvictionBuffer::page_at(
   self : PrefixEvictionBuffer,
-  index : Int,
+  index : Int32,
 ) -> @page_allocator.PageId raise PrefixIndexError {
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds

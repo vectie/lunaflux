@@ -1,12 +1,12 @@
 ///|
-const CHILD_MAX_FRAME_BYTES : Int = 67108864
+const CHILD_MAX_FRAME_BYTES : Int32 = 67108864
 
 ///|
 // The child does not receive the parent's deployment I/O policy. Use the
 // process boundary's admitted maximum so a valid slower parent is never timed
 // out first by hidden child policy; the parent retains its shorter deadline and
 // kill/reap authority.
-const CHILD_IO_TIMEOUT_MILLIS : Int = 600000
+const CHILD_IO_TIMEOUT_MILLIS : Int32 = 600000
 
 ///|
 fn read_configure(

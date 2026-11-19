@@ -7,7 +7,7 @@ test "deterministic randomized staging matches scalar CSR reference" {
     let sequence_length = sequence_start + token_length
     let page_count = 1 + (sequence_length - 1) / tokens_per_page
     let allocator = step_allocator(capacity=page_count)
-    let tokens : Array[Int] = []
+    let tokens : Array[Int32] = []
     for index in 0..<token_length {
       tokens.push((case_index * 41 + index) % 4097)
     }

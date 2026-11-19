@@ -15,7 +15,7 @@ pub extend KeyScaleStep with @debug.Debug::{to_repr}
 
 ///|
 pub struct KeyFold {
-  priv dimensions : Int
+  priv dimensions : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -25,7 +25,7 @@ pub extend KeyFold with Eq::{equal, not_equal}
 pub extend KeyFold with @debug.Debug::{to_repr}
 
 ///|
-pub fn KeyFold::new(dimensions~ : Int) -> KeyFold? {
+pub fn KeyFold::new(dimensions~ : Int32) -> KeyFold? {
   if dimensions > 0 {
     Some({ dimensions, })
   } else {
@@ -41,7 +41,7 @@ pub fn KeyFold::scale_steps(_self : KeyFold) -> ReadOnlyArray[KeyScaleStep] {
 ///|
 /// Distribute output components without baking a device subgroup width into
 /// the physical state law. The backend supplies its actual owner width.
-pub fn KeyFold::values_per_owner(self : KeyFold, owners : Int) -> Int? {
+pub fn KeyFold::values_per_owner(self : KeyFold, owners : Int32) -> Int32? {
   if owners <= 0 {
     None
   } else {

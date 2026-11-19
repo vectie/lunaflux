@@ -11,7 +11,7 @@ pub struct IndexedSparseDecoderFrame {
   priv functions : Array[@device.Function]
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut state : State
-  priv mut tensor_boundary : (Int, @device.Allocation, Int)?
+  priv mut tensor_boundary : (Int32, @device.Allocation, Int32)?
 }
 
 ///|
@@ -206,10 +206,12 @@ pub fn IndexedSparseDecoderFrame::prepare(
           byte_count=20L,
           alignment=4L,
         ),
-        region(attention_output, plan.attention_output_bytes())
-          .requiring_alignment(self.source.output_operand_alignment()),
-        region(output_weight, plan.output_weight_bytes())
-          .requiring_alignment(self.source.output_operand_alignment()),
+        region(attention_output, plan.attention_output_bytes()).requiring_alignment(
+          self.source.output_operand_alignment(),
+        ),
+        region(output_weight, plan.output_weight_bytes()).requiring_alignment(
+          self.source.output_operand_alignment(),
+        ),
         region(
           projection_output,
           if partial {
@@ -264,7 +266,7 @@ pub fn IndexedSparseDecoderFrame::prepare(
 }
 
 ///|
-pub fn IndexedSparseDecoderFrame::tensor_width(self : Self) -> Int? {
+pub fn IndexedSparseDecoderFrame::tensor_width(self : Self) -> Int32? {
   if self.source.plan().publication() != LocalBFloat16 {
     let (hidden, _, _) = self.source.plan().projection().geometry()
     Some(hidden)
@@ -281,7 +283,7 @@ pub fn IndexedSparseDecoderFrame::tensor_is_bfloat16(self : Self) -> Bool {
 ///|
 pub fn IndexedSparseDecoderFrame::tensor_boundary(
   self : Self,
-) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }

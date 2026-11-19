@@ -1,36 +1,36 @@
 ///|
-const STATUS_OK : Int = 0
+const STATUS_OK : Int32 = 0
 
 ///|
-const STATUS_INVALID : Int = 1
+const STATUS_INVALID : Int32 = 1
 
 ///|
-const STATUS_UNAVAILABLE : Int = 2
+const STATUS_UNAVAILABLE : Int32 = 2
 
 ///|
-const STATUS_UNSUPPORTED : Int = 3
+const STATUS_UNSUPPORTED : Int32 = 3
 
 ///|
-const STATUS_CLOSED : Int = 4
+const STATUS_CLOSED : Int32 = 4
 
 ///|
-const STATUS_TRUNCATED : Int = 5
+const STATUS_TRUNCATED : Int32 = 5
 
 ///|
-const STATUS_BUSY : Int = 7
+const STATUS_BUSY : Int32 = 7
 
 ///|
-const STATUS_CHANGED : Int = 8
+const STATUS_CHANGED : Int32 = 8
 
 ///|
-const STATUS_TOO_LARGE : Int = 9
+const STATUS_TOO_LARGE : Int32 = 9
 
 ///|
-const STATUS_IDENTITY_MISMATCH : Int = 10
+const STATUS_IDENTITY_MISMATCH : Int32 = 10
 
 ///|
 fn raise_open_status(
-  status : Int,
+  status : Int32,
   object : ApprovedFsObject,
 ) -> Unit raise ApprovedFsError {
   match status {
@@ -47,7 +47,7 @@ fn raise_open_status(
 
 ///|
 fn raise_operation_status(
-  status : Int,
+  status : Int32,
   operation : ApprovedFsOperation,
 ) -> Unit raise ApprovedFsError {
   match status {
@@ -190,7 +190,7 @@ pub fn acquire_prepared_worker_approved_roots_status(
   prepared : PreparedWorkerApprovedRoots,
   model_root : ApprovedRoot,
   kernel_root : ApprovedRoot,
-) -> Int {
+) -> Int32 {
   if prepared.consumed {
     return STATUS_CLOSED
   }
@@ -270,7 +270,7 @@ pub fn close_worker_approved_roots(
 /// Allocation-sensitive lifecycle primitive for internal aggregate owners.
 /// The scalar is the native status; callers must still query closed state to
 /// distinguish retained Busy authority from consumed failure evidence.
-pub fn worker_approved_roots_close_status(roots : WorkerApprovedRoots) -> Int {
+pub fn worker_approved_roots_close_status(roots : WorkerApprovedRoots) -> Int32 {
   @native.close_worker_roots(roots)
 }
 
@@ -326,8 +326,8 @@ pub fn ApprovedFile::close(self : ApprovedFile) -> Unit raise ApprovedFsError {
 pub fn ApprovedFile::read_exactly_at(
   self : ApprovedFile,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  byte_count~ : Int,
+  destination_offset~ : Int32,
+  byte_count~ : Int32,
   position~ : Int64,
 ) -> Unit raise ApprovedFsError {
   if destination_offset < 0 ||

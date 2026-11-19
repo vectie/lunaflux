@@ -32,13 +32,13 @@ fn sparse_attention_operand_text(
 ///|
 fn sparse_attention_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  maximum_batches : Int,
-  window_size : Int,
-  compression_ratio : Int,
-  selected_width : Int,
-  maximum_key_slots : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  maximum_batches : Int32,
+  window_size : Int32,
+  compression_ratio : Int32,
+  selected_width : Int32,
+  maximum_key_slots : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -120,9 +120,9 @@ fn sparse_attention_recipe(
 /// already-prepared shared buffer. This source object remains non-bindable.
 pub fn lower_selected_sparse_attention_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
-  maximum_batches~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
+  maximum_batches~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

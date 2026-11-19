@@ -7,8 +7,8 @@
 pub fn generate(
   plan : @plan.ModelPlan,
   model : PreparedModel,
-  prompt : ArrayView[Int],
-  max_new_tokens~ : Int,
+  prompt : ArrayView[Int32],
+  max_new_tokens~ : Int32,
   limits~ : ExecutionLimits,
 ) -> GenerationResult raise ReferenceExecutionError {
   if max_new_tokens <= 0 {
@@ -25,7 +25,7 @@ pub fn generate(
     raise InvalidGraph(InputContextExceeded)
   }
   let tokens = prompt.to_owned()
-  let generated : Array[Int] = []
+  let generated : Array[Int32] = []
   for _ in 0..<max_new_tokens {
     let result = execute(plan, model, tokens, limits~)
     let token = result.selection().token_id()

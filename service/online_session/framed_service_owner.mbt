@@ -49,7 +49,7 @@ pub fn LunaOnlineFramedService::readiness(
 /// cleanup or spawning a replacement.
 pub fn LunaOnlineFramedService::maintenance_wait_remaining_millis(
   self : LunaOnlineFramedService,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.instance.maintenance_wait_remaining_millis() catch {
     _ => raise luna_coordinator_error(LunaOnlineFramedMaintenance)
   }
@@ -58,7 +58,7 @@ pub fn LunaOnlineFramedService::maintenance_wait_remaining_millis(
 ///|
 fn LunaOnlineFramedService::open_stream_mode(
   self : LunaOnlineFramedService,
-  mode : Int,
+  mode : Int32,
 ) -> LunaOnlineFramedOpen {
   if self.closed {
     return luna_framed_open(LunaOnlineFramedOpenClosed, 0UL)

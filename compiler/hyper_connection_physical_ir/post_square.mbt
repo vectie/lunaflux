@@ -2,10 +2,10 @@
 /// Adjacent residual publication and successor square reduction. Publication
 /// still rounds to BF16 before the square; fusion changes ownership, not math.
 pub struct PostSquareFusion {
-  priv streams : Int
-  priv hidden : Int
-  priv rows : Int
-  priv workers : Int
+  priv streams : Int32
+  priv hidden : Int32
+  priv rows : Int32
+  priv workers : Int32
 }
 
 ///|
@@ -26,6 +26,6 @@ pub fn PostSquareFusion::new(
 }
 
 ///|
-pub fn PostSquareFusion::geometry(self : Self) -> (Int, Int, Int, Int) {
+pub fn PostSquareFusion::geometry(self : Self) -> (Int32, Int32, Int32, Int32) {
   (self.streams, self.hidden, self.rows, self.workers)
 }

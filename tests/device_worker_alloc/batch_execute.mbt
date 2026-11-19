@@ -1,10 +1,10 @@
 ///|
 fn authenticate_batch_prefill(
   cycle : PreparedBatchCycle,
-  index : Int,
-  token_start : Int,
-  token_length : Int,
-  sequence_start : Int,
+  index : Int32,
+  token_start : Int32,
+  token_length : Int32,
+  sequence_start : Int32,
   stochastic : Bool,
 ) -> Unit raise {
   let row = cycle.frame.prefill_row(index)

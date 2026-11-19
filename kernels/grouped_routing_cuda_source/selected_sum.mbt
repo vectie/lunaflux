@@ -2,7 +2,7 @@
 /// Neutral padding preserves all logical slots; descending halves specify
 /// arithmetic only. Consumers select device execution geometry independently.
 pub fn selected_weight_butterfly_source(
-  width~ : Int,
+  width~ : Int32,
   value_expression~ : String,
   output_symbol~ : String,
 ) -> String raise GroupedRoutingCudaSourceError {

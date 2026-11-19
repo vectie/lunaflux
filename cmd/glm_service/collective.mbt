@@ -3,7 +3,7 @@ async fn connect_collective(
   context : @device.Context,
   stage : @glm.GlmDecoderStage,
   connection : @socket.Tcp,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @device.TensorCollectiveOwner {
   let runtime = @device.admit_tensor_collective_runtime(
     minimum_version_code=21403,

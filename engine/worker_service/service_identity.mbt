@@ -5,7 +5,7 @@
 pub struct WorkerServiceBinding {
   priv bootstrap_digest : @worker_wire.WorkerBootstrapDigest
   priv bootstrap_source_digest : @worker_wire.WorkerBootstrapSourceDigest
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv inference_limits : @inference.InferenceLimits
   priv parent_approval : @worker_wire.WorkerParentApprovalSubjects?
 } derive(Debug, Eq)
@@ -26,10 +26,10 @@ pub struct WorkerServiceIdentity {
 pub fn WorkerServiceBinding::new(
   bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest,
   bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
   inference_limits~ : @inference.InferenceLimits,
-  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
-  fp8_authorization? : @fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3? = None,
+  luna_authorization~ : @luna_artifact_admission.LunaAotKernelAdmission? = None,
+  fp8_authorization~ : @fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3? = None,
 ) -> WorkerServiceBinding raise WorkerServiceError {
   if device_ordinal < 0 ||
     device_ordinal > 1023 ||
@@ -82,7 +82,9 @@ pub fn WorkerServiceBinding::bootstrap_digest(
 }
 
 ///|
-pub fn WorkerServiceBinding::device_ordinal(self : WorkerServiceBinding) -> Int {
+pub fn WorkerServiceBinding::device_ordinal(
+  self : WorkerServiceBinding,
+) -> Int32 {
   self.device_ordinal
 }
 

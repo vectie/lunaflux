@@ -1,53 +1,53 @@
 ///|
-const HARD_MAX_ROWS : Int = 4096
+const HARD_MAX_ROWS : Int32 = 4096
 
 ///|
-const HARD_MAX_PLAN_TOKENS : Int = 1048576
+const HARD_MAX_PLAN_TOKENS : Int32 = 1048576
 
 ///|
-const HARD_MAX_PLAN_PAGES : Int = 1048576
+const HARD_MAX_PLAN_PAGES : Int32 = 1048576
 
 ///|
-const HARD_MAX_CAPABILITIES : Int = 16384
+const HARD_MAX_CAPABILITIES : Int32 = 16384
 
 ///|
-const HARD_MAX_SEQUENCE_TOKENS : Int = 1048576
+const HARD_MAX_SEQUENCE_TOKENS : Int32 = 1048576
 
 ///|
-const HARD_MAX_TOKEN_ID : Int = 16777215
+const HARD_MAX_TOKEN_ID : Int32 = 16777215
 
 ///|
 /// Startup-owned bounds for every collection and scalar accepted by this
 /// protocol package.
 pub struct WorkerProtocolLimits {
-  max_prefill_rows : Int
-  max_decode_rows : Int
-  max_plan_rows : Int
-  max_plan_tokens : Int
-  max_plan_pages : Int
-  max_capabilities : Int
-  max_completion_slots : Int
-  max_sequence_tokens : Int
-  max_token_id : Int
+  max_prefill_rows : Int32
+  max_decode_rows : Int32
+  max_plan_rows : Int32
+  max_plan_tokens : Int32
+  max_plan_pages : Int32
+  max_capabilities : Int32
+  max_completion_slots : Int32
+  max_sequence_tokens : Int32
+  max_token_id : Int32
 } derive(Debug, Eq)
 
 ///|
-fn positive_at_most(value : Int, maximum : Int) -> Bool {
+fn positive_at_most(value : Int32, maximum : Int32) -> Bool {
   value > 0 && value <= maximum
 }
 
 ///|
 /// Constructs an exact bounded worker-protocol envelope.
 pub fn WorkerProtocolLimits::new(
-  max_prefill_rows~ : Int,
-  max_decode_rows~ : Int,
-  max_plan_rows~ : Int,
-  max_plan_tokens~ : Int,
-  max_plan_pages~ : Int,
-  max_capabilities~ : Int,
-  max_completion_slots~ : Int,
-  max_sequence_tokens~ : Int,
-  max_token_id~ : Int,
+  max_prefill_rows~ : Int32,
+  max_decode_rows~ : Int32,
+  max_plan_rows~ : Int32,
+  max_plan_tokens~ : Int32,
+  max_plan_pages~ : Int32,
+  max_capabilities~ : Int32,
+  max_completion_slots~ : Int32,
+  max_sequence_tokens~ : Int32,
+  max_token_id~ : Int32,
 ) -> WorkerProtocolLimits raise WorkerProtocolError {
   if !positive_at_most(max_prefill_rows, HARD_MAX_ROWS) {
     raise InvalidLimit(PrefillRows)
@@ -96,56 +96,60 @@ pub fn WorkerProtocolLimits::new(
 ///|
 pub fn WorkerProtocolLimits::max_prefill_rows(
   self : WorkerProtocolLimits,
-) -> Int {
+) -> Int32 {
   self.max_prefill_rows
 }
 
 ///|
 pub fn WorkerProtocolLimits::max_decode_rows(
   self : WorkerProtocolLimits,
-) -> Int {
+) -> Int32 {
   self.max_decode_rows
 }
 
 ///|
-pub fn WorkerProtocolLimits::max_plan_rows(self : WorkerProtocolLimits) -> Int {
+pub fn WorkerProtocolLimits::max_plan_rows(
+  self : WorkerProtocolLimits,
+) -> Int32 {
   self.max_plan_rows
 }
 
 ///|
 pub fn WorkerProtocolLimits::max_plan_tokens(
   self : WorkerProtocolLimits,
-) -> Int {
+) -> Int32 {
   self.max_plan_tokens
 }
 
 ///|
-pub fn WorkerProtocolLimits::max_plan_pages(self : WorkerProtocolLimits) -> Int {
+pub fn WorkerProtocolLimits::max_plan_pages(
+  self : WorkerProtocolLimits,
+) -> Int32 {
   self.max_plan_pages
 }
 
 ///|
 pub fn WorkerProtocolLimits::max_capabilities(
   self : WorkerProtocolLimits,
-) -> Int {
+) -> Int32 {
   self.max_capabilities
 }
 
 ///|
 pub fn WorkerProtocolLimits::max_completion_slots(
   self : WorkerProtocolLimits,
-) -> Int {
+) -> Int32 {
   self.max_completion_slots
 }
 
 ///|
 pub fn WorkerProtocolLimits::max_sequence_tokens(
   self : WorkerProtocolLimits,
-) -> Int {
+) -> Int32 {
   self.max_sequence_tokens
 }
 
 ///|
-pub fn WorkerProtocolLimits::max_token_id(self : WorkerProtocolLimits) -> Int {
+pub fn WorkerProtocolLimits::max_token_id(self : WorkerProtocolLimits) -> Int32 {
   self.max_token_id
 }

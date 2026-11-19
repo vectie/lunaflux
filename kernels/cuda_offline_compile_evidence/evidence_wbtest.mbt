@@ -1,6 +1,6 @@
 ///|
 fn compile_evidence_test_compiler(
-  toolchain_fill? : Char = 'a',
+  toolchain_fill~ : Char = 'a',
 ) -> @luna_specialization.LunaCompilerPolicy {
   try! @luna_specialization.LunaCompilerPolicy::new(
     identity=try! @luna_specialization.LunaCompilerIdentity::new(
@@ -17,7 +17,7 @@ fn compile_evidence_test_compiler(
 }
 
 ///|
-fn compile_evidence_test_target(minor? : Int = 0) -> @catalog.DeviceTarget {
+fn compile_evidence_test_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=minor,
@@ -28,8 +28,8 @@ fn compile_evidence_test_target(minor? : Int = 0) -> @catalog.DeviceTarget {
 
 ///|
 fn compile_evidence_test_limits(
-  maximum_module_bytes? : Int64 = 1024L,
-  maximum_receipt_bytes? : Int = 4096,
+  maximum_module_bytes~ : Int64 = 1024L,
+  maximum_receipt_bytes~ : Int32 = 4096,
 ) -> CudaOfflineCompileEvidenceLimits {
   try! CudaOfflineCompileEvidenceLimits::new(
     maximum_module_bytes~,
@@ -40,13 +40,13 @@ fn compile_evidence_test_limits(
 
 ///|
 fn compile_evidence_test_receipt(
-  module_bytes? : Bytes = b"deterministic-cubin",
-  source? : String = String::make(64, 'b'),
-  recipe? : String = String::make(64, 'c'),
-  compiler? : @luna_specialization.LunaCompilerPolicy = compile_evidence_test_compiler(),
-  driver? : String = String::make(64, 'd'),
-  target? : @catalog.DeviceTarget = compile_evidence_test_target(),
-  symbol? : String = "lunaflux_test_kernel_v1",
+  module_bytes~ : Bytes = b"deterministic-cubin",
+  source~ : String = String::make(64, 'b'),
+  recipe~ : String = String::make(64, 'c'),
+  compiler~ : @luna_specialization.LunaCompilerPolicy = compile_evidence_test_compiler(),
+  driver~ : String = String::make(64, 'd'),
+  target~ : @catalog.DeviceTarget = compile_evidence_test_target(),
+  symbol~ : String = "lunaflux_test_kernel_v1",
 ) -> Bytes {
   expected_compile_receipt(
     source,
@@ -61,19 +61,19 @@ fn compile_evidence_test_receipt(
 
 ///|
 fn compile_evidence_test_admit(
-  first? : Bytes = b"deterministic-cubin",
-  second? : Bytes = b"deterministic-cubin",
-  source? : String = String::make(64, 'b'),
-  recipe? : String = String::make(64, 'c'),
-  compiler? : @luna_specialization.LunaCompilerPolicy = compile_evidence_test_compiler(),
-  driver? : String = String::make(64, 'd'),
-  target? : @catalog.DeviceTarget = compile_evidence_test_target(),
-  symbol? : String = "lunaflux_test_kernel_v1",
-  receipt? : Bytes = compile_evidence_test_receipt(),
-  expected_receipt? : String = @crypto.bytes_to_hex_string(
+  first~ : Bytes = b"deterministic-cubin",
+  second~ : Bytes = b"deterministic-cubin",
+  source~ : String = String::make(64, 'b'),
+  recipe~ : String = String::make(64, 'c'),
+  compiler~ : @luna_specialization.LunaCompilerPolicy = compile_evidence_test_compiler(),
+  driver~ : String = String::make(64, 'd'),
+  target~ : @catalog.DeviceTarget = compile_evidence_test_target(),
+  symbol~ : String = "lunaflux_test_kernel_v1",
+  receipt~ : Bytes = compile_evidence_test_receipt(),
+  expected_receipt~ : String = @crypto.bytes_to_hex_string(
     @crypto.sha256(receipt),
   ),
-  limits? : CudaOfflineCompileEvidenceLimits = compile_evidence_test_limits(),
+  limits~ : CudaOfflineCompileEvidenceLimits = compile_evidence_test_limits(),
 ) -> CudaOfflineCompileEvidence raise CudaOfflineCompileEvidenceError {
   admit_deterministic_cuda_output(
     source_digest_sha256=source,

@@ -71,7 +71,7 @@ pub fn JointDiffusionStageMachine::plan_digest(self : Self) -> @spec.PlanDigest 
 }
 
 ///|
-pub fn JointDiffusionStageMachine::completed_stage_count(self : Self) -> Int {
+pub fn JointDiffusionStageMachine::completed_stage_count(self : Self) -> Int32 {
   self.next_index
 }
 

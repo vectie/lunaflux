@@ -1,12 +1,12 @@
 ///|
-fn launch_fixture(approval? : String = "{\"mode\":\"none\"}") -> String {
+fn launch_fixture(approval~ : String = "{\"mode\":\"none\"}") -> String {
   "{\"schema\":\"lunaflux.launch.v1\",\"model_root\":\"/opt/lunaflux/model\",\"kernel_root\":\"/opt/lunaflux/kernels\",\"policy_root\":\"/opt/lunaflux/policy\",\"runtime_descriptor\":{\"locator\":\"runtime.json\",\"sha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"},\"instance_policy\":{\"locator\":\"instance.json\",\"sha256\":\"1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"},\"worker_executable\":{\"path\":\"/opt/lunaflux/bin/worker\",\"sha256\":\"2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"},\"luna_approval\":\{approval}}"
 }
 
 ///|
 fn launch_v2_fixture(
-  recipe? : String = "dense_llama_i8_paged_aot_v6",
-  approval? : String = "{\"mode\":\"none\"}",
+  recipe~ : String = "dense_llama_i8_paged_aot_v6",
+  approval~ : String = "{\"mode\":\"none\"}",
 ) -> String {
   launch_fixture(approval~).replace(
     old="\"schema\":\"lunaflux.launch.v1\"",
@@ -16,7 +16,7 @@ fn launch_v2_fixture(
 
 ///|
 fn launch_v3_tensor_parallel_fixture(
-  approval? : String = "{\"mode\":\"external_ed25519_v1\",\"capability_manifest_sha256\":\"4123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"key_identity_sha256\":\"5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"signature_sha256\":\"6123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"approved_source_sha256\":\"7123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}",
+  approval~ : String = "{\"mode\":\"external_ed25519_v1\",\"capability_manifest_sha256\":\"4123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"key_identity_sha256\":\"5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"signature_sha256\":\"6123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"approved_source_sha256\":\"7123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}",
 ) -> String {
   launch_fixture(approval~).replace(
     old="\"schema\":\"lunaflux.launch.v1\"",
@@ -26,7 +26,7 @@ fn launch_v3_tensor_parallel_fixture(
 
 ///|
 fn launch_v4_fp8_fixture(
-  approval? : String = "{\"mode\":\"external_ed25519_v1\",\"capability_manifest_sha256\":\"4123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"key_identity_sha256\":\"5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"signature_sha256\":\"6123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"approved_source_sha256\":\"7123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}",
+  approval~ : String = "{\"mode\":\"external_ed25519_v1\",\"capability_manifest_sha256\":\"4123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"key_identity_sha256\":\"5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"signature_sha256\":\"6123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\",\"approved_source_sha256\":\"7123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}",
 ) -> String {
   launch_fixture(approval~).replace(
     old="\"schema\":\"lunaflux.launch.v1\"",
@@ -36,7 +36,7 @@ fn launch_v4_fp8_fixture(
 
 ///|
 fn launch_v5_qwen3_fixture(
-  approval? : String = "{\"mode\":\"none\"}",
+  approval~ : String = "{\"mode\":\"none\"}",
 ) -> String {
   launch_fixture(approval~).replace(
     old="\"schema\":\"lunaflux.launch.v1\"",

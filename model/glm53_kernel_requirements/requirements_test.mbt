@@ -1,5 +1,5 @@
 ///|
-fn kernel_full_metadata(fill? : Char = 'c') -> @glm53_spec.Glm53FullMetadata {
+fn kernel_full_metadata(fill~ : Char = 'c') -> @glm53_spec.Glm53FullMetadata {
   @glm53_spec.Glm53FullMetadata::from_verified_content(
     @glm53_spec.Glm53FullSpec::official(),
     try! @spec.ContentDigest::from_sha256(fill.to_string().repeat(64)),
@@ -7,7 +7,7 @@ fn kernel_full_metadata(fill? : Char = 'c') -> @glm53_spec.Glm53FullMetadata {
 }
 
 ///|
-fn kernel_flash_metadata(fill? : Char = 'd') -> @glm53_spec.Glm53FlashMetadata {
+fn kernel_flash_metadata(fill~ : Char = 'd') -> @glm53_spec.Glm53FlashMetadata {
   @glm53_spec.Glm53FlashMetadata::from_verified_content(
     @glm53_spec.Glm53FlashSpec::official(),
     try! @spec.ContentDigest::from_sha256(fill.to_string().repeat(64)),

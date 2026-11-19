@@ -3,7 +3,7 @@ fn blueprint_resolved_catalog(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
-  rotary_workspace? : Int64 = 64L,
+  rotary_workspace~ : Int64 = 64L,
 ) -> @catalog.ResolvedKernelCatalog raise {
   let entries : Array[@catalog.CatalogEntry] = []
   let digest = @catalog.AotArtifactDigest::from_sha256(
@@ -63,7 +63,7 @@ fn blueprint_memory_plan(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
-  full_context? : Bool = false,
+  full_context~ : Bool = false,
 ) -> @device_memory.DeviceMemoryPlan raise {
   let mut rotary_workspace = 0L
   for operation in plan.operations() {
@@ -96,7 +96,7 @@ fn blueprint_memory_plan(
 
 ///|
 fn blueprint_profile(
-  id? : Int = 1,
+  id~ : Int32 = 1,
 ) -> @launch_contract.PagedKernelProfile raise {
   @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(id),
@@ -119,9 +119,9 @@ fn blueprint_operand(
 fn blueprint_contract_operands(
   operation : @plan.PlanOperation,
   layout : @device_layout.DeviceKvLayout,
-  rotary_input_bytes? : Int64 = 64L,
-  rotary_input_alignment? : Int64 = 16L,
-  rotary_workspace? : Int64 = 64L,
+  rotary_input_bytes~ : Int64 = 64L,
+  rotary_input_alignment~ : Int64 = 16L,
+  rotary_workspace~ : Int64 = 64L,
 ) -> Array[@launch_contract.AotOperand] raise {
   guard operation.inputs()[0] is Activation(input) &&
     operation.outputs()[0] is output else {
@@ -187,10 +187,10 @@ fn blueprint_contract_set(
   plan : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
-  entry_bias? : Int = 0,
-  rotary_input_bytes? : Int64 = 64L,
-  rotary_input_alignment? : Int64 = 16L,
-  rotary_workspace? : Int64 = 64L,
+  entry_bias~ : Int32 = 0,
+  rotary_input_bytes~ : Int64 = 64L,
+  rotary_input_alignment~ : Int64 = 16L,
+  rotary_workspace~ : Int64 = 64L,
 ) -> @launch_contract.PagedKvLaunchContractSet raise {
   let inputs : Array[@launch_contract.PagedKvAotLaunchContractInput] = []
   let profile = blueprint_profile()
@@ -281,7 +281,7 @@ fn blueprint_artifacts(
 }
 
 ///|
-fn blueprint_limits(max_tokens? : Int = 4) -> DeviceStepLimits raise {
+fn blueprint_limits(max_tokens~ : Int32 = 4) -> DeviceStepLimits raise {
   DeviceStepLimits::new(
     max_rows=2,
     max_tokens~,

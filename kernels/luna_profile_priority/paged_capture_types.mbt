@@ -12,7 +12,7 @@ pub(all) enum LunaPagedProfileCounterKind {
 ///|
 fn LunaPagedProfileCounterKind::stable_int(
   self : LunaPagedProfileCounterKind,
-) -> Int {
+) -> Int32 {
   match self {
     KernelLaunchCount => 1
     DramReadBytes => 2
@@ -69,7 +69,7 @@ pub fn LunaPagedKernelProfileObservation::new(
   call_count~ : Int64,
   self_time_ns~ : Int64,
   inclusive_time_ns~ : Int64,
-  counters? : ArrayView[LunaPagedProfileCounter] = [],
+  counters~ : ArrayView[LunaPagedProfileCounter] = [],
 ) -> LunaPagedKernelProfileObservation raise LunaKernelProfileError {
   if call_count <= 0L ||
     call_count > 1_000_000_000L ||
@@ -217,7 +217,7 @@ pub fn LunaPagedKernelProfileCapture::attributed_self_time_ns(
 ///|
 pub fn LunaPagedKernelProfileCapture::observation_count(
   self : LunaPagedKernelProfileCapture,
-) -> Int {
+) -> Int32 {
   self.observations.length()
 }
 

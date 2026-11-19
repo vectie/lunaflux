@@ -1,19 +1,19 @@
 ///|
 priv struct AdmissionCanonicalWriter {
   hasher : @canonical_sha256.CanonicalSha256
-  mut byte_count : Int
-  maximum : Int
+  mut byte_count : Int32
+  maximum : Int32
 }
 
 ///|
-fn AdmissionCanonicalWriter::new(maximum : Int) -> Self {
+fn AdmissionCanonicalWriter::new(maximum : Int32) -> Self {
   { hasher: @canonical_sha256.CanonicalSha256::new(), byte_count: 0, maximum, }
 }
 
 ///|
 fn AdmissionCanonicalWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise AdvancedDecoderArtifactAdmissionError {
   if count < 0 || self.byte_count > self.maximum - count {
     raise AdmissionEncodingTooLarge
@@ -33,7 +33,7 @@ fn AdmissionCanonicalWriter::byte(
 ///|
 fn AdmissionCanonicalWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise AdvancedDecoderArtifactAdmissionError {
   self.reserve(8)
   ignore(
@@ -217,7 +217,7 @@ fn canonical_admission_digest(
   modules : ArrayView[AdvancedDecoderAdmittedModule],
   entries : ArrayView[AdvancedDecoderAdmittedEntryPoint],
   launches : ArrayView[AdvancedDecoderAdmittedLaunch],
-  maximum : Int,
+  maximum : Int32,
 ) -> AdvancedDecoderArtifactAdmissionDigest raise AdvancedDecoderArtifactAdmissionError {
   let writer = AdmissionCanonicalWriter::new(maximum)
   writer.text("lunaflux/advanced-decoder-artifact-admission/v1")

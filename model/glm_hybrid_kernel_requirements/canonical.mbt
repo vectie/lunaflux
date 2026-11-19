@@ -1,7 +1,7 @@
 ///|
 priv struct Writer {
   hash : @canonical_sha256.CanonicalSha256
-  mut bytes : Int
+  mut bytes : Int32
 }
 
 ///|
@@ -12,7 +12,7 @@ fn Writer::new() -> Self {
 ///|
 fn Writer::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise GlmHybridKernelRequirementsError {
   if count < 0 || self.bytes > 65536 - count {
     raise RequirementsEncodingTooLarge
@@ -32,7 +32,7 @@ fn Writer::byte(
 ///|
 fn Writer::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise GlmHybridKernelRequirementsError {
   self.reserve(8)
   ignore(

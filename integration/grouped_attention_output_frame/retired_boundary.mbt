@@ -3,7 +3,7 @@
 /// This visitor does not execute, allocate, copy, or alter a serving launch.
 pub fn GroupedAttentionOutputFrame::visit_retired_outputs(
   self : Self,
-  observe : (String, @device.Allocation, Int) -> Unit raise,
+  observe : (String, @device.Allocation, Int32) -> Unit raise,
 ) -> Unit raise {
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)

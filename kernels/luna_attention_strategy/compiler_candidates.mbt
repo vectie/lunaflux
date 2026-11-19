@@ -2,11 +2,11 @@
 fn attention_candidate_shared_bytes(
   problem : AttentionCompileProblem,
   compute : AttentionTileCompute,
-  query_tile : Int,
-  key_value_tile : Int,
-  pipeline_stages : Int,
+  query_tile : Int32,
+  key_value_tile : Int32,
+  pipeline_stages : Int32,
   memory : AttentionTileMemory,
-  subgroups : Int,
+  subgroups : Int32,
 ) -> Int64 raise AttentionStrategyError {
   if memory == AttentionDirectGlobal {
     return 0L
@@ -281,14 +281,14 @@ fn attention_candidate_compatible(
 fn make_attention_candidate(
   problem : AttentionCompileProblem,
   capabilities : AttentionCompilerCapabilities,
-  stable_id : Int,
+  stable_id : Int32,
   compute : AttentionTileCompute,
   memory : AttentionTileMemory,
-  query_rows : Int,
-  key_value_rows : Int,
-  subgroups_per_block : Int,
-  pipeline_stages : Int,
-  vector_bytes : Int,
+  query_rows : Int32,
+  key_value_rows : Int32,
+  subgroups_per_block : Int32,
+  pipeline_stages : Int32,
+  vector_bytes : Int32,
 ) -> AttentionTileCandidate? raise AttentionStrategyError {
   let (_, _, head_columns, _) = problem.shape.dimensions()
   let candidate = {
@@ -507,7 +507,7 @@ pub fn generate_attention_tile_candidates(
         }
         let maximum_subgroups = capabilities.max_threads_per_block /
           capabilities.subgroup_width
-        let split_subgroups = Int::min(8, maximum_subgroups)
+        let split_subgroups = Int32::min(8, maximum_subgroups)
         if split_subgroups > query_heads_per_group &&
           split_subgroups % query_heads_per_group == 0 {
           match

@@ -29,7 +29,7 @@ pub fn AdmittedLunaTileSimtPhysicalEvidence::canonical_bytes(
 ///|
 pub fn AdmittedLunaTilePairedBenchmarkWin::observation_count(
   self : AdmittedLunaTilePairedBenchmarkWin,
-) -> Int {
+) -> Int32 {
   self.observation_count
 }
 

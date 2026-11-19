@@ -2,7 +2,7 @@
 test "packed producer owns each segmented weight row exactly once including tails" {
   for dimension in [16, 32, 64, 128] {
     for heads_per_group in [1, 2, 3, 4, 8] {
-      let spec = ProjectionAttentionIngressEpilogue::new(
+      let spec = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
         query_heads=6,
         kv_heads=3,
         head_dimension=dimension,
@@ -14,7 +14,7 @@ test "packed producer owns each segmented weight row exactly once including tail
       assert_eq(heads, heads_per_group)
       assert_eq(columns, dimension * heads)
       assert_eq(pairs, (dimension / 2 - 1) / 32 + 1)
-      let seen : Array[(Int, Int)] = []
+      let seen : Array[(Int32, Int32)] = []
       for group in 0..<groups {
         for column in 0..<columns {
           if plan.weight_row(group, column) is Some(row) {
@@ -22,7 +22,7 @@ test "packed producer owns each segmented weight row exactly once including tail
           }
         }
       }
-      let expected : Array[(Int, Int)] = []
+      let expected : Array[(Int32, Int32)] = []
       for segment, count in [6, 3, 3] {
         for row in 0..<(count * dimension) {
           expected.push((segment, row))
@@ -48,7 +48,7 @@ test "packed producer owns each segmented weight row exactly once including tail
 
 ///|
 test "head packing rejects overflow and zero ownership before materialization" {
-  let spec = ProjectionAttentionIngressEpilogue::new(
+  let spec = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
     query_heads=16,
     kv_heads=8,
     head_dimension=128,

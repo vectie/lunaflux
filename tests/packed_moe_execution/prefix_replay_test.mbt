@@ -5,7 +5,7 @@ test "verification continuation uses the committed frontier not the rejected suf
     serial_limits(),
     serial_inference_limits(),
   )
-  let inputs : FixedArray[Int] = [9, 10, 11]
+  let inputs : FixedArray[Int32] = [9, 10, 11]
   begin_allocations()
   for epoch in 2..<=257 {
     let next = destination.encode_verification_after(

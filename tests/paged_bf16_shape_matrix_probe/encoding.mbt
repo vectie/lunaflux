@@ -1,19 +1,19 @@
 ///|
-fn matrix_bf16_bits(value : Float) -> Int {
+fn matrix_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn matrix_bf16_float(bits : Int) -> Float {
+fn matrix_bf16_float(bits : Int32) -> Float {
   Float::reinterpret_from_uint(bits.reinterpret_as_uint() << 16)
 }
 
 ///|
 fn matrix_write_i32(
   output : FixedArray[Byte],
-  index : Int,
-  value : Int,
+  index : Int32,
+  value : Int32,
 ) -> Unit {
   let offset = index * 4
   output[offset] = value.to_byte()
@@ -25,7 +25,7 @@ fn matrix_write_i32(
 ///|
 fn matrix_write_bf16(
   output : FixedArray[Byte],
-  index : Int,
+  index : Int32,
   value : Float,
 ) -> Unit {
   let bits = matrix_bf16_bits(value)
@@ -34,7 +34,10 @@ fn matrix_write_bf16(
 }
 
 ///|
-fn matrix_fill_i32(output : FixedArray[Byte], values : FixedArray[Int]) -> Unit {
+fn matrix_fill_i32(
+  output : FixedArray[Byte],
+  values : FixedArray[Int32],
+) -> Unit {
   for index, value in values {
     matrix_write_i32(output, index, value)
   }
@@ -43,10 +46,10 @@ fn matrix_fill_i32(output : FixedArray[Byte], values : FixedArray[Int]) -> Unit 
 ///|
 fn matrix_fill_weight(
   output : FixedArray[Byte],
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   scale : Float,
-  phase : Int,
+  phase : Int32,
 ) -> Unit {
   for row in 0..<rows {
     for column in 0..<columns {

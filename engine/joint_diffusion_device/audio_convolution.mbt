@@ -2,8 +2,8 @@
 /// Time-preserving F32 convolution storage. Dilation/padding
 /// are compiled into the admitted kernel; they do not change these extents.
 pub struct AudioConvolutionLayout {
-  channels : Int
-  output_channels : Int
+  channels : Int32
+  output_channels : Int32
   value_bytes : Int64
   output_bytes : Int64
   weight_bytes : Int64
@@ -12,11 +12,11 @@ pub struct AudioConvolutionLayout {
 
 ///|
 pub fn AudioConvolutionLayout::new(
-  batch~ : Int,
-  channels~ : Int,
-  output_channels? : Int,
-  time~ : Int,
-  kernel~ : Int,
+  batch~ : Int32,
+  channels~ : Int32,
+  output_channels? : Int32,
+  time~ : Int32,
+  kernel~ : Int32,
   max_weight_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   let output_channels = output_channels.unwrap_or(channels)

@@ -1,6 +1,6 @@
 ///|
 fn wb_target(
-  minor? : Int = 0,
+  minor~ : Int32 = 0,
 ) -> @catalog.DeviceTarget raise @catalog.CatalogError {
   @catalog.DeviceTarget::new(
     compute_major=8,
@@ -12,7 +12,7 @@ fn wb_target(
 
 ///|
 fn wb_claim(
-  rank : Int,
+  rank : Int32,
   target : @catalog.DeviceTarget,
 ) -> TensorParallelRankDeclaration raise TensorParallelAdmissionError {
   TensorParallelRankDeclaration::new(
@@ -43,7 +43,7 @@ fn wb_declaration(
 ///|
 fn wb_facts(
   target : @catalog.DeviceTarget,
-  peer_link_count? : Int = 1,
+  peer_link_count~ : Int32 = 1,
 ) -> TopologyFacts {
   {
     driver_version: 12080,

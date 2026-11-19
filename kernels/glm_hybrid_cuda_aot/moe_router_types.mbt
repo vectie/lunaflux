@@ -10,12 +10,12 @@ pub struct GlmHybridMoeRouterCudaCandidate {
   priv numerical_contract : @router_projection_cuda_source.RouterProjectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv hidden_width : Int
-  priv expert_count : Int
-  priv maximum_tokens : Int
+  priv hidden_width : Int32
+  priv expert_count : Int32
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[

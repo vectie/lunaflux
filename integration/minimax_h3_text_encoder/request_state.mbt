@@ -26,7 +26,7 @@ fn poll_once(
 }
 
 ///|
-fn deepstack_stage(layer : Int) -> Int? {
+fn deepstack_stage(layer : Int32) -> Int32? {
   if layer >= 0 && layer < 3 {
     Some(layer + 1)
   } else {

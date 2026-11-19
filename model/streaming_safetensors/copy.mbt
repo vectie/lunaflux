@@ -41,7 +41,7 @@ fn validate_copy_requests(
 
 ///|
 fn copy_open_shard(
-  shard_ordinal : Int,
+  shard_ordinal : Int32,
   file : @approved_fs.ApprovedFile,
   shard : InspectedShard,
   destination : FixedArray[Byte],
@@ -167,7 +167,7 @@ fn validate_segmented_copy_requests(
 
 ///|
 fn copy_open_shard_segmented(
-  shard_ordinal : Int,
+  shard_ordinal : Int32,
   file : @approved_fs.ApprovedFile,
   shard : InspectedShard,
   destination_arenas : ArrayView[FixedArray[Byte]],

@@ -6,27 +6,27 @@ pub fn JointAttentionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn JointAttentionCudaSource::row_count(self : Self) -> Int {
+pub fn JointAttentionCudaSource::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn JointAttentionCudaSource::hidden_size(self : Self) -> Int {
+pub fn JointAttentionCudaSource::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn JointAttentionCudaSource::head_count(self : Self) -> Int {
+pub fn JointAttentionCudaSource::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn JointAttentionCudaSource::head_dimension(self : Self) -> Int {
+pub fn JointAttentionCudaSource::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn JointAttentionCudaSource::rotary_dimension(self : Self) -> Int {
+pub fn JointAttentionCudaSource::rotary_dimension(self : Self) -> Int32 {
   self.rotary_dimension
 }
 

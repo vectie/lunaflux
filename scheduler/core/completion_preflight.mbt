@@ -1,5 +1,5 @@
 ///|
-fn Scheduler::side_slots(self : Scheduler, side : Int) -> FixedArray[Int] {
+fn Scheduler::side_slots(self : Scheduler, side : Int32) -> FixedArray[Int32] {
   if side == 0 {
     self.plan_a_slots
   } else {
@@ -11,7 +11,7 @@ fn Scheduler::side_slots(self : Scheduler, side : Int) -> FixedArray[Int] {
 fn Scheduler::completion_entry_for_row(
   self : Scheduler,
   completion : @worker_protocol.SubmittedCompletion,
-  row : Int,
+  row : Int32,
 ) -> @worker_protocol.SubmittedCompletionEntry raise SchedulerError {
   try completion.entry_for_slot(self.completion_slots[row]) catch {
     error => raise WorkerProtocol(error)
@@ -23,7 +23,7 @@ fn Scheduler::completion_entry_for_row(
 ///|
 fn Scheduler::row_is_current(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
   entry : @worker_protocol.SubmittedCompletionEntry,
 ) -> Bool raise SchedulerError {
   if slot < 0 || slot >= self.slot_states.length() || !self.in_flight[slot] {
@@ -64,8 +64,8 @@ fn Scheduler::row_is_current(
 ///|
 fn Scheduler::request_stops_on_token(
   self : Scheduler,
-  slot : Int,
-  token : Int,
+  slot : Int32,
+  token : Int32,
 ) -> Bool raise SchedulerError {
   let retention = self.request_stop_tokens[slot]
   let status = retention.is_stop_token(token)
@@ -79,8 +79,8 @@ fn Scheduler::request_stops_on_token(
 fn Scheduler::validate_prefill_progress(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  row : Int,
-  slot : Int,
+  row : Int32,
+  slot : Int32,
   entry : @worker_protocol.SubmittedCompletionEntry,
 ) -> Unit raise SchedulerError {
   let descriptor = try plan.prefill_row(row) catch {
@@ -122,8 +122,8 @@ fn Scheduler::validate_prefill_progress(
 fn Scheduler::validate_decode_progress(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  decode_row : Int,
-  slot : Int,
+  decode_row : Int32,
+  slot : Int32,
 ) -> Unit raise SchedulerError {
   let descriptor = try plan.decode_row(decode_row) catch {
     error => raise WorkerProtocol(error)
@@ -149,8 +149,8 @@ fn Scheduler::validate_decode_progress(
 /// and is checked separately after this nonraising result.
 fn Scheduler::completion_capacity_commit(
   self : Scheduler,
-  output_demand : Int,
-  terminal_demand : Int,
+  output_demand : Int32,
+  terminal_demand : Int32,
 ) -> CompletionCommit {
   if output_demand > self.output_request_ids.length() - self.output_count ||
     terminal_demand > self.terminal_available() {
@@ -165,7 +165,7 @@ fn Scheduler::preflight_completion(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
   completion : @worker_protocol.SubmittedCompletion,
-  side : Int,
+  side : Int32,
 ) -> CompletionCommit raise SchedulerError {
   let sequence = try plan.sequence_wire() catch {
     error => raise WorkerProtocol(error)

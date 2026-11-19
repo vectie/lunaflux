@@ -7,7 +7,7 @@ fn luna_kernel_profile_is_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -36,14 +36,14 @@ pub fn LunaKernelProfileDigest::as_hex(
 
 ///|
 pub struct LunaKernelProfileLimits {
-  priv maximum_observations : Int
-  priv maximum_canonical_bytes : Int
+  priv maximum_observations : Int32
+  priv maximum_canonical_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaKernelProfileLimits::new(
-  maximum_observations~ : Int,
-  maximum_canonical_bytes~ : Int,
+  maximum_observations~ : Int32,
+  maximum_canonical_bytes~ : Int32,
 ) -> LunaKernelProfileLimits raise LunaKernelProfileError {
   if maximum_observations <= 0 ||
     maximum_observations > 8192 ||
@@ -123,7 +123,7 @@ pub struct LunaProfiledOperationPriority {
   priv operation_kind : @plan.OperationKind
   priv capability : @plan.KernelCapabilityId
   priv attributed_self_time_ns : Int64
-  priv attributed_share_ppm : Int
+  priv attributed_share_ppm : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -157,7 +157,7 @@ pub fn LunaProfiledOperationPriority::attributed_self_time_ns(
 ///|
 pub fn LunaProfiledOperationPriority::attributed_share_ppm(
   self : LunaProfiledOperationPriority,
-) -> Int {
+) -> Int32 {
   self.attributed_share_ppm
 }
 
@@ -220,7 +220,7 @@ pub fn LunaKernelProfileCapture::attributed_self_time_ns(
 ///|
 pub fn LunaKernelProfileCapture::observation_count(
   self : LunaKernelProfileCapture,
-) -> Int {
+) -> Int32 {
   self.observations.length()
 }
 

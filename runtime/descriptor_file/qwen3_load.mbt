@@ -2,7 +2,7 @@
 fn load_qwen3_config_snapshot(
   root : @approved_fs.ApprovedRoot,
   claims : Qwen3RuntimeDescriptorModelClaims,
-  maximum : Int,
+  maximum : Int32,
 ) -> @qwen3_spec.Qwen3ModelMetadata raise RuntimeDescriptorFileError {
   if claims.family != "qwen3" || !claims.tied_embeddings {
     raise AdmissionRejected(ModelConfig)
@@ -60,7 +60,7 @@ fn inspect_qwen3_numeric_weights(
   batch : @qwen3.Qwen3PagedBatchEnvelope,
   claims : Qwen3RuntimeDescriptorModelClaims,
   ceilings : @worker_wire.WorkerBootstrapCeilings,
-  tensor_count : Int,
+  tensor_count : Int32,
 ) -> @qwen3_weights.Qwen3WeightFileInspection raise RuntimeDescriptorFileError {
   let inspection = @qwen3_weights.inspect_paged_file(
     root,

@@ -1,5 +1,5 @@
 ///|
-fn append_int(output : StringBuilder, label : String, value : Int) -> Unit {
+fn append_int(output : StringBuilder, label : String, value : Int32) -> Unit {
   output.write_string(label)
   output.write_string(": ")
   output.write_string(value.to_string())

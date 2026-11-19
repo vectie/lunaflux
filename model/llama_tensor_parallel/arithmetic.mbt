@@ -5,7 +5,7 @@ const LLAMA_TP_MAX_INT64 : Int64 = 9223372036854775807L
 fn llama_tp_checked_add(
   left : Int64,
   right : Int64,
-  reference : Int,
+  reference : Int32,
 ) -> Int64 raise LlamaTensorParallelError {
   if left < 0L || right < 0L || left > LLAMA_TP_MAX_INT64 - right {
     raise ArithmeticOverflow(reference~)
@@ -17,7 +17,7 @@ fn llama_tp_checked_add(
 fn llama_tp_checked_mul(
   left : Int64,
   right : Int64,
-  reference : Int,
+  reference : Int32,
 ) -> Int64 raise LlamaTensorParallelError {
   if left < 0L ||
     right < 0L ||
@@ -31,7 +31,7 @@ fn llama_tp_checked_mul(
 fn llama_tp_checked_align(
   value : Int64,
   alignment : Int64,
-  reference : Int,
+  reference : Int32,
 ) -> Int64 raise LlamaTensorParallelError {
   let remainder = value % alignment
   if remainder == 0L {
@@ -48,8 +48,8 @@ fn llama_tp_valid_alignment(value : Int64) -> Bool {
 
 ///|
 fn llama_tp_require_divisible(
-  value : Int,
-  world_size : Int,
+  value : Int32,
+  world_size : Int32,
   dimension : LlamaTensorParallelDimension,
 ) -> Unit raise LlamaTensorParallelError {
   if value <= 0 || value % world_size != 0 {

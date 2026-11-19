@@ -1,12 +1,12 @@
 ///|
 fn write_valid_decode_row(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   request : UInt64,
-  token_start : Int,
-  page_start : Int,
-  capability_start : Int,
-  slot : Int,
+  token_start : Int32,
+  page_start : Int32,
+  capability_start : Int32,
+  slot : Int32,
 ) -> Unit {
   write_u64(bytes, offset, request)
   write_u64(bytes, offset + 8, request)

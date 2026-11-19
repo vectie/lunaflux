@@ -3,26 +3,26 @@
 /// whole I64/I32 host table is retained. The caller supplies bounded output
 /// storage and owns all partially published bytes until finish succeeds.
 pub struct I64RowNarrowStream {
-  priv rows : Int
-  priv columns : Int
-  priv minimum : Int
-  priv maximum : Int
+  priv rows : Int32
+  priv columns : Int32
+  priv minimum : Int32
+  priv maximum : Int32
   priv input_bytes : Int64
   priv previous : FixedArray[Int64]
   priv mut received : Int64
   priv mut elements : Int64
   priv mut raw : UInt64
-  priv mut partial_bytes : Int
+  priv mut partial_bytes : Int32
   priv mut failed : Bool
   priv mut finished : Bool
 }
 
 ///|
 pub fn I64RowNarrowStream::new(
-  row_count~ : Int,
-  column_count~ : Int,
-  minimum_value~ : Int,
-  exclusive_maximum_value~ : Int,
+  row_count~ : Int32,
+  column_count~ : Int32,
+  minimum_value~ : Int32,
+  exclusive_maximum_value~ : Int32,
   maximum_row_state_bytes~ : Int64,
 ) -> Self raise CheckedIntegerNarrowError {
   guard row_count > 0 &&
@@ -56,7 +56,7 @@ pub fn I64RowNarrowStream::consume(
   input_offset : Int64,
   input : ArrayView[Byte],
   output : FixedArray[Byte],
-) -> (Int64, Int) raise CheckedIntegerNarrowError {
+) -> (Int64, Int32) raise CheckedIntegerNarrowError {
   guard !self.failed && !self.finished else { raise InvalidStreamState }
   self.failed = true
   guard input_offset == self.received else {

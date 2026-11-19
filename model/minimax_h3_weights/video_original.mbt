@@ -3,7 +3,7 @@
 /// uses the converted decoder vocabulary; source names and QKV slices are
 /// translated once during checkpoint packing, never inside a request.
 pub struct MiniMaxH3OriginalVideoVaeSchema {
-  priv version : Int
+  priv version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -83,14 +83,14 @@ fn expected_original_video_names() -> Array[String] {
 }
 
 ///|
-pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_count(_self : Self) -> Int {
+pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_count(_self : Self) -> Int32 {
   560
 }
 
 ///|
 pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_name(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> String? {
   if index < 0 || index >= self.tensor_count() {
     None
@@ -102,7 +102,7 @@ pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_name(
 ///|
 pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_shape(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> ReadOnlyArray[Int64]? {
   guard self.tensor_name(index) is Some(name) &&
     original_video_shape(name) is Some(shape) else {

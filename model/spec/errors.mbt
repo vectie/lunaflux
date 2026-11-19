@@ -34,3 +34,21 @@ pub(all) suberror ModelSpecError {
   UnknownDType
   InvalidDigest
 } derive(Debug, Eq)
+
+///|
+pub extend ModelDimension with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelDimension with Eq::{not_equal, equal}
+
+///|
+pub extend HeadRelationship with @debug.Debug::{to_repr}
+
+///|
+pub extend HeadRelationship with Eq::{not_equal, equal}
+
+///|
+pub extend ModelSpecError with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelSpecError with Eq::{not_equal, equal}

@@ -1,5 +1,5 @@
 ///|
-fn paged_graph_maximum_context_tokens() -> Int {
+fn paged_graph_maximum_context_tokens() -> Int32 {
   1048576
 }
 
@@ -19,8 +19,8 @@ fn new_paged_graph_bucket_table(
 
 ///|
 fn paged_graph_phase(
-  prefill : Int,
-  decode : Int,
+  prefill : Int32,
+  decode : Int32,
 ) -> @luna_execution_graph_strategy.ExecutionGraphPhase {
   if prefill > 0 && decode == 0 {
     PrefillGraph
@@ -35,7 +35,7 @@ fn paged_graph_phase(
 fn paged_maximum_graph_slots(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
-) -> FixedArray[Int] raise DeviceStepError {
+) -> FixedArray[Int32] raise DeviceStepError {
   let slots = FixedArray::make(3, -1)
   let phases : FixedArray[@luna_execution_graph_strategy.ExecutionGraphPhase] = [
     PrefillGraph,
@@ -67,7 +67,7 @@ fn paged_maximum_graph_slots(
 fn PagedOrderedExecutorDispatch::select(
   self : PagedOrderedExecutorDispatch,
   bucket : @luna_execution_graph_strategy.ExecutionGraphBucket,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   if bucket.slot() < self.measured_owner_indices.length() {
     let owner = self.measured_owner_indices[bucket.slot()]
     if owner >= 0 {
@@ -157,17 +157,17 @@ fn PagedOrderedExecutorDispatch::select(
 
 ///|
 fn paged_partitioned_prefill_has_enough_work(
-  batch_rows : Int,
-  query_tokens : Int,
-  context_tokens : Int,
-  minimum_context_tokens : Int,
-  query_tile : Int,
-  partition_count : Int,
+  batch_rows : Int32,
+  query_tokens : Int32,
+  context_tokens : Int32,
+  minimum_context_tokens : Int32,
+  query_tile : Int32,
+  partition_count : Int32,
 ) -> Bool {
   if minimum_context_tokens <= 0 || query_tile <= 0 || partition_count <= 1 {
     return false
   }
-  let query_tiles = Int::max(batch_rows, 1 + (query_tokens - 1) / query_tile)
+  let query_tiles = Int32::max(batch_rows, 1 + (query_tokens - 1) / query_tile)
   let context_multiple = if query_tiles <= partition_count {
     2
   } else if query_tiles <= 1073741823 {
@@ -181,17 +181,17 @@ fn paged_partitioned_prefill_has_enough_work(
 
 ///|
 fn paged_partitioned_prefill_frontier_has_enough_work(
-  batch_rows : Int,
-  query_tokens : Int,
-  context_tokens : Int,
-  minimum_context_tokens : Int,
-  query_tile : Int,
-  partition_count : Int,
+  batch_rows : Int32,
+  query_tokens : Int32,
+  context_tokens : Int32,
+  minimum_context_tokens : Int32,
+  query_tile : Int32,
+  partition_count : Int32,
 ) -> Bool {
   if minimum_context_tokens <= 0 || query_tile <= 0 || partition_count <= 1 {
     return false
   }
-  let query_tiles = Int::max(batch_rows, 1 + (query_tokens - 1) / query_tile)
+  let query_tiles = Int32::max(batch_rows, 1 + (query_tokens - 1) / query_tile)
   // Deep partitioning supplies missing query parallelism; it must not become
   // easier to select as the query frontier itself grows. Beyond this bound,
   // retain the ordinary prefill/wide path instead of multiplying partials
@@ -207,7 +207,7 @@ fn paged_partitioned_prefill_frontier_has_enough_work(
   let context_multiple = if frontier_work == 2147483647 {
     2147483647
   } else {
-    Int::max(2, 1 + (frontier_work - 1) / query_tiles)
+    Int32::max(2, 1 + (frontier_work - 1) / query_tiles)
   }
   context_tokens >= minimum_context_tokens &&
   context_tokens / minimum_context_tokens >= context_multiple
@@ -216,12 +216,12 @@ fn paged_partitioned_prefill_frontier_has_enough_work(
 ///|
 fn paged_decode_capture_bounds(
   profile : @launch_contract.PagedKernelProfile,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   let maximum = profile.max_query_rows()
-  let candidates : FixedArray[Int] = [1, 8, 16, 32]
-  let bounds : Array[Int] = []
+  let candidates : FixedArray[Int32] = [1, 8, 16, 32]
+  let bounds : Array[Int32] = []
   for candidate in candidates {
-    let bound = Int::min(candidate, maximum)
+    let bound = Int32::min(candidate, maximum)
     if bound < maximum && !bounds.contains(bound) {
       bounds.push(bound)
     }
@@ -242,14 +242,14 @@ fn paged_decode_capture_bounds(
 /// Reusing a multi-token owner's smaller grid can leave output columns unwritten.
 fn paged_prefill_capture_bounds(
   profile : @launch_contract.PagedKernelProfile,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   let maximum = profile.max_query_tokens()
-  let candidates : FixedArray[Int] = [
+  let candidates : FixedArray[Int32] = [
     1, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096,
   ]
-  let bounds : Array[Int] = []
+  let bounds : Array[Int32] = []
   for candidate in candidates {
-    let bound = Int::min(candidate, maximum)
+    let bound = Int32::min(candidate, maximum)
     if bound < maximum && !bounds.contains(bound) {
       bounds.push(bound)
     }
@@ -260,10 +260,10 @@ fn paged_prefill_capture_bounds(
 ///|
 fn map_paged_decode_capture_owner(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
-  row_bound : Int,
-  query_token_bound : Int,
-  owner_index : Int,
-  slot_owner_indices : FixedArray[Int],
+  row_bound : Int32,
+  query_token_bound : Int32,
+  owner_index : Int32,
+  slot_owner_indices : FixedArray[Int32],
 ) -> Unit raise DeviceStepError {
   for rows = 1; rows <= row_bound; rows = next_paged_graph_bucket_start(rows) {
     for tokens = 1
@@ -298,11 +298,11 @@ fn map_paged_decode_capture_owner(
 fn map_paged_graph_owner_slot(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   phase : @luna_execution_graph_strategy.ExecutionGraphPhase,
-  rows : Int,
-  tokens : Int,
-  context : Int,
-  owner_index : Int,
-  slot_owner_indices : FixedArray[Int],
+  rows : Int32,
+  tokens : Int32,
+  context : Int32,
+  owner_index : Int32,
+  slot_owner_indices : FixedArray[Int32],
 ) -> Unit raise DeviceStepError {
   let slot = table
     .select(
@@ -332,12 +332,12 @@ fn map_paged_graph_owner_slot(
 /// counts, so no backend-specific graph concept enters this mapping.
 fn map_paged_prefill_capture_owner(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
-  row_bound : Int,
-  query_token_bound : Int,
-  owner_index : Int,
-  slot_owner_indices : FixedArray[Int],
+  row_bound : Int32,
+  query_token_bound : Int32,
+  owner_index : Int32,
+  slot_owner_indices : FixedArray[Int32],
 ) -> Unit raise DeviceStepError {
-  let maximum_rows = Int::min(row_bound, query_token_bound)
+  let maximum_rows = Int32::min(row_bound, query_token_bound)
   for rows = 1; rows <= maximum_rows; rows = next_paged_graph_bucket_start(rows) {
     for tokens = rows
         tokens <= query_token_bound
@@ -377,9 +377,9 @@ fn map_paged_prefill_capture_owner(
 /// every decode bucket.
 fn clear_paged_decode_capture_owners(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
-  row_bound : Int,
-  query_token_bound : Int,
-  slot_owner_indices : FixedArray[Int],
+  row_bound : Int32,
+  query_token_bound : Int32,
+  slot_owner_indices : FixedArray[Int32],
 ) -> Unit raise DeviceStepError {
   for rows = 1; rows <= row_bound; rows = next_paged_graph_bucket_start(rows) {
     for tokens = 1

@@ -14,9 +14,9 @@ pub struct Block {
 
 ///|
 pub fn Block::new(
-  temporal~ : Int,
-  height~ : Int,
-  width~ : Int,
+  temporal~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   prefix~ : String,
   max_scratch_bytes~ : Int64,
 ) -> Self raise {
@@ -98,14 +98,14 @@ pub fn Block::launches(
       alignment=align,
     )
   }
-  fn weight(i : Int) -> @device.KernelArgument raise @device.DeviceError {
+  fn weight(i : Int32) -> @device.KernelArgument raise @device.DeviceError {
     let copy = packing.copies[i]
     region(weights, copy.destination_offset, copy.byte_count, 4L)
   }
   fn launch(
-    i : Int,
+    i : Int32,
     elements : Int64,
-    block : Int,
+    block : Int32,
     args : Array[@device.KernelArgument],
   ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
     @device.OrderedKernelLaunch::new(

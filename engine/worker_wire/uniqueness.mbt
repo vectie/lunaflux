@@ -1,5 +1,9 @@
 ///|
-fn sift_down_int(values : FixedArray[Int], start : Int, length : Int) -> Unit {
+fn sift_down_int(
+  values : FixedArray[Int32],
+  start : Int32,
+  length : Int32,
+) -> Unit {
   let mut root = start
   while root * 2 + 1 < length {
     let left = root * 2 + 1
@@ -19,7 +23,7 @@ fn sift_down_int(values : FixedArray[Int], start : Int, length : Int) -> Unit {
 }
 
 ///|
-fn sort_int_prefix(values : FixedArray[Int], length : Int) -> Unit {
+fn sort_int_prefix(values : FixedArray[Int32], length : Int32) -> Unit {
   if length <= 1 {
     return
   }
@@ -44,8 +48,8 @@ fn sort_int_prefix(values : FixedArray[Int], length : Int) -> Unit {
 ///|
 fn sift_down_u64(
   values : FixedArray[UInt64],
-  start : Int,
-  length : Int,
+  start : Int32,
+  length : Int32,
 ) -> Unit {
   let mut root = start
   while root * 2 + 1 < length {
@@ -66,7 +70,7 @@ fn sift_down_u64(
 }
 
 ///|
-fn sort_u64_prefix(values : FixedArray[UInt64], length : Int) -> Unit {
+fn sort_u64_prefix(values : FixedArray[UInt64], length : Int32) -> Unit {
   if length <= 1 {
     return
   }
@@ -91,8 +95,8 @@ fn sort_u64_prefix(values : FixedArray[UInt64], length : Int) -> Unit {
 ///|
 fn validate_unique_scalar_identities(
   requests : FixedArray[UInt64],
-  slots : FixedArray[Int],
-  count : Int,
+  slots : FixedArray[Int32],
+  count : Int32,
 ) -> Unit raise WorkerWireError {
   sort_u64_prefix(requests, count)
   sort_int_prefix(slots, count)

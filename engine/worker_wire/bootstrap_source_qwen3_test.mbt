@@ -1,7 +1,7 @@
 ///|
 fn qwen3_source_fixture(
-  sampling_runtime? : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
-  fused_runtime? : @worker_wire.WorkerBootstrapFusedRuntimeSource? = None,
+  sampling_runtime~ : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
+  fused_runtime~ : @worker_wire.WorkerBootstrapFusedRuntimeSource? = None,
 ) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_qwen3_bf16_paged_bootstrap_source_v12(
     @worker_wire.WorkerBootstrapRoots::new(

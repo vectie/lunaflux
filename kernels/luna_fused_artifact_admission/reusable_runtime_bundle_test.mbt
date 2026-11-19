@@ -39,10 +39,10 @@ test "packaging carries supplied module labels without checking payload checksum
 
 ///|
 fn runtime_bundle_test_launch(
-  block_x : Int,
-  grid_y : Int,
-  shared_memory_bytes : Int,
-  grid_z? : Int = 1,
+  block_x : Int32,
+  grid_y : Int32,
+  shared_memory_bytes : Int32,
+  grid_z~ : Int32 = 1,
 ) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x=32,
@@ -58,8 +58,8 @@ fn runtime_bundle_test_launch(
 ///|
 fn runtime_bundle_test_input(
   abi : ReusableFusedRuntimeKernelAbi,
-  first_operation : Int,
-  operation_count : Int,
+  first_operation : Int32,
+  operation_count : Int32,
   suffix : String,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
   ReusableFusedRuntimeModuleInput::new(

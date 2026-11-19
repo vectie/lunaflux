@@ -2,12 +2,12 @@
 struct FusedProductionProbeObservation {
   maximum_absolute_error_ppb : Int64
   maximum_relative_error_ppb : Int64
-  launches : Int
+  launches : Int32
   device_uuid : String
   device_pci : String
   device_name_sha256 : String
   device_total_memory_bytes : Int64
-  cuda_driver_version : Int
+  cuda_driver_version : Int32
 }
 
 ///|
@@ -18,7 +18,7 @@ fn run_fused_production_device_probe(
   oracle_attention_cubin : Bytes,
   candidate_context : FusedProbeCandidateContext,
   candidates : FusedProductionProbeCandidates,
-  cycles : Int,
+  cycles : Int32,
   balance : FusedProbeResourceBalance,
 ) -> FusedProductionProbeObservation raise {
   let (cuda_driver_version, devices) = match @device.probe() {

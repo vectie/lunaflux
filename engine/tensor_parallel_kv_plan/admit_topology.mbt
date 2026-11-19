@@ -7,8 +7,8 @@ pub fn admit_from_topology(
   generation : @worker_protocol.ModelPlanGeneration,
   topology : @device_topology.AdmittedLocalTopology,
   runtime : @tensor_parallel_admission.TensorParallelRuntimeAdmission,
-  tokens_per_page~ : Int,
-  total_page_count~ : Int,
+  tokens_per_page~ : Int32,
+  total_page_count~ : Int32,
 ) -> TensorParallelKvPlan raise TensorParallelKvPlanError {
   let world_size = topology.world_size()
   if runtime.world_size() != world_size || runtime.target() != topology.target() {

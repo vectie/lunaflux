@@ -1,6 +1,6 @@
 ///|
 test "independent head packing preserves complete numerical folds and tails" {
-  let numerics = ProjectionAttentionIngressEpilogue::new(
+  let numerics = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
     query_heads=16,
     kv_heads=8,
     head_dimension=128,
@@ -12,7 +12,7 @@ test "independent head packing preserves complete numerical folds and tails" {
     let (groups, heads_per_group, lanes) = packed.geometry()
     assert_eq(heads_per_group, 4)
     assert_eq(lanes, 32)
-    let seen : Array[Int] = []
+    let seen : Array[Int32] = []
     for group in 0..<groups {
       for subgroup in 0..<heads_per_group {
         if packed.head_at(group, subgroup) is Some(head) {
@@ -26,7 +26,7 @@ test "independent head packing preserves complete numerical folds and tails" {
     assert_eq(packed.head_at(0, -1), None)
     assert_eq(packed.head_at(0, heads_per_group), None)
   }
-  let alternative = ProjectionAttentionIngressEpilogue::new(
+  let alternative = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
       query_heads=8,
       kv_heads=4,
       head_dimension=64,
@@ -45,7 +45,7 @@ test "independent head packing preserves complete numerical folds and tails" {
 
 ///|
 test "head packing rejects incomplete reduction subgroups" {
-  let numerics = ProjectionAttentionIngressEpilogue::new(
+  let numerics = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
     query_heads=16,
     kv_heads=8,
     head_dimension=128,
@@ -65,7 +65,7 @@ test "head packing rejects incomplete reduction subgroups" {
 
 ///|
 test "logical ingress ownership does not assume a CUDA block limit" {
-  let epilogue = ProjectionAttentionIngressEpilogue::new(
+  let epilogue = @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
     query_heads=1,
     kv_heads=1,
     head_dimension=128,

@@ -1,7 +1,7 @@
 ///|
 fn BenchmarkTrialCollector::terminal_inputs(
   self : BenchmarkTrialCollector,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   outcome : @evidence.BenchmarkRequestOutcome,
   generated_tokens : Int64,
 ) -> (Int64, Int64?, Int64?, Int64) raise BenchmarkRunnerError {
@@ -41,7 +41,7 @@ fn BenchmarkTrialCollector::terminal_inputs(
 ///|
 fn BenchmarkTrialCollector::terminate_at(
   self : BenchmarkTrialCollector,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   outcome : @evidence.BenchmarkRequestOutcome,
   generated_tokens : Int64,
   timestamp_ns : Int64,
@@ -80,7 +80,7 @@ fn BenchmarkTrialCollector::terminate_at(
 /// a positive terminal generated-token count.
 pub fn BenchmarkTrialCollector::terminate(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
   outcome~ : @evidence.BenchmarkRequestOutcome,
   generated_tokens~ : Int64,
 ) -> Unit raise BenchmarkRunnerError {
@@ -99,7 +99,7 @@ pub fn BenchmarkTrialCollector::terminate(
 ///|
 pub fn BenchmarkTrialCollector::terminate_captured(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
   outcome~ : @evidence.BenchmarkRequestOutcome,
   generated_tokens~ : Int64,
   timestamp~ : CapturedMonotonicTimestamp,

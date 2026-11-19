@@ -19,14 +19,14 @@ test "offline fold choices preserve semantics and compose canonically" {
       ),
     ),
   )
-  let request = ProjectionTileCompilerRequest::new(
+  let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
     dispatch~,
     maximum_rows=32,
     maximum_tokens=1024,
     demand=AllTokenRows,
   )
-  let baseline = compile_projection_tile(request)
-  let global = ProjectionFoldChoice::new(
+  let baseline = @luna_projection_tile_compiler.compile_projection_tile(request)
+  let global = @luna_projection_tile_compiler.ProjectionFoldChoice::new(
     SiblingFold,
     stages=2,
     transfer_tiles=2,
@@ -34,7 +34,7 @@ test "offline fold choices preserve semantics and compose canonically" {
     row_tiles=4,
     output_tiles=4,
   )
-  let small = ProjectionFoldChoice::new(
+  let small = @luna_projection_tile_compiler.ProjectionFoldChoice::new(
     SiblingFold,
     stages=2,
     transfer_tiles=2,
@@ -45,22 +45,22 @@ test "offline fold choices preserve semantics and compose canonically" {
     maximum_token_rows=16,
   )
   assert_eq(
-    compile_projection_tile(request.with_fold_choices([global, small])),
-    compile_projection_tile(request.with_fold_choices([global])),
+    @luna_projection_tile_compiler.compile_projection_tile(request.with_fold_choices([global, small])),
+    @luna_projection_tile_compiler.compile_projection_tile(request.with_fold_choices([global])),
   )
-  let bounded = ProjectionTileCompilerRequest::new(
+  let bounded = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
     dispatch~,
     maximum_rows=16,
     maximum_tokens=16,
     demand=AllTokenRows,
   )
   assert_eq(
-    compile_projection_tile(bounded.with_fold_choices([global, small])),
-    compile_projection_tile(bounded.with_fold_choices([small])),
+    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([global, small])),
+    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([small])),
   )
   assert_eq(
-    compile_projection_tile(bounded.with_fold_choices([global, small])),
-    compile_projection_tile(bounded.with_fold_choices([small, global])),
+    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([global, small])),
+    @luna_projection_tile_compiler.compile_projection_tile(bounded.with_fold_choices([small, global])),
   )
   let sibling_geometry = request.with_fold_pipeline(
     SiblingFold,
@@ -70,14 +70,14 @@ test "offline fold choices preserve semantics and compose canonically" {
     row_tiles=4,
     output_tiles=4,
   )
-  let sibling_plan = compile_projection_tile(sibling_geometry)
+  let sibling_plan = @luna_projection_tile_compiler.compile_projection_tile(sibling_geometry)
   assert_eq(sibling_plan.program().digest(), baseline.program().digest())
   assert_eq(sibling_plan.schedule().sibling_pipeline().unwrap().row_width(), 64)
   assert_eq(
     sibling_plan.schedule().sibling_pipeline().unwrap().output_tiles(),
     4,
   )
-  let refined_down = compile_projection_tile(
+  let refined_down = @luna_projection_tile_compiler.compile_projection_tile(
     request.with_fold_pipeline(
       IntermediateFold,
       stages=2,
@@ -95,23 +95,23 @@ test "offline fold choices preserve semantics and compose canonically" {
   assert_eq(refined_down.program().digest(), baseline.program().digest())
   for stages in [2, 3, 4] {
     for transfer_tiles in [1, 2, 4] {
-      for fragment_stages in 1..<=Int::min(2, transfer_tiles) {
-        let down = ProjectionFoldChoice::new(
+      for fragment_stages in 1..<=Int32::min(2, transfer_tiles) {
+        let down = @luna_projection_tile_compiler.ProjectionFoldChoice::new(
           IntermediateFold,
           stages~,
           transfer_tiles~,
           fragment_stages~,
         )
-        let sibling = ProjectionFoldChoice::new(
+        let sibling = @luna_projection_tile_compiler.ProjectionFoldChoice::new(
           SiblingFold,
           stages~,
           transfer_tiles~,
           fragment_stages~,
         )
-        let forward = compile_projection_tile(
+        let forward = @luna_projection_tile_compiler.compile_projection_tile(
           request.with_fold_choices([down, sibling]),
         )
-        let reverse = compile_projection_tile(
+        let reverse = @luna_projection_tile_compiler.compile_projection_tile(
           request.with_fold_choices([sibling, down]),
         )
         assert_eq(forward.program().digest(), baseline.program().digest())

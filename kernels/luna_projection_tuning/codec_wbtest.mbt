@@ -1,7 +1,7 @@
 ///|
 fn fixture_scope(
-  device? : String = "device-a",
-  toolchain? : String = "a".repeat(64),
+  device~ : String = "device-a",
+  toolchain~ : String = "a".repeat(64),
 ) -> ProjectionTuningScope raise {
   ProjectionTuningScope::new(
     backend=@strategy.ProjectionBackendId::new("test-backend"),
@@ -13,8 +13,8 @@ fn fixture_scope(
 
 ///|
 fn fixture_record(
-  id? : Int = 3008,
-  latency? : Int64 = 12000L,
+  id~ : Int32 = 3008,
+  latency~ : Int64 = 12000L,
 ) -> @strategy.ProjectionAutotuneRecord raise {
   let scope = fixture_scope()
   @strategy.ProjectionAutotuneRecord::new(

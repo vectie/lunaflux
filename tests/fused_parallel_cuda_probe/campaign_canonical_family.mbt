@@ -22,10 +22,10 @@ fn campaign_family(
   abi : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi,
   compiled : @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding,
   numerical : @luna_cuda_fused_parallel_aot.FusedParallelNumericalPolicy,
-  canary : UInt,
+  canary : UInt32,
   observed_absolute : Int64,
   observed_relative : Int64,
-  observed_canary : UInt,
+  observed_canary : UInt32,
 ) -> Unit {
   let identity = compiler.identity()
   campaign_line(output, prefix + "family", family)

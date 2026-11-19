@@ -1,6 +1,6 @@
 ///|
 pub fn PhysicalTopologyDeviceObservation::new(
-  ordinal~ : Int,
+  ordinal~ : Int32,
   name~ : StringView,
   capability~ : @device.DeviceCapability,
 ) -> PhysicalTopologyDeviceObservation raise PhysicalTopologyDiagnosticError {
@@ -12,8 +12,8 @@ pub fn PhysicalTopologyDeviceObservation::new(
 
 ///|
 pub fn PhysicalPeerObservation::new(
-  source_ordinal~ : Int,
-  destination_ordinal~ : Int,
+  source_ordinal~ : Int32,
+  destination_ordinal~ : Int32,
   accessible~ : Bool,
 ) -> PhysicalPeerObservation raise PhysicalTopologyDiagnosticError {
   if source_ordinal < 0 ||
@@ -27,8 +27,8 @@ pub fn PhysicalPeerObservation::new(
 ///|
 pub fn PhysicalCollectiveObservation::new(
   availability~ : @device.TensorCollectiveRuntimeAvailability,
-  version_code~ : Int,
-  admitted_version_code~ : Int,
+  version_code~ : Int32,
+  admitted_version_code~ : Int32,
 ) -> PhysicalCollectiveObservation raise PhysicalTopologyDiagnosticError {
   match availability {
     CollectiveRuntimeAvailable =>
@@ -47,7 +47,7 @@ pub fn PhysicalCollectiveObservation::new(
 ///|
 pub fn PhysicalTopologyDeviceObservation::ordinal(
   self : PhysicalTopologyDeviceObservation,
-) -> Int {
+) -> Int32 {
   self.ordinal
 }
 
@@ -68,14 +68,14 @@ pub fn PhysicalTopologyDeviceObservation::capability(
 ///|
 pub fn PhysicalPeerObservation::source_ordinal(
   self : PhysicalPeerObservation,
-) -> Int {
+) -> Int32 {
   self.source_ordinal
 }
 
 ///|
 pub fn PhysicalPeerObservation::destination_ordinal(
   self : PhysicalPeerObservation,
-) -> Int {
+) -> Int32 {
   self.destination_ordinal
 }
 
@@ -96,13 +96,13 @@ pub fn PhysicalCollectiveObservation::availability(
 ///|
 pub fn PhysicalCollectiveObservation::version_code(
   self : PhysicalCollectiveObservation,
-) -> Int {
+) -> Int32 {
   self.version_code
 }
 
 ///|
 pub fn PhysicalCollectiveObservation::admitted_version_code(
   self : PhysicalCollectiveObservation,
-) -> Int {
+) -> Int32 {
   self.admitted_version_code
 }

@@ -25,16 +25,16 @@ pub fn PagedAttentionReadOnlyKernelAbi::canonical_name(
 
 ///|
 pub struct PagedAttentionReadOnlyAotLimits {
-  priv maximum_source_bytes : Int
-  priv maximum_recipe_bytes : Int
-  priv maximum_canonical_bytes : Int
+  priv maximum_source_bytes : Int32
+  priv maximum_recipe_bytes : Int32
+  priv maximum_canonical_bytes : Int32
 }
 
 ///|
 pub fn PagedAttentionReadOnlyAotLimits::new(
-  maximum_source_bytes~ : Int,
-  maximum_recipe_bytes~ : Int,
-  maximum_canonical_bytes~ : Int,
+  maximum_source_bytes~ : Int32,
+  maximum_recipe_bytes~ : Int32,
+  maximum_canonical_bytes~ : Int32,
 ) -> PagedAttentionReadOnlyAotLimits raise PagedAttentionReadOnlyAotError {
   if maximum_source_bytes <= 0 ||
     maximum_source_bytes > 16777216 ||
@@ -54,9 +54,9 @@ pub struct PagedAttentionReadOnlyCudaCandidate {
   priv entry_point_id : @catalog.AotKernelEntryPointId
   priv function_symbol : String
   priv kernel_abi : PagedAttentionReadOnlyKernelAbi
-  priv input_row_width : Int
+  priv input_row_width : Int32
   priv input_activation : @plan.ActivationRef
-  priv dispatch_canary_per_token : Int
+  priv dispatch_canary_per_token : Int32
   priv launch : @launch_contract.AotLaunchDimensions
   priv source : Bytes
   priv source_digest : PagedAttentionReadOnlyDigest
@@ -134,7 +134,7 @@ pub fn PagedAttentionReadOnlyCudaCandidate::kernel_abi(
 ///|
 pub fn PagedAttentionReadOnlyCudaCandidate::input_row_width(
   self : PagedAttentionReadOnlyCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.input_row_width
 }
 
@@ -148,7 +148,7 @@ pub fn PagedAttentionReadOnlyCudaCandidate::input_activation(
 ///|
 pub fn PagedAttentionReadOnlyCudaCandidate::dispatch_canary_per_token(
   self : PagedAttentionReadOnlyCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.dispatch_canary_per_token
 }
 

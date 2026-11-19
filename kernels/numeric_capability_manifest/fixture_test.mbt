@@ -43,7 +43,7 @@ fn fp8_fixture_operations() -> Array[@plan.PlanOperation] {
 }
 
 ///|
-fn fp8_fixture_plan(fp8? : Bool = true) -> @plan.ModelPlan {
+fn fp8_fixture_plan(fp8~ : Bool = true) -> @plan.ModelPlan {
   let operations = fp8_fixture_operations()
   let fp8_operation = try! @plan.OperationId::new(1)
   let numeric = if fp8 {
@@ -134,13 +134,13 @@ fn fp8_module_digest() -> @catalog.AotArtifactDigest {
 }
 
 ///|
-fn fp8_family(stable_id : Int) -> @catalog.AotKernelFamily {
+fn fp8_family(stable_id : Int32) -> @catalog.AotKernelFamily {
   let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(stable_id)
   @catalog.AotKernelFamily::new(module_digest=fp8_module_digest(), family_id~)
 }
 
 ///|
-fn fp8_entry(family : Int, entry : Int) -> @catalog.AotKernelEntryPoint {
+fn fp8_entry(family : Int32, entry : Int32) -> @catalog.AotKernelEntryPoint {
   let entry_point_id = try! @catalog.AotKernelEntryPointId::from_stable_int(
     entry,
   )
@@ -148,7 +148,7 @@ fn fp8_entry(family : Int, entry : Int) -> @catalog.AotKernelEntryPoint {
 }
 
 ///|
-fn fp8_target(major? : Int = 8, minor? : Int = 9) -> @catalog.DeviceTarget {
+fn fp8_target(major~ : Int32 = 8, minor~ : Int32 = 9) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=major,
     compute_minor=minor,
@@ -159,8 +159,8 @@ fn fp8_target(major? : Int = 8, minor? : Int = 9) -> @catalog.DeviceTarget {
 
 ///|
 fn fp8_device_numeric(
-  major? : Int = 8,
-  minor? : Int = 9,
+  major~ : Int32 = 8,
+  minor~ : Int32 = 9,
 ) -> @device.DeviceNumericCapability {
   let observed = try! @device.DeviceCapability::from_observed_facts(
     compute_major=major,
@@ -175,8 +175,8 @@ fn fp8_device_numeric(
 ///|
 fn fp8_catalog_entry(
   operation : @plan.PlanOperation,
-  family : Int,
-  vendor? : Bool = false,
+  family : Int32,
+  vendor~ : Bool = false,
 ) -> @catalog.CatalogEntry {
   try! @catalog.CatalogEntry::new(
     semantic_version=@catalog.KernelSemanticVersion::v1(),
@@ -199,7 +199,7 @@ fn fp8_catalog_entry(
 fn fp8_resolved_catalog(
   plan : @plan.ModelPlan,
   target : @catalog.DeviceTarget,
-  vendor_output? : Bool = false,
+  vendor_output~ : Bool = false,
 ) -> @catalog.ResolvedKernelCatalog {
   try! @catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v1(), entries=[
     fp8_catalog_entry(plan.operations()[0], 1),
@@ -218,7 +218,7 @@ fn fp8_profile() -> @launch_contract.KernelProfile {
 }
 
 ///|
-fn fp8_operands(operation : Int) -> Array[@launch_contract.AotOperand] {
+fn fp8_operands(operation : Int32) -> Array[@launch_contract.AotOperand] {
   if operation == 0 {
     [
       try! @launch_contract.AotOperand::new(
@@ -259,7 +259,9 @@ fn fp8_operands(operation : Int) -> Array[@launch_contract.AotOperand] {
 }
 
 ///|
-fn fp8_launch_input(operation : Int) -> @launch_contract.AotLaunchContractInput {
+fn fp8_launch_input(
+  operation : Int32,
+) -> @launch_contract.AotLaunchContractInput {
   let profile_id = try! @launch_contract.KernelProfileId::from_stable_int(1)
   let operation_id = try! @plan.OperationId::new(operation)
   let dimensions = try! @launch_contract.AotLaunchDimensions::new(

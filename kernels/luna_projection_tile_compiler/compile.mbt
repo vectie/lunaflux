@@ -11,7 +11,7 @@ pub fn select_projection_tile(
 }
 
 ///|
-fn projection_expression_code(expression : ProjectionTileExpression) -> Int {
+fn projection_expression_code(expression : ProjectionTileExpression) -> Int32 {
   match expression {
     ProjectionTileInput => 1
     ProjectionTileWeight(ProjectionDenseWeight) => 2
@@ -237,7 +237,7 @@ pub fn elaborate_projection_tile(
 }
 
 ///|
-fn projection_rewrite_code(rule : ProjectionTileRewriteRule) -> Int {
+fn projection_rewrite_code(rule : ProjectionTileRewriteRule) -> Int32 {
   match rule {
     PruneUnobservedTokenRows => 1
     HoistSelectedInputTile => 2

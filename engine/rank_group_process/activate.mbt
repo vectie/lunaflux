@@ -1,8 +1,8 @@
 ///|
 fn RankGroupProcessSupervisor::startup_write(
   self : RankGroupProcessSupervisor,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Bool {
   self.children[rank].startup_write(
     self.tx,
@@ -14,8 +14,8 @@ fn RankGroupProcessSupervisor::startup_write(
 ///|
 fn RankGroupProcessSupervisor::startup_read(
   self : RankGroupProcessSupervisor,
-  rank : Int,
-) -> Int {
+  rank : Int32,
+) -> Int32 {
   self.children[rank].startup_read(
     self.rx,
     self.limits.startup_io_timeout_millis,
@@ -25,8 +25,8 @@ fn RankGroupProcessSupervisor::startup_read(
 ///|
 fn RankGroupProcessSupervisor::encode_configure(
   self : RankGroupProcessSupervisor,
-  rank : Int,
-) -> Int raise RankGroupProcessError {
+  rank : Int32,
+) -> Int32 raise RankGroupProcessError {
   let startup = self.startups[rank]
   let payload_length = startup.configure.length()
   startup.configure.copy_to(self.tx, destination_offset=0) catch {
@@ -56,8 +56,8 @@ fn RankGroupProcessSupervisor::encode_configure(
 ///|
 fn RankGroupProcessSupervisor::accept_ready(
   self : RankGroupProcessSupervisor,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise RankGroupProcessError {
   let header = self.wire_transcript.accept_bytes(
     self.rx,

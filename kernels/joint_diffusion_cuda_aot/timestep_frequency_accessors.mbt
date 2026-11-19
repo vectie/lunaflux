@@ -22,7 +22,7 @@ pub fn JointDiffusionTimestepFrequencyCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionTimestepFrequencyCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -50,14 +50,14 @@ pub fn JointDiffusionTimestepFrequencyCudaCandidate::values_digest(
 ///|
 pub fn JointDiffusionTimestepFrequencyCudaCandidate::row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.row_count
 }
 
 ///|
 pub fn JointDiffusionTimestepFrequencyCudaCandidate::frequency_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.frequency_width
 }
 

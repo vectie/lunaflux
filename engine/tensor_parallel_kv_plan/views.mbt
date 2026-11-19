@@ -13,50 +13,54 @@ pub fn TensorParallelKvPlan::generation_value(
 }
 
 ///|
-pub fn TensorParallelKvPlan::world_size(self : TensorParallelKvPlan) -> Int {
+pub fn TensorParallelKvPlan::world_size(self : TensorParallelKvPlan) -> Int32 {
   self.world_size
 }
 
 ///|
 pub fn TensorParallelKvPlan::global_kv_head_count(
   self : TensorParallelKvPlan,
-) -> Int {
+) -> Int32 {
   self.global_kv_head_count
 }
 
 ///|
 pub fn TensorParallelKvPlan::local_kv_head_count(
   self : TensorParallelKvPlan,
-) -> Int {
+) -> Int32 {
   self.local_kv_head_count
 }
 
 ///|
-pub fn TensorParallelKvPlan::layer_count(self : TensorParallelKvPlan) -> Int {
+pub fn TensorParallelKvPlan::layer_count(self : TensorParallelKvPlan) -> Int32 {
   self.local_layout.geometry().layer_count()
 }
 
 ///|
-pub fn TensorParallelKvPlan::head_dimension(self : TensorParallelKvPlan) -> Int {
+pub fn TensorParallelKvPlan::head_dimension(
+  self : TensorParallelKvPlan,
+) -> Int32 {
   self.local_layout.geometry().head_dimension()
 }
 
 ///|
-pub fn TensorParallelKvPlan::layout_version(self : TensorParallelKvPlan) -> Int {
+pub fn TensorParallelKvPlan::layout_version(
+  self : TensorParallelKvPlan,
+) -> Int32 {
   self.local_layout.stable_layout_version()
 }
 
 ///|
 pub fn TensorParallelKvPlan::tokens_per_page(
   self : TensorParallelKvPlan,
-) -> Int {
+) -> Int32 {
   self.local_layout.tokens_per_page()
 }
 
 ///|
 pub fn TensorParallelKvPlan::total_page_count(
   self : TensorParallelKvPlan,
-) -> Int {
+) -> Int32 {
   self.local_layout.total_page_count()
 }
 
@@ -86,7 +90,7 @@ pub fn TensorParallelKvPlan::rank_arena_bytes(
 /// The value contains byte geometry only and confers no allocation authority.
 pub fn TensorParallelKvPlan::rank_layout(
   self : TensorParallelKvPlan,
-  rank : Int,
+  rank : Int32,
 ) -> @device_layout.DeviceKvLayout raise TensorParallelKvPlanError {
   if rank < 0 || rank >= self.world_size {
     raise rejected(Rank, rank)
@@ -104,7 +108,7 @@ pub fn TensorParallelKvPlan::full_arena_bytes(
 ///|
 pub fn TensorParallelKvPlan::rank_kv_reservation_bytes(
   self : TensorParallelKvPlan,
-  rank : Int,
+  rank : Int32,
 ) -> Int64 raise TensorParallelKvPlanError {
   if rank < 0 || rank >= self.world_size {
     raise rejected(Rank, rank)
@@ -115,7 +119,7 @@ pub fn TensorParallelKvPlan::rank_kv_reservation_bytes(
 ///|
 pub fn TensorParallelKvPlan::rank_binding(
   self : TensorParallelKvPlan,
-  rank : Int,
+  rank : Int32,
 ) -> TensorParallelKvRankBinding raise TensorParallelKvPlanError {
   if rank < 0 || rank >= self.world_size {
     raise rejected(Rank, rank)
@@ -141,7 +145,7 @@ pub fn TensorParallelKvPlan::require_current_contract(
   self : TensorParallelKvPlan,
   identity : @spec.ModelIdentity,
   generation : @worker_protocol.ModelPlanGeneration,
-  layout_version : Int,
+  layout_version : Int32,
 ) -> Unit raise TensorParallelKvPlanError {
   if identity != self.identity {
     raise rejected(ModelIdentity, -1)
@@ -155,7 +159,7 @@ pub fn TensorParallelKvPlan::require_current_contract(
 ///|
 fn TensorParallelKvPlan::validate_rank_and_page(
   self : TensorParallelKvPlan,
-  rank : Int,
+  rank : Int32,
   page : @page_allocator.PageId,
 ) -> Unit raise TensorParallelKvPlanError {
   if rank < 0 || rank >= self.world_size {
@@ -172,9 +176,9 @@ fn TensorParallelKvPlan::validate_rank_and_page(
 pub fn TensorParallelKvPlan::page_region(
   self : TensorParallelKvPlan,
   generation : @worker_protocol.ModelPlanGeneration,
-  rank : Int,
+  rank : Int32,
   page : @page_allocator.PageId,
-  layer_index : Int,
+  layer_index : Int32,
   component : @device_layout.DeviceKvComponent,
 ) -> TensorParallelKvPageRegion raise TensorParallelKvPlanError {
   self.require_current_generation(generation)
@@ -198,13 +202,13 @@ pub fn TensorParallelKvPlan::page_region(
 pub fn TensorParallelKvPlan::element_offset_bytes(
   self : TensorParallelKvPlan,
   generation : @worker_protocol.ModelPlanGeneration,
-  rank : Int,
+  rank : Int32,
   page : @page_allocator.PageId,
-  layer_index : Int,
+  layer_index : Int32,
   component : @device_layout.DeviceKvComponent,
-  token_index : Int,
-  local_kv_head_index : Int,
-  head_dimension_index : Int,
+  token_index : Int32,
+  local_kv_head_index : Int32,
+  head_dimension_index : Int32,
 ) -> Int64 raise TensorParallelKvPlanError {
   self.require_current_generation(generation)
   self.validate_rank_and_page(rank, page)
@@ -235,21 +239,21 @@ pub fn TensorParallelKvPlan::element_offset_bytes(
 ///|
 pub fn TensorParallelKvPageRegion::rank(
   self : TensorParallelKvPageRegion,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelKvPageRegion::page_index(
   self : TensorParallelKvPageRegion,
-) -> Int {
+) -> Int32 {
   self.page_index
 }
 
 ///|
 pub fn TensorParallelKvPageRegion::page_generation(
   self : TensorParallelKvPageRegion,
-) -> Int {
+) -> Int32 {
   self.page_generation
 }
 
@@ -298,21 +302,21 @@ pub fn TensorParallelKvRankBinding::generation_value(
 ///|
 pub fn TensorParallelKvRankBinding::rank(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::world_size(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::process_ordinal(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.process_ordinal
 }
 
@@ -326,49 +330,49 @@ pub fn TensorParallelKvRankBinding::target(
 ///|
 pub fn TensorParallelKvRankBinding::global_kv_head_count(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.global_kv_head_count
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::local_kv_head_count(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.local_kv_head_count
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::layer_count(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.layer_count
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::head_dimension(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::layout_version(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.layout_version
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::tokens_per_page(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
 pub fn TensorParallelKvRankBinding::total_page_count(
   self : TensorParallelKvRankBinding,
-) -> Int {
+) -> Int32 {
   self.total_page_count
 }
 

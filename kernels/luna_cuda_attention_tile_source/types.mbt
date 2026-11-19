@@ -1,16 +1,16 @@
 ///|
 pub struct CudaPagedAttentionTileAbi {
   priv query_metadata : Bool
-  priv query_heads : Int
-  priv key_value_heads : Int
-  priv head_dimension : Int
-  priv tokens_per_page : Int
-  priv input_row_width : Int
+  priv query_heads : Int32
+  priv key_value_heads : Int32
+  priv head_dimension : Int32
+  priv tokens_per_page : Int32
+  priv input_row_width : Int32
   priv page_stride_values : Int64
   priv physical_page_capacity : Int64
-  priv maximum_query_rows : Int
-  priv maximum_query_tokens : Int
-  priv maximum_page_entries : Int
+  priv maximum_query_rows : Int32
+  priv maximum_query_tokens : Int32
+  priv maximum_page_entries : Int32
 } derive(Debug, Eq)
 
 ///|

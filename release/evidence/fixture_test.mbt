@@ -8,12 +8,12 @@ fn release_test_limits() -> @evidence.ReleaseCampaignLimits raise {
 }
 
 ///|
-fn release_test_evidence_payload(index : Int) -> Bytes {
+fn release_test_evidence_payload(index : Int32) -> Bytes {
   Bytes::from_array([b'E', (index + 1).to_byte()])
 }
 
 ///|
-fn release_test_reviewer_payload(index : Int) -> Bytes {
+fn release_test_reviewer_payload(index : Int32) -> Bytes {
   Bytes::from_array([b'R', (index + 1).to_byte()])
 }
 

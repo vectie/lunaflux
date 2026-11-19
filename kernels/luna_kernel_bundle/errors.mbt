@@ -31,6 +31,6 @@ pub(all) enum LunaKernelBundleRule {
 pub(all) suberror LunaKernelBundleError {
   Invalid(LunaKernelBundleRule)
   Unsupported(LunaKernelBundleRule)
-  Mismatch(rule~ : LunaKernelBundleRule, operation_index~ : Int)
+  Mismatch(rule~ : LunaKernelBundleRule, operation_index~ : Int32)
   LimitExceeded(rule~ : LunaKernelBundleRule, maximum~ : Int64)
 } derive(Debug, Eq)

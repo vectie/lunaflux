@@ -2,7 +2,7 @@
 const ABSOLUTE_MAX_POLICY_BYTES : Int64 = 1048576L
 
 ///|
-const ABSOLUTE_MAX_JSON_DEPTH : Int = 16
+const ABSOLUTE_MAX_JSON_DEPTH : Int32 = 16
 
 ///|
 /// Validate an independently supplied policy digest.
@@ -13,7 +13,7 @@ pub fn InstancePolicyDigest::from_sha256(
     raise InvalidExpectedDigest
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       raise InvalidExpectedDigest
     }
   }
@@ -30,7 +30,7 @@ pub fn InstancePolicyDigest::as_hex(self : InstancePolicyDigest) -> String {
 /// Construct bounded policy-file scan limits.
 pub fn InstancePolicyFileLimits::new(
   max_policy_bytes~ : Int64,
-  max_json_depth~ : Int,
+  max_json_depth~ : Int32,
 ) -> InstancePolicyFileLimits raise InstancePolicyFileError {
   if max_policy_bytes <= 0L || max_policy_bytes > ABSOLUTE_MAX_POLICY_BYTES {
     raise InvalidLimit(PolicyBytes)
@@ -53,6 +53,6 @@ pub fn InstancePolicyFileLimits::max_policy_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn InstancePolicyFileLimits::max_json_depth(
   self : InstancePolicyFileLimits,
-) -> Int {
+) -> Int32 {
   self.max_json_depth
 }

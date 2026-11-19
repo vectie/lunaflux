@@ -5,50 +5,50 @@
 /// package's hard ceilings. Limits are checked before numeric-schema mapping,
 /// operation ownership, capability collection, or canonical hashing.
 pub struct ModelPlanLimits {
-  priv max_operations : Int
-  priv max_numeric_tensors : Int
-  priv max_total_value_inputs : Int
-  priv max_value_inputs_per_operation : Int
-  priv max_runtime_inputs_per_operation : Int
-  priv max_outputs_per_operation : Int
-  priv max_canonical_bytes : Int
+  priv max_operations : Int32
+  priv max_numeric_tensors : Int32
+  priv max_total_value_inputs : Int32
+  priv max_value_inputs_per_operation : Int32
+  priv max_runtime_inputs_per_operation : Int32
+  priv max_outputs_per_operation : Int32
+  priv max_canonical_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
-let model_plan_hard_max_operations : Int = 4096
+let model_plan_hard_max_operations : Int32 = 4096
 
 ///|
-let model_plan_hard_max_numeric_tensors : Int = 65536
+let model_plan_hard_max_numeric_tensors : Int32 = 65536
 
 ///|
 // Dense Llama's admitted 454-layer ceiling emits 9,086 value inputs. Keep the
 // plan envelope independently bounded while covering that complete public
 // model-spec range and leaving a small, explicit margin for later dense plans.
-let model_plan_hard_max_total_value_inputs : Int = 16384
+let model_plan_hard_max_total_value_inputs : Int32 = 16384
 
 ///|
-let model_plan_hard_max_value_inputs_per_operation : Int = 64
+let model_plan_hard_max_value_inputs_per_operation : Int32 = 64
 
 ///|
-let model_plan_hard_max_runtime_inputs_per_operation : Int = 16
+let model_plan_hard_max_runtime_inputs_per_operation : Int32 = 16
 
 ///|
-let model_plan_hard_max_outputs_per_operation : Int = 1
+let model_plan_hard_max_outputs_per_operation : Int32 = 1
 
 ///|
-let model_plan_hard_max_canonical_bytes : Int = 16 * 1024 * 1024
+let model_plan_hard_max_canonical_bytes : Int32 = 16 * 1024 * 1024
 
 ///|
 /// Constructs a checked plan envelope no larger than LunaFlux's hard startup
 /// ceilings. The aggregate input ceiling must cover the per-operation ceiling.
 pub fn ModelPlanLimits::new(
-  max_operations~ : Int,
-  max_numeric_tensors~ : Int,
-  max_total_value_inputs~ : Int,
-  max_value_inputs_per_operation~ : Int,
-  max_runtime_inputs_per_operation~ : Int,
-  max_outputs_per_operation~ : Int,
-  max_canonical_bytes~ : Int,
+  max_operations~ : Int32,
+  max_numeric_tensors~ : Int32,
+  max_total_value_inputs~ : Int32,
+  max_value_inputs_per_operation~ : Int32,
+  max_runtime_inputs_per_operation~ : Int32,
+  max_outputs_per_operation~ : Int32,
+  max_canonical_bytes~ : Int32,
 ) -> ModelPlanLimits raise PlanValidationError {
   if max_operations <= 0 || max_operations > model_plan_hard_max_operations {
     raise InvalidLimit(Operations)
@@ -110,7 +110,7 @@ pub fn ModelPlanLimits::production() -> ModelPlanLimits {
 ///|
 fn ModelPlanLimits::check_operation_count(
   self : ModelPlanLimits,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PlanValidationError {
   if count > self.max_operations {
     raise LimitExceeded(Operations)
@@ -120,7 +120,7 @@ fn ModelPlanLimits::check_operation_count(
 ///|
 fn ModelPlanLimits::check_numeric_tensor_count(
   self : ModelPlanLimits,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PlanValidationError {
   if count > self.max_numeric_tensors {
     raise LimitExceeded(NumericTensors)
@@ -130,7 +130,7 @@ fn ModelPlanLimits::check_numeric_tensor_count(
 ///|
 fn ModelPlanLimits::check_total_value_inputs(
   self : ModelPlanLimits,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PlanValidationError {
   if count > self.max_total_value_inputs {
     raise LimitExceeded(TotalValueInputs)
@@ -140,7 +140,7 @@ fn ModelPlanLimits::check_total_value_inputs(
 ///|
 fn ModelPlanLimits::check_value_inputs_per_operation(
   self : ModelPlanLimits,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PlanValidationError {
   if count > self.max_value_inputs_per_operation {
     raise LimitExceeded(ValueInputsPerOperation)
@@ -150,7 +150,7 @@ fn ModelPlanLimits::check_value_inputs_per_operation(
 ///|
 fn ModelPlanLimits::check_runtime_inputs_per_operation(
   self : ModelPlanLimits,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PlanValidationError {
   if count > self.max_runtime_inputs_per_operation {
     raise LimitExceeded(RuntimeInputsPerOperation)
@@ -160,7 +160,7 @@ fn ModelPlanLimits::check_runtime_inputs_per_operation(
 ///|
 fn ModelPlanLimits::check_outputs_per_operation(
   self : ModelPlanLimits,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PlanValidationError {
   if count > self.max_outputs_per_operation {
     raise LimitExceeded(OutputsPerOperation)
@@ -170,9 +170,15 @@ fn ModelPlanLimits::check_outputs_per_operation(
 ///|
 fn ModelPlanLimits::check_canonical_bytes(
   self : ModelPlanLimits,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PlanValidationError {
   if count > self.max_canonical_bytes {
     raise LimitExceeded(CanonicalBytes)
   }
 }
+
+///|
+pub extend ModelPlanLimits with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelPlanLimits with Eq::{not_equal, equal}

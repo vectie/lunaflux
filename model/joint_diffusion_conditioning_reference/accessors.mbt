@@ -24,14 +24,14 @@ pub fn JointConditioningAotAssessment::gap_digest(
 }
 
 ///|
-pub fn JointConditioningAotAssessment::gap_count(self : Self) -> Int {
+pub fn JointConditioningAotAssessment::gap_count(self : Self) -> Int32 {
   self.gaps.length()
 }
 
 ///|
 pub fn JointConditioningAotAssessment::gap(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> JointConditioningAotGap? {
   self.gaps.get(index)
 }
@@ -71,7 +71,7 @@ pub fn JointConditioningGeometry::request_digest(
 }
 
 ///|
-pub fn JointConditioningGeometry::requirement_ordinal(self : Self) -> Int {
+pub fn JointConditioningGeometry::requirement_ordinal(self : Self) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -90,32 +90,32 @@ pub fn JointConditioningGeometry::workflow(
 }
 
 ///|
-pub fn JointConditioningGeometry::keyframe_count(self : Self) -> Int {
+pub fn JointConditioningGeometry::keyframe_count(self : Self) -> Int32 {
   self.keyframe_count
 }
 
 ///|
-pub fn JointConditioningGeometry::image_reference_count(self : Self) -> Int {
+pub fn JointConditioningGeometry::image_reference_count(self : Self) -> Int32 {
   self.image_reference_count
 }
 
 ///|
-pub fn JointConditioningGeometry::video_reference_count(self : Self) -> Int {
+pub fn JointConditioningGeometry::video_reference_count(self : Self) -> Int32 {
   self.video_reference_count
 }
 
 ///|
-pub fn JointConditioningGeometry::audio_reference_count(self : Self) -> Int {
+pub fn JointConditioningGeometry::audio_reference_count(self : Self) -> Int32 {
   self.audio_reference_count
 }
 
 ///|
-pub fn JointConditioningGeometry::visual_latent_channels(self : Self) -> Int {
+pub fn JointConditioningGeometry::visual_latent_channels(self : Self) -> Int32 {
   self.visual_latent_channels
 }
 
 ///|
-pub fn JointConditioningGeometry::visual_row_width(self : Self) -> Int? {
+pub fn JointConditioningGeometry::visual_row_width(self : Self) -> Int32? {
   self.visual_row_width
 }
 

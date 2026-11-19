@@ -1,7 +1,7 @@
 ///|
 fn glm_aot_dsa_index_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexCompute(_, _, _, _) {
       return ordinal
@@ -13,7 +13,7 @@ fn glm_aot_dsa_index_ordinal(
 ///|
 fn glm_aot_dsa_reuse_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexReuse {
       return ordinal

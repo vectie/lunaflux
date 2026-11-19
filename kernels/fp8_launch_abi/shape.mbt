@@ -6,16 +6,16 @@ pub(all) enum Fp8LaunchScope {
 
 ///|
 pub struct Fp8PagedRowShape {
-  priv query_tokens : Int
-  priv context_tokens : Int
-  priv page_table_entries : Int
+  priv query_tokens : Int32
+  priv context_tokens : Int32
+  priv page_table_entries : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn Fp8PagedRowShape::new(
-  query_tokens~ : Int,
-  context_tokens~ : Int,
-  page_table_entries~ : Int,
+  query_tokens~ : Int32,
+  context_tokens~ : Int32,
+  page_table_entries~ : Int32,
 ) -> Fp8PagedRowShape raise Fp8LaunchAbiError {
   if query_tokens <= 0 ||
     context_tokens < query_tokens ||
@@ -26,17 +26,17 @@ pub fn Fp8PagedRowShape::new(
 }
 
 ///|
-pub fn Fp8PagedRowShape::query_tokens(self : Fp8PagedRowShape) -> Int {
+pub fn Fp8PagedRowShape::query_tokens(self : Fp8PagedRowShape) -> Int32 {
   self.query_tokens
 }
 
 ///|
-pub fn Fp8PagedRowShape::context_tokens(self : Fp8PagedRowShape) -> Int {
+pub fn Fp8PagedRowShape::context_tokens(self : Fp8PagedRowShape) -> Int32 {
   self.context_tokens
 }
 
 ///|
-pub fn Fp8PagedRowShape::page_table_entries(self : Fp8PagedRowShape) -> Int {
+pub fn Fp8PagedRowShape::page_table_entries(self : Fp8PagedRowShape) -> Int32 {
   self.page_table_entries
 }
 
@@ -49,8 +49,8 @@ priv enum Fp8ExactExecutionShapeData {
   Paged(
     @launch_contract.KernelProfileId,
     ReadOnlyArray[Fp8PagedRowShape],
-    Int,
-    Int
+    Int32,
+    Int32
   )
 } derive(Debug, Eq)
 
@@ -121,7 +121,9 @@ pub fn Fp8ExactExecutionShape::profile(
 }
 
 ///|
-pub fn Fp8ExactExecutionShape::batch_rows(self : Fp8ExactExecutionShape) -> Int {
+pub fn Fp8ExactExecutionShape::batch_rows(
+  self : Fp8ExactExecutionShape,
+) -> Int32 {
   match self.data {
     Stateless(_, shape) => shape.batch_rows()
     Paged(_, rows, _, _) => rows.length()

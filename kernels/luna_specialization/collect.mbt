@@ -40,7 +40,7 @@ fn luna_specialization_binding(
 ///|
 fn luna_specialization_region(
   space : LunaSpecializedRegionSpace,
-  semantic_id : Int,
+  semantic_id : Int32,
   offset_bytes : Int64,
   byte_length : Int64,
   alignment_bytes : Int64,
@@ -59,7 +59,7 @@ fn luna_specialization_region(
 ///|
 fn collect_luna_specialization_profile_region(
   regions : Array[LunaSpecializedRegion],
-  semantic_id : Int,
+  semantic_id : Int32,
   region : @device_profile.ExecutionRegionView,
 ) -> Unit raise LunaSpecializationError {
   if region.logical_bytes() == 0L {
@@ -84,7 +84,7 @@ fn collect_luna_specialization_profile_region(
 ///|
 fn collect_luna_specialization_regions(
   profile : @device_profile.OperationExecutionProfile,
-  maximum : Int,
+  maximum : Int32,
 ) -> ReadOnlyArray[LunaSpecializedRegion] raise LunaSpecializationError {
   let regions : Array[LunaSpecializedRegion] = []
   for index, input in profile.inputs() {

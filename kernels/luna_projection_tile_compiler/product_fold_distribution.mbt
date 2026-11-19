@@ -3,9 +3,9 @@
 /// axis is distributed: no reduction term moves across another term, and no
 /// accumulator is shared between consumers.
 pub struct ProjectionProductFoldDistribution {
-  priv row_groups : Int
-  priv output_groups : Int
-  priv rows_per_group : Int
+  priv row_groups : Int32
+  priv output_groups : Int32
+  priv rows_per_group : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -13,30 +13,30 @@ pub struct ProjectionProductFoldDistribution {
 /// column consumers remain participants in workgroup effects, not duplicate
 /// row owners. This is distinct from distributing the product over both axes.
 fn partition_projection_column_fold(
-  row_tiles : Int,
-  output_tiles : Int,
-  consumer_groups : Int,
+  row_tiles : Int32,
+  output_tiles : Int32,
+  consumer_groups : Int32,
 ) -> ProjectionProductFoldDistribution? {
   guard row_tiles > 0 && output_tiles > 0 && consumer_groups > 0 else {
     return None
   }
   Some({
     row_groups: 1,
-    output_groups: Int::min(output_tiles, consumer_groups),
+    output_groups: Int32::min(output_tiles, consumer_groups),
     rows_per_group: row_tiles,
   })
 }
 
 ///|
 pub fn partition_projection_product_fold(
-  row_tiles~ : Int,
-  output_tiles~ : Int,
-  consumer_groups~ : Int,
+  row_tiles~ : Int32,
+  output_tiles~ : Int32,
+  consumer_groups~ : Int32,
 ) -> ProjectionProductFoldDistribution? {
   guard row_tiles > 0 && output_tiles > 0 && consumer_groups >= output_tiles else {
     return None
   }
-  let capacity = Int::min(row_tiles, consumer_groups / output_tiles)
+  let capacity = Int32::min(row_tiles, consumer_groups / output_tiles)
   // A divisor keeps every consumer's accumulator tuple statically sized.
   // Decreases: groups. Invariant: 1 <= groups <= capacity <= row_tiles.
   let row_groups = for groups = capacity; groups > 1; {
@@ -57,27 +57,33 @@ pub fn partition_projection_product_fold(
 ///|
 pub fn ProjectionProductFoldDistribution::row_groups(
   self : ProjectionProductFoldDistribution,
-) -> Int {
+) -> Int32 {
   self.row_groups
 }
 
 ///|
 pub fn ProjectionProductFoldDistribution::output_groups(
   self : ProjectionProductFoldDistribution,
-) -> Int {
+) -> Int32 {
   self.output_groups
 }
 
 ///|
 pub fn ProjectionProductFoldDistribution::rows_per_group(
   self : ProjectionProductFoldDistribution,
-) -> Int {
+) -> Int32 {
   self.rows_per_group
 }
 
 ///|
 pub fn ProjectionProductFoldDistribution::consumer_groups(
   self : ProjectionProductFoldDistribution,
-) -> Int {
+) -> Int32 {
   self.row_groups * self.output_groups
 }
+
+///|
+pub extend ProjectionProductFoldDistribution with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionProductFoldDistribution with Eq::{not_equal, equal}

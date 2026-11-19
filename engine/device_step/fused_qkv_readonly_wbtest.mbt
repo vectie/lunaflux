@@ -158,7 +158,7 @@ test "production QKV readonly rollback closes functions before modules" {
 
 ///|
 fn fused_qkv_readonly_live_device_join_fixture(
-  observed_uuid? : String = "GPU-01234567-89ab-cdef-0123-456789abcdef",
+  observed_uuid~ : String = "GPU-01234567-89ab-cdef-0123-456789abcdef",
 ) -> FusedQkvReadOnlyLiveDeviceJoin raise FusedGroupedOperationError {
   fused_qkv_readonly_live_device_join(
     expected_uuid="GPU-01234567-89ab-cdef-0123-456789abcdef",

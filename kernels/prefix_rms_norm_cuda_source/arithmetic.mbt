@@ -9,7 +9,7 @@ fn rms_expression(
 }
 
 ///|
-fn rms_inverse(sum : String, width : Int, epsilon : String) -> String {
+fn rms_inverse(sum : String, width : Int32, epsilon : String) -> String {
   let variance = rms_expression(Variance, [sum, "\{width}.0f", epsilon])
   @arithmetic.scalar_expression(
     @precision.ReciprocalRootLaw::ReciprocalSqrtFloat32.expression(),

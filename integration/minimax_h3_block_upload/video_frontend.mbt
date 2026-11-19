@@ -7,7 +7,7 @@ pub fn upload_video_frontend(
   host : @minimax_h3_host_materialization.MiniMaxH3HostComponentArena,
   packing : @minimax_h3_weights.VideoFrontendWeightPacking,
   expected_identity~ : @spec.ModelIdentity,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_video_frontend_weights(packing, expected_identity~)

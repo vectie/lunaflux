@@ -117,7 +117,7 @@ fn LunaOnlineOpenAIConnectionSlot::abort_local_authorities(
 ///|
 fn LunaOnlineOpenAIConnectionPool::begin_slot_retirement(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> Unit {
   let slot = self.slots[index]
   if slot.phase == LUNA_OPENAI_POOL_FREE {
@@ -182,7 +182,7 @@ fn LunaOnlineOpenAIConnectionSlot::reset_for_reuse(
 ///|
 fn LunaOnlineOpenAIConnectionPool::try_finish_slot_retirement(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> Bool {
   let slot = self.slots[index]
   if slot.phase != LUNA_OPENAI_POOL_RETIRING ||
@@ -211,7 +211,7 @@ fn LunaOnlineOpenAIConnectionPool::try_finish_slot_retirement(
 fn LunaOnlineOpenAIConnectionPool::find_route_slot(
   self : LunaOnlineOpenAIConnectionPool,
   route : @online_session.LunaOnlineFramedRequestRoute,
-) -> Int {
+) -> Int32 {
   for index, slot in self.slots {
     if slot.routes.length() == 1 && slot.route().same_request(route) {
       return index
@@ -230,7 +230,7 @@ pub fn LunaOnlineOpenAIConnectionPool::local_addr(
 ///|
 pub fn LunaOnlineOpenAIConnectionPool::active_connection_count(
   self : LunaOnlineOpenAIConnectionPool,
-) -> Int {
+) -> Int32 {
   self.active_connections
 }
 

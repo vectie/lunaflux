@@ -1,5 +1,5 @@
 ///|
-fn probe_i32_bytes(values : ReadOnlyArray[Int]) -> Bytes {
+fn probe_i32_bytes(values : ReadOnlyArray[Int32]) -> Bytes {
   let output = FixedArray::make(values.length() * 4, b'\x00')
   for index, value in values {
     output[index * 4] = value.to_byte()
@@ -11,7 +11,7 @@ fn probe_i32_bytes(values : ReadOnlyArray[Int]) -> Bytes {
 }
 
 ///|
-fn probe_bf16_bits(bytes : Bytes) -> Array[Int] raise {
+fn probe_bf16_bits(bytes : Bytes) -> Array[Int32] raise {
   require_fused_probe(bytes.length() % 2 == 0, "BF16 readback is truncated")
   Array::makei(bytes.length() / 2, index => {
     bytes[index * 2].to_int() | (bytes[index * 2 + 1].to_int() << 8)
@@ -19,7 +19,7 @@ fn probe_bf16_bits(bytes : Bytes) -> Array[Int] raise {
 }
 
 ///|
-fn probe_u32(bytes : Bytes) -> UInt raise {
+fn probe_u32(bytes : Bytes) -> UInt32 raise {
   require_fused_probe(bytes.length() == 4, "canary readback is truncated")
   (bytes[0].to_int() |
   (bytes[1].to_int() << 8) |

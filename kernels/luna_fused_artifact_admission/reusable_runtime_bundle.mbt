@@ -1,11 +1,11 @@
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int = 9
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULES : Int32 = 9
 
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULE_BYTES : Int = 8388608
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_MODULE_BYTES : Int32 = 8388608
 
 ///|
-const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int = 40000000
+const REUSABLE_FUSED_RUNTIME_MAXIMUM_TOTAL_MODULE_BYTES : Int32 = 40000000
 
 ///|
 fn reusable_runtime_abi_name(abi : ReusableFusedRuntimeKernelAbi) -> String {
@@ -87,7 +87,7 @@ fn reusable_runtime_parse_abi(
 ///|
 fn reusable_runtime_required_operation_count(
   abi : ReusableFusedRuntimeKernelAbi,
-) -> Int {
+) -> Int32 {
   match abi {
     ResidualRmsNormProductionV2 => 2
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 4
@@ -109,7 +109,7 @@ fn reusable_runtime_required_operation_count(
 }
 
 ///|
-fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
+fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int32 {
   match abi {
     ResidualRmsNormProductionV2 => 0
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => 1
@@ -132,10 +132,10 @@ fn reusable_runtime_abi_rank(abi : ReusableFusedRuntimeKernelAbi) -> Int {
 
 ///|
 fn reusable_runtime_spans_overlap(
-  first_a : Int,
-  count_a : Int,
-  first_b : Int,
-  count_b : Int,
+  first_a : Int32,
+  count_a : Int32,
+  first_b : Int32,
+  count_b : Int32,
 ) -> Bool {
   first_a < first_b + count_b && first_b < first_a + count_a
 }
@@ -172,7 +172,7 @@ fn reusable_runtime_is_decode(abi : ReusableFusedRuntimeKernelAbi) -> Bool {
 ///|
 fn reusable_runtime_qwen_ingress_terminal_offset(
   abi : ReusableFusedRuntimeKernelAbi,
-) -> Int? {
+) -> Int32? {
   match abi {
     QwenQkvQkNormPositionedRopePagedKvWriteProductionV4 => Some(3)
     AttentionIngressPreparedRotaryProductionV11 => Some(3)
@@ -187,9 +187,9 @@ fn reusable_runtime_qwen_ingress_terminal_offset(
 /// read role. This terminal overlap is the only valid shared operation claim.
 fn reusable_runtime_allows_terminal_qwen_attention_overlap(
   abi_a : ReusableFusedRuntimeKernelAbi,
-  first_a : Int,
+  first_a : Int32,
   abi_b : ReusableFusedRuntimeKernelAbi,
-  first_b : Int,
+  first_b : Int32,
 ) -> Bool {
   let reader_a = reusable_runtime_is_qwen_attention_reader(abi_a)
   let reader_b = reusable_runtime_is_qwen_attention_reader(abi_b)
@@ -215,8 +215,8 @@ fn reusable_runtime_allows_terminal_qwen_attention_overlap(
 ///|
 fn reusable_runtime_validate_module(
   abi : ReusableFusedRuntimeKernelAbi,
-  first_operation : Int,
-  operation_count : Int,
+  first_operation : Int32,
+  operation_count : Int32,
   symbol : String,
   launch : @launch_contract.AotLaunchDimensions,
   module_bytes : Bytes,
@@ -249,17 +249,17 @@ fn reusable_runtime_validate_module(
 ///|
 pub fn ReusableFusedRuntimeModuleInput::new(
   abi~ : ReusableFusedRuntimeKernelAbi,
-  first_operation~ : Int,
-  operation_count~ : Int,
+  first_operation~ : Int32,
+  operation_count~ : Int32,
   function_symbol~ : String,
   launch~ : @launch_contract.AotLaunchDimensions,
   module_bytes~ : Bytes,
-  query_tile_rows? : Int,
-  query_metadata_version? : Int = 0,
-  heads_per_cta? : Int = 1,
+  query_tile_rows? : Int32,
+  query_metadata_version~ : Int32 = 0,
+  heads_per_cta~ : Int32 = 1,
   decode_execution? : DecodeExecutionDescriptor,
-  prefill_exponential_law? : PrefillExponentialLaw = StrictNaturalExponential,
-  allow_approximate_prefill_exponential? : Bool = false,
+  prefill_exponential_law~ : PrefillExponentialLaw = StrictNaturalExponential,
+  allow_approximate_prefill_exponential~ : Bool = false,
   row_variant? : ReusableFusedRuntimeRowVariant,
   module_label_sha256? : String,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
@@ -325,7 +325,7 @@ pub fn export_reusable_fused_runtime_bundle(
   target~ : @catalog.DeviceTarget,
   modules~ : ArrayView[ReusableFusedRuntimeModuleInput],
   attention_bucket_routes? : Bytes,
-  vendor_projection_exact_rows? : Int = 0,
+  vendor_projection_exact_rows~ : Int32 = 0,
 ) -> Bytes raise FusedArtifactAdmissionError {
   ignore(fused_deployment_digest(model_content_sha256))
   ignore(fused_deployment_digest(model_plan_sha256))

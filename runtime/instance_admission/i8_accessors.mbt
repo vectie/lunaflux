@@ -106,7 +106,7 @@ pub fn I8RuntimeInstanceAdmission::framed_limits(
 ///|
 pub fn I8RuntimeInstanceAdmission::preparation_lane_count(
   self : I8RuntimeInstanceAdmission,
-) -> Int {
+) -> Int32 {
   self.core.preparation_lane_count
 }
 
@@ -141,6 +141,6 @@ pub fn I8RuntimeInstanceAdmission::event_step_budget(
 ///|
 pub fn I8RuntimeInstanceAdmission::telemetry_capacity(
   self : I8RuntimeInstanceAdmission,
-) -> Int {
+) -> Int32 {
   self.core.telemetry_capacity
 }

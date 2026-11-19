@@ -1,7 +1,7 @@
 ///|
 fn append_qwen3_route_name(
   output : StringBuilder,
-  ordinal : Int,
+  ordinal : Int32,
   name : StringView,
 ) -> Unit {
   output.write_string(

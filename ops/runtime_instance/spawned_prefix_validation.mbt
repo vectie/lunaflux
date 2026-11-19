@@ -8,7 +8,7 @@ priv enum SpawnedPrefixValidationOutcome {
 fn offer_spawned_prefix_frame(
   stream : @online_session.LunaOnlineFramedStream,
   frame : FixedArray[Byte],
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeSpawnedPrefixValidationError {
   offer_spawned_validation_frame(stream, frame, turn_limit) catch {
     RuntimeSpawnedValidationFailed(SpawnedValidationRejected) =>
@@ -20,7 +20,7 @@ fn offer_spawned_prefix_frame(
 ///|
 fn next_spawned_prefix_event(
   stream : @online_session.LunaOnlineFramedStream,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> @online_session.LunaOnlineFramedSemanticEvent raise RuntimeSpawnedPrefixValidationError {
   next_spawned_validation_event(stream, turn_limit) catch {
     RuntimeSpawnedValidationFailed(SpawnedValidationRejected) =>
@@ -33,7 +33,7 @@ fn next_spawned_prefix_event(
 fn retire_spawned_prefix_stream(
   service : @online_session.LunaOnlineFramedService,
   stream : @online_session.LunaOnlineFramedStream,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeSpawnedPrefixValidationError {
   stream.disconnect() catch {
     _ => raise spawned_prefix_error(SpawnedPrefixCleanup)
@@ -63,12 +63,12 @@ fn run_one_spawned_prefix_request(
   service : @online_session.LunaOnlineFramedService,
   frame : FixedArray[Byte],
   contract : RuntimeSpawnedPrefixValidationContract,
-  input_tokens : Int,
-  cached_input_tokens : Int,
-  expected_token : Int,
+  input_tokens : Int32,
+  cached_input_tokens : Int32,
+  expected_token : Int32,
   previous_plan_sequence : UInt64,
-  exact_plan_tokens : Int,
-) -> (Int, UInt64) raise RuntimeSpawnedPrefixValidationError {
+  exact_plan_tokens : Int32,
+) -> (Int32, UInt64) raise RuntimeSpawnedPrefixValidationError {
   let opened = service.open_semantic_stream()
   if opened.kind() != LunaOnlineFramedOpened {
     raise spawned_prefix_error(SpawnedPrefixOwner)

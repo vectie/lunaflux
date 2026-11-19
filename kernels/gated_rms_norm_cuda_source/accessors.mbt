@@ -13,17 +13,17 @@ pub fn GatedRmsNormCudaSource::numerical_contract(
 }
 
 ///|
-pub fn GatedRmsNormCudaSource::head_count(self : Self) -> Int {
+pub fn GatedRmsNormCudaSource::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GatedRmsNormCudaSource::head_dimension(self : Self) -> Int {
+pub fn GatedRmsNormCudaSource::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn GatedRmsNormCudaSource::maximum_rows(self : Self) -> Int {
+pub fn GatedRmsNormCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

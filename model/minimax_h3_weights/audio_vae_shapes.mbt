@@ -1,5 +1,5 @@
 ///|
-fn audio_stage_channels(stage : Int) -> (Int64, Int64)? {
+fn audio_stage_channels(stage : Int32) -> (Int64, Int64)? {
   match stage {
     0 => Some((64L, 128L))
     1 => Some((128L, 256L))
@@ -68,7 +68,7 @@ fn audio_encoder_shape(parts : Array[StringView]) -> Array[Int64]? {
 }
 
 ///|
-fn audio_decoder_channels(block : Int) -> Int64? {
+fn audio_decoder_channels(block : Int32) -> Int64? {
   match block / 3 {
     0 => Some(512L)
     1 => Some(256L)

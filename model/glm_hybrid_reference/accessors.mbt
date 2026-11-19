@@ -1,15 +1,15 @@
 ///|
-pub fn GlmDsaPooledKeys::pool_count(self : Self) -> Int {
+pub fn GlmDsaPooledKeys::pool_count(self : Self) -> Int32 {
   self.pool_count
 }
 
 ///|
-pub fn GlmDsaPooledKeys::pool_size(self : Self) -> Int {
+pub fn GlmDsaPooledKeys::pool_size(self : Self) -> Int32 {
   self.pool_size
 }
 
 ///|
-pub fn GlmDsaPooledKeys::head_dimension(self : Self) -> Int {
+pub fn GlmDsaPooledKeys::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
@@ -19,7 +19,7 @@ pub fn GlmDsaPooledKeys::keys(self : Self) -> ReadOnlyArray[Double] {
 }
 
 ///|
-pub fn GlmDsaPooledKeys::raw_indices(self : Self) -> ReadOnlyArray[Int] {
+pub fn GlmDsaPooledKeys::raw_indices(self : Self) -> ReadOnlyArray[Int32] {
   self.raw_indices
 }
 
@@ -29,22 +29,22 @@ pub fn GlmDsaPooledKeys::valid(self : Self) -> ReadOnlyArray[Bool] {
 }
 
 ///|
-pub fn GlmDsaTopKState::source_layer(self : Self) -> Int {
+pub fn GlmDsaTopKState::source_layer(self : Self) -> Int32 {
   self.source_layer
 }
 
 ///|
-pub fn GlmDsaTopKState::last_consumer_layer(self : Self) -> Int {
+pub fn GlmDsaTopKState::last_consumer_layer(self : Self) -> Int32 {
   self.last_consumer_layer
 }
 
 ///|
-pub fn GlmDsaTopKState::key_count(self : Self) -> Int {
+pub fn GlmDsaTopKState::key_count(self : Self) -> Int32 {
   self.key_count
 }
 
 ///|
-pub fn GlmDsaTopKState::indices(self : Self) -> ReadOnlyArray[Int] {
+pub fn GlmDsaTopKState::indices(self : Self) -> ReadOnlyArray[Int32] {
   self.indices
 }
 
@@ -61,12 +61,12 @@ pub fn GlmKdaConvolutionResult::final_state(
 }
 
 ///|
-pub fn GlmKdaConvolutionResult::sequence_length(self : Self) -> Int {
+pub fn GlmKdaConvolutionResult::sequence_length(self : Self) -> Int32 {
   self.sequence_length
 }
 
 ///|
-pub fn GlmKdaConvolutionResult::channel_count(self : Self) -> Int {
+pub fn GlmKdaConvolutionResult::channel_count(self : Self) -> Int32 {
   self.channel_count
 }
 
@@ -81,27 +81,27 @@ pub fn GlmKdaRecurrentResult::final_state(self : Self) -> ReadOnlyArray[Double] 
 }
 
 ///|
-pub fn GlmKdaRecurrentResult::sequence_length(self : Self) -> Int {
+pub fn GlmKdaRecurrentResult::sequence_length(self : Self) -> Int32 {
   self.sequence_length
 }
 
 ///|
-pub fn GlmKdaRecurrentResult::head_count(self : Self) -> Int {
+pub fn GlmKdaRecurrentResult::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmKdaRecurrentResult::head_dimension(self : Self) -> Int {
+pub fn GlmKdaRecurrentResult::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn GlmVisionReferenceResult::row_count(self : Self) -> Int {
+pub fn GlmVisionReferenceResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmVisionReferenceResult::width(self : Self) -> Int {
+pub fn GlmVisionReferenceResult::width(self : Self) -> Int32 {
   self.width
 }
 
@@ -111,7 +111,7 @@ pub fn GlmVisionReferenceResult::values(self : Self) -> ReadOnlyArray[Double] {
 }
 
 ///|
-pub fn GlmReferenceLayerStep::layer_index(self : Self) -> Int {
+pub fn GlmReferenceLayerStep::layer_index(self : Self) -> Int32 {
   self.layer_index
 }
 
@@ -142,39 +142,39 @@ pub fn GlmHybridReferenceSchedule::steps(
 }
 
 ///|
-pub fn GlmHybridReferenceSchedule::dsa_compute_count(self : Self) -> Int {
+pub fn GlmHybridReferenceSchedule::dsa_compute_count(self : Self) -> Int32 {
   self.dsa_compute_count
 }
 
 ///|
-pub fn GlmHybridReferenceSchedule::dsa_reuse_count(self : Self) -> Int {
+pub fn GlmHybridReferenceSchedule::dsa_reuse_count(self : Self) -> Int32 {
   self.dsa_reuse_count
 }
 
 ///|
-pub fn GlmHybridReferenceSchedule::kda_count(self : Self) -> Int {
+pub fn GlmHybridReferenceSchedule::kda_count(self : Self) -> Int32 {
   self.kda_count
 }
 
 ///|
-pub fn GlmHybridReferenceSchedule::dense_count(self : Self) -> Int {
+pub fn GlmHybridReferenceSchedule::dense_count(self : Self) -> Int32 {
   self.dense_count
 }
 
 ///|
-pub fn GlmHybridReferenceSchedule::moe_count(self : Self) -> Int {
+pub fn GlmHybridReferenceSchedule::moe_count(self : Self) -> Int32 {
   self.moe_count
 }
 
 ///|
 pub fn GlmHybridReferenceSchedule::hyper_connection_site_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hyper_connection_site_count
 }
 
 ///|
-pub fn GlmHybridReferenceSchedule::vision_layer_count(self : Self) -> Int {
+pub fn GlmHybridReferenceSchedule::vision_layer_count(self : Self) -> Int32 {
   self.vision_layer_count
 }
 

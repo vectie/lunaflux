@@ -21,7 +21,7 @@ pub fn RankChildControl::begin_receive(
 ///|
 fn RankChildControl::publish_received(
   self : RankChildControl,
-  length : Int,
+  length : Int32,
 ) -> RankChildReceiveProgress raise RankChildControlError {
   let header = if self.transcript.lifecycle() == NewGroup {
     let configured = self.transcript.accept_configure(

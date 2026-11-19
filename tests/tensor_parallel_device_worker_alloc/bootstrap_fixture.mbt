@@ -3,14 +3,14 @@ priv struct WorkerFixture {
   workers : Array[
     @tensor_parallel_device_worker.TensorParallelDeviceWorkerOwner,
   ]
-  operation_count : Int
-  collective_count : Int
+  operation_count : Int32
+  collective_count : Int32
 }
 
 ///|
 fn startup_contract(
   fixture : ExecutionFixture,
-  rank : Int,
+  rank : Int32,
 ) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=fixture.model.identity(),
@@ -52,7 +52,7 @@ fn wait_for_worker_ready(
 fn prepare_workers(
   root : @approved_fs.ApprovedRoot,
   fixture : ExecutionFixture,
-  parallel_policy? : @parallel_ir.Policy = Ordered,
+  parallel_policy~ : @parallel_ir.Policy = Ordered,
 ) -> WorkerFixture raise {
   let model_generation = @worker_protocol.ModelPlanGeneration::from_wire(
     TP_MODEL_GENERATION,

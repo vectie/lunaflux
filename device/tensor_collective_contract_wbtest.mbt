@@ -33,12 +33,12 @@ fn assert_collective_claim_rejected(
   generation : UInt64,
   current_plan_sequence : UInt64,
   next_global : UInt64,
-  next_site : Int,
+  next_site : Int32,
   claimed_generation : UInt64,
   claimed_plan_sequence : UInt64,
   claimed_global_sequence : UInt64,
-  claimed_site_sequence : Int,
-  claimed_operation_id : Int,
+  claimed_site_sequence : Int32,
+  claimed_operation_id : Int32,
   claimed_kind : TensorCollectiveKind,
 ) -> Unit raise {
   try

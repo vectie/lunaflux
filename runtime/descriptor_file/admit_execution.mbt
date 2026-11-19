@@ -33,7 +33,7 @@ fn admit_step_limits(
 
 ///|
 fn admit_execution_limits(
-  operation_count : Int,
+  operation_count : Int32,
   ceilings : @worker_wire.WorkerBootstrapCeilings,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise RuntimeDescriptorFileError {
   if operation_count <= 0 {
@@ -119,7 +119,7 @@ fn admit_execution_manifest(
 
 ///|
 fn admit_bootstrap_limits(
-  operation_count : Int,
+  operation_count : Int32,
 ) -> @device_step.DeviceBootstrapLimits raise RuntimeDescriptorFileError {
   @device_step.DeviceBootstrapLimits::new(
     max_modules=operation_count,
@@ -136,7 +136,7 @@ fn admit_bootstrap_limits(
 ///|
 fn admit_bootstrap_manifest(
   execution : @execution_manifest_file.PagedExecutionAdmission,
-  device_ordinal : Int,
+  device_ordinal : Int32,
   limits : @device_step.DeviceBootstrapLimits,
 ) -> @device_step.DeviceWorkerBootstrapManifest raise RuntimeDescriptorFileError {
   @device_step.admit_device_worker_bootstrap(

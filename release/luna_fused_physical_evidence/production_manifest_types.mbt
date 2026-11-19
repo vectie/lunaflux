@@ -32,7 +32,7 @@ pub(all) suberror FusedProductionManifestError {
 pub struct ApprovedFusedProductionFamily {
   priv compiled : @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding
   priv benchmark : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  priv dispatch_canary_per_token : UInt
+  priv dispatch_canary_per_token : UInt32
   priv fallbacks : ReadOnlyArray[
     @luna_fused_artifact_admission.FusedStandaloneFallbackIdentity,
   ]
@@ -62,7 +62,7 @@ pub fn ApprovedFusedProductionFamily::benchmark_digest(
 ///|
 pub fn ApprovedFusedProductionFamily::dispatch_canary_per_token(
   self : ApprovedFusedProductionFamily,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary_per_token
 }
 

@@ -165,7 +165,7 @@ pub fn DenseMlpFrame::prepare(
 }
 
 ///|
-pub fn DenseMlpFrame::tensor_width(self : Self) -> Int? {
+pub fn DenseMlpFrame::tensor_width(self : Self) -> Int32? {
   if self.source.plan().publication() != LocalBFloat16 {
     let (hidden, _, _) = self.source.plan().geometry()
     Some(hidden)
@@ -182,7 +182,7 @@ pub fn DenseMlpFrame::tensor_is_bfloat16(self : Self) -> Bool {
 ///|
 pub fn DenseMlpFrame::tensor_boundary(
   self : Self,
-) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   guard self.status is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }

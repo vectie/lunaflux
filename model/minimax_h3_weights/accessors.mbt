@@ -1,5 +1,5 @@
 ///|
-pub fn MiniMaxH3SemanticTensorBinding::source_index(self : Self) -> Int {
+pub fn MiniMaxH3SemanticTensorBinding::source_index(self : Self) -> Int32 {
   self.source_index
 }
 
@@ -30,19 +30,19 @@ pub fn MiniMaxH3PartialShardBinding::identity(
 }
 
 ///|
-pub fn MiniMaxH3PartialShardBinding::schema_version(self : Self) -> Int {
+pub fn MiniMaxH3PartialShardBinding::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 
 ///|
-pub fn MiniMaxH3PartialShardBinding::tensor_count(self : Self) -> Int {
+pub fn MiniMaxH3PartialShardBinding::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn MiniMaxH3PartialShardBinding::tensor(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> MiniMaxH3SemanticTensorBinding? {
   self.tensors.get(index)
 }
@@ -62,19 +62,19 @@ pub fn MiniMaxH3CompleteComponentBinding::identity(
 }
 
 ///|
-pub fn MiniMaxH3CompleteComponentBinding::schema_version(self : Self) -> Int {
+pub fn MiniMaxH3CompleteComponentBinding::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 
 ///|
-pub fn MiniMaxH3CompleteComponentBinding::tensor_count(self : Self) -> Int {
+pub fn MiniMaxH3CompleteComponentBinding::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn MiniMaxH3CompleteComponentBinding::tensor(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> MiniMaxH3SemanticTensorBinding? {
   self.tensors.get(index)
 }
@@ -114,6 +114,6 @@ pub fn MiniMaxH3WeightComponent::conditioning_uses(
 /// Converted schema-v1 source tensor count, also an upper bound for the
 /// original VideoVAE layout. Its exact 560-name vocabulary is owned by
 /// MiniMaxH3OriginalVideoVaeSchema; complete bindings expose their actual count.
-pub fn MiniMaxH3WeightComponent::required_tensor_count(self : Self) -> Int {
+pub fn MiniMaxH3WeightComponent::required_tensor_count(self : Self) -> Int32 {
   complete_vocabulary(self).length()
 }

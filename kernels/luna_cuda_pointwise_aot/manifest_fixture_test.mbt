@@ -139,7 +139,7 @@ fn pointwise_manifest_semantics(
 
 ///|
 fn pointwise_manifest_entry(
-  operation : Int,
+  operation : Int32,
 ) -> @catalog.AotKernelEntryPoint raise {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
@@ -194,7 +194,7 @@ fn pointwise_manifest_catalog() -> @catalog.ResolvedKernelCatalog raise {
 
 ///|
 fn pointwise_manifest_operands(
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] raise {
   let layer = @plan.KvLayerId::new(0)
   match operation {
@@ -230,7 +230,7 @@ fn pointwise_manifest_operands(
 
 ///|
 fn pointwise_manifest_contracts(
-  embedding_grid? : Int = 1,
+  embedding_grid~ : Int32 = 1,
 ) -> @launch_contract.PagedKvLaunchContractSet raise {
   let profile = pointwise_test_profile()
   let inputs : Array[@launch_contract.PagedKvAotLaunchContractInput] = []

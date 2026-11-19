@@ -46,7 +46,7 @@ pub fn ModelPlan::numeric_binding(self : ModelPlan) -> ModelNumericBinding {
 }
 
 ///|
-pub fn ModelPlan::tensor_count(self : ModelPlan) -> Int {
+pub fn ModelPlan::tensor_count(self : ModelPlan) -> Int32 {
   self.numeric_binding.tensors().length()
 }
 

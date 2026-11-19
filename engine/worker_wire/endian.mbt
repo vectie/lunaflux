@@ -1,20 +1,20 @@
 ///|
-fn write_u32(bytes : FixedArray[Byte], offset : Int, value : UInt) -> Unit {
+fn write_u32(bytes : FixedArray[Byte], offset : Int32, value : UInt32) -> Unit {
   bytes.unsafe_write_uint32_le(offset, value)
 }
 
 ///|
-fn write_i32(bytes : FixedArray[Byte], offset : Int, value : Int) -> Unit {
+fn write_i32(bytes : FixedArray[Byte], offset : Int32, value : Int32) -> Unit {
   write_u32(bytes, offset, value.reinterpret_as_uint())
 }
 
 ///|
-fn write_u64(bytes : FixedArray[Byte], offset : Int, value : UInt64) -> Unit {
+fn write_u64(bytes : FixedArray[Byte], offset : Int32, value : UInt64) -> Unit {
   bytes.unsafe_write_uint64_le(offset, value)
 }
 
 ///|
-fn read_u32(bytes : FixedArray[Byte], offset : Int) -> UInt {
+fn read_u32(bytes : FixedArray[Byte], offset : Int32) -> UInt32 {
   bytes[offset].to_uint() |
   (bytes[offset + 1].to_uint() << 8) |
   (bytes[offset + 2].to_uint() << 16) |
@@ -22,12 +22,12 @@ fn read_u32(bytes : FixedArray[Byte], offset : Int) -> UInt {
 }
 
 ///|
-fn read_i32(bytes : FixedArray[Byte], offset : Int) -> Int {
+fn read_i32(bytes : FixedArray[Byte], offset : Int32) -> Int32 {
   read_u32(bytes, offset).reinterpret_as_int()
 }
 
 ///|
-fn read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
+fn read_u64(bytes : FixedArray[Byte], offset : Int32) -> UInt64 {
   // Carry the scalar in the loop state. A captured mutable accumulator is
   // boxed in native debug builds, allocating once for every wire-field read.
   for index = 0, result = 0UL; index < 8; {

@@ -25,8 +25,8 @@ fn readonly_document_value(
 fn readonly_exact_int(
   text : String,
   rule : ReadOnlyProductionRule,
-) -> Int raise ReadOnlyProductionError {
-  let value : Int = @string.parse_int(text) catch {
+) -> Int32 raise ReadOnlyProductionError {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise InvalidReadOnlyProduction(rule)
   }
   if value.to_string() != text {

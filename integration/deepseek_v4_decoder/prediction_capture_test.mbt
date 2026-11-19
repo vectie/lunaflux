@@ -1,7 +1,7 @@
 ///|
 fn prediction_slice(
-  first : Int,
-  end : Int,
+  first : Int32,
+  end : Int32,
   enabled : Bool,
 ) -> @deepseek_v4_decoder.DeepSeekDecoderSlice raise {
   @deepseek_v4_decoder.DeepSeekDecoderSlice::new(

@@ -19,7 +19,7 @@ fn dynamic_program_fixture() -> (@moe.MoeProgram, Int64, Int64) raise {
       memory_ceiling=1000000L,
       tile_elements=32,
     )
-    fn quantization(rows : Int) -> @precision.QuantizationPlan raise {
+    fn quantization(rows : Int32) -> @precision.QuantizationPlan raise {
       @precision.plan_operand(
         role=Activation,
         representation=@format.Representation::new(

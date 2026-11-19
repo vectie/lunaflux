@@ -2,13 +2,13 @@
 /// The model builder selects recurrent semantics; device scheduling is absent.
 pub fn recurrent_compute_plan(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
   maximum_state_bytes~ : Int64,
-  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  tensor_group? : (Int, Int),
+  evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  tensor_group? : (Int32, Int32),
 ) -> @precision_ir.RecurrentDeltaPrecision raise {
   guard spec.attention_kind(layer_index) is KimiDeltaAttention else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -32,12 +32,12 @@ pub fn recurrent_compute_plan(
 /// semantics to a device-neutral request-history plan, not to a CUDA schedule.
 pub fn recurrent_convolution_plan(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
   maximum_state_bytes~ : Int64,
-  tensor_group? : (Int, Int),
+  tensor_group? : (Int32, Int32),
 ) -> @precision_ir.CausalConvolutionPrecision raise {
   guard spec.attention_kind(layer_index) is KimiDeltaAttention else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -57,15 +57,15 @@ pub fn recurrent_convolution_plan(
 /// Compose the complete KDA branch without exposing CUDA schedules to the model.
 pub fn recurrent_block_plan(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
   maximum_state_bytes~ : Int64,
-  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
-  tensor_group? : (Int, Int),
+  evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  tensor_publication~ : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
+  tensor_group? : (Int32, Int32),
 ) -> @precision_ir.RecurrentBlockPrecision raise {
   @precision_ir.RecurrentBlockPrecision::new(
     recurrent_compute_plan(
@@ -99,7 +99,7 @@ pub fn recurrent_block_plan(
 /// Model construction resolves presence of TP; the numerical law itself is
 /// generic and never selected from reference-engine measurements at runtime.
 fn projection_publication(
-  group : (Int, Int)?,
+  group : (Int32, Int32)?,
   publication : @precision_ir.ProjectionPublication,
 ) -> @precision_ir.ProjectionPublication raise {
   if group is None {
@@ -112,7 +112,7 @@ fn projection_publication(
 }
 
 ///|
-fn partition_width(width : Int, group : (Int, Int)?) -> Int raise {
+fn partition_width(width : Int32, group : (Int32, Int32)?) -> Int32 raise {
   match group {
     None => width
     Some((rank, world_size)) => {

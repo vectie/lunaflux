@@ -1,5 +1,5 @@
 ///|
-fn read_u32_le(bytes : Bytes, offset : Int) -> UInt {
+fn read_u32_le(bytes : Bytes, offset : Int32) -> UInt32 {
   bytes[offset].to_uint() |
   (bytes[offset + 1].to_uint() << 8) |
   (bytes[offset + 2].to_uint() << 16) |

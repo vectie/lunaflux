@@ -1,5 +1,5 @@
 ///|
-fn keyframe_tag(position : JointKeyframePosition) -> Int {
+fn keyframe_tag(position : JointKeyframePosition) -> Int32 {
   match position {
     FirstFrame => 1
     LastFrame => 2
@@ -7,7 +7,7 @@ fn keyframe_tag(position : JointKeyframePosition) -> Int {
 }
 
 ///|
-fn reference_tag(reference : JointReferenceConditioning) -> Int {
+fn reference_tag(reference : JointReferenceConditioning) -> Int32 {
   match reference {
     ImageReference(_) => 1
     VideoReference(_) => 2
@@ -181,14 +181,14 @@ pub fn normalize(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   workflow~ : @joint_diffusion_plan.JointDiffusionWorkflow,
   text~ : ValidatedTextConditioning,
-  height~ : Int,
-  width~ : Int,
-  requested_frames~ : Int,
-  inference_steps~ : Int,
+  height~ : Int32,
+  width~ : Int32,
+  requested_frames~ : Int32,
+  inference_steps~ : Int32,
   seed~ : Int64,
   guidance_scale~ : Double,
-  keyframes? : ArrayView[JointKeyframeConditioning] = [],
-  references? : ArrayView[JointReferenceConditioning] = [],
+  keyframes~ : ArrayView[JointKeyframeConditioning] = [],
+  references~ : ArrayView[JointReferenceConditioning] = [],
 ) -> JointDiffusionIoPlan raise JointDiffusionIoPlanError {
   if !plan.workflows().contains(workflow) {
     raise WorkflowNotAdmitted

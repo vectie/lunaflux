@@ -1,15 +1,15 @@
 ///|
-const LUNA_ONLINE_CONTROL_METRICS_RESPONSE_CAPACITY : Int = 4096
+const LUNA_ONLINE_CONTROL_METRICS_RESPONSE_CAPACITY : Int32 = 4096
 
 ///|
-const LUNA_ONLINE_CONTROL_METRICS_BODY_OFFSET : Int = 256
+const LUNA_ONLINE_CONTROL_METRICS_BODY_OFFSET : Int32 = 256
 
 ///|
 fn luna_online_metrics_write_bytes(
   write : LunaOnlineTcpOutputWrite,
-  cursor : Int,
+  cursor : Int32,
   value : Bytes,
-) -> Int raise {
+) -> Int32 raise {
   let scratch = write.require_mutating()
   if cursor < 0 || cursor > scratch.capacity - value.length() {
     raise LunaOnlineTcpScratchRange
@@ -23,9 +23,9 @@ fn luna_online_metrics_write_bytes(
 ///|
 fn luna_online_metrics_write_u64(
   write : LunaOnlineTcpOutputWrite,
-  cursor : Int,
+  cursor : Int32,
   value : UInt64,
-) -> Int raise {
+) -> Int32 raise {
   let scratch = write.require_mutating()
   let mut digits = 1
   let mut remaining = value
@@ -48,9 +48,9 @@ fn luna_online_metrics_write_u64(
 ///|
 fn luna_online_metrics_write_int(
   write : LunaOnlineTcpOutputWrite,
-  cursor : Int,
-  value : Int,
-) -> Int raise {
+  cursor : Int32,
+  value : Int32,
+) -> Int32 raise {
   if value < 0 {
     raise LunaOnlineTcpScratchRange
   }
@@ -61,11 +61,11 @@ fn luna_online_metrics_write_int(
 fn luna_online_metrics_write_counter(
   write : LunaOnlineTcpOutputWrite,
   snapshot : @metrics.LunaInstanceMetricsSnapshot,
-  cursor : Int,
+  cursor : Int32,
   first~ : Bool,
   name : Bytes,
   counter : @metrics.LunaInstanceCounter,
-) -> Int raise {
+) -> Int32 raise {
   let cursor = luna_online_metrics_write_bytes(
     write,
     cursor,
@@ -84,11 +84,11 @@ fn luna_online_metrics_write_counter(
 fn luna_online_metrics_write_gauge(
   write : LunaOnlineTcpOutputWrite,
   snapshot : @metrics.LunaInstanceMetricsSnapshot,
-  cursor : Int,
+  cursor : Int32,
   first~ : Bool,
   name : Bytes,
   gauge : @metrics.LunaInstanceGauge,
-) -> Int raise {
+) -> Int32 raise {
   let cursor = luna_online_metrics_write_bytes(
     write,
     cursor,
@@ -107,8 +107,8 @@ fn luna_online_metrics_write_gauge(
 fn luna_online_metrics_write_counters(
   write : LunaOnlineTcpOutputWrite,
   snapshot : @metrics.LunaInstanceMetricsSnapshot,
-  cursor : Int,
-) -> Int raise {
+  cursor : Int32,
+) -> Int32 raise {
   let cursor = luna_online_metrics_write_counter(
     write,
     snapshot,
@@ -291,8 +291,8 @@ fn luna_online_metrics_write_counters(
 fn luna_online_metrics_write_gauges(
   write : LunaOnlineTcpOutputWrite,
   snapshot : @metrics.LunaInstanceMetricsSnapshot,
-  cursor : Int,
-) -> Int raise {
+  cursor : Int32,
+) -> Int32 raise {
   let cursor = luna_online_metrics_write_gauge(
     write,
     snapshot,
@@ -347,9 +347,9 @@ fn luna_online_metrics_write_gauges(
 fn luna_online_render_control_metrics_response(
   write : LunaOnlineTcpOutputWrite,
   snapshot : @metrics.LunaInstanceMetricsSnapshot,
-  cold_start_latency_millis : Int,
+  cold_start_latency_millis : Int32,
   readiness : Bool,
-) -> Int raise {
+) -> Int32 raise {
   let published = cold_start_latency_millis >= 0 &&
     cold_start_latency_millis <= 86400000
   let ready = published && readiness

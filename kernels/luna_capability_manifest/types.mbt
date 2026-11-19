@@ -4,7 +4,7 @@ fn luna_capability_is_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -12,7 +12,7 @@ fn luna_capability_is_sha256(value : StringView) -> Bool {
 }
 
 ///|
-pub struct LunaCapabilityManifestVersion(Int) derive(Debug, Eq)
+pub struct LunaCapabilityManifestVersion(Int32) derive(Debug, Eq)
 
 ///|
 pub fn LunaCapabilityManifestVersion::v1() -> LunaCapabilityManifestVersion {
@@ -22,24 +22,24 @@ pub fn LunaCapabilityManifestVersion::v1() -> LunaCapabilityManifestVersion {
 ///|
 pub fn LunaCapabilityManifestVersion::as_int(
   self : LunaCapabilityManifestVersion,
-) -> Int {
+) -> Int32 {
   self.0
 }
 
 ///|
 pub struct LunaGpuArchitectureRange {
-  priv minimum_major : Int
-  priv minimum_minor : Int
-  priv maximum_major : Int
-  priv maximum_minor : Int
+  priv minimum_major : Int32
+  priv minimum_minor : Int32
+  priv maximum_major : Int32
+  priv maximum_minor : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaGpuArchitectureRange::new(
-  minimum_major~ : Int,
-  minimum_minor~ : Int,
-  maximum_major~ : Int,
-  maximum_minor~ : Int,
+  minimum_major~ : Int32,
+  minimum_minor~ : Int32,
+  maximum_major~ : Int32,
+  maximum_minor~ : Int32,
 ) -> LunaGpuArchitectureRange raise LunaCapabilityManifestError {
   if minimum_major <= 0 ||
     minimum_major > 99 ||
@@ -84,14 +84,14 @@ pub(all) enum LunaTensorLayoutContract {
 
 ///|
 pub struct LunaKvLayoutContract {
-  priv stable_version : Int
-  priv tokens_per_page : Int
+  priv stable_version : Int32
+  priv tokens_per_page : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaKvLayoutContract::new(
-  stable_version~ : Int,
-  tokens_per_page~ : Int,
+  stable_version~ : Int32,
+  tokens_per_page~ : Int32,
 ) -> LunaKvLayoutContract raise LunaCapabilityManifestError {
   if stable_version <= 0 || tokens_per_page <= 0 {
     raise Invalid(Layout)
@@ -100,14 +100,16 @@ pub fn LunaKvLayoutContract::new(
 }
 
 ///|
-pub fn LunaKvLayoutContract::stable_version(self : LunaKvLayoutContract) -> Int {
+pub fn LunaKvLayoutContract::stable_version(
+  self : LunaKvLayoutContract,
+) -> Int32 {
   self.stable_version
 }
 
 ///|
 pub fn LunaKvLayoutContract::tokens_per_page(
   self : LunaKvLayoutContract,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 

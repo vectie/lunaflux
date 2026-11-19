@@ -6,7 +6,7 @@ pub fn TensorCollectiveContractDigest::from_sha256(
     raise InvalidArgument(TensorCollectiveContractCreate)
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       raise InvalidArgument(TensorCollectiveContractCreate)
     }
   }
@@ -22,11 +22,11 @@ pub fn TensorCollectiveContractDigest::as_hex(
 
 ///|
 pub fn TensorCollectiveSite::new(
-  sequence~ : Int,
-  operation_id~ : Int,
+  sequence~ : Int32,
+  operation_id~ : Int32,
   kind~ : TensorCollectiveKind,
-  full_width~ : Int,
-  local_width~ : Int,
+  full_width~ : Int32,
+  local_width~ : Int32,
 ) -> TensorCollectiveSite raise DeviceError {
   if sequence <= 0 || operation_id < 0 || full_width <= 0 || local_width <= 0 {
     raise InvalidArgument(TensorCollectiveContractCreate)
@@ -35,7 +35,7 @@ pub fn TensorCollectiveSite::new(
 }
 
 ///|
-fn tensor_collective_kind_code(kind : TensorCollectiveKind) -> Int {
+fn tensor_collective_kind_code(kind : TensorCollectiveKind) -> Int32 {
   match kind {
     Bf16SumAllReduce => 1
     Bf16AllGather => 2
@@ -47,9 +47,9 @@ fn tensor_collective_kind_code(kind : TensorCollectiveKind) -> Int {
 ///|
 fn require_tensor_collective_widths(
   kind : TensorCollectiveKind,
-  full_width : Int,
-  local_width : Int,
-  world_size : Int,
+  full_width : Int32,
+  local_width : Int32,
+  world_size : Int32,
 ) -> Unit raise DeviceError {
   if full_width <= 0 || local_width <= 0 {
     raise InvalidArgument(TensorCollectiveContractCreate)
@@ -70,9 +70,9 @@ fn require_tensor_collective_widths(
 /// Copies one authenticated scalar site table into fixed device-owned storage.
 pub fn TensorCollectiveContract::new(
   digest~ : TensorCollectiveContractDigest,
-  rank~ : Int,
-  world_size~ : Int,
-  max_query_tokens~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
+  max_query_tokens~ : Int32,
   sites~ : ArrayView[TensorCollectiveSite],
 ) -> Self raise DeviceError {
   if world_size < 2 ||
@@ -158,14 +158,14 @@ pub fn TensorCollectiveContract::digest(
 }
 
 ///|
-pub fn TensorCollectiveContract::rank(self : TensorCollectiveContract) -> Int {
+pub fn TensorCollectiveContract::rank(self : TensorCollectiveContract) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorCollectiveContract::world_size(
   self : TensorCollectiveContract,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
@@ -173,13 +173,13 @@ pub fn TensorCollectiveContract::world_size(
 /// Returns the startup-authenticated maximum live query-token envelope.
 pub fn TensorCollectiveContract::max_query_tokens(
   self : TensorCollectiveContract,
-) -> Int {
+) -> Int32 {
   self.max_query_tokens
 }
 
 ///|
 pub fn TensorCollectiveContract::site_count(
   self : TensorCollectiveContract,
-) -> Int {
+) -> Int32 {
   self.sequences.length()
 }

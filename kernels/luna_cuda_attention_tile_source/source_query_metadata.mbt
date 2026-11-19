@@ -1,7 +1,7 @@
 ///|
 fn cuda_query_tile_binding(
   abi : CudaPagedAttentionTileAbi,
-  query_tile : Int,
+  query_tile : Int32,
 ) -> String raise CudaAttentionTileSourceError {
   if abi.query_metadata {
     let layout = @luna_attention_metadata.AttentionMetadataLayout::new(

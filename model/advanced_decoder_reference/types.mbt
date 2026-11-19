@@ -6,15 +6,15 @@ pub(all) suberror AdvancedDecoderReferenceError {
   InvalidDimension
   InvalidTopK
   InvalidIterationCount
-  NonFiniteInput(Int)
+  NonFiniteInput(Int32)
   NonFiniteParameter
   ZeroNormalization
   TokenOutOfRange
   InvalidHashTable
-  ExpertIndexOutOfRange(Int)
-  DuplicateExpertIndex(Int)
+  ExpertIndexOutOfRange(Int32)
+  DuplicateExpertIndex(Int32)
   InvalidCompression
-  KeyIndexOutOfRange(Int)
+  KeyIndexOutOfRange(Int32)
   InvalidIndexLayout
   InvalidAuxiliaryOrder
   InvalidBlock
@@ -24,16 +24,16 @@ pub(all) suberror AdvancedDecoderReferenceError {
 /// Explicit per-call ceilings for the allocation-using correctness oracle.
 /// This package is never a production request-path fallback.
 pub struct ReferenceLimits {
-  priv max_values : Int
-  priv max_width : Int
-  priv max_iterations : Int
+  priv max_values : Int32
+  priv max_width : Int32
+  priv max_iterations : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn ReferenceLimits::new(
-  max_values~ : Int,
-  max_width~ : Int,
-  max_iterations~ : Int,
+  max_values~ : Int32,
+  max_width~ : Int32,
+  max_iterations~ : Int32,
 ) -> ReferenceLimits raise AdvancedDecoderReferenceError {
   if max_values <= 0 || max_width <= 0 || max_iterations <= 0 {
     raise InvalidLimit
@@ -42,28 +42,28 @@ pub fn ReferenceLimits::new(
 }
 
 ///|
-pub fn ReferenceLimits::max_values(self : Self) -> Int {
+pub fn ReferenceLimits::max_values(self : Self) -> Int32 {
   self.max_values
 }
 
 ///|
-pub fn ReferenceLimits::max_width(self : Self) -> Int {
+pub fn ReferenceLimits::max_width(self : Self) -> Int32 {
   self.max_width
 }
 
 ///|
-pub fn ReferenceLimits::max_iterations(self : Self) -> Int {
+pub fn ReferenceLimits::max_iterations(self : Self) -> Int32 {
   self.max_iterations
 }
 
 ///|
 pub struct ExpertRouting {
-  priv expert_indices : ReadOnlyArray[Int]
+  priv expert_indices : ReadOnlyArray[Int32]
   priv weights : ReadOnlyArray[Float]
 } derive(Debug, Eq)
 
 ///|
-pub fn ExpertRouting::expert_indices(self : Self) -> ReadOnlyArray[Int] {
+pub fn ExpertRouting::expert_indices(self : Self) -> ReadOnlyArray[Int32] {
   self.expert_indices
 }
 
@@ -73,18 +73,18 @@ pub fn ExpertRouting::weights(self : Self) -> ReadOnlyArray[Float] {
 }
 
 ///|
-pub fn ExpertRouting::selected_count(self : Self) -> Int {
+pub fn ExpertRouting::selected_count(self : Self) -> Int32 {
   self.expert_indices.length()
 }
 
 ///|
 pub struct ReferenceTopK {
-  priv indices : ReadOnlyArray[Int]
+  priv indices : ReadOnlyArray[Int32]
   priv scores : ReadOnlyArray[Float]
 } derive(Debug, Eq)
 
 ///|
-pub fn ReferenceTopK::indices(self : Self) -> ReadOnlyArray[Int] {
+pub fn ReferenceTopK::indices(self : Self) -> ReadOnlyArray[Int32] {
   self.indices
 }
 
@@ -124,7 +124,7 @@ pub(all) enum AuxiliaryReferenceStage {
   MtpInputProjection
   DsparkMainProjection
   DsparkNoiseEmbedding
-  AuxiliaryDecoderStage(Int)
+  AuxiliaryDecoderStage(Int32)
   AuxiliaryOutputHead
   DsparkMarkovAdjustment
   DsparkConfidence
@@ -145,19 +145,19 @@ pub struct TinyAdvancedDecoderBlockInput {
   priv expert_up_weight : ReadOnlyArray[Float]
   priv expert_gate_weight : ReadOnlyArray[Float]
   priv expert_down_weight : ReadOnlyArray[Float]
-  priv stream_count : Int
-  priv width : Int
-  priv index_top_k : Int
-  priv expert_count : Int
-  priv experts_per_token : Int
-  priv expert_hidden_width : Int
-  priv sinkhorn_iterations : Int
+  priv stream_count : Int32
+  priv width : Int32
+  priv index_top_k : Int32
+  priv expert_count : Int32
+  priv experts_per_token : Int32
+  priv expert_hidden_width : Int32
+  priv sinkhorn_iterations : Int32
   priv epsilon : Float
 }
 
 ///|
 pub struct TinyAdvancedDecoderBlockOutput {
-  priv selected_key_indices : ReadOnlyArray[Int]
+  priv selected_key_indices : ReadOnlyArray[Int32]
   priv attention_weights : ReadOnlyArray[Float]
   priv routing : ExpertRouting
   priv mixed_streams : ReadOnlyArray[Float]
@@ -167,7 +167,7 @@ pub struct TinyAdvancedDecoderBlockOutput {
 ///|
 pub fn TinyAdvancedDecoderBlockOutput::selected_key_indices(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.selected_key_indices
 }
 
@@ -219,8 +219,8 @@ fn validate_values(
 
 ///|
 fn validate_shape(
-  count : Int,
-  width : Int,
+  count : Int32,
+  width : Int32,
   limits : ReferenceLimits,
 ) -> Unit raise AdvancedDecoderReferenceError {
   if count <= 0 ||
@@ -233,9 +233,9 @@ fn validate_shape(
 
 ///|
 fn combined_values_within_limit(
-  first : Int,
-  second : Int,
-  third : Int,
+  first : Int32,
+  second : Int32,
+  third : Int32,
   limits : ReferenceLimits,
 ) -> Bool {
   Int64::from_int(first) + Int64::from_int(second) + Int64::from_int(third) <=

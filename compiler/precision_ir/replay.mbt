@@ -11,8 +11,8 @@ pub(all) enum ReplayScalar {
 /// indices are local to the owning effect program. Copies remain external.
 pub struct NumericBoundary {
   label : String
-  buffer : Int
-  after_stage : Int?
+  buffer : Int32
+  after_stage : Int32?
   scalar : ReplayScalar
   capacity_bytes : Int64
   extent : NumericExtent
@@ -23,5 +23,5 @@ pub struct NumericBoundary {
 /// capacity or an inferred batch. Read it only after the appropriate producer.
 pub(all) enum NumericExtent {
   Capacity
-  CountedRows(buffer~ : Int, index~ : Int, row_bytes~ : Int64)
+  CountedRows(buffer~ : Int32, index~ : Int32, row_bytes~ : Int64)
 }

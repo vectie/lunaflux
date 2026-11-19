@@ -93,7 +93,7 @@ test "operand window models exact ordered tails and safe priming" {
         quantum=16,
         slots~,
       ).unwrap()
-      let reads : Array[Int] = []
+      let reads : Array[Int32] = []
       for iteration in 0..<=((fragments + slots - 1) / slots) {
         for slot in 0..<slots {
           if window.read_at(window=iteration, slot~) is Some(offset) {

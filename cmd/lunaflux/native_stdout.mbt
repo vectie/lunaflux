@@ -1,8 +1,8 @@
 ///|
-extern "c" fn raw_native_stdout_flush() -> Int = "lunaflux_native_stdout_flush"
+extern "c" fn raw_native_stdout_flush() -> Int32 = "lunaflux_native_stdout_flush"
 
 ///|
-fn native_stdout_flush_succeeded(status : Int) -> Bool {
+fn native_stdout_flush_succeeded(status : Int32) -> Bool {
   status == 0
 }
 

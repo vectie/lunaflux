@@ -9,7 +9,7 @@ fn prepare_qwen_ingress_resource_variants(
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   baseline : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
   production : @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
-  maximum_shared_bytes? : Int64 = 49152L,
+  maximum_shared_bytes~ : Int64 = 49152L,
 ) -> ReadOnlyArray[
   @luna_cuda_fused_parallel_aot.FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate,
 ] raise Qwen3Bf16CandidateExportCliError {

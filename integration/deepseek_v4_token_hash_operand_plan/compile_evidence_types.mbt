@@ -14,8 +14,8 @@ pub struct DeepSeekV4TokenHashCompileEvidenceBindingDigest(String) derive (
 pub struct DeepSeekV4TokenHashCompileEvidenceBinding {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv layer_index : Int
-  priv requirement_ordinal : Int
+  priv layer_index : Int32
+  priv requirement_ordinal : Int32
   priv artifact_binding_digest : DeepSeekV4TokenHashArtifactBindingDigest
   priv compile_evidence_digest : @cuda_offline_compile_evidence.CudaOfflineCompileEvidenceDigest
   priv source_digest_sha256 : String
@@ -24,7 +24,7 @@ pub struct DeepSeekV4TokenHashCompileEvidenceBinding {
   priv target : @catalog.DeviceTarget
   priv function_symbol : String
   priv module_digest : @catalog.AotArtifactDigest
-  priv module_byte_count : Int
+  priv module_byte_count : Int32
   priv digest : DeepSeekV4TokenHashCompileEvidenceBindingDigest
 }
 

@@ -175,7 +175,7 @@ fn WorkerService::recover_flight_impl(
 ///|
 fn WorkerService::invalidate_device_state_impl(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_lifecycle(ServiceDeviceInvalidationRequired)
   if self.scheduler.streaming_enabled() &&
     !self.require_transport().recovery_cleanup_complete() {

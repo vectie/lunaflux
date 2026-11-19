@@ -1,6 +1,6 @@
 ///|
 fn luna_instance_log_requirements(
-  capacity : Int,
+  capacity : Int32,
 ) -> (UInt64, UInt64) raise LunaInstanceLogError {
   if capacity <= 0 || capacity > LUNA_INSTANCE_LOG_MAX_CAPACITY {
     raise LunaInstanceLogInvalid(LunaInstanceLogCapacityRule)
@@ -12,7 +12,7 @@ fn luna_instance_log_requirements(
 ///|
 /// Exact current-ring plus snapshot integer cells.
 pub fn LunaInstanceLog::required_int_cells(
-  capacity : Int,
+  capacity : Int32,
 ) -> UInt64 raise LunaInstanceLogError {
   luna_instance_log_requirements(capacity).0
 }
@@ -20,14 +20,14 @@ pub fn LunaInstanceLog::required_int_cells(
 ///|
 /// Exact current-ring plus snapshot timestamp cells.
 pub fn LunaInstanceLog::required_uint64_cells(
-  capacity : Int,
+  capacity : Int32,
 ) -> UInt64 raise LunaInstanceLogError {
   luna_instance_log_requirements(capacity).1
 }
 
 ///|
 pub fn LunaInstanceLog::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> LunaInstanceLog raise LunaInstanceLogError {
   ignore(luna_instance_log_requirements(capacity))
   {
@@ -53,12 +53,12 @@ pub fn LunaInstanceLog::new(
 }
 
 ///|
-pub fn LunaInstanceLog::capacity(self : LunaInstanceLog) -> Int {
+pub fn LunaInstanceLog::capacity(self : LunaInstanceLog) -> Int32 {
   self.events.length()
 }
 
 ///|
-pub fn LunaInstanceLog::length(self : LunaInstanceLog) -> Int {
+pub fn LunaInstanceLog::length(self : LunaInstanceLog) -> Int32 {
   self.length
 }
 
@@ -70,8 +70,8 @@ pub fn LunaInstanceLog::dropped_count(self : LunaInstanceLog) -> UInt64 {
 ///|
 fn LunaInstanceLog::logical_index(
   self : LunaInstanceLog,
-  index : Int,
-) -> Int raise LunaInstanceLogError {
+  index : Int32,
+) -> Int32 raise LunaInstanceLogError {
   if index < 0 || index >= self.length {
     raise LunaInstanceLogInvalid(LunaInstanceLogIndexRule)
   }
@@ -90,8 +90,8 @@ pub fn LunaInstanceLog::record(
   event : LunaInstanceLogEvent,
   reason : LunaInstanceLogReason,
   timestamp_millis~ : UInt64,
-  count~ : Int,
-  duration_millis~ : Int,
+  count~ : Int32,
+  duration_millis~ : Int32,
 ) -> Unit raise LunaInstanceLogError {
   if self.has_timestamp && timestamp_millis < self.last_timestamp {
     raise LunaInstanceLogInvalid(LunaInstanceLogTimestampRule)
@@ -134,7 +134,7 @@ pub fn LunaInstanceLog::record(
 ///|
 pub fn LunaInstanceLog::event_at(
   self : LunaInstanceLog,
-  index : Int,
+  index : Int32,
 ) -> LunaInstanceLogEvent raise LunaInstanceLogError {
   luna_instance_log_event_from_code(self.events[self.logical_index(index)])
 }
@@ -142,7 +142,7 @@ pub fn LunaInstanceLog::event_at(
 ///|
 pub fn LunaInstanceLog::reason_at(
   self : LunaInstanceLog,
-  index : Int,
+  index : Int32,
 ) -> LunaInstanceLogReason raise LunaInstanceLogError {
   luna_instance_log_reason_from_code(self.reasons[self.logical_index(index)])
 }
@@ -150,7 +150,7 @@ pub fn LunaInstanceLog::reason_at(
 ///|
 pub fn LunaInstanceLog::timestamp_millis_at(
   self : LunaInstanceLog,
-  index : Int,
+  index : Int32,
 ) -> UInt64 raise LunaInstanceLogError {
   self.timestamps[self.logical_index(index)]
 }
@@ -158,16 +158,16 @@ pub fn LunaInstanceLog::timestamp_millis_at(
 ///|
 pub fn LunaInstanceLog::count_at(
   self : LunaInstanceLog,
-  index : Int,
-) -> Int raise LunaInstanceLogError {
+  index : Int32,
+) -> Int32 raise LunaInstanceLogError {
   self.counts[self.logical_index(index)]
 }
 
 ///|
 pub fn LunaInstanceLog::duration_millis_at(
   self : LunaInstanceLog,
-  index : Int,
-) -> Int raise LunaInstanceLogError {
+  index : Int32,
+) -> Int32 raise LunaInstanceLogError {
   self.durations[self.logical_index(index)]
 }
 

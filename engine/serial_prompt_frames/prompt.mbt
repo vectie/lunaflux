@@ -3,11 +3,11 @@
 /// IDs already belong to the model's tokenizer; this never invents text IDs.
 /// A single request uses contiguous chunks and only the last produces a token.
 pub fn encode_prompt(
-  tokens : ArrayView[Int],
+  tokens : ArrayView[Int32],
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   model_generation~ : UInt64,
 ) -> Array[Bytes] raise {
   guard maximum_rows > 0 &&

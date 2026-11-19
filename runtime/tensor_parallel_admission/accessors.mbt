@@ -1,14 +1,14 @@
 ///|
 pub fn TensorParallelRuntimeAdmission::driver_version(
   self : TensorParallelRuntimeAdmission,
-) -> Int {
+) -> Int32 {
   self.driver_version
 }
 
 ///|
 pub fn TensorParallelRuntimeAdmission::world_size(
   self : TensorParallelRuntimeAdmission,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
@@ -22,14 +22,14 @@ pub fn TensorParallelRuntimeAdmission::target(
 ///|
 pub fn TensorParallelRuntimeAdmission::peer_link_count(
   self : TensorParallelRuntimeAdmission,
-) -> Int {
+) -> Int32 {
   self.peer_link_count
 }
 
 ///|
 pub fn TensorParallelRuntimeAdmission::rank_capacity(
   self : TensorParallelRuntimeAdmission,
-  rank : Int,
+  rank : Int32,
 ) -> TensorParallelRankCapacity? {
   self.ranks.get(rank)
 }
@@ -51,21 +51,21 @@ pub fn TensorParallelRuntimeAdmission::aggregate_capacity(
 ///|
 pub fn TensorParallelRankCapacity::rank(
   self : TensorParallelRankCapacity,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelRankCapacity::world_size(
   self : TensorParallelRankCapacity,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
 ///|
 pub fn TensorParallelRankCapacity::process_ordinal(
   self : TensorParallelRankCapacity,
-) -> Int {
+) -> Int32 {
   self.process_ordinal
 }
 
@@ -86,7 +86,7 @@ pub fn TensorParallelRankCapacity::target(
 ///|
 pub fn TensorParallelRankCapacity::peer_rank_count(
   self : TensorParallelRankCapacity,
-) -> Int {
+) -> Int32 {
   self.peer_rank_count
 }
 

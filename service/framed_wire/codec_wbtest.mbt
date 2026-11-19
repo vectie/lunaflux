@@ -144,7 +144,7 @@ test "request token input and greedy canonical form roundtrip" {
 ///|
 fn assert_request_rejected(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise {
   try RequestFrameBuffer::new(fixture_limits()).load(source, length) catch {
     InvalidFrame(..) => ()

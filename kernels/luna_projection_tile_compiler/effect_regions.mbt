@@ -5,7 +5,7 @@
 /// producer chain can fuse into its own store/commit, but never across it.
 priv struct ProjectionEffectRegionEntry {
   value : ProjectionTileValueId
-  region : Int
+  region : Int32
 }
 
 ///|
@@ -26,7 +26,7 @@ fn projection_same_effect_region(
   regions : ReadOnlyArray[ProjectionEffectRegionEntry],
   values : ArrayView[ProjectionTileValueId],
 ) -> Bool {
-  for value in values; expected = (None : Int?) {
+  for value in values; expected = (None : Int32?) {
     let found = for entry in regions {
       if entry.value == value {
         break Some(entry.region)

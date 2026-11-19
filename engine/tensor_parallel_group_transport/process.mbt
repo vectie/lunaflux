@@ -18,7 +18,7 @@ fn TensorParallelGroupTransport::published_process(
 fn[T] TensorParallelGroupTransport::process_error(
   self : TensorParallelGroupTransport,
   supervisor : @rank_group_process.RankGroupProcessSupervisor,
-  rule? : TensorParallelGroupTransportRule = Process,
+  rule~ : TensorParallelGroupTransportRule = Process,
 ) -> T raise TensorParallelGroupTransportError {
   if supervisor.lifecycle() == Faulted {
     self.state = Failed(supervisor)

@@ -1,15 +1,15 @@
 ///|
 fn qwen_fused_test_candidate(
-  head_dimension? : Int = 32,
-  maximum_tokens? : Int = 8,
-  query_heads? : Int = 4,
-  kv_heads? : Int = 2,
-  hidden_width? : Int,
-  page_tokens? : Int = 16,
-  export_projection? : Bool = false,
-  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  head_dimension~ : Int32 = 32,
+  maximum_tokens~ : Int32 = 8,
+  query_heads~ : Int32 = 4,
+  kv_heads~ : Int32 = 2,
+  hidden_width? : Int32,
+  page_tokens~ : Int32 = 16,
+  export_projection~ : Bool = false,
+  fold_choices~ : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
   ingress_policy? : @resource_policy.Policy,
-  maximum_shared_bytes? : Int64 = 49152L,
+  maximum_shared_bytes~ : Int64 = 49152L,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size=1024,
@@ -19,7 +19,7 @@ fn qwen_fused_test_candidate(
     attention_head_count=query_heads,
     kv_head_count=kv_heads,
     head_dimension~,
-    context_length=Int::max(256, maximum_tokens),
+    context_length=Int32::max(256, maximum_tokens),
     rope_theta=1000000.0,
     weight_dtype=BFloat16,
     kv_dtype=BFloat16,
@@ -37,7 +37,7 @@ fn qwen_fused_test_candidate(
     plan.kv_cache_geometry(),
     @device_layout.DeviceKvLimits::new(
       tokens_per_page=page_tokens,
-      total_page_count=Int::max(
+      total_page_count=Int32::max(
         64,
         4 * (1 + (maximum_tokens - 1) / page_tokens),
       ),
@@ -48,7 +48,7 @@ fn qwen_fused_test_candidate(
     id=@launch_contract.KernelProfileId::from_stable_int(19),
     max_query_rows=4,
     max_query_tokens=maximum_tokens,
-    max_page_table_entries=Int::max(
+    max_page_table_entries=Int32::max(
       16,
       4 * (1 + (maximum_tokens - 1) / page_tokens),
     ),

@@ -2,94 +2,104 @@
 /// Family-neutral F32 channel-major encoder operations. Geometry is static;
 /// host effects and device lowering are deliberately absent from this IR.
 pub(all) enum Operation {
-  Pad(batch~ : Int, input_time~ : Int, output_time~ : Int)
-  WeightNorm(outputs~ : Int, per_output~ : Int)
+  Pad(batch~ : Int32, input_time~ : Int32, output_time~ : Int32)
+  WeightNorm(outputs~ : Int32, per_output~ : Int32)
   Conv(
-    batch~ : Int,
-    input_channels~ : Int,
-    output_channels~ : Int,
-    input_time~ : Int,
-    output_time~ : Int,
-    kernel~ : Int,
-    dilation~ : Int,
-    stride~ : Int,
-    padding~ : Int
+    batch~ : Int32,
+    input_channels~ : Int32,
+    output_channels~ : Int32,
+    input_time~ : Int32,
+    output_time~ : Int32,
+    kernel~ : Int32,
+    dilation~ : Int32,
+    stride~ : Int32,
+    padding~ : Int32
   )
-  Snake(batch~ : Int, channels~ : Int, time~ : Int)
+  Snake(batch~ : Int32, channels~ : Int32, time~ : Int32)
   Add(elements~ : Int64)
-  LayerNorm(batch~ : Int, channels~ : Int, time~ : Int)
+  LayerNorm(batch~ : Int32, channels~ : Int32, time~ : Int32)
   Dense(
-    batch~ : Int,
-    input_channels~ : Int,
-    output_channels~ : Int,
-    time~ : Int
+    batch~ : Int32,
+    input_channels~ : Int32,
+    output_channels~ : Int32,
+    time~ : Int32
   )
-  Qkv(batch~ : Int, channels~ : Int, time~ : Int)
-  CausalAttention(batch~ : Int, heads~ : Int, head_dim~ : Int, time~ : Int)
+  Qkv(batch~ : Int32, channels~ : Int32, time~ : Int32)
+  CausalAttention(
+    batch~ : Int32,
+    heads~ : Int32,
+    head_dim~ : Int32,
+    time~ : Int32
+  )
   MeanHeadsPool(
-    batch~ : Int,
-    heads~ : Int,
-    head_dim~ : Int,
-    output_channels~ : Int,
-    time~ : Int
+    batch~ : Int32,
+    heads~ : Int32,
+    head_dim~ : Int32,
+    output_channels~ : Int32,
+    time~ : Int32
   )
   GeluMultiply(elements~ : Int64)
-  NormalizeRows(batch~ : Int, channels~ : Int, time~ : Int)
+  NormalizeRows(batch~ : Int32, channels~ : Int32, time~ : Int32)
   Zeros(elements~ : Int64)
   VideoSlice(
-    frames~ : Int,
-    height~ : Int,
-    width~ : Int,
-    start_frame~ : Int,
-    start_y~ : Int,
-    start_x~ : Int,
-    tile_frames~ : Int,
-    tile_height~ : Int,
-    tile_width~ : Int
+    frames~ : Int32,
+    height~ : Int32,
+    width~ : Int32,
+    start_frame~ : Int32,
+    start_y~ : Int32,
+    start_x~ : Int32,
+    tile_frames~ : Int32,
+    tile_height~ : Int32,
+    tile_width~ : Int32
   )
   Conv3d(
-    input_channels~ : Int,
-    output_channels~ : Int,
-    frames~ : Int,
-    height~ : Int,
-    width~ : Int,
-    kernel~ : Int,
-    temporal_stride~ : Int,
-    spatial_stride~ : Int,
-    spatial_before~ : Int,
-    spatial_after~ : Int
+    input_channels~ : Int32,
+    output_channels~ : Int32,
+    frames~ : Int32,
+    height~ : Int32,
+    width~ : Int32,
+    kernel~ : Int32,
+    temporal_stride~ : Int32,
+    spatial_stride~ : Int32,
+    spatial_before~ : Int32,
+    spatial_after~ : Int32
   )
   GroupNormSilu(
-    channels~ : Int,
-    frames~ : Int,
-    height~ : Int,
-    width~ : Int,
-    groups~ : Int
+    channels~ : Int32,
+    frames~ : Int32,
+    height~ : Int32,
+    width~ : Int32,
+    groups~ : Int32
   )
   InsertTile(
-    channels~ : Int,
-    frames~ : Int,
-    height~ : Int,
-    width~ : Int,
-    tile_height~ : Int,
-    tile_width~ : Int,
-    y~ : Int,
-    x~ : Int,
-    copy_height~ : Int,
-    copy_width~ : Int,
-    overlap_y~ : Int,
-    overlap_x~ : Int
+    channels~ : Int32,
+    frames~ : Int32,
+    height~ : Int32,
+    width~ : Int32,
+    tile_height~ : Int32,
+    tile_width~ : Int32,
+    y~ : Int32,
+    x~ : Int32,
+    copy_height~ : Int32,
+    copy_width~ : Int32,
+    overlap_y~ : Int32,
+    overlap_x~ : Int32
   )
   InsertTime(
-    channels~ : Int,
-    frames~ : Int,
-    height~ : Int,
-    width~ : Int,
-    tile_frames~ : Int,
-    start~ : Int,
-    count~ : Int
+    channels~ : Int32,
+    frames~ : Int32,
+    height~ : Int32,
+    width~ : Int32,
+    tile_frames~ : Int32,
+    start~ : Int32,
+    count~ : Int32
   )
-  GaussianPatch(channels~ : Int, frames~ : Int, height~ : Int, width~ : Int)
+  GaussianPatch(
+    channels~ : Int32,
+    frames~ : Int32,
+    height~ : Int32,
+    width~ : Int32
+  )
 } derive(Eq, Debug)
 
 ///|
@@ -108,8 +118,8 @@ pub(all) struct Value {
 ///|
 pub(all) struct Node {
   operation : Operation
-  inputs : ReadOnlyArray[Int]
-  output : Int
+  inputs : ReadOnlyArray[Int32]
+  output : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -120,7 +130,7 @@ pub(all) suberror PlanError {
 } derive(Eq, Debug)
 
 ///|
-fn product(values : ArrayView[Int]) -> Int64 raise PlanError {
+fn product(values : ArrayView[Int32]) -> Int64 raise PlanError {
   for value in values; acc = 1L {
     guard value > 0 && acc <= 2147483647L / value.to_int64() else {
       raise InvalidGeometry
@@ -252,7 +262,7 @@ pub fn Operation::signature(
 pub struct Graph {
   values : ReadOnlyArray[Value]
   nodes : ReadOnlyArray[Node]
-  output : Int
+  output : Int32
   offsets : ReadOnlyArray[Int64]
   scratch_bytes : Int64
 }
@@ -263,7 +273,7 @@ pub struct Graph {
 pub fn Graph::new(
   values : ArrayView[Value],
   nodes : ArrayView[Node],
-  output~ : Int,
+  output~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise PlanError {
   guard values.length() > 0 &&

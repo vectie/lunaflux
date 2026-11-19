@@ -4,7 +4,7 @@
 /// lookahead action order are supplied by the physical program.
 fn projection_head_fragment_source(
   program : @physical_tile_ir.FragmentProgram,
-  input_elements : Int,
+  input_elements : Int32,
   domain : @physical_tile_ir.FragmentRowDomain,
 ) -> String {
   let (rows, live, width, quantum, fragments) = program.geometry()
@@ -82,7 +82,7 @@ fn projection_head_fragment_source(
 /// Separate per-MMA constraints force the native compiler to repeatedly copy
 /// carried accumulators into aligned register tuples. Joint binding lets the
 /// allocator see all owners while retaining each accumulator's ordered fold.
-fn projection_head_joint_fold_source(rows : Int, columns : Int) -> String {
+fn projection_head_joint_fold_source(rows : Int32, columns : Int32) -> String {
   let outputs : Array[String] = []
   let inputs : Array[String] = []
   let instructions : Array[String] = []

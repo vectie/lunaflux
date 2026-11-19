@@ -5,7 +5,7 @@ priv enum TensorParallelCompletionRole {
 } derive(Eq)
 
 ///|
-fn completion_role(rank : Int) -> TensorParallelCompletionRole {
+fn completion_role(rank : Int32) -> TensorParallelCompletionRole {
   if rank == 0 {
     LeaderRole
   } else {
@@ -27,15 +27,15 @@ fn decode_bf16_logits(scratch : TensorParallelLeaderScratch) -> Unit {
 ///|
 fn select_wire_logit(
   scratch : TensorParallelLeaderScratch,
-  sampling_mode : Int,
+  sampling_mode : Int32,
   temperature : Double,
   has_top_k : Bool,
-  top_k : Int,
+  top_k : Int32,
   has_top_p : Bool,
   top_p : Double,
   seed_value : UInt64,
-  sample_index : Int,
-) -> Int raise TensorParallelDeviceWorkerError {
+  sample_index : Int32,
+) -> Int32 raise TensorParallelDeviceWorkerError {
   if sampling_mode != 0 && sampling_mode != 1 {
     raise Invalid(FinalOutput)
   }
@@ -69,16 +69,16 @@ fn read_and_select_row(
   owner : TensorParallelDeviceWorkerOwner,
   exact : @device_step.StagedDeviceStep,
   scratch : TensorParallelLeaderScratch,
-  row : Int,
-  sampling_mode : Int,
+  row : Int32,
+  sampling_mode : Int32,
   temperature : Double,
   has_top_k : Bool,
-  top_k : Int,
+  top_k : Int32,
   has_top_p : Bool,
   top_p : Double,
   seed_value : UInt64,
-  sample_index : Int,
-) -> Int raise TensorParallelDeviceWorkerError {
+  sample_index : Int32,
+) -> Int32 raise TensorParallelDeviceWorkerError {
   let token_index = exact.last_token_index(row) catch {
     error => raise Descriptor(error)
   }
@@ -104,7 +104,7 @@ fn sample_leader_rows(
   exact : @device_step.StagedDeviceStep,
   frame : @worker_wire.ValidatedPlanFrame,
   scratch : TensorParallelLeaderScratch,
-) -> Int raise TensorParallelDeviceWorkerError {
+) -> Int32 raise TensorParallelDeviceWorkerError {
   let prefill_count = frame.prefill_count() catch { error => raise Wire(error) }
   let decode_count = frame.decode_count() catch { error => raise Wire(error) }
   let admitted_prefill_count = require_leader_row_counts(
@@ -187,10 +187,10 @@ fn sample_leader_rows(
 
 ///|
 fn require_leader_row_counts(
-  active_rows : Int,
-  prefill_count : Int,
-  decode_count : Int,
-) -> Int raise TensorParallelDeviceWorkerError {
+  active_rows : Int32,
+  prefill_count : Int32,
+  decode_count : Int32,
+) -> Int32 raise TensorParallelDeviceWorkerError {
   if active_rows < 0 ||
     prefill_count < 0 ||
     decode_count < 0 ||
@@ -206,8 +206,8 @@ fn append_leader_rows(
   frame : @worker_wire.ValidatedPlanFrame,
   writer : @worker_wire.CompletionFrameWriter,
   scratch : TensorParallelLeaderScratch,
-  prefill_count : Int,
-  decode_count : Int,
+  prefill_count : Int32,
+  decode_count : Int32,
 ) -> Unit raise TensorParallelDeviceWorkerError {
   for index in 0..<prefill_count {
     let row = frame.prefill_row(index) catch { error => raise Wire(error) }

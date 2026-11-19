@@ -34,7 +34,7 @@ pub(all) enum JointDiffusionCudaAotInvalidKind {
 ///|
 pub(all) suberror JointDiffusionCudaAotError {
   Invalid(JointDiffusionCudaAotInvalidKind)
-  UnsupportedRequirement(Int)
+  UnsupportedRequirement(Int32)
   SizeOverflow
   Request(@joint_diffusion_plan.JointDiffusionPlanError)
   Operand(
@@ -66,8 +66,8 @@ pub(all) suberror JointDiffusionCudaAotError {
 ///|
 pub struct JointDiffusionCudaAotLimits {
   priv maximum_elements : Int64
-  priv maximum_source_bytes : Int
-  priv maximum_recipe_bytes : Int
+  priv maximum_source_bytes : Int32
+  priv maximum_recipe_bytes : Int32
 }
 
 ///|
@@ -83,7 +83,7 @@ pub struct JointDiffusionShiftedFlowCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv latent : @joint_diffusion_plan.JointDiffusionLatentKind
@@ -112,14 +112,14 @@ pub struct JointDiffusionLatentProjectionCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv latent : @joint_diffusion_plan.JointDiffusionLatentKind
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
   priv row_count : Int64
-  priv input_width : Int
-  priv output_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
   priv input_element_count : Int64
   priv output_element_count : Int64
   priv projection_weight_element_count : Int64
@@ -149,14 +149,14 @@ pub struct JointDiffusionOutputProjectionCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv latent : @joint_diffusion_plan.JointDiffusionLatentKind
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
   priv row_count : Int64
-  priv input_width : Int
-  priv output_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
   priv input_element_count : Int64
   priv output_element_count : Int64
   priv projection_weight_element_count : Int64
@@ -184,15 +184,15 @@ pub struct JointDiffusionFinalRmsNormCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv latent : @joint_diffusion_plan.JointDiffusionLatentKind
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
   priv row_count : Int64
-  priv hidden_size : Int
-  priv epsilon_numerator : Int
-  priv epsilon_denominator : Int
+  priv hidden_size : Int32
+  priv epsilon_numerator : Int32
+  priv epsilon_denominator : Int32
   priv element_count : Int64
   priv weight_element_count : Int64
   priv target : @catalog.DeviceTarget
@@ -217,13 +217,13 @@ pub struct JointDiffusionFinalAdaLnF32CudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv latent : @joint_diffusion_plan.JointDiffusionLatentKind
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
   priv row_count : Int64
-  priv hidden_size : Int
+  priv hidden_size : Int32
   priv element_count : Int64
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
@@ -243,11 +243,11 @@ pub struct JointDiffusionFinalAdaLnParameterRowCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
-  priv input_width : Int
-  priv hidden_size : Int
+  priv input_width : Int32
+  priv hidden_size : Int32
   priv weight_element_count : Int64
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
@@ -267,15 +267,15 @@ pub struct JointDiffusionPackedModalityAdaLnCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv timestep_digest : @spec.PlanDigest
   priv modality_digest : @spec.PlanDigest
-  priv hidden_size : Int
-  priv packed_rows : Int
-  priv video_rows : Int
-  priv audio_rows : Int
+  priv hidden_size : Int32
+  priv packed_rows : Int32
+  priv video_rows : Int32
+  priv audio_rows : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @joint_diffusion_artifact_admission.JointDiffusionLaunchOperand,
@@ -291,12 +291,12 @@ pub struct JointDiffusionTimestepFrequencyCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv values_digest : @spec.PlanDigest
-  priv row_count : Int
-  priv frequency_width : Int
+  priv row_count : Int32
+  priv frequency_width : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @joint_diffusion_artifact_admission.JointDiffusionLaunchOperand,
@@ -312,14 +312,14 @@ pub struct JointDiffusionTimestepMlpCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv values_digest : @spec.PlanDigest
-  priv row_count : Int
-  priv input_width : Int
-  priv hidden_width : Int
-  priv output_width : Int
+  priv row_count : Int32
+  priv input_width : Int32
+  priv hidden_width : Int32
+  priv output_width : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @joint_diffusion_artifact_admission.JointDiffusionLaunchOperand,
@@ -337,13 +337,13 @@ pub struct JointDiffusionDistinctTimestepAdaLnCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv values_digest : @spec.PlanDigest
-  priv row_count : Int
-  priv input_width : Int
-  priv hidden_size : Int
+  priv row_count : Int32
+  priv input_width : Int32
+  priv hidden_size : Int32
   priv weight_element_count : Int64
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -361,11 +361,11 @@ pub struct JointDiffusionTimestepConditioningComposition {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
   priv values_digest : @spec.PlanDigest
-  priv row_count : Int
-  priv frequency_width : Int
-  priv mlp_hidden_width : Int
-  priv conditioning_width : Int
-  priv adaln_hidden_size : Int
+  priv row_count : Int32
+  priv frequency_width : Int32
+  priv mlp_hidden_width : Int32
+  priv conditioning_width : Int32
+  priv adaln_hidden_size : Int32
 }
 
 ///|
@@ -376,15 +376,15 @@ pub struct JointDiffusionTransformerMlpCudaCandidate {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
   priv request_digest : @spec.PlanDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
-  priv layer_count : Int
-  priv refiner_layer_count : Int
-  priv packed_row_count : Int
-  priv refiner_row_count : Int
-  priv hidden_size : Int
-  priv intermediate_size : Int
+  priv layer_count : Int32
+  priv refiner_layer_count : Int32
+  priv packed_row_count : Int32
+  priv refiner_row_count : Int32
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
   priv packed_weight_element_count : Int64
   priv down_weight_element_count : Int64
   priv packed_dimensions : @launch_contract.AotLaunchDimensions
@@ -434,20 +434,20 @@ pub struct JointDiffusionTransformerAttentionCudaCandidate {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
   priv request_digest : @spec.PlanDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
-  priv layer_count : Int
-  priv refiner_layer_count : Int
-  priv packed_row_count : Int
-  priv refiner_row_count : Int
-  priv hidden_size : Int
-  priv head_count : Int
-  priv head_dimension : Int
-  priv inner_size : Int
-  priv rotary_dimension : Int
-  priv qk_epsilon_numerator : Int
-  priv qk_epsilon_denominator : Int
+  priv layer_count : Int32
+  priv refiner_layer_count : Int32
+  priv packed_row_count : Int32
+  priv refiner_row_count : Int32
+  priv hidden_size : Int32
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv inner_size : Int32
+  priv rotary_dimension : Int32
+  priv qk_epsilon_numerator : Int32
+  priv qk_epsilon_denominator : Int32
   priv projection_weight_element_count : Int64
   priv norm_weight_element_count : Int64
   priv stages : ReadOnlyArray[JointDiffusionAttentionCudaStage]
@@ -464,13 +464,13 @@ pub struct JointDiffusionVideoVaeLatentDestandardizationCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv parameter_digest : @joint_diffusion_vae_reference.JointVaeLatentDestandardizationDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv batch_count : Int
-  priv channel_count : Int
+  priv batch_count : Int32
+  priv channel_count : Int32
   priv elements_per_channel : Int64
   priv element_count : Int64
   priv target : @catalog.DeviceTarget

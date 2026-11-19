@@ -1,10 +1,10 @@
 ///|
 pub fn shared_expert_compute_plan(
-  layer_index~ : Int,
-  maximum_rows~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
   memory_ceiling~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.ExpertMlpPrecision raise {
   let operands = @glm53_weights.shared_expert_weights(layer_index~).map(weight => {
     @precision_ir.plan_operand(
@@ -34,7 +34,7 @@ pub fn shared_expert_compute_plan(
 ///|
 pub fn bind_shared_expert(
   checkpoint : @precision_materialize.PackedCheckpoint,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   @glm53_weights.shared_expert_weights(layer_index~).map(weight => {
     checkpoint.bind_weight(
@@ -51,8 +51,8 @@ pub fn upload_shared_expert_bank(
   root : @approved_fs.ApprovedRoot,
   plan : @precision_ir.ExpertMlpPrecision,
   bank : @device.Allocation,
-  layer_index~ : Int,
-  chunk_bytes~ : Int,
+  layer_index~ : Int32,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard plan.geometry().3 == 1 && plan.local_experts()[:] == [0] else {

@@ -2,23 +2,23 @@
 /// A startup-bound sum inserted before one launch. Kernels, buffers, stream,
 /// and communicator are borrowed and must outlive the program.
 pub struct ReductionBoundary {
-  priv before_kernel : Int
-  priv width : Int
-  priv operation_id : Int
+  priv before_kernel : Int32
+  priv width : Int32
+  priv operation_id : Int32
   priv buffer : @device.Allocation
   priv receive : @device.Allocation
-  priv local_width : Int
-  priv fixed_rows : Int?
+  priv local_width : Int32
+  priv fixed_rows : Int32?
   priv kind : @device.TensorCollectiveKind
 }
 
 ///|
 pub fn ReductionBoundary::new(
-  before_kernel~ : Int,
-  width~ : Int,
-  operation_id~ : Int,
+  before_kernel~ : Int32,
+  width~ : Int32,
+  operation_id~ : Int32,
   buffer~ : @device.Allocation,
-  bfloat16? : Bool = false,
+  bfloat16~ : Bool = false,
 ) -> Self {
   {
     before_kernel,
@@ -63,15 +63,15 @@ pub struct CollectiveKernelProgram {
   priv boundaries : ReadOnlyArray[ReductionBoundary]
   priv plan : @parallel.OrderedSubmissionPlan
   priv generation : UInt64
-  priv maximum_rows : Int
+  priv maximum_rows : Int32
   priv mut state : State
-  priv mut site : Int
-  priv mut next_kernel : Int
-  priv mut rows : Int
+  priv mut site : Int32
+  priv mut next_kernel : Int32
+  priv mut rows : Int32
   priv mut plan_sequence : UInt64
   priv mut global_sequence : UInt64
-  priv mut graph_index : Int
-  priv mut graph_end : Int
+  priv mut graph_index : Int32
+  priv mut graph_end : Int32
 }
 
 ///|
@@ -82,12 +82,12 @@ pub fn CollectiveKernelProgram::new(
   boundaries : ArrayView[ReductionBoundary],
   owner~ : @device.TensorCollectiveOwner,
   generation~ : UInt64,
-  maximum_rows~ : Int,
-  retirement? : @parallel.RetirementPolicy = EachCollective,
-  replay? : @parallel.ReplayPolicy = Eager,
-  replay_budget_bytes? : Int64 = 0L,
-  capture_timeout_millis? : UInt64 = 60000UL,
-  forks? : ArrayView[@parallel.ForkJoinSpan] = [],
+  maximum_rows~ : Int32,
+  retirement~ : @parallel.RetirementPolicy = EachCollective,
+  replay~ : @parallel.ReplayPolicy = Eager,
+  replay_budget_bytes~ : Int64 = 0L,
+  capture_timeout_millis~ : UInt64 = 60000UL,
+  forks~ : ArrayView[@parallel.ForkJoinSpan] = [],
 ) -> Self raise @device.DeviceError {
   guard !boundaries.is_empty() &&
     !launches.is_empty() &&
@@ -252,7 +252,7 @@ pub fn CollectiveKernelProgram::new(
 ///|
 fn CollectiveKernelProgram::enqueue_interval(
   self : Self,
-  interval : Int,
+  interval : Int32,
 ) -> Unit raise @device.DeviceError {
   let first = self.plan.interval_start(interval)
   let end = self.plan.interval_end(interval)
@@ -301,7 +301,7 @@ fn CollectiveKernelProgram::reduce(
 ///|
 pub fn CollectiveKernelProgram::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
   plan_sequence~ : UInt64,
   global_sequence~ : UInt64,
 ) -> Unit raise @device.DeviceError {
@@ -461,7 +461,7 @@ pub fn CollectiveKernelProgram::abort(
 }
 
 ///|
-pub fn CollectiveKernelProgram::replay_graph_count(self : Self) -> Int {
+pub fn CollectiveKernelProgram::replay_graph_count(self : Self) -> Int32 {
   if self.plan.replay_policy() != Eager {
     self.queues.length()
   } else {

@@ -1,7 +1,7 @@
 ///|
 fn validate_limits(
-  max_bytes : Int,
-  max_depth : Int,
+  max_bytes : Int32,
+  max_depth : Int32,
 ) -> Unit raise Glm53ConfigError {
   if max_bytes <= 0 {
     raise InvalidByteLimit
@@ -14,7 +14,7 @@ fn validate_limits(
 ///|
 fn validate_utf8_size(
   input : StringView,
-  max_bytes : Int,
+  max_bytes : Int32,
 ) -> Unit raise Glm53ConfigError {
   let mut index = 0
   let mut bytes = 0
@@ -46,7 +46,7 @@ fn validate_utf8_size(
 ///|
 fn parse_root(
   document : StringView,
-  max_depth : Int,
+  max_depth : Int32,
 ) -> Map[String, Json] raise Glm53ConfigError {
   @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
     InvalidDepthLimit => raise InvalidDepthLimit
@@ -64,8 +64,8 @@ fn parse_root(
 /// content digest. Bounds and the family-owned numeric/schema checks remain.
 pub fn parse_flash_spec_bytes(
   document : BytesView,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @glm53_spec.Glm53FlashSpec raise Glm53ConfigError {
   validate_limits(max_bytes, max_depth)
   if document.length() > max_bytes {
@@ -83,8 +83,8 @@ pub fn parse_flash_spec_bytes(
 pub fn parse_glm53_config(
   document : StringView,
   content_digest : @spec.ContentDigest,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> Glm53ConfigAdmission raise Glm53ConfigError {
   validate_limits(max_bytes, max_depth)
   validate_utf8_size(document, max_bytes)
@@ -114,8 +114,8 @@ pub fn parse_glm53_config(
 pub fn parse_glm53_config_bytes(
   document : Bytes,
   content_digest : @spec.ContentDigest,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> Glm53ConfigAdmission raise Glm53ConfigError {
   validate_limits(max_bytes, max_depth)
   if document.length() > max_bytes {

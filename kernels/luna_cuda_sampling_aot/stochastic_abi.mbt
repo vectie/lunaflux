@@ -1,6 +1,6 @@
 ///|
 fn device_sampling_abi_bytes(
-  rows : Int,
+  rows : Int32,
   row_bytes : Int64,
 ) -> Int64 raise SamplingBoundaryError {
   if rows <= 0 ||

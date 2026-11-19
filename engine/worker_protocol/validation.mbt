@@ -1,7 +1,7 @@
 ///|
 fn row_error(
   kind : WorkerRowKind,
-  index : Int,
+  index : Int32,
   rule : RowRule,
 ) -> Unit raise WorkerProtocolError {
   raise InvalidRow(kind~, index~, rule~)
@@ -9,8 +9,8 @@ fn row_error(
 
 ///|
 fn validate_token(
-  token : Int,
-  index : Int,
+  token : Int32,
+  index : Int32,
   limits : WorkerProtocolLimits,
 ) -> Unit raise WorkerProtocolError {
   if token < 0 || token > limits.max_token_id() {
@@ -20,11 +20,11 @@ fn validate_token(
 
 ///|
 fn validate_plan_counts(
-  prefill_count : Int,
-  decode_count : Int,
-  token_count : Int,
-  page_count : Int,
-  capability_count : Int,
+  prefill_count : Int32,
+  decode_count : Int32,
+  token_count : Int32,
+  page_count : Int32,
+  capability_count : Int32,
   limits : WorkerProtocolLimits,
 ) -> Unit raise WorkerProtocolError {
   if prefill_count == 0 && decode_count == 0 {
@@ -52,14 +52,14 @@ fn validate_plan_counts(
 
 ///|
 fn validate_plan_finish(
-  token_end : Int,
-  token_count : Int,
-  page_end : Int,
-  page_count : Int,
-  capability_end : Int,
-  capability_count : Int,
-  scheduled_tokens : Int,
-  token_budget : Int,
+  token_end : Int32,
+  token_count : Int32,
+  page_end : Int32,
+  page_count : Int32,
+  capability_end : Int32,
+  capability_count : Int32,
+  scheduled_tokens : Int32,
+  token_budget : Int32,
   limits : WorkerProtocolLimits,
 ) -> Unit raise WorkerProtocolError {
   if token_end != token_count {

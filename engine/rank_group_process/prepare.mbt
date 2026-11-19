@@ -1,10 +1,10 @@
 ///|
 pub fn RankGroupProcessLimits::new(
-  max_payload_bytes~ : Int,
-  startup_io_timeout_millis~ : Int,
-  io_timeout_millis~ : Int,
-  shutdown_timeout_millis~ : Int,
-  collective_exchange_timeout_millis~ : Int,
+  max_payload_bytes~ : Int32,
+  startup_io_timeout_millis~ : Int32,
+  io_timeout_millis~ : Int32,
+  shutdown_timeout_millis~ : Int32,
+  collective_exchange_timeout_millis~ : Int32,
 ) -> RankGroupProcessLimits raise RankGroupProcessError {
   if max_payload_bytes <= 0 ||
     startup_io_timeout_millis <= 0 ||
@@ -34,14 +34,14 @@ pub fn RankGroupProcessLimits::new(
 ///|
 pub fn RankGroupProcessLimits::max_payload_bytes(
   self : RankGroupProcessLimits,
-) -> Int {
+) -> Int32 {
   self.max_payload_bytes
 }
 
 ///|
 pub fn RankGroupProcessLimits::collective_exchange_timeout_millis(
   self : RankGroupProcessLimits,
-) -> Int {
+) -> Int32 {
   self.collective_exchange_timeout_millis
 }
 
@@ -103,7 +103,7 @@ fn copy_plan_identities(
 fn prepared_children(
   executable : @worker_executable_file.WorkerExecutableAdmission,
   process_limits : @process.ProcessLimits,
-  world_size : Int,
+  world_size : Int32,
 ) -> FixedArray[RankGroupChildOwner] raise RankGroupProcessError {
   let first = executable.prepare_child(process_limits) catch {
     _ => raise Invalid(Limit)

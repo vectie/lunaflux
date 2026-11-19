@@ -3,9 +3,9 @@
 pub struct ExecutionLimits {
   kernels : @refkernels.ReferenceLimits
   sampling : @sampling.SamplingLimits
-  max_operations : Int
-  max_tensors : Int
-  max_input_tokens : Int
+  max_operations : Int32
+  max_tensors : Int32
+  max_input_tokens : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -14,7 +14,7 @@ pub struct ExecutionResult {
   identity : @spec.ModelIdentity
   logits : @refkernels.Activation
   selection : @sampling.Selection
-  operation_count : Int
+  operation_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -28,8 +28,8 @@ pub struct PreparedModel {
 /// Immutable greedy tokens produced by bounded full-prefill recomputation.
 pub struct GenerationResult {
   identity : @spec.ModelIdentity
-  input_tokens : Int
-  generated_tokens : ReadOnlyArray[Int]
+  input_tokens : Int32
+  generated_tokens : ReadOnlyArray[Int32]
 } derive(Debug, Eq)
 
 ///|
@@ -37,9 +37,9 @@ pub struct GenerationResult {
 pub fn ExecutionLimits::new(
   kernels~ : @refkernels.ReferenceLimits,
   sampling~ : @sampling.SamplingLimits,
-  max_operations~ : Int,
-  max_tensors~ : Int,
-  max_input_tokens~ : Int,
+  max_operations~ : Int32,
+  max_tensors~ : Int32,
+  max_input_tokens~ : Int32,
 ) -> ExecutionLimits raise ReferenceExecutionError {
   if max_operations <= 0 {
     raise InvalidLimit(Operations)
@@ -68,17 +68,17 @@ pub fn ExecutionLimits::sampling(
 }
 
 ///|
-pub fn ExecutionLimits::max_operations(self : ExecutionLimits) -> Int {
+pub fn ExecutionLimits::max_operations(self : ExecutionLimits) -> Int32 {
   self.max_operations
 }
 
 ///|
-pub fn ExecutionLimits::max_tensors(self : ExecutionLimits) -> Int {
+pub fn ExecutionLimits::max_tensors(self : ExecutionLimits) -> Int32 {
   self.max_tensors
 }
 
 ///|
-pub fn ExecutionLimits::max_input_tokens(self : ExecutionLimits) -> Int {
+pub fn ExecutionLimits::max_input_tokens(self : ExecutionLimits) -> Int32 {
   self.max_input_tokens
 }
 
@@ -102,7 +102,7 @@ pub fn ExecutionResult::selection(
 }
 
 ///|
-pub fn ExecutionResult::operation_count(self : ExecutionResult) -> Int {
+pub fn ExecutionResult::operation_count(self : ExecutionResult) -> Int32 {
   self.operation_count
 }
 
@@ -112,7 +112,7 @@ pub fn PreparedModel::identity(self : PreparedModel) -> @spec.ModelIdentity {
 }
 
 ///|
-pub fn PreparedModel::tensor_count(self : PreparedModel) -> Int {
+pub fn PreparedModel::tensor_count(self : PreparedModel) -> Int32 {
   self.tensors.length()
 }
 
@@ -124,13 +124,13 @@ pub fn GenerationResult::identity(
 }
 
 ///|
-pub fn GenerationResult::input_tokens(self : GenerationResult) -> Int {
+pub fn GenerationResult::input_tokens(self : GenerationResult) -> Int32 {
   self.input_tokens
 }
 
 ///|
 pub fn GenerationResult::generated_tokens(
   self : GenerationResult,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.generated_tokens
 }

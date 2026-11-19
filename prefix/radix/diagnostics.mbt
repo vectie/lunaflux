@@ -4,19 +4,19 @@ pub fn PrefixEntrySnapshot::id(self : PrefixEntrySnapshot) -> PrefixEntryId {
 }
 
 ///|
-pub fn PrefixEntrySnapshot::token_count(self : PrefixEntrySnapshot) -> Int {
+pub fn PrefixEntrySnapshot::token_count(self : PrefixEntrySnapshot) -> Int32 {
   self.token_count
 }
 
 ///|
-pub fn PrefixEntrySnapshot::page_count(self : PrefixEntrySnapshot) -> Int {
+pub fn PrefixEntrySnapshot::page_count(self : PrefixEntrySnapshot) -> Int32 {
   self.page_count
 }
 
 ///|
 pub fn PrefixEntrySnapshot::active_reference_count(
   self : PrefixEntrySnapshot,
-) -> Int {
+) -> Int32 {
   self.active_references
 }
 
@@ -26,36 +26,36 @@ pub fn PrefixEntrySnapshot::recency(self : PrefixEntrySnapshot) -> UInt64 {
 }
 
 ///|
-pub fn PrefixIndexSnapshot::entry_count(self : PrefixIndexSnapshot) -> Int {
+pub fn PrefixIndexSnapshot::entry_count(self : PrefixIndexSnapshot) -> Int32 {
   self.entry_count
 }
 
 ///|
 pub fn PrefixIndexSnapshot::retired_entry_count(
   self : PrefixIndexSnapshot,
-) -> Int {
+) -> Int32 {
   self.retired_entry_count
 }
 
 ///|
-pub fn PrefixIndexSnapshot::node_count(self : PrefixIndexSnapshot) -> Int {
+pub fn PrefixIndexSnapshot::node_count(self : PrefixIndexSnapshot) -> Int32 {
   self.node_count
 }
 
 ///|
-pub fn PrefixIndexSnapshot::page_count(self : PrefixIndexSnapshot) -> Int {
+pub fn PrefixIndexSnapshot::page_count(self : PrefixIndexSnapshot) -> Int32 {
   self.page_count
 }
 
 ///|
-pub fn PrefixIndexSnapshot::snapshot_count(self : PrefixIndexSnapshot) -> Int {
+pub fn PrefixIndexSnapshot::snapshot_count(self : PrefixIndexSnapshot) -> Int32 {
   self.entries.length()
 }
 
 ///|
 pub fn PrefixIndexSnapshot::entry_at(
   self : PrefixIndexSnapshot,
-  index : Int,
+  index : Int32,
 ) -> PrefixEntrySnapshot raise PrefixIndexError {
   if index < 0 || index >= self.entries.length() {
     raise ResultIndexOutOfBounds

@@ -1,7 +1,7 @@
 ///|
 fn fp8_hostile_artifact_entries(
-  omit? : Int = -1,
-  duplicate? : Int = -1,
+  omit~ : Int32 = -1,
+  duplicate~ : Int32 = -1,
 ) -> Array[@artifact.KernelEntryPointInput] {
   let result : Array[@artifact.KernelEntryPointInput] = []
   for index in 0..<4 {

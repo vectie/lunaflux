@@ -21,13 +21,13 @@ pub(all) suberror RankChildControlError {
 ///|
 #valtype
 pub struct RankChildReceiveProgress {
-  priv kind : Int
+  priv kind : Int32
 }
 
 ///|
 #valtype
 pub struct RankChildSendProgress {
-  priv kind : Int
+  priv kind : Int32
 }
 
 ///|
@@ -41,13 +41,13 @@ pub struct RankChildControl {
   priv mut receive_active : Bool
   priv mut receive_held : Bool
   priv mut receive_held_eof : Bool
-  priv mut receive_held_length : Int
+  priv mut receive_held_length : Int32
   priv mut inbound_active : Bool
   priv mut inbound_epoch : UInt64
   priv mut inbound_kind : @rank_group_wire.RankGroupWireKind
   priv mut inbound_slot : @rank_group_wire.RankGroupWireSlot?
   priv mut inbound_sequence : UInt64
-  priv mut inbound_payload_length : Int
+  priv mut inbound_payload_length : Int32
   priv mut send_active : Bool
   priv mut last_graph_sidecar_sequence : UInt64
   priv mut failed_value : Bool

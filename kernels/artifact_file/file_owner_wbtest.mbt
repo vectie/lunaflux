@@ -11,7 +11,7 @@ test "filesystem failures map without paths or native payloads" {
 }
 
 ///|
-fn primary_preservation_probe() -> Int raise KernelArtifactFileError {
+fn primary_preservation_probe() -> Int32 raise KernelArtifactFileError {
   let primary = DigestMismatch(ModuleFile(0))
   raise_primary_after_cleanup(primary, () => {
     raise FileIo(file=ModuleFile(0), operation=CloseFile, issue=Failed)

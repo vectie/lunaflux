@@ -3,8 +3,8 @@ fn valid_window_join_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -14,10 +14,10 @@ fn valid_window_join_symbol(symbol : StringView) -> Bool {
 /// valid prefix and `-1` padding. Output is literal window-first concatenation
 /// followed by `-1` padding to the baked maximum width; no sort or dedup occurs.
 pub fn deterministic_window_compressed_join_i32_source(
-  window_size~ : Int,
-  compression_ratio~ : Int,
-  maximum_position_count~ : Int,
-  maximum_rows~ : Int,
+  window_size~ : Int32,
+  compression_ratio~ : Int32,
+  maximum_position_count~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> DecoderWindowCompressedJoinCudaSource raise DecoderWindowCompressedJoinCudaSourceError {
   if window_size <= 0 {

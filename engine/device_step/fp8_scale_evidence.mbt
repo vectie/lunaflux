@@ -1,12 +1,12 @@
 ///|
-fn fp8_scale_cell_valid(bits : UInt) -> Bool {
+fn fp8_scale_cell_valid(bits : UInt32) -> Bool {
   (bits & 0x80000000) == 0 &&
   (bits & 0x7fffffff) != 0 &&
   (bits & 0x7f800000) != 0x7f800000
 }
 
 ///|
-fn fp8_scale_read_u32(bytes : FixedArray[Byte], offset : Int) -> UInt {
+fn fp8_scale_read_u32(bytes : FixedArray[Byte], offset : Int32) -> UInt32 {
   bytes[offset].to_uint() |
   (bytes[offset + 1].to_uint() << 8) |
   (bytes[offset + 2].to_uint() << 16) |

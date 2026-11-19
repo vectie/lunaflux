@@ -150,9 +150,9 @@ fn component_index(component : DeviceKvComponent) -> Int64 {
 /// Resolves one layer/component/physical-page segment in constant time.
 pub fn DeviceKvLayout::region(
   self : DeviceKvLayout,
-  layer_index : Int,
+  layer_index : Int32,
   component : DeviceKvComponent,
-  page_index : Int,
+  page_index : Int32,
 ) -> DeviceKvRegion raise DeviceKvLayoutError {
   if layer_index < 0 || layer_index >= self.geometry.layer_count() {
     raise IndexOutOfBounds(Layer)
@@ -192,8 +192,8 @@ pub fn DeviceKvLayout::region(
 
 ///|
 fn check_element_index(
-  index : Int,
-  upper_bound : Int,
+  index : Int32,
+  upper_bound : Int32,
   kind : DeviceKvIndexKind,
 ) -> Unit raise DeviceKvLayoutError {
   if index < 0 || index >= upper_bound {
@@ -209,12 +209,12 @@ fn check_element_index(
 /// is never addressable as a logical element.
 pub fn DeviceKvLayout::element_offset_bytes(
   self : DeviceKvLayout,
-  layer_index : Int,
+  layer_index : Int32,
   component : DeviceKvComponent,
-  page_index : Int,
-  token_index : Int,
-  kv_head_index : Int,
-  head_dimension_index : Int,
+  page_index : Int32,
+  token_index : Int32,
+  kv_head_index : Int32,
+  head_dimension_index : Int32,
 ) -> Int64 raise DeviceKvLayoutError {
   check_element_index(token_index, self.tokens_per_page(), Token)
   check_element_index(kv_head_index, self.geometry.kv_head_count(), KvHead)

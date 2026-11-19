@@ -1,15 +1,15 @@
 ///|
 /// Offline and startup bounds for one deterministic device-sampling artifact.
 pub struct DeviceSamplingAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
   priv max_module_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 pub fn DeviceSamplingAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
   max_module_bytes~ : Int64,
 ) -> DeviceSamplingAotLimits raise SamplingBoundaryError {
   if max_source_bytes <= 0 || max_recipe_bytes <= 0 || max_module_bytes <= 0L {
@@ -191,8 +191,8 @@ pub(all) enum DeviceSamplingCudaOperandV2 {
 pub struct DeviceSamplingCudaAbiV2 {
   priv function_symbol : String
   priv operands : ReadOnlyArray[DeviceSamplingCudaOperandV2]
-  priv grid_x : Int
-  priv block_x : Int
+  priv grid_x : Int32
+  priv block_x : Int32
   priv parameter_bytes : Int64
   priv workspace_bytes : Int64
   priv result_bytes : Int64
@@ -213,12 +213,14 @@ pub fn DeviceSamplingCudaAbiV2::operands(
 }
 
 ///|
-pub fn DeviceSamplingCudaAbiV2::grid_x(self : DeviceSamplingCudaAbiV2) -> Int {
+pub fn DeviceSamplingCudaAbiV2::grid_x(self : DeviceSamplingCudaAbiV2) -> Int32 {
   self.grid_x
 }
 
 ///|
-pub fn DeviceSamplingCudaAbiV2::block_x(self : DeviceSamplingCudaAbiV2) -> Int {
+pub fn DeviceSamplingCudaAbiV2::block_x(
+  self : DeviceSamplingCudaAbiV2,
+) -> Int32 {
   self.block_x
 }
 

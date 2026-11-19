@@ -1,20 +1,20 @@
 ///|
-pub struct LunaTileTensorId(Int) derive(Debug, Eq, Hash)
+pub struct LunaTileTensorId(Int32) derive(Debug, Eq, Hash)
 
 ///|
-pub struct LunaTileStageId(Int) derive(Debug, Eq, Hash)
+pub struct LunaTileStageId(Int32) derive(Debug, Eq, Hash)
 
 ///|
-pub struct LunaTileConstraintId(Int) derive(Debug, Eq, Hash)
+pub struct LunaTileConstraintId(Int32) derive(Debug, Eq, Hash)
 
 ///|
 /// Stable, source-safe identity used to derive a CUDA entry-point symbol.
 /// Caller text is never accepted as source or as a symbol fragment.
-pub struct LunaTileEntryPointId(Int) derive(Debug, Eq, Hash)
+pub struct LunaTileEntryPointId(Int32) derive(Debug, Eq, Hash)
 
 ///|
 pub fn LunaTileTensorId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> LunaTileTensorId raise LunaTileError {
   if value <= 0 {
     raise InvalidProgram(Identifier)
@@ -23,13 +23,13 @@ pub fn LunaTileTensorId::from_stable_int(
 }
 
 ///|
-pub fn LunaTileTensorId::as_int(self : LunaTileTensorId) -> Int {
+pub fn LunaTileTensorId::as_int(self : LunaTileTensorId) -> Int32 {
   self.0
 }
 
 ///|
 pub fn LunaTileStageId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> LunaTileStageId raise LunaTileError {
   if value <= 0 {
     raise InvalidProgram(Identifier)
@@ -38,13 +38,13 @@ pub fn LunaTileStageId::from_stable_int(
 }
 
 ///|
-pub fn LunaTileStageId::as_int(self : LunaTileStageId) -> Int {
+pub fn LunaTileStageId::as_int(self : LunaTileStageId) -> Int32 {
   self.0
 }
 
 ///|
 pub fn LunaTileConstraintId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> LunaTileConstraintId raise LunaTileError {
   if value <= 0 {
     raise InvalidProgram(Identifier)
@@ -53,13 +53,13 @@ pub fn LunaTileConstraintId::from_stable_int(
 }
 
 ///|
-pub fn LunaTileConstraintId::as_int(self : LunaTileConstraintId) -> Int {
+pub fn LunaTileConstraintId::as_int(self : LunaTileConstraintId) -> Int32 {
   self.0
 }
 
 ///|
 pub fn LunaTileEntryPointId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> LunaTileEntryPointId raise LunaTileError {
   if value <= 0 {
     raise InvalidProgram(Identifier)
@@ -68,6 +68,6 @@ pub fn LunaTileEntryPointId::from_stable_int(
 }
 
 ///|
-pub fn LunaTileEntryPointId::as_int(self : LunaTileEntryPointId) -> Int {
+pub fn LunaTileEntryPointId::as_int(self : LunaTileEntryPointId) -> Int32 {
   self.0
 }

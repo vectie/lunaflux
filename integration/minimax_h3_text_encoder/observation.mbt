@@ -1,9 +1,9 @@
 ///|
 /// Pure partition derived from the same layer recipe as binding. Include the
 /// visual embedding replacement and three post-layer deepstack additions.
-fn hidden_state_boundaries(visual : Bool) -> ReadOnlyArray[(Int, Int)] {
+fn hidden_state_boundaries(visual : Bool) -> ReadOnlyArray[(Int32, Int32)] {
   let embedding_end = if visual { 2 } else { 1 }
-  let ends : Array[(Int, Int)] = [(0, embedding_end)]
+  let ends : Array[(Int32, Int32)] = [(0, embedding_end)]
   for layer in 0..<50; end = embedding_end {
     let visual_steps = if visual && deepstack_stage(layer) is Some(_) {
       1
@@ -24,8 +24,8 @@ fn hidden_state_boundaries(visual : Bool) -> ReadOnlyArray[(Int, Int)] {
 /// rerun it; close/cancel deterministically release the prepared queue owners.
 pub fn EncoderRequest::execute_observed(
   self : Self,
-  on_hidden_state~ : (Int, Bytes) -> Unit raise,
-  original_hidden_state? : (Int) -> Bytes raise,
+  on_hidden_state~ : (Int32, Bytes) -> Unit raise,
+  original_hidden_state? : (Int32) -> Bytes raise,
 ) -> Unit raise {
   guard self.phase == Prepared &&
     self.queue is None &&
@@ -68,9 +68,9 @@ pub fn EncoderRequest::execute_observed(
 
 ///|
 fn matched_layer_input(
-  next_hidden : Int,
+  next_hidden : Int32,
   output_bytes : Int64,
-  original : ((Int) -> Bytes raise)?,
+  original : ((Int32) -> Bytes raise)?,
 ) -> Bytes? raise {
   if next_hidden == 0 || original is None {
     return None
@@ -84,9 +84,9 @@ fn matched_layer_input(
 
 ///|
 fn observe_hidden_states(
-  count : Int,
-  run : (Int) -> Bytes raise,
-  consume : (Int, Bytes) -> Unit raise,
+  count : Int32,
+  run : (Int32) -> Bytes raise,
+  consume : (Int32, Bytes) -> Unit raise,
 ) -> Unit raise {
   for hidden in 0..<count {
     let snapshot = run(hidden)

@@ -1,13 +1,13 @@
 ///|
 fn validate_completion_frame_source(
   bytes : FixedArray[Byte],
-  supplied_length : Int,
+  supplied_length : Int32,
   worker_limits : @worker_protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
-  destination_capacity : Int,
+  destination_capacity : Int32,
   validation_requests : FixedArray[UInt64],
-  validation_slots : FixedArray[Int],
-) -> Int raise WorkerWireError {
+  validation_slots : FixedArray[Int32],
+) -> Int32 raise WorkerWireError {
   if supplied_length < completion_header_bytes ||
     supplied_length > bytes.length() {
     raise SourceTooSmall
@@ -104,7 +104,7 @@ fn validate_completion_frame_source(
 pub fn CompletionFrameBuffer::load(
   self : CompletionFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedCompletionFrame raise WorkerWireError {
   self.require_no_writer()
   if self.epoch == 0xffffffffffffffffUL {
@@ -134,7 +134,7 @@ pub fn CompletionFrameBuffer::load(
 pub fn ValidatedCompletionFrame::copy_to(
   self : ValidatedCompletionFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise WorkerWireError {
   let owner = self.owner()
   if destination_offset < 0 ||

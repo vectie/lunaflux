@@ -1,5 +1,5 @@
 ///|
-fn completion_test_scratch(size : Int) -> PagedCompletionScratch {
+fn completion_test_scratch(size : Int32) -> PagedCompletionScratch {
   let limits = try! @sampling.SamplingLimits::new(2, size)
   {
     final_output_offset: 0L,

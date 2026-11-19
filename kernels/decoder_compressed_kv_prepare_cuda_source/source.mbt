@@ -3,8 +3,8 @@ fn valid_compressed_kv_prepare_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -15,11 +15,11 @@ fn valid_compressed_kv_prepare_symbol(symbol : StringView) -> Bool {
 /// order, followed by the completed compressed-cache prefix. No sort, dedup,
 /// learned compression, cache ownership, index production, or attention occurs.
 pub fn non_overlapping_shared_kv_prepare_bf16_source(
-  window_size~ : Int,
-  compression_ratio~ : Int,
-  head_dimension~ : Int,
-  maximum_position_count~ : Int,
-  maximum_batches~ : Int,
+  window_size~ : Int32,
+  compression_ratio~ : Int32,
+  head_dimension~ : Int32,
+  maximum_position_count~ : Int32,
+  maximum_batches~ : Int32,
   function_symbol~ : String,
 ) -> DecoderCompressedKvPrepareCudaSource raise DecoderCompressedKvPrepareCudaSourceError {
   if window_size <= 0 || compression_ratio <= 1 {

@@ -1,9 +1,9 @@
 ///|
 pub fn DeepSeekV4HostMaterializationLimits::new(
   maximum_total_host_bytes~ : Int64,
-  maximum_arena_bytes~ : Int,
-  maximum_arenas~ : Int,
-  maximum_index_entries~ : Int,
+  maximum_arena_bytes~ : Int32,
+  maximum_arenas~ : Int32,
+  maximum_index_entries~ : Int32,
 ) -> Self raise DeepSeekV4HostMaterializationError {
   if maximum_total_host_bytes <= 0L ||
     maximum_arena_bytes <= 0 ||
@@ -41,7 +41,7 @@ pub fn DeepSeekV4HostExpectedDigests::new(
 ///|
 pub fn DeepSeekV4TensorIndexInput::new(
   tensor_name~ : String,
-  shard_ordinal~ : Int,
+  shard_ordinal~ : Int32,
 ) -> Self {
   { tensor_name, shard_ordinal, }
 }

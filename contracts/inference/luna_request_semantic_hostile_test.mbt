@@ -20,7 +20,7 @@ fn semantic_hostile_limits() -> @inference.InferenceLimits raise {
 
 ///|
 fn hostile_semantic_work(
-  tokens : Array[Int],
+  tokens : Array[Int32],
   strings : Array[Bytes],
   cache : Bytes,
 ) -> @inference.LunaRequestSemanticWork raise {

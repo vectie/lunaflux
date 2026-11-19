@@ -1,5 +1,5 @@
 ///|
-fn mistral_checked_tensor_count(layer_count : Int) -> Int {
+fn mistral_checked_tensor_count(layer_count : Int32) -> Int32 {
   let count = 3L + Int64::from_int(layer_count) * 9L
   if count > 2147483647L {
     2147483647
@@ -35,7 +35,7 @@ fn mistral_expected_plan(
 fn mistral_dimensions_match(
   actual : ReadOnlyArray[Int64],
   expected : ArrayView[Int64],
-  reference : Int,
+  reference : Int32,
 ) -> Unit raise MistralWeightsError {
   if actual.length() != expected.length() {
     raise InvalidTensor(reference~, TensorRank)

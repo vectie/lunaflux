@@ -11,7 +11,7 @@ pub extend SourcePlane with Eq::{equal, not_equal}
 pub extend SourcePlane with @debug.Debug::{to_repr}
 
 ///|
-fn read_code(bytes : Bytes, offset : Int, width : Int) -> UInt {
+fn read_code(bytes : Bytes, offset : Int32, width : Int32) -> UInt32 {
   for i in 0..<width; code = 0U {
     continue code | (bytes[offset + i].to_uint() << (8 * i))
   } nobreak {
@@ -26,9 +26,9 @@ fn read_code(bytes : Bytes, offset : Int, width : Int) -> UInt {
 fn stream_parameters(
   plan : @precision.OperandPlan,
   global_scale : Float,
-  chunk_elements : Int,
+  chunk_elements : Int32,
   host_scratch_ceiling : Int64,
-) -> (@format.Representation, Int) raise MaterializeError {
+) -> (@format.Representation, Int32) raise MaterializeError {
   if plan.role() != Weight ||
     plan.placement() != StartupExpandBf16 ||
     plan.effect() != StartupWrite ||
@@ -67,10 +67,10 @@ fn stream_parameters(
 ///|
 pub fn stream_bf16_weight(
   plan : @precision.OperandPlan,
-  global_scale? : Float = 1.0F,
-  chunk_elements~ : Int,
+  global_scale~ : Float = 1.0F,
+  chunk_elements~ : Int32,
   host_scratch_ceiling~ : Int64,
-  read : (SourcePlane, Int64, Int) -> Bytes raise MaterializeError,
+  read : (SourcePlane, Int64, Int32) -> Bytes raise MaterializeError,
   consume : (Int64, Bytes) -> Unit raise MaterializeError,
 ) -> Unit raise MaterializeError {
   let (rep, chunk) = stream_parameters(
@@ -173,9 +173,9 @@ pub fn stream_bf16_weight(
 pub fn stream_bf16_weights(
   schema : @precision.WeightSchema,
   global_scales : ArrayView[Float],
-  chunk_elements~ : Int,
+  chunk_elements~ : Int32,
   host_scratch_ceiling~ : Int64,
-  read : (Int, SourcePlane, Int64, Int) -> Bytes raise MaterializeError,
+  read : (Int32, SourcePlane, Int64, Int32) -> Bytes raise MaterializeError,
   consume : (Int64, Bytes) -> Unit raise MaterializeError,
 ) -> Unit raise MaterializeError {
   let bindings = schema.bindings()

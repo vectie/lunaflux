@@ -21,8 +21,8 @@ fn row_variant_base(symbol : String) -> ReusableFusedRuntimeModuleInput raise {
 
 ///|
 fn row_variant_fixture(
-  maximum : Int,
-  rows : Int,
+  maximum : Int32,
+  rows : Int32,
 ) -> ReusableFusedRuntimeRowVariant raise {
   ReusableFusedRuntimeRowVariant::new(
     maximum_token_rows=maximum,

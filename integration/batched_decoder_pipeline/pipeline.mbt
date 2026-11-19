@@ -19,7 +19,7 @@ pub struct BatchedTensorPipeline {
   priv local : @rank.BatchedDecoderRank
   priv remote : @control.DecoderStageClient
   priv local_completion : @wire.CompletionFrameBuffer
-  priv samples : Array[Int]
+  priv samples : Array[Int32]
   priv timeout : UInt64
   priv mut epoch : UInt64
   priv mut last_tick : UInt64
@@ -40,7 +40,7 @@ pub fn BatchedTensorPipeline::new(
   remote : @control.DecoderStageClient,
   limits : @protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
-  timeout_millis? : UInt64 = 300000UL,
+  timeout_millis~ : UInt64 = 300000UL,
 ) -> Self raise {
   guard !local.outputs_token() &&
     remote.outputs_token() &&

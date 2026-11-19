@@ -45,7 +45,7 @@ pub fn PagedGraphExecutor::prepare_host_cache(
 /// Only immutable cold pages may be submitted by the prefix integration.
 pub fn PagedGraphExecutor::begin_prefix_spill(
   self : PagedGraphExecutor,
-  page_index : Int,
+  page_index : Int32,
 ) -> @host_cache.Start raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
   guard self.resources.host_cache is Some(cache) else {
@@ -63,7 +63,7 @@ pub fn PagedGraphExecutor::begin_prefix_spill(
 pub fn PagedGraphExecutor::begin_prefix_restore(
   self : PagedGraphExecutor,
   entry : @residency.Entry,
-  page_index : Int,
+  page_index : Int32,
 ) -> @host_cache.Start raise DeviceStepError {
   require_paged_lifecycle(self.lifecycle, GraphReady)
   guard self.resources.host_cache is Some(cache) else {

@@ -35,7 +35,7 @@ pub fn LunaBf16PromotionDigest::from_sha256(
     raise LunaBf16PromotionRejected(Digest)
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       raise LunaBf16PromotionRejected(Digest)
     }
   }
@@ -51,22 +51,22 @@ pub fn LunaBf16PromotionDigest::as_hex(
 
 ///|
 pub struct LunaBf16ProfilerEvidenceLimits {
-  priv maximum_candidates : Int
-  priv maximum_shapes_per_candidate : Int
-  priv trials_per_shape : Int
-  priv end_to_end_trials : Int
-  priv maximum_end_to_end_regression_ppm : Int
-  priv maximum_canonical_bytes : Int
+  priv maximum_candidates : Int32
+  priv maximum_shapes_per_candidate : Int32
+  priv trials_per_shape : Int32
+  priv end_to_end_trials : Int32
+  priv maximum_end_to_end_regression_ppm : Int32
+  priv maximum_canonical_bytes : Int32
 }
 
 ///|
 pub fn LunaBf16ProfilerEvidenceLimits::new(
-  maximum_candidates~ : Int,
-  maximum_shapes_per_candidate~ : Int,
-  trials_per_shape~ : Int,
-  end_to_end_trials~ : Int,
-  maximum_end_to_end_regression_ppm~ : Int,
-  maximum_canonical_bytes~ : Int,
+  maximum_candidates~ : Int32,
+  maximum_shapes_per_candidate~ : Int32,
+  trials_per_shape~ : Int32,
+  end_to_end_trials~ : Int32,
+  maximum_end_to_end_regression_ppm~ : Int32,
+  maximum_canonical_bytes~ : Int32,
 ) -> LunaBf16ProfilerEvidenceLimits raise LunaBf16PromotionError {
   if maximum_candidates <= 0 ||
     maximum_candidates > 4096 ||
@@ -94,19 +94,19 @@ pub fn LunaBf16ProfilerEvidenceLimits::new(
 
 ///|
 pub struct LunaBf16BenchmarkShape {
-  priv prefill_rows : Int
-  priv decode_rows : Int
-  priv query_tokens : Int
-  priv page_table_entries : Int
+  priv prefill_rows : Int32
+  priv decode_rows : Int32
+  priv query_tokens : Int32
+  priv page_table_entries : Int32
   priv trace : LunaBf16PromotionDigest
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaBf16BenchmarkShape::new(
-  prefill_rows~ : Int,
-  decode_rows~ : Int,
-  query_tokens~ : Int,
-  page_table_entries~ : Int,
+  prefill_rows~ : Int32,
+  decode_rows~ : Int32,
+  query_tokens~ : Int32,
+  page_table_entries~ : Int32,
   trace~ : LunaBf16PromotionDigest,
 ) -> LunaBf16BenchmarkShape raise LunaBf16PromotionError {
   if prefill_rows < 0 ||
@@ -122,8 +122,8 @@ pub fn LunaBf16BenchmarkShape::new(
 ///|
 pub struct LunaBf16MicrobenchmarkObservation {
   priv operation : @plan.OperationId
-  priv shape_ordinal : Int
-  priv trial_ordinal : Int
+  priv shape_ordinal : Int32
+  priv trial_ordinal : Int32
   priv shape : LunaBf16BenchmarkShape
   priv baseline_duration_ns : Int64
   priv candidate_duration_ns : Int64
@@ -135,8 +135,8 @@ pub struct LunaBf16MicrobenchmarkObservation {
 ///|
 pub fn LunaBf16MicrobenchmarkObservation::new(
   operation~ : @plan.OperationId,
-  shape_ordinal~ : Int,
-  trial_ordinal~ : Int,
+  shape_ordinal~ : Int32,
+  trial_ordinal~ : Int32,
   shape~ : LunaBf16BenchmarkShape,
   baseline_duration_ns~ : Int64,
   candidate_duration_ns~ : Int64,
@@ -167,7 +167,7 @@ pub fn LunaBf16MicrobenchmarkObservation::new(
 
 ///|
 pub struct LunaBf16EndToEndObservation {
-  priv trial_ordinal : Int
+  priv trial_ordinal : Int32
   priv workload : LunaBf16PromotionDigest
   priv baseline_duration_ns : Int64
   priv candidate_duration_ns : Int64
@@ -177,7 +177,7 @@ pub struct LunaBf16EndToEndObservation {
 
 ///|
 pub fn LunaBf16EndToEndObservation::new(
-  trial_ordinal~ : Int,
+  trial_ordinal~ : Int32,
   workload~ : LunaBf16PromotionDigest,
   baseline_duration_ns~ : Int64,
   candidate_duration_ns~ : Int64,
@@ -211,8 +211,8 @@ pub struct LunaBf16ProfilerEvidence {
   priv candidate_set_digest : String
   priv compiler_digest : LunaBf16PromotionDigest
   priv profile_capture_digest : @luna_profile_priority.LunaKernelProfileDigest
-  priv microbenchmark_count : Int
-  priv end_to_end_count : Int
+  priv microbenchmark_count : Int32
+  priv end_to_end_count : Int32
   priv canonical : Bytes
   priv digest : LunaBf16PromotionDigest
 }
@@ -234,25 +234,25 @@ pub fn LunaBf16ProfilerEvidence::canonical_bytes(
 ///|
 pub fn LunaBf16ProfilerEvidence::microbenchmark_count(
   self : LunaBf16ProfilerEvidence,
-) -> Int {
+) -> Int32 {
   self.microbenchmark_count
 }
 
 ///|
 pub fn LunaBf16ProfilerEvidence::end_to_end_count(
   self : LunaBf16ProfilerEvidence,
-) -> Int {
+) -> Int32 {
   self.end_to_end_count
 }
 
 ///|
 pub struct LunaBf16PromotionLimits {
-  priv maximum_canonical_bytes : Int
+  priv maximum_canonical_bytes : Int32
 }
 
 ///|
 pub fn LunaBf16PromotionLimits::new(
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> LunaBf16PromotionLimits raise LunaBf16PromotionError {
   if maximum_canonical_bytes <= 0 || maximum_canonical_bytes > 16777216 {
     raise LunaBf16PromotionRejected(Limits)
@@ -269,7 +269,7 @@ pub struct LunaBf16OfflinePromotion {
   priv candidate_set_digest : String
   priv release_manifest_digest : String
   priv launch_contract_digest : LunaBf16PromotionDigest
-  priv operation_count : Int
+  priv operation_count : Int32
 }
 
 ///|
@@ -289,7 +289,7 @@ pub fn LunaBf16OfflinePromotion::profiler_evidence_digest(
 ///|
 pub fn LunaBf16OfflinePromotion::operation_count(
   self : LunaBf16OfflinePromotion,
-) -> Int {
+) -> Int32 {
   self.operation_count
 }
 

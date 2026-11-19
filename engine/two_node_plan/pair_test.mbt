@@ -2,8 +2,8 @@
 fn rewrite_rank(
   model : @plan.ModelPlan,
   rank : @tensor_parallel_plan.TensorParallelRankPlan,
-  source_shift? : Int64 = 0L,
-  drop_collective? : Bool = false,
+  source_shift~ : Int64 = 0L,
+  drop_collective~ : Bool = false,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan raise {
   let tensors : Array[@tensor_parallel_plan.TensorRankPlacement] = []
   for index in 0..<rank.tensor_count() {

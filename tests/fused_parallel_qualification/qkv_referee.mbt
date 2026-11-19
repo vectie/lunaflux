@@ -1,9 +1,9 @@
 ///|
 fn fused_qualification_dot(
-  input : ArrayView[Int],
-  weights : ArrayView[Int],
-  token : Int,
-  column : Int,
+  input : ArrayView[Int32],
+  weights : ArrayView[Int32],
+  token : Int32,
+  column : Int32,
 ) -> Float {
   let mut sum = 0.0F
   for inner in 0..<FUSED_QUALIFICATION_INPUT_WIDTH {
@@ -19,12 +19,12 @@ fn fused_qualification_dot(
 
 ///|
 fn fused_qualification_projected(
-  input : ArrayView[Int],
-  q_weight : ArrayView[Int],
-  k_weight : ArrayView[Int],
-  v_weight : ArrayView[Int],
-  token : Int,
-  column : Int,
+  input : ArrayView[Int32],
+  q_weight : ArrayView[Int32],
+  k_weight : ArrayView[Int32],
+  v_weight : ArrayView[Int32],
+  token : Int32,
+  column : Int32,
 ) -> Float {
   let value = if column < FUSED_QUALIFICATION_QUERY_WIDTH {
     fused_qualification_dot(input, q_weight, token, column)
@@ -49,14 +49,14 @@ fn fused_qualification_projected(
 
 ///|
 fn fused_qualification_rotated(
-  input : ArrayView[Int],
-  q_weight : ArrayView[Int],
-  k_weight : ArrayView[Int],
-  v_weight : ArrayView[Int],
-  token : Int,
-  position : Int,
-  column : Int,
-) -> Int {
+  input : ArrayView[Int32],
+  q_weight : ArrayView[Int32],
+  k_weight : ArrayView[Int32],
+  v_weight : ArrayView[Int32],
+  token : Int32,
+  position : Int32,
+  column : Int32,
+) -> Int32 {
   let projected = fused_qualification_projected(
     input, q_weight, k_weight, v_weight, token, column,
   )
@@ -94,11 +94,11 @@ fn fused_qualification_rotated(
 ///|
 fn fused_qualification_qkv_reference(
   shape : FusedQualificationShape,
-  input : ArrayView[Int],
-  q_weight : ArrayView[Int],
-  k_weight : ArrayView[Int],
-  v_weight : ArrayView[Int],
-) -> (Array[Int], Array[Int], Array[Int]) raise FusedQualificationError {
+  input : ArrayView[Int32],
+  q_weight : ArrayView[Int32],
+  k_weight : ArrayView[Int32],
+  v_weight : ArrayView[Int32],
+) -> (Array[Int32], Array[Int32], Array[Int32]) raise FusedQualificationError {
   if input.length() != shape.token_count * FUSED_QUALIFICATION_INPUT_WIDTH ||
     q_weight.length() !=
     FUSED_QUALIFICATION_INPUT_WIDTH * FUSED_QUALIFICATION_QUERY_WIDTH ||

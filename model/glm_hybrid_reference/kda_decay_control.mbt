@@ -6,9 +6,9 @@ pub fn kda_safe_decay_control(
   raw_forget : ArrayView[Double],
   dt_bias : ArrayView[Double],
   a_log : ArrayView[Double],
-  row_count~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  row_count~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
   lower_bound~ : Double,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmKdaDecayControlResult raise GlmHybridReferenceError {
@@ -51,17 +51,17 @@ pub fn kda_safe_decay_control(
 }
 
 ///|
-pub fn GlmKdaDecayControlResult::row_count(self : Self) -> Int {
+pub fn GlmKdaDecayControlResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmKdaDecayControlResult::head_count(self : Self) -> Int {
+pub fn GlmKdaDecayControlResult::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmKdaDecayControlResult::head_dimension(self : Self) -> Int {
+pub fn GlmKdaDecayControlResult::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 

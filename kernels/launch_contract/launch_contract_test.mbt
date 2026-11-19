@@ -66,7 +66,7 @@ fn contract_digest() -> @catalog.AotArtifactDigest {
 }
 
 ///|
-fn contract_family(stable_id : Int) -> @catalog.AotKernelFamily {
+fn contract_family(stable_id : Int32) -> @catalog.AotKernelFamily {
   let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(stable_id)
   @catalog.AotKernelFamily::new(module_digest=contract_digest(), family_id~)
 }
@@ -109,7 +109,7 @@ fn contract_catalog() -> @catalog.ResolvedKernelCatalog {
 }
 
 ///|
-fn profile(stable_id : Int, rows : Int) -> @launch_contract.KernelProfile {
+fn profile(stable_id : Int32, rows : Int32) -> @launch_contract.KernelProfile {
   let id = try! @launch_contract.KernelProfileId::from_stable_int(stable_id)
   try! @launch_contract.KernelProfile::full_prefill(
     id~,
@@ -120,7 +120,7 @@ fn profile(stable_id : Int, rows : Int) -> @launch_contract.KernelProfile {
 }
 
 ///|
-fn dimensions(rows : Int) -> @launch_contract.AotLaunchDimensions {
+fn dimensions(rows : Int32) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x=rows,
     grid_y=1,
@@ -133,7 +133,7 @@ fn dimensions(rows : Int) -> @launch_contract.AotLaunchDimensions {
 }
 
 ///|
-fn entry_point(family : Int, entry : Int) -> @catalog.AotKernelEntryPoint {
+fn entry_point(family : Int32, entry : Int32) -> @catalog.AotKernelEntryPoint {
   let entry_point_id = try! @catalog.AotKernelEntryPointId::from_stable_int(
     entry,
   )
@@ -144,7 +144,7 @@ fn entry_point(family : Int, entry : Int) -> @catalog.AotKernelEntryPoint {
 }
 
 ///|
-fn embedding_operands(rows : Int) -> Array[@launch_contract.AotOperand] {
+fn embedding_operands(rows : Int32) -> Array[@launch_contract.AotOperand] {
   [
     try! @launch_contract.AotOperand::new(
       role=ExternalInput(TokenIds),
@@ -165,7 +165,7 @@ fn embedding_operands(rows : Int) -> Array[@launch_contract.AotOperand] {
 }
 
 ///|
-fn norm_operands(rows : Int) -> Array[@launch_contract.AotOperand] {
+fn norm_operands(rows : Int32) -> Array[@launch_contract.AotOperand] {
   [
     try! @launch_contract.AotOperand::new(
       role=ActivationInput(@plan.ActivationRef::new(0)),
@@ -187,11 +187,11 @@ fn norm_operands(rows : Int) -> Array[@launch_contract.AotOperand] {
 
 ///|
 fn input(
-  profile_id : Int,
-  operation_id : Int,
-  family : Int,
-  entry : Int,
-  rows : Int,
+  profile_id : Int32,
+  operation_id : Int32,
+  family : Int32,
+  entry : Int32,
+  rows : Int32,
   operands : ArrayView[@launch_contract.AotOperand],
 ) -> @launch_contract.AotLaunchContractInput {
   let resolved_profile_id = try! @launch_contract.KernelProfileId::from_stable_int(

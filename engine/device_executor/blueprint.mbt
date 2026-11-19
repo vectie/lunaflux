@@ -177,7 +177,7 @@ fn bind_operand(
 fn function_blueprint_index(
   functions : Array[FunctionBlueprint],
   identity : @catalog.AotKernelEntryPoint,
-) -> Int? {
+) -> Int32? {
   for index, function in functions {
     if function.identity == identity {
       return Some(index)
@@ -191,7 +191,7 @@ fn append_function_blueprint(
   artifacts : @artifact.KernelArtifactBundle,
   functions : Array[FunctionBlueprint],
   identity : @catalog.AotKernelEntryPoint,
-) -> Int raise DeviceExecutorError {
+) -> Int32 raise DeviceExecutorError {
   if function_blueprint_index(functions, identity) is Some(index) {
     return index
   }

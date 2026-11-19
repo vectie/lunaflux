@@ -5,7 +5,7 @@ const PAGED_DEVICE_SAMPLING_PARAMETER_ROW_BYTES : Int64 = 40L
 const PAGED_DEVICE_SAMPLING_RESULT_ROW_BYTES : Int64 = 8L
 
 ///|
-const PAGED_DEVICE_SAMPLING_FALLBACK_MODE : Int = -1
+const PAGED_DEVICE_SAMPLING_FALLBACK_MODE : Int32 = -1
 
 ///|
 /// Binds the restrictive-top-k v2 ABI to the exact content-addressed module
@@ -16,7 +16,7 @@ pub fn admit_paged_embedded_cuda_device_sampling_v2(
   model_plan : @plan.ModelPlan,
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
-  maximum_top_k~ : Int,
+  maximum_top_k~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> PagedSamplingExecutionPolicy raise DeviceStepError {
   let boundary = @luna_cuda_sampling_aot.admit_host_sampling_boundary(
@@ -274,14 +274,14 @@ fn prepare_paged_cuda_device_sampling_step(
 ///|
 fn write_paged_device_sampling_row(
   host : FixedArray[Byte],
-  row : Int,
-  mode : Int,
-  top_k : Int,
+  row : Int32,
+  mode : Int32,
+  top_k : Int32,
   temperature : Double,
   top_p : Double,
   seed : UInt64,
-  sample_index : Int,
-  flags : Int,
+  sample_index : Int32,
+  flags : Int32,
 ) -> Unit {
   let offset = row * PAGED_DEVICE_SAMPLING_PARAMETER_ROW_BYTES.to_int()
   host.unsafe_write_uint32_le(offset, mode.reinterpret_as_uint())
@@ -296,7 +296,7 @@ fn write_paged_device_sampling_row(
 ///|
 fn write_paged_device_sampling_fallback(
   host : FixedArray[Byte],
-  row : Int,
+  row : Int32,
 ) -> Unit {
   write_paged_device_sampling_row(
     host,
@@ -314,10 +314,10 @@ fn write_paged_device_sampling_fallback(
 ///|
 fn paged_device_sampling_route(
   plan : @luna_sampling_strategy.SamplingDevicePlan,
-  mode : Int,
+  mode : Int32,
   temperature : Double,
   has_top_k : Bool,
-  top_k : Int,
+  top_k : Int32,
   has_top_p : Bool,
   top_p : Double,
 ) -> @luna_sampling_strategy.SamplingRoute raise DeviceStepError {
@@ -337,16 +337,16 @@ fn paged_device_sampling_route(
 ///|
 fn stage_paged_device_sampling_row(
   scratch : PagedDeviceSamplingScratch,
-  row : Int,
+  row : Int32,
   produces_token : Bool,
-  mode : Int,
+  mode : Int32,
   temperature : Double,
   has_top_k : Bool,
-  top_k : Int,
+  top_k : Int32,
   has_top_p : Bool,
   top_p : Double,
   seed : UInt64,
-  sample_index : Int,
+  sample_index : Int32,
 ) -> Unit raise DeviceStepError {
   if !produces_token ||
     paged_device_sampling_route(

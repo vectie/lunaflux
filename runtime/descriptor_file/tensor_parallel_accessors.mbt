@@ -57,7 +57,7 @@ pub fn TensorParallelRuntimeDescriptorAdmission::inference_limits(
 ///|
 pub fn TensorParallelRuntimeDescriptorAdmission::collective_exchange_timeout_millis(
   self : TensorParallelRuntimeDescriptorAdmission,
-) -> Int {
+) -> Int32 {
   self.collective_exchange_timeout_millis
 }
 

@@ -1,8 +1,8 @@
 ///|
 struct FrozenDistribution {
-  token_ids : FixedArray[Int]
+  token_ids : FixedArray[Int32]
   weights : FixedArray[Double]
-  count : Int
+  count : Int32
   total_weight : Double
 }
 
@@ -29,7 +29,7 @@ fn complexity_inference_limits() -> @inference.InferenceLimits raise {
 ///|
 fn complexity_parameters(
   temperature : Double,
-  top_k : Int?,
+  top_k : Int32?,
   top_p : Double?,
 ) -> @inference.SamplingParameters raise {
   @inference.SamplingParameters::sample(
@@ -45,8 +45,8 @@ fn complexity_parameters(
 /// reproduce the original canonical softmax and nucleus accumulation order.
 fn frozen_preferred_before(
   logits : ArrayView[Double],
-  left_token : Int,
-  right_token : Int,
+  left_token : Int32,
+  right_token : Int32,
 ) -> Bool {
   let left = logits[left_token]
   let right = logits[right_token]
@@ -57,7 +57,7 @@ fn frozen_preferred_before(
 fn frozen_prepare(
   logits : ArrayView[Double],
   temperature : Double,
-  top_k : Int?,
+  top_k : Int32?,
   top_p : Double?,
 ) -> FrozenDistribution {
   let token_ids = FixedArray::make(logits.length(), 0)
@@ -108,7 +108,7 @@ fn frozen_prepare(
 }
 
 ///|
-fn frozen_counter_state(seed : UInt64, sample_index : Int) -> UInt64 {
+fn frozen_counter_state(seed : UInt64, sample_index : Int32) -> UInt64 {
   let mut value = seed + (sample_index + 1).to_uint64() * 0x9e3779b97f4a7c15UL
   value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL
   value = (value ^ (value >> 27)) * 0x94d049bb133111ebUL
@@ -124,8 +124,8 @@ fn frozen_counter_state(seed : UInt64, sample_index : Int) -> UInt64 {
 fn frozen_select(
   distribution : FrozenDistribution,
   seed : UInt64,
-  sample_index : Int,
-) -> Int {
+  sample_index : Int32,
+) -> Int32 {
   let unit = (frozen_counter_state(seed, sample_index) >> 11).to_double() *
     1.1102230246251565e-16
   let threshold = unit * distribution.total_weight
@@ -145,7 +145,7 @@ fn frozen_select(
 fn assert_exact_distribution(
   logits : ArrayView[Double],
   temperature : Double,
-  top_k : Int?,
+  top_k : Int32?,
   top_p : Double?,
   limits : SamplingLimits,
   scratch : SamplerScratch,

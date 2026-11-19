@@ -1,5 +1,7 @@
 ///|
-fn retained_fixture(capacity : Int) -> @retained_frame.RetainedRowsFrame raise {
+fn retained_fixture(
+  capacity : Int32,
+) -> @retained_frame.RetainedRowsFrame raise {
   @retained_frame.RetainedRowsFrame::new(
     @retained_source.retained_rows_source(
       @precision.RetainedRowsPrecision::new(

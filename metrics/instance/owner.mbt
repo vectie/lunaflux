@@ -1,5 +1,5 @@
 ///|
-fn saturating_add(current : UInt64, amount : Int) -> UInt64 {
+fn saturating_add(current : UInt64, amount : Int32) -> UInt64 {
   let increment = amount.to_uint64()
   if current > 0xffffffffffffffffUL - increment {
     0xffffffffffffffffUL
@@ -40,7 +40,7 @@ pub fn LunaInstanceMetrics::new() -> LunaInstanceMetrics {
 pub fn LunaInstanceMetrics::record_counter(
   self : LunaInstanceMetrics,
   counter : LunaInstanceCounter,
-  amount? : Int = 1,
+  amount~ : Int32 = 1,
 ) -> Unit raise LunaInstanceMetricsError {
   if amount < 0 {
     raise Invalid(CounterValue)
@@ -66,7 +66,7 @@ pub fn LunaInstanceMetrics::record_counter_u64(
 pub fn LunaInstanceMetrics::set_gauge(
   self : LunaInstanceMetrics,
   gauge : LunaInstanceGauge,
-  value : Int,
+  value : Int32,
 ) -> Unit raise LunaInstanceMetricsError {
   if value < 0 {
     raise Invalid(GaugeValue)
@@ -78,7 +78,7 @@ pub fn LunaInstanceMetrics::set_gauge(
 pub fn LunaInstanceMetrics::record_histogram(
   self : LunaInstanceMetrics,
   histogram : LunaInstanceHistogram,
-  value : Int,
+  value : Int32,
 ) -> Unit raise LunaInstanceMetricsError {
   if value < 0 {
     raise Invalid(HistogramValue)
@@ -105,7 +105,7 @@ pub fn LunaInstanceMetrics::counter_value(
 pub fn LunaInstanceMetrics::gauge_value(
   self : LunaInstanceMetrics,
   gauge : LunaInstanceGauge,
-) -> Int {
+) -> Int32 {
   self.gauges[gauge_index(gauge)]
 }
 
@@ -113,7 +113,7 @@ pub fn LunaInstanceMetrics::gauge_value(
 pub fn LunaInstanceMetrics::histogram_bucket_value(
   self : LunaInstanceMetrics,
   histogram : LunaInstanceHistogram,
-  bucket_index : Int,
+  bucket_index : Int32,
 ) -> UInt64 raise LunaInstanceMetricsError {
   if bucket_index < 0 || bucket_index >= INSTANCE_HISTOGRAM_BUCKET_COUNT {
     raise Invalid(HistogramBucket)

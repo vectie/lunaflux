@@ -23,13 +23,13 @@ pub(all) enum TensorParallelKvPlanRule {
 ///|
 /// Payload-safe failure from startup admission or scalar address projection.
 pub(all) suberror TensorParallelKvPlanError {
-  RejectedTensorParallelKvPlan(rule~ : TensorParallelKvPlanRule, rank~ : Int)
+  RejectedTensorParallelKvPlan(rule~ : TensorParallelKvPlanRule, rank~ : Int32)
 } derive(Debug, Eq)
 
 ///|
 fn rejected(
   rule : TensorParallelKvPlanRule,
-  rank : Int,
+  rank : Int32,
 ) -> TensorParallelKvPlanError {
   RejectedTensorParallelKvPlan(rule~, rank~)
 }

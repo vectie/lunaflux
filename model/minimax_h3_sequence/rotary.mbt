@@ -6,7 +6,7 @@ pub(all) suberror RotaryError {
 
 ///|
 pub struct RotaryTables {
-  priv width : Int
+  priv width : Int32
   priv cosine : ReadOnlyArray[Float]
   priv sine : ReadOnlyArray[Float]
 }
@@ -63,7 +63,7 @@ pub fn PositionedSequence::rotary_tables(
 }
 
 ///|
-pub fn RotaryTables::width(self : Self) -> Int {
+pub fn RotaryTables::width(self : Self) -> Int32 {
   self.width
 }
 

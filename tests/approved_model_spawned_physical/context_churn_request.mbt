@@ -1,22 +1,22 @@
 ///|
-const CONTEXT_CHURN_FIRST_CEILING : Int = 8
+const CONTEXT_CHURN_FIRST_CEILING : Int32 = 8
 
 ///|
-const CONTEXT_CHURN_SECOND_CEILING : Int = 32
+const CONTEXT_CHURN_SECOND_CEILING : Int32 = 32
 
 ///|
-const CONTEXT_CHURN_THIRD_CEILING : Int = CAMPAIGN_CONTEXT_TOKENS
+const CONTEXT_CHURN_THIRD_CEILING : Int32 = CAMPAIGN_CONTEXT_TOKENS
 
 ///|
-const CONTEXT_CHURN_REQUESTS_PER_CHILD : Int = 3
+const CONTEXT_CHURN_REQUESTS_PER_CHILD : Int32 = 3
 
 ///|
-const CONTEXT_CHURN_FRESH_CHILD_CYCLES : Int = 3
+const CONTEXT_CHURN_FRESH_CHILD_CYCLES : Int32 = 3
 
 ///|
 fn context_churn_request_frame(
   request_id : UInt64,
-  context_ceiling : Int,
+  context_ceiling : Int32,
   scope : Bytes,
 ) -> FixedArray[Byte] raise {
   let limits = campaign_inference_limits()
@@ -49,9 +49,9 @@ fn context_churn_request_frame(
 
 ///|
 fn context_churn_validation_contract(
-  cycle : Int,
-  first_token? : Int = 1031,
-  second_token? : Int = 2185,
+  cycle : Int32,
+  first_token~ : Int32 = 1031,
+  second_token~ : Int32 = 2185,
 ) -> @runtime_instance.RuntimeSpawnedContextChurnContract raise {
   if cycle < 0 || cycle >= CONTEXT_CHURN_FRESH_CHILD_CYCLES {
     raise UsageRejected

@@ -2,7 +2,7 @@
 fn audio_destandardization_digest(
   plan_digest : @spec.PlanDigest,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  batch_count : Int,
+  batch_count : Int32,
   means : ReadOnlyArray[Float],
   standard_deviations : ReadOnlyArray[Float],
 ) -> JointVaeLatentDestandardizationDigest {
@@ -27,7 +27,7 @@ fn audio_destandardization_digest(
 pub fn bind_audio_latent_destandardization(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  batch_count~ : Int,
+  batch_count~ : Int32,
   means~ : ArrayView[Float],
   standard_deviations~ : ArrayView[Float],
 ) -> JointVaeAudioLatentDestandardization raise JointVaeDecodeReferenceError {

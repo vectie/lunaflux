@@ -2,8 +2,8 @@
 pub fn JointPackedModalitySelection::new(
   request : JointDiffusionIoPlan,
   packed_timestep : JointPackedTimestepSelection,
-  video_indices~ : ArrayView[Int],
-  audio_indices~ : ArrayView[Int],
+  video_indices~ : ArrayView[Int32],
+  audio_indices~ : ArrayView[Int32],
 ) -> Self raise JointDiffusionIoPlanError {
   if packed_timestep.identity() != request.identity() ||
     packed_timestep.request_digest() != request.request_digest() {
@@ -21,8 +21,8 @@ pub fn JointPackedModalitySelection::new(
   }
   let packed_rows = packed_timestep.packed_row_count()
   let seen = Array::make(packed_rows, false)
-  let video : Array[Int] = []
-  let audio : Array[Int] = []
+  let video : Array[Int32] = []
+  let audio : Array[Int32] = []
   for index in video_indices {
     if index < 0 || index >= packed_rows || seen[index] {
       raise InvalidPackedModalitySelection
@@ -94,20 +94,20 @@ pub fn JointPackedModalitySelection::packed_timestep_digest(
 }
 
 ///|
-pub fn JointPackedModalitySelection::packed_row_count(self : Self) -> Int {
+pub fn JointPackedModalitySelection::packed_row_count(self : Self) -> Int32 {
   self.packed_row_count
 }
 
 ///|
 pub fn JointPackedModalitySelection::video_indices(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.video_indices
 }
 
 ///|
 pub fn JointPackedModalitySelection::audio_indices(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.audio_indices
 }

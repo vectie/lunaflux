@@ -21,7 +21,7 @@ fn publish_live_root_bound_cleanup(
   failed : FailedRootBoundWorkerProcessStartup,
   child : FailedWorkerProcessStartup,
   roots_live : Bool,
-  roots_status : Int,
+  roots_status : Int32,
 ) -> RootBoundWorkerProcessPreparation {
   ready.roots_selected = false
   failed.roots_selected = roots_live

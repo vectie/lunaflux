@@ -68,9 +68,9 @@ pub struct ApprovedFile {
 pub struct ApprovedFileStamp {
   priv byte_count : Int64
   priv modified_seconds : Int64
-  priv modified_nanoseconds : Int
+  priv modified_nanoseconds : Int32
   priv changed_seconds : Int64
-  priv changed_nanoseconds : Int
+  priv changed_nanoseconds : Int32
 } derive(Eq)
 
 ///|
@@ -79,3 +79,12 @@ pub fn ApprovedFileStamp::byte_count(self : ApprovedFileStamp) -> Int64 {
 }
 
 ///|
+
+///|
+pub extend ApprovedRootRole with @debug.Debug::{to_repr}
+
+///|
+pub extend ApprovedRootRole with Eq::{not_equal, equal}
+
+///|
+pub extend ApprovedFileStamp with Eq::{not_equal, equal}

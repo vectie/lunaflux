@@ -2,8 +2,8 @@
 fn rank_local_stream_entry(
   name : String,
   shape : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String {
   "\"\{name}\":{\"dtype\":\"BF16\",\"shape\":\{shape},\"data_offsets\":[\{start},\{end}]}"
 }

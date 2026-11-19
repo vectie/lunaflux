@@ -5,41 +5,41 @@ pub(all) suberror MiniMaxH3HostMaterializationError {
   IdentityMismatch
   ManifestDigestMismatch
   InvalidShardCount
-  UnreferencedShard(Int)
-  InvalidIndexCount(expected~ : Int, actual~ : Int)
-  MissingIndex(Int)
-  DuplicateIndex(Int)
-  UnknownIndex(Int)
-  ShardIndexOutsideManifest(Int)
-  InvalidShardRange(Int)
-  InvalidOfficialShape(Int)
-  InvalidDType(Int)
-  TensorTooLarge(Int)
+  UnreferencedShard(Int32)
+  InvalidIndexCount(expected~ : Int32, actual~ : Int32)
+  MissingIndex(Int32)
+  DuplicateIndex(Int32)
+  UnknownIndex(Int32)
+  ShardIndexOutsideManifest(Int32)
+  InvalidShardRange(Int32)
+  InvalidOfficialShape(Int32)
+  InvalidDType(Int32)
+  TensorTooLarge(Int32)
   HostBudgetExceeded
   ArenaCountExceeded
   ShardCountMismatch
-  ShardPayloadMismatch(Int)
+  ShardPayloadMismatch(Int32)
   StreamingFailure
-  StreamingShardMismatch(Int)
-  StreamingTensorCountMismatch(Int)
-  StreamingTensorMismatch(Int)
+  StreamingShardMismatch(Int32)
+  StreamingTensorCountMismatch(Int32)
+  StreamingTensorMismatch(Int32)
   ArenaReleased
-  TensorIndexOutsideArena(Int)
-  TensorByteOutsideArena(Int)
+  TensorIndexOutsideArena(Int32)
+  TensorByteOutsideArena(Int32)
 } derive(Debug, Eq)
 
 ///|
 /// Bounded startup limits. Arenas are intentionally smaller than MoonBit's
 /// signed-Int allocation ceiling and components may span multiple arenas.
 pub struct MiniMaxH3HostMaterializationLimits {
-  priv maximum_shards : Int
-  priv maximum_tensors : Int
-  priv maximum_header_bytes : Int
+  priv maximum_shards : Int32
+  priv maximum_tensors : Int32
+  priv maximum_header_bytes : Int32
   priv maximum_payload_bytes_per_shard : Int64
   priv maximum_total_host_bytes : Int64
   priv maximum_arena_bytes : Int64
-  priv maximum_arenas : Int
-  priv maximum_name_bytes : Int
+  priv maximum_arenas : Int32
+  priv maximum_name_bytes : Int32
 }
 
 ///|
@@ -53,7 +53,7 @@ pub struct MiniMaxH3ShardDeclarationInput {
 /// One normalized safetensors index membership claim.
 pub struct MiniMaxH3TensorIndexInput {
   priv tensor_name : String
-  priv shard_index : Int
+  priv shard_index : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -66,11 +66,11 @@ pub struct MiniMaxH3HostManifestDigest {
 
 ///|
 priv struct MiniMaxH3HostManifestTensor {
-  binding_index : Int
+  binding_index : Int32
   role : @minimax_h3_weights.MiniMaxH3TensorRole
   tensor : @safetensors.TensorMetadata
-  shard_index : Int
-  arena_index : Int
+  shard_index : Int32
+  arena_index : Int32
   arena_offset : Int64
 }
 
@@ -100,7 +100,7 @@ pub struct MiniMaxH3HostTensor {
   priv name : String
   priv role : @minimax_h3_weights.MiniMaxH3TensorRole
   priv shape : ReadOnlyArray[Int64]
-  priv arena_index : Int
+  priv arena_index : Int32
   priv arena_offset : Int64
   priv byte_length : Int64
 } derive(Debug, Eq)

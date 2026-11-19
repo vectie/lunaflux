@@ -1,11 +1,13 @@
 ///|
 /// Preparation ownership is independent of resident GPU slots. The old recipe
 /// keeps two lanes per slot; deployments may choose fewer waiting owners.
-fn service_admission_lanes(json : Json, slots : Int) -> Int raise {
+fn service_admission_lanes(json : Json, slots : Int32) -> Int32 raise {
   guard json is Object(fields) else { fail("service object required") }
   let lanes = if fields.contains("admission_lanes") {
-    json_int(json,"admission_lanes")
-  } else { slots * 2 }
+    json_int(json, "admission_lanes")
+  } else {
+    slots * 2
+  }
   guard slots > 0 && lanes >= slots && lanes <= 1024 else {
     fail("invalid admission lane capacity")
   }
@@ -14,10 +16,13 @@ fn service_admission_lanes(json : Json, slots : Int) -> Int raise {
 
 ///|
 test "preparation and connection ownership need not duplicate resident slots" {
-  assert_eq(service_admission_lanes({},4),8)
-  assert_eq(service_admission_lanes({"admission_lanes":16},16),16)
-  try service_admission_lanes({"admission_lanes":15},16) catch { _ => () }
-  noraise { _ => fail("preparation cannot expose the declared resident concurrency") }
+  assert_eq(service_admission_lanes({}, 4), 8)
+  assert_eq(service_admission_lanes({ "admission_lanes": 16 }, 16), 16)
+  try service_admission_lanes({ "admission_lanes": 15 }, 16) catch {
+    _ => ()
+  } noraise {
+    _ => fail("preparation cannot expose the declared resident concurrency")
+  }
 }
 
 ///|
@@ -25,8 +30,8 @@ test "preparation and connection ownership need not duplicate resident slots" {
 /// context/slot envelope. Omitted pages preserve the existing service recipe.
 fn service_history_capacity(
   json : Json,
-  slots : Int,
-  context : Int,
+  slots : Int32,
+  context : Int32,
 ) -> @history.ResidentHistoryCapacity raise {
   guard slots > 0 &&
     slots <= 256 &&

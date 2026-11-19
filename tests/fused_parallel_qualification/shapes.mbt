@@ -1,9 +1,9 @@
 ///|
 fn fused_qualification_shape(
-  ordinal : Int,
+  ordinal : Int32,
   name : String,
-  positions : Array[Int],
-  page_table : Array[Int],
+  positions : Array[Int32],
+  page_table : Array[Int32],
 ) -> FusedQualificationShape raise FusedQualificationError {
   if ordinal < 0 ||
     name.length() == 0 ||
@@ -59,35 +59,35 @@ pub fn declared_qualification_shapes() -> ReadOnlyArray[FusedQualificationShape]
 ///|
 pub fn FusedQualificationShape::step_counts(
   self : FusedQualificationShape,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   [1, 0, 1, self.token_count, self.page_table.length()]
 }
 
 ///|
 pub fn FusedQualificationShape::query_row_offsets(
   self : FusedQualificationShape,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   [0, self.token_count]
 }
 
 ///|
 pub fn FusedQualificationShape::sequence_lengths(
   self : FusedQualificationShape,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   [self.positions[self.positions.length() - 1] + 1]
 }
 
 ///|
 pub fn FusedQualificationShape::page_table_offsets(
   self : FusedQualificationShape,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   [0, self.page_table.length()]
 }
 
 ///|
 pub fn FusedQualificationShape::expected_dispatch_canary(
   self : FusedQualificationShape,
-  per_token_canary : UInt,
-) -> UInt {
+  per_token_canary : UInt32,
+) -> UInt32 {
   per_token_canary * self.token_count.reinterpret_as_uint()
 }

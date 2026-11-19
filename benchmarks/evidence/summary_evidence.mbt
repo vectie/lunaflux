@@ -4,8 +4,8 @@
 pub struct BenchmarkSummaryEvidence {
   priv engine : BenchmarkEngine
   priv profile : BenchmarkProfile
-  priv ordinal : Int
-  priv order_position : Int
+  priv ordinal : Int32
+  priv order_position : Int32
   priv raw_events_digest : BenchmarkDigest
   priv raw_events_canonical : Bytes
   priv summary_digest : BenchmarkDigest
@@ -15,7 +15,7 @@ pub struct BenchmarkSummaryEvidence {
 
 ///|
 fn derive_trial_summary(
-  declared_submitted : Int,
+  declared_submitted : Int32,
   events : ArrayView[BenchmarkRequestEvent],
 ) -> BenchmarkTrialSummary raise BenchmarkEvidenceError {
   if declared_submitted <= 0 || events.length() != declared_submitted {
@@ -104,9 +104,9 @@ fn derive_trial_summary(
 pub fn BenchmarkSummaryEvidence::admit(
   engine~ : BenchmarkEngine,
   profile~ : BenchmarkProfile,
-  ordinal~ : Int,
-  order_position~ : Int,
-  declared_submitted~ : Int,
+  ordinal~ : Int32,
+  order_position~ : Int32,
+  declared_submitted~ : Int32,
   measurement~ : BenchmarkDigest,
   events~ : ArrayView[BenchmarkRequestEvent],
 ) -> BenchmarkSummaryEvidence raise BenchmarkEvidenceError {

@@ -10,7 +10,7 @@ pub(all) suberror SourceError {
 /// Launch ceil(elements/block_size) blocks with exactly block_size threads.
 pub fn render(
   plan : @dense_permutation_plan.Permutation,
-  block_size~ : Int,
+  block_size~ : Int32,
 ) -> Bytes raise SourceError {
   guard block_size > 0 && block_size <= 1024 else { raise InvalidBlockSize }
   let source = StringBuilder()

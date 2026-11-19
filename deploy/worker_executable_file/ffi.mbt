@@ -3,14 +3,14 @@
 extern "c" fn raw_open_executable(
   path : Bytes,
   maximum_bytes : Int64,
-  status : Ref[Int],
+  status : Ref[Int32],
 ) -> @cap.ApprovedExecutableHandle = "lunaflux_worker_executable_open"
 
 ///|
 #borrow(handle)
 extern "c" fn raw_close_executable(
   handle : @cap.ApprovedExecutableHandle,
-) -> Int = "lunaflux_worker_executable_close"
+) -> Int32 = "lunaflux_worker_executable_close"
 
 ///|
 #borrow(handle)

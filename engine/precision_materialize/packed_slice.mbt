@@ -26,7 +26,7 @@ pub fn PackedCheckpointWeight::slice(
 fn append_plane_transfers(
   requests : Array[@streaming.StreamingSafetensorsTransfer],
   location : CheckpointLocation,
-  destination : Int,
+  destination : Int32,
   offset : Int64,
   view~ : @precision.PackedPlaneSlice?,
 ) -> Unit raise PackedCheckpointError {

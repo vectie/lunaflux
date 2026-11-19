@@ -3,7 +3,7 @@
 /// Different 16-component groups can share a bank after the K row stride.
 /// Choose the first cyclic phase whose two owners never request distinct
 /// words in one bank. Subword requests within the same word are broadcasts.
-fn cuda_dual_score_phase_legal(dimensions : Int, phase : Int) -> Bool {
+fn cuda_dual_score_phase_legal(dimensions : Int32, phase : Int32) -> Bool {
   let groups = (dimensions + 15) / 16
   for item in 0..<groups {
     for left in 0..<16 {
@@ -28,7 +28,7 @@ fn cuda_dual_score_phase_legal(dimensions : Int, phase : Int) -> Bool {
 }
 
 ///|
-fn cuda_dual_score_group_phase(dimensions : Int) -> Int {
+fn cuda_dual_score_group_phase(dimensions : Int32) -> Int32 {
   for phase in 0..<((dimensions + 15) / 16) {
     if cuda_dual_score_phase_legal(dimensions, phase) {
       return phase
@@ -42,7 +42,7 @@ fn cuda_dual_score_group_phase(dimensions : Int) -> Int {
 ///|
 pub fn CudaAttentionTileLowering::decode_score_group_phase(
   self : CudaAttentionTileLowering,
-) -> Int {
+) -> Int32 {
   match self.physical_program {
     Ok(BlockwiseKeyProgram(fold, _)) if fold.rotates_score_groups() =>
       if fold.score_owners() == 2 {
@@ -59,9 +59,9 @@ pub fn CudaAttentionTileLowering::decode_score_group_phase(
 /// A cyclic traversal remains a bijection regardless of the selected phase;
 /// this is a layout optimization, not numerical permission inferred in CUDA.
 fn cuda_owned_score_phase_legal(
-  dimensions : Int,
-  owners : Int,
-  phase : Int,
+  dimensions : Int32,
+  owners : Int32,
+  phase : Int32,
 ) -> Bool {
   let lanes = 32 / owners
   let groups = (dimensions + lanes - 1) / lanes
@@ -93,7 +93,7 @@ fn cuda_owned_score_phase_legal(
 }
 
 ///|
-fn cuda_owned_score_group_phase(dimensions : Int, owners : Int) -> Int {
+fn cuda_owned_score_group_phase(dimensions : Int32, owners : Int32) -> Int32 {
   for phase in 0..<((dimensions + 32 / owners - 1) / (32 / owners)) {
     if cuda_owned_score_phase_legal(dimensions, owners, phase) {
       return phase

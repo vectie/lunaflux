@@ -1,7 +1,7 @@
 ///|
 fn expert_score_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is ExpertScoreTransform(_, _) {
       return ordinal

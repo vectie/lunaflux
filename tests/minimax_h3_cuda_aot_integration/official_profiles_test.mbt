@@ -16,7 +16,7 @@ fn official_requirements(
 fn shifted_flow_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       ShiftedFlowStep(actual, _, _, _) if actual == latent => return ordinal
@@ -30,7 +30,7 @@ fn shifted_flow_ordinal(
 fn projection_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoLatentProjection(_, _, _, _, _) if latent == VideoLatent =>
@@ -46,7 +46,7 @@ fn projection_ordinal(
 fn output_projection_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoOutputProjection(_, _, _, _, _) if latent == VideoLatent =>
@@ -62,7 +62,7 @@ fn output_projection_ordinal(
 fn final_norm_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoFinalRmsNorm(_, _, _) if latent == VideoLatent => return ordinal
@@ -77,7 +77,7 @@ fn final_norm_ordinal(
 fn final_adaln_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoFinalAdaLnF32Boundary(_) if latent == VideoLatent => return ordinal
@@ -91,7 +91,7 @@ fn final_adaln_ordinal(
 ///|
 fn parameter_row_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       FinalAdaLnParameterRow(_, _) => return ordinal
@@ -104,7 +104,7 @@ fn parameter_row_ordinal(
 ///|
 fn packed_gather_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       PackedModalityAdaLnRows(_) => return ordinal
@@ -117,7 +117,7 @@ fn packed_gather_ordinal(
 ///|
 fn timestep_frequency_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       TimestepFrequencyRows(_) => return ordinal

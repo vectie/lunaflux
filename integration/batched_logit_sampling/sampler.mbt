@@ -18,16 +18,16 @@ pub struct BatchedLogitSampler {
   priv logits : Array[Double]
   priv limits : @sampling.SamplingLimits
   priv scratch : @sampling.SamplerScratch
-  priv vocabulary : Int
-  priv modes : FixedArray[Int]
+  priv vocabulary : Int32
+  priv modes : FixedArray[Int32]
   priv temperatures : FixedArray[Double]
-  priv top_k : FixedArray[Int]
+  priv top_k : FixedArray[Int32]
   priv top_p : FixedArray[Double]
-  priv flags : FixedArray[Int]
+  priv flags : FixedArray[Int32]
   priv seeds : FixedArray[UInt64]
-  priv indices : FixedArray[Int]
-  priv tokens : FixedArray[Int]
-  priv mut count : Int
+  priv indices : FixedArray[Int32]
+  priv tokens : FixedArray[Int32]
+  priv mut count : Int32
   priv mut state : State
 }
 
@@ -35,8 +35,8 @@ pub struct BatchedLogitSampler {
 pub fn BatchedLogitSampler::new(
   context : @device.Context,
   logits : @device.Allocation,
-  vocabulary_size~ : Int,
-  maximum_outputs~ : Int,
+  vocabulary_size~ : Int32,
+  maximum_outputs~ : Int32,
   maximum_host_bytes~ : Int64,
 ) -> Self raise {
   let limits = @sampling.SamplingLimits::new(maximum_outputs, vocabulary_size)

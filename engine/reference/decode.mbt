@@ -1,7 +1,7 @@
 ///|
 fn tensor_shape(
   host : @materialize.HostTensor,
-) -> (Int, Int) raise ReferenceExecutionError {
+) -> (Int32, Int32) raise ReferenceExecutionError {
   let shape = host.tensor().shape()
   match shape.length() {
     1 => {

@@ -5,8 +5,8 @@ pub struct CatalogEntry {
   priv operation_kind : @plan.OperationKind
   priv operation_shape : @plan.OperationShape
   priv capability : @plan.KernelCapabilityId
-  priv compute_major : Int
-  priv compute_minor : Int
+  priv compute_major : Int32
+  priv compute_minor : Int32
   priv implementation : KernelImplementationId
   priv workspace_bytes : Int64
   priv workspace_alignment : Int64
@@ -110,8 +110,8 @@ pub fn CatalogEntry::new(
   operation_kind~ : @plan.OperationKind,
   operation_shape~ : @plan.OperationShape,
   capability~ : @plan.KernelCapabilityId,
-  compute_major~ : Int,
-  compute_minor~ : Int,
+  compute_major~ : Int32,
+  compute_minor~ : Int32,
   implementation~ : KernelImplementationId,
   workspace_bytes~ : Int64,
   workspace_alignment~ : Int64,
@@ -171,8 +171,8 @@ pub fn CatalogEntry::new_paged_v3(
   operation_shape~ : @plan.OperationShape,
   capability~ : @plan.KernelCapabilityId,
   execution_semantics~ : KernelExecutionSemantics,
-  compute_major~ : Int,
-  compute_minor~ : Int,
+  compute_major~ : Int32,
+  compute_minor~ : Int32,
   implementation~ : KernelImplementationId,
   workspace_bytes~ : Int64,
   workspace_alignment~ : Int64,
@@ -254,12 +254,12 @@ pub fn CatalogEntry::capability(
 }
 
 ///|
-pub fn CatalogEntry::compute_major(self : CatalogEntry) -> Int {
+pub fn CatalogEntry::compute_major(self : CatalogEntry) -> Int32 {
   self.compute_major
 }
 
 ///|
-pub fn CatalogEntry::compute_minor(self : CatalogEntry) -> Int {
+pub fn CatalogEntry::compute_minor(self : CatalogEntry) -> Int32 {
   self.compute_minor
 }
 

@@ -15,7 +15,7 @@ fn LunaOnlineTcpOutputWrite::copy_event(
 async fn LunaOnlineTcpOutputFlight::write_once(
   self : LunaOnlineTcpOutputFlight,
   connection : @socket.Tcp,
-) -> Int {
+) -> Int32 {
   let scratch = self.require_in_flight()
   connection.write_once(scratch.immutable, offset=0, len=self.length)
 }
@@ -24,9 +24,9 @@ async fn LunaOnlineTcpOutputFlight::write_once(
 async fn LunaOnlineTcpOutputFlight::write_once_at(
   self : LunaOnlineTcpOutputFlight,
   connection : @socket.Tcp,
-  offset : Int,
-  maximum_length : Int,
-) -> Int {
+  offset : Int32,
+  maximum_length : Int32,
+) -> Int32 {
   let scratch = self.require_in_flight()
   if offset < 0 ||
     maximum_length <= 0 ||

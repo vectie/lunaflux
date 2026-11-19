@@ -53,7 +53,7 @@ pub fn CompletionWriter::append_prefill_completed(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  processed_tokens~ : Int,
+  processed_tokens~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   self
   .owner()
@@ -71,8 +71,8 @@ pub fn CompletionWriter::append_final_prefill_completed(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  processed_tokens~ : Int,
-  token_id~ : Int,
+  processed_tokens~ : Int32,
+  token_id~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   self
   .owner()
@@ -91,7 +91,7 @@ pub fn CompletionWriter::append_decode_completed(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  token_id~ : Int,
+  token_id~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   self
   .owner()

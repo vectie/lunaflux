@@ -3,7 +3,7 @@ fn valid_profile_identity(value : StringView) -> Bool {
   value.length() > 0 &&
   value.length() <= 128 &&
   value.all(c => {
-    c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '/' | ':')
+    c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '-' | '_' | '.' | '/' | ':')
   })
 }
 
@@ -22,7 +22,7 @@ fn validate_auxiliary_prediction(
 
 ///|
 pub fn AdvancedDecoderExecutionPlan::new(
-  schema_version~ : Int,
+  schema_version~ : Int32,
   profile_identity~ : String,
   content_digest~ : @spec.ContentDigest,
   shape~ : AdvancedDecoderShape,

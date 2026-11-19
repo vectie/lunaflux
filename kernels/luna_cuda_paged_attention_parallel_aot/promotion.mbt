@@ -1,7 +1,7 @@
 ///|
 pub struct PagedAttentionParallelPromotionTrial {
-  priv shape_ordinal : Int
-  priv trial_ordinal : Int
+  priv shape_ordinal : Int32
+  priv trial_ordinal : Int32
   priv baseline_duration_ns : Int64
   priv candidate_duration_ns : Int64
   priv maximum_absolute_error_ppb : Int64
@@ -13,8 +13,8 @@ pub struct PagedAttentionParallelPromotionTrial {
 
 ///|
 pub fn PagedAttentionParallelPromotionTrial::new(
-  shape_ordinal~ : Int,
-  trial_ordinal~ : Int,
+  shape_ordinal~ : Int32,
+  trial_ordinal~ : Int32,
   baseline_duration_ns~ : Int64,
   candidate_duration_ns~ : Int64,
   maximum_absolute_error_ppb~ : Int64,
@@ -48,7 +48,7 @@ pub fn PagedAttentionParallelPromotionTrial::new(
 
 ///|
 pub struct PagedAttentionParallelEndToEndTrial {
-  priv trial_ordinal : Int
+  priv trial_ordinal : Int32
   priv baseline_duration_ns : Int64
   priv candidate_duration_ns : Int64
   priv token_agreement : Bool
@@ -57,7 +57,7 @@ pub struct PagedAttentionParallelEndToEndTrial {
 
 ///|
 pub fn PagedAttentionParallelEndToEndTrial::new(
-  trial_ordinal~ : Int,
+  trial_ordinal~ : Int32,
   baseline_duration_ns~ : Int64,
   candidate_duration_ns~ : Int64,
   token_agreement~ : Bool,
@@ -81,20 +81,20 @@ pub fn PagedAttentionParallelEndToEndTrial::new(
 
 ///|
 pub struct PagedAttentionParallelPromotionLimits {
-  priv maximum_shapes : Int
-  priv trials_per_shape : Int
-  priv end_to_end_trials : Int
-  priv maximum_end_to_end_regression_ppm : Int
-  priv maximum_canonical_bytes : Int
+  priv maximum_shapes : Int32
+  priv trials_per_shape : Int32
+  priv end_to_end_trials : Int32
+  priv maximum_end_to_end_regression_ppm : Int32
+  priv maximum_canonical_bytes : Int32
 }
 
 ///|
 pub fn PagedAttentionParallelPromotionLimits::new(
-  maximum_shapes~ : Int,
-  trials_per_shape~ : Int,
-  end_to_end_trials~ : Int,
-  maximum_end_to_end_regression_ppm~ : Int,
-  maximum_canonical_bytes~ : Int,
+  maximum_shapes~ : Int32,
+  trials_per_shape~ : Int32,
+  end_to_end_trials~ : Int32,
+  maximum_end_to_end_regression_ppm~ : Int32,
+  maximum_canonical_bytes~ : Int32,
 ) -> PagedAttentionParallelPromotionLimits raise PagedAttentionParallelAotError {
   if maximum_shapes <= 0 ||
     maximum_shapes > 1024 ||
@@ -123,8 +123,8 @@ pub fn PagedAttentionParallelPromotionLimits::new(
 pub struct PagedAttentionParallelPromotionEvidence {
   priv candidate_digest : PagedAttentionParallelDigest
   priv reference_source_digest : String
-  priv trial_count : Int
-  priv end_to_end_count : Int
+  priv trial_count : Int32
+  priv end_to_end_count : Int32
   priv canonical : Bytes
   priv digest : PagedAttentionParallelDigest
 }
@@ -139,14 +139,14 @@ pub fn PagedAttentionParallelPromotionEvidence::digest(
 ///|
 pub fn PagedAttentionParallelPromotionEvidence::trial_count(
   self : PagedAttentionParallelPromotionEvidence,
-) -> Int {
+) -> Int32 {
   self.trial_count
 }
 
 ///|
 pub fn PagedAttentionParallelPromotionEvidence::end_to_end_count(
   self : PagedAttentionParallelPromotionEvidence,
-) -> Int {
+) -> Int32 {
   self.end_to_end_count
 }
 
@@ -160,9 +160,9 @@ pub fn PagedAttentionParallelPromotionEvidence::canonical_bytes(
 ///|
 fn promotion_append(
   output : StringBuilder,
-  written : Ref[Int],
+  written : Ref[Int32],
   value : String,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise PagedAttentionParallelAotError {
   let encoded = @utf8.encode(value)
   if encoded.length() >= maximum || written.val > maximum - encoded.length() - 1 {

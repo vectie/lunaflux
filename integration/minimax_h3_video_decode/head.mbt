@@ -2,7 +2,7 @@
 pub struct Head {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  rows : Int
+  rows : Int32
   hidden_bytes : Int64
   output_bytes : Int64
   weights : @minimax_h3_weights.VideoFrontendWeightPacking
@@ -10,9 +10,9 @@ pub struct Head {
 
 ///|
 pub fn Head::new(
-  temporal~ : Int,
-  height~ : Int,
-  width~ : Int,
+  temporal~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   prefix~ : String,
 ) -> Self raise {
   let source = @video_latent_embedding_cuda_source.decoder_head_source(
@@ -63,7 +63,7 @@ pub fn Head::launches(
       alignment=4L,
     )
   }
-  fn weight(i : Int) -> @device.KernelArgument raise @device.DeviceError {
+  fn weight(i : Int32) -> @device.KernelArgument raise @device.DeviceError {
     let copy = self.weights.copies[i]
     region(weights, copy.destination_offset, copy.byte_count)
   }

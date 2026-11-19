@@ -6,7 +6,9 @@ pub fn DeepSeekV4OutputBParameterPlan::source_identity(
 }
 
 ///|
-pub fn DeepSeekV4OutputBParameterPlan::requirement_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4OutputBParameterPlan::requirement_ordinal(
+  self : Self,
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -32,17 +34,17 @@ pub fn DeepSeekV4OutputBParameterPlan::scale_shape(
 }
 
 ///|
-pub fn DeepSeekV4OutputBParameterPlan::input_width(self : Self) -> Int {
+pub fn DeepSeekV4OutputBParameterPlan::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn DeepSeekV4OutputBParameterPlan::output_width(self : Self) -> Int {
+pub fn DeepSeekV4OutputBParameterPlan::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn DeepSeekV4OutputBParameterPlan::block_width(self : Self) -> Int {
+pub fn DeepSeekV4OutputBParameterPlan::block_width(self : Self) -> Int32 {
   self.block_width
 }
 

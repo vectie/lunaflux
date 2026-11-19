@@ -79,7 +79,7 @@ fn validate_runtime_envelope(
 fn build_limits(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
-  exact_count : Int,
+  exact_count : Int32,
 ) -> (
   @device_layout.DeviceKvLimits,
   @device_step.DeviceStepLimits,
@@ -271,7 +271,7 @@ fn inspect_model_inputs(
 ///|
 fn weight_header_limits(
   ceilings : @worker_wire.WorkerBootstrapCeilings,
-  exact_count : Int,
+  exact_count : Int32,
 ) -> @safetensors.HeaderLimits raise DeviceWorkerBootstrapError {
   @safetensors.HeaderLimits::new(
     max_header_bytes=RECIPE_MAX_WEIGHT_HEADER_BYTES,

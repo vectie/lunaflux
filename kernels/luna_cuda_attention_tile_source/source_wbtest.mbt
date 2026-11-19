@@ -2,12 +2,12 @@
 fn source_test_lowering(
   supports_async_copy : Bool,
   maximum_shared_memory_bytes : Int64,
-  maximum_pipeline_stages : Int,
-  candidate_id? : Int? = None,
-  dense_current? : Bool = false,
-  affine_current? : Bool = false,
-  partitioned? : Bool = false,
-  approximate_exponential? : Bool = false,
+  maximum_pipeline_stages : Int32,
+  candidate_id~ : Int32? = None,
+  dense_current~ : Bool = false,
+  affine_current~ : Bool = false,
+  partitioned~ : Bool = false,
+  approximate_exponential~ : Bool = false,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,
@@ -124,13 +124,13 @@ fn source_test_abi() -> CudaPagedAttentionTileAbi raise {
 
 ///|
 fn source_test_decode_lowering(
-  candidate_id? : Int = 420,
-  batch_rows? : Int = 32,
-  context_tokens? : Int = 4096,
-  alternative? : Bool = false,
-  parallel_workgroup_target? : Int = 32,
-  key_value_heads? : Int = 4,
-  tokens_per_page? : Int = 16,
+  candidate_id~ : Int32 = 420,
+  batch_rows~ : Int32 = 32,
+  context_tokens~ : Int32 = 4096,
+  alternative~ : Bool = false,
+  parallel_workgroup_target~ : Int32 = 32,
+  key_value_heads~ : Int32 = 4,
+  tokens_per_page~ : Int32 = 16,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,

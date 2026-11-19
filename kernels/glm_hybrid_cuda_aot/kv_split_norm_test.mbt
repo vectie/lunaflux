@@ -1,7 +1,7 @@
 ///|
 fn kv_split_norm_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is QueryKeyRmsNorm(_) {
       return ordinal

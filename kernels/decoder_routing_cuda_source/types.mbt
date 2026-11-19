@@ -25,9 +25,9 @@ pub(all) suberror DecoderRoutingCudaSourceError {
 pub struct DecoderRoutingCudaSource {
   priv operation : DecoderRoutingCudaOperation
   priv numerical_contract : DecoderRoutingNumericalContract
-  priv routed_expert_count : Int
-  priv experts_per_token : Int
-  priv maximum_rows : Int
+  priv routed_expert_count : Int32
+  priv experts_per_token : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

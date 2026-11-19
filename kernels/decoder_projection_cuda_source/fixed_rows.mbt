@@ -5,8 +5,8 @@
 /// row-major F32 `[rows,output_width]`.
 pub fn dense_projection_f32_bias_f32_source(
   rows~ : Int64,
-  input_width~ : Int,
-  output_width~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
   function_symbol~ : String,
 ) -> FixedRowsDecoderProjectionCudaSource raise DecoderProjectionCudaSourceError {
   if rows <= 0L || rows > 2147483647L {
@@ -70,8 +70,8 @@ pub fn dense_projection_f32_bias_f32_source(
 /// is row-major BF16 `[rows,output_width]`.
 pub fn dense_projection_f32_bias_bf16_source(
   rows~ : Int64,
-  input_width~ : Int,
-  output_width~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
   function_symbol~ : String,
 ) -> FixedRowsDecoderProjectionCudaSource raise DecoderProjectionCudaSourceError {
   if rows <= 0L || rows > 2147483647L {

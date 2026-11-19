@@ -1,5 +1,5 @@
 ///|
-fn request_with_stop_token(id : UInt64, stop_token : Int) -> TokenizedRequest {
+fn request_with_stop_token(id : UInt64, stop_token : Int32) -> TokenizedRequest {
   let limits = inference_limits()
   try! TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(id),
@@ -25,7 +25,7 @@ fn request_with_stop_token(id : UInt64, stop_token : Int) -> TokenizedRequest {
 fn append_final_result(
   writer : @worker_protocol.CompletionWriter,
   row : @worker_protocol.SubmittedPrefillRow,
-  token : Int,
+  token : Int32,
 ) -> Unit raise {
   writer.append_final_prefill_completed(
     slot=row.completion_slot(),
@@ -40,7 +40,7 @@ fn append_final_result(
 fn append_decode_result(
   writer : @worker_protocol.CompletionWriter,
   row : @worker_protocol.SubmittedDecodeRow,
-  token : Int,
+  token : Int32,
 ) -> Unit raise {
   writer.append_decode_completed(
     slot=row.completion_slot(),

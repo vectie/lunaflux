@@ -1,17 +1,17 @@
 ///|
-const MAX_KERNEL_ARGUMENTS : Int = 32
+const MAX_KERNEL_ARGUMENTS : Int32 = 32
 
 ///|
-const MAX_GRID_YZ : Int = 65535
+const MAX_GRID_YZ : Int32 = 65535
 
 ///|
-const MAX_BLOCK_DIMENSION : Int = 1024
+const MAX_BLOCK_DIMENSION : Int32 = 1024
 
 ///|
-const MAX_THREADS_PER_BLOCK : Int = 1024
+const MAX_THREADS_PER_BLOCK : Int32 = 1024
 
 ///|
-const MAX_SHARED_MEMORY_BYTES : Int = 98304
+const MAX_SHARED_MEMORY_BYTES : Int32 = 98304
 
 ///|
 const MAX_KERNEL_ARGUMENT_ALIGNMENT : Int64 = 4096L
@@ -32,24 +32,24 @@ fn is_valid_argument_alignment(alignment : Int64) -> Bool {
 /// Bounded CUDA launch geometry. Hardware may impose a smaller dynamic shared
 /// memory limit; that incompatibility remains a typed launch failure.
 pub struct KernelLaunchDimensions {
-  priv grid_x : Int
-  priv grid_y : Int
-  priv grid_z : Int
-  priv block_x : Int
-  priv block_y : Int
-  priv block_z : Int
-  priv shared_memory_bytes : Int
+  priv grid_x : Int32
+  priv grid_y : Int32
+  priv grid_z : Int32
+  priv block_x : Int32
+  priv block_y : Int32
+  priv block_z : Int32
+  priv shared_memory_bytes : Int32
 }
 
 ///|
 pub fn KernelLaunchDimensions::new(
-  grid_x~ : Int,
-  grid_y~ : Int,
-  grid_z~ : Int,
-  block_x~ : Int,
-  block_y~ : Int,
-  block_z~ : Int,
-  shared_memory_bytes~ : Int,
+  grid_x~ : Int32,
+  grid_y~ : Int32,
+  grid_z~ : Int32,
+  block_x~ : Int32,
+  block_y~ : Int32,
+  block_z~ : Int32,
+  shared_memory_bytes~ : Int32,
 ) -> KernelLaunchDimensions raise DeviceError {
   if grid_x <= 0 ||
     grid_y <= 0 ||
@@ -112,7 +112,7 @@ pub fn KernelArgument::requiring_alignment(
   guard is_valid_argument_alignment(alignment) else {
     raise invalid_launch_argument()
   }
-  { ..self, alignment: Int64::max(self.alignment, alignment) }
+  { ..self, alignment: Int64::max(self.alignment, alignment), }
 }
 
 ///|
@@ -123,7 +123,7 @@ pub struct KernelArguments {
   priv offsets : FixedArray[Int64]
   priv byte_counts : FixedArray[Int64]
   priv alignments : FixedArray[Int64]
-  priv length : Int
+  priv length : Int32
 }
 
 ///|
@@ -153,6 +153,6 @@ pub fn KernelArguments::new(
 }
 
 ///|
-pub fn KernelArguments::length(self : KernelArguments) -> Int {
+pub fn KernelArguments::length(self : KernelArguments) -> Int32 {
   self.length
 }

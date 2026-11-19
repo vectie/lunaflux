@@ -51,7 +51,7 @@ fn wire_request(value : UInt64) -> @inference.RequestId {
 }
 
 ///|
-fn wire_slot(value : Int) -> @worker_protocol.CompletionSlot {
+fn wire_slot(value : Int32) -> @worker_protocol.CompletionSlot {
   try! @worker_protocol.CompletionSlot::new(value, wire_protocol_limits())
 }
 
@@ -72,8 +72,8 @@ fn wire_seed(value : UInt64) -> @inference.SamplingSeed {
 
 ///|
 fn submitted_wire_fixture(
-  prefill_slot? : Int = 0,
-  decode_slot? : Int = 1,
+  prefill_slot~ : Int32 = 0,
+  decode_slot~ : Int32 = 1,
 ) -> @worker_protocol.SubmittedSchedulePlan raise {
   let limits = wire_protocol_limits()
   let owner = @worker_protocol.SchedulePlanBuffer::new(limits)

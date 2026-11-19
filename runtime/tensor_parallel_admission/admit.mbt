@@ -1,5 +1,5 @@
 ///|
-fn expected_peer_link_count(world_size : Int) -> Int {
+fn expected_peer_link_count(world_size : Int32) -> Int32 {
   world_size * (world_size - 1) / 2
 }
 
@@ -62,7 +62,7 @@ fn validate_topology_facts(
 ///|
 fn admit_rank(
   facts : TopologyFacts,
-  rank : Int,
+  rank : Int32,
   claim : TensorParallelRankDeclaration,
 ) -> TensorParallelRankCapacity raise TensorParallelAdmissionError {
   let actual = facts.ranks[rank]

@@ -17,8 +17,8 @@ pub fn segmented_greedy_merge_symbol() -> String {
 
 ///|
 pub fn plan_segmented_greedy_cuda(
-  vocabulary_size : Int,
-  maximum_rows : Int,
+  vocabulary_size : Int32,
+  maximum_rows : Int32,
 ) -> @luna_sampling_strategy.GreedySegmentPlan raise SamplingBoundaryError {
   @luna_sampling_strategy.plan_greedy_segments(
     vocabulary_size~,
@@ -31,8 +31,8 @@ pub fn plan_segmented_greedy_cuda(
 
 ///|
 pub fn embedded_segmented_greedy_cuda_source(
-  vocabulary_size : Int,
-  maximum_rows : Int,
+  vocabulary_size : Int32,
+  maximum_rows : Int32,
 ) -> String raise SamplingBoundaryError {
   let plan = plan_segmented_greedy_cuda(vocabulary_size, maximum_rows)
   let (width, segments) = plan.partition()

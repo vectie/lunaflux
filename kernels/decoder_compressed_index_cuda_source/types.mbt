@@ -22,10 +22,10 @@ pub(all) suberror DecoderCompressedIndexCudaSourceError {
 pub struct DecoderCompressedIndexCudaSource {
   priv operation : DecoderCompressedIndexCudaOperation
   priv numerical_contract : DecoderCompressedIndexNumericalContract
-  priv compression_ratio : Int
-  priv maximum_position_count : Int
-  priv maximum_slots_per_row : Int
-  priv maximum_rows : Int
+  priv compression_ratio : Int32
+  priv maximum_position_count : Int32
+  priv maximum_slots_per_row : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

@@ -3,21 +3,21 @@
 /// physical traversal is masked by each row's original sparse selection.
 /// BF16 probability publication remains between the two matrix products.
 fn query_reuse_source(
-  qh : Int,
-  kvh : Int,
-  qkd : Int,
-  vd : Int,
-  width : Int,
-  extent : Int,
-  rows : Int,
-  history : Int,
+  qh : Int32,
+  kvh : Int32,
+  qkd : Int32,
+  vd : Int32,
+  width : Int32,
+  extent : Int32,
+  rows : Int32,
+  history : Int32,
   symbol : String,
   paging : @physical.PagedHistoryDomain?,
-  score_dimension : Int,
+  score_dimension : Int32,
 ) -> Bytes {
   let words = (history + 31) / 32
   let rounds = (vd + 63) / 64
-  let storage = 16 * Int::max(qkd, vd)
+  let storage = 16 * Int32::max(qkd, vd)
   let ports = if paging is Some(_) {
     ",const int32_t *row_sequences,const int32_t *page_offsets,const int32_t *page_ids,const int32_t *page_generations"
   } else {

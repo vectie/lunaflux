@@ -1,6 +1,6 @@
 ///|
 test "compressed KV prepare source pins official segment order" {
-  let rendered = non_overlapping_shared_kv_prepare_bf16_source(
+  let rendered = @decoder_compressed_kv_prepare_cuda_source.non_overlapping_shared_kv_prepare_bf16_source(
     window_size=128,
     compression_ratio=128,
     head_dimension=512,
@@ -20,7 +20,7 @@ test "compressed KV prepare source pins official segment order" {
 ///|
 test "panic compressed KV prepare rejects unsafe geometry and symbols" {
   try
-    non_overlapping_shared_kv_prepare_bf16_source(
+    @decoder_compressed_kv_prepare_cuda_source.non_overlapping_shared_kv_prepare_bf16_source(
       window_size=128,
       compression_ratio=1,
       head_dimension=512,
@@ -35,7 +35,7 @@ test "panic compressed KV prepare rejects unsafe geometry and symbols" {
     _ => fail("ratio one was accepted")
   }
   try
-    non_overlapping_shared_kv_prepare_bf16_source(
+    @decoder_compressed_kv_prepare_cuda_source.non_overlapping_shared_kv_prepare_bf16_source(
       window_size=128,
       compression_ratio=128,
       head_dimension=512,

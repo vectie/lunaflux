@@ -15,8 +15,8 @@ pub struct FusedCandidateBenchmarkArmObservation {
   priv live_bytes_before : Int64
   priv live_bytes_after : Int64
   priv resource_failures : Int64
-  priv dispatch_canary_before : UInt
-  priv dispatch_canary_after : UInt
+  priv dispatch_canary_before : UInt32
+  priv dispatch_canary_after : UInt32
 }
 
 ///|
@@ -30,8 +30,8 @@ pub fn FusedCandidateBenchmarkArmObservation::new(
   live_bytes_before~ : Int64,
   live_bytes_after~ : Int64,
   resource_failures~ : Int64,
-  dispatch_canary_before~ : UInt,
-  dispatch_canary_after~ : UInt,
+  dispatch_canary_before~ : UInt32,
+  dispatch_canary_after~ : UInt32,
 ) -> FusedCandidateBenchmarkArmObservation raise FusedCandidateBenchmarkError {
   if duration_ns <= 0L ||
     work_units <= 0L ||
@@ -67,8 +67,8 @@ pub fn FusedCandidateBenchmarkArmObservation::new(
 ///|
 pub struct FusedCandidateBenchmarkPairedObservation {
   priv shape : FusedCandidateBenchmarkShape
-  priv trial_ordinal : Int
-  priv repetitions : Int
+  priv trial_ordinal : Int32
+  priv repetitions : Int32
   priv order : FusedCandidateBenchmarkPairOrder
   priv baseline : FusedCandidateBenchmarkArmObservation
   priv candidate : FusedCandidateBenchmarkArmObservation
@@ -77,8 +77,8 @@ pub struct FusedCandidateBenchmarkPairedObservation {
 ///|
 pub fn FusedCandidateBenchmarkPairedObservation::new(
   shape~ : FusedCandidateBenchmarkShape,
-  trial_ordinal~ : Int,
-  repetitions~ : Int,
+  trial_ordinal~ : Int32,
+  repetitions~ : Int32,
   order~ : FusedCandidateBenchmarkPairOrder,
   baseline~ : FusedCandidateBenchmarkArmObservation,
   candidate~ : FusedCandidateBenchmarkArmObservation,

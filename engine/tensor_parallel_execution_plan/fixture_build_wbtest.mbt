@@ -91,7 +91,7 @@ fn exec_launch_inputs(
   profiles : ArrayView[@launch_contract.PagedKernelProfile],
   target : @catalog.DeviceTarget,
   digest : @catalog.AotArtifactDigest,
-  rank : Int,
+  rank : Int32,
 ) -> Array[
   @tensor_parallel_launch_contract.TensorParallelAotLaunchContractInput,
 ] raise {
@@ -171,7 +171,7 @@ fn exec_artifacts(
 fn build_execution_fixture(
   root : @approved_fs.ApprovedRoot,
   file : BytesView,
-  rank : Int,
+  rank : Int32,
   module_text : String,
 ) -> ExecutionFixture raise {
   let metadata = exec_metadata(file)

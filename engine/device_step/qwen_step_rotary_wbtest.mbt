@@ -82,14 +82,14 @@ test "cell-based preparation buckets preserve non-divisor head widths" {
 
 ///|
 test "a single preparation precedes every borrowed layer without changing legacy routes" {
-  let layers : ReadOnlyArray[Int] = [10, 20, 30, 40]
+  let layers : ReadOnlyArray[Int32] = [10, 20, 30, 40]
   assert_eq(
     prepend_qwen_step_rotary(layers, Some(9)),
     ReadOnlyArray::from_array([9, 10, 20, 30, 40]),
   )
   assert_eq(prepend_qwen_step_rotary(layers, None), layers)
-  let prefill : ReadOnlyArray[Int] = [10, 21, 30, 41]
-  let decode : ReadOnlyArray[Int] = [10, 22, 30, 42]
+  let prefill : ReadOnlyArray[Int32] = [10, 21, 30, 41]
+  let decode : ReadOnlyArray[Int32] = [10, 22, 30, 42]
   for route in [layers, prefill, decode] {
     let prepared = prepend_qwen_step_rotary(route, Some(9))
     assert_eq(prepared[0], 9)

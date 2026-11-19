@@ -1,7 +1,7 @@
 ///|
 fn trusted_receipt_workspace(
   now : Ref[UInt64],
-  millis? : UInt64 = 100UL,
+  millis~ : UInt64 = 100UL,
 ) -> LunaRequestReceiptWorkspace raise {
   new_luna_receipt_workspace_with_clock(
     () => now.val,

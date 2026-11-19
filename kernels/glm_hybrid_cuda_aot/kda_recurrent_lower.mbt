@@ -1,11 +1,11 @@
 ///|
 fn kda_recurrent_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  head_count : Int,
-  head_dimension : Int,
-  maximum_tokens : Int,
-  maximum_sequences : Int,
+  ordinal : Int32,
+  head_count : Int32,
+  head_dimension : Int32,
+  maximum_tokens : Int32,
+  maximum_sequences : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -104,9 +104,9 @@ fn kda_recurrent_recipe(
 /// kernel and owns neither gate projection nor persistent cache state.
 pub fn lower_kda_recurrent_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
-  maximum_sequences~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
+  maximum_sequences~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

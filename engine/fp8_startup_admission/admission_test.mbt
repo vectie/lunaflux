@@ -1,6 +1,6 @@
 ///|
 fn startup_limits(
-  canonical_bytes? : Int = 4096,
+  canonical_bytes~ : Int32 = 4096,
 ) -> @fp8_startup_admission.Fp8StartupAdmissionLimits {
   try! @fp8_startup_admission.Fp8StartupAdmissionLimits::new(
     max_canonical_bytes=canonical_bytes,

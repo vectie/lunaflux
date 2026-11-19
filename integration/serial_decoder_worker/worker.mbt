@@ -18,7 +18,7 @@ pub extend DecoderInputPort with @debug.Debug::{to_repr}
 pub extend DecoderInputPort with Eq::{equal, not_equal}
 
 ///|
-fn DecoderInputPort::index(self : Self) -> Int {
+fn DecoderInputPort::index(self : Self) -> Int32 {
   match self {
     Counts => 0
     TokenIds => 1
@@ -48,7 +48,7 @@ priv enum WorkerState {
 
 ///|
 priv struct DecoderEffects {
-  submit : (Int) -> Unit raise
+  submit : (Int32) -> Unit raise
   poll : () -> Bool raise
   close : () -> Unit raise
 }
@@ -67,9 +67,9 @@ pub struct SerialDecoderWorker {
   priv mut effects : DecoderEffects?
   priv whole_model : Bool
   priv outputs_token : Bool
-  priv vocabulary : Int
+  priv vocabulary : Int32
   priv mut stage_failed : Bool
-  priv mut stage_token : Int
+  priv mut stage_token : Int32
   priv mut state : WorkerState
 }
 
@@ -93,12 +93,12 @@ pub fn SerialDecoderWorker::new(frame : @frame.SerialDecoderFrame) -> Self {
 }
 
 ///|
-pub fn SerialDecoderWorker::geometry(self : Self) -> (Int, Int, Int) {
+pub fn SerialDecoderWorker::geometry(self : Self) -> (Int32, Int32, Int32) {
   self.frame.geometry()
 }
 
 ///|
-pub fn SerialDecoderWorker::output_capacity(self : Self) -> Int {
+pub fn SerialDecoderWorker::output_capacity(self : Self) -> Int32 {
   self.frame.output_capacity()
 }
 
@@ -120,7 +120,7 @@ fn SerialDecoderWorker::prepare_pool(
   self : Self,
   context : @device.Context,
   allocation : @device.Allocation,
-  bytes : Int,
+  bytes : Int32,
 ) -> Unit raise {
   let pool = context.prepare_transfer_pool(
     allocation,
@@ -192,7 +192,7 @@ pub fn SerialDecoderWorker::sampled_tokens(
 pub fn SerialDecoderWorker::bind_executor(
   self : Self,
   context : @device.Context,
-  submit~ : (Int) -> Unit raise,
+  submit~ : (Int32) -> Unit raise,
   poll~ : () -> Bool raise,
   close~ : () -> Unit raise,
   append_descriptors~ : ArrayView[@device.Allocation],
@@ -207,7 +207,7 @@ pub fn SerialDecoderWorker::bind_executor(
 fn SerialDecoderWorker::bind_effects(
   self : Self,
   context : @device.Context,
-  submit~ : (Int) -> Unit raise,
+  submit~ : (Int32) -> Unit raise,
   poll~ : () -> Bool raise,
   close~ : () -> Unit raise,
   append_descriptors~ : ArrayView[@device.Allocation],
@@ -331,7 +331,7 @@ fn SerialDecoderWorker::downloads_done(self : Self) -> Bool raise {
 }
 
 ///|
-fn load_i32(bytes : FixedArray[Byte], row? : Int = 0) -> Int {
+fn load_i32(bytes : FixedArray[Byte], row~ : Int32 = 0) -> Int32 {
   for i in 0..<4; bits = 0U {
     continue bits | (bytes[row * 4 + i].to_uint() << (i * 8))
   } nobreak {

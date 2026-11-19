@@ -45,7 +45,7 @@ fn generic_test_model() -> @plan.ModelPlan raise {
 
 ///|
 fn generic_row_tensor(
-  reference : Int,
+  reference : Int32,
   full_rows : Int64,
   row_start : Int64,
   row_count : Int64,
@@ -89,8 +89,8 @@ fn generic_row_tensor(
 
 ///|
 fn generic_operation(
-  index? : Int = 0,
-  output_width? : Int = 4,
+  index~ : Int32 = 0,
+  output_width~ : Int32 = 4,
 ) -> TensorParallelOperationPlan raise {
   TensorParallelOperationPlan::new(
     operation=@plan.OperationId::new(index),

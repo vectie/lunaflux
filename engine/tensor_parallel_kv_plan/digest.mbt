@@ -11,7 +11,7 @@ fn append_i64(output : Array[Byte], value : Int64) -> Unit {
 }
 
 ///|
-fn append_int(output : Array[Byte], value : Int) -> Unit {
+fn append_int(output : Array[Byte], value : Int32) -> Unit {
   append_i64(output, Int64::from_int(value))
 }
 
@@ -33,11 +33,11 @@ fn append_text(output : Array[Byte], value : StringView) -> Unit {
 fn build_rank_binding(
   identity : @spec.ModelIdentity,
   generation_value : UInt64,
-  rank : Int,
-  world_size : Int,
-  process_ordinal : Int,
+  rank : Int32,
+  world_size : Int32,
+  process_ordinal : Int32,
   target : @catalog.DeviceTarget,
-  global_kv_head_count : Int,
+  global_kv_head_count : Int32,
   local_layout : @device_layout.DeviceKvLayout,
   kv_reservation_bytes : Int64,
 ) -> TensorParallelKvRankBinding {

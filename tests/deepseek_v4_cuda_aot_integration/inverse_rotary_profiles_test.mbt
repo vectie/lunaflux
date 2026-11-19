@@ -1,7 +1,7 @@
 ///|
 fn official_inverse_rotary_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation()
       is AttentionOutputInverseRotaryV1(160000.0, 65536, 16.0, 32.0, 1.0) {

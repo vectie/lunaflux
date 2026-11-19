@@ -12,9 +12,9 @@ pub struct TileDecoder {
 
 ///|
 pub fn TileDecoder::new(
-  temporal~ : Int,
-  height~ : Int,
-  width~ : Int,
+  temporal~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   prefix~ : String,
   max_workspace_bytes~ : Int64,
 ) -> Self raise {

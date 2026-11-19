@@ -40,7 +40,7 @@ fn paged_kv_write_recipe(
   operands : ArrayView[@launch_contract.AotOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   symbol : String,
-  dispatch_canary : UInt,
+  dispatch_canary : UInt32,
   source : PagedKvWriteDigest,
   fallback : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
 ) -> Bytes {

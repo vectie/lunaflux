@@ -13,22 +13,22 @@ pub fn ChannelMajorProjectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn ChannelMajorProjectionCudaSource::batch_count(self : Self) -> Int {
+pub fn ChannelMajorProjectionCudaSource::batch_count(self : Self) -> Int32 {
   self.batch_count
 }
 
 ///|
-pub fn ChannelMajorProjectionCudaSource::input_channels(self : Self) -> Int {
+pub fn ChannelMajorProjectionCudaSource::input_channels(self : Self) -> Int32 {
   self.input_channels
 }
 
 ///|
-pub fn ChannelMajorProjectionCudaSource::output_channels(self : Self) -> Int {
+pub fn ChannelMajorProjectionCudaSource::output_channels(self : Self) -> Int32 {
   self.output_channels
 }
 
 ///|
-pub fn ChannelMajorProjectionCudaSource::time_count(self : Self) -> Int {
+pub fn ChannelMajorProjectionCudaSource::time_count(self : Self) -> Int32 {
   self.time_count
 }
 

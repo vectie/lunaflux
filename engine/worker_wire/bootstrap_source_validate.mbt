@@ -1,8 +1,8 @@
 ///|
-const BOOTSTRAP_SOURCE_MAX_PATH_BYTES : Int = 4096
+const BOOTSTRAP_SOURCE_MAX_PATH_BYTES : Int32 = 4096
 
 ///|
-const BOOTSTRAP_SOURCE_MAX_MODEL_CONFIG_BYTES : Int = 16777216
+const BOOTSTRAP_SOURCE_MAX_MODEL_CONFIG_BYTES : Int32 = 16777216
 
 ///|
 const BOOTSTRAP_SOURCE_MAX_MANIFEST_BYTES : Int64 = 67108864L
@@ -19,7 +19,7 @@ fn bootstrap_source_is_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -29,7 +29,7 @@ fn bootstrap_source_is_sha256(value : StringView) -> Bool {
 ///|
 fn validate_bootstrap_path_segments(
   value : StringView,
-  start : Int,
+  start : Int32,
   rule : WorkerBootstrapSourceRule,
 ) -> Unit raise WorkerWireError {
   let mut segment_length = 0
@@ -44,7 +44,8 @@ fn validate_bootstrap_path_segments(
       segment_length = 0
       segment_dots = 0
     } else {
-      let valid = unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.')
+      let valid = unit
+        is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '_' | '-' | '.')
       if !valid {
         raise InvalidBootstrapSource(rule)
       }
@@ -115,9 +116,9 @@ pub fn WorkerBootstrapModelSource::new(
 pub fn WorkerBootstrapKernelSource::new(
   manifest_locator~ : StringView,
   manifest_digest_sha256~ : StringView,
-  luna_approval? : WorkerBootstrapLunaApproval? = None,
-  fused_runtime? : WorkerBootstrapFusedRuntimeSource? = None,
-  sampling_runtime? : WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
+  luna_approval~ : WorkerBootstrapLunaApproval? = None,
+  fused_runtime~ : WorkerBootstrapFusedRuntimeSource? = None,
+  sampling_runtime~ : WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
 ) -> WorkerBootstrapKernelSource raise WorkerWireError {
   validate_bootstrap_locator(manifest_locator)
   if !bootstrap_source_is_sha256(manifest_digest_sha256) {
@@ -178,12 +179,12 @@ pub fn WorkerBootstrapLunaApproval::from_untrusted_wire_claim(
 
 ///|
 pub fn WorkerBootstrapExecution::new(
-  compute_major~ : Int,
-  compute_minor~ : Int,
+  compute_major~ : Int32,
+  compute_minor~ : Int32,
   supports_bf16~ : Bool,
   supports_cublas_lt~ : Bool,
-  tokens_per_page~ : Int,
-  total_page_count~ : Int,
+  tokens_per_page~ : Int32,
+  total_page_count~ : Int32,
 ) -> WorkerBootstrapExecution raise WorkerWireError {
   if compute_major <= 0 ||
     compute_major > 1024 ||
@@ -209,7 +210,7 @@ pub fn WorkerBootstrapExecution::new(
 
 ///|
 pub fn WorkerBootstrapCeilings::new(
-  max_model_config_bytes~ : Int,
+  max_model_config_bytes~ : Int32,
   max_weight_file_bytes~ : Int64,
   max_weight_arena_bytes~ : Int64,
   max_activation_arena_bytes~ : Int64,

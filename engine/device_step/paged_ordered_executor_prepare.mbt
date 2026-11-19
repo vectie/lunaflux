@@ -2,7 +2,7 @@
 fn qwen_bucket_step_index(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   operation : @plan.OperationId,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   let mut found = -1
   for index, step in steps {
     if step.operation_id == operation {
@@ -22,8 +22,8 @@ fn qwen_bucket_step_index(
 fn qwen_bucket_step_indices(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   operation : @plan.OperationId,
-) -> ReadOnlyArray[Int] {
-  let found : Array[Int] = []
+) -> ReadOnlyArray[Int32] {
+  let found : Array[Int32] = []
   for index, step in steps {
     if step.operation_id == operation {
       found.push(index)
@@ -36,7 +36,7 @@ fn qwen_bucket_step_indices(
 fn paged_projection_output_width(
   blueprint : PagedKvExecutionBlueprint,
   step : PagedKvExecutionStep,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   let mut bytes = -1L
   for operand in step.operands() {
     if operand.role() is ActivationOutput(_) {
@@ -61,7 +61,7 @@ fn paged_projection_output_width(
 fn paged_projection_intermediate_width(
   blueprint : PagedKvExecutionBlueprint,
   step : PagedKvExecutionStep,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   let mut bytes = -1L
   for operand in step.operands() {
     if operand.role() == Workspace {
@@ -115,8 +115,8 @@ fn prepare_qwen_graph_launch_contract(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
   residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
-  prefill_wide_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
-  prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  prefill_wide_steps~ : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  prefill_split_steps~ : ReadOnlyArray[PreparedPagedGraphStep]? = None,
 ) -> PagedGraphLaunchContract? raise DeviceStepError {
   if spans.is_empty() {
     return None
@@ -150,7 +150,7 @@ fn prepare_qwen_graph_launch_contract(
       span.ingress_query_tile_rows +
       1
     } else {
-      Int::min(blueprint.profile().max_query_tokens(), 4096)
+      Int32::min(blueprint.profile().max_query_tokens(), 4096)
     }
     if postprocess.grid_x() != expected_ingress_grid ||
       readonly_launch.grid_x() <= 0 ||
@@ -252,7 +252,7 @@ fn prepare_qwen_graph_launch_contract(
 ///|
 fn paged_scaled_query_token_launch(
   source : @launch_contract.AotLaunchDimensions,
-  query_token_bound : Int,
+  query_token_bound : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise DeviceStepError {
   if query_token_bound <= 0 || query_token_bound > source.grid_x() {
     raise InvalidExecutor(GraphBucket)
@@ -273,21 +273,21 @@ fn paged_scaled_query_token_launch(
 ///|
 fn paged_capped_query_token_launch(
   source : @launch_contract.AotLaunchDimensions,
-  query_token_bound : Int,
+  query_token_bound : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise DeviceStepError {
   if query_token_bound <= 0 {
     raise InvalidExecutor(GraphBucket)
   }
   paged_scaled_query_token_launch(
     source,
-    Int::min(source.grid_x(), query_token_bound),
+    Int32::min(source.grid_x(), query_token_bound),
   )
 }
 
 ///|
 fn paged_bucket_launch(
   rule : PagedBucketStepLaunch,
-  query_token_bound : Int,
+  query_token_bound : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise DeviceStepError {
   if rule is QueryTokenCappedGridX(source) {
     return paged_capped_query_token_launch(source, query_token_bound)
@@ -343,9 +343,9 @@ fn paged_device_launch_dimensions(
 fn paged_ordered_launches(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   resources : PagedGraphResources,
-  query_token_bound? : Int? = None,
-  phase? : PagedBucketLaunchPhase = BaselineLaunch,
-  launch_rules? : FixedArray[PagedBucketStepLaunch]? = None,
+  query_token_bound~ : Int32? = None,
+  phase~ : PagedBucketLaunchPhase = BaselineLaunch,
+  launch_rules~ : FixedArray[PagedBucketStepLaunch]? = None,
 ) -> Array[@device.OrderedKernelLaunch] raise DeviceStepError {
   let launches : Array[@device.OrderedKernelLaunch] = []
   for index, step in steps {
@@ -408,8 +408,8 @@ fn prepare_one_paged_ordered_executor(
   resources : PagedGraphResources,
   policy : @device.OrderedKernelExecutionPolicy,
   source_steps? : ReadOnlyArray[PreparedPagedGraphStep],
-  projection_query_bound? : Int = 0,
-) -> Int raise DeviceStepError {
+  projection_query_bound~ : Int32 = 0,
+) -> Int32 raise DeviceStepError {
   guard resources.stream is Some(stream) && stream.open else {
     raise InvalidExecutor(ResourceState)
   }

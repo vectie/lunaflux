@@ -7,7 +7,7 @@ fn fused_parallel_is_sha256(value : String) -> Bool {
     return false
   }
   for character in value {
-    if !(character is ('0'..='9' | 'a'..='f')) {
+    if !(character is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }

@@ -1,8 +1,8 @@
 ///|
 priv struct I8AdmissionPreflight {
-  operation_count : Int
-  weight_count : Int
-  canonical_bytes : Int
+  operation_count : Int32
+  weight_count : Int32
+  canonical_bytes : Int32
 }
 
 ///|

@@ -68,9 +68,9 @@ fn region(
 fn HyperConnectionFrame::launch(
   self : Self,
   aot : @device.Module,
-  stage : Int,
-  grid : Int,
-  threads : Int,
+  stage : Int32,
+  grid : Int32,
+  threads : Int32,
   arguments : Array[@device.KernelArgument],
 ) -> @device.OrderedKernelLaunch raise {
   let function = aot.load_function(@utf8.encode(self.source.symbol(stage)))

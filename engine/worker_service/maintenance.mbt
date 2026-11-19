@@ -236,7 +236,7 @@ fn WorkerService::progress_maintenance_impl(
 ///|
 fn WorkerService::maintenance_remaining_millis_impl(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   if self.maintenance_mode == MAINTENANCE_NONE {
     raise Invalid(Lifecycle)
   }

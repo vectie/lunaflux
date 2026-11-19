@@ -33,8 +33,8 @@ pub fn select_exact_program(
   folds : ArrayView[@precision.OrderedNumericFold],
   candidates : ArrayView[MeasuredNumericalPlan],
   memory_ceiling~ : Int64,
-) -> Int? {
-  for index in 0..<candidates.length(); best = (None : Int?) {
+) -> Int32? {
+  for index in 0..<candidates.length(); best = (None : Int32?) {
     let item = candidates[index]
     if item.elapsed_ns <= 0L ||
       item.memory_bytes < 0L ||

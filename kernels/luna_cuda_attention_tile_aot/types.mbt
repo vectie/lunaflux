@@ -14,7 +14,7 @@ pub struct CudaAttentionTileAotRequest {
   priv maximum_shared_memory_bytes : Int64
   priv abi : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi
   priv symbol : String
-  priv maximum_source_bytes : Int
+  priv maximum_source_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -37,7 +37,7 @@ pub struct CudaAttentionTileAotFrontier {
   priv functional : @luna_attention_tile_compiler.AttentionTileCompilationFrontier
   priv selected : CudaAttentionTileAotCompilation
   priv variants : ReadOnlyArray[CudaAttentionTileAotCompilation]
-  priv rejected : ReadOnlyArray[(Int, CudaAttentionTileAotRule)]
+  priv rejected : ReadOnlyArray[(Int32, CudaAttentionTileAotRule)]
   priv canonical : Bytes
   priv digest : CudaAttentionTileAotDigest
 } derive(Debug, Eq)
@@ -58,7 +58,7 @@ pub struct CudaPartitionedAttentionTileAotRequest {
   priv partial_symbol : String
   priv merge_symbol : String
   priv maximum_workspace_bytes : Int64
-  priv maximum_source_bytes : Int
+  priv maximum_source_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -72,7 +72,7 @@ pub struct CudaPartitionedAttentionTileAotCompilation {
 
 ///|
 pub struct CudaPartitionedAttentionTileAotVariant {
-  priv parallel_workgroup_target : Int
+  priv parallel_workgroup_target : Int32
   priv compilation : CudaPartitionedAttentionTileAotCompilation
 } derive(Debug, Eq)
 

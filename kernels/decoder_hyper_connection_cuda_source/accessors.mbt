@@ -13,24 +13,24 @@ pub fn DecoderHyperConnectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn DecoderHyperConnectionCudaSource::stream_width(self : Self) -> Int {
+pub fn DecoderHyperConnectionCudaSource::stream_width(self : Self) -> Int32 {
   self.stream_width
 }
 
 ///|
-pub fn DecoderHyperConnectionCudaSource::hidden_width(self : Self) -> Int {
+pub fn DecoderHyperConnectionCudaSource::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn DecoderHyperConnectionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderHyperConnectionCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 
 ///|
 pub fn DecoderHyperConnectionCudaSource::sinkhorn_iterations(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.sinkhorn_iterations
 }
 
@@ -73,21 +73,21 @@ pub fn DecoderHyperConnectionFunctionCudaSource::numerical_contract(
 ///|
 pub fn DecoderHyperConnectionFunctionCudaSource::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn DecoderHyperConnectionFunctionCudaSource::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 
 ///|
 pub fn DecoderHyperConnectionFunctionCudaSource::maximum_rows(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 
@@ -136,21 +136,21 @@ pub fn DecoderHyperConnectionSinkhornCudaSource::numerical_contract(
 ///|
 pub fn DecoderHyperConnectionSinkhornCudaSource::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn DecoderHyperConnectionSinkhornCudaSource::maximum_rows(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 
 ///|
 pub fn DecoderHyperConnectionSinkhornCudaSource::sinkhorn_iterations(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.sinkhorn_iterations
 }
 
@@ -192,21 +192,21 @@ pub fn DecoderHyperConnectionPreReduceCudaSource::numerical_contract(
 ///|
 pub fn DecoderHyperConnectionPreReduceCudaSource::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn DecoderHyperConnectionPreReduceCudaSource::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 
 ///|
 pub fn DecoderHyperConnectionPreReduceCudaSource::maximum_rows(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 
@@ -241,21 +241,21 @@ pub fn DecoderHyperConnectionPostCombineCudaSource::numerical_contract(
 ///|
 pub fn DecoderHyperConnectionPostCombineCudaSource::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn DecoderHyperConnectionPostCombineCudaSource::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 
 ///|
 pub fn DecoderHyperConnectionPostCombineCudaSource::maximum_rows(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 
@@ -290,21 +290,21 @@ pub fn DecoderHyperConnectionHeadReduceCudaSource::numerical_contract(
 ///|
 pub fn DecoderHyperConnectionHeadReduceCudaSource::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn DecoderHyperConnectionHeadReduceCudaSource::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 
 ///|
 pub fn DecoderHyperConnectionHeadReduceCudaSource::maximum_rows(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 

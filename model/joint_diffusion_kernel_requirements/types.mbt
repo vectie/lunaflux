@@ -6,22 +6,25 @@ pub(all) suberror JointDiffusionKernelRequirementsError {
   UnsupportedSchema
   InvalidSourceIdentity
   PlanExceedsLimits
-  DuplicateSemanticOperation(Int)
+  DuplicateSemanticOperation(Int32)
   RequirementsEncodingTooLarge
-  UnsupportedGenericDecoderKernelOperation(Int, JointDiffusionSemanticOperation)
+  UnsupportedGenericDecoderKernelOperation(
+    Int32,
+    JointDiffusionSemanticOperation
+  )
 } derive(Debug, Eq)
 
 ///|
 /// Explicit derivation ceilings. Requirement derivation is startup-only work.
 pub struct JointDiffusionKernelRequirementLimits {
-  priv maximum_transformer_layers : Int
-  priv maximum_requirements : Int
+  priv maximum_transformer_layers : Int32
+  priv maximum_requirements : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn JointDiffusionKernelRequirementLimits::new(
-  maximum_transformer_layers~ : Int,
-  maximum_requirements~ : Int,
+  maximum_transformer_layers~ : Int32,
+  maximum_requirements~ : Int32,
 ) -> Self raise JointDiffusionKernelRequirementsError {
   if maximum_transformer_layers <= 0 ||
     maximum_transformer_layers > 4096 ||
@@ -36,115 +39,120 @@ pub fn JointDiffusionKernelRequirementLimits::new(
 /// Exact family-neutral work implied by a joint audio/video diffusion plan.
 /// Geometry that changes AOT specialization remains part of each operation.
 pub(all) enum JointDiffusionSemanticOperation {
-  TokenTextConditioning(Int)
-  OrderedKeyframeConditioning(Int, Int)
-  OrderedReferenceConditioning(Int, Int, Int, Int, Bool)
-  VideoLatentProjection(Int, Int, Int, Int, Int)
-  AudioLatentProjection(Int, Int)
-  JointTransformerAttention(Int, Int, Int, Int, Int)
-  JointTransformerMlp(Int, Int, Int, Int)
-  VideoFinalRmsNorm(Int, Int, Int)
-  AudioFinalRmsNorm(Int, Int, Int)
-  VideoFinalAdaLnF32Boundary(Int)
-  AudioFinalAdaLnF32Boundary(Int)
-  FinalAdaLnParameterRow(Int, Int)
-  PackedModalityAdaLnRows(Int)
-  TimestepFrequencyRows(Int)
-  TimestepEmbeddingMlpRows(Int, Int, Int)
-  DistinctTimestepAdaLnParameterRows(Int, Int)
-  VideoOutputProjection(Int, Int, Int, Int, Int)
-  AudioOutputProjection(Int, Int)
-  ShiftedFlowStep(@joint_diffusion_plan.JointDiffusionLatentKind, Int, Int, Int)
+  TokenTextConditioning(Int32)
+  OrderedKeyframeConditioning(Int32, Int32)
+  OrderedReferenceConditioning(Int32, Int32, Int32, Int32, Bool)
+  VideoLatentProjection(Int32, Int32, Int32, Int32, Int32)
+  AudioLatentProjection(Int32, Int32)
+  JointTransformerAttention(Int32, Int32, Int32, Int32, Int32)
+  JointTransformerMlp(Int32, Int32, Int32, Int32)
+  VideoFinalRmsNorm(Int32, Int32, Int32)
+  AudioFinalRmsNorm(Int32, Int32, Int32)
+  VideoFinalAdaLnF32Boundary(Int32)
+  AudioFinalAdaLnF32Boundary(Int32)
+  FinalAdaLnParameterRow(Int32, Int32)
+  PackedModalityAdaLnRows(Int32)
+  TimestepFrequencyRows(Int32)
+  TimestepEmbeddingMlpRows(Int32, Int32, Int32)
+  DistinctTimestepAdaLnParameterRows(Int32, Int32)
+  VideoOutputProjection(Int32, Int32, Int32, Int32, Int32)
+  AudioOutputProjection(Int32, Int32)
+  ShiftedFlowStep(
+    @joint_diffusion_plan.JointDiffusionLatentKind,
+    Int32,
+    Int32,
+    Int32
+  )
   VideoVaeLatentDestandardization(
-    Int,
+    Int32,
     JointDiffusionVaeLatentDestandardizationStorage,
     JointDiffusionVideoVaeLatentLayout
   )
-  VideoVaeDecoderBody(Int, Int, Int, Int)
+  VideoVaeDecoderBody(Int32, Int32, Int32, Int32)
   AudioVaeLatentDestandardization(
-    Int,
-    Int,
+    Int32,
+    Int32,
     JointDiffusionVaeLatentDestandardizationStorage,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderInputProjection(
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeInputProjectionStorage,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderConvPre(
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeConvPreStorage,
     JointDiffusionAudioVaeWeightNormAxes,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderFirstUpsample(
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeConvTransposeStorage,
     JointDiffusionAudioVaeWeightNormAxes,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderFirstAmpActivation(
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeAliasFreeActivationStorage,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderFirstAmpStage(
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeFirstAmpStageStorage,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderUpsampleTransition(
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeConvTransposeStorage,
     JointDiffusionAudioVaeWeightNormAxes,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderAmpActivation(
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeAliasFreeActivationStorage,
     JointDiffusionAudioVaeLatentLayout
   )
   AudioVaeDecoderAmpStage(
-    Int,
-    Int,
-    Int,
-    Int,
-    Int,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
+    Int32,
     JointDiffusionAudioVaeAmpSchedule,
     JointDiffusionAudioVaeAmpStageStorage,
     JointDiffusionAudioVaeLatentLayout
   )
-  AudioVaeDecoderBody(Int, Int, Int, Int)
+  AudioVaeDecoderBody(Int32, Int32, Int32, Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -280,7 +288,7 @@ pub fn JointDiffusionKernelRequirementsDigest::as_hex(self : Self) -> String {
 /// Immutable startup capability requirements derived from one exact plan.
 pub struct JointDiffusionKernelRequirements {
   priv source_identity : @spec.ModelIdentity
-  priv source_schema_version : Int
+  priv source_schema_version : Int32
   priv shape_contract : @joint_diffusion_plan.JointDiffusionShapeContract
   priv conditioning_limits : @joint_diffusion_plan.JointDiffusionConditioningLimits
   priv denoiser_shape : @joint_diffusion_plan.JointDiffusionDenoiserShape
@@ -328,7 +336,7 @@ pub fn JointDiffusionKernelRequirements::projection_contract(
 ///|
 pub fn JointDiffusionKernelRequirements::source_schema_version(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.source_schema_version
 }
 

@@ -5,10 +5,10 @@
 /// region is copied unchanged. `head_dimension` must be even.
 pub fn rotary_embedding(
   qkv : Activation,
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  head_dimension~ : Int,
-  position_offset~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  head_dimension~ : Int32,
+  position_offset~ : Int32,
   rope_theta~ : Float,
   limits~ : ReferenceLimits,
 ) -> Activation raise ReferenceKernelError {

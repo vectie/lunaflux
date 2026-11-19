@@ -48,7 +48,7 @@ pub fn LunaInstanceMetricsSnapshot::counter_value(
 pub fn LunaInstanceMetricsSnapshot::gauge_value(
   self : LunaInstanceMetricsSnapshot,
   gauge : LunaInstanceGauge,
-) -> Int raise LunaInstanceMetricsError {
+) -> Int32 raise LunaInstanceMetricsError {
   self.require_live()
   self.owner.snapshot_gauges[gauge_index(gauge)]
 }
@@ -57,7 +57,7 @@ pub fn LunaInstanceMetricsSnapshot::gauge_value(
 pub fn LunaInstanceMetricsSnapshot::histogram_bucket_value(
   self : LunaInstanceMetricsSnapshot,
   histogram : LunaInstanceHistogram,
-  bucket_index : Int,
+  bucket_index : Int32,
 ) -> UInt64 raise LunaInstanceMetricsError {
   self.require_live()
   if bucket_index < 0 || bucket_index >= INSTANCE_HISTOGRAM_BUCKET_COUNT {

@@ -4,7 +4,7 @@ fn projection_companion_dimensions(
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   profile : @launch_contract.PagedKernelProfile,
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
-  refine_fold_geometry? : Bool = false,
+  refine_fold_geometry~ : Bool = false,
 ) -> @launch_contract.AotLaunchDimensions? raise ProjectionAotError {
   if !projection_tensor_core_mlp_eligible(parameters, dispatch) {
     return None

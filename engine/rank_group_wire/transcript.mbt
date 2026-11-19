@@ -92,7 +92,7 @@ pub fn RankGroupWireTranscript::lifecycle(
 ///|
 pub fn RankGroupWireTranscript::world_size(
   self : RankGroupWireTranscript,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
@@ -145,7 +145,7 @@ pub fn RankGroupWireTranscript::plan_failure(
 /// Returns the reporting rank for the authenticated active-plan failure.
 pub fn RankGroupWireTranscript::plan_failure_rank(
   self : RankGroupWireTranscript,
-) -> Int? {
+) -> Int32? {
   if self.plan_failure_value is Some(_) {
     Some(self.plan_failure_rank_value)
   } else {
@@ -168,7 +168,7 @@ pub fn RankGroupWireTranscript::abandon_on_transport_loss(
 ///|
 pub fn RankGroupWireTranscript::binding(
   self : RankGroupWireTranscript,
-  rank : Int,
+  rank : Int32,
 ) -> RankGroupWireBinding? {
   if rank < 0 || rank >= self.world_size {
     None
@@ -181,7 +181,7 @@ pub fn RankGroupWireTranscript::binding(
 fn RankGroupWireTranscript::authenticate_frame(
   self : RankGroupWireTranscript,
   frame : ValidatedRankGroupWireFrame,
-) -> Int raise RankGroupWireError {
+) -> Int32 raise RankGroupWireError {
   let owner = frame.owner() catch {
     error => return self.reject(error_rule(error))
   }
@@ -249,7 +249,7 @@ fn RankGroupWireTranscript::require_active_shape(
 fn RankGroupWireTranscript::accept_rank_header(
   self : RankGroupWireTranscript,
   header : RankGroupWireDecodedHeader,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupWireError {
   let kind = header.kind()
   let sequence = header.sequence_value()
@@ -459,7 +459,7 @@ pub fn RankGroupWireTranscript::accept(
 pub fn RankGroupWireTranscript::accept_bytes(
   self : RankGroupWireTranscript,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
 ) -> RankGroupWireDecodedHeader raise RankGroupWireError {
   if self.lifecycle == Faulted {
@@ -492,7 +492,7 @@ pub fn RankGroupWireTranscript::load_and_accept(
   self : RankGroupWireTranscript,
   receiver : RankGroupWireFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise RankGroupWireError {
   let frame = receiver.load(source, length) catch {
     error => {

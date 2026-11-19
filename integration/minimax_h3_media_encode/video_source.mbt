@@ -6,11 +6,11 @@ pub struct VideoSource {
 
 ///|
 pub fn VideoSource::new(
-  frames~ : Int,
-  height~ : Int,
-  width~ : Int,
+  frames~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   image~ : Bool,
-  max_tiles~ : Int,
+  max_tiles~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise @plan.PlanError {
   let plan = @audio.VideoEncoder::new(

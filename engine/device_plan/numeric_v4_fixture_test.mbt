@@ -1,6 +1,6 @@
 ///|
 fn d2_v4_content(
-  digest? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  digest~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @spec.ContentDigest {
   try! @spec.ContentDigest::from_sha256(digest)
 }
@@ -73,15 +73,15 @@ fn d2_v4_operations() -> Array[@plan.PlanOperation] {
 
 ///|
 fn d2_v4_plan(
-  mode : Int,
-  content_digest? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  mode : Int32,
+  content_digest~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @plan.ModelPlan {
   d2_v4_plan_with_content(mode, d2_v4_content(digest=content_digest))
 }
 
 ///|
 fn d2_v4_plan_with_content(
-  mode : Int,
+  mode : Int32,
   content : @spec.ContentDigest,
 ) -> @plan.ModelPlan {
   let operations = d2_v4_operations()
@@ -127,7 +127,7 @@ fn d2_v4_plan_with_content(
 ///|
 fn d2_v4_operation_digest(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
 ) -> @numeric_contract.OperationExecutionDigest {
   plan.numeric_binding().operations()[index].execution().digest()
 }

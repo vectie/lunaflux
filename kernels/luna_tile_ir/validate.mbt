@@ -228,7 +228,7 @@ fn validate_luna_tile_reduce(
   tensors : ReadOnlyArray[LunaTileTensorView],
   destination : LunaTileTensorId,
   source : LunaTileTensorId,
-  axis : Int,
+  axis : Int32,
 ) -> Unit raise LunaTileError {
   let output = require_luna_tile_tensor(tensors, destination)
   let input = require_luna_tile_tensor(tensors, source)

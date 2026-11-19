@@ -1,5 +1,5 @@
 ///|
-fn workflow_tag(value : JointDiffusionWorkflow) -> Int {
+fn workflow_tag(value : JointDiffusionWorkflow) -> Int32 {
   match value {
     TextToAudioVideo => 1
     FirstLastFrameToAudioVideo => 2
@@ -8,7 +8,7 @@ fn workflow_tag(value : JointDiffusionWorkflow) -> Int {
 }
 
 ///|
-fn stage_tag(value : JointDiffusionStageKind) -> Int {
+fn stage_tag(value : JointDiffusionStageKind) -> Int32 {
   match value {
     ResolveRequest => 1
     EncodeTextConditioning => 2
@@ -22,7 +22,7 @@ fn stage_tag(value : JointDiffusionStageKind) -> Int {
 }
 
 ///|
-fn presence_tag(value : JointDiffusionStagePresence) -> Int {
+fn presence_tag(value : JointDiffusionStagePresence) -> Int32 {
   match value {
     Required => 1
     Optional => 2
@@ -80,7 +80,7 @@ pub fn JointDiffusionProjectionContract::audio_layout(
 }
 
 ///|
-fn projection_storage_tag(value : JointDiffusionProjectionStorage) -> Int {
+fn projection_storage_tag(value : JointDiffusionProjectionStorage) -> Int32 {
   match value {
     Float32InputWeightBiasBFloat16Output => 1
   }
@@ -89,7 +89,7 @@ fn projection_storage_tag(value : JointDiffusionProjectionStorage) -> Int {
 ///|
 fn output_projection_storage_tag(
   value : JointDiffusionOutputProjectionStorage,
-) -> Int {
+) -> Int32 {
   match value {
     Float32InputWeightBiasFloat32Output => 1
     BFloat16InputWeightBiasBFloat16Output => 2
@@ -97,14 +97,14 @@ fn output_projection_storage_tag(
 }
 
 ///|
-fn video_patch_layout_tag(value : JointDiffusionVideoPatchLayout) -> Int {
+fn video_patch_layout_tag(value : JointDiffusionVideoPatchLayout) -> Int32 {
   match value {
     BatchFrameHeightWidthChannelTemporalHeightWidth => 1
   }
 }
 
 ///|
-fn audio_row_layout_tag(value : JointDiffusionAudioRowLayout) -> Int {
+fn audio_row_layout_tag(value : JointDiffusionAudioRowLayout) -> Int32 {
   match value {
     ChannelMajorTime => 1
   }
@@ -166,7 +166,7 @@ fn valid_stages(
 
 ///|
 fn encode_plan_digest(
-  schema_version : Int,
+  schema_version : Int32,
   content_digest : @spec.ContentDigest,
   workflows : ReadOnlyArray[JointDiffusionWorkflow],
   stages : ReadOnlyArray[JointDiffusionStage],
@@ -227,7 +227,7 @@ fn encode_plan_digest(
 
 ///|
 pub fn JointDiffusionPlan::new(
-  schema_version~ : Int,
+  schema_version~ : Int32,
   content_digest~ : @spec.ContentDigest,
   workflows~ : ArrayView[JointDiffusionWorkflow],
   stages~ : ArrayView[JointDiffusionStage],
@@ -289,7 +289,7 @@ pub fn JointDiffusionPlan::new(
 }
 
 ///|
-pub fn JointDiffusionPlan::schema_version(self : Self) -> Int {
+pub fn JointDiffusionPlan::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 

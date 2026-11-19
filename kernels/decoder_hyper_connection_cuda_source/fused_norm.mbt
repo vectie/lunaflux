@@ -3,7 +3,7 @@
 /// tree. Only launch/publication placement changes, not floating-point order.
 fn fused_collapse_norm_body(
   precision : @precision.HyperConnectionPrecision,
-  workers : Int,
+  workers : Int32,
 ) -> String {
   let (_, hidden, _) = precision.geometry()
   let expression = (

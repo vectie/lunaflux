@@ -10,11 +10,11 @@ pub struct GlmHybridMoeGroupedRoutingCudaCandidate {
   priv numerical_contract : @grouped_routing_cuda_source.GroupedRoutingNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv routed_expert_count : Int
-  priv maximum_tokens : Int
+  priv routed_expert_count : Int32
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[

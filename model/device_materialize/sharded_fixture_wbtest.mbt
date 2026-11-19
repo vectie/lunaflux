@@ -105,7 +105,7 @@ fn wb_sharded_bindings(
 ///|
 fn wb_sharded_rank_plan(
   file : Bytes,
-  rank : Int,
+  rank : Int32,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan raise {
   let model = wb_sharded_model(file)
   @llama_tensor_parallel.build_rank_plan(
@@ -121,7 +121,7 @@ fn wb_sharded_rank_plan(
 ///|
 fn wb_prepare_sharded(
   file : Bytes,
-  rank : Int,
+  rank : Int32,
 ) -> PreparedShardedStreamingLoad[SourceStamp] raise {
   let model = wb_sharded_model(file)
   prepare_sharded_streaming_load(
@@ -145,7 +145,7 @@ fn wb_prepare_sharded(
 fn wb_copy_sharded(
   arena : FixedArray[Byte],
   source : FixedArray[Byte],
-  source_offset : Int,
+  source_offset : Int32,
   destination_offset : Int64,
   byte_count : Int64,
 ) -> Unit {

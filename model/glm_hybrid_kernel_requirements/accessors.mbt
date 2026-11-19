@@ -25,7 +25,7 @@ pub fn GlmHybridKernelRequirements::source_identity(
 }
 
 ///|
-pub fn GlmHybridKernelRequirements::source_schema_version(self : Self) -> Int {
+pub fn GlmHybridKernelRequirements::source_schema_version(self : Self) -> Int32 {
   self.source_schema_version
 }
 
@@ -37,27 +37,27 @@ pub fn GlmHybridKernelRequirements::geometry(
 }
 
 ///|
-pub fn GlmHybridKernelGeometry::vocabulary_size(self : Self) -> Int {
+pub fn GlmHybridKernelGeometry::vocabulary_size(self : Self) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn GlmHybridKernelGeometry::hidden_size(self : Self) -> Int {
+pub fn GlmHybridKernelGeometry::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn GlmHybridKernelGeometry::dense_intermediate_size(self : Self) -> Int {
+pub fn GlmHybridKernelGeometry::dense_intermediate_size(self : Self) -> Int32 {
   self.dense_intermediate_size
 }
 
 ///|
-pub fn GlmHybridKernelGeometry::decoder_layer_count(self : Self) -> Int {
+pub fn GlmHybridKernelGeometry::decoder_layer_count(self : Self) -> Int32 {
   self.decoder_layer_count
 }
 
 ///|
-pub fn GlmHybridKernelGeometry::context_length(self : Self) -> Int {
+pub fn GlmHybridKernelGeometry::context_length(self : Self) -> Int32 {
   self.context_length
 }
 

@@ -10,10 +10,10 @@ pub struct GlmHybridKvAssemblyCudaCandidate {
   priv numerical_contract : @decoder_kv_assembly_cuda_source.DecoderKvAssemblyNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv maximum_tokens : Int
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[

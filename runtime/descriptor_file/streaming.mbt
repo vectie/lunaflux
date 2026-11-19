@@ -1,12 +1,12 @@
 ///|
 priv struct StreamingClaims {
-  slots : Int
+  slots : Int32
   host_bytes : Int64
-  reserve_pages : Int
+  reserve_pages : Int32
   restore_ns : Int64
   recompute_ns : Int64
   separate_host_memory : Bool
-  transfer_timeout_millis : Int
+  transfer_timeout_millis : Int32
   workspace_budget : Int64
   shapes : ReadOnlyArray[@streaming_ir.Shape]
 }

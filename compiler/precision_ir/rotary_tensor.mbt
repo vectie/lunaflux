@@ -1,7 +1,7 @@
 ///|
 fn validate_rotary_frequency(
   frequency : RotaryFrequency,
-  positions : Int,
+  positions : Int32,
 ) -> Unit raise PrecisionPlanError {
   match frequency {
     Base(theta~) => {
@@ -26,11 +26,11 @@ fn validate_rotary_frequency(
 /// Adjacent-pair F32 rotation of a BF16 tensor's suffix. The unrotated prefix
 /// is copied bitwise; inverse rotation conjugates the frequency, not the data.
 pub struct RotaryTensorPrecision {
-  priv heads : Int
-  priv width : Int
-  priv suffix : Int
-  priv rows : Int
-  priv positions : Int
+  priv heads : Int32
+  priv width : Int32
+  priv suffix : Int32
+  priv rows : Int32
+  priv positions : Int32
   priv frequency : RotaryFrequency
   priv product : RotaryProductLaw
   priv inverse : Bool
@@ -39,15 +39,15 @@ pub struct RotaryTensorPrecision {
 
 ///|
 pub fn RotaryTensorPrecision::new(
-  head_count~ : Int,
-  head_width~ : Int,
-  rotary_width~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  head_count~ : Int32,
+  head_width~ : Int32,
+  rotary_width~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   frequency~ : RotaryFrequency,
   inverse~ : Bool,
   maximum_workspace_bytes~ : Int64,
-  product? : RotaryProductLaw = SeparateFloat32Products,
+  product~ : RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise PrecisionPlanError {
   guard head_count > 0 &&
     head_count <= 512 &&
@@ -84,7 +84,7 @@ pub fn RotaryTensorPrecision::new(
 ///|
 pub fn RotaryTensorPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (self.heads, self.width, self.suffix, self.rows, self.positions)
 }
 

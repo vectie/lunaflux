@@ -30,7 +30,7 @@ fn transport_error(error : @process.ProcessError) -> WorkerProcessError {
 }
 
 ///|
-fn transport_status_error(status : Int) -> WorkerProcessError {
+fn transport_status_error(status : Int32) -> WorkerProcessError {
   Transport(
     match status {
       1 => InvalidState
@@ -209,7 +209,7 @@ pub fn WorkerProcessSupervisor::submission_for_sequence(
 ///|
 fn WorkerProcessSupervisor::oldest_submitted_side(
   self : WorkerProcessSupervisor,
-) -> Int raise WorkerProcessError {
+) -> Int32 raise WorkerProcessError {
   if self.state_a == 2 || self.state_b == 2 {
     raise Backpressured
   }
@@ -267,9 +267,9 @@ pub fn WorkerProcessSupervisor::receive(
 ///|
 fn WorkerProcessSupervisor::accept_completion_bytes_in_place(
   self : WorkerProcessSupervisor,
-  side : Int,
+  side : Int32,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  length : Int,
+  length : Int32,
 ) -> Unit raise WorkerProcessError {
   let frame = if side == 0 {
     self.completion_a.load(self.rx, length) catch {

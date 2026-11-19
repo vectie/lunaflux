@@ -1,10 +1,10 @@
 ///|
 priv struct TensorParallelCollectiveFact {
-  sequence : Int
-  operation : Int
+  sequence : Int32
+  operation : Int32
   kind : @tensor_parallel_plan.TensorCollectiveKind
-  full_width : Int
-  local_width : Int
+  full_width : Int32
+  local_width : Int32
 }
 
 ///|
@@ -76,8 +76,8 @@ fn validate_collective_facts(
 
 ///|
 fn collective_test_operation(
-  index : Int,
-  output_width : Int,
+  index : Int32,
+  output_width : Int32,
 ) -> @tensor_parallel_plan.TensorParallelOperationPlan raise {
   @tensor_parallel_plan.TensorParallelOperationPlan::new(
     operation=@plan.OperationId::new(index),

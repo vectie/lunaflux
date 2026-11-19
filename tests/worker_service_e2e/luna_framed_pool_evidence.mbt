@@ -23,7 +23,7 @@ fn prepare_framed_pool_e2e(
 ///|
 async fn progress_framed_pool_to_connections(
   pool : @online_tcp.LunaOnlineFramedConnectionPool,
-  expected : Int,
+  expected : Int32,
   stage : String,
 ) -> Unit {
   for turn in 0..<5000 {

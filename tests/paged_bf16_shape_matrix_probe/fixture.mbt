@@ -1,5 +1,5 @@
 ///|
-fn matrix_fill_static_fixture(kind : Int, output : FixedArray[Byte]) -> Bool {
+fn matrix_fill_static_fixture(kind : Int32, output : FixedArray[Byte]) -> Bool {
   for index in 0..<output.length() {
     output[index] = b'\x00'
   }
@@ -92,7 +92,7 @@ fn matrix_fill_static_fixture(kind : Int, output : FixedArray[Byte]) -> Bool {
 
 ///|
 fn matrix_case_buffer(
-  index : Int,
+  index : Int32,
   case : ShapeMatrixCase,
 ) -> FixedArray[Byte] raise ShapeMatrixFailure {
   let output = FixedArray::make(matrix_buffer_sizes[index], b'\x00')
@@ -116,7 +116,7 @@ fn matrix_case_buffer(
 }
 
 ///|
-fn matrix_fixture_bf16(kind : Int, elements : Int) -> FixedArray[Int] {
+fn matrix_fixture_bf16(kind : Int32, elements : Int32) -> FixedArray[Int32] {
   let bytes = FixedArray::make(elements * 2, b'\x00')
   try! assert_true(matrix_fill_static_fixture(kind, bytes))
   FixedArray::makei(elements, index => {
@@ -125,7 +125,7 @@ fn matrix_fixture_bf16(kind : Int, elements : Int) -> FixedArray[Int] {
 }
 
 ///|
-fn matrix_initial_cache(key~ : Bool) -> FixedArray[Int] {
+fn matrix_initial_cache(key~ : Bool) -> FixedArray[Int32] {
   let bytes = FixedArray::make(1024, b'\x00')
   matrix_fill_cache(bytes, key~)
   FixedArray::makei(512, index => {

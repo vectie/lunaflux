@@ -15,8 +15,8 @@ fn selected_config() -> String {
 ///|
 fn parse_selected(
   document : StringView,
-  max_bytes? : Int = 4096,
-  max_depth? : Int = 8,
+  max_bytes~ : Int32 = 4096,
+  max_depth~ : Int32 = 8,
 ) -> @spec.LlamaModelMetadata raise @config_reader.ModelConfigReaderError {
   @config_reader.parse_string(
     document,

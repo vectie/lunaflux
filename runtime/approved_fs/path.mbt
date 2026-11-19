@@ -1,10 +1,10 @@
 ///|
-const APPROVED_PATH_MAX_BYTES : Int = 4096
+const APPROVED_PATH_MAX_BYTES : Int32 = 4096
 
 ///|
 fn validate_segments(
   value : StringView,
-  start : Int,
+  start : Int32,
   rule : ApprovedFsRule,
 ) -> Unit raise ApprovedFsError {
   let mut segment_length = 0
@@ -19,7 +19,8 @@ fn validate_segments(
       segment_length = 0
       segment_dots = 0
     } else {
-      let valid = unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.')
+      let valid = unit
+        is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '_' | '-' | '.')
       if !valid {
         raise Invalid(rule)
       }

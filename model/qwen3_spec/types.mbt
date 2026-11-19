@@ -40,14 +40,14 @@ pub(all) suberror Qwen3ModelSpecError {
 /// treating this as the older dense-Llama geometry would silently change the
 /// query projection and rotary semantics.
 pub struct Qwen3ModelSpec {
-  priv vocabulary_size : Int
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv layer_count : Int
-  priv attention_head_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
-  priv context_length : Int
+  priv vocabulary_size : Int32
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv layer_count : Int32
+  priv attention_head_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
+  priv context_length : Int32
   priv rope_theta : Double
   priv rms_norm_epsilon : Double
   priv weight_dtype : @spec.ModelDType
@@ -65,16 +65,16 @@ pub struct Qwen3ModelMetadata {
 ///|
 /// Constructs the dense Qwen3 semantic profile.
 pub fn Qwen3ModelSpec::new(
-  vocabulary_size~ : Int,
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  layer_count~ : Int,
-  attention_head_count~ : Int,
-  kv_head_count~ : Int,
-  head_dimension~ : Int,
-  context_length~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  layer_count~ : Int32,
+  attention_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  head_dimension~ : Int32,
+  context_length~ : Int32,
   rope_theta~ : Double,
-  rms_norm_epsilon? : Double = 0.000001,
+  rms_norm_epsilon~ : Double = 0.000001,
   weight_dtype~ : @spec.ModelDType,
   kv_dtype~ : @spec.ModelDType,
   tied_embeddings~ : Bool,
@@ -161,59 +161,59 @@ fn Qwen3ModelSpec::validate(self : Self) -> Unit raise Qwen3ModelSpecError {
 }
 
 ///|
-pub fn Qwen3ModelSpec::vocabulary_size(self : Self) -> Int {
+pub fn Qwen3ModelSpec::vocabulary_size(self : Self) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn Qwen3ModelSpec::hidden_size(self : Self) -> Int {
+pub fn Qwen3ModelSpec::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn Qwen3ModelSpec::intermediate_size(self : Self) -> Int {
+pub fn Qwen3ModelSpec::intermediate_size(self : Self) -> Int32 {
   self.intermediate_size
 }
 
 ///|
-pub fn Qwen3ModelSpec::layer_count(self : Self) -> Int {
+pub fn Qwen3ModelSpec::layer_count(self : Self) -> Int32 {
   self.layer_count
 }
 
 ///|
-pub fn Qwen3ModelSpec::attention_head_count(self : Self) -> Int {
+pub fn Qwen3ModelSpec::attention_head_count(self : Self) -> Int32 {
   self.attention_head_count
 }
 
 ///|
 /// Explicit query-head count. This name prevents consumers from mistaking
 /// Qwen3's query projection width for the hidden width.
-pub fn Qwen3ModelSpec::query_head_count(self : Self) -> Int {
+pub fn Qwen3ModelSpec::query_head_count(self : Self) -> Int32 {
   self.attention_head_count
 }
 
 ///|
-pub fn Qwen3ModelSpec::kv_head_count(self : Self) -> Int {
+pub fn Qwen3ModelSpec::kv_head_count(self : Self) -> Int32 {
   self.kv_head_count
 }
 
 ///|
-pub fn Qwen3ModelSpec::head_dimension(self : Self) -> Int {
+pub fn Qwen3ModelSpec::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn Qwen3ModelSpec::query_projection_width(self : Self) -> Int {
+pub fn Qwen3ModelSpec::query_projection_width(self : Self) -> Int32 {
   self.attention_head_count * self.head_dimension
 }
 
 ///|
-pub fn Qwen3ModelSpec::kv_projection_width(self : Self) -> Int {
+pub fn Qwen3ModelSpec::kv_projection_width(self : Self) -> Int32 {
   self.kv_head_count * self.head_dimension
 }
 
 ///|
-pub fn Qwen3ModelSpec::context_length(self : Self) -> Int {
+pub fn Qwen3ModelSpec::context_length(self : Self) -> Int32 {
   self.context_length
 }
 
@@ -270,3 +270,33 @@ pub fn Qwen3ModelMetadata::spec(self : Self) -> Qwen3ModelSpec {
 pub fn Qwen3ModelMetadata::content_digest(self : Self) -> @spec.ContentDigest {
   self.content_digest
 }
+
+///|
+pub extend Qwen3ModelDimension with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen3ModelDimension with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen3HeadRelationship with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen3HeadRelationship with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen3ModelSpecError with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen3ModelSpecError with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen3ModelSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen3ModelSpec with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen3ModelMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen3ModelMetadata with Eq::{not_equal, equal}

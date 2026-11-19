@@ -6,9 +6,9 @@
 fn cuda_prefill_key_value_view_address(
   abi : CudaPagedAttentionTileAbi,
   query_owned : Bool,
-  dense? : Bool = true,
-  retained_value? : Bool = false,
-  affine_positions? : Bool = false,
+  dense~ : Bool = true,
+  retained_value~ : Bool = false,
+  affine_positions~ : Bool = false,
 ) -> String {
   let (heads, kv_heads, dimension, page_tokens) = abi.shape()
   let (row_width, page_stride, pages) = abi.layout()

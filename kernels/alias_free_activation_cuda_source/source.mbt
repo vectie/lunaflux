@@ -2,8 +2,8 @@
 fn valid_symbol(symbol : StringView) -> Bool {
   !symbol.is_empty() &&
   symbol.length() <= 128 &&
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(unit => unit is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(unit => unit is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -19,11 +19,11 @@ fn checked_mul(
 
 ///|
 pub fn f32_alias_free_snake_beta_source(
-  batch_count~ : Int,
-  channel_count~ : Int,
-  time_count~ : Int,
-  ratio~ : Int,
-  kernel_size~ : Int,
+  batch_count~ : Int32,
+  channel_count~ : Int32,
+  time_count~ : Int32,
+  ratio~ : Int32,
+  kernel_size~ : Int32,
   upsample_symbol~ : String,
   activation_symbol~ : String,
   downsample_symbol~ : String,

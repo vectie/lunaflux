@@ -1,11 +1,11 @@
 ///|
 fn projection_fixture_operation(
-  id : Int,
+  id : Int32,
   kind : @plan.OperationKind,
   inputs : ArrayView[@plan.ValueRef],
   shape : @plan.OperationShape,
   capability : @plan.KernelCapabilityId,
-  runtime_inputs? : ArrayView[@plan.OperationRuntimeInput] = [StepCounts],
+  runtime_inputs~ : ArrayView[@plan.OperationRuntimeInput] = [StepCounts],
 ) -> @plan.PlanOperation raise {
   @plan.PlanOperation::new_with_runtime_inputs(
     id=@plan.OperationId::new(id),
@@ -136,7 +136,7 @@ fn projection_fixture_plan() -> @plan.ModelPlan raise {
 
 ///|
 fn projection_fixture_target(
-  bf16? : Bool = true,
+  bf16~ : Bool = true,
 ) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=9,
@@ -161,7 +161,7 @@ fn projection_fixture_layout() -> @device_layout.DeviceKvLayout raise {
 }
 
 ///|
-fn projection_fixture_entry(id : Int) -> @catalog.AotKernelEntryPoint raise {
+fn projection_fixture_entry(id : Int32) -> @catalog.AotKernelEntryPoint raise {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
       module_digest=@catalog.AotArtifactDigest::from_sha256(

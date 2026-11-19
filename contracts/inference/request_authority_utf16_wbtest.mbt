@@ -1,5 +1,5 @@
 ///|
-fn oversized_invalid_utf16(prefix_length : Int) -> String {
+fn oversized_invalid_utf16(prefix_length : Int32) -> String {
   let chars = Array::make(prefix_length, 'a')
   chars.push((0xd800).unsafe_to_char())
   String::from_array(chars)

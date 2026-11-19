@@ -1,7 +1,7 @@
 ///|
 test "operator capture failure stops before subsequent submission" {
   for failure in ["run", "snapshot", "consume"] {
-    let submitted : Array[Int] = []
+    let submitted : Array[Int32] = []
     let captured : Array[String] = []
     try
       observe_operator_outputs(
@@ -37,8 +37,8 @@ test "operator capture failure stops before subsequent submission" {
 
 ///|
 test "matched layers consume original predecessors, never the previous diagnostic output" {
-  let inputs : Array[Int] = []
-  let original : (Int) -> Bytes raise = i => {
+  let inputs : Array[Int32] = []
+  let original : (Int32) -> Bytes raise = i => {
     inputs.push(i)
     Bytes::make(2, i.to_byte())
   }
@@ -89,7 +89,7 @@ test "observation partitions exactly the text and deepstack launch recipes" {
   assert_eq(visual[0], (0, 2))
   for layer in 1..<=50 {
     assert_eq(text[layer], (layer, 1 + layer * layer_function_order().length()))
-    assert_eq(visual[layer], (layer, text[layer].1 + 1 + Int::min(layer, 3)))
+    assert_eq(visual[layer], (layer, text[layer].1 + 1 + Int32::min(layer, 3)))
     assert_true(text[layer].1 > text[layer - 1].1)
     assert_true(visual[layer].1 > visual[layer - 1].1)
   }
@@ -99,8 +99,8 @@ test "observation partitions exactly the text and deepstack launch recipes" {
 
 ///|
 test "hidden observations are ordered and stop immediately on execution failure" {
-  let calls : Array[Int] = []
-  let outputs : Array[Int] = []
+  let calls : Array[Int32] = []
+  let outputs : Array[Int32] = []
   try
     observe_hidden_states(
       51,
@@ -127,8 +127,8 @@ test "hidden observations are ordered and stop immediately on execution failure"
 
 ///|
 test "observer failure cannot submit subsequent layers" {
-  let calls : Array[Int] = []
-  let outputs : Array[Int] = []
+  let calls : Array[Int32] = []
+  let outputs : Array[Int32] = []
   try
     observe_hidden_states(
       51,

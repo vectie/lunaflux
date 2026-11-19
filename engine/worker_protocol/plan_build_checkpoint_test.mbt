@@ -3,8 +3,8 @@ fn append_checkpoint_prefill(
   buffer : @worker_protocol.SchedulePlanBuffer,
   pages : @page_allocator.PageAllocator,
   id : UInt64,
-  token : Int,
-  completion_slot : Int,
+  token : Int32,
+  completion_slot : Int32,
 ) -> Unit raise {
   buffer.append_prefill(
     request_id=request_id(id),

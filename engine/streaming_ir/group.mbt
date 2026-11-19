@@ -17,7 +17,7 @@ pub fn rank_status_valid(
 ///|
 pub fn group_status(
   original : Opcode,
-  remaining : Int,
+  remaining : Int32,
   cancelled : Bool,
 ) -> Status {
   if remaining != 0 {
@@ -36,7 +36,7 @@ pub fn group_status(
 pub fn Capability::for_rank(
   self : Capability,
   page_bytes : Int64,
-  world_size : Int,
+  world_size : Int32,
 ) -> Capability raise StreamingError {
   if world_size < 2 || world_size > 16 {
     raise InvalidCapability
@@ -62,9 +62,9 @@ pub fn Capability::for_rank(
 #valtype
 pub struct GroupTransfer {
   command : Command
-  ranks : Int
-  finished : UInt
-  remaining : Int
+  ranks : Int32
+  finished : UInt32
+  remaining : Int32
   host : HostPage
   cancelled : Bool
 }
@@ -72,7 +72,7 @@ pub struct GroupTransfer {
 ///|
 pub fn GroupTransfer::new(
   command : Command,
-  ranks : Int,
+  ranks : Int32,
 ) -> GroupTransfer raise StreamingError {
   if ranks < 2 || ranks > 16 {
     raise InvalidCapability
@@ -88,7 +88,7 @@ pub fn GroupTransfer::new(
 }
 
 ///|
-pub fn GroupTransfer::rank_done(self : GroupTransfer, rank : Int) -> Bool {
+pub fn GroupTransfer::rank_done(self : GroupTransfer, rank : Int32) -> Bool {
   rank >= 0 && rank < self.ranks && (self.finished & (1U << rank)) != 0U
 }
 
@@ -105,7 +105,7 @@ pub fn GroupTransfer::cancel(
 ///|
 pub fn GroupTransfer::accept(
   self : GroupTransfer,
-  rank : Int,
+  rank : Int32,
   reply : Reply,
 ) -> GroupTransfer raise StreamingError {
   if rank < 0 ||

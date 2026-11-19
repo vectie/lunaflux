@@ -77,7 +77,7 @@ fn fp8_probe_execute_repeated(
   cubin : Bytes,
   source : @luna_cuda_fp8_projection_aot.Fp8ProjectionCudaLoweringV2,
   arguments : @device.KernelArguments,
-  cycles : Int,
+  cycles : Int32,
   output : Fp8ProbeBuffer,
   output_host : FixedArray[Byte],
   workspace : Fp8ProbeBuffer,
@@ -185,7 +185,7 @@ fn run_fp8_probe_device(
   simple_cubin : Bytes,
   gated_cubin : Bytes,
   candidates : Fp8V2ProbeCandidates,
-  cycles : Int,
+  cycles : Int32,
   balance : Fp8V2ProbeBalance,
 ) -> Fp8ProbeObservation raise {
   let devices = match @device.probe() {

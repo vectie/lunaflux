@@ -5,7 +5,7 @@ pub struct IndexedSparseProjectionCudaSource {
   priv plan : @precision.IndexedSparseProjectionPrecision
   priv symbols : ReadOnlyArray[String]
   priv sources : Bytes
-  priv geometry : ReadOnlyArray[(Int, Int)]
+  priv geometry : ReadOnlyArray[(Int32, Int32)]
   priv operand_alignments : ReadOnlyArray[Int64]
 }
 
@@ -13,7 +13,7 @@ pub struct IndexedSparseProjectionCudaSource {
 pub fn indexed_sparse_projection_source(
   plan : @precision.IndexedSparseProjectionPrecision,
   symbol_prefix~ : String,
-  staging? : @matrix.MatrixStaging = Synchronous,
+  staging~ : @matrix.MatrixStaging = Synchronous,
   row_reuse? : @matrix.MatrixRowReuse,
 ) -> IndexedSparseProjectionCudaSource raise {
   guard staging == Synchronous || plan.projection_law() != ScalarFloat32 else {
@@ -43,7 +43,7 @@ pub fn indexed_sparse_projection_source(
     (hidden, id, 11),
   ]
   let sources : Array[Bytes] = Array::make(names.length(), b"")
-  let launches : Array[(Int, Int)] = Array::make(
+  let launches : Array[(Int32, Int32)] = Array::make(
     names.length(),
     (rows, 256),
   )
@@ -69,7 +69,8 @@ pub fn indexed_sparse_projection_source(
       launches[stage] = (tile.tile_count(), 128)
       if tile.staging() is FragmentPipeline(row_tile~) {
         operand_alignments[stage] = @matrix.MatrixFragmentPipeline::new(
-          tile, row_tile~,
+          tile,
+          row_tile~,
         ).operand_alignment()
       }
       continue
@@ -131,7 +132,8 @@ pub fn indexed_sparse_projection_source(
 
 ///|
 pub fn IndexedSparseProjectionCudaSource::operand_alignment(
-  self : Self, stage : Int,
+  self : Self,
+  stage : Int32,
 ) -> Int64 {
   self.operand_alignments[stage]
 }
@@ -151,7 +153,7 @@ pub fn IndexedSparseProjectionCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn IndexedSparseProjectionCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String {
   self.symbols[stage]
 }
@@ -159,7 +161,7 @@ pub fn IndexedSparseProjectionCudaSource::symbol(
 ///|
 pub fn IndexedSparseProjectionCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32) {
   self.geometry[stage]
 }

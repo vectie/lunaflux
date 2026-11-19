@@ -31,7 +31,7 @@ fn hostile_identity() -> @spec.ModelIdentity raise {
 }
 
 ///|
-fn hostile_owned_input(values : Array[Int], cached_maximum : Int) -> Input {
+fn hostile_owned_input(values : Array[Int32], cached_maximum : Int32) -> Input {
   TokenIds({
     backing: LunaOwnedTokenBacking(ReadOnlyArray::from_array(values)),
     token_count: values.length(),
@@ -41,7 +41,7 @@ fn hostile_owned_input(values : Array[Int], cached_maximum : Int) -> Input {
 
 ///|
 fn hostile_stops(
-  tokens : Array[Int],
+  tokens : Array[Int32],
   strings : Array[String],
 ) -> StopConditions {
   {
@@ -54,8 +54,8 @@ fn hostile_stops(
 fn hostile_request(
   limits~ : InferenceLimits,
   protocol_version~ : ProtocolVersion,
-  max_new_tokens~ : Int,
-  context_ceiling~ : Int,
+  max_new_tokens~ : Int32,
+  context_ceiling~ : Int32,
   input~ : Input,
   sampling~ : SamplingParameters,
   sampling_seed~ : SamplingSeed,

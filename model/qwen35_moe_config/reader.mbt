@@ -1,7 +1,7 @@
 ///|
 fn validate_limits(
-  max_bytes : Int,
-  max_depth : Int,
+  max_bytes : Int32,
+  max_depth : Int32,
 ) -> Unit raise Qwen35ConfigError {
   if max_bytes <= 0 {
     raise InvalidByteLimit
@@ -14,7 +14,7 @@ fn validate_limits(
 ///|
 fn validate_utf8_size(
   input : StringView,
-  max_bytes : Int,
+  max_bytes : Int32,
 ) -> Unit raise Qwen35ConfigError {
   let mut index = 0
   let mut byte_count = 0
@@ -47,7 +47,7 @@ fn validate_utf8_size(
 fn parse_text(
   document : StringView,
   content_digest : @spec.ContentDigest,
-  max_depth : Int,
+  max_depth : Int32,
 ) -> @qwen35_moe_spec.Qwen35MoeTextMetadata raise Qwen35ConfigError {
   @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
     InvalidDepthLimit => raise InvalidDepthLimit
@@ -69,8 +69,8 @@ fn parse_text(
 pub fn parse_string(
   document : StringView,
   content_digest : @spec.ContentDigest,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @qwen35_moe_spec.Qwen35MoeTextMetadata raise Qwen35ConfigError {
   validate_limits(max_bytes, max_depth)
   validate_utf8_size(document, max_bytes)
@@ -82,8 +82,8 @@ pub fn parse_string(
 pub fn parse_bytes(
   document : BytesView,
   content_digest : @spec.ContentDigest,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @qwen35_moe_spec.Qwen35MoeTextMetadata raise Qwen35ConfigError {
   validate_limits(max_bytes, max_depth)
   if document.length() > max_bytes {

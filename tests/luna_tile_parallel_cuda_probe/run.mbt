@@ -2,7 +2,7 @@
 const LUNA_TILE_PROBE_BYTES : Int64 = 256L
 
 ///|
-fn luna_tile_probe_input(cycle : Int) -> Bytes {
+fn luna_tile_probe_input(cycle : Int32) -> Bytes {
   let bytes = FixedArray::make(LUNA_TILE_PROBE_BYTES.to_int(), b'\x00')
   for index in 0..<bytes.length() {
     bytes[index] = ((index * 37 + cycle * 19 + 11) & 255).to_byte()
@@ -76,7 +76,7 @@ fn luna_tile_probe_parallel_dimensions(
 fn run_luna_tile_parallel_device_probe(
   serial_module_bytes : Bytes,
   parallel_module_bytes : Bytes,
-  cycles : Int,
+  cycles : Int32,
   balance : LunaTileParallelProbeBalance,
 ) -> Unit raise {
   let (serial, parallel) = luna_tile_probe_candidates()

@@ -2,8 +2,8 @@
 fn valid_recurrent_projection_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -25,11 +25,11 @@ fn recurrent_projection_product(left : Int64, right : Int64) -> Int64? {
 /// forget-A, raw forget logits, and sigmoid input gate. F32 decay parameters
 /// and log-decay production are intentionally absent.
 pub fn qkv_forget_input_gate_bf16_source(
-  hidden_width~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
-  control_rank~ : Int,
-  maximum_rows~ : Int,
+  hidden_width~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  control_rank~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> RecurrentAttentionProjectionCudaSource raise RecurrentAttentionProjectionCudaSourceError {
   if hidden_width <= 0 {
@@ -158,29 +158,35 @@ pub fn RecurrentAttentionProjectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn RecurrentAttentionProjectionCudaSource::hidden_width(self : Self) -> Int {
+pub fn RecurrentAttentionProjectionCudaSource::hidden_width(
+  self : Self,
+) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn RecurrentAttentionProjectionCudaSource::head_count(self : Self) -> Int {
+pub fn RecurrentAttentionProjectionCudaSource::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
 pub fn RecurrentAttentionProjectionCudaSource::head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn RecurrentAttentionProjectionCudaSource::control_rank(self : Self) -> Int {
+pub fn RecurrentAttentionProjectionCudaSource::control_rank(
+  self : Self,
+) -> Int32 {
   self.control_rank
 }
 
 ///|
-pub fn RecurrentAttentionProjectionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn RecurrentAttentionProjectionCudaSource::maximum_rows(
+  self : Self,
+) -> Int32 {
   self.maximum_rows
 }
 

@@ -1,7 +1,7 @@
 ///|
 pub fn ValidatedTextConditioning::new(
   content_digest~ : @spec.ContentDigest,
-  token_count~ : Int,
+  token_count~ : Int32,
 ) -> ValidatedTextConditioning raise JointDiffusionIoPlanError {
   if token_count <= 0 || token_count > 65536 {
     raise InvalidTextConditioning
@@ -17,15 +17,15 @@ pub fn ValidatedTextConditioning::content_digest(
 }
 
 ///|
-pub fn ValidatedTextConditioning::token_count(self : Self) -> Int {
+pub fn ValidatedTextConditioning::token_count(self : Self) -> Int32 {
   self.token_count
 }
 
 ///|
 pub fn ValidatedImageInput::new(
   content_digest~ : @spec.ContentDigest,
-  height~ : Int,
-  width~ : Int,
+  height~ : Int32,
+  width~ : Int32,
 ) -> ValidatedImageInput raise JointDiffusionIoPlanError {
   if height <= 0 || width <= 0 || height > 32768 || width > 32768 {
     raise InvalidMediaDescriptor
@@ -39,22 +39,22 @@ pub fn ValidatedImageInput::content_digest(self : Self) -> @spec.ContentDigest {
 }
 
 ///|
-pub fn ValidatedImageInput::height(self : Self) -> Int {
+pub fn ValidatedImageInput::height(self : Self) -> Int32 {
   self.height
 }
 
 ///|
-pub fn ValidatedImageInput::width(self : Self) -> Int {
+pub fn ValidatedImageInput::width(self : Self) -> Int32 {
   self.width
 }
 
 ///|
 pub fn ValidatedVideoInput::new(
   content_digest~ : @spec.ContentDigest,
-  height~ : Int,
-  width~ : Int,
-  frame_count~ : Int,
-  frames_per_second~ : Int,
+  height~ : Int32,
+  width~ : Int32,
+  frame_count~ : Int32,
+  frames_per_second~ : Int32,
 ) -> ValidatedVideoInput raise JointDiffusionIoPlanError {
   if height <= 0 ||
     width <= 0 ||
@@ -75,22 +75,22 @@ pub fn ValidatedVideoInput::content_digest(self : Self) -> @spec.ContentDigest {
 }
 
 ///|
-pub fn ValidatedVideoInput::height(self : Self) -> Int {
+pub fn ValidatedVideoInput::height(self : Self) -> Int32 {
   self.height
 }
 
 ///|
-pub fn ValidatedVideoInput::width(self : Self) -> Int {
+pub fn ValidatedVideoInput::width(self : Self) -> Int32 {
   self.width
 }
 
 ///|
-pub fn ValidatedVideoInput::frame_count(self : Self) -> Int {
+pub fn ValidatedVideoInput::frame_count(self : Self) -> Int32 {
   self.frame_count
 }
 
 ///|
-pub fn ValidatedVideoInput::frames_per_second(self : Self) -> Int {
+pub fn ValidatedVideoInput::frames_per_second(self : Self) -> Int32 {
   self.frames_per_second
 }
 
@@ -98,8 +98,8 @@ pub fn ValidatedVideoInput::frames_per_second(self : Self) -> Int {
 pub fn ValidatedAudioInput::new(
   content_digest~ : @spec.ContentDigest,
   sample_count~ : Int64,
-  sample_rate~ : Int,
-  channel_count~ : Int,
+  sample_rate~ : Int32,
+  channel_count~ : Int32,
 ) -> ValidatedAudioInput raise JointDiffusionIoPlanError {
   if sample_count <= 0L ||
     sample_count > 2147483647L ||
@@ -123,12 +123,12 @@ pub fn ValidatedAudioInput::sample_count(self : Self) -> Int64 {
 }
 
 ///|
-pub fn ValidatedAudioInput::sample_rate(self : Self) -> Int {
+pub fn ValidatedAudioInput::sample_rate(self : Self) -> Int32 {
   self.sample_rate
 }
 
 ///|
-pub fn ValidatedAudioInput::channel_count(self : Self) -> Int {
+pub fn ValidatedAudioInput::channel_count(self : Self) -> Int32 {
   self.channel_count
 }
 

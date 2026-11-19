@@ -5,8 +5,8 @@ fn artifact_test_content(fill : Char) -> @spec.ContentDigest {
 
 ///|
 fn artifact_test_plan(
-  fill? : Char = 'a',
-  hash_layer_count? : Int = 0,
+  fill~ : Char = 'a',
+  hash_layer_count~ : Int32 = 0,
 ) -> @advanced_decoder_execution_plan.AdvancedDecoderExecutionPlan {
   let shape = try! @advanced_decoder_execution_plan.AdvancedDecoderShape::new(
     vocabulary_size=128,
@@ -90,8 +90,8 @@ fn artifact_test_plan(
 
 ///|
 fn artifact_test_requirements(
-  fill? : Char = 'a',
-  hash_layer_count? : Int = 0,
+  fill~ : Char = 'a',
+  hash_layer_count~ : Int32 = 0,
 ) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements {
   try! @advanced_decoder_kernel_requirements.derive_requirements(
     artifact_test_plan(fill~, hash_layer_count~),
@@ -104,7 +104,7 @@ fn artifact_test_requirements(
 }
 
 ///|
-fn artifact_test_target(minor? : Int = 0) -> @catalog.DeviceTarget {
+fn artifact_test_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=minor,
@@ -115,7 +115,7 @@ fn artifact_test_target(minor? : Int = 0) -> @catalog.DeviceTarget {
 
 ///|
 fn artifact_test_dimensions(
-  grid_x? : Int = 1,
+  grid_x~ : Int32 = 1,
 ) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x~,
@@ -229,7 +229,7 @@ fn artifact_test_dimensions_for(
 
 ///|
 fn artifact_test_limits(
-  maximum_canonical_bytes? : Int = 262144,
+  maximum_canonical_bytes~ : Int32 = 262144,
 ) -> AdvancedDecoderArtifactAdmissionLimits {
   try! AdvancedDecoderArtifactAdmissionLimits::new(
     maximum_requirements=64,
@@ -257,8 +257,8 @@ fn artifact_test_module_digest() -> @catalog.AotArtifactDigest {
 
 ///|
 fn artifact_test_entry(
-  ordinal : Int,
-  digest? : @catalog.AotArtifactDigest = artifact_test_module_digest(),
+  ordinal : Int32,
+  digest~ : @catalog.AotArtifactDigest = artifact_test_module_digest(),
 ) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
@@ -395,7 +395,7 @@ fn artifact_test_operands(
 fn artifact_test_launch(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
   target : @catalog.DeviceTarget,
-  ordinal : Int,
+  ordinal : Int32,
   digest? : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest,
   source_identity? : @spec.ModelIdentity,
   operation? : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation,

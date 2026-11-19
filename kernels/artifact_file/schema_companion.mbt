@@ -16,7 +16,7 @@ pub fn decode_companion_dimensions(
     ("block_z", EntryPointsField),
     ("shared_memory_bytes", EntryPointsField),
   ])
-  let integer = fn(name : String) -> Int raise KernelArtifactFileError {
+  let integer = fn(name : String) -> Int32 raise KernelArtifactFileError {
     require_nonnegative_int(fields, name, ManifestEntryPoint, EntryPointsField)
   }
   @launch_contract.AotLaunchDimensions::new(

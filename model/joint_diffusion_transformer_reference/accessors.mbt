@@ -4,7 +4,7 @@ pub fn JointTinyDenoiseStepResult::plan_digest(self : Self) -> @spec.PlanDigest 
 }
 
 ///|
-pub fn JointTinyDenoiseStepResult::step_index(self : Self) -> Int {
+pub fn JointTinyDenoiseStepResult::step_index(self : Self) -> Int32 {
   self.step_index
 }
 

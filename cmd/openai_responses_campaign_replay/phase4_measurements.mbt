@@ -32,8 +32,8 @@ fn phase4_require_equivalent_work(
 ///|
 fn phase4_profile_aggregate(
   measurements : @openai_adapter.OpenAIResponsesComparisonMeasurementSet,
-  profile_index : Int,
-  engine_index : Int,
+  profile_index : Int32,
+  engine_index : Int32,
 ) -> Phase4ProfileAggregate raise Phase4PrefixGateError {
   let mut completed = 0L
   let mut input_tokens = 0L
@@ -81,7 +81,7 @@ fn phase4_profile_aggregate(
 ///|
 fn phase4_profile_matrix(
   measurements : @openai_adapter.OpenAIResponsesComparisonMeasurementSet,
-  profile_index : Int,
+  profile_index : Int32,
 ) -> Phase4ProfileMatrix raise Phase4PrefixGateError {
   {
     lunaflux: phase4_profile_aggregate(measurements, profile_index, 0),

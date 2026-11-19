@@ -2,15 +2,15 @@
 /// A contiguous logical-axis partition. No device topology or instruction
 /// geometry participates in this immutable plan.
 pub struct TensorAxisPartition {
-  priv start : Int
-  priv width : Int
+  priv start : Int32
+  priv width : Int32
 }
 
 ///|
 pub fn TensorAxisPartition::new(
-  full_width : Int,
-  rank~ : Int,
-  world_size~ : Int,
+  full_width : Int32,
+  rank~ : Int32,
+  world_size~ : Int32,
 ) -> Self raise PrecisionPlanError {
   guard full_width > 0 &&
     world_size > 1 &&
@@ -24,7 +24,7 @@ pub fn TensorAxisPartition::new(
 }
 
 ///|
-pub fn TensorAxisPartition::range(self : Self) -> (Int, Int) {
+pub fn TensorAxisPartition::range(self : Self) -> (Int32, Int32) {
   (self.start, self.width)
 }
 

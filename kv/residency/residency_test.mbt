@@ -1,5 +1,5 @@
 ///|
-fn pool(slots? : Int = 2, transfers? : Int = 1) -> @residency.Pool {
+fn pool(slots~ : Int32 = 2, transfers~ : Int32 = 1) -> @residency.Pool {
   @residency.Pool::new(
     try! @residency.Limits::new(
       slots~,

@@ -1,16 +1,20 @@
 ///|
-fn readonly_test_bf16_bits(value : Float) -> Int {
+fn readonly_test_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn readonly_test_bf16(bits : Int) -> Float {
+fn readonly_test_bf16(bits : Int32) -> Float {
   Float::reinterpret_from_uint(bits.reinterpret_as_uint() << 16)
 }
 
 ///|
-fn readonly_test_value(position : Int, component : Int, phase : Int) -> Int {
+fn readonly_test_value(
+  position : Int32,
+  component : Int32,
+  phase : Int32,
+) -> Int32 {
   readonly_test_bf16_bits(
     Float::from_int(
       (position * (phase + 3) + component * 5 + phase * 11) % 37 - 18,
@@ -21,12 +25,12 @@ fn readonly_test_value(position : Int, component : Int, phase : Int) -> Int {
 
 ///|
 fn readonly_test_cache_index(
-  physical_page : Int,
-  token_in_page : Int,
-  component : Int,
-  tokens_per_page : Int,
-  head_dimension : Int,
-) -> Int {
+  physical_page : Int32,
+  token_in_page : Int32,
+  component : Int32,
+  tokens_per_page : Int32,
+  head_dimension : Int32,
+) -> Int32 {
   8 +
   (physical_page * tokens_per_page + token_in_page) * head_dimension +
   component
@@ -34,13 +38,13 @@ fn readonly_test_cache_index(
 
 ///|
 fn readonly_test_fill_history(
-  key_cache : FixedArray[Int],
-  value_cache : FixedArray[Int],
-  sequence_length : Int,
-  chunk_start : Int,
-  tokens_per_page : Int,
-  page_indices : FixedArray[Int],
-  head_dimension : Int,
+  key_cache : FixedArray[Int32],
+  value_cache : FixedArray[Int32],
+  sequence_length : Int32,
+  chunk_start : Int32,
+  tokens_per_page : Int32,
+  page_indices : FixedArray[Int32],
+  head_dimension : Int32,
 ) -> Unit {
   for position in 0..<chunk_start.min(sequence_length) {
     let logical_page = position / tokens_per_page
@@ -61,11 +65,11 @@ fn readonly_test_fill_history(
 
 ///|
 fn readonly_test_chunk(
-  chunk_start : Int,
-  chunk_count : Int,
-  query_heads : Int,
-  head_dimension : Int,
-) -> FixedArray[Int] {
+  chunk_start : Int32,
+  chunk_count : Int32,
+  query_heads : Int32,
+  head_dimension : Int32,
+) -> FixedArray[Int32] {
   let query_width = query_heads * head_dimension
   let qkv_width = query_width + 2 * head_dimension
   FixedArray::makei(chunk_count * qkv_width, index => {
@@ -84,15 +88,15 @@ fn readonly_test_chunk(
 
 ///|
 fn readonly_test_standalone_write(
-  qkv : FixedArray[Int],
-  key_cache : FixedArray[Int],
-  value_cache : FixedArray[Int],
-  chunk_start : Int,
-  chunk_count : Int,
-  query_heads : Int,
-  head_dimension : Int,
-  tokens_per_page : Int,
-  page_indices : FixedArray[Int],
+  qkv : FixedArray[Int32],
+  key_cache : FixedArray[Int32],
+  value_cache : FixedArray[Int32],
+  chunk_start : Int32,
+  chunk_count : Int32,
+  query_heads : Int32,
+  head_dimension : Int32,
+  tokens_per_page : Int32,
+  page_indices : FixedArray[Int32],
 ) -> Unit {
   let query_width = query_heads * head_dimension
   let qkv_width = query_width + 2 * head_dimension
@@ -118,17 +122,17 @@ fn readonly_test_standalone_write(
 
 ///|
 fn readonly_test_attention(
-  qkv : FixedArray[Int],
-  key_cache : FixedArray[Int],
-  value_cache : FixedArray[Int],
-  chunk_start : Int,
-  chunk_count : Int,
-  query_heads : Int,
-  head_dimension : Int,
-  tokens_per_page : Int,
-  page_indices : FixedArray[Int],
+  qkv : FixedArray[Int32],
+  key_cache : FixedArray[Int32],
+  value_cache : FixedArray[Int32],
+  chunk_start : Int32,
+  chunk_count : Int32,
+  query_heads : Int32,
+  head_dimension : Int32,
+  tokens_per_page : Int32,
+  page_indices : FixedArray[Int32],
   fused_current_chunk : Bool,
-) -> FixedArray[Int] {
+) -> FixedArray[Int32] {
   let query_width = query_heads * head_dimension
   let qkv_width = query_width + 2 * head_dimension
   let output = FixedArray::make(chunk_count * query_width, 0)
@@ -209,7 +213,7 @@ fn readonly_test_attention(
 fn readonly_test_tiled_softmax16(
   scores : FixedArray[Float],
   values : FixedArray[Float],
-  width : Int,
+  width : Int32,
 ) -> FixedArray[Float] {
   let output = FixedArray::make(width, 0.0F)
   let weights = FixedArray::make(16, 0.0F)
@@ -260,7 +264,7 @@ fn readonly_test_tiled_softmax16(
 fn readonly_test_scalar_softmax(
   scores : FixedArray[Float],
   values : FixedArray[Float],
-  width : Int,
+  width : Int32,
 ) -> FixedArray[Float] {
   let mut maximum = scores[0]
   for index in 1..<scores.length() {
@@ -283,7 +287,7 @@ fn readonly_test_scalar_softmax(
 }
 
 ///|
-fn readonly_test_softmax_tile_case(count : Int) -> Unit raise {
+fn readonly_test_softmax_tile_case(count : Int32) -> Unit raise {
   let width = 7
   let scores = FixedArray::makei(count, index => {
     Float::from_int((index * 13 + count * 7) % 29 - 14) * 0.1875F
@@ -300,11 +304,11 @@ fn readonly_test_softmax_tile_case(count : Int) -> Unit raise {
 
 ///|
 fn readonly_test_case(
-  sequence_length : Int,
-  chunk_start : Int,
-  chunk_count : Int,
-  tokens_per_page : Int,
-  physical_pages : Int,
+  sequence_length : Int32,
+  chunk_start : Int32,
+  chunk_count : Int32,
+  tokens_per_page : Int32,
+  physical_pages : Int32,
 ) -> Unit raise {
   let query_heads = 2
   let head_dimension = 4

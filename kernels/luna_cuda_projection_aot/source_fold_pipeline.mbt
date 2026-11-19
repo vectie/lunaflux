@@ -8,8 +8,8 @@ fn projection_fold_pipeline_source(
   physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   input_base : String,
   weight_base : String,
-  stride : Int,
-  output_width : Int,
+  stride : Int32,
+  output_width : Int32,
 ) -> String {
   let pipeline = physical.schedule
   let rows = pipeline.row_width()
@@ -127,7 +127,7 @@ fn projection_fold_operand_copy_source(
   base : String,
   destination : String,
   region : @physical_tile_ir.OperandRegion,
-  stride : Int,
+  stride : Int32,
   guard_rows : Bool,
   asynchronous : Bool,
 ) -> String {

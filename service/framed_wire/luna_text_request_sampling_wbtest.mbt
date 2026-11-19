@@ -28,7 +28,9 @@ fn luna_sampling_expected_request() -> @inference.GenerateRequest raise {
 }
 
 ///|
-fn luna_sampling_scalar_frame(budget : Int) -> (FixedArray[Byte], UInt64) raise {
+fn luna_sampling_scalar_frame(
+  budget : Int32,
+) -> (FixedArray[Byte], UInt64) raise {
   let inference = fixture_inference_limits()
   let workspace = LunaFramedTextRequestWorkspace::new(
     fixture_limits(),
@@ -75,7 +77,7 @@ fn luna_sampling_scalar_frame(budget : Int) -> (FixedArray[Byte], UInt64) raise 
   let result : FixedArray[Byte] = FixedArray::make(view.length(), 0)
   let mut cursor = 0
   while cursor < result.length() {
-    let amount = Int::min(budget, result.length() - cursor)
+    let amount = Int32::min(budget, result.length() - cursor)
     ignore(
       view.copy_chunk_to(
         result,

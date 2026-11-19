@@ -1,6 +1,6 @@
 ///|
 fn profile_test_model(
-  digest? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  digest~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @spec.LlamaModelMetadata raise {
   @spec.LlamaModelMetadata::from_verified_content(
     @spec.LlamaModelSpec::new(
@@ -42,7 +42,7 @@ fn profile_append_tensor(
 
 ///|
 fn profile_test_layout(
-  model? : @spec.LlamaModelMetadata = try! profile_test_model(),
+  model~ : @spec.LlamaModelMetadata = try! profile_test_model(),
 ) -> @device_materialize.DeviceWeightLayout raise {
   let entries : Array[@safetensors.RawTensorMetadata] = []
   let offset = Ref(0L)
@@ -124,7 +124,9 @@ fn profile_test_layout(
 }
 
 ///|
-fn profile_test_target(compute_major? : Int = 8) -> @catalog.DeviceTarget raise {
+fn profile_test_target(
+  compute_major~ : Int32 = 8,
+) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major~,
     compute_minor=0,
@@ -134,7 +136,7 @@ fn profile_test_target(compute_major? : Int = 8) -> @catalog.DeviceTarget raise 
 }
 
 ///|
-fn profile_family_id(kind : @plan.OperationKind) -> Int {
+fn profile_family_id(kind : @plan.OperationKind) -> Int32 {
   match kind {
     Embedding => 1
     RmsNorm => 2
@@ -152,8 +154,8 @@ fn profile_family_id(kind : @plan.OperationKind) -> Int {
 ///|
 fn profile_catalog_for(
   semantic : @plan.ModelPlan,
-  target? : @catalog.DeviceTarget = profile_test_target(),
-  workspace_bytes? : Int64 = 32L,
+  target~ : @catalog.DeviceTarget = profile_test_target(),
+  workspace_bytes~ : Int64 = 32L,
 ) -> @catalog.ResolvedKernelCatalog raise {
   let entries : Array[@catalog.CatalogEntry] = []
   let digest = @catalog.AotArtifactDigest::from_sha256(
@@ -197,10 +199,10 @@ fn profile_catalog_for(
 
 ///|
 fn profile_static_plan(
-  semantic? : @plan.ModelPlan = try! @llama.build(try! profile_test_model()),
-  layout? : @device_materialize.DeviceWeightLayout = try! profile_test_layout(),
-  target? : @catalog.DeviceTarget = try! profile_test_target(),
-  workspace_bytes? : Int64 = 32L,
+  semantic~ : @plan.ModelPlan = try! @llama.build(try! profile_test_model()),
+  layout~ : @device_materialize.DeviceWeightLayout = try! profile_test_layout(),
+  target~ : @catalog.DeviceTarget = try! profile_test_target(),
+  workspace_bytes~ : Int64 = 32L,
 ) -> @device_plan.StaticDevicePlan raise {
   @device_plan.build(
     semantic,
@@ -222,7 +224,7 @@ fn profile_numeric_layout(
 
 ///|
 fn profile_memory_plan(
-  static_plan? : @device_plan.StaticDevicePlan = try! profile_static_plan(),
+  static_plan~ : @device_plan.StaticDevicePlan = try! profile_static_plan(),
 ) -> @device_memory.DeviceMemoryPlan raise {
   @device_memory.plan(
     static_plan,
@@ -235,8 +237,8 @@ fn profile_memory_plan(
 
 ///|
 fn profile_embedding_plan(
-  max_batch_rows : Int,
-  max_sequence_tokens : Int,
+  max_batch_rows : Int32,
+  max_sequence_tokens : Int32,
 ) -> @plan.ModelPlan raise {
   let model = profile_test_model()
   let operation = @plan.PlanOperation::new_stateless(

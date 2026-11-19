@@ -23,7 +23,7 @@ fn scheduler_plan_buffer_binding(
 /// Production schedulers own one A/B pair for bounded plan overlap.
 pub fn SchedulerPlanBufferBinding::count(
   self : SchedulerPlanBufferBinding,
-) -> Int {
+) -> Int32 {
   ignore(self)
   2
 }

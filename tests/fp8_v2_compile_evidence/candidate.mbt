@@ -87,7 +87,7 @@ fn compile_candidate_policy(
 ///|
 fn lower_compile_candidate(
   plan : @plan.ModelPlan,
-  operation : Int,
+  operation : Int32,
   profile : @launch_contract.PagedKernelProfile,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,

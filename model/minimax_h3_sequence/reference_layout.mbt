@@ -3,10 +3,10 @@
 /// Dimensions are latent dimensions, not decoded pixel/frame dimensions.
 pub fn reference_video_layout(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  frames~ : Int,
-  height~ : Int,
-  width~ : Int,
-  expected_rows~ : Int,
+  frames~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
+  expected_rows~ : Int32,
   max_elements~ : Int64,
 ) -> @dense_permutation_plan.Permutation raise SequenceError {
   let shape = model.shapes()
@@ -51,8 +51,8 @@ pub fn reference_video_layout(
 /// Raw VAE [streams,channels,frames] to packed [streams,frames,channels].
 pub fn reference_audio_layout(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  frames~ : Int,
-  expected_rows~ : Int,
+  frames~ : Int32,
+  expected_rows~ : Int32,
   max_elements~ : Int64,
 ) -> @dense_permutation_plan.Permutation raise SequenceError {
   let shape = model.shapes()

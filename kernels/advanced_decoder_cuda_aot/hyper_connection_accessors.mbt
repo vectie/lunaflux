@@ -29,7 +29,7 @@ pub fn AdvancedDecoderHyperConnectionCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderHyperConnectionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,28 +57,28 @@ pub fn AdvancedDecoderHyperConnectionCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderHyperConnectionCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionCudaCandidate::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionCudaCandidate::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionCudaCandidate::sinkhorn_iterations(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.sinkhorn_iterations
 }
 
@@ -192,7 +192,7 @@ pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::requirements_digest
 ///|
 pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -220,21 +220,21 @@ pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 
@@ -334,7 +334,7 @@ pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::requirements_dige
 ///|
 pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -362,21 +362,21 @@ pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::stream_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stream_width
 }
 
 ///|
 pub fn AdvancedDecoderHyperConnectionPostCombineCudaCandidate::hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_width
 }
 

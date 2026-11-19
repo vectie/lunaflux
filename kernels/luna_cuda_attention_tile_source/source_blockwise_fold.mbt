@@ -3,10 +3,10 @@
 /// disjoint per subgroup; its exchanges do not require a workgroup barrier.
 fn cuda_blockwise_fold_body(
   fold : @attention_physical_ir.BlockwiseFold,
-  value_ready? : String = "",
-  key_released? : String = "",
-  value_released? : String = "",
-  steps? : ReadOnlyArray[@attention_physical_ir.BlockwiseFoldStep] = fold.steps(),
+  value_ready~ : String = "",
+  key_released~ : String = "",
+  value_released~ : String = "",
+  steps~ : ReadOnlyArray[@attention_physical_ir.BlockwiseFoldStep] = fold.steps(),
 ) -> String {
   let dimensions = fold.dimensions().0
   let ownership = @attention_physical_ir.ValueComponentOwnership::new(

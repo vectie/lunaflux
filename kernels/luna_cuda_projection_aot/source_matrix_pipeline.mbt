@@ -4,9 +4,9 @@
 fn projection_matrix_pipeline_source(
   parameters : ProjectionParameters,
   compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
-  maximum_rows : Int,
+  maximum_rows : Int32,
   precision? : @precision.PhysicalOperand,
-  precision_symbol? : String = "lf_projection_compact_weight",
+  precision_symbol~ : String = "lf_projection_compact_weight",
 ) -> String {
   guard compilation.matrix is Some(physical) else { return "" }
   let plan = physical.schedule

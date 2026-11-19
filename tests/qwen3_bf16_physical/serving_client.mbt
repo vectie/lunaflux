@@ -2,7 +2,7 @@
 fn qwen3_serving_int(
   value : String,
   label : String,
-) -> Int raise Qwen3PhysicalError {
+) -> Int32 raise Qwen3PhysicalError {
   let parsed = @string.parse_int(value, base=10) catch {
     _ => raise InvalidInput(label + " is not numeric")
   }
@@ -13,8 +13,8 @@ fn qwen3_serving_int(
 ///|
 fn qwen3_serving_limits(
   corpus : Qwen3GreedyCorpusCase,
-  max_token_id : Int,
-  max_context_tokens : Int,
+  max_token_id : Int32,
+  max_context_tokens : Int32,
 ) -> @inference.InferenceLimits raise Qwen3PhysicalError {
   qwen3_require(
     corpus.input_ids.length() + corpus.expected_ids.length() <=
@@ -114,7 +114,7 @@ async fn qwen3_write_all(
 }
 
 ///|
-fn qwen3_event_length(prefix : FixedArray[Byte]) -> Int {
+fn qwen3_event_length(prefix : FixedArray[Byte]) -> Int32 {
   prefix[12].to_int() |
   (prefix[13].to_int() << 8) |
   (prefix[14].to_int() << 16) |
@@ -153,7 +153,7 @@ async fn qwen3_read_event(
 }
 
 ///|
-fn qwen3_token_sequence(values : ArrayView[Int]) -> String {
+fn qwen3_token_sequence(values : ArrayView[Int32]) -> String {
   values.map(value => value.to_string()).join(",")
 }
 
@@ -183,7 +183,7 @@ async fn qwen3_serve_check(
   guard qwen3_read_event(connection, decoder) is Accepted(_) else {
     raise CorpusMismatch("serving request was not accepted")
   }
-  let observed : Array[Int] = []
+  let observed : Array[Int32] = []
   for position, expected in corpus.expected_ids {
     match qwen3_read_event(connection, decoder) {
       Token(token) => {

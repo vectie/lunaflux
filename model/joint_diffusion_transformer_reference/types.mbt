@@ -15,7 +15,7 @@ pub(all) suberror JointTinyTransformerReferenceError {
   InvalidDenseShape
   InvalidMlpShape
   InvalidWeightShape
-  InvalidStepIndex(Int)
+  InvalidStepIndex(Int32)
   ElementBudgetExceeded
   NonFiniteInput
   NonFiniteComputation
@@ -23,17 +23,17 @@ pub(all) suberror JointTinyTransformerReferenceError {
 
 ///|
 pub struct JointTinyTransformerLimits {
-  priv maximum_rows : Int
-  priv maximum_hidden_width : Int
-  priv maximum_feed_forward_width : Int
-  priv maximum_elements : Int
+  priv maximum_rows : Int32
+  priv maximum_hidden_width : Int32
+  priv maximum_feed_forward_width : Int32
+  priv maximum_elements : Int32
 }
 
 ///|
 pub struct JointTinyConditioningMatrix {
   priv source : JointTinyConditioningSource
-  priv rows : Int
-  priv width : Int
+  priv rows : Int32
+  priv width : Int32
   priv values : ReadOnlyArray[Double]
 } derive(Debug, Eq)
 
@@ -46,8 +46,8 @@ pub struct JointTinyConditioningInput {
 
 ///|
 pub struct JointTinyDense {
-  priv input_width : Int
-  priv output_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
   priv weights : ReadOnlyArray[Double]
   priv bias : ReadOnlyArray[Double]
 } derive(Debug, Eq)
@@ -79,7 +79,7 @@ pub struct JointTinyTransformerWeights {
 ///|
 pub struct JointTinyDenoiseStepResult {
   priv plan_digest : @spec.PlanDigest
-  priv step_index : Int
+  priv step_index : Int32
   priv initial_video : ReadOnlyArray[Double]
   priv initial_audio : ReadOnlyArray[Double]
   priv packed_projected : ReadOnlyArray[Double]

@@ -31,3 +31,6 @@ fn SamplingSeed::validate(
     raise invalid(SamplingSeed, OutOfRange, 0)
   }
 }
+
+///|
+pub extend SamplingSeed with Eq::{not_equal, equal}

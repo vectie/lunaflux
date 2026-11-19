@@ -1,7 +1,7 @@
 ///|
 fn parse_campaign_engine_declaration(
   value : Json,
-  expected_index : Int,
+  expected_index : Int32,
 ) -> CampaignEngineDeclaration raise OpenAIResponsesCampaignError {
   let object = campaign_require_object(value, 6)
   let engine = campaign_engine(campaign_string(object, "engine"))
@@ -25,7 +25,7 @@ fn parse_campaign_engine_declaration(
 ///|
 fn parse_campaign_profile_declaration(
   value : Json,
-  expected_index : Int,
+  expected_index : Int32,
 ) -> CampaignProfileDeclaration raise OpenAIResponsesCampaignError {
   let object = campaign_require_object(value, 3)
   let profile = campaign_profile(campaign_string(object, "profile"))
@@ -115,7 +115,7 @@ pub fn OpenAIResponsesCampaignDeclaration::digest(
 ///|
 pub fn OpenAIResponsesCampaignDeclaration::endpoint(
   self : OpenAIResponsesCampaignDeclaration,
-  index : Int,
+  index : Int32,
 ) -> String raise OpenAIResponsesCampaignError {
   if index < 0 || index >= 3 {
     raise CampaignInvalidShape
@@ -126,7 +126,7 @@ pub fn OpenAIResponsesCampaignDeclaration::endpoint(
 ///|
 pub fn OpenAIResponsesCampaignDeclaration::engine_revision(
   self : OpenAIResponsesCampaignDeclaration,
-  index : Int,
+  index : Int32,
 ) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError {
   if index < 0 || index >= 3 {
     raise CampaignInvalidShape
@@ -137,7 +137,7 @@ pub fn OpenAIResponsesCampaignDeclaration::engine_revision(
 ///|
 pub fn OpenAIResponsesCampaignDeclaration::engine_image(
   self : OpenAIResponsesCampaignDeclaration,
-  index : Int,
+  index : Int32,
 ) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError {
   if index < 0 || index >= 3 {
     raise CampaignInvalidShape
@@ -148,7 +148,7 @@ pub fn OpenAIResponsesCampaignDeclaration::engine_image(
 ///|
 pub fn OpenAIResponsesCampaignDeclaration::engine_configuration(
   self : OpenAIResponsesCampaignDeclaration,
-  index : Int,
+  index : Int32,
 ) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError {
   if index < 0 || index >= 3 {
     raise CampaignInvalidShape
@@ -159,7 +159,7 @@ pub fn OpenAIResponsesCampaignDeclaration::engine_configuration(
 ///|
 pub fn OpenAIResponsesCampaignDeclaration::engine_executable(
   self : OpenAIResponsesCampaignDeclaration,
-  index : Int,
+  index : Int32,
 ) -> @evidence.BenchmarkDigest raise OpenAIResponsesCampaignError {
   if index < 0 || index >= 3 {
     raise CampaignInvalidShape

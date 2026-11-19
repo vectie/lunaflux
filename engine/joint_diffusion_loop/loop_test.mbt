@@ -2,8 +2,8 @@
 struct NumericBackend {
   video : FixedArray[Float]
   audio : FixedArray[Float]
-  mut calls : Int
-  fail_at : Int
+  mut calls : Int32
+  fail_at : Int32
 }
 
 ///|
@@ -30,7 +30,7 @@ impl @joint_diffusion_loop.JointBackend for NumericBackend with fn execute_step(
 }
 
 ///|
-fn backend(fail_at? : Int = -1) -> NumericBackend {
+fn backend(fail_at~ : Int32 = -1) -> NumericBackend {
   {
     video: FixedArray::make(1, 2.0),
     audio: FixedArray::make(1, 1.0),

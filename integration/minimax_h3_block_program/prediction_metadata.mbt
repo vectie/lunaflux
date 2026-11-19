@@ -2,7 +2,7 @@
 struct PredictionMetadataLayout {
   times : ReadOnlyArray[Int64]
   patterns : ReadOnlyArray[(Int64, Int64)]
-  counts : ReadOnlyArray[Int]
+  counts : ReadOnlyArray[Int32]
   bytes : Int64
 }
 
@@ -88,7 +88,7 @@ pub fn PredictionMetadata::new(
   sequence : @minimax_h3_sequence.Sequence,
   visual_noise~ : Double,
   audio_noise~ : Double,
-  vision_text_rows~ : ArrayView[Int],
+  vision_text_rows~ : ArrayView[Int32],
   max_metadata_bytes~ : Int64,
 ) -> Self raise {
   let steps = plan.steps()
@@ -118,8 +118,8 @@ pub fn PredictionMetadata::new(
 ///|
 pub fn PredictionMetadata::distinct_timestep_counts(
   self : Self,
-) -> ReadOnlyArray[Int] {
-  let counts : Array[Int] = []
+) -> ReadOnlyArray[Int32] {
+  let counts : Array[Int32] = []
   for count in self.layout.counts {
     if !counts.contains(count) {
       counts.push(count)

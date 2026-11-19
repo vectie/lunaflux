@@ -3,7 +3,7 @@ fn load_i8_execution(
   source : @worker_wire.EncodedBootstrapSource,
   kernel_root : @approved_fs.ApprovedRoot,
   derived : DerivedI8Bootstrap,
-  device_ordinal : Int,
+  device_ordinal : Int32,
 ) -> @execution_manifest_file.I8PagedExecutionAdmissionV4 raise DeviceWorkerBootstrapError {
   let kernel = source.kernel()
   let locator = @approved_fs.ApprovedRelativeLocator::new(

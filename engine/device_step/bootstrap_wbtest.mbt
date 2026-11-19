@@ -1,5 +1,5 @@
 ///|
-fn bootstrap_limits(max_steps? : Int = 32) -> DeviceBootstrapLimits raise {
+fn bootstrap_limits(max_steps~ : Int32 = 32) -> DeviceBootstrapLimits raise {
   DeviceBootstrapLimits::new(
     max_modules=4,
     max_entry_points=16,
@@ -12,8 +12,8 @@ fn bootstrap_limits(max_steps? : Int = 32) -> DeviceBootstrapLimits raise {
 
 ///|
 fn bootstrap_inference_limits(
-  max_context_tokens? : Int = 8,
-  max_token_id? : Int = 7,
+  max_context_tokens~ : Int32 = 8,
+  max_token_id~ : Int32 = 7,
 ) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=32,
@@ -35,13 +35,13 @@ fn bootstrap_inference_limits(
 
 ///|
 fn bootstrap_worker_limits(
-  max_prefill_rows? : Int = 2,
-  max_decode_rows? : Int = 2,
-  max_plan_rows? : Int = 2,
-  max_plan_tokens? : Int = 4,
-  max_plan_pages? : Int = 4,
-  max_sequence_tokens? : Int = 8,
-  max_token_id? : Int = 7,
+  max_prefill_rows~ : Int32 = 2,
+  max_decode_rows~ : Int32 = 2,
+  max_plan_rows~ : Int32 = 2,
+  max_plan_tokens~ : Int32 = 4,
+  max_plan_pages~ : Int32 = 4,
+  max_sequence_tokens~ : Int32 = 8,
+  max_token_id~ : Int32 = 7,
 ) -> @worker_protocol.WorkerProtocolLimits raise {
   @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows~,
@@ -58,10 +58,10 @@ fn bootstrap_worker_limits(
 
 ///|
 fn bootstrap_fixture(
-  digest_head? : Char = '0',
-  entry_bias? : Int = 0,
-  max_sequence_tokens? : Int = 8,
-  max_token_id? : Int = 7,
+  digest_head~ : Char = '0',
+  entry_bias~ : Int32 = 0,
+  max_sequence_tokens~ : Int32 = 8,
+  max_token_id~ : Int32 = 7,
 ) -> (PagedKvExecutionBlueprint, @artifact.KernelArtifactBundle) raise {
   let metadata = blueprint_metadata(digest_head~)
   let plan = blueprint_model_plan(metadata)

@@ -58,7 +58,7 @@ fn paged_profile_mixed_rows() -> Array[
 
 ///|
 fn paged_profile_shape(
-  page_table_trace? : Char = 'e',
+  page_table_trace~ : Char = 'e',
 ) -> @luna_profile_priority.LunaPagedProfileShape raise {
   @luna_profile_priority.LunaPagedProfileShape::new(
     tokens_per_page=4,
@@ -73,7 +73,7 @@ fn paged_profile_shape(
 
 ///|
 fn paged_profile_observation(
-  operation : Int,
+  operation : Int32,
   self_time : Int64,
   shape? : @luna_profile_priority.LunaPagedProfileShape,
 ) -> @luna_profile_priority.LunaPagedKernelProfileObservation raise {
@@ -97,7 +97,7 @@ fn admit_paged_profile_with(
   ],
   declared_total : Int64,
   launches : @launch_contract.PagedKvLaunchContractSet,
-  profile_id : Int,
+  profile_id : Int32,
   trace : Char,
 ) -> @luna_profile_priority.LunaPagedKernelProfileCapture raise {
   let plan = try! paged_profile_test_plan()

@@ -2,14 +2,14 @@
 fn valid_sigmoid_correction_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn sigmoid_and_correction_f32_source(
-  expert_count~ : Int,
-  maximum_rows~ : Int,
+  expert_count~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> SigmoidCorrectionCudaSource raise SigmoidCorrectionCudaSourceError {
   if expert_count <= 0 || expert_count > 1048576 {

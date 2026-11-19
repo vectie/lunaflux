@@ -17,7 +17,7 @@ fn close_root(
 fn close_model_kernel(
   model : @approved_fs.ApprovedRoot,
   kernel : @approved_fs.ApprovedRoot,
-  primary? : RuntimeInstanceStage = Cleanup,
+  primary~ : RuntimeInstanceStage = Cleanup,
 ) -> Unit raise RuntimeInstanceError {
   let failed = Ref(false)
   kernel.close() catch {
@@ -207,7 +207,7 @@ fn admit_i8_physical_device(
 ///|
 fn admit_physical_target(
   target : @catalog.DeviceTarget,
-  device_ordinal : Int,
+  device_ordinal : Int32,
 ) -> Unit raise RuntimeInstanceError {
   match @hardware.probe() {
     Unavailable(_) => raise fail(PhysicalDeviceAdmission)

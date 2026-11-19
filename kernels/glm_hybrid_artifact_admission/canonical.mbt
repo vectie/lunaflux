@@ -1,19 +1,19 @@
 ///|
 priv struct AdmissionWriter {
   hash : @canonical_sha256.CanonicalSha256
-  mut bytes : Int
-  maximum : Int
+  mut bytes : Int32
+  maximum : Int32
 }
 
 ///|
-fn AdmissionWriter::new(maximum : Int) -> Self {
+fn AdmissionWriter::new(maximum : Int32) -> Self {
   { hash: @canonical_sha256.CanonicalSha256::new(), bytes: 0, maximum, }
 }
 
 ///|
 fn AdmissionWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise GlmHybridArtifactAdmissionError {
   if count < 0 || self.bytes > self.maximum - count {
     raise AdmissionEncodingTooLarge
@@ -33,7 +33,7 @@ fn AdmissionWriter::byte(
 ///|
 fn AdmissionWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise GlmHybridArtifactAdmissionError {
   self.reserve(8)
   ignore(
@@ -219,7 +219,7 @@ fn admission_digest(
   target : @catalog.DeviceTarget,
   status : GlmHybridArtifactAdmissionStatus,
   artifacts : ArrayView[GlmHybridAdmittedArtifact],
-  maximum : Int,
+  maximum : Int32,
 ) -> GlmHybridArtifactAdmissionDigest raise GlmHybridArtifactAdmissionError {
   let w = AdmissionWriter::new(maximum)
   w.text("lunaflux/glm-hybrid-artifact-admission/v2")

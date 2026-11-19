@@ -1,5 +1,5 @@
 ///|
-fn bounded_index(text : StringView, upper : Int) -> Bool {
+fn bounded_index(text : StringView, upper : Int32) -> Bool {
   let value = @string.parse_int(text, base=10) catch { _ => return false }
   value >= 0 && value < upper
 }
@@ -99,7 +99,7 @@ fn expected_text_names() -> Array[String] {
 ///|
 fn parts_match(
   parts : Array[StringView],
-  offset : Int,
+  offset : Int32,
   expected : Array[String],
 ) -> Bool {
   if parts.length() != offset + expected.length() {

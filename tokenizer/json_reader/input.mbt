@@ -1,10 +1,10 @@
 ///|
-const MAX_SUPPORTED_LIMIT : Int = 1_073_741_824
+const MAX_SUPPORTED_LIMIT : Int32 = 1_073_741_824
 
 ///|
 fn validate_reader_limits(
-  max_bytes : Int,
-  max_depth : Int,
+  max_bytes : Int32,
+  max_depth : Int32,
 ) -> Unit raise TokenizerJsonError {
   if max_bytes <= 0 || max_bytes > MAX_SUPPORTED_LIMIT {
     raise InvalidByteLimit
@@ -17,7 +17,7 @@ fn validate_reader_limits(
 ///|
 fn validate_utf8_size(
   input : StringView,
-  max_bytes : Int,
+  max_bytes : Int32,
 ) -> Unit raise TokenizerJsonError {
   let mut index = 0
   let mut byte_count = 0

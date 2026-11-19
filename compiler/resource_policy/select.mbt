@@ -2,8 +2,8 @@
 fn eligible(
   candidate : Candidate,
   budget : ResourceBudget,
-  registers : Int?,
-  residency : Int?,
+  registers : Int32?,
+  residency : Int32?,
 ) -> Bool {
   candidate.threads <= budget.threads &&
   candidate.shared <= budget.shared &&

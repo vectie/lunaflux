@@ -3,7 +3,7 @@ pub struct StreamMeanCaptureCudaSource {
   priv plan : @precision.StreamMeanCapturePrecision
   priv symbol : String
   priv bytes : Bytes
-  priv grid : Int
+  priv grid : Int32
 }
 
 ///|
@@ -13,8 +13,8 @@ pub fn stream_mean_capture_source(
 ) -> StreamMeanCaptureCudaSource raise @precision.PrecisionPlanError {
   guard !symbol.is_empty() &&
     symbol.length() <= 100 &&
-    symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise IllegalPlacement
   }
   let (streams, hidden, rows, segments) = plan.geometry()
@@ -37,11 +37,11 @@ pub fn stream_mean_capture_source(
 ///|
 fn render_segment(
   symbol : String,
-  streams : Int,
-  hidden : Int,
-  rows : Int,
-  segments : Int,
-  segment : Int,
+  streams : Int32,
+  hidden : Int32,
+  rows : Int32,
+  segments : Int32,
+  segment : Int32,
 ) -> String {
   let source =
     $|#include <cuda_bf16.h>
@@ -75,7 +75,7 @@ pub fn StreamMeanCaptureCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn StreamMeanCaptureCudaSource::symbol(
   self : Self,
-  segment : Int,
+  segment : Int32,
 ) -> String raise @precision.PrecisionPlanError {
   let (_, _, _, count) = self.plan.geometry()
   guard segment >= 0 && segment < count else { raise IllegalPlacement }
@@ -83,6 +83,6 @@ pub fn StreamMeanCaptureCudaSource::symbol(
 }
 
 ///|
-pub fn StreamMeanCaptureCudaSource::grid_x(self : Self) -> Int {
+pub fn StreamMeanCaptureCudaSource::grid_x(self : Self) -> Int32 {
   self.grid
 }

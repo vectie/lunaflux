@@ -8,11 +8,11 @@ pub struct ParameterProjectionLayout {
 
 ///|
 pub fn ParameterProjectionLayout::new(
-  rows~ : Int,
-  input_width~ : Int,
-  width~ : Int,
-  groups~ : Int,
-  fields~ : Int,
+  rows~ : Int32,
+  input_width~ : Int32,
+  width~ : Int32,
+  groups~ : Int32,
+  fields~ : Int32,
 ) -> Self raise @device.DeviceError {
   guard rows > 0 && input_width > 0 && width > 0 && groups > 0 && fields > 0 else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)

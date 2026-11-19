@@ -1,11 +1,11 @@
 ///|
 fn recipe(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-  ordinal : Int,
+  ordinal : Int32,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-  shift_numerator : Int,
-  shift_denominator : Int,
-  training_timestep_count : Int,
+  shift_numerator : Int32,
+  shift_denominator : Int32,
+  training_timestep_count : Int32,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
   elements : Int64,
   target : @catalog.DeviceTarget,
@@ -122,7 +122,7 @@ fn recipe(
 pub fn lower_shifted_flow_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

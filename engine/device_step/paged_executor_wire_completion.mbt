@@ -29,17 +29,17 @@ fn validate_wire_completion_plan(
 fn select_paged_wire_logit(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
-  row_index : Int,
-  token_count : Int,
-  sampling_mode : Int,
+  row_index : Int32,
+  token_count : Int32,
+  sampling_mode : Int32,
   temperature : Double,
   has_top_k : Bool,
-  top_k : Int,
+  top_k : Int32,
   has_top_p : Bool,
   top_p : Double,
   seed_value : UInt64,
-  sample_index : Int,
-) -> Int raise DeviceStepError {
+  sample_index : Int32,
+) -> Int32 raise DeviceStepError {
   let token_end = read_paged_i32(
     descriptor.host.query_row_offsets,
     row_index + 1,
@@ -75,15 +75,15 @@ fn select_paged_wire_logit(
 ///|
 fn select_paged_scalar_logit(
   scratch : PagedCompletionScratch,
-  sampling_mode : Int,
+  sampling_mode : Int32,
   temperature : Double,
   has_top_k : Bool,
-  top_k : Int,
+  top_k : Int32,
   has_top_p : Bool,
   top_p : Double,
   seed_value : UInt64,
-  sample_index : Int,
-) -> Int raise DeviceStepError {
+  sample_index : Int32,
+) -> Int32 raise DeviceStepError {
   let logits = scratch.logits[:]
   if sampling_mode != 0 && sampling_mode != 1 {
     raise InvalidExecutor(SamplingOutput)
@@ -118,8 +118,8 @@ fn sample_wire_prefill(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
   frame : @worker_wire.ValidatedPlanFrame,
-  index : Int,
-  token_count : Int,
+  index : Int32,
+  token_count : Int32,
 ) -> Unit raise DeviceStepError {
   let row = frame.prefill_row(index) catch { error => raise Wire(error) }
   let produces = row.produces_token() catch { error => raise Wire(error) }
@@ -219,9 +219,9 @@ fn sample_wire_decode(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
   frame : @worker_wire.ValidatedPlanFrame,
-  decode_index : Int,
-  row_index : Int,
-  token_count : Int,
+  decode_index : Int32,
+  row_index : Int32,
+  token_count : Int32,
 ) -> Unit raise DeviceStepError {
   let row = frame.decode_row(decode_index) catch { error => raise Wire(error) }
   executor.completion.selected_tokens[row_index] = match
@@ -318,7 +318,7 @@ fn append_wire_completion_frame(
   frame : @worker_wire.ValidatedPlanFrame,
   writer : @worker_wire.CompletionFrameWriter,
   summary : DeviceStepSummary,
-  selected : FixedArray[Int],
+  selected : FixedArray[Int32],
 ) -> Unit raise DeviceStepError {
   for index in 0..<summary.prefill_count {
     let row = frame.prefill_row(index) catch { error => raise Wire(error) }

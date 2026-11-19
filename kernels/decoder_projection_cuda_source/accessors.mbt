@@ -13,17 +13,17 @@ pub fn DecoderProjectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn DecoderProjectionCudaSource::input_width(self : Self) -> Int {
+pub fn DecoderProjectionCudaSource::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn DecoderProjectionCudaSource::output_width(self : Self) -> Int {
+pub fn DecoderProjectionCudaSource::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn DecoderProjectionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderProjectionCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 
@@ -57,12 +57,12 @@ pub fn FixedRowsDecoderProjectionCudaSource::row_count(self : Self) -> Int64 {
 }
 
 ///|
-pub fn FixedRowsDecoderProjectionCudaSource::input_width(self : Self) -> Int {
+pub fn FixedRowsDecoderProjectionCudaSource::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn FixedRowsDecoderProjectionCudaSource::output_width(self : Self) -> Int {
+pub fn FixedRowsDecoderProjectionCudaSource::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
@@ -93,22 +93,22 @@ pub fn GroupedDecoderProjectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn GroupedDecoderProjectionCudaSource::group_count(self : Self) -> Int {
+pub fn GroupedDecoderProjectionCudaSource::group_count(self : Self) -> Int32 {
   self.group_count
 }
 
 ///|
-pub fn GroupedDecoderProjectionCudaSource::input_width(self : Self) -> Int {
+pub fn GroupedDecoderProjectionCudaSource::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn GroupedDecoderProjectionCudaSource::output_width(self : Self) -> Int {
+pub fn GroupedDecoderProjectionCudaSource::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn GroupedDecoderProjectionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn GroupedDecoderProjectionCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

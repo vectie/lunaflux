@@ -1,7 +1,7 @@
 ///|
 async fn connect_spawned_serving_client(
   owner : RuntimeInstanceOwner,
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> @socket.Tcp {
   if !owner.spawned_serving_ingress_shape_valid() {
     raise spawned_serving_error(SpawnedServingOwner)
@@ -24,7 +24,7 @@ async fn connect_spawned_serving_client(
 async fn write_spawned_serving_frame(
   client : @socket.Tcp,
   frame : FixedArray[Byte],
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> Unit {
   let bytes = Bytes::makei(frame.length(), index => frame[index])
   let mut cursor = 0
@@ -47,7 +47,7 @@ async fn write_spawned_serving_frame(
 }
 
 ///|
-fn spawned_serving_read_u32(source : FixedArray[Byte], offset : Int) -> Int {
+fn spawned_serving_read_u32(source : FixedArray[Byte], offset : Int32) -> Int32 {
   source[offset].to_int() |
   (source[offset + 1].to_int() << 8) |
   (source[offset + 2].to_int() << 16) |
@@ -60,7 +60,7 @@ async fn read_spawned_serving_event(
   client : @socket.Tcp,
   storage : FixedArray[Byte],
   decoder : @framed_wire.EventFrameBuffer,
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> @inference.StreamEvent {
   let mut cursor = 0
   let mut declared = 16

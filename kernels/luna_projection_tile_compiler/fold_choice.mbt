@@ -9,27 +9,27 @@ pub(all) enum ProjectionFoldRole {
 ///|
 pub struct ProjectionFoldChoice {
   priv role : ProjectionFoldRole
-  priv stages : Int
-  priv transfer_tiles : Int
-  priv fragment_stages : Int
-  priv row_tiles : Int?
-  priv output_tiles : Int?
+  priv stages : Int32
+  priv transfer_tiles : Int32
+  priv fragment_stages : Int32
+  priv row_tiles : Int32?
+  priv output_tiles : Int32?
   priv hoist_addresses : Bool
-  priv consumer_groups : Int?
-  priv maximum_token_rows : Int?
+  priv consumer_groups : Int32?
+  priv maximum_token_rows : Int32?
 } derive(Debug, Eq)
 
 ///|
 pub fn ProjectionFoldChoice::new(
   role : ProjectionFoldRole,
-  stages~ : Int,
-  transfer_tiles~ : Int,
-  fragment_stages~ : Int,
-  row_tiles? : Int,
-  output_tiles? : Int,
-  hoist_addresses? : Bool = false,
-  consumer_groups? : Int,
-  maximum_token_rows? : Int,
+  stages~ : Int32,
+  transfer_tiles~ : Int32,
+  fragment_stages~ : Int32,
+  row_tiles? : Int32,
+  output_tiles? : Int32,
+  hoist_addresses~ : Bool = false,
+  consumer_groups? : Int32,
+  maximum_token_rows? : Int32,
 ) -> ProjectionFoldChoice raise ProjectionTileCompilerError {
   guard stages >= 2 &&
     stages <= 4 &&
@@ -62,7 +62,7 @@ pub fn ProjectionTileCompilerRequest::with_fold_choices(
   choices : ArrayView[ProjectionFoldChoice],
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   let mut request = self
-  let seen : Array[(ProjectionFoldRole, Int?)] = []
+  let seen : Array[(ProjectionFoldRole, Int32?)] = []
   for choice in choices {
     let key = (choice.role, choice.maximum_token_rows)
     guard !seen.contains(key) else {
@@ -106,7 +106,7 @@ pub fn ProjectionTileCompilerRequest::with_fold_choices(
 ///|
 pub fn ProjectionFoldChoice::maximum_token_rows(
   self : ProjectionFoldChoice,
-) -> Int? {
+) -> Int32? {
   self.maximum_token_rows
 }
 
@@ -118,13 +118,13 @@ pub fn ProjectionFoldChoice::maximum_token_rows(
 pub fn ProjectionTileCompilerRequest::with_fold_pipeline(
   self : ProjectionTileCompilerRequest,
   role : ProjectionFoldRole,
-  stages~ : Int,
-  transfer_tiles~ : Int,
-  fragment_stages~ : Int,
-  row_tiles? : Int,
-  output_tiles? : Int,
-  hoist_addresses? : Bool = false,
-  consumer_groups? : Int,
+  stages~ : Int32,
+  transfer_tiles~ : Int32,
+  fragment_stages~ : Int32,
+  row_tiles? : Int32,
+  output_tiles? : Int32,
+  hoist_addresses~ : Bool = false,
+  consumer_groups? : Int32,
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   guard stages >= 2 &&
     stages <= 4 &&
@@ -237,18 +237,30 @@ fn projection_apply_fold_choice(
 /// terminal lowerers and the finite lifetime-model tests.
 pub fn ProjectionFoldPipeline::transfer_count(
   self : ProjectionFoldPipeline,
-) -> Int {
+) -> Int32 {
   self.tile_count * self.tile_width / self.transfer_width
 }
 
 ///|
 pub fn ProjectionFoldPipeline::slot(
   self : ProjectionFoldPipeline,
-  transfer : Int,
-) -> Int? {
+  transfer : Int32,
+) -> Int32? {
   if transfer < 0 || transfer >= self.transfer_count() {
     None
   } else {
     Some(transfer % self.stages)
   }
 }
+
+///|
+pub extend ProjectionFoldRole with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionFoldRole with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionFoldChoice with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionFoldChoice with Eq::{not_equal, equal}

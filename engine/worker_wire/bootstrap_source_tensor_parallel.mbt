@@ -1,11 +1,13 @@
 ///|
-const BOOTSTRAP_SOURCE_TP_FIXED_HEADER_BYTES : Int = 208
+const BOOTSTRAP_SOURCE_TP_FIXED_HEADER_BYTES : Int32 = 208
 
 ///|
-const BOOTSTRAP_SOURCE_TP_RANK_BYTES : Int = 48
+const BOOTSTRAP_SOURCE_TP_RANK_BYTES : Int32 = 48
 
 ///|
-fn tensor_parallel_header_bytes(policy : TensorParallelBootstrapPolicy) -> Int {
+fn tensor_parallel_header_bytes(
+  policy : TensorParallelBootstrapPolicy,
+) -> Int32 {
   BOOTSTRAP_SOURCE_TP_FIXED_HEADER_BYTES +
   policy.rank_count() * BOOTSTRAP_SOURCE_TP_RANK_BYTES
 }
@@ -45,7 +47,7 @@ pub fn admit_tensor_parallel_bootstrap_source(
   }
   write_i32(storage, 40, execution.compute_major())
   write_i32(storage, 44, execution.compute_minor())
-  let flags : UInt = (if execution.supports_bf16() { 1 } else { 0 }) |
+  let flags : UInt32 = (if execution.supports_bf16() { 1 } else { 0 }) |
     (if execution.supports_cublas_lt() { 2 } else { 0 })
   write_u32(storage, 48, flags)
   write_i32(storage, 52, execution.tokens_per_page())
@@ -165,7 +167,7 @@ pub fn admit_tensor_parallel_bootstrap_source(
 ///|
 fn decode_tensor_parallel_bootstrap_source(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   if read_u32(source, 4) == BOOTSTRAP_SOURCE_VERSION_V8 {
     return decode_tensor_parallel_approved_bootstrap_source(source, length)

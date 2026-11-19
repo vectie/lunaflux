@@ -3,7 +3,7 @@ fn attention_metadata_layout(
   limits : DeviceStepLimits,
 ) -> @luna_attention_metadata.AttentionMetadataLayout {
   @luna_attention_metadata.AttentionMetadataLayout::new(
-    maximum_rows=Int::min(limits.max_rows(), limits.max_tokens()),
+    maximum_rows=Int32::min(limits.max_rows(), limits.max_tokens()),
     maximum_tokens=limits.max_tokens(),
   ).unwrap()
 }
@@ -32,8 +32,8 @@ fn publish_attention_tile_metadata(
       let mut token = begin
       while token < end {
         let mut key_end = 0
-        for query in token..<Int::min(token + width, end) {
-          key_end = Int::max(
+        for query in token..<Int32::min(token + width, end) {
+          key_end = Int32::max(
             key_end,
             read_descriptor_i32(host.token_positions, query) + 1,
           )
@@ -62,7 +62,10 @@ fn attention_metadata_argument(
 ) -> @device.KernelArgument raise DeviceStepError {
   let offset = OUTPUT_ROW_ENDS_CELL + profile.max_query_rows() + 1
   let layout = @luna_attention_metadata.AttentionMetadataLayout::new(
-    maximum_rows=Int::min(profile.max_query_rows(), profile.max_query_tokens()),
+    maximum_rows=Int32::min(
+      profile.max_query_rows(),
+      profile.max_query_tokens(),
+    ),
     maximum_tokens=profile.max_query_tokens(),
   ).unwrap()
   @device.KernelArgument::device_region(

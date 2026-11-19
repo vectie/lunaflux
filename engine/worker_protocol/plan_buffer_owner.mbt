@@ -1,7 +1,7 @@
 ///|
 fn map_page_storage_write(
   storage : @page_allocator.PageIdStorage,
-  index : Int,
+  index : Int32,
   page : @page_allocator.PageId,
 ) -> Unit raise WorkerProtocolError {
   try storage.write(index, page) catch {
@@ -14,7 +14,7 @@ fn map_page_storage_write(
 ///|
 fn map_page_storage_clear(
   storage : @page_allocator.PageIdStorage,
-  index : Int,
+  index : Int32,
 ) -> Unit raise WorkerProtocolError {
   try storage.clear(index) catch {
     _ => raise PlanBufferStorageFailure
@@ -39,9 +39,9 @@ fn SchedulePlanBuffer::preflight_row(
   kind : WorkerRowKind,
   request_id : @inference.RequestId,
   completion_slot : CompletionSlot,
-  token_length : Int,
-  page_length : Int,
-  capability_length : Int,
+  token_length : Int32,
+  page_length : Int32,
+  capability_length : Int32,
 ) -> Unit raise WorkerProtocolError {
   self.require_state(Writable)
   if self.draft_open {
@@ -86,7 +86,7 @@ fn SchedulePlanBuffer::preflight_row(
 ///|
 fn SchedulePlanBuffer::copy_tables(
   self : SchedulePlanBuffer,
-  tokens : ArrayView[Int],
+  tokens : ArrayView[Int32],
   pages : ArrayView[@page_allocator.PageId],
   capabilities : ArrayView[@plan.KernelCapabilityId],
 ) -> Unit raise WorkerProtocolError {
@@ -223,7 +223,7 @@ pub fn SchedulePlanBuffer::identity(
 ///|
 fn SchedulePlanBuffer::validate_contents(
   self : SchedulePlanBuffer,
-  token_budget : Int,
+  token_budget : Int32,
 ) -> Unit raise WorkerProtocolError {
   validate_plan_counts(
     self.prefill_count,
@@ -253,7 +253,7 @@ pub fn SchedulePlanBuffer::submit(
   self : SchedulePlanBuffer,
   sequence~ : PlanSequence,
   model_plan_generation~ : ModelPlanGeneration,
-  token_budget~ : Int,
+  token_budget~ : Int32,
   previous_sequence : PlanSequence?,
   loaded_generation : ModelPlanGeneration,
 ) -> SubmittedSchedulePlan raise WorkerProtocolError {
@@ -277,7 +277,7 @@ pub fn SchedulePlanBuffer::submit_wire(
   self : SchedulePlanBuffer,
   sequence_value~ : UInt64,
   model_plan_generation_value~ : UInt64,
-  token_budget~ : Int,
+  token_budget~ : Int32,
   has_previous~ : Bool,
   previous_sequence_value~ : UInt64,
   loaded_generation_value~ : UInt64,

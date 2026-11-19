@@ -103,7 +103,7 @@ fn score_transform_members(
 ///|
 fn scan_score_transforms(
   program : @luna_attention_tile_ir.AttentionTileProgram,
-  index : Int,
+  index : Int32,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
 ) -> ReadOnlyArray[AttentionTileRewriteRegion] {
   let bindings = program.bindings()
@@ -205,7 +205,7 @@ fn online_softmax_fold_members(
 ///|
 fn scan_online_softmax_folds(
   program : @luna_attention_tile_ir.AttentionTileProgram,
-  index : Int,
+  index : Int32,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
 ) -> ReadOnlyArray[AttentionTileRewriteRegion] {
   let bindings = program.bindings()
@@ -273,8 +273,8 @@ fn apply_online_softmax_tile_storage_pass(
 ///|
 fn attention_partition_count(
   program : @luna_attention_tile_ir.AttentionTileProgram,
-  parallel_workgroup_target : Int,
-) -> Int {
+  parallel_workgroup_target : Int32,
+) -> Int32 {
   let problem = program.problem()
   let (query_rows, context_tokens) = problem.dimensions()
   let (query_tile, key_value_tile, _) = program.candidate().tile().dimensions()
@@ -306,17 +306,17 @@ fn attention_partition_count(
     return 1
   }
   let key_value_tiles = 1 + (context_tokens - 1) / key_value_tile
-  let context_partitions = Int::min(
+  let context_partitions = Int32::min(
     8,
-    Int::max(2, 1 + (context_tokens - 1) / (minimum_context / 2)),
+    Int32::max(2, 1 + (context_tokens - 1) / (minimum_context / 2)),
   )
   let saturation_partitions = (1L +
   (parallel_workgroup_target.to_int64() - 1L) / natural_workgroups).to_int()
-  Int::max(
+  Int32::max(
     1,
-    Int::min(
+    Int32::min(
       context_partitions,
-      Int::min(saturation_partitions, key_value_tiles),
+      Int32::min(saturation_partitions, key_value_tiles),
     ),
   )
 }
@@ -325,7 +325,7 @@ fn attention_partition_count(
 fn apply_partition_online_softmax_pass(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
-  parallel_workgroup_target : Int,
+  parallel_workgroup_target : Int32,
 ) -> AttentionRewritePassResult {
   if attention_partition_count(program, parallel_workgroup_target) == 1 {
     return { regions, changed: false, }
@@ -356,7 +356,7 @@ fn apply_rewrite_pass(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   regions : ReadOnlyArray[AttentionTileRewriteRegion],
   rule : AttentionTileRewriteRule,
-  parallel_workgroup_target : Int,
+  parallel_workgroup_target : Int32,
 ) -> AttentionRewritePassResult {
   match rule {
     FactorSharedKeyAcrossQueryMap =>
@@ -378,9 +378,9 @@ fn apply_rewrite_pass(
 fn run_rewrite_pipeline(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   passes : ReadOnlyArray[AttentionTileRewriteRule],
-  index : Int,
+  index : Int32,
   state : AttentionRewritePipelineState,
-  parallel_workgroup_target : Int,
+  parallel_workgroup_target : Int32,
 ) -> AttentionRewritePipelineState {
   if index == passes.length() {
     return state
@@ -409,7 +409,7 @@ fn run_rewrite_pipeline(
 }
 
 ///|
-fn rewrite_rule_code(rule : AttentionTileRewriteRule) -> Int {
+fn rewrite_rule_code(rule : AttentionTileRewriteRule) -> Int32 {
   match rule {
     HoistPagedKeyValuePageLookup => 1
     FuseScoreTransform => 2
@@ -460,7 +460,7 @@ fn canonical_optimization(
 /// a clock, device, filesystem, global cache, or model-family name.
 pub fn optimize_attention_tile_program(
   program : @luna_attention_tile_ir.AttentionTileProgram,
-  parallel_workgroup_target? : Int = 32,
+  parallel_workgroup_target~ : Int32 = 32,
 ) -> AttentionTileOptimization raise AttentionTileOptimizerError {
   if parallel_workgroup_target <= 0 || parallel_workgroup_target > 1048576 {
     raise InvalidAttentionTileOptimization(InvalidRewritePipeline)

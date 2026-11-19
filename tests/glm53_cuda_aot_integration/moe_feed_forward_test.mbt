@@ -1,8 +1,8 @@
 ///|
 fn find_moe_feed_forward_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  stage : Int,
-) -> Int {
+  stage : Int32,
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match (stage, requirement.operation()) {
       (0, RoutedExpertFeedForward(_, _, _)) => return ordinal

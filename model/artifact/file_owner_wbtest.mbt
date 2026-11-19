@@ -15,7 +15,7 @@ test "terminal close failure prevents successful snapshot publication" {
 ///|
 test "terminal close failure preserves the earlier snapshot failure" {
   let close_attempted = Ref(false)
-  let outcome : Result[Int, ArtifactError] = Err(DigestMismatch(Tokenizer))
+  let outcome : Result[Int32, ArtifactError] = Err(DigestMismatch(Tokenizer))
   try
     finish_file_body(outcome, () => {
       close_attempted.val = true

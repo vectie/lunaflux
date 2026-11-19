@@ -1,6 +1,6 @@
 ///|
 fn bounded_grid_dimensions(
-  grid? : Int = 192,
+  grid~ : Int32 = 192,
 ) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=grid,

@@ -1,6 +1,6 @@
 ///|
 fn full_manifest_dimensions(
-  operation : Int,
+  operation : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=operation + 1,
@@ -49,9 +49,9 @@ fn full_manifest_contracts() -> @launch_contract.PagedKvLaunchContractSet raise 
 
 ///|
 fn full_manifest_artifacts(
-  bad_operand_at? : Int = -1,
-  bad_dimensions_at? : Int = -1,
-  with_row_variant? : Bool = false,
+  bad_operand_at~ : Int32 = -1,
+  bad_dimensions_at~ : Int32 = -1,
+  with_row_variant~ : Bool = false,
 ) -> Array[FullGraphAotOperationArtifact] raise {
   let contracts = full_manifest_contracts().contracts()
   let artifacts : Array[FullGraphAotOperationArtifact] = []
@@ -157,7 +157,7 @@ test "row specialization metadata survives canonical manifest serialization" {
 
 ///|
 fn full_manifest_limits(
-  maximum? : Int64 = 65536L,
+  maximum~ : Int64 = 65536L,
 ) -> FullGraphManifestLimits raise {
   FullGraphManifestLimits::new(
     max_manifest_bytes=maximum,

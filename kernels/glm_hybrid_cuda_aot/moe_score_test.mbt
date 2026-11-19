@@ -1,7 +1,7 @@
 ///|
 fn moe_score_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is MoeSigmoidAndCorrectionBias(_) {
       return ordinal

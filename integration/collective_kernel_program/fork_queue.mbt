@@ -8,10 +8,10 @@ priv struct BranchQueue {
 
 ///|
 priv struct Dispatch {
-  branch : Int
-  index : Int
-  fork : Int
-  join : Int
+  branch : Int32
+  index : Int32
+  fork : Int32
+  join : Int32
 }
 
 ///|
@@ -23,7 +23,7 @@ priv struct PreparedQueue {
   stream : @device.Stream
   branches : ReadOnlyArray[BranchQueue]
   dispatch : ReadOnlyArray[Dispatch]
-  tail_join : Int
+  tail_join : Int32
   mut captured : Bool
 }
 
@@ -33,7 +33,7 @@ fn PreparedQueue::new(
   stream : @device.Stream,
   launches : ArrayView[@device.OrderedKernelLaunch],
   spans : ArrayView[@parallel.ForkJoinSpan],
-  capture? : Bool = false,
+  capture~ : Bool = false,
 ) -> Self raise @device.DeviceError {
   let branches : Array[BranchQueue] = []
   let primary : Array[@device.OrderedKernelLaunch] = []
@@ -126,7 +126,7 @@ fn PreparedQueue::new(
 ///|
 fn PreparedQueue::enqueue(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Unit raise @device.DeviceError {
   let op = self.dispatch[index]
   if op.join >= 0 {
@@ -157,7 +157,7 @@ fn PreparedQueue::join_tail(self : Self) -> Unit raise @device.DeviceError {
 ///|
 fn PreparedQueue::join_before(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Unit raise @device.DeviceError {
   if index == self.dispatch.length() {
     self.join_tail()

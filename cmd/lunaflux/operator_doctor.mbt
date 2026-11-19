@@ -8,8 +8,8 @@ priv struct OperatorDoctorCheck {
 priv struct OperatorDoctorCuda {
   available : Bool
   reason : String
-  driver_version : Int
-  device_count : Int
+  driver_version : Int32
+  device_count : Int32
 } derive(ToJson)
 
 ///|
@@ -44,8 +44,8 @@ fn unavailable_device_reason(reason : @hardware.UnavailableReason) -> String {
 
 ///|
 fn available_doctor_observation(
-  driver_version : Int,
-  device_count : Int,
+  driver_version : Int32,
+  device_count : Int32,
 ) -> OperatorDoctorObservation {
   {
     cuda: { available: true, reason: "none", driver_version, device_count, },

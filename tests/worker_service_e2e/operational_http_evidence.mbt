@@ -206,7 +206,7 @@ async fn run_operational_http_evidence(
 ///|
 async fn run_operational_http_only(
   executable : Bytes,
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> Unit {
   let server = @online_tcp.bind_luna_online_openai_server(
     @socket.Addr::parse("127.0.0.1:0"),

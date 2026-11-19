@@ -1,7 +1,7 @@
 ///|
 priv struct LunaCapabilityDecoder {
   bytes : Bytes
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
@@ -29,7 +29,7 @@ fn LunaCapabilityDecoder::read_i64(
 ///|
 fn LunaCapabilityDecoder::read_int(
   self : LunaCapabilityDecoder,
-) -> Int raise LunaCapabilityManifestError {
+) -> Int32 raise LunaCapabilityManifestError {
   let value = self.read_i64()
   let decoded = value.to_int()
   if Int64::from_int(decoded) != value {
@@ -137,7 +137,7 @@ pub fn admit_persisted_luna_capability_manifest(
   canonical : Bytes,
   expected_digest : LunaCapabilityManifestDigest,
   specialization : @luna_specialization.LunaSpecializationRecord,
-  maximum_canonical_bytes : Int,
+  maximum_canonical_bytes : Int32,
 ) -> LunaCapabilityManifestEntry raise LunaCapabilityManifestError {
   if canonical.length() <= 0 ||
     maximum_canonical_bytes <= 0 ||

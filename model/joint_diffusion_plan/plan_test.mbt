@@ -7,8 +7,8 @@ fn test_digest() -> @spec.ContentDigest {
 
 ///|
 fn test_shapes(
-  streams? : Int = 1,
-  audio_output_length? : @joint_diffusion_plan.JointAudioOutputLength = FrameDuration,
+  streams~ : Int32 = 1,
+  audio_output_length~ : @joint_diffusion_plan.JointAudioOutputLength = FrameDuration,
 ) -> @joint_diffusion_plan.JointDiffusionShapeContract raise @joint_diffusion_plan.JointDiffusionPlanError {
   @joint_diffusion_plan.JointDiffusionShapeContract::new(
     frames_per_second=24,
@@ -40,7 +40,7 @@ fn test_shapes(
 ///|
 fn test_scheduler(
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-  shift : Int,
+  shift : Int32,
 ) -> @joint_diffusion_plan.JointDiffusionScheduler {
   try! @joint_diffusion_plan.JointDiffusionScheduler::new(
     latent~,

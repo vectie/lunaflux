@@ -1,11 +1,11 @@
 ///|
-const ABSOLUTE_MAX_FRAME_BYTES : Int = 16777216
+const ABSOLUTE_MAX_FRAME_BYTES : Int32 = 16777216
 
 ///|
-const REQUEST_HEADER_BYTES : Int = 256
+const REQUEST_HEADER_BYTES : Int32 = 256
 
 ///|
-const EVENT_HEADER_BYTES : Int = 208
+const EVENT_HEADER_BYTES : Int32 = 208
 
 ///|
 pub(all) enum FramedWireFrameKind {
@@ -67,13 +67,13 @@ pub(all) suberror FramedWireError {
 ///|
 pub struct FramedWireLimits {
   priv inference : @inference.InferenceLimits
-  priv max_frame_bytes : Int
+  priv max_frame_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn FramedWireLimits::new(
   inference : @inference.InferenceLimits,
-  max_frame_bytes~ : Int,
+  max_frame_bytes~ : Int32,
 ) -> FramedWireLimits raise FramedWireError {
   if max_frame_bytes < REQUEST_HEADER_BYTES ||
     max_frame_bytes > ABSOLUTE_MAX_FRAME_BYTES {
@@ -90,7 +90,7 @@ pub fn FramedWireLimits::inference_limits(
 }
 
 ///|
-pub fn FramedWireLimits::max_frame_bytes(self : FramedWireLimits) -> Int {
+pub fn FramedWireLimits::max_frame_bytes(self : FramedWireLimits) -> Int32 {
   self.max_frame_bytes
 }
 
@@ -102,7 +102,7 @@ pub struct RequestFrameBuffer {
   priv request_workspace : LunaFramedRequestWorkspace
   priv mut request : @inference.GenerateRequest?
   priv mut epoch : UInt64
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|
@@ -118,9 +118,9 @@ pub struct ValidatedRequestFrame {
 pub struct IncrementalRequestReader {
   priv frame_buffer : RequestFrameBuffer
   priv mut frame : ValidatedRequestFrame?
-  priv mut length : Int
-  priv mut declared_length : Int
-  priv mut state : Int
+  priv mut length : Int32
+  priv mut declared_length : Int32
+  priv mut state : Int32
 }
 
 ///|
@@ -130,7 +130,7 @@ pub struct EventFrameBuffer {
   priv scratch : FixedArray[Byte]
   priv mut event : @inference.StreamEvent?
   priv mut epoch : UInt64
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|

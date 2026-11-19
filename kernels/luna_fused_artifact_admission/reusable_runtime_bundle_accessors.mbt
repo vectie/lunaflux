@@ -233,7 +233,7 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_decode_split_mod
 ///|
 pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_operation_indices(
   self : ApprovedReusableFusedRuntimeBundle,
-) -> (Int, Int)? {
+) -> (Int32, Int32)? {
   match self.residual_rmsnorm_module() {
     Some(module_) =>
       Some((module_.first_operation, module_.first_operation + 1))
@@ -244,7 +244,7 @@ pub fn ApprovedReusableFusedRuntimeBundle::residual_rmsnorm_operation_indices(
 ///|
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_operation_indices(
   self : ApprovedReusableFusedRuntimeBundle,
-) -> (Int, Int, Int)? {
+) -> (Int32, Int32, Int32)? {
   match self.qwen_full_attention_ingress_module() {
     Some(module_) =>
       Some(
@@ -272,7 +272,7 @@ pub fn ApprovedReusableFusedRuntimeBundle::qwen_qknorm_rope_kv_write_operation_i
 ///|
 pub fn ApprovedReusableFusedRuntimeBundle::qwen_paged_attention_readonly_operation_index(
   self : ApprovedReusableFusedRuntimeBundle,
-) -> Int? {
+) -> Int32? {
   match self.qwen_paged_attention_readonly_module() {
     Some(module_) => Some(module_.first_operation)
     None => None
@@ -289,21 +289,21 @@ pub fn ApprovedReusableFusedRuntimeModule::kernel_abi(
 ///|
 pub fn ApprovedReusableFusedRuntimeModule::operation_span(
   self : ApprovedReusableFusedRuntimeModule,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.first_operation, self.operation_count)
 }
 
 ///|
 pub fn ApprovedReusableFusedRuntimeModule::first_operation_index(
   self : ApprovedReusableFusedRuntimeModule,
-) -> Int {
+) -> Int32 {
   self.first_operation
 }
 
 ///|
 pub fn ApprovedReusableFusedRuntimeModule::operation_count(
   self : ApprovedReusableFusedRuntimeModule,
-) -> Int {
+) -> Int32 {
   self.operation_count
 }
 
@@ -325,14 +325,14 @@ pub fn ApprovedReusableFusedRuntimeModule::launch_dimensions(
 /// Semantic rows per tile, independent of the number of launched workgroups.
 pub fn ApprovedReusableFusedRuntimeModule::query_tile_rows(
   self : ApprovedReusableFusedRuntimeModule,
-) -> Int? {
+) -> Int32? {
   self.query_tile_rows
 }
 
 ///|
 pub fn ApprovedReusableFusedRuntimeModule::query_metadata_version(
   self : ApprovedReusableFusedRuntimeModule,
-) -> Int {
+) -> Int32 {
   self.query_metadata_version
 }
 
@@ -340,7 +340,7 @@ pub fn ApprovedReusableFusedRuntimeModule::query_metadata_version(
 /// Complete-head producer ownership, authenticated once with the artifact.
 pub fn ApprovedReusableFusedRuntimeModule::heads_per_cta(
   self : ApprovedReusableFusedRuntimeModule,
-) -> Int {
+) -> Int32 {
   self.heads_per_cta
 }
 
@@ -363,7 +363,7 @@ pub fn ApprovedReusableFusedRuntimeModule::module_bytes(
 /// row domain to the private captured BF16/F32 vendor projection backend.
 pub fn ApprovedReusableFusedRuntimeBundle::vendor_projection_exact_rows(
   self : ApprovedReusableFusedRuntimeBundle,
-) -> Int {
+) -> Int32 {
   self.vendor_projection_exact_rows
 }
 

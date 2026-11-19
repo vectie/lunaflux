@@ -1,28 +1,28 @@
 ///|
-extern "c" fn raw_test_execution_boundary(cycles : Int) -> Int = "lunaflux_cuda_test_execution_boundary"
+extern "c" fn raw_test_execution_boundary(cycles : Int32) -> Int32 = "lunaflux_cuda_test_execution_boundary"
 
 ///|
-extern "c" fn raw_test_transfer_boundary(cycles : Int) -> Int = "lunaflux_cuda_test_transfer_boundary"
+extern "c" fn raw_test_transfer_boundary(cycles : Int32) -> Int32 = "lunaflux_cuda_test_transfer_boundary"
 
 ///|
 #borrow(source)
 extern "c" fn raw_test_fixed_transfer_boundary(
   source : FixedArray[Byte],
-  cycles : Int,
-) -> Int = "lunaflux_cuda_test_fixed_transfer_boundary"
+  cycles : Int32,
+) -> Int32 = "lunaflux_cuda_test_fixed_transfer_boundary"
 
 ///|
 #borrow(destination)
 extern "c" fn raw_test_fixed_readback_boundary(
   destination : FixedArray[Byte],
-  cycles : Int,
-) -> Int = "lunaflux_cuda_test_fixed_readback_boundary"
+  cycles : Int32,
+) -> Int32 = "lunaflux_cuda_test_fixed_readback_boundary"
 
 ///|
-extern "c" fn raw_test_region_validation(cycles : Int) -> Int = "lunaflux_cuda_test_region_validation"
+extern "c" fn raw_test_region_validation(cycles : Int32) -> Int32 = "lunaflux_cuda_test_region_validation"
 
 ///|
-extern "c" fn raw_test_allocation_lease(cycles : Int) -> Int = "lunaflux_cuda_test_allocation_lease"
+extern "c" fn raw_test_allocation_lease(cycles : Int32) -> Int32 = "lunaflux_cuda_test_allocation_lease"
 
 ///|
 test "native allocation leases retain exact retryable ownership" {

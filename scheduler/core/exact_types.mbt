@@ -11,7 +11,7 @@ pub(all) enum ExactDeadlineResult {
 #valtype
 pub(all) enum ExactDeviceInvalidation {
   ExactDeviceNoChange
-  ExactDeviceInvalidated(Int, @inference.RequestGeneration)
+  ExactDeviceInvalidated(Int32, @inference.RequestGeneration)
   ExactDeviceAlreadyTerminal(@inference.RequestGeneration)
 } derive(Debug, Eq)
 
@@ -19,6 +19,6 @@ pub(all) enum ExactDeviceInvalidation {
 /// Exact one-request instance-loss retirement result.
 #valtype
 pub(all) enum ExactInstanceLossDrain {
-  ExactLossRemaining(Int, @inference.RequestGeneration)
+  ExactLossRemaining(Int32, @inference.RequestGeneration)
   ExactLossComplete(@inference.RequestGeneration)
 } derive(Debug, Eq)

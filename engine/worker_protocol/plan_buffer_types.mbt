@@ -2,7 +2,7 @@
 /// Opaque startup identity for one reusable plan-buffer owner. It contains no
 /// plan payload or mutation authority and remains stable across buffer epochs.
 pub struct PlanBufferIdentity {
-  priv marker : Ref[Int]
+  priv marker : Ref[Int32]
 }
 
 ///|
@@ -43,64 +43,64 @@ pub struct SchedulePlanBuffer {
   priv mut epoch : UInt64
   priv mut sequence_value : UInt64
   priv mut model_plan_generation_value : UInt64
-  priv mut token_budget : Int
-  priv mut token_count : Int
-  priv mut page_count : Int
-  priv mut capability_count : Int
-  priv mut prefill_count : Int
-  priv mut decode_count : Int
+  priv mut token_budget : Int32
+  priv mut token_count : Int32
+  priv mut page_count : Int32
+  priv mut capability_count : Int32
+  priv mut prefill_count : Int32
+  priv mut decode_count : Int32
   priv mut draft_open : Bool
   priv mut draft_epoch : UInt64
   priv mut checkpoint_epoch : UInt64
-  priv mut checkpoint_token_count : Int
-  priv mut checkpoint_page_count : Int
-  priv mut checkpoint_capability_count : Int
-  priv mut checkpoint_prefill_count : Int
-  priv mut checkpoint_decode_count : Int
+  priv mut checkpoint_token_count : Int32
+  priv mut checkpoint_page_count : Int32
+  priv mut checkpoint_capability_count : Int32
+  priv mut checkpoint_prefill_count : Int32
+  priv mut checkpoint_decode_count : Int32
   priv mut draft_kind : WorkerRowKind
   priv mut draft_request_id : @inference.RequestId
   priv mut draft_request_generation : @inference.RequestGeneration
-  priv mut draft_sequence_position : Int
+  priv mut draft_sequence_position : Int32
   priv mut draft_produces_token : Bool
   priv mut draft_completion_slot : CompletionSlot
   priv mut draft_sampling : @inference.SamplingParameters
   priv mut draft_sampling_seed_value : UInt64
-  priv mut draft_sample_index : Int
-  priv mut draft_token_start : Int
-  priv mut draft_page_start : Int
-  priv mut draft_capability_start : Int
+  priv mut draft_sample_index : Int32
+  priv mut draft_token_start : Int32
+  priv mut draft_page_start : Int32
+  priv mut draft_capability_start : Int32
   priv mut identity_tracker_generation : UInt64
   priv request_identity_keys : FixedArray[UInt64]
   priv request_identity_generations : FixedArray[UInt64]
   priv completion_slot_generations : FixedArray[UInt64]
-  priv tokens : FixedArray[Int]
+  priv tokens : FixedArray[Int32]
   priv pages : @page_allocator.PageIdStorage
   priv capabilities : FixedArray[@plan.KernelCapabilityId]
   priv prefill_request_ids : FixedArray[@inference.RequestId]
   priv prefill_request_generations : FixedArray[@inference.RequestGeneration]
-  priv prefill_sequence_starts : FixedArray[Int]
-  priv prefill_token_starts : FixedArray[Int]
-  priv prefill_token_lengths : FixedArray[Int]
-  priv prefill_page_starts : FixedArray[Int]
-  priv prefill_page_lengths : FixedArray[Int]
-  priv prefill_capability_starts : FixedArray[Int]
-  priv prefill_capability_lengths : FixedArray[Int]
+  priv prefill_sequence_starts : FixedArray[Int32]
+  priv prefill_token_starts : FixedArray[Int32]
+  priv prefill_token_lengths : FixedArray[Int32]
+  priv prefill_page_starts : FixedArray[Int32]
+  priv prefill_page_lengths : FixedArray[Int32]
+  priv prefill_capability_starts : FixedArray[Int32]
+  priv prefill_capability_lengths : FixedArray[Int32]
   priv prefill_produces_tokens : FixedArray[Bool]
   priv prefill_sampling : FixedArray[@inference.SamplingParameters]
   priv prefill_sampling_seed_values : FixedArray[UInt64]
-  priv prefill_sample_indices : FixedArray[Int]
+  priv prefill_sample_indices : FixedArray[Int32]
   priv prefill_completion_slots : FixedArray[CompletionSlot]
   priv decode_request_ids : FixedArray[@inference.RequestId]
   priv decode_request_generations : FixedArray[@inference.RequestGeneration]
-  priv decode_sequence_positions : FixedArray[Int]
-  priv decode_token_starts : FixedArray[Int]
-  priv decode_page_starts : FixedArray[Int]
-  priv decode_page_lengths : FixedArray[Int]
-  priv decode_capability_starts : FixedArray[Int]
-  priv decode_capability_lengths : FixedArray[Int]
+  priv decode_sequence_positions : FixedArray[Int32]
+  priv decode_token_starts : FixedArray[Int32]
+  priv decode_page_starts : FixedArray[Int32]
+  priv decode_page_lengths : FixedArray[Int32]
+  priv decode_capability_starts : FixedArray[Int32]
+  priv decode_capability_lengths : FixedArray[Int32]
   priv decode_sampling : FixedArray[@inference.SamplingParameters]
   priv decode_sampling_seed_values : FixedArray[UInt64]
-  priv decode_sample_indices : FixedArray[Int]
+  priv decode_sample_indices : FixedArray[Int32]
   priv decode_completion_slots : FixedArray[CompletionSlot]
 }
 
@@ -119,12 +119,12 @@ pub struct RetiredSchedulePlan(SchedulePlanBuffer, UInt64)
 ///|
 /// Opaque immutable prefill-row view tied to its submitted plan epoch.
 #valtype
-pub struct SubmittedPrefillRow(SchedulePlanBuffer, UInt64, Int)
+pub struct SubmittedPrefillRow(SchedulePlanBuffer, UInt64, Int32)
 
 ///|
 /// Opaque immutable decode-row view tied to its submitted plan epoch.
 #valtype
-pub struct SubmittedDecodeRow(SchedulePlanBuffer, UInt64, Int)
+pub struct SubmittedDecodeRow(SchedulePlanBuffer, UInt64, Int32)
 
 ///|
 /// Scheduler-only authenticated draft for one not-yet-visible row. Scalar

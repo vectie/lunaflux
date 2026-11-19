@@ -24,7 +24,7 @@ fn LunaOnlineFramedConnectionPool::refresh_metrics(
 ///|
 pub fn LunaOnlineFramedConnectionPool::record_cold_start_latency_millis(
   self : LunaOnlineFramedConnectionPool,
-  duration_millis : Int,
+  duration_millis : Int32,
 ) -> Unit raise LunaOnlineTcpError {
   match self.telemetry.record_cold_start_latency_millis(duration_millis) {
     -1 => raise luna_online_tcp_error(LunaOnlineTcpTelemetry)
@@ -69,7 +69,7 @@ fn LunaOnlineOpenAIConnectionPool::refresh_metrics(
 ///|
 pub fn LunaOnlineOpenAIConnectionPool::record_cold_start_latency_millis(
   self : LunaOnlineOpenAIConnectionPool,
-  duration_millis : Int,
+  duration_millis : Int32,
 ) -> Unit raise LunaOnlineTcpError {
   match self.telemetry.record_cold_start_latency_millis(duration_millis) {
     -1 => raise luna_online_tcp_error(LunaOnlineTcpTelemetry)

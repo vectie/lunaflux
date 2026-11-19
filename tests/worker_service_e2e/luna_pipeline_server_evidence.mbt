@@ -1,7 +1,7 @@
 ///|
 fn pipeline_startup_with_limits(
   worker_limits : @worker_protocol.WorkerProtocolLimits,
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=identity(),
@@ -20,7 +20,7 @@ fn pipeline_startup_with_limits(
 
 ///|
 fn pipeline_startup(
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @worker_wire.WorkerStartupContract raise {
   pipeline_startup_with_limits(multi_worker_limits(), fixture_root~)
 }
@@ -30,7 +30,7 @@ fn prepare_pipeline_service_with_blueprint(
   executable : Bytes,
   blueprint : @scheduler.SchedulerBlueprint,
   startup : @worker_wire.WorkerStartupContract,
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @online_session.LunaOnlineFramedServicePreparation raise {
   let tokenizer = session_tokenizer()
   let model = @approved_fs.ApprovedRoot::open_absolute(fixture_root)
@@ -73,7 +73,7 @@ fn prepare_pipeline_service_with_blueprint(
 ///|
 fn prepare_pipeline_service(
   executable : Bytes,
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @online_session.LunaOnlineFramedServicePreparation raise {
   prepare_pipeline_service_with_blueprint(
     executable,

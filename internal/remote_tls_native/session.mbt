@@ -129,9 +129,9 @@ pub async fn ServerIdentity::accept(
 pub async fn ServerSession::read(
   self : ServerSession,
   destination : FixedArray[Byte],
-  offset~ : Int,
-  max_len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  max_len~ : Int32,
+) -> Int32 {
   guard offset >= 0 && max_len > 0 && offset <= destination.length() - max_len else {
     raise Transport
   }
@@ -154,15 +154,15 @@ pub async fn ServerSession::read(
 pub async fn ServerSession::write_once(
   self : ServerSession,
   source : Bytes,
-  offset~ : Int,
-  len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  len~ : Int32,
+) -> Int32 {
   guard offset >= 0 && len > 0 && offset <= source.length() - len else {
     raise Transport
   }
   errdefer self.close()
   // A bounded TLS record keeps the memory BIO and ciphertext arena bounded.
-  let count = encrypt(self.handle(), source, offset, Int::min(len, 16384))
+  let count = encrypt(self.handle(), source, offset, Int32::min(len, 16384))
   guard count > 0 else { raise Transport }
   self.flush()
   count

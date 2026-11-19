@@ -4,7 +4,7 @@ pub fn open_fixed() -> InferenceCredentialHandle {
 }
 
 ///|
-pub fn open_status(handle : InferenceCredentialHandle) -> Int {
+pub fn open_status(handle : InferenceCredentialHandle) -> Int32 {
   raw_open_status(handle.native)
 }
 
@@ -12,19 +12,19 @@ pub fn open_status(handle : InferenceCredentialHandle) -> Int {
 pub fn try_read(
   handle : InferenceCredentialHandle,
   destination : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int {
+  offset : Int32,
+  length : Int32,
+) -> Int32 {
   raw_try_read(handle.native, destination, offset, length)
 }
 
 ///|
-pub fn peek(handle : InferenceCredentialHandle) -> Int {
+pub fn peek(handle : InferenceCredentialHandle) -> Int32 {
   raw_peek(handle.native)
 }
 
 ///|
-pub fn close(handle : InferenceCredentialHandle) -> Int {
+pub fn close(handle : InferenceCredentialHandle) -> Int32 {
   raw_close(handle.native)
 }
 

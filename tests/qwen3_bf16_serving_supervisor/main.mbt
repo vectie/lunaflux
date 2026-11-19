@@ -6,10 +6,10 @@ extern "c" fn supervise_qwen3_runtime(
   stdout_path : Bytes,
   stderr_path : Bytes,
   drain_trigger : Bytes,
-  child_pid : Ref[Int],
-  drain_acknowledged : Ref[Int],
-  child_exit_code : Ref[Int],
-) -> Int = "lunaflux_qwen3_supervise_runtime"
+  child_pid : Ref[Int32],
+  drain_acknowledged : Ref[Int32],
+  child_exit_code : Ref[Int32],
+) -> Int32 = "lunaflux_qwen3_supervise_runtime"
 
 ///|
 fn qwen3_supervisor_usage() -> Unit {

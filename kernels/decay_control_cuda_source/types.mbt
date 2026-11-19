@@ -24,10 +24,10 @@ pub(all) suberror DecayControlCudaSourceError {
 pub struct DecayControlCudaSource {
   priv operation : DecayControlCudaOperation
   priv numerical_contract : DecayControlNumericalContract
-  priv head_count : Int
-  priv head_dimension : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
   priv lower_bound : Double
-  priv maximum_rows : Int
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

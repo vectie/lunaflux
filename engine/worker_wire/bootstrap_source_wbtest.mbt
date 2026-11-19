@@ -36,7 +36,7 @@ fn wb_source() -> EncodedBootstrapSource raise {
 }
 
 ///|
-fn wb_source_bytes() -> (FixedArray[Byte], Int) raise {
+fn wb_source_bytes() -> (FixedArray[Byte], Int32) raise {
   let source = wb_source()
   let bytes = FixedArray::make(source.capacity(), b'\x00')
   source.copy_to(bytes, destination_offset=0)
@@ -46,7 +46,7 @@ fn wb_source_bytes() -> (FixedArray[Byte], Int) raise {
 ///|
 fn expect_source_rule(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   expected : WorkerBootstrapSourceRule,
 ) -> Unit raise {
   try decode_bootstrap_source(bytes, length) catch {

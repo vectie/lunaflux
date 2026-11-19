@@ -42,9 +42,9 @@ pub fn StartupWeight::bytes(self : StartupWeight) -> Int64 {
 pub fn StartupWeight::write_chunk(
   self : StartupWeight,
   first_element : Int64,
-  count : Int,
+  count : Int32,
   destination : FixedArray[Byte],
-  offset? : Int = 0,
+  offset~ : Int32 = 0,
 ) -> Unit raise MaterializeError {
   self.source.decode_bf16_chunk(
     first_element,

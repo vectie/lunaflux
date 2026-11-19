@@ -1,7 +1,7 @@
 ///|
 fn execute_operation(
   operation : @plan.PlanOperation,
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   activations : Array[@refkernels.Activation],
   model : PreparedModel,
   limits : ExecutionLimits,
@@ -128,7 +128,7 @@ fn execute_operation(
 pub fn execute(
   plan : @plan.ModelPlan,
   model : PreparedModel,
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   limits~ : ExecutionLimits,
 ) -> ExecutionResult raise ReferenceExecutionError {
   if plan.identity() != model.identity() {

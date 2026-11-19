@@ -1,59 +1,59 @@
 ///|
-const BOOTSTRAP_SOURCE_MAGIC : UInt = 0x5342464c
+const BOOTSTRAP_SOURCE_MAGIC : UInt32 = 0x5342464c
 
 ///|
-const BOOTSTRAP_SOURCE_VERSION_V2 : UInt = 2
+const BOOTSTRAP_SOURCE_VERSION_V2 : UInt32 = 2
 
 ///|
-const BOOTSTRAP_SOURCE_VERSION_V3 : UInt = 3
+const BOOTSTRAP_SOURCE_VERSION_V3 : UInt32 = 3
 
 ///|
-const BOOTSTRAP_SOURCE_VERSION_V5 : UInt = 5
+const BOOTSTRAP_SOURCE_VERSION_V5 : UInt32 = 5
 
 ///|
-const BOOTSTRAP_SOURCE_VERSION_V8 : UInt = 8
+const BOOTSTRAP_SOURCE_VERSION_V8 : UInt32 = 8
 
 ///|
-const BOOTSTRAP_SOURCE_VERSION_V10 : UInt = 10
+const BOOTSTRAP_SOURCE_VERSION_V10 : UInt32 = 10
 
 ///|
-const BOOTSTRAP_SOURCE_RECIPE_V2 : Int = 2
+const BOOTSTRAP_SOURCE_RECIPE_V2 : Int32 = 2
 
 ///|
-const BOOTSTRAP_SOURCE_RECIPE_V3 : Int = 3
+const BOOTSTRAP_SOURCE_RECIPE_V3 : Int32 = 3
 
 ///|
-const BOOTSTRAP_SOURCE_RECIPE_V5 : Int = 5
+const BOOTSTRAP_SOURCE_RECIPE_V5 : Int32 = 5
 
 ///|
-const BOOTSTRAP_SOURCE_RECIPE_V8 : Int = 8
+const BOOTSTRAP_SOURCE_RECIPE_V8 : Int32 = 8
 
 ///|
-const BOOTSTRAP_SOURCE_RECIPE_V10 : Int = 10
+const BOOTSTRAP_SOURCE_RECIPE_V10 : Int32 = 10
 
 ///|
-const BOOTSTRAP_SOURCE_HEADER_BYTES_V2 : Int = 184
+const BOOTSTRAP_SOURCE_HEADER_BYTES_V2 : Int32 = 184
 
 ///|
-const BOOTSTRAP_SOURCE_HEADER_BYTES_V3 : Int = 312
+const BOOTSTRAP_SOURCE_HEADER_BYTES_V3 : Int32 = 312
 
 ///|
-const BOOTSTRAP_SOURCE_HEADER_BYTES_V10 : Int = 224
+const BOOTSTRAP_SOURCE_HEADER_BYTES_V10 : Int32 = 224
 
 ///|
-const BOOTSTRAP_SOURCE_DIGEST_BYTES : Int = 32
+const BOOTSTRAP_SOURCE_DIGEST_BYTES : Int32 = 32
 
 ///|
 /// Shared maximum for legacy, tensor-parallel, and production-I8 sources.
-const BOOTSTRAP_SOURCE_CAPACITY : Int = 20744
+const BOOTSTRAP_SOURCE_CAPACITY : Int32 = 20744
 
 ///|
-pub fn bootstrap_source_capacity() -> Int {
+pub fn bootstrap_source_capacity() -> Int32 {
   BOOTSTRAP_SOURCE_CAPACITY
 }
 
 ///|
-fn bootstrap_source_header_bytes(kernel : WorkerBootstrapKernelSource) -> Int {
+fn bootstrap_source_header_bytes(kernel : WorkerBootstrapKernelSource) -> Int32 {
   if kernel.fused_runtime is Some(_) ||
     kernel.sampling_runtime == EmbeddedCudaGreedyV1 {
     BOOTSTRAP_SOURCE_HEADER_BYTES_V10
@@ -78,7 +78,7 @@ fn bootstrap_source_hex_nibble(unit : UInt16) -> Byte raise WorkerWireError {
 ///|
 fn write_bootstrap_source_digest(
   destination : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   digest : StringView,
 ) -> Unit raise WorkerWireError {
   if !bootstrap_source_is_sha256(digest) {
@@ -95,7 +95,7 @@ fn write_bootstrap_source_digest(
 ///|
 fn bootstrap_source_raw_digest(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
 ) -> WorkerBootstrapSourceDigest raise WorkerWireError {
   WorkerBootstrapSourceDigest::from_sha256(
     @crypto.bytes_to_hex_string(
@@ -107,9 +107,9 @@ fn bootstrap_source_raw_digest(
 ///|
 fn write_bootstrap_source_string(
   destination : FixedArray[Byte],
-  cursor : Int,
+  cursor : Int32,
   value : StringView,
-) -> Int {
+) -> Int32 {
   let encoded = @utf8.encode(value)
   for index in 0..<encoded.length() {
     destination[cursor + index] = encoded[index]
@@ -120,8 +120,8 @@ fn write_bootstrap_source_string(
 ///|
 fn read_bootstrap_source_string(
   source : FixedArray[Byte],
-  cursor : Int,
-  byte_count : Int,
+  cursor : Int32,
+  byte_count : Int32,
 ) -> String raise WorkerWireError {
   @utf8.decode(Bytes::makei(byte_count, index => source[cursor + index])) catch {
     _ => raise InvalidBootstrapSource(Utf8)
@@ -133,7 +133,7 @@ fn bootstrap_source_lengths(
   roots : WorkerBootstrapRoots,
   model : WorkerBootstrapModelSource,
   kernel : WorkerBootstrapKernelSource,
-) -> Array[Int] {
+) -> Array[Int32] {
   let lengths = [
     @utf8.encode(roots.model_root).length(),
     @utf8.encode(model.config_locator).length(),
@@ -158,7 +158,9 @@ pub fn admit_bootstrap_source(
   execution : WorkerBootstrapExecution,
   ceilings : WorkerBootstrapCeilings,
 ) -> EncodedBootstrapSource raise WorkerWireError {
-  if kernel.sampling_runtime == DeviceFullF32SamplingV1 { raise InvalidBootstrapSource(Recipe) }
+  if kernel.sampling_runtime == DeviceFullF32SamplingV1 {
+    raise InvalidBootstrapSource(Recipe)
+  }
   let lengths = bootstrap_source_lengths(roots, model, kernel)
   if kernel.luna_approval is Some(_) &&
     (
@@ -247,7 +249,7 @@ pub fn admit_bootstrap_source(
   }
   write_i32(storage, 40, execution.compute_major)
   write_i32(storage, 44, execution.compute_minor)
-  let flags : UInt = (if execution.supports_bf16 { 1 } else { 0 }) |
+  let flags : UInt32 = (if execution.supports_bf16 { 1 } else { 0 }) |
     (if execution.supports_cublas_lt { 2 } else { 0 })
   write_u32(storage, 48, flags)
   write_i32(storage, 52, execution.tokens_per_page)
@@ -333,7 +335,7 @@ pub fn admit_bootstrap_source(
 pub fn EncodedBootstrapSource::copy_to(
   self : EncodedBootstrapSource,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise WorkerWireError {
   if destination_offset < 0 ||
     destination_offset > destination.length() - self.length {

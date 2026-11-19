@@ -31,7 +31,7 @@ pub fn FlowBindings::upload(
 /// Create a fixed 12-byte RF coefficient argument during frame preparation.
 pub fn FlowBindings::coefficients(
   self : Self,
-  step : Int,
+  step : Int32,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
 ) -> @device.KernelArgument raise {
   let offset = self.base + self.table.coefficient_offset(step, latent)
@@ -48,7 +48,7 @@ pub fn FlowBindings::coefficients(
 /// Packed distinct timestep tables (including conditioning rows) are separate.
 pub fn FlowBindings::timestep(
   self : Self,
-  step : Int,
+  step : Int32,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
 ) -> @device.KernelArgument raise {
   let offset = self.base + self.table.coefficient_offset(step, latent) + 12L

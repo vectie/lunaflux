@@ -45,7 +45,7 @@ fn require_int(
   area : DocumentArea,
   name : String,
   field : DocumentField,
-) -> Int raise ConfigDocumentError {
+) -> Int32 raise ConfigDocumentError {
   match object.get(name) {
     Some(value) => {
       let integer = exact_int64(value, area, field, 0)
@@ -106,10 +106,10 @@ fn require_int_array(
   area : DocumentArea,
   name : String,
   field : DocumentField,
-) -> Array[Int] raise ConfigDocumentError {
+) -> Array[Int32] raise ConfigDocumentError {
   match object.get(name) {
     Some(Array(values)) => {
-      let result : Array[Int] = []
+      let result : Array[Int32] = []
       for index, value in values {
         let integer = exact_int64(value, area, field, index)
         if integer < -2147483648L || integer > 2147483647L {
@@ -129,7 +129,7 @@ fn exact_int64(
   value : Json,
   area : DocumentArea,
   field : DocumentField,
-  index : Int,
+  index : Int32,
 ) -> Int64 raise ConfigDocumentError {
   guard value is Number(number, repr~) else {
     raise InvalidValue(area~, field~, issue=ExpectedInteger, index~)
@@ -154,7 +154,7 @@ fn parse_decimal_int64(
   text : StringView,
   area : DocumentArea,
   field : DocumentField,
-  index : Int,
+  index : Int32,
 ) -> Int64 raise ConfigDocumentError {
   if text.length() == 0 {
     raise InvalidValue(area~, field~, issue=ExpectedInteger, index~)

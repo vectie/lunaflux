@@ -14,7 +14,7 @@ pub(all) enum TwoNodePlanRule {
 
 ///|
 pub(all) suberror TwoNodePlanError {
-  Rejected(rule~ : TwoNodePlanRule, rank~ : Int)
+  Rejected(rule~ : TwoNodePlanRule, rank~ : Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -95,8 +95,8 @@ pub struct TwoNodePlan {
   priv rank_plans : ReadOnlyArray[@tensor_parallel_plan.TensorParallelRankPlan]
   priv budgets : ReadOnlyArray[RankMemoryBudget]
   priv capacities : ReadOnlyArray[RankCapacity]
-  priv tokens_per_page : Int
-  priv page_count : Int
+  priv tokens_per_page : Int32
+  priv page_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -135,7 +135,7 @@ pub fn TwoNodePlan::topology(
 ///|
 pub fn TwoNodePlan::rank_plan(
   self : TwoNodePlan,
-  rank : Int,
+  rank : Int32,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan? {
   self.rank_plans.get(rank)
 }
@@ -143,7 +143,7 @@ pub fn TwoNodePlan::rank_plan(
 ///|
 pub fn TwoNodePlan::rank_budget(
   self : TwoNodePlan,
-  rank : Int,
+  rank : Int32,
 ) -> RankMemoryBudget? {
   self.budgets.get(rank)
 }
@@ -151,17 +151,17 @@ pub fn TwoNodePlan::rank_budget(
 ///|
 pub fn TwoNodePlan::rank_capacity(
   self : TwoNodePlan,
-  rank : Int,
+  rank : Int32,
 ) -> RankCapacity? {
   self.capacities.get(rank)
 }
 
 ///|
-pub fn TwoNodePlan::tokens_per_page(self : TwoNodePlan) -> Int {
+pub fn TwoNodePlan::tokens_per_page(self : TwoNodePlan) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
-pub fn TwoNodePlan::page_count(self : TwoNodePlan) -> Int {
+pub fn TwoNodePlan::page_count(self : TwoNodePlan) -> Int32 {
   self.page_count
 }

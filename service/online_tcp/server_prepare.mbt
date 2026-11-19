@@ -3,7 +3,7 @@ async fn bind_luna_online_tcp_server_mode(
   addr : @socket.Addr,
   preparation : @online_session.LunaOnlineFramedServicePreparation,
   limits : LunaOnlineTcpLimits,
-  log_capacity~ : Int,
+  log_capacity~ : Int32,
   pipeline_mode~ : Bool,
 ) -> LunaOnlineTcpServer {
   if !limits.is_valid() {
@@ -91,7 +91,7 @@ pub async fn bind_luna_online_tcp_server(
   addr : @socket.Addr,
   preparation : @online_session.LunaOnlineFramedServicePreparation,
   limits : LunaOnlineTcpLimits,
-  log_capacity~ : Int,
+  log_capacity~ : Int32,
 ) -> LunaOnlineTcpServer {
   bind_luna_online_tcp_server_mode(
     addr,
@@ -111,7 +111,7 @@ pub async fn bind_luna_online_tcp_pipeline_server(
   addr : @socket.Addr,
   preparation : @online_session.LunaOnlineFramedServicePreparation,
   limits : LunaOnlineTcpLimits,
-  log_capacity~ : Int,
+  log_capacity~ : Int32,
 ) -> LunaOnlineTcpServer {
   bind_luna_online_tcp_server_mode(
     addr,

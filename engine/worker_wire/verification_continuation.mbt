@@ -7,8 +7,8 @@
 pub fn PlanFrameBuffer::encode_verification_after(
   self : Self,
   previous : ValidatedPlanFrame,
-  committed_input_rows~ : Int,
-  draft_inputs~ : ArrayView[Int],
+  committed_input_rows~ : Int32,
+  draft_inputs~ : ArrayView[Int32],
   sequence_value~ : UInt64,
 ) -> ValidatedPlanFrame raise WorkerWireError {
   let source = previous.owner()

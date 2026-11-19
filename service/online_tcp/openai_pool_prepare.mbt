@@ -13,14 +13,14 @@ fn new_luna_openai_connection_slot(
   inbound_limits : @openai_compat.LunaOpenAIInboundLimits,
   template : @openai_compat.LunaOpenAIChatTemplate,
   deployment_model_alias : FixedArray[Byte],
-  model_alias_offset : Int,
-  model_alias_length : Int,
+  model_alias_offset : Int32,
+  model_alias_length : Int32,
   response_id_prefix : FixedArray[Byte],
-  response_id_prefix_offset : Int,
-  response_id_prefix_length : Int,
+  response_id_prefix_offset : Int32,
+  response_id_prefix_length : Int32,
   cache_scope : @inference.CacheScope,
-  max_new_tokens : Int,
-  context_ceiling : Int,
+  max_new_tokens : Int32,
+  context_ceiling : Int32,
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
@@ -135,14 +135,14 @@ pub fn prepare_luna_online_openai_connection_pool(
   inbound_limits : @openai_compat.LunaOpenAIInboundLimits,
   template : @openai_compat.LunaOpenAIChatTemplate,
   deployment_model_alias : FixedArray[Byte],
-  model_alias_offset~ : Int,
-  model_alias_length~ : Int,
+  model_alias_offset~ : Int32,
+  model_alias_length~ : Int32,
   response_id_prefix : FixedArray[Byte],
-  response_id_prefix_offset~ : Int,
-  response_id_prefix_length~ : Int,
+  response_id_prefix_offset~ : Int32,
+  response_id_prefix_length~ : Int32,
   cache_scope : @inference.CacheScope,
-  max_new_tokens~ : Int,
-  context_ceiling~ : Int,
+  max_new_tokens~ : Int32,
+  context_ceiling~ : Int32,
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
@@ -165,7 +165,7 @@ pub fn prepare_luna_online_openai_connection_pool(
   }
   if !pool_limits.fits_write_chunk(tcp_limits) ||
     pool_limits.io_poll_timeout_millis >
-    Int::min(
+    Int32::min(
       tcp_limits.input_idle_timeout_millis,
       tcp_limits.write_timeout_millis,
     ) {
@@ -197,7 +197,7 @@ pub async fn bind_luna_online_openai_connection_pool(
   addr : @socket.Addr,
   preparation : LunaOnlineOpenAIConnectionPoolPreparation,
   tcp_limits : LunaOnlineTcpLimits,
-  log_capacity~ : Int,
+  log_capacity~ : Int32,
 ) -> LunaOnlineOpenAIConnectionPool {
   if preparation.consumed {
     raise luna_online_tcp_error(LunaOnlineTcpOwnership)

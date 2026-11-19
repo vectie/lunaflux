@@ -50,3 +50,21 @@ pub fn ProjectionMaterializationEffects::release(
     None
   }
 }
+
+///|
+pub extend ProjectionStorageFence with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionStorageFence with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionMaterializationScope with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionMaterializationScope with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionMaterializationEffects with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionMaterializationEffects with Eq::{not_equal, equal}

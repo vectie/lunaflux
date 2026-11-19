@@ -1,14 +1,14 @@
 ///|
 struct Fp8V2ProbeBalance {
-  mut contexts : Int
-  mut streams : Int
-  mut executors : Int
-  mut allocations : Int
-  mut modules : Int
-  mut functions : Int
+  mut contexts : Int32
+  mut streams : Int32
+  mut executors : Int32
+  mut allocations : Int32
+  mut modules : Int32
+  mut functions : Int32
   mut device_bytes : Int64
-  mut pending : Int
-  mut cleanup : Int
+  mut pending : Int32
+  mut cleanup : Int32
 }
 
 ///|

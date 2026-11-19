@@ -2,9 +2,9 @@
 fn wb_restarted_lease(
   scheduler : @core.Scheduler,
   handle : @core.RequestHandle,
-  phase : Int,
+  phase : Int32,
   generation : @inference.RequestGeneration,
-  disposition : Int,
+  disposition : Int32,
 ) -> OnlineWorkerLease {
   let service : WorkerService = {
     scheduler,

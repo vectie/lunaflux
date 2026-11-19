@@ -3,11 +3,11 @@
 /// frame operands remain separate until attention completes, so a prefill
 /// chunk larger than the window cannot overwrite history needed by early rows.
 pub struct WindowSharedKvPrecision {
-  priv heads : Int
-  priv width : Int
-  priv window : Int
-  priv rows : Int
-  priv positions : Int
+  priv heads : Int32
+  priv width : Int32
+  priv window : Int32
+  priv rows : Int32
+  priv positions : Int32
   priv sizes : ReadOnlyArray[Int64]
   priv bytes : Int64
   priv probability : AttentionProbabilityLaw
@@ -16,14 +16,14 @@ pub struct WindowSharedKvPrecision {
 
 ///|
 pub fn WindowSharedKvPrecision::new(
-  query_heads~ : Int,
-  head_width~ : Int,
-  window_tokens~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  query_heads~ : Int32,
+  head_width~ : Int32,
+  window_tokens~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_state_bytes~ : Int64,
-  probability? : AttentionProbabilityLaw = GlobalF32,
-  accumulation? : AttentionAccumulationLaw = OrderedFloat32,
+  probability~ : AttentionProbabilityLaw = GlobalF32,
+  accumulation~ : AttentionAccumulationLaw = OrderedFloat32,
 ) -> Self raise PrecisionPlanError {
   probability.validate()
   guard query_heads > 0 &&
@@ -81,7 +81,7 @@ pub fn WindowSharedKvPrecision::probability_law(
 ///|
 pub fn WindowSharedKvPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (self.heads, self.width, self.window, self.rows, self.positions)
 }
 

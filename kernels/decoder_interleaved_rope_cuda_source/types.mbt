@@ -25,12 +25,12 @@ pub(all) suberror DecoderInterleavedRopeCudaSourceError {
 pub struct DecoderInterleavedRopeCudaSource {
   priv operation : DecoderInterleavedRopeCudaOperation
   priv numerical_contract : DecoderInterleavedRopeNumericalContract
-  priv query_head_count : Int
-  priv key_head_count : Int
-  priv query_head_dimension : Int
-  priv rope_dimension : Int
-  priv maximum_rows : Int
-  priv maximum_positions : Int
+  priv query_head_count : Int32
+  priv key_head_count : Int32
+  priv query_head_dimension : Int32
+  priv rope_dimension : Int32
+  priv maximum_rows : Int32
+  priv maximum_positions : Int32
   priv theta : Double
   priv function_symbol : String
   priv source : Bytes

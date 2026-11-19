@@ -25,7 +25,7 @@ fn LunaFramedTextRequestView::require(
 ///|
 pub fn LunaFramedTextRequestView::length(
   self : Self,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   let workspace = self.require()
   workspace.payload_cursor + workspace.cache_scope_length
 }
@@ -34,10 +34,10 @@ pub fn LunaFramedTextRequestView::length(
 pub fn LunaFramedTextRequestView::copy_chunk_to(
   self : Self,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise FramedWireError {
+  destination_offset~ : Int32,
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise FramedWireError {
   let workspace = self.require()
   let total = workspace.payload_cursor + workspace.cache_scope_length
   if length <= 0 ||

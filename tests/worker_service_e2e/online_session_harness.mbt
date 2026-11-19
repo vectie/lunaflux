@@ -170,7 +170,7 @@ fn prepare_foundation_request(
 ///|
 fn prepare_foundation_pool(
   tokenizer : @tokenizer.TokenizerSpec,
-  lane_count : Int,
+  lane_count : Int32,
 ) -> @request_admission.LunaRequestPreparationPool raise {
   @request_admission.LunaRequestPreparationPool::new(
     tokenizer,

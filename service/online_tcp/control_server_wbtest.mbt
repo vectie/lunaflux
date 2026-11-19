@@ -111,7 +111,7 @@ test "startup measurement publication lifecycle and bounds are exact" {
 fn render_control_metrics_test(
   metrics : @metrics.LunaInstanceMetrics,
   scratch : LunaOnlineTcpOutputScratch,
-  cold_start_latency_millis : Int,
+  cold_start_latency_millis : Int32,
   readiness : Bool,
 ) -> String {
   let snapshot = try! metrics.snapshot()

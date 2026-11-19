@@ -3,14 +3,14 @@
 /// describes what is materialized, not which device artifact is fastest.
 pub struct AttentionIngressCutPlan {
   priv schedule : @luna_fusion_strategy.FusionSchedule
-  priv qkv_operation : Int
+  priv qkv_operation : Int32
   priv partition : @fusion_regions.Partition
 }
 
 ///|
 pub fn AttentionIngressCutPlan::new(
   schedule : @luna_fusion_strategy.FusionSchedule,
-  qkv_operation~ : Int,
+  qkv_operation~ : Int32,
 ) -> AttentionIngressCutPlan raise FusionPlanError {
   if qkv_operation < 0 || qkv_operation > 2147483644 {
     raise InvalidFusionPlan(OperationOrder)
@@ -29,7 +29,7 @@ pub fn AttentionIngressCutPlan::new(
 /// must still write KV; it cannot be replaced by a read-only attention kernel.
 pub fn AttentionIngressCutPlan::module_span(
   self : AttentionIngressCutPlan,
-) -> (Int, Int)? {
+) -> (Int32, Int32)? {
   for region in self.partition.regions() {
     let (start, count) = region.span()
     if count > 1 && start + count == 4 {

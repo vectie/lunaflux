@@ -1,16 +1,16 @@
 ///|
 priv struct AttentionCandidateSpec {
-  stable_id : Int
+  stable_id : Int32
   phase : AttentionExecutionPhase
   compute : AttentionTileCompute
   memory : AttentionTileMemory
-  query_rows : Int
-  key_value_rows : Int
-  subgroups_per_block : Int
-  pipeline_stages : Int
-  vector_bytes : Int
-  minimum_query_rows : Int
-  minimum_context_tokens : Int
+  query_rows : Int32
+  key_value_rows : Int32
+  subgroups_per_block : Int32
+  pipeline_stages : Int32
+  vector_bytes : Int32
+  minimum_query_rows : Int32
+  minimum_context_tokens : Int32
 }
 
 ///|
@@ -42,7 +42,7 @@ fn attention_candidate_specs() -> Array[AttentionCandidateSpec] {
         if phase == Prefill && query == 4 && asynchronous {
           continue
         }
-        let groups = if phase == Decode { 4 } else { Int::max(4, query / 2) }
+        let groups = if phase == Decode { 4 } else { Int32::max(4, query / 2) }
         let keys = if phase == Decode {
           if asynchronous {
             128
@@ -52,7 +52,7 @@ fn attention_candidate_specs() -> Array[AttentionCandidateSpec] {
         } else if asynchronous {
           query * 8
         } else {
-          Int::min(64, query * 8)
+          Int32::min(64, query * 8)
         }
         specs.push({
           stable_id: (if phase == Prefill { 200 + index * 10 } else { 410 }) +

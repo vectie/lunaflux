@@ -41,7 +41,7 @@ pub(all) enum ReleaseReviewerRole {
 } derive(Debug, Eq)
 
 ///|
-fn evidence_status_tag(status : ReleaseEvidenceStatus) -> Int {
+fn evidence_status_tag(status : ReleaseEvidenceStatus) -> Int32 {
   match status {
     Pending => 1
     Passed => 2
@@ -52,7 +52,7 @@ fn evidence_status_tag(status : ReleaseEvidenceStatus) -> Int {
 
 ///|
 fn evidence_status_from_tag(
-  tag : Int,
+  tag : Int32,
 ) -> ReleaseEvidenceStatus raise ReleaseEvidenceError {
   match tag {
     1 => Pending
@@ -64,7 +64,7 @@ fn evidence_status_from_tag(
 }
 
 ///|
-fn evidence_role_tag(role : ReleaseEvidenceRole) -> Int {
+fn evidence_role_tag(role : ReleaseEvidenceRole) -> Int32 {
   match role {
     PhysicalTarget => 1
     ReferenceCorrectness => 2
@@ -87,7 +87,7 @@ fn evidence_role_tag(role : ReleaseEvidenceRole) -> Int {
 
 ///|
 fn evidence_role_from_tag(
-  tag : Int,
+  tag : Int32,
 ) -> ReleaseEvidenceRole raise ReleaseEvidenceError {
   match tag {
     1 => PhysicalTarget
@@ -133,7 +133,7 @@ fn all_evidence_roles() -> Array[ReleaseEvidenceRole] {
 }
 
 ///|
-fn reviewer_role_tag(role : ReleaseReviewerRole) -> Int {
+fn reviewer_role_tag(role : ReleaseReviewerRole) -> Int32 {
   match role {
     SecurityReviewer => 1
     OperationsReviewer => 2
@@ -143,7 +143,7 @@ fn reviewer_role_tag(role : ReleaseReviewerRole) -> Int {
 
 ///|
 fn reviewer_role_from_tag(
-  tag : Int,
+  tag : Int32,
 ) -> ReleaseReviewerRole raise ReleaseEvidenceError {
   match tag {
     1 => SecurityReviewer

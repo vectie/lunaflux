@@ -31,7 +31,7 @@ fn push_semantic_bytes(
 
 ///|
 fn ready_semantic_lease(
-  work_units : Int,
+  work_units : Int32,
 ) -> (@inference.LunaRequestSemanticLease, UInt64) raise {
   let budget = @inference.LunaRequestSemanticStepBudget::new(work_units)
   let storage = @inference.LunaRequestSemanticStorage::new(
@@ -226,7 +226,7 @@ fn expect_semantic_failure(
   work : @inference.LunaRequestSemanticWork,
   field : @inference.ContractField,
   issue : @inference.ContractIssue,
-  index : Int,
+  index : Int32,
 ) -> Unit raise {
   while true {
     let progress = work.progress()

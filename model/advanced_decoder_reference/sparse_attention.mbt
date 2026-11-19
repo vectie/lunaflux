@@ -13,9 +13,9 @@ pub fn selected_sparse_attention(
   query : ArrayView[Float],
   key_value : ArrayView[Float],
   sink : ArrayView[Float],
-  selected_indices : ArrayView[Int],
-  head_count~ : Int,
-  head_dimension~ : Int,
+  selected_indices : ArrayView[Int32],
+  head_count~ : Int32,
+  head_dimension~ : Int32,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {
   validate_shape(head_count, head_dimension, limits)

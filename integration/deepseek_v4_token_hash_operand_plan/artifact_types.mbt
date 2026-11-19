@@ -14,20 +14,20 @@ pub struct DeepSeekV4TokenHashArtifactBindingDigest(String) derive (
 pub struct DeepSeekV4TokenHashArtifactBinding {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv layer_index : Int
-  priv requirement_ordinal : Int
+  priv layer_index : Int32
+  priv requirement_ordinal : Int32
   priv operand_plan_digest : DeepSeekV4TokenHashOperandPlanDigest
   priv candidate_source_digest : @advanced_decoder_cuda_aot.AdvancedDecoderCudaSourceDigest
   priv candidate_recipe_digest : @advanced_decoder_cuda_aot.AdvancedDecoderCudaRecipeDigest
   priv artifact_admission_digest : @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionDigest
   priv target : @catalog.DeviceTarget
   priv module_digest : @catalog.AotArtifactDigest
-  priv module_byte_count : Int
+  priv module_byte_count : Int32
   priv entry_point : @catalog.AotKernelEntryPoint
   priv function_symbol : String
   priv dimensions : @launch_contract.AotLaunchDimensions
-  priv operand_count : Int
-  priv token_hash_operand_ordinal : Int
+  priv operand_count : Int32
+  priv token_hash_operand_ordinal : Int32
   priv token_hash_device_offset : Int64
   priv digest : DeepSeekV4TokenHashArtifactBindingDigest
 }
@@ -43,14 +43,14 @@ pub(all) suberror DeepSeekV4TokenHashArtifactBindingError {
   CandidateSourceDigestMismatch
   CandidateRecipeDigestMismatch
   CandidateUnexpectedlyBindable
-  CandidateOperandMismatch(Int)
+  CandidateOperandMismatch(Int32)
   ArtifactIdentityMismatch
   ArtifactRequirementsDigestMismatch
   ArtifactTargetMismatch
   ArtifactUnexpectedStatus
-  ArtifactLaunchMissing(Int)
+  ArtifactLaunchMissing(Int32)
   ArtifactLaunchMismatch
-  ArtifactOperandMismatch(Int)
+  ArtifactOperandMismatch(Int32)
   ArtifactEntryPointMissing
   ArtifactSymbolMismatch
   ArtifactModuleMissing

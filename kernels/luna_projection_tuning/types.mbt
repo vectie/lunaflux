@@ -27,7 +27,7 @@ fn valid_label(value : StringView) -> Bool {
   value.length() <= 128 &&
   value
   .iter()
-  .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | ':'))
+  .all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '-' | '_' | '.' | ':'))
 }
 
 ///|
@@ -41,7 +41,7 @@ pub fn ProjectionTuningScope::new(
     !valid_label(architecture.stable_name()) ||
     !valid_label(device_identity) ||
     toolchain_sha256.length() != 64 ||
-    !toolchain_sha256.iter().all(c => c is ('0'..='9' | 'a'..='f')) {
+    !toolchain_sha256.iter().all(c => c is ('0'..<='9' | 'a'..<='f')) {
     raise InvalidSnapshot
   }
   { backend, architecture, device_identity, toolchain_sha256, }
@@ -64,3 +64,15 @@ pub fn ProjectionTuningSnapshot::records_for(
   }
   self.records
 }
+
+///|
+pub extend ProjectionTuningError with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTuningError with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTuningScope with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTuningScope with Eq::{not_equal, equal}

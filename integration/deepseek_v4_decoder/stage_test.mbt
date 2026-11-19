@@ -20,9 +20,9 @@ test "state backup placement composes without copying weights or scratch" {
 ///|
 fn stage(
   spec : @spec.DeepSeekV4ModelSpec,
-  first : Int,
-  end : Int,
-  maximum_output_rows? : Int = 1,
+  first : Int32,
+  end : Int32,
+  maximum_output_rows~ : Int32 = 1,
 ) -> @deepseek_v4_decoder.DeepSeekDecoderStage raise {
   @deepseek_v4_decoder.DeepSeekDecoderStage::new(
     spec,

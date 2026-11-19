@@ -49,3 +49,15 @@ pub fn ProjectionMapEffectPlan::at(
       ConsumerGroupStorage.materialization_effects(reused=true).release()
   }
 }
+
+///|
+pub extend ProjectionMapBoundary with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionMapBoundary with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionMapEffectPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionMapEffectPlan with Eq::{not_equal, equal}

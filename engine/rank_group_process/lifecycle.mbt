@@ -8,7 +8,7 @@ pub fn RankGroupProcessSupervisor::lifecycle(
 ///|
 pub fn RankGroupProcessSupervisor::world_size(
   self : RankGroupProcessSupervisor,
-) -> Int {
+) -> Int32 {
   self.children.length()
 }
 
@@ -88,7 +88,7 @@ fn RankGroupProcessSupervisor::record_failure(
 ///|
 fn RankGroupProcessSupervisor::seal_protocol_failure(
   self : RankGroupProcessSupervisor,
-  failed_rank : Int,
+  failed_rank : Int32,
 ) -> Unit {
   if self.protocol.lifecycle() == Executing {
     self.protocol.report_active_host_failure() catch {
@@ -178,7 +178,7 @@ fn RankGroupProcessSupervisor::require_lifecycle(
 ///|
 fn RankGroupProcessSupervisor::binding(
   self : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
 ) -> @rank_group_wire.RankGroupWireBinding {
   match self.wire_transcript.binding(rank) {
     Some(binding) => binding

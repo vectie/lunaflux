@@ -40,7 +40,7 @@ pub fn LunaEventOwner::has_event(self : LunaEventOwner) -> Bool {
 /// reserves credit nor changes the current event.
 pub fn LunaEventOwner::has_epoch_capacity(
   self : LunaEventOwner,
-  event_count : Int,
+  event_count : Int32,
 ) -> Bool {
   event_count >= 0 &&
   self.epoch <= 0xffffffffffffffffUL - event_count.to_uint64()
@@ -50,7 +50,7 @@ pub fn LunaEventOwner::has_epoch_capacity(
 fn LunaEventOwner::commit(
   self : LunaEventOwner,
   kind : LunaEventSlotKind,
-  payload_length : Int,
+  payload_length : Int32,
 ) -> Unit {
   self.payload_length = payload_length
   self.epoch += 1UL
@@ -97,11 +97,11 @@ pub fn LunaEventOwner::publish_accepted(
 /// allocation-free and leaves any prior semantic credit unchanged.
 pub fn LunaEventOwner::publish_token_status(
   self : LunaEventOwner,
-  token_id~ : Int,
-  position~ : Int,
+  token_id~ : Int32,
+  position~ : Int32,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaEventPublishStatus {
   if self.busy {
     return LunaEventPublishCreditUnavailable
@@ -134,9 +134,9 @@ pub fn LunaEventOwner::publish_token_status(
 ///|
 pub fn LunaEventOwner::publish_usage(
   self : LunaEventOwner,
-  input_tokens~ : Int,
-  cached_input_tokens~ : Int,
-  output_tokens~ : Int,
+  input_tokens~ : Int32,
+  cached_input_tokens~ : Int32,
+  output_tokens~ : Int32,
 ) -> Unit raise LunaEventError {
   self.require_publishable()
   if !luna_valid_usage(
@@ -157,12 +157,12 @@ pub fn LunaEventOwner::publish_usage(
 pub fn LunaEventOwner::publish_completed(
   self : LunaEventOwner,
   finish_reason : @inference.FinishReason,
-  input_tokens~ : Int,
-  cached_input_tokens~ : Int,
-  output_tokens~ : Int,
+  input_tokens~ : Int32,
+  cached_input_tokens~ : Int32,
+  output_tokens~ : Int32,
   tail : FixedArray[Byte],
-  tail_offset~ : Int,
-  tail_length~ : Int,
+  tail_offset~ : Int32,
+  tail_length~ : Int32,
 ) -> Unit raise LunaEventError {
   self.require_publishable()
   if !luna_valid_usage(
@@ -198,8 +198,8 @@ pub fn LunaEventOwner::publish_completed(
 pub fn LunaEventOwner::publish_failed(
   self : LunaEventOwner,
   code : FixedArray[Byte],
-  code_offset~ : Int,
-  code_length~ : Int,
+  code_offset~ : Int32,
+  code_length~ : Int32,
   retryable~ : Bool,
 ) -> Unit raise LunaEventError {
   self.require_publishable()
@@ -238,8 +238,8 @@ pub fn LunaEventOwner::replace_usage_with_completed(
   usage : LunaUsageEventView,
   finish_reason : @inference.FinishReason,
   tail : FixedArray[Byte],
-  tail_offset~ : Int,
-  tail_length~ : Int,
+  tail_offset~ : Int32,
+  tail_length~ : Int32,
 ) -> LunaCompletedEventView raise LunaEventError {
   self.require_exact_usage(usage)
   if !luna_valid_source_range(
@@ -270,8 +270,8 @@ pub fn LunaEventOwner::replace_usage_with_failed(
   self : LunaEventOwner,
   usage : LunaUsageEventView,
   code : FixedArray[Byte],
-  code_offset~ : Int,
-  code_length~ : Int,
+  code_offset~ : Int32,
+  code_length~ : Int32,
   retryable~ : Bool,
 ) -> LunaFailedEventView raise LunaEventError {
   self.require_exact_usage(usage)

@@ -5,8 +5,8 @@
 fn capture_retired_frontiers(
   startup : Startup,
   stage : @glm.GlmDecoderStage,
-  selected_layer? : Int,
-  include_experts? : Bool = false,
+  selected_layer? : Int32,
+  include_experts~ : Bool = false,
 ) -> Array[(String, Bytes)] raise {
   let (first, end) = stage.layer_range()
   let (_, example, _, _) = stage.borrow_retired_ffn(first)
@@ -64,7 +64,7 @@ fn capture_retired_frontiers(
 ///|
 async fn write_retired_frontiers(
   root : String,
-  index : Int,
+  index : Int32,
   startup : Startup,
   stage : @glm.GlmDecoderStage,
 ) -> Unit {

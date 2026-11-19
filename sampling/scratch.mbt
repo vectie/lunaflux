@@ -5,21 +5,21 @@
 /// Preparation and selection overwrite the fixed arrays without growing a
 /// collection. The arrays remain private and are never returned.
 pub struct SamplerScratch {
-  priv token_ids : FixedArray[Int]
+  priv token_ids : FixedArray[Int32]
   priv weights : FixedArray[Double]
-  priv mut candidate_count : Int
+  priv mut candidate_count : Int32
   priv mut total_weight : Double
   // Private structural counters make asymptotic regressions testable without
   // adding production branches or public diagnostics.
-  priv mut order_candidate_visits : Int
-  priv mut order_heap_width : Int
-  priv mut order_sorted_width : Int
-  priv mut order_replacement_sifts : Int
+  priv mut order_candidate_visits : Int32
+  priv mut order_heap_width : Int32
+  priv mut order_sorted_width : Int32
+  priv mut order_replacement_sifts : Int32
 }
 
 ///|
 pub fn SamplerScratch::new(
-  capacity : Int,
+  capacity : Int32,
   limits : SamplingLimits,
 ) -> SamplerScratch raise SamplingError {
   if capacity <= 0 || capacity > limits.max_tokens_per_row() {
@@ -38,20 +38,20 @@ pub fn SamplerScratch::new(
 }
 
 ///|
-pub fn SamplerScratch::capacity(self : SamplerScratch) -> Int {
+pub fn SamplerScratch::capacity(self : SamplerScratch) -> Int32 {
   self.token_ids.length()
 }
 
 ///|
 /// Number of candidates in the most recently prepared distribution.
-pub fn SamplerScratch::candidate_count(self : SamplerScratch) -> Int {
+pub fn SamplerScratch::candidate_count(self : SamplerScratch) -> Int32 {
   self.candidate_count
 }
 
 ///|
 fn SamplerScratch::check_candidate(
   self : SamplerScratch,
-  index : Int,
+  index : Int32,
 ) -> Unit raise SamplingError {
   if index < 0 || index >= self.candidate_count {
     raise CandidateIndexOutOfRange(index~, count=self.candidate_count)
@@ -65,8 +65,8 @@ fn SamplerScratch::check_candidate(
 /// ID. A later preparation overwrites this scalar-accessible snapshot.
 pub fn SamplerScratch::candidate_token_id(
   self : SamplerScratch,
-  index : Int,
-) -> Int raise SamplingError {
+  index : Int32,
+) -> Int32 raise SamplingError {
   self.check_candidate(index)
   self.token_ids[index]
 }
@@ -75,7 +75,7 @@ pub fn SamplerScratch::candidate_token_id(
 /// Reads one normalized probability without exposing mutable scratch storage.
 pub fn SamplerScratch::candidate_probability(
   self : SamplerScratch,
-  index : Int,
+  index : Int32,
 ) -> Double raise SamplingError {
   self.check_candidate(index)
   if self.total_weight <= 0.0 ||

@@ -3,7 +3,7 @@
 /// file without a separate index; its authenticated header is the vocabulary
 /// authority. This type grants metadata authority only, never execution.
 pub struct MiniMaxH3AudioVaeSchema {
-  priv version : Int
+  priv version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -12,7 +12,7 @@ pub fn MiniMaxH3AudioVaeSchema::official_v1() -> Self {
 }
 
 ///|
-pub fn MiniMaxH3AudioVaeSchema::version(self : Self) -> Int {
+pub fn MiniMaxH3AudioVaeSchema::version(self : Self) -> Int32 {
   self.version
 }
 
@@ -32,7 +32,7 @@ pub fn MiniMaxH3AudioVaeSchema::header_sha256(_self : Self) -> String {
 }
 
 ///|
-pub fn MiniMaxH3AudioVaeSchema::tensor_count(_self : Self) -> Int {
+pub fn MiniMaxH3AudioVaeSchema::tensor_count(_self : Self) -> Int32 {
   1087
 }
 
@@ -57,14 +57,14 @@ pub fn MiniMaxH3AudioVaeSchema::file_bytes(_self : Self) -> Int64 {
 }
 
 ///|
-pub fn MiniMaxH3AudioVaeSchema::header_bytes(_self : Self) -> Int {
+pub fn MiniMaxH3AudioVaeSchema::header_bytes(_self : Self) -> Int32 {
   122992
 }
 
 ///|
 pub fn MiniMaxH3AudioVaeSchema::tensor_name(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> String? {
   if index < 0 || index >= self.tensor_count() {
     None
@@ -76,7 +76,7 @@ pub fn MiniMaxH3AudioVaeSchema::tensor_name(
 ///|
 pub fn MiniMaxH3AudioVaeSchema::tensor_shape(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> ReadOnlyArray[Int64]? {
   guard self.tensor_name(index) is Some(name) else { return None }
   match audio_vae_shape(name) {
@@ -88,7 +88,7 @@ pub fn MiniMaxH3AudioVaeSchema::tensor_shape(
 ///|
 pub fn MiniMaxH3AudioVaeSchema::tensor_dtype(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> @safetensors.TensorDType? {
   if index < 0 || index >= self.tensor_count() {
     None

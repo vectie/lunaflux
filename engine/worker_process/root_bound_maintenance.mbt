@@ -1,7 +1,7 @@
 ///|
 fn RootBoundWorkerProcessSupervisor::begin_child_maintenance(
   self : RootBoundWorkerProcessSupervisor,
-  mode : Int,
+  mode : Int32,
 ) -> Unit raise RootBoundWorkerProcessError {
   if self.maintenance_mode > 0 || self.failed_replacement is Some(_) {
     raise RootBoundInvalidLifecycle
@@ -160,7 +160,7 @@ pub fn RootBoundWorkerProcessSupervisor::progress_maintenance(
 ///|
 fn RootBoundWorkerProcessSupervisor::apply_root_close_progress(
   self : RootBoundWorkerProcessSupervisor,
-  status : Int,
+  status : Int32,
   roots_live : Bool,
 ) -> WorkerProcessMaintenanceProgress {
   self.roots_cleanup_failure = root_failure_status(status)
@@ -181,7 +181,7 @@ fn RootBoundWorkerProcessSupervisor::apply_root_close_progress(
 ///|
 pub fn RootBoundWorkerProcessSupervisor::maintenance_remaining_millis(
   self : RootBoundWorkerProcessSupervisor,
-) -> Int raise RootBoundWorkerProcessError {
+) -> Int32 raise RootBoundWorkerProcessError {
   if self.maintenance_mode == 4 {
     guard self.failed_replacement is Some(failed) else {
       raise RootBoundInvalidLifecycle

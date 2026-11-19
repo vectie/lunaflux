@@ -38,7 +38,7 @@ fn child_test_source() -> @worker_wire.EncodedBootstrapSource raise {
 ///|
 fn child_test_startup(
   source : @worker_wire.EncodedBootstrapSource,
-  content? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  content~ : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 ) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=@spec.ModelIdentity::new(
@@ -87,14 +87,14 @@ fn child_test_startup(
 
 ///|
 fn child_phase_fixture(
-  fail_configure? : Bool = false,
-  fail_source? : Bool = false,
-  fail_prepare? : Bool = false,
-  cleanup_required? : Bool = false,
-  mismatch? : Bool = false,
-  fail_publish? : Bool = false,
-  fail_eof? : Bool = false,
-  fail_close? : Bool = false,
+  fail_configure~ : Bool = false,
+  fail_source~ : Bool = false,
+  fail_prepare~ : Bool = false,
+  cleanup_required~ : Bool = false,
+  mismatch~ : Bool = false,
+  fail_publish~ : Bool = false,
+  fail_eof~ : Bool = false,
+  fail_close~ : Bool = false,
 ) -> (Array[String], Bool) raise {
   let source = child_test_source()
   let startup = child_test_startup(source)
@@ -262,7 +262,7 @@ test "steady loop acquires writer before device mutation and publishes last" {
 }
 
 ///|
-fn steady_failure_events(stage : Int) -> Array[String] {
+fn steady_failure_events(stage : Int32) -> Array[String] {
   let events : Array[String] = []
   let mut unexpectedly_returned = false
   try
@@ -315,7 +315,7 @@ test "steady loop failures are fail-stop and publish no later completion" {
 }
 
 ///|
-fn allocation_positive_control(seed : Int) -> FixedArray[Int] {
+fn allocation_positive_control(seed : Int32) -> FixedArray[Int32] {
   FixedArray::make(257, seed)
 }
 

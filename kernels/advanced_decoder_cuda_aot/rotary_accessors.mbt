@@ -29,7 +29,7 @@ pub fn AdvancedDecoderRotaryCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderRotaryCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -55,31 +55,33 @@ pub fn AdvancedDecoderRotaryCudaCandidate::target(
 }
 
 ///|
-pub fn AdvancedDecoderRotaryCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn AdvancedDecoderRotaryCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
-pub fn AdvancedDecoderRotaryCudaCandidate::query_head_count(self : Self) -> Int {
+pub fn AdvancedDecoderRotaryCudaCandidate::query_head_count(
+  self : Self,
+) -> Int32 {
   self.query_head_count
 }
 
 ///|
 pub fn AdvancedDecoderRotaryCudaCandidate::key_value_head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.key_value_head_count
 }
 
 ///|
-pub fn AdvancedDecoderRotaryCudaCandidate::rope_dimension(self : Self) -> Int {
+pub fn AdvancedDecoderRotaryCudaCandidate::rope_dimension(self : Self) -> Int32 {
   self.rope_dimension
 }
 
 ///|
 pub fn AdvancedDecoderRotaryCudaCandidate::maximum_positions(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_positions
 }
 

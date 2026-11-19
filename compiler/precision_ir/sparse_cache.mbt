@@ -17,7 +17,7 @@ pub extend SparseCacheLaw with @debug.Debug::{to_repr}
 ///|
 pub fn IndexedSparseAttentionPrecision::latent_cache(
   self : Self,
-  rank : Int,
+  rank : Int32,
 ) -> IndexedSparseAttentionPrecision raise PrecisionPlanError {
   IndexedSparseAttentionPrecision::new(
     index_head_count=self.index_heads,

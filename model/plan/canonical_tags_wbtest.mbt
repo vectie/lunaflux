@@ -13,7 +13,7 @@ fn canonical_tag_value_hash(value : ValueRef) -> String {
 }
 
 ///|
-fn canonical_tag_read_u64(bytes : Bytes, offset : Int) -> UInt64 {
+fn canonical_tag_read_u64(bytes : Bytes, offset : Int32) -> UInt64 {
   let mut value = 0UL
   for index in 0..<8 {
     value = value | (bytes[offset + index].to_uint64() << (index * 8))

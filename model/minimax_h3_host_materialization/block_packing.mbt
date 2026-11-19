@@ -1,6 +1,6 @@
 ///|
 pub struct ResolvedBlockWeightCopy {
-  arena_index : Int
+  arena_index : Int32
   source_offset : Int64
   destination_offset : Int64
   byte_count : Int64

@@ -24,7 +24,7 @@ fn tpdp_append_tensor(
 
 ///|
 fn tpdp_fixture(
-  content? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  content~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> (@plan.ModelPlan, @llama_weights.LlamaWeightBindings) raise {
   let metadata = @spec.LlamaModelMetadata::from_verified_content(
     @spec.LlamaModelSpec::new(
@@ -104,9 +104,9 @@ fn tpdp_fixture(
 fn tpdp_rank_plan(
   model_plan : @plan.ModelPlan,
   bindings : @llama_weights.LlamaWeightBindings,
-  rank : Int,
-  world_size : Int,
-  alignment? : Int64 = 64L,
+  rank : Int32,
+  world_size : Int32,
+  alignment~ : Int64 = 64L,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan raise {
   @llama_tensor_parallel.build_rank_plan(
     model_plan,
@@ -120,7 +120,7 @@ fn tpdp_rank_plan(
 
 ///|
 fn tpdp_target(
-  minor? : Int = 0,
+  minor~ : Int32 = 0,
 ) -> @catalog.DeviceTarget raise @catalog.CatalogError {
   @catalog.DeviceTarget::new(
     compute_major=8,
@@ -189,8 +189,8 @@ fn tpdp_two_rank_topology(
 fn tpdp_stream_entry(
   name : String,
   shape : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String {
   "\"\{name}\":{\"dtype\":\"BF16\",\"shape\":\{shape},\"data_offsets\":[\{start},\{end}]}"
 }

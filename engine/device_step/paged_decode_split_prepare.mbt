@@ -2,13 +2,13 @@
 const PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES : Int64 = 268435456L
 
 ///|
-const PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD : Int = 2147483647
+const PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD : Int32 = 2147483647
 
 ///|
 /// Initial backend-neutral split-K crossover: each partial owns at least 32
 /// complete KV pages. This keeps launch/merge overhead away from short decode
 /// while the startup autotune table is still being generalized.
-const PAGED_DECODE_SPLIT_MINIMUM_PAGES_PER_PARTITION : Int = 32
+const PAGED_DECODE_SPLIT_MINIMUM_PAGES_PER_PARTITION : Int32 = 32
 
 ///|
 priv struct PreparedPagedDecodeSplit {
@@ -22,14 +22,14 @@ priv struct PreparedPagedDecodeSplit {
 ///|
 priv struct PagedDecodeSplitLoadedModule {
   digest : @catalog.AotArtifactDigest
-  module_index : Int
+  module_index : Int32
 }
 
 ///|
 priv struct PagedDecodeSplitLoadedFunction {
-  module_index : Int
+  module_index : Int32
   symbol : String
-  function_index : Int
+  function_index : Int32
 }
 
 ///|
@@ -78,7 +78,7 @@ fn paged_decode_split_minimum_context_tokens(
   bindings : ReadOnlyArray[
     @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ],
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   if bindings.is_empty() {
     return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
   }
@@ -125,7 +125,7 @@ fn paged_decode_split_maximum_batch_rows(
   bindings : ReadOnlyArray[
     @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ],
-) -> Int {
+) -> Int32 {
   if bindings.any(binding => binding.is_blockwise_readonly()) {
     // Current paired measurements justify only the one-request long-history
     // route; compiling other row buckets does not assert they are faster.
@@ -164,8 +164,8 @@ fn paged_decode_split_workspace_shape(
 ///|
 fn[T] replace_paged_decode_split_steps(
   baseline : ReadOnlyArray[T],
-  replacements : ReadOnlyArray[(Int, T, T)],
-  operation : (T) -> Int,
+  replacements : ReadOnlyArray[(Int32, T, T)],
+  operation : (T) -> Int32,
 ) -> ReadOnlyArray[T] raise DeviceStepError {
   let result : Array[T] = []
   let used = FixedArray::make(replacements.length(), false)
@@ -279,7 +279,7 @@ fn paged_decode_split_loaded_module(
   binding : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   loaded : Array[PagedDecodeSplitLoadedModule],
   resources : PagedGraphResources,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   let digest = binding.contract().launches()[0].module_digest()
   for item in loaded {
     if item.digest == digest {
@@ -297,11 +297,11 @@ fn paged_decode_split_loaded_module(
 
 ///|
 fn paged_decode_split_loaded_function(
-  module_index : Int,
+  module_index : Int32,
   symbol : String,
   loaded : Array[PagedDecodeSplitLoadedFunction],
   resources : PagedGraphResources,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   for item in loaded {
     if item.module_index == module_index && item.symbol == symbol {
       return item.function_index
@@ -410,7 +410,7 @@ fn validate_paged_decode_split_bindings(
   fused_qkv_readonly_span : ApprovedFusedQkvReadOnlyAttentionSpan?,
   qwen_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
 ) -> Unit raise DeviceStepError {
-  let admitted_operations : Array[Int] = []
+  let admitted_operations : Array[Int32] = []
   for binding in bindings {
     let operation = binding.operation_id()
     if binding.target() != blueprint.target() ||
@@ -447,7 +447,7 @@ fn validate_paged_decode_split_bindings(
 fn prepare_paged_decode_split_launch(
   operation : @plan.OperationId,
   step : PagedKvExecutionStep,
-  function_index : Int,
+  function_index : Int32,
   launch : @luna_attention_multilaunch_contract.AttentionOrderedLaunchContract,
   workspace : @device.Allocation,
   qwen_sidecar : @device.Allocation?,
@@ -612,7 +612,7 @@ fn prepare_paged_decode_split_steps(
     }
   }
   let replacements : Array[
-    (Int, PreparedPagedGraphStep, PreparedPagedGraphStep),
+    (Int32, PreparedPagedGraphStep, PreparedPagedGraphStep),
   ] = []
   for item in prepared {
     replacements.push((item.operation_id.as_int(), item.partial, item.merge))

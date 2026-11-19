@@ -1,5 +1,5 @@
 ///|
-fn bridge_header_end(bytes : FixedArray[Byte], length : Int) -> Int? {
+fn bridge_header_end(bytes : FixedArray[Byte], length : Int32) -> Int32? {
   if length < 4 {
     return None
   }
@@ -17,8 +17,8 @@ fn bridge_header_end(bytes : FixedArray[Byte], length : Int) -> Int? {
 ///|
 fn bridge_http_head(
   bytes : FixedArray[Byte],
-  head_length : Int,
-) -> (String, String, Int) raise BridgeRuntimeError {
+  head_length : Int32,
+) -> (String, String, Int32) raise BridgeRuntimeError {
   let head = @utf8.decode(Bytes::makei(head_length, index => bytes[index])) catch {
     _ => raise HttpRequest("HTTP head is not UTF-8")
   }
@@ -30,7 +30,7 @@ fn bridge_http_head(
   guard request_line.length() == 3 && request_line[2] == "HTTP/1.1" else {
     raise HttpRequest("HTTP request line is unsupported")
   }
-  let mut content_length : Int? = None
+  let mut content_length : Int32? = None
   let mut content_type = false
   let mut transfer_encoding = false
   for index in 1..<lines.length() {
@@ -87,7 +87,7 @@ async fn bridge_read_http(
 ) -> HttpRequest raise BridgeRuntimeError {
   let storage = FixedArray::make(196608, b'\x00')
   let mut used = 0
-  let mut head_end : Int? = None
+  let mut head_end : Int32? = None
   let mut body_length = 0
   let mut verb = ""
   let mut path = ""

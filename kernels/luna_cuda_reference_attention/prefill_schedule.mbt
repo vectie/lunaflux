@@ -10,7 +10,7 @@ pub(all) enum ReferencePrefillSchedule {
 ///|
 pub fn ReferencePrefillSchedule::key_tile_rows(
   self : ReferencePrefillSchedule,
-) -> Int {
+) -> Int32 {
   match self {
     Query64Kv128 => 128
     Query64Kv64 => 64
@@ -22,6 +22,6 @@ pub fn ReferencePrefillSchedule::key_tile_rows(
 /// verifies this resource contract against the pinned library's static trait.
 pub fn ReferencePrefillSchedule::shared_memory_bytes(
   self : ReferencePrefillSchedule,
-) -> Int {
+) -> Int32 {
   (64 + 2 * self.key_tile_rows()) * 128 * 2
 }

@@ -6,7 +6,7 @@ pub fn upload_text_encoder_layer(
   host : @minimax_h3_host_materialization.MiniMaxH3HostComponentArena,
   packing : @text_plan.LayerWeights,
   expected_identity~ : @spec.ModelIdentity,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_text_encoder_layer(packing, expected_identity~)
@@ -27,7 +27,7 @@ pub fn upload_text_encoder_embedding(
   destination : @device.Allocation,
   host : @minimax_h3_host_materialization.MiniMaxH3HostComponentArena,
   expected_identity~ : @spec.ModelIdentity,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_text_encoder_embedding(expected_identity~)

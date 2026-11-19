@@ -1,6 +1,6 @@
 ///|
 fn topology(
-  memory? : Int64 = 1048576L,
+  memory~ : Int64 = 1048576L,
 ) -> @network_topology.TwoNodeTopology raise {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,
@@ -27,10 +27,10 @@ fn topology(
 
 ///|
 fn budget(
-  kv? : Int64 = 1024L,
-  ceiling? : Int64 = 100000L,
-  workspace? : Int64 = 1024L,
-  reserve? : Int64 = 4096L,
+  kv~ : Int64 = 1024L,
+  ceiling~ : Int64 = 100000L,
+  workspace~ : Int64 = 1024L,
+  reserve~ : Int64 = 4096L,
 ) -> @two_node_plan.RankMemoryBudget raise {
   @two_node_plan.RankMemoryBudget::new(
     system_reserved_bytes=reserve,

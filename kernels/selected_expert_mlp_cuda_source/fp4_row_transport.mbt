@@ -5,12 +5,12 @@
 fn fp4_pack_rows_source(
   packed : @matrix.PackedExpertRows,
   product : Bool,
-  jobs : Int,
-  selected : Int,
+  jobs : Int32,
+  selected : Int32,
   metadata : Int64,
   source_scales : Int64,
   symbol : String,
-  tiled? : Bool = false,
+  tiled~ : Bool = false,
 ) -> String {
   let (payload, scales, scale_offset) = packed.plane(product)
   let first_source = if product { "job" } else { "job/" + selected.to_string() }

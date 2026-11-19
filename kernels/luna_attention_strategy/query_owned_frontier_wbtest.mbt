@@ -2,7 +2,7 @@
 test "query ownership search is Cartesian with unique stable identities" {
   let specs = query_owned_attention_specs()
   assert_eq(specs.length(), 18)
-  let ids : Map[Int, Bool] = Map([])
+  let ids : Map[Int32, Bool] = Map([])
   for spec in specs {
     assert_false(ids.contains(spec.stable_id))
     ids[spec.stable_id] = true

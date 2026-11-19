@@ -5,8 +5,8 @@ pub struct ReleaseEvidenceEntry {
   priv role : ReleaseEvidenceRole
   priv status : ReleaseEvidenceStatus
   priv artifact : ReleaseEvidenceArtifact?
-  priv workload_count : Int
-  priv losing_workload_count : Int
+  priv workload_count : Int32
+  priv losing_workload_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -14,8 +14,8 @@ pub fn ReleaseEvidenceEntry::new(
   role~ : ReleaseEvidenceRole,
   status~ : ReleaseEvidenceStatus,
   artifact~ : ReleaseEvidenceArtifact?,
-  workload_count~ : Int,
-  losing_workload_count~ : Int,
+  workload_count~ : Int32,
+  losing_workload_count~ : Int32,
 ) -> ReleaseEvidenceEntry raise ReleaseEvidenceError {
   if is_terminal_status(status) != (artifact is Some(_)) {
     raise InvalidEvidenceEntry
@@ -61,14 +61,16 @@ pub fn ReleaseEvidenceEntry::artifact(
 }
 
 ///|
-pub fn ReleaseEvidenceEntry::workload_count(self : ReleaseEvidenceEntry) -> Int {
+pub fn ReleaseEvidenceEntry::workload_count(
+  self : ReleaseEvidenceEntry,
+) -> Int32 {
   self.workload_count
 }
 
 ///|
 pub fn ReleaseEvidenceEntry::losing_workload_count(
   self : ReleaseEvidenceEntry,
-) -> Int {
+) -> Int32 {
   self.losing_workload_count
 }
 

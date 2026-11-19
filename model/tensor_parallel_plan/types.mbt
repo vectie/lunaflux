@@ -1,7 +1,7 @@
 ///|
 pub struct TensorParallelTopology {
-  priv rank : Int
-  priv world_size : Int
+  priv rank : Int32
+  priv world_size : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -64,16 +64,16 @@ pub struct TensorParallelOperationPlan {
   priv operation : @plan.OperationId
   priv kind : @plan.OperationKind
   priv capability : @plan.KernelCapabilityId
-  priv input_width : Int
-  priv output_width : Int
-  priv inner_width : Int
-  priv query_head_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv inner_width : Int32
+  priv query_head_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
 } derive(Debug, Eq)
 
 ///|
-pub struct TensorCollectiveSequenceId(Int) derive(Debug, Eq)
+pub struct TensorCollectiveSequenceId(Int32) derive(Debug, Eq)
 
 ///|
 pub(all) enum TensorCollectiveKind {
@@ -86,8 +86,8 @@ pub struct TensorCollectiveSite {
   priv sequence : TensorCollectiveSequenceId
   priv operation : @plan.OperationId
   priv kind : TensorCollectiveKind
-  priv full_width : Int
-  priv local_width : Int
+  priv full_width : Int32
+  priv local_width : Int32
 } derive(Debug, Eq)
 
 ///|

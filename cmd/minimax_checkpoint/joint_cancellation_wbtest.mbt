@@ -40,7 +40,7 @@ test "joint driver cancels between completed frames and closes before returning"
     AudioDecode,
     Completed,
   ]
-  let log : Array[Int] = []
+  let log : Array[Int32] = []
   let cursor = Ref(0)
   let result = advance_joint_frames(
     () => {

@@ -20,7 +20,7 @@ pub fn WorkerService::recover_flight(
 ///|
 pub fn WorkerService::invalidate_device_state(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.require_no_maintenance()
   self.invalidate_device_state_impl()
@@ -131,7 +131,7 @@ pub fn WorkerService::progress_maintenance(
 /// Returns the current child-maintenance wake bound without waiting.
 pub fn WorkerService::maintenance_remaining_millis(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.maintenance_remaining_millis_impl()
 }

@@ -1,7 +1,7 @@
 ///|
 fn unique_full_rotary_geometry(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int, Int)? {
+) -> (Int32, Int32, Int32)? {
   let mut query = None
   let mut rope = None
   for item in requirements.requirements() {
@@ -30,9 +30,9 @@ fn unique_full_rotary_geometry(
 ///|
 fn full_rotary_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  maximum_positions : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  maximum_positions : Int32,
   source_digest : GlmHybridCudaSourceDigest,
 ) -> Bytes {
   @utf8.encode(
@@ -71,8 +71,8 @@ fn full_rotary_recipe(
 ///|
 pub fn lower_dsa_interleaved_rotary_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

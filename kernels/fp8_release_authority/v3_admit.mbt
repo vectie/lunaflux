@@ -66,7 +66,7 @@ pub fn admit_reusable_paged_v3(
       raise InvalidFp8ReleaseAuthority(Workspace)
     }
     let module_digest = launch.module_digest().sha256()
-    let mut snapshot_index : Int? = None
+    let mut snapshot_index : Int32? = None
     for index, retained in module_digests {
       if retained == module_digest {
         snapshot_index = Some(index)

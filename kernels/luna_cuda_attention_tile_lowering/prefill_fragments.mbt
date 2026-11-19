@@ -26,11 +26,11 @@ pub extend CudaPrefillFragmentBinding with @debug.Debug::{to_repr}
 /// required by this CUDA realization, not restrictions on the generic IR.
 pub fn CudaPrefillFragmentBinding::new(
   program : @attention_physical_ir.OnlineFragmentProgram,
-  subgroup_lanes~ : Int,
-  operand_vector_elements~ : Int,
-  retained_query_dimensions? : Int = 0,
-  joint_query_consumers? : Bool = false,
-  right_operand_read_slots? : Int = 0,
+  subgroup_lanes~ : Int32,
+  operand_vector_elements~ : Int32,
+  retained_query_dimensions~ : Int32 = 0,
+  joint_query_consumers~ : Bool = false,
+  right_operand_read_slots~ : Int32 = 0,
 ) -> CudaPrefillFragmentBinding? {
   guard program.geometry() == (16, 16, 16) &&
     subgroup_lanes == 32 &&
@@ -197,9 +197,9 @@ fn cuda_prefill_fragment_binding(
     @luna_attention_tile_schedule.AttentionPhysicalProgram,
     @luna_attention_tile_schedule.AttentionTileScheduleRule,
   ],
-  retained_query_dimensions : Int,
+  retained_query_dimensions : Int32,
   joint_query_consumers : Bool,
-  right_operand_read_slots : Int,
+  right_operand_read_slots : Int32,
 ) -> CudaPrefillFragmentBinding? raise CudaAttentionTileLoweringError {
   guard physical is Ok(QueryFragmentProgram(fold, _)) else { return None }
   guard fold.fragment_products(

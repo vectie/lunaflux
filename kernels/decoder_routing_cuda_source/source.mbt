@@ -3,15 +3,15 @@ fn valid_routing_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 fn validate_routing_geometry(
-  routed_expert_count : Int,
-  experts_per_token : Int,
-  maximum_rows : Int,
+  routed_expert_count : Int32,
+  experts_per_token : Int32,
+  maximum_rows : Int32,
 ) -> Unit raise DecoderRoutingCudaSourceError {
   if routed_expert_count <= 0 {
     raise InvalidRoutedExpertCount
@@ -30,9 +30,9 @@ fn validate_routing_geometry(
 /// Emits deterministic biased top-k selection. Equal finite choice scores are
 /// ordered by lower expert id. Non-finite rows emit `-1` indices.
 pub fn stable_biased_top_k_i32_source(
-  routed_expert_count~ : Int,
-  experts_per_token~ : Int,
-  maximum_rows~ : Int,
+  routed_expert_count~ : Int32,
+  experts_per_token~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> DecoderRoutingCudaSource raise DecoderRoutingCudaSourceError {
   validate_routing_geometry(
@@ -100,9 +100,9 @@ pub fn stable_biased_top_k_i32_source(
 /// normalization and scaling. Indices may come from stable top-k or a token
 /// table. Invalid rows emit zero weights.
 pub fn selected_expert_weight_finalize_f32_source(
-  routed_expert_count~ : Int,
-  experts_per_token~ : Int,
-  maximum_rows~ : Int,
+  routed_expert_count~ : Int32,
+  experts_per_token~ : Int32,
+  maximum_rows~ : Int32,
   normalize~ : Bool,
   scaling~ : Double,
   function_symbol~ : String,

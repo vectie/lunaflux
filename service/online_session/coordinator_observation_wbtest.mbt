@@ -11,12 +11,12 @@ fn observation_fixture_stream(
 ///|
 priv struct LunaOnlineLatencyTestServer {
   mut observation_recorded : Bool
-  mut first_token_samples : Int
-  mut inter_token_samples : Int
-  mut request_samples : Int
-  mut first_token_millis : Int
-  mut inter_token_millis : Int
-  mut request_millis : Int
+  mut first_token_samples : Int32
+  mut inter_token_samples : Int32
+  mut request_samples : Int32
+  mut first_token_millis : Int32
+  mut inter_token_millis : Int32
+  mut request_millis : Int32
 }
 
 ///|

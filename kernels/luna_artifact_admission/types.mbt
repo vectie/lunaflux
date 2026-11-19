@@ -40,7 +40,7 @@ pub struct LunaAotKernelAdmission {
   priv capability : @plan.KernelCapabilityId
   priv entry_point : @catalog.AotKernelEntryPoint
   priv module_digest : @catalog.AotArtifactDigest
-  priv artifact_module_index : Int
+  priv artifact_module_index : Int32
   priv workspace_bytes : Int64
   priv workspace_alignment : Int64
   priv minimum_alignment_bytes : Int64
@@ -131,7 +131,7 @@ pub fn LunaAotKernelAdmission::module_digest(
 ///|
 pub fn LunaAotKernelAdmission::artifact_module_index(
   self : LunaAotKernelAdmission,
-) -> Int {
+) -> Int32 {
   self.artifact_module_index
 }
 

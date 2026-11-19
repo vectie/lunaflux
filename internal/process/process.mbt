@@ -1,6 +1,6 @@
 ///|
 fn raise_status(
-  status : Int,
+  status : Int32,
   operation : ProcessOperation,
 ) -> Unit raise ProcessError {
   match status {
@@ -78,9 +78,9 @@ pub fn exit_failure() -> Unit {
 fn ChildProcess::write_exact(
   self : ChildProcess,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
-  timeout_millis? : Int = self.limits.io_timeout_millis,
+  offset~ : Int32,
+  byte_count~ : Int32,
+  timeout_millis~ : Int32 = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
   if self.write_transfer_active {
@@ -119,9 +119,9 @@ fn ChildProcess::write_exact(
 fn ChildProcess::read_exact(
   self : ChildProcess,
   destination : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
-  timeout_millis? : Int = self.limits.io_timeout_millis,
+  offset~ : Int32,
+  byte_count~ : Int32,
+  timeout_millis~ : Int32 = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
   if self.read_transfer_active {
@@ -162,7 +162,7 @@ fn ChildProcess::read_exact(
 }
 
 ///|
-fn write_u32_prefix(prefix : FixedArray[Byte], value : Int) -> Unit {
+fn write_u32_prefix(prefix : FixedArray[Byte], value : Int32) -> Unit {
   prefix[0] = value.to_byte()
   prefix[1] = (value >> 8).to_byte()
   prefix[2] = (value >> 16).to_byte()
@@ -170,7 +170,7 @@ fn write_u32_prefix(prefix : FixedArray[Byte], value : Int) -> Unit {
 }
 
 ///|
-fn read_u32_prefix(prefix : FixedArray[Byte]) -> Int {
+fn read_u32_prefix(prefix : FixedArray[Byte]) -> Int32 {
   prefix[0].to_int() |
   (prefix[1].to_int() << 8) |
   (prefix[2].to_int() << 16) |
@@ -182,8 +182,8 @@ fn read_u32_prefix(prefix : FixedArray[Byte]) -> Int {
 pub fn ChildProcess::write_frame(
   self : ChildProcess,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
+  offset~ : Int32,
+  byte_count~ : Int32,
 ) -> Unit raise ProcessError {
   self.write_frame_with_timeout(
     source,
@@ -199,9 +199,9 @@ pub fn ChildProcess::write_frame(
 pub fn ChildProcess::write_frame_with_timeout(
   self : ChildProcess,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
-  timeout_millis~ : Int,
+  offset~ : Int32,
+  byte_count~ : Int32,
+  timeout_millis~ : Int32,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
   if self.write_transfer_active {
@@ -228,7 +228,7 @@ pub fn ChildProcess::write_frame_with_timeout(
 pub fn ChildProcess::read_frame(
   self : ChildProcess,
   destination : FixedArray[Byte],
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   self.read_frame_with_timeout(
     destination,
     timeout_millis=self.limits.io_timeout_millis,
@@ -241,8 +241,8 @@ pub fn ChildProcess::read_frame(
 pub fn ChildProcess::read_frame_with_timeout(
   self : ChildProcess,
   destination : FixedArray[Byte],
-  timeout_millis~ : Int,
-) -> Int raise ProcessError {
+  timeout_millis~ : Int32,
+) -> Int32 raise ProcessError {
   self.require_usable(Read)
   if self.read_buffer_conflicts_active_write(destination) {
     raise InvalidRange(Read)
@@ -276,8 +276,8 @@ fn InheritedChannel::require_usable(
 fn InheritedChannel::write_exact(
   self : InheritedChannel,
   source : FixedArray[Byte],
-  offset : Int,
-  byte_count : Int,
+  offset : Int32,
+  byte_count : Int32,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
   if self.write_transfer_active {
@@ -312,8 +312,8 @@ fn InheritedChannel::write_exact(
 fn InheritedChannel::read_exact(
   self : InheritedChannel,
   destination : FixedArray[Byte],
-  offset : Int,
-  byte_count : Int,
+  offset : Int32,
+  byte_count : Int32,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
   if self.read_transfer_active {
@@ -346,8 +346,8 @@ fn InheritedChannel::read_exact(
 pub fn InheritedChannel::write_frame(
   self : InheritedChannel,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
+  offset~ : Int32,
+  byte_count~ : Int32,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
   if self.write_transfer_active {
@@ -400,7 +400,7 @@ pub fn InheritedChannel::expect_clean_eof(
 pub fn InheritedChannel::read_frame(
   self : InheritedChannel,
   destination : FixedArray[Byte],
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   self.require_usable(Read)
   if self.read_transfer_active {
     raise InvalidState(Read)
@@ -428,7 +428,7 @@ pub fn InheritedChannel::read_frame(
 pub fn InheritedChannel::read_frame_or_eof(
   self : InheritedChannel,
   destination : FixedArray[Byte],
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   self.require_usable(Read)
   if self.read_transfer_active {
     raise InvalidState(Read)

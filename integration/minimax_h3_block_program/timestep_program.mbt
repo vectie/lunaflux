@@ -8,10 +8,10 @@ struct TimestepWorkspace {
 
 ///|
 fn timestep_workspace(
-  rows : Int,
-  input : Int,
-  hidden : Int,
-  output : Int,
+  rows : Int32,
+  input : Int32,
+  hidden : Int32,
+  output : Int32,
   budget : Int64,
 ) -> TimestepWorkspace raise @device.DeviceError {
   let mlp = @joint_diffusion_device.TimestepMlpLayout::new(

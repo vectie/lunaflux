@@ -1,7 +1,7 @@
 ///|
 pub(all) enum OperandReadAction {
-  ReadOperand(item~ : Int, slot~ : Int)
-  ConsumeOperand(item~ : Int, slot~ : Int)
+  ReadOperand(item~ : Int32, slot~ : Int32)
+  ConsumeOperand(item~ : Int32, slot~ : Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -15,8 +15,8 @@ pub extend OperandReadAction with @debug.Debug::{to_repr}
 /// a slot may be rebound only after its previous value is consumed. Consumers
 /// remain ascending, so this never reassociates any accumulator's reduction.
 pub struct OrderedOperandReads {
-  priv items : Int
-  priv slots : Int
+  priv items : Int32
+  priv slots : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -27,8 +27,8 @@ pub extend OrderedOperandReads with @debug.Debug::{to_repr}
 
 ///|
 pub fn OrderedOperandReads::new(
-  items~ : Int,
-  slots~ : Int,
+  items~ : Int32,
+  slots~ : Int32,
 ) -> OrderedOperandReads? {
   guard items > 0 && items <= 1024 && slots > 0 && slots <= items else {
     return None
@@ -37,7 +37,9 @@ pub fn OrderedOperandReads::new(
 }
 
 ///|
-pub fn OrderedOperandReads::geometry(self : OrderedOperandReads) -> (Int, Int) {
+pub fn OrderedOperandReads::geometry(
+  self : OrderedOperandReads,
+) -> (Int32, Int32) {
   (self.items, self.slots)
 }
 

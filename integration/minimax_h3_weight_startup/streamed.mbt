@@ -38,7 +38,7 @@ fn WeightStartup::prepare_streamed_packings(
   expected_identity : @spec.ModelIdentity,
   expected_manifest_digest : @host.MiniMaxH3HostManifestDigest,
   limits : @host.MiniMaxH3HostMaterializationLimits,
-  chunk_bytes : Int,
+  chunk_bytes : Int32,
 ) -> Unit raise {
   let component = @host.inspect_streaming_component(
     root,

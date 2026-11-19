@@ -40,9 +40,9 @@ fn RemoteTlsSession::close(self : RemoteTlsSession) -> Unit {
 async fn RemoteTlsSession::read(
   self : RemoteTlsSession,
   bytes : FixedArray[Byte],
-  offset~ : Int,
-  max_len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  max_len~ : Int32,
+) -> Int32 {
   match self {
     Client(tls) => tls.read(bytes, offset~, max_len~)
     Server(tls) => tls.read(bytes, offset~, max_len~)
@@ -53,9 +53,9 @@ async fn RemoteTlsSession::read(
 async fn RemoteTlsSession::write_once(
   self : RemoteTlsSession,
   bytes : Bytes,
-  offset~ : Int,
-  len~ : Int,
-) -> Int {
+  offset~ : Int32,
+  len~ : Int32,
+) -> Int32 {
   match self {
     Client(tls) => tls.write_once(bytes, offset~, len~)
     Server(tls) => tls.write_once(bytes, offset~, len~)

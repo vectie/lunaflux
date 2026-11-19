@@ -2,16 +2,16 @@
 /// Exact packed vision-row to token-row map. Strict order prevents concurrent
 /// scatter writes to one token and preserves the visual encoder's row order.
 pub struct VisualPlacement {
-  token_positions : ReadOnlyArray[Int]
-  rotary_positions : ReadOnlyArray[(Int, Int, Int)]
+  token_positions : ReadOnlyArray[Int32]
+  rotary_positions : ReadOnlyArray[(Int32, Int32, Int32)]
 }
 
 ///|
 pub fn EncoderConfig::visual_placement(
   self : Self,
-  ids : ArrayView[Int],
-  token_positions : ArrayView[Int],
-  rotary_positions : ArrayView[(Int, Int, Int)],
+  ids : ArrayView[Int32],
+  token_positions : ArrayView[Int32],
+  rotary_positions : ArrayView[(Int32, Int32, Int32)],
 ) -> VisualPlacement raise EncoderConfigError {
   guard ids.length() > 0 &&
     ids.length() <= self.max_positions &&

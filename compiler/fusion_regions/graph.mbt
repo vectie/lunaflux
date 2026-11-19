@@ -36,7 +36,7 @@ pub extend FusionRegionError with @debug.Debug::{to_repr}
 /// One SSA value per node. Inputs outside this graph are not edges; the owner
 /// binds those operands separately. Observable values must be materialized.
 pub struct Node {
-  priv inputs : ReadOnlyArray[Int]
+  priv inputs : ReadOnlyArray[Int32]
   priv observable : Bool
   priv effect : Effect
 } derive(Eq)
@@ -46,7 +46,7 @@ pub extend Node with Eq::{equal, not_equal}
 
 ///|
 pub fn Node::new(
-  inputs : ArrayView[Int],
+  inputs : ArrayView[Int32],
   observable~ : Bool,
   effect~ : Effect,
 ) -> Node {
@@ -79,7 +79,7 @@ pub fn Graph::new(nodes : ArrayView[Node]) -> Graph raise FusionRegionError {
 }
 
 ///|
-pub fn Graph::node_count(self : Graph) -> Int {
+pub fn Graph::node_count(self : Graph) -> Int32 {
   self.nodes.length()
 }
 
@@ -89,17 +89,17 @@ pub fn Graph::node_count(self : Graph) -> Int {
 /// subgraphs already have executable fused kernels.
 pub struct Region {
   priv graph : Graph
-  priv start : Int
-  priv count : Int
-  priv exports : ReadOnlyArray[Int]
+  priv start : Int32
+  priv count : Int32
+  priv exports : ReadOnlyArray[Int32]
 }
 
 ///|
 pub fn Region::new(
   graph : Graph,
-  start~ : Int,
-  count~ : Int,
-  exports : ArrayView[Int],
+  start~ : Int32,
+  count~ : Int32,
+  exports : ArrayView[Int32],
 ) -> Region raise FusionRegionError {
   if start < 0 || count <= 0 || start > graph.node_count() - count {
     raise InvalidRegion
@@ -133,17 +133,17 @@ pub fn Region::new(
 }
 
 ///|
-pub fn Region::span(self : Region) -> (Int, Int) {
+pub fn Region::span(self : Region) -> (Int32, Int32) {
   (self.start, self.count)
 }
 
 ///|
-pub fn Region::exports(self : Region) -> ReadOnlyArray[Int] {
+pub fn Region::exports(self : Region) -> ReadOnlyArray[Int32] {
   self.exports
 }
 
 ///|
-pub fn Region::effect_order(self : Region) -> ReadOnlyArray[Int] {
+pub fn Region::effect_order(self : Region) -> ReadOnlyArray[Int32] {
   ReadOnlyArray::from_array(
     [
       for index in self.start..<(self.start + self.count) if self.graph.nodes[index].effect !=

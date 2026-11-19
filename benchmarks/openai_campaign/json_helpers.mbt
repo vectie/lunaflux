@@ -8,7 +8,7 @@ fn campaign_sha256(bytes : BytesView) -> @evidence.BenchmarkDigest {
 ///|
 fn campaign_parse_json(
   bytes : BytesView,
-  maximum_depth : Int,
+  maximum_depth : Int32,
 ) -> Json raise OpenAIResponsesCampaignError {
   let document = @utf8.decode(bytes) catch { _ => raise CampaignInvalidJson }
   @json_guard.reject_duplicate_object_keys(document, max_depth=maximum_depth) catch {
@@ -22,7 +22,7 @@ fn campaign_parse_json(
 ///|
 fn campaign_require_object(
   value : Json,
-  fields : Int,
+  fields : Int32,
 ) -> Map[String, Json] raise OpenAIResponsesCampaignError {
   guard value is Object(object) && object.length() == fields else {
     raise CampaignInvalidJson
@@ -62,7 +62,7 @@ fn campaign_decimal_i64(
   }
   let mut result = 0L
   for index, unit in value {
-    guard unit is ('0'..='9') else { raise CampaignInvalidJson }
+    guard unit is ('0'..<='9') else { raise CampaignInvalidJson }
     if index == 0 && value.length() > 1 && unit == '0' {
       raise CampaignInvalidJson
     }
@@ -82,7 +82,7 @@ fn campaign_decimal_i64(
 fn campaign_decimal_int(
   value : String,
   allow_zero : Bool,
-) -> Int raise OpenAIResponsesCampaignError {
+) -> Int32 raise OpenAIResponsesCampaignError {
   let parsed = campaign_decimal_i64(value, allow_zero)
   if parsed > 2147483647L {
     raise CampaignInvalidJson
@@ -141,7 +141,7 @@ fn campaign_profile(
 }
 
 ///|
-fn campaign_engine_at(index : Int) -> @evidence.BenchmarkEngine {
+fn campaign_engine_at(index : Int32) -> @evidence.BenchmarkEngine {
   match index {
     0 => LunaFlux
     1 => Vllm
@@ -150,7 +150,7 @@ fn campaign_engine_at(index : Int) -> @evidence.BenchmarkEngine {
 }
 
 ///|
-fn campaign_profile_at(index : Int) -> @evidence.BenchmarkProfile {
+fn campaign_profile_at(index : Int32) -> @evidence.BenchmarkProfile {
   match index {
     0 => Latency
     1 => Chat
@@ -165,7 +165,7 @@ fn campaign_profile_at(index : Int) -> @evidence.BenchmarkProfile {
 }
 
 ///|
-fn campaign_order_position(engine_index : Int, ordinal : Int) -> Int {
+fn campaign_order_position(engine_index : Int32, ordinal : Int32) -> Int32 {
   match ordinal {
     1 => engine_index
     2 => (engine_index + 2) % 3

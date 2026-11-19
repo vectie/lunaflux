@@ -12,7 +12,7 @@ const PHASE23_SOAK_POLICY_DIGEST : String = "ab268f305c71658b53b9f8347eb77a79d1f
 
 ///|
 struct Phase23SoakLedger {
-  mut cycles : Int
+  mut cycles : Int32
   mut admitted : UInt64
   mut completed : UInt64
   mut cancelled : UInt64
@@ -28,11 +28,11 @@ struct Phase23SoakLedger {
   mut attempted_cancel_waves : UInt64
   mut accepted_cancel_waves : UInt64
   mut cancelled_waves : UInt64
-  initial_kv_free : Int
+  initial_kv_free : Int32
 }
 
 ///|
-fn Phase23SoakLedger::new(initial_kv_free : Int) -> Phase23SoakLedger {
+fn Phase23SoakLedger::new(initial_kv_free : Int32) -> Phase23SoakLedger {
   {
     cycles: 0,
     admitted: 0UL,
@@ -97,7 +97,7 @@ async fn phase23_soak_progress_wave(
   before_cancellations : UInt64,
   before_batch_rows : UInt64,
   ledger : Phase23SoakLedger,
-  cycle : Int,
+  cycle : Int32,
   trace? : Phase23SoakTrace,
 ) -> Bool {
   let mut cancel_attempted = false

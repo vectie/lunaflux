@@ -14,9 +14,9 @@ pub(all) enum ExecutionPhase {
 /// has no KV-cache input or paged-attention state.
 pub struct ExactExecutionShape {
   priv phase : ExecutionPhase
-  priv batch_rows : Int
-  priv query_tokens_per_row : Int
-  priv context_tokens : Int
+  priv batch_rows : Int32
+  priv query_tokens_per_row : Int32
+  priv context_tokens : Int32
   priv token_rows : Int64
 } derive(Debug, Eq)
 
@@ -26,8 +26,8 @@ pub struct ExactExecutionShape {
 /// Full prefill and full recompute share this key when their dimensions are
 /// identical because both execute the same stateless full-sequence graph.
 pub struct ExactKernelShape {
-  priv batch_rows : Int
-  priv sequence_tokens : Int
+  priv batch_rows : Int32
+  priv sequence_tokens : Int32
   priv token_rows : Int64
 } derive(Debug, Eq)
 
@@ -42,7 +42,7 @@ pub(all) enum ExecutionBufferSpace {
 ///|
 /// Stable integer region identity within one `DeviceExecutionProfile`.
 pub struct ProfileRegionId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -104,7 +104,7 @@ pub(all) enum FinalOutputSemantics {
 /// retains one exact physical-region meaning while the row carries a narrower
 /// offset and length.
 pub struct FinalRowView {
-  priv batch_index : Int
+  priv batch_index : Int32
   priv backing_region : ProfileRegionId
   priv offset_bytes : Int64
   priv byte_length : Int64
@@ -143,16 +143,16 @@ pub struct DeviceExecutionProfile {
 
 ///|
 pub fn ExactExecutionShape::full_prefill(
-  batch_rows~ : Int,
-  sequence_tokens~ : Int,
+  batch_rows~ : Int32,
+  sequence_tokens~ : Int32,
 ) -> ExactExecutionShape raise DeviceProfileError {
   exact_shape(FullPrefill, batch_rows, sequence_tokens, sequence_tokens)
 }
 
 ///|
 pub fn ExactExecutionShape::full_recompute(
-  batch_rows~ : Int,
-  sequence_tokens~ : Int,
+  batch_rows~ : Int32,
+  sequence_tokens~ : Int32,
 ) -> ExactExecutionShape raise DeviceProfileError {
   exact_shape(FullRecompute, batch_rows, sequence_tokens, sequence_tokens)
 }
@@ -163,19 +163,19 @@ pub fn ExactExecutionShape::phase(self : ExactExecutionShape) -> ExecutionPhase 
 }
 
 ///|
-pub fn ExactExecutionShape::batch_rows(self : ExactExecutionShape) -> Int {
+pub fn ExactExecutionShape::batch_rows(self : ExactExecutionShape) -> Int32 {
   self.batch_rows
 }
 
 ///|
 pub fn ExactExecutionShape::query_tokens_per_row(
   self : ExactExecutionShape,
-) -> Int {
+) -> Int32 {
   self.query_tokens_per_row
 }
 
 ///|
-pub fn ExactExecutionShape::context_tokens(self : ExactExecutionShape) -> Int {
+pub fn ExactExecutionShape::context_tokens(self : ExactExecutionShape) -> Int32 {
   self.context_tokens
 }
 
@@ -196,12 +196,12 @@ pub fn ExactExecutionShape::kernel_shape(
 }
 
 ///|
-pub fn ExactKernelShape::batch_rows(self : ExactKernelShape) -> Int {
+pub fn ExactKernelShape::batch_rows(self : ExactKernelShape) -> Int32 {
   self.batch_rows
 }
 
 ///|
-pub fn ExactKernelShape::sequence_tokens(self : ExactKernelShape) -> Int {
+pub fn ExactKernelShape::sequence_tokens(self : ExactKernelShape) -> Int32 {
   self.sequence_tokens
 }
 
@@ -211,7 +211,7 @@ pub fn ExactKernelShape::token_rows(self : ExactKernelShape) -> Int64 {
 }
 
 ///|
-pub fn ExecutionPhase::as_stable_int(self : ExecutionPhase) -> Int {
+pub fn ExecutionPhase::as_stable_int(self : ExecutionPhase) -> Int32 {
   match self {
     FullPrefill => 0
     FullRecompute => 1
@@ -219,13 +219,13 @@ pub fn ExecutionPhase::as_stable_int(self : ExecutionPhase) -> Int {
 }
 
 ///|
-pub fn ProfileRegionId::as_int(self : ProfileRegionId) -> Int {
+pub fn ProfileRegionId::as_int(self : ProfileRegionId) -> Int32 {
   self.value
 }
 
 ///|
 pub fn ProfileRegionId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> ProfileRegionId raise DeviceProfileError {
   checked_region_id(Int64::from_int(value))
 }
@@ -355,7 +355,7 @@ pub fn FinalOutputView::selected_rows(
 }
 
 ///|
-pub fn FinalRowView::batch_index(self : FinalRowView) -> Int {
+pub fn FinalRowView::batch_index(self : FinalRowView) -> Int32 {
   self.batch_index
 }
 
@@ -422,7 +422,7 @@ pub fn DeviceExecutionProfile::token_staging_capacity_bytes(
 ///|
 pub fn DeviceExecutionProfile::region_count(
   self : DeviceExecutionProfile,
-) -> Int {
+) -> Int32 {
   self.regions.length()
 }
 
@@ -442,7 +442,7 @@ pub fn DeviceExecutionProfile::region(
 ///|
 pub fn DeviceExecutionProfile::operation_count(
   self : DeviceExecutionProfile,
-) -> Int {
+) -> Int32 {
   self.operations.length()
 }
 

@@ -6,7 +6,7 @@ pub fn ServicePolicyClaims::listen_host(self : ServicePolicyClaims) -> String {
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn ServicePolicyClaims::listen_port(self : ServicePolicyClaims) -> Int {
+pub fn ServicePolicyClaims::listen_port(self : ServicePolicyClaims) -> Int32 {
   self.listen_port
 }
 
@@ -14,7 +14,7 @@ pub fn ServicePolicyClaims::listen_port(self : ServicePolicyClaims) -> Int {
 /// Return or validate one exact admitted policy field.
 pub fn ServicePolicyClaims::max_request_bytes(
   self : ServicePolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_request_bytes
 }
 
@@ -22,7 +22,7 @@ pub fn ServicePolicyClaims::max_request_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn ServicePolicyClaims::graceful_drain_milliseconds(
   self : ServicePolicyClaims,
-) -> Int {
+) -> Int32 {
   self.graceful_drain_milliseconds
 }
 
@@ -38,7 +38,7 @@ pub fn ServicePolicyClaims::diagnostic_mode(
 /// Return or validate one exact admitted policy field.
 pub fn WorkerProcessPolicyClaims::max_frame_bytes(
   self : WorkerProcessPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.max_frame_bytes
 }
 
@@ -46,7 +46,7 @@ pub fn WorkerProcessPolicyClaims::max_frame_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn WorkerProcessPolicyClaims::startup_io_timeout_millis(
   self : WorkerProcessPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.startup_io_timeout_millis
 }
 
@@ -54,7 +54,7 @@ pub fn WorkerProcessPolicyClaims::startup_io_timeout_millis(
 /// Return or validate one exact admitted policy field.
 pub fn WorkerProcessPolicyClaims::io_timeout_millis(
   self : WorkerProcessPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.io_timeout_millis
 }
 
@@ -62,7 +62,7 @@ pub fn WorkerProcessPolicyClaims::io_timeout_millis(
 /// Return or validate one exact admitted policy field.
 pub fn WorkerProcessPolicyClaims::shutdown_timeout_millis(
   self : WorkerProcessPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.shutdown_timeout_millis
 }
 
@@ -92,7 +92,9 @@ pub fn RestartPolicyClaims::stable_after_millis(
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn RestartPolicyClaims::maximum_attempts(self : RestartPolicyClaims) -> Int {
+pub fn RestartPolicyClaims::maximum_attempts(
+  self : RestartPolicyClaims,
+) -> Int32 {
   self.maximum_attempts
 }
 
@@ -100,7 +102,7 @@ pub fn RestartPolicyClaims::maximum_attempts(self : RestartPolicyClaims) -> Int 
 /// Return or validate one exact admitted policy field.
 pub fn TransportPolicyClaims::read_chunk_bytes(
   self : TransportPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.read_chunk_bytes
 }
 
@@ -108,7 +110,7 @@ pub fn TransportPolicyClaims::read_chunk_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn TransportPolicyClaims::write_chunk_bytes(
   self : TransportPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.write_chunk_bytes
 }
 
@@ -116,7 +118,7 @@ pub fn TransportPolicyClaims::write_chunk_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn TransportPolicyClaims::accept_timeout_millis(
   self : TransportPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.accept_timeout_millis
 }
 
@@ -124,7 +126,7 @@ pub fn TransportPolicyClaims::accept_timeout_millis(
 /// Return or validate one exact admitted policy field.
 pub fn TransportPolicyClaims::input_idle_timeout_millis(
   self : TransportPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.input_idle_timeout_millis
 }
 
@@ -132,7 +134,7 @@ pub fn TransportPolicyClaims::input_idle_timeout_millis(
 /// Return or validate one exact admitted policy field.
 pub fn TransportPolicyClaims::write_timeout_millis(
   self : TransportPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.write_timeout_millis
 }
 
@@ -140,7 +142,7 @@ pub fn TransportPolicyClaims::write_timeout_millis(
 /// Return or validate one exact admitted policy field.
 pub fn TransportPolicyClaims::reactor_transition_budget(
   self : TransportPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.reactor_transition_budget
 }
 
@@ -148,7 +150,7 @@ pub fn TransportPolicyClaims::reactor_transition_budget(
 /// Return or validate one exact admitted policy field.
 pub fn PreparationPolicyClaims::framed_max_frame_bytes(
   self : PreparationPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.framed_max_frame_bytes
 }
 
@@ -156,7 +158,7 @@ pub fn PreparationPolicyClaims::framed_max_frame_bytes(
 /// Return or validate one exact admitted policy field.
 pub fn PreparationPolicyClaims::lane_count(
   self : PreparationPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.lane_count
 }
 
@@ -164,7 +166,7 @@ pub fn PreparationPolicyClaims::lane_count(
 /// Return or validate one exact admitted policy field.
 pub fn PreparationPolicyClaims::step_work_units(
   self : PreparationPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.step_work_units
 }
 
@@ -204,7 +206,7 @@ pub fn PreparationPolicyClaims::storage_reference_cells(
 /// Return or validate one exact admitted policy field.
 pub fn PreparationPolicyClaims::event_work_units(
   self : PreparationPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.event_work_units
 }
 
@@ -212,6 +214,6 @@ pub fn PreparationPolicyClaims::event_work_units(
 /// Return or validate one exact admitted policy field.
 pub fn TelemetryPolicyClaims::instance_log_capacity(
   self : TelemetryPolicyClaims,
-) -> Int {
+) -> Int32 {
   self.instance_log_capacity
 }

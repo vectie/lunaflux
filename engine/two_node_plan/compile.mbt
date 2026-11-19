@@ -2,7 +2,7 @@
 fn checked_add(
   a : Int64,
   b : Int64,
-  rank : Int,
+  rank : Int32,
 ) -> Int64 raise TwoNodePlanError {
   if a < 0L || b < 0L || a > 9223372036854775807L - b {
     raise Rejected(rule=Overflow, rank~)
@@ -21,8 +21,8 @@ fn checked_multiply(a : Int64, b : Int64) -> Int64 raise TwoNodePlanError {
 ///|
 fn local_kv_layout(
   model : @plan.ModelPlan,
-  tokens_per_page : Int,
-  page_count : Int,
+  tokens_per_page : Int32,
+  page_count : Int32,
 ) -> @device_layout.DeviceKvLayout raise TwoNodePlanError {
   let geometry = model.kv_cache_geometry()
   if tokens_per_page <= 0 || geometry.kv_head_count() % 2 != 0 {
@@ -59,7 +59,7 @@ fn capacity(
   plan : @tensor_parallel_plan.TensorParallelRankPlan,
   budget : RankMemoryBudget,
   page_bytes : Int64,
-  rank : Int,
+  rank : Int32,
 ) -> RankCapacity raise TwoNodePlanError {
   if budget.system_reserved_bytes >= node.physical_memory_bytes() ||
     budget.runtime_ceiling_bytes >
@@ -94,8 +94,8 @@ pub fn compile(
   topology : @network_topology.TwoNodeTopology,
   ranks : ArrayView[@tensor_parallel_plan.TensorParallelRankPlan],
   budgets : ArrayView[RankMemoryBudget],
-  tokens_per_page~ : Int,
-  maximum_pages~ : Int,
+  tokens_per_page~ : Int32,
+  maximum_pages~ : Int32,
 ) -> TwoNodePlan raise TwoNodePlanError {
   if ranks.length() != 2 || budgets.length() != 2 {
     raise Rejected(rule=RankOrder, rank=-1)

@@ -13,7 +13,7 @@ pub struct DeepSeekPredictionBlock {
   priv router : @upload.CheckpointDeviceWeights
   priv buffers : Array[@device.Allocation]
   priv residual_bytes : Int64
-  priv main_rows : Int
+  priv main_rows : Int32
   priv prime : Array[@device.OrderedKernelLaunch]
   priv predict : Array[@device.OrderedKernelLaunch]
   priv committed : Array[@device.OrderedKernelLaunch]
@@ -24,9 +24,9 @@ pub struct DeepSeekPredictionBlock {
 ///|
 pub fn DeepSeekPredictionBlock::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  stage~ : Int,
-  maximum_main_rows~ : Int,
-  maximum_positions~ : Int,
+  stage~ : Int32,
+  maximum_main_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_workspace_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
@@ -147,7 +147,7 @@ pub fn DeepSeekPredictionBlock::prepare(
   reset_flag~ : @device.Allocation,
   start_position~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

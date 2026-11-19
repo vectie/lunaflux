@@ -51,7 +51,7 @@ fn LunaApiAuthVerifierWorkspace::reset_operation(
 ///|
 pub fn LunaApiAuthVerifierWorkspace::begin_verify(
   self : LunaApiAuthVerifierWorkspace,
-  declared_length : Int,
+  declared_length : Int32,
 ) -> LunaApiAuthVerificationWrite raise LunaApiAuthError {
   if self.phase != LUNA_API_AUTH_IDLE {
     raise luna_api_auth_error(LunaApiAuthLifecycle, LunaApiAuthBusy)
@@ -67,7 +67,7 @@ pub fn LunaApiAuthVerifierWorkspace::begin_verify(
   }
   self.reset_operation()
   self.epoch += 1UL
-  self.required_input_bytes = Int::min(
+  self.required_input_bytes = Int32::min(
     declared_length,
     self.policy.expected_length,
   )
@@ -269,7 +269,7 @@ pub fn LunaApiAuthVerificationWork::state(
 ///|
 pub fn LunaApiAuthVerificationWork::last_work_units(
   self : LunaApiAuthVerificationWork,
-) -> Int raise LunaApiAuthError {
+) -> Int32 raise LunaApiAuthError {
   self.require_workspace().last_work_units
 }
 

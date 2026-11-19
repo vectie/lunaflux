@@ -59,7 +59,7 @@ fn d2_wb_plan() -> @plan.ModelPlan {
 
 ///|
 fn d2_wb_fact(
-  reference : Int,
+  reference : Int32,
   offset_bytes : Int64,
   byte_length : Int64,
 ) -> WeightRegionFacts? {

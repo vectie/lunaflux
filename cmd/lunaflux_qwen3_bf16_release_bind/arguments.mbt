@@ -2,13 +2,13 @@
 fn parse_positive_uint(
   value : String,
   allow_zero : Bool,
-) -> UInt raise Qwen3Bf16ReleaseBindError {
+) -> UInt32 raise Qwen3Bf16ReleaseBindError {
   if value.is_empty() || value.length() > 6 {
     raise InvalidArguments
   }
   let mut result = 0U
   for unit in value {
-    guard unit is ('0'..='9') else { raise InvalidArguments }
+    guard unit is ('0'..<='9') else { raise InvalidArguments }
     result = result * 10U + (unit.to_int() - '0'.to_int()).reinterpret_as_uint()
   }
   if result == 0U && !allow_zero {
@@ -18,7 +18,7 @@ fn parse_positive_uint(
 }
 
 ///|
-fn parse_positive_int(value : String) -> Int raise Qwen3Bf16ReleaseBindError {
+fn parse_positive_int(value : String) -> Int32 raise Qwen3Bf16ReleaseBindError {
   let parsed = parse_positive_uint(value, false)
   if parsed > 2147483647U {
     raise InvalidArguments
@@ -32,7 +32,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }

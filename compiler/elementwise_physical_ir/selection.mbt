@@ -15,10 +15,10 @@ pub(all) enum SelectionEffect {
   ScanOwnedValues
   PublishOwnerSummaries
   SynchronizeSelection
-  ReduceOwnerSummaries(Int)
-  ReduceSubgroupSummaries(Int)
+  ReduceOwnerSummaries(Int32)
+  ReduceSubgroupSummaries(Int32)
   PublishSubgroupSummaries
-  ReducePublishedSubgroups(Int)
+  ReducePublishedSubgroups(Int32)
   StoreSelection
 } derive(Eq, Debug)
 
@@ -34,7 +34,7 @@ pub extend SelectionEffect with @debug.Debug::{to_repr}
 /// without reassociating a floating-point sum.
 pub struct SelectionProgram {
   priv ownership : @physical_tile_ir.VectorOwnership
-  priv subgroup_lanes : Int
+  priv subgroup_lanes : Int32
   priv reduction : SelectionReduction
 } derive(Eq, Debug)
 
@@ -46,9 +46,9 @@ pub extend SelectionProgram with @debug.Debug::{to_repr}
 
 ///|
 pub fn SelectionProgram::new(
-  values~ : Int,
-  owners~ : Int,
-  subgroup_lanes~ : Int,
+  values~ : Int32,
+  owners~ : Int32,
+  subgroup_lanes~ : Int32,
   reduction~ : SelectionReduction,
 ) -> SelectionProgram? {
   guard owners > 0 &&
@@ -67,7 +67,9 @@ pub fn SelectionProgram::new(
 }
 
 ///|
-pub fn SelectionProgram::geometry(self : SelectionProgram) -> (Int, Int, Int) {
+pub fn SelectionProgram::geometry(
+  self : SelectionProgram,
+) -> (Int32, Int32, Int32) {
   let (values, owners, _) = self.ownership.geometry()
   (values, owners, self.subgroup_lanes)
 }
@@ -102,9 +104,9 @@ pub fn SelectionProgram::effects(
 pub fn SelectionProgram::prefers(
   _self : SelectionProgram,
   value : Double,
-  token : Int,
+  token : Int32,
   best : Double,
-  best_token : Int,
+  best_token : Int32,
 ) -> Bool {
   value > best || (value == best && token < best_token)
 }

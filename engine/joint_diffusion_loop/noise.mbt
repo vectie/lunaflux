@@ -14,14 +14,14 @@ pub struct NoisePlan {
   priv key : UInt64
   priv video_elements : Int64
   priv audio_elements : Int64
-  priv chunk_elements : Int
+  priv chunk_elements : Int32
 }
 
 ///|
 pub fn LatentStoragePlan::noise(
   self : Self,
   seed~ : Int64,
-  max_chunk_elements~ : Int,
+  max_chunk_elements~ : Int32,
 ) -> NoisePlan raise NoiseError {
   guard max_chunk_elements > 0 && max_chunk_elements <= 536870911 else {
     raise InvalidChunkLimit
@@ -61,7 +61,7 @@ pub fn NoisePlan::chunk(
   self : Self,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
   start~ : Int64,
-  count~ : Int,
+  count~ : Int32,
 ) -> Bytes raise NoiseError {
   let limit = self.element_count(latent)
   guard start >= 0L &&

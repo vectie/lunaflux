@@ -10,15 +10,15 @@ const STEP_COUNT_BYTES : Int64 = 20L
 ///|
 priv struct PointwiseParameters {
   family : PointwiseAotFamily
-  width : Int
-  vocabulary_size : Int
-  query_heads : Int
-  kv_heads : Int
-  head_dimension : Int
+  width : Int32
+  vocabulary_size : Int32
+  query_heads : Int32
+  kv_heads : Int32
+  head_dimension : Int32
   epsilon : Double
   rope_theta : Double
-  tokens_per_page : Int
-  total_page_count : Int
+  tokens_per_page : Int32
+  total_page_count : Int32
   page_stride_bytes : Int64
 }
 
@@ -32,18 +32,18 @@ fn checked_mul(left : Int64, right : Int64) -> Int64 raise PointwiseAotError {
 
 ///|
 fn bf16_matrix_bytes(
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Int64 raise PointwiseAotError {
   checked_mul(checked_mul(rows.to_int64(), columns.to_int64()), BF16_BYTES)
 }
 
 ///|
 fn qkv_width(
-  query_heads : Int,
-  kv_heads : Int,
-  head_dimension : Int,
-) -> Int raise PointwiseAotError {
+  query_heads : Int32,
+  kv_heads : Int32,
+  head_dimension : Int32,
+) -> Int32 raise PointwiseAotError {
   if query_heads <= 0 ||
     kv_heads <= 0 ||
     head_dimension <= 0 ||

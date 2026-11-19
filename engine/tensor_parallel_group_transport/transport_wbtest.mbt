@@ -4,7 +4,7 @@ fn rebuild_group_inputs(
   source : @worker_wire.EncodedBootstrapSource,
   declaration : @device_topology.LocalTopologyDeclaration,
   inspections : ArrayView[@device_materialize.DeviceShardedWeightFileInspection],
-  executable_digest? : String = "9".repeat(64),
+  executable_digest~ : String = "9".repeat(64),
 ) -> TensorParallelGroupPlanningInputs raise TensorParallelGroupTransportError {
   TensorParallelGroupPlanningInputs::new(
     source~,

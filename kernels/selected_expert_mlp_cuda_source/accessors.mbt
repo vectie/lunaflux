@@ -13,27 +13,27 @@ pub fn SelectedExpertMlpCudaSource::activation(
 }
 
 ///|
-pub fn SelectedExpertMlpCudaSource::hidden_size(self : Self) -> Int {
+pub fn SelectedExpertMlpCudaSource::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn SelectedExpertMlpCudaSource::intermediate_size(self : Self) -> Int {
+pub fn SelectedExpertMlpCudaSource::intermediate_size(self : Self) -> Int32 {
   self.intermediate_size
 }
 
 ///|
-pub fn SelectedExpertMlpCudaSource::routed_expert_count(self : Self) -> Int {
+pub fn SelectedExpertMlpCudaSource::routed_expert_count(self : Self) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
-pub fn SelectedExpertMlpCudaSource::experts_per_token(self : Self) -> Int {
+pub fn SelectedExpertMlpCudaSource::experts_per_token(self : Self) -> Int32 {
   self.experts_per_token
 }
 
 ///|
-pub fn SelectedExpertMlpCudaSource::maximum_rows(self : Self) -> Int {
+pub fn SelectedExpertMlpCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

@@ -18,7 +18,7 @@ fn fixture(values : ArrayView[Int64]) -> Array[Byte] {
 ///|
 test "checked I64 rows narrow deterministically and release explicitly" {
   let input = fixture([0L, 2L, 1L, 3L, 5L, 4L])
-  let first = narrow_unique_i64_le_rows(
+  let first = @checked_integer_narrow.narrow_unique_i64_le_rows(
     input,
     row_count=2,
     column_count=3,
@@ -26,7 +26,7 @@ test "checked I64 rows narrow deterministically and release explicitly" {
     exclusive_maximum_value=8,
     maximum_output_bytes=24,
   )
-  let repeated = narrow_unique_i64_le_rows(
+  let repeated = @checked_integer_narrow.narrow_unique_i64_le_rows(
     input,
     row_count=2,
     column_count=3,
@@ -63,7 +63,7 @@ test "checked I64 rows narrow deterministically and release explicitly" {
 test "checked I64 rows reject truncation range duplicates and budget" {
   let valid = fixture([0L, 1L, 2L, 3L])
   try
-    narrow_unique_i64_le_rows(
+    @checked_integer_narrow.narrow_unique_i64_le_rows(
       valid[0:31],
       row_count=2,
       column_count=2,
@@ -79,7 +79,7 @@ test "checked I64 rows reject truncation range duplicates and budget" {
   }
   for hostile in [fixture([0L, 4L]), fixture([1L, 1L])] {
     try
-      narrow_unique_i64_le_rows(
+      @checked_integer_narrow.narrow_unique_i64_le_rows(
         hostile,
         row_count=1,
         column_count=2,
@@ -96,7 +96,7 @@ test "checked I64 rows reject truncation range duplicates and budget" {
     }
   }
   try
-    narrow_unique_i64_le_rows(
+    @checked_integer_narrow.narrow_unique_i64_le_rows(
       valid,
       row_count=2,
       column_count=2,

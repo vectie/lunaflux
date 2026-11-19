@@ -2,8 +2,8 @@
 fn admission_weight_entry(
   name : String,
   shape : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String {
   "\"\{name}\":{\"dtype\":\"BF16\",\"shape\":\{shape},\"data_offsets\":[\{start},\{end}]}"
 }
@@ -79,7 +79,7 @@ fn admission_model(file : BytesView) -> @spec.LlamaModelMetadata raise {
 
 ///|
 fn admission_execution_limits(
-  operation_count : Int,
+  operation_count : Int32,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise {
   let artifact = @artifact.KernelArtifactLimits::new(
     max_modules=1,

@@ -94,7 +94,7 @@ pub fn LearnedGatedPoolPrecision::expression(
 pub fn LearnedGatedPoolPrecision::reduction_extent(
   self : Self,
   operation : GatedPoolExpression,
-) -> Int raise PrecisionPlanError {
+) -> Int32 raise PrecisionPlanError {
   match operation {
     ProjectionUpdate => self.input_width
     Maximum | DenominatorUpdate | WeightedUpdate =>

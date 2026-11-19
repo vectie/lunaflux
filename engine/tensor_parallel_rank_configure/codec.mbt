@@ -1,34 +1,34 @@
 ///|
-const RANK_CONFIGURE_MAGIC : UInt = 0x4352464c
+const RANK_CONFIGURE_MAGIC : UInt32 = 0x4352464c
 
 ///|
-const RANK_CONFIGURE_VERSION : UInt = 1
+const RANK_CONFIGURE_VERSION : UInt32 = 1
 
 ///|
-const RANK_CONFIGURE_HEADER_BYTES : Int = 128
+const RANK_CONFIGURE_HEADER_BYTES : Int32 = 128
 
 ///|
-const RANK_CONFIGURE_CHECKSUM_OFFSET : Int = 12
+const RANK_CONFIGURE_CHECKSUM_OFFSET : Int32 = 12
 
 ///|
-const RANK_CONFIGURE_DIGEST_OFFSET : Int = 96
+const RANK_CONFIGURE_DIGEST_OFFSET : Int32 = 96
 
 ///|
-const RANK_CONFIGURE_CAPACITY : Int = 38912
+const RANK_CONFIGURE_CAPACITY : Int32 = 38912
 
 ///|
-pub fn tensor_parallel_rank_configure_capacity() -> Int {
+pub fn tensor_parallel_rank_configure_capacity() -> Int32 {
   RANK_CONFIGURE_CAPACITY
 }
 
 ///|
 fn write_rank_configure_header(
   bytes : FixedArray[Byte],
-  length : Int,
-  startup_length : Int,
-  source_length : Int,
-  topology_length : Int,
-  envelope_length : Int,
+  length : Int32,
+  startup_length : Int32,
+  source_length : Int32,
+  topology_length : Int32,
+  envelope_length : Int32,
   startup : @worker_wire.WorkerStartupContract,
   envelope : @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope,
 ) -> Unit raise TensorParallelRankConfigureError {
@@ -118,7 +118,7 @@ pub fn compose_rank_configure(
 ///|
 fn validate_rank_configure_header(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise TensorParallelRankConfigureError {
   if length < RANK_CONFIGURE_HEADER_BYTES ||
     length > RANK_CONFIGURE_CAPACITY ||
@@ -145,7 +145,7 @@ fn validate_rank_configure_header(
 ///|
 pub fn decode_rank_configure(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   expected_binding : @rank_group_wire.RankGroupWireBinding,
 ) -> TensorParallelRankConfigureContract raise TensorParallelRankConfigureError {
   validate_rank_configure_header(source, length)
@@ -248,7 +248,7 @@ pub fn decode_rank_configure(
 pub fn TensorParallelRankConfigureContract::copy_to(
   self : TensorParallelRankConfigureContract,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise TensorParallelRankConfigureError {
   if destination_offset < 0 ||
     destination_offset > destination.length() - self.length {

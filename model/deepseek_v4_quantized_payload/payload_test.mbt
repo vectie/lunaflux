@@ -1,13 +1,13 @@
 ///|
-fn payload_test_content(fill? : Char = 'a') -> @spec.ContentDigest {
+fn payload_test_content(fill~ : Char = 'a') -> @spec.ContentDigest {
   try! @spec.ContentDigest::from_sha256(String::make(64, fill))
 }
 
 ///|
 fn payload_test_limits(
-  maximum_elements? : Int64 = 200000L,
-  maximum_payload_bytes? : Int64 = 200000L,
-  maximum_canonical_bytes? : Int = 4096,
+  maximum_elements~ : Int64 = 200000L,
+  maximum_payload_bytes~ : Int64 = 200000L,
+  maximum_canonical_bytes~ : Int32 = 4096,
 ) -> DeepSeekV4QuantizedPayloadLimits {
   try! DeepSeekV4QuantizedPayloadLimits::new(
     maximum_elements~,
@@ -34,7 +34,7 @@ fn payload_test_admit(
   storage : @deepseek_v4_numeric_plan.DeepSeekV4LogicalStorage,
   shape : ArrayView[Int64],
   bytes : Bytes,
-  fill? : Char = 'a',
+  fill~ : Char = 'a',
 ) -> DeepSeekV4QuantizedPayloadContract raise DeepSeekV4QuantizedPayloadError {
   admit(
     storage~,

@@ -1,8 +1,8 @@
 ///|
 pub fn AttentionMatrixShape::new(
-  rows~ : Int,
-  columns~ : Int,
-  reduction~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
+  reduction~ : Int32,
 ) -> AttentionMatrixShape raise AttentionStrategyError {
   if rows <= 0 || columns <= 0 || reduction <= 0 {
     raise InvalidAttentionStrategy(Tile)
@@ -12,13 +12,13 @@ pub fn AttentionMatrixShape::new(
 
 ///|
 pub fn AttentionCompilerCapabilities::new(
-  subgroup_width~ : Int,
-  max_threads_per_block~ : Int,
+  subgroup_width~ : Int32,
+  max_threads_per_block~ : Int32,
   max_shared_memory_bytes~ : Int64,
-  max_pipeline_stages~ : Int,
+  max_pipeline_stages~ : Int32,
   supports_async_copy~ : Bool,
-  parallel_workgroup_target? : Int = 32,
-  matrix_shape? : AttentionMatrixShape? = None,
+  parallel_workgroup_target~ : Int32 = 32,
+  matrix_shape~ : AttentionMatrixShape? = None,
 ) -> AttentionCompilerCapabilities raise AttentionStrategyError {
   if subgroup_width <= 0 ||
     subgroup_width > 128 ||
@@ -50,7 +50,7 @@ pub fn AttentionCompilerCapabilities::new(
 /// mutating compiler state or introducing backend names into the optimizer.
 pub fn AttentionCompilerCapabilities::with_parallel_workgroup_target(
   self : AttentionCompilerCapabilities,
-  parallel_workgroup_target : Int,
+  parallel_workgroup_target : Int32,
 ) -> AttentionCompilerCapabilities raise AttentionStrategyError {
   AttentionCompilerCapabilities::new(
     subgroup_width=self.subgroup_width,
@@ -68,14 +68,14 @@ pub fn AttentionCompileProblem::new(
   shape~ : AttentionShape,
   phase~ : AttentionExecutionPhase,
   numeric_type~ : AttentionNumericType,
-  batch_rows? : Int = 1,
-  query_rows~ : Int,
-  context_tokens~ : Int,
+  batch_rows~ : Int32 = 1,
+  query_rows~ : Int32,
+  context_tokens~ : Int32,
   causal~ : Bool,
-  allow_alternative_softmax_reduction? : Bool = false,
-  allow_approximate_exponential? : Bool = false,
-  key_value_read_view? : AttentionKeyValueReadView = PagedCacheOnly,
-  required_fragment_ownership? : AttentionFragmentOwnership? = None,
+  allow_alternative_softmax_reduction~ : Bool = false,
+  allow_approximate_exponential~ : Bool = false,
+  key_value_read_view~ : AttentionKeyValueReadView = PagedCacheOnly,
+  required_fragment_ownership~ : AttentionFragmentOwnership? = None,
 ) -> AttentionCompileProblem raise AttentionStrategyError {
   if phase == MixedCompatibility ||
     batch_rows <= 0 ||
@@ -157,7 +157,7 @@ pub fn AttentionAutotuneKey::new(
 pub fn AttentionAutotuneRecord::new(
   key~ : AttentionAutotuneKey,
   median_latency_ns~ : Int64,
-  sample_count~ : Int,
+  sample_count~ : Int32,
 ) -> AttentionAutotuneRecord raise AttentionStrategyError {
   if median_latency_ns <= 0L || sample_count < 3 {
     raise InvalidAttentionStrategy(Measurement)

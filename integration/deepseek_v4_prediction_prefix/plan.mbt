@@ -3,7 +3,7 @@
 /// semantics and execution ownership remain shared across model families.
 pub fn prediction_main_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.RowProjectionNormPrecision raise {
   guard spec.has_dspark() else {

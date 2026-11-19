@@ -3,7 +3,7 @@
 // their actual shapes/storage; fake execution checks integration, not numerics.
 fn compressed_sublayer_entries(
   spec : @deepseek_spec.DeepSeekV4ModelSpec,
-  layer : Int,
+  layer : Int32,
 ) -> Array[(String, String, String, Int64)] raise {
   let entries : Array[(String, String, String, Int64)] = []
   let matrices = @deepseek.query_kv_plan(
@@ -142,7 +142,7 @@ async test "actual-shape compressed sublayers prepare 44 or 25 shared effects wi
     let spec = @deepseek_spec.DeepSeekV4ModelSpec::from_official_model_id(
       "deepseek-ai/DeepSeek-V4-Flash-0731",
     )
-    let layers : Array[Int] = []
+    let layers : Array[Int32] = []
     for ratio in [4, 128] {
       for layer in 0..<spec.layer_count() {
         if spec.compression_ratio(layer) == Some(ratio) {

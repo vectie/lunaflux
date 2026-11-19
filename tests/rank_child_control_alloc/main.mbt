@@ -30,7 +30,7 @@ fn encode_configure(
   limits : @rank_group_wire.RankGroupWireLimits,
   binding : @rank_group_wire.RankGroupWireBinding,
   payload : FixedArray[Byte],
-) -> Int {
+) -> Int32 {
   try! @rank_group_wire.encode_rank_group_wire_payload_into(
     wire,
     limits,
@@ -51,7 +51,7 @@ fn encode_submit(
   binding : @rank_group_wire.RankGroupWireBinding,
   payload : FixedArray[Byte],
   sequence : UInt64,
-) -> Int {
+) -> Int32 {
   let slot = if sequence % 2UL == 0UL { @rank_group_wire.B } else { A }
   try! @rank_group_wire.encode_rank_group_wire_payload_into(
     wire,
@@ -72,7 +72,7 @@ fn encode_poll(
   limits : @rank_group_wire.RankGroupWireLimits,
   binding : @rank_group_wire.RankGroupWireBinding,
   sequence : UInt64,
-) -> Int {
+) -> Int32 {
   let slot = if sequence % 2UL == 0UL { @rank_group_wire.B } else { A }
   try! @rank_group_wire.encode_rank_group_wire_control_into(
     wire,
@@ -91,7 +91,7 @@ fn encode_parent_control(
   limits : @rank_group_wire.RankGroupWireLimits,
   binding : @rank_group_wire.RankGroupWireBinding,
   kind : @rank_group_wire.RankGroupWireKind,
-) -> Int {
+) -> Int32 {
   try! @rank_group_wire.encode_rank_group_wire_control_into(
     wire,
     limits,
@@ -104,7 +104,7 @@ fn encode_parent_control(
 }
 
 ///|
-fn send_parent_frame(wire : FixedArray[Byte], length : Int) -> Unit {
+fn send_parent_frame(wire : FixedArray[Byte], length : Int32) -> Unit {
   if fixture_send(wire, length) != 0 {
     alloc_probe_abort()
   }
@@ -119,7 +119,7 @@ fn receive_child_frame(
   expected_slot : @rank_group_wire.RankGroupWireSlot?,
   expected_sequence : UInt64,
   expected_payload : FixedArray[Byte],
-  expected_payload_length : Int,
+  expected_payload_length : Int32,
 ) -> Unit {
   let length = fixture_receive(wire)
   if length <= 0 {

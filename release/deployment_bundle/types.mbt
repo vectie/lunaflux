@@ -12,9 +12,9 @@ pub struct DeploymentBundleDigest(String) derive(Debug, Eq, Hash)
 ///|
 /// Startup bounds for canonical bundle-evidence admission.
 pub struct DeploymentBundleLimits {
-  priv maximum_bytes : Int
-  priv maximum_base_image_bytes : Int
-  priv maximum_locator_bytes : Int
+  priv maximum_bytes : Int32
+  priv maximum_base_image_bytes : Int32
+  priv maximum_locator_bytes : Int32
 }
 
 ///|
@@ -79,3 +79,30 @@ pub(all) suberror DeploymentBundleError {
   DigestMismatch
   ReleaseEvidenceRejected
 } derive(Debug, Eq)
+
+///|
+pub extend DeploymentBundleArchitecture with @debug.Debug::{to_repr}
+
+///|
+pub extend DeploymentBundleArchitecture with Eq::{not_equal, equal}
+
+///|
+pub extend DeploymentBundleDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend DeploymentBundleDigest with Eq::{not_equal, equal}
+
+///|
+pub extend DeploymentBundleDigest with Hash::{hash, hash_combine}
+
+///|
+pub extend DeploymentBundleArea with @debug.Debug::{to_repr}
+
+///|
+pub extend DeploymentBundleArea with Eq::{not_equal, equal}
+
+///|
+pub extend DeploymentBundleError with @debug.Debug::{to_repr}
+
+///|
+pub extend DeploymentBundleError with Eq::{not_equal, equal}

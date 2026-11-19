@@ -36,11 +36,11 @@ fn serial_inference_limits() -> @inference.InferenceLimits raise {
 ///|
 fn serial_wire_plan(
   id : UInt64,
-  model_generation? : UInt64 = 9UL,
-  position? : Int = 0,
-  tokens? : ArrayView[Int] = [2, 3],
-  decode? : Bool = false,
-  produces? : Bool = true,
+  model_generation~ : UInt64 = 9UL,
+  position~ : Int32 = 0,
+  tokens~ : ArrayView[Int32] = [2, 3],
+  decode~ : Bool = false,
+  produces~ : Bool = true,
 ) -> (
   @protocol.SubmittedSchedulePlan,
   @wire.ValidatedPlanFrame,
@@ -118,7 +118,7 @@ fn serial_wire_plan(
 
 ///|
 fn serial_host(
-  with_positions? : Bool = false,
+  with_positions~ : Bool = false,
 ) -> @serial_frame.SerialDecoderFrame raise {
   @serial_frame.SerialDecoderFrame::new(
     maximum_rows=4,

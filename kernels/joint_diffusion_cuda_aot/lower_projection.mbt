@@ -1,12 +1,12 @@
 ///|
 fn latent_projection_recipe(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-  ordinal : Int,
+  ordinal : Int32,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
   rows : Int64,
-  input_width : Int,
-  output_width : Int,
+  input_width : Int32,
+  output_width : Int32,
   input_elements : Int64,
   output_elements : Int64,
   weight_elements : Int64,
@@ -123,7 +123,7 @@ fn latent_projection_recipe(
 pub fn lower_latent_projection_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,
@@ -149,8 +149,8 @@ pub fn lower_latent_projection_cuda_aot_candidate(
   let (latent, rows, input_width, output_width, input_role, symbol) : (
     @joint_diffusion_plan.JointDiffusionLatentKind,
     Int64,
-    Int,
-    Int,
+    Int32,
+    Int32,
     @joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole,
     String,
   ) = match (requirement.operation(), requirement.capability()) {

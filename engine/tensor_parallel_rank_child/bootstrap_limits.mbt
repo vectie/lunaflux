@@ -2,25 +2,25 @@
 const RANK_CHILD_MAX_CONFIG_BYTES : Int64 = 16777216L
 
 ///|
-const RANK_CHILD_MAX_WEIGHT_HEADER_BYTES : Int = 16777216
+const RANK_CHILD_MAX_WEIGHT_HEADER_BYTES : Int32 = 16777216
 
 ///|
-const RANK_CHILD_JSON_DEPTH : Int = 16
+const RANK_CHILD_JSON_DEPTH : Int32 = 16
 
 ///|
-const RANK_CHILD_MAX_OPERATIONS : Int = 4096
+const RANK_CHILD_MAX_OPERATIONS : Int32 = 4096
 
 ///|
-const RANK_CHILD_MAX_OPERANDS : Int = 32
+const RANK_CHILD_MAX_OPERANDS : Int32 = 32
 
 ///|
-const RANK_CHILD_MAX_DESCRIPTORS : Int = 32
+const RANK_CHILD_MAX_DESCRIPTORS : Int32 = 32
 
 ///|
-const RANK_CHILD_MAX_SYMBOL_BYTES : Int = 1024
+const RANK_CHILD_MAX_SYMBOL_BYTES : Int32 = 1024
 
 ///|
-const RANK_CHILD_TRANSFER_CHUNK_BYTES : Int = 4194304
+const RANK_CHILD_TRANSFER_CHUNK_BYTES : Int32 = 4194304
 
 ///|
 const RANK_CHILD_ALIGNMENT_BYTES : Int64 = 256L
@@ -28,7 +28,7 @@ const RANK_CHILD_ALIGNMENT_BYTES : Int64 = 256L
 ///|
 fn rank_child_artifact_limits(
   source : @worker_wire.EncodedBootstrapSource,
-  operation_count : Int,
+  operation_count : Int32,
 ) -> @artifact.KernelArtifactLimits raise TensorParallelRankChildError {
   let ceilings = source.ceilings()
   @artifact.KernelArtifactLimits::new(
@@ -45,7 +45,7 @@ fn rank_child_artifact_limits(
 ///|
 fn rank_child_weight_limits(
   source : @worker_wire.EncodedBootstrapSource,
-  operation_count : Int,
+  operation_count : Int32,
   rank_weight_ceiling : Int64,
 ) -> @device_materialize.DeviceWeightFileLimits raise TensorParallelRankChildError {
   let ceilings = source.ceilings()
@@ -76,7 +76,7 @@ fn rank_child_weight_limits(
 fn rank_child_execution_limits(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
-  operation_count : Int,
+  operation_count : Int32,
   activation_ceiling : Int64,
 ) -> (
   @device_step.DeviceStepLimits,

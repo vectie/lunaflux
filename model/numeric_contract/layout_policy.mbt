@@ -2,7 +2,7 @@
 /// Semantic scale grouping required by one stored tensor.
 #valtype
 pub struct ScaleGranularity {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -24,7 +24,7 @@ pub fn ScaleGranularity::per_output_channel() -> ScaleGranularity {
 /// Zero-point representation required by one stored tensor.
 #valtype
 pub struct ZeroPointMode {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -46,7 +46,7 @@ pub fn ZeroPointMode::per_output_channel_tensor_v1() -> ZeroPointMode {
 /// Codebook geometry required by one stored tensor.
 #valtype
 pub struct CodebookLayout {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|

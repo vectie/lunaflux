@@ -1,6 +1,6 @@
 ///|
 fn capture_deadline(
-  timeout_millis : Int,
+  timeout_millis : Int32,
   operation : ProcessOperation,
 ) -> Int64 raise ProcessError {
   let now = raw_monotonic_now()
@@ -84,9 +84,9 @@ fn ChildProcess::admit_frame_deadline(
 ///|
 fn child_transferred_or_pending(
   owner : ChildProcess,
-  result : Int,
+  result : Int32,
   operation : ProcessOperation,
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   if result >= 0 {
     return result
   }
@@ -98,8 +98,8 @@ fn child_transferred_or_pending(
 ///|
 fn validate_child_progress_count(
   owner : ChildProcess,
-  transferred : Int,
-  remaining : Int,
+  transferred : Int32,
+  remaining : Int32,
   operation : ProcessOperation,
 ) -> Unit raise ProcessError {
   if transferred <= 0 || transferred > remaining {
@@ -116,9 +116,9 @@ fn validate_child_progress_count(
 pub fn ChildProcess::begin_write_frame(
   self : ChildProcess,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
-  timeout_millis? : Int = self.limits.io_timeout_millis,
+  offset~ : Int32,
+  byte_count~ : Int32,
+  timeout_millis~ : Int32 = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   if timeout_millis <= 0 || timeout_millis > 600000 {
     raise InvalidRange(Write)
@@ -139,8 +139,8 @@ pub fn ChildProcess::begin_write_frame(
 pub fn ChildProcess::begin_write_frame_until(
   self : ChildProcess,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
+  offset~ : Int32,
+  byte_count~ : Int32,
   deadline_millis~ : Int64,
 ) -> Unit raise ProcessError {
   self.begin_write_frame_at_deadline(
@@ -156,8 +156,8 @@ pub fn ChildProcess::begin_write_frame_until(
 fn ChildProcess::begin_write_frame_at_deadline(
   self : ChildProcess,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
+  offset~ : Int32,
+  byte_count~ : Int32,
   deadline_millis~ : Int64,
   admit_absolute~ : Bool,
 ) -> Unit raise ProcessError {
@@ -248,7 +248,7 @@ pub fn ChildProcess::begin_read_frame(
   self : ChildProcess,
   destination : FixedArray[Byte],
   staging~ : FixedArray[Byte],
-  timeout_millis? : Int = self.limits.io_timeout_millis,
+  timeout_millis~ : Int32 = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   if timeout_millis <= 0 || timeout_millis > 600000 {
     raise InvalidRange(Read)
@@ -319,7 +319,7 @@ fn ChildProcess::begin_read_frame_at_deadline(
 /// staging range into destination. Destination is unchanged on every failure.
 pub fn ChildProcess::progress_read_frame(
   self : ChildProcess,
-) -> Int? raise ProcessError {
+) -> Int32? raise ProcessError {
   self.require_usable(Read)
   if !self.read_transfer_active {
     raise InvalidState(Read)

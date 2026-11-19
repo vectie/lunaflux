@@ -3,7 +3,7 @@ fn stage_submitted_device_sampling_parameters(
   scratch : PagedDeviceSamplingScratch,
   plan : @worker_protocol.SubmittedSchedulePlan,
   summary : DeviceStepSummary,
-  compact? : Bool = false,
+  compact~ : Bool = false,
 ) -> Unit raise DeviceStepError {
   let mut output_index = 0
   for index in 0..<summary.prefill_count {
@@ -100,7 +100,7 @@ fn stage_wire_device_sampling_parameters(
   scratch : PagedDeviceSamplingScratch,
   frame : @worker_wire.ValidatedPlanFrame,
   summary : DeviceStepSummary,
-  compact? : Bool = false,
+  compact~ : Bool = false,
 ) -> Unit raise DeviceStepError {
   let mut output_index = 0
   for index in 0..<summary.prefill_count {
@@ -191,7 +191,7 @@ fn stage_wire_device_sampling_parameters(
 fn upload_paged_device_sampling_parameters(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
-  row_count : Int,
+  row_count : Int32,
 ) -> Unit raise DeviceStepError {
   guard executor.completion.mode is CudaRestrictiveTopKCompletion(scratch) &&
     executor.resources.device_sampling_parameters is Some(owner) &&
@@ -273,7 +273,7 @@ fn stage_paged_device_sampling_frame(
 fn copy_paged_cuda_device_sampling_results(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
-  row_count : Int,
+  row_count : Int32,
 ) -> Unit raise DeviceStepError {
   let row_count = projected_result_count(descriptor, row_count)
   guard executor.completion.mode is CudaRestrictiveTopKCompletion(scratch) else {
@@ -306,8 +306,8 @@ fn copy_paged_cuda_device_sampling_results(
 fn select_paged_cuda_device_sampling_result(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
-  row : Int,
-) -> Int raise DeviceStepError {
+  row : Int32,
+) -> Int32 raise DeviceStepError {
   guard executor.completion.mode is CudaRestrictiveTopKCompletion(scratch) &&
     row >= 0 &&
     row < scratch.plan.maximum_rows() else {

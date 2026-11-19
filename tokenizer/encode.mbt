@@ -29,7 +29,7 @@ pub fn TokenizerSpec::encode_text(
   self : TokenizerSpec,
   text : String,
   special_policy~ : SpecialTokenPolicy,
-  output_limit~ : Int,
+  output_limit~ : Int32,
   truncation~ : TruncationPolicy,
 ) -> EncodeResult raise TokenizerError {
   validate_utf16(text)
@@ -48,7 +48,7 @@ pub fn TokenizerSpec::encode_bytes(
   self : TokenizerSpec,
   input : Bytes,
   special_policy~ : SpecialTokenPolicy,
-  output_limit~ : Int,
+  output_limit~ : Int32,
   truncation~ : TruncationPolicy,
 ) -> EncodeResult raise TokenizerError {
   if output_limit <= 0 || output_limit > self.limits.max_output_tokens {
@@ -63,7 +63,7 @@ pub fn TokenizerSpec::encode_bytes(
       maximum=self.limits.max_input_bytes,
     )
   }
-  let capacity = Int::max(input.length(), 1)
+  let capacity = Int32::max(input.length(), 1)
   let worker = LunaTokenizerWorker::new(
     self,
     input_capacity=capacity,
@@ -84,7 +84,7 @@ pub fn TokenizerSpec::encode_bytes(
   let copy_budget = LUNA_TOKENIZER_MAX_STEP_WORK_UNITS
   let mut copied = 0
   while copied < count {
-    let length = Int::min(copy_budget, count - copied)
+    let length = Int32::min(copy_budget, count - copied)
     work.copy_tokens_to(
       storage,
       source_offset=copied,
@@ -93,7 +93,7 @@ pub fn TokenizerSpec::encode_bytes(
     )
     copied += length
   }
-  let token_ids : Array[Int] = Array(capacity=count)
+  let token_ids : Array[Int32] = Array(capacity=count)
   for token_id in storage {
     token_ids.push(token_id)
   }

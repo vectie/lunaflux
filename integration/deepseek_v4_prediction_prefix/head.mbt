@@ -85,7 +85,7 @@ pub fn DeepSeekPredictionHead::prepare(
   confidence~ : @device.Allocation,
   rng~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh && chunk_bytes > 0 else {

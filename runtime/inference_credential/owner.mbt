@@ -148,7 +148,7 @@ pub fn InheritedInferenceCredentialOwner::progress(
 ///|
 pub fn InheritedInferenceCredentialOwner::take_startup_auth_policy_v1(
   self : InheritedInferenceCredentialOwner,
-  maximum_credential_bytes~ : Int,
+  maximum_credential_bytes~ : Int32,
 ) -> InheritedInferenceAuthPolicy raise InheritedInferenceCredentialError {
   if self.phase != 2 ||
     !@native.is_closed(self.native) ||
@@ -190,7 +190,7 @@ pub fn InheritedInferenceCredentialOwner::take_startup_auth_policy_v1(
 /// neither the actual length nor credential bytes are exposed.
 pub fn InheritedInferenceAuthPolicy::take_for_policy(
   self : InheritedInferenceAuthPolicy,
-  maximum_credential_bytes : Int,
+  maximum_credential_bytes : Int32,
 ) -> @api_auth.LunaApiAuthPolicy raise InheritedInferenceCredentialError {
   if self.consumed ||
     maximum_credential_bytes <= 0 ||

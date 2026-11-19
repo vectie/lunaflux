@@ -4,10 +4,10 @@
 /// zero-filling a partial tile participate in the subgroup collective.
 fn cuda_decode_row_address(
   abi : CudaPagedAttentionTileAbi,
-  vector_elements : Int,
+  vector_elements : Int32,
   hoist : Bool,
   invalid : String,
-  retained_page? : String = "",
+  retained_page~ : String = "",
 ) -> String {
   let (_, heads, dimension, page_tokens) = abi.shape()
   let (_, stride, capacity) = abi.layout()

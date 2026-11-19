@@ -11,16 +11,16 @@ fn oracle_moe_swiglu(
   gate : ArrayView[Double],
   up : ArrayView[Double],
   down : ArrayView[Double],
-  rows : Int,
-  width : Int,
-  intermediate : Int,
-  expert_count : Int,
-  experts_per_token : Int,
+  rows : Int32,
+  width : Int32,
+  intermediate : Int32,
+  expert_count : Int32,
+  experts_per_token : Int32,
   score_function : @advanced_decoder_execution_plan.ExpertScoreFunction,
   normalize_selected : Bool,
   route_scale : Float,
   limits : GlmTinyOracleLimits,
-) -> (Array[Double], Array[Int]) raise GlmHybridReferenceError {
+) -> (Array[Double], Array[Int32]) raise GlmHybridReferenceError {
   if router.length() != expert_count * width ||
     correction.length() != expert_count ||
     gate.length() != expert_count * intermediate * width ||
@@ -44,7 +44,7 @@ fn oracle_moe_swiglu(
   oracle_require_finite(up, limits)
   oracle_require_finite(down, limits)
   let output = Array::make(rows * width, 0.0)
-  let selected : Array[Int] = []
+  let selected : Array[Int32] = []
   let reference_limits = @advanced_decoder_reference.ReferenceLimits::new(
     max_values=limits.maximum_values,
     max_width=limits.maximum_width,
@@ -107,9 +107,9 @@ fn oracle_feed_forward(
   input : ArrayView[Double],
   plan : GlmTinyHybridBlockPlan,
   weights : GlmTinyFeedForwardWeights,
-  width : Int,
+  width : Int32,
   limits : GlmTinyOracleLimits,
-) -> (Array[Double], Array[Int]) raise GlmHybridReferenceError {
+) -> (Array[Double], Array[Int32]) raise GlmHybridReferenceError {
   match (plan.feed_forward, weights.storage) {
     (Dense, DenseWeights(gate, up, down)) =>
       (

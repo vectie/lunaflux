@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/json",
   "vectie/lunaflux/internal/json_guard",
   "vectie/lunaflux/tokenizer",

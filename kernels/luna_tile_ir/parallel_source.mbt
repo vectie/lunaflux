@@ -60,7 +60,7 @@ fn luna_tile_parallel_write_registers(
 fn luna_tile_parallel_write_prefetch(
   output : StringBuilder,
   program : LunaTileProgram,
-  vector_bytes : Int,
+  vector_bytes : Int32,
 ) -> Unit raise LunaTileError {
   for index, instruction in program.instructions {
     match instruction {
@@ -77,7 +77,7 @@ fn luna_tile_parallel_write_prefetch(
 fn luna_tile_parallel_write_compute(
   output : StringBuilder,
   program : LunaTileProgram,
-  vector_bytes : Int,
+  vector_bytes : Int32,
 ) -> Unit raise LunaTileError {
   for index, instruction in program.instructions {
     match instruction {

@@ -1,20 +1,20 @@
 ///|
-const ABSOLUTE_MAX_TABLE_CAPACITY : Int = 1_048_576
+const ABSOLUTE_MAX_TABLE_CAPACITY : Int32 = 1_048_576
 
 ///|
-const ABSOLUTE_MAX_PAGES_PER_TABLE : Int = 1_048_576
+const ABSOLUTE_MAX_PAGES_PER_TABLE : Int32 = 1_048_576
 
 ///|
-const ABSOLUTE_MAX_TABLE_PAGE_CELLS : Int = 16_777_216
+const ABSOLUTE_MAX_TABLE_PAGE_CELLS : Int32 = 16_777_216
 
 ///|
-const ABSOLUTE_MAX_BLOCK_TABLE_ID_STORAGE_CAPACITY : Int = 16_777_216
+const ABSOLUTE_MAX_BLOCK_TABLE_ID_STORAGE_CAPACITY : Int32 = 16_777_216
 
 ///|
-const ABSOLUTE_MAX_TOKENS_PER_PAGE : Int = 1_048_576
+const ABSOLUTE_MAX_TOKENS_PER_PAGE : Int32 = 1_048_576
 
 ///|
-const ABSOLUTE_MAX_TABLE_GENERATION : Int = 2_147_483_647
+const ABSOLUTE_MAX_TABLE_GENERATION : Int32 = 2_147_483_647
 
 ///|
 /// Opaque identity of one request block-table slot.
@@ -22,7 +22,7 @@ const ABSOLUTE_MAX_TABLE_GENERATION : Int = 2_147_483_647
 /// Releasing and later reusing a slot changes its generation, so a delayed
 /// scheduler or worker message cannot address the new table through an old ID.
 #valtype
-pub struct BlockTableId(Int, Int) derive(Debug, Eq, Hash)
+pub struct BlockTableId(Int32, Int32) derive(Debug, Eq, Hash)
 
 ///|
 /// Opaque fixed storage for canonical inline block-table identities.
@@ -45,10 +45,10 @@ pub struct BlockTableAllocationCheckpoint(BlockTableArena, UInt64)
 ///|
 /// Checked startup bounds for one dense block-table arena.
 pub struct BlockTableLimits {
-  table_capacity : Int
-  max_pages_per_table : Int
-  tokens_per_page : Int
-  max_generation : Int
+  table_capacity : Int32
+  max_pages_per_table : Int32
+  tokens_per_page : Int32
+  max_generation : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -58,7 +58,7 @@ pub struct BlockTableLimits {
 /// its logical length only after all validation succeeds.
 pub struct BlockTablePageBuffer {
   priv pages : @page_allocator.PageIdStorage
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|
@@ -69,8 +69,8 @@ pub struct BlockTablePageBuffer {
 /// aggregate.
 pub struct BlockTablePositionBuffer {
   priv page_storage : @page_allocator.PageIdStorage
-  priv mut logical_page_index : Int
-  priv mut token_offset : Int
+  priv mut logical_page_index : Int32
+  priv mut token_offset : Int32
   priv mut is_set : Bool
 }
 
@@ -87,15 +87,15 @@ pub(all) enum BlockTableResidency {
 pub struct BlockTableSlotSnapshot {
   id : BlockTableId
   residency : BlockTableResidency
-  page_count : Int
+  page_count : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Allocating diagnostic snapshot. It is excluded from scheduling hot paths.
 pub struct BlockTableSnapshot {
-  free_tables : Int
-  allocated_tables : Int
-  retired_tables : Int
+  free_tables : Int32
+  allocated_tables : Int32
+  retired_tables : Int32
   slots : ReadOnlyArray[BlockTableSlotSnapshot]
 } derive(Debug, Eq)
 
@@ -107,39 +107,72 @@ pub struct BlockTableSnapshot {
 /// preallocated by `new`; successful steady-state mutations grow no collection.
 pub struct BlockTableArena {
   priv limits : BlockTableLimits
-  priv table_capacity : Int
-  priv max_pages_per_table : Int
-  priv tokens_per_page : Int
-  priv max_generation : Int
-  priv states : FixedArray[Int]
-  priv generations : FixedArray[Int]
-  priv page_counts : FixedArray[Int]
+  priv table_capacity : Int32
+  priv max_pages_per_table : Int32
+  priv tokens_per_page : Int32
+  priv max_generation : Int32
+  priv states : FixedArray[Int32]
+  priv generations : FixedArray[Int32]
+  priv page_counts : FixedArray[Int32]
   priv pages : @page_allocator.PageIdStorage
-  priv free_next : FixedArray[Int]
-  priv mut free_head : Int
-  priv mut free_tail : Int
-  priv mut free_tables : Int
-  priv mut allocated_tables : Int
-  priv mut retired_tables : Int
-  priv allocation_journal : FixedArray[Int]
-  priv allocation_journal_generations : FixedArray[Int]
-  priv allocation_journal_next : FixedArray[Int]
+  priv free_next : FixedArray[Int32]
+  priv mut free_head : Int32
+  priv mut free_tail : Int32
+  priv mut free_tables : Int32
+  priv mut allocated_tables : Int32
+  priv mut retired_tables : Int32
+  priv allocation_journal : FixedArray[Int32]
+  priv allocation_journal_generations : FixedArray[Int32]
+  priv allocation_journal_next : FixedArray[Int32]
   priv provisional_tables : FixedArray[Bool]
-  priv mapping_journal_indices : FixedArray[Int]
-  priv mapping_journal_baselines : FixedArray[Int]
+  priv mapping_journal_indices : FixedArray[Int32]
+  priv mapping_journal_baselines : FixedArray[Int32]
   priv mapping_touched : FixedArray[Bool]
-  priv mut allocation_journal_length : Int
-  priv mut mapping_journal_length : Int
+  priv mut allocation_journal_length : Int32
+  priv mut mapping_journal_length : Int32
   priv mut allocation_checkpoint_open : Bool
   priv mut allocation_checkpoint_epoch : UInt64
-  priv mut checkpoint_free_head : Int
-  priv mut checkpoint_free_tail : Int
-  priv mut checkpoint_free_tables : Int
-  priv mut checkpoint_allocated_tables : Int
-  priv mut checkpoint_retired_tables : Int
+  priv mut checkpoint_free_head : Int32
+  priv mut checkpoint_free_tail : Int32
+  priv mut checkpoint_free_tables : Int32
+  priv mut checkpoint_allocated_tables : Int32
+  priv mut checkpoint_retired_tables : Int32
 }
 
 ///|
 fn invalid_block_table_id() -> BlockTableId {
   BlockTableId(-1, 0)
 }
+
+///|
+pub extend BlockTableId with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableId with Eq::{not_equal, equal}
+
+///|
+pub extend BlockTableId with Hash::{hash, hash_combine}
+
+///|
+pub extend BlockTableLimits with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableLimits with Eq::{not_equal, equal}
+
+///|
+pub extend BlockTableResidency with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableResidency with Eq::{not_equal, equal}
+
+///|
+pub extend BlockTableSlotSnapshot with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableSlotSnapshot with Eq::{not_equal, equal}
+
+///|
+pub extend BlockTableSnapshot with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableSnapshot with Eq::{not_equal, equal}

@@ -27,7 +27,9 @@ pub fn GlmHybridDsaIndexCudaCandidate::requirements_digest(
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::requirement_ordinal(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::requirement_ordinal(
+  self : Self,
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -46,37 +48,37 @@ pub fn GlmHybridDsaIndexCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::head_count(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::head_dimension(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::top_k(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::top_k(self : Self) -> Int32 {
   self.top_k
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::pool_size(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::pool_size(self : Self) -> Int32 {
   self.pool_size
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::candidate_capacity(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::candidate_capacity(self : Self) -> Int32 {
   self.candidate_capacity
 }
 
 ///|
-pub fn GlmHybridDsaIndexCudaCandidate::output_width(self : Self) -> Int {
+pub fn GlmHybridDsaIndexCudaCandidate::output_width(self : Self) -> Int32 {
   self.output_width
 }
 

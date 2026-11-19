@@ -2,8 +2,8 @@
 fn valid_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 96 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -12,17 +12,17 @@ fn valid_symbol(value : StringView) -> Bool {
 /// noncausal within each document. Optional cumulative row boundaries isolate
 /// packed documents without a dense mask or a device-side metadata upload.
 pub fn staged_joint_attention_bf16_source(
-  rows~ : Int,
-  hidden_size~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
-  rotary_dimension~ : Int,
-  epsilon_numerator~ : Int,
-  epsilon_denominator~ : Int,
+  rows~ : Int32,
+  hidden_size~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  rotary_dimension~ : Int32,
+  epsilon_numerator~ : Int32,
+  epsilon_denominator~ : Int32,
   apply_rotary~ : Bool,
   function_prefix~ : String,
-  document_boundaries? : ArrayView[Int],
-  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
+  document_boundaries? : ArrayView[Int32],
+  probability_law~ : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> JointAttentionCudaSource raise JointAttentionCudaSourceError {
   let (probability_value, numerical_contract) = match probability_law {
     GlobalF32 => ("probability", OrderedF32AccumulationBf16StagedAttentionV1)

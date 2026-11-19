@@ -1,6 +1,6 @@
 ///|
 pub fn TensorParallelRankDevice::single(
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
 ) -> TensorParallelRankDevice raise TensorParallelDevicePlanError {
   if device_ordinal < 0 || device_ordinal > 1023 {
@@ -12,7 +12,7 @@ pub fn TensorParallelRankDevice::single(
 ///|
 pub fn TensorParallelRankDevice::from_local_topology(
   topology : @device_topology.AdmittedLocalTopology,
-  rank~ : Int,
+  rank~ : Int32,
 ) -> TensorParallelRankDevice raise TensorParallelDevicePlanError {
   if rank < 0 || rank >= topology.world_size() {
     raise invalid(Rank, rank)
@@ -30,21 +30,21 @@ pub fn TensorParallelRankDevice::from_local_topology(
 }
 
 ///|
-pub fn TensorParallelRankDevice::rank(self : TensorParallelRankDevice) -> Int {
+pub fn TensorParallelRankDevice::rank(self : TensorParallelRankDevice) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelRankDevice::world_size(
   self : TensorParallelRankDevice,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
 ///|
 pub fn TensorParallelRankDevice::device_ordinal(
   self : TensorParallelRankDevice,
-) -> Int {
+) -> Int32 {
   self.device_ordinal
 }
 
@@ -133,21 +133,21 @@ pub fn TensorParallelDevicePlan::identity(
 }
 
 ///|
-pub fn TensorParallelDevicePlan::rank(self : TensorParallelDevicePlan) -> Int {
+pub fn TensorParallelDevicePlan::rank(self : TensorParallelDevicePlan) -> Int32 {
   self.device.rank
 }
 
 ///|
 pub fn TensorParallelDevicePlan::world_size(
   self : TensorParallelDevicePlan,
-) -> Int {
+) -> Int32 {
   self.device.world_size
 }
 
 ///|
 pub fn TensorParallelDevicePlan::device_ordinal(
   self : TensorParallelDevicePlan,
-) -> Int {
+) -> Int32 {
   self.device.device_ordinal
 }
 
@@ -191,14 +191,14 @@ pub fn TensorParallelDevicePlan::tensor(
 ///|
 pub fn TensorParallelDevicePlan::tensor_count(
   self : TensorParallelDevicePlan,
-) -> Int {
+) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn TensorParallelDevicePlan::operation_count(
   self : TensorParallelDevicePlan,
-) -> Int {
+) -> Int32 {
   self.operations.length()
 }
 
@@ -218,14 +218,14 @@ pub fn TensorParallelDevicePlan::operation(
 ///|
 pub fn TensorParallelDevicePlan::collective_count(
   self : TensorParallelDevicePlan,
-) -> Int {
+) -> Int32 {
   self.collectives.length()
 }
 
 ///|
 pub fn TensorParallelDevicePlan::collective(
   self : TensorParallelDevicePlan,
-  index : Int,
+  index : Int32,
 ) -> @tensor_parallel_plan.TensorCollectiveSite? {
   self.collectives.get(index)
 }

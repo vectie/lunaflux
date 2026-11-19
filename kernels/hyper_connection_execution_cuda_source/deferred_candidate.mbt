@@ -8,10 +8,10 @@ fn deferred_candidate(
   let (_, _, rows) = plan.geometry()
   let buckets = [(1, 1)]
   if rows > 1 {
-    buckets.push((Int::min(rows, 32), 2))
+    buckets.push((Int32::min(rows, 32), 2))
   }
   if rows > 32 {
-    buckets.push((Int::min(rows, 63), 4))
+    buckets.push((Int32::min(rows, 63), 4))
   }
   if rows >= 64 {
     buckets.push((64, 8))

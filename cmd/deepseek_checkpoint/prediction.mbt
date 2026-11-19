@@ -1,8 +1,8 @@
 ///|
 fn prediction_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  rows : Int,
-  history : Int,
+  rows : Int32,
+  history : Int32,
   ceiling : Int64,
 ) -> @prediction.DeepSeekPredictionExecution raise {
   @prediction.DeepSeekPredictionExecution::new(
@@ -22,8 +22,8 @@ fn prediction_plan(
 fn prediction_bytes(
   spec : @spec.DeepSeekV4ModelSpec,
   checkpoint : @materialize.PackedCheckpoint,
-  rows : Int,
-  history : Int,
+  rows : Int32,
+  history : Int32,
   ceiling : Int64,
   enabled~ : Bool,
 ) -> Int64 raise {

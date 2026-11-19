@@ -81,7 +81,7 @@ fn decimal(value : StringView) -> Int64 raise ProjectionTuningError {
   }
   let mut result = 0L
   for c in value {
-    guard c is ('0'..='9') else { raise InvalidSnapshot }
+    guard c is ('0'..<='9') else { raise InvalidSnapshot }
     let digit = (c.to_int() - '0'.to_int()).to_int64()
     if result > (9223372036854775807L - digit) / 10L {
       raise InvalidSnapshot
@@ -92,7 +92,7 @@ fn decimal(value : StringView) -> Int64 raise ProjectionTuningError {
 }
 
 ///|
-fn integer(value : StringView) -> Int raise ProjectionTuningError {
+fn integer(value : StringView) -> Int32 raise ProjectionTuningError {
   let value = decimal(value)
   if value > 2147483647L {
     raise InvalidSnapshot

@@ -3,7 +3,7 @@
 pub struct BenchmarkComparison {
   priv digest : BenchmarkDigest
   priv canonical : Bytes
-  priv trial_count : Int
+  priv trial_count : Int32
 }
 
 ///|
@@ -36,9 +36,9 @@ fn validate_workloads(
 ///|
 fn expected_trial_index(
   profile : BenchmarkProfile,
-  ordinal : Int,
+  ordinal : Int32,
   engine : BenchmarkEngine,
-) -> Int {
+) -> Int32 {
   profile_tag(profile) * 9 + (ordinal - 1) * 3 + engine_tag(engine)
 }
 
@@ -112,6 +112,6 @@ pub fn BenchmarkComparison::canonical_bytes(
 }
 
 ///|
-pub fn BenchmarkComparison::trial_count(self : BenchmarkComparison) -> Int {
+pub fn BenchmarkComparison::trial_count(self : BenchmarkComparison) -> Int32 {
   self.trial_count
 }

@@ -49,14 +49,14 @@ pub fn ReleaseCampaignRecord::physical_target(
 ///|
 pub fn ReleaseCampaignRecord::evidence_count(
   self : ReleaseCampaignRecord,
-) -> Int {
+) -> Int32 {
   self.evidence.length()
 }
 
 ///|
 pub fn ReleaseCampaignRecord::evidence_at(
   self : ReleaseCampaignRecord,
-  index : Int,
+  index : Int32,
 ) -> ReleaseEvidenceEntry? {
   self.evidence.get(index)
 }
@@ -64,14 +64,14 @@ pub fn ReleaseCampaignRecord::evidence_at(
 ///|
 pub fn ReleaseCampaignRecord::reviewer_count(
   self : ReleaseCampaignRecord,
-) -> Int {
+) -> Int32 {
   self.reviewers.length()
 }
 
 ///|
 pub fn ReleaseCampaignRecord::reviewer_at(
   self : ReleaseCampaignRecord,
-  index : Int,
+  index : Int32,
 ) -> ReleaseReviewerEntry? {
   self.reviewers.get(index)
 }

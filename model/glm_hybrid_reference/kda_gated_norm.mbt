@@ -3,9 +3,9 @@ pub fn kda_sigmoid_gated_rms_norm(
   recurrent : ArrayView[Double],
   gate : ArrayView[Double],
   weight : ArrayView[Double],
-  row_count~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  row_count~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
   epsilon~ : Double,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmKdaGatedNormResult raise GlmHybridReferenceError {
@@ -50,17 +50,17 @@ pub fn kda_sigmoid_gated_rms_norm(
 }
 
 ///|
-pub fn GlmKdaGatedNormResult::row_count(self : Self) -> Int {
+pub fn GlmKdaGatedNormResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmKdaGatedNormResult::head_count(self : Self) -> Int {
+pub fn GlmKdaGatedNormResult::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmKdaGatedNormResult::head_dimension(self : Self) -> Int {
+pub fn GlmKdaGatedNormResult::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 

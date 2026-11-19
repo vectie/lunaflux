@@ -28,12 +28,12 @@ pub(all) suberror DecoderSelectedSparseAttentionCudaSourceError {
 pub struct DecoderSelectedSparseAttentionCudaSource {
   priv operation : DecoderSelectedSparseAttentionCudaOperation
   priv numerical_contract : DecoderSelectedSparseAttentionNumericalContract
-  priv query_head_count : Int
-  priv head_dimension : Int
-  priv selected_width : Int
-  priv maximum_key_slots : Int
-  priv maximum_rows : Int
-  priv maximum_batches : Int
+  priv query_head_count : Int32
+  priv head_dimension : Int32
+  priv selected_width : Int32
+  priv maximum_key_slots : Int32
+  priv maximum_rows : Int32
+  priv maximum_batches : Int32
   priv function_symbol : String
   priv source : Bytes
 }

@@ -105,14 +105,14 @@ pub(all) suberror ExecutionManifestFileError {
   DigestMismatch
   InvalidUtf8
   MalformedJson
-  JsonDepthExceeded(maximum~ : Int)
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(area~ : ExecutionManifestArea, index~ : Int)
-  MissingField(area~ : ExecutionManifestArea, index~ : Int)
+  JsonDepthExceeded(maximum~ : Int32)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(area~ : ExecutionManifestArea, index~ : Int32)
+  MissingField(area~ : ExecutionManifestArea, index~ : Int32)
   InvalidField(
     area~ : ExecutionManifestArea,
     issue~ : ExecutionManifestIssue,
-    index~ : Int
+    index~ : Int32
   )
   IdentityMismatch(ExecutionManifestIdentityPart)
   UnsupportedModelEnvelope

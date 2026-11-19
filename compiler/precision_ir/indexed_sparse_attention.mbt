@@ -3,45 +3,45 @@
 /// history have independent capacities. Pooling and stable index selection
 /// precede GQA attention; all intermediate sizes are computed before allocation.
 pub struct IndexedSparseAttentionPrecision {
-  priv index_heads : Int
-  priv index_dimension : Int
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv qk_dimension : Int
-  priv value_dimension : Int
-  priv pool_size : Int
-  priv top_k : Int
+  priv index_heads : Int32
+  priv index_dimension : Int32
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv qk_dimension : Int32
+  priv value_dimension : Int32
+  priv pool_size : Int32
+  priv top_k : Int32
   priv tail : Bool
-  priv queries : Int
-  priv history : Int
+  priv queries : Int32
+  priv history : Int32
   priv frame_sizes : ReadOnlyArray[Int64]
   priv workspace : Int64
   priv paging : @history.PagedHistoryDomain?
   priv accumulation : AttentionAccumulationLaw
   priv scoring : IndexScoringLaw
-  priv score_dimension : Int
+  priv score_dimension : Int32
   priv shared_key_value : Bool
 }
 
 ///|
 pub fn IndexedSparseAttentionPrecision::new(
-  index_head_count~ : Int,
-  index_head_dimension~ : Int,
-  query_head_count~ : Int,
-  key_value_head_count~ : Int,
-  query_key_dimension~ : Int,
-  value_dimension~ : Int,
-  pool_size~ : Int,
-  top_k~ : Int,
+  index_head_count~ : Int32,
+  index_head_dimension~ : Int32,
+  query_head_count~ : Int32,
+  key_value_head_count~ : Int32,
+  query_key_dimension~ : Int32,
+  value_dimension~ : Int32,
+  pool_size~ : Int32,
+  top_k~ : Int32,
   append_incomplete_tail~ : Bool,
-  maximum_queries~ : Int,
-  maximum_history~ : Int,
+  maximum_queries~ : Int32,
+  maximum_history~ : Int32,
   maximum_workspace_bytes~ : Int64,
   paged_history? : @history.PagedHistoryDomain,
-  attention_accumulation? : AttentionAccumulationLaw = OrderedFloat32,
-  index_scoring? : IndexScoringLaw = OrderedBFloat16,
-  score_dimension? : Int,
-  shared_key_value? : Bool = false,
+  attention_accumulation~ : AttentionAccumulationLaw = OrderedFloat32,
+  index_scoring~ : IndexScoringLaw = OrderedBFloat16,
+  score_dimension? : Int32,
+  shared_key_value~ : Bool = false,
 ) -> Self raise PrecisionPlanError {
   let score_dimension = score_dimension.unwrap_or(query_key_dimension)
   guard score_dimension > 0 &&
@@ -143,7 +143,7 @@ pub fn IndexedSparseAttentionPrecision::new(
 ///|
 pub fn IndexedSparseAttentionPrecision::index_geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Bool) {
+) -> (Int32, Int32, Int32, Int32, Bool) {
   (
     self.index_heads,
     self.index_dimension,
@@ -156,17 +156,17 @@ pub fn IndexedSparseAttentionPrecision::index_geometry(
 ///|
 pub fn IndexedSparseAttentionPrecision::attention_geometry(
   self : Self,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (self.query_heads, self.kv_heads, self.qk_dimension, self.value_dimension)
 }
 
 ///|
-pub fn IndexedSparseAttentionPrecision::capacity(self : Self) -> (Int, Int) {
+pub fn IndexedSparseAttentionPrecision::capacity(self : Self) -> (Int32, Int32) {
   (self.queries, self.history)
 }
 
 ///|
-pub fn IndexedSparseAttentionPrecision::selected_width(self : Self) -> Int {
+pub fn IndexedSparseAttentionPrecision::selected_width(self : Self) -> Int32 {
   self.top_k + (if self.tail { self.pool_size - 1 } else { 0 })
 }
 
@@ -190,7 +190,7 @@ pub fn IndexedSparseAttentionPrecision::paged_history(
 }
 
 ///|
-pub fn IndexedSparseAttentionPrecision::physical_history(self : Self) -> Int {
+pub fn IndexedSparseAttentionPrecision::physical_history(self : Self) -> Int32 {
   self.paging.map(d => d.physical_rows()).unwrap_or(self.history)
 }
 
@@ -209,7 +209,7 @@ pub fn IndexedSparseAttentionPrecision::index_scoring(
 }
 
 ///|
-pub fn IndexedSparseAttentionPrecision::score_dimension(self : Self) -> Int {
+pub fn IndexedSparseAttentionPrecision::score_dimension(self : Self) -> Int32 {
   self.score_dimension
 }
 

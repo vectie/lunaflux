@@ -5,15 +5,15 @@
 pub struct ProjectionWeightTransferPlan {
   priv map : ProjectionVectorTransferMap
   priv selection : ProjectionRowSelection
-  priv vectors_per_row : Int
+  priv vectors_per_row : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn ProjectionWeightTransferPlan::new(
   map : ProjectionVectorTransferMap,
   segments : ArrayView[ProjectionRowSegment],
-  row_width~ : Int,
-  vector_width~ : Int,
+  row_width~ : Int32,
+  vector_width~ : Int32,
 ) -> ProjectionWeightTransferPlan? {
   guard row_width > 0 && vector_width > 0 && row_width % vector_width == 0 else {
     return None
@@ -44,6 +44,12 @@ pub fn ProjectionWeightTransferPlan::row_selection(
 ///|
 pub fn ProjectionWeightTransferPlan::row_vectors(
   self : ProjectionWeightTransferPlan,
-) -> Int {
+) -> Int32 {
   self.vectors_per_row
 }
+
+///|
+pub extend ProjectionWeightTransferPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionWeightTransferPlan with Eq::{not_equal, equal}

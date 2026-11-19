@@ -2,7 +2,7 @@
 fn compressed_kv_operand(
   role : AdvancedDecoderLaunchOperandRole,
   bytes : Int64,
-  alignment? : Int64 = 2L,
+  alignment~ : Int64 = 2L,
 ) -> AdvancedDecoderLaunchOperand {
   try! AdvancedDecoderLaunchOperand::new(role~, byte_count=bytes, alignment~)
 }

@@ -1,6 +1,6 @@
 ///|
 test "selected sparse attention source fixes exact shared-KV sink ABI" {
-  let rendered = shared_key_value_selected_attention_bf16_source(
+  let rendered = @decoder_selected_sparse_attention_cuda_source.shared_key_value_selected_attention_bf16_source(
     query_head_count=64,
     head_dimension=512,
     selected_width=8320,
@@ -35,7 +35,7 @@ test "selected sparse attention source fixes exact shared-KV sink ABI" {
 ///|
 test "selected sparse attention source rejects hostile geometry and symbols" {
   try
-    shared_key_value_selected_attention_bf16_source(
+    @decoder_selected_sparse_attention_cuda_source.shared_key_value_selected_attention_bf16_source(
       query_head_count=0,
       head_dimension=512,
       selected_width=8320,
@@ -51,7 +51,7 @@ test "selected sparse attention source rejects hostile geometry and symbols" {
     _ => fail("zero heads admitted")
   }
   try
-    shared_key_value_selected_attention_bf16_source(
+    @decoder_selected_sparse_attention_cuda_source.shared_key_value_selected_attention_bf16_source(
       query_head_count=64,
       head_dimension=512,
       selected_width=8320,
@@ -67,7 +67,7 @@ test "selected sparse attention source rejects hostile geometry and symbols" {
     _ => fail("batch count above rows admitted")
   }
   try
-    shared_key_value_selected_attention_bf16_source(
+    @decoder_selected_sparse_attention_cuda_source.shared_key_value_selected_attention_bf16_source(
       query_head_count=64,
       head_dimension=512,
       selected_width=8320,

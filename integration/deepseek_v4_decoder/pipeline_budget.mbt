@@ -34,7 +34,7 @@ pub fn DeepSeekDecoderSlice::partition(
   ingress_bytes~ : Int64,
   egress_bytes~ : Int64,
   additional_stage_bytes~ : Int64,
-  with_state_backup? : Bool = false,
+  with_state_backup~ : Bool = false,
 ) -> @pipeline.DecoderPipelinePlan raise {
   guard self.first_layer == 0 && self.end_layer == self.spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement

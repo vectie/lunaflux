@@ -2,7 +2,7 @@
 fn manifest_module_index(
   modules : ArrayView[FullGraphManifestModule],
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, item in modules {
     if item.digest == digest {
       return Some(index)
@@ -16,7 +16,7 @@ fn manifest_entry_index(
   entries : ArrayView[FullGraphManifestEntry],
   family_id : @catalog.AotKernelFamilyId,
   entry_point_id : @catalog.AotKernelEntryPointId,
-) -> Int? {
+) -> Int32? {
   for index, entry in entries {
     if entry.family_id == family_id && entry.entry_point_id == entry_point_id {
       return Some(index)

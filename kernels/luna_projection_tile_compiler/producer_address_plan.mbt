@@ -16,7 +16,7 @@ pub extend ProjectionProducerAddressPlan with Eq::{equal, not_equal}
 ///|
 pub fn ProjectionPhysicalPipeline::producer_addresses(
   self : ProjectionPhysicalPipeline,
-  operand : Int,
+  operand : Int32,
 ) -> ProjectionProducerAddressPlan? {
   self.operands
   .region(operand)
@@ -34,7 +34,7 @@ pub fn ProjectionProducerAddressPlan::hoisted(
 /// (vectors, workers, invariant address slots per worker).
 pub fn ProjectionProducerAddressPlan::geometry(
   self : ProjectionProducerAddressPlan,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   self.region.ownership().geometry()
 }
 
@@ -43,8 +43,8 @@ pub fn ProjectionProducerAddressPlan::geometry(
 /// Returns row, reduction-vector offset and slot-relative shared offset.
 pub fn ProjectionProducerAddressPlan::at(
   self : ProjectionProducerAddressPlan,
-  worker : Int,
-  address_slot : Int,
-) -> (Int, Int, Int)? {
+  worker : Int32,
+  address_slot : Int32,
+) -> (Int32, Int32, Int32)? {
   self.region.copy_at(worker, address_slot)
 }

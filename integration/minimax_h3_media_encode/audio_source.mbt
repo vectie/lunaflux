@@ -6,7 +6,7 @@ pub struct AudioSource {
 
 ///|
 pub fn AudioSource::new(
-  samples~ : Int,
+  samples~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise @plan.PlanError {
   let plan = @audio.AudioEncoder::new(samples~, max_scratch_bytes~)
@@ -63,7 +63,7 @@ fn resolve_weight_arguments(
     layout.region_count() == manifest.tensors.length() else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
-  let tensors : Map[String, Int] = Map([])
+  let tensors : Map[String, Int32] = Map([])
   for i, tensor in manifest.tensors {
     tensors[tensor.name()] = i
   }

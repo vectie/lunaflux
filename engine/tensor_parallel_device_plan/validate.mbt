@@ -3,7 +3,7 @@ const MAX_INT64 : Int64 = 9223372036854775807L
 
 ///|
 fn tensor_reference(
-  index : Int,
+  index : Int32,
 ) -> @plan.TensorRef raise TensorParallelDevicePlanError {
   @plan.TensorRef::new(index) catch {
     _ => raise invalid(TensorReference, index)
@@ -14,7 +14,7 @@ fn tensor_reference(
 fn checked_bf16_bytes(
   rows : Int64,
   columns : Int64,
-  index : Int,
+  index : Int32,
 ) -> Int64 raise TensorParallelDevicePlanError {
   if rows <= 0L ||
     columns <= 0L ||
@@ -72,7 +72,7 @@ fn validate_operation_layout(
 ///|
 fn require_matrix(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
-  reference : Int,
+  reference : Int32,
 ) -> TensorParallelMatrixView raise TensorParallelDevicePlanError {
   let tensor = tensor_reference(reference)
   guard rank_plan.tensor(tensor) is Some(placement) else {

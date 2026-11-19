@@ -18,14 +18,14 @@ pub(all) enum Reference {
 ///|
 pub(all) enum Presentation {
   Text
-  Keyframes(ReadOnlyArray[(Int, @text_encoder.VisualGrid)])
+  Keyframes(ReadOnlyArray[(Int32, @text_encoder.VisualGrid)])
   References(ReadOnlyArray[Reference])
 }
 
 ///|
 pub struct Prompt {
-  token_ids : ReadOnlyArray[Int]
-  token_tags : ReadOnlyArray[Int]
+  token_ids : ReadOnlyArray[Int32]
+  token_tags : ReadOnlyArray[Int32]
   grids : ReadOnlyArray[@text_encoder.VisualGrid]
   placement : @text_encoder.VisualPlacement?
 }

@@ -63,8 +63,8 @@ pub fn FullGraphAotOperationArtifact::new(
   operands~ : ArrayView[@launch_contract.AotOperand],
   workspace_bytes~ : Int64,
   workspace_alignment~ : Int64,
-  row_variants? : ArrayView[@artifact.KernelRowVariant] = [],
-  companion_dimensions? : @launch_contract.AotLaunchDimensions? = None,
+  row_variants~ : ArrayView[@artifact.KernelRowVariant] = [],
+  companion_dimensions~ : @launch_contract.AotLaunchDimensions? = None,
 ) -> FullGraphAotOperationArtifact raise FullGraphManifestError {
   if operands.is_empty() || workspace_bytes < 0L || workspace_alignment <= 0L {
     raise Invalid(OperandContract)
@@ -147,9 +147,9 @@ pub fn FullGraphAotOperationArtifact::workspace_alignment(
 pub struct FullGraphExecutionManifestInput {
   priv bytes : Bytes
   priv digest_sha256 : String
-  priv module_count : Int
-  priv entry_point_count : Int
-  priv operation_count : Int
+  priv module_count : Int32
+  priv entry_point_count : Int32
+  priv operation_count : Int32
 }
 
 ///|
@@ -169,21 +169,21 @@ pub fn FullGraphExecutionManifestInput::digest_sha256(
 ///|
 pub fn FullGraphExecutionManifestInput::module_count(
   self : FullGraphExecutionManifestInput,
-) -> Int {
+) -> Int32 {
   self.module_count
 }
 
 ///|
 pub fn FullGraphExecutionManifestInput::entry_point_count(
   self : FullGraphExecutionManifestInput,
-) -> Int {
+) -> Int32 {
   self.entry_point_count
 }
 
 ///|
 pub fn FullGraphExecutionManifestInput::operation_count(
   self : FullGraphExecutionManifestInput,
-) -> Int {
+) -> Int32 {
   self.operation_count
 }
 

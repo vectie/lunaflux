@@ -13,16 +13,16 @@ priv struct DenoiserBindings[T] {
 // shares the production ordering algorithm with host-only regression fixtures.
 fn[T] denoiser_bindings(
   entries : ArrayView[(Packing, T)],
-  layer_count : Int,
-  refiner_count : Int,
+  layer_count : Int32,
+  refiner_count : Int32,
 ) -> DenoiserBindings[T] raise StartupError {
   guard layer_count > 0 && refiner_count > 0 else { raise InvalidPacking }
   let mut input = None
   let mut timestep = None
   let mut output = None
   let mut context = None
-  let layers : Map[Int, (@weights.BlockWeightPacking, T)] = Map([])
-  let refiners : Map[Int, (@weights.RefinerWeightPacking, T)] = Map([])
+  let layers : Map[Int32, (@weights.BlockWeightPacking, T)] = Map([])
+  let refiners : Map[Int32, (@weights.RefinerWeightPacking, T)] = Map([])
   for (packing, allocation) in entries {
     match packing {
       Input(p) => {

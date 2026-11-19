@@ -1,14 +1,14 @@
 ///|
-pub fn ModulationBindings::parameter_row_count(self : Self) -> Int {
+pub fn ModulationBindings::parameter_row_count(self : Self) -> Int32 {
   self.parameter_rows
 }
 
 ///|
 pub fn ModulationBindings::matches_geometry(
   self : Self,
-  rows~ : Int,
-  width~ : Int,
-  parameter_rows~ : Int,
+  rows~ : Int32,
+  width~ : Int32,
+  parameter_rows~ : Int32,
 ) -> Bool {
   self.rows == rows &&
   self.width == width &&
@@ -21,15 +21,15 @@ pub fn ModulationBindings::matches_geometry(
 pub struct ModulationBindings {
   priv indices : @device.Allocation
   priv offset : Int64
-  priv rows : Int
-  priv width : Int
-  priv parameter_rows : Int
+  priv rows : Int32
+  priv width : Int32
+  priv parameter_rows : Int32
 }
 
 ///|
 fn modulation_index_bytes(
-  indices : ArrayView[Int],
-  parameter_rows : Int,
+  indices : ArrayView[Int32],
+  parameter_rows : Int32,
 ) -> Bytes raise @device.DeviceError {
   guard indices.length() > 0 &&
     indices.length() <= 536870911 &&
@@ -57,10 +57,10 @@ fn modulation_index_bytes(
 pub fn ModulationBindings::upload(
   context : @device.Context,
   allocation : @device.Allocation,
-  indices : ArrayView[Int],
+  indices : ArrayView[Int32],
   offset~ : Int64,
-  width~ : Int,
-  parameter_rows~ : Int,
+  width~ : Int32,
+  parameter_rows~ : Int32,
 ) -> Self raise @device.DeviceError {
   guard width > 0 &&
     parameter_rows > 0 &&

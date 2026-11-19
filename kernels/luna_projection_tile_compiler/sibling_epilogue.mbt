@@ -19,8 +19,8 @@ pub extend ProjectionSiblingOwnership with Eq::{equal, not_equal}
 pub struct ProjectionSiblingEpiloguePlan {
   priv ownership : ProjectionSiblingOwnership
   priv distribution : ProjectionProductFoldDistribution
-  priv planes : Int
-  priv elements : Int
+  priv planes : Int32
+  priv elements : Int32
   priv effects : ProjectionMaterializationEffects
 } derive(Debug, Eq)
 
@@ -73,14 +73,14 @@ pub fn ProjectionSiblingEpiloguePlan::ownership(
 ///|
 pub fn ProjectionSiblingEpiloguePlan::result_planes(
   self : ProjectionSiblingEpiloguePlan,
-) -> Int {
+) -> Int32 {
   self.planes
 }
 
 ///|
 pub fn ProjectionSiblingEpiloguePlan::plane_elements(
   self : ProjectionSiblingEpiloguePlan,
-) -> Int {
+) -> Int32 {
   self.elements
 }
 

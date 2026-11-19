@@ -1,6 +1,6 @@
 ///|
 fn attention_output_inverse_rotary_operands_are_exact(
-  original_positions : Int,
+  original_positions : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,

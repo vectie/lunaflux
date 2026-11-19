@@ -7,7 +7,7 @@ pub fn EncoderWeights::prepare_streamed(
   root : @approved_fs.ApprovedRoot,
   component : @minimax_h3_host_materialization.MiniMaxH3StreamingComponent,
   max_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard !self.ready &&
     self.allocations.is_empty() &&

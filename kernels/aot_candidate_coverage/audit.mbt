@@ -5,7 +5,7 @@
 pub fn audit(
   source_identity~ : @spec.ModelIdentity,
   requirements_digest_sha256~ : String,
-  requirement_count~ : Int,
+  requirement_count~ : Int32,
   candidates~ : ArrayView[AotCandidateEvidenceInput],
   limits~ : AotCandidateCoverageLimits,
 ) -> AotCandidateCoverage raise AotCandidateCoverageError {
@@ -54,8 +54,8 @@ pub fn audit(
     owners[ordinal] = candidate_index
     ordered[ordinal] = Some(candidate)
   }
-  let missing : Array[Int] = []
-  let non_bindable : Array[Int] = []
+  let missing : Array[Int32] = []
+  let non_bindable : Array[Int32] = []
   for ordinal in 0..<requirement_count {
     match ordered[ordinal] {
       None => missing.push(ordinal)

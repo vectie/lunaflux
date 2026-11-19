@@ -41,7 +41,7 @@ pub(all) suberror TensorParallelAdmissionError {
   Rejected(
     area~ : TensorParallelAdmissionArea,
     reason~ : TensorParallelAdmissionReason,
-    rank~ : Int
+    rank~ : Int32
   )
 } derive(Debug, Eq)
 
@@ -49,7 +49,7 @@ pub(all) suberror TensorParallelAdmissionError {
 fn reject(
   area : TensorParallelAdmissionArea,
   reason : TensorParallelAdmissionReason,
-  rank : Int,
+  rank : Int32,
 ) -> TensorParallelAdmissionError {
   let bounded_rank = if rank >= 0 && rank < MAX_TENSOR_PARALLEL_RANKS {
     rank

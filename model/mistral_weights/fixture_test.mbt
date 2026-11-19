@@ -6,8 +6,8 @@ struct MistralFixtureEntry {
 
 ///|
 fn mistral_fixture_metadata(
-  content? : String = "1111111111111111111111111111111111111111111111111111111111111111",
-  window? : Int = 16,
+  content~ : String = "1111111111111111111111111111111111111111111111111111111111111111",
+  window~ : Int32 = 16,
 ) -> @mistral_spec.MistralModelMetadata {
   try! @mistral_spec.MistralModelMetadata::from_verified_content(
     @mistral_spec.MistralModelSpec::new(
@@ -63,9 +63,9 @@ fn mistral_fixture_elements(shape : ArrayView[Int64]) -> Int64 {
 
 ///|
 fn mistral_fixture_safetensors(
-  rename? : Int = -1,
-  shape_change? : Int = -1,
-  extra? : Bool = false,
+  rename~ : Int32 = -1,
+  shape_change~ : Int32 = -1,
+  extra~ : Bool = false,
 ) -> @safetensors.SafetensorsMetadata {
   let raw : Array[@safetensors.RawTensorMetadata] = []
   let mut offset = 0L
@@ -138,9 +138,9 @@ fn mistral_numeric_shape_json(shape : @numeric_contract.NumericShape) -> String 
 ///|
 fn mistral_fixture_numeric_file(
   plan : @plan.ModelPlan,
-  omit? : Int = -1,
-  extra? : Bool = false,
-  shape_change? : Int = -1,
+  omit~ : Int32 = -1,
+  extra~ : Bool = false,
+  shape_change~ : Int32 = -1,
 ) -> Bytes {
   let tensors = plan.numeric_binding().schema().tensors()
   let header = StringBuilder()

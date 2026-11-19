@@ -11,8 +11,8 @@ pub struct RotaryKvCudaSource {
 fn valid_symbol(symbol : StringView) -> Bool {
   !symbol.is_empty() &&
   symbol.length() <= 112 &&
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -81,17 +81,20 @@ pub fn RotaryKvCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn RotaryKvCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn RotaryKvCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.symbols[stage]
 }
 
 ///|
-pub fn RotaryKvCudaSource::launch(self : Self, stage : Int) -> (Int, Int, Int) {
+pub fn RotaryKvCudaSource::launch(
+  self : Self,
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (qh, kh, width, rotary, rows, _) = self.plan.geometry()
   let (block, _, _) = self.plan.simulation()
   if stage == 0 {
     (rows, qh + kh, 256)
   } else {
-    (rows, Int::max(1, kh * ((width - rotary) / block)), block)
+    (rows, Int32::max(1, kh * ((width - rotary) / block)), block)
   }
 }

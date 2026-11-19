@@ -1,10 +1,10 @@
 ///|
 pub struct ConditioningCopy {
-  rows : Int
+  rows : Int32
   destination_offset : Int64
   byte_count : Int64
   latent : @joint_diffusion_plan.JointDiffusionLatentKind?
-  input_width : Int
+  input_width : Int32
 }
 
 ///|

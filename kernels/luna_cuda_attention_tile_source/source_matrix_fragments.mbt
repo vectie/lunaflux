@@ -2,7 +2,7 @@
 /// CUDA-only register ownership for an ordered BF16 matrix fold. Both shared
 /// layouts are permutations; no extra storage or numerical reassociation.
 fn cuda_attention_matrix_fragments(
-  shared_scores? : Bool = true,
+  shared_scores~ : Bool = true,
   forwarded_right? : @luna_cuda_attention_tile_lowering.CudaPrefillFragmentBinding,
 ) -> String {
   let storage_index = if shared_scores {

@@ -22,12 +22,12 @@ pub(all) suberror DecoderWindowCompressedJoinCudaSourceError {
 pub struct DecoderWindowCompressedJoinCudaSource {
   priv operation : DecoderWindowCompressedJoinCudaOperation
   priv numerical_contract : DecoderWindowCompressedJoinNumericalContract
-  priv window_size : Int
-  priv compression_ratio : Int
-  priv maximum_position_count : Int
-  priv maximum_compressed_width : Int
-  priv maximum_joined_width : Int
-  priv maximum_rows : Int
+  priv window_size : Int32
+  priv compression_ratio : Int32
+  priv maximum_position_count : Int32
+  priv maximum_compressed_width : Int32
+  priv maximum_joined_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

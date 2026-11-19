@@ -3,9 +3,9 @@
 /// payloads or a device query. HTTP comparison/observation stays out of IR.
 fn luna_openai_model_response(
   alias : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-  context : Int,
+  offset : Int32,
+  length : Int32,
+  context : Int32,
 ) -> Bytes raise LunaOnlineTcpError {
   if offset < 0 ||
     length <= 0 ||

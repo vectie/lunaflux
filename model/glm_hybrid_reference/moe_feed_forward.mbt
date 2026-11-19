@@ -1,9 +1,9 @@
 ///|
 fn moe_expert_row(
   input : ArrayView[Double],
-  expert : Int,
-  hidden_width : Int,
-  intermediate_width : Int,
+  expert : Int32,
+  hidden_width : Int32,
+  intermediate_width : Int32,
   gate_weights : ArrayView[Double],
   up_weights : ArrayView[Double],
   down_weights : ArrayView[Double],
@@ -40,16 +40,16 @@ fn moe_expert_row(
 /// in ascending expert-id order, matching the correctness source contract.
 pub fn moe_routed_expert_feed_forward(
   input : ArrayView[Double],
-  selected_indices : ArrayView[Int],
+  selected_indices : ArrayView[Int32],
   selected_weights : ArrayView[Float],
   gate_weights : ArrayView[Double],
   up_weights : ArrayView[Double],
   down_weights : ArrayView[Double],
-  row_count~ : Int,
-  hidden_width~ : Int,
-  intermediate_width~ : Int,
-  expert_count~ : Int,
-  experts_per_token~ : Int,
+  row_count~ : Int32,
+  hidden_width~ : Int32,
+  intermediate_width~ : Int32,
+  expert_count~ : Int32,
+  experts_per_token~ : Int32,
   activation~ : @advanced_decoder_execution_plan.ExpertActivation,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmMoeFeedForwardResult raise GlmHybridReferenceError {
@@ -118,9 +118,9 @@ pub fn moe_shared_expert_feed_forward(
   gate_weights : ArrayView[Double],
   up_weights : ArrayView[Double],
   down_weights : ArrayView[Double],
-  row_count~ : Int,
-  hidden_width~ : Int,
-  intermediate_width~ : Int,
+  row_count~ : Int32,
+  hidden_width~ : Int32,
+  intermediate_width~ : Int32,
   activation~ : @advanced_decoder_execution_plan.ExpertActivation,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmMoeFeedForwardResult raise GlmHybridReferenceError {
@@ -145,8 +145,8 @@ pub fn moe_shared_expert_feed_forward(
 pub fn moe_routed_shared_combine(
   routed : ArrayView[Double],
   shared : ArrayView[Double],
-  row_count~ : Int,
-  hidden_width~ : Int,
+  row_count~ : Int32,
+  hidden_width~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmMoeFeedForwardResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)
@@ -166,12 +166,12 @@ pub fn moe_routed_shared_combine(
 }
 
 ///|
-pub fn GlmMoeFeedForwardResult::row_count(self : Self) -> Int {
+pub fn GlmMoeFeedForwardResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmMoeFeedForwardResult::hidden_width(self : Self) -> Int {
+pub fn GlmMoeFeedForwardResult::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 

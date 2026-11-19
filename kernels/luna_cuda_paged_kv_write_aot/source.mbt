@@ -1,17 +1,17 @@
 ///|
 fn paged_kv_write_source(
   symbol : String,
-  query_heads : Int,
-  kv_heads : Int,
-  head_dimension : Int,
-  kv_width : Int,
-  tokens_per_page : Int,
-  total_page_count : Int,
+  query_heads : Int32,
+  kv_heads : Int32,
+  head_dimension : Int32,
+  kv_width : Int32,
+  tokens_per_page : Int32,
+  total_page_count : Int32,
   page_stride_bytes : Int64,
-  max_rows : Int,
-  max_tokens : Int,
-  max_page_entries : Int,
-  dispatch_canary : UInt,
+  max_rows : Int32,
+  max_tokens : Int32,
+  max_page_entries : Int32,
+  dispatch_canary : UInt32,
 ) -> Bytes {
   let qkv_width = (query_heads + 2 * kv_heads) * head_dimension
   let key_begin = query_heads * head_dimension

@@ -4,7 +4,7 @@
 pub struct WorkerGraphTelemetrySlot {
   priv mut valid : Bool
   priv mut sequence : UInt64
-  priv mut path : Int
+  priv mut path : Int32
   priv mut shape_code : UInt64
   priv mut graph_hits : UInt64
   priv mut graph_misses : UInt64

@@ -3,12 +3,12 @@
 /// partition/merge alternative. The source digest binds all three symbols;
 /// the runtime resolves them once and captures separate execution graphs.
 fn qwen_decode_module_pair(
-  operation : Int,
+  operation : Int32,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   layout : @device_layout.DeviceKvLayout,
   compiled : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
   frontier : String,
-  selected_alias? : Bool = false,
+  selected_alias~ : Bool = false,
   selected_partition? : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
 ) -> (Bytes, Bytes) raise Qwen3Bf16CandidateExportCliError {
   let recipe = qwen_compiler_attention_recipe(
@@ -154,7 +154,7 @@ fn qwen_decode_partition_helpers(source : String) -> String {
   let output = StringBuilder()
   let mut identifier = ""
   for character in source {
-    if character is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_') {
+    if character is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_') {
       identifier += character.to_string()
     } else {
       if identifier.has_prefix("lf_") {

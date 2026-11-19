@@ -4,10 +4,10 @@
 pub(all) suberror LlamaWeightsError {
   ModelContentMismatch
   ModelPlanMismatch
-  TensorCountMismatch(expected~ : Int, actual~ : Int)
-  MissingTensor(reference~ : Int)
-  ShapeRankMismatch(reference~ : Int)
-  ShapeDimensionMismatch(reference~ : Int, axis~ : Int)
+  TensorCountMismatch(expected~ : Int32, actual~ : Int32)
+  MissingTensor(reference~ : Int32)
+  ShapeRankMismatch(reference~ : Int32)
+  ShapeDimensionMismatch(reference~ : Int32, axis~ : Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -46,7 +46,7 @@ pub fn LlamaWeightBindings::identity(
 }
 
 ///|
-pub fn LlamaWeightBindings::length(self : LlamaWeightBindings) -> Int {
+pub fn LlamaWeightBindings::length(self : LlamaWeightBindings) -> Int32 {
   self.bindings.length()
 }
 

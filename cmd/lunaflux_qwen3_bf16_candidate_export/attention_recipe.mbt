@@ -1,11 +1,11 @@
 ///|
 fn qwen_compiler_attention_recipe(
-  operation : Int,
+  operation : Int32,
   family : String,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   compiled : @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation,
   frontier_sha256? : String,
-  variant_stable_id? : Int,
+  variant_stable_id? : Int32,
 ) -> Bytes {
   let compiler = set.compiler_policy()
   let identity = compiler.identity()
@@ -94,7 +94,7 @@ fn qwen_compiler_attention_recipe(
 /// silently replacing the selected plan with the largest resource footprint.
 fn qwen_wide_query_prefill_variant(
   frontier : @luna_cuda_attention_tile_aot.CudaAttentionTileAotFrontier,
-  explicit_candidate? : Int,
+  explicit_candidate? : Int32,
 ) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation? {
   if explicit_candidate is Some(id) {
     for variant in frontier.variants() {
@@ -112,9 +112,9 @@ fn qwen_wide_query_prefill_variant(
 /// attention deliberately uses a different recipe constructor because it owns
 /// two entry points and a workspace.
 fn qwen_compiler_single_launch_record(
-  grid_x : Int,
-  grid_y : Int,
-  block_x : Int,
+  grid_x : Int32,
+  grid_y : Int32,
+  block_x : Int32,
   shared_memory_bytes : Int64,
 ) -> String {
   "\ngrid=" +
@@ -129,7 +129,7 @@ fn qwen_compiler_single_launch_record(
 
 ///|
 fn qwen_compiler_partitioned_attention_recipe(
-  operation : Int,
+  operation : Int32,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
   compiled : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
   frontier_sha256~ : String,
@@ -220,10 +220,10 @@ fn qwen_compiler_partitioned_attention_recipe(
 /// Canonical launch fragment for the partial and merge entry points emitted by
 /// the partitioned functional attention compilation.
 fn qwen_compiler_partitioned_launch_record(
-  grid_x : Int,
-  grid_y : Int,
-  partitions : Int,
-  block_x : Int,
+  grid_x : Int32,
+  grid_y : Int32,
+  partitions : Int32,
+  block_x : Int32,
   partial_shared_memory_bytes : Int64,
 ) -> String {
   "\npartial_grid=" +

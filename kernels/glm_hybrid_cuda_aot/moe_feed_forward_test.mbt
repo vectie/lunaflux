@@ -1,8 +1,8 @@
 ///|
 fn moe_feed_forward_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  stage : Int,
-) -> Int {
+  stage : Int32,
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match (stage, requirement.operation()) {
       (0, RoutedExpertFeedForward(_, _, _)) => return ordinal
@@ -17,7 +17,7 @@ fn moe_feed_forward_ordinal(
 ///|
 fn lower_moe_feed_forward_stage(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  stage : Int,
+  stage : Int32,
 ) -> GlmHybridMoeFeedForwardCudaCandidate raise GlmHybridCudaAotError {
   let ordinal = moe_feed_forward_ordinal(requirements, stage)
   match stage {

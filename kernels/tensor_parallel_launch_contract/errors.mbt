@@ -38,16 +38,16 @@ pub(all) enum TensorParallelLaunchContractRule {
 pub(all) suberror TensorParallelLaunchContractError {
   InvalidTensorParallelLaunchContract(
     rule~ : TensorParallelLaunchContractRule,
-    profile~ : Int,
-    operation~ : Int
+    profile~ : Int32,
+    operation~ : Int32
   )
 } derive(Debug, Eq)
 
 ///|
 fn invalid(
   rule : TensorParallelLaunchContractRule,
-  profile? : Int = -1,
-  operation? : Int = -1,
+  profile~ : Int32 = -1,
+  operation~ : Int32 = -1,
 ) -> TensorParallelLaunchContractError {
   InvalidTensorParallelLaunchContract(rule~, profile~, operation~)
 }

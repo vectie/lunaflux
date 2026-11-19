@@ -4,7 +4,7 @@ fn prepare_composite_function(
   module_bytes : Bytes,
   symbol : String,
   resources : PagedGraphResources,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   let module_index = resources.modules.length()
   let loaded = context.load_module(module_bytes) catch {
     error => raise ExecutorDevice(Module, error)
@@ -23,7 +23,7 @@ fn prepare_fused_qkv_readonly_resources(
   context : @device.Context,
   span : ApprovedFusedQkvReadOnlyAttentionSpan,
   resources : PagedGraphResources,
-) -> (Int, Int) raise DeviceStepError {
+) -> (Int32, Int32) raise DeviceStepError {
   let qkv = prepare_composite_function(
     context,
     span.qkv_module_bytes(),
@@ -91,7 +91,7 @@ fn composite_launch_dimensions(
 ///|
 fn prepare_composite_launch(
   operation : @plan.OperationId,
-  function_index : Int,
+  function_index : Int32,
   launch : @launch_contract.AotLaunchDimensions,
   bindings : ArrayView[PagedKvOperandBinding],
   descriptor : DeviceStepResources,
@@ -117,12 +117,12 @@ fn prepare_composite_launch(
 }
 
 ///|
-fn fused_qkv_production_argument_count() -> Int {
+fn fused_qkv_production_argument_count() -> Int32 {
   13
 }
 
 ///|
-fn readonly_attention_production_argument_count() -> Int {
+fn readonly_attention_production_argument_count() -> Int32 {
   10
 }
 
@@ -130,8 +130,8 @@ fn readonly_attention_production_argument_count() -> Int {
 fn prepare_fused_qkv_readonly_steps(
   blueprint : PagedKvExecutionBlueprint,
   span : ApprovedFusedQkvReadOnlyAttentionSpan,
-  qkv_function : Int,
-  readonly_function : Int,
+  qkv_function : Int32,
+  readonly_function : Int32,
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
@@ -271,9 +271,9 @@ fn[Step] replace_fused_qkv_readonly_span(
   baseline : ReadOnlyArray[Step],
   fused_qkv : Step,
   readonly_attention : Step,
-  qkv_index : Int,
-  rope_index : Int,
-  attention_index : Int,
+  qkv_index : Int32,
+  rope_index : Int32,
+  attention_index : Int32,
 ) -> ReadOnlyArray[Step] {
   let output : Array[Step] = []
   for index, step in baseline {

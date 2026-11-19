@@ -1,8 +1,8 @@
 ///|
 fn ValidatedPlanFrame::read_i32_at(
   self : ValidatedPlanFrame,
-  offset : Int,
-) -> Int raise WorkerWireError {
+  offset : Int32,
+) -> Int32 raise WorkerWireError {
   let owner = self.owner()
   read_i32(owner.storage, owner.frame_offset + offset)
 }
@@ -10,7 +10,7 @@ fn ValidatedPlanFrame::read_i32_at(
 ///|
 fn ValidatedPlanFrame::read_u64_at(
   self : ValidatedPlanFrame,
-  offset : Int,
+  offset : Int32,
 ) -> UInt64 raise WorkerWireError {
   let owner = self.owner()
   read_u64(owner.storage, owner.frame_offset + offset)
@@ -33,50 +33,50 @@ pub fn ValidatedPlanFrame::model_generation_value(
 ///|
 pub fn ValidatedPlanFrame::token_budget(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.read_i32_at(32)
 }
 
 ///|
 pub fn ValidatedPlanFrame::token_count(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.read_i32_at(36)
 }
 
 ///|
 pub fn ValidatedPlanFrame::page_count(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.read_i32_at(40)
 }
 
 ///|
 pub fn ValidatedPlanFrame::capability_count(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.read_i32_at(44)
 }
 
 ///|
 pub fn ValidatedPlanFrame::prefill_count(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.read_i32_at(48)
 }
 
 ///|
 pub fn ValidatedPlanFrame::decode_count(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.read_i32_at(52)
 }
 
 ///|
 pub fn ValidatedPlanFrame::token_at(
   self : ValidatedPlanFrame,
-  index : Int,
-) -> Int raise WorkerWireError {
+  index : Int32,
+) -> Int32 raise WorkerWireError {
   let count = self.token_count()
   if index < 0 || index >= count {
     raise InvalidFrame(TokenTable)
@@ -87,8 +87,8 @@ pub fn ValidatedPlanFrame::token_at(
 ///|
 pub fn ValidatedPlanFrame::page_index_at(
   self : ValidatedPlanFrame,
-  index : Int,
-) -> Int raise WorkerWireError {
+  index : Int32,
+) -> Int32 raise WorkerWireError {
   let count = self.page_count()
   if index < 0 || index >= count {
     raise InvalidFrame(PageTable)
@@ -99,8 +99,8 @@ pub fn ValidatedPlanFrame::page_index_at(
 ///|
 pub fn ValidatedPlanFrame::page_generation_at(
   self : ValidatedPlanFrame,
-  index : Int,
-) -> Int raise WorkerWireError {
+  index : Int32,
+) -> Int32 raise WorkerWireError {
   let count = self.page_count()
   if index < 0 || index >= count {
     raise InvalidFrame(PageTable)
@@ -111,8 +111,8 @@ pub fn ValidatedPlanFrame::page_generation_at(
 ///|
 pub fn ValidatedPlanFrame::capability_value_at(
   self : ValidatedPlanFrame,
-  index : Int,
-) -> Int raise WorkerWireError {
+  index : Int32,
+) -> Int32 raise WorkerWireError {
   let count = self.capability_count()
   if index < 0 || index >= count {
     raise InvalidFrame(CapabilityTable)
@@ -125,7 +125,7 @@ pub fn ValidatedPlanFrame::capability_value_at(
 ///|
 pub fn ValidatedPlanFrame::prefill_row(
   self : ValidatedPlanFrame,
-  index : Int,
+  index : Int32,
 ) -> PlanFramePrefillRow raise WorkerWireError {
   let owner = self.owner()
   if index < 0 || index >= read_i32(owner.storage, owner.frame_offset + 48) {
@@ -137,7 +137,7 @@ pub fn ValidatedPlanFrame::prefill_row(
 ///|
 pub fn ValidatedPlanFrame::decode_row(
   self : ValidatedPlanFrame,
-  index : Int,
+  index : Int32,
 ) -> PlanFrameDecodeRow raise WorkerWireError {
   let owner = self.owner()
   if index < 0 || index >= read_i32(owner.storage, owner.frame_offset + 52) {
@@ -149,7 +149,7 @@ pub fn ValidatedPlanFrame::decode_row(
 ///|
 fn PlanFramePrefillRow::offset(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   ignore(ValidatedPlanFrame(self.0, self.1).owner())
   prefill_table_offset(
     read_i32(self.0.storage, 36),
@@ -162,7 +162,7 @@ fn PlanFramePrefillRow::offset(
 ///|
 fn PlanFrameDecodeRow::offset(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   ignore(ValidatedPlanFrame(self.0, self.1).owner())
   decode_table_offset(
     read_i32(self.0.storage, 36),
@@ -190,49 +190,49 @@ pub fn PlanFramePrefillRow::request_generation_value(
 ///|
 pub fn PlanFramePrefillRow::sequence_token_start(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 16)
 }
 
 ///|
 pub fn PlanFramePrefillRow::token_start(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 20)
 }
 
 ///|
 pub fn PlanFramePrefillRow::token_length(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 24)
 }
 
 ///|
 pub fn PlanFramePrefillRow::page_start(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 28)
 }
 
 ///|
 pub fn PlanFramePrefillRow::page_length(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 32)
 }
 
 ///|
 pub fn PlanFramePrefillRow::capability_start(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 36)
 }
 
 ///|
 pub fn PlanFramePrefillRow::capability_length(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 40)
 }
 
@@ -246,7 +246,7 @@ pub fn PlanFramePrefillRow::produces_token(
 ///|
 pub fn PlanFramePrefillRow::sampling_mode_value(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_u32(self.0.storage, self.offset() + 48).reinterpret_as_int()
 }
 
@@ -260,14 +260,14 @@ pub fn PlanFramePrefillRow::sampling_seed_value(
 ///|
 pub fn PlanFramePrefillRow::sample_index(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 88)
 }
 
 ///|
 pub fn PlanFramePrefillRow::completion_slot(
   self : PlanFramePrefillRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 92)
 }
 
@@ -288,49 +288,49 @@ pub fn PlanFrameDecodeRow::request_generation_value(
 ///|
 pub fn PlanFrameDecodeRow::sequence_token_position(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 16)
 }
 
 ///|
 pub fn PlanFrameDecodeRow::token_start(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 20)
 }
 
 ///|
 pub fn PlanFrameDecodeRow::page_start(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 24)
 }
 
 ///|
 pub fn PlanFrameDecodeRow::page_length(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 28)
 }
 
 ///|
 pub fn PlanFrameDecodeRow::capability_start(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 32)
 }
 
 ///|
 pub fn PlanFrameDecodeRow::capability_length(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 36)
 }
 
 ///|
 pub fn PlanFrameDecodeRow::sampling_mode_value(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_u32(self.0.storage, self.offset() + 40).reinterpret_as_int()
 }
 
@@ -344,13 +344,13 @@ pub fn PlanFrameDecodeRow::sampling_seed_value(
 ///|
 pub fn PlanFrameDecodeRow::sample_index(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 80)
 }
 
 ///|
 pub fn PlanFrameDecodeRow::completion_slot(
   self : PlanFrameDecodeRow,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 84)
 }

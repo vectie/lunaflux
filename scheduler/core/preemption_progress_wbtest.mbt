@@ -1,5 +1,5 @@
 ///|
-fn finite_oversubscribed_progress(waiting_age : Int) -> Int raise {
+fn finite_oversubscribed_progress(waiting_age : Int32) -> Int32 raise {
   let owner = wb_owner_with_capacity(1, 2, waiting_age~)
   ignore(owner.admit(wb_request(1801UL, max_new_tokens=4), 0UL))
   ignore(owner.admit(wb_request(1802UL, max_new_tokens=4), 0UL))

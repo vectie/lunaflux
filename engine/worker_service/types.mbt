@@ -96,7 +96,7 @@ pub struct FailedOwnedWorkerServicePreparation {
   priv mut initial : @worker_process.FailedRootBoundWorkerProcessStartup?
   priv mut ready_process : @worker_process.RootBoundWorkerProcessSupervisor?
   priv mut group : @tensor_parallel_group_transport.TensorParallelGroupTransport?
-  priv mut cause_kind : Int
+  priv mut cause_kind : Int32
   priv mut service_cause : WorkerServiceError?
   priv process_cause : @worker_process.RootBoundWorkerProcessError?
   priv mut cleanup_process_failure : @worker_process.RootBoundWorkerProcessError?
@@ -106,31 +106,31 @@ pub struct FailedOwnedWorkerServicePreparation {
 }
 
 ///|
-const MAINTENANCE_NONE : Int = 0
+const MAINTENANCE_NONE : Int32 = 0
 
 ///|
-const MAINTENANCE_RECOVERY : Int = 1
+const MAINTENANCE_RECOVERY : Int32 = 1
 
 ///|
-const MAINTENANCE_SHUTDOWN : Int = 2
+const MAINTENANCE_SHUTDOWN : Int32 = 2
 
 ///|
-const MAINTENANCE_REPLACEMENT_CLEANUP : Int = 3
+const MAINTENANCE_REPLACEMENT_CLEANUP : Int32 = 3
 
 ///|
-const MAINTENANCE_CHILD : Int = 1
+const MAINTENANCE_CHILD : Int32 = 1
 
 ///|
-const MAINTENANCE_RETIRE : Int = 2
+const MAINTENANCE_RETIRE : Int32 = 2
 
 ///|
-const MAINTENANCE_INVALIDATE : Int = 3
+const MAINTENANCE_INVALIDATE : Int32 = 3
 
 ///|
-const MAINTENANCE_DRAIN : Int = 4
+const MAINTENANCE_DRAIN : Int32 = 4
 
 ///|
-const MAINTENANCE_BEGIN_CLOSE : Int = 5
+const MAINTENANCE_BEGIN_CLOSE : Int32 = 5
 
 ///|
 pub(all) enum OwnedWorkerServicePreparationState {
@@ -204,7 +204,7 @@ pub struct WorkerRestartBackoffPolicy {
   priv initial_delay_millis : UInt64
   priv maximum_delay_millis : UInt64
   priv stable_success_millis : UInt64
-  priv maximum_attempts : Int
+  priv maximum_attempts : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -213,7 +213,7 @@ pub struct WorkerRestartBackoffPolicy {
 /// package.
 #valtype
 pub(all) enum OnlineWorkerRestartProgress {
-  OnlineWorkerRestartWaiting(Int)
+  OnlineWorkerRestartWaiting(Int32)
   OnlineWorkerRestarted
   OnlineWorkerRestartCleanupRequired
   OnlineWorkerRestartForbidden
@@ -245,8 +245,8 @@ pub struct WorkerService {
   priv mut transport : WorkerPhysicalTransport
   priv mut flight : WorkerFlightState
   priv mut pending_plan_sequence : UInt64
-  priv mut maintenance_mode : Int
-  priv mut maintenance_phase : Int
+  priv mut maintenance_mode : Int32
+  priv mut maintenance_phase : Int32
   priv mut maintenance_failure : @worker_protocol.WorkerFailure
   priv mut lifecycle : WorkerServiceLifecycle
   priv production_owned : Bool
@@ -265,12 +265,12 @@ pub struct OnlineWorkerLease {
   priv mut epoch : UInt64
   priv mut clock : @monotonic_clock.MonotonicClock
   priv restart_policy : WorkerRestartBackoffPolicy
-  priv mut restart_attempts : Int
+  priv mut restart_attempts : Int32
   priv mut restart_generation : UInt64
-  priv mut restart_phase : Int
+  priv mut restart_phase : Int32
   priv mut restart_delay_millis : UInt64
   priv mut restart_deadline_millis : UInt64
-  priv mut restart_cached_remaining_millis : Int
+  priv mut restart_cached_remaining_millis : Int32
   priv mut restart_stability_generation : UInt64
   priv mut restart_stability_deadline_millis : UInt64
   priv mut restart_stability_predecessor : UInt64
@@ -279,7 +279,7 @@ pub struct OnlineWorkerLease {
   priv mut restart_forbidden : Bool
   priv mut prepared_admission : @core.PreparedExclusiveAdmission?
   priv prepared_clock_read : @monotonic_clock.PreparedMonotonicRead
-  priv lane_phases : FixedArray[Int]
+  priv lane_phases : FixedArray[Int32]
   priv lane_generations : FixedArray[UInt64]
   priv lane_handles : FixedArray[Array[@core.RequestHandle]]
   priv lane_semantic_retentions : FixedArray[
@@ -289,20 +289,20 @@ pub struct OnlineWorkerLease {
   priv lane_cut_source_generations : FixedArray[@inference.RequestGeneration]
   // 0 none, 1 exact waiting request survived invalidation, 2 an exact
   // WorkerFailed terminal is already pending for post-restart retirement.
-  priv lane_restart_dispositions : FixedArray[Int]
-  priv lane_expected_positions : FixedArray[Int]
+  priv lane_restart_dispositions : FixedArray[Int32]
+  priv lane_expected_positions : FixedArray[Int32]
   priv lane_device_retired : FixedArray[Bool]
-  priv mut device_retirement_lane : Int
-  priv free_lanes : FixedArray[Int]
-  priv mut free_head : Int
-  priv mut free_count : Int
-  priv mut active_lane_count : Int
+  priv mut device_retirement_lane : Int32
+  priv free_lanes : FixedArray[Int32]
+  priv mut free_head : Int32
+  priv mut free_count : Int32
+  priv mut active_lane_count : Int32
   // Compatibility methods authenticate one exact fixed lane and reject while
   // more than that lane is live. Production aggregates use request handles.
-  priv mut compatibility_lane : Int
+  priv mut compatibility_lane : Int32
   priv mut compatibility_generation : UInt64
   priv mut publication_cursor : UInt64
-  priv mut cancel_lane : Int
+  priv mut cancel_lane : Int32
   priv mut cancel_generation : UInt64
 }
 
@@ -314,7 +314,7 @@ pub struct OnlineWorkerLease {
 pub struct LunaOnlineWorkerRequest {
   priv lease : OnlineWorkerLease
   priv lease_epoch : UInt64
-  priv lane : Int
+  priv lane : Int32
   priv generation : UInt64
 }
 
@@ -331,10 +331,10 @@ pub(all) enum LunaOnlineWorkerAdmissionKind {
 /// can be extracted only from an admitted result.
 #valtype
 pub struct LunaOnlineWorkerAdmission {
-  priv disposition : Int
+  priv disposition : Int32
   priv lease : OnlineWorkerLease
   priv lease_epoch : UInt64
-  priv lane : Int
+  priv lane : Int32
   priv generation : UInt64
 }
 
@@ -361,7 +361,7 @@ pub(all) enum OnlineWorkerTerminalReason {
 /// remain private. Its route is the caller-owned scalar copied at admission;
 /// it grants no scheduler or lane mutation authority.
 #valtype
-pub struct OnlineWorkerPublication(Int, Int, Int, UInt64, Int, UInt64)
+pub struct OnlineWorkerPublication(Int32, Int32, Int32, UInt64, Int32, UInt64)
 
 ///|
 #valtype

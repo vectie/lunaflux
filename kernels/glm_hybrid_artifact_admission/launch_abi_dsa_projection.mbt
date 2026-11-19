@@ -1,8 +1,8 @@
 ///|
 fn exact_dsa_a_projection_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  input_width : Int,
-  output_width : Int,
+  input_width : Int32,
+  output_width : Int32,
   input_is_hidden : Bool,
   input_role : GlmHybridLaunchOperandRole,
   output_role : GlmHybridLaunchOperandRole,
@@ -49,7 +49,7 @@ fn exact_dsa_a_projection_abi(
 ///|
 fn exact_dsa_query_a_norm_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  width : Int,
+  width : Int32,
   epsilon : Double,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
@@ -84,7 +84,7 @@ fn exact_dsa_kv_split_norm_abi(
   epsilon : Double,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
-  let mut geometry : (Int, Int)? = None
+  let mut geometry : (Int32, Int32)? = None
   for item in requirements.requirements() {
     if item.operation() is DsaKeyValueAProjection(_, prefix, suffix) {
       if geometry is Some(_) {

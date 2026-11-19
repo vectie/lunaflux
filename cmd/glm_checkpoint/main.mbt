@@ -70,7 +70,7 @@ async fn main {
       token_ids.length() <= 1048576 else {
       fail("invalid token-frame envelope")
     }
-    let tokens : Array[Int] = []
+    let tokens : Array[Int32] = []
     for id in token_ids.split(",") {
       guard tokens.length() < history - 1 else {
         fail("prompt exhausts reserved context")

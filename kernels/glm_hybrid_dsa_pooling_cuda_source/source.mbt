@@ -3,8 +3,8 @@ fn valid_dsa_pooling_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -12,9 +12,9 @@ fn valid_dsa_pooling_symbol(symbol : StringView) -> Bool {
 /// serial launch makes pool compaction and floating-point reduction order
 /// explicit. Unused output capacity is deterministically cleared.
 pub fn dsa_key_pool_compression_bf16_source(
-  head_dimension~ : Int,
-  pool_size~ : Int,
-  maximum_tokens~ : Int,
+  head_dimension~ : Int32,
+  pool_size~ : Int32,
+  maximum_tokens~ : Int32,
   function_symbol~ : String,
 ) -> GlmHybridDsaPoolingCudaSource raise GlmHybridDsaPoolingCudaSourceError {
   if head_dimension <= 0 || head_dimension > 65536 {

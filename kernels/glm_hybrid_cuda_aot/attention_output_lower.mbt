@@ -4,8 +4,8 @@
 /// part of the exact renderer ABI and bounds the active row prefix.
 pub fn lower_attention_output_projection_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

@@ -27,24 +27,24 @@ pub fn CommittedDraftPhase::effect(self : Self) -> NumericEffect {
 /// draft values never enter the committed ring. Physical slot order is part of
 /// the numerical contract, not a backend-specific scheduling choice.
 pub struct CommittedDraftKvPrecision {
-  priv heads : Int
-  priv width : Int
-  priv window : Int
-  priv main_rows : Int
-  priv draft_rows : Int
-  priv positions : Int
+  priv heads : Int32
+  priv width : Int32
+  priv window : Int32
+  priv main_rows : Int32
+  priv draft_rows : Int32
+  priv positions : Int32
   priv sizes : ReadOnlyArray[Int64]
   priv bytes : Int64
 }
 
 ///|
 pub fn CommittedDraftKvPrecision::new(
-  query_heads~ : Int,
-  head_width~ : Int,
-  window_tokens~ : Int,
-  maximum_main_rows~ : Int,
-  maximum_draft_rows~ : Int,
-  maximum_positions~ : Int,
+  query_heads~ : Int32,
+  head_width~ : Int32,
+  window_tokens~ : Int32,
+  maximum_main_rows~ : Int32,
+  maximum_draft_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_state_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
   guard query_heads > 0 &&
@@ -92,7 +92,7 @@ pub fn CommittedDraftKvPrecision::new(
 ///|
 pub fn CommittedDraftKvPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32, Int32) {
   (
     self.heads,
     self.width,
@@ -126,10 +126,10 @@ pub fn CommittedDraftKvPrecision::effect(self : Self) -> NumericEffect {
 /// row. In particular, the read set is independent of the query's draft index.
 pub fn CommittedDraftKvPrecision::visible_main_slots(
   self : Self,
-  committed_position : Int,
-) -> Int raise PrecisionPlanError {
+  committed_position : Int32,
+) -> Int32 raise PrecisionPlanError {
   guard committed_position > 0 && committed_position < self.positions else {
     raise IllegalPlacement
   }
-  Int::min(self.window, committed_position + 1)
+  Int32::min(self.window, committed_position + 1)
 }

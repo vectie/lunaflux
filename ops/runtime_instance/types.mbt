@@ -31,7 +31,7 @@ pub(all) enum RuntimeInstanceReadiness {
 /// carries no model identity, request data, filesystem path, or credential.
 #valtype
 pub struct RuntimeStartupMeasurement {
-  priv cold_start_latency_millis : Int
+  priv cold_start_latency_millis : Int32
   priv readiness : RuntimeInstanceReadiness
 }
 
@@ -179,18 +179,18 @@ pub struct RuntimeInstanceOwner {
   priv borrowed_roots : Array[@approved_fs.ApprovedRoot]
   priv addr : @socket.Addr
   priv transport : @online_tcp.LunaOnlineTcpLimits
-  priv telemetry_capacity : Int
-  priv connection_capacity : Int
-  priv request_work_units : Int
-  priv event_work_units : Int
+  priv telemetry_capacity : Int32
+  priv connection_capacity : Int32
+  priv request_work_units : Int32
+  priv event_work_units : Int32
   priv receipt_deadline : @inference.DeadlineBudget
   priv loopback_openai_allowed : Bool
   priv openai_listener_allowed : Bool
   priv clock : @monotonic_clock.MonotonicClock
   priv started_at_millis : UInt64
   priv mut cold_start_recorded : Bool
-  priv mut cold_start_latency_millis : Int
-  priv mut control_deferred_transitions : Int
+  priv mut cold_start_latency_millis : Int32
+  priv mut control_deferred_transitions : Int32
 }
 
 ///|

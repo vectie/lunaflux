@@ -1,11 +1,11 @@
 ///|
 suberror TestSinkError {
-  Stop(Int)
+  Stop(Int32)
 } derive(Debug, Eq)
 
 ///|
 fn count_visit(
-  visits : Ref[Int],
+  visits : Ref[Int32],
   _chunk : @materialize.TensorChunk,
 ) -> Unit raise TestSinkError {
   visits.val = visits.val + 1
@@ -18,7 +18,7 @@ fn count_visit(
 test "visitor receives exact bytes in semantic TensorRef order" {
   let bindings = test_bindings()
   let file = test_file(bindings.materialized_bytes().to_int())
-  let references : Array[Int] = []
+  let references : Array[Int32] = []
   let first_bytes : Array[Byte] = []
   let file_offsets : Array[Int64] = []
   let result = @materialize.visit(bindings, file, limits=test_limits(), chunk => {
@@ -71,7 +71,7 @@ test "host materialization copies exact tensor bytes under its own bound" {
 test "callback failure propagates unchanged and stops ordered delivery" {
   let bindings = test_bindings()
   let file = test_file(bindings.materialized_bytes().to_int())
-  let visited : Array[Int] = []
+  let visited : Array[Int32] = []
   try
     @materialize.visit(bindings, file, limits=test_limits(), chunk => {
       let reference = chunk.reference().as_int()

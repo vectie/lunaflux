@@ -1,12 +1,12 @@
 ///|
 fn bootstrap_test_startup(
   source_digest : @worker_wire.WorkerBootstrapSourceDigest,
-  content? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  inference_context? : Int = 16,
-  inference_token_id? : Int = 7,
-  plan_rows? : Int = 1,
-  plan_tokens? : Int = 4,
-  plan_pages? : Int = 2,
+  content~ : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  inference_context~ : Int32 = 16,
+  inference_token_id~ : Int32 = 7,
+  plan_rows~ : Int32 = 1,
+  plan_tokens~ : Int32 = 4,
+  plan_pages~ : Int32 = 2,
 ) -> @worker_wire.WorkerStartupContract raise {
   let identity = @spec.ModelIdentity::new(
     @spec.ContentDigest::from_sha256(content),
@@ -283,9 +283,9 @@ test "weight header is independent of config bytes and admits arena padding" {
 
 ///|
 fn orchestration_fixture(
-  fail_kernel? : Bool = false,
-  fail_model? : Bool = false,
-  mismatch? : Bool = false,
+  fail_kernel~ : Bool = false,
+  fail_model~ : Bool = false,
+  mismatch~ : Bool = false,
 ) -> (Array[String], DeviceWorkerBootstrapPreparation) raise {
   let source = bootstrap_test_source()
   let startup = bootstrap_test_startup(source.digest())

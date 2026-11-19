@@ -1,7 +1,7 @@
 ///|
 fn dense_swiglu_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is DenseSwiGlu(_, _) {
       return ordinal

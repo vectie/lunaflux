@@ -20,7 +20,7 @@ fn tokenizer_limits() -> @tokenizer.TokenizerLimits {
 }
 
 ///|
-fn corpus_int(value : Json) -> Int raise {
+fn corpus_int(value : Json) -> Int32 raise {
   guard value is Number(number, repr=_) else {
     fail("corpus token ID must be a number")
   }
@@ -32,7 +32,7 @@ fn corpus_int(value : Json) -> Int raise {
 }
 
 ///|
-fn corpus_ids(value : Json) -> Array[Int] raise {
+fn corpus_ids(value : Json) -> Array[Int32] raise {
   guard value is Array(values) else {
     fail("corpus token IDs must be an array")
   }

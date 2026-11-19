@@ -13,53 +13,53 @@ priv enum SliceState {
 /// request metadata and startup-narrowed token tables remain caller-owned.
 pub struct DeepSeekDecoderSlice {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv first_layer : Int
-  priv end_layer : Int
-  priv maximum_rows : Int
+  priv first_layer : Int32
+  priv end_layer : Int32
+  priv maximum_rows : Int32
   priv residual_bytes : Int64
   priv layers : Array[StageLayer]
-  priv capture_layers : ReadOnlyArray[Int]
+  priv capture_layers : ReadOnlyArray[Int32]
   priv capture : @capture.StreamMeanCaptureFrame?
   priv buffers : Array[@device.Allocation]
   priv descriptors : Array[@device.Allocation]
   priv mut queue : @device.OrderedKernelExecutor?
-  priv mut launch_count : Int
+  priv mut launch_count : Int32
   priv mut state : SliceState
 }
 
 ///|
 pub fn DeepSeekDecoderSlice::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  first_layer~ : Int,
-  end_layer~ : Int,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  first_layer~ : Int32,
+  end_layer~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_layer_state_bytes~ : Int64,
   maximum_layer_workspace_bytes~ : Int64,
   maximum_layer_expert_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
-  routing_projection_law? : @precision.DotReductionLaw = OrderedFloat32,
-  routing_softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
-  routing_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
-  shared_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  capture_prediction_inputs? : Bool = false,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
-  output_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  routing_projection_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  routing_softplus_law~ : @precision.SoftplusEvaluationLaw = StableFloat32,
+  routing_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
+  shared_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  capture_prediction_inputs~ : Bool = false,
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation~ : @precision.DotReductionLaw = OrderedFloat32,
+  output_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
-  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
-  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
-  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
-  control_matrix_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  matrix_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
-  control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
-  normalization_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  control_square_law~ : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law~ : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
+  control_root_law~ : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  normalization_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -174,7 +174,7 @@ pub fn DeepSeekDecoderSlice::new(
 }
 
 ///|
-pub fn DeepSeekDecoderSlice::layer_range(self : Self) -> (Int, Int) {
+pub fn DeepSeekDecoderSlice::layer_range(self : Self) -> (Int32, Int32) {
   (self.first_layer, self.end_layer)
 }
 
@@ -223,12 +223,12 @@ pub fn DeepSeekDecoderSlice::prepare(
   input~ : @device.Allocation,
   output~ : @device.Allocation,
   token_ids? : @device.Allocation,
-  token_tables? : ArrayView[@device.Allocation] = [],
+  token_tables~ : ArrayView[@device.Allocation] = [],
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
-  prefix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
-  suffix_launches? : ArrayView[@device.OrderedKernelLaunch] = [],
+  prefix_launches~ : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix_launches~ : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise {
   guard self.state is Fresh else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -334,14 +334,14 @@ pub fn DeepSeekDecoderSlice::append_descriptors(
 }
 
 ///|
-pub fn DeepSeekDecoderSlice::launch_count(self : Self) -> Int {
+pub fn DeepSeekDecoderSlice::launch_count(self : Self) -> Int32 {
   self.launch_count
 }
 
 ///|
 pub fn DeepSeekDecoderSlice::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   guard self.state is Prepared && self.queue is Some(queue) else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)

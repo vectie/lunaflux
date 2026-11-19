@@ -1,7 +1,7 @@
 ///|
 fn dataflow_test_program(
   bindings : Array[ProjectionTileBinding],
-  root : Int,
+  root : Int32,
 ) -> ProjectionTileProgram raise {
   let request = ProjectionTileCompilerRequest::new(
     dispatch=projection_compiler_dispatch(Qkv),
@@ -23,7 +23,7 @@ fn dataflow_test_program(
 
 ///|
 fn dataflow_test_binding(
-  id : Int,
+  id : Int32,
   kind : ProjectionTileValueKind,
   expression : ProjectionTileExpression,
 ) -> ProjectionTileBinding {

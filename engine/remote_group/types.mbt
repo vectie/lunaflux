@@ -19,7 +19,7 @@ pub(all) suberror RemoteGroupError {
   State
   Binding
   Deadline
-  RankLost(Int)
+  RankLost(Int32)
   Protocol
 }
 
@@ -43,7 +43,7 @@ pub struct RemoteGroup {
   priv rx : FixedArray[Byte]
   priv payload : FixedArray[Byte]
   priv clock : @monotonic_clock.ReusableMonotonicRead
-  priv phases : FixedArray[Int]
+  priv phases : FixedArray[Int32]
   priv reports : FixedArray[@worker_wire.WorkerGraphTelemetrySlot]
   priv timeout : UInt64
   priv mut deadline : UInt64
@@ -52,7 +52,7 @@ pub struct RemoteGroup {
   priv mut slot : @wire.RankGroupWireSlot
   priv mut sequence : UInt64
   priv mut epoch : UInt64
-  priv mut cursor : Int
+  priv mut cursor : Int32
 }
 
 ///|
@@ -68,7 +68,7 @@ pub fn RemoteGroup::previous_plan_sequence_value(self : RemoteGroup) -> UInt64 {
 ///|
 pub fn RemoteGroup::mailbox(
   self : RemoteGroup,
-  rank : Int,
+  rank : Int32,
 ) -> @remote_mailbox.RemoteMailbox raise RemoteGroupError {
   if rank < 0 || rank >= 2 {
     raise Configuration
@@ -167,7 +167,7 @@ pub fn RemoteGroup::taken_failure(
 ///|
 pub fn RemoteGroup::confirm_release(
   self : RemoteGroup,
-  rank : Int,
+  rank : Int32,
   receipt : @remote_release.RemoteReleaseReceipt,
 ) -> Unit raise {
   if rank < 0 || rank >= 2 || self.lifecycle != Faulted {

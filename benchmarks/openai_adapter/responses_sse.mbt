@@ -1,7 +1,7 @@
 ///|
 fn openai_responses_decode_event(
   storage : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> String raise OpenAIBaselineAdapterError {
   let bytes = Bytes::makei(length, fn(index) { storage[index] })
   @utf8.decode(bytes) catch {
@@ -12,8 +12,8 @@ fn openai_responses_decode_event(
 ///|
 fn OpenAIResponsesTrialObserver::observe_sse_event(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
-  event_length : Int,
+  request_ordinal : Int32,
+  event_length : Int32,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
   let event = openai_responses_decode_event(lane.event_storage, event_length)
@@ -90,7 +90,7 @@ fn OpenAIResponsesTrialObserver::observe_sse_event(
 /// parser accepts only one-data-line events and exact measured semantics.
 pub fn OpenAIResponsesTrialObserver::offer_sse_bytes(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   source : BytesView,
 ) -> Unit raise OpenAIBaselineAdapterError {
   if self.captured_mode {
@@ -102,7 +102,7 @@ pub fn OpenAIResponsesTrialObserver::offer_sse_bytes(
 ///|
 fn OpenAIResponsesTrialObserver::offer_sse_bytes_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   source : BytesView,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)
@@ -133,7 +133,7 @@ fn OpenAIResponsesTrialObserver::offer_sse_bytes_observed(
 ///|
 pub fn OpenAIResponsesTrialObserver::offer_sse_bytes_captured(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   source : BytesView,
   timestamp : @runner.CapturedMonotonicTimestamp,
 ) -> Unit raise OpenAIBaselineAdapterError {

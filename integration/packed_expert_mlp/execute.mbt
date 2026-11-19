@@ -3,16 +3,16 @@
 pub struct MoeReduction {
   priv owner : @device.TensorCollectiveOwner
   priv generation : UInt64
-  priv site_sequence : Int
-  priv operation_id : Int
+  priv site_sequence : Int32
+  priv operation_id : Int32
 }
 
 ///|
 pub fn MoeReduction::new(
   owner : @device.TensorCollectiveOwner,
   generation~ : UInt64,
-  site_sequence~ : Int,
-  operation_id~ : Int,
+  site_sequence~ : Int32,
+  operation_id~ : Int32,
 ) -> Self {
   { owner, generation, site_sequence, operation_id, }
 }
@@ -20,8 +20,8 @@ pub fn MoeReduction::new(
 ///|
 fn MoeReduction::validate_shape(
   self : Self,
-  rows : Int,
-  width : Int,
+  rows : Int32,
+  width : Int32,
 ) -> Unit raise @device.DeviceError {
   self.owner.validate_sum_site(
     site_sequence=self.site_sequence,
@@ -49,8 +49,8 @@ pub struct MoeExecutor {
   priv stream : @device.Stream
   priv routed_output : @device.Allocation
   priv reduction : MoeReduction?
-  priv maximum_rows : Int
-  priv routed_count : Int
+  priv maximum_rows : Int32
+  priv routed_count : Int32
   priv mut state : MoeExecutionState
   priv mut reduction_complete : Bool
 }
@@ -63,9 +63,9 @@ pub fn prepare_moe(
   shared : ArrayView[@device.OrderedKernelLaunch],
   finalize : @device.OrderedKernelLaunch,
   routed_output~ : @device.Allocation,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   reduction? : MoeReduction,
-  post_reduction_routed_kernels? : Int = 0,
+  post_reduction_routed_kernels~ : Int32 = 0,
 ) -> MoeExecutor raise @device.DeviceError {
   guard !routed.is_empty() &&
     !shared.is_empty() &&
@@ -105,7 +105,7 @@ fn MoeExecutor::enqueue_tail(self : Self) -> Unit raise @device.DeviceError {
 /// diagnostic readback or launch-pack allocation occurs here.
 pub fn MoeExecutor::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
   plan_sequence~ : UInt64,
   global_sequence~ : UInt64,
 ) -> Unit raise @device.DeviceError {

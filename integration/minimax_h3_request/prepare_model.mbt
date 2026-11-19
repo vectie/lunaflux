@@ -24,8 +24,8 @@ pub fn Request::prepare_model(
   parameter_offset~ : Int64,
   video_update~ : @device.Function,
   audio_update~ : @device.Function,
-  video_block_size~ : Int,
-  audio_block_size~ : Int,
+  video_block_size~ : Int32,
+  audio_block_size~ : Int32,
 ) -> Unit raise {
   guard !self.attempted &&
     !self.closed &&

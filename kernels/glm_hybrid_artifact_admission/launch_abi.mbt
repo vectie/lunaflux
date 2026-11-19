@@ -20,7 +20,7 @@ fn exact_rows(byte_count : Int64, row_bytes : Int64) -> Int64? {
 fn valid_function_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -54,7 +54,7 @@ fn operand_is(
 fn exact_launch(
   launch : @launch_contract.AotLaunchDimensions,
   work : Int64,
-  shared_memory_bytes : Int,
+  shared_memory_bytes : Int32,
 ) -> Bool {
   if work <= 0L || work > 9223372036854775552L {
     return false
@@ -178,8 +178,8 @@ fn exact_language_model_head_abi(
 ///|
 fn exact_attention_output_projection_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  output_width : Int,
-  input_width : Int,
+  output_width : Int32,
+  input_width : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if output_width != geometry.hidden_size() || input_width <= 0 {
@@ -222,7 +222,7 @@ fn exact_attention_output_projection_abi(
 ///|
 fn dsa_index_head_dimension(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int? {
+) -> Int32? {
   let mut result = None
   for requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexCompute(_, head_dimension, _, _) {
@@ -238,7 +238,7 @@ fn dsa_index_head_dimension(
 ///|
 fn exact_dsa_pooling_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  pool_size : Int,
+  pool_size : Int32,
   compress : Bool,
   always_select_tail : Bool,
   claim : GlmHybridArtifactClaimInput,

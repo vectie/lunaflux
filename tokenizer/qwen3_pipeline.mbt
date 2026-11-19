@@ -1,11 +1,11 @@
 ///|
 fn qwen3_scalar_at(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
-) -> (Int, Int) raise TokenizerError {
+  length : Int32,
+  offset : Int32,
+) -> (Int32, Int32) raise TokenizerError {
   if offset < 0 || offset >= length {
-    raise InvalidUtf8Input(byte_offset=Int::max(offset, 0))
+    raise InvalidUtf8Input(byte_offset=Int32::max(offset, 0))
   }
   let first = input[offset].to_int()
   if first <= 0x7f {
@@ -54,12 +54,12 @@ fn qwen3_scalar_at(
 ///|
 
 ///|
-fn qwen3_is_number(scalar : Int) -> Bool {
+fn qwen3_is_number(scalar : Int32) -> Bool {
   scalar.to_char().unwrap().is_numeric()
 }
 
 ///|
-fn qwen3_is_whitespace(scalar : Int) -> Bool {
+fn qwen3_is_whitespace(scalar : Int32) -> Bool {
   scalar.to_char().unwrap().is_whitespace()
 }
 
@@ -75,8 +75,8 @@ fn qwen3_ascii_lower(value : Byte) -> Byte {
 ///|
 fn qwen3_matches_ascii_casefold(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
+  length : Int32,
+  offset : Int32,
   expected : Bytes,
 ) -> Bool {
   if offset > length - expected.length() {
@@ -93,9 +93,9 @@ fn qwen3_matches_ascii_casefold(
 ///|
 fn qwen3_contraction_end(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
-) -> Int {
+  length : Int32,
+  offset : Int32,
+) -> Int32 {
   if offset >= length || input[offset] != b'\'' {
     return -1
   }
@@ -116,10 +116,10 @@ fn qwen3_contraction_end(
 ///|
 fn qwen3_scan_letters(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
+  length : Int32,
+  offset : Int32,
   include_marks~ : Bool,
-) -> Int raise TokenizerError {
+) -> Int32 raise TokenizerError {
   let mut cursor = offset
   while cursor < length {
     let (scalar, width) = qwen3_scalar_at(input, length, cursor)
@@ -134,11 +134,11 @@ fn qwen3_scan_letters(
 ///|
 fn qwen3_pretoken_end(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
+  length : Int32,
+  offset : Int32,
   include_marks~ : Bool,
-  digit_triplets? : Bool = false,
-) -> Int raise TokenizerError {
+  digit_triplets~ : Bool = false,
+) -> Int32 raise TokenizerError {
   let contraction = qwen3_contraction_end(input, length, offset)
   if contraction >= 0 {
     return contraction

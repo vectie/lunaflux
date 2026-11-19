@@ -1,7 +1,7 @@
 ///|
 fn transformer_attention_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is JointTransformerAttention(_, _, _, _, _) {
       return ordinal

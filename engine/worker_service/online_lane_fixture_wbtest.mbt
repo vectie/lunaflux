@@ -5,16 +5,16 @@ fn wb_online_lane_lease(
   prepared_admission : @core.PreparedExclusiveAdmission?,
   prepared_clock_read : @monotonic_clock.PreparedMonotonicRead,
   handle : @core.RequestHandle?,
-  phase : Int,
+  phase : Int32,
   request_generation : @inference.RequestGeneration,
   cut_source_generation : @inference.RequestGeneration,
-  restart_disposition : Int,
-  expected_position : Int,
+  restart_disposition : Int32,
+  expected_position : Int32,
   cancel_reserved : Bool,
   semantic_retention : @inference.LunaRequestStopTokenRetentionSlot,
-  epoch? : UInt64 = 1UL,
-  publication_cursor? : UInt64 = 0UL,
-  lane_count? : Int = 1,
+  epoch~ : UInt64 = 1UL,
+  publication_cursor~ : UInt64 = 0UL,
+  lane_count~ : Int32 = 1,
 ) -> OnlineWorkerLease {
   let lane_handles = FixedArray::makei(lane_count, _ => Array(capacity=1))
   match handle {
@@ -142,7 +142,7 @@ fn wb_online_lane_lease(
 fn wb_admit_routed(
   scheduler : @core.Scheduler,
   request : @core.TokenizedRequest,
-  received_at? : UInt64 = 0UL,
+  received_at~ : UInt64 = 0UL,
 ) -> @core.RequestHandle {
   let prepared = scheduler.prepare_admission(request)
   try! prepared.bind_publication_route(

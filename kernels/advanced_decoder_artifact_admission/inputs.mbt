@@ -1,13 +1,13 @@
 ///|
 pub fn AdvancedDecoderArtifactAdmissionLimits::new(
-  maximum_requirements~ : Int,
-  maximum_modules~ : Int,
-  maximum_entry_points~ : Int,
+  maximum_requirements~ : Int32,
+  maximum_modules~ : Int32,
+  maximum_entry_points~ : Int32,
   maximum_module_bytes~ : Int64,
   maximum_total_module_bytes~ : Int64,
-  maximum_symbol_bytes~ : Int,
-  maximum_operands_per_launch~ : Int,
-  maximum_canonical_bytes~ : Int,
+  maximum_symbol_bytes~ : Int32,
+  maximum_operands_per_launch~ : Int32,
+  maximum_canonical_bytes~ : Int32,
 ) -> Self raise AdvancedDecoderArtifactAdmissionError {
   if maximum_requirements <= 0 ||
     maximum_requirements > 4096 ||
@@ -107,7 +107,7 @@ pub fn AdvancedDecoderLaunchOperand::alignment(self : Self) -> Int64 {
 pub fn AdvancedDecoderLaunchEvidenceInput::new(
   requirements_digest~ : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest,
   source_identity~ : @spec.ModelIdentity,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   operation~ : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation,
   capability~ : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability,
   target~ : @catalog.DeviceTarget,

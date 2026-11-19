@@ -23,7 +23,7 @@ pub fn CudaAttentionTileLowering::decode_copy_retention(
 /// immutable transport, not the arithmetic fold or shared storage lifetime.
 pub fn CudaAttentionTileLowering::decode_copy_elements(
   self : CudaAttentionTileLowering,
-) -> Int {
+) -> Int32 {
   if (
       self.compute == CudaGroupedQueryBlockwiseShuffleDot ||
       self.compute == CudaMatrixQkPvMultiplyAccumulate

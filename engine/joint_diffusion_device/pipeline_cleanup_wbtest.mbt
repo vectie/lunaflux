@@ -5,8 +5,8 @@ priv suberror PendingCleanupFailure {
 
 ///|
 priv struct PendingCleanupProbe {
-  id : Int
-  log : Array[Int]
+  id : Int32
+  log : Array[Int32]
   mut fail_release : Bool
 }
 

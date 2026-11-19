@@ -11,9 +11,9 @@ pub fn hyper_connection_function_and_collapse(
   function_weights : ArrayView[Double],
   base : ArrayView[Double],
   scale : ArrayView[Double],
-  row_count~ : Int,
-  stream_count~ : Int,
-  hidden_width~ : Int,
+  row_count~ : Int32,
+  stream_count~ : Int32,
+  hidden_width~ : Int32,
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
   limits~ : GlmHybridReferenceLimits,
@@ -118,9 +118,9 @@ pub fn hyper_connection_function_and_collapse(
 /// column pass followed by `iterations - 1` ordered row/column passes.
 pub fn hyper_connection_positive_sinkhorn(
   initial_combination : ArrayView[Double],
-  row_count~ : Int,
-  stream_count~ : Int,
-  iterations~ : Int,
+  row_count~ : Int32,
+  stream_count~ : Int32,
+  iterations~ : Int32,
   epsilon~ : Double,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmHyperConnectionSinkhornResult raise GlmHybridReferenceError {
@@ -193,17 +193,17 @@ pub fn GlmHyperConnectionFunctionResult::post(
 }
 
 ///|
-pub fn GlmHyperConnectionFunctionResult::row_count(self : Self) -> Int {
+pub fn GlmHyperConnectionFunctionResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmHyperConnectionFunctionResult::stream_count(self : Self) -> Int {
+pub fn GlmHyperConnectionFunctionResult::stream_count(self : Self) -> Int32 {
   self.stream_count
 }
 
 ///|
-pub fn GlmHyperConnectionFunctionResult::hidden_width(self : Self) -> Int {
+pub fn GlmHyperConnectionFunctionResult::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
@@ -229,11 +229,11 @@ pub fn GlmHyperConnectionSinkhornResult::combination(
 }
 
 ///|
-pub fn GlmHyperConnectionSinkhornResult::row_count(self : Self) -> Int {
+pub fn GlmHyperConnectionSinkhornResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmHyperConnectionSinkhornResult::stream_count(self : Self) -> Int {
+pub fn GlmHyperConnectionSinkhornResult::stream_count(self : Self) -> Int32 {
   self.stream_count
 }

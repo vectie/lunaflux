@@ -1,25 +1,25 @@
 ///|
-const LONG_CONTEXT_FRESH_CHILD_CYCLES : Int = 3
+const LONG_CONTEXT_FRESH_CHILD_CYCLES : Int32 = 3
 
 ///|
-const LONG_CONTEXT_FIRST_INPUT_TOKENS : Int = 8
+const LONG_CONTEXT_FIRST_INPUT_TOKENS : Int32 = 8
 
 ///|
-const LONG_CONTEXT_SECOND_INPUT_TOKENS : Int = 9
+const LONG_CONTEXT_SECOND_INPUT_TOKENS : Int32 = 9
 
 ///|
 fn long_context_frame(
   request_id : UInt64,
-  input_tokens : Array[Int],
+  input_tokens : Array[Int32],
 ) -> FixedArray[Byte] raise {
   encode_prefix_campaign_request(request_id, input_tokens, Disabled)
 }
 
 ///|
 fn long_context_validation_contract(
-  cycle : Int,
-  first_token? : Int = PREFIX_REFEREE_FIRST_TOKEN,
-  second_token? : Int = PREFIX_REFEREE_SECOND_TOKEN,
+  cycle : Int32,
+  first_token~ : Int32 = PREFIX_REFEREE_FIRST_TOKEN,
+  second_token~ : Int32 = PREFIX_REFEREE_SECOND_TOKEN,
 ) -> @runtime_instance.RuntimeSpawnedLongContextContract raise {
   if cycle < 0 || cycle >= LONG_CONTEXT_FRESH_CHILD_CYCLES {
     raise UsageRejected

@@ -1,6 +1,9 @@
 ///|
 #borrow(child, path)
-extern "c" fn raw_test_spawn_fixture(child : NativeChild, path : Bytes) -> Int = "lunaflux_process_test_spawn_fixture"
+extern "c" fn raw_test_spawn_fixture(
+  child : NativeChild,
+  path : Bytes,
+) -> Int32 = "lunaflux_process_test_spawn_fixture"
 
 ///|
 fn fixture_child_owner(limits : ProcessLimits) -> ChildProcess {

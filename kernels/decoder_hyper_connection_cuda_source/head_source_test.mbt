@@ -52,9 +52,9 @@ test "independent composed heads use distinct private lowering helpers" {
 
 ///|
 fn head_test_render(
-  width : Int,
-  hidden : Int,
-  rows : Int,
+  width : Int32,
+  hidden : Int32,
+  rows : Int32,
   control : Double,
   normalization : Double,
   symbol : String,

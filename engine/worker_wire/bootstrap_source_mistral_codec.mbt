@@ -1,27 +1,27 @@
 ///|
-const MISTRAL_BOOTSTRAP_SOURCE_VERSION_V7 : UInt = 7
+const MISTRAL_BOOTSTRAP_SOURCE_VERSION_V7 : UInt32 = 7
 
 ///|
-const MISTRAL_BOOTSTRAP_SOURCE_RECIPE_V7 : Int = 7
+const MISTRAL_BOOTSTRAP_SOURCE_RECIPE_V7 : Int32 = 7
 
 ///|
-const MISTRAL_BOOTSTRAP_SOURCE_HEADER_BYTES_V7 : Int = 264
+const MISTRAL_BOOTSTRAP_SOURCE_HEADER_BYTES_V7 : Int32 = 264
 
 ///|
-const MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11 : UInt = 11
+const MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11 : UInt32 = 11
 
 ///|
-const MISTRAL_BOOTSTRAP_SOURCE_RECIPE_V11 : Int = 11
+const MISTRAL_BOOTSTRAP_SOURCE_RECIPE_V11 : Int32 = 11
 
 ///|
-const MISTRAL_BOOTSTRAP_SOURCE_HEADER_BYTES_V11 : Int = 296
+const MISTRAL_BOOTSTRAP_SOURCE_HEADER_BYTES_V11 : Int32 = 296
 
 ///|
 fn mistral_source_lengths(
   roots : WorkerBootstrapRoots,
   model : WorkerMistralBootstrapModelSource,
   kernel : WorkerBootstrapKernelSource,
-) -> Array[Int] {
+) -> Array[Int32] {
   let lengths = [
     @utf8.encode(roots.model_root()).length(),
     @utf8.encode(model.config_locator()).length(),
@@ -44,7 +44,9 @@ pub fn admit_mistral_bootstrap_source_v7(
   execution : WorkerBootstrapExecution,
   ceilings : WorkerBootstrapCeilings,
 ) -> EncodedBootstrapSource raise WorkerWireError {
-  if kernel.sampling_runtime() == DeviceFullF32SamplingV1 || kernel.luna_approval() is Some(_) || !execution.supports_bf16() {
+  if kernel.sampling_runtime() == DeviceFullF32SamplingV1 ||
+    kernel.luna_approval() is Some(_) ||
+    !execution.supports_bf16() {
     raise InvalidBootstrapSource(Recipe)
   }
   let lengths = mistral_source_lengths(roots, model, kernel)
@@ -92,7 +94,7 @@ pub fn admit_mistral_bootstrap_source_v7(
   }
   write_i32(storage, 40, execution.compute_major())
   write_i32(storage, 44, execution.compute_minor())
-  let flags : UInt = (if execution.supports_bf16() { 1 } else { 0 }) |
+  let flags : UInt32 = (if execution.supports_bf16() { 1 } else { 0 }) |
     (if execution.supports_cublas_lt() { 2 } else { 0 })
   write_u32(storage, 48, flags)
   write_i32(storage, 52, execution.tokens_per_page())
@@ -210,7 +212,7 @@ pub fn admit_mistral_bootstrap_source_v7(
 ///|
 pub fn decode_mistral_bootstrap_source_v7(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   let extensions = read_u32(source, 4) == MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11
   let header_bytes = if extensions {

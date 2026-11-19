@@ -16,7 +16,7 @@ fn LunaOnlineOpenAIServer::embedded_control_readiness(
 ///|
 fn LunaOnlineOpenAIServer::prepare_embedded_control_response(
   self : LunaOnlineOpenAIServer,
-  route : Int,
+  route : Int32,
 ) -> Bool {
   let healthy = luna_online_control_health_available(
     self.failure_rule,

@@ -12,8 +12,8 @@ fn exact_glm_interleaved_rotary_abi(
     !interleaved {
     return false
   }
-  let mut query_geometry : (Int, Int)? = None
-  let mut rope_width : Int? = None
+  let mut query_geometry : (Int32, Int32)? = None
+  let mut rope_width : Int32? = None
   for item in requirements.requirements() {
     match item.operation() {
       DsaQueryBProjection(_, heads, dimension) => {

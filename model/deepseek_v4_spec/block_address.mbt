@@ -3,8 +3,8 @@
 /// contain checkpoint namespaces, and base APIs never reinterpret an out-of-
 /// range base layer as a prediction stage.
 pub(all) enum DeepSeekV4BlockAddress {
-  BaseLayer(Int)
-  PredictionStage(Int)
+  BaseLayer(Int32)
+  PredictionStage(Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -17,7 +17,7 @@ pub extend DeepSeekV4BlockAddress with @debug.Debug::{to_repr}
 pub fn DeepSeekV4BlockAddress::execution_layer(
   self : Self,
   spec : DeepSeekV4ModelSpec,
-) -> Int raise DeepSeekV4SpecError {
+) -> Int32 raise DeepSeekV4SpecError {
   match self {
     BaseLayer(index) if index >= 0 && index < spec.layer_count() => index
     PredictionStage(index) if spec.has_dspark() &&

@@ -1,8 +1,8 @@
 ///|
 fn exact_moe_router_projection_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  hidden_width : Int,
-  expert_count : Int,
+  hidden_width : Int32,
+  expert_count : Int32,
   float32_router : Bool,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {

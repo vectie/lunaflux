@@ -29,7 +29,7 @@ fn approved_schedule_plan(
   model_plan : @plan.ModelPlan,
   page : @page_allocator.PageId,
   sequence_value : UInt64,
-  input_token : Int,
+  input_token : Int32,
 ) -> (
   @worker_protocol.SchedulePlanBuffer,
   @worker_protocol.SubmittedSchedulePlan,
@@ -89,10 +89,10 @@ fn execute_approved_step(
   model_plan : @plan.ModelPlan,
   page : @page_allocator.PageId,
   sequence_value : UInt64,
-  input_token : Int,
-  selected_ids : FixedArray[Int]?,
+  input_token : Int32,
+  selected_ids : FixedArray[Int32]?,
   selected_logits : FixedArray[Double]?,
-) -> Int raise {
+) -> Int32 raise {
   let (plan_owner, plan) = approved_schedule_plan(
     model_plan, page, sequence_value, input_token,
   )

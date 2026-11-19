@@ -6,32 +6,32 @@ pub fn AliasFreeActivationCudaSource::numerical_contract(
 }
 
 ///|
-pub fn AliasFreeActivationCudaSource::batch_count(self : Self) -> Int {
+pub fn AliasFreeActivationCudaSource::batch_count(self : Self) -> Int32 {
   self.batch_count
 }
 
 ///|
-pub fn AliasFreeActivationCudaSource::channel_count(self : Self) -> Int {
+pub fn AliasFreeActivationCudaSource::channel_count(self : Self) -> Int32 {
   self.channel_count
 }
 
 ///|
-pub fn AliasFreeActivationCudaSource::time_count(self : Self) -> Int {
+pub fn AliasFreeActivationCudaSource::time_count(self : Self) -> Int32 {
   self.time_count
 }
 
 ///|
-pub fn AliasFreeActivationCudaSource::ratio(self : Self) -> Int {
+pub fn AliasFreeActivationCudaSource::ratio(self : Self) -> Int32 {
   self.ratio
 }
 
 ///|
-pub fn AliasFreeActivationCudaSource::kernel_size(self : Self) -> Int {
+pub fn AliasFreeActivationCudaSource::kernel_size(self : Self) -> Int32 {
   self.kernel_size
 }
 
 ///|
-pub fn AliasFreeActivationCudaSource::upsample_time(self : Self) -> Int {
+pub fn AliasFreeActivationCudaSource::upsample_time(self : Self) -> Int32 {
   self.upsample_time
 }
 

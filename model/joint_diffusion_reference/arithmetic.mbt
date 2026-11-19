@@ -14,7 +14,7 @@ fn checked_product(
 }
 
 ///|
-fn exact_int(value : Int64) -> Int raise JointDiffusionReferenceError {
+fn exact_int(value : Int64) -> Int32 raise JointDiffusionReferenceError {
   if value < 0L || value > 2147483647L {
     raise ShapeProductOverflow
   }

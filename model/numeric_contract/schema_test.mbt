@@ -15,7 +15,7 @@ fn schema_test_plain(
 
 ///|
 fn schema_test_bf16_tensor(
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @numeric_contract.NumericTensorSchema {
   try! @numeric_contract.NumericTensorSchema::new(
     ordinal=@numeric_contract.NumericTensorOrdinal::new(ordinal),
@@ -27,7 +27,7 @@ fn schema_test_bf16_tensor(
 
 ///|
 fn schema_test_operation(
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @numeric_contract.NumericOperationSchema {
   let ordinal = try! @numeric_contract.NumericOperationOrdinal::new(ordinal)
   let execution = try! @numeric_contract.OperationExecutionContract::new(

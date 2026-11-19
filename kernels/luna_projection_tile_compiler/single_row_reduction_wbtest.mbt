@@ -1,8 +1,8 @@
 ///|
 fn reduction_test_compile(
   family : @luna_projection_strategy.ProjectionSemanticFamily,
-  lanes : Int,
-  input_width : Int,
+  lanes : Int32,
+  input_width : Int32,
   numerics : ProjectionSingleRowNumerics,
 ) -> ScheduledProjectionTileCompilation raise {
   compile_projection_tile(

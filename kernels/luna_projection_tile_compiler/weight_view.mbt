@@ -5,7 +5,7 @@
 /// Gated MLP has multiple weight roles and cannot use this single-role view.
 pub fn ProjectionTileCompilerRequest::with_concatenated_weights(
   self : ProjectionTileCompilerRequest,
-  row_counts : ArrayView[Int],
+  row_counts : ArrayView[Int32],
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   guard plan_projection_concatenated_rows(row_counts) is Some(segments) else {
     raise InvalidProjectionTileCompilation(InvalidProblem)

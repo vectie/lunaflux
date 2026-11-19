@@ -3,24 +3,24 @@
 /// argument indices in an already leased ordered record. Rows are exact,
 /// never a padded capacity. Backend implementation is private to device.
 pub struct OrderedBf16Projection {
-  priv launch_index : Int
-  priv rows : Int
-  priv columns : Int
-  priv inner : Int
-  priv input_argument : Int
-  priv weight_argument : Int
-  priv output_argument : Int
+  priv launch_index : Int32
+  priv rows : Int32
+  priv columns : Int32
+  priv inner : Int32
+  priv input_argument : Int32
+  priv weight_argument : Int32
+  priv output_argument : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn OrderedBf16Projection::new(
-  launch_index~ : Int,
-  rows~ : Int,
-  columns~ : Int,
-  inner~ : Int,
-  input_argument~ : Int,
-  weight_argument~ : Int,
-  output_argument~ : Int,
+  launch_index~ : Int32,
+  rows~ : Int32,
+  columns~ : Int32,
+  inner~ : Int32,
+  input_argument~ : Int32,
+  weight_argument~ : Int32,
+  output_argument~ : Int32,
 ) -> OrderedBf16Projection raise DeviceError {
   if launch_index < 0 ||
     rows <= 0 ||
@@ -49,7 +49,7 @@ pub fn OrderedBf16Projection::new(
 fn ordered_projection_records(
   launches : ArrayView[OrderedKernelLaunch],
   projections : ArrayView[OrderedBf16Projection],
-) -> FixedArray[Int] raise DeviceError {
+) -> FixedArray[Int32] raise DeviceError {
   let records = FixedArray::make(launches.length() * 6, 0)
   for p in projections {
     if p.launch_index >= launches.length() || records[p.launch_index * 6] != 0 {
@@ -71,3 +71,9 @@ fn ordered_projection_records(
   }
   records
 }
+
+///|
+pub extend OrderedBf16Projection with @debug.Debug::{to_repr}
+
+///|
+pub extend OrderedBf16Projection with Eq::{not_equal, equal}

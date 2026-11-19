@@ -1,15 +1,15 @@
 ///|
-fn PrefixIndex::free_node_count(self : PrefixIndex) -> Int {
+fn PrefixIndex::free_node_count(self : PrefixIndex) -> Int32 {
   self.node_used.length() - self.node_count
 }
 
 ///|
-fn PrefixIndex::free_token_count(self : PrefixIndex) -> Int {
+fn PrefixIndex::free_token_count(self : PrefixIndex) -> Int32 {
   self.token_used.length() - self.token_count
 }
 
 ///|
-fn PrefixIndex::free_page_count(self : PrefixIndex) -> Int {
+fn PrefixIndex::free_page_count(self : PrefixIndex) -> Int32 {
   self.limits.page_capacity() - self.page_count
 }
 
@@ -17,9 +17,9 @@ fn PrefixIndex::free_page_count(self : PrefixIndex) -> Int {
 fn PrefixIndex::allocate_label(
   self : PrefixIndex,
   tokens : PrefixTokenBuffer,
-  start : Int,
-  length : Int,
-) -> Int {
+  start : Int32,
+  length : Int32,
+) -> Int32 {
   let mut head = -1
   let mut tail = -1
   for offset in 0..<length {
@@ -45,11 +45,11 @@ fn PrefixIndex::allocate_label(
 ///|
 fn PrefixIndex::allocate_node(
   self : PrefixIndex,
-  root : Int,
-  parent : Int,
-  label_head : Int,
-  label_length : Int,
-) -> Int {
+  root : Int32,
+  parent : Int32,
+  label_head : Int32,
+  label_length : Int32,
+) -> Int32 {
   let node = self.take_free_node()
   if node < 0 {
     abort("prefix node preflight invariant")
@@ -80,9 +80,9 @@ fn PrefixIndex::allocate_node(
 /// Scalar insertion-capacity preflight retained entirely in registers.
 #valtype
 priv struct PrefixInsertionNeed {
-  nodes : Int
-  tokens : Int
-  pages : Int
+  nodes : Int32
+  tokens : Int32
+  pages : Int32
   duplicate : Bool
 }
 
@@ -90,8 +90,8 @@ priv struct PrefixInsertionNeed {
 /// Scalar existing-root publication preflight retained in registers.
 #valtype
 priv struct PrefixExistingPublishPreflight {
-  state : Int
-  duplicate_entry : Int
+  state : Int32
+  duplicate_entry : Int32
 }
 
 ///|
@@ -99,8 +99,8 @@ fn PrefixIndex::validate_publish_shape(
   self : PrefixIndex,
   tokens : PrefixTokenBuffer,
   pages : PrefixPublishBuffer,
-  page_size : Int,
-  priority : Int,
+  page_size : Int32,
+  priority : Int32,
 ) -> Unit raise PrefixIndexError {
   if tokens.length() <= 0 ||
     tokens.length() > self.limits.max_tokens_per_entry() {
@@ -123,9 +123,9 @@ fn PrefixIndex::validate_publish_shape(
 ///|
 fn PrefixIndex::insertion_need(
   self : PrefixIndex,
-  root : Int,
+  root : Int32,
   tokens : PrefixTokenBuffer,
-  page_size : Int,
+  page_size : Int32,
 ) -> PrefixInsertionNeed {
   let mut parent = -1
   let mut position = 0
@@ -182,11 +182,11 @@ fn PrefixIndex::insertion_need(
 ///|
 fn PrefixIndex::mark_expected_adoptions(
   self : PrefixIndex,
-  root : Int,
+  root : Int32,
   tokens : PrefixTokenBuffer,
-  page_size : Int,
+  page_size : Int32,
   expected : FixedArray[Bool],
-  page_count : Int,
+  page_count : Int32,
 ) -> Unit {
   for index in 0..<page_count {
     expected[index] = false
@@ -239,9 +239,9 @@ fn PrefixIndex::mark_expected_adoptions(
 /// Returns ready=0, duplicate=1, or capacity-exhausted=2 without raising.
 fn PrefixIndex::existing_publish_preflight(
   self : PrefixIndex,
-  root : Int,
+  root : Int32,
   tokens : PrefixTokenBuffer,
-  page_size : Int,
+  page_size : Int32,
 ) -> PrefixExistingPublishPreflight {
   let need = self.insertion_need(root, tokens, page_size)
   if need.duplicate {
@@ -263,7 +263,11 @@ fn PrefixIndex::existing_publish_preflight(
 }
 
 ///|
-fn PrefixIndex::split_node(self : PrefixIndex, node : Int, common : Int) -> Int {
+fn PrefixIndex::split_node(
+  self : PrefixIndex,
+  node : Int32,
+  common : Int32,
+) -> Int32 {
   let old_parent = self.node_parents[node]
   let old_head = self.node_label_heads[node]
   self.detach_node(node)
@@ -291,9 +295,9 @@ fn PrefixIndex::split_node(self : PrefixIndex, node : Int, common : Int) -> Int 
 ///|
 fn PrefixIndex::attach_pages(
   self : PrefixIndex,
-  terminal : Int,
-  token_count : Int,
-  page_size : Int,
+  terminal : Int32,
+  token_count : Int32,
+  page_size : Int32,
   pages : PrefixPublishBuffer,
 ) -> Unit {
   let mut length = 0
@@ -332,11 +336,11 @@ fn PrefixIndex::attach_pages(
 ///|
 fn PrefixIndex::insert_rooted(
   self : PrefixIndex,
-  root : Int,
+  root : Int32,
   tokens : PrefixTokenBuffer,
   pages : PrefixPublishBuffer,
-  page_size : Int,
-  priority : Int,
+  page_size : Int32,
+  priority : Int32,
 ) -> PrefixEntryId raise PrefixIndexError {
   self.validate_publish_shape(tokens, pages, page_size, priority)
   let need = self.insertion_need(root, tokens, page_size)

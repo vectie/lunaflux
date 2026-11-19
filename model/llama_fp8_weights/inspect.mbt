@@ -46,7 +46,7 @@ pub fn inspect_paged_file(
   limits~ : @numeric_weight_file.NumericWeightFileLimits,
   alignment_bytes~ : Int64,
   max_arena_bytes~ : Int64,
-  batch? : @llama.LlamaPagedBatchEnvelope = @llama.LlamaPagedBatchEnvelope::single_row(),
+  batch~ : @llama.LlamaPagedBatchEnvelope = @llama.LlamaPagedBatchEnvelope::single_row(),
 ) -> @numeric_weight_file.NumericWeightFileInspection raise LlamaFp8WeightInspectionError {
   let plan = @llama.build_paged_finite_e4m3_fp8_w8a8_v1(
     metadata,

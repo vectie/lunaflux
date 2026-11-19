@@ -4,14 +4,14 @@ pub struct MoeRoutingCudaSource {
   priv plan : @precision.MoeRoutingPrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
-  priv launches : ReadOnlyArray[(Int, Int)]
+  priv launches : ReadOnlyArray[(Int32, Int32)]
 }
 
 ///|
 pub fn routing_source(
   plan : @precision.MoeRoutingPrecision,
   symbol~ : String,
-  parallel_selection? : Bool = false,
+  parallel_selection~ : Bool = false,
 ) -> MoeRoutingCudaSource raise {
   let (rows, _, experts, selected) = plan.geometry()
   let (groups, group_topk, selected_groups) = plan.grouping()
@@ -144,6 +144,8 @@ pub fn MoeRoutingCudaSource::symbols(self : Self) -> ReadOnlyArray[String] {
 }
 
 ///|
-pub fn MoeRoutingCudaSource::launches(self : Self) -> ReadOnlyArray[(Int, Int)] {
+pub fn MoeRoutingCudaSource::launches(
+  self : Self,
+) -> ReadOnlyArray[(Int32, Int32)] {
   self.launches
 }

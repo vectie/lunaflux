@@ -1,6 +1,6 @@
 ///|
 fn family_streaming_claims(
-  family : Int,
+  family : Int32,
   text : String,
 ) -> StreamingClaims? raise {
   match family {

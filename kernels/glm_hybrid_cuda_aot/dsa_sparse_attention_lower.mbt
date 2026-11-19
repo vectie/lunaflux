@@ -1,7 +1,7 @@
 ///|
 fn unique_sparse_kv_geometry(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int)? {
+) -> (Int32, Int32)? {
   let mut found = None
   for item in requirements.requirements() {
     if item.operation() is KeyValueLowRankProjection(_, heads, _, value) {
@@ -17,14 +17,14 @@ fn unique_sparse_kv_geometry(
 ///|
 fn sparse_attention_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  query_heads : Int,
-  kv_heads : Int,
-  qk_dimension : Int,
-  value_dimension : Int,
-  top_k : Int,
-  selected_width : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  query_heads : Int32,
+  kv_heads : Int32,
+  qk_dimension : Int32,
+  value_dimension : Int32,
+  top_k : Int32,
+  selected_width : Int32,
+  maximum_tokens : Int32,
   source_digest : GlmHybridCudaSourceDigest,
 ) -> Bytes {
   @utf8.encode(
@@ -73,8 +73,8 @@ fn sparse_attention_recipe(
 ///|
 pub fn lower_dsa_sparse_attention_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

@@ -2,7 +2,7 @@
 fn InheritedChannel::wait_inherited_direction(
   self : InheritedChannel,
   write_mode : Bool,
-  maximum_wait_millis : Int,
+  maximum_wait_millis : Int32,
 ) -> Bool raise ProcessError {
   let operation = if write_mode { Write } else { Read }
   self.require_usable(operation)
@@ -25,7 +25,7 @@ fn InheritedChannel::wait_inherited_direction(
 fn InheritedChannel::bounded_pending_wait(
   self : InheritedChannel,
   write_mode : Bool,
-  maximum_wait_millis : Int,
+  maximum_wait_millis : Int32,
 ) -> Bool raise ProcessError {
   let operation = if write_mode { Write } else { Read }
   let active = if write_mode {
@@ -65,7 +65,7 @@ fn InheritedChannel::bounded_pending_wait(
 /// A short caller bound timing out is ordinary pending progress.
 pub fn InheritedChannel::wait_pending_readable(
   self : InheritedChannel,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise ProcessError {
   self.bounded_pending_wait(false, maximum_wait_millis)
 }
@@ -75,7 +75,7 @@ pub fn InheritedChannel::wait_pending_readable(
 /// A short caller bound timing out is ordinary pending progress.
 pub fn InheritedChannel::wait_pending_writable(
   self : InheritedChannel,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise ProcessError {
   self.bounded_pending_wait(true, maximum_wait_millis)
 }
@@ -87,7 +87,7 @@ pub fn InheritedChannel::wait_pending_writable(
 /// deadline begins only after the first prefix byte.
 pub fn InheritedChannel::wait_readable(
   self : InheritedChannel,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise ProcessError {
   self.wait_inherited_direction(false, maximum_wait_millis)
 }

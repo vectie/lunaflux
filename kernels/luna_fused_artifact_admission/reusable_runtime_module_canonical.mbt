@@ -18,7 +18,7 @@ fn reusable_runtime_append_target(
 ///|
 fn reusable_runtime_append_module(
   out : StringBuilder,
-  ordinal : Int,
+  ordinal : Int32,
   module_ : ReusableFusedRuntimeModuleInput,
   metadata : Bool,
   ownership : Bool,

@@ -3,9 +3,9 @@
 /// of every producer; reuse follows retirement of every consumer. Epochs, not
 /// backend thread/barrier IDs, define the dependency edges.
 pub struct ProducerConsumerPipeline {
-  priv stages : Int
-  priv producers : Int
-  priv consumers : Int
+  priv stages : Int32
+  priv producers : Int32
+  priv consumers : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -16,9 +16,9 @@ pub extend ProducerConsumerPipeline with @debug.Debug::{to_repr}
 
 ///|
 pub fn ProducerConsumerPipeline::new(
-  stages~ : Int,
-  producers~ : Int,
-  consumers~ : Int,
+  stages~ : Int32,
+  producers~ : Int32,
+  consumers~ : Int32,
 ) -> Self? {
   guard stages >= 2 &&
     stages <= 8 &&
@@ -32,12 +32,12 @@ pub fn ProducerConsumerPipeline::new(
 }
 
 ///|
-pub fn ProducerConsumerPipeline::geometry(self : Self) -> (Int, Int, Int) {
+pub fn ProducerConsumerPipeline::geometry(self : Self) -> (Int32, Int32, Int32) {
   (self.stages, self.producers, self.consumers)
 }
 
 ///|
-pub fn ProducerConsumerPipeline::slot(self : Self, epoch : Int) -> Int? {
+pub fn ProducerConsumerPipeline::slot(self : Self, epoch : Int32) -> Int32? {
   if epoch < 0 {
     None
   } else {
@@ -46,7 +46,10 @@ pub fn ProducerConsumerPipeline::slot(self : Self, epoch : Int) -> Int? {
 }
 
 ///|
-pub fn ProducerConsumerPipeline::reuse_after(self : Self, epoch : Int) -> Int? {
+pub fn ProducerConsumerPipeline::reuse_after(
+  self : Self,
+  epoch : Int32,
+) -> Int32? {
   if epoch < self.stages {
     None
   } else {

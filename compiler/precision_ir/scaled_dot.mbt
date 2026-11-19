@@ -6,9 +6,9 @@ pub(all) enum ScaledDotReductionLaw {
   DecodeOperandsFloat32
   /// Consume packed operands with block scales in the matrix accumulation;
   /// apply the two tensor-wide scales to the accumulated result afterwards.
-  BlockScaledMatrixFloat32(block_columns~ : Int)
+  BlockScaledMatrixFloat32(block_columns~ : Int32)
   UnscaledBlockMatrixFloat32(
-    block_columns~ : Int,
+    block_columns~ : Int32,
     publication~ : Float32AffineLaw
   )
 } derive(Debug, Eq)

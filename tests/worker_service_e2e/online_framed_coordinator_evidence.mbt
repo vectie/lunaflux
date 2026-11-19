@@ -2,7 +2,7 @@
 fn coordinator_request_frame_for_identity(
   request_id : UInt64,
   model_identity : @spec.ModelIdentity,
-  max_new_tokens? : Int = 1,
+  max_new_tokens~ : Int32 = 1,
 ) -> FixedArray[Byte] raise {
   let limits = inference_limits()
   let request = @inference.GenerateRequest::new(
@@ -35,7 +35,7 @@ fn coordinator_request_frame_for_identity(
 ///|
 fn coordinator_request_frame(
   request_id : UInt64,
-  max_new_tokens? : Int = 1,
+  max_new_tokens~ : Int32 = 1,
 ) -> FixedArray[Byte] raise {
   coordinator_request_frame_for_identity(
     request_id,
@@ -157,7 +157,7 @@ fn progress_coordinator_to_event(
 ///|
 fn copy_and_confirm_coordinator_event(
   coordinator : @online_session.LunaOnlineFramedCoordinator,
-  prove_partial? : Bool = false,
+  prove_partial~ : Bool = false,
 ) -> (FixedArray[Byte], @online_session.LunaOnlineFramedCoordinatorProgress) raise {
   let length = coordinator.framed_event_remaining()
   assert_true(length > 0)

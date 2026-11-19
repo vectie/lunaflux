@@ -1,8 +1,8 @@
 ///|
 fn rotary_fixture(
-  frequency : RotaryFrequency,
+  frequency : @precision_ir.RotaryFrequency,
   budget : Int64,
-) -> RotaryKvPrecision raise {
+) -> @precision_ir.RotaryKvPrecision raise {
   @precision_ir.RotaryKvPrecision::new(
     query_heads=2,
     key_value_heads=1,

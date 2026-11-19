@@ -20,7 +20,7 @@ pub struct DeviceKvArenaPlan {
 pub struct DeviceKvArena {
   priv allocation : @device.Allocation
   priv plan : DeviceKvArenaPlan
-  priv context_ordinal : Int
+  priv context_ordinal : Int32
   priv mut lifecycle : DeviceKvArenaLifecycle
 }
 
@@ -99,7 +99,7 @@ pub fn DeviceKvArena::arena_bytes(self : DeviceKvArena) -> Int64 {
 }
 
 ///|
-pub fn DeviceKvArena::context_ordinal(self : DeviceKvArena) -> Int {
+pub fn DeviceKvArena::context_ordinal(self : DeviceKvArena) -> Int32 {
   self.context_ordinal
 }
 

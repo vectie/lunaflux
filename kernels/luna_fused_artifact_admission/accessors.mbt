@@ -78,7 +78,7 @@ pub fn ApprovedFusedKernelModule::artifact_purpose(
 ///|
 pub fn ApprovedFusedKernelModule::dispatch_canary_per_token(
   self : ApprovedFusedKernelModule,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary_per_token
 }
 
@@ -134,7 +134,7 @@ pub fn FusedStandaloneFallbackIdentity::role(
 ///|
 pub fn FusedStandaloneFallbackIdentity::operation_index(
   self : FusedStandaloneFallbackIdentity,
-) -> Int {
+) -> Int32 {
   self.operation
 }
 
@@ -239,7 +239,7 @@ pub fn ApprovedReusableFusedResidualRuntime::target(
 ///|
 pub fn ApprovedReusableFusedResidualRuntime::operation_indices(
   self : ApprovedReusableFusedResidualRuntime,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.residual_operation, self.norm_operation)
 }
 

@@ -7,8 +7,8 @@ pub fn parse_audio_vae_checkpoint(
   wrapper : StringView,
   metadata : StringView,
   source_config : StringView,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> MiniMaxH3AudioVaeConfig raise MiniMaxH3ConfigError {
   let object = bounded_object(wrapper, max_bytes, max_depth)
   if string_field(object, "_class_name") != "MiniMaxH3AudioVAE" {
@@ -68,10 +68,10 @@ pub fn parse_audio_vae_checkpoint(
 ///|
 fn validate_audio_source_config(
   source : StringView,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise MiniMaxH3ConfigError {
   validate_utf8_size(source, maximum)
-  let values : Map[String, Int] = Map([])
+  let values : Map[String, Int32] = Map([])
   let mut header = false
   for line in source.to_string().split("\n") {
     let trimmed = line.trim()

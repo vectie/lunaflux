@@ -36,9 +36,9 @@ pub struct TensorParallelDescriptorBinding {
 ///|
 pub struct TensorParallelActivationBinding {
   priv reference : @plan.ActivationRef
-  priv slot : Int
+  priv slot : Int32
   priv produced_by : @plan.OperationId
-  priv live_through_step : Int
+  priv live_through_step : Int32
   priv region : TensorParallelScalarRegion
 } derive(Debug, Eq)
 
@@ -68,7 +68,7 @@ pub(all) enum TensorParallelPhysicalCollectiveKind {
 
 ///|
 pub struct TensorParallelCollectiveBinding {
-  priv sequence : Int
+  priv sequence : Int32
   priv operation_id : @plan.OperationId
   priv kind : TensorParallelPhysicalCollectiveKind
   priv region : TensorParallelScalarRegion
@@ -80,9 +80,9 @@ pub struct TensorParallelCollectiveBinding {
 ///|
 pub struct TensorParallelExecutionPlan {
   priv identity : @spec.ModelIdentity
-  priv rank : Int
-  priv world_size : Int
-  priv device_ordinal : Int
+  priv rank : Int32
+  priv world_size : Int32
+  priv device_ordinal : Int32
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
   priv profile : @launch_contract.PagedKernelProfile
@@ -105,15 +105,15 @@ priv struct MutableActivationFact {
   byte_count : Int64
   alignment : Int64
   producer : @plan.OperationId
-  live_through : Int
-  slot : Int
+  live_through : Int32
+  slot : Int32
 }
 
 ///|
 priv struct MutableActivationSlot {
   byte_count : Int64
   alignment : Int64
-  available_after : Int
+  available_after : Int32
   offset_bytes : Int64
 }
 

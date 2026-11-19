@@ -47,7 +47,7 @@ fn source_fixture() -> @worker_wire.EncodedBootstrapSource raise {
 
 ///|
 fn source_v3_fixture(
-  approved_source? : String = source_digest_b(),
+  approved_source~ : String = source_digest_b(),
 ) -> @worker_wire.EncodedBootstrapSource raise {
   let ordinary = source_fixture()
   @worker_wire.admit_bootstrap_source(

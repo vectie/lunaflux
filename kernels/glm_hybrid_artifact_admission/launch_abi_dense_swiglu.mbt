@@ -1,8 +1,8 @@
 ///|
 fn exact_dense_swiglu_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  hidden_size : Int,
-  intermediate_size : Int,
+  hidden_size : Int32,
+  intermediate_size : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if hidden_size != geometry.hidden_size() || intermediate_size <= 0 {

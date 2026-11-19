@@ -22,9 +22,9 @@ fn checked_sampling_product(
 /// Candidate token IDs are I32 and weights are F64. The latter fixes the
 /// accumulation precision independently of the backend's ordinary tensor dtype.
 pub fn plan_device_sampling(
-  maximum_rows~ : Int,
-  vocabulary_size~ : Int,
-  maximum_top_k~ : Int,
+  maximum_rows~ : Int32,
+  vocabulary_size~ : Int32,
+  maximum_top_k~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> SamplingDevicePlan raise SamplingStrategyError {
   if maximum_rows <= 0 || vocabulary_size <= 0 {
@@ -73,10 +73,10 @@ pub fn plan_device_sampling(
 /// must lie in `(0, 1]`; it is applied after top-k ordering.
 pub fn select_sampling_route(
   plan : SamplingDevicePlan,
-  mode~ : Int,
+  mode~ : Int32,
   temperature~ : Double,
   has_top_k~ : Bool,
-  top_k~ : Int,
+  top_k~ : Int32,
   has_top_p~ : Bool,
   top_p~ : Double,
 ) -> SamplingRoute raise SamplingStrategyError {

@@ -90,13 +90,13 @@ pub fn DeepSeekV4ModelSpec::execution_profile_identity(self : Self) -> String {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::vocabulary_size(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::vocabulary_size(self : Self) -> Int32 {
   ignore(self)
   129280
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::hidden_size(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::hidden_size(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 4096
     Pro | ProBase => 7168
@@ -104,7 +104,7 @@ pub fn DeepSeekV4ModelSpec::hidden_size(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::moe_intermediate_size(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::moe_intermediate_size(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 2048
     Pro | ProBase => 3072
@@ -112,7 +112,7 @@ pub fn DeepSeekV4ModelSpec::moe_intermediate_size(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::layer_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::layer_count(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 43
     Pro | ProBase => 61
@@ -120,7 +120,7 @@ pub fn DeepSeekV4ModelSpec::layer_count(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::attention_head_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::attention_head_count(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 64
     Pro | ProBase => 128
@@ -128,25 +128,25 @@ pub fn DeepSeekV4ModelSpec::attention_head_count(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::kv_head_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::kv_head_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::head_dimension(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::head_dimension(self : Self) -> Int32 {
   ignore(self)
   512
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::rope_head_dimension(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::rope_head_dimension(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::q_lora_rank(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::q_lora_rank(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 1024
     Pro | ProBase => 1536
@@ -154,13 +154,13 @@ pub fn DeepSeekV4ModelSpec::q_lora_rank(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::o_lora_rank(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::o_lora_rank(self : Self) -> Int32 {
   ignore(self)
   1024
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::output_group_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::output_group_count(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 8
     Pro | ProBase => 16
@@ -168,7 +168,7 @@ pub fn DeepSeekV4ModelSpec::output_group_count(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::routed_expert_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::routed_expert_count(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 256
     Pro | ProBase => 384
@@ -176,13 +176,13 @@ pub fn DeepSeekV4ModelSpec::routed_expert_count(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::shared_expert_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::shared_expert_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::experts_per_token(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::experts_per_token(self : Self) -> Int32 {
   ignore(self)
   6
 }
@@ -206,13 +206,13 @@ pub fn DeepSeekV4ModelSpec::expert_storage(
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::max_position_embeddings(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::max_position_embeddings(self : Self) -> Int32 {
   ignore(self)
   1048576
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::sliding_window(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::sliding_window(self : Self) -> Int32 {
   ignore(self)
   128
 }
@@ -230,7 +230,7 @@ pub fn DeepSeekV4ModelSpec::compressed_rope_theta(self : Self) -> Double {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::original_position_embeddings(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::original_position_embeddings(self : Self) -> Int32 {
   ignore(self)
   65536
 }
@@ -260,7 +260,7 @@ pub fn DeepSeekV4ModelSpec::rms_norm_epsilon(self : Self) -> Double {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::hyper_connection_width(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::hyper_connection_width(self : Self) -> Int32 {
   ignore(self)
   4
 }
@@ -274,25 +274,25 @@ pub fn DeepSeekV4ModelSpec::hyper_connection_epsilon(self : Self) -> Double {
 ///|
 pub fn DeepSeekV4ModelSpec::hyper_connection_sinkhorn_iterations(
   self : Self,
-) -> Int {
+) -> Int32 {
   ignore(self)
   20
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::index_head_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::index_head_count(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::index_head_dimension(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::index_head_dimension(self : Self) -> Int32 {
   ignore(self)
   128
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::index_top_k(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::index_top_k(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase | Flash0731 => 512
     Pro | ProBase => 1024
@@ -314,7 +314,7 @@ pub fn DeepSeekV4ModelSpec::swiglu_limit(self : Self) -> Double {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::hash_layer_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::hash_layer_count(self : Self) -> Int32 {
   ignore(self)
   3
 }
@@ -322,7 +322,7 @@ pub fn DeepSeekV4ModelSpec::hash_layer_count(self : Self) -> Int {
 ///|
 pub fn DeepSeekV4ModelSpec::next_token_prediction_layer_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   ignore(self)
   1
 }
@@ -333,7 +333,7 @@ pub fn DeepSeekV4ModelSpec::next_token_prediction_layer_count(
 /// `num_nextn_predict_layers`, but its DSpark artifact contains `mtp.0` through
 /// `mtp.2`; execution and tensor binding must therefore use this artifact
 /// count rather than reinterpret the configuration field.
-pub fn DeepSeekV4ModelSpec::prediction_stage_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::prediction_stage_count(self : Self) -> Int32 {
   match self.profile {
     Flash0731 => 3
     Flash | FlashBase | Pro | ProBase => 1
@@ -346,7 +346,7 @@ pub fn DeepSeekV4ModelSpec::has_dspark(self : Self) -> Bool {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::dspark_block_size(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::dspark_block_size(self : Self) -> Int32 {
   if self.has_dspark() {
     5
   } else {
@@ -355,7 +355,7 @@ pub fn DeepSeekV4ModelSpec::dspark_block_size(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::dspark_noise_token_id(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::dspark_noise_token_id(self : Self) -> Int32 {
   if self.has_dspark() {
     128799
   } else {
@@ -366,7 +366,7 @@ pub fn DeepSeekV4ModelSpec::dspark_noise_token_id(self : Self) -> Int {
 ///|
 pub fn DeepSeekV4ModelSpec::dspark_target_layer_ids(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   if self.has_dspark() {
     [40, 41, 42]
   } else {
@@ -375,7 +375,7 @@ pub fn DeepSeekV4ModelSpec::dspark_target_layer_ids(
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::dspark_markov_rank(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::dspark_markov_rank(self : Self) -> Int32 {
   if self.has_dspark() {
     256
   } else {
@@ -384,7 +384,7 @@ pub fn DeepSeekV4ModelSpec::dspark_markov_rank(self : Self) -> Int {
 }
 
 ///|
-pub fn DeepSeekV4ModelSpec::attention_profile_count(self : Self) -> Int {
+pub fn DeepSeekV4ModelSpec::attention_profile_count(self : Self) -> Int32 {
   match self.profile {
     Flash | FlashBase => 44
     Pro | ProBase => 62
@@ -396,7 +396,10 @@ pub fn DeepSeekV4ModelSpec::attention_profile_count(self : Self) -> Int {
 /// Returns the exact official `compress_ratios` entry. The list includes the
 /// base decoder layers and official attached MTP/DSpark modules. An invalid
 /// index returns `None`; it never aliases a nearby layer.
-pub fn DeepSeekV4ModelSpec::compression_ratio(self : Self, index : Int) -> Int? {
+pub fn DeepSeekV4ModelSpec::compression_ratio(
+  self : Self,
+  index : Int32,
+) -> Int32? {
   if index < 0 || index >= self.attention_profile_count() {
     return None
   }
@@ -441,3 +444,33 @@ pub fn DeepSeekV4ModelMetadata::content_digest(
 ) -> @spec.ContentDigest {
   self.content_digest
 }
+
+///|
+pub extend DeepSeekV4Profile with @debug.Debug::{to_repr}
+
+///|
+pub extend DeepSeekV4Profile with Eq::{not_equal, equal}
+
+///|
+pub extend DeepSeekV4ExpertStorage with @debug.Debug::{to_repr}
+
+///|
+pub extend DeepSeekV4ExpertStorage with Eq::{not_equal, equal}
+
+///|
+pub extend DeepSeekV4SpecError with @debug.Debug::{to_repr}
+
+///|
+pub extend DeepSeekV4SpecError with Eq::{not_equal, equal}
+
+///|
+pub extend DeepSeekV4ModelSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend DeepSeekV4ModelSpec with Eq::{not_equal, equal}
+
+///|
+pub extend DeepSeekV4ModelMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend DeepSeekV4ModelMetadata with Eq::{not_equal, equal}

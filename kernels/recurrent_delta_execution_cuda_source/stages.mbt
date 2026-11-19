@@ -7,7 +7,7 @@ pub fn RecurrentDeltaCudaSource::workspace_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn RecurrentDeltaCudaSource::stage_count(self : Self) -> Int {
+pub fn RecurrentDeltaCudaSource::stage_count(self : Self) -> Int32 {
   match self.chunk {
     None => 1
     Some(plan) => plan.stage_count()
@@ -17,7 +17,7 @@ pub fn RecurrentDeltaCudaSource::stage_count(self : Self) -> Int {
 ///|
 pub fn RecurrentDeltaCudaSource::stage_symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String {
   if self.chunk is None {
     self.symbol
@@ -34,8 +34,8 @@ pub fn RecurrentDeltaCudaSource::stage_symbol(
 ///|
 pub fn RecurrentDeltaCudaSource::stage_launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32, Int32) {
   let (x, y, block) = self.launch()
   match self.chunk {
     None => (x, y, 1, block)

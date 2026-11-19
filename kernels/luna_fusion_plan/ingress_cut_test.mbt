@@ -40,7 +40,7 @@ test "semantic ingress cuts preserve materializations and KV write ownership" {
 fn alternative(
   schedule : @luna_fusion_strategy.FusionSchedule,
   ns : Int64,
-  local_bytes? : Int64 = 0L,
+  local_bytes~ : Int64 = 0L,
 ) -> @luna_fusion_strategy.FusionAlternative raise {
   @luna_fusion_strategy.FusionAlternative::new(
     schedule~,

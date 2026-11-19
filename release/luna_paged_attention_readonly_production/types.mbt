@@ -18,18 +18,18 @@ priv struct ReadOnlyQualifiedIdentity {
   device_pci_bus_id : String
   device_name_hex : String
   device_total_memory_bytes : String
-  operation : Int
-  activation : Int
-  input_row_width : Int
-  profile_id : Int
-  profile_rows : Int
-  profile_tokens : Int
-  profile_page_entries : Int
-  tokens_per_page : Int
+  operation : Int32
+  activation : Int32
+  input_row_width : Int32
+  profile_id : Int32
+  profile_rows : Int32
+  profile_tokens : Int32
+  profile_page_entries : Int32
+  tokens_per_page : Int32
   page_stride_bytes : Int64
   physical_page_capacity : Int64
-  dispatch_canary : Int
-  dispatch_canary_cells : Int
+  dispatch_canary : Int32
+  dispatch_canary_cells : Int32
   symbol : String
   abi : String
   target : @catalog.DeviceTarget
@@ -75,7 +75,7 @@ pub struct ApprovedPagedAttentionReadOnlyCatalog {
 
 ///|
 priv struct ReadOnlyLiveDeviceIdentity {
-  ordinal : Int
+  ordinal : Int32
   name_hex : String
   uuid : String
   pci : String

@@ -1,22 +1,22 @@
 ///|
-let startup_magic : UInt = 0x5358464c
+let startup_magic : UInt32 = 0x5358464c
 
 ///|
-let startup_version : UInt = 4
+let startup_version : UInt32 = 4
 
 ///|
-let startup_length : Int = 408
+let startup_length : Int32 = 408
 
 ///|
-let startup_source_digest_offset : Int = 344
+let startup_source_digest_offset : Int32 = 344
 
 ///|
-let startup_checksum_offset : Int = 336
+let startup_checksum_offset : Int32 = 336
 
 ///|
 fn write_digest(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : String,
 ) -> Unit raise WorkerWireError {
   let encoded = @utf8.encode(value)
@@ -31,7 +31,7 @@ fn write_digest(
 ///|
 fn read_digest(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
 ) -> String raise WorkerWireError {
   let encoded = Bytes::makei(64, index => bytes[offset + index])
   @utf8.decode(encoded) catch {
@@ -198,7 +198,7 @@ fn write_startup_contract(
 ///|
 fn validate_startup_source(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise WorkerWireError {
   if (length != startup_length && length != 1024) || bytes.length() < length {
     raise InvalidFrame(Length)
@@ -257,7 +257,7 @@ pub fn StartupFrameBuffer::encode(
 pub fn StartupFrameBuffer::load(
   self : StartupFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedStartupFrame raise WorkerWireError {
   if self.epoch == 0xffffffffffffffffUL {
     raise FrameEpochOverflow
@@ -368,7 +368,7 @@ pub fn ValidatedStartupFrame::contract(
 ///|
 pub fn ValidatedStartupFrame::length(
   self : ValidatedStartupFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.owner().length
 }
 
@@ -376,7 +376,7 @@ pub fn ValidatedStartupFrame::length(
 pub fn ValidatedStartupFrame::copy_to(
   self : ValidatedStartupFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise WorkerWireError {
   let owner = self.owner()
   if destination_offset < 0 ||

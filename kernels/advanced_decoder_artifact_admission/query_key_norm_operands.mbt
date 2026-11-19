@@ -1,7 +1,7 @@
 ///|
 fn query_key_norm_operands_are_exact(
-  query_width : Int,
-  key_value_width : Int,
+  query_width : Int32,
+  key_value_width : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
 ) -> Bool {

@@ -3,23 +3,23 @@ pub(all) suberror GlmHybridKernelRequirementsError {
   InvalidLimit
   UnsupportedSchema
   PlanExceedsLimits
-  DuplicateSemanticOperation(Int)
+  DuplicateSemanticOperation(Int32)
   RequirementsEncodingTooLarge
-  UnsupportedGenericKernelOperation(Int, GlmHybridSemanticOperation)
+  UnsupportedGenericKernelOperation(Int32, GlmHybridSemanticOperation)
 } derive(Debug, Eq)
 
 ///|
 pub struct GlmHybridKernelRequirementLimits {
-  priv maximum_layers : Int
-  priv maximum_vision_layers : Int
-  priv maximum_requirements : Int
+  priv maximum_layers : Int32
+  priv maximum_vision_layers : Int32
+  priv maximum_requirements : Int32
 }
 
 ///|
 pub fn GlmHybridKernelRequirementLimits::new(
-  maximum_layers~ : Int,
-  maximum_vision_layers~ : Int,
-  maximum_requirements~ : Int,
+  maximum_layers~ : Int32,
+  maximum_vision_layers~ : Int32,
+  maximum_requirements~ : Int32,
 ) -> Self raise GlmHybridKernelRequirementsError {
   if maximum_layers <= 0 ||
     maximum_vision_layers <= 0 ||
@@ -32,62 +32,62 @@ pub fn GlmHybridKernelRequirementLimits::new(
 ///|
 pub(all) enum GlmHybridSemanticOperation {
   TokenEmbedding
-  DecoderRmsNorm(Int, Double)
-  QueryLowRankProjection(Int)
-  KeyValueLowRankProjection(Int, Int, Int, Int)
+  DecoderRmsNorm(Int32, Double)
+  QueryLowRankProjection(Int32)
+  KeyValueLowRankProjection(Int32, Int32, Int32, Int32)
   QueryKeyRmsNorm(Double)
   GlmRotaryPosition(Double?, Bool)
-  DsaIndexCompute(Int, Int, Int, Bool)
-  DsaIndexPooling(Int, Bool, Bool)
+  DsaIndexCompute(Int32, Int32, Int32, Bool)
+  DsaIndexPooling(Int32, Bool, Bool)
   DsaIndexReuse
-  DsaSparseAttention(Int, Int, Int, Int)
-  AttentionOutputProjection(Int, Int)
-  KdaProjection(Int, Int)
-  KdaShortConvolution(Int, Int)
-  KdaRecurrentUpdate(Int, Int, Double)
-  KdaOutputProjection(Int, Int)
-  HyperConnectionFunction(Int, Int, Double, Double)
-  HyperConnectionSinkhorn(Int, Int, Double)
-  HyperConnectionMix(Int)
-  DenseSwiGlu(Int, Int)
-  MoeRouterProjection(Int, Int, Bool)
-  MoeSigmoidAndCorrectionBias(Int)
+  DsaSparseAttention(Int32, Int32, Int32, Int32)
+  AttentionOutputProjection(Int32, Int32)
+  KdaProjection(Int32, Int32)
+  KdaShortConvolution(Int32, Int32)
+  KdaRecurrentUpdate(Int32, Int32, Double)
+  KdaOutputProjection(Int32, Int32)
+  HyperConnectionFunction(Int32, Int32, Double, Double)
+  HyperConnectionSinkhorn(Int32, Int32, Double)
+  HyperConnectionMix(Int32)
+  DenseSwiGlu(Int32, Int32)
+  MoeRouterProjection(Int32, Int32, Bool)
+  MoeSigmoidAndCorrectionBias(Int32)
   ExpertScoreTransform(@advanced_decoder_execution_plan.ExpertScoreFunction)
-  MoeGroupedNoAuxiliaryLossTopK(Int, Int, Int, Int, Int, Bool, Double)
+  MoeGroupedNoAuxiliaryLossTopK(Int32, Int32, Int32, Int32, Int32, Bool, Double)
   RoutedExpertFeedForward(
-    Int,
-    Int,
+    Int32,
+    Int32,
     @advanced_decoder_execution_plan.ExpertActivation
   )
   SharedExpertFeedForward(
-    Int,
-    Int,
+    Int32,
+    Int32,
     @advanced_decoder_execution_plan.ExpertActivation
   )
-  RoutedSharedExpertCombine(Int, Bool, Double)
-  MoeDecoderResidualAdd(Int)
-  DsaKeyValueAttentionAssembly(Int, Int, Int, Int)
+  RoutedSharedExpertCombine(Int32, Bool, Double)
+  MoeDecoderResidualAdd(Int32)
+  DsaKeyValueAttentionAssembly(Int32, Int32, Int32, Int32)
   MultiTokenPredictionInputProjection
-  AuxiliaryDecoderStage(Int)
+  AuxiliaryDecoderStage(Int32)
   AuxiliaryOutputHead
-  VisionPatchProjection(Int, Int, Int, Int)
-  VisionRmsNorm(Int)
-  VisionQkvProjection(Int, Int)
-  VisionAttention(Int, Int)
-  VisionOutputProjection(Int)
-  VisionSwiGlu(Int, Int)
-  VisionSpatialMerge(Int, Int, Int)
-  VisionDecoderProjection(Int, Int)
-  VisionPostProjectionNorm(Int)
-  FinalRmsNorm(Int, Double)
-  LanguageModelHead(Int, Int)
-  DsaQueryAProjection(Int, Int)
-  DsaKeyValueAProjection(Int, Int, Int)
-  DsaQueryARmsNorm(Int, Double)
-  DsaQueryBProjection(Int, Int, Int)
-  KdaDecayControl(Int, Int, Double)
-  KdaOutputGateProjection(Int, Int, Int)
-  KdaGatedRmsNorm(Int, Int, Double)
+  VisionPatchProjection(Int32, Int32, Int32, Int32)
+  VisionRmsNorm(Int32)
+  VisionQkvProjection(Int32, Int32)
+  VisionAttention(Int32, Int32)
+  VisionOutputProjection(Int32)
+  VisionSwiGlu(Int32, Int32)
+  VisionSpatialMerge(Int32, Int32, Int32)
+  VisionDecoderProjection(Int32, Int32)
+  VisionPostProjectionNorm(Int32)
+  FinalRmsNorm(Int32, Double)
+  LanguageModelHead(Int32, Int32)
+  DsaQueryAProjection(Int32, Int32)
+  DsaKeyValueAProjection(Int32, Int32, Int32)
+  DsaQueryARmsNorm(Int32, Double)
+  DsaQueryBProjection(Int32, Int32, Int32)
+  KdaDecayControl(Int32, Int32, Double)
+  KdaOutputGateProjection(Int32, Int32, Int32)
+  KdaGatedRmsNorm(Int32, Int32, Double)
 } derive(Debug, Eq)
 
 ///|
@@ -139,11 +139,11 @@ pub struct GlmHybridKernelRequirement {
 /// Model-wide geometry shared by GLM decoder kernels. Specialized DSA, KDA,
 /// MoE, mHC, and vision geometry remains in each semantic operation.
 pub struct GlmHybridKernelGeometry {
-  priv vocabulary_size : Int
-  priv hidden_size : Int
-  priv dense_intermediate_size : Int
-  priv decoder_layer_count : Int
-  priv context_length : Int
+  priv vocabulary_size : Int32
+  priv hidden_size : Int32
+  priv dense_intermediate_size : Int32
+  priv decoder_layer_count : Int32
+  priv context_length : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -154,7 +154,7 @@ pub struct GlmHybridKernelRequirementsDigest {
 ///|
 pub struct GlmHybridKernelRequirements {
   priv source_identity : @spec.ModelIdentity
-  priv source_schema_version : Int
+  priv source_schema_version : Int32
   priv geometry : GlmHybridKernelGeometry
   priv digest : GlmHybridKernelRequirementsDigest
   priv requirements : ReadOnlyArray[GlmHybridKernelRequirement]

@@ -1,11 +1,11 @@
 ///|
-const PHASE23_BALANCE_REQUEST_COUNT : Int = 10000
+const PHASE23_BALANCE_REQUEST_COUNT : Int32 = 10000
 
 ///|
-const PHASE23_BALANCE_WAVE_SIZE : Int = 10
+const PHASE23_BALANCE_WAVE_SIZE : Int32 = 10
 
 ///|
-const PHASE23_BALANCE_PAGE_COUNT : Int = 16
+const PHASE23_BALANCE_PAGE_COUNT : Int32 = 16
 
 ///|
 fn phase23_balance_worker_limits() -> @worker_protocol.WorkerProtocolLimits raise {

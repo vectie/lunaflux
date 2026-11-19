@@ -29,9 +29,9 @@ fn LunaOpenAICompatWorkspace::progress_buffered_payload(
 
 ///|
 fn luna_openai_buffered_literal(
-  mode : Int,
-  event_kind : Int,
-  part : Int,
+  mode : Int32,
+  event_kind : Int32,
+  part : Int32,
 ) -> Bytes {
   if mode == 1 {
     match (event_kind, part) {

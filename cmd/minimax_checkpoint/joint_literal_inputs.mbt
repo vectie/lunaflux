@@ -4,8 +4,8 @@
 fn check_joint_literal_lengths(
   video_bytes : Int64,
   audio_bytes : Int64,
-  video_actual : Int,
-  audio_actual : Int,
+  video_actual : Int32,
+  audio_actual : Int32,
 ) -> Unit raise {
   guard video_bytes > 0L &&
     audio_bytes > 0L &&

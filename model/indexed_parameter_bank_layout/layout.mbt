@@ -2,24 +2,24 @@
 pub(all) suberror IndexedParameterBankLayoutError {
   InvalidAlignment
   InvalidExtent
-  DuplicateSourceOrdinal(Int)
+  DuplicateSourceOrdinal(Int32)
   DuplicateSourceName(String)
-  UnexpectedLogicalIndex(expected~ : Int, actual~ : Int)
+  UnexpectedLogicalIndex(expected~ : Int32, actual~ : Int32)
   OffsetOverflow
 } derive(Debug, Eq)
 
 ///|
 pub struct IndexedParameterSliceInput {
-  priv logical_index : Int
-  priv source_ordinal : Int
+  priv logical_index : Int32
+  priv source_ordinal : Int32
   priv source_name : String
   priv byte_count : Int64
 }
 
 ///|
 pub fn IndexedParameterSliceInput::new(
-  logical_index~ : Int,
-  source_ordinal~ : Int,
+  logical_index~ : Int32,
+  source_ordinal~ : Int32,
   source_name~ : String,
   byte_count~ : Int64,
 ) -> Self raise IndexedParameterBankLayoutError {
@@ -31,8 +31,8 @@ pub fn IndexedParameterSliceInput::new(
 
 ///|
 pub struct IndexedParameterSlice {
-  priv logical_index : Int
-  priv source_ordinal : Int
+  priv logical_index : Int32
+  priv source_ordinal : Int32
   priv source_name : String
   priv target_byte_offset : Int64
   priv byte_count : Int64
@@ -154,12 +154,12 @@ pub fn IndexedParameterBankLayoutDigest::as_hex(self : Self) -> String {
 }
 
 ///|
-pub fn IndexedParameterSlice::logical_index(self : Self) -> Int {
+pub fn IndexedParameterSlice::logical_index(self : Self) -> Int32 {
   self.logical_index
 }
 
 ///|
-pub fn IndexedParameterSlice::source_ordinal(self : Self) -> Int {
+pub fn IndexedParameterSlice::source_ordinal(self : Self) -> Int32 {
   self.source_ordinal
 }
 

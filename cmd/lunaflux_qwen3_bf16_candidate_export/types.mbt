@@ -84,8 +84,8 @@ fn fused_parallel_error_name(
 
 ///|
 priv struct Qwen3CandidateExportArguments {
-  compute_major : Int
-  compute_minor : Int
+  compute_major : Int32
+  compute_minor : Int32
   model_root : String
   config_locator : String
   model_content_sha256 : String
@@ -93,14 +93,14 @@ priv struct Qwen3CandidateExportArguments {
   numeric_weight_artifact_sha256 : String
   weight_route_manifest_sha256 : String
   toolchain_sha256 : String
-  compiler_major : UInt
-  compiler_minor : UInt
-  compiler_patch : UInt
-  tokens_per_page : Int
-  total_page_count : Int
-  max_query_rows : Int
-  max_query_tokens : Int
-  max_page_table_entries : Int
+  compiler_major : UInt32
+  compiler_minor : UInt32
+  compiler_patch : UInt32
+  tokens_per_page : Int32
+  total_page_count : Int32
+  max_query_rows : Int32
+  max_query_tokens : Int32
+  max_page_table_entries : Int32
   absolute_new_output : String
   projection_tuning : @projection_tuning_file.ProjectionTuningInput?
   attention_tuning : (String, String, String)?
@@ -117,17 +117,17 @@ priv struct Qwen3CandidateExportArguments {
   step_rotary_cache : Bool
   prefill_approximate_exp2 : Bool
   ingress_shared_limit : Int64
-  compiler_register_limit : Int
-  prefill_candidate : Int?
-  wide_prefill_candidate : Int?
-  decode_candidate : Int?
+  compiler_register_limit : Int32
+  prefill_candidate : Int32?
+  wide_prefill_candidate : Int32?
+  decode_candidate : Int32?
   query_metadata : Bool
 }
 
 ///|
 struct DecodeChainSearch {
-  rows : Int
-  history : Int
-  candidates : ReadOnlyArray[Int]
-  targets : ReadOnlyArray[Int]
+  rows : Int32
+  history : Int32
+  candidates : ReadOnlyArray[Int32]
+  targets : ReadOnlyArray[Int32]
 }

@@ -10,7 +10,7 @@ pub struct ProjectionPhysicalPipeline {
   distribution : ProjectionProductFoldDistribution
   sibling_reuse : Bool
   sibling_transport : ProjectionSiblingTransport
-  owners_per_group : Int
+  owners_per_group : Int32
   transfer_segments : ReadOnlyArray[ProjectionTransferSegment]
 } derive(Debug, Eq)
 
@@ -24,14 +24,14 @@ pub extend ProjectionPhysicalPipeline with Eq::{equal, not_equal}
 pub fn ProjectionPhysicalPipeline::new(
   schedule : ProjectionFoldPipeline,
   layout : @physical_tile_ir.OperandLayout,
-  consumer_groups~ : Int,
-  owners_per_group~ : Int,
-  products~ : Int,
+  consumer_groups~ : Int32,
+  owners_per_group~ : Int32,
+  products~ : Int32,
   execution : ProjectionTransferExecution,
-  columns? : Int,
-  output_tiles? : Int,
-  sibling_ownership? : ProjectionSiblingOwnership = SplitSiblingPlanes,
-  sibling_transport? : ProjectionSiblingTransport = BaselineSiblingTransport,
+  columns? : Int32,
+  output_tiles? : Int32,
+  sibling_ownership~ : ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport~ : ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> ProjectionPhysicalPipeline? {
   guard products == 1 || products == 2 else { return None }
   let output_tiles = output_tiles.unwrap_or(schedule.output_tiles())

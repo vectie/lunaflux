@@ -29,20 +29,20 @@ pub fn PositionedQkvActivation::new(
 
 ///|
 pub struct PagedKvWriteAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
   priv max_module_bytes : Int64
-  priv max_receipt_bytes : Int
-  priv max_binding_bytes : Int
+  priv max_receipt_bytes : Int32
+  priv max_binding_bytes : Int32
 }
 
 ///|
 pub fn PagedKvWriteAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
   max_module_bytes~ : Int64,
-  max_receipt_bytes~ : Int,
-  max_binding_bytes~ : Int,
+  max_receipt_bytes~ : Int32,
+  max_binding_bytes~ : Int32,
 ) -> PagedKvWriteAotLimits raise PagedKvWriteAotError {
   if max_source_bytes <= 0 ||
     max_recipe_bytes <= 0 ||
@@ -75,18 +75,18 @@ pub struct PagedKvWriteCudaCandidate {
   priv target : @catalog.DeviceTarget
   priv profile : @launch_contract.PagedKernelProfile
   priv compiler : @luna_specialization.LunaCompilerPolicy
-  priv tokens_per_page : Int
-  priv total_page_count : Int
+  priv tokens_per_page : Int32
+  priv total_page_count : Int32
   priv page_stride_bytes : Int64
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv head_dimension : Int
-  priv kv_width : Int
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv head_dimension : Int32
+  priv kv_width : Int32
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv symbol : String
   priv abi : PagedKvWriteKernelAbi
-  priv dispatch_canary : UInt
+  priv dispatch_canary : UInt32
   priv fallback_source : String
   priv fallback_recipe : String
   priv source : Bytes
@@ -130,8 +130,8 @@ pub struct PagedKvWriteQualificationExport {
 /// Caller-reported host/fake campaign observation. It is deliberately not a
 /// physical result and cannot grant approval.
 pub struct PagedKvWriteFakeCampaignObservation {
-  priv live_tokens : Int
-  priv kv_width : Int
+  priv live_tokens : Int32
+  priv kv_width : Int32
   priv key_writes : Int64
   priv value_writes : Int64
   priv expected_untouched : Int64
@@ -140,8 +140,8 @@ pub struct PagedKvWriteFakeCampaignObservation {
 
 ///|
 pub fn PagedKvWriteFakeCampaignObservation::new(
-  live_tokens~ : Int,
-  kv_width~ : Int,
+  live_tokens~ : Int32,
+  kv_width~ : Int32,
   key_writes~ : Int64,
   value_writes~ : Int64,
   expected_untouched~ : Int64,
@@ -168,7 +168,7 @@ pub fn PagedKvWriteFakeCampaignObservation::new(
 ///|
 pub struct PagedKvWriteFakeCampaignReport {
   priv candidate : PagedKvWriteDigest
-  priv observation_count : Int
+  priv observation_count : Int32
   priv canonical : Bytes
   priv digest : PagedKvWriteDigest
 }

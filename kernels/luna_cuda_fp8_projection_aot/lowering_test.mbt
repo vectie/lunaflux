@@ -25,8 +25,8 @@ fn fp8_aot_plan() -> @plan.ModelPlan {
 
 ///|
 fn fp8_aot_profile(
-  rows? : Int = 2,
-  tokens? : Int = 8,
+  rows~ : Int32 = 2,
+  tokens~ : Int32 = 8,
 ) -> @launch_contract.PagedKernelProfile {
   try! @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
@@ -37,7 +37,10 @@ fn fp8_aot_profile(
 }
 
 ///|
-fn fp8_aot_target(major? : Int = 8, minor? : Int = 9) -> @catalog.DeviceTarget {
+fn fp8_aot_target(
+  major~ : Int32 = 8,
+  minor~ : Int32 = 9,
+) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=major,
     compute_minor=minor,
@@ -64,9 +67,9 @@ fn fp8_aot_compiler() -> @luna_specialization.LunaCompilerPolicy {
 
 ///|
 fn fp8_aot_lower(
-  operation : Int,
-  profile? : @launch_contract.PagedKernelProfile = fp8_aot_profile(),
-  model_plan? : @plan.ModelPlan = fp8_aot_plan(),
+  operation : Int32,
+  profile~ : @launch_contract.PagedKernelProfile = fp8_aot_profile(),
+  model_plan~ : @plan.ModelPlan = fp8_aot_plan(),
 ) -> Fp8ProjectionCudaLowering {
   let plan = model_plan
   let id = try! @plan.OperationId::new(operation)
@@ -90,7 +93,7 @@ fn fp8_aot_lower(
 }
 
 ///|
-fn count_text(haystack : String, needle : String) -> Int {
+fn count_text(haystack : String, needle : String) -> Int32 {
   let mut count = 0
   let mut offset = 0
   while offset + needle.length() <= haystack.length() {

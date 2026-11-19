@@ -11,7 +11,7 @@ test "explicit row mapping preserves interleaving BF16 bits and padding" {
     audio=[1],
     max_elements=14L,
   )
-  let result : Array[UInt] = []
+  let result : Array[UInt32] = []
   for row in plan.rows() {
     for lane in 0..<2 {
       let value = match row.source {

@@ -8,7 +8,7 @@ priv struct RegionBinding {
 
 ///|
 priv struct AotStepBlueprint {
-  function_index : Int
+  function_index : Int32
   dimensions : @device.KernelLaunchDimensions
   operands : ReadOnlyArray[RegionBinding]
 }
@@ -35,14 +35,14 @@ priv enum StepBlueprint {
 ///|
 priv struct FunctionBlueprint {
   identity : @catalog.AotKernelEntryPoint
-  module_index : Int
+  module_index : Int32
   symbol : String
 }
 
 ///|
 priv struct PreparationBlueprint {
   token_staging_bytes : Int64
-  vocabulary_size : Int
+  vocabulary_size : Int32
   steps : ReadOnlyArray[StepBlueprint]
   functions : ReadOnlyArray[FunctionBlueprint]
   has_vendor_steps : Bool
@@ -81,7 +81,7 @@ priv struct OwnedModule {
 ///|
 priv struct OwnedFunction {
   resource : @device.Function
-  module_index : Int
+  module_index : Int32
   mut open : Bool
 }
 
@@ -111,14 +111,14 @@ priv struct ExecutorResources {
 
 ///|
 priv struct PreparedAotStep {
-  function_index : Int
+  function_index : Int32
   dimensions : @device.KernelLaunchDimensions
   arguments : @device.KernelArguments
 }
 
 ///|
 priv struct PreparedVendorStep {
-  plan_index : Int
+  plan_index : Int32
   left_offset : Int64
   weight_offset : Int64
   output_offset : Int64
@@ -176,7 +176,7 @@ pub struct PreparedDeviceExecutor {
   priv steps : ReadOnlyArray[PreparedStep]
   priv terminal_output : @device_profile.FinalOutputView
   priv token_bytes : Int64
-  priv vocabulary_size : Int
+  priv vocabulary_size : Int32
   priv mut output_valid : Bool
   priv mut lifecycle : ExecutorLifecycle
 }

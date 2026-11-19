@@ -1,8 +1,8 @@
 ///|
 fn openai_baseline_event_delimiter_length(
   storage : FixedArray[Byte],
-  length : Int,
-) -> Int {
+  length : Int32,
+) -> Int32 {
   if length >= 2 && storage[length - 2] == b'\n' && storage[length - 1] == b'\n' {
     2
   } else if length >= 4 &&
@@ -19,7 +19,7 @@ fn openai_baseline_event_delimiter_length(
 ///|
 fn openai_baseline_decode_event(
   storage : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> String raise OpenAIBaselineAdapterError {
   let bytes = Bytes::makei(length, fn(index) { storage[index] })
   @utf8.decode(bytes) catch {
@@ -30,8 +30,8 @@ fn openai_baseline_decode_event(
 ///|
 fn OpenAIBaselineTrialAdapter::observe_sse_event(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
-  event_length : Int,
+  request_ordinal : Int32,
+  event_length : Int32,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
   let event = openai_baseline_decode_event(lane.event_storage, event_length)
@@ -67,7 +67,7 @@ fn OpenAIBaselineTrialAdapter::observe_sse_event(
 /// delimiters are recognized; mixed or bare carriage returns fail closed.
 pub fn OpenAIBaselineTrialAdapter::offer_sse_bytes(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   source : BytesView,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)

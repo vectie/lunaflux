@@ -88,20 +88,20 @@ pub(all) suberror WorkerProtocolError {
   EmptyPlan
   BoundExceeded(ProtocolLimit)
   TokenBudgetMismatch
-  InvalidToken(index~ : Int)
+  InvalidToken(index~ : Int32)
   InvalidCapabilityRecipe(CapabilityRecipeRule)
   InvalidCompletionSlot
-  InvalidCompletionToken(slot~ : Int)
+  InvalidCompletionToken(slot~ : Int32)
   InvalidView(table~ : ProtocolTable, rule~ : RowRule)
   InvalidRowDescriptor(kind~ : WorkerRowKind, rule~ : RowRule)
-  InvalidRow(kind~ : WorkerRowKind, index~ : Int, rule~ : RowRule)
+  InvalidRow(kind~ : WorkerRowKind, index~ : Int32, rule~ : RowRule)
   IncompleteTable(ProtocolTable)
   CompletionCountMismatch
-  DuplicateCompletionSlot(index~ : Int)
-  UnknownCompletionSlot(index~ : Int)
-  CompletionIdentityMismatch(index~ : Int)
-  CompletionKindMismatch(index~ : Int)
-  CompletionTokenCountMismatch(index~ : Int)
+  DuplicateCompletionSlot(index~ : Int32)
+  UnknownCompletionSlot(index~ : Int32)
+  CompletionIdentityMismatch(index~ : Int32)
+  CompletionKindMismatch(index~ : Int32)
+  CompletionTokenCountMismatch(index~ : Int32)
   StalePlanSequence
   StaleModelPlanGeneration
   InvalidPlanBufferState(expected~ : PlanBufferState, actual~ : PlanBufferState)

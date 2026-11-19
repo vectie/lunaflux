@@ -29,7 +29,7 @@ pub fn GlmHybridKdaRecurrentCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridKdaRecurrentCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,12 +48,12 @@ pub fn GlmHybridKdaRecurrentCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridKdaRecurrentCudaCandidate::head_count(self : Self) -> Int {
+pub fn GlmHybridKdaRecurrentCudaCandidate::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmHybridKdaRecurrentCudaCandidate::head_dimension(self : Self) -> Int {
+pub fn GlmHybridKdaRecurrentCudaCandidate::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
@@ -65,14 +65,14 @@ pub fn GlmHybridKdaRecurrentCudaCandidate::normalization_epsilon(
 }
 
 ///|
-pub fn GlmHybridKdaRecurrentCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridKdaRecurrentCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn GlmHybridKdaRecurrentCudaCandidate::maximum_sequences(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_sequences
 }
 

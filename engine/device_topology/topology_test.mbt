@@ -1,6 +1,6 @@
 ///|
 fn topology_target(
-  minor? : Int = 0,
+  minor~ : Int32 = 0,
 ) -> @catalog.DeviceTarget raise @catalog.CatalogError {
   @catalog.DeviceTarget::new(
     compute_major=8,
@@ -12,7 +12,7 @@ fn topology_target(
 
 ///|
 fn topology_rank(
-  ordinal : Int,
+  ordinal : Int32,
   name : String,
   memory : Int64,
   target : @catalog.DeviceTarget,
@@ -27,10 +27,10 @@ fn topology_rank(
 
 ///|
 fn topology_device(
-  ordinal : Int,
+  ordinal : Int32,
   name : String,
   memory : Int64,
-  minor? : Int = 0,
+  minor~ : Int32 = 0,
 ) -> LocalProbeDevice raise LocalTopologyError {
   @device_topology.LocalProbeDevice::new(
     ordinal~,
@@ -55,9 +55,9 @@ fn two_rank_declaration(
 
 ///|
 fn two_rank_projection(
-  second_name? : String = "rank-five",
-  second_minor? : Int = 0,
-  reverse_peer? : Bool = true,
+  second_name~ : String = "rank-five",
+  second_minor~ : Int32 = 0,
+  reverse_peer~ : Bool = true,
 ) -> LocalTopologyProbeProjection raise LocalTopologyError {
   let peers = [
     @device_topology.LocalPeerAccess::new(

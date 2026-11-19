@@ -3,7 +3,7 @@
 /// global greedy join. Borrowed through queue retirement; no host readback.
 pub fn TextIoFrame::vocabulary_boundary(
   self : Self,
-) -> (Int, @device.Allocation, @device.Allocation, Int, Int)? raise {
+) -> (Int32, @device.Allocation, @device.Allocation, Int32, Int32)? raise {
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }

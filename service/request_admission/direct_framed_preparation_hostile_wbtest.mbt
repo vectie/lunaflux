@@ -1,8 +1,8 @@
 ///|
 fn direct_hostile_pool(
   read_clock : () -> UInt64 raise RequestAdmissionError,
-  lanes : Int,
-  budget : Int,
+  lanes : Int32,
+  budget : Int32,
   work_limit : UInt64,
 ) -> LunaRequestPreparationPool raise {
   let tokenizer = fixture_tokenizer()
@@ -30,8 +30,8 @@ fn direct_hostile_offer_complete(
   pool : LunaRequestPreparationPool,
   work : LunaRequestPreparationWork,
   source : FixedArray[Byte],
-  frame_length : Int,
-  start : Int,
+  frame_length : Int32,
+  start : Int32,
 ) -> Unit raise {
   let mut offset = start
   let mut turns = 0
@@ -65,7 +65,7 @@ fn direct_hostile_offer_complete(
 fn direct_hostile_drive_to_phase(
   pool : LunaRequestPreparationPool,
   work : LunaRequestPreparationWork,
-  phase : Int,
+  phase : Int32,
 ) -> Unit raise {
   let mut turns = 0
   while pool.lanes[work.lane].phase != phase {

@@ -35,10 +35,10 @@ pub struct TensorParallelRankBootstrapEnvelope {
   priv identity : @spec.ModelIdentity
   priv model_generation_value : UInt64
   priv group_generation_value : UInt64
-  priv rank : Int
-  priv world_size : Int
-  priv device_ordinal : Int
-  priv collective_runtime_version_code : Int
+  priv rank : Int32
+  priv world_size : Int32
+  priv device_ordinal : Int32
+  priv collective_runtime_version_code : Int32
   priv network_lease_millis : UInt64
   priv group_digest : TensorParallelGroupBootstrapDigest
   priv topology_digest : TensorParallelTopologyDigest
@@ -58,7 +58,7 @@ pub struct TensorParallelGroupBootstrap {
   priv identity : @spec.ModelIdentity
   priv model_generation_value : UInt64
   priv group_generation_value : UInt64
-  priv collective_runtime_version_code : Int
+  priv collective_runtime_version_code : Int32
   priv topology_digest : TensorParallelTopologyDigest
   priv digest : TensorParallelGroupBootstrapDigest
   priv template_digest_sha256 : String
@@ -71,7 +71,7 @@ pub struct TensorParallelGroupBootstrap {
 pub struct TensorParallelRankEnvelopeFrameBuffer {
   priv storage : FixedArray[Byte]
   priv mut epoch : UInt64
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|
@@ -87,9 +87,9 @@ priv struct RankBootstrapClaim {
   identity : @spec.ModelIdentity
   model_generation_value : UInt64
   group_generation_value : UInt64
-  rank : Int
-  world_size : Int
-  device_ordinal : Int
+  rank : Int32
+  world_size : Int32
+  device_ordinal : Int32
   worker_digest : TensorParallelWorkerContractDigest
   device_plan_digest : TensorParallelDevicePlanDigest
   execution_plan_digest_sha256 : String

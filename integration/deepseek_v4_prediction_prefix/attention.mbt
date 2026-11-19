@@ -3,8 +3,8 @@
 /// caller supplies preceding normalized/rotary/precision-simulated operands.
 pub fn prediction_attention_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_main_rows~ : Int,
-  maximum_positions~ : Int,
+  maximum_main_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_state_bytes~ : Int64,
 ) -> @precision.CommittedDraftKvPrecision raise {
   guard spec.has_dspark() else {
@@ -26,8 +26,8 @@ pub fn prediction_attention_plan(
 /// linking includes source bytes from both phase renderers using these names.
 pub fn prediction_attention_frame(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_main_rows~ : Int,
-  maximum_positions~ : Int,
+  maximum_main_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_state_bytes~ : Int64,
   symbol_prefix~ : String,
 ) -> @draft_frame.CommittedDraftKvFrame raise {
@@ -62,7 +62,7 @@ pub fn prediction_attention_frame(
 /// as base attention, with draft-row geometry and base frequencies.
 pub fn prediction_attention_output_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_positions~ : Int,
+  maximum_positions~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.GroupedAttentionOutputPrecision raise {
   require_prediction_stage(spec, 0)

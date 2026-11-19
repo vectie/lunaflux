@@ -1,5 +1,5 @@
 ///|
-fn residency_from_code(code : Int) -> PageResidency {
+fn residency_from_code(code : Int32) -> PageResidency {
   match code {
     0 => Free
     1 => Allocated
@@ -41,45 +41,45 @@ pub fn PageSnapshot::residency(self : PageSnapshot) -> PageResidency {
 }
 
 ///|
-pub fn PageSnapshot::active_references(self : PageSnapshot) -> Int {
+pub fn PageSnapshot::active_references(self : PageSnapshot) -> Int32 {
   self.active_references
 }
 
 ///|
-pub fn PageSnapshot::cached_references(self : PageSnapshot) -> Int {
+pub fn PageSnapshot::cached_references(self : PageSnapshot) -> Int32 {
   self.cached_references
 }
 
 ///|
 pub fn PageAllocatorSnapshot::free_page_count(
   self : PageAllocatorSnapshot,
-) -> Int {
+) -> Int32 {
   self.free_pages
 }
 
 ///|
 pub fn PageAllocatorSnapshot::allocated_page_count(
   self : PageAllocatorSnapshot,
-) -> Int {
+) -> Int32 {
   self.allocated_pages
 }
 
 ///|
 pub fn PageAllocatorSnapshot::retired_page_count(
   self : PageAllocatorSnapshot,
-) -> Int {
+) -> Int32 {
   self.retired_pages
 }
 
 ///|
-pub fn PageAllocatorSnapshot::page_count(self : PageAllocatorSnapshot) -> Int {
+pub fn PageAllocatorSnapshot::page_count(self : PageAllocatorSnapshot) -> Int32 {
   self.pages.length()
 }
 
 ///|
 pub fn PageAllocatorSnapshot::page_at(
   self : PageAllocatorSnapshot,
-  index : Int,
+  index : Int32,
 ) -> PageSnapshot raise PageAllocatorError {
   if index < 0 || index >= self.pages.length() {
     raise RunIndexOutOfBounds

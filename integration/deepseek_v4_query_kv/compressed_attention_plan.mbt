@@ -1,11 +1,11 @@
 ///|
 pub fn compressed_attention_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_state_bytes~ : Int64,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> @precision.WindowCompressedKvPrecision raise {
   guard layer >= 0 &&
     layer < spec.layer_count() &&
@@ -19,7 +19,7 @@ pub fn compressed_attention_plan(
     @precision.WindowSharedKvPrecision::new(
       query_heads=spec.attention_head_count(),
       head_width=spec.head_dimension(),
-      window_tokens=Int::min(spec.sliding_window(), maximum_context),
+      window_tokens=Int32::min(spec.sliding_window(), maximum_context),
       maximum_rows~,
       maximum_positions=maximum_context,
       maximum_state_bytes~,
@@ -41,9 +41,9 @@ pub fn compressed_attention_plan(
 /// No component may independently consume the complete owner's budget.
 fn compressed_cache_sizes(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer : Int,
-  rows : Int,
-  context : Int,
+  layer : Int32,
+  rows : Int32,
+  context : Int32,
   indexer : Bool,
   state_limit : Int64,
   workspace_limit : Int64,

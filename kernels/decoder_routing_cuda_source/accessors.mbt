@@ -13,17 +13,17 @@ pub fn DecoderRoutingCudaSource::numerical_contract(
 }
 
 ///|
-pub fn DecoderRoutingCudaSource::routed_expert_count(self : Self) -> Int {
+pub fn DecoderRoutingCudaSource::routed_expert_count(self : Self) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
-pub fn DecoderRoutingCudaSource::experts_per_token(self : Self) -> Int {
+pub fn DecoderRoutingCudaSource::experts_per_token(self : Self) -> Int32 {
   self.experts_per_token
 }
 
 ///|
-pub fn DecoderRoutingCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderRoutingCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

@@ -46,7 +46,7 @@ fn matrix_readbacks(
   arena : @device.Allocation,
   offsets : FixedArray[Int64],
 ) -> FixedArray[Bytes] raise @device.DeviceError {
-  let indices : FixedArray[Int] = [
+  let indices : FixedArray[Int32] = [
     3, 5, 9, 11, 16, 17, 18, 20, 21, 23, 27, 28, 30, 32,
   ]
   FixedArray::makei(indices.length(), index => {
@@ -59,8 +59,8 @@ fn matrix_readbacks(
 async fn run_shape_matrix(
   contract_path : String,
   module_paths : FixedArray[String],
-  cycles : Int,
-) -> (Int, Double) {
+  cycles : Int32,
+) -> (Int32, Double) {
   matrix_authenticate_contract(contract_path)
   let images : Array[Bytes] = []
   for path in module_paths {
@@ -124,7 +124,7 @@ async fn run_shape_matrix(
     embedding, rms, qkv, rope, attention, dense, residual, rms, mlp, residual, rms,
     lm_head,
   ]
-  let starts : FixedArray[Int] = [
+  let starts : FixedArray[Int32] = [
     0, 4, 8, 14, 18, 28, 32, 36, 40, 46, 50, 54, 58,
   ]
   let launches : Array[@device.OrderedKernelLaunch] = []

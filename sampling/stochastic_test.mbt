@@ -21,7 +21,7 @@ fn inference_limits() -> @inference.InferenceLimits raise {
 ///|
 fn sample_parameters(
   temperature : Double,
-  top_k~ : Int?,
+  top_k~ : Int32?,
   top_p~ : Double?,
 ) -> @inference.SamplingParameters raise {
   @inference.SamplingParameters::sample(

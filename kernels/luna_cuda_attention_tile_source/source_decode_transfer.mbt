@@ -6,8 +6,8 @@
 /// No vector crosses a head or a token/page boundary; inactive keys are zeroed.
 fn emit_decode_key_value_transfer(
   abi : CudaPagedAttentionTileAbi,
-  vector_bytes : Int,
-  hoist_page_lookup? : Bool = false,
+  vector_bytes : Int32,
+  hoist_page_lookup~ : Bool = false,
 ) -> String {
   let (_, _, head_dimension, _) = abi.shape()
   let (_, page_stride_values, _) = abi.layout()

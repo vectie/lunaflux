@@ -2,7 +2,7 @@
 pub fn lower_timestep_frequency_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   values~ : @joint_diffusion_io_plan.JointDistinctTimestepValues,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

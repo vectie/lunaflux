@@ -119,7 +119,7 @@ pub fn RuntimeInstanceAdmission::framed_limits(
 /// Exact number of startup preparation lanes.
 pub fn RuntimeInstanceAdmission::preparation_lane_count(
   self : RuntimeInstanceAdmission,
-) -> Int {
+) -> Int32 {
   self.core.preparation_lane_count
 }
 
@@ -159,6 +159,6 @@ pub fn RuntimeInstanceAdmission::event_step_budget(
 /// Exact bounded structured instance-log capacity.
 pub fn RuntimeInstanceAdmission::telemetry_capacity(
   self : RuntimeInstanceAdmission,
-) -> Int {
+) -> Int32 {
   self.core.telemetry_capacity
 }

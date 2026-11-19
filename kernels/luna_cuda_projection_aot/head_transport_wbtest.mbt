@@ -35,7 +35,7 @@ test "selected head transport alternatives retain declared maps and numerical fo
       let compiled = @luna_projection_tile_compiler.compile_projection_tile(
         @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
           dispatch=runtime.dispatch_plan(bound),
-          maximum_rows=Int::min(32, bound),
+          maximum_rows=Int32::min(32, bound),
           maximum_tokens=bound,
           demand=QueryRowEnds,
         ),

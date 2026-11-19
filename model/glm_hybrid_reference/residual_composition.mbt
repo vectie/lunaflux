@@ -2,8 +2,8 @@
 pub fn moe_decoder_residual_add(
   residual : ArrayView[Double],
   branch : ArrayView[Double],
-  row_count~ : Int,
-  hidden_width~ : Int,
+  row_count~ : Int32,
+  hidden_width~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmResidualCompositionResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)
@@ -36,9 +36,9 @@ pub fn hyper_connection_residual_mix(
   combine : ArrayView[Double],
   residual : ArrayView[Double],
   branch : ArrayView[Double],
-  row_count~ : Int,
-  stream_count~ : Int,
-  hidden_width~ : Int,
+  row_count~ : Int32,
+  stream_count~ : Int32,
+  hidden_width~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmResidualCompositionResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)
@@ -80,17 +80,17 @@ pub fn hyper_connection_residual_mix(
 }
 
 ///|
-pub fn GlmResidualCompositionResult::row_count(self : Self) -> Int {
+pub fn GlmResidualCompositionResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmResidualCompositionResult::stream_count(self : Self) -> Int {
+pub fn GlmResidualCompositionResult::stream_count(self : Self) -> Int32 {
   self.stream_count
 }
 
 ///|
-pub fn GlmResidualCompositionResult::hidden_width(self : Self) -> Int {
+pub fn GlmResidualCompositionResult::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 

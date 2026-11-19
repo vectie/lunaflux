@@ -207,3 +207,27 @@ pub fn ModelNumericBinding::digest(
 ) -> @numeric_contract.ModelNumericSchemaDigest {
   self.schema.digest()
 }
+
+///|
+pub extend PlanTensorRole with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanTensorRole with Eq::{not_equal, equal}
+
+///|
+pub extend PlanTensor with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanTensor with Eq::{not_equal, equal}
+
+///|
+pub extend OperationNumericBinding with @debug.Debug::{to_repr}
+
+///|
+pub extend OperationNumericBinding with Eq::{not_equal, equal}
+
+///|
+pub extend ModelNumericBinding with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelNumericBinding with Eq::{not_equal, equal}

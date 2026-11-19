@@ -4,9 +4,9 @@
 /// producer must use the same uniform tile range and immutable page identities
 /// in every subgroup; this plan proves that every required page has an owner.
 pub struct PagedValidityOwnership {
-  priv tile_rows : Int
-  priv page_rows : Int
-  priv pages : Int
+  priv tile_rows : Int32
+  priv page_rows : Int32
+  priv pages : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -17,10 +17,10 @@ pub extend PagedValidityOwnership with @debug.Debug::{to_repr}
 
 ///|
 pub fn PagedValidityOwnership::new(
-  tile_rows~ : Int,
-  page_rows~ : Int,
-  start_alignment~ : Int,
-  owners~ : Int,
+  tile_rows~ : Int32,
+  page_rows~ : Int32,
+  start_alignment~ : Int32,
+  owners~ : Int32,
 ) -> PagedValidityOwnership? {
   guard PagedTileEpochs::new(tile_rows~, page_rows~, start_alignment~, owners~)
     is Some(epoch) else {
@@ -30,7 +30,9 @@ pub fn PagedValidityOwnership::new(
 }
 
 ///|
-pub fn PagedValidityOwnership::page_count(self : PagedValidityOwnership) -> Int {
+pub fn PagedValidityOwnership::page_count(
+  self : PagedValidityOwnership,
+) -> Int32 {
   self.pages
 }
 
@@ -40,7 +42,7 @@ pub fn PagedValidityOwnership::page_count(self : PagedValidityOwnership) -> Int 
 /// staged: a later K refill must not replace the older V validity snapshot.
 pub fn PagedValidityOwnership::valid_tile(
   self : PagedValidityOwnership,
-  active_rows : Int,
+  active_rows : Int32,
   pages : ReadOnlyArray[Bool],
 ) -> Bool? {
   guard active_rows >= 0 &&

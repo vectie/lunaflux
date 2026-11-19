@@ -37,10 +37,12 @@ pub(all) suberror IncrementalOutputError {
 
 ///|
 #valtype
-pub struct IncrementalOutputStep(Int, Bool)
+pub struct IncrementalOutputStep(Int32, Bool)
 
 ///|
-pub fn IncrementalOutputStep::copied_bytes(self : IncrementalOutputStep) -> Int {
+pub fn IncrementalOutputStep::copied_bytes(
+  self : IncrementalOutputStep,
+) -> Int32 {
   self.0
 }
 
@@ -54,7 +56,7 @@ pub fn IncrementalOutputStep::stop_matched(
 ///|
 /// Scalar, allocation-free token decode status for owner-resident sessions.
 #valtype
-pub struct IncrementalOutputStatus(Int, Int, Bool)
+pub struct IncrementalOutputStatus(Int32, Int32, Bool)
 
 ///|
 pub fn IncrementalOutputStatus::is_ready(
@@ -66,7 +68,7 @@ pub fn IncrementalOutputStatus::is_ready(
 ///|
 pub fn IncrementalOutputStatus::copied_bytes(
   self : IncrementalOutputStatus,
-) -> Int {
+) -> Int32 {
   if self.0 != 0 {
     return 0
   }
@@ -86,37 +88,37 @@ pub fn IncrementalOutputStatus::rejected() -> IncrementalOutputStatus {
 }
 
 ///|
-const OUTPUT_ACTIVE : Int = 0
+const OUTPUT_ACTIVE : Int32 = 0
 
 ///|
-const OUTPUT_STOPPED : Int = 1
+const OUTPUT_STOPPED : Int32 = 1
 
 ///|
-const OUTPUT_FINISHED : Int = 2
+const OUTPUT_FINISHED : Int32 = 2
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_IDLE : Int = 0
+const LUNA_INCREMENTAL_OUTPUT_IDLE : Int32 = 0
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_SETUP_PATTERN : Int = 1
+const LUNA_INCREMENTAL_OUTPUT_SETUP_PATTERN : Int32 = 1
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_SETUP_TEXT : Int = 2
+const LUNA_INCREMENTAL_OUTPUT_SETUP_TEXT : Int32 = 2
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_SETUP_FAILURE : Int = 3
+const LUNA_INCREMENTAL_OUTPUT_SETUP_FAILURE : Int32 = 3
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_READY : Int = 4
+const LUNA_INCREMENTAL_OUTPUT_READY : Int32 = 4
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_LEASED : Int = 5
+const LUNA_INCREMENTAL_OUTPUT_LEASED : Int32 = 5
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_FAILED : Int = 6
+const LUNA_INCREMENTAL_OUTPUT_FAILED : Int32 = 6
 
 ///|
-const LUNA_INCREMENTAL_OUTPUT_MAX_STEP_WORK_UNITS : Int = 65536
+const LUNA_INCREMENTAL_OUTPUT_MAX_STEP_WORK_UNITS : Int32 = 65536
 
 ///|
 #valtype
@@ -128,47 +130,47 @@ pub(all) enum LunaIncrementalOutputProgress {
 ///|
 #valtype
 pub struct LunaIncrementalOutputStepBudget {
-  priv work_units : Int
+  priv work_units : Int32
 }
 
 ///|
 pub struct LunaIncrementalOutputWorkspace {
-  priv maximum_decoded_piece_bytes : Int
+  priv maximum_decoded_piece_bytes : Int32
   priv tokenizer : @tokenizer.TokenizerSpec
   priv inference : @inference.InferenceLimits
   priv budget : LunaIncrementalOutputStepBudget
-  priv stop_string_byte_capacity : Int
+  priv stop_string_byte_capacity : Int32
   priv pattern_bytes : FixedArray[Byte]
-  priv failure : FixedArray[Int]
-  priv pattern_lengths : FixedArray[Int]
-  priv states : FixedArray[Int]
-  priv next_states : FixedArray[Int]
+  priv failure : FixedArray[Int32]
+  priv pattern_lengths : FixedArray[Int32]
+  priv states : FixedArray[Int32]
+  priv next_states : FixedArray[Int32]
   priv pending : FixedArray[Byte]
   priv scratch : FixedArray[Byte]
   priv mut setup_stops : @inference.StopConditions?
   priv setup_semantics : Array[@inference.LunaRequestSemanticView]
   priv mut special_policy : @tokenizer.DecodeSpecialPolicy
-  priv mut phase : Int
+  priv mut phase : Int32
   priv mut epoch : UInt64
-  priv mut stop_count : Int
-  priv mut setup_pattern : Int
-  priv mut setup_unit_offset : Int
-  priv mut setup_emit_index : Int
-  priv mut setup_emit_length : Int
-  priv mut setup_codepoint : Int
-  priv mut setup_failure_index : Int
-  priv mut setup_failure_matched : Int
-  priv mut longest_pattern : Int
-  priv mut last_work_units : Int
+  priv mut stop_count : Int32
+  priv mut setup_pattern : Int32
+  priv mut setup_unit_offset : Int32
+  priv mut setup_emit_index : Int32
+  priv mut setup_emit_length : Int32
+  priv mut setup_codepoint : Int32
+  priv mut setup_failure_index : Int32
+  priv mut setup_failure_matched : Int32
+  priv mut longest_pattern : Int32
+  priv mut last_work_units : Int32
   priv mut setup_error_rule : IncrementalOutputRule
   priv mut setup_error_issue : IncrementalOutputIssue
-  priv mut pending_count : Int
+  priv mut pending_count : Int32
   priv mut decoder_at_start : Bool
-  priv mut utf8_remaining : Int
-  priv mut utf8_codepoint : Int
-  priv mut utf8_minimum : Int
-  priv mut utf8_seen : Int
-  priv mut lifecycle : Int
+  priv mut utf8_remaining : Int32
+  priv mut utf8_codepoint : Int32
+  priv mut utf8_minimum : Int32
+  priv mut utf8_seen : Int32
+  priv mut lifecycle : Int32
 }
 
 ///|

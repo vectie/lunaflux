@@ -15,7 +15,7 @@ fn foreign_supervisor_limits() -> @worker_protocol.WorkerProtocolLimits raise {
 
 ///|
 fn foreign_supervisor_plan(
-  completion_slots : Array[Int],
+  completion_slots : Array[Int32],
 ) -> @worker_protocol.SubmittedSchedulePlan raise {
   let limits = foreign_supervisor_limits()
   let owner = @worker_protocol.SchedulePlanBuffer::new(limits)
@@ -79,8 +79,8 @@ priv enum RootBoundSnapshotAttack {
 ///|
 fn hostile_write_u32(
   bytes : FixedArray[Byte],
-  offset : Int,
-  value : UInt,
+  offset : Int32,
+  value : UInt32,
 ) -> Unit {
   bytes.unsafe_write_uint32_le(offset, value)
 }
@@ -88,14 +88,14 @@ fn hostile_write_u32(
 ///|
 fn hostile_write_u64(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : UInt64,
 ) -> Unit {
   bytes.unsafe_write_uint64_le(offset, value)
 }
 
 ///|
-fn hostile_refresh_checksum(bytes : FixedArray[Byte], length : Int) -> Unit {
+fn hostile_refresh_checksum(bytes : FixedArray[Byte], length : Int32) -> Unit {
   let mut checksum = 2166136261U
   for index in 0..<length {
     if index < 40 || index >= 44 {
@@ -108,7 +108,7 @@ fn hostile_refresh_checksum(bytes : FixedArray[Byte], length : Int) -> Unit {
 ///|
 fn apply_root_bound_snapshot_attack(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   attack : RootBoundSnapshotAttack,
 ) -> Unit {
   let entry = 48

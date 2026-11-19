@@ -243,7 +243,7 @@ fn v2_paged_operand(
 ///|
 fn v2_paged_operands(
   plan : @plan.ModelPlan,
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] {
   if operation == 0 {
     return [
@@ -354,10 +354,10 @@ fn v2_paged_operands(
 fn v2_paged_launches(
   plan : @plan.ModelPlan,
   catalog : @catalog.ResolvedKernelCatalog,
-  grid_x? : Int = 2,
-  block_x? : Int = 32,
-  shared_memory_bytes? : Int = 0,
-  selected_operands? : Array[@launch_contract.AotOperand] = [],
+  grid_x~ : Int32 = 2,
+  block_x~ : Int32 = 32,
+  shared_memory_bytes~ : Int32 = 0,
+  selected_operands~ : Array[@launch_contract.AotOperand] = [],
 ) -> @launch_contract.PagedV4LaunchContractSet raise @launch_contract.LaunchContractError {
   let inputs : Array[@launch_contract.PagedV4AotLaunchContractInput] = []
   for operation in 0..<plan.operations().length() {

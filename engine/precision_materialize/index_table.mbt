@@ -3,8 +3,8 @@
 /// numerical storage. Binding never reads payloads or allocates a host arena.
 pub struct CheckpointI64Table {
   priv location : CheckpointLocation
-  priv rows : Int
-  priv columns : Int
+  priv rows : Int32
+  priv columns : Int32
   priv input_bytes : Int64
 }
 
@@ -12,8 +12,8 @@ pub struct CheckpointI64Table {
 pub fn PackedCheckpoint::bind_i64_table(
   self : Self,
   payload_name~ : String,
-  rows~ : Int,
-  columns~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
 ) -> CheckpointI64Table raise PackedCheckpointError {
   guard rows > 0 &&
     columns > 0 &&
@@ -35,7 +35,7 @@ pub fn PackedCheckpoint::bind_i64_table(
 }
 
 ///|
-pub fn CheckpointI64Table::geometry(self : Self) -> (Int, Int) {
+pub fn CheckpointI64Table::geometry(self : Self) -> (Int32, Int32) {
   (self.rows, self.columns)
 }
 
@@ -59,7 +59,7 @@ pub fn PackedCheckpoint::transfer_i64_tables(
   tables : ArrayView[CheckpointI64Table],
   scratch~ : FixedArray[Byte],
   limits~ : @streaming.StreamingSafetensorsLimits,
-  consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume~ : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise PackedCheckpointError {
   let requests = []
   for index, table in tables {

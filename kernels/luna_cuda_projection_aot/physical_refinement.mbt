@@ -1,6 +1,6 @@
 ///|
 /// Default CUDA transport preference, applied once before effect retention.
-fn projection_operand_copy_is_async(width : Int) -> Bool {
+fn projection_operand_copy_is_async(width : Int32) -> Bool {
   width >= 64
 }
 
@@ -9,8 +9,8 @@ fn projection_operand_copy_is_async(width : Int) -> Bool {
 /// producer, fold and lifetime relations are retained by the generic pass.
 fn projection_refine_physical(
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
-  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
-  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  sibling_ownership~ : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport~ : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
   sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
 ) -> @luna_projection_tile_compiler.PhysicalProjectionTileCompilation raise ProjectionAotError {
   let physical = compilation.refine_physical(

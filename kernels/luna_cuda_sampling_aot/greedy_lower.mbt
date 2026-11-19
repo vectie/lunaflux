@@ -12,7 +12,7 @@ fn sampling_is_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -22,7 +22,7 @@ fn sampling_is_sha256(value : StringView) -> Bool {
 ///|
 fn greedy_sampling_source_text(
   program : @elementwise_physical_ir.SelectionProgram,
-  maximum_rows : Int,
+  maximum_rows : Int32,
 ) -> String {
   let (vocabulary_size, owners, _) = program.geometry()
   "#include <cuda_bf16.h>\n#include <math.h>\n#include <stdint.h>\n#include <limits.h>\n" +
@@ -65,8 +65,8 @@ pub fn greedy_sampling_cuda_function_symbol() -> String {
 /// language-model-head kernel. This remains offline source construction: it
 /// grants no compiler, artifact, module, device, or execution authority.
 pub fn embedded_greedy_sampling_cuda_source(
-  vocabulary_size : Int,
-  maximum_rows : Int,
+  vocabulary_size : Int32,
+  maximum_rows : Int32,
 ) -> String raise SamplingBoundaryError {
   if vocabulary_size <= 0 {
     raise Invalid(VocabularySize)
@@ -81,7 +81,7 @@ pub fn embedded_greedy_sampling_cuda_source(
 ///|
 fn embedded_greedy_sampling_program_source(
   physical : @elementwise_physical_ir.SelectionProgram,
-  maximum_rows : Int,
+  maximum_rows : Int32,
 ) -> String raise SamplingBoundaryError {
   let (vocabulary_size, _, _) = physical.geometry()
   greedy_sampling_source_text(physical, maximum_rows) +
@@ -92,8 +92,8 @@ fn embedded_greedy_sampling_program_source(
 fn greedy_sampling_recipe(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
-  vocabulary_size : Int,
-  maximum_rows : Int,
+  vocabulary_size : Int32,
+  maximum_rows : Int32,
   source_sha256 : String,
 ) -> Bytes {
   let identity = compiler.identity()
@@ -122,7 +122,7 @@ pub fn lower_greedy_sampling_cuda_aot(
   boundary : HostSamplingBoundary,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
-  maximum_rows : Int,
+  maximum_rows : Int32,
   limits : GreedySamplingAotLimits,
 ) -> GreedySamplingCudaLowering raise SamplingBoundaryError {
   if maximum_rows <= 0 {

@@ -15,8 +15,8 @@ fn require_graph(
 
 ///|
 fn fixture_bytes(
-  kind : Int,
-  byte_count : Int,
+  kind : Int32,
+  byte_count : Int32,
 ) -> FixedArray[Byte] raise GraphProbeFailure {
   let result = FixedArray::make(byte_count, b'\x00')
   require_graph(
@@ -30,8 +30,8 @@ fn fixture_bytes(
 fn upload_fixture(
   context : @device.Context,
   allocation : @device.Allocation,
-  kind : Int,
-  byte_count : Int,
+  kind : Int32,
+  byte_count : Int32,
   destination_offset : Int64,
 ) -> Unit raise {
   let bytes = fixture_bytes(kind, byte_count)
@@ -47,6 +47,6 @@ fn upload_fixture(
 ///|
 fn validate_graph_outputs(
   outputs : FixedArray[Bytes],
-) -> (Int, Double) raise GraphProbeFailure {
+) -> (Int32, Double) raise GraphProbeFailure {
   validate_graph_reference(outputs)
 }

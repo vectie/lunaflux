@@ -8,8 +8,8 @@ fn luna_http1_error(
 
 ///|
 pub fn LunaHttp1Limits::new(
-  max_head_bytes~ : Int,
-  max_body_bytes~ : Int,
+  max_head_bytes~ : Int32,
+  max_body_bytes~ : Int32,
 ) -> LunaHttp1Limits raise LunaHttp1Error {
   if max_head_bytes < LUNA_HTTP1_MIN_HEAD_BYTES ||
     max_head_bytes > LUNA_HTTP1_MAX_HEAD_BYTES {
@@ -23,7 +23,7 @@ pub fn LunaHttp1Limits::new(
 
 ///|
 pub fn LunaHttp1StepBudget::new(
-  work_units : Int,
+  work_units : Int32,
 ) -> LunaHttp1StepBudget raise LunaHttp1Error {
   if work_units <= 0 || work_units > LUNA_HTTP1_MAX_STEP_WORK_UNITS {
     raise luna_http1_error(LunaHttp1Limits, LunaHttp1OutOfRange)
@@ -32,14 +32,14 @@ pub fn LunaHttp1StepBudget::new(
 }
 
 ///|
-pub fn LunaHttp1StepBudget::work_units(self : LunaHttp1StepBudget) -> Int {
+pub fn LunaHttp1StepBudget::work_units(self : LunaHttp1StepBudget) -> Int32 {
   self.work_units
 }
 
 ///|
 fn luna_http1_requirements(
   limits : LunaHttp1Limits,
-) -> (Int, UInt64, UInt64) raise LunaHttp1Error {
+) -> (Int32, UInt64, UInt64) raise LunaHttp1Error {
   if limits.max_head_bytes < LUNA_HTTP1_MIN_HEAD_BYTES ||
     limits.max_head_bytes > LUNA_HTTP1_MAX_HEAD_BYTES ||
     limits.max_body_bytes < 0 ||
@@ -269,7 +269,7 @@ fn LunaHttp1Work::require_workspace(
 }
 
 ///|
-fn luna_http1_rule_code(rule : LunaHttp1Rule) -> Int {
+fn luna_http1_rule_code(rule : LunaHttp1Rule) -> Int32 {
   match rule {
     LunaHttp1Limits => 1
     LunaHttp1Source => 2
@@ -289,7 +289,7 @@ fn luna_http1_rule_code(rule : LunaHttp1Rule) -> Int {
 }
 
 ///|
-fn luna_http1_issue_code(issue : LunaHttp1Issue) -> Int {
+fn luna_http1_issue_code(issue : LunaHttp1Issue) -> Int32 {
   match issue {
     LunaHttp1Invalid => 1
     LunaHttp1Missing => 2
@@ -359,7 +359,7 @@ fn LunaHttp1Workspace::failure_value(
 }
 
 ///|
-fn LunaHttp1Workspace::charge(self : LunaHttp1Workspace, units : Int) -> Unit {
+fn LunaHttp1Workspace::charge(self : LunaHttp1Workspace, units : Int32) -> Unit {
   self.last_work_units = units
   self.total_work_units += units.to_uint64()
 }

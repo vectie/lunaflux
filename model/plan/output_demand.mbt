@@ -7,7 +7,7 @@
 pub fn ModelPlan::observed_operation_prefix(
   self : ModelPlan,
   output_demand~ : Bool,
-) -> Int {
+) -> Int32 {
   let operations = self.operations()
   if output_demand {
     return operations.length()

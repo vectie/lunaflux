@@ -13,8 +13,8 @@ priv enum State {
 /// in the base placement reserve. Verification/commit remains a separate effect.
 pub struct DeepSeekPredictionExecution {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv main_rows : Int
-  priv output_rows : Int
+  priv main_rows : Int32
+  priv output_rows : Int32
   priv explicit_seed : Bool
   priv mut seed_input : @text_frame.CommittedTokenSeed?
   priv mut seed_pending : Bool
@@ -31,14 +31,14 @@ pub struct DeepSeekPredictionExecution {
 ///|
 pub fn DeepSeekPredictionExecution::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_main_rows~ : Int,
-  maximum_positions~ : Int,
+  maximum_main_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_workspace_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   temperature~ : Double,
   accuracy~ : @precision.Accuracy,
-  maximum_output_rows? : Int = 1,
-  explicit_committed_seed? : Bool = false,
+  maximum_output_rows~ : Int32 = 1,
+  explicit_committed_seed~ : Bool = false,
 ) -> Self raise {
   {
     spec,
@@ -102,7 +102,7 @@ pub fn DeepSeekPredictionExecution::prepare(
   ports : @serial.SerialDecoderWorker,
   rng : Bytes,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

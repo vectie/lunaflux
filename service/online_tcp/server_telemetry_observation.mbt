@@ -6,17 +6,17 @@ fn luna_server_observation_requires_record(recorded : Bool) -> Bool {
 ///|
 #valtype
 priv struct LunaServerObservationSample {
-  kind : Int
-  latency_kind : Int
-  latency_millis : Int
-  input_tokens : Int
-  output_tokens : Int
+  kind : Int32
+  latency_kind : Int32
+  latency_millis : Int32
+  input_tokens : Int32
+  output_tokens : Int32
 }
 
 ///|
 fn luna_server_observation_kind_code(
   kind : @online_session.LunaOnlineFramedObservationKind,
-) -> Int {
+) -> Int32 {
   match kind {
     LunaOnlineFramedAdmissionObservation => 1
     LunaOnlineFramedTokenObservation => 2
@@ -34,7 +34,7 @@ fn luna_server_observation_kind_code(
 ///|
 fn luna_server_latency_kind_code(
   kind : @online_session.LunaOnlineFramedLatencyKind,
-) -> Int {
+) -> Int32 {
   match kind {
     LunaOnlineFramedNoLatency => 0
     LunaOnlineFramedRequestLatency => 1
@@ -46,8 +46,8 @@ fn luna_server_latency_kind_code(
 ///|
 fn LunaServerTelemetryBridge::record_latency_sample_code(
   self : LunaServerTelemetryBridge,
-  kind : Int,
-  latency_millis : Int,
+  kind : Int32,
+  latency_millis : Int32,
 ) -> Bool {
   if latency_millis < 0 {
     return false
@@ -75,7 +75,7 @@ fn LunaServerTelemetryBridge::record_latency_sample_code(
 fn LunaServerTelemetryBridge::record_observation_sample(
   self : LunaServerTelemetryBridge,
   sample : LunaServerObservationSample,
-) -> Int {
+) -> Int32 {
   if !self.record_latency_sample_code(
       sample.latency_kind,
       sample.latency_millis,
@@ -141,7 +141,7 @@ fn LunaServerTelemetryBridge::record_observation_sample(
 fn LunaServerTelemetryBridge::record_observation(
   self : LunaServerTelemetryBridge,
   observation : @online_session.LunaOnlineFramedObservation,
-) -> Int {
+) -> Int32 {
   let kind = observation.kind() catch { _ => return -1 }
   let input = if kind == LunaOnlineFramedUsageObservation {
     observation.input_tokens() catch {

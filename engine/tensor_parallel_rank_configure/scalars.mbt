@@ -1,8 +1,8 @@
 ///|
 fn configure_write_u32(
   bytes : FixedArray[Byte],
-  offset : Int,
-  value : UInt,
+  offset : Int32,
+  value : UInt32,
 ) -> Unit {
   bytes[offset] = value.to_byte()
   bytes[offset + 1] = (value >> 8).to_byte()
@@ -11,7 +11,7 @@ fn configure_write_u32(
 }
 
 ///|
-fn configure_read_u32(bytes : FixedArray[Byte], offset : Int) -> UInt {
+fn configure_read_u32(bytes : FixedArray[Byte], offset : Int32) -> UInt32 {
   bytes[offset].to_uint() |
   (bytes[offset + 1].to_uint() << 8) |
   (bytes[offset + 2].to_uint() << 16) |
@@ -21,21 +21,21 @@ fn configure_read_u32(bytes : FixedArray[Byte], offset : Int) -> UInt {
 ///|
 fn configure_write_i32(
   bytes : FixedArray[Byte],
-  offset : Int,
-  value : Int,
+  offset : Int32,
+  value : Int32,
 ) -> Unit {
   configure_write_u32(bytes, offset, value.reinterpret_as_uint())
 }
 
 ///|
-fn configure_read_i32(bytes : FixedArray[Byte], offset : Int) -> Int {
+fn configure_read_i32(bytes : FixedArray[Byte], offset : Int32) -> Int32 {
   configure_read_u32(bytes, offset).reinterpret_as_int()
 }
 
 ///|
 fn configure_write_u64(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : UInt64,
 ) -> Unit {
   for index in 0..<8 {
@@ -44,7 +44,7 @@ fn configure_write_u64(
 }
 
 ///|
-fn configure_read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
+fn configure_read_u64(bytes : FixedArray[Byte], offset : Int32) -> UInt64 {
   let mut value = 0UL
   for index in 0..<8 {
     value = value | (bytes[offset + index].to_uint64() << (index * 8))
@@ -68,7 +68,7 @@ fn configure_hex_nibble(
 ///|
 fn configure_write_raw_digest(
   destination : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   digest : StringView,
 ) -> Unit raise TensorParallelRankConfigureError {
   if digest.length() != 64 {
@@ -83,7 +83,7 @@ fn configure_write_raw_digest(
 ///|
 fn configure_read_raw_digest(
   source : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
 ) -> TensorParallelRankConfigureDigest {
   TensorParallelRankConfigureDigest(
     @crypto.bytes_to_hex_string(

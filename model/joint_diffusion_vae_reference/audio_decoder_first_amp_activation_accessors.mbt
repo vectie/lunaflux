@@ -15,36 +15,38 @@ pub fn JointVaeAudioDecoderFirstAmpActivation::request_shape(
 ///|
 pub fn JointVaeAudioDecoderFirstAmpActivation::decoder_batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
 pub fn JointVaeAudioDecoderFirstAmpActivation::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 
 ///|
-pub fn JointVaeAudioDecoderFirstAmpActivation::time_count(self : Self) -> Int {
+pub fn JointVaeAudioDecoderFirstAmpActivation::time_count(self : Self) -> Int32 {
   self.time_count
 }
 
 ///|
 pub fn JointVaeAudioDecoderFirstAmpActivation::upsample_time(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.upsample_time
 }
 
 ///|
-pub fn JointVaeAudioDecoderFirstAmpActivation::ratio(self : Self) -> Int {
+pub fn JointVaeAudioDecoderFirstAmpActivation::ratio(self : Self) -> Int32 {
   self.ratio
 }
 
 ///|
-pub fn JointVaeAudioDecoderFirstAmpActivation::kernel_size(self : Self) -> Int {
+pub fn JointVaeAudioDecoderFirstAmpActivation::kernel_size(
+  self : Self,
+) -> Int32 {
   self.kernel_size
 }
 

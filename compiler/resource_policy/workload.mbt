@@ -3,11 +3,11 @@
 /// part of identity: a maximum-envelope probe is not a small-bucket sample.
 pub struct Workload {
   priv phase : String
-  priv queries : Int
-  priv rows : Int
-  priv history : Int
-  priv bucket_queries : Int
-  priv bucket_rows : Int
+  priv queries : Int32
+  priv rows : Int32
+  priv history : Int32
+  priv bucket_queries : Int32
+  priv bucket_rows : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -19,11 +19,11 @@ pub extend Workload with @debug.Debug::{to_repr}
 ///|
 pub fn Workload::new(
   phase~ : String,
-  query_tokens~ : Int,
-  batch_rows~ : Int,
-  prior_history~ : Int,
-  bucket_tokens~ : Int,
-  bucket_rows~ : Int,
+  query_tokens~ : Int32,
+  batch_rows~ : Int32,
+  prior_history~ : Int32,
+  bucket_tokens~ : Int32,
+  bucket_rows~ : Int32,
 ) -> Workload? {
   guard (phase == "prefill" || phase == "decode" || phase == "mixed") &&
     batch_rows > 0 &&
@@ -55,8 +55,8 @@ pub fn Workload::identity(self : Workload) -> String {
 ///|
 pub fn Workload::fits(
   self : Workload,
-  max_query_tokens~ : Int,
-  max_batch_rows~ : Int,
+  max_query_tokens~ : Int32,
+  max_batch_rows~ : Int32,
 ) -> Bool {
   self.bucket_queries <= max_query_tokens && self.bucket_rows <= max_batch_rows
 }

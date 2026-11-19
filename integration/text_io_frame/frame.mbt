@@ -23,7 +23,7 @@ pub struct TextIoFrame {
 ///|
 pub fn TextIoFrame::new(
   source : @source.TextIoCudaSource,
-  boundary? : @precision.TextBoundary = Complete,
+  boundary~ : @precision.TextBoundary = Complete,
 ) -> Self {
   {
     source,
@@ -69,9 +69,9 @@ fn region(
 fn TextIoFrame::launch(
   self : Self,
   aot : @device.Module,
-  stage : Int,
+  stage : Int32,
   grid : Int64,
-  threads : Int,
+  threads : Int32,
   args : Array[@device.KernelArgument],
 ) -> @device.OrderedKernelLaunch raise {
   guard grid > 0L && grid <= 2147483647L else {

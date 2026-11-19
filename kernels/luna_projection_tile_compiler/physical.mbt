@@ -3,8 +3,8 @@
 /// product dependencies. CUDA syntax is not an input to this boundary.
 pub fn ProjectionFoldPipeline::fragment_program(
   self : ProjectionFoldPipeline,
-  rows~ : Int,
-  columns~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
 ) -> @physical_tile_ir.FragmentProgram? {
   @physical_tile_ir.FragmentProgram::new(
     rows~,

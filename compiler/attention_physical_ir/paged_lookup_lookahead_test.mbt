@@ -98,7 +98,7 @@ test "future page epochs survive ring rollover and incomplete final pages" {
           Array::make(pages_per_tile, -1),
           Array::make(pages_per_tile, -1),
         ]
-        let issue_key = (base : Int, slot : Int) => {
+        let issue_key = (base : Int32, slot : Int32) => {
           if base < limit &&
             (lookup_begin < 0 || base >= lookup_begin + plan.rows_per_epoch()) {
             lookup_begin = base
@@ -119,7 +119,7 @@ test "future page epochs survive ring rollover and incomplete final pages" {
             }
           }
         }
-        let issue_value = (slot : Int) => {
+        let issue_value = (slot : Int32) => {
           for page in 0..<pages_per_tile {
             value_pages[slot][page] = key_pages[slot][page]
           }

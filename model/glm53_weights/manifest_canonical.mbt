@@ -13,7 +13,7 @@ fn manifest_digest(
   identity : @spec.ModelIdentity,
   encoding : Glm53WeightEncoding,
   tensors : ArrayView[Glm53TensorDescriptor],
-  control_tokens : ArrayView[Int],
+  control_tokens : ArrayView[Int32],
 ) -> @spec.PlanDigest {
   let hasher = @canonical_sha256.CanonicalSha256::new()
   hash_text(hasher, "lunaflux.glm53.tensor-manifest.v1")
@@ -57,7 +57,7 @@ fn finish_manifest(
   encoding : Glm53WeightEncoding,
   execution_identity : @spec.ModelIdentity,
   tensors : Array[Glm53TensorDescriptor],
-  control_tokens : Array[Int],
+  control_tokens : Array[Int32],
 ) -> Glm53TensorManifest {
   let layout_digest = manifest_digest(
     execution_identity, encoding, tensors, control_tokens,

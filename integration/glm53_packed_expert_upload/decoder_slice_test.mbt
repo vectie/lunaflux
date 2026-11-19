@@ -1,9 +1,9 @@
 ///|
 fn decoder_slice_fixture(
-  first : Int,
-  end : Int,
-  sequences? : Int = 1,
-  tensor_group? : (Int, Int),
+  first : Int32,
+  end : Int32,
+  sequences~ : Int32 = 1,
+  tensor_group? : (Int32, Int32),
 ) -> @glm53_packed_expert_upload.GlmDecoderSlice raise {
   @glm53_packed_expert_upload.GlmDecoderSlice::new(
     @glm53_spec.Glm53FlashSpec::official(),

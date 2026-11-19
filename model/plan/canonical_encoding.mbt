@@ -3,20 +3,20 @@
 /// preflight without retaining canonical bytes; `Some` hashes the same walk.
 priv struct ModelPlanCanonicalWriter {
   hasher : @canonical_sha256.CanonicalSha256?
-  max_count : Int
-  mut count : Int
+  max_count : Int32
+  mut count : Int32
 }
 
 ///|
 fn ModelPlanCanonicalWriter::new_counting(
-  max_count : Int,
+  max_count : Int32,
 ) -> ModelPlanCanonicalWriter {
   { hasher: None, max_count, count: 0, }
 }
 
 ///|
 fn ModelPlanCanonicalWriter::new_hashing(
-  max_count : Int,
+  max_count : Int32,
 ) -> ModelPlanCanonicalWriter {
   {
     hasher: Some(@canonical_sha256.CanonicalSha256::new()),
@@ -28,7 +28,7 @@ fn ModelPlanCanonicalWriter::new_hashing(
 ///|
 fn ModelPlanCanonicalWriter::reserve(
   self : ModelPlanCanonicalWriter,
-  amount : Int,
+  amount : Int32,
 ) -> Unit raise PlanValidationError {
   if amount < 0 || self.count > self.max_count - amount {
     raise LimitExceeded(CanonicalBytes)
@@ -84,7 +84,7 @@ fn ModelPlanCanonicalWriter::write_u64(
 ///|
 fn ModelPlanCanonicalWriter::write_int(
   self : ModelPlanCanonicalWriter,
-  value : Int,
+  value : Int32,
 ) -> Unit raise PlanValidationError {
   self.write_u64(Int64::from_int(value).reinterpret_as_uint64())
 }
@@ -301,7 +301,7 @@ fn encode_model_plan_canonical(
 }
 
 ///|
-fn count_required_capabilities(operations : ArrayView[PlanOperation]) -> Int {
+fn count_required_capabilities(operations : ArrayView[PlanOperation]) -> Int32 {
   let seen = FixedArray::make(12, false)
   let mut count = 0
   for operation in operations {
@@ -324,7 +324,7 @@ fn preflight_model_plan(
   final_output : ActivationRef,
   kv_execution : ModelKvExecution,
   numeric_schema : @numeric_contract.ModelNumericSchema,
-) -> Int raise PlanValidationError {
+) -> Int32 raise PlanValidationError {
   limits.check_operation_count(operations.length())
   limits.check_numeric_tensor_count(numeric_schema.tensors().length())
   if numeric_schema.operations().length() != operations.length() {
@@ -377,7 +377,7 @@ fn preflight_model_plan(
 ///|
 fn derive_model_identity(
   content_digest : @spec.ContentDigest,
-  expected_canonical_bytes : Int,
+  expected_canonical_bytes : Int32,
   shape_constraints : ShapeConstraints,
   kv_cache_geometry : KvCacheGeometry,
   workspace_bounds : WorkspaceBounds,

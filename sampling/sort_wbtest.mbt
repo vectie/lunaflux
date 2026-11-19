@@ -1,8 +1,8 @@
 ///|
 fn assert_sorted_tokens(
   logits : ArrayView[Double],
-  initial : ArrayView[Int],
-  expected : ArrayView[Int],
+  initial : ArrayView[Int32],
+  expected : ArrayView[Int32],
 ) -> Unit raise {
   let tokens = FixedArray::from_array(initial)
   sort_candidates(tokens, logits, initial.length())

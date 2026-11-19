@@ -22,7 +22,7 @@ pub fn LunaTileBf16Mma16x16x16Candidate::parallel_plan_digest(
 ///|
 pub fn LunaTileBf16Mma16x16x16Candidate::tile_count(
   self : LunaTileBf16Mma16x16x16Candidate,
-) -> Int {
+) -> Int32 {
   self.tile_count
 }
 

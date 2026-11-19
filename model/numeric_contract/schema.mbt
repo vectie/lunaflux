@@ -1,6 +1,6 @@
 ///|
 pub fn NumericTensorOrdinal::new(
-  value : Int,
+  value : Int32,
 ) -> NumericTensorOrdinal raise NumericContractError {
   if value < 0 {
     raise InvalidNumericContract(Identifier)
@@ -9,13 +9,13 @@ pub fn NumericTensorOrdinal::new(
 }
 
 ///|
-pub fn NumericTensorOrdinal::as_int(self : NumericTensorOrdinal) -> Int {
+pub fn NumericTensorOrdinal::as_int(self : NumericTensorOrdinal) -> Int32 {
   self.value
 }
 
 ///|
 pub fn NumericOperationOrdinal::new(
-  value : Int,
+  value : Int32,
 ) -> NumericOperationOrdinal raise NumericContractError {
   if value < 0 {
     raise InvalidNumericContract(Identifier)
@@ -24,7 +24,7 @@ pub fn NumericOperationOrdinal::new(
 }
 
 ///|
-pub fn NumericOperationOrdinal::as_int(self : NumericOperationOrdinal) -> Int {
+pub fn NumericOperationOrdinal::as_int(self : NumericOperationOrdinal) -> Int32 {
   self.value
 }
 

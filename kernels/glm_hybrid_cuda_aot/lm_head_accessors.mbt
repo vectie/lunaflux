@@ -29,7 +29,7 @@ pub fn GlmHybridDenseProjectionCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridDenseProjectionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,19 +48,21 @@ pub fn GlmHybridDenseProjectionCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridDenseProjectionCudaCandidate::input_width(self : Self) -> Int {
+pub fn GlmHybridDenseProjectionCudaCandidate::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn GlmHybridDenseProjectionCudaCandidate::output_width(self : Self) -> Int {
+pub fn GlmHybridDenseProjectionCudaCandidate::output_width(
+  self : Self,
+) -> Int32 {
   self.output_width
 }
 
 ///|
 pub fn GlmHybridDenseProjectionCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 

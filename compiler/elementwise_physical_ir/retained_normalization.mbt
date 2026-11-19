@@ -4,9 +4,9 @@
 /// strided inputs and publish partials once; each consumer subgroup replicates
 /// this pure tree suffix, with upper levels as lane-local register additions.
 pub struct RetainedNormalizationTree {
-  priv logical_owners : Int
-  priv lanes : Int
-  priv values : Int
+  priv logical_owners : Int32
+  priv lanes : Int32
+  priv values : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -18,7 +18,7 @@ pub extend RetainedNormalizationTree with @debug.Debug::{to_repr}
 ///|
 pub fn NormalizationProgram::retained_tree(
   self : NormalizationProgram,
-  maximum_values_per_lane~ : Int,
+  maximum_values_per_lane~ : Int32,
 ) -> RetainedNormalizationTree? {
   guard self.owner_tree && self.residual && maximum_values_per_lane > 0 else {
     return None
@@ -31,7 +31,7 @@ pub fn NormalizationProgram::retained_tree(
 ///|
 pub fn RetainedNormalizationTree::geometry(
   self : RetainedNormalizationTree,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.logical_owners, self.lanes, self.values)
 }
 
@@ -39,7 +39,7 @@ pub fn RetainedNormalizationTree::geometry(
 /// Each pair is an original logical-tree edge within one physical lane.
 pub fn RetainedNormalizationTree::local_edges(
   self : RetainedNormalizationTree,
-) -> ReadOnlyArray[(Int, Int)] {
+) -> ReadOnlyArray[(Int32, Int32)] {
   let edges = []
   for stride = self.logical_owners / self.lanes / 2
       stride > 0
@@ -54,7 +54,7 @@ pub fn RetainedNormalizationTree::local_edges(
 ///|
 pub fn RetainedNormalizationTree::exchange_strides(
   self : RetainedNormalizationTree,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   let strides = []
   for stride = self.lanes / 2; stride > 0; stride = stride / 2 {
     strides.push(stride)

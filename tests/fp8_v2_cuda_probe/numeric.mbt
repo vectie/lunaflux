@@ -19,7 +19,7 @@ let fp8_probe_input : FixedArray[Float] = [
 ]
 
 ///|
-let fp8_probe_codes : FixedArray[Int] = [
+let fp8_probe_codes : FixedArray[Int32] = [
   0x00, 0x7e, 0xfe, 0x20, 0x30, 0x38, 0xb8, 0x40, 0xc0, 0x48, 0xc8, 0x28, 0xa8, 0x44,
   0x34, 0xbc, 0x50, 0xd0,
 ]
@@ -35,7 +35,7 @@ fn fp8_probe_ordered_add(left : Float, right : Float) -> Float {
 }
 
 ///|
-fn fp8_probe_power_of_two(exponent : Int) -> Float {
+fn fp8_probe_power_of_two(exponent : Int32) -> Float {
   let mut value = 1.0F
   if exponent >= 0 {
     for _ in 0..<exponent {
@@ -50,7 +50,7 @@ fn fp8_probe_power_of_two(exponent : Int) -> Float {
 }
 
 ///|
-fn fp8_probe_decode(code : Int) -> Float {
+fn fp8_probe_decode(code : Int32) -> Float {
   let sign = if (code & 0x80) == 0 { 1.0F } else { -1.0F }
   let exponent = (code >> 3) & 0x0f
   let mantissa = code & 0x07
@@ -88,20 +88,20 @@ fn fp8_probe_round(value : Float) -> Float {
 }
 
 ///|
-fn fp8_probe_bf16_bits(value : Float) -> Int {
+fn fp8_probe_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn fp8_probe_read_bf16(bytes : FixedArray[Byte], index : Int) -> Float {
+fn fp8_probe_read_bf16(bytes : FixedArray[Byte], index : Int32) -> Float {
   let offset = index * 2
   let bits = bytes[offset].to_int() | (bytes[offset + 1].to_int() << 8)
   Float::reinterpret_from_uint(bits.reinterpret_as_uint() << 16)
 }
 
 ///|
-fn fp8_probe_read_f32(bytes : FixedArray[Byte], index : Int) -> Float {
+fn fp8_probe_read_f32(bytes : FixedArray[Byte], index : Int32) -> Float {
   let offset = index * 4
   let bits = bytes[offset].to_uint() |
     (bytes[offset + 1].to_uint() << 8) |
@@ -113,8 +113,8 @@ fn fp8_probe_read_f32(bytes : FixedArray[Byte], index : Int) -> Float {
 ///|
 fn fp8_probe_write_i32(
   bytes : FixedArray[Byte],
-  index : Int,
-  value : Int,
+  index : Int32,
+  value : Int32,
 ) -> Unit {
   let offset = index * 4
   bytes[offset] = value.to_byte()
@@ -126,7 +126,7 @@ fn fp8_probe_write_i32(
 ///|
 fn fp8_probe_write_f32(
   bytes : FixedArray[Byte],
-  index : Int,
+  index : Int32,
   value : Float,
 ) -> Unit {
   let bits = value.reinterpret_as_uint()
@@ -158,7 +158,7 @@ fn fp8_probe_input_bytes() -> FixedArray[Byte] {
 }
 
 ///|
-fn fp8_probe_weight_bytes(length : Int, offset : Int) -> FixedArray[Byte] {
+fn fp8_probe_weight_bytes(length : Int32, offset : Int32) -> FixedArray[Byte] {
   FixedArray::makei(length, index => {
     fp8_probe_codes[(index * 5 + offset * 3 + index / 8) %
     fp8_probe_codes.length()].to_byte()

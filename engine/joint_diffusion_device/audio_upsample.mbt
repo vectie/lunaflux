@@ -1,7 +1,7 @@
 ///|
 pub struct AudioUpsampleLayout {
-  input_channels : Int
-  output_time : Int
+  input_channels : Int32
+  output_time : Int32
   input_bytes : Int64
   output_bytes : Int64
   weight_bytes : Int64
@@ -11,13 +11,13 @@ pub struct AudioUpsampleLayout {
 
 ///|
 pub fn AudioUpsampleLayout::new(
-  batch~ : Int,
-  input_channels~ : Int,
-  output_channels~ : Int,
-  input_time~ : Int,
-  kernel~ : Int,
-  stride~ : Int,
-  padding~ : Int,
+  batch~ : Int32,
+  input_channels~ : Int32,
+  output_channels~ : Int32,
+  input_time~ : Int32,
+  kernel~ : Int32,
+  stride~ : Int32,
+  padding~ : Int32,
   max_weight_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   guard batch > 0 &&
@@ -72,7 +72,7 @@ pub fn AudioUpsampleLayout::launches(
   g_offset~ : Int64,
   v_offset~ : Int64,
   bias_offset~ : Int64,
-  cached? : Bool = false,
+  cached~ : Bool = false,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   fn region(
     a : @device.Allocation,

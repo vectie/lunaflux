@@ -1,11 +1,11 @@
 ///|
 fn project_bf16(
-  input : FixedArray[Int],
-  weight : FixedArray[Int],
-  rows : Int,
-  inner : Int,
-  columns : Int,
-) -> FixedArray[Int] {
+  input : FixedArray[Int32],
+  weight : FixedArray[Int32],
+  rows : Int32,
+  inner : Int32,
+  columns : Int32,
+) -> FixedArray[Int32] {
   FixedArray::makei(rows * columns, index => {
     let row = index / columns
     let column = index % columns
@@ -25,9 +25,9 @@ fn project_bf16(
 
 ///|
 fn norm_bf16(
-  input : FixedArray[Int],
-  weight : FixedArray[Int],
-) -> FixedArray[Int] {
+  input : FixedArray[Int32],
+  weight : FixedArray[Int32],
+) -> FixedArray[Int32] {
   let output = FixedArray::make(12, 0)
   for row in 0..<3 {
     let mut sum = 0.0F
@@ -49,18 +49,18 @@ fn norm_bf16(
 }
 
 ///|
-fn cache_index(page : Int, position : Int, component : Int) -> Int {
+fn cache_index(page : Int32, position : Int32, component : Int32) -> Int32 {
   page * 128 + position % 2 * 2 + component
 }
 
 ///|
 fn attention_value(
-  qkv : FixedArray[Int],
-  cache : FixedArray[Int],
-  row : Int,
-  position : Int,
-  component : Int,
-  offset : Int,
+  qkv : FixedArray[Int32],
+  cache : FixedArray[Int32],
+  row : Int32,
+  position : Int32,
+  component : Int32,
+  offset : Int32,
 ) -> Float {
   if row == 0 {
     bf16_float(qkv[position * 8 + offset + component])
@@ -73,11 +73,11 @@ fn attention_value(
 
 ///|
 fn attention_bf16(
-  qkv : FixedArray[Int],
-  keys : FixedArray[Int],
-  values : FixedArray[Int],
-) -> FixedArray[Int] {
-  let pages : FixedArray[Int] = [0, 0, 2]
+  qkv : FixedArray[Int32],
+  keys : FixedArray[Int32],
+  values : FixedArray[Int32],
+) -> FixedArray[Int32] {
+  let pages : FixedArray[Int32] = [0, 0, 2]
   for token in 0..<3 {
     for component in 0..<2 {
       keys[cache_index(pages[token], token, component)] = qkv[token * 8 +
@@ -130,7 +130,7 @@ fn attention_bf16(
 ///|
 fn compare_output(
   actual : Bytes,
-  expected : FixedArray[Int],
+  expected : FixedArray[Int32],
   tolerance : Float,
   maximum_error : Ref[Double],
 ) -> Bool {
@@ -152,9 +152,9 @@ fn compare_output(
 }
 
 ///|
-fn build_graph_reference() -> FixedArray[FixedArray[Int]] {
+fn build_graph_reference() -> FixedArray[FixedArray[Int32]] {
   let table = fixture_bf16(2, 64)
-  let tokens : FixedArray[Int] = [2, 5, 7]
+  let tokens : FixedArray[Int32] = [2, 5, 7]
   let embedding = FixedArray::makei(12, index => {
     table[tokens[index / 4] * 4 + index % 4]
   })
@@ -247,7 +247,7 @@ fn build_graph_reference() -> FixedArray[FixedArray[Int]] {
 ///|
 fn validate_graph_reference(
   outputs : FixedArray[Bytes],
-) -> (Int, Double) raise GraphProbeFailure {
+) -> (Int32, Double) raise GraphProbeFailure {
   require_graph(outputs.length() == 14, "graph output set is incomplete")
   let expected = build_graph_reference()
   let tolerances : FixedArray[Float] = [

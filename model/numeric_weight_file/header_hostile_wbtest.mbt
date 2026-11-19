@@ -1,5 +1,5 @@
 ///|
-fn find_fragment(file : Bytes, fragment : Bytes) -> Int {
+fn find_fragment(file : Bytes, fragment : Bytes) -> Int32 {
   for start in 8..<=(file.length() - fragment.length()) {
     let mut matches = true
     for index in 0..<fragment.length() {
@@ -15,7 +15,7 @@ fn find_fragment(file : Bytes, fragment : Bytes) -> Int {
 }
 
 ///|
-fn fixture_header_length(file : Bytes) -> Int {
+fn fixture_header_length(file : Bytes) -> Int32 {
   let mut length = 0UL
   for index in 0..<8 {
     length = length | (file[index].to_uint64() << (index * 8))
@@ -149,9 +149,9 @@ test "declared header bound precedes schema and layout preflight without body re
   let maximum_read = Ref(0)
   let read = (
     destination : FixedArray[Byte],
-    destination_offset : Int,
+    destination_offset : Int32,
     _ : Int64,
-    byte_count : Int,
+    byte_count : Int32,
   ) => {
     if byte_count < 0 {
       raise FileTruncated

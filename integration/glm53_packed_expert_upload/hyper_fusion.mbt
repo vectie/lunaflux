@@ -3,7 +3,7 @@
 /// with its square reduction and ends with its residual publication.
 fn GlmDecoderLayer::hyper_sites(
   self : Self,
-) -> Array[(Int, Int, @hyper.HyperConnectionFrame)] raise {
+) -> Array[(Int32, Int32, @hyper.HyperConnectionFrame)] raise {
   let (attention, ffn) = match self {
     Recurrent(layer) => (layer.hyper, layer.ffn)
     Sparse(layer) => (Some(layer.decoder.hyper_envelope()), Some(layer.ffn))
@@ -17,7 +17,7 @@ fn GlmDecoderLayer::hyper_sites(
 ///|
 fn fuse_hyper_sites(
   launches : ArrayView[@device.OrderedKernelLaunch],
-  sites : ArrayView[(Int, Int, @hyper.HyperConnectionFrame)],
+  sites : ArrayView[(Int32, Int32, @hyper.HyperConnectionFrame)],
   aot : @device.Module,
   post_square~ : Bool,
   control_tail~ : Bool,

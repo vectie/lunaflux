@@ -4,7 +4,7 @@ pub fn lower_audio_vae_decoder_amp_stage_cuda_aot_candidate(
   request~ : @joint_diffusion_plan.JointDiffusionRequestShape,
   parameter_layout~ : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout,
   workspace_layout~ : @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayout,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

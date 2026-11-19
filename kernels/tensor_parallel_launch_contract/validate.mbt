@@ -3,7 +3,7 @@ fn validate_local_layout(
   model : @plan.ModelPlan,
   layout : @device_layout.DeviceKvLayout,
   operations : ReadOnlyArray[@tensor_parallel_plan.TensorParallelOperationPlan],
-  world_size : Int,
+  world_size : Int32,
 ) -> Unit raise TensorParallelLaunchContractError {
   if layout.identity() != model.identity() {
     raise invalid(Identity)
@@ -167,8 +167,8 @@ fn validate_inputs(
   ],
   families : ReadOnlyArray[@catalog.AotKernelFamily],
   layout : @device_layout.DeviceKvLayout,
-  expected_rank : Int,
-  expected_world_size : Int,
+  expected_rank : Int32,
+  expected_world_size : Int32,
   expected_target : @catalog.DeviceTarget,
   inputs : ArrayView[TensorParallelAotLaunchContractInput],
   limits : TensorParallelLaunchContractLimits,

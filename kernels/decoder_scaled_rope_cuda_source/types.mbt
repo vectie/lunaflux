@@ -23,11 +23,11 @@ pub(all) suberror DecoderScaledRopeCudaSourceError {
 /// It carries no compiler, artifact, loader, launch, or qualification authority.
 pub struct DecoderScaledRopeCudaSource {
   priv numerical_contract : DecoderScaledRopeNumericalContract
-  priv query_head_count : Int
-  priv key_value_head_count : Int
-  priv rope_dimension : Int
-  priv maximum_rows : Int
-  priv maximum_positions : Int
+  priv query_head_count : Int32
+  priv key_value_head_count : Int32
+  priv rope_dimension : Int32
+  priv maximum_rows : Int32
+  priv maximum_positions : Int32
   priv function_symbol : String
   priv source : Bytes
 }
@@ -37,11 +37,11 @@ pub struct DecoderScaledRopeCudaSource {
 /// attention-head buffer. The non-RoPE prefix is copied bit-exactly.
 pub struct DecoderInverseRopeCudaSource {
   priv numerical_contract : DecoderScaledRopeNumericalContract
-  priv head_count : Int
-  priv head_dimension : Int
-  priv rope_dimension : Int
-  priv maximum_rows : Int
-  priv maximum_positions : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv rope_dimension : Int32
+  priv maximum_rows : Int32
+  priv maximum_positions : Int32
   priv function_symbol : String
   priv source : Bytes
 }

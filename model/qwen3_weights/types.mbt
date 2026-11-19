@@ -16,9 +16,9 @@ pub(all) enum Qwen3WeightRule {
 /// Payload-safe dense Qwen3 weight-binding failures.
 pub(all) suberror Qwen3WeightsError {
   Mismatch(Qwen3WeightRule)
-  UnknownTensor(index~ : Int)
-  MissingTensor(reference~ : Int)
-  InvalidTensor(reference~ : Int, Qwen3WeightRule)
+  UnknownTensor(index~ : Int32)
+  MissingTensor(reference~ : Int32)
+  InvalidTensor(reference~ : Int32, Qwen3WeightRule)
   InvalidModelPlan(@plan.PlanValidationError)
   InvalidNumericWeightFile(@numeric_weight_file.NumericWeightFileError)
   InvalidSourceSafetensors(@safetensors_reader.SafetensorsReaderError)
@@ -47,7 +47,7 @@ pub struct Qwen3TensorBinding {
 pub struct Qwen3WeightBindings {
   priv content_digest : @spec.ContentDigest
   priv bindings : ReadOnlyArray[Qwen3TensorBinding]
-  priv source_tensor_count : Int
+  priv source_tensor_count : Int32
   priv source_bytes : Int64
   priv materialized_bytes : Int64
   priv redundant_lm_head : @safetensors.TensorMetadata?
@@ -72,7 +72,7 @@ pub struct Qwen3SourceFileInspection {
 ///|
 pub fn Qwen3SourceFileLimits::new(
   max_file_bytes~ : Int64,
-  compare_chunk_bytes~ : Int,
+  compare_chunk_bytes~ : Int32,
   safetensors~ : @safetensors.HeaderLimits,
 ) -> Self raise Qwen3WeightsError {
   if max_file_bytes <= 8L ||
@@ -161,7 +161,7 @@ pub fn Qwen3WeightBindings::content_digest(self : Self) -> @spec.ContentDigest {
 }
 
 ///|
-pub fn Qwen3WeightBindings::length(self : Self) -> Int {
+pub fn Qwen3WeightBindings::length(self : Self) -> Int32 {
   self.bindings.length()
 }
 
@@ -191,7 +191,7 @@ pub fn Qwen3WeightBindings::lm_head_binding(self : Self) -> Qwen3TensorBinding {
 }
 
 ///|
-pub fn Qwen3WeightBindings::source_tensor_count(self : Self) -> Int {
+pub fn Qwen3WeightBindings::source_tensor_count(self : Self) -> Int32 {
   self.source_tensor_count
 }
 

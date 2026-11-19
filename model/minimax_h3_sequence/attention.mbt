@@ -2,8 +2,8 @@
 /// A contiguous noncausal attention document. Different documents must never
 /// share the softmax reduction. Offsets are token rows, not tensor elements.
 pub struct AttentionDocument {
-  start : Int
-  count : Int
+  start : Int32
+  count : Int32
 }
 
 ///|
@@ -31,7 +31,7 @@ pub fn Sequence::refiner_document(self : Self) -> AttentionDocument {
 ///|
 /// Cumulative boundaries for generic packed-attention lowering. Empty trailing
 /// padding is omitted so every submitted document has a nonempty reduction.
-pub fn Sequence::attention_boundaries(self : Self) -> ReadOnlyArray[Int] {
+pub fn Sequence::attention_boundaries(self : Self) -> ReadOnlyArray[Int32] {
   let total = self.assembly.rows().length()
   ReadOnlyArray::from_array(
     if total == self.used {

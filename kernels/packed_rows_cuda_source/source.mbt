@@ -9,7 +9,7 @@ pub(all) suberror SourceError {
 /// Output must not overlap any nonempty input. No arithmetic on BF16 values.
 pub fn render(
   plan : @packed_rows_plan.Plan,
-  block_size~ : Int,
+  block_size~ : Int32,
 ) -> Bytes raise SourceError {
   guard block_size > 0 && block_size <= 1024 else { raise InvalidBlockSize }
   @utf8.encode(

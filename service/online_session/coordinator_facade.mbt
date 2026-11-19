@@ -2,8 +2,8 @@
 pub fn LunaOnlineFramedCoordinator::offer_luna_framed(
   self : LunaOnlineFramedCoordinator,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError {
   self.stream.offer_luna_framed(source, source_offset~, length~)
 }
@@ -11,14 +11,14 @@ pub fn LunaOnlineFramedCoordinator::offer_luna_framed(
 ///|
 pub fn LunaOnlineFramedCoordinator::transport_wait_remaining_millis(
   self : LunaOnlineFramedCoordinator,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.stream.transport_wait_remaining_millis()
 }
 
 ///|
 pub fn LunaOnlineFramedCoordinator::maintenance_wait_remaining_millis(
   self : LunaOnlineFramedCoordinator,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.stream.maintenance_wait_remaining_millis()
 }
 
@@ -100,7 +100,7 @@ pub fn LunaOnlineFramedCoordinator::progress_off_reactor_maintenance(
 ///|
 pub fn LunaOnlineFramedCoordinator::framed_event_remaining(
   self : LunaOnlineFramedCoordinator,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.stream.framed_event_remaining()
 }
 
@@ -108,8 +108,8 @@ pub fn LunaOnlineFramedCoordinator::framed_event_remaining(
 pub fn LunaOnlineFramedCoordinator::copy_framed_event_chunk_to(
   self : LunaOnlineFramedCoordinator,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  maximum_length~ : Int,
+  destination_offset~ : Int32,
+  maximum_length~ : Int32,
 ) -> LunaOnlineFramedEventOffer raise LunaOnlineFramedCoordinatorError {
   self.stream.copy_framed_event_chunk_to(
     destination,

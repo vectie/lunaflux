@@ -1,7 +1,7 @@
 ///|
 pub fn GlmHybridKernelRequirement::current_generic_capability(
   self : Self,
-  ordinal~ : Int,
+  ordinal~ : Int32,
 ) -> @plan.KernelCapabilityId raise GlmHybridKernelRequirementsError {
   match self.operation {
     TokenEmbedding => @plan.KernelCapabilityId::embedding_lookup()

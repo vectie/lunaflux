@@ -1,6 +1,6 @@
 ///|
 fn output_path_unit_is_safe(unit : Char) -> Bool {
-  unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '.' | '_' | '-' | '/')
+  unit is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '.' | '_' | '-' | '/')
 }
 
 ///|
@@ -117,7 +117,7 @@ fn step_limits(
 
 ///|
 fn execution_limits(
-  operation_count : Int,
+  operation_count : Int32,
   arguments : Qwen3ReleaseBindArguments,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise Qwen3Bf16ReleaseBindError {
   @execution_manifest_file.ExecutionManifestFileLimits::new(

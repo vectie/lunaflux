@@ -1,6 +1,6 @@
 ///|
 fn luna_cuda_test_limits(
-  max_module_bytes? : Int64 = 4096L,
+  max_module_bytes~ : Int64 = 4096L,
 ) -> @luna_cuda_aot.LunaCudaAotLimits raise {
   @luna_cuda_aot.LunaCudaAotLimits::new(
     max_source_bytes=4096,
@@ -12,8 +12,8 @@ fn luna_cuda_test_limits(
 
 ///|
 fn luna_cuda_test_program(
-  semantic? : Bool = true,
-  width? : Int64 = 8L,
+  semantic~ : Bool = true,
+  width~ : Int64 = 8L,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let left = @luna_tile_ir.LunaTileTensorId::from_stable_int(1)
   let right = @luna_tile_ir.LunaTileTensorId::from_stable_int(2)
@@ -85,7 +85,7 @@ fn luna_cuda_test_planning(
 
 ///|
 fn luna_cuda_test_compiler(
-  reassociate? : Bool = false,
+  reassociate~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(
@@ -103,7 +103,7 @@ fn luna_cuda_test_compiler(
 
 ///|
 fn luna_cuda_test_target(
-  supports_bf16? : Bool = true,
+  supports_bf16~ : Bool = true,
 ) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=9,
@@ -158,7 +158,7 @@ fn luna_cuda_test_artifact_digest(
 fn luna_cuda_test_receipt(
   lowering : @luna_cuda_aot.LunaCudaAotLowering,
   first : Bytes,
-  second? : Bytes = first,
+  second~ : Bytes = first,
 ) -> @luna_cuda_aot.LunaCudaOfflineCompileReceipt raise {
   @luna_cuda_aot.LunaCudaOfflineCompileReceipt::from_offline_builder(
     source_digest=lowering.source_digest(),

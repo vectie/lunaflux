@@ -1,7 +1,7 @@
 ///|
 fn validate_limits(
-  max_bytes : Int,
-  max_depth : Int,
+  max_bytes : Int32,
+  max_depth : Int32,
 ) -> Unit raise MiniMaxH3ConfigError {
   if max_bytes <= 0 || max_depth <= 0 {
     raise InvalidLimit
@@ -11,7 +11,7 @@ fn validate_limits(
 ///|
 fn validate_utf8_size(
   input : StringView,
-  max_bytes : Int,
+  max_bytes : Int32,
 ) -> Unit raise MiniMaxH3ConfigError {
   let mut index = 0
   let mut bytes = 0
@@ -43,7 +43,7 @@ fn validate_utf8_size(
 ///|
 fn parse_object(
   document : StringView,
-  max_depth : Int,
+  max_depth : Int32,
 ) -> Map[String, Json] raise MiniMaxH3ConfigError {
   @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
     InvalidDepthLimit => raise InvalidLimit
@@ -82,7 +82,7 @@ fn string_field(
 fn int_field(
   object : Map[String, Json],
   name : String,
-) -> Int raise MiniMaxH3ConfigError {
+) -> Int32 raise MiniMaxH3ConfigError {
   match required(object, name) {
     Number(value, repr=_) if !value.is_nan() &&
       !value.is_inf() &&
@@ -119,7 +119,7 @@ fn object_field(
 fn exact_int_array(
   object : Map[String, Json],
   name : String,
-  expected : ArrayView[Int],
+  expected : ArrayView[Int32],
 ) -> Unit raise MiniMaxH3ConfigError {
   guard required(object, name) is Array(values) else { raise InvalidField }
   if values.length() != expected.length() {
@@ -137,7 +137,7 @@ fn exact_int_array(
 fn exact_nested_int_array(
   object : Map[String, Json],
   name : String,
-  expected : ArrayView[Array[Int]],
+  expected : ArrayView[Array[Int32]],
 ) -> Unit raise MiniMaxH3ConfigError {
   guard required(object, name) is Array(rows) else { raise InvalidField }
   if rows.length() != expected.length() {
@@ -476,8 +476,8 @@ fn decode_scheduler(
 ///|
 fn bounded_object(
   document : StringView,
-  max_bytes : Int,
-  max_depth : Int,
+  max_bytes : Int32,
+  max_depth : Int32,
 ) -> Map[String, Json] raise MiniMaxH3ConfigError {
   validate_limits(max_bytes, max_depth)
   validate_utf8_size(document, max_bytes)

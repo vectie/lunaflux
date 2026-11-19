@@ -3,9 +3,9 @@
 fn emit_decode_probe(
   grouped : Bool,
   partitioned : Bool,
-  serving_abi? : Bool = false,
-  pipeline? : Bool = false,
-  pipeline_tile? : Int = 64,
+  serving_abi~ : Bool = false,
+  pipeline~ : Bool = false,
+  pipeline_tile~ : Int32 = 64,
 ) -> Unit raise {
   let page_tokens = if serving_abi { 8 } else { 16 }
   let shape = @luna_attention_strategy.AttentionShape::new(

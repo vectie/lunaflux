@@ -29,7 +29,7 @@ pub extend SoftplusEvaluationLaw with @debug.Debug::{to_repr}
 /// Selection is independent of score arithmetic and device scheduling.
 pub(all) enum MoeRoutingSelection {
   GroupedTopK
-  TokenHash(vocabulary_size~ : Int)
+  TokenHash(vocabulary_size~ : Int32)
 } derive(Eq, @debug.Debug)
 
 ///|
@@ -43,11 +43,11 @@ pub extend MoeRoutingSelection with @debug.Debug::{to_repr}
 /// Stable lower-ID tie selection is explicit; correction changes choice only.
 pub struct MoeRoutingPrecision {
   priv weight : OperandPlan
-  priv rows : Int
-  priv groups : Int
-  priv group_topk : Int
-  priv selected_groups : Int
-  priv selected_experts : Int
+  priv rows : Int32
+  priv groups : Int32
+  priv group_topk : Int32
+  priv selected_groups : Int32
+  priv selected_experts : Int32
   priv score : MoeRoutingScore
   priv projection_law : DotReductionLaw
   priv softplus_law : SoftplusEvaluationLaw
@@ -62,16 +62,16 @@ pub struct MoeRoutingPrecision {
 ///|
 pub fn MoeRoutingPrecision::new(
   weight~ : OperandPlan,
-  maximum_rows~ : Int,
-  group_count~ : Int,
-  group_score_topk~ : Int,
-  selected_group_count~ : Int,
-  selected_experts~ : Int,
+  maximum_rows~ : Int32,
+  group_count~ : Int32,
+  group_score_topk~ : Int32,
+  selected_group_count~ : Int32,
+  selected_experts~ : Int32,
   score~ : MoeRoutingScore,
-  projection_law? : DotReductionLaw = OrderedFloat32,
-  softplus_law? : SoftplusEvaluationLaw = StableFloat32,
-  selected_sum_law? : SumReductionLaw = OrderedFloat32,
-  selection? : MoeRoutingSelection = GroupedTopK,
+  projection_law~ : DotReductionLaw = OrderedFloat32,
+  softplus_law~ : SoftplusEvaluationLaw = StableFloat32,
+  selected_sum_law~ : SumReductionLaw = OrderedFloat32,
+  selection~ : MoeRoutingSelection = GroupedTopK,
   normalize~ : Bool,
   scaling~ : Double,
   maximum_workspace_bytes~ : Int64,
@@ -182,13 +182,15 @@ pub fn MoeRoutingPrecision::weight(self : Self) -> OperandPlan {
 }
 
 ///|
-pub fn MoeRoutingPrecision::geometry(self : Self) -> (Int, Int, Int, Int) {
+pub fn MoeRoutingPrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32) {
   let (experts, hidden) = self.weight.representation().shape()
   (self.rows, hidden, experts, self.selected_experts)
 }
 
 ///|
-pub fn MoeRoutingPrecision::grouping(self : Self) -> (Int, Int, Int) {
+pub fn MoeRoutingPrecision::grouping(self : Self) -> (Int32, Int32, Int32) {
   (self.groups, self.group_topk, self.selected_groups)
 }
 

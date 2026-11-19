@@ -40,7 +40,7 @@ pub struct TensorParallelRankConfigureDigest(String) derive(Debug, Eq)
 /// are ignored; the private startup channel and locked binding own admission.
 pub struct TensorParallelRankConfigureContract {
   priv storage : FixedArray[Byte]
-  priv length : Int
+  priv length : Int32
   priv digest : TensorParallelRankConfigureDigest
   priv binding : @rank_group_wire.RankGroupWireBinding
   priv startup : @worker_wire.WorkerStartupContract
@@ -56,7 +56,7 @@ pub struct TensorParallelRankConfigureFrameBuffer {
   priv binding : @rank_group_wire.RankGroupWireBinding
   priv storage : FixedArray[Byte]
   priv mut epoch : UInt64
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|
@@ -76,7 +76,7 @@ pub fn TensorParallelRankConfigureDigest::as_sha256(
 ///|
 pub fn TensorParallelRankConfigureContract::length(
   self : TensorParallelRankConfigureContract,
-) -> Int {
+) -> Int32 {
   self.length
 }
 

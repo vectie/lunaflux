@@ -6,13 +6,15 @@ fn tile_promotion_test_digest(
 }
 
 ///|
-fn tile_promotion_test_id(value : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn tile_promotion_test_id(
+  value : Int32,
+) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(value)
 }
 
 ///|
 fn tile_promotion_test_tensor(
-  id : Int,
+  id : Int32,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
   strides : ArrayView[Int64],
@@ -30,7 +32,7 @@ fn tile_promotion_test_tensor(
 
 ///|
 fn tile_promotion_test_region(
-  id : Int,
+  id : Int32,
   tiled : Bool,
 ) -> @luna_tile_ir.LunaTileRegion raise {
   let row = if tiled {
@@ -49,7 +51,7 @@ fn tile_promotion_test_region(
 
 ///|
 fn tile_promotion_test_candidates(
-  parallel_entry? : Int = 2202,
+  parallel_entry~ : Int32 = 2202,
 ) -> (
   @luna_tile_ir.LunaTileCudaTranslationUnit,
   @luna_tile_ir.LunaTileParallelCandidate,

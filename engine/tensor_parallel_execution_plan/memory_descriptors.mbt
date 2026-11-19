@@ -13,7 +13,7 @@ fn descriptor_role(
 fn find_descriptor(
   values : ArrayView[TensorParallelDescriptorBinding],
   role : TensorParallelDescriptorRole,
-) -> Int {
+) -> Int32 {
   for index, value in values {
     if value.role == role {
       return index
@@ -74,8 +74,8 @@ fn plan_descriptors(
 fn descriptor_region(
   descriptors : ReadOnlyArray[TensorParallelDescriptorBinding],
   role : TensorParallelDescriptorRole,
-  operation : Int,
-  operand : Int,
+  operation : Int32,
+  operand : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   for descriptor in descriptors {
     if descriptor.role == role {

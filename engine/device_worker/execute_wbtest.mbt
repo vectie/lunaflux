@@ -46,7 +46,7 @@ fn execution_test_frame() -> (
 
 ///|
 fn fake_execution_transaction(
-  fail_at : Int,
+  fail_at : Int32,
   calls : Array[String],
 ) -> String raise DeviceWorkerError {
   let names = ["authenticate", "stage", "execute", "sample", "finish", "submit"]
@@ -62,7 +62,7 @@ fn fake_execution_transaction(
 ///|
 fn fake_owner_execution(
   lifecycle : Ref[DeviceWorkerLifecycle],
-  fail_at : Int,
+  fail_at : Int32,
   abort_fails : Bool,
   calls : Array[String],
 ) -> String raise DeviceWorkerError {

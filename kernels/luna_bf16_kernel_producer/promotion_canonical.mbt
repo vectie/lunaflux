@@ -1,9 +1,9 @@
 ///|
 fn promotion_append(
   output : StringBuilder,
-  written : Ref[Int],
+  written : Ref[Int32],
   value : String,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise LunaBf16PromotionError {
   if value.length() >= maximum || written.val > maximum - value.length() - 1 {
     raise LunaBf16PromotionRejected(CanonicalBytes)
@@ -50,8 +50,8 @@ fn promotion_compiler_digest(
 fn append_promotion_shape(
   output : StringBuilder,
   shape : LunaBf16BenchmarkShape,
-  maximum : Int,
-  written : Ref[Int],
+  maximum : Int32,
+  written : Ref[Int32],
 ) -> Unit raise LunaBf16PromotionError {
   promotion_append(output, written, shape.prefill_rows.to_string(), maximum)
   promotion_append(output, written, shape.decode_rows.to_string(), maximum)
@@ -127,7 +127,7 @@ fn encode_profiler_evidence(
 ///|
 fn encode_launch_contracts(
   contracts : @launch_contract.PagedKvLaunchContractSet,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaBf16PromotionError {
   let output = StringBuilder()
   let written = Ref(0)

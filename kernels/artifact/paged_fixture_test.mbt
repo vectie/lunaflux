@@ -232,7 +232,7 @@ fn paged_artifact_operand(
 
 ///|
 fn paged_artifact_operands(
-  operation_id : Int,
+  operation_id : Int32,
 ) -> Array[@launch_contract.AotOperand] raise {
   if operation_id == 0 {
     return [

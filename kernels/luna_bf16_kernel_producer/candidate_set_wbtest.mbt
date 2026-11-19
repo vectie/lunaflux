@@ -40,7 +40,7 @@ fn tiny_candidate_layout(
 }
 
 ///|
-fn tiny_candidate_target(minor? : Int = 0) -> @catalog.DeviceTarget raise {
+fn tiny_candidate_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=minor,
@@ -51,7 +51,7 @@ fn tiny_candidate_target(minor? : Int = 0) -> @catalog.DeviceTarget raise {
 
 ///|
 fn tiny_candidate_profile(
-  rows? : Int = 1,
+  rows~ : Int32 = 1,
 ) -> @launch_contract.PagedKernelProfile raise {
   @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
@@ -63,7 +63,7 @@ fn tiny_candidate_profile(
 
 ///|
 fn tiny_candidate_limits(
-  max_operations? : Int = 64,
+  max_operations~ : Int32 = 64,
 ) -> LunaBf16CandidateSetLimits raise {
   LunaBf16CandidateSetLimits::new(
     max_operations~,

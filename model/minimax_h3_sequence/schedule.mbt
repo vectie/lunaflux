@@ -7,14 +7,14 @@ pub(all) suberror ScheduleError {
 
 ///|
 pub struct TimestepPattern {
-  indices : ReadOnlyArray[Int]
-  combined_adaln : ReadOnlyArray[Int]
+  indices : ReadOnlyArray[Int32]
+  combined_adaln : ReadOnlyArray[Int32]
 }
 
 ///|
 pub struct ScheduledTime {
   values : ReadOnlyArray[Float]
-  pattern : Int
+  pattern : Int32
 }
 
 ///|
@@ -34,8 +34,8 @@ pub fn Sequence::schedule(
   audio~ : ArrayView[Double],
   visual_noise~ : Double,
   audio_noise~ : Double,
-  vision_text_rows~ : ArrayView[Int],
-  max_steps~ : Int,
+  vision_text_rows~ : ArrayView[Int32],
+  max_steps~ : Int32,
   max_index_bytes~ : Int64,
 ) -> TimestepSchedule raise {
   guard video.length() > 0 &&
@@ -63,7 +63,7 @@ pub fn Sequence::schedule(
   }
   let patterns : Array[TimestepPattern] = []
   let steps : Array[ScheduledTime] = []
-  let known : Map[String, Int] = Map([])
+  let known : Map[String, Int32] = Map([])
   let bytes_per_pattern = rows.to_int64() * 8L
   for step in 0..<video.length() {
     let selection = self.select_times(

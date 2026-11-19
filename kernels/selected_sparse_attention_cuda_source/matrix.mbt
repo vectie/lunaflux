@@ -3,9 +3,9 @@
 /// are independent selected keys (QK) or value components (PV). Different
 /// queries/heads never share a selection or KV address by assumption.
 fn matrix_bodies(
-  qk : Int,
-  values : Int,
-  kv_heads : Int,
+  qk : Int32,
+  values : Int32,
+  kv_heads : Int32,
   symbol : String,
 ) -> (String, String, String) raise {
   guard @physical.SelectedMatrixFold::new(

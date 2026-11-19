@@ -1,10 +1,10 @@
 ///|
 fn exercise_independent_ring(
-  tiles : Int,
-  invalid_epoch : Int?,
+  tiles : Int32,
+  invalid_epoch : Int32?,
   invalid_value : Bool,
-  omit_key_wait? : Bool = false,
-  omit_key_release? : Bool = false,
+  omit_key_wait~ : Bool = false,
+  omit_key_release~ : Bool = false,
 ) -> Unit raise {
   let plan = @luna_attention_tile_schedule.AttentionGroupedEffectPlan::new(
     AttentionAsyncStagedShared,
@@ -13,7 +13,7 @@ fn exercise_independent_ring(
     independent=true,
   )
   let machine = QueryEffectMachine::new(2, true)
-  let issue = (operand : Int, slot : Int, epoch : Int) => {
+  let issue = (operand : Int32, slot : Int32, epoch : Int32) => {
     // Out-of-domain groups are empty, not omitted. This includes an empty
     // partition, one-tile partitions and both trailing refills.
     machine.issue(
@@ -26,7 +26,7 @@ fn exercise_independent_ring(
   }
   let apply = (
     point : @luna_attention_tile_schedule.AttentionGroupedEffectPoint,
-    epoch : Int,
+    epoch : Int32,
   ) => {
     for action in plan.actions(point) {
       match action {

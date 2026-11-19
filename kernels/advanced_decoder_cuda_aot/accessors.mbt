@@ -29,7 +29,7 @@ pub fn AdvancedDecoderFoundationCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderFoundationCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,7 +57,7 @@ pub fn AdvancedDecoderFoundationCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderFoundationCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 

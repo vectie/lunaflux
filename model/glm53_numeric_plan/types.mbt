@@ -13,10 +13,10 @@ pub(all) enum Glm53LogicalTensorRole {
 /// Stable graph location for one numeric operation requirement.
 pub(all) enum Glm53NumericOperationScope {
   Global
-  DecoderLayer(layer_index~ : Int)
-  AuxiliaryLayer(stage_index~ : Int)
+  DecoderLayer(layer_index~ : Int32)
+  AuxiliaryLayer(stage_index~ : Int32)
   VisionFrontend
-  VisionLayer(layer_index~ : Int)
+  VisionLayer(layer_index~ : Int32)
   VisionProjector
 } derive(Debug, Eq)
 
@@ -63,24 +63,24 @@ pub(all) enum Glm53NumericOperationKind {
 
 ///|
 pub(all) suberror Glm53NumericPlanError {
-  UnsupportedFp8BlockScaleLayout(block_rows~ : Int, block_columns~ : Int)
+  UnsupportedFp8BlockScaleLayout(block_rows~ : Int32, block_columns~ : Int32)
   MixedDTypeMaterializationUnsupported
   ProfilePlanMismatch
   ManifestIdentityMismatch
-  ManifestOrdinalMismatch(ordinal~ : Int)
-  UnexpectedFloat32Tensor(ordinal~ : Int)
+  ManifestOrdinalMismatch(ordinal~ : Int32)
+  UnexpectedFloat32Tensor(ordinal~ : Int32)
   NumericSchemaConstructionFailed
 } derive(Debug, Eq)
 
 ///|
 pub struct Glm53NumericTensorBinding {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv role : Glm53LogicalTensorRole
 }
 
 ///|
 pub struct Glm53NumericOperationBinding {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv scope : Glm53NumericOperationScope
   priv kind : Glm53NumericOperationKind
   priv execution : @numeric_contract.OperationExecutionContract
@@ -97,6 +97,6 @@ pub struct Glm53NumericPlan {
   priv tensor_bindings : ReadOnlyArray[Glm53NumericTensorBinding]
   priv operation_bindings : ReadOnlyArray[Glm53NumericOperationBinding]
   priv binding_digest : @spec.PlanDigest
-  priv bfloat16_tensor_count : Int
-  priv float32_tensor_count : Int
+  priv bfloat16_tensor_count : Int32
+  priv float32_tensor_count : Int32
 }

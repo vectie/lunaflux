@@ -41,9 +41,9 @@ fn LunaHttp1Workspace::accept_body_byte(
 pub fn LunaHttp1Work::offer(
   self : LunaHttp1Work,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise LunaHttp1Error {
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise LunaHttp1Error {
   let workspace = self.require_workspace()
   workspace.last_work_units = 0
   if source_offset < 0 ||
@@ -127,7 +127,7 @@ pub fn LunaHttp1Work::state(
 ///|
 pub fn LunaHttp1Work::last_work_units(
   self : LunaHttp1Work,
-) -> Int raise LunaHttp1Error {
+) -> Int32 raise LunaHttp1Error {
   self.require_workspace().last_work_units
 }
 

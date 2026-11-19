@@ -1,7 +1,7 @@
 ///|
 fn unique_dsa_kv_geometry(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int)? {
+) -> (Int32, Int32)? {
   let mut found = None
   for requirement in requirements.requirements() {
     if requirement.operation() is KeyValueLowRankProjection(_, heads, _, value) {
@@ -17,10 +17,10 @@ fn unique_dsa_kv_geometry(
 ///|
 fn exact_dsa_sparse_attention_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  query_heads : Int,
-  top_k : Int,
-  query_key_dimension : Int,
-  value_dimension : Int,
+  query_heads : Int32,
+  top_k : Int32,
+  query_key_dimension : Int32,
+  value_dimension : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   guard unique_dsa_kv_geometry(requirements) is Some((kv_heads, kv_value)) else {

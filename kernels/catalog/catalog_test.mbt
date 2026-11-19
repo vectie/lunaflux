@@ -64,7 +64,7 @@ fn output_projection_operation(workspace_bytes : Int64) -> @plan.PlanOperation {
 ///|
 fn projection_plan(
   workspace_limit : Int64,
-  operation_workspace? : Int64 = 0L,
+  operation_workspace~ : Int64 = 0L,
 ) -> @plan.ModelPlan {
   try! @plan.ModelPlan::new_stateless(
     content_digest=test_content(),
@@ -97,8 +97,8 @@ fn projection_plan(
 
 ///|
 fn test_target(
-  supports_bf16? : Bool = true,
-  supports_cublas_lt? : Bool = true,
+  supports_bf16~ : Bool = true,
+  supports_cublas_lt~ : Bool = true,
 ) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=8,
@@ -111,7 +111,7 @@ fn test_target(
 ///|
 fn aot_family(
   digest : @catalog.AotArtifactDigest,
-  stable_id? : Int = 1,
+  stable_id~ : Int32 = 1,
 ) -> @catalog.AotKernelFamily {
   let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(stable_id)
   @catalog.AotKernelFamily::new(module_digest=digest, family_id~)
@@ -119,8 +119,8 @@ fn aot_family(
 
 ///|
 fn aot_entry(
-  workspace_bytes? : Int64 = 31L,
-  workspace_alignment? : Int64 = 16L,
+  workspace_bytes~ : Int64 = 31L,
+  workspace_alignment~ : Int64 = 16L,
 ) -> @catalog.CatalogEntry {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
@@ -140,8 +140,8 @@ fn aot_entry(
 
 ///|
 fn vendor_projection_entry(
-  workspace_bytes? : Int64 = 0L,
-  workspace_alignment? : Int64 = 1L,
+  workspace_bytes~ : Int64 = 0L,
+  workspace_alignment~ : Int64 = 1L,
 ) -> @catalog.CatalogEntry {
   try! @catalog.CatalogEntry::new(
     semantic_version=@catalog.KernelSemanticVersion::v1(),

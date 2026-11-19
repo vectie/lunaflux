@@ -5,7 +5,7 @@ pub struct IndexedSparseHistoryCudaSource {
   priv plan : @precision.IndexedSparseHistoryPrecision
   priv symbols : ReadOnlyArray[String]
   priv source : Bytes
-  priv copy_blocks : Int
+  priv copy_blocks : Int32
 }
 
 ///|
@@ -85,7 +85,7 @@ pub fn IndexedSparseHistoryCudaSource::plan(
 ///|
 pub fn IndexedSparseHistoryCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String {
   self.symbols[stage]
 }
@@ -98,8 +98,8 @@ pub fn IndexedSparseHistoryCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn IndexedSparseHistoryCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32) {
   if stage == 1 {
     (self.copy_blocks, 256)
   } else if self.plan.attention().paged_history() is Some(_) {

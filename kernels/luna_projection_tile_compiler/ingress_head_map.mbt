@@ -5,16 +5,16 @@
 /// logical ownership map, not device launch admission: physical workgroup
 /// limits belong to the selected backend's capability checks.
 pub struct AttentionIngressHeadMap {
-  priv heads : Int
-  priv lanes_per_head : Int
-  priv heads_per_workgroup : Int
+  priv heads : Int32
+  priv lanes_per_head : Int32
+  priv heads_per_workgroup : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn AttentionIngressNumerics::group_heads(
   self : AttentionIngressNumerics,
-  heads~ : Int,
-  workgroup_lanes~ : Int,
+  heads~ : Int32,
+  workgroup_lanes~ : Int32,
 ) -> AttentionIngressHeadMap raise ProjectionTileCompilerError {
   guard heads > 0 &&
     workgroup_lanes >= self.reduction_lanes &&
@@ -31,7 +31,7 @@ pub fn AttentionIngressNumerics::group_heads(
 ///|
 pub fn AttentionIngressHeadMap::geometry(
   self : AttentionIngressHeadMap,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (
     (self.heads - 1) / self.heads_per_workgroup + 1,
     self.heads_per_workgroup,
@@ -42,9 +42,9 @@ pub fn AttentionIngressHeadMap::geometry(
 ///|
 pub fn AttentionIngressHeadMap::head_at(
   self : AttentionIngressHeadMap,
-  workgroup : Int,
-  subgroup : Int,
-) -> Int? {
+  workgroup : Int32,
+  subgroup : Int32,
+) -> Int32? {
   let (groups, _, _) = self.geometry()
   guard workgroup >= 0 &&
     workgroup < groups &&
@@ -60,3 +60,9 @@ pub fn AttentionIngressHeadMap::head_at(
     None
   }
 }
+
+///|
+pub extend AttentionIngressHeadMap with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionIngressHeadMap with Eq::{not_equal, equal}

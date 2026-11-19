@@ -25,7 +25,7 @@ pub fn Cache::prepare(
 }
 
 ///|
-fn Cache::free_lane(self : Cache) -> Int {
+fn Cache::free_lane(self : Cache) -> Int32 {
   for i in 0..<self.lanes.length() {
     if self.lanes[i] is Idle {
       return i
@@ -37,7 +37,7 @@ fn Cache::free_lane(self : Cache) -> Int {
 ///|
 fn Cache::fault(
   self : Cache,
-  lane : Int,
+  lane : Int32,
   transfer : @residency.Transfer,
 ) -> Unit {
   let _ = self.residency.fail(transfer)
@@ -48,9 +48,9 @@ fn Cache::fault(
 ///|
 fn Cache::submit(
   self : Cache,
-  lane : Int,
+  lane : Int32,
   transfer : @residency.Transfer,
-  page : Int,
+  page : Int32,
   to_device : Bool,
 ) -> Start raise @device.DeviceError {
   self.lanes[lane] = Active(transfer)
@@ -72,7 +72,7 @@ fn Cache::submit(
 ///|
 pub fn Cache::begin_spill(
   self : Cache,
-  page : Int,
+  page : Int32,
 ) -> Start raise @device.DeviceError {
   if !self.is_prepared() || page < 0 || page >= self.plan.pages {
     return Rejected
@@ -92,7 +92,7 @@ pub fn Cache::begin_spill(
 pub fn Cache::begin_restore(
   self : Cache,
   entry : @residency.Entry,
-  page : Int,
+  page : Int32,
 ) -> Start raise @device.DeviceError {
   if !self.is_prepared() || page < 0 || page >= self.plan.pages {
     return Rejected

@@ -38,7 +38,7 @@ async test "connected observations do not scan unselected modules or rehash rout
 }
 
 ///|
-fn chain_fixture(raw : ArrayView[String], winner : Int) -> Bytes {
+fn chain_fixture(raw : ArrayView[String], winner : Int32) -> Bytes {
   let value : Json = {
     "schema": "lunaflux-prefill-connected-comparison.v1",
     "context_sha256": chain_context_sha256(raw, raw[71]),

@@ -27,11 +27,11 @@ test "blockwise law separates F32 probabilities from BF16 and ordered-key folds"
 fn blockwise_value(
   scores : ArrayView[Float],
   values : ArrayView[Float],
-  tile : Int,
+  tile : Int32,
 ) -> Float {
   for begin = 0, maximum = -3.4028235e38F, denominator = 0.0F, numerator = 0.0F; begin <
      scores.length(); {
-    let end = Int::min(begin + tile, scores.length())
+    let end = Int32::min(begin + tile, scores.length())
     let tile_max = for i in begin..<end; m = -3.4028235e38F {
       continue Float::max(m, scores[i])
     } nobreak {

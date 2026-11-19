@@ -30,7 +30,7 @@ fn ephemeral_key(
 fn ephemeral_spec_index(
   specs : Array[Fp8EphemeralSpec],
   key : Fp8EphemeralStorageKey,
-) -> Int? {
+) -> Int32? {
   for index, spec in specs {
     if spec.key == key {
       return Some(index)

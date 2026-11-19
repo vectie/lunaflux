@@ -24,12 +24,12 @@ pub(all) suberror PipelineError {
 /// No allocations or launch-list construction occur in advance.
 pub struct Pipeline[F] {
   priv frames : ReadOnlyArray[F]
-  priv conditioning_count : Int
-  priv denoising_count : Int
-  priv mut completed : Int
+  priv conditioning_count : Int32
+  priv denoising_count : Int32
+  priv mut completed : Int32
   priv mut stage : PipelineStage
   priv mut busy : Bool
-  priv mut release_remaining : Int
+  priv mut release_remaining : Int32
   priv mut current_drained : Bool
   priv mut closing : Bool
 }
@@ -71,7 +71,7 @@ pub fn[F] Pipeline::stage(self : Pipeline[F]) -> PipelineStage {
 }
 
 ///|
-pub fn[F] Pipeline::completed_frames(self : Pipeline[F]) -> Int {
+pub fn[F] Pipeline::completed_frames(self : Pipeline[F]) -> Int32 {
   self.completed
 }
 

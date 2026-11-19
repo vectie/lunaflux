@@ -7,7 +7,7 @@ fn missing(field : ModelConfigField) -> ModelConfigReaderError {
 fn invalid(
   field : ModelConfigField,
   issue : ModelConfigValueIssue,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> ModelConfigReaderError {
   InvalidValue(field~, issue~, index~)
 }
@@ -40,7 +40,7 @@ fn require_string(
 fn exact_int64(
   value : Json,
   field : ModelConfigField,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Int64 raise ModelConfigReaderError {
   guard value is Number(number, repr~) else {
     raise invalid(field, ExpectedInteger, index~)
@@ -64,7 +64,7 @@ fn exact_int64(
 fn parse_decimal_int64(
   text : StringView,
   field : ModelConfigField,
-  index : Int,
+  index : Int32,
 ) -> Int64 raise ModelConfigReaderError {
   if text.is_empty() {
     raise invalid(field, ExpectedInteger, index~)
@@ -103,7 +103,7 @@ fn require_int(
   object : Map[String, Json],
   name : String,
   field : ModelConfigField,
-) -> Int raise ModelConfigReaderError {
+) -> Int32 raise ModelConfigReaderError {
   let integer = exact_int64(require_value(object, name, field), field)
   if integer < -2147483648L || integer > 2147483647L {
     raise invalid(field, ExpectedInteger)
@@ -116,7 +116,7 @@ fn optional_int(
   object : Map[String, Json],
   name : String,
   field : ModelConfigField,
-) -> Int? raise ModelConfigReaderError {
+) -> Int32? raise ModelConfigReaderError {
   match object.get(name) {
     None => None
     Some(value) => {
@@ -194,7 +194,7 @@ fn optional_nullable_int(
   object : Map[String, Json],
   name : String,
   field : ModelConfigField,
-) -> Int? raise ModelConfigReaderError {
+) -> Int32? raise ModelConfigReaderError {
   match object.get(name) {
     None | Some(Null) => None
     Some(value) => {
@@ -270,7 +270,7 @@ fn check_optional_int(
   object : Map[String, Json],
   name : String,
   field : ModelConfigField,
-  expected : Int,
+  expected : Int32,
 ) -> Unit raise ModelConfigReaderError {
   match optional_int(object, name, field) {
     None => ()

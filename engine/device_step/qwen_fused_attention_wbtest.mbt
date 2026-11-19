@@ -65,33 +65,33 @@ fn qwen_fused_test_blueprint(
 fn qwen_fused_test_runtime(
   plan : @plan.ModelPlan,
   blueprint : PagedKvExecutionBlueprint,
-  include_residual? : Bool = false,
-  include_readonly? : Bool = true,
-  include_ingress? : Bool = true,
-  ingress_grid_y? : Int = 32,
-  phase_specific_attention? : Bool = false,
-  direct_compiler_decode? : Bool = false,
-  split_compiler_decode? : Bool = false,
-  full_ingress? : Bool = false,
-  step_rotary_cache? : Bool = false,
-  ingress_query_tile_rows? : Int,
-  ingress_heads_per_cta? : Int = 1,
+  include_residual~ : Bool = false,
+  include_readonly~ : Bool = true,
+  include_ingress~ : Bool = true,
+  ingress_grid_y~ : Int32 = 32,
+  phase_specific_attention~ : Bool = false,
+  direct_compiler_decode~ : Bool = false,
+  split_compiler_decode~ : Bool = false,
+  full_ingress~ : Bool = false,
+  step_rotary_cache~ : Bool = false,
+  ingress_query_tile_rows? : Int32,
+  ingress_heads_per_cta~ : Int32 = 1,
   ingress_row_variant? : @luna_fused_artifact_admission.ReusableFusedRuntimeRowVariant,
-  blockwise_decode? : Bool = false,
-  contracting_decode? : Bool = false,
-  dual_score_decode? : Bool = false,
+  blockwise_decode~ : Bool = false,
+  contracting_decode~ : Bool = false,
+  dual_score_decode~ : Bool = false,
   decode_execution? : @luna_fused_artifact_admission.DecodeExecutionDescriptor,
-  mismatched_decode_law? : Bool = false,
-  ingress_grid_x? : Int = -1,
-  wide_query_prefill? : Bool = false,
-  wide_query_prefill_alias_selected? : Bool = false,
-  partitioned_prefill? : Bool = false,
-  partitioned_prefill_grid_x? : Int = -1,
-  deep_partitioned_prefill? : Bool = false,
-  partitioned_query_tile_rows? : Int = 32,
-  merge_query_tile_rows? : Int = 32,
-  prefill_threads? : Int = 256,
-  merge_threads? : Int = -1,
+  mismatched_decode_law~ : Bool = false,
+  ingress_grid_x~ : Int32 = -1,
+  wide_query_prefill~ : Bool = false,
+  wide_query_prefill_alias_selected~ : Bool = false,
+  partitioned_prefill~ : Bool = false,
+  partitioned_prefill_grid_x~ : Int32 = -1,
+  deep_partitioned_prefill~ : Bool = false,
+  partitioned_query_tile_rows~ : Int32 = 32,
+  merge_query_tile_rows~ : Int32 = 32,
+  prefill_threads~ : Int32 = 256,
+  merge_threads~ : Int32 = -1,
   attention_bucket_routes? : Bytes,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let ingress = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
@@ -185,7 +185,7 @@ fn qwen_fused_test_runtime(
             ) /
             16
           } else {
-            Int::min(blueprint.profile().max_query_tokens(), 128)
+            Int32::min(blueprint.profile().max_query_tokens(), 128)
           },
           grid_y=16,
           grid_z=1,
@@ -611,7 +611,7 @@ test "compiler-fused Qwen ingress replaces projection through KV write" {
   assert_true(spans[0].ingress_includes_projection())
   assert_eq(spans[0].operation_indices(), (2, 3, 4, 5))
   assert_eq(spans[0].postprocess_function_symbol(), "qwen_full_ingress")
-  let baseline : Array[Int] = []
+  let baseline : Array[Int32] = []
   for index in 0..<blueprint.steps().length() {
     baseline.push(index)
   }

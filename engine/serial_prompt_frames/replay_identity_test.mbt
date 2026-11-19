@@ -1,6 +1,6 @@
 ///|
 fn identity_frame(
-  start : Int,
+  start : Int32,
   sequence : UInt64,
   request : UInt64,
   final : Bool,

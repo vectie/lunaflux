@@ -1,17 +1,17 @@
 ///|
-fn fused_qualification_value(index : Int, phase : Int) -> Float {
+fn fused_qualification_value(index : Int32, phase : Int32) -> Float {
   Float::from_int((index * (phase * 2 + 1) + phase * 7) % 29 - 14) * 0.0078125F
 }
 
 ///|
-fn fused_qualification_values(length : Int, phase : Int) -> Array[Int] {
+fn fused_qualification_values(length : Int32, phase : Int32) -> Array[Int32] {
   Array::makei(length, index => {
     fused_qualification_bf16_bits(fused_qualification_value(index, phase))
   })
 }
 
 ///|
-fn fused_qualification_norm_weight() -> Array[Int] {
+fn fused_qualification_norm_weight() -> Array[Int32] {
   Array::makei(FUSED_QUALIFICATION_INPUT_WIDTH, index => {
     fused_qualification_bf16_bits(0.75F + Float::from_int(index % 9) * 0.03125F)
   })

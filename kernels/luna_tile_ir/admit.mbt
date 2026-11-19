@@ -1,5 +1,5 @@
 ///|
-fn luna_tile_constraint_id(constraint : LunaTileConstraint) -> Int {
+fn luna_tile_constraint_id(constraint : LunaTileConstraint) -> Int32 {
   match constraint {
     LunaTileDimensionEquals(id, _, _, _)
     | LunaTileDimensionMultipleOf(id, _, _, _)

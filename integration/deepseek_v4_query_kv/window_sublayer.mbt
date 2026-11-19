@@ -11,15 +11,15 @@ pub struct DeepSeekWindowSublayer {
 ///|
 pub fn DeepSeekWindowSublayer::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
-  output_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation~ : @precision.DotReductionLaw = OrderedFloat32,
+  output_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -67,7 +67,7 @@ pub fn DeepSeekWindowSublayer::source_bytes(self : Self) -> Bytes {
 pub fn DeepSeekWindowSublayer::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
-  output_borrowed? : Bool = false,
+  output_borrowed~ : Bool = false,
 ) -> Int64 raise {
   self.attention.required_device_bytes(checkpoint) +
   self.output.required_device_bytes(checkpoint, output_borrowed~)
@@ -86,7 +86,7 @@ pub fn DeepSeekWindowSublayer::prepare(
   hidden~ : @device.Allocation,
   output? : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

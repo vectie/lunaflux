@@ -1,6 +1,6 @@
 ///|
 fn mistral_test_metadata(
-  sliding_window? : Int,
+  sliding_window? : Int32,
 ) -> @mistral_spec.MistralModelMetadata raise {
   let spec = @mistral_spec.MistralModelSpec::new(
     vocabulary_size=128,

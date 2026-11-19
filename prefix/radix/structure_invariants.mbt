@@ -1,9 +1,9 @@
 ///|
 fn count_free_link(
-  head : Int,
-  links : FixedArray[Int],
-  target : Int,
-) -> Int raise PrefixIndexError {
+  head : Int32,
+  links : FixedArray[Int32],
+  target : Int32,
+) -> Int32 raise PrefixIndexError {
   let mut count = 0
   let mut cursor = head
   let mut steps = 0
@@ -133,7 +133,8 @@ fn PrefixIndex::debug_check_root_index(
     }
     let left_height = self.root_index_height(left)
     let right_height = self.root_index_height(right)
-    if self.root_index_heights[edge] != 1 + Int::max(left_height, right_height) ||
+    if self.root_index_heights[edge] !=
+      1 + Int32::max(left_height, right_height) ||
       left_height - right_height < -1 ||
       left_height - right_height > 1 {
       raise InvariantViolation(RootCount)
@@ -274,7 +275,8 @@ fn PrefixIndex::debug_check_child_index(
     }
     let left_height = self.child_index_height(left)
     let right_height = self.child_index_height(right)
-    if self.child_index_heights[edge] != 1 + Int::max(left_height, right_height) ||
+    if self.child_index_heights[edge] !=
+      1 + Int32::max(left_height, right_height) ||
       left_height - right_height < -1 ||
       left_height - right_height > 1 {
       raise InvariantViolation(NodeOwnership)

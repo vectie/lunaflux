@@ -29,7 +29,7 @@ fn GlmFfn::is_tensor_parallel(self : Self) -> Bool {
 }
 
 ///|
-fn GlmFfn::tensor_width(self : Self) -> Int? {
+fn GlmFfn::tensor_width(self : Self) -> Int32? {
   match self.branch {
     Moe(moe) =>
       match moe.program.combined_tensor_width() {
@@ -43,7 +43,7 @@ fn GlmFfn::tensor_width(self : Self) -> Int? {
 ///|
 fn GlmFfn::tensor_boundary(
   self : Self,
-) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   if self.branch is Dense(mlp) &&
     mlp.tensor_boundary() is Some((cut, buffer, width)) {
     return Some((self.envelope.prefix().length() + cut, buffer, width))
@@ -62,7 +62,7 @@ fn GlmFfn::tensor_boundary(
 }
 
 ///|
-fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int, Int)] {
+fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int32, Int32)] {
   let widths = []
   let ffn = match self {
     Recurrent(layer) => {
@@ -92,7 +92,7 @@ fn GlmDecoderLayer::tensor_widths(self : Self) -> Array[(Int, Int)] {
 ///|
 fn GlmDecoderLayer::tensor_boundaries(
   self : Self,
-) -> Array[(Int, Int, @device.Allocation, Int)] raise @device.DeviceError {
+) -> Array[(Int32, Int32, @device.Allocation, Int32)] raise @device.DeviceError {
   let boundaries = []
   let ffn = match self {
     Recurrent(layer) => {
@@ -191,7 +191,7 @@ pub fn GlmDecoderStage::tensor_contract(
 ///|
 fn GlmDecoderLayer::tensor_kind(
   self : Self,
-  sublayer : Int,
+  sublayer : Int32,
 ) -> @device.TensorCollectiveKind {
   if sublayer == 0 {
     let rounded = match self {

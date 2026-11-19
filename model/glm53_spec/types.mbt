@@ -75,3 +75,39 @@ pub fn Glm53FlashMetadata::spec(self : Self) -> Glm53FlashSpec {
 pub fn Glm53FlashMetadata::content_digest(self : Self) -> @spec.ContentDigest {
   self.content_digest
 }
+
+///|
+pub extend Glm53ProfileId with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53ProfileId with Eq::{not_equal, equal}
+
+///|
+pub extend Glm53AttentionKind with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53AttentionKind with Eq::{not_equal, equal}
+
+///|
+pub extend Glm53FeedForwardKind with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53FeedForwardKind with Eq::{not_equal, equal}
+
+///|
+pub extend Glm53SpecError with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53SpecError with Eq::{not_equal, equal}
+
+///|
+pub extend Glm53FullMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53FullMetadata with Eq::{not_equal, equal}
+
+///|
+pub extend Glm53FlashMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53FlashMetadata with Eq::{not_equal, equal}

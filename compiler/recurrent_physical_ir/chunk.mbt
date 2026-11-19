@@ -3,19 +3,19 @@
 /// request state remains read-only until all transformed values are published.
 pub struct ChunkDeltaPlan {
   priv numerical : @precision.RecurrentDeltaPrecision
-  priv value_tile : Int
+  priv value_tile : Int32
   priv workspace : Int64
   priv per_head : Int64
   priv local_factors : Bool
-  priv local_bytes : Int
+  priv local_bytes : Int32
 }
 
 ///|
 pub fn ChunkDeltaPlan::new(
   numerical : @precision.RecurrentDeltaPrecision,
-  value_tile~ : Int,
+  value_tile~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  maximum_local_storage_bytes? : Int = 0,
+  maximum_local_storage_bytes~ : Int32 = 0,
 ) -> Self raise @precision.PrecisionPlanError {
   let (heads, keys, values) = numerical.geometry()
   let (rows, sequences, _) = numerical.capacity()
@@ -69,7 +69,7 @@ pub fn ChunkDeltaPlan::head_floats(self : Self) -> Int64 {
 }
 
 ///|
-pub fn ChunkDeltaPlan::value_tile(self : Self) -> Int {
+pub fn ChunkDeltaPlan::value_tile(self : Self) -> Int32 {
   self.value_tile
 }
 
@@ -81,7 +81,7 @@ pub fn ChunkDeltaPlan::local_factors(self : Self) -> Bool {
 }
 
 ///|
-pub fn ChunkDeltaPlan::local_storage_bytes(self : Self) -> Int {
+pub fn ChunkDeltaPlan::local_storage_bytes(self : Self) -> Int32 {
   if self.local_factors {
     self.local_bytes
   } else {
@@ -90,7 +90,7 @@ pub fn ChunkDeltaPlan::local_storage_bytes(self : Self) -> Int {
 }
 
 ///|
-pub fn ChunkDeltaPlan::stage_count(self : Self) -> Int {
+pub fn ChunkDeltaPlan::stage_count(self : Self) -> Int32 {
   ignore(self)
   3
 }
@@ -98,7 +98,7 @@ pub fn ChunkDeltaPlan::stage_count(self : Self) -> Int {
 ///|
 pub fn ChunkDeltaPlan::state_effect(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> @precision.NumericEffect {
   ignore(self)
   if stage == 2 {

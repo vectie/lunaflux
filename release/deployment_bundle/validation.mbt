@@ -1,7 +1,7 @@
 ///|
 fn is_ascii_bundle_value(value : StringView) -> Bool {
   for unit in value {
-    if !(unit is ('!'..='~')) {
+    if !(unit is ('!'..<='~')) {
       return false
     }
   }
@@ -11,8 +11,8 @@ fn is_ascii_bundle_value(value : StringView) -> Bool {
 ///|
 fn locator_component_is_invalid(
   value : StringView,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Bool {
   let length = end - start
   length == 0 ||
@@ -34,7 +34,7 @@ fn validate_relative_locator(
   }
   let mut component_start = 0
   for index, unit in value {
-    if !(unit is ('a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '-' | '/')) {
+    if !(unit is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '.' | '_' | '-' | '/')) {
       raise InvalidField(area)
     }
     if unit == '/' {
@@ -82,7 +82,7 @@ fn validate_base_image(
   let mut final_component_start = 0
   for index, unit in repository {
     if !(unit
-      is ('a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '-' | ':' | '/')) {
+      is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '.' | '_' | '-' | ':' | '/')) {
       raise InvalidField(BaseImage)
     }
     if unit == '/' {

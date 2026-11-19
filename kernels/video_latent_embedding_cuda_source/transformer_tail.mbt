@@ -2,13 +2,13 @@
 /// BF16 attention/linear intermediates with F32 residuals and F32 scale.
 /// Noncausal attention uses online F32 softmax, avoiding quadratic storage.
 pub fn transformer_tail_source(
-  rows~ : Int,
-  hidden~ : Int,
-  heads~ : Int,
-  head_dimension~ : Int,
-  intermediate~ : Int,
+  rows~ : Int32,
+  hidden~ : Int32,
+  heads~ : Int32,
+  head_dimension~ : Int32,
+  intermediate~ : Int32,
   prefix~ : String,
-  autocast? : @precision.AutocastFloat = Bfloat16,
+  autocast~ : @precision.AutocastFloat = Bfloat16,
 ) -> Bytes raise EmbeddingError {
   guard heads > 0 &&
     head_dimension > 0 &&

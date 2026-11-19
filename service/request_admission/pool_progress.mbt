@@ -230,7 +230,7 @@ fn LunaRequestPreparationPool::progress_text_copy(
 ///|
 fn LunaRequestPreparationPool::progress_assemble(
   self : LunaRequestPreparationPool,
-  lane_index : Int,
+  lane_index : Int32,
   lane : LunaRequestPreparationLane,
 ) -> Unit raise RequestAdmissionError {
   let tokens = match lane.tokens {
@@ -269,7 +269,7 @@ fn LunaRequestPreparationPool::progress_assemble(
     if lane.framed_sampling_mode == 0 {
       @inference.SamplingParameters::greedy()
     } else {
-      let top_k : Int? = if lane.framed_has_top_k {
+      let top_k : Int32? = if lane.framed_has_top_k {
         Some(lane.framed_top_k)
       } else {
         None
@@ -367,7 +367,7 @@ fn LunaRequestPreparationPool::progress_assemble(
 ///|
 fn LunaRequestPreparationPool::progress_lane_one(
   self : LunaRequestPreparationPool,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit raise RequestAdmissionError {
   let lane = self.lanes[lane_index]
   match lane.phase {

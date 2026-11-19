@@ -50,15 +50,18 @@ pub fn RowProjectionNormCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn RowProjectionNormCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn RowProjectionNormCudaSource::symbol(
+  self : Self,
+  stage : Int32,
+) -> String {
   self.symbols[stage]
 }
 
 ///|
 pub fn RowProjectionNormCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (_, width, rows) = self.plan.geometry()
   (rows, if stage == 0 { (width + 255) / 256 } else { 1 }, 256)
 }

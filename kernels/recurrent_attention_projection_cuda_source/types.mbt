@@ -26,11 +26,11 @@ pub(all) suberror RecurrentAttentionProjectionCudaSourceError {
 pub struct RecurrentAttentionProjectionCudaSource {
   priv operation : RecurrentAttentionProjectionOperation
   priv numerical_contract : RecurrentAttentionProjectionNumericalContract
-  priv hidden_width : Int
-  priv head_count : Int
-  priv head_dimension : Int
-  priv control_rank : Int
-  priv maximum_rows : Int
+  priv hidden_width : Int32
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv control_rank : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

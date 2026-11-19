@@ -103,7 +103,7 @@ fn load_tensor_parallel_bound(
   expected_digest : RuntimeDescriptorDigest,
   limits : RuntimeDescriptorFileLimits,
   luna_approval : @worker_wire.WorkerBootstrapLunaApproval,
-  luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  luna_verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
 ) -> TensorParallelRuntimeDescriptorAdmission raise RuntimeDescriptorFileError {
   let bytes = read_descriptor_snapshot(
     model_root, descriptor_locator, expected_digest, limits,
@@ -161,7 +161,7 @@ fn load_tensor_parallel_bound(
   let worker = admit_worker_limits(claims.worker)
   let inference = admit_inference_limits(claims.inference)
   let target = admit_target(claims.execution)
-  let ordinals : Array[Int] = []
+  let ordinals : Array[Int32] = []
   for rank in claims.tensor_parallel.ranks {
     ordinals.push(rank.device_ordinal)
   }

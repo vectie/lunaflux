@@ -2,7 +2,7 @@
 fn fp8_dense_source(
   symbol : String,
   parameters : Fp8ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> Bytes {
   @utf8.encode(
     fp8_cuda_prelude() +
@@ -24,7 +24,7 @@ fn fp8_dense_source(
 fn fp8_qkv_source(
   symbol : String,
   parameters : Fp8ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> Bytes {
   @utf8.encode(
     fp8_cuda_prelude() +

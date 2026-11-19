@@ -11,14 +11,14 @@ pub fn DeepSeekV4TokenHashTables::source_manifest_digest(
 }
 
 ///|
-pub fn DeepSeekV4TokenHashTables::table_count(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashTables::table_count(self : Self) -> Int32 {
   self.entries.length()
 }
 
 ///|
 fn DeepSeekV4TokenHashTables::entry(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> DeepSeekV4TokenHashTableEntry raise DeepSeekV4TokenHashMaterializationError {
   if self.released {
     raise TokenHashSourceReleased
@@ -32,24 +32,24 @@ fn DeepSeekV4TokenHashTables::entry(
 ///|
 pub fn DeepSeekV4TokenHashTables::layer_index(
   self : Self,
-  index : Int,
-) -> Int raise DeepSeekV4TokenHashMaterializationError {
+  index : Int32,
+) -> Int32 raise DeepSeekV4TokenHashMaterializationError {
   self.entry(index).layer_index
 }
 
 ///|
 pub fn DeepSeekV4TokenHashTables::source_tensor_index(
   self : Self,
-  index : Int,
-) -> Int raise DeepSeekV4TokenHashMaterializationError {
+  index : Int32,
+) -> Int32 raise DeepSeekV4TokenHashMaterializationError {
   self.entry(index).source_tensor_index
 }
 
 ///|
 pub fn DeepSeekV4TokenHashTables::table_byte_count(
   self : Self,
-  index : Int,
-) -> Int raise DeepSeekV4TokenHashMaterializationError {
+  index : Int32,
+) -> Int32 raise DeepSeekV4TokenHashMaterializationError {
   self.entry(index).table.byte_count()
 }
 
@@ -57,7 +57,7 @@ pub fn DeepSeekV4TokenHashTables::table_byte_count(
 /// Declared source-manifest label; not a checksum of the derived table bytes.
 pub fn DeepSeekV4TokenHashTables::table_source_label(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> DeepSeekV4HostManifestDigest raise DeepSeekV4TokenHashMaterializationError {
   ignore(self.entry(index))
   self.source_manifest_digest
@@ -66,7 +66,7 @@ pub fn DeepSeekV4TokenHashTables::table_source_label(
 ///|
 pub fn DeepSeekV4TokenHashTables::provide_table_arena(
   self : Self,
-  index : Int,
+  index : Int32,
   consumer : @segmented_host_borrow.SegmentedHostArenaConsumer,
 ) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError {
   if self.released {

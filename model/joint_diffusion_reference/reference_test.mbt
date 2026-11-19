@@ -5,7 +5,7 @@ fn content(seed : Char) -> @spec.ContentDigest {
 
 ///|
 fn minimax_plan(
-  variant? : @minimax_h3_spec.MiniMaxH3Variant = Fl2va,
+  variant~ : @minimax_h3_spec.MiniMaxH3Variant = Fl2va,
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @minimax_h3.build(
     @minimax_h3_spec.MiniMaxH3ModelMetadata::from_verified_content(
@@ -20,8 +20,8 @@ fn minimax_plan(
 
 ///|
 fn tiny_plan(
-  label? : Char = '8',
-  audio_output_length? : @joint_diffusion_plan.JointAudioOutputLength = FrameDuration,
+  label~ : Char = '8',
+  audio_output_length~ : @joint_diffusion_plan.JointAudioOutputLength = FrameDuration,
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @joint_diffusion_plan.JointDiffusionPlan::new(
     schema_version=1,
@@ -117,7 +117,7 @@ fn tiny_plan(
 ///|
 fn tiny_request(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
-  steps? : Int = 5,
+  steps~ : Int32 = 5,
 ) -> @joint_diffusion_plan.JointDiffusionRequestShape {
   try! plan
   .shapes()

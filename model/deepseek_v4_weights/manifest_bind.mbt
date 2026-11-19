@@ -38,7 +38,7 @@ pub fn bind(
     raise IncorrectTensorCount(expected~, actual=tensors.length())
   }
   validate_non_overlapping(tensors)
-  let seen : Map[String, Int] = Map([], capacity=tensors.length())
+  let seen : Map[String, Int32] = Map([], capacity=tensors.length())
   let bindings : Array[DeepSeekV4TensorBinding] = []
   for index, tensor in tensors {
     match seen.get(tensor.name) {

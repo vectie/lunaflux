@@ -16,7 +16,7 @@ fn cuda_grouped_effects(
   point : @luna_attention_tile_schedule.AttentionGroupedEffectPoint,
   transfer : String,
   indent : String,
-  retained_validity? : Bool = false,
+  retained_validity~ : Bool = false,
 ) -> String {
   plan
   .actions(point)

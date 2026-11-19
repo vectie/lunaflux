@@ -52,7 +52,7 @@ pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -87,56 +87,56 @@ pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::request_shape(
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::decoder_batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::input_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_channels
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::output_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_channels
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::input_time(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_time
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::output_time(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_time
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::kernel_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.kernel_size
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::stride(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.stride
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstUpsampleCudaCandidate::padding(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.padding
 }
 

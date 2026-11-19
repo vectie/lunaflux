@@ -6,8 +6,8 @@ pub struct RotaryBindings {
   priv allocation : @device.Allocation
   priv base : Int64
   priv table_bytes : Int64
-  priv rows : Int
-  priv width : Int
+  priv rows : Int32
+  priv width : Int32
 }
 
 ///|
@@ -31,10 +31,10 @@ pub fn RotaryBindings::upload(
   allocation : @device.Allocation,
   cosine : ArrayView[Float],
   sine : ArrayView[Float],
-  rows~ : Int,
-  rotary_width~ : Int,
+  rows~ : Int32,
+  rotary_width~ : Int32,
   offset~ : Int64,
-  chunk_elements~ : Int,
+  chunk_elements~ : Int32,
 ) -> Self raise @device.DeviceError {
   let elements = rows.to_int64() * rotary_width.to_int64()
   guard rows > 0 &&
@@ -64,7 +64,7 @@ pub fn RotaryBindings::upload(
   }
   for table, values in [cosine, sine] {
     for start = 0; start < values.length(); {
-      let count = Int::min(chunk_elements, values.length() - start)
+      let count = Int32::min(chunk_elements, values.length() - start)
       let bytes = rotary_chunk(values[start:start + count])
       allocation.copy_from_host(
         bytes,

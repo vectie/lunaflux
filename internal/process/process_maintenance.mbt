@@ -16,7 +16,7 @@ let maintenance_cleanup_required : ChildProcessMaintenanceProgress = {
 let maintenance_cleanup_stuck : ChildProcessMaintenanceProgress = { kind: 4, }
 
 ///|
-fn maintenance_deadline(timeout_millis : Int) -> Int64 raise ProcessError {
+fn maintenance_deadline(timeout_millis : Int32) -> Int64 raise ProcessError {
   capture_deadline(timeout_millis, Wait)
 }
 
@@ -24,7 +24,7 @@ fn maintenance_deadline(timeout_millis : Int) -> Int64 raise ProcessError {
 fn ChildProcess::maintenance_clock_status_at(
   self : ChildProcess,
   now : Int64,
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   let phase_timeout = self.limits.shutdown_timeout_millis.to_int64()
   if now < 0L ||
     now < self.maintenance_phase_started_millis ||
@@ -41,15 +41,15 @@ fn ChildProcess::maintenance_clock_status_at(
 ///|
 fn ChildProcess::maintenance_clock_status(
   self : ChildProcess,
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   self.maintenance_clock_status_at(raw_monotonic_now())
 }
 
 ///|
 fn ChildProcess::record_maintenance_exit(
   self : ChildProcess,
-  kind : Int,
-  code : Int,
+  kind : Int32,
+  code : Int32,
 ) -> Unit {
   self.maintenance_exit_kind = kind
   self.maintenance_exit_code = code
@@ -58,24 +58,24 @@ fn ChildProcess::record_maintenance_exit(
 }
 
 ///|
-fn maintenance_wait_status(result : Int64) -> Int {
+fn maintenance_wait_status(result : Int64) -> Int32 {
   (result & 0xffL).to_int()
 }
 
 ///|
-fn maintenance_wait_kind(result : Int64) -> Int {
+fn maintenance_wait_kind(result : Int64) -> Int32 {
   ((result >> 8) & 0xffL).to_int()
 }
 
 ///|
-fn maintenance_wait_code(result : Int64) -> Int {
+fn maintenance_wait_code(result : Int64) -> Int32 {
   ((result >> 16) & 0xffL).to_int()
 }
 
 ///|
 fn ChildProcess::progress_maintenance_poll(
   self : ChildProcess,
-  next_phase : Int,
+  next_phase : Int32,
 ) -> ChildProcessMaintenanceProgress {
   let clock_status = self.maintenance_clock_status() catch {
     _ => {
@@ -296,7 +296,7 @@ pub fn ChildProcess::progress_shutdown_maintenance(
 /// phases have no sleep interval and therefore also return zero.
 pub fn ChildProcess::maintenance_remaining_millis(
   self : ChildProcess,
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   if self.maintenance_phase == 0 {
     raise InvalidState(Wait)
   }

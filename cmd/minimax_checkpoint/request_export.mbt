@@ -82,8 +82,8 @@ async fn export_request(
 fn request_source_row_limit(
   workspace_bytes : Int64,
   metadata_bytes : Int64,
-  hidden_width : Int,
-) -> Int raise {
+  hidden_width : Int32,
+) -> Int32 raise {
   guard workspace_bytes > 0L &&
     metadata_bytes > 0L &&
     metadata_bytes <= 2147483647L &&
@@ -99,14 +99,14 @@ fn request_source_row_limit(
 
 ///|
 priv struct RequestExportArguments {
-  height : Int
-  width : Int
-  frames : Int
-  steps : Int
-  text_rows : Int
-  tile_size : Int
-  overlap : Int
-  max_tiles : Int
+  height : Int32
+  width : Int32
+  frames : Int32
+  steps : Int32
+  text_rows : Int32
+  tile_size : Int32
+  overlap : Int32
+  max_tiles : Int32
   workspace_bytes : Int64
   output_directory : String
   square_law : @precision.SquareReductionLaw

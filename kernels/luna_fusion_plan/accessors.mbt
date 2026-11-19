@@ -8,7 +8,7 @@ pub fn QkvQkNormPositionedRopePagedKvWritePlan::family(
 ///|
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::operation_indices(
   self : QkvQkNormPositionedRopePagedKvWritePlan,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (
     self.qkv_operation.as_int(),
     self.qk_norm_operation.as_int(),
@@ -27,14 +27,14 @@ pub fn QkvQkNormPositionedRopePagedKvWritePlan::kv_layer(
 ///|
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::projection_shape(
   self : QkvQkNormPositionedRopePagedKvWritePlan,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.input_width, self.output_width)
 }
 
 ///|
 pub fn QkvQkNormPositionedRopePagedKvWritePlan::attention_shape(
   self : QkvQkNormPositionedRopePagedKvWritePlan,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.query_heads, self.kv_heads, self.head_dimension)
 }
 

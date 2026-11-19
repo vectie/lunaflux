@@ -1,8 +1,8 @@
 ///|
 fn spawned_serving_metric_fixture(
-  disconnects? : UInt64 = 0UL,
-  kv_pages_free? : Int = 32,
-  failures? : UInt64 = 0UL,
+  disconnects~ : UInt64 = 0UL,
+  kv_pages_free~ : Int32 = 32,
+  failures~ : UInt64 = 0UL,
 ) -> SpawnedServingMetricSample {
   {
     admissions: 1UL,
@@ -45,9 +45,9 @@ fn spawned_serving_wb_limits() -> @inference.InferenceLimits raise {
 
 ///|
 fn spawned_serving_wb_request(
-  stream_preference? : @inference.StreamPreference = Streaming,
-  cache_permission? : @inference.CachePermission = Disabled,
-  sampling? : @inference.SamplingParameters = @inference.SamplingParameters::greedy(),
+  stream_preference~ : @inference.StreamPreference = Streaming,
+  cache_permission~ : @inference.CachePermission = Disabled,
+  sampling~ : @inference.SamplingParameters = @inference.SamplingParameters::greedy(),
 ) -> @inference.GenerateRequest raise {
   let limits = spawned_serving_wb_limits()
   @inference.GenerateRequest::new(

@@ -1,8 +1,8 @@
 ///|
 fn kda_gated_norm_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  gate_role? : GlmHybridLaunchOperandRole = KdaGatedNormGateInput,
-  epsilon? : Double = 0.00001,
+  gate_role~ : GlmHybridLaunchOperandRole = KdaGatedNormGateInput,
+  epsilon~ : Double = 0.00001,
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

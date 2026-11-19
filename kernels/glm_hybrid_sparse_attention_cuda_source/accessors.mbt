@@ -13,36 +13,40 @@ pub fn GlmHybridSparseAttentionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn GlmHybridSparseAttentionCudaSource::query_head_count(self : Self) -> Int {
+pub fn GlmHybridSparseAttentionCudaSource::query_head_count(
+  self : Self,
+) -> Int32 {
   self.query_head_count
 }
 
 ///|
 pub fn GlmHybridSparseAttentionCudaSource::key_value_head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.key_value_head_count
 }
 
 ///|
 pub fn GlmHybridSparseAttentionCudaSource::query_key_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_key_dimension
 }
 
 ///|
-pub fn GlmHybridSparseAttentionCudaSource::value_dimension(self : Self) -> Int {
+pub fn GlmHybridSparseAttentionCudaSource::value_dimension(
+  self : Self,
+) -> Int32 {
   self.value_dimension
 }
 
 ///|
-pub fn GlmHybridSparseAttentionCudaSource::selected_width(self : Self) -> Int {
+pub fn GlmHybridSparseAttentionCudaSource::selected_width(self : Self) -> Int32 {
   self.selected_width
 }
 
 ///|
-pub fn GlmHybridSparseAttentionCudaSource::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridSparseAttentionCudaSource::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 
@@ -59,6 +63,8 @@ pub fn GlmHybridSparseAttentionCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn GlmHybridSparseAttentionCudaSource::maximum_queries(self : Self) -> Int {
+pub fn GlmHybridSparseAttentionCudaSource::maximum_queries(
+  self : Self,
+) -> Int32 {
   self.maximum_queries
 }

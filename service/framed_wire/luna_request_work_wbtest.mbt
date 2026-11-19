@@ -1,5 +1,5 @@
 ///|
-fn luna_request_source() -> (FixedArray[Byte], Int) raise {
+fn luna_request_source() -> (FixedArray[Byte], Int32) raise {
   let frame = RequestFrameBuffer::new(fixture_limits()).encode(
     fixture_request(),
   )
@@ -11,7 +11,7 @@ fn luna_request_source() -> (FixedArray[Byte], Int) raise {
 ///|
 fn assert_luna_work_charge(
   work : LunaFramedRequestWork,
-  budget : Int,
+  budget : Int32,
 ) -> Unit raise {
   let used = work.last_work_units()
   assert_true(used > 0)
@@ -19,7 +19,10 @@ fn assert_luna_work_charge(
 }
 
 ///|
-fn luna_progress_once(work : LunaFramedRequestWork, budget : Int) -> Unit raise {
+fn luna_progress_once(
+  work : LunaFramedRequestWork,
+  budget : Int32,
+) -> Unit raise {
   assert_eq(work.progress(), LunaFramedRequestAdvanced)
   assert_luna_work_charge(work, budget)
 }
@@ -28,9 +31,9 @@ fn luna_progress_once(work : LunaFramedRequestWork, budget : Int) -> Unit raise 
 fn luna_feed_range(
   work : LunaFramedRequestWork,
   source : FixedArray[Byte],
-  start : Int,
-  end : Int,
-  budget : Int,
+  start : Int32,
+  end : Int32,
+  budget : Int32,
 ) -> Unit raise {
   let mut cursor = start
   while cursor < end {
@@ -57,7 +60,7 @@ fn luna_feed_range(
 ///|
 fn luna_finish_valid(
   work : LunaFramedRequestWork,
-  budget : Int,
+  budget : Int32,
 ) -> LunaFramedRequestView raise {
   while work.state() is LunaFramedRequestValidating {
     luna_progress_once(work, budget)
@@ -69,9 +72,9 @@ fn luna_finish_valid(
 ///|
 fn luna_drive_split(
   source : FixedArray[Byte],
-  length : Int,
-  split : Int,
-  budget : Int,
+  length : Int32,
+  split : Int32,
+  budget : Int32,
 ) -> (LunaFramedRequestView, UInt64) raise {
   let workspace = LunaFramedRequestWorkspace::new(
     fixture_limits(),

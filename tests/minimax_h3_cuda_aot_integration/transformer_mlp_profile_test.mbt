@@ -1,7 +1,7 @@
 ///|
 fn transformer_mlp_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is JointTransformerMlp(_, _, _, _) {
       return ordinal

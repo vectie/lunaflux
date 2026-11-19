@@ -32,7 +32,7 @@ fn read_mistral_config(
   root : @approved_fs.ApprovedRoot,
   source : @worker_wire.WorkerMistralBootstrapModelSource,
   content : @spec.ContentDigest,
-  maximum : Int,
+  maximum : Int32,
 ) -> @mistral_spec.MistralModelMetadata raise DeviceWorkerBootstrapError {
   let locator = @approved_fs.ApprovedRelativeLocator::new(
     source.config_locator(),

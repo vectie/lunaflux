@@ -3,10 +3,10 @@
 /// normalization is distinct from the learned F32 RMSNorm boundaries.
 pub fn query_kv_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -31,7 +31,7 @@ pub fn query_kv_plan(
 pub fn bind_query_kv_weights(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer : Int,
+  layer : Int32,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement

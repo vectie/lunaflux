@@ -2,7 +2,7 @@
 /// Small real-ABI diagnostic. No model weights or reference implementation is
 /// loaded. Tests both context policies against the identical communicator.
 async fn probe_tensor_context(
-  rank : Int,
+  rank : Int32,
   endpoint : String,
   interoperable : Bool,
 ) -> Unit {

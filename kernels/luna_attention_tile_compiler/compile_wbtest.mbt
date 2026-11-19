@@ -1,7 +1,7 @@
 ///|
 fn functional_compiler_request(
   records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
-  query_rows? : Int = 128,
+  query_rows~ : Int32 = 128,
 ) -> AttentionTileCompilerRequest raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,

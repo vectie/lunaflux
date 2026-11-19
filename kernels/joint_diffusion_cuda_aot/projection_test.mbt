@@ -2,7 +2,7 @@
 fn projection_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoLatentProjection(_, _, _, _, _) if latent == VideoLatent =>
@@ -15,7 +15,7 @@ fn projection_ordinal(
 }
 
 ///|
-fn projection_test_bf16_bits(value : Float) -> Int {
+fn projection_test_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
@@ -25,7 +25,7 @@ fn projection_ordered_dense_bf16(
   input : ArrayView[Float],
   weights : ArrayView[Float],
   bias : Float,
-) -> Int {
+) -> Int32 {
   let mut value = bias
   for index, input_value in input {
     let product = weights[index] * input_value

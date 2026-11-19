@@ -52,7 +52,7 @@ pub fn JointDiffusionAudioVaeConvPreCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionAudioVaeConvPreCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -87,45 +87,47 @@ pub fn JointDiffusionAudioVaeConvPreCudaCandidate::request_shape(
 ///|
 pub fn JointDiffusionAudioVaeConvPreCudaCandidate::decoder_batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeConvPreCudaCandidate::input_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_channels
 }
 
 ///|
 pub fn JointDiffusionAudioVaeConvPreCudaCandidate::output_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_channels
 }
 
 ///|
 pub fn JointDiffusionAudioVaeConvPreCudaCandidate::time_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.time_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeConvPreCudaCandidate::kernel_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.kernel_size
 }
 
 ///|
-pub fn JointDiffusionAudioVaeConvPreCudaCandidate::padding(self : Self) -> Int {
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::padding(
+  self : Self,
+) -> Int32 {
   self.padding
 }
 
 ///|
-pub fn JointDiffusionAudioVaeConvPreCudaCandidate::stride(self : Self) -> Int {
+pub fn JointDiffusionAudioVaeConvPreCudaCandidate::stride(self : Self) -> Int32 {
   self.stride
 }
 

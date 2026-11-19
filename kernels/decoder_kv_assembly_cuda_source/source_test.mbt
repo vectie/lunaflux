@@ -1,6 +1,6 @@
 ///|
 test "KV assembly emits Full shared suffix broadcast and strided value split" {
-  let rendered = decoder_kv_assembly_bf16_source(
+  let rendered = @decoder_kv_assembly_cuda_source.decoder_kv_assembly_bf16_source(
     head_count=64,
     key_nope_width=192,
     shared_key_suffix_width=64,
@@ -18,7 +18,7 @@ test "KV assembly emits Full shared suffix broadcast and strided value split" {
 
 ///|
 test "KV assembly omits nonexistent Flash suffix operand" {
-  let rendered = decoder_kv_assembly_bf16_source(
+  let rendered = @decoder_kv_assembly_cuda_source.decoder_kv_assembly_bf16_source(
     head_count=64,
     key_nope_width=256,
     shared_key_suffix_width=0,

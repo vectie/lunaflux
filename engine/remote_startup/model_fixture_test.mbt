@@ -24,13 +24,13 @@ fn tp_append_raw_tensor(
 
 ///|
 fn tp_fixture(
-  vocabulary? : Int = 16,
-  hidden? : Int = 8,
-  intermediate? : Int = 12,
-  layers? : Int = 1,
-  attention_heads? : Int = 4,
-  kv_heads? : Int = 2,
-  content? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  vocabulary~ : Int32 = 16,
+  hidden~ : Int32 = 8,
+  intermediate~ : Int32 = 12,
+  layers~ : Int32 = 1,
+  attention_heads~ : Int32 = 4,
+  kv_heads~ : Int32 = 2,
+  content~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> (@plan.ModelPlan, @llama_weights.LlamaWeightBindings) raise {
   let spec = @spec.LlamaModelSpec::new(
     vocabulary_size=vocabulary,
@@ -139,8 +139,8 @@ fn tp_fixture(
 fn tp_plan(
   model : @plan.ModelPlan,
   bindings : @llama_weights.LlamaWeightBindings,
-  rank : Int,
-  world_size : Int,
+  rank : Int32,
+  world_size : Int32,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan raise @llama_tensor_parallel.LlamaTensorParallelError {
   @llama_tensor_parallel.build_rank_plan(
     model,

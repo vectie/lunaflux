@@ -4,8 +4,8 @@
 /// plane, when present, belongs to separately admitted dynamic storage.
 pub fn ProjectionPhysicalPipeline::static_storage_bytes(
   self : ProjectionPhysicalPipeline,
-  element_bytes~ : Int,
-  result_bytes~ : Int,
+  element_bytes~ : Int32,
+  result_bytes~ : Int32,
 ) -> Int64 {
   let operands = self.operands.allocation_elements().to_int64() *
     element_bytes.to_int64()

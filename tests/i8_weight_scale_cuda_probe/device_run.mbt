@@ -58,7 +58,7 @@ fn probe_device_dimensions(
 }
 
 ///|
-fn run_i8_probe(admission : I8ProbeAdmission, cycles : Int) -> Double raise {
+fn run_i8_probe(admission : I8ProbeAdmission, cycles : Int32) -> Double raise {
   let context = @device.open_context(0)
   defer (try! context.close())
   require_probe(

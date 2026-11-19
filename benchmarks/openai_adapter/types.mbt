@@ -45,29 +45,29 @@ pub struct OpenAIBaselineInputs {
 pub struct OpenAIBaselineTrialContract {
   priv identity : OpenAIBaselineIdentity
   priv inputs : OpenAIBaselineInputs
-  priv ordinal : Int
-  priv order_position : Int
-  priv maximum_event_bytes : Int
-  priv maximum_json_depth : Int
+  priv ordinal : Int32
+  priv order_position : Int32
+  priv maximum_event_bytes : Int32
+  priv maximum_json_depth : Int32
 }
 
 ///|
-const OPENAI_BASELINE_VACANT : Int = 0
+const OPENAI_BASELINE_VACANT : Int32 = 0
 
 ///|
-const OPENAI_BASELINE_SUBMITTED : Int = 1
+const OPENAI_BASELINE_SUBMITTED : Int32 = 1
 
 ///|
-const OPENAI_BASELINE_ADMITTED : Int = 2
+const OPENAI_BASELINE_ADMITTED : Int32 = 2
 
 ///|
-const OPENAI_BASELINE_TERMINAL : Int = 3
+const OPENAI_BASELINE_TERMINAL : Int32 = 3
 
 ///|
 priv struct OpenAIBaselineLane {
   event_storage : FixedArray[Byte]
-  mut event_length : Int
-  mut phase : Int
+  mut event_length : Int32
+  mut phase : Int32
   mut first_content_seen : Bool
   mut observed_tokens : Int64
   mut finish_seen : Bool
@@ -81,10 +81,10 @@ pub struct OpenAIBaselineTrialAdapter {
   priv inputs : OpenAIBaselineInputs
   priv collector : @runner.BenchmarkTrialCollector
   priv lanes : FixedArray[OpenAIBaselineLane]
-  priv maximum_json_depth : Int
-  priv ordinal : Int
-  priv order_position : Int
-  priv mut submitted : Int
+  priv maximum_json_depth : Int32
+  priv ordinal : Int32
+  priv order_position : Int32
+  priv mut submitted : Int32
   priv mut finished : Bool
 }
 
@@ -93,8 +93,8 @@ pub struct OpenAIBaselineTrialEvidence {
   priv measurements : @evidence.BenchmarkSummaryEvidence
   priv source_identity : OpenAIBaselineIdentity
   priv inputs : OpenAIBaselineInputs
-  priv ordinal : Int
-  priv order_position : Int
+  priv ordinal : Int32
+  priv order_position : Int32
   priv identity : @evidence.BenchmarkEngineIdentity
   priv workload : @evidence.BenchmarkWorkload
   priv configuration : @evidence.BenchmarkDigest
@@ -135,36 +135,36 @@ pub struct OpenAIComparisonMeasurementSet {
 pub struct OpenAIResponsesTrialContract {
   priv identity : OpenAIBaselineIdentity
   priv inputs : OpenAIBaselineInputs
-  priv ordinal : Int
-  priv order_position : Int
-  priv maximum_event_bytes : Int
-  priv maximum_json_depth : Int
+  priv ordinal : Int32
+  priv order_position : Int32
+  priv maximum_event_bytes : Int32
+  priv maximum_json_depth : Int32
 }
 
 ///|
-const OPENAI_RESPONSES_NO_TERMINAL : Int = 0
+const OPENAI_RESPONSES_NO_TERMINAL : Int32 = 0
 
 ///|
-const OPENAI_RESPONSES_COMPLETED : Int = 1
+const OPENAI_RESPONSES_COMPLETED : Int32 = 1
 
 ///|
-const OPENAI_RESPONSES_CANCELLED : Int = 2
+const OPENAI_RESPONSES_CANCELLED : Int32 = 2
 
 ///|
-const OPENAI_RESPONSES_FAILED : Int = 3
+const OPENAI_RESPONSES_FAILED : Int32 = 3
 
 ///|
 priv struct OpenAIResponsesLane {
   event_storage : FixedArray[Byte]
-  mut event_length : Int
-  mut phase : Int
+  mut event_length : Int32
+  mut phase : Int32
   mut response_id : String?
   mut created_seen : Bool
   mut first_delta_seen : Bool
   mut observed_delta_events : Int64
   mut usage_seen : Bool
   mut completion_tokens : Int64
-  mut terminal_kind : Int
+  mut terminal_kind : Int32
 }
 
 ///|
@@ -173,10 +173,10 @@ pub struct OpenAIResponsesTrialObserver {
   priv inputs : OpenAIBaselineInputs
   priv collector : @runner.BenchmarkTrialCollector
   priv lanes : FixedArray[OpenAIResponsesLane]
-  priv maximum_json_depth : Int
-  priv ordinal : Int
-  priv order_position : Int
-  priv mut submitted : Int
+  priv maximum_json_depth : Int32
+  priv ordinal : Int32
+  priv order_position : Int32
+  priv mut submitted : Int32
   priv mut finished : Bool
   priv captured_mode : Bool
   priv mut captured_timestamp : @runner.CapturedMonotonicTimestamp?
@@ -190,8 +190,8 @@ pub struct OpenAIResponsesTrialEvidence {
   priv measurements : @evidence.BenchmarkSummaryEvidence
   priv source_identity : OpenAIBaselineIdentity
   priv inputs : OpenAIBaselineInputs
-  priv ordinal : Int
-  priv order_position : Int
+  priv ordinal : Int32
+  priv order_position : Int32
   priv identity : @evidence.BenchmarkEngineIdentity
   priv workload : @evidence.BenchmarkWorkload
   priv configuration : @evidence.BenchmarkDigest

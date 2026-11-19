@@ -13,9 +13,9 @@ pub(all) enum JointAudioAmpConvolutionPhase {
 
 ///|
 pub(all) enum JointAudioAmpExecutionStage {
-  Activation(Int, Int, JointAudioAmpActivationPhase)
-  Convolution(Int, Int, Int, JointAudioAmpConvolutionPhase)
-  Residual(Int, Int)
+  Activation(Int32, Int32, JointAudioAmpActivationPhase)
+  Convolution(Int32, Int32, Int32, JointAudioAmpConvolutionPhase)
+  Residual(Int32, Int32)
   ParallelAverage
 } derive(Debug, Eq)
 
@@ -30,7 +30,7 @@ pub(all) enum JointAudioAmpWorkspaceRole {
   ConvolutionOutputWorkspace
   ResidualPingWorkspace
   ResidualPongWorkspace
-  ParallelBlockOutput(Int)
+  ParallelBlockOutput(Int32)
   FinalOutput
 } derive(Debug, Eq)
 
@@ -45,10 +45,10 @@ pub(all) enum JointAudioAmpStorageClass {
 pub(all) suberror JointAudioAmpWorkspaceLayoutError {
   InvalidGeometry
   InvalidStageCount
-  InvalidStageOrder(Int)
+  InvalidStageOrder(Int32)
   InvalidRegionCount
-  InvalidRegion(Int)
-  OverlappingLiveRegions(Int, Int)
+  InvalidRegion(Int32)
+  OverlappingLiveRegions(Int32, Int32)
   SizeOverflow
 } derive(Debug, Eq)
 
@@ -58,8 +58,8 @@ pub struct JointAudioAmpWorkspaceRegion {
   priv storage_class : JointAudioAmpStorageClass
   priv byte_offset : Int64
   priv byte_count : Int64
-  priv live_start : Int
-  priv live_end : Int
+  priv live_start : Int32
+  priv live_end : Int32
 }
 
 ///|

@@ -1,6 +1,6 @@
 ///|
 test "I32 token-hash source is deterministic bounded and model-neutral" {
-  let source = token_hash_lookup_i32_source(
+  let source = @decoder_token_hash_cuda_source.token_hash_lookup_i32_source(
     vocabulary_size=129280,
     experts_per_token=6,
     routed_expert_count=256,
@@ -21,7 +21,7 @@ test "I32 token-hash source is deterministic bounded and model-neutral" {
   assert_true(text.contains("slot >= 6"))
   assert_true(text.contains("expert < 256"))
   assert_true(text.contains("expert_indices[output_index] = -1"))
-  let repeated = token_hash_lookup_i32_source(
+  let repeated = @decoder_token_hash_cuda_source.token_hash_lookup_i32_source(
     vocabulary_size=129280,
     experts_per_token=6,
     routed_expert_count=256,
@@ -35,7 +35,7 @@ test "I32 token-hash source is deterministic bounded and model-neutral" {
 test "I32 token-hash source rejects hostile geometry and symbol" {
   for invalid in [0, 257] {
     try
-      token_hash_lookup_i32_source(
+      @decoder_token_hash_cuda_source.token_hash_lookup_i32_source(
         vocabulary_size=129280,
         experts_per_token=invalid,
         routed_expert_count=256,
@@ -50,7 +50,7 @@ test "I32 token-hash source rejects hostile geometry and symbol" {
     }
   }
   try
-    token_hash_lookup_i32_source(
+    @decoder_token_hash_cuda_source.token_hash_lookup_i32_source(
       vocabulary_size=129280,
       experts_per_token=6,
       routed_expert_count=5,
@@ -64,7 +64,7 @@ test "I32 token-hash source rejects hostile geometry and symbol" {
     _ => fail("selected count larger than routed width was admitted")
   }
   try
-    token_hash_lookup_i32_source(
+    @decoder_token_hash_cuda_source.token_hash_lookup_i32_source(
       vocabulary_size=0,
       experts_per_token=6,
       routed_expert_count=256,
@@ -78,7 +78,7 @@ test "I32 token-hash source rejects hostile geometry and symbol" {
     _ => fail("zero vocabulary was admitted")
   }
   try
-    token_hash_lookup_i32_source(
+    @decoder_token_hash_cuda_source.token_hash_lookup_i32_source(
       vocabulary_size=1,
       experts_per_token=1,
       routed_expert_count=1,
@@ -92,7 +92,7 @@ test "I32 token-hash source rejects hostile geometry and symbol" {
     _ => fail("oversized row envelope was admitted")
   }
   try
-    token_hash_lookup_i32_source(
+    @decoder_token_hash_cuda_source.token_hash_lookup_i32_source(
       vocabulary_size=1,
       experts_per_token=1,
       routed_expert_count=1,

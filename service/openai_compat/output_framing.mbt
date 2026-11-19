@@ -4,7 +4,7 @@
 /// This does not alter generated tokens, stop decisions, sampling or usage.
 pub struct LunaOpenAIOutputFraming {
   priv delimiter : Bytes
-  priv fallback : FixedArray[Int]
+  priv fallback : FixedArray[Int32]
 }
 
 ///|
@@ -36,9 +36,9 @@ pub fn LunaOpenAIOutputFraming::answer_after(
 ///|
 fn LunaOpenAIOutputFraming::advance(
   self : Self,
-  matched : Int,
+  matched : Int32,
   byte : Byte,
-) -> Int {
+) -> Int32 {
   let mut next = matched
   while next > 0 && byte != self.delimiter[next] {
     next = self.fallback[next - 1]

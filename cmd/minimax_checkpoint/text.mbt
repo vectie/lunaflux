@@ -7,8 +7,8 @@ async fn run_text(
   metadata : @h3.MiniMaxH3ModelMetadata,
   model : @joint.JointDiffusionPlan,
   args : ArrayView[String],
-  capture_layers? : Bool = false,
-  capture_operators? : Bool = false,
+  capture_layers~ : Bool = false,
+  capture_operators~ : Bool = false,
   matched_layers? : String,
 ) -> Unit {
   let config = @text.parse_config(
@@ -155,7 +155,7 @@ async fn run_text(
     )
     return
   }
-  let captures : Array[(Int, Bytes)] = []
+  let captures : Array[(Int32, Bytes)] = []
   let hidden = if capture_layers {
     request.execute_observed(
       on_hidden_state=(index, bytes) => captures.push((index, bytes)),
@@ -196,7 +196,7 @@ async fn run_text(
 fn validate_text_capture_budget(
   output_bytes : Int64,
   maximum : Int64,
-  matched_inputs? : Bool = false,
+  matched_inputs~ : Bool = false,
 ) -> Unit raise {
   let states = if matched_inputs { 101L } else { 51L }
   guard output_bytes > 0L && output_bytes <= 2147483647L / states else {
@@ -216,7 +216,7 @@ fn validate_capture_bytes(required : Int64, maximum : Int64) -> Unit raise {
 }
 
 ///|
-fn text_input_ids(bytes : Bytes, rows : Int) -> Array[Int] raise {
+fn text_input_ids(bytes : Bytes, rows : Int32) -> Array[Int32] raise {
   guard rows > 0 && rows.to_int64() * 4L == bytes.length().to_int64() else {
     fail("wrong text token-ID byte count")
   }
@@ -230,7 +230,7 @@ fn text_input_ids(bytes : Bytes, rows : Int) -> Array[Int] raise {
 }
 
 ///|
-fn text_hidden_statistics(bytes : Bytes) -> (Int, Float) raise {
+fn text_hidden_statistics(bytes : Bytes) -> (Int32, Float) raise {
   guard !bytes.is_empty() && bytes.length() % 2 == 0 else {
     fail("empty or unaligned BF16 hidden output")
   }

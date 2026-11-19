@@ -4,11 +4,11 @@
 /// upstream so the visual tokenizer and VAE share exactly the same pixels.
 pub fn rgb_chunk(
   rgb : BytesView,
-  start_element~ : Int,
-  count~ : Int,
-  frames~ : Int,
-  height~ : Int,
-  width~ : Int,
+  start_element~ : Int32,
+  count~ : Int32,
+  frames~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
 ) -> Bytes raise @plan.PlanError {
   guard frames > 0 &&
     height > 0 &&
@@ -53,7 +53,7 @@ pub fn upload_rgb(
   source : VideoSource,
   rgb : BytesView,
   destination_offset~ : Int64,
-  chunk_elements~ : Int,
+  chunk_elements~ : Int32,
 ) -> Unit raise {
   let count = source.plan.graph.values[0].elements
   guard chunk_elements > 0 &&
@@ -68,7 +68,7 @@ pub fn upload_rgb(
     alignment=4L,
   )
   for start = 0; start < rgb.length(); {
-    let size = Int::min(chunk_elements, rgb.length() - start)
+    let size = Int32::min(chunk_elements, rgb.length() - start)
     let bytes = rgb_chunk(
       rgb,
       start_element=start,

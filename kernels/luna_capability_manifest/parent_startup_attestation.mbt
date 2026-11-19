@@ -10,7 +10,7 @@ pub fn LunaParentStartupApprovalWitness::from_private_parent_channel_v1(
   bootstrap_digest_sha256~ : String,
   source_digest_sha256~ : String,
   model_generation~ : UInt64,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
 ) -> LunaParentStartupApprovalWitness raise LunaCapabilityManifestError {
   if model_generation == 0UL || device_ordinal < 0 {
     raise Invalid(ExternalApproval)
@@ -46,7 +46,7 @@ pub fn LunaParentStartupApprovalWitness::require_launch_identity(
   bootstrap_digest_sha256~ : String,
   source_digest_sha256~ : String,
   model_generation~ : UInt64,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
 ) -> Unit raise LunaCapabilityManifestError {
   if self.consumed ||
     self.bootstrap_digest.as_hex() != bootstrap_digest_sha256 ||

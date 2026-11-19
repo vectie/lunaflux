@@ -3,17 +3,17 @@
 /// projection remains distributed. Initial and final matrices stay distinct;
 /// only the iterative matrix storage becomes workgroup-local.
 pub struct ControlTailFusion {
-  priv rows : Int
-  priv workers : Int
-  priv matrix_cells : Int
-  priv controls : Int
-  priv subgroup : Int
+  priv rows : Int32
+  priv workers : Int32
+  priv matrix_cells : Int32
+  priv controls : Int32
+  priv subgroup : Int32
 }
 
 ///|
 pub fn ControlTailFusion::new(
   precision : @precision.HyperConnectionPrecision,
-  subgroup_width? : Int = 1,
+  subgroup_width~ : Int32 = 1,
 ) -> Self raise @precision.PrecisionPlanError {
   let schedule = ParallelControlPlan::new(precision)
   let (streams, _, rows) = precision.geometry()
@@ -36,21 +36,21 @@ pub fn ControlTailFusion::new(
 }
 
 ///|
-pub fn ControlTailFusion::geometry(self : Self) -> (Int, Int, Int) {
+pub fn ControlTailFusion::geometry(self : Self) -> (Int32, Int32, Int32) {
   (self.rows, self.workers, self.matrix_cells)
 }
 
 ///|
 /// Independent matrix cells share a subgroup; the reduction order within each
 /// row/column is unchanged. Oversized matrices retain workgroup-local storage.
-pub fn ControlTailFusion::matrix_subgroup(self : Self) -> Int {
+pub fn ControlTailFusion::matrix_subgroup(self : Self) -> Int32 {
   self.subgroup
 }
 
 ///|
 /// Independent affine/nonlinear outputs share the same subgroup. This does
 /// not permit reassociating the ordered sum inside any softmax row.
-pub fn ControlTailFusion::initial_control_subgroup(self : Self) -> Int {
+pub fn ControlTailFusion::initial_control_subgroup(self : Self) -> Int32 {
   if self.controls <= self.subgroup {
     self.subgroup
   } else {

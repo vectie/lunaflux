@@ -15,42 +15,42 @@ pub fn DecoderSelectedSparseAttentionCudaSource::numerical_contract(
 ///|
 pub fn DecoderSelectedSparseAttentionCudaSource::query_head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_head_count
 }
 
 ///|
 pub fn DecoderSelectedSparseAttentionCudaSource::head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn DecoderSelectedSparseAttentionCudaSource::selected_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.selected_width
 }
 
 ///|
 pub fn DecoderSelectedSparseAttentionCudaSource::maximum_key_slots(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_key_slots
 }
 
 ///|
 pub fn DecoderSelectedSparseAttentionCudaSource::maximum_rows(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 
 ///|
 pub fn DecoderSelectedSparseAttentionCudaSource::maximum_batches(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_batches
 }
 

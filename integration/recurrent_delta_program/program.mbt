@@ -16,17 +16,17 @@ pub struct RecurrentDeltaProgram {
   priv source : @source.RecurrentDeltaCudaSource
   priv convolution : @convolution.CausalConvolutionCudaSource?
   priv block : @block.RecurrentBlockCudaSource?
-  priv maximum_rows : Int
+  priv maximum_rows : Int32
   priv cache_bytes : Int64
   priv owned_bytes : Int64
-  priv mut launch_count : Int
+  priv mut launch_count : Int32
   priv mut status : State
   priv mut cache : @device.Allocation?
   priv functions : Array[@device.Function]
   priv intermediates : Array[@device.Allocation]
   priv launches : Array[@device.OrderedKernelLaunch]
   priv mut queue : @device.OrderedKernelExecutor?
-  priv mut tensor_boundary : (Int, @device.Allocation, Int)?
+  priv mut tensor_boundary : (Int32, @device.Allocation, Int32)?
 }
 
 ///|
@@ -84,7 +84,7 @@ pub fn RecurrentDeltaProgram::prepare(
   aot : @device.Module,
   stream : @device.Stream,
   maximum_state_bytes~ : Int64,
-  maximum_workspace_bytes? : Int64 = maximum_state_bytes,
+  maximum_workspace_bytes~ : Int64 = maximum_state_bytes,
   counts~ : @device.Allocation,
   sequence_offsets~ : @device.Allocation,
   sequence_slots~ : @device.Allocation,
@@ -98,8 +98,8 @@ pub fn RecurrentDeltaProgram::prepare(
   convolution_weights? : FixedArray[@device.Allocation],
   block_weights? : RecurrentBlockWeights,
   hidden? : @device.Allocation,
-  prefix? : ArrayView[@device.OrderedKernelLaunch] = [],
-  suffix? : ArrayView[@device.OrderedKernelLaunch] = [],
+  prefix~ : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix~ : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise @device.DeviceError {
   self.prepare_program(
     context,
@@ -292,7 +292,7 @@ fn RecurrentDeltaProgram::prepare_program(
 ///|
 pub fn RecurrentDeltaProgram::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Ready && self.queue is Some(queue) else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)

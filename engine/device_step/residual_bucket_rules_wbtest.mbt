@@ -1,6 +1,6 @@
 ///|
 fn residual_bucket_test_launch(
-  tokens : Int,
+  tokens : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=tokens,

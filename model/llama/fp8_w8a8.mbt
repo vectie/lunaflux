@@ -13,7 +13,7 @@ pub(all) suberror LlamaFp8W8A8PolicyError {
 /// FP8 projection use the canonical dynamic per-tensor F32 scale policy.
 #valtype
 pub struct LlamaFp8W8A8Policy {
-  priv version : Int
+  priv version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -23,7 +23,7 @@ pub struct LlamaFp8W8A8Policy {
 /// scales. A separate type prevents replay into a v1 builder.
 #valtype
 pub struct LlamaFp8W8A8V2Policy {
-  priv version : Int
+  priv version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -126,7 +126,7 @@ fn append_fp8_llama_quantized_parameter(
   tensors : Array[@numeric_contract.NumericTensorSchema],
   dimensions : ArrayView[Int64],
   storage : @numeric_contract.TensorStorageContract,
-  scale_ordinal : Int,
+  scale_ordinal : Int32,
 ) -> Unit {
   tensors.push(
     try! @numeric_contract.NumericTensorSchema::new(
@@ -367,7 +367,7 @@ pub fn build_finite_e4m3_fp8_w8a8_v1(
 pub fn build_paged_finite_e4m3_fp8_w8a8_v1(
   metadata : @spec.LlamaModelMetadata,
   policy : LlamaFp8W8A8Policy,
-  batch? : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
+  batch~ : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   policy.validate()
   build_with_execution(
@@ -405,7 +405,7 @@ pub fn build_finite_e4m3_fp8_w8a8_v2(
 pub fn build_paged_finite_e4m3_fp8_w8a8_v2(
   metadata : @spec.LlamaModelMetadata,
   policy : LlamaFp8W8A8V2Policy,
-  batch? : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
+  batch~ : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   policy.validate()
   build_with_execution(

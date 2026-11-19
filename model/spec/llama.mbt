@@ -4,14 +4,14 @@
 /// Construction is only available through `LlamaModelSpec::new`, so every
 /// instance is safe for immutable model-plan construction.
 pub struct LlamaModelSpec {
-  priv vocabulary_size : Int
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv layer_count : Int
-  priv attention_head_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
-  priv context_length : Int
+  priv vocabulary_size : Int32
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv layer_count : Int32
+  priv attention_head_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
+  priv context_length : Int32
   priv rope_theta : Double
   priv rms_norm_epsilon : Double
   priv weight_dtype : ModelDType
@@ -28,20 +28,20 @@ pub struct LlamaModelMetadata {
 ///|
 /// Dense Llama emits exactly `3 + 9 * layer_count` plan operations and numeric
 /// tensor entries. This ceiling is the largest layer count within 4096.
-const LLAMA_MODEL_HARD_MAX_LAYER_COUNT : Int = 454
+const LLAMA_MODEL_HARD_MAX_LAYER_COUNT : Int32 = 454
 
 ///|
 /// Validates the v1 dense Llama architecture contract.
 pub fn LlamaModelSpec::new(
-  vocabulary_size~ : Int,
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  layer_count~ : Int,
-  attention_head_count~ : Int,
-  kv_head_count~ : Int,
-  context_length~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  layer_count~ : Int32,
+  attention_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  context_length~ : Int32,
   rope_theta~ : Double,
-  rms_norm_epsilon? : Double = 0.000001,
+  rms_norm_epsilon~ : Double = 0.000001,
   weight_dtype~ : ModelDType,
   kv_dtype~ : ModelDType,
 ) -> LlamaModelSpec raise ModelSpecError {
@@ -123,42 +123,42 @@ fn LlamaModelSpec::validate(self : LlamaModelSpec) -> Unit raise ModelSpecError 
 }
 
 ///|
-pub fn LlamaModelSpec::vocabulary_size(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::vocabulary_size(self : LlamaModelSpec) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn LlamaModelSpec::hidden_size(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::hidden_size(self : LlamaModelSpec) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn LlamaModelSpec::intermediate_size(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::intermediate_size(self : LlamaModelSpec) -> Int32 {
   self.intermediate_size
 }
 
 ///|
-pub fn LlamaModelSpec::layer_count(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::layer_count(self : LlamaModelSpec) -> Int32 {
   self.layer_count
 }
 
 ///|
-pub fn LlamaModelSpec::attention_head_count(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::attention_head_count(self : LlamaModelSpec) -> Int32 {
   self.attention_head_count
 }
 
 ///|
-pub fn LlamaModelSpec::kv_head_count(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::kv_head_count(self : LlamaModelSpec) -> Int32 {
   self.kv_head_count
 }
 
 ///|
-pub fn LlamaModelSpec::head_dimension(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::head_dimension(self : LlamaModelSpec) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn LlamaModelSpec::context_length(self : LlamaModelSpec) -> Int {
+pub fn LlamaModelSpec::context_length(self : LlamaModelSpec) -> Int32 {
   self.context_length
 }
 
@@ -218,3 +218,15 @@ fn LlamaModelMetadata::validate(
   self.spec.validate()
   self.content_digest.validate()
 }
+
+///|
+pub extend LlamaModelSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend LlamaModelSpec with Eq::{not_equal, equal}
+
+///|
+pub extend LlamaModelMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend LlamaModelMetadata with Eq::{not_equal, equal}

@@ -29,7 +29,7 @@ pub fn JointDiffusionTransformerMlpCudaCandidate::request_digest(
 ///|
 pub fn JointDiffusionTransformerMlpCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -50,42 +50,42 @@ pub fn JointDiffusionTransformerMlpCudaCandidate::capability(
 ///|
 pub fn JointDiffusionTransformerMlpCudaCandidate::layer_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.layer_count
 }
 
 ///|
 pub fn JointDiffusionTransformerMlpCudaCandidate::refiner_layer_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.refiner_layer_count
 }
 
 ///|
 pub fn JointDiffusionTransformerMlpCudaCandidate::packed_row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.packed_row_count
 }
 
 ///|
 pub fn JointDiffusionTransformerMlpCudaCandidate::refiner_row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.refiner_row_count
 }
 
 ///|
 pub fn JointDiffusionTransformerMlpCudaCandidate::hidden_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_size
 }
 
 ///|
 pub fn JointDiffusionTransformerMlpCudaCandidate::intermediate_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.intermediate_size
 }
 

@@ -6,7 +6,7 @@ pub fn WorkerRestartBackoffPolicy::new(
   initial_delay_millis~ : UInt64,
   maximum_delay_millis~ : UInt64,
   stable_success_millis~ : UInt64,
-  maximum_attempts~ : Int,
+  maximum_attempts~ : Int32,
 ) -> WorkerRestartBackoffPolicy raise WorkerServiceError {
   if initial_delay_millis == 0UL ||
     maximum_delay_millis < initial_delay_millis ||
@@ -134,7 +134,7 @@ fn OnlineWorkerLease::schedule_restart_backoff(
 fn OnlineWorkerLease::restart_backoff_remaining_at(
   self : OnlineWorkerLease,
   now : UInt64,
-) -> Int {
+) -> Int32 {
   if self.restart_forbidden || self.restart_phase != 1 {
     return 0
   }
@@ -154,7 +154,7 @@ fn OnlineWorkerLease::restart_backoff_remaining_at(
 ///|
 fn OnlineWorkerLease::restart_backoff_remaining_impl(
   self : OnlineWorkerLease,
-) -> Int {
+) -> Int32 {
   let now = self.clock.now_millis() catch {
     _ => {
       self.forbid_restart_backoff()
@@ -322,7 +322,7 @@ pub fn OnlineWorkerLease::progress_restart_backoff(
 /// Returns the current bounded delay without sleeping or spawning.
 pub fn OnlineWorkerLease::restart_backoff_remaining_millis(
   self : OnlineWorkerLease,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   let service = self.require_current()
   service.require_no_maintenance()
   if service.lifecycle != ServiceRestartReady {

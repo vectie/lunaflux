@@ -48,9 +48,9 @@ fn host() -> @batched_decoder_frame.BatchedDecoderFrame raise {
 ///|
 // id, generation, position, tokens, decode, final-prefill, stochastic.
 fn plan(
-  entries : ArrayView[(UInt64, UInt64, Int, Array[Int], Bool, Bool, Bool)],
-  model_generation? : UInt64 = 9UL,
-  page_rows? : Int,
+  entries : ArrayView[(UInt64, UInt64, Int32, Array[Int32], Bool, Bool, Bool)],
+  model_generation~ : UInt64 = 9UL,
+  page_rows? : Int32,
 ) -> (
   @protocol.SubmittedSchedulePlan,
   @wire.ValidatedPlanFrame,
@@ -151,7 +151,7 @@ fn plan(
 fn port(
   host : @batched_decoder_frame.BatchedDecoderFrame,
   port : @batched_decoder_frame.BatchInputPort,
-) -> Array[Int] raise {
+) -> Array[Int32] raise {
   let bytes = FixedArray::make(host.input_capacity(port), b'\xff')
   let count = host.copy_input(port, bytes) / 4
   Array::makei(count, index => {

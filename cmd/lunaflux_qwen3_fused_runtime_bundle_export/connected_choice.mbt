@@ -14,7 +14,7 @@ priv struct PrefillChainMeasurements {
   modules : ReadOnlyArray[(String, String)]
   route_files : ReadOnlyArray[(String, String)?]
   costs : ReadOnlyArray[@fusion_regions.Cost]
-  vendor_rows : Int
+  vendor_rows : Int32
 }
 
 ///|
@@ -145,7 +145,7 @@ async fn read_connected_choice(
 /// checks their exact source/launch scope; this does not relabel measurements.
 async fn connected_route_bytes(
   measured : PrefillChainMeasurements,
-  plan : Int,
+  plan : Int32,
 ) -> Bytes? raise Qwen3FusedRuntimeBundleExportError {
   guard measured.route_files[plan / 2] is Some((path, _)) else { return None }
   let bytes = read_module(path)
@@ -165,7 +165,7 @@ fn bind_connected_choice(
   ingress : @luna_fusion_strategy.FusionSchedule,
   law : @luna_fused_artifact_admission.PrefillExponentialLaw,
   measured : PrefillChainMeasurements,
-) -> (RuntimeBundleArguments, Int, Int) raise Qwen3FusedRuntimeBundleExportError {
+) -> (RuntimeBundleArguments, Int32, Int32) raise Qwen3FusedRuntimeBundleExportError {
   if law != ReferenceBf16ProbabilityBaseTwo ||
     chain_context_sha256(raw, args.output_path) != measured.context_sha256 {
     raise InvalidArguments

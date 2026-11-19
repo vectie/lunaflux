@@ -61,7 +61,7 @@ pub fn admit_v2(
       raise InvalidFp8ReleaseAuthority(Workspace)
     }
     let module_digest = launch.module_digest().sha256()
-    let mut module_snapshot_index : Int? = None
+    let mut module_snapshot_index : Int32? = None
     for snapshot_index, retained_digest in module_digests {
       if retained_digest == module_digest {
         module_snapshot_index = Some(snapshot_index)

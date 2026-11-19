@@ -12,8 +12,8 @@ pub(all) enum UnavailableReason {
 
 ///|
 pub struct DeviceCapability {
-  compute_major : Int
-  compute_minor : Int
+  compute_major : Int32
+  compute_minor : Int32
   total_memory_bytes : Int64
   supports_bf16 : Bool
   supports_cublas_lt : Bool
@@ -37,8 +37,8 @@ pub(all) suberror DeviceCapabilityObservationError {
 /// the production source; adapters and tests must still pass the resulting
 /// value through every later target and numeric admission gate.
 pub fn DeviceCapability::from_observed_facts(
-  compute_major~ : Int,
-  compute_minor~ : Int,
+  compute_major~ : Int32,
+  compute_minor~ : Int32,
   total_memory_bytes~ : Int64,
   supports_bf16~ : Bool,
   supports_cublas_lt~ : Bool,
@@ -59,12 +59,12 @@ pub fn DeviceCapability::from_observed_facts(
 }
 
 ///|
-pub fn DeviceCapability::compute_major(self : DeviceCapability) -> Int {
+pub fn DeviceCapability::compute_major(self : DeviceCapability) -> Int32 {
   self.compute_major
 }
 
 ///|
-pub fn DeviceCapability::compute_minor(self : DeviceCapability) -> Int {
+pub fn DeviceCapability::compute_minor(self : DeviceCapability) -> Int32 {
   self.compute_minor
 }
 
@@ -85,7 +85,7 @@ pub fn DeviceCapability::supports_cublas_lt(self : DeviceCapability) -> Bool {
 
 ///|
 pub struct DeviceInfo {
-  ordinal : Int
+  ordinal : Int32
   name : String
   uuid : String
   pci : String
@@ -93,7 +93,7 @@ pub struct DeviceInfo {
 } derive(Debug, Eq)
 
 ///|
-pub fn DeviceInfo::ordinal(self : DeviceInfo) -> Int {
+pub fn DeviceInfo::ordinal(self : DeviceInfo) -> Int32 {
   self.ordinal
 }
 
@@ -119,6 +119,42 @@ pub fn DeviceInfo::capability(self : DeviceInfo) -> DeviceCapability {
 
 ///|
 pub(all) enum ProbeResult {
-  Available(driver_version~ : Int, devices~ : ReadOnlyArray[DeviceInfo])
+  Available(driver_version~ : Int32, devices~ : ReadOnlyArray[DeviceInfo])
   Unavailable(UnavailableReason)
 } derive(Debug, Eq)
+
+///|
+pub extend UnavailableReason with @debug.Debug::{to_repr}
+
+///|
+pub extend UnavailableReason with Eq::{not_equal, equal}
+
+///|
+pub extend DeviceCapability with @debug.Debug::{to_repr}
+
+///|
+pub extend DeviceCapability with Eq::{not_equal, equal}
+
+///|
+pub extend DeviceCapabilityObservationRule with @debug.Debug::{to_repr}
+
+///|
+pub extend DeviceCapabilityObservationRule with Eq::{not_equal, equal}
+
+///|
+pub extend DeviceCapabilityObservationError with @debug.Debug::{to_repr}
+
+///|
+pub extend DeviceCapabilityObservationError with Eq::{not_equal, equal}
+
+///|
+pub extend DeviceInfo with @debug.Debug::{to_repr}
+
+///|
+pub extend DeviceInfo with Eq::{not_equal, equal}
+
+///|
+pub extend ProbeResult with @debug.Debug::{to_repr}
+
+///|
+pub extend ProbeResult with Eq::{not_equal, equal}

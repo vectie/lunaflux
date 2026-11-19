@@ -31,11 +31,11 @@ pub extend FragmentAction with @debug.Debug::{to_repr}
 /// to those values, rather than hiding repeated loads in arithmetic strings.
 /// Construction is constant-space even for large representable domains.
 pub struct FragmentProgram {
-  priv rows : Int
-  priv columns : Int
-  priv extent : Int
-  priv quantum : Int
-  priv slots : Int
+  priv rows : Int32
+  priv columns : Int32
+  priv extent : Int32
+  priv quantum : Int32
+  priv slots : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -46,11 +46,11 @@ pub extend FragmentProgram with @debug.Debug::{to_repr}
 
 ///|
 pub fn FragmentProgram::new(
-  rows~ : Int,
-  columns~ : Int,
-  extent~ : Int,
-  quantum~ : Int,
-  slots~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
+  extent~ : Int32,
+  quantum~ : Int32,
+  slots~ : Int32,
 ) -> FragmentProgram? {
   guard rows > 0 &&
     columns > 0 &&
@@ -71,12 +71,12 @@ pub fn FragmentProgram::new(
 ///|
 pub fn FragmentProgram::geometry(
   self : FragmentProgram,
-) -> (Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (self.rows, self.columns, self.extent, self.quantum, self.slots)
 }
 
 ///|
-pub fn FragmentProgram::load_count(self : FragmentProgram) -> Int {
+pub fn FragmentProgram::load_count(self : FragmentProgram) -> Int32 {
   self.rows + self.columns
 }
 
@@ -84,8 +84,8 @@ pub fn FragmentProgram::load_count(self : FragmentProgram) -> Int {
 /// Logical shared-tile access for one SSA fragment value.
 pub fn FragmentProgram::load(
   self : FragmentProgram,
-  value : Int,
-) -> (FragmentOperand, Int)? {
+  value : Int32,
+) -> (FragmentOperand, Int32)? {
   if value < 0 || value >= self.load_count() {
     None
   } else if value < self.columns {
@@ -96,7 +96,7 @@ pub fn FragmentProgram::load(
 }
 
 ///|
-pub fn FragmentProgram::product_count(self : FragmentProgram) -> Int {
+pub fn FragmentProgram::product_count(self : FragmentProgram) -> Int32 {
   self.rows * self.columns
 }
 
@@ -105,8 +105,8 @@ pub fn FragmentProgram::product_count(self : FragmentProgram) -> Int {
 /// independent products can share reads, but no pass may reassociate its fold.
 pub fn FragmentProgram::product(
   self : FragmentProgram,
-  output : Int,
-) -> (Int, Int, Int)? {
+  output : Int32,
+) -> (Int32, Int32, Int32)? {
   if output < 0 || output >= self.product_count() {
     None
   } else {
@@ -135,9 +135,9 @@ pub fn FragmentProgram::iteration(
 /// absent at the tail, never fabricated out-of-range accesses.
 pub fn FragmentProgram::read_at(
   self : FragmentProgram,
-  iteration : Int,
+  iteration : Int32,
   next~ : Bool,
-) -> (Int, Int)? {
+) -> (Int32, Int32)? {
   let count = self.extent / self.quantum
   guard iteration >= 0 && iteration < count else { return None }
   if next && (self.slots == 1 || iteration == count - 1) {

@@ -1,5 +1,5 @@
 ///|
-fn table_residency_from_code(code : Int) -> BlockTableResidency {
+fn table_residency_from_code(code : Int32) -> BlockTableResidency {
   match code {
     0 => Free
     1 => Allocated
@@ -43,38 +43,40 @@ pub fn BlockTableSlotSnapshot::residency(
 }
 
 ///|
-pub fn BlockTableSlotSnapshot::page_count(self : BlockTableSlotSnapshot) -> Int {
+pub fn BlockTableSlotSnapshot::page_count(
+  self : BlockTableSlotSnapshot,
+) -> Int32 {
   self.page_count
 }
 
 ///|
-pub fn BlockTableSnapshot::free_table_count(self : BlockTableSnapshot) -> Int {
+pub fn BlockTableSnapshot::free_table_count(self : BlockTableSnapshot) -> Int32 {
   self.free_tables
 }
 
 ///|
 pub fn BlockTableSnapshot::allocated_table_count(
   self : BlockTableSnapshot,
-) -> Int {
+) -> Int32 {
   self.allocated_tables
 }
 
 ///|
 pub fn BlockTableSnapshot::retired_table_count(
   self : BlockTableSnapshot,
-) -> Int {
+) -> Int32 {
   self.retired_tables
 }
 
 ///|
-pub fn BlockTableSnapshot::slot_count(self : BlockTableSnapshot) -> Int {
+pub fn BlockTableSnapshot::slot_count(self : BlockTableSnapshot) -> Int32 {
   self.slots.length()
 }
 
 ///|
 pub fn BlockTableSnapshot::slot_at(
   self : BlockTableSnapshot,
-  index : Int,
+  index : Int32,
 ) -> BlockTableSlotSnapshot raise BlockTableError {
   if index < 0 || index >= self.slots.length() {
     raise SnapshotIndexOutOfBounds

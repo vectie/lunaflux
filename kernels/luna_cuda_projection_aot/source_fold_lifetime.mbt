@@ -18,7 +18,7 @@ pub fn lower_projection_fold_lifetime(
 fn projection_fold_lifetime_source(
   physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   body : CudaProjectionFoldBody,
-  phase_argument? : Bool = false,
+  phase_argument~ : Bool = false,
 ) -> String {
   let plan = physical.schedule
   let (_, _, body_width, body_quantum, body_slots) = body.program.geometry()

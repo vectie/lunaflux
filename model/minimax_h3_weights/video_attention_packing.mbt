@@ -1,13 +1,13 @@
 ///|
 pub struct VideoAttentionWeightPacking {
-  layer : Int
+  layer : Int32
   byte_count : Int64
   copies : ReadOnlyArray[BlockWeightCopy]
 }
 
 ///|
 pub fn video_attention_weight_packing(
-  layer~ : Int,
+  layer~ : Int32,
   max_bytes~ : Int64,
 ) -> VideoAttentionWeightPacking raise BlockPackingError {
   guard layer >= 0 && layer < 36 else { raise BudgetExceeded }

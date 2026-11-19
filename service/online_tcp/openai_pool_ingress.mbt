@@ -1,7 +1,7 @@
 ///|
 fn LunaOnlineOpenAIConnectionSlot::receipt_remaining(
   self : LunaOnlineOpenAIConnectionSlot,
-) -> Int {
+) -> Int32 {
   if self.receipts.length() != 1 {
     return 0
   }
@@ -45,7 +45,7 @@ fn luna_openai_pool_http_error_reason(
 ///|
 fn LunaOnlineOpenAIConnectionPool::begin_slot_http_error(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
   kind : @http1.LunaHttp1ErrorResponseKind,
 ) -> Bool {
   self.telemetry.record_network_rejection_only(
@@ -57,7 +57,7 @@ fn LunaOnlineOpenAIConnectionPool::begin_slot_http_error(
 ///|
 fn LunaOnlineOpenAIConnectionPool::fail_slot_http(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
   kind : @http1.LunaHttp1ErrorResponseKind,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   if !self.begin_slot_http_error(index, kind) {
@@ -69,7 +69,7 @@ fn LunaOnlineOpenAIConnectionPool::fail_slot_http(
 ///|
 async fn LunaOnlineOpenAIConnectionPool::read_slot_http(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.connections.length() != 1 ||
@@ -119,7 +119,7 @@ async fn LunaOnlineOpenAIConnectionPool::read_slot_http(
 ///|
 fn LunaOnlineOpenAIConnectionPool::offer_slot_http_tail(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.route_mode == 0 {
@@ -172,7 +172,7 @@ fn LunaOnlineOpenAIConnectionPool::offer_slot_http_tail(
 ///|
 fn LunaOnlineOpenAIConnectionPool::progress_slot_http(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.receipt_remaining() <= 0 || slot.http_works.length() != 1 {
@@ -261,7 +261,7 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_http(
 ///|
 fn LunaOnlineOpenAIConnectionPool::progress_slot_inbound(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.receipt_remaining() <= 0 || slot.inbound_works.length() != 1 {
@@ -297,7 +297,7 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_inbound(
 ///|
 fn LunaOnlineOpenAIConnectionPool::finish_slot_handoff(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   slot.inbound_views[0].release_after_transfer() catch {
@@ -315,7 +315,7 @@ fn LunaOnlineOpenAIConnectionPool::finish_slot_handoff(
 ///|
 fn LunaOnlineOpenAIConnectionPool::progress_slot_handoff(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if self.ingress_slot >= 0 && self.ingress_slot != index {

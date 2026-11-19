@@ -1,5 +1,5 @@
 ///|
-fn valid_ascii_token(value : StringView, maximum : Int) -> Bool {
+fn valid_ascii_token(value : StringView, maximum : Int32) -> Bool {
   !value.is_empty() &&
   value.length() <= maximum &&
   value.all(character => {
@@ -64,15 +64,15 @@ pub fn StreamingSafetensorsShardInput::new(
 
 ///|
 pub fn StreamingSafetensorsLimits::new(
-  maximum_shards~ : Int,
+  maximum_shards~ : Int32,
   maximum_file_bytes~ : Int64,
-  maximum_header_bytes~ : Int,
-  maximum_tensors_per_shard~ : Int,
-  maximum_total_tensors~ : Int,
-  maximum_rank~ : Int,
-  maximum_name_bytes~ : Int,
-  maximum_dtype_specs~ : Int,
-  maximum_copy_requests~ : Int,
+  maximum_header_bytes~ : Int32,
+  maximum_tensors_per_shard~ : Int32,
+  maximum_total_tensors~ : Int32,
+  maximum_rank~ : Int32,
+  maximum_name_bytes~ : Int32,
+  maximum_dtype_specs~ : Int32,
+  maximum_copy_requests~ : Int32,
   maximum_copy_bytes~ : Int64,
 ) -> Self raise StreamingSafetensorsError {
   if maximum_shards <= 0 ||
@@ -111,11 +111,11 @@ pub fn StreamingSafetensorsLimits::new(
 
 ///|
 pub fn StreamingSafetensorsCopyRequest::new(
-  shard_ordinal~ : Int,
-  tensor_ordinal~ : Int,
+  shard_ordinal~ : Int32,
+  tensor_ordinal~ : Int32,
   tensor_byte_offset~ : Int64,
-  destination_offset~ : Int,
-  byte_count~ : Int,
+  destination_offset~ : Int32,
+  byte_count~ : Int32,
 ) -> Self raise StreamingSafetensorsError {
   if shard_ordinal < 0 ||
     tensor_ordinal < 0 ||
@@ -135,12 +135,12 @@ pub fn StreamingSafetensorsCopyRequest::new(
 
 ///|
 pub fn StreamingSafetensorsSegmentedCopyRequest::new(
-  shard_ordinal~ : Int,
-  tensor_ordinal~ : Int,
+  shard_ordinal~ : Int32,
+  tensor_ordinal~ : Int32,
   tensor_byte_offset~ : Int64,
-  destination_arena_ordinal~ : Int,
-  destination_offset~ : Int,
-  byte_count~ : Int,
+  destination_arena_ordinal~ : Int32,
+  destination_offset~ : Int32,
+  byte_count~ : Int32,
 ) -> Self raise StreamingSafetensorsError {
   if shard_ordinal < 0 ||
     tensor_ordinal < 0 ||

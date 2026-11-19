@@ -14,8 +14,8 @@ pub fn committed_draft_kv_source(
 ) -> CommittedDraftKvCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (heads, width, window, main_rows, draft_rows, positions) = plan.geometry()
@@ -128,7 +128,7 @@ pub fn CommittedDraftKvCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn CommittedDraftKvCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn CommittedDraftKvCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.symbols[if self.phase is PredictCommitted && stage == 1 {
     3
   } else {
@@ -137,7 +137,7 @@ pub fn CommittedDraftKvCudaSource::symbol(self : Self, stage : Int) -> String {
 }
 
 ///|
-pub fn CommittedDraftKvCudaSource::stage_count(self : Self) -> Int {
+pub fn CommittedDraftKvCudaSource::stage_count(self : Self) -> Int32 {
   match self.phase {
     Prime => 3
     Predict => 4
@@ -148,8 +148,8 @@ pub fn CommittedDraftKvCudaSource::stage_count(self : Self) -> Int {
 ///|
 pub fn CommittedDraftKvCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (heads, _, window, _, rows, _) = self.plan.geometry()
   match (if self.phase is PredictCommitted && stage == 1 { 3 } else { stage }) {
     1 => (window, 1, 128)

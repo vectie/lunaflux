@@ -3,11 +3,11 @@
 /// head. Map this model semantic to the generic text ingress/egress plan.
 pub fn flash_text_io_plan(
   spec : @glm53_spec.Glm53FlashSpec,
-  maximum_rows~ : Int,
-  maximum_output_rows~ : Int,
+  maximum_rows~ : Int32,
+  maximum_output_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  boundary? : @precision_ir.TextBoundary = Complete,
-  head_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  boundary~ : @precision_ir.TextBoundary = Complete,
+  head_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.TextIoPrecision raise {
   @precision_ir.TextIoPrecision::new(
     vocabulary_size=spec.vocabulary_size(),
@@ -26,7 +26,7 @@ pub fn flash_text_io_plan(
 pub fn bind_text_io_weights(
   checkpoint : @precision_materialize.PackedCheckpoint,
   spec : @glm53_spec.Glm53FlashSpec,
-  boundary? : @precision_ir.TextBoundary = Complete,
+  boundary~ : @precision_ir.TextBoundary = Complete,
   vocabulary_shard? : @parallel.VocabularyShard,
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   let table = @precision_format.Representation::new(
@@ -84,11 +84,11 @@ pub struct GlmTextIo {
 ///|
 pub fn GlmTextIo::new(
   spec : @glm53_spec.Glm53FlashSpec,
-  maximum_rows~ : Int,
-  maximum_output_rows~ : Int,
+  maximum_rows~ : Int32,
+  maximum_output_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  boundary? : @precision_ir.TextBoundary = Complete,
-  head_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  boundary~ : @precision_ir.TextBoundary = Complete,
+  head_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
   vocabulary_shard? : @parallel.VocabularyShard,
 ) -> Self raise {
   let plan = flash_text_io_plan(
@@ -144,7 +144,7 @@ pub fn GlmTextIo::prepare(
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   token_ids~ : @device.Allocation,

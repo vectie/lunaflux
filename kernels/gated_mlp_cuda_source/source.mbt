@@ -2,8 +2,8 @@
 fn valid_symbol(symbol : StringView) -> Bool {
   !symbol.is_empty() &&
   symbol.length() <= 128 &&
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -11,9 +11,9 @@ fn valid_symbol(symbol : StringView) -> Bool {
 /// projection. Packed weight is row-major `[2*intermediate,hidden]`, first up
 /// then gate; down weight is row-major `[hidden,intermediate]`.
 pub fn packed_swiglu_dense_bf16_rows_source(
-  rows~ : Int,
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
+  rows~ : Int32,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
   function_symbol~ : String,
 ) -> GatedMlpCudaSource raise GatedMlpCudaSourceError {
   if rows <= 0 {
@@ -80,17 +80,17 @@ pub fn GatedMlpCudaSource::numerical_contract(
 }
 
 ///|
-pub fn GatedMlpCudaSource::row_count(self : Self) -> Int {
+pub fn GatedMlpCudaSource::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GatedMlpCudaSource::hidden_size(self : Self) -> Int {
+pub fn GatedMlpCudaSource::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn GatedMlpCudaSource::intermediate_size(self : Self) -> Int {
+pub fn GatedMlpCudaSource::intermediate_size(self : Self) -> Int32 {
   self.intermediate_size
 }
 

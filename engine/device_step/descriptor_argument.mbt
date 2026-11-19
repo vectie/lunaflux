@@ -83,7 +83,7 @@ pub fn StagedDeviceStep::sequence_value(
 ///|
 pub fn StagedDeviceStep::row_count(
   self : StagedDeviceStep,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   self.authenticate(self.0)
   self.0.staged_summary.row_count
 }
@@ -91,7 +91,7 @@ pub fn StagedDeviceStep::row_count(
 ///|
 pub fn StagedDeviceStep::token_count(
   self : StagedDeviceStep,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   self.authenticate(self.0)
   self.0.staged_summary.token_count
 }
@@ -99,8 +99,8 @@ pub fn StagedDeviceStep::token_count(
 ///|
 pub fn StagedDeviceStep::last_token_index(
   self : StagedDeviceStep,
-  row : Int,
-) -> Int raise DeviceStepError {
+  row : Int32,
+) -> Int32 raise DeviceStepError {
   self.authenticate(self.0)
   let row_count = self.0.staged_summary.row_count
   let token_count = self.0.staged_summary.token_count
@@ -160,7 +160,7 @@ pub fn StagedDeviceStep::detach_frame_authentication(
 }
 
 ///|
-fn read_descriptor_i32(buffer : FixedArray[Byte], index : Int) -> Int {
+fn read_descriptor_i32(buffer : FixedArray[Byte], index : Int32) -> Int32 {
   let start = index * INT32_BYTES
   buffer[start].to_int() |
   (buffer[start + 1].to_int() << 8) |

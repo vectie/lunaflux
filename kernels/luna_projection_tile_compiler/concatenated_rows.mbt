@@ -2,9 +2,9 @@
 /// A half-open row interval in a logical concatenation of immutable operands.
 /// Operand identity is an ordinal, not a model name or a backend pointer.
 pub struct ProjectionRowSegment {
-  operand : Int
-  row_begin : Int
-  row_end : Int
+  operand : Int32
+  row_begin : Int32
+  row_end : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -12,7 +12,7 @@ pub struct ProjectionRowSegment {
 /// separate; a lowering maps an interval to its corresponding ABI operand.
 /// Empty operands and unrepresentable logical extents are rejected.
 pub fn plan_projection_concatenated_rows(
-  row_counts : ArrayView[Int],
+  row_counts : ArrayView[Int32],
 ) -> ReadOnlyArray[ProjectionRowSegment]? {
   if row_counts.length() == 0 {
     return None
@@ -29,3 +29,9 @@ pub fn plan_projection_concatenated_rows(
   }
   Some(ReadOnlyArray::from_array(segments))
 }
+
+///|
+pub extend ProjectionRowSegment with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionRowSegment with Eq::{not_equal, equal}

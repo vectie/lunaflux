@@ -3,8 +3,8 @@ fn valid_sparse_attention_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -21,13 +21,13 @@ fn checked_source_product(left : Int64, right : Int64) -> Int64? {
 /// Q/K/V and one shared selected-index row per query. Invalid or duplicate
 /// non-sentinel indices fail the complete query row closed to zero.
 pub fn selected_index_sparse_attention_bf16_source(
-  query_head_count~ : Int,
-  key_value_head_count~ : Int,
-  query_key_dimension~ : Int,
-  value_dimension~ : Int,
-  selected_width~ : Int,
-  maximum_tokens~ : Int,
-  maximum_queries? : Int = maximum_tokens,
+  query_head_count~ : Int32,
+  key_value_head_count~ : Int32,
+  query_key_dimension~ : Int32,
+  value_dimension~ : Int32,
+  selected_width~ : Int32,
+  maximum_tokens~ : Int32,
+  maximum_queries~ : Int32 = maximum_tokens,
   function_symbol~ : String,
 ) -> GlmHybridSparseAttentionCudaSource raise GlmHybridSparseAttentionCudaSourceError {
   if query_head_count <= 0 || query_head_count > 1024 {

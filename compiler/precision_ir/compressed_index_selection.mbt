@@ -3,12 +3,12 @@
 /// products and weighted head products publish BF16 before the final BF16
 /// head reduction. Causality admits floor((position+1)/ratio) cache rows.
 pub struct CompressedIndexSelectionPrecision {
-  priv heads : Int
-  priv width : Int
-  priv ratio : Int
-  priv rows : Int
-  priv positions : Int
-  priv top_k : Int
+  priv heads : Int32
+  priv width : Int32
+  priv ratio : Int32
+  priv rows : Int32
+  priv positions : Int32
+  priv top_k : Int32
   priv coordinates : CompressedRowCoordinates
   priv frames : ReadOnlyArray[Int64]
   priv workspace : Int64
@@ -16,13 +16,13 @@ pub struct CompressedIndexSelectionPrecision {
 
 ///|
 pub fn CompressedIndexSelectionPrecision::new(
-  head_count~ : Int,
-  head_width~ : Int,
-  compression_ratio~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
-  top_k~ : Int,
-  coordinates? : CompressedRowCoordinates = OffsetRelative,
+  head_count~ : Int32,
+  head_width~ : Int32,
+  compression_ratio~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
+  top_k~ : Int32,
+  coordinates~ : CompressedRowCoordinates = OffsetRelative,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
   guard head_count > 0 &&
@@ -40,10 +40,10 @@ pub fn CompressedIndexSelectionPrecision::new(
     raise IllegalPlacement
   }
   let capacity = maximum_positions / compression_ratio
-  let selected = Int::min(top_k, capacity)
+  let selected = Int32::min(top_k, capacity)
   let sizes = [
-    maximum_rows.to_int64() * Int::max(capacity, 1).to_int64() * 2L,
-    maximum_rows.to_int64() * Int::max(selected, 1).to_int64() * 4L,
+    maximum_rows.to_int64() * Int32::max(capacity, 1).to_int64() * 2L,
+    maximum_rows.to_int64() * Int32::max(selected, 1).to_int64() * 4L,
     maximum_rows.to_int64() * 4L,
   ]
   guard sizes.all(bytes => bytes <= 4294967294L) else {
@@ -74,18 +74,18 @@ pub fn CompressedIndexSelectionPrecision::coordinates(
 ///|
 pub fn CompressedIndexSelectionPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32, Int32) {
   (self.heads, self.width, self.ratio, self.rows, self.positions, self.top_k)
 }
 
 ///|
-pub fn CompressedIndexSelectionPrecision::cache_capacity(self : Self) -> Int {
+pub fn CompressedIndexSelectionPrecision::cache_capacity(self : Self) -> Int32 {
   self.positions / self.ratio
 }
 
 ///|
-pub fn CompressedIndexSelectionPrecision::selected_width(self : Self) -> Int {
-  Int::min(self.top_k, self.cache_capacity())
+pub fn CompressedIndexSelectionPrecision::selected_width(self : Self) -> Int32 {
+  Int32::min(self.top_k, self.cache_capacity())
 }
 
 ///|

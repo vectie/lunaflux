@@ -4,10 +4,10 @@ fn load_tp_fixture_rank(
   source_name : String,
   digest : ExecutionManifestDigest,
   fixture : TensorParallelManifestFixture,
-  rank : Int,
-  inspection_rank? : Int = rank,
-  binding_rank? : Int = rank,
-  generation? : UInt64 = 7UL,
+  rank : Int32,
+  inspection_rank~ : Int32 = rank,
+  binding_rank~ : Int32 = rank,
+  generation~ : UInt64 = 7UL,
 ) -> TensorParallelExecutionAdmission raise {
   let operation_count = fixture.model.operations().length()
   let limits = fixture_limits(operation_count)

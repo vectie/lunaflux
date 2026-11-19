@@ -10,14 +10,14 @@ pub fn prepare_luna_online_openai_server(
   inbound_limits : @openai_compat.LunaOpenAIInboundLimits,
   template : @openai_compat.LunaOpenAIChatTemplate,
   deployment_model_alias : FixedArray[Byte],
-  model_alias_offset~ : Int,
-  model_alias_length~ : Int,
+  model_alias_offset~ : Int32,
+  model_alias_length~ : Int32,
   response_id_prefix : FixedArray[Byte],
-  response_id_prefix_offset~ : Int,
-  response_id_prefix_length~ : Int,
+  response_id_prefix_offset~ : Int32,
+  response_id_prefix_length~ : Int32,
   cache_scope : @inference.CacheScope,
-  max_new_tokens~ : Int,
-  context_ceiling~ : Int,
+  max_new_tokens~ : Int32,
+  context_ceiling~ : Int32,
   sampling : @inference.SamplingParameters,
   sampling_seed : @inference.SamplingSeed,
   deadline : @inference.DeadlineBudget,
@@ -100,7 +100,7 @@ pub fn prepare_luna_online_openai_server(
     production_ready,
     auth_policy,
     consumed: false,
-    maximum_wait_millis: Int::min(maximum_wait, deadline_millis.to_int()),
+    maximum_wait_millis: Int32::min(maximum_wait, deadline_millis.to_int()),
     response_copy_quanta: response_budget.work_units(),
     outbound_copy_quanta: outbound_budget.work_units(),
   }
@@ -111,7 +111,7 @@ pub async fn bind_luna_online_openai_server(
   addr : @socket.Addr,
   preparation : LunaOnlineOpenAIServerPreparation,
   limits : LunaOnlineTcpLimits,
-  log_capacity~ : Int,
+  log_capacity~ : Int32,
 ) -> LunaOnlineOpenAIServer {
   if preparation.consumed {
     raise luna_online_tcp_error(LunaOnlineTcpPreparation)

@@ -4,14 +4,14 @@
 /// Matrix fragment geometry belongs to device lowering, not this ownership IR.
 pub struct MatrixScorePlan {
   priv tiles : CandidateScorePlan
-  priv heads : Int
-  priv dimension : Int
+  priv heads : Int32
+  priv dimension : Int32
 }
 
 ///|
 pub fn MatrixScorePlan::new(
   semantic : @precision.IndexedSparseAttentionPrecision,
-  candidate_width~ : Int,
+  candidate_width~ : Int32,
 ) -> Self? {
   guard semantic.index_scoring() is RowScaledE4M3Matrix && candidate_width > 0 else {
     return None

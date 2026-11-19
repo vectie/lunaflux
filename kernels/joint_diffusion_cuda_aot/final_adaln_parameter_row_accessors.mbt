@@ -22,7 +22,7 @@ pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -43,14 +43,14 @@ pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::capability(
 ///|
 pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::input_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_width
 }
 
 ///|
 pub fn JointDiffusionFinalAdaLnParameterRowCudaCandidate::hidden_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_size
 }
 

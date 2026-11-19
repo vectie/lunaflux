@@ -17,18 +17,18 @@ fn expression(
 
 ///|
 pub fn selected_sparse_source(
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  qk_dimension~ : Int,
-  value_dimension~ : Int,
-  selected_width~ : Int,
-  maximum_queries~ : Int,
-  maximum_history~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  qk_dimension~ : Int32,
+  value_dimension~ : Int32,
+  selected_width~ : Int32,
+  maximum_queries~ : Int32,
+  maximum_history~ : Int32,
   symbol~ : String,
-  published_slots? : Int,
+  published_slots? : Int32,
   paged_history? : @physical.PagedHistoryDomain,
-  accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
-  score_dimension? : Int,
+  accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  score_dimension? : Int32,
 ) -> SelectedSparseCudaSource raise {
   let score_dimension = score_dimension.unwrap_or(qk_dimension)
   guard score_dimension > 0 && score_dimension <= 65536 else {
@@ -53,8 +53,8 @@ pub fn selected_sparse_source(
     maximum_history <= 1048576 &&
     symbol.length() > 0 &&
     symbol.length() <= 128 &&
-    symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   guard @physical.SelectedSparseSchedule::new(
@@ -301,7 +301,7 @@ pub fn SelectedSparseCudaSource::scratch_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn SelectedSparseCudaSource::launch(self : Self) -> (Int, Int) {
+pub fn SelectedSparseCudaSource::launch(self : Self) -> (Int32, Int32) {
   (
     self.reuse
     .map(plan => plan.dispatch_workgroups())

@@ -2,18 +2,18 @@
 fn valid_selected_expert_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn selected_expert_swiglu_bf16_source(
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  routed_expert_count~ : Int,
-  experts_per_token~ : Int,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  routed_expert_count~ : Int32,
+  experts_per_token~ : Int32,
   activation~ : SelectedExpertActivation,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> SelectedExpertMlpCudaSource raise SelectedExpertMlpCudaSourceError {
   if hidden_size <= 0 ||

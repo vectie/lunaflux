@@ -48,14 +48,14 @@ pub extend LoopError with Eq::{equal, not_equal}
 /// allocation, compilation or conditioning recomputation belongs here.
 /// A raised error may leave storage partially updated: the driver never retries.
 pub(open) trait JointBackend {
-  fn execute_step(Self, Int, JointStep) -> Unit raise
+  fn execute_step(Self, Int32, JointStep) -> Unit raise
 }
 
 ///|
 /// Single-owner synchronous driver. Device resources remain backend-owned.
 pub struct Loop {
   priv steps : ReadOnlyArray[JointStep]
-  priv mut completed : Int
+  priv mut completed : Int32
   priv mut progress : Progress
   priv mut executing : Bool
 }
@@ -146,6 +146,6 @@ pub fn Loop::progress(self : Loop) -> Progress {
 }
 
 ///|
-pub fn Loop::completed_steps(self : Loop) -> Int {
+pub fn Loop::completed_steps(self : Loop) -> Int32 {
   self.completed
 }

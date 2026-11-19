@@ -1,6 +1,6 @@
 ///|
 fn limits(
-  max_materialized_tensor_bytes? : Int64 = 1024L,
+  max_materialized_tensor_bytes~ : Int64 = 1024L,
 ) -> @safetensors.HeaderLimits raise {
   @safetensors.HeaderLimits::new(
     max_header_bytes=4096,
@@ -18,7 +18,7 @@ fn raw(
   shape : ArrayView[Int64],
   start : Int64,
   end : Int64,
-  dtype? : String = "BF16",
+  dtype~ : String = "BF16",
 ) -> @safetensors.RawTensorMetadata {
   @safetensors.RawTensorMetadata::new(
     name~,

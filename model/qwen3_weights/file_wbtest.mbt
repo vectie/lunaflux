@@ -38,7 +38,7 @@ fn qwen3_file_shape_json(shape : ArrayView[Int64]) -> String {
 }
 
 ///|
-fn qwen3_file_source_fixture(equal_redundant_head? : Bool = true) -> Bytes {
+fn qwen3_file_source_fixture(equal_redundant_head~ : Bool = true) -> Bytes {
   let metadata = qwen3_file_test_metadata()
   let expected = expected_qwen3_tensors(metadata.spec())
   let header = StringBuilder()

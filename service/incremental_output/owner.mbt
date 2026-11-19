@@ -36,9 +36,9 @@ pub fn IncrementalOutput::is_finished(self : IncrementalOutput) -> Bool {
 ///|
 pub fn IncrementalOutput::push_token_into(
   self : IncrementalOutput,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> IncrementalOutputStep raise IncrementalOutputError {
   let workspace = self.lease.require_workspace()
   if workspace.lifecycle != OUTPUT_ACTIVE {
@@ -65,8 +65,8 @@ pub fn IncrementalOutput::push_token_into(
 pub fn IncrementalOutput::finish_into(
   self : IncrementalOutput,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise IncrementalOutputError {
+  destination_offset~ : Int32,
+) -> Int32 raise IncrementalOutputError {
   let workspace = self.lease.require_workspace()
   if workspace.lifecycle != OUTPUT_ACTIVE {
     raise invalid(Lifecycle, Terminal)
@@ -89,9 +89,9 @@ pub fn IncrementalOutput::finish_into(
 ///|
 pub fn IncrementalOutput::push_token_without_stops_status(
   self : IncrementalOutput,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> IncrementalOutputStatus {
   self.lease.push_token_without_stops_status(
     token_id,
@@ -104,7 +104,7 @@ pub fn IncrementalOutput::push_token_without_stops_status(
 pub fn IncrementalOutput::finish_into_status(
   self : IncrementalOutput,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> IncrementalOutputStatus {
   self.lease.finish_into_status(destination, destination_offset~)
 }
@@ -112,9 +112,9 @@ pub fn IncrementalOutput::finish_into_status(
 ///|
 pub fn IncrementalOutput::push_token_status(
   self : IncrementalOutput,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> IncrementalOutputStatus {
   self.lease.push_token_status(token_id, destination, destination_offset~)
 }

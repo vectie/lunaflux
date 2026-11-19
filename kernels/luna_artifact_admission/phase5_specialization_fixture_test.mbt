@@ -1,9 +1,9 @@
 ///|
 fn phase5_tile_program(
-  dtype? : @luna_tile_ir.LunaTileDType = BFloat16,
-  semantic? : Bool = true,
-  width? : Int64 = 4L,
-  elementwise? : @luna_tile_ir.LunaTileElementwiseKind = Add,
+  dtype~ : @luna_tile_ir.LunaTileDType = BFloat16,
+  semantic~ : Bool = true,
+  width~ : Int64 = 4L,
+  elementwise~ : @luna_tile_ir.LunaTileElementwiseKind = Add,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let first = @luna_tile_ir.LunaTileTensorId::from_stable_int(1)
   let second = @luna_tile_ir.LunaTileTensorId::from_stable_int(2)
@@ -68,11 +68,11 @@ fn phase5_tile_program(
 
 ///|
 fn phase5_specialization(
-  optimization_level? : Int = 3,
-  program_dtype? : @luna_tile_ir.LunaTileDType = BFloat16,
-  program_semantic? : Bool = true,
-  operation_id? : Int = 5,
-  swap_plan_residual_inputs? : Bool = false,
+  optimization_level~ : Int32 = 3,
+  program_dtype~ : @luna_tile_ir.LunaTileDType = BFloat16,
+  program_semantic~ : Bool = true,
+  operation_id~ : Int32 = 5,
+  swap_plan_residual_inputs~ : Bool = false,
 ) -> @luna_specialization.LunaSpecializationRecord raise {
   let program = phase5_tile_program(
     dtype=program_dtype,

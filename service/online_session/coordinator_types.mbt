@@ -26,8 +26,8 @@ pub(all) enum LunaOnlineFramedIngressKind {
 ///|
 #valtype
 pub struct LunaOnlineFramedIngress {
-  priv disposition : Int
-  priv consumed : Int
+  priv disposition : Int32
+  priv consumed : Int32
   priv route_sequence : UInt64
 }
 
@@ -84,7 +84,7 @@ pub struct LunaOnlineFramedEventOffer {
   priv stream_epoch : UInt64
   priv event_epoch : UInt64
   priv offer_epoch : UInt64
-  priv length : Int
+  priv length : Int32
 }
 
 ///|
@@ -156,7 +156,7 @@ pub(all) enum LunaOnlineFramedOpenKind {
 ///|
 #valtype
 pub struct LunaOnlineFramedOpen {
-  priv disposition : Int
+  priv disposition : Int32
   priv epoch : UInt64
 }
 
@@ -164,10 +164,10 @@ pub struct LunaOnlineFramedOpen {
 /// Immutable scalar telemetry projection. It carries no scheduler, worker,
 /// request, plan, page, stream epoch, or mutable owner authority.
 pub struct LunaOnlineFramedTelemetry {
-  priv queue_depth : Int
-  priv active_requests : Int
-  priv kv_pages_used : Int
-  priv kv_pages_free : Int
+  priv queue_depth : Int32
+  priv active_requests : Int32
+  priv kv_pages_used : Int32
+  priv kv_pages_free : Int32
   priv prefix_lookups : UInt64
   priv prefix_hits : UInt64
   priv prefix_misses : UInt64
@@ -175,16 +175,16 @@ pub struct LunaOnlineFramedTelemetry {
   priv prefix_tokens_reused : UInt64
   priv prefix_tokens_computed : UInt64
   priv prefix_publications : UInt64
-  priv prefix_entries : Int
-  priv prefix_pages : Int
+  priv prefix_entries : Int32
+  priv prefix_pages : Int32
 }
 
 ///|
 #valtype
 pub struct LunaOnlineFramedPlanTelemetry {
   priv plan_sequence : UInt64
-  priv plan_rows : Int
-  priv plan_tokens : Int
+  priv plan_rows : Int32
+  priv plan_tokens : Int32
 }
 
 ///|
@@ -215,7 +215,7 @@ pub struct LunaOnlineFramedService {
   priv pool : @request_admission.LunaRequestPreparationPool
   priv instance : LunaOnlineInstance
   priv outbound : @framed_wire.LunaFramedEventWorkspace
-  priv event_copy_quantum : Int
+  priv event_copy_quantum : Int32
   priv inference : @inference.InferenceLimits
   priv framed_limits : @framed_wire.FramedWireLimits
   priv expected_model : @spec.ModelIdentity
@@ -231,23 +231,23 @@ pub struct LunaOnlineFramedService {
   priv event_credits : Array[LunaOnlineEventCredit]
   priv outbound_works : Array[@framed_wire.LunaFramedEventWork]
   priv outbound_views : Array[@framed_wire.LunaFramedEventView]
-  priv mut queue_head : Int
-  priv mut queue_count : Int
-  priv mut receipt_slot : Int
+  priv mut queue_head : Int32
+  priv mut queue_count : Int32
+  priv mut receipt_slot : Int32
   priv mut next_sequence : UInt64
-  priv mut event_kind : Int
+  priv mut event_kind : Int32
   priv mut event_epoch : UInt64
   priv mut offer_epoch : UInt64
-  priv mut event_length : Int
-  priv mut confirmed_bytes : Int
-  priv mut offered_bytes : Int
+  priv mut event_length : Int32
+  priv mut confirmed_bytes : Int32
+  priv mut offered_bytes : Int32
   priv mut semantic_event_pending : Bool
   priv mut event_ack_pending : Bool
   priv mut event_route_sequence : UInt64
-  priv mut maintenance_kind : Int
+  priv mut maintenance_kind : Int32
   priv mut rejection_epoch : UInt64
   priv mut rejection_sequence : UInt64
-  priv mut rejection_rule : Int
+  priv mut rejection_rule : Int32
   priv mut rejection_taken : Bool
   priv mut stall_deadline_millis : UInt64
   priv mut stall_active : Bool
@@ -256,19 +256,19 @@ pub struct LunaOnlineFramedService {
   priv mut disconnect_requested : Bool
   priv mut closed : Bool
   priv mut stream_epoch : UInt64
-  priv mut stream_phase : Int
-  priv mut stream_mode : Int
+  priv mut stream_phase : Int32
+  priv mut stream_mode : Int32
   priv stream_slots : Array[LunaOnlineFramedStream]
   priv mut semantic_event_taken : Bool
   priv mut observation_epoch : UInt64
-  priv mut observation_kind : Int
+  priv mut observation_kind : Int32
   priv mut observation_taken : Bool
-  priv mut observation_input_tokens : Int
-  priv mut observation_cached_input_tokens : Int
-  priv mut observation_output_tokens : Int
-  priv mut observation_total_tokens : Int
-  priv mut observation_latency_kind : Int
-  priv mut observation_latency_millis : Int
+  priv mut observation_input_tokens : Int32
+  priv mut observation_cached_input_tokens : Int32
+  priv mut observation_output_tokens : Int32
+  priv mut observation_total_tokens : Int32
+  priv mut observation_latency_kind : Int32
+  priv mut observation_latency_millis : Int32
   priv mut worker_failure_observed : Bool
   priv mut cooperative_handoff : Bool
   priv timing_slots : FixedArray[LunaOnlineFramedTimingSlot]

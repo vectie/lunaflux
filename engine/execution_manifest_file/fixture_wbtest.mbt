@@ -140,8 +140,8 @@ fn fixture_target() -> @catalog.DeviceTarget raise {
 
 ///|
 fn fixture_step_limits(
-  rows? : Int = 1,
-  tokens? : Int = 4,
+  rows~ : Int32 = 1,
+  tokens~ : Int32 = 4,
 ) -> @device_step.DeviceStepLimits raise {
   @device_step.DeviceStepLimits::new(
     max_rows=rows,
@@ -154,8 +154,8 @@ fn fixture_step_limits(
 
 ///|
 fn fixture_limits(
-  operations : Int,
-  entry_points? : Int = operations,
+  operations : Int32,
+  entry_points~ : Int32 = operations,
 ) -> ExecutionManifestFileLimits raise {
   let artifact = @artifact.KernelArtifactLimits::new(
     max_modules=1,
@@ -196,7 +196,7 @@ fn fixture_module_bytes() -> Bytes {
 fn fixture_kind_index(
   kinds : ArrayView[@plan.OperationKind],
   expected : @plan.OperationKind,
-) -> Int? {
+) -> Int32? {
   for index, kind in kinds {
     if kind == expected {
       return Some(index)

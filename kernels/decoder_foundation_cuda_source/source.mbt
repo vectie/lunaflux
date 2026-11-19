@@ -3,8 +3,8 @@ fn valid_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -14,8 +14,8 @@ fn prelude() -> String {
 
 ///|
 pub fn token_embedding_bf16_source(
-  vocabulary_size~ : Int,
-  hidden_size~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_size~ : Int32,
   function_symbol~ : String,
 ) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError {
   if vocabulary_size <= 0 {
@@ -59,7 +59,7 @@ pub fn token_embedding_bf16_source(
 
 ///|
 pub fn rms_norm_bf16_source(
-  hidden_size~ : Int,
+  hidden_size~ : Int32,
   epsilon~ : Double,
   function_symbol~ : String,
 ) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError {

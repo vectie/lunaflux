@@ -14,9 +14,9 @@ fn LunaRequestSemanticWork::require_storage(
 ///|
 fn LunaRequestSemanticStorage::fail_semantic(
   self : LunaRequestSemanticStorage,
-  field : Int,
-  issue : Int,
-  index : Int,
+  field : Int32,
+  issue : Int32,
+  index : Int32,
 ) -> Unit {
   self.failure_field = field
   self.failure_issue = issue
@@ -342,7 +342,7 @@ pub fn LunaRequestSemanticWork::state(
 ///|
 pub fn LunaRequestSemanticWork::last_work_units(
   self : LunaRequestSemanticWork,
-) -> Int raise InferenceContractError {
+) -> Int32 raise InferenceContractError {
   self.require_storage().last_work_units
 }
 

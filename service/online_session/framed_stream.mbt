@@ -28,8 +28,8 @@ fn LunaOnlineFramedService::progress_cooperatively(
 pub fn LunaOnlineFramedStream::offer_luna_framed(
   self : LunaOnlineFramedStream,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError {
   self
   .require_service()
@@ -43,8 +43,8 @@ pub fn LunaOnlineFramedStream::offer_luna_framed_with_receipt(
   self : LunaOnlineFramedStream,
   receipt : @request_admission.LunaRequestReceipt,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError {
   self
   .require_service()
@@ -59,14 +59,14 @@ pub fn LunaOnlineFramedStream::offer_luna_framed_with_receipt(
 ///|
 pub fn LunaOnlineFramedStream::transport_wait_remaining_millis(
   self : LunaOnlineFramedStream,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.require_service().stream_transport_wait_remaining_millis()
 }
 
 ///|
 pub fn LunaOnlineFramedStream::maintenance_wait_remaining_millis(
   self : LunaOnlineFramedStream,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.require_service().maintenance_wait_remaining_millis()
 }
 
@@ -162,7 +162,7 @@ pub fn LunaOnlineFramedStream::progress(
 ///|
 pub fn LunaOnlineFramedStream::framed_event_remaining(
   self : LunaOnlineFramedStream,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.require_service().stream_framed_event_remaining()
 }
 
@@ -170,8 +170,8 @@ pub fn LunaOnlineFramedStream::framed_event_remaining(
 pub fn LunaOnlineFramedStream::copy_framed_event_chunk_to(
   self : LunaOnlineFramedStream,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  maximum_length~ : Int,
+  destination_offset~ : Int32,
+  maximum_length~ : Int32,
 ) -> LunaOnlineFramedEventOffer raise LunaOnlineFramedCoordinatorError {
   self
   .require_service()

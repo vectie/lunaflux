@@ -25,8 +25,8 @@ fn digest_benchmark_bytes(
 fn encode_raw_events(
   engine : BenchmarkEngine,
   profile : BenchmarkProfile,
-  ordinal : Int,
-  order_position : Int,
+  ordinal : Int32,
+  order_position : Int32,
   measurement : BenchmarkDigest,
   events : ArrayView[BenchmarkRequestEvent],
 ) -> Bytes raise BenchmarkEvidenceError {

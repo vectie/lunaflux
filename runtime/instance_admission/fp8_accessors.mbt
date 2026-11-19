@@ -97,7 +97,9 @@ pub fn Fp8RuntimeInstanceAdmission::framed_limits(
 }
 
 ///|
-pub fn Fp8RuntimeInstanceAdmission::preparation_lane_count(self : Self) -> Int {
+pub fn Fp8RuntimeInstanceAdmission::preparation_lane_count(
+  self : Self,
+) -> Int32 {
   self.core.preparation_lane_count
 }
 
@@ -130,6 +132,6 @@ pub fn Fp8RuntimeInstanceAdmission::event_step_budget(
 }
 
 ///|
-pub fn Fp8RuntimeInstanceAdmission::telemetry_capacity(self : Self) -> Int {
+pub fn Fp8RuntimeInstanceAdmission::telemetry_capacity(self : Self) -> Int32 {
   self.core.telemetry_capacity
 }

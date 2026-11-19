@@ -8,11 +8,11 @@ fn compile_readonly_decode_split(
   target : @catalog.DeviceTarget,
   page_stride_bytes : Int64,
   physical_page_capacity : Int64,
-  maximum_context_tokens : Int,
+  maximum_context_tokens : Int32,
   workspace : @luna_attention_strategy.AttentionDecodeWorkspacePlan,
   partial_symbol : String,
   merge_symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
 ) -> @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation raise PagedAttentionAotError {
   let (query_heads, kv_heads, head_dimension, tokens_per_page) = shape.dimensions()
   let problem = @luna_attention_strategy.AttentionCompileProblem::new(
@@ -91,9 +91,9 @@ fn compile_readonly_decode_split(
 /// No source generation, autotune measurement, or model-family branching.
 fn compiler_decode_launch_geometry(
   shape : @luna_attention_strategy.AttentionShape,
-  context_tokens : Int,
-  splits : Int,
-) -> (Int, Int, Int, Int64) raise PagedAttentionAotError {
+  context_tokens : Int32,
+  splits : Int32,
+) -> (Int32, Int32, Int32, Int64) raise PagedAttentionAotError {
   let (query_heads, kv_heads, _, _) = shape.dimensions()
   let plan = @luna_attention_strategy.compile_attention_tile_plan(
     [],

@@ -3,7 +3,7 @@ fn append_bridge_prefill(
   writer : @worker_protocol.CompletionWriter,
   plan : @worker_protocol.SubmittedSchedulePlan,
   frame : @worker_wire.ValidatedCompletionFrame,
-  index : Int,
+  index : Int32,
 ) -> Unit raise WorkerServiceError {
   let row = plan.prefill_row(index) catch { _ => raise Invalid(WorkerOutput) }
   let slot = row.completion_slot() catch { _ => raise Invalid(WorkerOutput) }
@@ -59,7 +59,7 @@ fn append_bridge_decode(
   writer : @worker_protocol.CompletionWriter,
   plan : @worker_protocol.SubmittedSchedulePlan,
   frame : @worker_wire.ValidatedCompletionFrame,
-  index : Int,
+  index : Int32,
 ) -> Unit raise WorkerServiceError {
   let row = plan.decode_row(index) catch { _ => raise Invalid(WorkerOutput) }
   let slot = row.completion_slot() catch { _ => raise Invalid(WorkerOutput) }

@@ -2,11 +2,11 @@
 /// Startup-fixed direct index from one lower worker publication lane to its
 /// owning outer session lane. The exact lower generation authenticates reuse.
 priv struct LunaOnlinePublicationRoutes {
-  session_lanes : FixedArray[Int]
+  session_lanes : FixedArray[Int32]
   generations : FixedArray[UInt64]
   mut lookups : UInt64
   mut rejections : UInt64
-  mut max_probes : Int
+  mut max_probes : Int32
 }
 
 ///|
@@ -20,7 +20,7 @@ fn route_counter_increment(value : UInt64) -> UInt64 {
 
 ///|
 fn LunaOnlinePublicationRoutes::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> LunaOnlinePublicationRoutes {
   if capacity <= 0 {
     abort("Luna online publication route capacity invariant")
@@ -37,7 +37,7 @@ fn LunaOnlinePublicationRoutes::new(
 ///|
 fn LunaOnlinePublicationRoutes::capacity(
   self : LunaOnlinePublicationRoutes,
-) -> Int {
+) -> Int32 {
   self.session_lanes.length()
 }
 
@@ -45,7 +45,7 @@ fn LunaOnlinePublicationRoutes::capacity(
 fn LunaOnlinePublicationRoutes::try_bind(
   self : LunaOnlinePublicationRoutes,
   route : @core.SchedulerPublicationRoute,
-  session_lane : Int,
+  session_lane : Int32,
 ) -> Bool {
   let route_lane = route.lane()
   if route_lane < 0 ||
@@ -66,7 +66,7 @@ fn LunaOnlinePublicationRoutes::try_bind(
 fn LunaOnlinePublicationRoutes::bind(
   self : LunaOnlinePublicationRoutes,
   route : @core.SchedulerPublicationRoute,
-  session_lane : Int,
+  session_lane : Int32,
 ) -> Unit {
   if !self.try_bind(route, session_lane) {
     abort("Luna online publication route bind invariant")
@@ -77,7 +77,7 @@ fn LunaOnlinePublicationRoutes::bind(
 fn LunaOnlinePublicationRoutes::resolve(
   self : LunaOnlinePublicationRoutes,
   route : @core.SchedulerPublicationRoute,
-) -> Int {
+) -> Int32 {
   self.lookups = route_counter_increment(self.lookups)
   if self.max_probes < 1 {
     self.max_probes = 1
@@ -110,7 +110,7 @@ fn LunaOnlinePublicationRoutes::reject_authentication(
 fn LunaOnlinePublicationRoutes::try_clear(
   self : LunaOnlinePublicationRoutes,
   route : @core.SchedulerPublicationRoute,
-  session_lane : Int,
+  session_lane : Int32,
 ) -> Bool {
   let route_lane = route.lane()
   if route_lane < 0 ||
@@ -128,7 +128,7 @@ fn LunaOnlinePublicationRoutes::try_clear(
 fn LunaOnlinePublicationRoutes::clear(
   self : LunaOnlinePublicationRoutes,
   route : @core.SchedulerPublicationRoute,
-  session_lane : Int,
+  session_lane : Int32,
 ) -> Unit {
   if !self.try_clear(route, session_lane) {
     abort("Luna online publication route clear invariant")

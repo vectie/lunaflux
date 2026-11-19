@@ -8,7 +8,7 @@
 pub fn LatentStorage::initialize_noise(
   self : Self,
   seed~ : Int64,
-  chunk_elements~ : Int,
+  chunk_elements~ : Int32,
 ) -> Unit raise {
   let noise = self.plan.noise(seed~, max_chunk_elements=chunk_elements)
   for

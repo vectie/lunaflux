@@ -16,12 +16,12 @@ test "speculative generation retains accepted frontier with zero warmed allocati
       stop_tokens=[],
     )
   })
-  let drafts : FixedArray[Int] = [4, 5, 6]
-  let targets : FixedArray[Int] = [5, 9, 0]
-  let next_drafts : FixedArray[Int] = [9, 10, 11]
-  let next_targets : FixedArray[Int] = [10, 11, 12]
-  let last_drafts : FixedArray[Int] = [12, 13, 14]
-  let last_targets : FixedArray[Int] = [13, 15]
+  let drafts : FixedArray[Int32] = [4, 5, 6]
+  let targets : FixedArray[Int32] = [5, 9, 0]
+  let next_drafts : FixedArray[Int32] = [9, 10, 11]
+  let next_targets : FixedArray[Int32] = [10, 11, 12]
+  let last_drafts : FixedArray[Int32] = [12, 13, 14]
+  let last_targets : FixedArray[Int32] = [13, 15]
   begin_allocations()
   for owner in owners {
     ignore(owner.next_verification(drafts, sequence_value=2UL))

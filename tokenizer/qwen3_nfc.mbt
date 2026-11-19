@@ -1,25 +1,25 @@
 ///|
-const QWEN3_NFC_MAX_UTF8_EXPANSION : Int = 3
+const QWEN3_NFC_MAX_UTF8_EXPANSION : Int32 = 3
 
 ///|
-fn qwen3_pack_scalar(scalar : Int) -> Int {
+fn qwen3_pack_scalar(scalar : Int32) -> Int32 {
   (qwen3_canonical_combining_class(scalar) << 21) | scalar
 }
 
 ///|
-fn qwen3_packed_scalar(value : Int) -> Int {
+fn qwen3_packed_scalar(value : Int32) -> Int32 {
   value & 0x1fffff
 }
 
 ///|
-fn qwen3_packed_combining_class(value : Int) -> Int {
+fn qwen3_packed_combining_class(value : Int32) -> Int32 {
   (value >> 21) & 0xff
 }
 
 ///|
 fn LunaTokenizerWorker::qwen3_append_decomposed_scalar(
   self : LunaTokenizerWorker,
-  scalar : Int,
+  scalar : Int32,
 ) -> Unit raise TokenizerError {
   let s_base = 0xac00
   let l_base = 0x1100
@@ -60,8 +60,8 @@ fn LunaTokenizerWorker::qwen3_append_decomposed_scalar(
 ///|
 fn LunaTokenizerWorker::qwen3_order_short_segment(
   self : LunaTokenizerWorker,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Unit {
   let first_mark = start + 1
   for index in first_mark..<end {
@@ -80,8 +80,8 @@ fn LunaTokenizerWorker::qwen3_order_short_segment(
 ///|
 fn LunaTokenizerWorker::qwen3_order_long_segment(
   self : LunaTokenizerWorker,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Unit {
   let mut output = start
   let mut marks = start
@@ -109,8 +109,8 @@ fn LunaTokenizerWorker::qwen3_order_long_segment(
 ///|
 fn LunaTokenizerWorker::qwen3_order_segment(
   self : LunaTokenizerWorker,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Unit {
   if end - start <= 16 {
     self.qwen3_order_short_segment(start, end)
@@ -176,7 +176,7 @@ fn LunaTokenizerWorker::qwen3_compose_ordered(
 ///|
 fn LunaTokenizerWorker::qwen3_write_normalized_scalar(
   self : LunaTokenizerWorker,
-  scalar : Int,
+  scalar : Int32,
 ) -> Unit {
   let offset = self.input_length
   if scalar <= 0x7f {

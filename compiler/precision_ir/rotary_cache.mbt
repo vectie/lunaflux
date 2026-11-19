@@ -4,24 +4,24 @@
 /// FP8 storage. The semantic plan can consume compact pooled rows directly.
 pub struct RotaryCachePrecision {
   priv rotary : RotaryTensorPrecision
-  priv block : Int
+  priv block : Int32
   priv floor : Double
   priv scale : SimulatedCacheScale
 }
 
 ///|
 pub fn RotaryCachePrecision::new(
-  head_count~ : Int,
-  head_width~ : Int,
-  rotary_width~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  head_count~ : Int32,
+  head_width~ : Int32,
+  rotary_width~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   frequency~ : RotaryFrequency,
-  simulation_block_width~ : Int,
+  simulation_block_width~ : Int32,
   simulation_amax_floor~ : Double,
   simulation_scale~ : SimulatedCacheScale,
   maximum_workspace_bytes~ : Int64,
-  product? : RotaryProductLaw = SeparateFloat32Products,
+  product~ : RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise PrecisionPlanError {
   let rotary = RotaryTensorPrecision::new(
     head_count~,
@@ -46,7 +46,9 @@ pub fn RotaryCachePrecision::new(
 }
 
 ///|
-pub fn RotaryCachePrecision::geometry(self : Self) -> (Int, Int, Int, Int, Int) {
+pub fn RotaryCachePrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32, Int32) {
   self.rotary.geometry()
 }
 
@@ -63,7 +65,7 @@ pub fn RotaryCachePrecision::frequency(self : Self) -> RotaryFrequency {
 ///|
 pub fn RotaryCachePrecision::simulation(
   self : Self,
-) -> (Int, Double, SimulatedCacheScale) {
+) -> (Int32, Double, SimulatedCacheScale) {
   (self.block, self.floor, self.scale)
 }
 

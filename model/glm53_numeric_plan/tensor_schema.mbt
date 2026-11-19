@@ -23,8 +23,8 @@ fn build_tensor_schemas(
 ) -> (
   Array[@numeric_contract.NumericTensorSchema],
   Array[Glm53NumericTensorBinding],
-  Int,
-  Int,
+  Int32,
+  Int32,
 ) raise Glm53NumericPlanError {
   let schemas : Array[@numeric_contract.NumericTensorSchema] = []
   let bindings : Array[Glm53NumericTensorBinding] = []

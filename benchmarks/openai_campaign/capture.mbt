@@ -3,8 +3,8 @@ fn campaign_hex_nibble(
   unit : UInt16,
 ) -> Byte raise OpenAIResponsesCampaignError {
   match unit {
-    '0'..='9' => (unit.to_int() - '0'.to_int()).to_byte()
-    'a'..='f' => (unit.to_int() - 'a'.to_int() + 10).to_byte()
+    '0'..<='9' => (unit.to_int() - '0'.to_int()).to_byte()
+    'a'..<='f' => (unit.to_int() - 'a'.to_int() + 10).to_byte()
     _ => raise CampaignInvalidHex
   }
 }
@@ -125,7 +125,7 @@ fn replay_campaign_event(
 ///|
 fn replay_campaign_trial(
   declaration : OpenAIResponsesCampaignDeclaration,
-  expected_index : Int,
+  expected_index : Int32,
   bytes : BytesView,
 ) -> (@openai_adapter.OpenAIResponsesTrialEvidence, @evidence.BenchmarkDigest) raise OpenAIResponsesCampaignError {
   let root = campaign_require_object(campaign_parse_json(bytes, 8), 8)

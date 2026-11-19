@@ -1,5 +1,7 @@
 ///|
-fn graph_bucket_exponent(value : Int) -> Int raise ExecutionGraphBucketError {
+fn graph_bucket_exponent(
+  value : Int32,
+) -> Int32 raise ExecutionGraphBucketError {
   if value <= 0 || value > 1048576 {
     raise InvalidExecutionGraphBucket(Shape)
   }
@@ -8,7 +10,7 @@ fn graph_bucket_exponent(value : Int) -> Int raise ExecutionGraphBucketError {
 }
 
 ///|
-fn graph_bucket_value(exponent : Int) -> Int {
+fn graph_bucket_value(exponent : Int32) -> Int32 {
   1 << exponent
 }
 
@@ -17,8 +19,8 @@ fn graph_bucket_value(exponent : Int) -> Int {
 /// supported domain, allowing bounded traversals to terminate without a
 /// special final bucket. No value in (value, result) selects a different bucket.
 pub fn next_execution_graph_bucket_start(
-  value : Int,
-) -> Int raise ExecutionGraphBucketError {
+  value : Int32,
+) -> Int32 raise ExecutionGraphBucketError {
   graph_bucket_value(graph_bucket_exponent(value)) + 1
 }
 
@@ -26,7 +28,7 @@ pub fn next_execution_graph_bucket_start(
 /// Startup inverse of the compact slot mapping; useful for preparing owners.
 pub fn ExecutionGraphBucketTable::bucket_at(
   self : ExecutionGraphBucketTable,
-  slot : Int,
+  slot : Int32,
 ) -> ExecutionGraphBucket raise ExecutionGraphBucketError {
   if slot < 0 || slot >= self.bucket_count {
     raise InvalidExecutionGraphBucket(Limit)
@@ -49,7 +51,7 @@ pub fn ExecutionGraphBucketTable::bucket_at(
 }
 
 ///|
-fn graph_phase_index(phase : ExecutionGraphPhase) -> Int {
+fn graph_phase_index(phase : ExecutionGraphPhase) -> Int32 {
   match phase {
     PrefillGraph => 0
     DecodeGraph => 1
@@ -60,9 +62,9 @@ fn graph_phase_index(phase : ExecutionGraphPhase) -> Int {
 ///|
 pub fn ExecutionGraphShape::new(
   phase~ : ExecutionGraphPhase,
-  batch_rows~ : Int,
-  query_tokens~ : Int,
-  context_tokens~ : Int,
+  batch_rows~ : Int32,
+  query_tokens~ : Int32,
+  context_tokens~ : Int32,
 ) -> ExecutionGraphShape raise ExecutionGraphBucketError {
   let _ = graph_bucket_exponent(batch_rows)
   let _ = graph_bucket_exponent(query_tokens)
@@ -72,10 +74,10 @@ pub fn ExecutionGraphShape::new(
 
 ///|
 pub fn build_execution_graph_bucket_table(
-  maximum_batch_rows : Int,
-  maximum_query_tokens : Int,
-  maximum_context_tokens : Int,
-  maximum_buckets : Int,
+  maximum_batch_rows : Int32,
+  maximum_query_tokens : Int32,
+  maximum_context_tokens : Int32,
+  maximum_buckets : Int32,
 ) -> ExecutionGraphBucketTable raise ExecutionGraphBucketError {
   let maximum_batch_exponent = graph_bucket_exponent(maximum_batch_rows)
   let maximum_query_exponent = graph_bucket_exponent(maximum_query_tokens)

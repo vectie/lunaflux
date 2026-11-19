@@ -9,10 +9,10 @@ fn operation_execution_domain() -> Bytes {
 }
 
 ///|
-const TENSOR_STORAGE_CANONICAL_LENGTH : Int = 45
+const TENSOR_STORAGE_CANONICAL_LENGTH : Int32 = 45
 
 ///|
-const OPERATION_EXECUTION_CANONICAL_LENGTH : Int = 51
+const OPERATION_EXECUTION_CANONICAL_LENGTH : Int32 = 51
 
 ///|
 fn write_tensor_storage_contract(
@@ -34,7 +34,7 @@ fn write_tensor_storage_contract(
 ///|
 fn tensor_storage_contract_byte_at(
   contract : TensorStorageContract,
-  index : Int,
+  index : Int32,
 ) -> Byte {
   let domain = tensor_storage_domain()
   if index < domain.length() {
@@ -82,7 +82,7 @@ fn write_operation_execution_contract(
 ///|
 fn operation_execution_contract_byte_at(
   contract : OperationExecutionContract,
-  index : Int,
+  index : Int32,
 ) -> Byte {
   let domain = operation_execution_domain()
   if index < domain.length() {
@@ -176,7 +176,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -228,8 +228,8 @@ fn digest_bytes(bytes : Bytes) -> String {
 fn require_domain(
   canonical : Bytes,
   domain : Bytes,
-  tag_count : Int,
-) -> Int raise NumericContractError {
+  tag_count : Int32,
+) -> Int32 raise NumericContractError {
   if canonical.length() != domain.length() + tag_count {
     raise InvalidNumericContract(CanonicalBytes)
   }
@@ -244,7 +244,7 @@ fn require_domain(
 ///|
 fn decoded_conversion(
   canonical : Bytes,
-  offset : Int,
+  offset : Int32,
 ) -> NumericConversion raise NumericContractError {
   NumericConversion::new(
     rounding={ value: canonical[offset].to_int(), },

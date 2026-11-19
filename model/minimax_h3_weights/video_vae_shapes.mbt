@@ -7,7 +7,7 @@ fn video_vae_shape_is(
 }
 
 ///|
-fn video_vae_channels(block : Int) -> (Int64, Int64)? {
+fn video_vae_channels(block : Int32) -> (Int64, Int64)? {
   match block {
     0 => Some((128L, 128L))
     1 => Some((128L, 256L))

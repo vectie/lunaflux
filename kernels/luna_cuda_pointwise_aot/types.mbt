@@ -18,14 +18,14 @@ pub(all) enum PointwiseNumericalContract {
 
 ///|
 pub struct PointwiseAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn PointwiseAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
 ) -> PointwiseAotLimits raise PointwiseAotError {
   if max_source_bytes <= 0 || max_recipe_bytes <= 0 {
     raise Invalid(Limits)

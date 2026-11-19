@@ -101,7 +101,7 @@ pub fn worker_contract_digest(
 }
 
 ///|
-fn placement_code(placement : @tensor_parallel_plan.TensorPlacement) -> Int {
+fn placement_code(placement : @tensor_parallel_plan.TensorPlacement) -> Int32 {
   match placement {
     Replicated => 1
     ShardRows => 2
@@ -110,7 +110,7 @@ fn placement_code(placement : @tensor_parallel_plan.TensorPlacement) -> Int {
 }
 
 ///|
-fn device_operation_kind_code(kind : @plan.OperationKind) -> Int {
+fn device_operation_kind_code(kind : @plan.OperationKind) -> Int32 {
   match kind {
     Embedding => 1
     RmsNorm => 2
@@ -162,7 +162,7 @@ fn append_tensor_table(
 ///|
 fn collective_kind_code(
   kind : @tensor_parallel_plan.TensorCollectiveKind,
-) -> Int {
+) -> Int32 {
   match kind {
     SumAllReduce => 1
     LastAxisAllGather => 2
@@ -222,7 +222,7 @@ fn digest_group(
   model_generation_value : UInt64,
   group_generation_value : UInt64,
   topology_digest : TensorParallelTopologyDigest,
-  collective_runtime_version_code : Int,
+  collective_runtime_version_code : Int32,
   rendezvous_bytes : Bytes,
   claims : FixedArray[RankBootstrapClaim],
 ) -> TensorParallelGroupBootstrapDigest raise TensorParallelWorkerBootstrapError {

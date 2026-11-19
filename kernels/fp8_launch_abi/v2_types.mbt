@@ -24,7 +24,7 @@ pub(all) enum Fp8V2LaunchContractSourceVersion {
 /// Callers cannot construct or reorder stage bindings.
 pub struct Fp8ActivationScaleStageRegion {
   priv stage : @numeric_contract.ActivationScaleStage
-  priv ordinal : Int
+  priv ordinal : Int32
   priv region : Fp8LaunchStorageRegion
 } derive(Debug, Eq)
 
@@ -38,7 +38,7 @@ pub fn Fp8ActivationScaleStageRegion::stage(
 ///|
 pub fn Fp8ActivationScaleStageRegion::ordinal(
   self : Fp8ActivationScaleStageRegion,
-) -> Int {
+) -> Int32 {
   self.ordinal
 }
 

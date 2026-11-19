@@ -4,9 +4,9 @@
 fn projection_matrix_mlp_source(
   symbol : String,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
   compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
-  max_registers~ : Int,
+  max_registers~ : Int32,
 ) -> Bytes {
   let schedule = compilation.schedule()
   let groups = schedule.output_tiles_per_workgroup()

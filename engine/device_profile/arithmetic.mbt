@@ -13,9 +13,9 @@ const TOKEN_ID_BYTES : Int64 = 4L
 ///|
 fn exact_shape(
   phase : ExecutionPhase,
-  batch_rows : Int,
-  query_tokens_per_row : Int,
-  context_tokens : Int,
+  batch_rows : Int32,
+  query_tokens_per_row : Int32,
+  context_tokens : Int32,
 ) -> ExactExecutionShape raise DeviceProfileError {
   if batch_rows <= 0 {
     raise InvalidShape(NonPositiveBatchRows)

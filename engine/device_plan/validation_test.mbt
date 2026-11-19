@@ -25,7 +25,7 @@ fn device_plan_one_operation(
 ///|
 fn device_plan_two_operations(
   second_kind : @plan.OperationKind,
-  second_workspace? : Int64 = 0L,
+  second_workspace~ : Int64 = 0L,
 ) -> @plan.ModelPlan raise {
   let (shape, capability) : (@plan.OperationShape, @plan.KernelCapabilityId) = match
     second_kind {

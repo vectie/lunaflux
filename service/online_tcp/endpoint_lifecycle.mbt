@@ -1,5 +1,5 @@
 ///|
-fn luna_online_tcp_rule_code(rule : LunaOnlineTcpRule) -> Int {
+fn luna_online_tcp_rule_code(rule : LunaOnlineTcpRule) -> Int32 {
   match rule {
     LunaOnlineTcpLimits => 1
     LunaOnlineTcpPreparation => 2
@@ -17,7 +17,7 @@ fn luna_online_tcp_rule_code(rule : LunaOnlineTcpRule) -> Int {
 }
 
 ///|
-fn luna_online_tcp_rule_from_code(code : Int) -> LunaOnlineTcpRule {
+fn luna_online_tcp_rule_from_code(code : Int32) -> LunaOnlineTcpRule {
   match code {
     1 => LunaOnlineTcpLimits
     2 => LunaOnlineTcpPreparation
@@ -134,8 +134,8 @@ fn LunaOnlineTcpEndpoint::publish_closed_if_ready(
 ///|
 fn LunaOnlineTcpEndpoint::bounded_transport_wait(
   self : LunaOnlineTcpEndpoint,
-  configured_millis : Int,
-) -> Int raise LunaOnlineTcpError {
+  configured_millis : Int32,
+) -> Int32 raise LunaOnlineTcpError {
   let remaining = self.coordinator().transport_wait_remaining_millis() catch {
       _ => raise luna_online_tcp_error(LunaOnlineTcpCoordinator)
     }
@@ -179,7 +179,7 @@ pub fn LunaOnlineTcpEndpoint::failure_rule(
 ///|
 fn luna_online_tcp_rejection_code(
   rule : @online_session.LunaOnlineFramedRejectionRule,
-) -> Int {
+) -> Int32 {
   match rule {
     LunaOnlineFramedRejectedFrame => 1
     LunaOnlineFramedRejectedIdentity => 2
@@ -193,7 +193,7 @@ fn luna_online_tcp_rejection_code(
 
 ///|
 fn luna_online_tcp_rejection_from_code(
-  code : Int,
+  code : Int32,
 ) -> LunaOnlineTcpRejectionRule {
   match code {
     1 => LunaOnlineTcpRejectedFrame

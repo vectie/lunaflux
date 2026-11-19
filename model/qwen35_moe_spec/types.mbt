@@ -26,7 +26,7 @@ pub(all) enum Qwen35AuxiliaryDType {
 /// or multi-token-prediction execution authority, and it does not imply that
 /// only the active experts need to be resident in device memory.
 pub struct Qwen35MoeTextSpec {
-  priv profile_version : Int
+  priv profile_version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -44,43 +44,43 @@ pub fn Qwen35MoeTextSpec::pinned_35b_a3b_fp8_text_only() -> Self {
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::vocabulary_size(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::vocabulary_size(self : Self) -> Int32 {
   ignore(self)
   248320
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::hidden_size(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::hidden_size(self : Self) -> Int32 {
   ignore(self)
   2048
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::layer_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::layer_count(self : Self) -> Int32 {
   ignore(self)
   40
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::attention_head_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::attention_head_count(self : Self) -> Int32 {
   ignore(self)
   16
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::kv_head_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::kv_head_count(self : Self) -> Int32 {
   ignore(self)
   2
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::head_dimension(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::head_dimension(self : Self) -> Int32 {
   ignore(self)
   256
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::context_length(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::context_length(self : Self) -> Int32 {
   ignore(self)
   262144
 }
@@ -89,7 +89,7 @@ pub fn Qwen35MoeTextSpec::context_length(self : Self) -> Int {
 /// Returns the exact three-linear/one-full repeating block schedule.
 pub fn Qwen35MoeTextSpec::layer_kind(
   self : Self,
-  layer_index : Int,
+  layer_index : Int32,
 ) -> Qwen35HybridLayerKind? {
   if layer_index < 0 || layer_index >= self.layer_count() {
     None
@@ -101,7 +101,7 @@ pub fn Qwen35MoeTextSpec::layer_kind(
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::full_attention_interval(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::full_attention_interval(self : Self) -> Int32 {
   ignore(self)
   4
 }
@@ -113,31 +113,31 @@ pub fn Qwen35MoeTextSpec::attention_output_gate(self : Self) -> Bool {
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::linear_key_head_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::linear_key_head_count(self : Self) -> Int32 {
   ignore(self)
   16
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::linear_key_head_dimension(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::linear_key_head_dimension(self : Self) -> Int32 {
   ignore(self)
   128
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::linear_value_head_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::linear_value_head_count(self : Self) -> Int32 {
   ignore(self)
   32
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::linear_value_head_dimension(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::linear_value_head_dimension(self : Self) -> Int32 {
   ignore(self)
   128
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::linear_convolution_width(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::linear_convolution_width(self : Self) -> Int32 {
   ignore(self)
   4
 }
@@ -151,25 +151,25 @@ pub fn Qwen35MoeTextSpec::recurrent_state_dtype(
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::routed_expert_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::routed_expert_count(self : Self) -> Int32 {
   ignore(self)
   256
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::experts_per_token(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::experts_per_token(self : Self) -> Int32 {
   ignore(self)
   8
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::expert_intermediate_size(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::expert_intermediate_size(self : Self) -> Int32 {
   ignore(self)
   512
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::shared_expert_intermediate_size(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::shared_expert_intermediate_size(self : Self) -> Int32 {
   ignore(self)
   512
 }
@@ -193,13 +193,13 @@ pub fn Qwen35MoeTextSpec::partial_rotary_factor(self : Self) -> Double {
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::mrope_section_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::mrope_section_count(self : Self) -> Int32 {
   ignore(self)
   3
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::mrope_section(self : Self, index : Int) -> Int? {
+pub fn Qwen35MoeTextSpec::mrope_section(self : Self, index : Int32) -> Int32? {
   ignore(self)
   match index {
     0 | 1 => Some(11)
@@ -229,13 +229,13 @@ pub fn Qwen35MoeTextSpec::inverse_scale_dtype(
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::fp8_block_rows(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::fp8_block_rows(self : Self) -> Int32 {
   ignore(self)
   128
 }
 
 ///|
-pub fn Qwen35MoeTextSpec::fp8_block_columns(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::fp8_block_columns(self : Self) -> Int32 {
   ignore(self)
   128
 }
@@ -255,7 +255,7 @@ pub fn Qwen35MoeTextSpec::tied_embeddings(self : Self) -> Bool {
 ///|
 /// The source config declares one MTP layer, but the first executable route
 /// excludes it explicitly.
-pub fn Qwen35MoeTextSpec::source_mtp_layer_count(self : Self) -> Int {
+pub fn Qwen35MoeTextSpec::source_mtp_layer_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
@@ -292,3 +292,33 @@ pub fn Qwen35MoeTextMetadata::content_digest(
 ) -> @spec.ContentDigest {
   self.content_digest
 }
+
+///|
+pub extend Qwen35HybridLayerKind with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen35HybridLayerKind with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen35MatrixDType with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen35MatrixDType with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen35AuxiliaryDType with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen35AuxiliaryDType with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen35MoeTextSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen35MoeTextSpec with Eq::{not_equal, equal}
+
+///|
+pub extend Qwen35MoeTextMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend Qwen35MoeTextMetadata with Eq::{not_equal, equal}

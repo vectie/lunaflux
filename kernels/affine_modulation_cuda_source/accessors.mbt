@@ -18,7 +18,7 @@ pub fn AffineModulationCudaSource::row_count(self : Self) -> Int64 {
 }
 
 ///|
-pub fn AffineModulationCudaSource::width(self : Self) -> Int {
+pub fn AffineModulationCudaSource::width(self : Self) -> Int32 {
   self.width
 }
 

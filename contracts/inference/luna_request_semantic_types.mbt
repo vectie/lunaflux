@@ -1,87 +1,87 @@
 ///|
-const LUNA_REQUEST_SEMANTIC_IDLE : Int = 0
+const LUNA_REQUEST_SEMANTIC_IDLE : Int32 = 0
 
 ///|
-const LUNA_REQUEST_SEMANTIC_WRITING : Int = 1
+const LUNA_REQUEST_SEMANTIC_WRITING : Int32 = 1
 
 ///|
-const LUNA_REQUEST_SEMANTIC_TOKEN_VALUE : Int = 2
+const LUNA_REQUEST_SEMANTIC_TOKEN_VALUE : Int32 = 2
 
 ///|
-const LUNA_REQUEST_SEMANTIC_TOKEN_DUPLICATE : Int = 3
+const LUNA_REQUEST_SEMANTIC_TOKEN_DUPLICATE : Int32 = 3
 
 ///|
-const LUNA_REQUEST_SEMANTIC_STRING_HEADER : Int = 4
+const LUNA_REQUEST_SEMANTIC_STRING_HEADER : Int32 = 4
 
 ///|
-const LUNA_REQUEST_SEMANTIC_STRING_UTF8 : Int = 5
+const LUNA_REQUEST_SEMANTIC_STRING_UTF8 : Int32 = 5
 
 ///|
-const LUNA_REQUEST_SEMANTIC_STRING_DUPLICATE_LENGTH : Int = 6
+const LUNA_REQUEST_SEMANTIC_STRING_DUPLICATE_LENGTH : Int32 = 6
 
 ///|
-const LUNA_REQUEST_SEMANTIC_STRING_DUPLICATE_BYTE : Int = 7
+const LUNA_REQUEST_SEMANTIC_STRING_DUPLICATE_BYTE : Int32 = 7
 
 ///|
-const LUNA_REQUEST_SEMANTIC_CACHE_HEADER : Int = 8
+const LUNA_REQUEST_SEMANTIC_CACHE_HEADER : Int32 = 8
 
 ///|
-const LUNA_REQUEST_SEMANTIC_CACHE_BYTE : Int = 9
+const LUNA_REQUEST_SEMANTIC_CACHE_BYTE : Int32 = 9
 
 ///|
-const LUNA_REQUEST_SEMANTIC_SORT_COPY : Int = 10
+const LUNA_REQUEST_SEMANTIC_SORT_COPY : Int32 = 10
 
 ///|
-const LUNA_REQUEST_SEMANTIC_SORT_LOAD : Int = 11
+const LUNA_REQUEST_SEMANTIC_SORT_LOAD : Int32 = 11
 
 ///|
-const LUNA_REQUEST_SEMANTIC_SORT_COMPARE : Int = 12
+const LUNA_REQUEST_SEMANTIC_SORT_COMPARE : Int32 = 12
 
 ///|
-const LUNA_REQUEST_SEMANTIC_READY : Int = 13
+const LUNA_REQUEST_SEMANTIC_READY : Int32 = 13
 
 ///|
-const LUNA_REQUEST_SEMANTIC_LEASED : Int = 14
+const LUNA_REQUEST_SEMANTIC_LEASED : Int32 = 14
 
 ///|
-const LUNA_REQUEST_SEMANTIC_FAILED : Int = 15
+const LUNA_REQUEST_SEMANTIC_FAILED : Int32 = 15
 
 ///|
-const LUNA_REQUEST_SEMANTIC_MAX_STEP_WORK_UNITS : Int = 65536
+const LUNA_REQUEST_SEMANTIC_MAX_STEP_WORK_UNITS : Int32 = 65536
 
 ///|
-const LUNA_REQUEST_SEMANTIC_FAILURE_STOP_TOKEN : Int = 0
+const LUNA_REQUEST_SEMANTIC_FAILURE_STOP_TOKEN : Int32 = 0
 
 ///|
-const LUNA_REQUEST_SEMANTIC_FAILURE_STOP_STRING : Int = 1
+const LUNA_REQUEST_SEMANTIC_FAILURE_STOP_STRING : Int32 = 1
 
 ///|
-const LUNA_REQUEST_SEMANTIC_FAILURE_CACHE_SCOPE : Int = 2
+const LUNA_REQUEST_SEMANTIC_FAILURE_CACHE_SCOPE : Int32 = 2
 
 ///|
-const LUNA_REQUEST_SEMANTIC_ISSUE_EMPTY : Int = 0
+const LUNA_REQUEST_SEMANTIC_ISSUE_EMPTY : Int32 = 0
 
 ///|
-const LUNA_REQUEST_SEMANTIC_ISSUE_TOO_LONG : Int = 1
+const LUNA_REQUEST_SEMANTIC_ISSUE_TOO_LONG : Int32 = 1
 
 ///|
-const LUNA_REQUEST_SEMANTIC_ISSUE_INVALID_FORMAT : Int = 2
+const LUNA_REQUEST_SEMANTIC_ISSUE_INVALID_FORMAT : Int32 = 2
 
 ///|
-const LUNA_REQUEST_SEMANTIC_ISSUE_OUT_OF_RANGE : Int = 3
+const LUNA_REQUEST_SEMANTIC_ISSUE_OUT_OF_RANGE : Int32 = 3
 
 ///|
-const LUNA_REQUEST_SEMANTIC_ISSUE_DUPLICATE : Int = 4
+const LUNA_REQUEST_SEMANTIC_ISSUE_DUPLICATE : Int32 = 4
 
 ///|
 #valtype
 pub struct LunaRequestSemanticStepBudget {
-  priv work_units : Int
+  priv work_units : Int32
 }
 
 ///|
 pub fn LunaRequestSemanticStepBudget::new(
-  work_units : Int,
+  work_units : Int32,
 ) -> LunaRequestSemanticStepBudget raise InferenceContractError {
   if work_units <= 0 || work_units > LUNA_REQUEST_SEMANTIC_MAX_STEP_WORK_UNITS {
     raise invalid(LunaRequestSemantic, OutOfRange, 0)
@@ -92,14 +92,14 @@ pub fn LunaRequestSemanticStepBudget::new(
 ///|
 pub fn LunaRequestSemanticStepBudget::work_units(
   self : LunaRequestSemanticStepBudget,
-) -> Int {
+) -> Int32 {
   self.work_units
 }
 
 ///|
 #valtype
 pub struct LunaRequestSemanticProgress {
-  priv state : Int
+  priv state : Int32
 }
 
 ///|
@@ -126,7 +126,7 @@ pub fn LunaRequestSemanticProgress::is_failed(
 ///|
 #valtype
 pub struct LunaRequestSemanticState {
-  priv state : Int
+  priv state : Int32
 }
 
 ///|
@@ -153,9 +153,9 @@ pub fn LunaRequestSemanticState::is_failed(
 ///|
 #valtype
 pub struct LunaRequestSemanticFailure {
-  priv field_code : Int
-  priv issue_code : Int
-  priv index : Int
+  priv field_code : Int32
+  priv issue_code : Int32
+  priv index : Int32
 }
 
 ///|
@@ -185,15 +185,15 @@ pub fn LunaRequestSemanticFailure::issue(
 ///|
 pub fn LunaRequestSemanticFailure::index(
   self : LunaRequestSemanticFailure,
-) -> Int {
+) -> Int32 {
   self.index
 }
 
 ///|
 #valtype
 pub struct LunaRequestSemanticStopTokenStatus {
-  priv state : Int
-  priv work_units : Int
+  priv state : Int32
+  priv work_units : Int32
 }
 
 ///|
@@ -221,7 +221,7 @@ pub fn LunaRequestSemanticStopTokenStatus::is_stale(
 /// Exact sorted-index comparisons consumed by this bounded lookup.
 pub fn LunaRequestSemanticStopTokenStatus::work_units(
   self : LunaRequestSemanticStopTokenStatus,
-) -> Int {
+) -> Int32 {
   self.work_units
 }
 
@@ -229,40 +229,40 @@ pub fn LunaRequestSemanticStopTokenStatus::work_units(
 pub struct LunaRequestSemanticStorage {
   priv limits : InferenceLimits
   priv budget : LunaRequestSemanticStepBudget
-  priv stop_tokens : FixedArray[Int]
-  priv sorted_stop_tokens : FixedArray[Int]
-  priv stop_string_offsets : FixedArray[Int]
-  priv stop_string_lengths : FixedArray[Int]
+  priv stop_tokens : FixedArray[Int32]
+  priv sorted_stop_tokens : FixedArray[Int32]
+  priv stop_string_offsets : FixedArray[Int32]
+  priv stop_string_lengths : FixedArray[Int32]
   priv stop_string_bytes : FixedArray[Byte]
   priv cache_scope_bytes : FixedArray[Byte]
   priv mut epoch : UInt64
   priv mut retention_cursor : UInt64
-  priv mut retention_count : Int
+  priv mut retention_count : Int32
   priv mut retention_id_a : UInt64
   priv mut retention_id_b : UInt64
-  priv mut phase : Int
-  priv mut stop_token_count : Int
-  priv mut stop_string_count : Int
-  priv mut cache_scope_length : Int
+  priv mut phase : Int32
+  priv mut stop_token_count : Int32
+  priv mut stop_string_count : Int32
+  priv mut cache_scope_length : Int32
   priv mut cache_permission : CachePermission
-  priv mut write_token_index : Int
-  priv mut write_string_index : Int
-  priv mut write_string_remaining : Int
-  priv mut write_stop_byte_index : Int
-  priv mut write_cache_index : Int
-  priv mut item_index : Int
-  priv mut prior_index : Int
-  priv mut byte_index : Int
-  priv mut utf8_remaining : Int
-  priv mut utf8_codepoint : Int
-  priv mut utf8_minimum : Int
-  priv mut sort_index : Int
-  priv mut sort_position : Int
-  priv mut sort_key : Int
-  priv mut failure_field : Int
-  priv mut failure_issue : Int
-  priv mut failure_index : Int
-  priv mut last_work_units : Int
+  priv mut write_token_index : Int32
+  priv mut write_string_index : Int32
+  priv mut write_string_remaining : Int32
+  priv mut write_stop_byte_index : Int32
+  priv mut write_cache_index : Int32
+  priv mut item_index : Int32
+  priv mut prior_index : Int32
+  priv mut byte_index : Int32
+  priv mut utf8_remaining : Int32
+  priv mut utf8_codepoint : Int32
+  priv mut utf8_minimum : Int32
+  priv mut sort_index : Int32
+  priv mut sort_position : Int32
+  priv mut sort_key : Int32
+  priv mut failure_field : Int32
+  priv mut failure_issue : Int32
+  priv mut failure_index : Int32
+  priv mut last_work_units : Int32
   priv mut total_work_units : UInt64
 }
 

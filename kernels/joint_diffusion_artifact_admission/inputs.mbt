@@ -1,12 +1,12 @@
 ///|
 pub fn JointDiffusionArtifactAdmissionLimits::new(
-  maximum_requirements~ : Int,
-  maximum_modules~ : Int,
-  maximum_entry_points~ : Int,
+  maximum_requirements~ : Int32,
+  maximum_modules~ : Int32,
+  maximum_entry_points~ : Int32,
   maximum_module_bytes~ : Int64,
   maximum_total_module_bytes~ : Int64,
-  maximum_symbol_bytes~ : Int,
-  maximum_operands_per_launch~ : Int,
+  maximum_symbol_bytes~ : Int32,
+  maximum_operands_per_launch~ : Int32,
 ) -> Self raise JointDiffusionArtifactAdmissionError {
   if maximum_requirements <= 0 ||
     maximum_requirements > 64 ||
@@ -79,7 +79,7 @@ pub fn JointDiffusionLaunchOperand::alignment(self : Self) -> Int64 {
 ///|
 pub fn JointDiffusionLaunchEvidenceInput::new(
   requirements_digest~ : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   operation~ : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation,
   capability~ : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability,
   target~ : @catalog.DeviceTarget,

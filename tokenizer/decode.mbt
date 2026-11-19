@@ -2,7 +2,7 @@
 /// Decode token IDs back to their exact configured byte pieces.
 pub fn TokenizerSpec::decode_bytes(
   self : TokenizerSpec,
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   special_policy~ : DecodeSpecialPolicy,
 ) -> Bytes raise TokenizerError {
   if token_ids.length() > self.limits.max_output_tokens {
@@ -58,7 +58,7 @@ pub fn TokenizerSpec::decode_bytes(
 /// Use `decode_bytes` when arbitrary byte output is valid for the caller.
 pub fn TokenizerSpec::decode_text(
   self : TokenizerSpec,
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   special_policy~ : DecodeSpecialPolicy,
 ) -> String raise TokenizerError {
   let bytes = self.decode_bytes(token_ids, special_policy~)
@@ -72,9 +72,9 @@ pub fn TokenizerSpec::decode_text(
 /// special-token policy. This performs no output allocation.
 pub fn TokenizerSpec::decoded_piece_bytes(
   self : TokenizerSpec,
-  token_id : Int,
+  token_id : Int32,
   special_policy~ : DecodeSpecialPolicy,
-) -> Int raise TokenizerError {
+) -> Int32 raise TokenizerError {
   guard self.tokens_by_id.get(token_id) is Some(token) else {
     raise UnknownTokenId(token_id~)
   }
@@ -92,11 +92,11 @@ pub fn TokenizerSpec::decoded_piece_bytes(
 /// token and otherwise equals `decoded_piece_bytes` for the same arguments.
 pub fn TokenizerSpec::copy_decoded_piece(
   self : TokenizerSpec,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
   special_policy~ : DecodeSpecialPolicy,
-) -> Int raise TokenizerError {
+) -> Int32 raise TokenizerError {
   guard self.tokens_by_id.get(token_id) is Some(token) else {
     raise UnknownTokenId(token_id~)
   }
@@ -123,9 +123,9 @@ pub fn TokenizerSpec::copy_decoded_piece(
 /// reported as an opaque scalar status and leaves the destination unchanged.
 pub fn TokenizerSpec::copy_decoded_piece_status(
   self : TokenizerSpec,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
   special_policy~ : DecodeSpecialPolicy,
 ) -> DecodePieceStatus {
   guard self.tokens_by_id.get(token_id) is Some(token) else {

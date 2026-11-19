@@ -2,7 +2,7 @@
 fn wb_final_completion(
   owner : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  token : Int,
+  token : Int32,
 ) -> @worker_protocol.SubmittedCompletion {
   let row = try! plan.prefill_row(0)
   let writer = try! owner.completion_writer(plan)

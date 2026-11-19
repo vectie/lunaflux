@@ -21,7 +21,7 @@ priv enum WorkerPhysicalExchangeProgress {
 }
 
 ///|
-priv struct WorkerPhysicalMaintenanceProgress(Int)
+priv struct WorkerPhysicalMaintenanceProgress(Int32)
 
 ///|
 #valtype

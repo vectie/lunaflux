@@ -1,7 +1,7 @@
 ///|
 fn exact_moe_decoder_residual_add_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  hidden_width : Int,
+  hidden_width : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if hidden_width != requirements.geometry().hidden_size() {
@@ -29,7 +29,7 @@ fn exact_moe_decoder_residual_add_abi(
 ///|
 fn exact_hyper_connection_mix_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  stream_count : Int,
+  stream_count : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if stream_count <= 0 {

@@ -22,14 +22,14 @@ pub fn DeepSeekV4TokenHashCompileEvidenceBinding::requirements_digest(
 ///|
 pub fn DeepSeekV4TokenHashCompileEvidenceBinding::layer_index(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.layer_index
 }
 
 ///|
 pub fn DeepSeekV4TokenHashCompileEvidenceBinding::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -92,7 +92,7 @@ pub fn DeepSeekV4TokenHashCompileEvidenceBinding::module_digest(
 ///|
 pub fn DeepSeekV4TokenHashCompileEvidenceBinding::module_byte_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.module_byte_count
 }
 

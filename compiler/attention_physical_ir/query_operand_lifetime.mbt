@@ -4,9 +4,9 @@
 /// operands are epoch-local. Retention changes storage, not the fold law.
 pub struct QueryOperandLifetime {
   priv program : OnlineFragmentProgram
-  priv retained_dimensions : Int
-  priv operand_words : Int
-  priv accumulator_words : Int
+  priv retained_dimensions : Int32
+  priv operand_words : Int32
+  priv accumulator_words : Int32
   priv joint_right_consumers : Bool
 } derive(Eq, Debug)
 
@@ -22,10 +22,10 @@ pub extend QueryOperandLifetime with @debug.Debug::{to_repr}
 /// independently normalized probability can be retained as a query operand.
 pub fn QueryOperandLifetime::new(
   program : OnlineFragmentProgram,
-  retained_dimensions~ : Int,
-  operand_words~ : Int,
-  accumulator_words~ : Int,
-  joint_right_consumers? : Bool = false,
+  retained_dimensions~ : Int32,
+  operand_words~ : Int32,
+  accumulator_words~ : Int32,
+  joint_right_consumers~ : Bool = false,
 ) -> QueryOperandLifetime? {
   let (_, _, dimensions) = program.fold().geometry()
   let (_, _, quantum) = program.geometry()
@@ -70,14 +70,14 @@ pub fn QueryOperandLifetime::program(
 ///|
 pub fn QueryOperandLifetime::retained_dimensions(
   self : QueryOperandLifetime,
-) -> Int {
+) -> Int32 {
   self.retained_dimensions
 }
 
 ///|
 pub fn QueryOperandLifetime::retained_fragments(
   self : QueryOperandLifetime,
-) -> Int {
+) -> Int32 {
   self.retained_dimensions / self.program.geometry().2
 }
 
@@ -86,7 +86,7 @@ pub fn QueryOperandLifetime::retained_fragments(
 /// and ragged-tail folds. Query masks do not change the complete-fragment ABI.
 pub fn QueryOperandLifetime::query_load_count(
   self : QueryOperandLifetime,
-  epochs : Int,
+  epochs : Int32,
 ) -> Int64? {
   guard epochs >= 0 else { return None }
   let (_, _, dimensions) = self.program.fold().geometry()
@@ -108,7 +108,7 @@ pub fn QueryOperandLifetime::query_load_count(
 /// Output lives through both phases; score and probability have disjoint uses.
 pub fn QueryOperandLifetime::peak_fragment_words(
   self : QueryOperandLifetime,
-) -> Int {
+) -> Int32 {
   let (_, keys, dimensions) = self.program.fold().geometry()
   let (_, columns, _) = self.program.geometry()
   let retained = self.retained_fragments() * self.operand_words
@@ -123,5 +123,5 @@ pub fn QueryOperandLifetime::peak_fragment_words(
   // simultaneous query reload. The score accumulator still owns probabilities.
   let pv = self.operand_words * 2 + self.accumulator_words
   let qk = transient_query + self.operand_words
-  retained + output + score + Int::max(qk, pv)
+  retained + output + score + Int32::max(qk, pv)
 }

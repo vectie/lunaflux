@@ -35,12 +35,12 @@ pub fn Glm53HostSourceDigest::as_hex(self : Self) -> String {
 }
 
 ///|
-pub fn Glm53HostWeights::tensor_count(self : Self) -> Int {
+pub fn Glm53HostWeights::tensor_count(self : Self) -> Int32 {
   self.regions.length()
 }
 
 ///|
-pub fn Glm53HostWeights::arena_count(self : Self) -> Int {
+pub fn Glm53HostWeights::arena_count(self : Self) -> Int32 {
   self.arenas.length()
 }
 
@@ -48,8 +48,8 @@ pub fn Glm53HostWeights::arena_count(self : Self) -> Int {
 /// Report the exact length of one live host arena without exposing its bytes.
 pub fn Glm53HostWeights::device_arena_size(
   self : Self,
-  arena_ordinal : Int,
-) -> Int raise @segmented_host_borrow.SegmentedHostBorrowError {
+  arena_ordinal : Int32,
+) -> Int32 raise @segmented_host_borrow.SegmentedHostBorrowError {
   if !self.open || arena_ordinal < 0 || arena_ordinal >= self.arenas.length() {
     raise SourceUnavailable(arena_ordinal)
   }
@@ -61,7 +61,7 @@ pub fn Glm53HostWeights::device_arena_size(
 /// consumer cannot retain or reuse the borrow after this call returns.
 pub fn Glm53HostWeights::provide_device_arena(
   self : Self,
-  arena_ordinal : Int,
+  arena_ordinal : Int32,
   consumer : @segmented_host_borrow.SegmentedHostArenaConsumer,
 ) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError {
   if !self.open || arena_ordinal < 0 || arena_ordinal >= self.arenas.length() {
@@ -83,7 +83,7 @@ pub fn Glm53HostWeights::is_closed(self : Self) -> Bool {
 ///|
 pub fn Glm53HostWeights::tensor_region(
   self : Self,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Glm53HostTensorRegion raise Glm53HostMaterializeError {
   if !self.open {
     raise Closed
@@ -97,7 +97,7 @@ pub fn Glm53HostWeights::tensor_region(
 ///|
 pub fn Glm53HostWeights::tensor_byte(
   self : Self,
-  ordinal : Int,
+  ordinal : Int32,
   byte_offset : Int64,
 ) -> Byte raise Glm53HostMaterializeError {
   let region = self.tensor_region(ordinal)

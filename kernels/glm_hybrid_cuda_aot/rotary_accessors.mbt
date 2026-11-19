@@ -27,7 +27,7 @@ pub fn GlmHybridRotaryCudaCandidate::requirements_digest(
 }
 
 ///|
-pub fn GlmHybridRotaryCudaCandidate::requirement_ordinal(self : Self) -> Int {
+pub fn GlmHybridRotaryCudaCandidate::requirement_ordinal(self : Self) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -46,27 +46,27 @@ pub fn GlmHybridRotaryCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridRotaryCudaCandidate::query_head_count(self : Self) -> Int {
+pub fn GlmHybridRotaryCudaCandidate::query_head_count(self : Self) -> Int32 {
   self.query_head_count
 }
 
 ///|
-pub fn GlmHybridRotaryCudaCandidate::query_head_dimension(self : Self) -> Int {
+pub fn GlmHybridRotaryCudaCandidate::query_head_dimension(self : Self) -> Int32 {
   self.query_head_dimension
 }
 
 ///|
-pub fn GlmHybridRotaryCudaCandidate::rope_dimension(self : Self) -> Int {
+pub fn GlmHybridRotaryCudaCandidate::rope_dimension(self : Self) -> Int32 {
   self.rope_dimension
 }
 
 ///|
-pub fn GlmHybridRotaryCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridRotaryCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
-pub fn GlmHybridRotaryCudaCandidate::maximum_positions(self : Self) -> Int {
+pub fn GlmHybridRotaryCudaCandidate::maximum_positions(self : Self) -> Int32 {
   self.maximum_positions
 }
 

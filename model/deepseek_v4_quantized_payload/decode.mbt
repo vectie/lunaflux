@@ -1,5 +1,5 @@
 ///|
-fn power_of_two(exponent : Int) -> Double {
+fn power_of_two(exponent : Int32) -> Double {
   let mut value = 1.0
   if exponent >= 0 {
     for _ in 0..<exponent {

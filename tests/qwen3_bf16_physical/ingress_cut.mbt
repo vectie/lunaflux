@@ -8,7 +8,7 @@ fn ingress_cut_launches(
   host : ArrayView[Bytes],
 ) -> Array[@device.OrderedKernelLaunch] raise {
   let arguments = fn(
-    indices : ArrayView[Int],
+    indices : ArrayView[Int32],
   ) -> @device.KernelArguments raise {
     @device.KernelArguments::new(
       indices.map(index => {

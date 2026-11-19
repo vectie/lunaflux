@@ -1,15 +1,15 @@
 ///|
 pub fn f32_weight_normalized_conv1d_source(
-  batch_count~ : Int,
-  input_channels~ : Int,
-  output_channels~ : Int,
-  input_time~ : Int,
-  kernel_size~ : Int,
-  padding~ : Int,
-  stride~ : Int,
+  batch_count~ : Int32,
+  input_channels~ : Int32,
+  output_channels~ : Int32,
+  input_time~ : Int32,
+  kernel_size~ : Int32,
+  padding~ : Int32,
+  stride~ : Int32,
   normalize_symbol~ : String,
   convolution_symbol~ : String,
-  use_bias? : Bool = true,
+  use_bias~ : Bool = true,
 ) -> WeightNormalizedConv1dCudaSource raise ChannelMajorProjectionCudaSourceError {
   if batch_count <= 0 {
     raise InvalidBatchCount

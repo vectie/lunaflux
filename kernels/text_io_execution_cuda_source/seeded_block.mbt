@@ -5,8 +5,8 @@ pub fn seeded_token_block_source(
 ) -> Bytes raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 80 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (v, rows, main_rows, noise) = plan.geometry()

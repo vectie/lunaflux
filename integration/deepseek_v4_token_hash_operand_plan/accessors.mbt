@@ -20,22 +20,26 @@ pub fn DeepSeekV4TokenHashOperandPlan::requirements_digest(
 }
 
 ///|
-pub fn DeepSeekV4TokenHashOperandPlan::requirement_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashOperandPlan::requirement_ordinal(
+  self : Self,
+) -> Int32 {
   self.requirement_ordinal
 }
 
 ///|
-pub fn DeepSeekV4TokenHashOperandPlan::layer_index(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashOperandPlan::layer_index(self : Self) -> Int32 {
   self.layer_index
 }
 
 ///|
-pub fn DeepSeekV4TokenHashOperandPlan::routed_expert_count(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashOperandPlan::routed_expert_count(
+  self : Self,
+) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
-pub fn DeepSeekV4TokenHashOperandPlan::operand_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashOperandPlan::operand_ordinal(self : Self) -> Int32 {
   self.operand_ordinal
 }
 
@@ -57,14 +61,14 @@ pub fn DeepSeekV4TokenHashOperandPlan::alignment(self : Self) -> Int64 {
 }
 
 ///|
-pub fn DeepSeekV4TokenHashOperandPlan::region_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashOperandPlan::region_ordinal(self : Self) -> Int32 {
   self.region_ordinal
 }
 
 ///|
 pub fn DeepSeekV4TokenHashOperandPlan::region_tensor_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.region_tensor_ordinal
 }
 

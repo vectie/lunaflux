@@ -29,7 +29,7 @@ pub fn GlmHybridMoeFeedForwardCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridMoeFeedForwardCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,7 +48,9 @@ pub fn GlmHybridMoeFeedForwardCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridMoeFeedForwardCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridMoeFeedForwardCudaCandidate::maximum_tokens(
+  self : Self,
+) -> Int32 {
   self.maximum_tokens
 }
 

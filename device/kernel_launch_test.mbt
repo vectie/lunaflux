@@ -15,7 +15,7 @@ test "kernel launch dimensions admit one bounded geometry" {
 
 ///|
 test "kernel launch dimensions reject unsafe geometry" {
-  let invalid : Array[(Int, Int, Int, Int, Int, Int, Int)] = [
+  let invalid : Array[(Int32, Int32, Int32, Int32, Int32, Int32, Int32)] = [
     (0, 1, 1, 1, 1, 1, 0),
     (1, 65536, 1, 1, 1, 1, 0),
     (1, 1, 1, 1024, 2, 1, 0),

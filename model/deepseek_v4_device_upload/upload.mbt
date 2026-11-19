@@ -19,7 +19,7 @@ pub fn plan_device_upload(
   if weights.is_released() {
     raise Host(ArenaReleased)
   }
-  let arena_lengths : Array[Int] = []
+  let arena_lengths : Array[Int32] = []
   for arena_ordinal in 0..<weights.arena_count() {
     arena_lengths.push(
       from_borrow(() => weights.device_arena_size(arena_ordinal)),

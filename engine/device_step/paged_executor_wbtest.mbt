@@ -8,7 +8,7 @@ fn[Step] run_paged_ordered_step_range(
   steps : ReadOnlyArray[Step],
   lifecycle : PagedGraphLifecycle,
   set_lifecycle : (PagedGraphLifecycle) -> Unit,
-  enqueue : (Int, Step) -> Unit raise DeviceStepError,
+  enqueue : (Int32, Step) -> Unit raise DeviceStepError,
   record : () -> Unit raise DeviceStepError,
   wait : () -> Unit raise DeviceStepError,
   abort : () -> Unit,
@@ -32,7 +32,7 @@ fn[Step] run_paged_ordered_step_range(
 ///|
 fn dummy_paged_executor(
   lifecycle : PagedGraphLifecycle,
-  fp8_frame_admission? : Fp8FrameAdmissionStateV3? = None,
+  fp8_frame_admission~ : Fp8FrameAdmissionStateV3? = None,
 ) -> PagedGraphExecutor {
   let limits = try! @sampling.SamplingLimits::new(1, 1)
   let profile = try! @launch_contract.PagedKernelProfile::new(

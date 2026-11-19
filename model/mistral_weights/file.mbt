@@ -56,7 +56,7 @@ pub fn inspect_paged_file(
   limits~ : @numeric_weight_file.NumericWeightFileLimits,
   alignment_bytes~ : Int64,
   max_arena_bytes~ : Int64,
-  batch? : @mistral.MistralPagedBatchEnvelope = @mistral.MistralPagedBatchEnvelope::single_row(),
+  batch~ : @mistral.MistralPagedBatchEnvelope = @mistral.MistralPagedBatchEnvelope::single_row(),
 ) -> MistralWeightFileInspection raise MistralWeightsError {
   let plan = @mistral.build_paged(metadata, batch~) catch {
     error => raise InvalidModelPlan(error)

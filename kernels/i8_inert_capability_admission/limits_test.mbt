@@ -1,8 +1,8 @@
 ///|
 fn expect_i8_limits_rejected(
-  operations : Int,
-  weights : Int,
-  canonical : Int,
+  operations : Int32,
+  weights : Int32,
+  canonical : Int32,
 ) -> Unit raise {
   try
     @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionLimits::new(

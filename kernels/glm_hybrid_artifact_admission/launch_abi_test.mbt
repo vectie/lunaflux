@@ -1,7 +1,7 @@
 ///|
 fn artifact_test_exact_launch(
-  grid_x : Int,
-  shared_memory_bytes : Int,
+  grid_x : Int32,
+  shared_memory_bytes : Int32,
 ) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x~,
@@ -39,7 +39,7 @@ fn artifact_test_operand(
 ///|
 fn artifact_test_abi(
   operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> (
   String,
   @launch_contract.AotLaunchDimensions,

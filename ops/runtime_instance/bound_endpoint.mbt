@@ -50,7 +50,7 @@ fn runtime_bound_endpoint_from_addr(
 fn runtime_control_origin_publication_allowed(
   phase : RuntimeInstancePhase,
   health : RuntimeInstanceHealth,
-  control_count : Int,
+  control_count : Int32,
   control_state : @online_tcp.LunaOnlineHttpControlState,
   control_health : @online_tcp.LunaOnlineTcpServerHealth,
 ) -> Bool {

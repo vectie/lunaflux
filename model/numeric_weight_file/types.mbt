@@ -2,11 +2,11 @@
 const NUMERIC_WEIGHT_FILE_FORMAT : String = "lunaflux.numeric-safetensors.v1"
 
 ///|
-const NUMERIC_WEIGHT_MAX_CHUNK_BYTES : Int = 16 * 1024 * 1024
+const NUMERIC_WEIGHT_MAX_CHUNK_BYTES : Int32 = 16 * 1024 * 1024
 
 ///|
 /// One F32 scale scalar is the minimum independently validated payload unit.
-const NUMERIC_WEIGHT_MIN_CHUNK_BYTES : Int = 4
+const NUMERIC_WEIGHT_MIN_CHUNK_BYTES : Int32 = 4
 
 ///|
 #valtype
@@ -35,17 +35,17 @@ pub fn NumericWeightArtifactDigest::as_hex(
 ///|
 pub struct NumericWeightFileLimits {
   priv max_file_bytes : Int64
-  priv max_header_bytes : Int
-  priv transfer_chunk_bytes : Int
-  priv max_tensor_count : Int
+  priv max_header_bytes : Int32
+  priv transfer_chunk_bytes : Int32
+  priv max_tensor_count : Int32
 }
 
 ///|
 pub fn NumericWeightFileLimits::new(
   max_file_bytes~ : Int64,
-  max_header_bytes~ : Int,
-  transfer_chunk_bytes~ : Int,
-  max_tensor_count~ : Int,
+  max_header_bytes~ : Int32,
+  transfer_chunk_bytes~ : Int32,
+  max_tensor_count~ : Int32,
 ) -> NumericWeightFileLimits raise NumericWeightFileError {
   if max_file_bytes <= 8L {
     raise InvalidLimit(FileBytes)
@@ -73,27 +73,27 @@ pub fn NumericWeightFileLimits::max_file_bytes(
 ///|
 pub fn NumericWeightFileLimits::max_header_bytes(
   self : NumericWeightFileLimits,
-) -> Int {
+) -> Int32 {
   self.max_header_bytes
 }
 
 ///|
 pub fn NumericWeightFileLimits::transfer_chunk_bytes(
   self : NumericWeightFileLimits,
-) -> Int {
+) -> Int32 {
   self.transfer_chunk_bytes
 }
 
 ///|
 pub fn NumericWeightFileLimits::max_tensor_count(
   self : NumericWeightFileLimits,
-) -> Int {
+) -> Int32 {
   self.max_tensor_count
 }
 
 ///|
 priv struct NumericTransferRegion {
-  ordinal : Int
+  ordinal : Int32
   source_offset_bytes : Int64
   destination_offset_bytes : Int64
   byte_length : Int64

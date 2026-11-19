@@ -1,5 +1,5 @@
 ///|
-pub fn ProjectionTileValueId::as_int(self : ProjectionTileValueId) -> Int {
+pub fn ProjectionTileValueId::as_int(self : ProjectionTileValueId) -> Int32 {
   self.0
 }
 
@@ -62,7 +62,7 @@ pub fn ProjectionTileProgram::epilogue(
 ///|
 pub fn ProjectionAttentionIngressEpilogue::shape(
   self : ProjectionAttentionIngressEpilogue,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.query_heads, self.kv_heads, self.head_dimension)
 }
 
@@ -125,7 +125,7 @@ pub fn ProjectionTileOptimizationDigest::as_hex(
 ///|
 pub fn ProjectionLoopCombinator::components(
   self : ProjectionLoopCombinator,
-) -> (ProjectionIterationKind, ProjectionIterationAxis, Int, Int) {
+) -> (ProjectionIterationKind, ProjectionIterationAxis, Int32, Int32) {
   (self.kind, self.axis, self.extent, self.tile)
 }
 
@@ -213,7 +213,7 @@ pub fn ScheduledProjectionTileCompilation::source_program(
 /// Counts describe the source transformation, not the compiled-code identity.
 pub fn ScheduledProjectionTileCompilation::eliminated_bindings(
   self : ScheduledProjectionTileCompilation,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   let normalized = self.optimized.normalized
   (normalized.common_subexpressions, normalized.dead_bindings)
 }
@@ -256,6 +256,6 @@ pub fn ProjectionTileSchedule::selected_input_row_resident(
 ///|
 pub fn ProjectionTileSchedule::output_tiles_per_workgroup(
   self : ProjectionTileSchedule,
-) -> Int {
+) -> Int32 {
   self.output_tiles_per_workgroup
 }

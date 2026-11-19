@@ -30,7 +30,7 @@ fn admit_i8_model(
 ///|
 fn admit_i8_plan(
   model : @spec.LlamaModelMetadata,
-  max_batch_rows : Int,
+  max_batch_rows : Int32,
 ) -> @plan.ModelPlan raise RuntimeDescriptorFileError {
   let batch = @llama.LlamaPagedBatchEnvelope::new(max_batch_rows) catch {
     _ => raise AdmissionRejected(ModelPlan)

@@ -3,8 +3,8 @@
 // template, BOS, additional normalization or security checksum is inserted here.
 async fn prepare_text_frames(
   model_root : String,
-  rows : Int,
-  history : Int,
+  rows : Int32,
+  history : Int32,
   tokenizer_label : String,
   input_path : String,
   output : String,

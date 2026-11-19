@@ -1,10 +1,10 @@
 ///|
 fn luna_event_prepare_header_fields(
   bytes : FixedArray[Byte],
-  kind : Int,
-  length : Int,
-  flags : UInt,
-  payload_length : Int,
+  kind : Int32,
+  length : Int32,
+  flags : UInt32,
+  payload_length : Int32,
 ) -> Unit {
   write_u32(bytes, 0, event_magic)
   write_u32(bytes, 4, event_version)
@@ -18,8 +18,8 @@ fn luna_event_prepare_header_fields(
 ///|
 fn LunaFramedEventWorkspace::require_event_capacity(
   self : LunaFramedEventWorkspace,
-  payload_length : Int,
-) -> Int raise FramedWireError {
+  payload_length : Int32,
+) -> Int32 raise FramedWireError {
   if payload_length < 0 ||
     payload_length > self.storage.length() - EVENT_HEADER_BYTES {
     raise FrameTooLarge(frame=EventFrame)

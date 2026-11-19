@@ -2,7 +2,7 @@
 priv struct ReleaseCampaignDecoder {
   bytes : Bytes
   limits : ReleaseCampaignLimits
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
@@ -30,7 +30,7 @@ fn ReleaseCampaignDecoder::read_i64(
 ///|
 fn ReleaseCampaignDecoder::read_int(
   self : ReleaseCampaignDecoder,
-) -> Int raise ReleaseEvidenceError {
+) -> Int32 raise ReleaseEvidenceError {
   let value = self.read_i64()
   let decoded = value.to_int()
   if Int64::from_int(decoded) != value {

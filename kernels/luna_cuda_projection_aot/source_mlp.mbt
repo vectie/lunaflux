@@ -2,13 +2,13 @@
 fn projection_emit_source(
   symbol : String,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
-  maximum_rows : Int,
+  maximum_tokens : Int32,
+  maximum_rows : Int32,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   tile_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   embed_greedy_sampling : Bool,
   use_shared_mlp : Bool,
-  max_registers~ : Int,
+  max_registers~ : Int32,
 ) -> Bytes raise ProjectionAotError {
   match parameters.family {
     QkvProjection =>

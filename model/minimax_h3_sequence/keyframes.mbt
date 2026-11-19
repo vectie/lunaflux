@@ -5,14 +5,14 @@ pub(all) enum KeyframeAnchor {
 }
 
 ///|
-fn frame_span(index : Int) -> Double {
+fn frame_span(index : Int32) -> Double {
   5.0 / 3.0 * (if index % 5 == 0 { 1.0 } else { 4.0 })
 }
 
 ///|
 /// FL2VA uses an eight-lane, 128-element FP64 pairwise reduction, unlike
 /// Ref2VA's sequential span. Keep this numerical policy distinct.
-fn keyframe_span(start : Int, count : Int) -> Double {
+fn keyframe_span(start : Int32, count : Int32) -> Double {
   if count < 8 {
     for i in 0..<count; sum = -0.0 {
       continue sum + frame_span(start + i)
@@ -46,11 +46,11 @@ fn keyframe_span(start : Int, count : Int) -> Double {
 /// time. Anchors are resolved endpoints, not arbitrary frame indices.
 pub fn PositionedSequence::keyframes(
   target : VideoGrid,
-  hidden_width~ : Int,
-  text_rows~ : Int,
-  audio_frames~ : Int,
+  hidden_width~ : Int32,
+  text_rows~ : Int32,
+  audio_frames~ : Int32,
   anchors~ : ArrayView[KeyframeAnchor],
-  max_rows~ : Int,
+  max_rows~ : Int32,
 ) -> Self raise SequenceError {
   guard anchors.length() <= 2 else { raise InvalidConditioning }
   guard audio_frames > 0 && audio_frames <= max_rows / 2 else {

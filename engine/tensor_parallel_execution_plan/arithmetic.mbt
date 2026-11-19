@@ -10,8 +10,8 @@ fn valid_alignment(value : Int64) -> Bool {
 fn checked_add(
   left : Int64,
   right : Int64,
-  operation? : Int = -1,
-  operand? : Int = -1,
+  operation~ : Int32 = -1,
+  operand~ : Int32 = -1,
 ) -> Int64 raise TensorParallelExecutionPlanError {
   if left < 0L || right < 0L || left > TP_EXEC_MAX_I64 - right {
     raise rejected(CapacityOverflow, operation~, operand~)
@@ -23,8 +23,8 @@ fn checked_add(
 fn checked_multiply(
   left : Int64,
   right : Int64,
-  operation? : Int = -1,
-  operand? : Int = -1,
+  operation~ : Int32 = -1,
+  operand~ : Int32 = -1,
 ) -> Int64 raise TensorParallelExecutionPlanError {
   if left < 0L || right < 0L || (right != 0L && left > TP_EXEC_MAX_I64 / right) {
     raise rejected(CapacityOverflow, operation~, operand~)
@@ -36,8 +36,8 @@ fn checked_multiply(
 fn checked_align(
   value : Int64,
   alignment : Int64,
-  operation? : Int = -1,
-  operand? : Int = -1,
+  operation~ : Int32 = -1,
+  operand~ : Int32 = -1,
 ) -> Int64 raise TensorParallelExecutionPlanError {
   if !valid_alignment(alignment) {
     raise rejected(Alignment, operation~, operand~)
@@ -56,8 +56,8 @@ fn scalar_region(
   offset_bytes : Int64,
   byte_count : Int64,
   alignment : Int64,
-  operation? : Int = -1,
-  operand? : Int = -1,
+  operation~ : Int32 = -1,
+  operand~ : Int32 = -1,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   if offset_bytes < 0L || byte_count < 0L || !valid_alignment(alignment) {
     raise rejected(Alignment, operation~, operand~)

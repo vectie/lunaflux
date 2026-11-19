@@ -21,7 +21,7 @@ pub fn prepare_opaque_cli(
   model_argument : StringView,
   limits : RuntimeInstanceFileLimits,
   credential : @inference_credential.InheritedInferenceAuthPolicy?,
-  promotion_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  promotion_verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
 ) -> RuntimeInstanceOwner raise RuntimeInstanceError {
   prepare_with_startup_credential(
     model_argument,

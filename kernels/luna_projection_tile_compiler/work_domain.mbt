@@ -5,10 +5,10 @@
 /// is shared by offline launch planning and the emitted product-fold loops.
 pub fn ProjectionFoldPipeline::workgroup_count(
   self : ProjectionFoldPipeline,
-  maximum_rows~ : Int,
-  output_columns~ : Int,
-  matrix_columns~ : Int,
-) -> Int? {
+  maximum_rows~ : Int32,
+  output_columns~ : Int32,
+  matrix_columns~ : Int32,
+) -> Int32? {
   if maximum_rows <= 0 ||
     output_columns <= 0 ||
     matrix_columns <= 0 ||

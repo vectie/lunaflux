@@ -27,7 +27,7 @@ pub fn OnlineWorkerLease::recover_flight(
 /// Invalidates all device-resident state after the failed child is closed.
 pub fn OnlineWorkerLease::invalidate_device_state(
   self : OnlineWorkerLease,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   let service = self.require_current()
   service.require_no_maintenance()
   self.invalidate_device_state_exact_impl(service)
@@ -37,7 +37,7 @@ pub fn OnlineWorkerLease::invalidate_device_state(
 fn OnlineWorkerLease::invalidate_device_state_exact_impl(
   self : OnlineWorkerLease,
   service : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   service.require_lifecycle(ServiceDeviceInvalidationRequired)
   if service.scheduler.streaming_enabled() &&
     !service.require_transport().recovery_cleanup_complete() {
@@ -300,7 +300,7 @@ pub fn OnlineWorkerLease::progress_maintenance(
 ///|
 pub fn OnlineWorkerLease::maintenance_remaining_millis(
   self : OnlineWorkerLease,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_current().maintenance_remaining_millis_impl()
 }
 

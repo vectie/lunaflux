@@ -29,7 +29,7 @@ pub fn GlmHybridSparseAttentionCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridSparseAttentionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -50,47 +50,47 @@ pub fn GlmHybridSparseAttentionCudaCandidate::capability(
 ///|
 pub fn GlmHybridSparseAttentionCudaCandidate::query_head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_head_count
 }
 
 ///|
 pub fn GlmHybridSparseAttentionCudaCandidate::key_value_head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.key_value_head_count
 }
 
 ///|
 pub fn GlmHybridSparseAttentionCudaCandidate::query_key_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_key_dimension
 }
 
 ///|
 pub fn GlmHybridSparseAttentionCudaCandidate::value_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.value_dimension
 }
 
 ///|
-pub fn GlmHybridSparseAttentionCudaCandidate::top_k(self : Self) -> Int {
+pub fn GlmHybridSparseAttentionCudaCandidate::top_k(self : Self) -> Int32 {
   self.top_k
 }
 
 ///|
 pub fn GlmHybridSparseAttentionCudaCandidate::selected_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.selected_width
 }
 
 ///|
 pub fn GlmHybridSparseAttentionCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 

@@ -41,7 +41,7 @@ pub(all) enum DeepSeekV4WeightAdmission {
 } derive(Debug, Eq)
 
 ///|
-fn DeepSeekV4WeightEncoding::stable_index(self : Self) -> Int {
+fn DeepSeekV4WeightEncoding::stable_index(self : Self) -> Int32 {
   match self {
     BFloat16 => 0
     Float32 => 1

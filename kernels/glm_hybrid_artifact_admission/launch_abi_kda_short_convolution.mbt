@@ -1,8 +1,8 @@
 ///|
 fn exact_kda_short_convolution_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  channel_count : Int,
-  kernel_size : Int,
+  channel_count : Int32,
+  kernel_size : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if channel_count != 8192 || kernel_size != 4 {

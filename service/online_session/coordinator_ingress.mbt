@@ -20,8 +20,8 @@ fn luna_coordinator_request_error(
 ///|
 fn luna_framed_ingress(
   kind : LunaOnlineFramedIngressKind,
-  consumed : Int,
-  route_sequence? : UInt64 = 0UL,
+  consumed : Int32,
+  route_sequence~ : UInt64 = 0UL,
 ) -> LunaOnlineFramedIngress {
   {
     disposition: match kind {
@@ -36,7 +36,7 @@ fn luna_framed_ingress(
 
 ///|
 fn luna_framed_ingress_consumed(
-  consumed : Int,
+  consumed : Int32,
   route_sequence : UInt64,
 ) -> LunaOnlineFramedIngress {
   luna_framed_ingress(
@@ -65,7 +65,7 @@ pub fn LunaOnlineFramedIngress::kind(
 ///|
 pub fn LunaOnlineFramedIngress::consumed_bytes(
   self : LunaOnlineFramedIngress,
-) -> Int {
+) -> Int32 {
   self.consumed
 }
 
@@ -99,7 +99,7 @@ pub fn LunaOnlineFramedRequestRoute::same_request(
 }
 
 ///|
-fn LunaOnlineFramedService::queue_tail(self : LunaOnlineFramedService) -> Int {
+fn LunaOnlineFramedService::queue_tail(self : LunaOnlineFramedService) -> Int32 {
   (self.queue_head + self.queue_count) % self.work_slots.length()
 }
 
@@ -158,8 +158,8 @@ fn LunaOnlineFramedService::observe_receipt_completion(
 fn LunaOnlineFramedService::stream_offer_luna_framed(
   self : LunaOnlineFramedService,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError {
   if self.closed || self.drain_requested || self.disconnect_requested {
     return luna_framed_ingress(LunaOnlineFramedIngressDraining, 0)
@@ -231,8 +231,8 @@ fn LunaOnlineFramedService::stream_offer_luna_framed_with_receipt(
   self : LunaOnlineFramedService,
   receipt : @request_admission.LunaRequestReceipt,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaOnlineFramedIngress raise LunaOnlineFramedCoordinatorError {
   if self.closed || self.drain_requested || self.disconnect_requested {
     return luna_framed_ingress(LunaOnlineFramedIngressDraining, 0)

@@ -126,7 +126,7 @@ fn segmented_requests(
 fn visit_matches_transfer(
   transfers : ArrayView[Glm53HostTransfer],
   visited : @streaming_safetensors.StreamingSafetensorsSegmentedVisitedRange,
-  seen : Array[Int],
+  seen : Array[Int32],
 ) -> Unit raise @streaming_safetensors.StreamingSafetensorsError {
   let mut request_ordinal = 0
   for transfer in transfers {

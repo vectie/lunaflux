@@ -3,7 +3,7 @@ priv struct PreparedRequest {
   request : @inference.GenerateRequest
   deadline : @inference.AdmissionDeadline
   effective : @inference.EffectiveLimits
-  input_capacity : Int
+  input_capacity : Int32
 }
 
 ///|
@@ -62,9 +62,12 @@ fn preflight_bound_request(
   ) catch {
     _ => raise Invalid(Input)
   }
-  let input_capacity = Int::min(
+  let input_capacity = Int32::min(
     effective.context_ceiling() - effective.max_new_tokens(),
-    Int::min(inference.max_input_tokens(), tokenizer.limits().max_output_tokens),
+    Int32::min(
+      inference.max_input_tokens(),
+      tokenizer.limits().max_output_tokens,
+    ),
   )
   if input_capacity <= 0 {
     raise Invalid(Input)

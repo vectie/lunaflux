@@ -1,5 +1,5 @@
 ///|
-pub struct Fp8LaunchAbiVersion(Int) derive(Debug, Eq)
+pub struct Fp8LaunchAbiVersion(Int32) derive(Debug, Eq)
 
 ///|
 pub fn Fp8LaunchAbiVersion::v1() -> Fp8LaunchAbiVersion {
@@ -7,7 +7,7 @@ pub fn Fp8LaunchAbiVersion::v1() -> Fp8LaunchAbiVersion {
 }
 
 ///|
-pub fn Fp8LaunchAbiVersion::as_int(self : Fp8LaunchAbiVersion) -> Int {
+pub fn Fp8LaunchAbiVersion::as_int(self : Fp8LaunchAbiVersion) -> Int32 {
   self.0
 }
 

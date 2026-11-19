@@ -1,11 +1,11 @@
 ///|
-const TABLE_FREE : Int = 0
+const TABLE_FREE : Int32 = 0
 
 ///|
-const TABLE_ALLOCATED : Int = 1
+const TABLE_ALLOCATED : Int32 = 1
 
 ///|
-const TABLE_RETIRED : Int = 2
+const TABLE_RETIRED : Int32 = 2
 
 ///|
 /// Preallocates the complete dense mapping arena and ascending FIFO free list.
@@ -59,17 +59,17 @@ pub fn BlockTableArena::limits(self : BlockTableArena) -> BlockTableLimits {
 }
 
 ///|
-pub fn BlockTableArena::free_table_count(self : BlockTableArena) -> Int {
+pub fn BlockTableArena::free_table_count(self : BlockTableArena) -> Int32 {
   self.free_tables
 }
 
 ///|
-pub fn BlockTableArena::allocated_table_count(self : BlockTableArena) -> Int {
+pub fn BlockTableArena::allocated_table_count(self : BlockTableArena) -> Int32 {
   self.allocated_tables
 }
 
 ///|
-pub fn BlockTableArena::retired_table_count(self : BlockTableArena) -> Int {
+pub fn BlockTableArena::retired_table_count(self : BlockTableArena) -> Int32 {
   self.retired_tables
 }
 
@@ -77,7 +77,7 @@ pub fn BlockTableArena::retired_table_count(self : BlockTableArena) -> Int {
 fn BlockTableArena::checked_index(
   self : BlockTableArena,
   table : BlockTableId,
-) -> Int raise BlockTableError {
+) -> Int32 raise BlockTableError {
   let index = table.index()
   if index < 0 ||
     index >= self.table_capacity ||
@@ -128,7 +128,10 @@ pub fn BlockTableArena::allocate(
 }
 
 ///|
-fn BlockTableArena::recycle_empty(self : BlockTableArena, index : Int) -> Unit {
+fn BlockTableArena::recycle_empty(
+  self : BlockTableArena,
+  index : Int32,
+) -> Unit {
   self.allocated_tables -= 1
   if self.generations[index] == self.max_generation {
     self.states[index] = TABLE_RETIRED
@@ -168,7 +171,7 @@ pub fn BlockTableArena::release(
 pub fn BlockTableArena::page_count(
   self : BlockTableArena,
   table : BlockTableId,
-) -> Int raise BlockTableError {
+) -> Int32 raise BlockTableError {
   let index = self.checked_index(table)
   self.page_counts[index]
 }
@@ -177,8 +180,8 @@ pub fn BlockTableArena::page_count(
 fn BlockTableArena::checked_append_index(
   self : BlockTableArena,
   table : BlockTableId,
-  added : Int,
-) -> Int raise BlockTableError {
+  added : Int32,
+) -> Int32 raise BlockTableError {
   let index = self.checked_index(table)
   if added <= 0 || added > self.max_pages_per_table {
     raise InvalidPageCount
@@ -253,7 +256,7 @@ pub fn BlockTableArena::append_pages(
 pub fn BlockTableArena::page_at(
   self : BlockTableArena,
   table : BlockTableId,
-  logical_page_index : Int,
+  logical_page_index : Int32,
 ) -> @page_allocator.PageId raise BlockTableError {
   let index = self.checked_index(table)
   if logical_page_index < 0 || logical_page_index >= self.page_counts[index] {
@@ -271,7 +274,7 @@ pub fn BlockTableArena::page_at(
 pub fn BlockTableArena::resolve_token_position(
   self : BlockTableArena,
   table : BlockTableId,
-  token_position : Int,
+  token_position : Int32,
   output : BlockTablePositionBuffer,
 ) -> Unit raise BlockTableError {
   let index = self.checked_index(table)
@@ -315,7 +318,7 @@ pub fn BlockTableArena::copy_pages(
 pub fn BlockTableArena::truncate(
   self : BlockTableArena,
   table : BlockTableId,
-  new_length : Int,
+  new_length : Int32,
   output : BlockTablePageBuffer,
 ) -> Unit raise BlockTableError {
   self.require_checkpoint_closed()

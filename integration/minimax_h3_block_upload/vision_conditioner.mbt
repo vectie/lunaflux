@@ -6,7 +6,7 @@ pub fn upload_vision_conditioner(
   packing : @vision_plan.WeightGroup,
   expected_identity~ : @spec.ModelIdentity,
   destination_offset~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_vision_conditioner_weights(

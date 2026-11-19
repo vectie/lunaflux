@@ -32,8 +32,8 @@ fn hyper_connection_operand_text(
 ///|
 fn hyper_connection_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
   operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
@@ -122,8 +122,8 @@ fn hyper_connection_recipe(
 /// post-combination, and head reduction remain unsupported operations.
 pub fn lower_hyper_connection_block_control_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

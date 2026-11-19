@@ -1,7 +1,7 @@
 ///|
 fn llama_tp_require_operation(
   operations : ReadOnlyArray[@plan.PlanOperation],
-  index : Int,
+  index : Int32,
   kind : @plan.OperationKind,
 ) -> @plan.PlanOperation raise LlamaTensorParallelError {
   if index < 0 ||
@@ -15,8 +15,8 @@ fn llama_tp_require_operation(
 ///|
 fn llama_tp_require_tensor_input(
   operation : @plan.PlanOperation,
-  input_index : Int,
-  reference : Int,
+  input_index : Int32,
+  reference : Int32,
 ) -> Unit raise LlamaTensorParallelError {
   let inputs = operation.inputs()
   if input_index < 0 || input_index >= inputs.length() {
@@ -43,7 +43,7 @@ fn llama_tp_require_no_tensor_inputs(
 fn llama_tp_validate_dense_plan(
   model : @plan.ModelPlan,
   bindings : @llama_weights.LlamaWeightBindings,
-) -> Int raise LlamaTensorParallelError {
+) -> Int32 raise LlamaTensorParallelError {
   if model.identity().content() != bindings.identity().content() {
     raise IdentityMismatch
   }
@@ -135,7 +135,7 @@ fn llama_tp_validate_dense_plan(
 ///|
 fn llama_tp_require_binding_shape(
   bindings : @llama_weights.LlamaWeightBindings,
-  reference : Int,
+  reference : Int32,
   rows : Int64,
   columns : Int64,
 ) -> @safetensors.TensorMetadata raise LlamaTensorParallelError {

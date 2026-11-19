@@ -35,7 +35,7 @@ fn luna_http1_bearer_byte(byte : Byte, padding : Bool) -> Bool {
 }
 
 ///|
-fn luna_http1_request_byte(index : Int) -> Byte {
+fn luna_http1_request_byte(index : Int32) -> Byte {
   match index {
     0 => b'P'
     1 => b'O'
@@ -45,7 +45,7 @@ fn luna_http1_request_byte(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_responses_byte(index : Int) -> Byte {
+fn luna_http1_responses_byte(index : Int32) -> Byte {
   match index {
     0 => b'/'
     1 => b'v'
@@ -64,7 +64,7 @@ fn luna_http1_responses_byte(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_chat_byte(index : Int) -> Byte {
+fn luna_http1_chat_byte(index : Int32) -> Byte {
   match index {
     0 => b'/'
     1 => b'v'
@@ -90,7 +90,7 @@ fn luna_http1_chat_byte(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_version_byte(index : Int) -> Byte {
+fn luna_http1_version_byte(index : Int32) -> Byte {
   match index {
     0 => b'H'
     1 => b'T'

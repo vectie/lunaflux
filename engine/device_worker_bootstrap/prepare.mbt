@@ -167,7 +167,7 @@ fn prepare_with_roots(
 pub fn prepare(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
-  luna_parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
+  luna_parent_witness~ : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
 ) -> DeviceWorkerBootstrapPreparation raise DeviceWorkerBootstrapError {
   match (source.kernel().luna_approval(), luna_parent_witness) {
     (None, None) => ()

@@ -1,5 +1,5 @@
 ///|
-fn runner_collector(capacity? : Int = 2) -> BenchmarkTrialCollector {
+fn runner_collector(capacity~ : Int32 = 2) -> BenchmarkTrialCollector {
   try! BenchmarkTrialCollector::new(
     engine=LunaFlux,
     profile=Latency,
@@ -12,10 +12,10 @@ fn runner_collector(capacity? : Int = 2) -> BenchmarkTrialCollector {
 ///|
 fn record_completed(
   collector : BenchmarkTrialCollector,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   start_ns : Int64,
-  input_tokens? : Int64 = 8L,
-  generated_tokens? : Int64 = 2L,
+  input_tokens~ : Int64 = 8L,
+  generated_tokens~ : Int64 = 2L,
 ) -> Unit raise BenchmarkRunnerError {
   collector.submit_at(request_ordinal, input_tokens, start_ns)
   collector.admit_at(request_ordinal, start_ns + 1L)

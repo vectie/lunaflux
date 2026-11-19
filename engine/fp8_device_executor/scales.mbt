@@ -1,5 +1,5 @@
 ///|
-fn decode_f32_bits_le(source : FixedArray[Byte], offset : Int) -> UInt {
+fn decode_f32_bits_le(source : FixedArray[Byte], offset : Int32) -> UInt32 {
   source[offset].to_uint() |
   (source[offset + 1].to_uint() << 8) |
   (source[offset + 2].to_uint() << 16) |
@@ -7,7 +7,7 @@ fn decode_f32_bits_le(source : FixedArray[Byte], offset : Int) -> UInt {
 }
 
 ///|
-fn fp8_scale_cell_is_finite_positive(bits : UInt) -> Bool {
+fn fp8_scale_cell_is_finite_positive(bits : UInt32) -> Bool {
   let exponent = bits & 0x7f800000U
   let sign = bits & 0x80000000U
   let magnitude = bits & 0x7fffffffU

@@ -1,13 +1,13 @@
 ///|
 priv struct ReadonlyPhysicalReader {
   lines : Array[String]
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
 fn readonly_physical_reader(
   bytes : Bytes,
-  maximum : Int,
+  maximum : Int32,
 ) -> ReadonlyPhysicalReader raise PagedAttentionReadOnlyPhysicalEvidenceError {
   if bytes.length() == 0 || bytes.length() > maximum {
     raise PagedAttentionReadOnlyPhysicalEvidenceLimitExceeded
@@ -76,9 +76,9 @@ fn ReadonlyPhysicalReader::digest_text(
 fn ReadonlyPhysicalReader::int(
   self : ReadonlyPhysicalReader,
   key : String,
-) -> Int raise PagedAttentionReadOnlyPhysicalEvidenceError {
+) -> Int32 raise PagedAttentionReadOnlyPhysicalEvidenceError {
   let text = self.value(key)
-  let value : Int = @string.parse_int(text) catch {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise PagedAttentionReadOnlyPhysicalEvidenceInvalid(Canonical)
   }
   if value.to_string() != text {
@@ -91,7 +91,7 @@ fn ReadonlyPhysicalReader::int(
 fn ReadonlyPhysicalReader::exact_int(
   self : ReadonlyPhysicalReader,
   key : String,
-  expected : Int,
+  expected : Int32,
   rule : PagedAttentionReadOnlyPhysicalEvidenceRule,
 ) -> Unit raise PagedAttentionReadOnlyPhysicalEvidenceError {
   if self.int(key) != expected {

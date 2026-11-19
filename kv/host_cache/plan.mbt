@@ -4,19 +4,19 @@
 pub struct Plan {
   priv layout : @device_layout.DeviceKvLayout
   priv limits : @residency.Limits
-  priv components : Int
+  priv components : Int32
   priv bytes : Int64
   priv page_stride : Int64
   priv component_stride : Int64
   priv layer_stride : Int64
-  priv pages : Int
+  priv pages : Int32
 }
 
 ///|
 pub fn Plan::new(
   layout : @device_layout.DeviceKvLayout,
-  slots~ : Int,
-  transfer_lanes~ : Int,
+  slots~ : Int32,
+  transfer_lanes~ : Int32,
   host_budget~ : Int64,
   separate_host_memory~ : Bool,
 ) -> Plan raise @residency.ResidencyError {
@@ -64,12 +64,12 @@ pub fn Plan::slot_bytes(self : Plan) -> Int64 {
 }
 
 ///|
-pub fn Plan::slots(self : Plan) -> Int {
+pub fn Plan::slots(self : Plan) -> Int32 {
   self.limits.slots()
 }
 
 ///|
-pub fn Plan::transfer_lanes(self : Plan) -> Int {
+pub fn Plan::transfer_lanes(self : Plan) -> Int32 {
   self.limits.transfers()
 }
 
@@ -83,7 +83,12 @@ priv struct Region {
 
 ///|
 /// Pure scalar mapping; all products were bounded by canonical startup layout.
-fn Plan::region(self : Plan, slot : Int, page : Int, component : Int) -> Region {
+fn Plan::region(
+  self : Plan,
+  slot : Int32,
+  page : Int32,
+  component : Int32,
+) -> Region {
   {
     host_offset: slot.to_int64() * self.slot_bytes() +
     component.to_int64() * self.bytes,

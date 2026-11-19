@@ -1,11 +1,11 @@
 ///|
-let buffer_sizes : FixedArray[Int] = [
+let buffer_sizes : FixedArray[Int32] = [
   20, 12, 128, 24, 8, 24, 32, 16, 16, 48, 12, 48, 12, 8, 12, 12, 24, 1024, 1024,
   32, 24, 24, 8, 24, 64, 64, 64, 24, 24, 8, 24, 128, 96,
 ]
 
 ///|
-let fixture_kinds : FixedArray[Int] = [
+let fixture_kinds : FixedArray[Int32] = [
   0, 1, 2, 21, 3, 21, 4, 5, 6, 21, 7, 21, 8, 9, 10, 11, 21, 12, 13, 14, 21, 21, 15,
   21, 16, 17, 18, 21, 21, 19, 21, 20, 21,
 ]
@@ -17,14 +17,14 @@ let buffer_alignments : FixedArray[Int64] = [
 ]
 
 ///|
-let argument_buffer_indices : FixedArray[Int] = [
+let argument_buffer_indices : FixedArray[Int32] = [
   0, 1, 2, 3, 0, 3, 4, 5, 0, 5, 6, 7, 8, 9, 0, 10, 9, 11, 0, 10, 12, 13, 14, 15,
   11, 16, 17, 18, 0, 16, 19, 20, 0, 3, 20, 21, 0, 21, 22, 23, 0, 23, 24, 25, 26,
   27, 0, 21, 27, 28, 0, 28, 29, 30, 0, 30, 31, 32,
 ]
 
 ///|
-let graph_dimensions : FixedArray[Int] = [
+let graph_dimensions : FixedArray[Int32] = [
   1, 1, 1, 256, 1, 1, 0, 3, 1, 1, 256, 1, 1, 1024, 1, 1, 1, 256, 1, 1, 0, 1, 1, 1,
   256, 1, 1, 0, 3, 2, 1, 1, 1, 1, 0, 1, 1, 1, 256, 1, 1, 0, 1, 1, 1, 256, 1, 1, 0,
   3, 1, 1, 256, 1, 1, 1024, 1, 1, 1, 256, 1, 1, 0, 1, 1, 1, 256, 1, 1, 0, 3, 1, 1,
@@ -36,7 +36,7 @@ fn graph_readbacks(
   arena : @device.Allocation,
   buffer_offsets : FixedArray[Int64],
 ) -> FixedArray[Bytes] raise @device.DeviceError {
-  let indices : FixedArray[Int] = [
+  let indices : FixedArray[Int32] = [
     3, 5, 9, 11, 16, 17, 18, 20, 21, 23, 27, 28, 30, 32,
   ]
   FixedArray::makei(indices.length(), index => {
@@ -48,8 +48,8 @@ fn graph_readbacks(
 ///|
 async fn run_captured_graph(
   module_paths : FixedArray[String],
-  cycles : Int,
-) -> (Int, Double) {
+  cycles : Int32,
+) -> (Int32, Double) {
   let context = @device.open_context(0)
   defer (try! context.close())
   let stream = context.create_stream()
@@ -121,7 +121,7 @@ async fn run_captured_graph(
     embedding, rms, qkv, rope, attention, dense, residual, rms, mlp, residual, rms,
     lm_head,
   ]
-  let starts : FixedArray[Int] = [
+  let starts : FixedArray[Int32] = [
     0, 4, 8, 14, 18, 28, 32, 36, 40, 46, 50, 54, 58,
   ]
   let launches : Array[@device.OrderedKernelLaunch] = []

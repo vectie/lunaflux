@@ -101,8 +101,8 @@ fn fixture_catalog(
 
 ///|
 fn fixture_profile(
-  stable_id : Int,
-  rows : Int,
+  stable_id : Int32,
+  rows : Int32,
 ) -> @launch_contract.KernelProfile {
   try! @launch_contract.KernelProfile::full_prefill(
     id=@launch_contract.KernelProfileId::from_stable_int(stable_id),
@@ -115,7 +115,7 @@ fn fixture_profile(
 ///|
 fn fixture_entry(
   digest : @catalog.AotArtifactDigest,
-  stable_id : Int,
+  stable_id : Int32,
 ) -> @catalog.AotKernelEntryPoint {
   let entry_point_id = try! @catalog.AotKernelEntryPointId::from_stable_int(
     stable_id,
@@ -129,9 +129,9 @@ fn fixture_entry(
 ///|
 fn fixture_contract_input(
   digest : @catalog.AotArtifactDigest,
-  profile_id : Int,
-  rows : Int,
-  entry_id : Int,
+  profile_id : Int32,
+  rows : Int32,
+  entry_id : Int32,
 ) -> @launch_contract.AotLaunchContractInput {
   let resolved_profile = try! @launch_contract.KernelProfileId::from_stable_int(
     profile_id,
@@ -174,7 +174,7 @@ fn fixture_contract_input(
 
 ///|
 fn fixture_contracts(
-  digest? : @catalog.AotArtifactDigest = fixture_digest(),
+  digest~ : @catalog.AotArtifactDigest = fixture_digest(),
 ) -> @launch_contract.LaunchContractSet {
   try! @launch_contract.admit(
     fixture_plan(),
@@ -194,12 +194,12 @@ fn fixture_contracts(
 
 ///|
 fn fixture_file_limits(
-  max_manifest_bytes? : Int64 = 16384L,
-  max_path_bytes? : Int = 128,
-  max_module_bytes? : Int64 = 1024L,
-  max_total_module_bytes? : Int64 = 2048L,
-  max_modules? : Int = 4,
-  max_entry_points? : Int = 8,
+  max_manifest_bytes~ : Int64 = 16384L,
+  max_path_bytes~ : Int32 = 128,
+  max_module_bytes~ : Int64 = 1024L,
+  max_total_module_bytes~ : Int64 = 2048L,
+  max_modules~ : Int32 = 4,
+  max_entry_points~ : Int32 = 8,
 ) -> @artifact_file.KernelArtifactFileLimits {
   try! @artifact_file.KernelArtifactFileLimits::new(
     max_manifest_bytes~,
@@ -216,7 +216,7 @@ fn fixture_file_limits(
 }
 
 ///|
-fn entry_json(family : Int, entry : Int, symbol : String) -> String {
+fn entry_json(family : Int32, entry : Int32, symbol : String) -> String {
   "{\"family_id\":\{family},\"entry_point_id\":\{entry},\"symbol\":\"\{symbol}\"}"
 }
 
@@ -232,9 +232,9 @@ fn module_json(
 ///|
 fn manifest_json(
   modules : ArrayView[String],
-  extra_root? : String = "",
-  catalog_version? : Int = 1,
-  plan? : @plan.ModelPlan = fixture_plan(),
+  extra_root~ : String = "",
+  catalog_version~ : Int32 = 1,
+  plan~ : @plan.ModelPlan = fixture_plan(),
 ) -> Bytes {
   let identity = plan.identity()
   @utf8.encode(
@@ -244,8 +244,8 @@ fn manifest_json(
 
 ///|
 fn valid_manifest(
-  path? : String = "kernel.cubin",
-  entry_ids? : Array[Int] = [11, 12],
+  path~ : String = "kernel.cubin",
+  entry_ids~ : Array[Int32] = [11, 12],
 ) -> Bytes {
   manifest_json([
     module_json(fixture_digest().sha256(), path, [

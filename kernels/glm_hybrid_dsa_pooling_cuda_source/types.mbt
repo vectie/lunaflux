@@ -22,10 +22,10 @@ pub(all) suberror GlmHybridDsaPoolingCudaSourceError {
 pub struct GlmHybridDsaPoolingCudaSource {
   priv operation : GlmHybridDsaPoolingCudaOperation
   priv numerical_contract : GlmHybridDsaPoolingNumericalContract
-  priv head_dimension : Int
-  priv pool_size : Int
-  priv maximum_tokens : Int
-  priv pool_capacity : Int
+  priv head_dimension : Int32
+  priv pool_size : Int32
+  priv maximum_tokens : Int32
+  priv pool_capacity : Int32
   priv function_symbol : String
   priv source : Bytes
 }

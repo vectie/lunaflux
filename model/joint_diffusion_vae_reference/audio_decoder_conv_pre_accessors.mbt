@@ -13,32 +13,32 @@ pub fn JointVaeAudioDecoderConvPre::request_shape(
 }
 
 ///|
-pub fn JointVaeAudioDecoderConvPre::decoder_batch_count(self : Self) -> Int {
+pub fn JointVaeAudioDecoderConvPre::decoder_batch_count(self : Self) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
-pub fn JointVaeAudioDecoderConvPre::input_channels(self : Self) -> Int {
+pub fn JointVaeAudioDecoderConvPre::input_channels(self : Self) -> Int32 {
   self.input_channels
 }
 
 ///|
-pub fn JointVaeAudioDecoderConvPre::output_channels(self : Self) -> Int {
+pub fn JointVaeAudioDecoderConvPre::output_channels(self : Self) -> Int32 {
   self.output_channels
 }
 
 ///|
-pub fn JointVaeAudioDecoderConvPre::kernel_size(self : Self) -> Int {
+pub fn JointVaeAudioDecoderConvPre::kernel_size(self : Self) -> Int32 {
   self.kernel_size
 }
 
 ///|
-pub fn JointVaeAudioDecoderConvPre::padding(self : Self) -> Int {
+pub fn JointVaeAudioDecoderConvPre::padding(self : Self) -> Int32 {
   self.padding
 }
 
 ///|
-pub fn JointVaeAudioDecoderConvPre::stride(self : Self) -> Int {
+pub fn JointVaeAudioDecoderConvPre::stride(self : Self) -> Int32 {
   self.stride
 }
 

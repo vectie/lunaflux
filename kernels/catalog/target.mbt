@@ -4,16 +4,16 @@
 /// It contains semantic inventory facts only. No ordinal, pointer, context,
 /// device name, or raw vendor capability value crosses this boundary.
 pub struct DeviceTarget {
-  priv compute_major : Int
-  priv compute_minor : Int
+  priv compute_major : Int32
+  priv compute_minor : Int32
   priv supports_bf16 : Bool
   priv supports_cublas_lt : Bool
 } derive(Debug, Eq)
 
 ///|
 pub fn DeviceTarget::new(
-  compute_major~ : Int,
-  compute_minor~ : Int,
+  compute_major~ : Int32,
+  compute_minor~ : Int32,
   supports_bf16~ : Bool,
   supports_cublas_lt~ : Bool,
 ) -> DeviceTarget raise CatalogError {
@@ -61,12 +61,12 @@ pub fn DeviceTarget::matches_numeric_capability(
 }
 
 ///|
-pub fn DeviceTarget::compute_major(self : DeviceTarget) -> Int {
+pub fn DeviceTarget::compute_major(self : DeviceTarget) -> Int32 {
   self.compute_major
 }
 
 ///|
-pub fn DeviceTarget::compute_minor(self : DeviceTarget) -> Int {
+pub fn DeviceTarget::compute_minor(self : DeviceTarget) -> Int32 {
   self.compute_minor
 }
 

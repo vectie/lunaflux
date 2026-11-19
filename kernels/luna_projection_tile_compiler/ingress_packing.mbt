@@ -13,18 +13,18 @@ pub(all) enum AttentionIngressReuseEffect {
 /// Rotary sine/cosine pairs are row-scoped and reused by local Q/K heads;
 /// values never observe them. A tail has no output or KV-store authority.
 pub struct AttentionIngressPacking {
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv head_dimension : Int
-  priv heads_per_group : Int
-  priv lanes : Int
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv head_dimension : Int32
+  priv heads_per_group : Int32
+  priv lanes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn ProjectionAttentionIngressEpilogue::packing(
   self : ProjectionAttentionIngressEpilogue,
-  heads_per_group~ : Int,
-  reduction_lanes~ : Int,
+  heads_per_group~ : Int32,
+  reduction_lanes~ : Int32,
 ) -> AttentionIngressPacking raise ProjectionTileCompilerError {
   ignore(self.numerics(reduction_lanes~))
   let heads = self.query_heads.to_int64() + 2L * self.kv_heads.to_int64()
@@ -47,7 +47,7 @@ pub fn ProjectionAttentionIngressEpilogue::packing(
 /// (workgroups, heads per group, producer columns, rotary pairs per owner).
 pub fn AttentionIngressPacking::geometry(
   self : AttentionIngressPacking,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   let heads = self.query_heads + 2 * self.kv_heads
   (
     (heads - 1) / self.heads_per_group + 1,
@@ -62,9 +62,9 @@ pub fn AttentionIngressPacking::geometry(
 /// Returning None means masked zero-fill, not a borrowed adjacent matrix.
 pub fn AttentionIngressPacking::weight_row(
   self : AttentionIngressPacking,
-  workgroup : Int,
-  column : Int,
-) -> (Int, Int)? {
+  workgroup : Int32,
+  column : Int32,
+) -> (Int32, Int32)? {
   let (groups, _, columns, _) = self.geometry()
   guard workgroup >= 0 && workgroup < groups && column >= 0 && column < columns else {
     return None
@@ -106,3 +106,15 @@ pub fn AttentionIngressPacking::canonical_bytes(
     "tail=zero-fill-no-store\nnumerics=unchanged-per-head\n",
   )
 }
+
+///|
+pub extend AttentionIngressReuseEffect with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionIngressReuseEffect with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionIngressPacking with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionIngressPacking with Eq::{not_equal, equal}

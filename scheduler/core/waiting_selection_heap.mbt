@@ -1,5 +1,5 @@
 ///|
-fn Scheduler::waiting_successor(self : Scheduler, slot : Int) -> Int {
+fn Scheduler::waiting_successor(self : Scheduler, slot : Int32) -> Int32 {
   if slot < 0 ||
     slot >= self.waiting_next.length() ||
     self.waiting_link_generations[slot] != self.slot_generations[slot] ||
@@ -20,8 +20,8 @@ fn Scheduler::waiting_successor(self : Scheduler, slot : Int) -> Int {
 ///|
 fn Scheduler::waiting_selection_precedes(
   self : Scheduler,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Bool {
   let left_prefix = self.prefix_candidate_tokens[left]
   let right_prefix = self.prefix_candidate_tokens[right]
@@ -35,7 +35,7 @@ fn Scheduler::waiting_selection_precedes(
 ///|
 fn Scheduler::waiting_selection_sift_down(
   self : Scheduler,
-  start : Int,
+  start : Int32,
 ) -> Unit {
   let mut parent = start
   while parent < self.waiting_selection_count / 2 {
@@ -84,7 +84,7 @@ fn Scheduler::prepare_waiting_selection(self : Scheduler) -> Unit {
 }
 
 ///|
-fn Scheduler::pop_waiting_selection(self : Scheduler) -> Int {
+fn Scheduler::pop_waiting_selection(self : Scheduler) -> Int32 {
   if self.waiting_selection_count == 0 {
     return NO_INDEX
   }

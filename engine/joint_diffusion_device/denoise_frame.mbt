@@ -10,12 +10,12 @@ pub fn KernelFrame::denoise(
   stream : @device.Stream,
   storage : LatentStorage,
   prediction : ArrayView[@device.OrderedKernelLaunch],
-  step~ : Int,
+  step~ : Int32,
   video_update~ : @device.Function,
   audio_update~ : @device.Function,
-  video_block_size~ : Int,
-  audio_block_size~ : Int,
-  policy? : @device.OrderedKernelExecutionPolicy = OrderedKernelEagerOnly,
+  video_block_size~ : Int32,
+  audio_block_size~ : Int32,
+  policy~ : @device.OrderedKernelExecutionPolicy = OrderedKernelEagerOnly,
 ) -> Self raise {
   guard prediction.length() > 0 else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)

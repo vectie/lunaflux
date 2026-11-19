@@ -52,8 +52,8 @@ fn checked_compiled_operation(
   second_module : Bytes,
   receipt : LunaDeterministicCompileReceipt,
   limits : LunaKernelBundleLimits,
-  row_variants? : ArrayView[@artifact.KernelRowVariant] = [],
-  companion_dimensions? : @launch_contract.AotLaunchDimensions? = None,
+  row_variants~ : ArrayView[@artifact.KernelRowVariant] = [],
+  companion_dimensions~ : @launch_contract.AotLaunchDimensions? = None,
 ) -> LunaKernelCompiledOperation raise LunaKernelBundleError {
   if dimensions != contract.dimensions() {
     raise Invalid(LaunchDimensions)

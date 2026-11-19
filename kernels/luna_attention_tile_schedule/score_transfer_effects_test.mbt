@@ -11,10 +11,10 @@ fn apply_score_transfers(
   actions : ArrayView[
     @luna_attention_tile_schedule.AttentionScoreTransferEffect,
   ],
-  epoch : Int,
-  tiles : Int,
+  epoch : Int32,
+  tiles : Int32,
   invalid : Bool,
-  defect : Int,
+  defect : Int32,
 ) -> Bool raise {
   let key = machine.slot * 2
   for action in actions {
@@ -77,10 +77,10 @@ fn apply_score_transfers(
 ///|
 fn exercise_score_transfers(
   mode : @luna_attention_tile_schedule.AttentionScoreTransferMode,
-  stages : Int,
-  tiles : Int,
-  invalid_epoch : Int?,
-  defect? : Int = 0,
+  stages : Int32,
+  tiles : Int32,
+  invalid_epoch : Int32?,
+  defect~ : Int32 = 0,
 ) -> Unit raise {
   let machine = QueryEffectMachine::new(stages, mode != CooperativeTransfer)
   let lifetime = ScoreValidationLifetime::{

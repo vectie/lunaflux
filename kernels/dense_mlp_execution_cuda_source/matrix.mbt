@@ -1,5 +1,8 @@
 ///|
-pub fn DenseMlpCudaSource::launch(self : Self, stage : Int) -> (Int, Int) raise {
+pub fn DenseMlpCudaSource::launch(
+  self : Self,
+  stage : Int32,
+) -> (Int32, Int32) raise {
   guard stage is (0 | 1) ||
     (stage == 2 && self.plan.publication() == ReduceFloat32BeforeRound) else {
     raise @precision.PrecisionPlanError::IllegalPlacement

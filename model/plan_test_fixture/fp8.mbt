@@ -48,7 +48,7 @@ pub fn synthetic_fp8_w8a8_numeric_schema(
     tensor_count = tensor_count.max(operation_tensor_count)
   }
   let tensor_shapes : Array[@numeric_contract.NumericShape?] = []
-  let tensor_modes : Array[Int] = []
+  let tensor_modes : Array[Int32] = []
   for _ in 0..<tensor_count {
     tensor_shapes.push(None)
     tensor_modes.push(0)

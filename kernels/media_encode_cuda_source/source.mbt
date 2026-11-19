@@ -2,7 +2,7 @@
 pub struct Source {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  grids : ReadOnlyArray[(Int, Int)]
+  grids : ReadOnlyArray[(Int32, Int32)]
 }
 
 ///|
@@ -15,7 +15,7 @@ pub fn render(graph : @plan.Graph) -> Source raise @plan.PlanError {
     "#include <math.h>\n#include <stdint.h>\n#include <cuda_fp16.h>\n",
   )
   let symbols : Array[String] = []
-  let grids : Array[(Int, Int)] = []
+  let grids : Array[(Int32, Int32)] = []
   for i, node in graph.nodes {
     let symbol = "media_encode_\{i}"
     symbols.push(symbol)

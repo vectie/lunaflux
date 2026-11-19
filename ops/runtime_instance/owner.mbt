@@ -28,12 +28,12 @@ pub fn RuntimeInstanceOwner::require_spawned_physical_handoff(
 fn spawned_physical_handoff_matches(
   phase : RuntimeInstancePhase,
   preparation_ready : Bool,
-  preparation_count : Int,
-  cleanup_count : Int,
-  service_count : Int,
-  server_count : Int,
-  openai_server_count : Int,
-  borrowed_root_count : Int,
+  preparation_count : Int32,
+  cleanup_count : Int32,
+  service_count : Int32,
+  server_count : Int32,
+  openai_server_count : Int32,
+  borrowed_root_count : Int32,
 ) -> Bool {
   phase == HealthyNotReady &&
   preparation_ready &&

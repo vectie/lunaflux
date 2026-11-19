@@ -77,7 +77,7 @@ fn reusable_binding_index(
   profile : @launch_contract.PagedKernelProfile,
   semantics : @catalog.KernelExecutionSemantics,
   workspace_alignment : Int64,
-) -> Int? {
+) -> Int32? {
   for index, binding in bindings {
     if reusable_key_matches(
         binding, operation, profile, semantics, workspace_alignment,
@@ -92,8 +92,8 @@ fn reusable_binding_index(
 fn compilation_index(
   compilations : ArrayView[LunaBf16OfflineCompilation],
   operation_id : @plan.OperationId,
-) -> Int? raise LunaBf16KernelProducerError {
-  let mut found : Int? = None
+) -> Int32? raise LunaBf16KernelProducerError {
+  let mut found : Int32? = None
   for index, compilation in compilations {
     if candidate_operation_id(compilation.candidate) == operation_id {
       if found is Some(_) {
@@ -111,7 +111,7 @@ fn require_complete_kinds(
 ) -> Unit raise LunaBf16KernelProducerError {
   let seen = FixedArray::make(9, false)
   for operation in operations {
-    let index : Int? = match operation.kind() {
+    let index : Int32? = match operation.kind() {
       Embedding => Some(0)
       RmsNorm => Some(1)
       QkvProjection => Some(2)

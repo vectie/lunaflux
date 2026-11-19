@@ -11,8 +11,8 @@ pub(all) enum DeviceKvComponent {
 /// Layout V1 owns its canonical 256-byte segment alignment; callers select
 /// only page geometry and the complete arena ceiling.
 pub struct DeviceKvLimits {
-  tokens_per_page : Int
-  total_page_count : Int
+  tokens_per_page : Int32
+  total_page_count : Int32
   max_arena_bytes : Int64
 } derive(Debug, Eq)
 
@@ -22,9 +22,9 @@ pub struct DeviceKvLimits {
 /// with lifecycle authority.
 #valtype
 pub struct DeviceKvRegion {
-  layer_index : Int
+  layer_index : Int32
   component : DeviceKvComponent
-  page_index : Int
+  page_index : Int32
   offset_bytes : Int64
   logical_bytes : Int64
   reserved_bytes : Int64
@@ -40,7 +40,7 @@ pub struct DeviceKvLayout {
   identity : @spec.ModelIdentity
   geometry : @plan.KvCacheGeometry
   limits : DeviceKvLimits
-  stable_layout_version : Int
+  stable_layout_version : Int32
   page_logical_bytes : Int64
   page_stride_bytes : Int64
   component_stride_bytes : Int64
@@ -49,12 +49,12 @@ pub struct DeviceKvLayout {
 } derive(Debug, Eq)
 
 ///|
-pub fn DeviceKvLimits::tokens_per_page(self : DeviceKvLimits) -> Int {
+pub fn DeviceKvLimits::tokens_per_page(self : DeviceKvLimits) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
-pub fn DeviceKvLimits::total_page_count(self : DeviceKvLimits) -> Int {
+pub fn DeviceKvLimits::total_page_count(self : DeviceKvLimits) -> Int32 {
   self.total_page_count
 }
 
@@ -69,7 +69,7 @@ pub fn DeviceKvLimits::max_arena_bytes(self : DeviceKvLimits) -> Int64 {
 }
 
 ///|
-pub fn DeviceKvRegion::layer_index(self : DeviceKvRegion) -> Int {
+pub fn DeviceKvRegion::layer_index(self : DeviceKvRegion) -> Int32 {
   self.layer_index
 }
 
@@ -79,7 +79,7 @@ pub fn DeviceKvRegion::component(self : DeviceKvRegion) -> DeviceKvComponent {
 }
 
 ///|
-pub fn DeviceKvRegion::page_index(self : DeviceKvRegion) -> Int {
+pub fn DeviceKvRegion::page_index(self : DeviceKvRegion) -> Int32 {
   self.page_index
 }
 
@@ -124,17 +124,17 @@ pub fn DeviceKvLayout::limits(self : DeviceKvLayout) -> DeviceKvLimits {
 }
 
 ///|
-pub fn DeviceKvLayout::stable_layout_version(self : DeviceKvLayout) -> Int {
+pub fn DeviceKvLayout::stable_layout_version(self : DeviceKvLayout) -> Int32 {
   self.stable_layout_version
 }
 
 ///|
-pub fn DeviceKvLayout::tokens_per_page(self : DeviceKvLayout) -> Int {
+pub fn DeviceKvLayout::tokens_per_page(self : DeviceKvLayout) -> Int32 {
   self.limits.tokens_per_page()
 }
 
 ///|
-pub fn DeviceKvLayout::total_page_count(self : DeviceKvLayout) -> Int {
+pub fn DeviceKvLayout::total_page_count(self : DeviceKvLayout) -> Int32 {
   self.limits.total_page_count()
 }
 

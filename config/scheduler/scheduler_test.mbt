@@ -1,12 +1,12 @@
 ///|
 fn scheduler(
-  step_token_budget? : Int = 128,
-  max_active_requests? : Int = 32,
-  max_waiting_requests? : Int = 64,
-  prefill_chunk_tokens? : Int = 64,
-  emergency_decode_page_reserve? : Int = 8,
-  waiting_age_threshold_steps? : Int = 128,
-  output_event_capacity? : Int = 128,
+  step_token_budget~ : Int32 = 128,
+  max_active_requests~ : Int32 = 32,
+  max_waiting_requests~ : Int32 = 64,
+  prefill_chunk_tokens~ : Int32 = 64,
+  emergency_decode_page_reserve~ : Int32 = 8,
+  waiting_age_threshold_steps~ : Int32 = 128,
+  output_event_capacity~ : Int32 = 128,
 ) -> @scheduler.SchedulerConfig raise @scheduler.SchedulerConfigError {
   @scheduler.new(
     step_token_budget~,

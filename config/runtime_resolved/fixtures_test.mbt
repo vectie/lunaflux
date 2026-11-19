@@ -1,11 +1,11 @@
 ///|
 fn scheduler_fixture(
-  step_token_budget? : Int = 128,
-  max_active_requests? : Int = 8,
-  max_waiting_requests? : Int = 32,
-  prefill_chunk_tokens? : Int = 64,
-  emergency_decode_page_reserve? : Int = 8,
-  output_event_capacity? : Int = 128,
+  step_token_budget~ : Int32 = 128,
+  max_active_requests~ : Int32 = 8,
+  max_waiting_requests~ : Int32 = 32,
+  prefill_chunk_tokens~ : Int32 = 64,
+  emergency_decode_page_reserve~ : Int32 = 8,
+  output_event_capacity~ : Int32 = 128,
 ) -> @scheduler.SchedulerConfig {
   try! @scheduler.new(
     step_token_budget~,
@@ -20,10 +20,10 @@ fn scheduler_fixture(
 
 ///|
 fn cache_fixture(
-  tokens_per_page? : Int = 16,
-  total_page_count? : Int = 4096,
-  block_table_pages_per_request? : Int = 256,
-  max_active_references_per_page? : Int = 1024,
+  tokens_per_page~ : Int32 = 16,
+  total_page_count~ : Int32 = 4096,
+  block_table_pages_per_request~ : Int32 = 256,
+  max_active_references_per_page~ : Int32 = 1024,
 ) -> @cache.CacheConfig {
   try! @cache.new(
     tokens_per_page~,
@@ -42,12 +42,12 @@ fn cache_fixture(
 
 ///|
 fn prefix_cache_fixture(
-  max_prefix_entries? : Int = 64,
-  max_prefix_nodes? : Int = 1024,
-  max_prefix_tokens_per_entry? : Int = 256,
-  max_prefix_pages? : Int = 256,
-  max_prefix_scope_bytes? : Int = 64,
-  max_active_references_per_page? : Int = 1024,
+  max_prefix_entries~ : Int32 = 64,
+  max_prefix_nodes~ : Int32 = 1024,
+  max_prefix_tokens_per_entry~ : Int32 = 256,
+  max_prefix_pages~ : Int32 = 256,
+  max_prefix_scope_bytes~ : Int32 = 64,
+  max_active_references_per_page~ : Int32 = 1024,
 ) -> @cache.CacheConfig {
   try! @cache.new(
     tokens_per_page=16,
@@ -67,9 +67,9 @@ fn prefix_cache_fixture(
 
 ///|
 fn shape_fixture(
-  max_batch_rows? : Int = 8,
-  max_sequence_tokens? : Int = 4096,
-  vocabulary_size? : Int = 32000,
+  max_batch_rows~ : Int32 = 8,
+  max_sequence_tokens~ : Int32 = 4096,
+  vocabulary_size~ : Int32 = 32000,
 ) -> @plan.ShapeConstraints {
   try! @plan.ShapeConstraints::new(
     max_batch_rows~,
@@ -85,14 +85,14 @@ fn shape_fixture(
 
 ///|
 fn worker_fixture(
-  max_prefill_rows? : Int = 8,
-  max_decode_rows? : Int = 8,
-  max_plan_rows? : Int = 8,
-  max_plan_tokens? : Int = 128,
-  max_plan_pages? : Int = 2048,
-  max_completion_slots? : Int = 8,
-  max_sequence_tokens? : Int = 4096,
-  max_token_id? : Int = 31999,
+  max_prefill_rows~ : Int32 = 8,
+  max_decode_rows~ : Int32 = 8,
+  max_plan_rows~ : Int32 = 8,
+  max_plan_tokens~ : Int32 = 128,
+  max_plan_pages~ : Int32 = 2048,
+  max_completion_slots~ : Int32 = 8,
+  max_sequence_tokens~ : Int32 = 4096,
+  max_token_id~ : Int32 = 31999,
 ) -> @worker_protocol.WorkerProtocolLimits {
   try! @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows~,

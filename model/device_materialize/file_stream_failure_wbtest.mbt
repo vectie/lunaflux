@@ -195,7 +195,7 @@ test "streaming double failure retains retryable cleanup authority" {
   assert_eq(failed.cleanup_failure, DriverFailure(AllocationClose))
   let open = Ref(true)
   let cleanup_failure = Ref(failed.cleanup_failure)
-  let retry_close = (close : (Int) -> Unit raise @device.DeviceError) => {
+  let retry_close = (close : (Int32) -> Unit raise @device.DeviceError) => {
     if !open.val {
       return
     }

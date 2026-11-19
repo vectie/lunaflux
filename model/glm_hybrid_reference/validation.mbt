@@ -1,7 +1,7 @@
 ///|
 fn GlmHybridReferenceLimits::check_sequence(
   self : Self,
-  sequence_length : Int,
+  sequence_length : Int32,
 ) -> Unit raise GlmHybridReferenceError {
   if sequence_length <= 0 || sequence_length > self.maximum_sequence_length {
     raise BoundsExceeded
@@ -11,8 +11,8 @@ fn GlmHybridReferenceLimits::check_sequence(
 ///|
 fn GlmHybridReferenceLimits::check_heads(
   self : Self,
-  head_count : Int,
-  head_dimension : Int,
+  head_count : Int32,
+  head_dimension : Int32,
 ) -> Unit raise GlmHybridReferenceError {
   if head_count <= 0 ||
     head_count > self.maximum_head_count ||
@@ -25,7 +25,7 @@ fn GlmHybridReferenceLimits::check_heads(
 ///|
 fn GlmHybridReferenceLimits::check_channels(
   self : Self,
-  channel_count : Int,
+  channel_count : Int32,
 ) -> Unit raise GlmHybridReferenceError {
   if channel_count <= 0 || channel_count > self.maximum_channel_count {
     raise BoundsExceeded
@@ -35,7 +35,7 @@ fn GlmHybridReferenceLimits::check_channels(
 ///|
 fn GlmHybridReferenceLimits::check_vision_patches(
   self : Self,
-  patch_count : Int,
+  patch_count : Int32,
 ) -> Unit raise GlmHybridReferenceError {
   if patch_count <= 0 || patch_count > self.maximum_vision_patch_count {
     raise BoundsExceeded

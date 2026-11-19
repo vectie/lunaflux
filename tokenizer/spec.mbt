@@ -1,6 +1,6 @@
 ///|
 priv struct StoredToken {
-  token_id : Int
+  token_id : Int32
   /// Model-side bytes used for special matching and BPE merge validation.
   piece : Bytes
   /// Decoder-side bytes after the admitted tokenizer decoder pipeline.
@@ -9,22 +9,22 @@ priv struct StoredToken {
 }
 
 ///|
-const TOKENIZER_PROFILE_RAW_BYTE_BPE : Int = 0
+const TOKENIZER_PROFILE_RAW_BYTE_BPE : Int32 = 0
 
 ///|
-const TOKENIZER_PROFILE_SENTENCEPIECE_BPE : Int = 1
+const TOKENIZER_PROFILE_SENTENCEPIECE_BPE : Int32 = 1
 
 ///|
-const TOKENIZER_PROFILE_QWEN3_BPE : Int = 2
+const TOKENIZER_PROFILE_QWEN3_BPE : Int32 = 2
 
 ///|
-const TOKENIZER_PROFILE_QWEN35_BPE : Int = 3
+const TOKENIZER_PROFILE_QWEN35_BPE : Int32 = 3
 
 ///|
-const TOKENIZER_PROFILE_DIGIT_TRIPLET_BPE : Int = 4
+const TOKENIZER_PROFILE_DIGIT_TRIPLET_BPE : Int32 = 4
 
 ///|
-const TOKENIZER_PROFILE_ORDERED_SCRIPT_BPE : Int = 5
+const TOKENIZER_PROFILE_ORDERED_SCRIPT_BPE : Int32 = 5
 
 ///|
 fn TokenizerSpec::has_regex_pretokens(self : TokenizerSpec) -> Bool {
@@ -48,29 +48,29 @@ fn TokenizerSpec::has_regex_pretokens(self : TokenizerSpec) -> Bool {
 pub struct TokenizerSpec {
   priv digest : TokenizerDigest
   priv limits : TokenizerLimits
-  priv tokens_by_id : Map[Int, StoredToken]
-  priv merge_left_ids : FixedArray[Int]
-  priv merge_right_ids : FixedArray[Int]
-  priv merge_result_ids : FixedArray[Int]
-  priv merge_left_offsets : FixedArray[Int]
-  priv merge_right_sorted : FixedArray[Int]
-  priv merge_rank_sorted : FixedArray[Int]
-  priv byte_token_ids : FixedArray[Int]
+  priv tokens_by_id : Map[Int32, StoredToken]
+  priv merge_left_ids : FixedArray[Int32]
+  priv merge_right_ids : FixedArray[Int32]
+  priv merge_result_ids : FixedArray[Int32]
+  priv merge_left_offsets : FixedArray[Int32]
+  priv merge_right_sorted : FixedArray[Int32]
+  priv merge_rank_sorted : FixedArray[Int32]
+  priv byte_token_ids : FixedArray[Int32]
   priv special_tokens : Array[StoredToken]
-  priv profile : Int
-  priv initial_scalar_ids : FixedArray[Int]
-  priv sentencepiece_meta_token_id : Int
-  priv post_processor_token_id : Int
+  priv profile : Int32
+  priv initial_scalar_ids : FixedArray[Int32]
+  priv sentencepiece_meta_token_id : Int32
+  priv post_processor_token_id : Int32
   priv decoder_strip_initial_space : Bool
-  priv vocab_size : Int
-  priv merge_count : Int
+  priv vocab_size : Int32
+  priv merge_count : Int32
   priv ignore_merges : Bool
-  priv normal_piece_ids : FixedArray[Int]
+  priv normal_piece_ids : FixedArray[Int32]
 }
 
 ///|
 fn validate_positive_limit(
-  value : Int,
+  value : Int32,
   field : LimitField,
 ) -> Unit raise TokenizerError {
   if value <= 0 || value > 1_073_741_824 {
@@ -111,7 +111,7 @@ pub fn TokenizerSpec::new(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
-  ignore_merges? : Bool = false,
+  ignore_merges~ : Bool = false,
 ) -> TokenizerSpec raise TokenizerError {
   new_bytelevel_bpe(
     vocabulary,
@@ -134,7 +134,7 @@ pub fn TokenizerSpec::new_qwen3_bpe(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
-  ignore_merges? : Bool = false,
+  ignore_merges~ : Bool = false,
 ) -> TokenizerSpec raise TokenizerError {
   new_bytelevel_bpe(
     vocabulary,
@@ -159,7 +159,7 @@ pub fn TokenizerSpec::new_qwen35_bpe(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
-  ignore_merges? : Bool = false,
+  ignore_merges~ : Bool = false,
 ) -> TokenizerSpec raise TokenizerError {
   new_bytelevel_bpe(
     vocabulary,
@@ -177,7 +177,7 @@ fn new_bytelevel_bpe(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
-  profile~ : Int,
+  profile~ : Int32,
   ignore_merges~ : Bool,
 ) -> TokenizerSpec raise TokenizerError {
   validate_positive_limit(limits.max_input_bytes, InputBytes)
@@ -199,15 +199,15 @@ fn new_bytelevel_bpe(
       maximum=limits.max_merge_rules,
     )
   }
-  let tokens_by_id : Map[Int, StoredToken] = Map(
+  let tokens_by_id : Map[Int32, StoredToken] = Map(
     [],
     capacity=vocabulary.length(),
   )
-  let piece_first_index : Map[Bytes, Int] = Map(
+  let piece_first_index : Map[Bytes, Int32] = Map(
     [],
     capacity=vocabulary.length(),
   )
-  let normal_ids_by_piece : Map[Bytes, Int] = Map(
+  let normal_ids_by_piece : Map[Bytes, Int32] = Map(
     [],
     capacity=vocabulary.length(),
   )
@@ -270,7 +270,7 @@ fn new_bytelevel_bpe(
   let merge_left_offsets = FixedArray::make(vocabulary.length() + 1, 0)
   let merge_right_sorted = FixedArray::make(merges.length(), 0)
   let merge_rank_sorted = FixedArray::make(merges.length(), 0)
-  let pair_first_rule : Map[Int, Map[Int, Int]] = Map([])
+  let pair_first_rule : Map[Int32, Map[Int32, Int32]] = Map([])
   for rule_index, rule in merges {
     let left = tokens_by_id.get(rule.left_token_id)
     let right = tokens_by_id.get(rule.right_token_id)
@@ -308,7 +308,7 @@ fn new_bytelevel_bpe(
   for token_id in 0..<vocabulary.length() {
     merge_left_offsets[token_id + 1] += merge_left_offsets[token_id]
   }
-  let merge_order : Array[Int] = Array(capacity=merges.length())
+  let merge_order : Array[Int32] = Array(capacity=merges.length())
   for rank in 0..<merges.length() {
     merge_order.push(rank)
   }
@@ -325,7 +325,7 @@ fn new_bytelevel_bpe(
     merge_right_sorted[sorted_index] = merges[rank].right_token_id
     merge_rank_sorted[sorted_index] = rank
   }
-  let normal_piece_ids : Array[Int] = []
+  let normal_piece_ids : Array[Int32] = []
   if ignore_merges {
     for entry in vocabulary {
       if entry.kind is Normal {
@@ -368,13 +368,13 @@ pub fn TokenizerSpec::digest(self : TokenizerSpec) -> TokenizerDigest {
 
 ///|
 /// Number of validated vocabulary entries.
-pub fn TokenizerSpec::vocab_size(self : TokenizerSpec) -> Int {
+pub fn TokenizerSpec::vocab_size(self : TokenizerSpec) -> Int32 {
   self.vocab_size
 }
 
 ///|
 /// Number of validated ranked merge rules.
-pub fn TokenizerSpec::merge_count(self : TokenizerSpec) -> Int {
+pub fn TokenizerSpec::merge_count(self : TokenizerSpec) -> Int32 {
   self.merge_count
 }
 

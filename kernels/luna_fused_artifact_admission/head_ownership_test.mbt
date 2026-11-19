@@ -70,7 +70,7 @@ test "head ownership round trips separately from token ownership" {
 
 ///|
 test "head packing cannot be attached to a different semantic family or missing row metadata" {
-  let cases : Array[(ReusableFusedRuntimeKernelAbi, Int, Int?)] = [
+  let cases : Array[(ReusableFusedRuntimeKernelAbi, Int32, Int32?)] = [
     (ResidualRmsNormProductionV2, 2, Some(32)),
     (QwenQkNormPositionedRopePagedKvWriteProductionV2, 3, Some(32)),
     (QwenQkvQkNormPositionedRopePagedKvWriteProductionV4, 4, None),

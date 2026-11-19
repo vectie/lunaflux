@@ -2,7 +2,7 @@
 fn DeviceStepOwner::preflight_validated_frame(
   self : DeviceStepOwner,
   frame : @worker_wire.ValidatedPlanFrame,
-  greedy_only? : Bool = false,
+  greedy_only~ : Bool = false,
 ) -> DeviceStepSummary raise DeviceStepError {
   require_lifecycle(self.lifecycle, Ready)
   if self.stage_epoch == 18446744073709551615UL {

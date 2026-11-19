@@ -1,6 +1,6 @@
 ///|
 pub fn PrefixTokenBuffer::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> PrefixTokenBuffer raise PrefixIndexError {
   if !valid_capacity(capacity) {
     raise InvalidLimit(TokenCapacity)
@@ -9,12 +9,12 @@ pub fn PrefixTokenBuffer::new(
 }
 
 ///|
-pub fn PrefixTokenBuffer::capacity(self : PrefixTokenBuffer) -> Int {
+pub fn PrefixTokenBuffer::capacity(self : PrefixTokenBuffer) -> Int32 {
   self.tokens.length()
 }
 
 ///|
-pub fn PrefixTokenBuffer::length(self : PrefixTokenBuffer) -> Int {
+pub fn PrefixTokenBuffer::length(self : PrefixTokenBuffer) -> Int32 {
   self.length
 }
 
@@ -26,7 +26,7 @@ pub fn PrefixTokenBuffer::clear(self : PrefixTokenBuffer) -> Unit {
 ///|
 pub fn PrefixTokenBuffer::push_token(
   self : PrefixTokenBuffer,
-  token : Int,
+  token : Int32,
 ) -> Unit raise PrefixIndexError {
   if token < 0 {
     raise InvalidToken(self.length)
@@ -39,13 +39,16 @@ pub fn PrefixTokenBuffer::push_token(
 }
 
 ///|
-fn PrefixTokenBuffer::token_at(self : PrefixTokenBuffer, index : Int) -> Int {
+fn PrefixTokenBuffer::token_at(
+  self : PrefixTokenBuffer,
+  index : Int32,
+) -> Int32 {
   self.tokens[index]
 }
 
 ///|
 pub fn PrefixPublishBuffer::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> PrefixPublishBuffer raise PrefixIndexError {
   if !valid_capacity(capacity) {
     raise InvalidLimit(PageCapacity)
@@ -62,12 +65,12 @@ pub fn PrefixPublishBuffer::new(
 }
 
 ///|
-pub fn PrefixPublishBuffer::capacity(self : PrefixPublishBuffer) -> Int {
+pub fn PrefixPublishBuffer::capacity(self : PrefixPublishBuffer) -> Int32 {
   self.adopted.length()
 }
 
 ///|
-pub fn PrefixPublishBuffer::length(self : PrefixPublishBuffer) -> Int {
+pub fn PrefixPublishBuffer::length(self : PrefixPublishBuffer) -> Int32 {
   self.length
 }
 
@@ -100,7 +103,7 @@ pub fn PrefixPublishBuffer::push_page(
 ///|
 pub fn PrefixPublishBuffer::page_at(
   self : PrefixPublishBuffer,
-  index : Int,
+  index : Int32,
 ) -> @page_allocator.PageId raise PrefixIndexError {
   if index < 0 || index >= self.length {
     raise ResultIndexOutOfBounds
@@ -113,7 +116,7 @@ pub fn PrefixPublishBuffer::page_at(
 ///|
 pub fn PrefixPublishBuffer::was_adopted(
   self : PrefixPublishBuffer,
-  index : Int,
+  index : Int32,
 ) -> Bool raise PrefixIndexError {
   if index < 0 || index >= self.length {
     raise ResultIndexOutOfBounds
@@ -124,7 +127,7 @@ pub fn PrefixPublishBuffer::was_adopted(
 ///|
 pub fn PrefixPublishBuffer::planned_adoption(
   self : PrefixPublishBuffer,
-  index : Int,
+  index : Int32,
 ) -> Bool raise PrefixIndexError {
   if index < 0 || index >= self.length {
     raise ResultIndexOutOfBounds

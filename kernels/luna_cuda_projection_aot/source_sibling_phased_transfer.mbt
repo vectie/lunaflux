@@ -9,8 +9,8 @@
 fn projection_sibling_phased_transfer_source(
   operands : @physical_tile_ir.OperandStorage,
   segments : ArrayView[@luna_projection_tile_compiler.ProjectionTransferSegment],
-  input_width : Int,
-  asynchronous? : Bool = false,
+  input_width : Int32,
+  asynchronous~ : Bool = false,
 ) -> String {
   guard operands.has_concatenated_layout() else {
     abort("phased transfer requires compatible concatenated operand layout")

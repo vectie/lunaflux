@@ -14,17 +14,20 @@ extern "C" fn alloc_probe_array_count() -> UInt64 = "lunaflux_device_worker_allo
 extern "C" fn alloc_probe_string_count() -> UInt64 = "lunaflux_device_worker_alloc_probe_string_count"
 
 ///|
-extern "C" fn alloc_probe_check(observed : UInt64, expect_zero : Int) -> Int = "lunaflux_device_worker_alloc_probe_check"
+extern "C" fn alloc_probe_check(
+  observed : UInt64,
+  expect_zero : Int32,
+) -> Int32 = "lunaflux_device_worker_alloc_probe_check"
 
 ///|
 extern "C" fn alloc_probe_abort() = "lunaflux_device_worker_alloc_probe_abort"
 
 ///|
-extern "C" fn alloc_probe_seed() -> Int = "lunaflux_device_worker_alloc_probe_seed"
+extern "C" fn alloc_probe_seed() -> Int32 = "lunaflux_device_worker_alloc_probe_seed"
 
 ///|
 #borrow(value)
-extern "C" fn keep_array_alive(value : FixedArray[Int]) = "lunaflux_device_worker_alloc_probe_keep_alive"
+extern "C" fn keep_array_alive(value : FixedArray[Int32]) = "lunaflux_device_worker_alloc_probe_keep_alive"
 
 ///|
 extern "C" fn fake_copy_count() -> UInt64 = "lunaflux_device_worker_fake_copy_count"
@@ -42,7 +45,7 @@ extern "C" fn fake_resource_create_count() -> UInt64 = "lunaflux_device_worker_f
 extern "C" fn fake_resource_close_count() -> UInt64 = "lunaflux_device_worker_fake_resource_close_count"
 
 ///|
-extern "C" fn fake_live_children() -> Int = "lunaflux_device_worker_fake_live_children"
+extern "C" fn fake_live_children() -> Int32 = "lunaflux_device_worker_fake_live_children"
 
 ///|
 extern "C" fn executor_evidence_reset() = "lunaflux_tp_alloc_evidence_reset"
@@ -66,7 +69,7 @@ extern "C" fn executor_resets() -> UInt64 = "lunaflux_tp_alloc_executor_resets"
 extern "C" fn blocking_synchronizations() -> UInt64 = "lunaflux_tp_alloc_blocking_synchronizations"
 
 ///|
-extern "C" fn live_executors() -> Int = "lunaflux_tp_alloc_live_executors"
+extern "C" fn live_executors() -> Int32 = "lunaflux_tp_alloc_live_executors"
 
 ///|
 extern "C" fn collective_evidence_reset() = "lunaflux_tp_alloc_collective_evidence_reset"
@@ -81,11 +84,11 @@ extern "C" fn collective_pending_polls() -> UInt64 = "lunaflux_tp_alloc_collecti
 extern "C" fn collective_complete_polls() -> UInt64 = "lunaflux_tp_alloc_collective_complete_polls"
 
 ///|
-extern "C" fn live_communicators() -> Int = "lunaflux_tp_alloc_live_communicators"
+extern "C" fn live_communicators() -> Int32 = "lunaflux_tp_alloc_live_communicators"
 
 ///|
 struct PositiveControl {
-  _value : Int
+  _value : Int32
 }
 
 ///|
@@ -143,7 +146,7 @@ fn verify_probe_controls() -> Unit {
 fn execute_rank_cycle(
   workers : WorkerFixture,
   cycles : CycleFixture,
-  index : Int,
+  index : Int32,
 ) -> Unit raise {
   for rank in 0..<TP_WORLD_SIZE {
     execute_cycle(workers.workers[rank], rank, cycles.cycles[index])
@@ -153,7 +156,7 @@ fn execute_rank_cycle(
 ///|
 fn verify_warmed_evidence(
   observed : UInt64,
-  measured_cycle_count : Int,
+  measured_cycle_count : Int32,
   workers : WorkerFixture,
   warm_copies : UInt64,
   warm_launches : UInt64,

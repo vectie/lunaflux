@@ -29,7 +29,7 @@ pub fn GlmHybridKdaOutputGateCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridKdaOutputGateCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,22 +48,26 @@ pub fn GlmHybridKdaOutputGateCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridKdaOutputGateCudaCandidate::hidden_width(self : Self) -> Int {
+pub fn GlmHybridKdaOutputGateCudaCandidate::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn GlmHybridKdaOutputGateCudaCandidate::head_count(self : Self) -> Int {
+pub fn GlmHybridKdaOutputGateCudaCandidate::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmHybridKdaOutputGateCudaCandidate::head_dimension(self : Self) -> Int {
+pub fn GlmHybridKdaOutputGateCudaCandidate::head_dimension(
+  self : Self,
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn GlmHybridKdaOutputGateCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridKdaOutputGateCudaCandidate::maximum_tokens(
+  self : Self,
+) -> Int32 {
   self.maximum_tokens
 }
 

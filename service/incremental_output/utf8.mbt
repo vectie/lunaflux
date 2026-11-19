@@ -1,13 +1,13 @@
 ///|
 #valtype
-priv struct Utf8AdvanceStatus(Bool, Int, Int, Int, Int)
+priv struct Utf8AdvanceStatus(Bool, Int32, Int32, Int32, Int32)
 
 ///|
 fn advance_utf8_status(
-  remaining : Int,
-  codepoint : Int,
-  minimum : Int,
-  seen : Int,
+  remaining : Int32,
+  codepoint : Int32,
+  minimum : Int32,
+  seen : Int32,
   byte : Byte,
 ) -> Utf8AdvanceStatus {
   let value = byte.to_int()

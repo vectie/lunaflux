@@ -26,10 +26,10 @@ pub struct DeepSeekV4KeyValueParameterEvidenceInput {
   priv weight_shape : ReadOnlyArray[Int64]
   priv scale_shape : ReadOnlyArray[Int64]
   priv layout_digest_sha256 : String
-  priv weight_operand_ordinal : Int
+  priv weight_operand_ordinal : Int32
   priv weight_operand_role : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
   priv weight_operand_bytes : Int64
-  priv scale_operand_ordinal : Int
+  priv scale_operand_ordinal : Int32
   priv scale_operand_role : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
   priv scale_operand_bytes : Int64
 }
@@ -37,12 +37,12 @@ pub struct DeepSeekV4KeyValueParameterEvidenceInput {
 ///|
 pub struct DeepSeekV4KeyValueParameterPlan {
   priv source_identity : @spec.ModelIdentity
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv layout_digest_sha256 : String
-  priv input_width : Int
-  priv output_width : Int
-  priv rope_width : Int
-  priv block_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv rope_width : Int32
+  priv block_width : Int32
   priv candidate_source_digest : String
   priv candidate_recipe_digest : String
   priv digest_sha256 : String

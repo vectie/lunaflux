@@ -5,8 +5,8 @@
 pub fn bind_token_hash_tables(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  first_layer~ : Int,
-  end_layer~ : Int,
+  first_layer~ : Int32,
+  end_layer~ : Int32,
 ) -> Array[@materialize.CheckpointI64Table] raise {
   guard first_layer >= 0 &&
     end_layer > first_layer &&

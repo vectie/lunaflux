@@ -19,7 +19,7 @@ fn bridge_remote_mailbox(
 fn exercise_remote_group(
   remote : @remote_startup.RemoteGroupStartup,
   admitted : TensorParallelGroupBootstrap,
-  disconnect_after_accept? : Bool = false,
+  disconnect_after_accept~ : Bool = false,
 ) -> Unit raise {
   let startup = remote.rank(0).unwrap().worker()
   let limits = @rank_group_wire.RankGroupWireLimits::new(

@@ -2,13 +2,13 @@
 /// CUDA transport facts supplied to physical refinement, before emission.
 /// This map keeps each logical row contiguous and separates fragment banks.
 priv struct CudaProjectionTransportLayout {
-  columns : Int
+  columns : Int32
 }
 
 ///|
 fn CudaProjectionTransportLayout::rotations(
   self : CudaProjectionTransportLayout,
-) -> Int {
+) -> Int32 {
   if self.columns / 8 % 8 == 0 {
     8
   } else if self.columns / 8 % 4 == 0 {

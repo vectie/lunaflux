@@ -165,28 +165,28 @@ pub fn ApprovedPagedAttentionReadOnlyModule::target(
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::operation_id(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> Int {
+) -> Int32 {
   self.identity.operation
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::activation_ref(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> Int {
+) -> Int32 {
   self.identity.activation
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::input_row_width(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> Int {
+) -> Int32 {
   self.identity.input_row_width
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::profile_shape(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (
     self.identity.profile_rows,
     self.identity.profile_tokens,
@@ -197,7 +197,7 @@ pub fn ApprovedPagedAttentionReadOnlyModule::profile_shape(
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::profile_id(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> Int {
+) -> Int32 {
   self.identity.profile_id
 }
 
@@ -232,21 +232,21 @@ pub fn ApprovedPagedAttentionReadOnlyModule::module_bytes(
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::dispatch_canary_per_token(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> Int {
+) -> Int32 {
   self.identity.dispatch_canary
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::dispatch_canary_cell_count(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> Int {
+) -> Int32 {
   self.identity.dispatch_canary_cells
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyModule::tokens_per_page(
   self : ApprovedPagedAttentionReadOnlyModule,
-) -> Int {
+) -> Int32 {
   self.identity.tokens_per_page
 }
 

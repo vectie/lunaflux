@@ -1,7 +1,7 @@
 ///|
 /// Looks up one embedding row for each token ID.
 pub fn embedding(
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   table : Tensor,
   limits~ : ReferenceLimits,
 ) -> Activation raise ReferenceKernelError {

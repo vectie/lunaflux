@@ -7,13 +7,13 @@ pub(all) suberror PolicyError {
 /// One already qualified prefill shape. Construction is a startup operation.
 #valtype
 pub struct PrefillShape {
-  tokens : Int
+  tokens : Int32
   workspace_bytes : Int64
 }
 
 ///|
 pub fn PrefillShape::new(
-  tokens~ : Int,
+  tokens~ : Int32,
   workspace_bytes~ : Int64,
 ) -> PrefillShape raise PolicyError {
   if tokens <= 0 || workspace_bytes < 0L {
@@ -27,14 +27,14 @@ pub fn PrefillShape::new(
 /// No new graph/shape is synthesized. Ties keep the first supplied candidate.
 pub fn select_prefill(
   shapes : ArrayView[PrefillShape],
-  remaining_tokens~ : Int,
-  token_budget~ : Int,
+  remaining_tokens~ : Int32,
+  token_budget~ : Int32,
   workspace_budget~ : Int64,
-  available_pages~ : Int,
-  decode_reserve~ : Int,
-  tokens_per_page~ : Int,
-  tail_free_tokens~ : Int,
-) -> Int {
+  available_pages~ : Int32,
+  decode_reserve~ : Int32,
+  tokens_per_page~ : Int32,
+  tail_free_tokens~ : Int32,
+) -> Int32 {
   if remaining_tokens <= 0 ||
     token_budget <= 0 ||
     workspace_budget < 0L ||

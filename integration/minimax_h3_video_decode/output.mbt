@@ -3,20 +3,20 @@
 pub struct VideoOutput {
   source : Bytes
   symbol : String
-  frames : Int
-  height : Int
-  width : Int
+  frames : Int32
+  height : Int32
+  width : Int32
   input_bytes : Int64
   output_bytes : Int64
 }
 
 ///|
 pub fn VideoOutput::new(
-  frames~ : Int,
-  input_height~ : Int,
-  input_width~ : Int,
-  height~ : Int,
-  width~ : Int,
+  frames~ : Int32,
+  input_height~ : Int32,
+  input_width~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   symbol~ : String,
 ) -> Self raise {
   guard frames > 0 &&
@@ -79,9 +79,9 @@ pub struct VideoDecodeBundle {
 pub fn VideoDecodeBundle::from_plan(
   plan : @joint_diffusion_loop.PreparedPlan,
   prefix~ : String,
-  tile_size~ : Int,
-  minimum_overlap~ : Int,
-  max_tiles~ : Int,
+  tile_size~ : Int32,
+  minimum_overlap~ : Int32,
+  max_tiles~ : Int32,
   max_workspace_bytes~ : Int64,
 ) -> Self raise {
   let request = plan.request()

@@ -14,7 +14,7 @@ priv enum State {
 
 ///|
 priv struct Effects {
-  submit : (Int) -> Unit raise
+  submit : (Int32) -> Unit raise
   poll : () -> Bool raise
   close : () -> Unit raise
 }
@@ -29,10 +29,10 @@ pub struct BatchedDecoderRank {
   priv inputs : Array[@device.Allocation]
   priv pools : Array[@device.TransferPool]
   priv payloads : Array[FixedArray[Byte]]
-  priv live_bytes : FixedArray[Int]
-  priv samples : Array[Int]
+  priv live_bytes : FixedArray[Int32]
+  priv samples : Array[Int32]
   priv outputs_token : Bool
-  priv vocabulary : Int
+  priv vocabulary : Int32
   priv mut sampled : @device.Allocation?
   priv mut effects : Effects?
   priv mut sampling : BatchedSampling?
@@ -81,7 +81,9 @@ pub fn BatchedDecoderRank::new(
 }
 
 ///|
-pub fn BatchedDecoderRank::geometry(self : Self) -> (Int, Int, Int, Int, Int) {
+pub fn BatchedDecoderRank::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32, Int32) {
   self.frame.geometry()
 }
 
@@ -93,7 +95,7 @@ pub fn BatchedDecoderRank::outputs_token(self : Self) -> Bool {
 ///|
 pub fn BatchedDecoderRank::required_device_bytes(self : Self) -> Int64 {
   for port in self.ports; bytes = self.samples.length().to_int64() * 4L {
-    continue bytes + Int::max(4, self.frame.input_capacity(port)).to_int64()
+    continue bytes + Int32::max(4, self.frame.input_capacity(port)).to_int64()
   } nobreak {
     bytes
   }
@@ -104,7 +106,7 @@ fn BatchedDecoderRank::prepare_pool(
   self : Self,
   context : @device.Context,
   allocation : @device.Allocation,
-  bytes : Int,
+  bytes : Int32,
 ) -> Unit raise {
   let pool = context.prepare_transfer_pool(
     allocation,
@@ -130,7 +132,7 @@ pub fn BatchedDecoderRank::prepare_ports(
   self.state = Failed
   for port in self.ports {
     // Unused optional ports still have a valid startup address; they never DMA.
-    let bytes = Int::max(4, self.frame.input_capacity(port))
+    let bytes = Int32::max(4, self.frame.input_capacity(port))
     let input = context.allocate(bytes.to_int64())
     self.inputs.push(input)
     self.prepare_pool(context, input, bytes)
@@ -172,7 +174,7 @@ pub fn BatchedDecoderRank::sampled_tokens(
 pub fn BatchedDecoderRank::bind_executor(
   self : Self,
   context : @device.Context,
-  submit~ : (Int) -> Unit raise,
+  submit~ : (Int32) -> Unit raise,
   poll~ : () -> Bool raise,
   close~ : () -> Unit raise,
   append_descriptors~ : ArrayView[@device.Allocation],

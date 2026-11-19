@@ -53,7 +53,7 @@ fn OnlineWorkerLease::progress_retired_lanes(
 }
 
 ///|
-fn OnlineWorkerLease::next_device_retirement_lane(self : Self) -> Int {
+fn OnlineWorkerLease::next_device_retirement_lane(self : Self) -> Int32 {
   if self.device_retirement_lane >= 0 {
     return self.device_retirement_lane
   }

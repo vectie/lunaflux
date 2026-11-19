@@ -1,24 +1,24 @@
 ///|
-const LUNA_TOKEN_STORAGE_IDLE : Int = 0
+const LUNA_TOKEN_STORAGE_IDLE : Int32 = 0
 
 ///|
-const LUNA_TOKEN_STORAGE_WRITING : Int = 1
+const LUNA_TOKEN_STORAGE_WRITING : Int32 = 1
 
 ///|
-const LUNA_TOKEN_STORAGE_SEALED : Int = 2
+const LUNA_TOKEN_STORAGE_SEALED : Int32 = 2
 
 ///|
 /// Startup-preallocated token storage. Each begin/write/seal/release cycle is
 /// authenticated by an exact generation; no operation clears storage
 /// proportionally or exposes its mutable fixed array.
 pub struct LunaTokenBufferStorage {
-  priv tokens : FixedArray[Int]
-  priv validation_max_token_id : Int
+  priv tokens : FixedArray[Int32]
+  priv validation_max_token_id : Int32
   priv mut epoch : UInt64
-  priv mut phase : Int
-  priv mut expected_count : Int
-  priv mut written_count : Int
-  priv mut written_maximum_token_id : Int
+  priv mut phase : Int32
+  priv mut expected_count : Int32
+  priv mut written_count : Int32
+  priv mut written_maximum_token_id : Int32
 }
 
 ///|
@@ -33,14 +33,14 @@ pub struct LunaTokenBufferWrite {
 pub struct LunaTokenBufferLease {
   priv storage : LunaTokenBufferStorage
   priv epoch : UInt64
-  priv token_count : Int
+  priv token_count : Int32
 }
 
 ///|
 /// Returns the exact number of preallocated `Int` cells required by one token
 /// storage owner, before any allocation occurs.
 pub fn LunaTokenBufferStorage::required_int_cells(
-  capacity : Int,
+  capacity : Int32,
 ) -> UInt64 raise InferenceContractError {
   if capacity <= 0 {
     raise invalid(LunaTokenStorage, OutOfRange, 0)
@@ -50,7 +50,7 @@ pub fn LunaTokenBufferStorage::required_int_cells(
 
 ///|
 pub fn LunaTokenBufferStorage::new(
-  capacity~ : Int,
+  capacity~ : Int32,
   limits~ : InferenceLimits,
 ) -> LunaTokenBufferStorage raise InferenceContractError {
   if capacity <= 0 || capacity > limits.max_input_tokens() {
@@ -68,14 +68,14 @@ pub fn LunaTokenBufferStorage::new(
 }
 
 ///|
-pub fn LunaTokenBufferStorage::capacity(self : LunaTokenBufferStorage) -> Int {
+pub fn LunaTokenBufferStorage::capacity(self : LunaTokenBufferStorage) -> Int32 {
   self.tokens.length()
 }
 
 ///|
 pub fn LunaTokenBufferStorage::begin(
   self : LunaTokenBufferStorage,
-  token_count~ : Int,
+  token_count~ : Int32,
 ) -> LunaTokenBufferWrite raise InferenceContractError {
   if self.phase != LUNA_TOKEN_STORAGE_IDLE {
     raise invalid(LunaTokenStorage, LunaStorageBusy, 0)
@@ -111,7 +111,7 @@ fn LunaTokenBufferWrite::require_current(
 /// cursor unchanged and never publishes a partial buffer.
 pub fn LunaTokenBufferWrite::push(
   self : LunaTokenBufferWrite,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit raise InferenceContractError {
   let storage = self.require_current()
   if storage.written_count >= storage.expected_count {
@@ -130,7 +130,7 @@ pub fn LunaTokenBufferWrite::push(
 ///|
 pub fn LunaTokenBufferWrite::written_count(
   self : LunaTokenBufferWrite,
-) -> Int raise InferenceContractError {
+) -> Int32 raise InferenceContractError {
   self.require_current().written_count
 }
 
@@ -196,7 +196,7 @@ pub fn LunaTokenBufferLease::release(
 fn LunaTokenBufferStorage::is_sealed_epoch(
   self : LunaTokenBufferStorage,
   epoch : UInt64,
-  token_count : Int,
+  token_count : Int32,
 ) -> Bool {
   epoch != 0UL &&
   self.epoch == epoch &&
@@ -208,8 +208,8 @@ fn LunaTokenBufferStorage::is_sealed_epoch(
 fn LunaTokenBufferStorage::read_status(
   self : LunaTokenBufferStorage,
   epoch : UInt64,
-  token_count : Int,
-  index : Int,
+  token_count : Int32,
+  index : Int32,
 ) -> LunaTokenBufferReadStatus {
   if !self.is_sealed_epoch(epoch, token_count) {
     return LunaTokenBufferReadStatus(2, 0)

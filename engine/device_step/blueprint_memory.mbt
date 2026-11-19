@@ -77,7 +77,7 @@ fn exact_activation_references(
 ///|
 fn expected_activation_last_uses(
   model_plan : @plan.ModelPlan,
-) -> Array[Int] raise DeviceStepError {
+) -> Array[Int32] raise DeviceStepError {
   let operations = model_plan.operations()
   let last_uses = Array::make(operations.length(), -1)
   for index, operation in operations {

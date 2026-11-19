@@ -1,8 +1,8 @@
 ///|
 fn moe_feed_forward_selected_width(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  expert_count : Int,
-) -> Int? {
+  expert_count : Int32,
+) -> Int32? {
   for requirement in requirements.requirements() {
     if requirement.operation()
       is MoeGroupedNoAuxiliaryLossTopK(
@@ -24,7 +24,7 @@ fn moe_feed_forward_selected_width(
 ///|
 fn validate_moe_feed_forward_environment(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : GlmHybridCudaAotLimits,
@@ -44,8 +44,8 @@ fn validate_moe_feed_forward_environment(
 
 ///|
 fn moe_feed_forward_dimensions(
-  maximum_tokens : Int,
-  hidden_size : Int,
+  maximum_tokens : Int32,
+  hidden_size : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise GlmHybridCudaAotError {
   let cells = checked_mul(maximum_tokens.to_int64(), hidden_size.to_int64())
   let grid = (cells + 255L) / 256L
@@ -71,8 +71,8 @@ fn moe_feed_forward_candidate(
   numerical_contract : GlmHybridMoeFeedForwardNumericalContract,
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
   requirement : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirement,
-  requirement_ordinal : Int,
-  maximum_tokens : Int,
+  requirement_ordinal : Int32,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   dimensions : @launch_contract.AotLaunchDimensions,
   operands : Array[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand],

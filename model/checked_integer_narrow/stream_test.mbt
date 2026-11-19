@@ -2,7 +2,7 @@
 test "streamed narrowing is invariant under arbitrary element and row splits" {
   let input = fixture([0L, 2L, 1L, 3L, 5L, 4L])
   for chunk in [1, 3, 7, 8, 9, 16, 23, 64] {
-    let stream = I64RowNarrowStream::new(
+    let stream = @checked_integer_narrow.I64RowNarrowStream::new(
       row_count=2,
       column_count=3,
       minimum_value=0,
@@ -46,7 +46,7 @@ test "stream preserves cross-chunk duplicate and range failures" {
       (fixture([1L, 1L]), true),
       (fixture([1L, 8L]), false),
     ] {
-    let stream = I64RowNarrowStream::new(
+    let stream = @checked_integer_narrow.I64RowNarrowStream::new(
       row_count=1,
       column_count=2,
       minimum_value=0,
@@ -76,7 +76,7 @@ test "stream preserves cross-chunk duplicate and range failures" {
 
 ///|
 test "stream rejects truncation offset discontinuity and unbudgeted row state" {
-  let stream = I64RowNarrowStream::new(
+  let stream = @checked_integer_narrow.I64RowNarrowStream::new(
     row_count=1,
     column_count=2,
     minimum_value=-4,
@@ -93,7 +93,7 @@ test "stream rejects truncation offset discontinuity and unbudgeted row state" {
   } noraise {
     _ => fail("partial I64 accepted")
   }
-  let gap = I64RowNarrowStream::new(
+  let gap = @checked_integer_narrow.I64RowNarrowStream::new(
     row_count=1,
     column_count=2,
     minimum_value=0,
@@ -108,7 +108,7 @@ test "stream rejects truncation offset discontinuity and unbudgeted row state" {
     _ => fail("noncontiguous source accepted")
   }
   try
-    I64RowNarrowStream::new(
+    @checked_integer_narrow.I64RowNarrowStream::new(
       row_count=1,
       column_count=2,
       minimum_value=0,

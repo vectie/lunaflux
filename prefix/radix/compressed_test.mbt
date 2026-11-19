@@ -55,7 +55,7 @@ test "equal-priority eviction uses deterministic LRU recency" {
 ///|
 fn planned_request_key(
   identity : TestRootIdentity,
-  permission? : @inference.CachePermission = ReadWrite,
+  permission~ : @inference.CachePermission = ReadWrite,
 ) -> (@radix.PrefixRequestKey, @inference.LunaRequestSemanticLease) raise {
   let limits = inference_limits()
   let storage = @inference.LunaRequestSemanticStorage::new(
@@ -93,7 +93,7 @@ fn planned_publish(
   key : @radix.PrefixRequestKey,
   tokens : @radix.PrefixTokenBuffer,
   pages : @radix.PrefixPublishBuffer,
-  priority~ : Int,
+  priority~ : Int32,
 ) -> @radix.PrefixPublishPlan raise @radix.PrefixIndexError {
   let start = index.try_plan_publish(key, tokens, pages, priority~)
   if !start.is_planned() {

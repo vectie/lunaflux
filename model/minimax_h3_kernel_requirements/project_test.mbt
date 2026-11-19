@@ -1,7 +1,7 @@
 ///|
 fn minimax_kernel_metadata(
   variant : @minimax_h3_spec.MiniMaxH3Variant,
-  seed? : Char = '7',
+  seed~ : Char = '7',
 ) -> @minimax_h3_spec.MiniMaxH3ModelMetadata {
   @minimax_h3_spec.MiniMaxH3ModelMetadata::from_verified_content(
     @minimax_h3_spec.MiniMaxH3TransformerSpec::official(

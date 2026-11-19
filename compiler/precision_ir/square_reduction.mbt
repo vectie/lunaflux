@@ -10,7 +10,7 @@ pub(all) enum SquareReductionLaw {
   /// Partition p owns vectors p,p+P,...; component sums join left-to-right,
   /// then partition totals join upper-half into lower-half in a fixed tree.
   /// Empty/tail components contribute zero. All squares and sums remain F32.
-  VectorizedTreeFloat32(partitions~ : Int, vector_width~ : Int)
+  VectorizedTreeFloat32(partitions~ : Int32, vector_width~ : Int32)
 } derive(Debug, Eq)
 
 ///|

@@ -5,8 +5,8 @@
 fn prepare_paged_production_steps(
   context : @device.Context,
   blueprint : PagedKvExecutionBlueprint,
-  function_indices : FixedArray[Int],
-  split_decode_indices : FixedArray[Int],
+  function_indices : FixedArray[Int32],
+  split_decode_indices : FixedArray[Int32],
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
@@ -27,7 +27,7 @@ fn prepare_paged_production_steps(
       Some(prepare_fused_residual_resources(context, span, resources))
     None => None
   }
-  let mut fused_qkv_readonly_functions : (Int, Int)? = None
+  let mut fused_qkv_readonly_functions : (Int32, Int32)? = None
   match fused_qkv_readonly_span {
     Some(span) =>
       fused_qkv_readonly_functions = Some(
@@ -397,9 +397,9 @@ fn prepare_paged_production_steps(
 fn paged_production_split_decode_function(
   operation : @plan.OperationId,
   blueprint : PagedKvExecutionBlueprint,
-  split_decode_indices : FixedArray[Int],
+  split_decode_indices : FixedArray[Int32],
   qwen_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-) -> Int {
+) -> Int32 {
   for span in qwen_spans {
     let indices = span.operation_indices()
     match blueprint.steps().get(indices.3) {

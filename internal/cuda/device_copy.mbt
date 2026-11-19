@@ -11,7 +11,7 @@ extern "c" fn raw_device_copy_create(
   source_offsets : FixedArray[Int64],
   destination_offsets : FixedArray[Int64],
   sizes : FixedArray[Int64],
-  status : Ref[Int],
+  status : Ref[Int32],
 ) -> DeviceCopyBatch = "lunaflux_cuda_device_copy_create"
 
 ///|
@@ -19,18 +19,18 @@ extern "c" fn raw_device_copy_create(
 extern "c" fn raw_device_copy_submit(
   copy : DeviceCopyBatch,
   reverse : Bool,
-) -> Int = "lunaflux_cuda_device_copy_submit"
+) -> Int32 = "lunaflux_cuda_device_copy_submit"
 
 ///|
 #borrow(copy)
 extern "c" fn raw_device_copy_retire(
   copy : DeviceCopyBatch,
   wait : Bool,
-) -> Int = "lunaflux_cuda_device_copy_retire"
+) -> Int32 = "lunaflux_cuda_device_copy_retire"
 
 ///|
 #borrow(copy)
-extern "c" fn raw_device_copy_close(copy : DeviceCopyBatch) -> Int = "lunaflux_cuda_device_copy_close"
+extern "c" fn raw_device_copy_close(copy : DeviceCopyBatch) -> Int32 = "lunaflux_cuda_device_copy_close"
 
 ///|
 pub fn prepare_device_copy_batch(

@@ -1,9 +1,9 @@
 ///|
 fn valid_usage_scalars(
   inference : @inference.InferenceLimits,
-  input_tokens : Int,
-  cached_input_tokens : Int,
-  output_tokens : Int,
+  input_tokens : Int32,
+  cached_input_tokens : Int32,
+  output_tokens : Int32,
 ) -> Bool {
   input_tokens >= 0 &&
   input_tokens <= inference.max_context_tokens() &&
@@ -17,9 +17,9 @@ fn valid_usage_scalars(
 ///|
 fn write_usage_scalars(
   bytes : FixedArray[Byte],
-  input_tokens : Int,
-  cached_input_tokens : Int,
-  output_tokens : Int,
+  input_tokens : Int32,
+  cached_input_tokens : Int32,
+  output_tokens : Int32,
 ) -> Unit {
   write_i32(bytes, 32, input_tokens)
   write_i32(bytes, 36, cached_input_tokens)

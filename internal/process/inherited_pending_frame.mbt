@@ -53,9 +53,9 @@ fn InheritedChannel::require_transfer_unexpired(
 ///|
 fn inherited_transferred_or_pending(
   owner : InheritedChannel,
-  result : Int,
+  result : Int32,
   operation : ProcessOperation,
-) -> Int raise ProcessError {
+) -> Int32 raise ProcessError {
   if result >= 0 {
     return result
   }
@@ -67,8 +67,8 @@ fn inherited_transferred_or_pending(
 ///|
 fn validate_inherited_progress_count(
   owner : InheritedChannel,
-  transferred : Int,
-  remaining : Int,
+  transferred : Int32,
+  remaining : Int32,
   operation : ProcessOperation,
 ) -> Unit raise ProcessError {
   if transferred <= 0 || transferred > remaining {
@@ -84,9 +84,9 @@ fn validate_inherited_progress_count(
 pub fn InheritedChannel::begin_write_frame(
   self : InheritedChannel,
   source : FixedArray[Byte],
-  offset~ : Int,
-  byte_count~ : Int,
-  timeout_millis? : Int = self.limits.io_timeout_millis,
+  offset~ : Int32,
+  byte_count~ : Int32,
+  timeout_millis~ : Int32 = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.require_usable(Write)
   if self.write_transfer_active {
@@ -169,7 +169,7 @@ fn InheritedChannel::begin_read_frame_internal(
   self : InheritedChannel,
   destination : FixedArray[Byte],
   staging : FixedArray[Byte],
-  timeout_millis : Int,
+  timeout_millis : Int32,
   allows_eof : Bool,
 ) -> Unit raise ProcessError {
   self.require_usable(Read)
@@ -206,7 +206,7 @@ pub fn InheritedChannel::begin_read_frame(
   self : InheritedChannel,
   destination : FixedArray[Byte],
   staging~ : FixedArray[Byte],
-  timeout_millis? : Int = self.limits.io_timeout_millis,
+  timeout_millis~ : Int32 = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.begin_read_frame_internal(destination, staging, timeout_millis, false)
 }
@@ -218,7 +218,7 @@ pub fn InheritedChannel::begin_read_frame_or_eof(
   self : InheritedChannel,
   destination : FixedArray[Byte],
   staging~ : FixedArray[Byte],
-  timeout_millis? : Int = self.limits.io_timeout_millis,
+  timeout_millis~ : Int32 = self.limits.io_timeout_millis,
 ) -> Unit raise ProcessError {
   self.begin_read_frame_internal(destination, staging, timeout_millis, true)
 }
@@ -232,14 +232,24 @@ pub fn InheritedChannel::begin_wait_frame_or_eof(
   destination : FixedArray[Byte],
   staging~ : FixedArray[Byte],
 ) -> Unit raise ProcessError {
-  self.begin_read_frame_internal(destination, staging, self.limits.io_timeout_millis, true)
+  self.begin_read_frame_internal(
+    destination,
+    staging,
+    self.limits.io_timeout_millis,
+    true,
+  )
   self.read_transfer_deadline_millis = 0L
 }
 
 ///|
-fn InheritedChannel::start_waiting_frame_deadline(self : Self) -> Unit raise ProcessError {
+fn InheritedChannel::start_waiting_frame_deadline(
+  self : Self,
+) -> Unit raise ProcessError {
   if self.read_transfer_deadline_millis == 0L {
-    self.read_transfer_deadline_millis = capture_deadline(self.limits.io_timeout_millis, Read)
+    self.read_transfer_deadline_millis = capture_deadline(
+      self.limits.io_timeout_millis,
+      Read,
+    )
   }
 }
 
@@ -247,7 +257,7 @@ fn InheritedChannel::start_waiting_frame_deadline(self : Self) -> Unit raise Pro
 fn InheritedChannel::progress_read_frame_internal(
   self : InheritedChannel,
   expects_eof_mode : Bool,
-) -> Int? raise ProcessError {
+) -> Int32? raise ProcessError {
   self.require_usable(Read)
   if !self.read_transfer_active ||
     self.read_transfer_allows_eof != expects_eof_mode {
@@ -316,7 +326,7 @@ fn InheritedChannel::progress_read_frame_internal(
 /// `read`. None is pending and a positive value is a complete frame length.
 pub fn InheritedChannel::progress_read_frame(
   self : InheritedChannel,
-) -> Int? raise ProcessError {
+) -> Int32? raise ProcessError {
   self.progress_read_frame_internal(false)
 }
 
@@ -326,6 +336,6 @@ pub fn InheritedChannel::progress_read_frame(
 /// a complete frame length, and `None` is pending.
 pub fn InheritedChannel::progress_read_frame_or_eof(
   self : InheritedChannel,
-) -> Int? raise ProcessError {
+) -> Int32? raise ProcessError {
   self.progress_read_frame_internal(true)
 }

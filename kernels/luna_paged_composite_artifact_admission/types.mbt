@@ -33,22 +33,22 @@ pub struct ApprovedPagedAttentionReadOnlyRuntimeIdentity {
   priv toolchain : String
   priv driver : String
   priv target : @catalog.DeviceTarget
-  priv operation : Int
-  priv activation : Int
-  priv input_row_width : Int
-  priv profile_id : Int
-  priv profile_rows : Int
-  priv profile_tokens : Int
-  priv profile_page_entries : Int
-  priv tokens_per_page : Int
+  priv operation : Int32
+  priv activation : Int32
+  priv input_row_width : Int32
+  priv profile_id : Int32
+  priv profile_rows : Int32
+  priv profile_tokens : Int32
+  priv profile_page_entries : Int32
+  priv tokens_per_page : Int32
   priv page_stride_bytes : Int64
   priv physical_page_capacity : Int64
   priv symbol : String
   priv abi : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyKernelAbi
   priv launch : @launch_contract.AotLaunchDimensions
   priv module_bytes : Bytes
-  priv dispatch_canary : Int
-  priv dispatch_canary_cells : Int
+  priv dispatch_canary : Int32
+  priv dispatch_canary_cells : Int32
   priv device_uuid : String
   priv device_pci : String
   priv device_name_hex : String
@@ -73,11 +73,11 @@ pub struct QualifiedPagedKvWriteFallbackIdentity {
   priv fallback_recipe : String
   priv operation : @plan.OperationId
   priv activation : @plan.ActivationRef
-  priv row_width : Int
+  priv row_width : Int32
   priv target : @catalog.DeviceTarget
   priv profile : @launch_contract.PagedKernelProfile
-  priv tokens_per_page : Int
-  priv total_page_count : Int
+  priv tokens_per_page : Int32
+  priv total_page_count : Int32
   priv page_stride_bytes : Int64
   priv toolchain : String
   priv driver : String

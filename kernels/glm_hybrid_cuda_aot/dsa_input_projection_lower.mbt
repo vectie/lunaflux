@@ -1,14 +1,14 @@
 ///|
-fn official_query_a_shape(input_width : Int, output_width : Int) -> Bool {
+fn official_query_a_shape(input_width : Int32, output_width : Int32) -> Bool {
   (input_width == 6144 && output_width == 2048) ||
   (input_width == 4096 && output_width == 1536)
 }
 
 ///|
 fn official_key_value_a_shape(
-  input_width : Int,
-  compressed_width : Int,
-  rope_width : Int,
+  input_width : Int32,
+  compressed_width : Int32,
+  rope_width : Int32,
 ) -> Bool {
   (input_width == 6144 && compressed_width == 512 && rope_width == 64) ||
   (input_width == 4096 && compressed_width == 512 && rope_width == 0)
@@ -19,8 +19,8 @@ fn official_key_value_a_shape(
 /// row-major [query-rank, hidden] q_a weight, with no bias.
 pub fn lower_dsa_query_a_projection_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,
@@ -58,8 +58,8 @@ pub fn lower_dsa_query_a_projection_cuda_aot_candidate(
 /// [compressed-kv, rope-key] layout; splitting, RMSNorm, and kv_b are excluded.
 pub fn lower_dsa_key_value_a_projection_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,
@@ -101,8 +101,8 @@ pub fn lower_dsa_key_value_a_projection_cuda_aot_candidate(
 /// zero-copy view `[query_head, qk_component]`; Full RoPE is downstream.
 pub fn lower_dsa_query_b_projection_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,
@@ -154,8 +154,8 @@ pub fn lower_dsa_query_b_projection_cuda_aot_candidate(
 /// The separate KV-A RoPE-key suffix is deliberately not consumed here.
 pub fn lower_dsa_key_value_b_projection_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

@@ -16,14 +16,14 @@ pub(all) enum ProjectionNumericalContract {
 
 ///|
 pub struct ProjectionAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn ProjectionAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
 ) -> ProjectionAotLimits raise ProjectionAotError {
   if max_source_bytes <= 0 || max_recipe_bytes <= 0 {
     raise Invalid(Limits)
@@ -38,9 +38,9 @@ pub struct ProjectionCudaLowering {
   priv entry_point_id : @catalog.AotKernelEntryPointId
   priv target : @catalog.DeviceTarget
   priv profile : @launch_contract.PagedKernelProfile
-  priv input_width : Int
-  priv output_width : Int
-  priv intermediate_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv intermediate_width : Int32
   priv dispatch_plan : @luna_projection_strategy.ProjectionDispatchPlan
   priv tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
   priv physical_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation
@@ -112,21 +112,21 @@ pub fn ProjectionCudaLowering::profile(
 ///|
 pub fn ProjectionCudaLowering::input_width(
   self : ProjectionCudaLowering,
-) -> Int {
+) -> Int32 {
   self.input_width
 }
 
 ///|
 pub fn ProjectionCudaLowering::output_width(
   self : ProjectionCudaLowering,
-) -> Int {
+) -> Int32 {
   self.output_width
 }
 
 ///|
 pub fn ProjectionCudaLowering::intermediate_width(
   self : ProjectionCudaLowering,
-) -> Int {
+) -> Int32 {
   self.intermediate_width
 }
 

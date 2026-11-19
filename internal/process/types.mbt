@@ -29,9 +29,9 @@ pub(all) suberror ProcessError {
 ///|
 /// Validated fixed bounds for one child channel.
 pub struct ProcessLimits {
-  priv max_frame_bytes : Int
-  priv io_timeout_millis : Int
-  priv shutdown_timeout_millis : Int
+  priv max_frame_bytes : Int32
+  priv io_timeout_millis : Int32
+  priv shutdown_timeout_millis : Int32
 }
 
 ///|
@@ -44,24 +44,24 @@ pub struct ChildProcess {
   priv empty_transfer_buffer : FixedArray[Byte]
   priv mut write_transfer_active : Bool
   priv mut write_transfer_source : FixedArray[Byte]
-  priv mut write_transfer_offset : Int
-  priv mut write_transfer_byte_count : Int
+  priv mut write_transfer_offset : Int32
+  priv mut write_transfer_byte_count : Int32
   priv mut write_transfer_deadline_millis : Int64
-  priv mut write_transfer_phase : Int
-  priv mut write_transfer_cursor : Int
+  priv mut write_transfer_phase : Int32
+  priv mut write_transfer_cursor : Int32
   priv mut read_transfer_active : Bool
   priv mut read_transfer_destination : FixedArray[Byte]
   priv mut read_transfer_staging : FixedArray[Byte]
-  priv mut read_transfer_byte_count : Int
+  priv mut read_transfer_byte_count : Int32
   priv mut read_transfer_deadline_millis : Int64
-  priv mut read_transfer_phase : Int
-  priv mut read_transfer_cursor : Int
-  priv mut maintenance_phase : Int
+  priv mut read_transfer_phase : Int32
+  priv mut read_transfer_cursor : Int32
+  priv mut maintenance_phase : Int32
   priv mut maintenance_phase_started_millis : Int64
   priv mut maintenance_deadline_millis : Int64
-  priv mut maintenance_resume_phase : Int
-  priv mut maintenance_exit_kind : Int
-  priv mut maintenance_exit_code : Int
+  priv mut maintenance_resume_phase : Int32
+  priv mut maintenance_exit_kind : Int32
+  priv mut maintenance_exit_code : Int32
   priv mut maintenance_has_exit : Bool
   priv mut failed : Bool
   priv mut closed : Bool
@@ -74,7 +74,7 @@ pub struct PreparedChildProcess {
   priv child : ChildProcess
   priv approved_executable : @executable_capability.ApprovedExecutableHandle
   priv mut consumed : Bool
-  priv mut cleanup_status : Int
+  priv mut cleanup_status : Int32
 }
 
 ///|
@@ -86,7 +86,9 @@ pub fn PreparedChildProcess::child_owner(
 
 ///|
 /// Returns scalar cleanup evidence retained by a failed prepared spawn.
-pub fn PreparedChildProcess::cleanup_status(self : PreparedChildProcess) -> Int {
+pub fn PreparedChildProcess::cleanup_status(
+  self : PreparedChildProcess,
+) -> Int32 {
   self.cleanup_status
 }
 
@@ -99,18 +101,18 @@ pub struct InheritedChannel {
   priv empty_transfer_buffer : FixedArray[Byte]
   priv mut write_transfer_active : Bool
   priv mut write_transfer_source : FixedArray[Byte]
-  priv mut write_transfer_offset : Int
-  priv mut write_transfer_byte_count : Int
+  priv mut write_transfer_offset : Int32
+  priv mut write_transfer_byte_count : Int32
   priv mut write_transfer_deadline_millis : Int64
-  priv mut write_transfer_phase : Int
-  priv mut write_transfer_cursor : Int
+  priv mut write_transfer_phase : Int32
+  priv mut write_transfer_cursor : Int32
   priv mut read_transfer_active : Bool
   priv mut read_transfer_destination : FixedArray[Byte]
   priv mut read_transfer_staging : FixedArray[Byte]
-  priv mut read_transfer_byte_count : Int
+  priv mut read_transfer_byte_count : Int32
   priv mut read_transfer_deadline_millis : Int64
-  priv mut read_transfer_phase : Int
-  priv mut read_transfer_cursor : Int
+  priv mut read_transfer_phase : Int32
+  priv mut read_transfer_cursor : Int32
   priv mut read_transfer_allows_eof : Bool
   priv mut failed : Bool
 }
@@ -119,15 +121,15 @@ pub struct InheritedChannel {
 /// Bounded child termination evidence.
 #valtype
 pub struct ChildExit {
-  priv kind : Int
-  priv code : Int
+  priv kind : Int32
+  priv code : Int32
 }
 
 ///|
 /// Scalar progress evidence for owner-resident cooperative child maintenance.
 #valtype
 pub struct ChildProcessMaintenanceProgress {
-  priv kind : Int
+  priv kind : Int32
 }
 
 ///|
@@ -135,16 +137,16 @@ pub struct ChildProcessMaintenanceProgress {
 /// no active transfer or maintenance transition.
 #valtype
 pub struct ChildProcessIdleObservation {
-  priv kind : Int
-  priv exit_kind : Int
-  priv exit_code : Int
+  priv kind : Int32
+  priv exit_kind : Int32
+  priv exit_code : Int32
 }
 
 ///|
 pub fn ProcessLimits::new(
-  max_frame_bytes~ : Int,
-  io_timeout_millis~ : Int,
-  shutdown_timeout_millis~ : Int,
+  max_frame_bytes~ : Int32,
+  io_timeout_millis~ : Int32,
+  shutdown_timeout_millis~ : Int32,
 ) -> ProcessLimits raise ProcessError {
   if max_frame_bytes < 64 || max_frame_bytes > 67108864 {
     raise InvalidLimit(FrameBytes)
@@ -159,27 +161,27 @@ pub fn ProcessLimits::new(
 }
 
 ///|
-pub fn ProcessLimits::max_frame_bytes(self : ProcessLimits) -> Int {
+pub fn ProcessLimits::max_frame_bytes(self : ProcessLimits) -> Int32 {
   self.max_frame_bytes
 }
 
 ///|
-pub fn ProcessLimits::io_timeout_millis(self : ProcessLimits) -> Int {
+pub fn ProcessLimits::io_timeout_millis(self : ProcessLimits) -> Int32 {
   self.io_timeout_millis
 }
 
 ///|
-pub fn ProcessLimits::shutdown_timeout_millis(self : ProcessLimits) -> Int {
+pub fn ProcessLimits::shutdown_timeout_millis(self : ProcessLimits) -> Int32 {
   self.shutdown_timeout_millis
 }
 
 ///|
-pub fn ChildExit::kind(self : ChildExit) -> Int {
+pub fn ChildExit::kind(self : ChildExit) -> Int32 {
   self.kind
 }
 
 ///|
-pub fn ChildExit::code(self : ChildExit) -> Int {
+pub fn ChildExit::code(self : ChildExit) -> Int32 {
   self.code
 }
 

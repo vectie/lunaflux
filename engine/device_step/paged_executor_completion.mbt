@@ -1,5 +1,5 @@
 ///|
-fn read_paged_i32(buffer : FixedArray[Byte], index : Int) -> Int {
+fn read_paged_i32(buffer : FixedArray[Byte], index : Int32) -> Int32 {
   let start = index * INT32_BYTES
   buffer[start].to_int() |
   (buffer[start + 1].to_int() << 8) |
@@ -23,8 +23,8 @@ fn select_paged_logit(
   scratch : PagedCompletionScratch,
   parameters : @inference.SamplingParameters,
   seed_value : UInt64,
-  sample_index : Int,
-) -> Int raise DeviceStepError {
+  sample_index : Int32,
+) -> Int32 raise DeviceStepError {
   let logits = scratch.logits[:]
   let selection = try {
     match parameters.mode() {
@@ -80,12 +80,12 @@ fn[T] poison_paged_completion_and_raise(
 fn read_and_select_paged_row(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
-  row_index : Int,
-  token_count : Int,
+  row_index : Int32,
+  token_count : Int32,
   parameters : @inference.SamplingParameters,
   seed_value : UInt64,
-  sample_index : Int,
-) -> Int raise DeviceStepError {
+  sample_index : Int32,
+) -> Int32 raise DeviceStepError {
   let token_end = read_paged_i32(
     descriptor.host.query_row_offsets,
     row_index + 1,
@@ -149,7 +149,7 @@ fn append_paged_completion(
   plan : @worker_protocol.SubmittedSchedulePlan,
   writer : @worker_protocol.CompletionWriter,
   summary : DeviceStepSummary,
-  selected_tokens : FixedArray[Int],
+  selected_tokens : FixedArray[Int32],
 ) -> @worker_protocol.SubmittedCompletion raise DeviceStepError {
   for prefill_index in 0..<summary.prefill_count {
     let row = try plan.prefill_row(prefill_index) catch {

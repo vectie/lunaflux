@@ -5,8 +5,8 @@
 fn decode_independent_validity_transport(
   abi : CudaPagedAttentionTileAbi,
   hoist : Bool,
-  tile_rows : Int,
-  start_alignment : Int,
+  tile_rows : Int32,
+  start_alignment : Int32,
 ) -> @attention_physical_ir.PagedValidityOwnership? {
   let (_, heads, dimensions, page_rows) = abi.shape()
   let (_, stride, capacity) = abi.layout()

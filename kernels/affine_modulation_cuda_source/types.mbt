@@ -27,7 +27,7 @@ pub struct AffineModulationCudaSource {
   priv operation : AffineModulationCudaOperation
   priv numerical_contract : AffineModulationNumericalContract
   priv row_count : Int64
-  priv width : Int
+  priv width : Int32
   priv function_symbol : String
   priv source : Bytes
 }

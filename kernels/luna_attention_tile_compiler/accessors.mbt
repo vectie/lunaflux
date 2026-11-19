@@ -120,7 +120,7 @@ pub fn AttentionTileCompilationFrontier::digest(
 ///|
 pub fn AttentionPartitionedTileCompilationVariant::parallel_workgroup_target(
   self : AttentionPartitionedTileCompilationVariant,
-) -> Int {
+) -> Int32 {
   self.parallel_workgroup_target
 }
 

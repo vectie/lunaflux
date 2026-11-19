@@ -26,12 +26,14 @@ pub fn parse_projection_tuning_suffix(
   if !root.has_prefix("/") ||
     root == "/" ||
     sha256.length() != 64 ||
-    !sha256.iter().all(c => c is ('0'..='9' | 'a'..='f')) ||
+    !sha256.iter().all(c => c is ('0'..<='9' | 'a'..<='f')) ||
     device_identity.is_empty() ||
     device_identity.length() > 128 ||
     !device_identity
     .iter()
-    .all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | ':')) {
+    .all(c => {
+      c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '-' | '_' | '.' | ':')
+    }) {
     raise InvalidTuningInput
   }
   Some({

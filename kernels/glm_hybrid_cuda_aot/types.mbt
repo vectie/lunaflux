@@ -90,7 +90,7 @@ pub(all) enum GlmHybridCudaAotInvalidKind {
 ///|
 pub(all) suberror GlmHybridCudaAotError {
   Invalid(GlmHybridCudaAotInvalidKind)
-  UnsupportedRequirement(Int)
+  UnsupportedRequirement(Int32)
   SizeOverflow
   Source(@decoder_foundation_cuda_source.DecoderFoundationCudaSourceError)
   ProjectionSource(
@@ -152,9 +152,9 @@ pub(all) suberror GlmHybridCudaAotError {
 
 ///|
 pub struct GlmHybridCudaAotLimits {
-  priv maximum_tokens : Int
-  priv maximum_source_bytes : Int
-  priv maximum_recipe_bytes : Int
+  priv maximum_tokens : Int32
+  priv maximum_source_bytes : Int32
+  priv maximum_recipe_bytes : Int32
 }
 
 ///|
@@ -171,11 +171,11 @@ pub struct GlmHybridFoundationCudaCandidate {
   priv numerical_contract : @decoder_foundation_cuda_source.DecoderFoundationNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
+  priv maximum_tokens : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[GlmHybridFoundationOperand]
   priv compiler : @luna_specialization.LunaCompilerPolicy
@@ -195,12 +195,12 @@ pub struct GlmHybridDenseProjectionCudaCandidate {
   priv numerical_contract : @decoder_projection_cuda_source.DecoderProjectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv input_width : Int
-  priv output_width : Int
-  priv maximum_tokens : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -222,13 +222,13 @@ pub struct GlmHybridDsaPoolingCudaCandidate {
   priv numerical_contract : @glm_hybrid_dsa_pooling_cuda_source.GlmHybridDsaPoolingNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv head_dimension : Int
-  priv pool_size : Int
-  priv maximum_tokens : Int
-  priv pool_capacity : Int
+  priv head_dimension : Int32
+  priv pool_size : Int32
+  priv maximum_tokens : Int32
+  priv pool_capacity : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -250,16 +250,16 @@ pub struct GlmHybridDsaIndexCudaCandidate {
   priv numerical_contract : @glm_hybrid_dsa_index_cuda_source.GlmHybridDsaIndexNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv head_count : Int
-  priv head_dimension : Int
-  priv top_k : Int
-  priv pool_size : Int
-  priv maximum_tokens : Int
-  priv candidate_capacity : Int
-  priv output_width : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv top_k : Int32
+  priv pool_size : Int32
+  priv maximum_tokens : Int32
+  priv candidate_capacity : Int32
+  priv output_width : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -280,16 +280,16 @@ pub struct GlmHybridSparseAttentionCudaCandidate {
   priv numerical_contract : @glm_hybrid_sparse_attention_cuda_source.GlmHybridSparseAttentionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv query_head_count : Int
-  priv key_value_head_count : Int
-  priv query_key_dimension : Int
-  priv value_dimension : Int
-  priv top_k : Int
-  priv selected_width : Int
-  priv maximum_tokens : Int
+  priv query_head_count : Int32
+  priv key_value_head_count : Int32
+  priv query_key_dimension : Int32
+  priv value_dimension : Int32
+  priv top_k : Int32
+  priv selected_width : Int32
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -309,12 +309,12 @@ pub struct GlmHybridKvSplitNormCudaCandidate {
   priv numerical_contract : @prefix_rms_norm_cuda_source.PrefixRmsNormNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv prefix_width : Int
-  priv suffix_width : Int
-  priv maximum_tokens : Int
+  priv prefix_width : Int32
+  priv suffix_width : Int32
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -335,14 +335,14 @@ pub struct GlmHybridRotaryCudaCandidate {
   priv numerical_contract : @decoder_interleaved_rope_cuda_source.DecoderInterleavedRopeNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv query_head_count : Int
-  priv query_head_dimension : Int
-  priv rope_dimension : Int
-  priv maximum_tokens : Int
-  priv maximum_positions : Int
+  priv query_head_count : Int32
+  priv query_head_dimension : Int32
+  priv rope_dimension : Int32
+  priv maximum_tokens : Int32
+  priv maximum_positions : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -363,12 +363,12 @@ pub struct GlmHybridDenseSwiGluCudaCandidate {
   priv numerical_contract : @gated_mlp_cuda_source.GatedMlpNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv maximum_tokens : Int
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -390,13 +390,13 @@ pub struct GlmHybridKdaShortConvolutionCudaCandidate {
   priv numerical_contract : @causal_short_convolution_cuda_source.CausalShortConvolutionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv channel_count : Int
-  priv kernel_size : Int
-  priv maximum_tokens : Int
-  priv maximum_sequences : Int
+  priv channel_count : Int32
+  priv kernel_size : Int32
+  priv maximum_tokens : Int32
+  priv maximum_sequences : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
@@ -419,14 +419,14 @@ pub struct GlmHybridKdaRecurrentCudaCandidate {
   priv numerical_contract : @recurrent_delta_cuda_source.RecurrentDeltaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv head_count : Int
-  priv head_dimension : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
   priv normalization_epsilon : Double
-  priv maximum_tokens : Int
-  priv maximum_sequences : Int
+  priv maximum_tokens : Int32
+  priv maximum_sequences : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[

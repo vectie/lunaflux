@@ -108,8 +108,8 @@ pub fn RemoteGroup::new(
 ///|
 fn RemoteGroup::send(
   self : RemoteGroup,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise {
   ignore(self.transcript.accept_bytes(self.tx, length, self.limits))
   self.mailboxes[rank].begin_write(self.tx, 0, length)
@@ -118,8 +118,8 @@ fn RemoteGroup::send(
 ///|
 fn RemoteGroup::receive(
   self : RemoteGroup,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> @wire.RankGroupWireDecodedHeader raise {
   ignore(
     @wire.validate_rank_group_wire_binding(

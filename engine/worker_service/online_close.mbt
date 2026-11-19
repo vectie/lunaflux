@@ -134,7 +134,7 @@ pub fn OnlineWorkerLease::retry_close_terminal(
 ///|
 fn terminal_close_retry_action(
   lifecycle : WorkerServiceLifecycle,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   if lifecycle == ServiceRecovering {
     1
   } else if lifecycle == ServiceClosingFailed {

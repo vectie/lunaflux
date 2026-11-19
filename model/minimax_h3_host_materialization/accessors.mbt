@@ -20,7 +20,7 @@ pub fn MiniMaxH3HostComponentManifest::digest(
 }
 
 ///|
-pub fn MiniMaxH3HostComponentManifest::tensor_count(self : Self) -> Int {
+pub fn MiniMaxH3HostComponentManifest::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
@@ -28,7 +28,7 @@ pub fn MiniMaxH3HostComponentManifest::tensor_count(self : Self) -> Int {
 /// Pure tensor metadata for device packing, without allocating host payloads.
 pub fn MiniMaxH3HostComponentManifest::tensor(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> MiniMaxH3HostTensor raise MiniMaxH3HostMaterializationError {
   guard self.tensors.get(index) is Some(entry) else {
     raise TensorIndexOutsideArena(index)
@@ -44,19 +44,19 @@ pub fn MiniMaxH3HostComponentManifest::tensor(
 }
 
 ///|
-pub fn MiniMaxH3HostComponentManifest::shard_count(self : Self) -> Int {
+pub fn MiniMaxH3HostComponentManifest::shard_count(self : Self) -> Int32 {
   self.shards.length()
 }
 
 ///|
-pub fn MiniMaxH3HostComponentManifest::arena_count(self : Self) -> Int {
+pub fn MiniMaxH3HostComponentManifest::arena_count(self : Self) -> Int32 {
   self.arena_sizes.length()
 }
 
 ///|
 pub fn MiniMaxH3HostComponentManifest::arena_size(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Int64? {
   self.arena_sizes.get(index)
 }
@@ -84,7 +84,7 @@ pub fn MiniMaxH3HostTensor::shape(self : Self) -> ReadOnlyArray[Int64] {
 }
 
 ///|
-pub fn MiniMaxH3HostTensor::arena_index(self : Self) -> Int {
+pub fn MiniMaxH3HostTensor::arena_index(self : Self) -> Int32 {
   self.arena_index
 }
 
@@ -120,14 +120,14 @@ pub fn MiniMaxH3HostComponentArena::manifest_digest(
 }
 
 ///|
-pub fn MiniMaxH3HostComponentArena::tensor_count(self : Self) -> Int {
+pub fn MiniMaxH3HostComponentArena::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn MiniMaxH3HostComponentArena::tensor(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> MiniMaxH3HostTensor raise MiniMaxH3HostMaterializationError {
   if self.released {
     raise ArenaReleased
@@ -139,7 +139,7 @@ pub fn MiniMaxH3HostComponentArena::tensor(
 }
 
 ///|
-pub fn MiniMaxH3HostComponentArena::arena_count(self : Self) -> Int {
+pub fn MiniMaxH3HostComponentArena::arena_count(self : Self) -> Int32 {
   self.arenas.length()
 }
 
@@ -147,8 +147,8 @@ pub fn MiniMaxH3HostComponentArena::arena_count(self : Self) -> Int {
 /// Report the exact length of one live host arena without exposing its bytes.
 pub fn MiniMaxH3HostComponentArena::device_arena_size(
   self : Self,
-  arena_ordinal : Int,
-) -> Int raise @segmented_host_borrow.SegmentedHostBorrowError {
+  arena_ordinal : Int32,
+) -> Int32 raise @segmented_host_borrow.SegmentedHostBorrowError {
   if self.released || arena_ordinal < 0 || arena_ordinal >= self.arenas.length() {
     raise SourceUnavailable(arena_ordinal)
   }
@@ -163,7 +163,7 @@ pub fn MiniMaxH3HostComponentArena::device_arena_size(
 /// consumer cannot retain or reuse the borrow after this call returns.
 pub fn MiniMaxH3HostComponentArena::provide_device_arena(
   self : Self,
-  arena_ordinal : Int,
+  arena_ordinal : Int32,
   consumer : @segmented_host_borrow.SegmentedHostArenaConsumer,
 ) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError {
   if self.released || arena_ordinal < 0 || arena_ordinal >= self.arenas.length() {
@@ -188,7 +188,7 @@ pub fn MiniMaxH3HostComponentArena::is_released(self : Self) -> Bool {
 ///|
 pub fn MiniMaxH3HostComponentArena::tensor_byte(
   self : Self,
-  tensor_index : Int,
+  tensor_index : Int32,
   byte_offset : Int64,
 ) -> Byte raise MiniMaxH3HostMaterializationError {
   let tensor = self.tensor(tensor_index)

@@ -1,7 +1,7 @@
 ///|
 priv struct MiniMaxH3StreamingTensorLocation {
-  shard_ordinal : Int
-  tensor_ordinal : Int
+  shard_ordinal : Int32
+  tensor_ordinal : Int32
 }
 
 ///|
@@ -63,7 +63,7 @@ fn streaming_inputs(
 fn find_streaming_tensor(
   shard : @streaming_safetensors.StreamingSafetensorsShardMetadata,
   name : String,
-) -> (Int, @streaming_safetensors.StreamingSafetensorsTensorMetadata)? {
+) -> (Int32, @streaming_safetensors.StreamingSafetensorsTensorMetadata)? {
   for tensor_ordinal in 0..<shard.tensor_count() {
     guard shard.tensor(tensor_ordinal) is Some(tensor) else { continue }
     if tensor.name() == name {

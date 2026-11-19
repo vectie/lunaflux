@@ -27,15 +27,15 @@ pub struct StreamingSafetensorsShardInput {
 
 ///|
 pub struct StreamingSafetensorsLimits {
-  priv maximum_shards : Int
+  priv maximum_shards : Int32
   priv maximum_file_bytes : Int64
-  priv maximum_header_bytes : Int
-  priv maximum_tensors_per_shard : Int
-  priv maximum_total_tensors : Int
-  priv maximum_rank : Int
-  priv maximum_name_bytes : Int
-  priv maximum_dtype_specs : Int
-  priv maximum_copy_requests : Int
+  priv maximum_header_bytes : Int32
+  priv maximum_tensors_per_shard : Int32
+  priv maximum_total_tensors : Int32
+  priv maximum_rank : Int32
+  priv maximum_name_bytes : Int32
+  priv maximum_dtype_specs : Int32
+  priv maximum_copy_requests : Int32
   priv maximum_copy_bytes : Int64
 } derive(Debug, Eq)
 
@@ -71,49 +71,49 @@ priv struct InspectedShard {
 /// Immutable startup inspection. It owns no open file authority.
 pub struct StreamingSafetensorsInspection {
   priv shards : ReadOnlyArray[InspectedShard]
-  priv total_tensor_count : Int
+  priv total_tensor_count : Int32
 }
 
 ///|
 /// One validated partial or complete tensor copy request.
 pub struct StreamingSafetensorsCopyRequest {
-  priv shard_ordinal : Int
-  priv tensor_ordinal : Int
+  priv shard_ordinal : Int32
+  priv tensor_ordinal : Int32
   priv tensor_byte_offset : Int64
-  priv destination_offset : Int
-  priv byte_count : Int
+  priv destination_offset : Int32
+  priv byte_count : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Authority-free visit evidence emitted after a direct copy.
 pub struct StreamingSafetensorsVisitedRange {
-  priv shard_ordinal : Int
-  priv tensor_ordinal : Int
+  priv shard_ordinal : Int32
+  priv tensor_ordinal : Int32
   priv tensor_byte_offset : Int64
-  priv destination_offset : Int
-  priv byte_count : Int
+  priv destination_offset : Int32
+  priv byte_count : Int32
 } derive(Debug, Eq)
 
 ///|
 /// One validated partial or complete tensor copy into a selected final arena.
 pub struct StreamingSafetensorsSegmentedCopyRequest {
-  priv shard_ordinal : Int
-  priv tensor_ordinal : Int
+  priv shard_ordinal : Int32
+  priv tensor_ordinal : Int32
   priv tensor_byte_offset : Int64
-  priv destination_arena_ordinal : Int
-  priv destination_offset : Int
-  priv byte_count : Int
+  priv destination_arena_ordinal : Int32
+  priv destination_offset : Int32
+  priv byte_count : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Authority-free evidence emitted after a direct segmented copy.
 pub struct StreamingSafetensorsSegmentedVisitedRange {
-  priv shard_ordinal : Int
-  priv tensor_ordinal : Int
+  priv shard_ordinal : Int32
+  priv tensor_ordinal : Int32
   priv tensor_byte_offset : Int64
-  priv destination_arena_ordinal : Int
-  priv destination_offset : Int
-  priv byte_count : Int
+  priv destination_arena_ordinal : Int32
+  priv destination_offset : Int32
+  priv byte_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -127,51 +127,59 @@ pub(all) enum StreamingSafetensorsJsonField {
 pub(all) suberror StreamingSafetensorsError {
   InvalidLimit
   InvalidDTypeSpec
-  DuplicateDTypeTag(Int, Int)
+  DuplicateDTypeTag(Int32, Int32)
   InvalidDigest
-  FileUnavailable(Int)
-  UnsupportedFileType(Int)
-  FileTruncated(Int)
-  FileTooLarge(Int)
-  FileChanged(Int)
-  FileCloseFailed(Int)
-  MissingHeaderLength(Int)
-  HeaderLengthOverflow(Int)
-  HeaderTooLarge(Int)
-  TruncatedHeader(Int)
-  InvalidHeaderEnvelope(Int)
-  InvalidHeaderEncoding(Int)
-  InvalidHeaderJson(Int)
-  DuplicateHeaderKey(shard~ : Int, depth~ : Int, index~ : Int)
-  InvalidRoot(Int)
-  InvalidDocumentMetadata(Int)
-  TooManyTensors(Int)
-  InvalidTensor(shard~ : Int, tensor~ : Int)
-  MissingTensorField(shard~ : Int, tensor~ : Int, StreamingSafetensorsJsonField)
-  UnexpectedTensorField(shard~ : Int, tensor~ : Int)
-  InvalidTensorField(shard~ : Int, tensor~ : Int, StreamingSafetensorsJsonField)
-  InvalidInteger(shard~ : Int, tensor~ : Int, StreamingSafetensorsJsonField)
-  InvalidTensorName(shard~ : Int, tensor~ : Int)
-  UnknownDType(shard~ : Int, tensor~ : Int)
-  InvalidRank(shard~ : Int, tensor~ : Int)
-  InvalidDimension(shard~ : Int, tensor~ : Int)
-  TensorSizeOverflow(shard~ : Int, tensor~ : Int)
-  InvalidByteRange(shard~ : Int, tensor~ : Int)
-  RangeOutsidePayload(shard~ : Int, tensor~ : Int)
-  RangeSizeMismatch(shard~ : Int, tensor~ : Int)
-  DuplicateTensorName(
-    first_shard~ : Int,
-    first_tensor~ : Int,
-    second_shard~ : Int,
-    second_tensor~ : Int
+  FileUnavailable(Int32)
+  UnsupportedFileType(Int32)
+  FileTruncated(Int32)
+  FileTooLarge(Int32)
+  FileChanged(Int32)
+  FileCloseFailed(Int32)
+  MissingHeaderLength(Int32)
+  HeaderLengthOverflow(Int32)
+  HeaderTooLarge(Int32)
+  TruncatedHeader(Int32)
+  InvalidHeaderEnvelope(Int32)
+  InvalidHeaderEncoding(Int32)
+  InvalidHeaderJson(Int32)
+  DuplicateHeaderKey(shard~ : Int32, depth~ : Int32, index~ : Int32)
+  InvalidRoot(Int32)
+  InvalidDocumentMetadata(Int32)
+  TooManyTensors(Int32)
+  InvalidTensor(shard~ : Int32, tensor~ : Int32)
+  MissingTensorField(
+    shard~ : Int32,
+    tensor~ : Int32,
+    StreamingSafetensorsJsonField
   )
-  OverlappingTensorRanges(shard~ : Int, first~ : Int, second~ : Int)
-  InvalidCopyRequest(Int)
-  CopyRangeOutsideTensor(Int)
-  CopyRangeOutsideDestination(Int)
-  InvalidDestinationArena(Int)
-  OverlappingDestinationRanges(Int, Int)
+  UnexpectedTensorField(shard~ : Int32, tensor~ : Int32)
+  InvalidTensorField(
+    shard~ : Int32,
+    tensor~ : Int32,
+    StreamingSafetensorsJsonField
+  )
+  InvalidInteger(shard~ : Int32, tensor~ : Int32, StreamingSafetensorsJsonField)
+  InvalidTensorName(shard~ : Int32, tensor~ : Int32)
+  UnknownDType(shard~ : Int32, tensor~ : Int32)
+  InvalidRank(shard~ : Int32, tensor~ : Int32)
+  InvalidDimension(shard~ : Int32, tensor~ : Int32)
+  TensorSizeOverflow(shard~ : Int32, tensor~ : Int32)
+  InvalidByteRange(shard~ : Int32, tensor~ : Int32)
+  RangeOutsidePayload(shard~ : Int32, tensor~ : Int32)
+  RangeSizeMismatch(shard~ : Int32, tensor~ : Int32)
+  DuplicateTensorName(
+    first_shard~ : Int32,
+    first_tensor~ : Int32,
+    second_shard~ : Int32,
+    second_tensor~ : Int32
+  )
+  OverlappingTensorRanges(shard~ : Int32, first~ : Int32, second~ : Int32)
+  InvalidCopyRequest(Int32)
+  CopyRangeOutsideTensor(Int32)
+  CopyRangeOutsideDestination(Int32)
+  InvalidDestinationArena(Int32)
+  OverlappingDestinationRanges(Int32, Int32)
   CopyBudgetExceeded
-  InspectionReplayMismatch(Int)
-  VisitorRejected(Int)
+  InspectionReplayMismatch(Int32)
+  VisitorRejected(Int32)
 } derive(Debug, Eq)

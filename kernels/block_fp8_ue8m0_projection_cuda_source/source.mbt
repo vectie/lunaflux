@@ -5,10 +5,10 @@ fn valid_symbol(symbol : String) -> Bool {
   }
   for index, character in symbol {
     if index == 0 {
-      if !(character is ('a'..='z' | 'A'..='Z' | '_')) {
+      if !(character is ('a'..<='z' | 'A'..<='Z' | '_')) {
         return false
       }
-    } else if !(character is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) {
+    } else if !(character is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) {
       return false
     }
   }
@@ -17,11 +17,11 @@ fn valid_symbol(symbol : String) -> Bool {
 
 ///|
 pub fn block_fp8_ue8m0_projection_cuda_source(
-  input_width~ : Int,
-  output_width~ : Int,
-  maximum_rows~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
-  scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> BlockFp8Ue8M0ProjectionCudaSource raise BlockFp8Ue8M0ProjectionCudaSourceError {
   let block_width = 128
   if input_width <= 0 ||

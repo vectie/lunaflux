@@ -59,7 +59,7 @@ fn StageRank::commit(self : Self, pipeline_failed~ : Bool) -> Unit raise {
 }
 
 ///|
-fn StageRank::live_rows(self : Self) -> Int raise {
+fn StageRank::live_rows(self : Self) -> Int32 raise {
   match self {
     Serial(r) => r.live_rows()
     Batched(r) => r.live_rows()
@@ -67,7 +67,7 @@ fn StageRank::live_rows(self : Self) -> Int raise {
 }
 
 ///|
-fn StageRank::output_rows(self : Self) -> Int raise {
+fn StageRank::output_rows(self : Self) -> Int32 raise {
   match self {
     Serial(r) => r.output_rows()
     Batched(r) => r.output_rows()
@@ -83,7 +83,7 @@ fn StageRank::produces_token(self : Self) -> Bool raise {
 }
 
 ///|
-fn StageRank::sampled_token_at(self : Self, row : Int) -> Int raise {
+fn StageRank::sampled_token_at(self : Self, row : Int32) -> Int32 raise {
   match self {
     Serial(r) => r.sampled_token_at(row)
     Batched(r) => {
@@ -97,7 +97,7 @@ fn StageRank::sampled_token_at(self : Self, row : Int) -> Int raise {
 }
 
 ///|
-fn StageRank::sampled_token(self : Self) -> Int raise {
+fn StageRank::sampled_token(self : Self) -> Int32 raise {
   self.sampled_token_at(0)
 }
 

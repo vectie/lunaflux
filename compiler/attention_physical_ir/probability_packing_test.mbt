@@ -17,7 +17,7 @@ test "streaming probability packing preserves ordered row reductions" {
   assert_eq(packing.program(), program)
   assert_eq(packing.geometry(), (4, 2))
   assert_eq(packing.peak_scalar_inputs(), 2)
-  let observed : Array[Int] = []
+  let observed : Array[Int32] = []
   for word in 0..<4 {
     for element in 0..<2 {
       observed.push(packing.owner(word, element).unwrap())

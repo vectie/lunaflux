@@ -45,7 +45,7 @@ pub fn LunaHttp1ResponseWork::state(
 ///|
 pub fn LunaHttp1ResponseWork::last_work_units(
   self : LunaHttp1ResponseWork,
-) -> Int raise LunaHttp1Error {
+) -> Int32 raise LunaHttp1Error {
   self.require_workspace().last_work_units
 }
 

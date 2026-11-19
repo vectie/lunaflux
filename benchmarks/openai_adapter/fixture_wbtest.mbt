@@ -5,7 +5,7 @@ fn baseline_test_digest(unit : Char) -> @evidence.BenchmarkDigest raise {
 
 ///|
 fn baseline_test_identity(
-  engine? : @evidence.BenchmarkEngine = Vllm,
+  engine~ : @evidence.BenchmarkEngine = Vllm,
 ) -> OpenAIBaselineIdentity raise {
   OpenAIBaselineIdentity::new(
     engine,
@@ -17,12 +17,12 @@ fn baseline_test_identity(
 
 ///|
 fn baseline_test_inputs(
-  profile? : @evidence.BenchmarkProfile = Latency,
-  tokenizer_unit? : Char = '4',
-  corpus_unit? : Char = '5',
-  protocol_unit? : Char = '6',
-  workload_unit? : Char = '7',
-  input_tokens? : FixedArray[Int64] = [3L],
+  profile~ : @evidence.BenchmarkProfile = Latency,
+  tokenizer_unit~ : Char = '4',
+  corpus_unit~ : Char = '5',
+  protocol_unit~ : Char = '6',
+  workload_unit~ : Char = '7',
+  input_tokens~ : FixedArray[Int64] = [3L],
 ) -> OpenAIBaselineInputs raise {
   OpenAIBaselineInputs::new(
     profile,
@@ -36,8 +36,8 @@ fn baseline_test_inputs(
 
 ///|
 fn baseline_test_adapter(
-  engine? : @evidence.BenchmarkEngine = Vllm,
-  maximum_event_bytes? : Int = 2048,
+  engine~ : @evidence.BenchmarkEngine = Vllm,
+  maximum_event_bytes~ : Int32 = 2048,
 ) -> OpenAIBaselineTrialAdapter raise {
   OpenAIBaselineTrialContract::new(
     baseline_test_identity(engine~),
@@ -59,7 +59,7 @@ fn fake_server_offer(
 
 ///|
 fn fake_server_complete_trial(
-  engine? : @evidence.BenchmarkEngine = Vllm,
+  engine~ : @evidence.BenchmarkEngine = Vllm,
 ) -> OpenAIBaselineTrialEvidence raise {
   let adapter = baseline_test_adapter(engine~)
   drive_fake_server_completion(adapter)

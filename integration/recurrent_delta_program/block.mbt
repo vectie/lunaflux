@@ -68,8 +68,8 @@ pub fn RecurrentDeltaProgram::prepare_block(
   reset_flags~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
-  prefix? : ArrayView[@device.OrderedKernelLaunch] = [],
-  suffix? : ArrayView[@device.OrderedKernelLaunch] = [],
+  prefix~ : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix~ : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise @device.DeviceError {
   guard self.block is Some(_) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -148,10 +148,10 @@ fn append_block_launch(
   aot : @device.Module,
   source : @block.RecurrentBlockCudaSource,
   launches : Array[@device.OrderedKernelLaunch],
-  stage : Int,
-  grid_x : Int,
-  grid_y : Int,
-  block_x : Int,
+  stage : Int32,
+  grid_x : Int32,
+  grid_y : Int32,
+  block_x : Int32,
   arguments : Array[@device.KernelArgument],
 ) -> Unit raise @device.DeviceError {
   let function = aot.load_function(@utf8.encode(source.symbol(stage)))
@@ -179,13 +179,13 @@ fn append_block_projection(
   aot : @device.Module,
   source : @block.RecurrentBlockCudaSource,
   launches : Array[@device.OrderedKernelLaunch],
-  stage : Int,
+  stage : Int32,
   counts : @device.Allocation,
   input : @device.Allocation,
   weight : @device.Allocation,
   output : @device.Allocation,
-  input_width : Int,
-  output_width : Int,
+  input_width : Int32,
+  output_width : Int32,
 ) -> Unit raise @device.DeviceError {
   let (rows, _, _) = source.plan().delta().capacity()
   let out_cells = rows.to_int64() * output_width.to_int64()

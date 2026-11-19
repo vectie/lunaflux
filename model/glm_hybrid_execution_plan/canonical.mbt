@@ -23,7 +23,7 @@ fn GlmPlanCanonicalWriter::bytes(self : Self, value : BytesView) -> Unit {
 }
 
 ///|
-fn GlmPlanCanonicalWriter::int(self : Self, value : Int) -> Unit {
+fn GlmPlanCanonicalWriter::int(self : Self, value : Int32) -> Unit {
   if !self.hasher.update_u64_le(Int64::from_int(value).reinterpret_as_uint64()) {
     abort("finalized GLM hybrid plan canonical hash")
   }
@@ -230,15 +230,15 @@ fn encode_vision(
 ///|
 fn canonical_plan_digest(
   content_digest : @spec.ContentDigest,
-  schema_version : Int,
+  schema_version : Int32,
   profile_identity : StringView,
   architecture : StringView,
   model_type : StringView,
-  vocabulary_size : Int,
-  hidden_size : Int,
-  dense_intermediate_size : Int,
-  decoder_layer_count : Int,
-  context_length : Int,
+  vocabulary_size : Int32,
+  hidden_size : Int32,
+  dense_intermediate_size : Int32,
+  decoder_layer_count : Int32,
+  context_length : Int32,
   sparse_attention : GlmDynamicSparseAttentionPlan,
   kda : GlmKdaExecutionPlan?,
   hyper : @advanced_decoder_execution_plan.HyperConnectionPlan?,

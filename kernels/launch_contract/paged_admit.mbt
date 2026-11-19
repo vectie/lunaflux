@@ -113,7 +113,7 @@ fn validate_paged_operand_set(
   profile : PagedKernelProfile,
   layout : @device_layout.DeviceKvLayout,
   operands : ReadOnlyArray[AotOperand],
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise LaunchContractError {
   for operand in operands {
     if operand.role is WeightScaleInput(_, _) {

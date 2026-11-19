@@ -93,8 +93,8 @@ pub struct ArtifactLimits {
   max_tokenizer_bytes : Int64
   max_weights_bytes : Int64
   max_total_bytes : Int64
-  max_model_config_depth : Int
-  max_tokenizer_depth : Int
+  max_model_config_depth : Int32
+  max_tokenizer_depth : Int32
   tokenizer_limits : @tokenizer.TokenizerLimits
   safetensors_limits : @safetensors.HeaderLimits
 } derive(Debug, Eq)

@@ -1,5 +1,5 @@
 ///|
-pub fn JointDiffusionIoPlan::schema_version(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 
@@ -47,37 +47,37 @@ pub fn JointDiffusionIoPlan::shape(
 }
 
 ///|
-pub fn JointDiffusionIoPlan::video_latent_channels(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::video_latent_channels(self : Self) -> Int32 {
   self.video_latent_channels
 }
 
 ///|
-pub fn JointDiffusionIoPlan::video_patch_temporal(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::video_patch_temporal(self : Self) -> Int32 {
   self.video_patch_temporal
 }
 
 ///|
-pub fn JointDiffusionIoPlan::video_patch_height(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::video_patch_height(self : Self) -> Int32 {
   self.video_patch_height
 }
 
 ///|
-pub fn JointDiffusionIoPlan::video_patch_width(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::video_patch_width(self : Self) -> Int32 {
   self.video_patch_width
 }
 
 ///|
-pub fn JointDiffusionIoPlan::audio_latent_channels(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::audio_latent_channels(self : Self) -> Int32 {
   self.audio_latent_channels
 }
 
 ///|
-pub fn JointDiffusionIoPlan::audio_sample_rate(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::audio_sample_rate(self : Self) -> Int32 {
   self.audio_sample_rate
 }
 
 ///|
-pub fn JointDiffusionIoPlan::audio_output_channels(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::audio_output_channels(self : Self) -> Int32 {
   self.audio_output_channels
 }
 
@@ -99,6 +99,6 @@ pub fn JointDiffusionIoPlan::cancellation(
 }
 
 ///|
-pub fn JointDiffusionIoPlan::stage_count(self : Self) -> Int {
+pub fn JointDiffusionIoPlan::stage_count(self : Self) -> Int32 {
   self.stage_count
 }

@@ -2,7 +2,7 @@
 pub struct VisionWeights {
   priv allocations : Array[@device.Allocation]
   priv mut ready : Bool
-  priv mut leases : Int
+  priv mut leases : Int32
 }
 
 ///|
@@ -17,7 +17,7 @@ pub fn VisionWeights::prepare(
   host : @minimax_h3_host_materialization.MiniMaxH3HostComponentArena,
   expected_identity~ : @spec.ModelIdentity,
   max_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard !self.ready && self.allocations.is_empty() && chunk_bytes > 0 else {
     raise @device.DeviceError::InvalidArgument(AllocationCreate)

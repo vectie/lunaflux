@@ -127,10 +127,10 @@ fn wb_prefix_scheduler() -> Scheduler {
 ///|
 fn wb_prefix_request(
   id : UInt64,
-  tokens : ArrayView[Int],
+  tokens : ArrayView[Int32],
   permission : @inference.CachePermission,
   scope : Bytes,
-  max_new_tokens? : Int = 1,
+  max_new_tokens~ : Int32 = 1,
 ) -> (TokenizedRequest, @inference.LunaRequestSemanticLease) {
   let limits = wb_prefix_inference_limits()
   let storage = try! @inference.LunaRequestSemanticStorage::new(
@@ -177,7 +177,7 @@ fn wb_prefix_request(
 }
 
 ///|
-fn wb_complete_one_token_request(owner : Scheduler, sampled : Int) -> Unit {
+fn wb_complete_one_token_request(owner : Scheduler, sampled : Int32) -> Unit {
   let first = wb_next_plan(owner)
   if (try! first.prefill_row(0).tokens().length()) == 4 {
     ignore(try! owner.complete(first, wb_prefill_completion(owner, first)))

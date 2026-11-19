@@ -49,9 +49,9 @@ fn[Resource, ContextIdentity : Eq] validate_owned_region(
   layout : @device_layout.DeviceKvLayout,
   owning_context : ContextIdentity,
   supplied_context : ContextIdentity,
-  layer_index : Int,
+  layer_index : Int32,
   component : @device_layout.DeviceKvComponent,
-  page_index : Int,
+  page_index : Int32,
   validate : (Resource, Int64, Int64, Int64) -> Unit raise DeviceKvArenaError,
 ) -> @device_layout.DeviceKvRegion raise DeviceKvArenaError {
   require_open(lifecycle)
@@ -119,9 +119,9 @@ fn[Resource, ContextIdentity : Eq] validate_owned_component_span(
 pub fn DeviceKvArena::validate_region(
   self : DeviceKvArena,
   context : @device.Context,
-  layer_index : Int,
+  layer_index : Int32,
   component : @device_layout.DeviceKvComponent,
-  page_index : Int,
+  page_index : Int32,
 ) -> @device_layout.DeviceKvRegion raise DeviceKvArenaError {
   let layer = @plan.KvLayerId::new(layer_index) catch {
     _ => raise InvalidLayout(RegionIndex)

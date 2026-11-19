@@ -2,7 +2,7 @@
 fn luna_artifact_module_index(
   artifacts : @artifact.KernelArtifactBundle,
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, module_ in artifacts.modules() {
     if module_.digest() == digest {
       return Some(index)

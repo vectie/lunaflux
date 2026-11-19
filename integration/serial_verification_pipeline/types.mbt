@@ -23,25 +23,25 @@ pub struct TwoRankGreedyVerification {
   priv remote : @control.DecoderStageClient
   priv local_state : @control.StageStateTransaction
   priv close_local_state : () -> Unit raise
-  priv begin_activation : (UInt64, Int, UInt64) -> Unit raise
+  priv begin_activation : (UInt64, Int32, UInt64) -> Unit raise
   priv poll_activation : async (UInt64) -> Bool
   priv close_activation : () -> Unit raise
   priv original : @wire.PlanFrameBuffer
   priv replay : @wire.PlanFrameBuffer
   priv storage : FixedArray[Byte]
   priv completions : @wire.CompletionFrameBuffer
-  priv inputs : FixedArray[Int]
-  priv outputs : FixedArray[Int]
-  priv stops : ReadOnlyArray[Int]
-  priv vocabulary : Int
+  priv inputs : FixedArray[Int32]
+  priv outputs : FixedArray[Int32]
+  priv stops : ReadOnlyArray[Int32]
+  priv vocabulary : Int32
   priv timeout : UInt64
   priv mut phase : Phase
   priv mut busy : Bool
   priv mut epoch : UInt64
   priv mut tick : UInt64
   priv mut deadline : UInt64
-  priv mut live : Int
-  priv mut remaining : Int
+  priv mut live : Int32
+  priv mut remaining : Int32
   priv mut local_ready : Bool
   priv mut remote_ready : Bool
   priv mut activation_done : Bool
@@ -63,11 +63,11 @@ pub fn TwoRankGreedyVerification::new(
   inference : @inference.InferenceLimits,
   local_state~ : @control.StageStateTransaction,
   close_local_state~ : () -> Unit raise,
-  begin_activation~ : (UInt64, Int, UInt64) -> Unit raise,
+  begin_activation~ : (UInt64, Int32, UInt64) -> Unit raise,
   poll_activation~ : async (UInt64) -> Bool,
   close_activation~ : () -> Unit raise,
-  stop_tokens~ : ArrayView[Int],
-  timeout_millis? : UInt64 = 300000UL,
+  stop_tokens~ : ArrayView[Int32],
+  timeout_millis~ : UInt64 = 300000UL,
 ) -> Self raise {
   let (rows, _, vocabulary) = ingress.ports().geometry()
   guard !ingress.outputs_token() &&

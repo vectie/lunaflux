@@ -1,8 +1,8 @@
 ///|
 fn hostile_pool_with_clock(
   clock_read : () -> UInt64 raise RequestAdmissionError,
-  lane_count : Int,
-  step_work_units : Int,
+  lane_count : Int32,
+  step_work_units : Int32,
   total_work_units : UInt64,
 ) -> LunaRequestPreparationPool raise {
   let tokenizer = fixture_tokenizer()
@@ -60,8 +60,8 @@ fn hostile_special_tokenizer() -> @tokenizer.TokenizerSpec raise {
 ///|
 fn hostile_text_request(
   input : BytesView,
-  max_new_tokens : Int,
-  context_ceiling : Int,
+  max_new_tokens : Int32,
+  context_ceiling : Int32,
 ) -> @inference.GenerateRequest raise {
   let limits = fixture_inference()
   let base = fixture_request(fixture_identity("0"))
@@ -110,7 +110,7 @@ fn hostile_pool_for_tokenizer(
 fn drive_to_phase(
   pool : LunaRequestPreparationPool,
   work : LunaRequestPreparationWork,
-  phase : Int,
+  phase : Int32,
 ) -> Unit raise {
   let lane = pool.lanes[work.lane]
   let mut turns = 0
@@ -399,7 +399,7 @@ test "lane bounds storage and exhausted generation reject before consumption" {
     inference,
     max_frame_bytes=4096,
   )
-  let input_capacity = Int::min(
+  let input_capacity = Int32::min(
     tokenizer.limits().max_input_bytes,
     inference.max_text_bytes(),
   )

@@ -5,7 +5,7 @@ fn diffusion_aot_content() -> @spec.ContentDigest {
 
 ///|
 fn diffusion_aot_plan(
-  float32_output_heads? : Bool = true,
+  float32_output_heads~ : Bool = true,
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @joint_diffusion_plan.JointDiffusionPlan::new(
     schema_version=1,
@@ -103,7 +103,7 @@ fn diffusion_aot_plan(
 
 ///|
 fn diffusion_aot_requirements(
-  float32_output_heads? : Bool = true,
+  float32_output_heads~ : Bool = true,
 ) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements {
   try! @joint_diffusion_kernel_requirements.derive_requirements(
     diffusion_aot_plan(float32_output_heads~),
@@ -158,7 +158,7 @@ fn diffusion_aot_foreign_request() -> @joint_diffusion_plan.JointDiffusionReques
 }
 
 ///|
-fn diffusion_aot_target(bf16? : Bool = true) -> @catalog.DeviceTarget {
+fn diffusion_aot_target(bf16~ : Bool = true) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=0,
@@ -169,8 +169,8 @@ fn diffusion_aot_target(bf16? : Bool = true) -> @catalog.DeviceTarget {
 
 ///|
 fn diffusion_aot_compiler(
-  fused_multiply_add? : Bool = false,
-  reassociate? : Bool = false,
+  fused_multiply_add~ : Bool = false,
+  reassociate~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy {
   try! @luna_specialization.LunaCompilerPolicy::new(
     identity=try! @luna_specialization.LunaCompilerIdentity::new(
@@ -188,9 +188,9 @@ fn diffusion_aot_compiler(
 
 ///|
 fn diffusion_aot_limits(
-  maximum_elements? : Int64 = 4096L,
-  maximum_source_bytes? : Int = 65536,
-  maximum_recipe_bytes? : Int = 65536,
+  maximum_elements~ : Int64 = 4096L,
+  maximum_source_bytes~ : Int32 = 65536,
+  maximum_recipe_bytes~ : Int32 = 65536,
 ) -> JointDiffusionCudaAotLimits {
   try! JointDiffusionCudaAotLimits::new(
     maximum_elements~,

@@ -253,3 +253,15 @@ fn PlanOperation::has_runtime_inputs(
 ) -> Bool {
   runtime_inputs_equal(self.runtime_inputs, expected)
 }
+
+///|
+pub extend OperationKind with @debug.Debug::{to_repr}
+
+///|
+pub extend OperationKind with Eq::{not_equal, equal}
+
+///|
+pub extend PlanOperation with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanOperation with Eq::{not_equal, equal}

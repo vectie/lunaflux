@@ -97,7 +97,7 @@ fn WorkerProcessSupervisor::apply_maintenance_progress(
 ///|
 pub fn WorkerProcessSupervisor::shutdown_maintenance_remaining_millis(
   self : WorkerProcessSupervisor,
-) -> Int raise WorkerProcessError {
+) -> Int32 raise WorkerProcessError {
   if self.maintenance_phase == 0 {
     raise Invalid(Lifecycle)
   }

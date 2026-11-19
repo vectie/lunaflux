@@ -7,8 +7,8 @@
 /// the slice's reusable residual ping-pong buffers are deliberately not exposed.
 pub fn GlmDecoderStage::borrow_retired_ffn(
   self : Self,
-  layer_index : Int,
-) -> (Int, @device.Allocation, @device.Allocation, @device.Allocation) raise {
+  layer_index : Int32,
+) -> (Int32, @device.Allocation, @device.Allocation, @device.Allocation) raise {
   let (first, end) = self.layer_range()
   guard self.status is Ready &&
     self.decoder.status is Ready &&
@@ -42,7 +42,7 @@ pub fn GlmDecoderStage::borrow_retired_ffn(
 /// and layer-range failures are still errors, never an empty success.
 pub fn GlmDecoderStage::borrow_retired_experts(
   self : Self,
-  layer_index : Int,
+  layer_index : Int32,
 ) -> ArrayView[(String, @device.Allocation)] raise {
   ignore(self.borrow_retired_ffn(layer_index))
   let ffn = match self.decoder.layers[layer_index - self.layer_range().0] {

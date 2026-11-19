@@ -23,7 +23,7 @@ fn luna_online_rejection_rule(
 }
 
 ///|
-fn luna_rejection_rule_code(rule : LunaOnlineFramedRejectionRule) -> Int {
+fn luna_rejection_rule_code(rule : LunaOnlineFramedRejectionRule) -> Int32 {
   match rule {
     LunaOnlineFramedRejectedFrame => 1
     LunaOnlineFramedRejectedIdentity => 2

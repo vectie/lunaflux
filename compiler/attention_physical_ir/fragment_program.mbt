@@ -5,9 +5,9 @@
 /// from a model name. The outer ascending-key fold and its effects are unchanged.
 pub struct OnlineFragmentProgram {
   priv fold : OnlineFold
-  priv rows : Int
-  priv columns : Int
-  priv quantum : Int
+  priv rows : Int32
+  priv columns : Int32
+  priv quantum : Int32
   priv score : @physical_tile_ir.FragmentProgram
   priv value : @physical_tile_ir.FragmentProgram
 } derive(Eq, Debug)
@@ -21,9 +21,9 @@ pub extend OnlineFragmentProgram with @debug.Debug::{to_repr}
 ///|
 pub fn OnlineFold::fragment_products(
   self : OnlineFold,
-  fragment_rows~ : Int,
-  fragment_columns~ : Int,
-  reduction_quantum~ : Int,
+  fragment_rows~ : Int32,
+  fragment_columns~ : Int32,
+  reduction_quantum~ : Int32,
 ) -> OnlineFragmentProgram? {
   let (queries, keys, dimensions) = self.geometry()
   guard fragment_rows > 0 &&
@@ -72,7 +72,7 @@ pub fn OnlineFragmentProgram::fold(self : OnlineFragmentProgram) -> OnlineFold {
 ///|
 pub fn OnlineFragmentProgram::geometry(
   self : OnlineFragmentProgram,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.rows, self.columns, self.quantum)
 }
 

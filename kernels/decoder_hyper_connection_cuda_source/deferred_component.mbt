@@ -3,9 +3,9 @@
 /// and the following square fold retain the original flattened stripe order.
 fn deferred_component_source(
   producer : @precision.HyperConnectionPrecision,
-  hidden : Int,
-  streams : Int,
-  workers : Int,
+  hidden : Int32,
+  streams : Int32,
+  workers : Int32,
 ) -> String raise {
   let law = producer.mix_law()
   let branch = @arithmetic.scalar_expression(law.expression(BranchProduct), [

@@ -1,7 +1,7 @@
 ///|
 fn validate_layer_order(
-  ordinals : ArrayView[Int],
-  expected : Int,
+  ordinals : ArrayView[Int32],
+  expected : Int32,
 ) -> Unit raise @device.DeviceError {
   guard expected > 0 && ordinals.length() == expected else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)

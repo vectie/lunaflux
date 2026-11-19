@@ -12,7 +12,7 @@ pub(all) suberror TextEncoderError {
 /// The H3 extractor stops after layer 49, before the language-model final norm.
 /// Epsilon comes from the admitted Qwen3-VL text configuration, not DiT config.
 pub struct TextEncoderPlan {
-  rows : Int
+  rows : Int32
   epsilon : Double
   priv square_law : @precision.SquareReductionLaw
   priv dot_law : @precision.DotReductionLaw
@@ -21,11 +21,11 @@ pub struct TextEncoderPlan {
 
 ///|
 pub fn TextEncoderPlan::new(
-  rows~ : Int,
+  rows~ : Int32,
   epsilon~ : Double,
-  square_reduction_law? : @precision.SquareReductionLaw = CompensatedFloat32,
-  dot_reduction_law? : @precision.DotReductionLaw = OrderedFloat32,
-  probability_law? : @precision.AttentionProbabilityLaw = OrderedOnlineF32,
+  square_reduction_law~ : @precision.SquareReductionLaw = CompensatedFloat32,
+  dot_reduction_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  probability_law~ : @precision.AttentionProbabilityLaw = OrderedOnlineF32,
 ) -> Self raise TextEncoderError {
   guard rows > 0 && rows <= 262144 else { raise InvalidRows }
   guard epsilon > 0.0 && epsilon <= 1.0 && !epsilon.is_nan() else {
@@ -54,7 +54,7 @@ pub fn TextEncoderPlan::attention_probability_law(
 }
 
 ///|
-pub fn TextEncoderPlan::selected_hidden_state(_self : Self) -> Int {
+pub fn TextEncoderPlan::selected_hidden_state(_self : Self) -> Int32 {
   50
 }
 
@@ -87,9 +87,9 @@ pub fn TextEncoderPlan::output_bytes(self : Self) -> Int64 {
 /// placeholders rather than silently running them without visual embeddings.
 pub fn TextEncoderPlan::validate_text_tokens(
   self : Self,
-  ids : ArrayView[Int],
-  image_token~ : Int,
-  video_token~ : Int,
+  ids : ArrayView[Int32],
+  image_token~ : Int32,
+  video_token~ : Int32,
 ) -> Unit raise TextEncoderError {
   guard ids.length() == self.rows else { raise InvalidRows }
   for id in ids {
@@ -109,7 +109,7 @@ pub struct WeightRegion {
 
 ///|
 pub struct LayerWeights {
-  layer : Int
+  layer : Int32
   regions : ReadOnlyArray[WeightRegion]
   byte_count : Int64
 }
@@ -126,7 +126,7 @@ pub fn embedding_region() -> WeightRegion {
 ///|
 /// Regions: input norm, Q, K, V, Q norm, K norm, O, post norm,
 /// up, gate, down. Up/gate are adjacent in the shared staged-MLP ABI order.
-pub fn layer_weights(layer : Int) -> LayerWeights raise TextEncoderError {
+pub fn layer_weights(layer : Int32) -> LayerWeights raise TextEncoderError {
   guard layer >= 0 && layer < 50 else { raise InvalidLayer }
   let prefix = "model.language_model.layers.\{layer}."
   let shapes = [

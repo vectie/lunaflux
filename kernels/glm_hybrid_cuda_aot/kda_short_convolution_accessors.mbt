@@ -29,7 +29,7 @@ pub fn GlmHybridKdaShortConvolutionCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridKdaShortConvolutionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -50,28 +50,28 @@ pub fn GlmHybridKdaShortConvolutionCudaCandidate::capability(
 ///|
 pub fn GlmHybridKdaShortConvolutionCudaCandidate::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 
 ///|
 pub fn GlmHybridKdaShortConvolutionCudaCandidate::kernel_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.kernel_size
 }
 
 ///|
 pub fn GlmHybridKdaShortConvolutionCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn GlmHybridKdaShortConvolutionCudaCandidate::maximum_sequences(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_sequences
 }
 

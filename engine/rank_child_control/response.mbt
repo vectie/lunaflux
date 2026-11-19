@@ -5,7 +5,7 @@ fn RankChildControl::begin_response(
   expected : @rank_group_wire.RankGroupWireKind,
   response : @rank_group_wire.RankGroupWireKind,
   payload : FixedArray[Byte]?,
-  payload_length : Int,
+  payload_length : Int32,
 ) -> Unit raise RankChildControlError {
   self.require_usable()
   self.require_inbound_kind(inbound, expected)
@@ -86,7 +86,7 @@ pub fn RankChildControl::begin_leader_complete(
   self : RankChildControl,
   poll : RankChildInbound,
   payload : FixedArray[Byte],
-  payload_length~ : Int,
+  payload_length~ : Int32,
 ) -> Unit raise RankChildControlError {
   self.require_inbound_kind(poll, PollComplete)
   if poll.binding().rank() != 0 ||

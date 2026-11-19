@@ -1,7 +1,7 @@
 ///|
 fn kda_abi_requirements(
-  routed_expert_count? : Int = 8,
-  hyper_connection? : Bool = false,
+  routed_expert_count~ : Int32 = 8,
+  hyper_connection~ : Bool = false,
 ) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements {
   let sparse = try! @glm_hybrid_execution_plan.GlmDynamicSparseAttentionPlan::new(
     query_head_count=8,
@@ -106,14 +106,14 @@ fn kda_abi_operand(
 ///|
 fn kda_abi_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  operation? : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = KdaShortConvolution(
+  operation~ : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = KdaShortConvolution(
     8192, 4,
   ),
-  output_role? : GlmHybridLaunchOperandRole = KdaConvolvedOutput,
-  final_state_bytes? : Int64 = 393216L,
-  offsets_bytes? : Int64 = 36L,
-  grid_x? : Int = 1024,
-  symbol? : String = "lunaflux_glm_hybrid_kda_short_convolution_bf16_v1",
+  output_role~ : GlmHybridLaunchOperandRole = KdaConvolvedOutput,
+  final_state_bytes~ : Int64 = 393216L,
+  offsets_bytes~ : Int64 = 36L,
+  grid_x~ : Int32 = 1024,
+  symbol~ : String = "lunaflux_glm_hybrid_kda_short_convolution_bf16_v1",
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

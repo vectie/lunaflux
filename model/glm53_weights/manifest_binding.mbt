@@ -28,7 +28,7 @@ pub fn bind_observed_tensor_manifest(
       actual=observed.length(),
     )
   }
-  let names : Map[String, Int] = Map([])
+  let names : Map[String, Int32] = Map([])
   for ordinal, actual in observed {
     if names.contains(actual.name) {
       raise DuplicateTensor(ordinal~)

@@ -1,7 +1,7 @@
 ///|
 fn transformer_mlp_operands(
-  rows : Int,
-  hidden : Int,
+  rows : Int32,
+  hidden : Int32,
   packed_weights : Int64,
   down_weights : Int64,
 ) -> Array[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand] raise JointDiffusionCudaAotError {
@@ -20,8 +20,8 @@ fn transformer_mlp_operands(
 
 ///|
 fn transformer_mlp_dimensions(
-  rows : Int,
-  hidden : Int,
+  rows : Int32,
+  hidden : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise JointDiffusionCudaAotError {
   let elements = checked_mul(rows.to_int64(), hidden.to_int64())
   let grid = (elements + 255L) / 256L
@@ -66,7 +66,7 @@ pub fn lower_transformer_mlp_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request~ : @joint_diffusion_io_plan.JointDiffusionIoPlan,
   packed_timestep~ : @joint_diffusion_io_plan.JointPackedTimestepSelection,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

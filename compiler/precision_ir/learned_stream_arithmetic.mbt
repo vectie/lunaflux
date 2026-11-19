@@ -3,18 +3,18 @@
 /// name. Stable sigmoid branches, finite-value rejection and BF16 publication
 /// are part of this operation; the scalar programs do not erase those guards.
 pub struct LearnedStreamCollapsePrecision {
-  priv streams : Int
-  priv hidden : Int
-  priv rows : Int
+  priv streams : Int32
+  priv hidden : Int32
+  priv rows : Int32
   priv epsilon : Double
   priv normalization_epsilon : Double
 }
 
 ///|
 pub fn LearnedStreamCollapsePrecision::new(
-  stream_count~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
+  stream_count~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
 ) -> Self raise PrecisionPlanError {
@@ -56,7 +56,9 @@ pub fn LearnedTextIoPrecision::collapse_program(
 }
 
 ///|
-pub fn LearnedStreamCollapsePrecision::geometry(self : Self) -> (Int, Int, Int) {
+pub fn LearnedStreamCollapsePrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32) {
   (self.streams, self.hidden, self.rows)
 }
 

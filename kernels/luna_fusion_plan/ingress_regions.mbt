@@ -20,7 +20,7 @@ fn ingress_graph(
 ///|
 fn ingress_cut(
   schedule : @luna_fusion_strategy.FusionSchedule,
-  qkv_operation~ : Int,
+  qkv_operation~ : Int32,
   projected_observable~ : Bool,
   normalized_observable~ : Bool,
 ) -> AttentionIngressCutPlan raise FusionPlanError {
@@ -66,7 +66,7 @@ pub fn AttentionIngressCutPlan::partition(
 /// graphs, cost bases, resources and deterministic stable catalog IDs.
 pub fn select_attention_ingress_cut(
   alternatives : ArrayView[@luna_fusion_strategy.FusionAlternative],
-  qkv_operation~ : Int,
+  qkv_operation~ : Int32,
   maximum_workspace_bytes~ : Int64,
   maximum_local_bytes~ : Int64,
 ) -> AttentionIngressCutPlan raise FusionPlanError {
@@ -102,7 +102,7 @@ pub fn QkvQkNormPositionedRopePagedKvWritePlan::select_cut(
 ///|
 fn select_ingress_regions(
   alternatives : ArrayView[@luna_fusion_strategy.FusionAlternative],
-  qkv_operation~ : Int,
+  qkv_operation~ : Int32,
   projected_observable~ : Bool,
   normalized_observable~ : Bool,
   maximum_workspace_bytes~ : Int64,

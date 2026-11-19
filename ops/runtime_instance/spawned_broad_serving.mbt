@@ -8,7 +8,7 @@ priv enum SpawnedBroadServingOutcome {
 async fn progress_broad_serving_pair(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> Unit {
   let mut saw_two_live = false
   let mut cancel_attempted = false
@@ -124,7 +124,7 @@ async fn require_broad_serving_pair_events(
 async fn run_broad_serving_pair(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> Unit {
   if owner.broad_serving_uses_framed_pool() {
     run_broad_serving_pool_pair(owner, contract, initial_kv_pages_free)
@@ -190,7 +190,7 @@ async fn run_broad_serving_foreign_rejection(
 async fn run_broad_serving_recovery(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> Unit {
   let pooled = owner.broad_serving_uses_framed_pool()
   let expected_accepts = if pooled { 5UL } else { 3UL }

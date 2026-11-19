@@ -1,7 +1,7 @@
 ///|
 /// Allocates fixed caller-owned storage during startup.
 pub fn BlockTablePageBuffer::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> BlockTablePageBuffer raise BlockTableError {
   if capacity <= 0 || capacity > ABSOLUTE_MAX_PAGES_PER_TABLE {
     raise InvalidLimit(PagesPerTable)
@@ -10,12 +10,12 @@ pub fn BlockTablePageBuffer::new(
 }
 
 ///|
-pub fn BlockTablePageBuffer::capacity(self : BlockTablePageBuffer) -> Int {
+pub fn BlockTablePageBuffer::capacity(self : BlockTablePageBuffer) -> Int32 {
   self.pages.capacity()
 }
 
 ///|
-pub fn BlockTablePageBuffer::length(self : BlockTablePageBuffer) -> Int {
+pub fn BlockTablePageBuffer::length(self : BlockTablePageBuffer) -> Int32 {
   self.length
 }
 
@@ -23,7 +23,7 @@ pub fn BlockTablePageBuffer::length(self : BlockTablePageBuffer) -> Int {
 /// Returns one copied opaque identity and never exposes mutable backing storage.
 pub fn BlockTablePageBuffer::page_at(
   self : BlockTablePageBuffer,
-  index : Int,
+  index : Int32,
 ) -> @page_allocator.PageId raise BlockTableError {
   if index < 0 || index >= self.length {
     raise PageBufferIndexOutOfBounds
@@ -35,8 +35,8 @@ pub fn BlockTablePageBuffer::page_at(
 fn BlockTablePageBuffer::replace_from_table(
   self : BlockTablePageBuffer,
   arena : BlockTableArena,
-  table_index : Int,
-  page_count : Int,
+  table_index : Int32,
+  page_count : Int32,
 ) -> Unit raise BlockTableError {
   self.replace_from_range(
     arena,
@@ -49,8 +49,8 @@ fn BlockTablePageBuffer::replace_from_table(
 fn BlockTablePageBuffer::replace_from_range(
   self : BlockTablePageBuffer,
   arena : BlockTableArena,
-  source_base : Int,
-  page_count : Int,
+  source_base : Int32,
+  page_count : Int32,
 ) -> Unit raise BlockTableError {
   for offset in 0..<page_count {
     page_storage_write(

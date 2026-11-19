@@ -5,9 +5,9 @@
 /// Multiple left rows or lookahead slots require a different lifetime proof.
 pub struct FragmentForwarding {
   priv program : FragmentProgram
-  priv words : Int
-  priv instruction_words : Int
-  priv order : ReadOnlyArray[Int]
+  priv words : Int32
+  priv instruction_words : Int32
+  priv order : ReadOnlyArray[Int32]
 } derive(Eq, Debug)
 
 ///|
@@ -19,9 +19,9 @@ pub extend FragmentForwarding with @debug.Debug::{to_repr}
 ///|
 pub fn FragmentProgram::forward_right(
   self : FragmentProgram,
-  words~ : Int,
-  instruction_words~ : Int,
-  consumer_order : ArrayView[Int],
+  words~ : Int32,
+  instruction_words~ : Int32,
+  consumer_order : ArrayView[Int32],
 ) -> FragmentForwarding? {
   let (rows, _, _, _, slots) = self.geometry()
   guard rows == 1 &&
@@ -60,16 +60,16 @@ pub fn FragmentForwarding::program(
 /// (packed producer words, words per consumer, ordered consumer count).
 pub fn FragmentForwarding::geometry(
   self : FragmentForwarding,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.words, self.instruction_words, self.words / self.instruction_words)
 }
 
 ///|
 pub fn FragmentForwarding::word(
   self : FragmentForwarding,
-  instruction : Int,
-  operand : Int,
-) -> Int? {
+  instruction : Int32,
+  operand : Int32,
+) -> Int32? {
   guard instruction >= 0 &&
     instruction < self.words / self.instruction_words &&
     operand >= 0 &&

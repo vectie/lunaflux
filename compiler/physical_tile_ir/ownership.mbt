@@ -2,8 +2,8 @@
 /// Device-neutral striped ownership of complete vectors. The extent is finite;
 /// the descriptor is constant-sized even for a large transfer domain.
 pub struct VectorOwnership {
-  priv vectors : Int
-  priv owners : Int
+  priv vectors : Int32
+  priv owners : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -13,22 +13,27 @@ pub extend VectorOwnership with Eq::{equal, not_equal}
 pub extend VectorOwnership with @debug.Debug::{to_repr}
 
 ///|
-pub fn VectorOwnership::new(vectors~ : Int, owners~ : Int) -> VectorOwnership? {
+pub fn VectorOwnership::new(
+  vectors~ : Int32,
+  owners~ : Int32,
+) -> VectorOwnership? {
   guard vectors > 0 && owners > 0 else { return None }
   Some({ vectors, owners, })
 }
 
 ///|
-pub fn VectorOwnership::geometry(self : VectorOwnership) -> (Int, Int, Int) {
+pub fn VectorOwnership::geometry(
+  self : VectorOwnership,
+) -> (Int32, Int32, Int32) {
   (self.vectors, self.owners, (self.vectors - 1) / self.owners + 1)
 }
 
 ///|
 pub fn VectorOwnership::vector_at(
   self : VectorOwnership,
-  owner : Int,
-  round : Int,
-) -> Int? {
+  owner : Int32,
+  round : Int32,
+) -> Int32? {
   guard owner >= 0 &&
     owner < self.owners &&
     owner < self.vectors &&

@@ -11,12 +11,12 @@ pub fn build(
   text_config~ : @text.EncoderConfig,
   visual_noise~ : Double,
   audio_noise~ : Double,
-  vision_text_rows~ : ArrayView[Int],
+  vision_text_rows~ : ArrayView[Int32],
   max_metadata_bytes~ : Int64,
   max_workspace_bytes~ : Int64,
-  tile_size~ : Int,
-  minimum_overlap~ : Int,
-  max_tiles~ : Int,
+  tile_size~ : Int32,
+  minimum_overlap~ : Int32,
+  max_tiles~ : Int32,
   vision? : @vision.VisionPlan,
 ) -> SourceExport raise {
   let model = @h3.build(metadata)
@@ -24,7 +24,7 @@ pub fn build(
     text_plan.rows <= text_config.max_positions else {
     raise InvalidPlan
   }
-  let vision_rows : Map[Int, Unit] = Map([])
+  let vision_rows : Map[Int32, Unit] = Map([])
   for row in vision_text_rows {
     guard row >= 0 && row < text_plan.rows && !vision_rows.contains(row) else {
       raise InvalidPlan
@@ -83,7 +83,7 @@ pub fn build(
     max_steps=steps.length(),
     max_index_bytes=max_metadata_bytes,
   )
-  let counts : Array[Int] = []
+  let counts : Array[Int32] = []
   for step in schedule.steps() {
     if !counts.contains(step.values.length()) {
       counts.push(step.values.length())
@@ -204,9 +204,9 @@ pub fn build(
 ///|
 fn video_unit(
   plan : @loop.PreparedPlan,
-  tile_size~ : Int,
-  minimum_overlap~ : Int,
-  max_tiles~ : Int,
+  tile_size~ : Int32,
+  minimum_overlap~ : Int32,
+  max_tiles~ : Int32,
   max_workspace_bytes~ : Int64,
 ) -> SourceUnit raise {
   let request = plan.request()
@@ -242,9 +242,9 @@ fn video_unit(
 pub fn build_video(
   metadata : @spec.MiniMaxH3ModelMetadata,
   plan : @loop.PreparedPlan,
-  tile_size~ : Int,
-  minimum_overlap~ : Int,
-  max_tiles~ : Int,
+  tile_size~ : Int32,
+  minimum_overlap~ : Int32,
+  max_tiles~ : Int32,
   max_workspace_bytes~ : Int64,
 ) -> SourceExport raise {
   guard @h3.build(metadata).plan_digest() == plan.model_digest() else {

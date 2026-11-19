@@ -1,6 +1,6 @@
 ///|
 fn gather_test_dispatch(
-  input_width : Int,
+  input_width : Int32,
 ) -> @luna_projection_strategy.ProjectionDispatchPlan raise {
   let shape = @luna_projection_strategy.ProjectionShape::new(
     LanguageModelHead,

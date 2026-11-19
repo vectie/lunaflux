@@ -14,7 +14,7 @@ priv enum PagedBucketLaunchPhase {
 fn paged_phase_bucket_rule(
   contract : PagedGraphLaunchContract,
   phase : PagedBucketLaunchPhase,
-  index : Int,
+  index : Int32,
 ) -> PagedBucketStepLaunch {
   let rules = match phase {
     BaselineLaunch => Some(contract.step_launches)

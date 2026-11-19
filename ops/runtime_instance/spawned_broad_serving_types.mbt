@@ -125,13 +125,13 @@ pub struct RuntimeSpawnedBroadServingValidationContract {
   priv recovery_frame : FixedArray[Byte]
   priv foreign_frame : FixedArray[Byte]
   priv expected_model : @spec.ModelIdentity
-  priv expected_first_token : Int
-  priv expected_second_token : Int
-  priv input_tokens : Int
-  priv context_ceiling : Int
+  priv expected_first_token : Int32
+  priv expected_second_token : Int32
+  priv input_tokens : Int32
+  priv context_ceiling : Int32
   priv framed_limits : @framed_wire.FramedWireLimits
-  priv turn_limit : Int
-  priv io_timeout_millis : Int
+  priv turn_limit : Int32
+  priv io_timeout_millis : Int32
 }
 
 ///|
@@ -162,12 +162,12 @@ pub struct RuntimeSpawnedBroadServingValidationResult {
   priv request_count : UInt64
   priv completion_count : UInt64
   priv cancellation_count : UInt64
-  priv event_count : Int
+  priv event_count : Int32
   priv backpressure_count : UInt64
   priv network_accepts : UInt64
   priv network_disconnects : UInt64
   priv network_rejections : UInt64
-  priv kv_pages_free : Int
+  priv kv_pages_free : Int32
 }
 
 ///|
@@ -197,9 +197,9 @@ fn broad_serving_copy_frame(source : FixedArray[Byte]) -> FixedArray[Byte] {
 fn broad_serving_request_matches(
   request : @inference.GenerateRequest,
   expected_model : @spec.ModelIdentity,
-  input_tokens : Int,
-  context_ceiling : Int,
-  maximum_new_tokens : Int,
+  input_tokens : Int32,
+  context_ceiling : Int32,
+  maximum_new_tokens : Int32,
 ) -> Bool {
   let token_count = match request.input() {
     TokenIds(tokens) => tokens.length()
@@ -234,15 +234,15 @@ pub fn RuntimeSpawnedBroadServingValidationContract::new(
   recovery_frame : FixedArray[Byte],
   foreign_frame : FixedArray[Byte],
   expected_model : @spec.ModelIdentity,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  input_tokens : Int,
-  context_ceiling : Int,
-  tokens_per_page : Int,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  input_tokens : Int32,
+  context_ceiling : Int32,
+  tokens_per_page : Int32,
   inference_limits : @inference.InferenceLimits,
-  maximum_frame_bytes : Int,
-  turn_limit : Int,
-  io_timeout_millis : Int,
+  maximum_frame_bytes : Int32,
+  turn_limit : Int32,
+  io_timeout_millis : Int32,
 ) -> RuntimeSpawnedBroadServingValidationContract raise RuntimeSpawnedBroadServingValidationError {
   let framed_limits = @framed_wire.FramedWireLimits::new(
     inference_limits,
@@ -344,7 +344,7 @@ pub fn RuntimeSpawnedBroadServingValidationResult::cancellation_count(
 ///|
 pub fn RuntimeSpawnedBroadServingValidationResult::event_count(
   self : RuntimeSpawnedBroadServingValidationResult,
-) -> Int {
+) -> Int32 {
   self.event_count
 }
 
@@ -379,6 +379,6 @@ pub fn RuntimeSpawnedBroadServingValidationResult::network_rejections(
 ///|
 pub fn RuntimeSpawnedBroadServingValidationResult::kv_pages_free(
   self : RuntimeSpawnedBroadServingValidationResult,
-) -> Int {
+) -> Int32 {
   self.kv_pages_free
 }

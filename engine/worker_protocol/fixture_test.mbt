@@ -45,24 +45,24 @@ fn model_generation(value : UInt64) -> @worker_protocol.ModelPlanGeneration {
 }
 
 ///|
-fn token_range(start : Int, length : Int) -> @worker_protocol.TokenRange {
+fn token_range(start : Int32, length : Int32) -> @worker_protocol.TokenRange {
   try! @worker_protocol.TokenRange::new(start~, length~, protocol_limits())
 }
 
 ///|
-fn page_view(start : Int, length : Int) -> @worker_protocol.PageTableView {
+fn page_view(start : Int32, length : Int32) -> @worker_protocol.PageTableView {
   try! @worker_protocol.PageTableView::new(start~, length~, protocol_limits())
 }
 
 ///|
 fn capability_view(
-  start : Int,
-  length : Int,
+  start : Int32,
+  length : Int32,
 ) -> @worker_protocol.CapabilityView {
   try! @worker_protocol.CapabilityView::new(start~, length~, protocol_limits())
 }
 
 ///|
-fn slot(value : Int) -> @worker_protocol.CompletionSlot {
+fn slot(value : Int32) -> @worker_protocol.CompletionSlot {
   try! @worker_protocol.CompletionSlot::new(value, protocol_limits())
 }

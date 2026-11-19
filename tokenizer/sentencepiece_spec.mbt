@@ -10,7 +10,7 @@ const SENTENCEPIECE_META_SPACE_2 : Byte = b'\x81'
 ///|
 fn sentencepiece_decoded_piece(
   piece : Bytes,
-  entry_index : Int,
+  entry_index : Int32,
 ) -> Bytes raise TokenizerError {
   let text = @utf8.decode(piece) catch {
     _ => raise InvalidSentencePieceToken(entry_index~)
@@ -49,8 +49,8 @@ fn sentencepiece_is_one_scalar(piece : Bytes) -> Bool {
 
 ///|
 fn sentencepiece_symbol_capacity(
-  input_capacity : Int,
-) -> Int raise TokenizerError {
+  input_capacity : Int32,
+) -> Int32 raise TokenizerError {
   if input_capacity <= 0 || input_capacity > (1_073_741_824 - 4) / 6 {
     raise LunaInvalidWorkerCapacity
   }
@@ -60,8 +60,8 @@ fn sentencepiece_symbol_capacity(
 ///|
 fn TokenizerSpec::worker_symbol_capacity(
   self : TokenizerSpec,
-  input_capacity : Int,
-) -> Int raise TokenizerError {
+  input_capacity : Int32,
+) -> Int32 raise TokenizerError {
   if input_capacity <= 0 || input_capacity > self.limits.max_input_bytes {
     raise LunaInvalidWorkerCapacity
   }
@@ -82,7 +82,7 @@ fn TokenizerSpec::worker_symbol_capacity(
 /// this admitted tokenizer profile and caller input envelope.
 pub fn TokenizerSpec::luna_worker_required_int_cells(
   self : TokenizerSpec,
-  input_capacity : Int,
+  input_capacity : Int32,
 ) -> UInt64 raise TokenizerError {
   self.worker_symbol_capacity(input_capacity).to_uint64() * 3UL
 }
@@ -98,8 +98,8 @@ pub fn TokenizerSpec::new_sentencepiece_bpe(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
-  unknown_token_id~ : Int,
-  bos_token_id~ : Int,
+  unknown_token_id~ : Int32,
+  bos_token_id~ : Int32,
 ) -> TokenizerSpec raise TokenizerError {
   validate_positive_limit(limits.max_input_bytes, InputBytes)
   validate_positive_limit(limits.max_output_tokens, OutputTokens)
@@ -120,16 +120,16 @@ pub fn TokenizerSpec::new_sentencepiece_bpe(
       maximum=limits.max_merge_rules,
     )
   }
-  let tokens_by_id : Map[Int, StoredToken] = Map(
+  let tokens_by_id : Map[Int32, StoredToken] = Map(
     [],
     capacity=vocabulary.length(),
   )
-  let piece_first_index : Map[Bytes, Int] = Map(
+  let piece_first_index : Map[Bytes, Int32] = Map(
     [],
     capacity=vocabulary.length(),
   )
   let special_tokens : Array[StoredToken] = []
-  let initial_scalar_ids : Array[Int] = []
+  let initial_scalar_ids : Array[Int32] = []
   let byte_token_ids = FixedArray::make(256, -1)
   for entry_index, entry in vocabulary {
     if entry.token_id < 0 || entry.token_id >= vocabulary.length() {
@@ -225,7 +225,7 @@ pub fn TokenizerSpec::new_sentencepiece_bpe(
   let merge_left_offsets = FixedArray::make(vocabulary.length() + 1, 0)
   let merge_right_sorted = FixedArray::make(merges.length(), 0)
   let merge_rank_sorted = FixedArray::make(merges.length(), 0)
-  let pair_first_rule : Map[Int, Map[Int, Int]] = Map([])
+  let pair_first_rule : Map[Int32, Map[Int32, Int32]] = Map([])
   for rule_index, rule in merges {
     guard tokens_by_id.get(rule.left_token_id) is Some(left) &&
       tokens_by_id.get(rule.right_token_id) is Some(right) &&
@@ -256,7 +256,7 @@ pub fn TokenizerSpec::new_sentencepiece_bpe(
   for token_id in 0..<vocabulary.length() {
     merge_left_offsets[token_id + 1] += merge_left_offsets[token_id]
   }
-  let merge_order : Array[Int] = Array(capacity=merges.length())
+  let merge_order : Array[Int32] = Array(capacity=merges.length())
   for rank in 0..<merges.length() {
     merge_order.push(rank)
   }

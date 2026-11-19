@@ -9,11 +9,11 @@ fn projection_row_variant_sources(
   runtime : @luna_projection_strategy.ProjectionRuntimeDispatch,
   primary : @luna_projection_strategy.ProjectionDispatchPlan,
   symbol : String,
-  max_registers~ : Int,
-  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
-  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  max_registers~ : Int32,
+  sibling_ownership~ : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport~ : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
   sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
-  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  fold_choices~ : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> (String, ReadOnlyArray[@artifact.KernelRowVariant]) raise ProjectionAotError {
   let sources = StringBuilder()
   let variants : Array[@artifact.KernelRowVariant] = []
@@ -52,7 +52,7 @@ fn projection_row_variant_sources(
     let compilation = projection_row_variant_compilation(
       parameters,
       dispatch,
-      Int::min(profile.max_query_rows(), bound),
+      Int32::min(profile.max_query_rows(), bound),
       bound,
       fold_choices~,
     )
@@ -77,7 +77,7 @@ fn projection_row_variant_sources(
     // variant still accepts token rows, not an invented output-row domain.
     let variant_profile = @launch_contract.PagedKernelProfile::new(
       id=profile.id(),
-      max_query_rows=Int::min(profile.max_query_rows(), bound),
+      max_query_rows=Int32::min(profile.max_query_rows(), bound),
       max_query_tokens=bound,
       max_page_table_entries=profile.max_page_table_entries(),
     ) catch {
@@ -113,7 +113,7 @@ fn projection_row_variant_sources(
       variant_symbol,
       parameters,
       bound,
-      Int::min(profile.max_query_rows(), bound),
+      Int32::min(profile.max_query_rows(), bound),
       dispatch,
       physical,
       false,
@@ -135,7 +135,7 @@ fn projection_row_variant_sources(
           compilation,
           parameters,
           bound,
-          Int::min(profile.max_query_rows(), bound),
+          Int32::min(profile.max_query_rows(), bound),
           dimensions,
           // Startup dispatch deliberately keeps token-bound one on the primary
           // scalar entry. Matrix variants therefore need no scalar grid floor.
@@ -158,9 +158,9 @@ fn projection_row_variant_sources(
 fn projection_row_variant_compilation(
   parameters : ProjectionParameters,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
-  maximum_rows : Int,
-  maximum_tokens : Int,
-  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  maximum_rows : Int32,
+  maximum_tokens : Int32,
+  fold_choices~ : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
 ) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation raise ProjectionAotError {
   let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
     dispatch~,

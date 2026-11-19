@@ -3,7 +3,7 @@ fn llama_tp_append_tensor(
   output : Array[@tensor_parallel_plan.TensorRankPlacement],
   bindings : @llama_weights.LlamaWeightBindings,
   topology : @tensor_parallel_plan.TensorParallelTopology,
-  reference : Int,
+  reference : Int32,
   placement : @tensor_parallel_plan.TensorPlacement,
   rows : Int64,
   columns : Int64,

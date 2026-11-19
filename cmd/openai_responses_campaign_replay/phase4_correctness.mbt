@@ -1,12 +1,12 @@
 ///|
-fn phase4_correctness_name(index : Int) -> String {
+fn phase4_correctness_name(index : Int32) -> String {
   "correctness/trial-" + index.to_string() + ".correctness.v1"
 }
 
 ///|
 fn phase4_require_field(
   lines : ArrayView[StringView],
-  index : Int,
+  index : Int32,
   key : String,
 ) -> String raise Phase4PrefixGateError {
   if index < 0 || index >= lines.length() {
@@ -24,7 +24,7 @@ fn phase4_correctness_digest(
   bytes : Bytes,
   declaration_sha256 : String,
   capture_sha256 : String,
-  trial_index : Int,
+  trial_index : Int32,
 ) -> @evidence.BenchmarkDigest raise Phase4PrefixGateError {
   let document = @utf8.decode(bytes) catch {
     _ => raise Phase4InvalidCorrectness

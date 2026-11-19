@@ -76,14 +76,14 @@ pub fn LunaSchedulerTelemetry::prefix_publications(
 ///|
 pub fn LunaSchedulerTelemetry::prefix_entries(
   self : LunaSchedulerTelemetry,
-) -> Int {
+) -> Int32 {
   self.prefix_entries
 }
 
 ///|
 pub fn LunaSchedulerTelemetry::prefix_pages(
   self : LunaSchedulerTelemetry,
-) -> Int {
+) -> Int32 {
   self.prefix_pages
 }
 
@@ -101,28 +101,28 @@ pub fn Scheduler::luna_plan_telemetry(
 ///|
 pub fn LunaSchedulerTelemetry::queue_depth(
   self : LunaSchedulerTelemetry,
-) -> Int {
+) -> Int32 {
   self.queue_depth
 }
 
 ///|
 pub fn LunaSchedulerTelemetry::active_requests(
   self : LunaSchedulerTelemetry,
-) -> Int {
+) -> Int32 {
   self.active_requests
 }
 
 ///|
 pub fn LunaSchedulerTelemetry::kv_pages_used(
   self : LunaSchedulerTelemetry,
-) -> Int {
+) -> Int32 {
   self.kv_pages_used
 }
 
 ///|
 pub fn LunaSchedulerTelemetry::kv_pages_free(
   self : LunaSchedulerTelemetry,
-) -> Int {
+) -> Int32 {
   self.kv_pages_free
 }
 
@@ -136,13 +136,13 @@ pub fn LunaSchedulerPlanTelemetry::last_plan_sequence(
 ///|
 pub fn LunaSchedulerPlanTelemetry::last_plan_rows(
   self : LunaSchedulerPlanTelemetry,
-) -> Int {
+) -> Int32 {
   self.plan_rows
 }
 
 ///|
 pub fn LunaSchedulerPlanTelemetry::last_plan_tokens(
   self : LunaSchedulerPlanTelemetry,
-) -> Int {
+) -> Int32 {
   self.plan_tokens
 }

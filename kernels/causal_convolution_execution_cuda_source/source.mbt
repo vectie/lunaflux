@@ -20,8 +20,8 @@ pub fn causal_convolution_source(
     sequences <= 65535 &&
     !symbol.is_empty() &&
     symbol.length() <= 128 &&
-    symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   let history = kernel - 1
@@ -83,7 +83,9 @@ pub fn CausalConvolutionCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn CausalConvolutionCudaSource::launch(self : Self) -> (Int, Int, Int) {
+pub fn CausalConvolutionCudaSource::launch(
+  self : Self,
+) -> (Int32, Int32, Int32) {
   let (channels, _) = self.plan.geometry()
   let (_, sequences, _) = self.plan.capacity()
   (((channels.to_int64() + 127L) / 128L).to_int(), sequences, 128)

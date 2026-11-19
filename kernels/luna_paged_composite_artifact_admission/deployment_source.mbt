@@ -171,9 +171,9 @@ fn deployment_value(
 fn deployment_int(
   fields : Map[String, String],
   key : String,
-) -> Int raise PagedCompositeArtifactError {
+) -> Int32 raise PagedCompositeArtifactError {
   let text = deployment_value(fields, key)
-  let value : Int = @string.parse_int(text) catch {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise InvalidPagedCompositeArtifact(Module)
   }
   if value.to_string() != text {

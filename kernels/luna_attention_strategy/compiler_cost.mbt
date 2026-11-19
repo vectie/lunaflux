@@ -20,7 +20,7 @@ fn attention_checked_add(
 }
 
 ///|
-fn attention_ceil_div(value : Int, divisor : Int) -> Int {
+fn attention_ceil_div(value : Int32, divisor : Int32) -> Int32 {
   1 + (value - 1) / divisor
 }
 
@@ -28,7 +28,7 @@ fn attention_ceil_div(value : Int, divisor : Int) -> Int {
 fn attention_candidate_online_fold_steps(
   problem : AttentionCompileProblem,
   candidate : AttentionTileCandidate,
-) -> Int {
+) -> Int32 {
   let (_, context) = problem.dimensions()
   let (_, transfer_rows, _) = candidate.tile.dimensions()
   match candidate.compute {

@@ -5,10 +5,10 @@ fn all_finite(values : ArrayView[Double]) -> Bool {
 
 ///|
 pub fn JointTinyTransformerLimits::new(
-  maximum_rows~ : Int,
-  maximum_hidden_width~ : Int,
-  maximum_feed_forward_width~ : Int,
-  maximum_elements~ : Int,
+  maximum_rows~ : Int32,
+  maximum_hidden_width~ : Int32,
+  maximum_feed_forward_width~ : Int32,
+  maximum_elements~ : Int32,
 ) -> Self raise JointTinyTransformerReferenceError {
   if maximum_rows <= 0 ||
     maximum_rows > 128 ||
@@ -31,8 +31,8 @@ pub fn JointTinyTransformerLimits::new(
 ///|
 pub fn JointTinyConditioningMatrix::new(
   source~ : JointTinyConditioningSource,
-  rows~ : Int,
-  width~ : Int,
+  rows~ : Int32,
+  width~ : Int32,
   values~ : ArrayView[Double],
 ) -> Self raise JointTinyTransformerReferenceError {
   if rows < 0 || rows > 64 || width <= 0 || width > 64 {
@@ -64,8 +64,8 @@ pub fn JointTinyConditioningInput::new(
 
 ///|
 pub fn JointTinyDense::new(
-  input_width~ : Int,
-  output_width~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
   weights~ : ArrayView[Double],
   bias~ : ArrayView[Double],
 ) -> Self raise JointTinyTransformerReferenceError {
@@ -101,15 +101,15 @@ pub fn JointTinyMlp::new(
 }
 
 ///|
-fn dense_shape(dense : JointTinyDense, input : Int, output : Int) -> Bool {
+fn dense_shape(dense : JointTinyDense, input : Int32, output : Int32) -> Bool {
   dense.input_width == input && dense.output_width == output
 }
 
 ///|
 pub fn JointTinyTransformerWeights::new(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
-  keyframe_input_width~ : Int,
-  reference_input_width~ : Int,
+  keyframe_input_width~ : Int32,
+  reference_input_width~ : Int32,
   text_projection~ : JointTinyDense,
   keyframe_projection~ : JointTinyDense,
   reference_projection~ : JointTinyDense,

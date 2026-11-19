@@ -244,7 +244,7 @@ pub fn DeepSeekV4SemanticPlan::admit_backend(
 /// layers and therefore remain outside this accessor.
 pub fn DeepSeekV4SemanticPlan::attention_mode(
   self : Self,
-  layer : Int,
+  layer : Int32,
 ) -> DeepSeekV4AttentionMode? {
   let spec = self.metadata.spec()
   if layer < 0 || layer >= spec.layer_count() {

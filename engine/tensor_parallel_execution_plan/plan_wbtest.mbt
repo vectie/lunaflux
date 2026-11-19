@@ -23,7 +23,7 @@ fn regions_overlap(
 fn digest_hex_difference(
   left : TensorParallelExecutionPlanDigest,
   right : TensorParallelExecutionPlanDigest,
-) -> Int {
+) -> Int32 {
   let left_bytes = @utf8.encode(left.as_sha256())
   let right_bytes = @utf8.encode(right.as_sha256())
   if left_bytes.length() != right_bytes.length() {

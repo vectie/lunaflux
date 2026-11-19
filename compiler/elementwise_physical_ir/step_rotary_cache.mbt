@@ -4,14 +4,14 @@
 /// consumers belong to the same ordered execution graph; retirement occurs
 /// only after its final consumer, before the next step may overwrite cells.
 pub struct StepRotaryCachePlan {
-  priv maximum_tokens : Int
-  priv pairs : Int
+  priv maximum_tokens : Int32
+  priv pairs : Int32
 } derive(Eq, Debug)
 
 ///|
 pub fn StepRotaryCachePlan::new(
-  maximum_tokens~ : Int,
-  head_dimension~ : Int,
+  maximum_tokens~ : Int32,
+  head_dimension~ : Int32,
 ) -> StepRotaryCachePlan? {
   guard maximum_tokens > 0 &&
     maximum_tokens <= 1048576 &&
@@ -26,7 +26,9 @@ pub fn StepRotaryCachePlan::new(
 ///|
 /// (maximum token cells, rotary pairs per token). Each pair stores sine then
 /// cosine as two F32 values. Position is a step input, not a cache key.
-pub fn StepRotaryCachePlan::geometry(self : StepRotaryCachePlan) -> (Int, Int) {
+pub fn StepRotaryCachePlan::geometry(
+  self : StepRotaryCachePlan,
+) -> (Int32, Int32) {
   (self.maximum_tokens, self.pairs)
 }
 
@@ -38,8 +40,8 @@ pub fn StepRotaryCachePlan::byte_count(self : StepRotaryCachePlan) -> Int64 {
 ///|
 pub fn StepRotaryCachePlan::cell_offset(
   self : StepRotaryCachePlan,
-  token : Int,
-  pair : Int,
+  token : Int32,
+  pair : Int32,
 ) -> Int64? {
   guard token >= 0 &&
     token < self.maximum_tokens &&

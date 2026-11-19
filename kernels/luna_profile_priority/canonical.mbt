@@ -1,7 +1,7 @@
 ///|
 priv struct LunaKernelProfileEncoder {
   bytes : Array[Byte]
-  maximum : Int
+  maximum : Int32
 }
 
 ///|
@@ -18,7 +18,7 @@ fn LunaKernelProfileEncoder::append_byte(
 ///|
 fn LunaKernelProfileEncoder::append_int(
   self : LunaKernelProfileEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit raise LunaKernelProfileError {
   for byte in Int64::from_int(value).reinterpret_as_uint64().to_le_bytes() {
     self.append_byte(byte)
@@ -56,7 +56,7 @@ fn encode_luna_kernel_profile(
   sampled_wall_time_ns : Int64,
   attributed_self_time_ns : Int64,
   observations : ArrayView[LunaKernelProfileObservation],
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaKernelProfileError {
   let encoder : LunaKernelProfileEncoder = { bytes: [], maximum, }
   encoder.append_string("lunaflux.kernel-profile-priority.v1")

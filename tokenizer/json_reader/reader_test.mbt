@@ -19,7 +19,7 @@ fn test_digest() -> @tokenizer.TokenizerDigest {
 }
 
 ///|
-fn bytelevel_scalar_for_byte(value : Int) -> Int {
+fn bytelevel_scalar_for_byte(value : Int32) -> Int32 {
   if (value >= 0x21 && value <= 0x7e) ||
     (value >= 0xa1 && value <= 0xac) ||
     (value >= 0xae && value <= 0xff) {
@@ -34,16 +34,16 @@ fn bytelevel_scalar_for_byte(value : Int) -> Int {
 }
 
 ///|
-fn bytelevel_token(value : Int) -> String {
+fn bytelevel_token(value : Int32) -> String {
   bytelevel_scalar_for_byte(value).to_char().unwrap().to_string()
 }
 
 ///|
 fn tokenizer_document(
-  pair_merge? : Bool = false,
-  special? : Bool = true,
-  ignore_merges? : Bool = false,
-  empty_merges? : Bool = false,
+  pair_merge~ : Bool = false,
+  special~ : Bool = true,
+  ignore_merges~ : Bool = false,
+  empty_merges~ : Bool = false,
 ) -> String {
   let vocab : Map[String, Json] = Map([])
   for value in 0..<256 {
@@ -106,7 +106,7 @@ fn tokenizer_document(
 
 ///|
 fn parse_fixture(
-  pair_merge? : Bool = false,
+  pair_merge~ : Bool = false,
 ) -> @tokenizer.TokenizerSpec raise @json_reader.TokenizerJsonError {
   @json_reader.parse_string(
     tokenizer_document(pair_merge~),

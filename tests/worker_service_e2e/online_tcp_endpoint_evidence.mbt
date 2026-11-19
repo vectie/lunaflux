@@ -28,7 +28,7 @@ fn tcp_framed_limits() -> @framed_wire.FramedWireLimits raise {
 
 ///|
 fn tcp_startup(
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=identity(),
@@ -47,7 +47,7 @@ fn tcp_startup(
 
 ///|
 fn tcp_service_binding(
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @worker_service.WorkerServiceBinding raise {
   @worker_service.WorkerServiceBinding::new(
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(
@@ -63,7 +63,7 @@ fn tcp_service_binding(
 fn tcp_request_frame_for_identity(
   request_id : UInt64,
   model_identity : @spec.ModelIdentity,
-  max_new_tokens? : Int = 1,
+  max_new_tokens~ : Int32 = 1,
 ) -> FixedArray[Byte] raise {
   let limits = tcp_inference_limits()
   let request = @inference.GenerateRequest::new(
@@ -96,7 +96,7 @@ fn tcp_request_frame_for_identity(
 ///|
 fn tcp_request_frame(
   request_id : UInt64,
-  max_new_tokens? : Int = 1,
+  max_new_tokens~ : Int32 = 1,
 ) -> FixedArray[Byte] raise {
   tcp_request_frame_for_identity(request_id, identity(), max_new_tokens~)
 }
@@ -141,8 +141,8 @@ fn prepare_tcp_coordinator(
 
 ///|
 fn tcp_limits(
-  read_chunk_bytes : Int,
-  accept_timeout_millis? : Int = 1000,
+  read_chunk_bytes : Int32,
+  accept_timeout_millis~ : Int32 = 1000,
 ) -> @online_tcp.LunaOnlineTcpLimits raise {
   @online_tcp.LunaOnlineTcpLimits::new(
     read_chunk_bytes~,
@@ -158,8 +158,8 @@ fn tcp_limits(
 async fn tcp_write_fixed(
   connection : @socket.Tcp,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> Unit {
   let bytes = Bytes::makei(length, index => source[source_offset + index])
   let mut cursor = 0
@@ -177,7 +177,7 @@ async fn tcp_write_fixed(
 }
 
 ///|
-fn endpoint_read_u32(source : FixedArray[Byte], offset : Int) -> Int {
+fn endpoint_read_u32(source : FixedArray[Byte], offset : Int32) -> Int32 {
   source[offset].to_int() |
   (source[offset + 1].to_int() << 8) |
   (source[offset + 2].to_int() << 16) |

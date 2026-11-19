@@ -15,7 +15,7 @@ fn decode_prefix_campaign_frame(
 ///|
 fn assert_prefix_campaign_input(
   request : @inference.GenerateRequest,
-  expected : Array[Int],
+  expected : Array[Int32],
 ) -> Unit raise {
   guard request.input() is TokenIds(tokens) else {
     abort("prefix campaign request did not retain token input")

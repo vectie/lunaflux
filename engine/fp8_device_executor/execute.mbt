@@ -50,7 +50,7 @@ pub fn Fp8DeviceExecutor::write_runtime_input(
   self : Fp8DeviceExecutor,
   input : @plan.OperationRuntimeInput,
   source : FixedArray[Byte],
-  source_offset? : Int64 = 0L,
+  source_offset~ : Int64 = 0L,
 ) -> Unit raise Fp8DeviceExecutorError {
   upload_fp8_ephemeral(self, Runtime(input), source, source_offset)
 }
@@ -60,7 +60,7 @@ pub fn Fp8DeviceExecutor::write_external_input(
   self : Fp8DeviceExecutor,
   input : @plan.ModelInputRef,
   source : FixedArray[Byte],
-  source_offset? : Int64 = 0L,
+  source_offset~ : Int64 = 0L,
 ) -> Unit raise Fp8DeviceExecutorError {
   upload_fp8_ephemeral(self, External(input), source, source_offset)
 }
@@ -70,7 +70,7 @@ pub fn Fp8DeviceExecutor::write_activation_input(
   self : Fp8DeviceExecutor,
   activation : @plan.ActivationRef,
   source : FixedArray[Byte],
-  source_offset? : Int64 = 0L,
+  source_offset~ : Int64 = 0L,
 ) -> Unit raise Fp8DeviceExecutorError {
   upload_fp8_ephemeral(self, Activation(activation), source, source_offset)
 }
@@ -158,7 +158,7 @@ pub fn Fp8DeviceExecutor::copy_activation_output(
   executed : ExecutedFp8Operation,
   output : @plan.ActivationRef,
   destination : FixedArray[Byte],
-  destination_offset? : Int64 = 0L,
+  destination_offset~ : Int64 = 0L,
 ) -> Unit raise Fp8DeviceExecutorError {
   let step = authenticate_executed_fp8(self, executed)
   if !step.outputs.contains(output) {

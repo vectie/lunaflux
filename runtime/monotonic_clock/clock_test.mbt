@@ -1,6 +1,6 @@
 ///|
 test "system monotonic milliseconds never move backward" {
-  let clock = MonotonicClock::system()
+  let clock = @monotonic_clock.MonotonicClock::system()
   let mut previous = clock.now_millis()
   for _ in 0..<1000 {
     let current = clock.now_millis()
@@ -11,7 +11,7 @@ test "system monotonic milliseconds never move backward" {
 
 ///|
 test "prepared monotonic read is one-shot and value requires success" {
-  let prepared = MonotonicClock::system().prepare_read()
+  let prepared = @monotonic_clock.MonotonicClock::system().prepare_read()
   try prepared.value() catch {
     Unavailable => ()
     _ => fail("unexpected unread prepared-clock error")

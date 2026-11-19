@@ -1,8 +1,8 @@
 ///|
 pub fn indexer_cache_transform_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.RotaryHadamardFp4Precision raise {
   guard layer >= 0 &&

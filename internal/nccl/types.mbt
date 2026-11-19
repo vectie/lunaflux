@@ -12,7 +12,7 @@ pub(all) enum NcclAvailability {
 ///|
 pub struct NcclRuntimeInventory {
   priv availability : NcclAvailability
-  priv version_code : Int
+  priv version_code : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -23,18 +23,18 @@ pub fn NcclRuntimeInventory::availability(
 }
 
 ///|
-pub fn NcclRuntimeInventory::version_code(self : NcclRuntimeInventory) -> Int {
+pub fn NcclRuntimeInventory::version_code(self : NcclRuntimeInventory) -> Int32 {
   self.version_code
 }
 
 ///|
 /// Root-free proof that one already-loaded runtime met caller-owned bounds.
 pub struct NcclRuntimeAdmission {
-  priv version_code : Int
+  priv version_code : Int32
 }
 
 ///|
-pub fn NcclRuntimeAdmission::version_code(self : NcclRuntimeAdmission) -> Int {
+pub fn NcclRuntimeAdmission::version_code(self : NcclRuntimeAdmission) -> Int32 {
   self.version_code
 }
 

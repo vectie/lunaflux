@@ -4,7 +4,7 @@
 /// The remote startup owner must retain and authenticate the node identity.
 pub fn TensorParallelRankDevice::from_network_topology(
   topology : @network_topology.TwoNodeTopology,
-  rank~ : Int,
+  rank~ : Int32,
 ) -> TensorParallelRankDevice raise TensorParallelDevicePlanError {
   guard topology.rank(rank) is Some(device) else { raise invalid(Rank, rank) }
   {

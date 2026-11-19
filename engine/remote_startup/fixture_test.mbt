@@ -43,11 +43,11 @@ fn digest(character : Char) -> @spec.ContentDigest raise {
 ///|
 fn worker(
   plan : @two_node_plan.TwoNodePlan,
-  rank : Int,
-  generation? : UInt64 = 1UL,
-  predecessor? : UInt64 = 0UL,
-  ordinal? : Int = 0,
-  input_tokens? : Int = 64,
+  rank : Int32,
+  generation~ : UInt64 = 1UL,
+  predecessor~ : UInt64 = 0UL,
+  ordinal~ : Int32 = 0,
+  input_tokens~ : Int32 = 64,
 ) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=plan.model_identity(),
@@ -92,18 +92,18 @@ fn worker(
 }
 
 ///|
-fn rendezvous(value? : Byte = b'\x01') -> @device.TensorCollectiveGroupId raise {
+fn rendezvous(value~ : Byte = b'\x01') -> @device.TensorCollectiveGroupId raise {
   @device.tensor_collective_group_id_from_bytes(Bytes::make(128, value))
 }
 
 ///|
 fn group(
   plan : @two_node_plan.TwoNodePlan,
-  generation? : UInt64 = 1UL,
-  nonce? : Byte = b'\x01',
-  lease? : UInt64 = 1000UL,
-  follower_executable? : Char = 'f',
-  predecessor? : UInt64 = 0UL,
+  generation~ : UInt64 = 1UL,
+  nonce~ : Byte = b'\x01',
+  lease~ : UInt64 = 1000UL,
+  follower_executable~ : Char = 'f',
+  predecessor~ : UInt64 = 0UL,
 ) -> @remote_startup.RemoteGroupStartup raise {
   @remote_startup.RemoteGroupStartup::new(
     plan,

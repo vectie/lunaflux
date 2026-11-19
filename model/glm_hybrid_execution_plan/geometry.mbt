@@ -1,6 +1,6 @@
 ///|
 pub fn GlmSparseIndexPoolingPlan::new(
-  kernel_size~ : Int,
+  kernel_size~ : Int32,
   compress~ : Bool,
   always_select_tail~ : Bool,
 ) -> GlmSparseIndexPoolingPlan raise GlmHybridExecutionPlanError {
@@ -12,19 +12,19 @@ pub fn GlmSparseIndexPoolingPlan::new(
 
 ///|
 pub fn GlmDynamicSparseAttentionPlan::new(
-  query_head_count~ : Int,
-  kv_head_count~ : Int,
-  query_lora_rank~ : Int,
-  kv_lora_rank~ : Int,
-  qk_nope_head_dimension~ : Int,
-  qk_rope_head_dimension~ : Int,
-  value_head_dimension~ : Int,
+  query_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  query_lora_rank~ : Int32,
+  kv_lora_rank~ : Int32,
+  qk_nope_head_dimension~ : Int32,
+  qk_rope_head_dimension~ : Int32,
+  value_head_dimension~ : Int32,
   rms_norm_epsilon~ : Double,
   rope_theta~ : Double?,
   rope_interleave~ : Bool,
-  index_head_count~ : Int,
-  index_head_dimension~ : Int,
-  index_topk~ : Int,
+  index_head_count~ : Int32,
+  index_head_dimension~ : Int32,
+  index_topk~ : Int32,
   indexer_rope_interleave~ : Bool,
   index_share_for_mtp_iteration~ : Bool,
   index_pooling~ : GlmSparseIndexPoolingPlan?,
@@ -89,9 +89,9 @@ pub fn GlmDynamicSparseAttentionPlan::new(
 
 ///|
 pub fn GlmKdaExecutionPlan::new(
-  head_count~ : Int,
-  head_dimension~ : Int,
-  short_convolution_kernel_size~ : Int,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  short_convolution_kernel_size~ : Int32,
   gate_lower_bound~ : Double,
 ) -> GlmKdaExecutionPlan raise GlmHybridExecutionPlanError {
   if head_count <= 0 ||
@@ -112,7 +112,7 @@ pub fn GlmKdaExecutionPlan::new(
 
 ///|
 pub fn GlmHybridLayerPlan::new(
-  layer_index~ : Int,
+  layer_index~ : Int32,
   attention~ : GlmLayerAttentionPlan,
   feed_forward~ : GlmLayerFeedForwardPlan,
 ) -> GlmHybridLayerPlan raise GlmHybridExecutionPlanError {
@@ -124,22 +124,22 @@ pub fn GlmHybridLayerPlan::new(
 
 ///|
 pub fn GlmVisionConditioningPlan::new(
-  layer_count~ : Int,
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  attention_head_count~ : Int,
-  spatial_patch_size~ : Int,
-  temporal_patch_size~ : Int,
-  spatial_merge_size~ : Int,
-  decoder_projection_size~ : Int,
-  projection_intermediate_size~ : Int,
-  vocabulary_size~ : Int,
-  image_token_id~ : Int,
-  video_token_id~ : Int,
-  image_start_token_id~ : Int,
-  image_end_token_id~ : Int,
-  video_start_token_id~ : Int,
-  video_end_token_id~ : Int,
+  layer_count~ : Int32,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  attention_head_count~ : Int32,
+  spatial_patch_size~ : Int32,
+  temporal_patch_size~ : Int32,
+  spatial_merge_size~ : Int32,
+  decoder_projection_size~ : Int32,
+  projection_intermediate_size~ : Int32,
+  vocabulary_size~ : Int32,
+  image_token_id~ : Int32,
+  video_token_id~ : Int32,
+  image_start_token_id~ : Int32,
+  image_end_token_id~ : Int32,
+  video_start_token_id~ : Int32,
+  video_end_token_id~ : Int32,
 ) -> GlmVisionConditioningPlan raise GlmHybridExecutionPlanError {
   let tokens = [
     image_token_id, video_token_id, image_start_token_id, image_end_token_id, video_start_token_id,

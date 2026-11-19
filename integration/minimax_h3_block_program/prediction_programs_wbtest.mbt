@@ -1,6 +1,6 @@
 ///|
 fn prediction_program_fixture(
-  online? : Bool = false,
+  online~ : Bool = false,
 ) -> Array[@minimax_h3_block_source.PredictionSources] raise {
   let spec = @minimax_h3_spec.MiniMaxH3TransformerSpec::official(
     variant=Fl2va,

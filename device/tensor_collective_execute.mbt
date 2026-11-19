@@ -25,7 +25,7 @@ fn TensorCollectiveOwner::require_live(
 ///|
 fn require_tensor_collective_query_tokens(
   contract : TensorCollectiveContract,
-  live_query_tokens : Int,
+  live_query_tokens : Int32,
 ) -> Unit raise DeviceError {
   if live_query_tokens <= 0 || live_query_tokens > contract.max_query_tokens {
     raise InvalidArgument(TensorCollectiveExecute)
@@ -38,14 +38,14 @@ fn authenticate_tensor_collective_claim(
   generation : UInt64,
   current_plan_sequence : UInt64,
   next_global_sequence : UInt64,
-  next_site_index : Int,
+  next_site_index : Int32,
   claimed_generation : UInt64,
   claimed_plan_sequence : UInt64,
   claimed_global_sequence : UInt64,
-  claimed_site_sequence : Int,
-  claimed_operation_id : Int,
+  claimed_site_sequence : Int32,
+  claimed_operation_id : Int32,
   claimed_kind : TensorCollectiveKind,
-) -> Int raise DeviceError {
+) -> Int32 raise DeviceError {
   let count = contract.sequences.length()
   // Immutable branch selection avoids a boxed mutable local in native lowering.
   let index = if claimed_plan_sequence != current_plan_sequence {
@@ -93,10 +93,10 @@ pub fn TensorCollectiveOwner::submit(
   generation~ : UInt64,
   plan_sequence~ : UInt64,
   global_sequence~ : UInt64,
-  site_sequence~ : Int,
-  operation_id~ : Int,
+  site_sequence~ : Int32,
+  operation_id~ : Int32,
   kind~ : TensorCollectiveKind,
-  live_query_tokens~ : Int,
+  live_query_tokens~ : Int32,
   send~ : Allocation,
   send_offset~ : Int64,
   receive~ : Allocation,

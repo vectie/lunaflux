@@ -2,7 +2,7 @@
 test "consumer admits one exact synchronous arena then revokes" {
   let arena = FixedArray::make(4, b'x')
   let mut calls = 0
-  let consumer = SegmentedHostArenaConsumer::new(
+  let consumer = @segmented_host_borrow.SegmentedHostArenaConsumer::new(
     arena_ordinal=2,
     expected_length=4,
     consume=borrowed => {
@@ -30,7 +30,7 @@ test "consumer admits one exact synchronous arena then revokes" {
 
 ///|
 test "consumer rejects the wrong arena length and failed callback" {
-  let consumer = SegmentedHostArenaConsumer::new(
+  let consumer = @segmented_host_borrow.SegmentedHostArenaConsumer::new(
     arena_ordinal=1,
     expected_length=4,
     consume=_ => false,
@@ -53,7 +53,7 @@ test "consumer rejects the wrong arena length and failed callback" {
 ///|
 test "consumer constructor rejects unbounded identities" {
   try
-    SegmentedHostArenaConsumer::new(arena_ordinal=-1, expected_length=1, consume=_ => {
+    @segmented_host_borrow.SegmentedHostArenaConsumer::new(arena_ordinal=-1, expected_length=1, consume=_ => {
       true
     })
   catch {

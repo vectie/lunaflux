@@ -5,7 +5,7 @@ pub fn plan_manifest_upload(
   manifest : @minimax_h3_host_materialization.MiniMaxH3HostComponentManifest,
   limits : @segmented_device_materialize.SegmentedDeviceMaterializationLimits,
 ) -> @segmented_device_materialize.SegmentedDeviceLayout raise MiniMaxH3DeviceUploadError {
-  let lengths : Array[Int] = []
+  let lengths : Array[Int32] = []
   for i in 0..<manifest.arena_count() {
     guard manifest.arena_size(i) is Some(bytes) else {
       raise Host(ArenaReleased)
@@ -47,7 +47,7 @@ pub fn materialize_streamed_weights(
   root : @approved_fs.ApprovedRoot,
   component : @minimax_h3_host_materialization.MiniMaxH3StreamingComponent,
   layout : @segmented_device_materialize.SegmentedDeviceLayout,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> @segmented_device_materialize.SegmentedDevicePreparation raise MiniMaxH3DeviceUploadError {
   guard chunk_bytes > 0 else { raise Device(InvalidLimit) }
   let manifest = component.manifest()

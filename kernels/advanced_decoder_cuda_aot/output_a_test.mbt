@@ -1,7 +1,7 @@
 ///|
 fn output_a_test_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is AttentionOutputAProjectionV1(_, _, _, _) {
       return ordinal

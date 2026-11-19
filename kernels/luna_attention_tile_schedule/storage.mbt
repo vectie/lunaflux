@@ -22,8 +22,8 @@ pub struct AttentionTileStorageSpan {
   priv role : AttentionTileStorageRole
   priv offset : Int64
   priv bytes : Int64
-  priv begin : Int
-  priv end : Int
+  priv begin : Int32
+  priv end : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -65,7 +65,7 @@ pub fn AttentionTileStorageSpan::range(
 ///|
 pub fn AttentionTileStorageSpan::lifetime(
   self : AttentionTileStorageSpan,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.begin, self.end)
 }
 
@@ -273,10 +273,10 @@ fn plan_attention_matrix_storage(
 
 ///|
 fn plan_query_owned_storage(
-  query : Int,
-  keys : Int,
-  head : Int,
-  stages : Int,
+  query : Int32,
+  keys : Int32,
+  head : Int32,
+  stages : Int32,
 ) -> AttentionTileStorageLayout {
   let q = query.to_int64() * head.to_int64() * 2L
   let kv = keys.to_int64() * head.to_int64() * stages.to_int64() * 2L

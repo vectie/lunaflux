@@ -1,5 +1,5 @@
 ///|
-const INHERITED_DRAIN_FRAME_BYTES : Int = 8
+const INHERITED_DRAIN_FRAME_BYTES : Int32 = 8
 
 ///|
 fn drain_command_matches(source : FixedArray[Byte]) -> Bool {

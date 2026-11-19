@@ -1,11 +1,11 @@
 ///|
 pub fn spatial_assemble_source(
-  height~ : Int,
-  width~ : Int,
-  tile_h~ : Int,
-  tile_w~ : Int,
-  y_starts : ArrayView[Int],
-  x_starts : ArrayView[Int],
+  height~ : Int32,
+  width~ : Int32,
+  tile_h~ : Int32,
+  tile_w~ : Int32,
+  y_starts : ArrayView[Int32],
+  x_starts : ArrayView[Int32],
   symbol~ : String,
 ) -> Bytes raise EmbeddingError {
   guard height > 0 &&

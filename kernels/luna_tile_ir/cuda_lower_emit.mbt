@@ -3,8 +3,8 @@ fn lower_luna_tile_cuda_instruction(
   output : StringBuilder,
   program : LunaTileProgram,
   instruction : LunaTileInstruction,
-  instruction_index : Int,
-  vector_bytes : Int,
+  instruction_index : Int32,
+  vector_bytes : Int32,
 ) -> Unit raise LunaTileError {
   match instruction {
     LunaTileCopy(source, destination) =>

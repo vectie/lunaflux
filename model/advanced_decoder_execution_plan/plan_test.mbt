@@ -1,6 +1,6 @@
 ///|
 fn test_shape(
-  layer_count : Int,
+  layer_count : Int32,
 ) -> @advanced_decoder_execution_plan.AdvancedDecoderShape raise @advanced_decoder_execution_plan.AdvancedDecoderPlanError {
   @advanced_decoder_execution_plan.AdvancedDecoderShape::new(
     vocabulary_size=128,

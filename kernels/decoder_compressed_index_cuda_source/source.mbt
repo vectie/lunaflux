@@ -3,8 +3,8 @@ fn valid_compressed_index_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -20,9 +20,9 @@ fn valid_compressed_index_symbol(symbol : StringView) -> Bool {
 /// `counts[3]` selects the live prefix. Launch geometry is
 /// `[maximum_rows,1,1]` blocks of 256 threads.
 pub fn causal_complete_slots_i32_source(
-  compression_ratio~ : Int,
-  maximum_position_count~ : Int,
-  maximum_rows~ : Int,
+  compression_ratio~ : Int32,
+  maximum_position_count~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> DecoderCompressedIndexCudaSource raise DecoderCompressedIndexCudaSourceError {
   if compression_ratio <= 1 {

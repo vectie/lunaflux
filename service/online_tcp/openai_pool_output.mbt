@@ -38,7 +38,7 @@ fn LunaOnlineOpenAIConnectionSlot::publish_output(
 ///|
 fn LunaOnlineOpenAIConnectionSlot::copy_response_view(
   self : LunaOnlineOpenAIConnectionSlot,
-) -> Int {
+) -> Int32 {
   if self.response_views.length() != 1 || self.output_writes.length() != 1 {
     return -1
   }
@@ -78,7 +78,7 @@ fn LunaOnlineOpenAIConnectionSlot::copy_response_view(
 ///|
 fn LunaOnlineOpenAIConnectionSlot::copy_compat_view(
   self : LunaOnlineOpenAIConnectionSlot,
-) -> Int {
+) -> Int32 {
   if self.outbound_views.length() != 1 ||
     self.semantic_events.length() != 1 ||
     self.output_writes.length() != 1 {
@@ -132,9 +132,9 @@ fn LunaOnlineOpenAIConnectionSlot::copy_compat_view(
 
 ///|
 fn luna_openai_pool_write_completes(
-  cursor : Int,
-  output_length : Int,
-  written : Int,
+  cursor : Int32,
+  output_length : Int32,
+  written : Int32,
 ) -> Bool {
   cursor >= 0 &&
   output_length > cursor &&
@@ -146,7 +146,7 @@ fn luna_openai_pool_write_completes(
 ///|
 fn LunaOnlineOpenAIConnectionPool::discard_semantic_event(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
   event : @online_session.LunaOnlineFramedSemanticEvent,
   terminal : Bool,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
@@ -241,7 +241,7 @@ fn LunaOnlineOpenAIConnectionPool::capture_semantic_event(
 ///|
 fn LunaOnlineOpenAIConnectionPool::progress_slot_compat(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.outbound_works.length() != 1 || slot.semantic_events.length() != 1 {
@@ -337,7 +337,7 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_compat(
 ///|
 fn LunaOnlineOpenAIConnectionPool::progress_slot_response(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.response_views.length() == 1 {
@@ -428,7 +428,7 @@ fn LunaOnlineOpenAIConnectionPool::progress_slot_response(
 ///|
 async fn LunaOnlineOpenAIConnectionPool::write_slot_output(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.connections.length() != 1 || slot.flights.length() != 1 {
@@ -438,7 +438,7 @@ async fn LunaOnlineOpenAIConnectionPool::write_slot_output(
   if slot.output_cursor == slot.output_length {
     return self.release_completed_slot_output(index)
   }
-  let length = Int::min(
+  let length = Int32::min(
     self.tcp_limits.write_chunk_bytes,
     slot.output_length - slot.output_cursor,
   )

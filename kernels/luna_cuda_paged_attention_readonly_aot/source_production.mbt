@@ -4,7 +4,7 @@
 fn readonly_production_cuda_source(
   symbol : String,
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
-  input_row_width : Int,
+  input_row_width : Int32,
 ) -> Bytes {
   readonly_cuda_source(symbol, reference, input_row_width, None)
 }

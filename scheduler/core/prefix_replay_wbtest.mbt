@@ -86,7 +86,7 @@ fn replay_assert_plan(
 fn replay_completion(
   owner : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  sampled : Int,
+  sampled : Int32,
 ) -> @worker_protocol.SubmittedCompletion {
   let writer = try! owner.completion_writer(plan)
   for index in 0..<(try! plan.prefill_count()) {

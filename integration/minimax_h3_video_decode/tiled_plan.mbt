@@ -6,14 +6,14 @@ pub struct TiledDecoder {
   temporal : TemporalTiles
   y : TileAxis
   x : TileAxis
-  tile_count : Int
+  tile_count : Int32
   input_bytes : Int64
   gather_bytes : Int64
   tile_store_bytes : Int64
   clip_bytes : Int64
   output_bytes : Int64
-  output_height : Int
-  output_width : Int
+  output_height : Int32
+  output_width : Int32
   workspace_bytes : Int64
 }
 
@@ -21,14 +21,14 @@ pub struct TiledDecoder {
 /// Pure startup plan. Default pixel tile and overlap match the released
 /// decoder; caller may explicitly choose a different supported tile geometry.
 pub fn TiledDecoder::new(
-  latent_frames~ : Int,
-  latent_height~ : Int,
-  latent_width~ : Int,
-  output_frames~ : Int,
-  tile_size~ : Int,
-  minimum_overlap~ : Int,
+  latent_frames~ : Int32,
+  latent_height~ : Int32,
+  latent_width~ : Int32,
+  output_frames~ : Int32,
+  tile_size~ : Int32,
+  minimum_overlap~ : Int32,
   prefix~ : String,
-  max_jobs~ : Int,
+  max_jobs~ : Int32,
   max_workspace_bytes~ : Int64,
 ) -> Self raise {
   guard latent_height > 0 &&

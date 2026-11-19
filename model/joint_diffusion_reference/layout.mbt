@@ -5,7 +5,7 @@
 pub fn JointPackedRowLayout::new(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  conditioning_rows~ : Int,
+  conditioning_rows~ : Int32,
 ) -> JointPackedRowLayout raise JointDiffusionReferenceError {
   if plan.schema_version() != 1 ||
     !plan.packed_joint_sequence() ||
@@ -59,7 +59,7 @@ pub fn JointPackedRowLayout::new(
 fn expected_projected_elements(
   layout : JointPackedRowLayout,
   segment : JointPackedRowSegment,
-) -> Int raise JointDiffusionReferenceError {
+) -> Int32 raise JointDiffusionReferenceError {
   let rows = match segment {
     ConditioningRows => layout.conditioning_rows
     VideoRows => layout.video_rows
@@ -79,7 +79,7 @@ pub fn recombine_projected_rows(
   conditioning : ArrayView[Double],
   video : ArrayView[Double],
   audio : ArrayView[Double],
-  max_elements~ : Int,
+  max_elements~ : Int32,
 ) -> JointProjectedRows raise JointDiffusionReferenceError {
   let conditioning_expected = expected_projected_elements(
     layout,
@@ -151,27 +151,27 @@ pub fn JointPackedRowLayout::plan_digest(self : Self) -> @spec.PlanDigest {
 }
 
 ///|
-pub fn JointPackedRowLayout::hidden_width(self : Self) -> Int {
+pub fn JointPackedRowLayout::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn JointPackedRowLayout::conditioning_rows(self : Self) -> Int {
+pub fn JointPackedRowLayout::conditioning_rows(self : Self) -> Int32 {
   self.conditioning_rows
 }
 
 ///|
-pub fn JointPackedRowLayout::video_rows(self : Self) -> Int {
+pub fn JointPackedRowLayout::video_rows(self : Self) -> Int32 {
   self.video_rows
 }
 
 ///|
-pub fn JointPackedRowLayout::audio_rows(self : Self) -> Int {
+pub fn JointPackedRowLayout::audio_rows(self : Self) -> Int32 {
   self.audio_rows
 }
 
 ///|
-pub fn JointPackedRowLayout::total_rows(self : Self) -> Int {
+pub fn JointPackedRowLayout::total_rows(self : Self) -> Int32 {
   self.conditioning_rows + self.video_rows + self.audio_rows
 }
 
@@ -179,7 +179,7 @@ pub fn JointPackedRowLayout::total_rows(self : Self) -> Int {
 pub fn JointPackedRowLayout::row_start(
   self : Self,
   segment : JointPackedRowSegment,
-) -> Int {
+) -> Int32 {
   match segment {
     ConditioningRows => 0
     VideoRows => self.conditioning_rows
@@ -191,7 +191,7 @@ pub fn JointPackedRowLayout::row_start(
 pub fn JointPackedRowLayout::row_count(
   self : Self,
   segment : JointPackedRowSegment,
-) -> Int {
+) -> Int32 {
   match segment {
     ConditioningRows => self.conditioning_rows
     VideoRows => self.video_rows
@@ -200,12 +200,12 @@ pub fn JointPackedRowLayout::row_count(
 }
 
 ///|
-pub fn JointPackedRowLayout::video_input_width(self : Self) -> Int {
+pub fn JointPackedRowLayout::video_input_width(self : Self) -> Int32 {
   self.video_input_width
 }
 
 ///|
-pub fn JointPackedRowLayout::audio_input_width(self : Self) -> Int {
+pub fn JointPackedRowLayout::audio_input_width(self : Self) -> Int32 {
   self.audio_input_width
 }
 

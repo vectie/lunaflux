@@ -11,10 +11,10 @@ priv struct OpenAiQualificationMetricSample {
   network_accepts : UInt64
   network_disconnects : UInt64
   network_rejections : UInt64
-  queue_depth : Int
-  active_requests : Int
-  kv_pages_used : Int
-  kv_pages_free : Int
+  queue_depth : Int32
+  active_requests : Int32
+  kv_pages_used : Int32
+  kv_pages_free : Int32
 }
 
 ///|
@@ -100,7 +100,7 @@ fn openai_qualification_error_response(response : String) -> Bool {
 ///|
 async fn refuse_openai_post_drain_connection(
   owner : RuntimeInstanceOwner,
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> Bool {
   if owner.openai_qualification_readiness() != OpenAiQualificationListenerReady {
     return false
@@ -132,7 +132,7 @@ async fn refuse_openai_post_drain_connection(
 ///|
 async fn drain_openai_qualification_owner(
   owner : RuntimeInstanceOwner,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Bool {
   if owner.cleanup_complete() {
     return true

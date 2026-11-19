@@ -1,6 +1,6 @@
 ///|
 fn multi_worker_limits_for_rows(
-  max_rows : Int,
+  max_rows : Int32,
 ) -> @worker_protocol.WorkerProtocolLimits raise {
   @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows=max_rows,
@@ -22,7 +22,7 @@ fn multi_worker_limits() -> @worker_protocol.WorkerProtocolLimits raise {
 
 ///|
 fn multi_scheduler_blueprint_for_rows(
-  max_batch_rows : Int,
+  max_batch_rows : Int32,
 ) -> @scheduler.SchedulerBlueprint raise {
   let scheduling = @scheduler_config.new(
     step_token_budget=max_batch_rows,

@@ -1,6 +1,6 @@
 ///|
 fn rotary_test_requirements(
-  content_fill? : Char = 'a',
+  content_fill~ : Char = 'a',
 ) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements {
   aot_test_requirements(
     content_fill~,

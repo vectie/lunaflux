@@ -28,7 +28,7 @@ fn luna_text_expected_request() -> @inference.GenerateRequest raise {
 }
 
 ///|
-fn luna_text_encode(budget : Int) -> (FixedArray[Byte], UInt64) raise {
+fn luna_text_encode(budget : Int32) -> (FixedArray[Byte], UInt64) raise {
   let limits = fixture_limits()
   let inference = fixture_inference_limits()
   let workspace = LunaFramedTextRequestWorkspace::new(
@@ -68,7 +68,7 @@ fn luna_text_encode(budget : Int) -> (FixedArray[Byte], UInt64) raise {
   let result : FixedArray[Byte] = FixedArray::make(view.length(), 0)
   let mut offset = 0
   while offset < result.length() {
-    let length = Int::min(budget, result.length() - offset)
+    let length = Int32::min(budget, result.length() - offset)
     ignore(
       view.copy_chunk_to(
         result,

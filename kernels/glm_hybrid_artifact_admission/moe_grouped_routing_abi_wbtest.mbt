@@ -1,11 +1,11 @@
 ///|
 fn grouped_routing_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  operation? : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = MoeGroupedNoAuxiliaryLossTopK(
+  operation~ : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = MoeGroupedNoAuxiliaryLossTopK(
     288, 1, 2, 1, 8, true, 2.5,
   ),
-  choice_role? : GlmHybridLaunchOperandRole = MoeChoiceScoresOutput,
-  index_bytes? : Int64 = 1024L,
+  choice_role~ : GlmHybridLaunchOperandRole = MoeChoiceScoresOutput,
+  index_bytes~ : Int64 = 1024L,
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

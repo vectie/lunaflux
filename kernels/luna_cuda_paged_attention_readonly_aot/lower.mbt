@@ -12,7 +12,7 @@ fn readonly_launch_dimensions(
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
 ) -> @launch_contract.AotLaunchDimensions raise PagedAttentionReadOnlyAotError {
   @launch_contract.AotLaunchDimensions::new(
-    grid_x=Int::min(reference.profile().max_query_tokens(), 128),
+    grid_x=Int32::min(reference.profile().max_query_tokens(), 128),
     grid_y=reference.query_heads(),
     grid_z=1,
     block_x=128,
@@ -109,9 +109,9 @@ fn readonly_recipe(
   symbol : String,
   abi : PagedAttentionReadOnlyKernelAbi,
   source_digest : PagedAttentionReadOnlyDigest,
-  input_row_width : Int,
+  input_row_width : Int32,
   input_activation : @plan.ActivationRef,
-  dispatch_canary_per_token : Int,
+  dispatch_canary_per_token : Int32,
   launch : @launch_contract.AotLaunchDimensions,
 ) -> Bytes {
   let target = reference.target()

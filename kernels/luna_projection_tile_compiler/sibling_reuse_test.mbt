@@ -55,7 +55,7 @@ test "all admitted sibling distributions fit lifetime storage and preserve tail 
   // Matrix strategy admits power-of-two consumer counts through sixteen.
   // Its sibling pipeline has four row tiles and max(1, consumers/4) columns.
   for consumers in [1, 2, 4, 8, 16] {
-    let columns = Int::max(1, consumers / 4)
+    let columns = Int32::max(1, consumers / 4)
     let candidate = @luna_projection_tile_compiler.partition_projection_sibling_reuse(
       row_tiles=4,
       output_tiles=columns,

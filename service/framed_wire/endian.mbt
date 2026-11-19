@@ -1,20 +1,20 @@
 ///|
-fn write_u32(bytes : FixedArray[Byte], offset : Int, value : UInt) -> Unit {
+fn write_u32(bytes : FixedArray[Byte], offset : Int32, value : UInt32) -> Unit {
   bytes.unsafe_write_uint32_le(offset, value)
 }
 
 ///|
-fn write_i32(bytes : FixedArray[Byte], offset : Int, value : Int) -> Unit {
+fn write_i32(bytes : FixedArray[Byte], offset : Int32, value : Int32) -> Unit {
   write_u32(bytes, offset, value.reinterpret_as_uint())
 }
 
 ///|
-fn write_u64(bytes : FixedArray[Byte], offset : Int, value : UInt64) -> Unit {
+fn write_u64(bytes : FixedArray[Byte], offset : Int32, value : UInt64) -> Unit {
   bytes.unsafe_write_uint64_le(offset, value)
 }
 
 ///|
-fn read_u32(bytes : FixedArray[Byte], offset : Int) -> UInt {
+fn read_u32(bytes : FixedArray[Byte], offset : Int32) -> UInt32 {
   bytes[offset].to_uint() |
   (bytes[offset + 1].to_uint() << 8) |
   (bytes[offset + 2].to_uint() << 16) |
@@ -22,12 +22,12 @@ fn read_u32(bytes : FixedArray[Byte], offset : Int) -> UInt {
 }
 
 ///|
-fn read_i32(bytes : FixedArray[Byte], offset : Int) -> Int {
+fn read_i32(bytes : FixedArray[Byte], offset : Int32) -> Int32 {
   read_u32(bytes, offset).reinterpret_as_int()
 }
 
 ///|
-fn read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
+fn read_u64(bytes : FixedArray[Byte], offset : Int32) -> UInt64 {
   let mut value = 0UL
   for index in 0..<8 {
     value = value | (bytes[offset + index].to_uint64() << (index * 8))
@@ -36,7 +36,7 @@ fn read_u64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
 }
 
 ///|
-fn clear_header(bytes : FixedArray[Byte], length : Int) -> Unit {
+fn clear_header(bytes : FixedArray[Byte], length : Int32) -> Unit {
   for index in 0..<length {
     bytes[index] = b'\x00'
   }
@@ -46,7 +46,7 @@ fn clear_header(bytes : FixedArray[Byte], length : Int) -> Unit {
 fn copy_bytes(
   source : FixedArray[Byte],
   destination : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit {
   for index in 0..<length {
     destination[index] = source[index]
@@ -56,9 +56,9 @@ fn copy_bytes(
 ///|
 fn write_bytes(
   destination : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : Bytes,
-) -> Int {
+) -> Int32 {
   for index, byte in value {
     destination[offset + index] = byte
   }
@@ -66,14 +66,18 @@ fn write_bytes(
 }
 
 ///|
-fn read_bytes(source : FixedArray[Byte], offset : Int, length : Int) -> Bytes {
+fn read_bytes(
+  source : FixedArray[Byte],
+  offset : Int32,
+  length : Int32,
+) -> Bytes {
   Bytes::makei(length, index => source[offset + index])
 }
 
 ///|
 fn write_digest(
   destination : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : String,
   frame : FramedWireFrameKind,
 ) -> Unit raise FramedWireError {
@@ -87,7 +91,7 @@ fn write_digest(
 ///|
 fn read_digest(
   source : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   frame : FramedWireFrameKind,
 ) -> String raise FramedWireError {
   @utf8.decode(read_bytes(source, offset, 64)) catch {

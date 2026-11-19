@@ -1,11 +1,11 @@
 ///|
-const FUSED_BENCHMARK_WARMUP_ITERATIONS : Int = 16
+const FUSED_BENCHMARK_WARMUP_ITERATIONS : Int32 = 16
 
 ///|
-const FUSED_BENCHMARK_TRIALS_PER_SHAPE : Int = 8
+const FUSED_BENCHMARK_TRIALS_PER_SHAPE : Int32 = 8
 
 ///|
-const FUSED_BENCHMARK_REPETITIONS_PER_ARM : Int = 64
+const FUSED_BENCHMARK_REPETITIONS_PER_ARM : Int32 = 64
 
 ///|
 const FUSED_BENCHMARK_MINIMUM_WIN_PERCENT : Int64 = 5L
@@ -16,9 +16,9 @@ pub struct FusedCandidateBenchmarkProtocol {
   priv shape_set : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv clock : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv resource_collector : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  priv warmup_iterations : Int
-  priv trials_per_shape : Int
-  priv repetitions_per_arm : Int
+  priv warmup_iterations : Int32
+  priv trials_per_shape : Int32
+  priv repetitions_per_arm : Int32
 }
 
 ///|
@@ -29,9 +29,9 @@ pub fn FusedCandidateBenchmarkProtocol::new(
   shape_set~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
   clock~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
   resource_collector~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
-  warmup_iterations~ : Int,
-  trials_per_shape~ : Int,
-  repetitions_per_arm~ : Int,
+  warmup_iterations~ : Int32,
+  trials_per_shape~ : Int32,
+  repetitions_per_arm~ : Int32,
 ) -> FusedCandidateBenchmarkProtocol raise FusedCandidateBenchmarkError {
   if warmup_iterations <= 0 ||
     warmup_iterations > 1000000 ||
@@ -59,17 +59,17 @@ pub fn FusedCandidateBenchmarkProtocol::new(
 }
 
 ///|
-pub fn fused_candidate_benchmark_warmup_iterations() -> Int {
+pub fn fused_candidate_benchmark_warmup_iterations() -> Int32 {
   FUSED_BENCHMARK_WARMUP_ITERATIONS
 }
 
 ///|
-pub fn fused_candidate_benchmark_trials_per_shape() -> Int {
+pub fn fused_candidate_benchmark_trials_per_shape() -> Int32 {
   FUSED_BENCHMARK_TRIALS_PER_SHAPE
 }
 
 ///|
-pub fn fused_candidate_benchmark_repetitions_per_arm() -> Int {
+pub fn fused_candidate_benchmark_repetitions_per_arm() -> Int32 {
   FUSED_BENCHMARK_REPETITIONS_PER_ARM
 }
 

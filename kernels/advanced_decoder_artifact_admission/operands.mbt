@@ -150,7 +150,7 @@ fn operands_are_exact(
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bool {
   if operands.length() > maximum {
     return false

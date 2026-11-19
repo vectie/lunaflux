@@ -37,7 +37,7 @@ fn compiler_test_capabilities() -> AttentionCompilerCapabilities raise Attention
 ///|
 fn compiler_candidate_with_id(
   candidates : ReadOnlyArray[AttentionTileCandidate],
-  stable_id : Int,
+  stable_id : Int32,
 ) -> AttentionTileCandidate raise {
   for candidate in candidates {
     if candidate.stable_id() == stable_id {

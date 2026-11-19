@@ -1,5 +1,5 @@
 ///|
-fn luna_semantic_utf8_width(codepoint : Int) -> Int {
+fn luna_semantic_utf8_width(codepoint : Int32) -> Int32 {
   if codepoint <= 0x7f {
     1
   } else if codepoint <= 0x7ff {
@@ -12,7 +12,11 @@ fn luna_semantic_utf8_width(codepoint : Int) -> Int {
 }
 
 ///|
-fn luna_semantic_utf8_byte(codepoint : Int, width : Int, index : Int) -> Byte {
+fn luna_semantic_utf8_byte(
+  codepoint : Int32,
+  width : Int32,
+  index : Int32,
+) -> Byte {
   if width == 1 {
     codepoint.to_byte()
   } else if index == 0 {
@@ -23,7 +27,7 @@ fn luna_semantic_utf8_byte(codepoint : Int, width : Int, index : Int) -> Byte {
 }
 
 ///|
-fn luna_semantic_codepoint_at(value : String, offset : Int) -> Int {
+fn luna_semantic_codepoint_at(value : String, offset : Int32) -> Int32 {
   let first = value.unsafe_get(offset).to_int()
   if first >= 0xd800 && first <= 0xdbff {
     if offset + 1 >= value.length() {
@@ -43,7 +47,7 @@ fn luna_semantic_codepoint_at(value : String, offset : Int) -> Int {
 }
 
 ///|
-fn luna_semantic_codepoint_units_at(value : String, offset : Int) -> Int {
+fn luna_semantic_codepoint_units_at(value : String, offset : Int32) -> Int32 {
   let first = value.unsafe_get(offset).to_int()
   if first >= 0xd800 && first <= 0xdbff {
     2

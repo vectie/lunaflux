@@ -1,11 +1,11 @@
 ///|
 fn Scheduler::streaming_prefill_chunk(
   self : Scheduler,
-  requested : Int,
-  available_pages : Int,
-  tail_free_tokens : Int,
+  requested : Int32,
+  available_pages : Int32,
+  tail_free_tokens : Int32,
   workspace_budget : Int64,
-) -> Int {
+) -> Int32 {
   guard self.streaming is Some(owner) else { return requested }
   if owner.shapes.length() == 0 {
     return requested
@@ -36,7 +36,10 @@ fn Scheduler::streaming_workspace_budget(self : Scheduler) -> Int64 {
 }
 
 ///|
-fn Scheduler::streaming_workspace_cost(self : Scheduler, tokens : Int) -> Int64 {
+fn Scheduler::streaming_workspace_cost(
+  self : Scheduler,
+  tokens : Int32,
+) -> Int64 {
   guard self.streaming is Some(owner) else { return 0L }
   for i in 0..<owner.capability.shape_count() {
     let shape = owner.capability.shape_at(i)

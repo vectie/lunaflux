@@ -82,7 +82,7 @@ pub fn plan_operand(
   supported_placements~ : ArrayView[Placement],
   accuracy~ : Accuracy,
   memory_ceiling~ : Int64,
-  tile_elements? : Int = 0,
+  tile_elements~ : Int32 = 0,
 ) -> OperandPlan raise PrecisionPlanError {
   if !supported_placements.contains(placement) {
     raise NoImplementation

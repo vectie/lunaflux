@@ -32,7 +32,7 @@ fn require_string(
   name : String,
   component : JsonComponent,
   field : JsonField,
-  index : Int,
+  index : Int32,
 ) -> String raise TokenizerJsonError {
   match require_field(object, name, component, field) {
     String(value) => value
@@ -46,7 +46,7 @@ fn require_bool(
   name : String,
   component : JsonComponent,
   field : JsonField,
-  index : Int,
+  index : Int32,
 ) -> Bool raise TokenizerJsonError {
   match require_field(object, name, component, field) {
     True => true
@@ -61,14 +61,14 @@ fn require_exact_int(
   name : String,
   component : JsonComponent,
   field : JsonField,
-  index : Int,
-) -> Int raise TokenizerJsonError {
+  index : Int32,
+) -> Int32 raise TokenizerJsonError {
   guard require_field(object, name, component, field) is Number(number, repr~) else {
     raise InvalidField(component~, field~, index~)
   }
   match repr {
     Some(encoded) => {
-      let integer : Int = @string.parse_int(encoded) catch {
+      let integer : Int32 = @string.parse_int(encoded) catch {
         _ => raise InvalidField(component~, field~, index~)
       }
       integer

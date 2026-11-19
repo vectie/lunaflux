@@ -7,16 +7,16 @@ pub(all) suberror VisionError {
 ///|
 /// Processor grid dimensions count temporal/spatial patches, not pixels.
 pub(all) struct Grid {
-  time : Int
-  height : Int
-  width : Int
+  time : Int32
+  height : Int32
+  width : Int32
 } derive(Eq)
 
 ///|
 pub struct VisionPlan {
   grids : ReadOnlyArray[Grid]
-  rows : Int
-  merged_rows : Int
+  rows : Int32
+  merged_rows : Int32
   workspace_bytes : Int64
   output_bytes : Int64
 }
@@ -80,7 +80,7 @@ pub fn VisionPlan::workspace_regions(
 /// Index0 is final merger; 1/2/3 are deepstack after visual blocks8/16/24.
 pub fn VisionPlan::output_offset(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Int64 raise VisionError {
   guard index >= 0 && index < 4 else { raise InvalidGeometry }
   index.to_int64() * self.merged_rows.to_int64() * 5120L * 2L
@@ -90,8 +90,8 @@ pub fn VisionPlan::output_offset(
 /// Patch rows are already merge-group ordered by the processor: [t,h/2,w/2,2,2].
 pub fn VisionPlan::position(
   self : Self,
-  row : Int,
-) -> (Int, Int, Int, Int) raise VisionError {
+  row : Int32,
+) -> (Int32, Int32, Int32, Int32) raise VisionError {
   guard row >= 0 && row < self.rows else { raise InvalidGeometry }
   for grid in self.grids; start = 0 {
     let area = grid.height * grid.width
@@ -116,8 +116,8 @@ pub fn VisionPlan::position(
 /// and per-frame timestamp segmentation to these model-independent coordinates.
 pub fn VisionPlan::merged_position(
   self : Self,
-  row : Int,
-) -> (Int, Int, Int, Int) raise VisionError {
+  row : Int32,
+) -> (Int32, Int32, Int32, Int32) raise VisionError {
   guard row >= 0 && row < self.merged_rows else { raise InvalidGeometry }
   for index, grid in self.grids; start = 0 {
     let area = grid.height / 2 * (grid.width / 2)

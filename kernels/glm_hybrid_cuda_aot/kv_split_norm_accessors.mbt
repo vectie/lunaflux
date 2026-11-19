@@ -29,7 +29,7 @@ pub fn GlmHybridKvSplitNormCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridKvSplitNormCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,17 +48,17 @@ pub fn GlmHybridKvSplitNormCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridKvSplitNormCudaCandidate::prefix_width(self : Self) -> Int {
+pub fn GlmHybridKvSplitNormCudaCandidate::prefix_width(self : Self) -> Int32 {
   self.prefix_width
 }
 
 ///|
-pub fn GlmHybridKvSplitNormCudaCandidate::suffix_width(self : Self) -> Int {
+pub fn GlmHybridKvSplitNormCudaCandidate::suffix_width(self : Self) -> Int32 {
   self.suffix_width
 }
 
 ///|
-pub fn GlmHybridKvSplitNormCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridKvSplitNormCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

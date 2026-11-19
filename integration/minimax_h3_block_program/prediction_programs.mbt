@@ -67,7 +67,7 @@ fn prediction_workspaces(
     raise @device.DeviceError::InvalidArgument(AllocationCreate)
   }
   let layouts : Array[PredictionWorkspace] = []
-  let counts : Map[Int, Unit] = Map([])
+  let counts : Map[Int32, Unit] = Map([])
   let mut remaining = maximum
   let first = sources[0].block
   for source in sources {

@@ -4,7 +4,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -14,7 +14,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
 ///|
 fn copy_digest_into(
   destination : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : String,
 ) -> Unit raise RankGroupWireError {
   if !is_lower_sha256(value) {
@@ -31,8 +31,8 @@ pub fn RankGroupWireBinding::new(
   identity~ : @spec.ModelIdentity,
   model_generation_value~ : UInt64,
   group_generation_value~ : UInt64,
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
   group_digest~ : String,
   topology_digest~ : String,
   worker_digest~ : String,
@@ -102,12 +102,12 @@ pub fn RankGroupWireBinding::group_generation_value(
 }
 
 ///|
-pub fn RankGroupWireBinding::rank(self : RankGroupWireBinding) -> Int {
+pub fn RankGroupWireBinding::rank(self : RankGroupWireBinding) -> Int32 {
   self.rank
 }
 
 ///|
-pub fn RankGroupWireBinding::world_size(self : RankGroupWireBinding) -> Int {
+pub fn RankGroupWireBinding::world_size(self : RankGroupWireBinding) -> Int32 {
   self.world_size
 }
 

@@ -110,7 +110,7 @@ fn tensor_core_admit_tools(
 ///|
 fn tensor_core_admit_resources_and_numeric(
   reader : LunaTensorCoreEvidenceReader,
-) -> (Int, Int) raise LunaTensorCorePhysicalEvidenceError {
+) -> (Int32, Int32) raise LunaTensorCorePhysicalEvidenceError {
   let registers = reader.read_int("registers_per_thread")
   reader.require_int("register_bound", 128, Resource)
   let static_shared = reader.read_int("static_shared_bytes")

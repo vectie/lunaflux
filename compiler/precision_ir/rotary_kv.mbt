@@ -4,7 +4,7 @@ pub(all) enum RotaryFrequency {
   Base(theta~ : Double)
   Yarn(
     theta~ : Double,
-    original_positions~ : Int,
+    original_positions~ : Int32,
     factor~ : Double,
     beta_fast~ : Double,
     beta_slow~ : Double
@@ -35,15 +35,15 @@ pub extend SimulatedCacheScale with @debug.Debug::{to_repr}
 /// E4M3 simulation of KV's non-rotary prefix. The rotary suffix is excluded
 /// from quantization. The cache owner commits these outputs separately.
 pub struct RotaryKvPrecision {
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv width : Int
-  priv rotary_width : Int
-  priv rows : Int
-  priv positions : Int
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv width : Int32
+  priv rotary_width : Int32
+  priv rows : Int32
+  priv positions : Int32
   priv frequency : RotaryFrequency
   priv product : RotaryProductLaw
-  priv block_width : Int
+  priv block_width : Int32
   priv amax_floor : Double
   priv scale : SimulatedCacheScale
   priv frames : ReadOnlyArray[Int64]
@@ -56,9 +56,9 @@ fn rotary_positive(value : Double) -> Bool {
 
 ///|
 fn validate_cache_simulation(
-  width : Int,
-  rotary : Int,
-  block : Int,
+  width : Int32,
+  rotary : Int32,
+  block : Int32,
   floor : Double,
 ) -> Unit raise PrecisionPlanError {
   guard block > 0 &&
@@ -74,18 +74,18 @@ fn validate_cache_simulation(
 
 ///|
 pub fn RotaryKvPrecision::new(
-  query_heads~ : Int,
-  key_value_heads~ : Int,
-  head_width~ : Int,
-  rotary_width~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  query_heads~ : Int32,
+  key_value_heads~ : Int32,
+  head_width~ : Int32,
+  rotary_width~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   frequency~ : RotaryFrequency,
-  simulation_block_width~ : Int,
+  simulation_block_width~ : Int32,
   simulation_amax_floor~ : Double,
   simulation_scale~ : SimulatedCacheScale,
   maximum_workspace_bytes~ : Int64,
-  product? : RotaryProductLaw = SeparateFloat32Products,
+  product~ : RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise PrecisionPlanError {
   guard query_heads > 0 &&
     query_heads <= 512 &&
@@ -106,7 +106,7 @@ pub fn RotaryKvPrecision::new(
     head_width, rotary_width, simulation_block_width, simulation_amax_floor,
   )
   validate_rotary_frequency(frequency, maximum_positions)
-  let bytes = (heads : Int) => {
+  let bytes = (heads : Int32) => {
     maximum_rows.to_int64() * heads.to_int64() * head_width.to_int64() * 2L
   }
   let frames = [bytes(query_heads), bytes(key_value_heads)]
@@ -132,7 +132,7 @@ pub fn RotaryKvPrecision::new(
 ///|
 pub fn RotaryKvPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32, Int32) {
   (
     self.query_heads,
     self.kv_heads,
@@ -156,7 +156,7 @@ pub fn RotaryKvPrecision::product_law(self : Self) -> RotaryProductLaw {
 ///|
 pub fn RotaryKvPrecision::simulation(
   self : Self,
-) -> (Int, Double, SimulatedCacheScale) {
+) -> (Int32, Double, SimulatedCacheScale) {
   (self.block_width, self.amax_floor, self.scale)
 }
 

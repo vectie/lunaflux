@@ -1,7 +1,7 @@
 ///|
 /// Allocates bounded inline identity storage during startup.
 pub fn PageIdStorage::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> PageIdStorage raise PageAllocatorError {
   if capacity <= 0 || capacity > ABSOLUTE_MAX_PAGE_ID_STORAGE_CAPACITY {
     raise InvalidLimit(StorageCapacity)
@@ -13,14 +13,14 @@ pub fn PageIdStorage::new(
 }
 
 ///|
-pub fn PageIdStorage::capacity(self : PageIdStorage) -> Int {
+pub fn PageIdStorage::capacity(self : PageIdStorage) -> Int32 {
   self.pages.length()
 }
 
 ///|
 fn PageIdStorage::check_index(
   self : PageIdStorage,
-  index : Int,
+  index : Int32,
 ) -> Unit raise PageAllocatorError {
   if index < 0 || index >= self.pages.length() {
     raise StorageIndexOutOfBounds
@@ -30,7 +30,7 @@ fn PageIdStorage::check_index(
 ///|
 pub fn PageIdStorage::is_occupied(
   self : PageIdStorage,
-  index : Int,
+  index : Int32,
 ) -> Bool raise PageAllocatorError {
   self.check_index(index)
   self.occupied[index]
@@ -43,7 +43,7 @@ pub fn PageIdStorage::is_occupied(
 /// allocator residency. The caller keeps that ownership and validation duty.
 pub fn PageIdStorage::write(
   self : PageIdStorage,
-  index : Int,
+  index : Int32,
   page : PageId,
 ) -> Unit raise PageAllocatorError {
   self.check_index(index)
@@ -55,7 +55,7 @@ pub fn PageIdStorage::write(
 /// Returns a copied canonical identity only from an occupied cell.
 pub fn PageIdStorage::read(
   self : PageIdStorage,
-  index : Int,
+  index : Int32,
 ) -> PageId raise PageAllocatorError {
   self.check_index(index)
   if !self.occupied[index] {
@@ -68,7 +68,7 @@ pub fn PageIdStorage::read(
 /// Clears occupancy without exposing the package-private sentinel.
 pub fn PageIdStorage::clear(
   self : PageIdStorage,
-  index : Int,
+  index : Int32,
 ) -> Unit raise PageAllocatorError {
   self.check_index(index)
   self.pages[index] = invalid_page_id()

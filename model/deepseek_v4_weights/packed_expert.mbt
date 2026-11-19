@@ -26,8 +26,8 @@ pub fn DeepSeekV4PackedExpertWeight::representation(
 /// FP8 experts retain the checkpoint's 128x128 scale grid. No device details.
 pub fn packed_expert_weights(
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
-  expert_indices~ : ArrayView[Int],
+  layer_index~ : Int32,
+  expert_indices~ : ArrayView[Int32],
 ) -> Array[DeepSeekV4PackedExpertWeight] raise {
   guard layer_index >= 0 &&
     layer_index < spec.layer_count() &&
@@ -45,11 +45,11 @@ pub fn packed_expert_weights(
 pub fn packed_block_expert_weights(
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
   block~ : @deepseek_v4_spec.DeepSeekV4BlockAddress,
-  expert_indices~ : ArrayView[Int],
+  expert_indices~ : ArrayView[Int32],
 ) -> Array[DeepSeekV4PackedExpertWeight] raise {
   let prefix = block.checkpoint_prefix(spec)
   guard !expert_indices.is_empty() else { fail("empty expert partition") }
-  let seen : Set[Int] = Set([])
+  let seen : Set[Int32] = Set([])
   let weights = []
   for expert in expert_indices {
     guard expert >= 0 &&
@@ -89,7 +89,7 @@ pub fn packed_block_expert_weights(
 /// replicated across ranks, not members of the routed expert partition.
 pub fn packed_shared_expert_weights(
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[DeepSeekV4PackedExpertWeight] raise {
   guard layer_index >= 0 && layer_index < spec.layer_count() else {
     fail("invalid shared expert layer")

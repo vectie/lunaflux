@@ -2,10 +2,10 @@
 fn LunaOnlineTcpOutputWrite::copy_framed_event_view_at(
   self : LunaOnlineTcpOutputWrite,
   view : @framed_wire.LunaFramedEventView,
-  source_offset : Int,
-  destination_offset : Int,
-  length : Int,
-) -> Int raise {
+  source_offset : Int32,
+  destination_offset : Int32,
+  length : Int32,
+) -> Int32 raise {
   let scratch = self.require_mutating()
   if source_offset < 0 ||
     destination_offset < 0 ||
@@ -23,16 +23,16 @@ fn LunaOnlineTcpOutputWrite::copy_framed_event_view_at(
 
 ///|
 fn luna_online_framed_pool_event_copy_amount(
-  write_chunk_bytes : Int,
-  event_work_units : Int,
-  remaining : Int,
-) -> Int {
-  Int::min(remaining, Int::min(write_chunk_bytes, event_work_units))
+  write_chunk_bytes : Int32,
+  event_work_units : Int32,
+  remaining : Int32,
+) -> Int32 {
+  Int32::min(remaining, Int32::min(write_chunk_bytes, event_work_units))
 }
 
 ///|
 fn luna_online_framed_pool_discard_after_transport_cut(
-  phase : Int,
+  phase : Int32,
   cancel_requested : Bool,
 ) -> Bool {
   cancel_requested || phase == LUNA_FRAMED_POOL_RETIRING
@@ -132,7 +132,7 @@ fn LunaOnlineFramedConnectionPool::capture_semantic_event(
 ///|
 fn LunaOnlineFramedConnectionPool::progress_slot_encoding(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.event_works.length() != 1 || slot.semantic_events.length() != 1 {
@@ -178,7 +178,7 @@ fn LunaOnlineFramedConnectionPool::progress_slot_encoding(
 ///|
 fn LunaOnlineFramedConnectionPool::progress_slot_event_copy(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.event_views.length() != 1 ||
@@ -242,7 +242,7 @@ fn LunaOnlineFramedConnectionPool::progress_slot_event_copy(
 ///|
 async fn LunaOnlineFramedConnectionPool::write_slot_output(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.connections.length() != 1 ||
@@ -251,7 +251,7 @@ async fn LunaOnlineFramedConnectionPool::write_slot_output(
     slot.output_cursor >= slot.output_length {
     return self.retire_invalid_slot(index)
   }
-  let length = Int::min(
+  let length = Int32::min(
     self.tcp_limits.write_chunk_bytes,
     slot.output_length - slot.output_cursor,
   )

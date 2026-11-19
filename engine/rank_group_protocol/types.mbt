@@ -1,5 +1,5 @@
 ///|
-const MAX_RANK_GROUP_WORLD_SIZE : Int = 16
+const MAX_RANK_GROUP_WORLD_SIZE : Int32 = 16
 
 ///|
 pub(all) enum RankGroupLifecycle {
@@ -62,7 +62,7 @@ pub struct RankGroupOwner {
   priv identity : @spec.ModelIdentity
   priv model_plan_generation_value : UInt64
   priv generation : RankGroupGeneration
-  priv world_size : Int
+  priv world_size : Int32
   priv plan_buffer_identities : FixedArray[@worker_protocol.PlanBufferIdentity]
   priv mut lifecycle : RankGroupLifecycle
   priv mut epoch : UInt64
@@ -70,15 +70,15 @@ pub struct RankGroupOwner {
   priv mut active_sequence_value : UInt64
   priv mut active_started_tick : UInt64
   priv mut active_deadline_tick : UInt64
-  priv mut active_plan_buffer_index : Int
+  priv mut active_plan_buffer_index : Int32
   priv follower_acks : FixedArray[Bool]
   priv drained_ranks : FixedArray[Bool]
   priv lost_ranks : FixedArray[Bool]
-  priv mut follower_ack_count : Int
+  priv mut follower_ack_count : Int32
   priv mut failure_reason : RankGroupFailureReason
-  priv mut failure_rank : Int
+  priv mut failure_rank : Int32
   priv mut failure_published : Bool
-  priv mut drain_count : Int
+  priv mut drain_count : Int32
 }
 
 ///|
@@ -91,12 +91,12 @@ pub struct SubmittedRankGroupPlan(RankGroupOwner, UInt64)
 ///|
 /// Immutable rank-specific view of one exact group-plan epoch.
 #valtype
-pub struct RankPlanLease(RankGroupOwner, UInt64, Int)
+pub struct RankPlanLease(RankGroupOwner, UInt64, Int32)
 
 ///|
 /// Payload-free follower result suitable for fixed scalar framing.
 #valtype
-pub struct RankExecutionAck(UInt64, UInt64, UInt64, Int, Int)
+pub struct RankExecutionAck(UInt64, UInt64, UInt64, Int32, Int32)
 
 ///|
 /// Authenticated successful group result. Only rank zero contributes the
@@ -111,16 +111,16 @@ pub struct RankGroupFailureReport(
   UInt64,
   UInt64,
   RankGroupFailureReason,
-  Int,
-  Int
+  Int32,
+  Int32
 )
 
 ///|
 /// Rank-specific authority to drain one survivor after group invalidation.
 #valtype
-pub struct RankDrainLease(RankGroupOwner, UInt64, Int)
+pub struct RankDrainLease(RankGroupOwner, UInt64, Int32)
 
 ///|
 /// Payload-free survivor drain result suitable for fixed scalar framing.
 #valtype
-pub struct RankDrainAck(UInt64, UInt64, Int, Int)
+pub struct RankDrainAck(UInt64, UInt64, Int32, Int32)

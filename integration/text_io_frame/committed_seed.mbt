@@ -14,14 +14,14 @@ pub struct CommittedTokenSeed {
   priv allocation : @device.Allocation
   priv pool : @device.TransferPool
   priv payload : FixedArray[Byte]
-  priv vocabulary : Int
+  priv vocabulary : Int32
   priv mut state : SeedInputState
 }
 
 ///|
 pub fn CommittedTokenSeed::new(
   context : @device.Context,
-  vocabulary_size~ : Int,
+  vocabulary_size~ : Int32,
 ) -> Self raise {
   guard vocabulary_size > 0 else {
     raise @device.DeviceError::InvalidArgument(StreamingTransfer)
@@ -56,7 +56,7 @@ pub fn CommittedTokenSeed::allocation(self : Self) -> @device.Allocation raise {
 }
 
 ///|
-pub fn CommittedTokenSeed::begin(self : Self, token : Int) -> Unit raise {
+pub fn CommittedTokenSeed::begin(self : Self, token : Int32) -> Unit raise {
   guard self.state is Ready else {
     raise @device.DeviceError::Busy(StreamingTransfer)
   }

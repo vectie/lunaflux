@@ -18,17 +18,17 @@ pub fn DeepSeekV4HostManifest::expected_digests(
 }
 
 ///|
-pub fn DeepSeekV4HostManifest::tensor_count(self : Self) -> Int {
+pub fn DeepSeekV4HostManifest::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
-pub fn DeepSeekV4HostManifest::arena_count(self : Self) -> Int {
+pub fn DeepSeekV4HostManifest::arena_count(self : Self) -> Int32 {
   self.arena_sizes.length()
 }
 
 ///|
-pub fn DeepSeekV4HostManifest::arena_size(self : Self, index : Int) -> Int? {
+pub fn DeepSeekV4HostManifest::arena_size(self : Self, index : Int32) -> Int32? {
   self.arena_sizes.get(index)
 }
 
@@ -50,22 +50,22 @@ pub fn DeepSeekV4HostTensor::binding(
 }
 
 ///|
-pub fn DeepSeekV4HostTensor::arena_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4HostTensor::arena_ordinal(self : Self) -> Int32 {
   self.arena_ordinal
 }
 
 ///|
-pub fn DeepSeekV4HostTensor::arena_offset(self : Self) -> Int {
+pub fn DeepSeekV4HostTensor::arena_offset(self : Self) -> Int32 {
   self.arena_offset
 }
 
 ///|
-pub fn DeepSeekV4HostTensor::byte_count(self : Self) -> Int {
+pub fn DeepSeekV4HostTensor::byte_count(self : Self) -> Int32 {
   self.byte_count
 }
 
 ///|
-pub fn DeepSeekV4HostTensor::quantized_parameter_index(self : Self) -> Int? {
+pub fn DeepSeekV4HostTensor::quantized_parameter_index(self : Self) -> Int32? {
   self.quantized_parameter_index
 }
 
@@ -89,12 +89,12 @@ pub fn DeepSeekV4HostWeights::expected_digests(
 }
 
 ///|
-pub fn DeepSeekV4HostWeights::tensor_count(self : Self) -> Int {
+pub fn DeepSeekV4HostWeights::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
-pub fn DeepSeekV4HostWeights::arena_count(self : Self) -> Int {
+pub fn DeepSeekV4HostWeights::arena_count(self : Self) -> Int32 {
   self.arenas.length()
 }
 
@@ -102,8 +102,8 @@ pub fn DeepSeekV4HostWeights::arena_count(self : Self) -> Int {
 /// Report the exact length of one live host arena without exposing its bytes.
 pub fn DeepSeekV4HostWeights::device_arena_size(
   self : Self,
-  arena_ordinal : Int,
-) -> Int raise @segmented_host_borrow.SegmentedHostBorrowError {
+  arena_ordinal : Int32,
+) -> Int32 raise @segmented_host_borrow.SegmentedHostBorrowError {
   if self.released || arena_ordinal < 0 || arena_ordinal >= self.arenas.length() {
     raise SourceUnavailable(arena_ordinal)
   }
@@ -118,7 +118,7 @@ pub fn DeepSeekV4HostWeights::device_arena_size(
 /// consumer cannot retain or reuse the borrow after this call returns.
 pub fn DeepSeekV4HostWeights::provide_device_arena(
   self : Self,
-  arena_ordinal : Int,
+  arena_ordinal : Int32,
   consumer : @segmented_host_borrow.SegmentedHostArenaConsumer,
 ) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError {
   if self.released || arena_ordinal < 0 || arena_ordinal >= self.arenas.length() {
@@ -148,7 +148,7 @@ pub fn DeepSeekV4HostWeights::is_released(self : Self) -> Bool {
 ///|
 pub fn DeepSeekV4HostWeights::tensor(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> DeepSeekV4HostTensor raise DeepSeekV4HostMaterializationError {
   if self.released {
     raise ArenaReleased
@@ -162,8 +162,8 @@ pub fn DeepSeekV4HostWeights::tensor(
 ///|
 pub fn DeepSeekV4HostWeights::tensor_byte(
   self : Self,
-  tensor_index : Int,
-  byte_offset : Int,
+  tensor_index : Int32,
+  byte_offset : Int32,
 ) -> Byte raise DeepSeekV4HostMaterializationError {
   let tensor = self.tensor(tensor_index)
   if byte_offset < 0 || byte_offset >= tensor.byte_count {

@@ -1,5 +1,5 @@
 ///|
-fn new_openai_baseline_lane(capacity : Int) -> OpenAIBaselineLane {
+fn new_openai_baseline_lane(capacity : Int32) -> OpenAIBaselineLane {
   {
     event_storage: FixedArray::make(capacity, b'\x00'),
     event_length: 0,
@@ -44,7 +44,7 @@ pub fn OpenAIBaselineTrialContract::start(
 ///|
 fn OpenAIBaselineTrialAdapter::require_open_lane(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> OpenAIBaselineLane raise OpenAIBaselineAdapterError {
   if self.finished ||
     request_ordinal < 0 ||
@@ -60,7 +60,7 @@ fn OpenAIBaselineTrialAdapter::require_open_lane(
 /// declaration and cannot differ between baseline engines.
 pub fn OpenAIBaselineTrialAdapter::submit(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)
   if request_ordinal != self.submitted || lane.phase != OPENAI_BASELINE_VACANT {
@@ -87,8 +87,8 @@ fn openai_event_stream_content_type(value : StringView) -> Bool {
 /// or media-type combinations are rejected as ambiguous.
 pub fn OpenAIBaselineTrialAdapter::observe_response_head(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
-  status : Int,
+  request_ordinal : Int32,
+  status : Int32,
   content_type : StringView,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)
@@ -126,7 +126,7 @@ pub fn OpenAIBaselineTrialAdapter::observe_response_head(
 /// logprobs for exact generated-token accounting on transport termination.
 pub fn OpenAIBaselineTrialAdapter::terminate_transport(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   outcome : @evidence.BenchmarkRequestOutcome,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)

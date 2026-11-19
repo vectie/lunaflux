@@ -1,8 +1,8 @@
 ///|
 fn exact_hyper_connection_function_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  stream_count : Int,
-  hidden_width : Int,
+  stream_count : Int32,
+  hidden_width : Int32,
   control_epsilon : Double,
   normalization_epsilon : Double,
   claim : GlmHybridArtifactClaimInput,
@@ -72,8 +72,8 @@ fn exact_hyper_connection_function_abi(
 ///|
 fn exact_hyper_connection_sinkhorn_abi(
   geometry : @glm_hybrid_kernel_requirements.GlmHybridKernelGeometry,
-  stream_count : Int,
-  iterations : Int,
+  stream_count : Int32,
+  iterations : Int32,
   epsilon : Double,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {

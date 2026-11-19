@@ -4,18 +4,18 @@
 /// three dispatch boundaries publish inverse -> mixes -> collapse/controls.
 /// Worker counts are abstract; no subgroup or vendor instruction is semantic.
 pub struct OrderedControlPlan {
-  priv rows : Int
-  priv controls : Int
-  priv workers : Int
-  priv tile : Int
+  priv rows : Int32
+  priv controls : Int32
+  priv workers : Int32
+  priv tile : Int32
   priv scratch : Int64
 }
 
 ///|
 pub fn OrderedControlPlan::new(
   precision : @precision.HyperConnectionPrecision,
-  workers~ : Int,
-  product_tile~ : Int,
+  workers~ : Int32,
+  product_tile~ : Int32,
 ) -> Self raise @precision.PrecisionPlanError {
   let (streams, _, rows) = precision.geometry()
   guard precision.control_square_law() is OrderedFloat32 &&
@@ -41,12 +41,12 @@ pub fn OrderedControlPlan::new(
 }
 
 ///|
-pub fn OrderedControlPlan::workers(self : Self) -> Int {
+pub fn OrderedControlPlan::workers(self : Self) -> Int32 {
   self.workers
 }
 
 ///|
-pub fn OrderedControlPlan::product_tile(self : Self) -> Int {
+pub fn OrderedControlPlan::product_tile(self : Self) -> Int32 {
   self.tile
 }
 
@@ -58,8 +58,8 @@ pub fn OrderedControlPlan::workspace_bytes(self : Self) -> Int64 {
 ///|
 pub fn OrderedControlPlan::workgroups(
   self : Self,
-  stage : Int,
-) -> Int raise @precision.PrecisionPlanError {
+  stage : Int32,
+) -> Int32 raise @precision.PrecisionPlanError {
   match stage {
     0 | 2 => self.rows
     1 => self.rows * self.controls
@@ -73,6 +73,6 @@ pub fn OrderedControlPlan::local_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn OrderedControlPlan::geometry(self : Self) -> (Int, Int) {
+pub fn OrderedControlPlan::geometry(self : Self) -> (Int32, Int32) {
   (self.rows, self.controls)
 }

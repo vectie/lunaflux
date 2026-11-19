@@ -3,10 +3,10 @@
 /// one availability flag per candidate. Selection consumes scores, never
 /// recomputes their dot products. No device names or launch dimensions here.
 pub struct RetainedIndexPlan {
-  priv queries : Int
-  priv candidates : Int
-  priv published_slots : Int
-  priv selected_pools : Int
+  priv queries : Int32
+  priv candidates : Int32
+  priv published_slots : Int32
+  priv selected_pools : Int32
 }
 
 ///|
@@ -19,7 +19,7 @@ pub fn RetainedIndexPlan::new(
     queries,
     candidates: history / pool,
     selected_pools: top_k / pool,
-    published_slots: Int::min(history / pool, top_k / pool) * pool +
+    published_slots: Int32::min(history / pool, top_k / pool) * pool +
     (if tail { pool - 1 } else { 0 }),
   }
 }
@@ -28,12 +28,12 @@ pub fn RetainedIndexPlan::new(
 /// The producer writes selected pools followed by the incomplete tail. All
 /// slots beyond this prefix are padding for every admitted history. Consumers
 /// may restrict traversal only when bound to this producer, not arbitrary lists.
-pub fn RetainedIndexPlan::published_slots(self : Self) -> Int {
+pub fn RetainedIndexPlan::published_slots(self : Self) -> Int32 {
   self.published_slots
 }
 
 ///|
-pub fn RetainedIndexPlan::geometry(self : Self) -> (Int, Int) {
+pub fn RetainedIndexPlan::geometry(self : Self) -> (Int32, Int32) {
   (self.queries, self.candidates)
 }
 

@@ -16,7 +16,7 @@ test "enclosing operand publications subsume only redundant blockwise exchanges"
   let variants : Array[
     (
       @luna_attention_strategy.AttentionTileMemory,
-      Int,
+      Int32,
       @luna_attention_tile_schedule.AttentionTransferReadiness,
       Bool,
       Bool,

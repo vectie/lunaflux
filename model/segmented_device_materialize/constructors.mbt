@@ -19,9 +19,9 @@ pub fn SegmentedHostSourceDigest::from_sha256(
 ///|
 pub fn SegmentedDeviceMaterializationLimits::new(
   alignment_bytes~ : Int64,
-  maximum_source_arenas~ : Int,
-  maximum_regions~ : Int,
-  maximum_host_arena_bytes~ : Int,
+  maximum_source_arenas~ : Int32,
+  maximum_regions~ : Int32,
+  maximum_host_arena_bytes~ : Int32,
   maximum_total_source_bytes~ : Int64,
   maximum_device_arena_bytes~ : Int64,
 ) -> Self raise SegmentedDeviceMaterializationError {
@@ -50,10 +50,10 @@ pub fn SegmentedDeviceMaterializationLimits::new(
 
 ///|
 pub fn SegmentedDeviceTensorRegionInput::new(
-  tensor_ordinal~ : Int,
-  source_arena_ordinal~ : Int,
-  source_offset~ : Int,
-  byte_count~ : Int,
+  tensor_ordinal~ : Int32,
+  source_arena_ordinal~ : Int32,
+  source_offset~ : Int32,
+  byte_count~ : Int32,
 ) -> Self raise SegmentedDeviceMaterializationError {
   if tensor_ordinal < 0 ||
     source_arena_ordinal < 0 ||

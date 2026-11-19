@@ -1,19 +1,19 @@
 ///|
 priv struct PayloadCanonicalWriter {
   hash : @canonical_sha256.CanonicalSha256
-  mut bytes : Int
-  maximum : Int
+  mut bytes : Int32
+  maximum : Int32
 }
 
 ///|
-fn PayloadCanonicalWriter::new(maximum : Int) -> Self {
+fn PayloadCanonicalWriter::new(maximum : Int32) -> Self {
   { hash: @canonical_sha256.CanonicalSha256::new(), bytes: 0, maximum, }
 }
 
 ///|
 fn PayloadCanonicalWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise DeepSeekV4QuantizedPayloadError {
   if count < 0 || self.bytes > self.maximum - count {
     raise CanonicalEncodingTooLarge
@@ -33,7 +33,7 @@ fn PayloadCanonicalWriter::byte(
 ///|
 fn PayloadCanonicalWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise DeepSeekV4QuantizedPayloadError {
   self.reserve(8)
   ignore(
@@ -80,7 +80,7 @@ fn canonical_contract_digest(
   model_content_digest : @spec.ContentDigest,
   fp4_codebook : @deepseek_v4_numeric_plan.DeepSeekV4Fp4CodebookBinding?,
   payload_bytes : Int64,
-  maximum : Int,
+  maximum : Int32,
 ) -> DeepSeekV4QuantizedPayloadContractDigest raise DeepSeekV4QuantizedPayloadError {
   let writer = PayloadCanonicalWriter::new(maximum)
   writer.digest_text("lunaflux/deepseek-v4-quantized-layout/v2")

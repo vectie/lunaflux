@@ -1,5 +1,5 @@
 ///|
-fn DeepSeekV4NumericTensorRole::stable_index(self : Self) -> Int {
+fn DeepSeekV4NumericTensorRole::stable_index(self : Self) -> Int32 {
   match self {
     GlobalBFloat16Parameter => 0
     GlobalHyperConnectionFloat32 => 1
@@ -37,18 +37,18 @@ fn DeepSeekV4NumericTensorRole::stable_index(self : Self) -> Int {
 
 ///|
 fn add_role(
-  counts : FixedArray[Int],
+  counts : FixedArray[Int32],
   role : DeepSeekV4NumericTensorRole,
-  count : Int,
+  count : Int32,
 ) -> Unit {
   counts[role.stable_index()] += count
 }
 
 ///|
 fn add_block_roles(
-  counts : FixedArray[Int],
+  counts : FixedArray[Int32],
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
-  compression_ratio : Int,
+  compression_ratio : Int32,
   hash_routed : Bool,
 ) -> Unit {
   add_role(counts, AttentionBFloat16Parameter, 3)
@@ -86,7 +86,7 @@ fn add_block_roles(
 }
 
 ///|
-fn role_for_index(index : Int) -> DeepSeekV4NumericTensorRole {
+fn role_for_index(index : Int32) -> DeepSeekV4NumericTensorRole {
   match index {
     0 => GlobalBFloat16Parameter
     1 => GlobalHyperConnectionFloat32
@@ -165,7 +165,7 @@ fn storage_for_role(
 ///|
 fn build_tensor_runs(
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
-) -> (Array[DeepSeekV4NumericTensorRun], Int) raise DeepSeekV4NumericPlanError {
+) -> (Array[DeepSeekV4NumericTensorRun], Int32) raise DeepSeekV4NumericPlanError {
   let counts = FixedArray::make(31, 0)
   add_role(counts, GlobalBFloat16Parameter, 3)
   add_role(counts, GlobalHyperConnectionFloat32, 3)

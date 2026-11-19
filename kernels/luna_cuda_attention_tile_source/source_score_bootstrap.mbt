@@ -3,7 +3,7 @@ fn cuda_score_bootstrap(
   point : @luna_attention_tile_schedule.AttentionScoreBootstrapPoint,
   physical : @luna_attention_tile_schedule.AttentionSharedScoreProgram,
   initial_accumulator : String,
-  input_row_width : Int,
+  input_row_width : Int32,
   shared_statistics : String,
 ) -> String {
   let actions = physical.bootstrap(point)

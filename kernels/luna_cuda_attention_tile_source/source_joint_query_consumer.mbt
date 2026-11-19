@@ -6,7 +6,7 @@
 /// live state or per-accumulator numerical reassociation is introduced.
 fn cuda_joint_query_consumer(
   binding : @luna_cuda_attention_tile_lowering.CudaPrefillFragmentBinding,
-  query_fragment : Int,
+  query_fragment : Int32,
 ) -> String {
   let plan = binding.score()
   let (_, columns, _, quantum, _) = plan.program().geometry()

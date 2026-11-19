@@ -16,14 +16,14 @@ pub struct AdvancedDecoderOutputAProjectionCudaCandidate {
   priv numerical_contract : AdvancedDecoderOutputAProjectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv group_count : Int
-  priv input_width_per_group : Int
-  priv output_rank : Int
+  priv maximum_tokens : Int32
+  priv group_count : Int32
+  priv input_width_per_group : Int32
+  priv output_rank : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,

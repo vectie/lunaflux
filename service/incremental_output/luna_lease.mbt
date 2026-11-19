@@ -13,10 +13,10 @@ fn LunaIncrementalOutputLease::require_workspace(
 ///|
 fn pattern_advance(
   workspace : LunaIncrementalOutputWorkspace,
-  pattern : Int,
-  state : Int,
+  pattern : Int32,
+  state : Int32,
   byte : Byte,
-) -> Int {
+) -> Int32 {
   let capacity = workspace.stop_string_byte_capacity
   let base = pattern * capacity
   let mut next = state
@@ -32,9 +32,9 @@ fn pattern_advance(
 ///|
 fn LunaIncrementalOutputWorkspace::push_token_status_current(
   self : LunaIncrementalOutputWorkspace,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset : Int,
+  destination_offset : Int32,
 ) -> IncrementalOutputStatus {
   if self.lifecycle != OUTPUT_ACTIVE {
     return IncrementalOutputStatus(1, 0, false)
@@ -157,9 +157,9 @@ fn LunaIncrementalOutputWorkspace::push_token_status_current(
 ///|
 pub fn LunaIncrementalOutputLease::push_token_status(
   self : LunaIncrementalOutputLease,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> IncrementalOutputStatus {
   let workspace = try self.require_workspace() catch {
     _ => return IncrementalOutputStatus::rejected()
@@ -172,9 +172,9 @@ pub fn LunaIncrementalOutputLease::push_token_status(
 ///|
 pub fn LunaIncrementalOutputLease::push_token_without_stops_status(
   self : LunaIncrementalOutputLease,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> IncrementalOutputStatus {
   let workspace = try self.require_workspace() catch {
     _ => return IncrementalOutputStatus::rejected()
@@ -191,8 +191,8 @@ pub fn LunaIncrementalOutputLease::push_token_without_stops_status(
 pub fn LunaIncrementalOutputLease::finish_into_status(
   self : LunaIncrementalOutputLease,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  boundary? : OutputTextBoundary = CompleteText,
+  destination_offset~ : Int32,
+  boundary~ : OutputTextBoundary = CompleteText,
 ) -> IncrementalOutputStatus {
   let workspace = try self.require_workspace() catch {
     _ => return IncrementalOutputStatus::rejected()
@@ -202,7 +202,9 @@ pub fn LunaIncrementalOutputLease::finish_into_status(
   if workspace.lifecycle != OUTPUT_ACTIVE {
     return IncrementalOutputStatus(1, 0, false)
   }
-  let incomplete_bytes = if workspace.utf8_remaining == 0 { 0 } else {
+  let incomplete_bytes = if workspace.utf8_remaining == 0 {
+    0
+  } else {
     match boundary {
       CompleteText => return IncrementalOutputStatus(1, 0, false)
       TokenLimit => workspace.utf8_seen

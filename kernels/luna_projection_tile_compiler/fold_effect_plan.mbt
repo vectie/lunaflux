@@ -31,9 +31,9 @@ pub(all) enum ProjectionFoldEffect {
 /// Finite, immutable control plan for a ring of operand materializations.
 /// Counts describe transfer groups, not CUDA async instructions or subgroups.
 pub struct ProjectionFoldEffectPlan {
-  priv stages : Int
-  priv width : Int
-  priv extent : Int
+  priv stages : Int32
+  priv width : Int32
+  priv extent : Int32
   priv execution : ProjectionTransferExecution
 } derive(Debug, Eq)
 
@@ -54,21 +54,21 @@ pub fn ProjectionFoldPipeline::effect_plan(
 /// (ring slots, transfer width, reduction extent).
 pub fn ProjectionFoldEffectPlan::geometry(
   self : ProjectionFoldEffectPlan,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.stages, self.width, self.extent)
 }
 
 ///|
 pub fn ProjectionFoldEffectPlan::prime_count(
   self : ProjectionFoldEffectPlan,
-) -> Int {
+) -> Int32 {
   self.stages - 1
 }
 
 ///|
 pub fn ProjectionFoldEffectPlan::future_distance(
   self : ProjectionFoldEffectPlan,
-) -> Int {
+) -> Int32 {
   self.prime_count() * self.width
 }
 
@@ -93,7 +93,7 @@ pub fn ProjectionFoldEffectPlan::has_pending_transfers(
 /// current operand is consumed. At the tail, drain all groups instead.
 pub fn ProjectionFoldEffectPlan::pending_group_limit(
   self : ProjectionFoldEffectPlan,
-) -> Int {
+) -> Int32 {
   if self.has_pending_transfers() {
     self.stages - 2
   } else {
@@ -133,3 +133,27 @@ pub fn ProjectionFoldEffectPlan::bootstrap(
       [IssueInitialOperands, AwaitInitialOperands, PublishInitialOperands]
   }
 }
+
+///|
+pub extend ProjectionFoldBootstrapEffect with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionFoldBootstrapEffect with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTransferExecution with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTransferExecution with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionFoldEffect with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionFoldEffect with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionFoldEffectPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionFoldEffectPlan with Eq::{not_equal, equal}

@@ -17,7 +17,7 @@ fn numeric_semantic_plan(
 ///|
 fn tensor_run_count(
   plan : @deepseek_v4_numeric_plan.DeepSeekV4NumericPlan,
-) -> Int {
+) -> Int32 {
   let mut total = 0
   for run in plan.tensor_runs() {
     total += run.tensor_count()
@@ -42,7 +42,7 @@ fn storage_for(
 fn count_execution(
   plan : @deepseek_v4_numeric_plan.DeepSeekV4NumericPlan,
   expected : @deepseek_v4_numeric_plan.DeepSeekV4OperationExecution,
-) -> Int {
+) -> Int32 {
   let mut count = 0
   for operation in plan.operations() {
     if operation.execution() == expected {
@@ -61,7 +61,7 @@ test "all five closed profiles expand to exact manifest cardinalities" {
     ("deepseek-ai/DeepSeek-V4-Pro-Base", '4', 145118),
     ("deepseek-ai/DeepSeek-V4-Flash-0731", '5', 72317),
   ]
-  let operation_counts : Array[Int] = []
+  let operation_counts : Array[Int32] = []
   for entry in cases {
     let (model_id, fill, expected) = entry
     let semantic = numeric_semantic_plan(model_id, fill)

@@ -17,7 +17,7 @@ fn terminal_live_children(
 ///|
 fn terminal_finish_write(
   supervisor : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise {
   for _ in 0..<100000 {
     if supervisor.children[rank].progress_write() {
@@ -30,9 +30,9 @@ fn terminal_finish_write(
 ///|
 fn terminal_response(
   supervisor : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
   kind : @rank_group_wire.RankGroupWireKind,
-) -> Int raise {
+) -> Int32 raise {
   @rank_group_wire.encode_rank_group_wire_control_into(
     supervisor.rx,
     supervisor.wire_limits,

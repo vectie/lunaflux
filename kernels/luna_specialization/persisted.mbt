@@ -1,7 +1,7 @@
 ///|
 priv struct LunaSpecializationDecoder {
   bytes : Bytes
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
@@ -29,7 +29,7 @@ fn LunaSpecializationDecoder::read_i64(
 ///|
 fn LunaSpecializationDecoder::read_int(
   self : LunaSpecializationDecoder,
-) -> Int raise LunaSpecializationError {
+) -> Int32 raise LunaSpecializationError {
   let value = self.read_i64()
   let decoded = value.to_int()
   if Int64::from_int(decoded) != value {

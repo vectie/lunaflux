@@ -4,7 +4,7 @@ fn phase4_fixture_digest(unit : Char) -> String {
 }
 
 ///|
-fn phase4_fixture_profile_name(index : Int) -> String {
+fn phase4_fixture_profile_name(index : Int32) -> String {
   match index {
     0 => "latency"
     1 => "chat"
@@ -19,7 +19,7 @@ fn phase4_fixture_profile_name(index : Int) -> String {
 }
 
 ///|
-fn phase4_fixture_engine_name(index : Int) -> String {
+fn phase4_fixture_engine_name(index : Int32) -> String {
   match index {
     0 => "lunaflux"
     1 => "vllm"
@@ -28,7 +28,7 @@ fn phase4_fixture_engine_name(index : Int) -> String {
 }
 
 ///|
-fn phase4_fixture_order_position(engine : Int, ordinal : Int) -> Int {
+fn phase4_fixture_order_position(engine : Int32, ordinal : Int32) -> Int32 {
   match ordinal {
     1 => engine
     2 => (engine + 2) % 3
@@ -104,7 +104,7 @@ fn phase4_fixture_declaration() -> Bytes {
 ///|
 fn phase4_fixture_event(
   kind : String,
-  timestamp : Int,
+  timestamp : Int32,
   input_tokens : String,
   status : String,
   content_type : String,
@@ -127,10 +127,10 @@ fn phase4_fixture_event(
 
 ///|
 fn phase4_fixture_elapsed(
-  profile : Int,
-  engine : Int,
-  rich_lunaflux_ns : Int,
-) -> Int {
+  profile : Int32,
+  engine : Int32,
+  rich_lunaflux_ns : Int32,
+) -> Int32 {
   if profile == 4 {
     match engine {
       0 => rich_lunaflux_ns
@@ -151,8 +151,8 @@ fn phase4_fixture_elapsed(
 ///|
 fn phase4_fixture_capture(
   declaration_sha256 : String,
-  index : Int,
-  rich_lunaflux_ns : Int,
+  index : Int32,
+  rich_lunaflux_ns : Int32,
 ) -> Bytes {
   let profile = index / 9
   let ordinal = index % 9 / 3 + 1
@@ -218,8 +218,8 @@ fn phase4_fixture_correctness() -> Array[@evidence.BenchmarkDigest] {
 fn phase4_fixture_correctness_artifact(
   declaration_sha256 : String,
   capture_sha256 : String,
-  trial_index : Int,
-  passed? : String = "1",
+  trial_index : Int32,
+  passed~ : String = "1",
 ) -> Bytes {
   @utf8.encode(
     "schema=lunaflux.external-correctness-observation.v1\n" +
@@ -239,7 +239,7 @@ fn phase4_fixture_correctness_artifact(
 
 ///|
 fn phase4_fixture_measurements(
-  rich_lunaflux_ns : Int,
+  rich_lunaflux_ns : Int32,
 ) -> @openai_adapter.OpenAIResponsesComparisonMeasurementSet {
   let declaration_bytes = phase4_fixture_declaration()
   let declaration_sha256 = @crypto.bytes_to_hex_string(
@@ -257,7 +257,7 @@ fn phase4_fixture_measurements(
 }
 
 ///|
-fn phase4_fixture_policy(budget? : Int = 1000) -> Phase4ExternalPolicy {
+fn phase4_fixture_policy(budget~ : Int32 = 1000) -> Phase4ExternalPolicy {
   {
     digest: phase4_fixture_digest('9'),
     declaration: phase4_fixture_digest('a'),

@@ -1,21 +1,21 @@
 ///|
 pub(all) enum JointAudioAmpParameterRole {
-  ActivationAlpha(Int, Int)
-  ActivationBeta(Int, Int)
-  ActivationDownsampleFilter(Int, Int)
-  ActivationUpsampleFilter(Int, Int)
-  ConvolutionBias(Int, Int, Int)
-  ConvolutionWeightG(Int, Int, Int)
-  ConvolutionWeightV(Int, Int, Int)
+  ActivationAlpha(Int32, Int32)
+  ActivationBeta(Int32, Int32)
+  ActivationDownsampleFilter(Int32, Int32)
+  ActivationUpsampleFilter(Int32, Int32)
+  ConvolutionBias(Int32, Int32, Int32)
+  ConvolutionWeightG(Int32, Int32, Int32)
+  ConvolutionWeightV(Int32, Int32, Int32)
 } derive(Debug, Eq)
 
 ///|
 pub(all) suberror JointAudioAmpParameterLayoutError {
   InvalidRegionCount
-  InvalidRegion(Int)
-  InvalidRegionOrder(Int)
-  InvalidRegionOffset(Int)
-  DuplicateRegion(Int)
+  InvalidRegion(Int32)
+  InvalidRegionOrder(Int32)
+  InvalidRegionOffset(Int32)
+  DuplicateRegion(Int32)
   SizeOverflow
 } derive(Debug, Eq)
 

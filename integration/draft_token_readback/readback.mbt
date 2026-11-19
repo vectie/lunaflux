@@ -14,8 +14,8 @@ priv enum Phase {
 pub struct DraftTokenReadback {
   priv pool : @device.TransferPool
   priv payload : FixedArray[Byte]
-  priv count : Int
-  priv vocabulary : Int
+  priv count : Int32
+  priv vocabulary : Int32
   priv mut phase : Phase
 }
 
@@ -23,8 +23,8 @@ pub struct DraftTokenReadback {
 pub fn DraftTokenReadback::new(
   context : @device.Context,
   source : @device.Allocation,
-  token_count~ : Int,
-  vocabulary_size~ : Int,
+  token_count~ : Int32,
+  vocabulary_size~ : Int32,
   maximum_host_bytes~ : Int64,
 ) -> Self raise {
   guard token_count > 0 &&
@@ -69,7 +69,7 @@ pub fn DraftTokenReadback::begin(self : Self) -> Unit raise {
 }
 
 ///|
-fn DraftTokenReadback::sample(self : Self, row : Int) -> Int {
+fn DraftTokenReadback::sample(self : Self, row : Int32) -> Int32 {
   for i in 0..<4; bits = 0U {
     continue bits | (self.payload[row * 4 + i].to_uint() << (i * 8))
   } nobreak {
@@ -105,7 +105,7 @@ pub fn DraftTokenReadback::poll(self : Self) -> Bool raise {
 }
 
 ///|
-pub fn DraftTokenReadback::token_count(self : Self) -> Int raise {
+pub fn DraftTokenReadback::token_count(self : Self) -> Int32 raise {
   guard self.phase is Retired else {
     raise @device.DeviceError::Busy(StreamingTransfer)
   }
@@ -113,7 +113,7 @@ pub fn DraftTokenReadback::token_count(self : Self) -> Int raise {
 }
 
 ///|
-pub fn DraftTokenReadback::token_at(self : Self, row : Int) -> Int raise {
+pub fn DraftTokenReadback::token_at(self : Self, row : Int32) -> Int32 raise {
   guard self.phase is Retired && row >= 0 && row < self.count else {
     raise @device.DeviceError::Busy(StreamingTransfer)
   }

@@ -307,19 +307,19 @@ pub fn prepare_numeric_bf16_paged_graph_executor_v1(
   artifacts : @artifact.KernelArtifactBundle,
   has_accepted_predecessor~ : Bool,
   accepted_predecessor_value~ : UInt64,
-  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
-  graph_policy? : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
-  sampling_policy? : PagedSamplingExecutionPolicy = PagedHostSampling,
-  fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
+  luna_authorization~ : @luna_artifact_admission.LunaAotKernelAdmission? = None,
+  graph_policy~ : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
+  sampling_policy~ : PagedSamplingExecutionPolicy = PagedHostSampling,
+  fused_residual_spans~ : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
   ),
-  fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
-  qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
+  fused_qkv_readonly_span~ : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
+  qwen_fused_attention_spans~ : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
   ),
-  decode_split_bindings? : ReadOnlyArray[
+  decode_split_bindings~ : ReadOnlyArray[
     @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ] = ReadOnlyArray::from_array([]),
-  decode_split_maximum_workspace_bytes? : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
-  vendor_projection_exact_rows? : Int = 0,
+  decode_split_maximum_workspace_bytes~ : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
+  vendor_projection_exact_rows~ : Int32 = 0,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let resources = empty_paged_resources()
   resources.vendor_projection_exact_rows = vendor_projection_exact_rows

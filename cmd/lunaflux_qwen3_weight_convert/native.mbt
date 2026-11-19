@@ -5,8 +5,8 @@ extern "c" fn raw_convert_qwen3_numeric_file(
   output_path : Bytes,
   header : Bytes,
   source_regions : Bytes,
-  chunk_bytes : Int,
-) -> Int = "lunaflux_convert_qwen3_numeric_file"
+  chunk_bytes : Int32,
+) -> Int32 = "lunaflux_convert_qwen3_numeric_file"
 
 ///|
 fn publish_qwen3_numeric_file(

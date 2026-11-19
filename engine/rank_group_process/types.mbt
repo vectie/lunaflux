@@ -14,17 +14,17 @@ pub(all) enum RankGroupProcessRule {
 
 ///|
 pub(all) enum RankGroupProcessFailure {
-  Spawn(rank~ : Int)
-  StartupTransport(rank~ : Int)
-  TransportLost(rank~ : Int)
-  CollectiveFailed(rank~ : Int)
-  RankExecutionFailed(rank~ : Int)
-  IdleRankExit(rank~ : Int, kind~ : Int, code~ : Int)
+  Spawn(rank~ : Int32)
+  StartupTransport(rank~ : Int32)
+  TransportLost(rank~ : Int32)
+  CollectiveFailed(rank~ : Int32)
+  RankExecutionFailed(rank~ : Int32)
+  IdleRankExit(rank~ : Int32, kind~ : Int32, code~ : Int32)
   Wire(@rank_group_wire.RankGroupWireError)
   Protocol(@rank_group_protocol.RankGroupError)
   WorkerWire(@worker_wire.WorkerWireError)
-  GraphTelemetry(rank~ : Int)
-  Streaming(rank~ : Int)
+  GraphTelemetry(rank~ : Int32)
+  Streaming(rank~ : Int32)
   RankConfigure(
     @tensor_parallel_rank_configure.TensorParallelRankConfigureError
   )
@@ -34,7 +34,7 @@ pub(all) enum RankGroupProcessFailure {
 
 ///|
 pub(all) enum RankGroupProcessCleanupFailure {
-  RankChildCleanupFailed(rank~ : Int)
+  RankChildCleanupFailed(rank~ : Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -73,17 +73,17 @@ pub(all) enum RankGroupProcessProgress {
 pub(all) enum RankGroupProcessCleanupProgress {
   CleanupAdvanced
   CleanupPending
-  CleanupStuck(rank~ : Int)
+  CleanupStuck(rank~ : Int32)
   CleanupComplete
 } derive(Debug, Eq)
 
 ///|
 pub struct RankGroupProcessLimits {
-  priv max_payload_bytes : Int
-  priv startup_io_timeout_millis : Int
-  priv io_timeout_millis : Int
-  priv shutdown_timeout_millis : Int
-  priv collective_exchange_timeout_millis : Int
+  priv max_payload_bytes : Int32
+  priv startup_io_timeout_millis : Int32
+  priv io_timeout_millis : Int32
+  priv shutdown_timeout_millis : Int32
+  priv collective_exchange_timeout_millis : Int32
 }
 
 ///|
@@ -130,13 +130,13 @@ pub struct RankGroupProcessSupervisor {
   priv mut cleanup_failure_value : RankGroupProcessCleanupFailure?
   priv mut group_failure : @rank_group_protocol.RankGroupFailureReport?
   priv mut group_failure_taken : Bool
-  priv mut io_rank : Int
-  priv mut io_phase : Int
-  priv mut next_rank : Int
+  priv mut io_rank : Int32
+  priv mut io_phase : Int32
+  priv mut next_rank : Int32
   priv rank_done : FixedArray[Bool]
-  priv mut active_slot_code : Int
+  priv mut active_slot_code : Int32
   priv mut active_sequence_value : UInt64
-  priv mut encoded_plan_length : Int
+  priv mut encoded_plan_length : Int32
   priv mut active_frame_deadline_millis : Int64
   priv mut leader_received : Bool
   priv graph_telemetry : @worker_wire.WorkerGraphTelemetrySlot
@@ -145,12 +145,12 @@ pub struct RankGroupProcessSupervisor {
   priv mut exchange_epoch : UInt64
   priv mut accepted_epoch : UInt64
   priv mut active_deadline_millis : UInt64
-  priv mut cleanup_cursor : Int
+  priv mut cleanup_cursor : Int32
   priv cleanup_lost : FixedArray[Bool]
   priv mut healthy_terminal : Bool
   priv mut survivor_terminal : Bool
-  priv mut survivor_phase : Int
-  priv mut survivor_rank : Int
+  priv mut survivor_phase : Int32
+  priv mut survivor_rank : Int32
 }
 
 ///|

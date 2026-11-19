@@ -337,7 +337,7 @@ fn main raise {
 }
 
 ///|
-fn probe_register_choice(value : String) -> Int raise {
+fn probe_register_choice(value : String) -> Int32 raise {
   match value {
     "128" => 128
     "192" => 192
@@ -347,7 +347,7 @@ fn probe_register_choice(value : String) -> Int raise {
 }
 
 ///|
-fn probe_choice_int(value : String) -> Int raise {
+fn probe_choice_int(value : String) -> Int32 raise {
   match value {
     "1" => 1
     "2" => 2

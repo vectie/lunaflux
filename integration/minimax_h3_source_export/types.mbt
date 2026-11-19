@@ -20,7 +20,7 @@ pub struct SourceUnit {
 pub struct SourceExport {
   model_digest : String
   units : ReadOnlyArray[SourceUnit]
-  timestep_counts : ReadOnlyArray[Int]
+  timestep_counts : ReadOnlyArray[Int32]
 }
 
 ///|
@@ -34,7 +34,7 @@ fn unit(
     raise InvalidModule
   }
   for character in name {
-    guard character is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_') else {
+    guard character is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_') else {
       raise InvalidModule
     }
   }

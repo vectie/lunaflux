@@ -1,14 +1,14 @@
 ///|
 /// Maximum legal runtime shape and model dimensions for one immutable plan.
 pub struct ShapeConstraints {
-  priv max_batch_rows : Int
-  priv max_sequence_tokens : Int
-  priv vocabulary_size : Int
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv attention_head_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
+  priv max_batch_rows : Int32
+  priv max_sequence_tokens : Int32
+  priv vocabulary_size : Int32
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv attention_head_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -20,36 +20,40 @@ pub struct WorkspaceBounds {
 ///|
 /// Semantic dimensions attached to an operation.
 pub(all) enum OperationShape {
-  EmbeddingShape(vocabulary_size~ : Int, width~ : Int)
-  NormalizationShape(width~ : Int, epsilon~ : Double)
+  EmbeddingShape(vocabulary_size~ : Int32, width~ : Int32)
+  NormalizationShape(width~ : Int32, epsilon~ : Double)
   QkNormalizationShape(
-    query_heads~ : Int,
-    kv_heads~ : Int,
-    head_dimension~ : Int,
+    query_heads~ : Int32,
+    kv_heads~ : Int32,
+    head_dimension~ : Int32,
     epsilon~ : Double
   )
-  ProjectionShape(input_width~ : Int, output_width~ : Int)
+  ProjectionShape(input_width~ : Int32, output_width~ : Int32)
   RotaryShape(
-    query_heads~ : Int,
-    kv_heads~ : Int,
-    head_dimension~ : Int,
+    query_heads~ : Int32,
+    kv_heads~ : Int32,
+    head_dimension~ : Int32,
     rope_theta~ : Double
   )
-  AttentionShape(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int)
-  ElementwiseShape(width~ : Int)
-  GatedMlpShape(hidden_size~ : Int, intermediate_size~ : Int)
+  AttentionShape(
+    query_heads~ : Int32,
+    kv_heads~ : Int32,
+    head_dimension~ : Int32
+  )
+  ElementwiseShape(width~ : Int32)
+  GatedMlpShape(hidden_size~ : Int32, intermediate_size~ : Int32)
 } derive(Debug, Eq)
 
 ///|
 pub fn ShapeConstraints::new(
-  max_batch_rows~ : Int,
-  max_sequence_tokens~ : Int,
-  vocabulary_size~ : Int,
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  attention_head_count~ : Int,
-  kv_head_count~ : Int,
-  head_dimension~ : Int,
+  max_batch_rows~ : Int32,
+  max_sequence_tokens~ : Int32,
+  vocabulary_size~ : Int32,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  attention_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  head_dimension~ : Int32,
 ) -> ShapeConstraints raise PlanValidationError {
   if max_batch_rows <= 0 ||
     max_sequence_tokens <= 0 ||
@@ -97,52 +101,52 @@ pub fn WorkspaceBounds::new(
 }
 
 ///|
-pub fn ShapeConstraints::max_batch_rows(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::max_batch_rows(self : ShapeConstraints) -> Int32 {
   self.max_batch_rows
 }
 
 ///|
-pub fn ShapeConstraints::max_sequence_tokens(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::max_sequence_tokens(self : ShapeConstraints) -> Int32 {
   self.max_sequence_tokens
 }
 
 ///|
-pub fn ShapeConstraints::vocabulary_size(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::vocabulary_size(self : ShapeConstraints) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn ShapeConstraints::hidden_size(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::hidden_size(self : ShapeConstraints) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn ShapeConstraints::intermediate_size(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::intermediate_size(self : ShapeConstraints) -> Int32 {
   self.intermediate_size
 }
 
 ///|
-pub fn ShapeConstraints::attention_head_count(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::attention_head_count(self : ShapeConstraints) -> Int32 {
   self.attention_head_count
 }
 
 ///|
-pub fn ShapeConstraints::kv_head_count(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::kv_head_count(self : ShapeConstraints) -> Int32 {
   self.kv_head_count
 }
 
 ///|
-pub fn ShapeConstraints::head_dimension(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::head_dimension(self : ShapeConstraints) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn ShapeConstraints::query_width(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::query_width(self : ShapeConstraints) -> Int32 {
   self.attention_head_count * self.head_dimension
 }
 
 ///|
-pub fn ShapeConstraints::kv_width(self : ShapeConstraints) -> Int {
+pub fn ShapeConstraints::kv_width(self : ShapeConstraints) -> Int32 {
   self.kv_head_count * self.head_dimension
 }
 
@@ -150,3 +154,21 @@ pub fn ShapeConstraints::kv_width(self : ShapeConstraints) -> Int {
 pub fn WorkspaceBounds::max_temporary_bytes(self : WorkspaceBounds) -> Int64 {
   self.max_temporary_bytes
 }
+
+///|
+pub extend ShapeConstraints with @debug.Debug::{to_repr}
+
+///|
+pub extend ShapeConstraints with Eq::{not_equal, equal}
+
+///|
+pub extend WorkspaceBounds with @debug.Debug::{to_repr}
+
+///|
+pub extend WorkspaceBounds with Eq::{not_equal, equal}
+
+///|
+pub extend OperationShape with @debug.Debug::{to_repr}
+
+///|
+pub extend OperationShape with Eq::{not_equal, equal}

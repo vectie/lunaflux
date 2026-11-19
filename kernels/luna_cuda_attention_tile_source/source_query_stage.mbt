@@ -6,9 +6,9 @@ fn cuda_query_owned_stage(
   abi : CudaPagedAttentionTileAbi,
   dense : Bool,
   asynchronous : Bool,
-  split? : Bool = false,
-  affine_positions? : Bool = false,
-  key_rows? : Int = 0,
+  split~ : Bool = false,
+  affine_positions~ : Bool = false,
+  key_rows~ : Int32 = 0,
 ) -> String {
   let transfer = if asynchronous {
     let text =
@@ -123,7 +123,7 @@ fn cuda_query_complete_history_stage(
   vectors : String,
   transfer : String,
   commit : String,
-  key_rows? : Int = 0,
+  key_rows~ : Int32 = 0,
 ) -> String {
   let (heads, kv_heads, dimension, page_tokens) = abi.shape()
   let (_, page_stride, pages) = abi.layout()
@@ -224,7 +224,7 @@ fn cuda_query_owned_stage_body(
   vectors : String,
   transfer : String,
   commit : String,
-  affine_positions? : Bool = false,
+  affine_positions~ : Bool = false,
 ) -> String {
   let source =
     $|    auto \{name} = [&](int kb, int stage\{if split { ", int kind" } else { "" }}) {

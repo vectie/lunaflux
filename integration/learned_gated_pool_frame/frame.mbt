@@ -147,7 +147,7 @@ pub fn LearnedGatedPoolFrame::launches(
 ///|
 fn LearnedGatedPoolFrame::buffer(
   self : LearnedGatedPoolFrame,
-  index : Int,
+  index : Int32,
 ) -> @device.Allocation raise {
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)

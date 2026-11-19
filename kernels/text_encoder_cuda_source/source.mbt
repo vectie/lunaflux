@@ -11,8 +11,8 @@ pub(all) suberror TextEncoderSourceError {
 fn symbol_ok(s : String) -> Bool {
   !s.is_empty() &&
   s.length() <= 96 &&
-  s[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  s.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  s[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  s.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -21,14 +21,14 @@ fn symbol_ok(s : String) -> Bool {
 /// Q/K normalization rounds the normalized value before multiplying BF16 scale.
 /// Numerical parity and fast tiled lowering require physical qualification.
 pub fn attention_source(
-  rows~ : Int,
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  dimension~ : Int,
+  rows~ : Int32,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  dimension~ : Int32,
   epsilon~ : Double,
   prefix~ : String,
-  square_reduction_law? : @precision.SquareReductionLaw = OrderedFloat32,
-  probability_law? : @precision.AttentionProbabilityLaw = OrderedOnlineF32,
+  square_reduction_law~ : @precision.SquareReductionLaw = OrderedFloat32,
+  probability_law~ : @precision.AttentionProbabilityLaw = OrderedOnlineF32,
 ) -> Bytes raise TextEncoderSourceError {
   guard rows > 0 &&
     rows <= 262144 &&

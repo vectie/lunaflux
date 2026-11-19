@@ -24,7 +24,7 @@ fn bridge_append_tensor(
 
 ///|
 fn bridge_fixture(
-  content? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  content~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> (@plan.ModelPlan, @llama_weights.LlamaWeightBindings) raise {
   let vocabulary = 16
   let hidden = 8
@@ -125,8 +125,8 @@ fn bridge_fixture(
 fn bridge_rank_plan(
   model : @plan.ModelPlan,
   bindings : @llama_weights.LlamaWeightBindings,
-  rank : Int,
-  world_size : Int,
+  rank : Int32,
+  world_size : Int32,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan raise {
   @llama_tensor_parallel.build_rank_plan(
     model,

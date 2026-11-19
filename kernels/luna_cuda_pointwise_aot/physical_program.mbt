@@ -78,7 +78,7 @@ fn pointwise_program(
 fn PointwiseProgram::work_per_token(
   self : PointwiseProgram,
   parameters : PointwiseParameters,
-) -> Int {
+) -> Int32 {
   match self {
     Normalize(_) => 1
     NormalizeHeads(_) => parameters.query_heads + 2 * parameters.kv_heads

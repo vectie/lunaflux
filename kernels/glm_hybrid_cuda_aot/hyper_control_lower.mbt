@@ -1,7 +1,7 @@
 ///|
 fn hyper_control_common_checks(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : GlmHybridCudaAotLimits,
@@ -22,15 +22,15 @@ fn hyper_control_common_checks(
 ///|
 fn hyper_control_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal : Int,
+  requirement_ordinal : Int32,
   family : GlmHybridHyperControlAotFamily,
   numerical_contract : @decoder_hyper_connection_cuda_source.DecoderHyperConnectionNumericalContract,
-  stream_count : Int,
-  hidden_width : Int,
-  sinkhorn_iterations : Int,
+  stream_count : Int32,
+  hidden_width : Int32,
+  sinkhorn_iterations : Int32,
   control_epsilon : Double,
   normalization_epsilon : Double,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   dimensions : @launch_contract.AotLaunchDimensions,
   operands : Array[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand],
@@ -124,8 +124,8 @@ fn hyper_control_candidate(
 ///|
 pub fn lower_hyper_connection_function_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,
@@ -231,8 +231,8 @@ pub fn lower_hyper_connection_function_cuda_aot_candidate(
 ///|
 pub fn lower_hyper_connection_sinkhorn_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

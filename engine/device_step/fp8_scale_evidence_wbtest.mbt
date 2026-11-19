@@ -1,8 +1,8 @@
 ///|
 fn write_fp8_scale_test_bits(
   destination : FixedArray[Byte],
-  offset : Int,
-  bits : UInt,
+  offset : Int32,
+  bits : UInt32,
 ) -> Unit {
   destination[offset] = (bits & 0xffU).to_byte()
   destination[offset + 1] = ((bits >> 8) & 0xffU).to_byte()

@@ -8,7 +8,7 @@ pub struct BlockWeightCopy {
 
 ///|
 pub struct BlockWeightPacking {
-  layer : Int
+  layer : Int32
   attention_offset : Int64
   mlp_offset : Int64
   norm_offset : Int64
@@ -52,7 +52,7 @@ pub fn BlockWeightCopy::new(
 /// Includes the block's three-modality, six-field AdaLN weight and bias.
 pub fn block_weight_packing(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  block~ : Int,
+  block~ : Int32,
   max_bytes~ : Int64,
 ) -> BlockWeightPacking raise BlockPackingError {
   guard block >= 0 && block < model.denoiser().layer_count() else {
@@ -70,7 +70,7 @@ pub fn block_weight_packing(
 ///|
 fn pack_transformer(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  block : Int,
+  block : Int32,
   prefix : String,
   max_bytes : Int64,
   with_adaln : Bool,

@@ -128,7 +128,7 @@ pub fn admit_paged_graph_execution_blueprint(
   profile_id : @launch_contract.KernelProfileId,
   contracts : @launch_contract.PagedKvLaunchContractSet,
   artifacts : @artifact.KernelArtifactBundle,
-  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
+  luna_authorization~ : @luna_artifact_admission.LunaAotKernelAdmission? = None,
 ) -> PagedKvExecutionBlueprint raise DeviceStepError {
   validate_blueprint_evidence(
     model_plan,

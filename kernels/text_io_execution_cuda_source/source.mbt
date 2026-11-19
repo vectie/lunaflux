@@ -3,7 +3,7 @@ pub struct TextIoCudaSource {
   priv plan : @precision.TextIoPrecision
   priv prefix : String
   priv bytes : Bytes
-  priv order : ReadOnlyArray[Int]
+  priv order : ReadOnlyArray[Int32]
   priv shard : @parallel.VocabularyShard?
 }
 
@@ -17,8 +17,8 @@ pub fn text_io_source(
 ) -> TextIoCudaSource raise @precision.PrecisionPlanError {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 100 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (vocabulary, hidden, _, rows, outputs) = plan.geometry()
@@ -226,7 +226,7 @@ pub fn text_io_source(
 }
 
 ///|
-pub fn TextIoCudaSource::head_launch(self : Self) -> (Int, Int) {
+pub fn TextIoCudaSource::head_launch(self : Self) -> (Int32, Int32) {
   let (vocabulary, _, _, _, outputs) = self.plan.geometry()
   if self.plan.head_law() == ShapeAwareFloat32 {
     ((self.shard.map(s => s.columns().1).unwrap_or(vocabulary) + 3) / 4, 128)
@@ -236,7 +236,7 @@ pub fn TextIoCudaSource::head_launch(self : Self) -> (Int, Int) {
 }
 
 ///|
-pub fn TextIoCudaSource::greedy_threads(self : Self) -> Int {
+pub fn TextIoCudaSource::greedy_threads(self : Self) -> Int32 {
   if self.plan.head_law() == ShapeAwareFloat32 {
     256
   } else {
@@ -247,7 +247,7 @@ pub fn TextIoCudaSource::greedy_threads(self : Self) -> Int {
 ///|
 fn ordered_text_stages(
   program : @parallel.Program,
-) -> ReadOnlyArray[Int] raise @precision.PrecisionPlanError {
+) -> ReadOnlyArray[Int32] raise @precision.PrecisionPlanError {
   program
   .lower(Ordered)
   .commands(ComputeLane)
@@ -264,14 +264,14 @@ fn ordered_text_stages(
 }
 
 ///|
-pub fn TextIoCudaSource::egress_order(self : Self) -> ReadOnlyArray[Int] {
+pub fn TextIoCudaSource::egress_order(self : Self) -> ReadOnlyArray[Int32] {
   self.order
 }
 
 ///|
 pub fn learned_egress_order(
   plan : @precision.LearnedTextIoPrecision,
-) -> ReadOnlyArray[Int] raise @precision.PrecisionPlanError {
+) -> ReadOnlyArray[Int32] raise @precision.PrecisionPlanError {
   ordered_text_stages(plan.egress_program())
 }
 
@@ -288,7 +288,7 @@ pub fn TextIoCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn TextIoCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String raise @precision.PrecisionPlanError {
   let suffix = match stage {
     0 => "embed"

@@ -1,6 +1,6 @@
 ///|
 fn qwen3_serving_fixture(
-  greedy? : String = "{\"input_ids\":[151643,9707],\"expected_token_ids\":[198,785]}",
+  greedy~ : String = "{\"input_ids\":[151643,9707],\"expected_token_ids\":[198,785]}",
 ) -> Bytes {
   @utf8.encode(
     "{\"schema\":\"lunaflux-qwen3-reference-corpus.v1\",\"greedy\":" +

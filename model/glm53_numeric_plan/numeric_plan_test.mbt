@@ -1,6 +1,6 @@
 ///|
 fn numeric_full_metadata(
-  digest? : String = "8123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  digest~ : String = "8123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @glm53_spec.Glm53FullMetadata {
   @glm53_spec.Glm53FullMetadata::from_verified_content(
     @glm53_spec.Glm53FullSpec::official(),
@@ -10,7 +10,7 @@ fn numeric_full_metadata(
 
 ///|
 fn numeric_flash_metadata(
-  digest? : String = "9123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  digest~ : String = "9123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @glm53_spec.Glm53FlashMetadata {
   @glm53_spec.Glm53FlashMetadata::from_verified_content(
     @glm53_spec.Glm53FlashSpec::official(),

@@ -15,7 +15,7 @@ pub fn PartitionedAttentionChainObservation::new(
   compilation~ : CudaAttentionTileAotDigest,
   scope~ : String,
   elapsed_ns~ : Int64,
-  samples~ : Int,
+  samples~ : Int32,
 ) -> PartitionedAttentionChainObservation raise CudaAttentionTileAotError {
   if scope.is_empty() {
     raise InvalidCudaAttentionTileAot(InvalidRequest)

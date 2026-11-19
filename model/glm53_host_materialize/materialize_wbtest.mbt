@@ -1,5 +1,7 @@
 ///|
-fn fixture_limits(max_arena_bytes? : Int = 5) -> Glm53HostMaterializationLimits {
+fn fixture_limits(
+  max_arena_bytes~ : Int32 = 5,
+) -> Glm53HostMaterializationLimits {
   try! Glm53HostMaterializationLimits::new(
     max_header_bytes=4096,
     max_tensor_count=8,

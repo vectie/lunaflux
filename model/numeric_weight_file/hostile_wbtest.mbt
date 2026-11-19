@@ -1,7 +1,7 @@
 ///|
 fn hostile_layout(
   plan : @plan.ModelPlan,
-  alignment? : Int64 = 16L,
+  alignment~ : Int64 = 16L,
 ) -> @device_materialize.DeviceWeightLayout {
   try! @device_materialize.plan_numeric_layout(
     plan,
@@ -193,8 +193,8 @@ test "numeric chunk limit rejects 1 2 3 and exact F32 width admits payload" {
 ///|
 fn payload_read(
   bytes : Bytes,
-  maximum : Ref[Int],
-) -> (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError {
+  maximum : Ref[Int32],
+) -> (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError {
   (destination, destination_offset, position, byte_count) => {
     maximum.val = maximum.val.max(byte_count)
     for index in 0..<byte_count {
@@ -267,7 +267,7 @@ test "payload scanner caps reads and rejects -128 across chunk and row boundarie
 }
 
 ///|
-fn f32_bytes(bits : UInt) -> Bytes {
+fn f32_bytes(bits : UInt32) -> Bytes {
   [
     (bits & 0xffU).to_byte(),
     ((bits >> 8) & 0xffU).to_byte(),
@@ -334,7 +334,7 @@ test "zero-row exact-one rule proves little-endian scale interpretation" {
 
 ///|
 priv struct HostileArena {
-  mut close_attempts : Int
+  mut close_attempts : Int32
 }
 
 ///|

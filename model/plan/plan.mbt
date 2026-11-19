@@ -46,7 +46,7 @@ fn expected_capability(operation : PlanOperation) -> KernelCapabilityId {
 }
 
 ///|
-fn expected_arity(kind : OperationKind) -> (Int, Int) {
+fn expected_arity(kind : OperationKind) -> (Int32, Int32) {
   match kind {
     Embedding => (2, 1)
     RmsNorm => (2, 1)
@@ -64,7 +64,7 @@ fn expected_arity(kind : OperationKind) -> (Int, Int) {
 ///|
 fn valid_execution_contract(
   operation : PlanOperation,
-  expected_kv_layer : Int,
+  expected_kv_layer : Int32,
 ) -> Bool {
   match operation.kind() {
     RotaryEmbedding =>
@@ -223,10 +223,10 @@ fn valid_operation_shape(
 ///|
 fn validate_operation(
   operation : PlanOperation,
-  index : Int,
+  index : Int32,
   constraints : ShapeConstraints,
   workspace : WorkspaceBounds,
-  expected_kv_layer : Int,
+  expected_kv_layer : Int32,
 ) -> Unit raise PlanValidationError {
   if operation.id().as_int() != index {
     raise InvalidGraph(OperationOrder)
@@ -315,3 +315,15 @@ fn validate_kv_execution_mode(
     }
   }
 }
+
+///|
+pub extend ModelPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelPlan with Eq::{not_equal, equal}
+
+///|
+pub extend ModelKvExecution with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelKvExecution with Eq::{not_equal, equal}

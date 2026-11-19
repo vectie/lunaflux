@@ -17,7 +17,7 @@ fn luna_request_lower_hex_byte(byte : Byte) -> Bool {
 ///|
 fn LunaFramedRequestWorkspace::sampling_header_status(
   self : LunaFramedRequestWorkspace,
-) -> Int {
+) -> Int32 {
   let mode = read_i32(self.storage, 60)
   let top_k = read_i32(self.storage, 64)
   let temperature = read_u64(self.storage, 72).reinterpret_as_double()

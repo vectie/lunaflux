@@ -1,12 +1,12 @@
 ///|
-fn validate_world_size(world_size : Int) -> Unit raise RankGroupError {
+fn validate_world_size(world_size : Int32) -> Unit raise RankGroupError {
   if world_size < 2 || world_size > MAX_RANK_GROUP_WORLD_SIZE {
     raise Invalid(WorldSize)
   }
 }
 
 ///|
-fn validate_rank(rank : Int, world_size : Int) -> Unit raise RankGroupError {
+fn validate_rank(rank : Int32, world_size : Int32) -> Unit raise RankGroupError {
   if rank < 0 || rank >= world_size {
     raise Invalid(Rank)
   }
@@ -38,7 +38,7 @@ pub fn RankGroupOwner::new(
   identity~ : @spec.ModelIdentity,
   model_plan_generation~ : @worker_protocol.ModelPlanGeneration,
   generation~ : RankGroupGeneration,
-  world_size~ : Int,
+  world_size~ : Int32,
   previous_plan_sequence_value~ : UInt64,
   plan_buffer_identities~ : ArrayView[@worker_protocol.PlanBufferIdentity],
 ) -> RankGroupOwner raise RankGroupError {
@@ -89,7 +89,7 @@ pub fn RankGroupOwner::generation(self : RankGroupOwner) -> RankGroupGeneration 
 }
 
 ///|
-pub fn RankGroupOwner::world_size(self : RankGroupOwner) -> Int {
+pub fn RankGroupOwner::world_size(self : RankGroupOwner) -> Int32 {
   self.world_size
 }
 

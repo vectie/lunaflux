@@ -3,7 +3,7 @@
 /// 4cdbf98e273e2bc488f380a906762044baed6864c8b56d715473e951747152d4.
 test "Qwen3-0.6B pinned multilingual corpus matches exact IDs and NFC decode" {
   let spec = qwen3_reference_spec()
-  let cases : Array[(String, Array[Int], String)] = [
+  let cases : Array[(String, Array[Int32], String)] = [
     (
       "月光引擎可以稳定地处理中文推理。",
       [9754, 99225, 102977, 73670, 100407, 29490, 54542, 104811, 113272, 1773],

@@ -13,9 +13,9 @@ fn key_value_projection_roles() -> ReadOnlyArray[
 
 ///|
 fn key_value_projection_operands_are_exact(
-  heads : Int,
-  head_dimension : Int,
-  rope_dimension : Int,
+  heads : Int32,
+  head_dimension : Int32,
+  rope_dimension : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,

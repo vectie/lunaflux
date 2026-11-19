@@ -1,6 +1,6 @@
 ///|
 fn launch_v4_content(
-  digest? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  digest~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @spec.ContentDigest {
   try! @spec.ContentDigest::from_sha256(digest)
 }
@@ -73,8 +73,8 @@ fn launch_v4_operations() -> Array[@plan.PlanOperation] {
 
 ///|
 fn launch_v4_plan(
-  mode : Int,
-  content_digest? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  mode : Int32,
+  content_digest~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @plan.ModelPlan {
   let operations = launch_v4_operations()
   let selected = [try! @plan.OperationId::new(1)]
@@ -177,7 +177,7 @@ fn launch_v4_semantics(
 }
 
 ///|
-fn launch_v4_family(index : Int) -> @catalog.AotKernelFamily {
+fn launch_v4_family(index : Int32) -> @catalog.AotKernelFamily {
   @catalog.AotKernelFamily::new(
     module_digest=try! @catalog.AotArtifactDigest::from_sha256(
       "13579bdf02468ace13579bdf02468ace13579bdf02468ace13579bdf02468ace",
@@ -187,7 +187,7 @@ fn launch_v4_family(index : Int) -> @catalog.AotKernelFamily {
 }
 
 ///|
-fn launch_v4_entry_point(index : Int) -> @catalog.AotKernelEntryPoint {
+fn launch_v4_entry_point(index : Int32) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=launch_v4_family(index),
     entry_point_id=try! @catalog.AotKernelEntryPointId::from_stable_int(
@@ -260,7 +260,7 @@ fn launch_v4_tensor_bytes(
 ///|
 fn launch_v4_operands(
   plan : @plan.ModelPlan,
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] {
   let layer = try! @plan.KvLayerId::new(0)
   match operation {
@@ -370,9 +370,9 @@ fn launch_v4_operands(
 ///|
 fn launch_v4_inputs(
   plan : @plan.ModelPlan,
-  override_operation? : Int = -1,
-  override_operands? : Array[@launch_contract.AotOperand] = [],
-  omit_operation? : Int = -1,
+  override_operation~ : Int32 = -1,
+  override_operands~ : Array[@launch_contract.AotOperand] = [],
+  omit_operation~ : Int32 = -1,
 ) -> Array[@launch_contract.PagedV4AotLaunchContractInput] {
   let profile_id = try! @launch_contract.KernelProfileId::from_stable_int(1)
   let result : Array[@launch_contract.PagedV4AotLaunchContractInput] = []

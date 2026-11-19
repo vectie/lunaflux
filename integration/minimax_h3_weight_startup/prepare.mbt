@@ -12,7 +12,7 @@ pub fn WeightStartup::prepare_component(
   expected_identity~ : @spec.ModelIdentity,
   expected_manifest_digest~ : @host.MiniMaxH3HostManifestDigest,
   limits~ : @host.MiniMaxH3HostMaterializationLimits,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard !self.failed && !self.closed && self.leases == 0 && chunk_bytes > 0 else {
     raise InvalidState

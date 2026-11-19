@@ -7,7 +7,7 @@ pub fn upload_audio_decoder(
   host : @minimax_h3_host_materialization.MiniMaxH3HostComponentArena,
   packing : @minimax_h3_weights.AudioDecoderWeightPacking,
   expected_identity~ : @spec.ModelIdentity,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_audio_decoder_weights(packing, expected_identity~)

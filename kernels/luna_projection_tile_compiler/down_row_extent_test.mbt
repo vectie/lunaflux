@@ -36,10 +36,10 @@ test "materialized down fold specializes row demand without changing reduction" 
       (1024, 32),
     ] {
     let (maximum_tokens, expected_rows) = row_case
-    let compiled = compile_projection_tile(
-      ProjectionTileCompilerRequest::new(
+    let compiled = @luna_projection_tile_compiler.compile_projection_tile(
+      @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
         dispatch~,
-        maximum_rows=Int::min(maximum_tokens, 8),
+        maximum_rows=Int32::min(maximum_tokens, 8),
         maximum_tokens~,
         demand=AllTokenRows,
       ),

@@ -16,7 +16,7 @@ pub fn LunaHttp1ControlResponse::new(
 ///|
 pub fn LunaHttp1ControlResponse::status_code(
   self : LunaHttp1ControlResponse,
-) -> Int {
+) -> Int32 {
   match self.kind {
     1 | 3 => 200
     2 | 4 => 503
@@ -25,7 +25,7 @@ pub fn LunaHttp1ControlResponse::status_code(
 }
 
 ///|
-fn luna_http1_control_response_text(kind : Int) -> Bytes {
+fn luna_http1_control_response_text(kind : Int32) -> Bytes {
   match kind {
     1 =>
       b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nConnection: close\r\nContent-Length: 21\r\n\r\n{\"status\":\"healthy\"}\n"
@@ -41,7 +41,9 @@ fn luna_http1_control_response_text(kind : Int) -> Bytes {
 }
 
 ///|
-pub fn LunaHttp1ControlResponse::length(self : LunaHttp1ControlResponse) -> Int {
+pub fn LunaHttp1ControlResponse::length(
+  self : LunaHttp1ControlResponse,
+) -> Int32 {
   luna_http1_control_response_text(self.kind).length()
 }
 
@@ -49,10 +51,10 @@ pub fn LunaHttp1ControlResponse::length(self : LunaHttp1ControlResponse) -> Int 
 pub fn LunaHttp1ControlResponse::copy_chunk(
   self : LunaHttp1ControlResponse,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise LunaHttp1Error {
+  destination_offset~ : Int32,
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise LunaHttp1Error {
   let source = luna_http1_control_response_text(self.kind)
   if destination_offset < 0 ||
     source_offset < 0 ||
@@ -72,7 +74,7 @@ pub fn LunaHttp1ControlResponse::copy_chunk(
 /// before publication and is always not-ready. Durations are bounded to the
 /// same 24-hour cold-start window enforced by the runtime owner.
 pub fn LunaHttp1ControlMetricsResponse::new(
-  cold_start_latency_millis : Int?,
+  cold_start_latency_millis : Int32?,
   readiness~ : Bool,
 ) -> LunaHttp1ControlMetricsResponse raise LunaHttp1Error {
   match cold_start_latency_millis {
@@ -111,14 +113,14 @@ pub fn LunaHttp1ControlMetricsResponse::new(
 ///|
 pub fn LunaHttp1ControlMetricsResponse::status_code(
   self : LunaHttp1ControlMetricsResponse,
-) -> Int {
+) -> Int32 {
   self.status
 }
 
 ///|
 pub fn LunaHttp1ControlMetricsResponse::length(
   self : LunaHttp1ControlMetricsResponse,
-) -> Int {
+) -> Int32 {
   self.encoded.length()
 }
 
@@ -126,10 +128,10 @@ pub fn LunaHttp1ControlMetricsResponse::length(
 pub fn LunaHttp1ControlMetricsResponse::copy_chunk(
   self : LunaHttp1ControlMetricsResponse,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise LunaHttp1Error {
+  destination_offset~ : Int32,
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise LunaHttp1Error {
   if destination_offset < 0 ||
     source_offset < 0 ||
     length < 0 ||

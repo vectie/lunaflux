@@ -1,16 +1,16 @@
 ///|
 pub struct LunaTileAotPlanningPolicy {
-  priv vector_bytes : Int
-  priv warp_width : Int
-  priv pipeline_stages : Int
+  priv vector_bytes : Int32
+  priv warp_width : Int32
+  priv pipeline_stages : Int32
   priv max_shared_memory_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaTileAotPlanningPolicy::new(
-  vector_bytes~ : Int,
-  warp_width~ : Int,
-  pipeline_stages~ : Int,
+  vector_bytes~ : Int32,
+  warp_width~ : Int32,
+  pipeline_stages~ : Int32,
   max_shared_memory_bytes~ : Int64,
 ) -> LunaTileAotPlanningPolicy raise LunaTileError {
   if !(vector_bytes == 4 || vector_bytes == 8 || vector_bytes == 16) ||
@@ -26,9 +26,9 @@ pub fn LunaTileAotPlanningPolicy::new(
 ///|
 pub struct LunaTileMemoryPlan {
   priv shared_memory_bytes : Int64
-  priv shared_tensor_count : Int
-  priv vector_bytes : Int
-  priv pipeline_stages : Int
+  priv shared_tensor_count : Int32
+  priv vector_bytes : Int32
+  priv pipeline_stages : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -41,7 +41,7 @@ pub fn LunaTileMemoryPlan::shared_memory_bytes(
 ///|
 pub fn LunaTileMemoryPlan::shared_tensor_count(
   self : LunaTileMemoryPlan,
-) -> Int {
+) -> Int32 {
   self.shared_tensor_count
 }
 
@@ -49,12 +49,12 @@ pub fn LunaTileMemoryPlan::shared_tensor_count(
 /// Maximum copy width selected by the offline lowering policy. Individual
 /// instructions may deterministically narrow when their admitted alignment or
 /// contiguous extent requires it.
-pub fn LunaTileMemoryPlan::vector_bytes(self : LunaTileMemoryPlan) -> Int {
+pub fn LunaTileMemoryPlan::vector_bytes(self : LunaTileMemoryPlan) -> Int32 {
   self.vector_bytes
 }
 
 ///|
-pub fn LunaTileMemoryPlan::pipeline_stages(self : LunaTileMemoryPlan) -> Int {
+pub fn LunaTileMemoryPlan::pipeline_stages(self : LunaTileMemoryPlan) -> Int32 {
   self.pipeline_stages
 }
 
@@ -273,7 +273,7 @@ fn validate_luna_tile_decoded_semantics(
 ///|
 fn luna_tile_aot_read_i64(
   bytes : Bytes,
-  offset : Int,
+  offset : Int32,
 ) -> Int64 raise LunaTileError {
   if offset < 0 || offset > bytes.length() - 8 {
     raise InvalidProgram(CanonicalEncoding)
@@ -288,8 +288,8 @@ fn luna_tile_aot_read_i64(
 ///|
 fn luna_tile_aot_read_int(
   bytes : Bytes,
-  offset : Int,
-) -> Int raise LunaTileError {
+  offset : Int32,
+) -> Int32 raise LunaTileError {
   let value = luna_tile_aot_read_i64(bytes, offset)
   if value < 0L || value > 2147483647L {
     raise InvalidProgram(CanonicalEncoding)

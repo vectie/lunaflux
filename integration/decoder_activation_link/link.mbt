@@ -22,10 +22,10 @@ priv enum LinkState {
 ///|
 // Two U64 fields: step epoch and live rows. The existing channel caps complete
 // payloads at 64 MiB; this bound is not a model or tile heuristic.
-let activation_header_bytes : Int = 16
+let activation_header_bytes : Int32 = 16
 
 ///|
-let channel_frame_limit : Int = 67108864
+let channel_frame_limit : Int32 = 67108864
 
 ///|
 /// A startup-bound, plain TCP activation edge. The channel and pinned transfer
@@ -34,23 +34,23 @@ let channel_frame_limit : Int = 67108864
 /// execution dependency, not a diagnostic readback or a TLS admission step.
 pub struct ActivationLink {
   priv channel : @channel.RemoteChannel
-  priv maximum_rows : Int
-  priv row_bytes : Int
+  priv maximum_rows : Int32
+  priv row_bytes : Int32
   priv payload : FixedArray[Byte]
   priv producer_ready : (() -> Bool raise)?
   priv mut pool : @device.TransferPool?
   priv mut state : LinkState
   priv mut busy : Bool
   priv mut epoch : UInt64
-  priv mut rows : Int
+  priv mut rows : Int32
 }
 
 ///|
 /// Includes one payload, both channel lanes, and one pinned activation lane.
 /// The socket/async runtime and borrowed device allocation are budgeted outside.
 pub fn required_host_bytes(
-  maximum_rows~ : Int,
-  row_bytes~ : Int,
+  maximum_rows~ : Int32,
+  row_bytes~ : Int32,
 ) -> Int64 raise ActivationLinkError {
   guard maximum_rows > 0 &&
     row_bytes > 0 &&
@@ -67,8 +67,8 @@ pub fn required_host_bytes(
 ///|
 fn create(
   connection : @socket.Tcp,
-  maximum_rows : Int,
-  row_bytes : Int,
+  maximum_rows : Int32,
+  row_bytes : Int32,
   maximum_host_bytes : Int64,
   timeout_millis : UInt64,
   producer_ready : (() -> Bool raise)?,
@@ -101,8 +101,8 @@ fn create(
 /// device read: a pending CUDA queue never races an activation download.
 pub fn ActivationLink::sender(
   connection : @socket.Tcp,
-  maximum_rows~ : Int,
-  row_bytes~ : Int,
+  maximum_rows~ : Int32,
+  row_bytes~ : Int32,
   maximum_host_bytes~ : Int64,
   timeout_millis~ : UInt64,
   producer_ready~ : () -> Bool raise,
@@ -120,8 +120,8 @@ pub fn ActivationLink::sender(
 ///|
 pub fn ActivationLink::receiver(
   connection : @socket.Tcp,
-  maximum_rows~ : Int,
-  row_bytes~ : Int,
+  maximum_rows~ : Int32,
+  row_bytes~ : Int32,
   maximum_host_bytes~ : Int64,
   timeout_millis~ : UInt64,
 ) -> Self raise {
@@ -162,7 +162,7 @@ pub fn ActivationLink::prepare(
 pub fn ActivationLink::begin(
   self : Self,
   epoch~ : UInt64,
-  live_rows~ : Int,
+  live_rows~ : Int32,
   local_now_millis~ : UInt64,
 ) -> Unit raise {
   guard !self.busy &&

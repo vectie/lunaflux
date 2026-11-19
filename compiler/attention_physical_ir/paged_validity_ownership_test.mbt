@@ -1,6 +1,6 @@
 ///|
 test "replicated page validity covers malformed pages and inactive tails" {
-  let plan = PagedValidityOwnership::new(
+  let plan = @attention_physical_ir.PagedValidityOwnership::new(
     tile_rows=32,
     page_rows=8,
     start_alignment=32,
@@ -21,7 +21,7 @@ test "replicated page validity covers malformed pages and inactive tails" {
 ///|
 test "replicated validity rejects incomplete or unaligned ownership" {
   assert_eq(
-    PagedValidityOwnership::new(
+    @attention_physical_ir.PagedValidityOwnership::new(
       tile_rows=32,
       page_rows=8,
       start_alignment=1,
@@ -30,7 +30,7 @@ test "replicated validity rejects incomplete or unaligned ownership" {
     None,
   )
   assert_eq(
-    PagedValidityOwnership::new(
+    @attention_physical_ir.PagedValidityOwnership::new(
       tile_rows=32,
       page_rows=8,
       start_alignment=32,
@@ -42,7 +42,7 @@ test "replicated validity rejects incomplete or unaligned ownership" {
 
 ///|
 test "operand validity snapshots survive future key acquisition" {
-  let plan = PagedValidityOwnership::new(
+  let plan = @attention_physical_ir.PagedValidityOwnership::new(
     tile_rows=32,
     page_rows=8,
     start_alignment=32,

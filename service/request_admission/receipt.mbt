@@ -40,8 +40,8 @@ pub fn IncrementalRequestReceiver::new(
 fn IncrementalRequestReceiver::preflight_append(
   self : IncrementalRequestReceiver,
   source : FixedArray[Byte],
-  source_offset : Int,
-  length : Int,
+  source_offset : Int32,
+  length : Int32,
 ) -> Bool raise RequestAdmissionError {
   if self.terminal {
     raise Invalid(FrameContract)
@@ -69,8 +69,8 @@ fn IncrementalRequestReceiver::preflight_append(
 fn IncrementalRequestReceiver::append_validated(
   self : IncrementalRequestReceiver,
   source : FixedArray[Byte],
-  source_offset : Int,
-  length : Int,
+  source_offset : Int32,
+  length : Int32,
 ) -> Unit raise RequestAdmissionError {
   self.reader.append(source, source_offset~, length~) catch {
     _ => {
@@ -87,8 +87,8 @@ fn IncrementalRequestReceiver::append_validated(
 pub fn IncrementalRequestReceiver::append(
   self : IncrementalRequestReceiver,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> Unit raise RequestAdmissionError {
   if !self.preflight_append(source, source_offset, length) {
     return
@@ -106,7 +106,7 @@ pub fn IncrementalRequestReceiver::append(
 ///|
 pub fn IncrementalRequestReceiver::next_capacity(
   self : IncrementalRequestReceiver,
-) -> Int raise RequestAdmissionError {
+) -> Int32 raise RequestAdmissionError {
   if self.terminal {
     raise Invalid(FrameContract)
   }
@@ -147,7 +147,7 @@ pub fn IncrementalRequestReceiver::take_received(
 pub fn receive(
   buffer : @framed_wire.RequestFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   clock : @monotonic_clock.MonotonicClock,
 ) -> ReceivedRequest raise RequestAdmissionError {
   let receipt = capture_receipt_with_clock(() => {

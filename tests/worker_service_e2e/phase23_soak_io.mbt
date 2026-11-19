@@ -2,7 +2,7 @@
 async fn phase23_soak_write_fragmented(
   connection : @socket.Tcp,
   source : FixedArray[Byte],
-  cycle : Int,
+  cycle : Int32,
 ) -> Unit {
   let bytes = Bytes::makei(source.length(), index => source[index])
   let mut cursor = 0
@@ -21,7 +21,7 @@ async fn phase23_soak_write_fragmented(
 ///|
 fn phase23_soak_assert_usage(
   usage : @inference.Usage,
-  output_tokens : Int,
+  output_tokens : Int32,
 ) -> Unit raise {
   assert_eq(usage.input_tokens(), 2)
   assert_eq(usage.cached_input_tokens(), 0)

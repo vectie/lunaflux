@@ -4,7 +4,7 @@ fn next_random(seed : Int64) -> Int64 {
 }
 
 ///|
-fn first_allocated(state : Array[Int], start : Int) -> Int {
+fn first_allocated(state : Array[Int32], start : Int32) -> Int32 {
   let capacity = state.length()
   for offset in 0..<capacity {
     let index = (start + offset) % capacity
@@ -32,7 +32,7 @@ test "deterministic randomized model preserves page ownership and FIFO" {
   let state = Array::make(capacity, 0)
   let active = Array::make(capacity, 0)
   let cached = Array::make(capacity, 0)
-  let free_fifo : Array[Int] = [0, 1, 2, 3, 4, 5, 6, 7]
+  let free_fifo : Array[Int32] = [0, 1, 2, 3, 4, 5, 6, 7]
   let mut seed = 7L
   for _step in 0..<2000 {
     seed = next_random(seed)

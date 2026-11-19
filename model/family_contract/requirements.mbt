@@ -3,7 +3,7 @@ pub fn ModelFamilyRequirements::new(
   family~ : ModelFamilyId,
   architecture~ : String,
   model_type~ : String,
-  schema_version~ : Int,
+  schema_version~ : Int32,
   workload~ : ModelWorkload,
   capabilities~ : ArrayView[ModelSemanticCapability],
 ) -> ModelFamilyRequirements raise FamilyContractError {
@@ -50,7 +50,7 @@ pub fn ModelFamilyRequirements::model_type(self : Self) -> String {
 }
 
 ///|
-pub fn ModelFamilyRequirements::schema_version(self : Self) -> Int {
+pub fn ModelFamilyRequirements::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 

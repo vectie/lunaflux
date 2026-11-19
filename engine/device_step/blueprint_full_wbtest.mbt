@@ -54,7 +54,7 @@ fn full_contract_operands(
   memory : @device_memory.DeviceMemoryPlan,
   layout : @device_layout.DeviceKvLayout,
   profile : @launch_contract.PagedKernelProfile,
-  weight_byte_delta? : Int64 = 0L,
+  weight_byte_delta~ : Int64 = 0L,
 ) -> Array[@launch_contract.AotOperand] raise {
   let result : Array[@launch_contract.AotOperand] = []
   for runtime in operation.runtime_inputs() {
@@ -143,8 +143,8 @@ fn full_contract_set(
   memory : @device_memory.DeviceMemoryPlan,
   layout : @device_layout.DeviceKvLayout,
   target : @catalog.DeviceTarget,
-  weight_byte_delta? : Int64 = 0L,
-  entry_bias? : Int = 0,
+  weight_byte_delta~ : Int64 = 0L,
+  entry_bias~ : Int32 = 0,
 ) -> @launch_contract.PagedKvLaunchContractSet raise {
   let profile = blueprint_profile()
   let inputs : Array[@launch_contract.PagedKvAotLaunchContractInput] = []

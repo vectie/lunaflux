@@ -31,6 +31,6 @@ fn contiguous_right_read_candidates(
 ///|
 pub fn AttentionTileCandidate::right_operand_read_slots(
   self : AttentionTileCandidate,
-) -> Int {
+) -> Int32 {
   self.right_operand_read_slots
 }

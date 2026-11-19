@@ -1,5 +1,5 @@
 ///|
-const SAFETENSORS_PREFIX_BYTES : Int = 8
+const SAFETENSORS_PREFIX_BYTES : Int32 = 8
 
 ///|
 const MAX_INT_AS_UINT64 : UInt64 = 2147483647UL
@@ -9,8 +9,8 @@ const MAX_INT_AS_INT64 : Int64 = 2147483647L
 
 ///|
 priv struct ValidatedEnvelope {
-  payload_start : Int
-  payload_bytes : Int
+  payload_start : Int32
+  payload_bytes : Int32
 }
 
 ///|
@@ -71,7 +71,7 @@ fn validate_envelope(
 ///|
 fn binding_at(
   bindings : @llama_weights.LlamaWeightBindings,
-  index : Int,
+  index : Int32,
 ) -> @llama_weights.TensorBinding raise MaterializationError {
   let reference = try! @plan.TensorRef::new(index)
   guard bindings.binding(reference) is Some(binding) else {

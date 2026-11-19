@@ -57,10 +57,10 @@ fn paged_attention_exact_runtime_inputs(
 ///|
 fn paged_attention_expected_dimensions(
   profile : @launch_contract.PagedKernelProfile,
-  query_heads : Int,
+  query_heads : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise PagedAttentionAotError {
   @launch_contract.AotLaunchDimensions::new(
-    grid_x=Int::min(profile.max_query_tokens(), 32),
+    grid_x=Int32::min(profile.max_query_tokens(), 32),
     grid_y=query_heads,
     grid_z=1,
     block_x=32,
@@ -75,7 +75,7 @@ fn paged_attention_expected_dimensions(
 ///|
 fn paged_attention_operand_role_matches(
   role : @launch_contract.AotOperandRole,
-  index : Int,
+  index : Int32,
   layer : @plan.KvLayerId,
 ) -> Bool {
   match index {
@@ -97,10 +97,10 @@ fn paged_attention_operand_role_matches(
 fn paged_attention_validate_operand_bytes(
   operands : ArrayView[@launch_contract.AotOperand],
   profile : @launch_contract.PagedKernelProfile,
-  query_heads : Int,
-  kv_heads : Int,
-  head_dimension : Int,
-  tokens_per_page : Int,
+  query_heads : Int32,
+  kv_heads : Int32,
+  head_dimension : Int32,
+  tokens_per_page : Int32,
 ) -> (Int64, Int64) raise PagedAttentionAotError {
   let max_rows = profile.max_query_rows().to_int64()
   let max_tokens = profile.max_query_tokens().to_int64()
@@ -179,7 +179,7 @@ fn paged_attention_validate_runtime_candidate(
   layout : @device_layout.DeviceKvLayout,
   operands : ArrayView[@launch_contract.AotOperand],
   target : @catalog.DeviceTarget,
-) -> (Int, Int, Int, Int64, Int64) raise PagedAttentionAotError {
+) -> (Int32, Int32, Int32, Int64, Int64) raise PagedAttentionAotError {
   if operation.kind() != CausalAttention {
     raise Unsupported(Operation)
   }
@@ -245,7 +245,7 @@ fn paged_attention_validate_candidate(
   operands : ArrayView[@launch_contract.AotOperand],
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
-) -> (Int, Int, Int, Int64, Int64) raise PagedAttentionAotError {
+) -> (Int32, Int32, Int32, Int64, Int64) raise PagedAttentionAotError {
   if compiler.reassociate() {
     raise Unsupported(CompilerPolicy)
   }

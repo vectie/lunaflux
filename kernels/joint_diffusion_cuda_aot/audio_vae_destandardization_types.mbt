@@ -6,13 +6,13 @@ pub struct JointDiffusionAudioVaeLatentDestandardizationCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv parameter_digest : @joint_diffusion_vae_reference.JointVaeLatentDestandardizationDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv decoder_batch_count : Int
-  priv channel_count : Int
+  priv decoder_batch_count : Int32
+  priv channel_count : Int32
   priv elements_per_channel : Int64
   priv element_count : Int64
   priv target : @catalog.DeviceTarget

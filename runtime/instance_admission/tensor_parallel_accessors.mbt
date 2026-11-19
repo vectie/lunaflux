@@ -101,7 +101,7 @@ pub fn TensorParallelRuntimeInstanceAdmission::framed_limits(
 ///|
 pub fn TensorParallelRuntimeInstanceAdmission::preparation_lane_count(
   self : TensorParallelRuntimeInstanceAdmission,
-) -> Int {
+) -> Int32 {
   self.core.preparation_lane_count
 }
 
@@ -136,6 +136,6 @@ pub fn TensorParallelRuntimeInstanceAdmission::event_step_budget(
 ///|
 pub fn TensorParallelRuntimeInstanceAdmission::telemetry_capacity(
   self : TensorParallelRuntimeInstanceAdmission,
-) -> Int {
+) -> Int32 {
   self.core.telemetry_capacity
 }

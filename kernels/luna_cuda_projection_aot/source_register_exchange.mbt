@@ -2,7 +2,7 @@
 /// Lower the single-owner accumulator map to coalesced packed output stores.
 /// Conversion is pointwise; register exchange changes ownership, never the
 /// ordered fold or rounding operation. No shared result lifetime is created.
-fn projection_register_exchange_source(output_width : Int) -> String {
+fn projection_register_exchange_source(output_width : Int32) -> String {
   (
     $|      #pragma unroll
     $|      for (int store = 0; store < 4; ++store) {

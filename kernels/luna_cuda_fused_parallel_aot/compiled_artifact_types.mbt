@@ -51,15 +51,15 @@ pub fn FusedParallelKernelAbi::canonical_name(
 ///|
 pub struct FusedParallelCompiledArtifactLimits {
   priv maximum_module_bytes : Int64
-  priv maximum_receipt_bytes : Int
-  priv maximum_binding_bytes : Int
+  priv maximum_receipt_bytes : Int32
+  priv maximum_binding_bytes : Int32
 }
 
 ///|
 pub fn FusedParallelCompiledArtifactLimits::new(
   maximum_module_bytes~ : Int64,
-  maximum_receipt_bytes~ : Int,
-  maximum_binding_bytes~ : Int,
+  maximum_receipt_bytes~ : Int32,
+  maximum_binding_bytes~ : Int32,
 ) -> FusedParallelCompiledArtifactLimits raise FusedParallelAotError {
   if maximum_module_bytes <= 0L ||
     maximum_module_bytes > 1073741824L ||
@@ -89,7 +89,7 @@ pub struct FusedParallelCompiledArtifactBinding {
   priv function_symbol : String
   priv kernel_abi : FusedParallelKernelAbi
   priv purpose : FusedParallelArtifactPurpose
-  priv dispatch_canary_per_token : UInt
+  priv dispatch_canary_per_token : UInt32
   priv qualification_candidate : FusedParallelDigest?
   priv module_bytes : Bytes
   priv module_digest : FusedParallelDigest

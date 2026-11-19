@@ -1,8 +1,8 @@
 ///|
 pub fn JointDiffusionCudaAotLimits::new(
   maximum_elements~ : Int64,
-  maximum_source_bytes~ : Int,
-  maximum_recipe_bytes~ : Int,
+  maximum_source_bytes~ : Int32,
+  maximum_recipe_bytes~ : Int32,
 ) -> Self raise JointDiffusionCudaAotError {
   if maximum_elements <= 0L ||
     maximum_elements > 1073741823L ||
@@ -37,7 +37,7 @@ pub fn JointDiffusionShiftedFlowCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionShiftedFlowCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 

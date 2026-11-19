@@ -79,8 +79,8 @@ fn qwen_fused_recipe(
   profile : @launch_contract.PagedKernelProfile,
   compiler : @luna_specialization.LunaCompilerPolicy,
   symbol : String,
-  dispatch_canary : UInt,
-  grid_x : Int,
+  dispatch_canary : UInt32,
+  grid_x : Int32,
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   physical_program : QwenIngressPhysicalProgram,
   source_digest : FusedParallelDigest,
@@ -170,7 +170,7 @@ fn qwen_fused_production_recipe(
   source_digest : FusedParallelDigest,
   qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
   symbol : String,
-  step_rotary_cache? : Bool = false,
+  step_rotary_cache~ : Bool = false,
 ) -> Bytes {
   let semantic = qualification.semantic
   let (qkv_index, qk_norm_index, rope_index, attention_index) = semantic.operation_indices()
@@ -289,9 +289,9 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : FusedParallelAotLimits,
-  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  fold_choices~ : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
   ingress_policy? : @resource_policy.Policy,
-  maximum_shared_bytes? : Int64 = 49152L,
+  maximum_shared_bytes~ : Int64 = 49152L,
 ) -> FusedQwenQkvQkNormRopeKvWriteCudaCandidate raise FusedParallelAotError {
   let profile = qkv_fallback.profile()
   fused_validate_common(profile, target, compiler)
@@ -491,7 +491,7 @@ pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_candidate(
 pub fn lower_fused_qwen_qkv_qknorm_rope_paged_kv_write_production_candidate(
   qualification : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
   limits : FusedParallelAotLimits,
-  step_rotary_cache? : Bool = false,
+  step_rotary_cache~ : Bool = false,
 ) -> FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate raise FusedParallelAotError {
   let function_symbol = if step_rotary_cache {
     "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3"

@@ -2,7 +2,7 @@
 fn final_norm_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoFinalRmsNorm(_, _, _) if latent == VideoLatent => return ordinal

@@ -19,7 +19,7 @@ fn deterministic_index_test_operands() -> Array[AdvancedDecoderLaunchOperand] {
 
 ///|
 fn deterministic_index_test_dimensions(
-  rows : Int,
+  rows : Int32,
 ) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x=rows,

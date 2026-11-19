@@ -4,7 +4,7 @@
 /// readback or cross-CTA barrier is used, and only live rows enter the amax.
 pub fn quantize_fp4_bf16_rows_source(
   plan : @precision.QuantizationPlan,
-  row_multiplier~ : Int,
+  row_multiplier~ : Int32,
   symbol~ : String,
   maximum? : @physical.PartitionedMaximum,
 ) -> String raise LoweringError {

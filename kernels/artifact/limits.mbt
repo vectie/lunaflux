@@ -1,31 +1,31 @@
 ///|
-const ABSOLUTE_MAX_MODULES : Int = 4096
+const ABSOLUTE_MAX_MODULES : Int32 = 4096
 
 ///|
-const ABSOLUTE_MAX_ENTRY_POINTS : Int = 65536
+const ABSOLUTE_MAX_ENTRY_POINTS : Int32 = 65536
 
 ///|
 const ABSOLUTE_MAX_OWNED_BYTES : Int64 = 2147483647L
 
 ///|
-const ABSOLUTE_MAX_SYMBOL_BYTES : Int = 1024
+const ABSOLUTE_MAX_SYMBOL_BYTES : Int32 = 1024
 
 ///|
 pub struct KernelArtifactLimits {
-  priv max_modules : Int
-  priv max_entry_points : Int
+  priv max_modules : Int32
+  priv max_entry_points : Int32
   priv max_module_bytes : Int64
   priv max_total_module_bytes : Int64
-  priv max_function_symbol_bytes : Int
+  priv max_function_symbol_bytes : Int32
 }
 
 ///|
 pub fn KernelArtifactLimits::new(
-  max_modules~ : Int,
-  max_entry_points~ : Int,
+  max_modules~ : Int32,
+  max_entry_points~ : Int32,
   max_module_bytes~ : Int64,
   max_total_module_bytes~ : Int64,
-  max_function_symbol_bytes~ : Int,
+  max_function_symbol_bytes~ : Int32,
 ) -> KernelArtifactLimits raise KernelArtifactError {
   if max_modules <= 0 || max_modules > ABSOLUTE_MAX_MODULES {
     raise InvalidLimit(ModuleCount)
@@ -54,14 +54,14 @@ pub fn KernelArtifactLimits::new(
 }
 
 ///|
-pub fn KernelArtifactLimits::max_modules(self : KernelArtifactLimits) -> Int {
+pub fn KernelArtifactLimits::max_modules(self : KernelArtifactLimits) -> Int32 {
   self.max_modules
 }
 
 ///|
 pub fn KernelArtifactLimits::max_entry_points(
   self : KernelArtifactLimits,
-) -> Int {
+) -> Int32 {
   self.max_entry_points
 }
 
@@ -82,6 +82,6 @@ pub fn KernelArtifactLimits::max_total_module_bytes(
 ///|
 pub fn KernelArtifactLimits::max_function_symbol_bytes(
   self : KernelArtifactLimits,
-) -> Int {
+) -> Int32 {
   self.max_function_symbol_bytes
 }

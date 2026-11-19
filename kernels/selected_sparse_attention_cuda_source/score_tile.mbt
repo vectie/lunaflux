@@ -3,8 +3,8 @@
 /// swizzled storage and the copy -> publish -> ordered fold -> retire phases.
 fn score_tile_source(
   schedule : @physical.SelectedSparseSchedule,
-  dimension : Int,
-  kv_heads : Int,
+  dimension : Int32,
+  kv_heads : Int32,
   scalar : String,
   branch_storage? : String,
 ) -> String raise {

@@ -33,7 +33,7 @@ pub fn KernelManifestDigest::from_sha256(
     raise Invalid(field=ExpectedManifestDigest, issue=InvalidFormat)
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       raise Invalid(field=ExpectedManifestDigest, issue=InvalidFormat)
     }
   }

@@ -1,25 +1,25 @@
 ///|
-const SELECTED_TOPOLOGY_MAGIC : UInt = 0x544c464c
+const SELECTED_TOPOLOGY_MAGIC : UInt32 = 0x544c464c
 
 ///|
-const SELECTED_TOPOLOGY_VERSION : UInt = 1
+const SELECTED_TOPOLOGY_VERSION : UInt32 = 1
 
 ///|
-const SELECTED_TOPOLOGY_HEADER_BYTES : Int = 32
+const SELECTED_TOPOLOGY_HEADER_BYTES : Int32 = 32
 
 ///|
-const SELECTED_TOPOLOGY_RANK_HEADER_BYTES : Int = 32
+const SELECTED_TOPOLOGY_RANK_HEADER_BYTES : Int32 = 32
 
 ///|
-const SELECTED_TOPOLOGY_MAX_NAME_BYTES : Int = 1024
+const SELECTED_TOPOLOGY_MAX_NAME_BYTES : Int32 = 1024
 
 ///|
-const SELECTED_TOPOLOGY_MAX_BYTES : Int = 16928
+const SELECTED_TOPOLOGY_MAX_BYTES : Int32 = 16928
 
 ///|
 fn selected_topology_length(
   topology : @device_topology.LocalTopologyDeclaration,
-) -> Int raise TensorParallelRankConfigureError {
+) -> Int32 raise TensorParallelRankConfigureError {
   let mut length = SELECTED_TOPOLOGY_HEADER_BYTES
   for rank in 0..<topology.rank_count() {
     guard topology.rank(rank) is Some(device) else { raise Invalid(Topology) }
@@ -38,9 +38,9 @@ fn selected_topology_length(
 ///|
 fn write_selected_topology(
   destination : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   topology : @device_topology.LocalTopologyDeclaration,
-) -> Int raise TensorParallelRankConfigureError {
+) -> Int32 raise TensorParallelRankConfigureError {
   let length = selected_topology_length(topology)
   configure_write_u32(destination, offset, SELECTED_TOPOLOGY_MAGIC)
   configure_write_u32(destination, offset + 4, SELECTED_TOPOLOGY_VERSION)
@@ -62,7 +62,7 @@ fn write_selected_topology(
     )
     configure_write_i32(destination, cursor + 16, target.compute_major())
     configure_write_i32(destination, cursor + 20, target.compute_minor())
-    let flags : UInt = (if target.supports_bf16() { 1 } else { 0 }) |
+    let flags : UInt32 = (if target.supports_bf16() { 1 } else { 0 }) |
       (if target.supports_cublas_lt() { 2 } else { 0 })
     configure_write_u32(destination, cursor + 24, flags)
     configure_write_u32(destination, cursor + 28, 0)
@@ -78,8 +78,8 @@ fn write_selected_topology(
 ///|
 fn decode_selected_topology(
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> @device_topology.LocalTopologyDeclaration raise TensorParallelRankConfigureError {
   if length < SELECTED_TOPOLOGY_HEADER_BYTES ||
     length > SELECTED_TOPOLOGY_MAX_BYTES ||

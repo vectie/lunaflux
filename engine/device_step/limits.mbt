@@ -1,28 +1,28 @@
 ///|
-const MAX_STEP_ROWS : Int = 4096
+const MAX_STEP_ROWS : Int32 = 4096
 
 ///|
-const MAX_STEP_CELLS : Int = 1048576
+const MAX_STEP_CELLS : Int32 = 1048576
 
 ///|
-const INT32_MAX : Int = 2147483647
+const INT32_MAX : Int32 = 2147483647
 
 ///|
-const INT32_BYTES : Int = 4
+const INT32_BYTES : Int32 = 4
 
 ///|
-const COUNTS_LENGTH : Int = 5
+const COUNTS_LENGTH : Int32 = 5
 
 ///|
 const DEVICE_BUFFER_ALIGNMENT : Int64 = 16L
 
 ///|
 pub fn DeviceStepLimits::new(
-  max_rows~ : Int,
-  max_tokens~ : Int,
-  max_pages~ : Int,
-  max_sequence_tokens~ : Int,
-  max_token_id~ : Int,
+  max_rows~ : Int32,
+  max_tokens~ : Int32,
+  max_pages~ : Int32,
+  max_sequence_tokens~ : Int32,
+  max_token_id~ : Int32,
 ) -> DeviceStepLimits raise DeviceStepError {
   if max_rows <= 0 || max_rows > MAX_STEP_ROWS {
     raise InvalidLimit(Rows)
@@ -48,11 +48,11 @@ pub fn DeviceStepLimits::new(
 }
 
 ///|
-fn row_offset_cells(limits : DeviceStepLimits) -> Int {
+fn row_offset_cells(limits : DeviceStepLimits) -> Int32 {
   limits.max_rows() + 1
 }
 
 ///|
-fn byte_capacity(cells : Int) -> Int64 {
+fn byte_capacity(cells : Int32) -> Int64 {
   Int64::from_int(cells * INT32_BYTES)
 }

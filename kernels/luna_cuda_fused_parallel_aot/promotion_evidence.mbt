@@ -1,7 +1,7 @@
 ///|
 pub struct FusedParallelPromotionTrial {
-  priv shape_ordinal : Int
-  priv trial_ordinal : Int
+  priv shape_ordinal : Int32
+  priv trial_ordinal : Int32
   priv baseline_duration_ns : Int64
   priv candidate_duration_ns : Int64
   priv maximum_absolute_error_ppb : Int64
@@ -12,8 +12,8 @@ pub struct FusedParallelPromotionTrial {
 
 ///|
 pub fn FusedParallelPromotionTrial::new(
-  shape_ordinal~ : Int,
-  trial_ordinal~ : Int,
+  shape_ordinal~ : Int32,
+  trial_ordinal~ : Int32,
   baseline_duration_ns~ : Int64,
   candidate_duration_ns~ : Int64,
   maximum_absolute_error_ppb~ : Int64,
@@ -46,16 +46,16 @@ pub fn FusedParallelPromotionTrial::new(
 
 ///|
 pub struct FusedParallelPromotionLimits {
-  priv maximum_shapes : Int
-  priv trials_per_shape : Int
-  priv maximum_canonical_bytes : Int
+  priv maximum_shapes : Int32
+  priv trials_per_shape : Int32
+  priv maximum_canonical_bytes : Int32
 }
 
 ///|
 pub fn FusedParallelPromotionLimits::new(
-  maximum_shapes~ : Int,
-  trials_per_shape~ : Int,
-  maximum_canonical_bytes~ : Int,
+  maximum_shapes~ : Int32,
+  trials_per_shape~ : Int32,
+  maximum_canonical_bytes~ : Int32,
 ) -> FusedParallelPromotionLimits raise FusedParallelAotError {
   if maximum_shapes <= 0 ||
     maximum_shapes > 1024 ||
@@ -75,7 +75,7 @@ pub fn FusedParallelPromotionLimits::new(
 pub struct FusedParallelPromotionEvidence {
   priv candidate_digest : FusedParallelDigest
   priv static_resource_audit : FusedParallelDigest
-  priv trial_count : Int
+  priv trial_count : Int32
   priv canonical : Bytes
   priv digest : FusedParallelDigest
 }
@@ -97,7 +97,7 @@ pub fn FusedParallelPromotionEvidence::static_resource_audit(
 ///|
 pub fn FusedParallelPromotionEvidence::trial_count(
   self : FusedParallelPromotionEvidence,
-) -> Int {
+) -> Int32 {
   self.trial_count
 }
 

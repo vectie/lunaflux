@@ -9,8 +9,8 @@ pub(all) suberror ProjectionPlanError {
 /// BF16 output. This contract is shared by video patches and stereo audio rows.
 pub struct LatentProjectionShape {
   rows : Int64
-  input_width : Int
-  output_width : Int
+  input_width : Int32
+  output_width : Int32
   weight_bytes : Int64
   bias_bytes : Int64
   output : StorageRegion
@@ -73,8 +73,8 @@ pub fn LatentStoragePlan::projections(
 ///|
 fn projection_shape(
   rows : Int64,
-  input : Int,
-  output : Int,
+  input : Int32,
+  output : Int32,
   offset : Int64,
   ceiling : Int64,
 ) -> LatentProjectionShape raise ProjectionPlanError {

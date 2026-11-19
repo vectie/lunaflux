@@ -1,10 +1,10 @@
 ///|
 pub fn compressed_cache_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  for_indexer? : Bool = false,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  layer~ : Int32,
+  for_indexer~ : Bool = false,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.RetainedRowsPrecision raise {
@@ -51,13 +51,13 @@ pub struct DeepSeekCompressedKvCache {
 ///|
 pub fn DeepSeekCompressedKvCache::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  for_indexer? : Bool = false,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  layer~ : Int32,
+  for_indexer~ : Bool = false,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> Self raise {
   // Main-attention complex rounding does not silently change or disappear
   // inside the indexer/Hadamard numerical operation.
@@ -164,7 +164,7 @@ pub fn DeepSeekCompressedKvCache::prepare(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

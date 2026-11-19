@@ -17,11 +17,11 @@ pub extend BlockwiseTileStorage with @debug.Debug::{to_repr}
 
 ///|
 pub fn BlockwiseTileStorage::new(
-  dimensions~ : Int,
-  keys~ : Int,
-  query_consumers~ : Int,
-  stages~ : Int,
-  validity_slots~ : Int,
+  dimensions~ : Int32,
+  keys~ : Int32,
+  query_consumers~ : Int32,
+  stages~ : Int32,
+  validity_slots~ : Int32,
 ) -> BlockwiseTileStorage? {
   // Keep every region in the signed launch-byte domain. Check divisions
   // before products, including hostile Int::max_value geometry.

@@ -70,8 +70,8 @@ fn validate_i8_runtime_envelope(
 fn build_i8_limits(
   startup : @worker_wire.WorkerStartupContract,
   source : @worker_wire.EncodedBootstrapSource,
-  exact_count : Int,
-  tensor_count : Int,
+  exact_count : Int32,
+  tensor_count : Int32,
 ) -> (
   @device_layout.DeviceKvLimits,
   @device_step.DeviceStepLimits,

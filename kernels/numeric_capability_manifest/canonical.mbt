@@ -6,7 +6,7 @@ fn append_manifest_i64(output : Array[Byte], value : Int64) -> Unit {
 }
 
 ///|
-fn append_manifest_int(output : Array[Byte], value : Int) -> Unit {
+fn append_manifest_int(output : Array[Byte], value : Int32) -> Unit {
   append_manifest_i64(output, Int64::from_int(value))
 }
 
@@ -37,7 +37,7 @@ fn encode_fp8_kernel_manifest(
   target : @catalog.DeviceTarget,
   catalog_version : @catalog.CatalogVersion,
   entries : ReadOnlyArray[Fp8KernelManifestEntry],
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise Fp8KernelManifestError {
   let output : Array[Byte] = []
   for byte in b"lunaflux.fp8-kernel-capability-manifest.v1\x00" {

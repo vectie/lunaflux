@@ -33,7 +33,7 @@ test "finite operand rings publish before consumption without overwriting live s
         )
         assert_true(effects.prime_count() <= transfers)
         assert_true(effects.pending_group_limit() < effects.prime_count())
-        let slots : Array[Int?] = Array::make(stages, None)
+        let slots : Array[Int32?] = Array::make(stages, None)
         let mut primed = false
         let mut ready = false
         let mut visible = false

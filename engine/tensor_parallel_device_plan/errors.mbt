@@ -24,14 +24,14 @@ pub(all) enum TensorParallelDevicePlanRule {
 pub(all) suberror TensorParallelDevicePlanError {
   InvalidTensorParallelDevicePlan(
     rule~ : TensorParallelDevicePlanRule,
-    index~ : Int
+    index~ : Int32
   )
 } derive(Debug, Eq)
 
 ///|
 fn invalid(
   rule : TensorParallelDevicePlanRule,
-  index : Int,
+  index : Int32,
 ) -> TensorParallelDevicePlanError {
   InvalidTensorParallelDevicePlan(rule~, index~)
 }

@@ -1,6 +1,6 @@
 ///|
 fn map_file_error(
-  shard : Int,
+  shard : Int32,
   error : @approved_fs.ApprovedFsError,
 ) -> StreamingSafetensorsError {
   match error {
@@ -14,7 +14,7 @@ fn map_file_error(
 
 ///|
 fn close_file(
-  shard : Int,
+  shard : Int32,
   file : @approved_fs.ApprovedFile,
 ) -> Unit raise StreamingSafetensorsError {
   file.close() catch {
@@ -26,7 +26,7 @@ fn close_file(
 fn[T] with_file(
   root : @approved_fs.ApprovedRoot,
   locator : @approved_fs.ApprovedRelativeLocator,
-  shard : Int,
+  shard : Int32,
   body : (@approved_fs.ApprovedFile) -> T raise StreamingSafetensorsError,
 ) -> T raise StreamingSafetensorsError {
   let file = root.open_file(locator) catch {
@@ -51,11 +51,11 @@ fn[T] with_file(
 
 ///|
 fn read_exactly(
-  shard : Int,
+  shard : Int32,
   file : @approved_fs.ApprovedFile,
   destination : FixedArray[Byte],
-  destination_offset : Int,
-  byte_count : Int,
+  destination_offset : Int32,
+  byte_count : Int32,
   position : Int64,
 ) -> Unit raise StreamingSafetensorsError {
   file.read_exactly_at(destination, destination_offset~, byte_count~, position~) catch {
@@ -65,7 +65,7 @@ fn read_exactly(
 
 ///|
 fn stamp_file(
-  shard : Int,
+  shard : Int32,
   file : @approved_fs.ApprovedFile,
 ) -> @approved_fs.ApprovedFileStamp raise StreamingSafetensorsError {
   file.stamp() catch {
@@ -95,7 +95,7 @@ fn validate_dtype_specs(
 
 ///|
 fn inspect_open_file(
-  shard : Int,
+  shard : Int32,
   file : @approved_fs.ApprovedFile,
   input : StreamingSafetensorsShardInput,
   specs : ArrayView[StreamingSafetensorsDTypeSpec],
@@ -166,7 +166,7 @@ pub fn inspect_shards(
   }
   validate_dtype_specs(dtype_specs, limits)
   let shards : Array[InspectedShard] = []
-  let names : Map[String, (Int, Int)] = Map([])
+  let names : Map[String, (Int32, Int32)] = Map([])
   let mut total = 0
   for shard_ordinal, input in inputs {
     let shard = with_file(root, input.locator, shard_ordinal, file => {

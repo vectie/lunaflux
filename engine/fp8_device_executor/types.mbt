@@ -50,15 +50,15 @@ pub(all) suberror Fp8DeviceExecutorError {
 
 ///|
 pub struct Fp8DeviceExecutorLimits {
-  priv max_operations : Int
-  priv max_ephemeral_allocations : Int
+  priv max_operations : Int32
+  priv max_ephemeral_allocations : Int32
   priv max_ephemeral_bytes : Int64
 }
 
 ///|
 pub fn Fp8DeviceExecutorLimits::new(
-  max_operations~ : Int,
-  max_ephemeral_allocations~ : Int,
+  max_operations~ : Int32,
+  max_ephemeral_allocations~ : Int32,
   max_ephemeral_bytes~ : Int64,
 ) -> Fp8DeviceExecutorLimits raise Fp8DeviceExecutorError {
   if max_operations <= 0 ||
@@ -118,7 +118,7 @@ priv struct Fp8OwnedModule {
 
 ///|
 priv struct Fp8OwnedFunction {
-  module_index : Int
+  module_index : Int32
   resource : @device.Function
   mut open : Bool
 }
@@ -126,7 +126,7 @@ priv struct Fp8OwnedFunction {
 ///|
 priv struct Fp8PreparedOperation {
   operation : @plan.OperationId
-  function_index : Int
+  function_index : Int32
   dimensions : @device.KernelLaunchDimensions
   arguments : @device.KernelArguments
   workspace_offset : Int64
@@ -193,7 +193,7 @@ pub fn Fp8DeviceExecutor::lifecycle(
 }
 
 ///|
-pub fn Fp8DeviceExecutor::operation_count(self : Fp8DeviceExecutor) -> Int {
+pub fn Fp8DeviceExecutor::operation_count(self : Fp8DeviceExecutor) -> Int32 {
   self.steps.length()
 }
 

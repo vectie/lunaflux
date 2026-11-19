@@ -222,7 +222,7 @@ test "AKO sibling row ownership changes only the primary physical domain" {
       Some("1") &&
       (label == "baseline" || label == "r64-coowned-c16")
     if export_old || export_coowned || large_chunks || lookahead {
-      let geometries : Array[Array[Int]] = []
+      let geometries : Array[Array[Int32]] = []
       for
         (name, geometry) in [
           ("PRIMARY", candidate.launch_dimensions()),

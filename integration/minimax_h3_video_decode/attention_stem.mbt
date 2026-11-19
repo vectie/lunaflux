@@ -3,7 +3,7 @@
 pub struct AttentionStem {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  rows : Int
+  rows : Int32
   hidden_bytes : Int64
   qkv_bytes : Int64
   table_bytes : Int64
@@ -15,10 +15,10 @@ pub struct AttentionStem {
 
 ///|
 pub fn AttentionStem::new(
-  temporal~ : Int,
-  height~ : Int,
-  width~ : Int,
-  layer~ : Int,
+  temporal~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
+  layer~ : Int32,
   prefix~ : String,
   max_scratch_bytes~ : Int64,
 ) -> Self raise {
@@ -92,14 +92,14 @@ pub fn AttentionStem::launches(
       alignment~,
     )
   }
-  fn weight(i : Int) -> @device.KernelArgument raise @device.DeviceError {
+  fn weight(i : Int32) -> @device.KernelArgument raise @device.DeviceError {
     let copy = self.weights.copies[i]
     region(weights, copy.destination_offset, copy.byte_count, 4L)
   }
   fn launch(
-    i : Int,
-    grid : Int,
-    block : Int,
+    i : Int32,
+    grid : Int32,
+    block : Int32,
     args : Array[@device.KernelArgument],
   ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
     @device.OrderedKernelLaunch::new(

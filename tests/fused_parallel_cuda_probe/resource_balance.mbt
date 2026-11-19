@@ -1,17 +1,17 @@
 ///|
 priv struct FusedProbeResourceBalance {
-  mut contexts : Int
-  mut streams : Int
-  events : Int
-  graphs : Int
-  graph_execs : Int
-  mut allocations : Int
-  mut modules : Int
-  mut functions : Int
-  mut executors : Int
+  mut contexts : Int32
+  mut streams : Int32
+  events : Int32
+  graphs : Int32
+  graph_execs : Int32
+  mut allocations : Int32
+  mut modules : Int32
+  mut functions : Int32
+  mut executors : Int32
   mut device_bytes : Int64
-  mut pending_work : Int
-  mut cleanup_failures : Int
+  mut pending_work : Int32
+  mut cleanup_failures : Int32
 }
 
 ///|

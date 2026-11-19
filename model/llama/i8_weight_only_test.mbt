@@ -1,6 +1,6 @@
 ///|
 fn i8_llama_test_metadata(
-  layer_count? : Int = 2,
+  layer_count~ : Int32 = 2,
 ) -> @spec.LlamaModelMetadata raise {
   let spec = @spec.LlamaModelSpec::new(
     vocabulary_size=128,
@@ -23,7 +23,7 @@ fn i8_llama_test_metadata(
 }
 
 ///|
-fn expected_i8_parameter(index : Int, layer_count : Int) -> Bool {
+fn expected_i8_parameter(index : Int32, layer_count : Int32) -> Bool {
   if index == 0 || index == 9 * layer_count + 1 {
     false
   } else if index == 9 * layer_count + 2 {
@@ -41,7 +41,7 @@ fn expected_i8_parameter(index : Int, layer_count : Int) -> Bool {
 }
 
 ///|
-fn expected_i8_operation(index : Int, layer_count : Int) -> Bool {
+fn expected_i8_operation(index : Int32, layer_count : Int32) -> Bool {
   if index == 9 * layer_count + 2 {
     true
   } else if index <= 0 || index > 9 * layer_count {

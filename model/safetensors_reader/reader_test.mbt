@@ -1,8 +1,8 @@
 ///|
 fn limits(
-  max_header_bytes? : Int = 4096,
-  max_tensor_count? : Int = 8,
-  max_payload_bytes? : Int64 = 4096L,
+  max_header_bytes~ : Int32 = 4096,
+  max_tensor_count~ : Int32 = 8,
+  max_payload_bytes~ : Int64 = 4096L,
 ) -> @safetensors.HeaderLimits raise {
   @safetensors.HeaderLimits::new(
     max_header_bytes~,
@@ -18,7 +18,7 @@ fn limits(
 fn fixture_with_length(
   header : StringView,
   encoded_length : UInt64,
-  payload_bytes? : Int = 0,
+  payload_bytes~ : Int32 = 0,
 ) -> Bytes {
   let bytes : Array[Byte] = []
   for shift in 0..<8 {
@@ -34,7 +34,7 @@ fn fixture_with_length(
 }
 
 ///|
-fn fixture(header : StringView, payload_bytes? : Int = 0) -> Bytes {
+fn fixture(header : StringView, payload_bytes~ : Int32 = 0) -> Bytes {
   fixture_with_length(
     header,
     @utf8.encode(header).length().to_uint64(),
@@ -223,7 +223,7 @@ test "payload envelope is checked before header decoding and JSON parsing" {
 
 ///|
 test "duplicate tensor names and fields are rejected before map overwrite" {
-  let duplicate_headers : Array[(String, Int)] = [
+  let duplicate_headers : Array[(String, Int32)] = [
     (
       "{\"w\":{\"dtype\":\"BF16\",\"shape\":[1],\"data_offsets\":[0,2]},\"w\":{\"dtype\":\"BF16\",\"shape\":[1],\"data_offsets\":[0,2]}}",
       1,

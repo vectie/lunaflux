@@ -4,7 +4,7 @@
 /// The callback performs optional offline I/O, never ordinary serving work.
 pub fn DeepSeekDecoderSlice::visit_retired_boundaries(
   self : Self,
-  observe : (String, @device.Allocation, Int) -> Unit raise,
+  observe : (String, @device.Allocation, Int32) -> Unit raise,
 ) -> Unit raise {
   guard self.state is Prepared && self.layers.length() == 1 else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)

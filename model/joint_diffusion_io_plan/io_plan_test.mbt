@@ -5,8 +5,8 @@ fn io_content(seed : Char) -> @spec.ContentDigest {
 
 ///|
 fn io_minimax_plan(
-  variant? : @minimax_h3_spec.MiniMaxH3Variant = Fl2va,
-  content_seed? : Char = '9',
+  variant~ : @minimax_h3_spec.MiniMaxH3Variant = Fl2va,
+  content_seed~ : Char = '9',
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @minimax_h3.build(
     @minimax_h3_spec.MiniMaxH3ModelMetadata::from_verified_content(
@@ -60,7 +60,7 @@ fn io_audio(seed : Char) -> ValidatedAudioInput {
 ///|
 fn io_text_request(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
-  seed? : Int64 = 42L,
+  seed~ : Int64 = 42L,
 ) -> JointDiffusionIoPlan {
   try! normalize(
     plan,

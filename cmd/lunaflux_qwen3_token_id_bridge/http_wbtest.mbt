@@ -1,7 +1,7 @@
 ///|
 fn bridge_http_head_fixture(
   value : String,
-) -> (String, String, Int) raise BridgeRuntimeError {
+) -> (String, String, Int32) raise BridgeRuntimeError {
   let bytes = @utf8.encode(value)
   let storage = FixedArray::make(bytes.length(), b'\x00')
   for index, byte in bytes {

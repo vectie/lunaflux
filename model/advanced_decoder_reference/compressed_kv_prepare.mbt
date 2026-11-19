@@ -8,11 +8,11 @@
 pub fn non_overlapping_compressed_kv_prepare_v1(
   ordinary_key_value : ArrayView[Float],
   compressed_key_value : ArrayView[Float],
-  window_size~ : Int,
-  compression_ratio~ : Int,
-  head_dimension~ : Int,
-  sequence_length~ : Int,
-  maximum_position_count~ : Int,
+  window_size~ : Int32,
+  compression_ratio~ : Int32,
+  head_dimension~ : Int32,
+  sequence_length~ : Int32,
+  maximum_position_count~ : Int32,
   decode_mode~ : Bool,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {

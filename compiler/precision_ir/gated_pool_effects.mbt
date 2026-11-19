@@ -112,7 +112,7 @@ pub fn LearnedGatedPoolPrecision::effect_program(
     @parallel.Buffer::new(arena=i, offset_bytes=0L, byte_count=bytes)
   })
   fn accesses(
-    entries : ArrayView[(Int, @parallel.AccessMode)],
+    entries : ArrayView[(Int32, @parallel.AccessMode)],
   ) -> Array[@parallel.Access] raise {
     entries.map(entry => @parallel.Access::new(buffer=entry.0, mode=entry.1))
   }

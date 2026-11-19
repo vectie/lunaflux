@@ -74,7 +74,7 @@ pub fn BatchedDecoderRank::submit(self : Self) -> Unit raise {
 }
 
 ///|
-fn load_i32(bytes : FixedArray[Byte], row : Int) -> Int {
+fn load_i32(bytes : FixedArray[Byte], row : Int32) -> Int32 {
   for i in 0..<4; bits = 0U {
     continue bits | (bytes[row * 4 + i].to_uint() << (i * 8))
   } nobreak {
@@ -83,7 +83,10 @@ fn load_i32(bytes : FixedArray[Byte], row : Int) -> Int {
 }
 
 ///|
-fn BatchedDecoderRank::download_bytes(self : Self, index : Int) -> Int raise {
+fn BatchedDecoderRank::download_bytes(
+  self : Self,
+  index : Int32,
+) -> Int32 raise {
   if index == self.ports.length() {
     if self.outputs_token && self.sampling is None {
       self.frame.output_rows() * 4
@@ -185,7 +188,7 @@ pub fn BatchedDecoderRank::execution_failed(self : Self) -> Bool raise {
 }
 
 ///|
-pub fn BatchedDecoderRank::samples(self : Self) -> ArrayView[Int] raise {
+pub fn BatchedDecoderRank::samples(self : Self) -> ArrayView[Int32] raise {
   guard self.state is Retired && self.outputs_token && !self.failed else {
     raise @frame.BatchFrameError::Busy
   }
@@ -193,12 +196,12 @@ pub fn BatchedDecoderRank::samples(self : Self) -> ArrayView[Int] raise {
 }
 
 ///|
-pub fn BatchedDecoderRank::live_rows(self : Self) -> Int raise {
+pub fn BatchedDecoderRank::live_rows(self : Self) -> Int32 raise {
   self.frame.live_rows()
 }
 
 ///|
-pub fn BatchedDecoderRank::output_rows(self : Self) -> Int raise {
+pub fn BatchedDecoderRank::output_rows(self : Self) -> Int32 raise {
   if self.outputs_token {
     self.frame.output_rows()
   } else {
@@ -216,7 +219,10 @@ pub fn BatchedDecoderRank::sampling_plan(
 }
 
 ///|
-pub fn BatchedDecoderRank::output_entry(self : Self, output : Int) -> Int raise {
+pub fn BatchedDecoderRank::output_entry(
+  self : Self,
+  output : Int32,
+) -> Int32 raise {
   self.frame.output_entry(output)
 }
 
@@ -244,7 +250,11 @@ pub fn BatchedDecoderRank::release_request(
 }
 
 ///|
-pub fn BatchedDecoderRank::retire_request(self : Self, request_id : UInt64, generation : UInt64) -> Unit raise {
+pub fn BatchedDecoderRank::retire_request(
+  self : Self,
+  request_id : UInt64,
+  generation : UInt64,
+) -> Unit raise {
   guard self.state is Ready else { raise @frame.BatchFrameError::Busy }
   self.frame.retire_request(request_id, generation)
 }

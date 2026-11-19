@@ -16,7 +16,7 @@ pub struct DeepSeekV4ReferenceFixtureResult {
   priv hash_routing : @advanced_decoder_reference.ExpertRouting
   priv expert_output : ReadOnlyArray[Float]
   priv learned_indices : @advanced_decoder_reference.ReferenceTopK
-  priv compressed_indices : ReadOnlyArray[Int]
+  priv compressed_indices : ReadOnlyArray[Int32]
   priv mixed_streams : ReadOnlyArray[Float]
   priv auxiliary_stages : ReadOnlyArray[
     @advanced_decoder_reference.AuxiliaryReferenceStage,
@@ -61,7 +61,7 @@ pub fn DeepSeekV4ReferenceFixtureResult::learned_indices(
 ///|
 pub fn DeepSeekV4ReferenceFixtureResult::compressed_indices(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.compressed_indices
 }
 

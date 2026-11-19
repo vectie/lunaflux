@@ -44,7 +44,7 @@ fn require_int(
   object : Map[String, Json],
   name : String,
   field : Glm53ConfigField,
-) -> Int raise Glm53ConfigError {
+) -> Int32 raise Glm53ConfigError {
   match require_value(object, name, field) {
     Number(value, repr=_) if !value.is_nan() &&
       !value.is_inf() &&
@@ -84,7 +84,7 @@ fn require_bool(
 fn check_int(
   object : Map[String, Json],
   name : String,
-  expected : Int,
+  expected : Int32,
   field : Glm53ConfigField,
 ) -> Unit raise Glm53ConfigError {
   if require_int(object, name, field) != expected {
@@ -163,7 +163,7 @@ fn require_int_array(
   object : Map[String, Json],
   name : String,
   field : Glm53ConfigField,
-) -> Array[Int] raise Glm53ConfigError {
+) -> Array[Int32] raise Glm53ConfigError {
   guard require_value(object, name, field) is Array(values) else {
     raise invalid(field)
   }
@@ -183,8 +183,8 @@ fn require_int_array(
 fn check_string_schedule(
   object : Map[String, Json],
   name : String,
-  length : Int,
-  expected_at : (Int) -> String,
+  length : Int32,
+  expected_at : (Int32) -> String,
   field : Glm53ConfigField,
 ) -> Unit raise Glm53ConfigError {
   let values = require_string_array(object, name, field)
@@ -202,8 +202,8 @@ fn check_string_schedule(
 fn check_int_schedule(
   object : Map[String, Json],
   name : String,
-  length : Int,
-  expected_at : (Int) -> Int,
+  length : Int32,
+  expected_at : (Int32) -> Int32,
   field : Glm53ConfigField,
 ) -> Unit raise Glm53ConfigError {
   let values = require_int_array(object, name, field)
@@ -221,7 +221,7 @@ fn check_int_schedule(
 fn check_int_array(
   object : Map[String, Json],
   name : String,
-  expected : ArrayView[Int],
+  expected : ArrayView[Int32],
   field : Glm53ConfigField,
 ) -> Unit raise Glm53ConfigError {
   let values = require_int_array(object, name, field)

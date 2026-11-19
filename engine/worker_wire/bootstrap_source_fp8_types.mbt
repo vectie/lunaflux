@@ -37,13 +37,13 @@ pub fn WorkerFp8BootstrapModelSource::new(
 
 ///|
 pub fn WorkerFp8BootstrapExecution::new(
-  compute_major : Int,
-  compute_minor : Int,
+  compute_major : Int32,
+  compute_minor : Int32,
   total_memory_bytes : Int64,
   supports_bf16 : Bool,
   supports_cublas_lt : Bool,
-  tokens_per_page : Int,
-  total_page_count : Int,
+  tokens_per_page : Int32,
+  total_page_count : Int32,
   reusable_recipe_digest_sha256 : StringView,
 ) -> Self raise WorkerWireError {
   if !((compute_major == 8 && compute_minor == 9) ||
@@ -94,12 +94,12 @@ pub fn WorkerFp8BootstrapModelSource::numeric_weight_artifact_digest(
 }
 
 ///|
-pub fn WorkerFp8BootstrapExecution::compute_major(self : Self) -> Int {
+pub fn WorkerFp8BootstrapExecution::compute_major(self : Self) -> Int32 {
   self.execution.compute_major()
 }
 
 ///|
-pub fn WorkerFp8BootstrapExecution::compute_minor(self : Self) -> Int {
+pub fn WorkerFp8BootstrapExecution::compute_minor(self : Self) -> Int32 {
   self.execution.compute_minor()
 }
 
@@ -114,12 +114,12 @@ pub fn WorkerFp8BootstrapExecution::supports_cublas_lt(self : Self) -> Bool {
 }
 
 ///|
-pub fn WorkerFp8BootstrapExecution::tokens_per_page(self : Self) -> Int {
+pub fn WorkerFp8BootstrapExecution::tokens_per_page(self : Self) -> Int32 {
   self.execution.tokens_per_page()
 }
 
 ///|
-pub fn WorkerFp8BootstrapExecution::total_page_count(self : Self) -> Int {
+pub fn WorkerFp8BootstrapExecution::total_page_count(self : Self) -> Int32 {
   self.execution.total_page_count()
 }
 

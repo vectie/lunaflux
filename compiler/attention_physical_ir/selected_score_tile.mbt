@@ -2,14 +2,14 @@
 /// Cooperative copy followed by independent ordered score folds. The copy
 /// layout is bijective; it changes physical ownership, never a reduction tree.
 pub struct SelectedScoreTile {
-  priv keys : Int
-  priv components : Int
+  priv keys : Int32
+  priv components : Int32
 }
 
 ///|
 pub fn SelectedSparseSchedule::score_tile(
   self : Self,
-  components : Int,
+  components : Int32,
 ) -> SelectedScoreTile? {
   guard components > 0 &&
     self.workers > 0 &&
@@ -22,7 +22,7 @@ pub fn SelectedSparseSchedule::score_tile(
 }
 
 ///|
-pub fn SelectedScoreTile::geometry(self : Self) -> (Int, Int) {
+pub fn SelectedScoreTile::geometry(self : Self) -> (Int32, Int32) {
   (self.keys, self.components)
 }
 
@@ -34,8 +34,8 @@ pub fn SelectedScoreTile::storage_cells(self : Self) -> Int64 {
 ///|
 pub fn SelectedScoreTile::cell(
   self : Self,
-  key : Int,
-  component : Int,
+  key : Int32,
+  component : Int32,
 ) -> Int64? {
   guard key >= 0 &&
     key < self.keys &&

@@ -2,7 +2,7 @@
 fn oracle_block_input(
   input : ArrayView[Double],
   plan : GlmTinyHybridBlockPlan,
-  width : Int,
+  width : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   let feature_count = plan.token_count * width
@@ -30,7 +30,7 @@ fn oracle_compose_output(
   branch_output : ArrayView[Double],
   mixing : ArrayView[Double],
   plan : GlmTinyHybridBlockPlan,
-  width : Int,
+  width : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   let feature_count = plan.token_count * width
@@ -69,7 +69,7 @@ fn oracle_compose_output(
 /// This correctness-only API is not a production fallback or performance path.
 pub fn execute_tiny_hybrid_block(
   input : ArrayView[Double],
-  selected_indices : ArrayView[Int],
+  selected_indices : ArrayView[Int32],
   plan : GlmTinyHybridBlockPlan,
   weights : GlmTinyHybridBlockWeights,
   limits~ : GlmTinyOracleLimits,

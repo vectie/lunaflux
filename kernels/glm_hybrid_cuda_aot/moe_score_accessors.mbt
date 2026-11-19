@@ -27,7 +27,9 @@ pub fn GlmHybridMoeScoreCudaCandidate::requirements_digest(
 }
 
 ///|
-pub fn GlmHybridMoeScoreCudaCandidate::requirement_ordinal(self : Self) -> Int {
+pub fn GlmHybridMoeScoreCudaCandidate::requirement_ordinal(
+  self : Self,
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -46,12 +48,12 @@ pub fn GlmHybridMoeScoreCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridMoeScoreCudaCandidate::expert_count(self : Self) -> Int {
+pub fn GlmHybridMoeScoreCudaCandidate::expert_count(self : Self) -> Int32 {
   self.expert_count
 }
 
 ///|
-pub fn GlmHybridMoeScoreCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridMoeScoreCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

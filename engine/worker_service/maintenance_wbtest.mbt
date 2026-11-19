@@ -1,11 +1,11 @@
 ///|
 fn wb_maintenance_service(
   scheduler : @core.Scheduler,
-  flight? : WorkerFlightState = FlightEmpty,
-  pending_plan_sequence? : UInt64 = 0UL,
-  lifecycle? : WorkerServiceLifecycle = ServiceRecovering,
-  maintenance_mode? : Int = MAINTENANCE_RECOVERY,
-  maintenance_phase? : Int = MAINTENANCE_RETIRE,
+  flight~ : WorkerFlightState = FlightEmpty,
+  pending_plan_sequence~ : UInt64 = 0UL,
+  lifecycle~ : WorkerServiceLifecycle = ServiceRecovering,
+  maintenance_mode~ : Int32 = MAINTENANCE_RECOVERY,
+  maintenance_phase~ : Int32 = MAINTENANCE_RETIRE,
 ) -> WorkerService {
   {
     scheduler,

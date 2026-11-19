@@ -51,7 +51,7 @@ pub fn TensorStorageContract::symmetric_i8_weight_only_scale_v1() -> TensorStora
 ///|
 /// Returns whether one signed integer is a legal persisted v1 weight code.
 /// `-128` is deliberately reserved and rejected by this version.
-pub fn symmetric_i8_weight_only_v1_accepts_code(code : Int) -> Bool {
+pub fn symmetric_i8_weight_only_v1_accepts_code(code : Int32) -> Bool {
   code >= -127 && code <= 127
 }
 

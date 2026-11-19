@@ -19,31 +19,31 @@ pub(all) suberror DeepSeekV4HostMaterializationError {
   NumericSchemaDigestMismatch
   NumericBindingDigestMismatch
   ManifestDigestMismatch
-  InvalidIndexCount(expected~ : Int, actual~ : Int)
-  InvalidIndexEntry(Int)
-  DuplicateIndexEntry(Int, Int)
-  IndexShardMismatch(Int)
+  InvalidIndexCount(expected~ : Int32, actual~ : Int32)
+  InvalidIndexEntry(Int32)
+  DuplicateIndexEntry(Int32, Int32)
+  IndexShardMismatch(Int32)
   StreamingFailure
   WeightBindingFailure
   NumericPlanFailure
-  TensorTooLarge(Int)
+  TensorTooLarge(Int32)
   HostByteBudgetExceeded
   ArenaCountExceeded
   ArenaReleased
-  TensorIndexOutOfBounds(Int)
-  TensorByteOutOfBounds(Int)
-  TensorNotQuantized(Int)
-  QuantizedPairUnavailable(Int)
-  QuantizedPayloadFailure(Int)
+  TensorIndexOutOfBounds(Int32)
+  TensorByteOutOfBounds(Int32)
+  TensorNotQuantized(Int32)
+  QuantizedPairUnavailable(Int32)
+  QuantizedPayloadFailure(Int32)
   ExecutableWeightsUnavailable(ReadOnlyArray[DeepSeekV4HostExecutionLimitation])
 } derive(Debug, Eq)
 
 ///|
 pub struct DeepSeekV4HostMaterializationLimits {
   priv maximum_total_host_bytes : Int64
-  priv maximum_arena_bytes : Int
-  priv maximum_arenas : Int
-  priv maximum_index_entries : Int
+  priv maximum_arena_bytes : Int32
+  priv maximum_arenas : Int32
+  priv maximum_index_entries : Int32
 }
 
 ///|
@@ -57,7 +57,7 @@ pub struct DeepSeekV4HostExpectedDigests {
 ///|
 pub struct DeepSeekV4TensorIndexInput {
   priv tensor_name : String
-  priv shard_ordinal : Int
+  priv shard_ordinal : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -69,13 +69,13 @@ pub struct DeepSeekV4HostManifestDigest {
 
 ///|
 priv struct DeepSeekV4HostLayoutTensor {
-  binding_index : Int
-  shard_ordinal : Int
-  tensor_ordinal : Int
-  arena_ordinal : Int
-  arena_offset : Int
-  byte_count : Int
-  quantized_parameter_index : Int?
+  binding_index : Int32
+  shard_ordinal : Int32
+  tensor_ordinal : Int32
+  arena_ordinal : Int32
+  arena_offset : Int32
+  byte_count : Int32
+  quantized_parameter_index : Int32?
 }
 
 ///|
@@ -87,7 +87,7 @@ pub struct DeepSeekV4HostManifest {
   priv numeric_plan : @deepseek_v4_numeric_plan.DeepSeekV4NumericPlan
   priv inspection : @streaming_safetensors.StreamingSafetensorsInspection
   priv tensors : ReadOnlyArray[DeepSeekV4HostLayoutTensor]
-  priv arena_sizes : ReadOnlyArray[Int]
+  priv arena_sizes : ReadOnlyArray[Int32]
   priv total_tensor_bytes : Int64
   priv total_arena_bytes : Int64
   priv streaming_limits : @streaming_safetensors.StreamingSafetensorsLimits
@@ -96,10 +96,10 @@ pub struct DeepSeekV4HostManifest {
 ///|
 pub struct DeepSeekV4HostTensor {
   priv binding : @deepseek_v4_weights.DeepSeekV4TensorBinding
-  priv arena_ordinal : Int
-  priv arena_offset : Int
-  priv byte_count : Int
-  priv quantized_parameter_index : Int?
+  priv arena_ordinal : Int32
+  priv arena_offset : Int32
+  priv byte_count : Int32
+  priv quantized_parameter_index : Int32?
 } derive(Debug, Eq)
 
 ///|
@@ -116,7 +116,7 @@ pub struct DeepSeekV4HostWeights {
 
 ///|
 priv struct HostLayoutSourceTensor {
-  shard_ordinal : Int
-  tensor_ordinal : Int
+  shard_ordinal : Int32
+  tensor_ordinal : Int32
   byte_count : Int64
 }

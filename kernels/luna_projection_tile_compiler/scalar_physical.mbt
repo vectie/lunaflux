@@ -3,9 +3,9 @@
 /// consumes operand 0 and its own right operand, and owns one accumulator.
 /// Partitioning never changes the ordered multiply-then-add within a worker.
 pub struct ProjectionScalarFoldPlan {
-  priv extent : Int
-  priv products : Int
-  priv workers : Int
+  priv extent : Int32
+  priv products : Int32
+  priv workers : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -16,8 +16,8 @@ pub extend ProjectionScalarFoldPlan with @debug.Debug::{to_repr}
 
 ///|
 pub fn ProjectionScalarFoldPlan::new(
-  extent~ : Int,
-  products~ : Int,
+  extent~ : Int32,
+  products~ : Int32,
   reduction : ProjectionSingleRowReduction,
 ) -> ProjectionScalarFoldPlan? {
   let workers = match reduction {
@@ -37,7 +37,7 @@ pub fn ProjectionScalarFoldPlan::new(
 ///|
 pub fn ProjectionScalarFoldPlan::geometry(
   self : ProjectionScalarFoldPlan,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.extent, self.products, self.workers)
 }
 
@@ -45,8 +45,8 @@ pub fn ProjectionScalarFoldPlan::geometry(
 /// SSA operand IDs and destination accumulator for the selected product.
 pub fn ProjectionScalarFoldPlan::product(
   self : ProjectionScalarFoldPlan,
-  product : Int,
-) -> (Int, Int, Int)? {
+  product : Int32,
+) -> (Int32, Int32, Int32)? {
   if product < 0 || product >= self.products {
     None
   } else {
@@ -58,9 +58,9 @@ pub fn ProjectionScalarFoldPlan::product(
 /// Every in-domain component belongs to exactly one worker/iteration pair.
 pub fn ProjectionScalarFoldPlan::read_at(
   self : ProjectionScalarFoldPlan,
-  worker~ : Int,
-  iteration~ : Int,
-) -> Int? {
+  worker~ : Int32,
+  iteration~ : Int32,
+) -> Int32? {
   guard worker >= 0 && worker < self.workers && iteration >= 0 else {
     return None
   }
@@ -77,8 +77,8 @@ pub fn ProjectionScalarFoldPlan::read_at(
 /// Ordered descending tree edges; an empty list means no reassociation.
 pub fn ProjectionScalarFoldPlan::combination_distances(
   self : ProjectionScalarFoldPlan,
-) -> ReadOnlyArray[Int] {
-  let distances : Array[Int] = []
+) -> ReadOnlyArray[Int32] {
+  let distances : Array[Int32] = []
   for distance = self.workers / 2; distance > 0; distance = distance / 2 {
     distances.push(distance)
   }
@@ -90,9 +90,9 @@ pub fn ProjectionScalarFoldPlan::combination_distances(
 /// only accumulator owner zero is eventually published.
 pub fn ProjectionScalarFoldPlan::combine_from(
   self : ProjectionScalarFoldPlan,
-  worker~ : Int,
-  distance~ : Int,
-) -> Int? {
+  worker~ : Int32,
+  distance~ : Int32,
+) -> Int32? {
   guard worker >= 0 &&
     worker < self.workers &&
     distance > 0 &&

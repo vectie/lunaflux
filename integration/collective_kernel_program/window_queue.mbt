@@ -6,8 +6,8 @@ fn prepare_window_queue(
   stream : @device.Stream,
   launches : ArrayView[@device.OrderedKernelLaunch],
   forks : ArrayView[@parallel.ForkJoinSpan],
-  first : Int,
-  end : Int,
+  first : Int32,
+  end : Int32,
 ) -> PreparedQueue raise @device.DeviceError {
   let spans = forks.filter_map(span => {
     let (start, _, join) = span.range()

@@ -112,7 +112,7 @@ fn TensorParallelGroupTransport::validate_group_failure_report(
   self : TensorParallelGroupTransport,
   report : @rank_group_protocol.RankGroupFailureReport,
   group_generation_value : UInt64,
-  world_size : Int,
+  world_size : Int32,
 ) -> Unit raise TensorParallelGroupTransportError {
   if report.group_generation_value() != group_generation_value ||
     report.plan_sequence_value() != self.active_sequence_value ||
@@ -129,7 +129,7 @@ fn TensorParallelGroupTransport::validate_or_poison_group_failure_report(
   self : TensorParallelGroupTransport,
   report : @rank_group_protocol.RankGroupFailureReport,
   group_generation_value : UInt64,
-  world_size : Int,
+  world_size : Int32,
 ) -> Unit raise TensorParallelGroupTransportError {
   if self.invalid_failure_report {
     rejected(Process)

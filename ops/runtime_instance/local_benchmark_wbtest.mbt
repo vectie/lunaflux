@@ -38,7 +38,7 @@ fn local_benchmark_test_measurements() -> @benchmark_evidence.BenchmarkSummaryEv
 
 ///|
 fn local_benchmark_test_result(
-  readiness? : RuntimeInstanceReadiness = RuntimeReady,
+  readiness~ : RuntimeInstanceReadiness = RuntimeReady,
 ) -> RuntimeSpawnedBenchmarkResult raise {
   {
     measurements: local_benchmark_test_measurements(),

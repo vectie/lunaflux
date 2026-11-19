@@ -50,7 +50,7 @@ fn collective_rejection(
 
 ///|
 fn rejected_evidence(
-  driver_version : Int,
+  driver_version : Int32,
   devices : ArrayView[PhysicalTopologyDeviceObservation],
   peers : ArrayView[PhysicalPeerObservation],
   peer_query_complete : Bool,
@@ -71,7 +71,7 @@ fn rejected_evidence(
 
 ///|
 fn evaluate_topology(
-  driver_version : Int,
+  driver_version : Int32,
   devices : ArrayView[PhysicalTopologyDeviceObservation],
   peers : ArrayView[PhysicalPeerObservation],
 ) -> Result[
@@ -156,7 +156,7 @@ fn evaluate_topology(
 /// Evaluates one complete canonical host observation matrix through the exact
 /// production topology admission. This pure seam creates no native authority.
 pub fn evaluate_observations(
-  driver_version~ : Int,
+  driver_version~ : Int32,
   devices : ArrayView[PhysicalTopologyDeviceObservation],
   peers : ArrayView[PhysicalPeerObservation],
   collective~ : PhysicalCollectiveObservation,

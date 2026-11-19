@@ -1,7 +1,7 @@
 ///|
 fn hyper_control_ordinals(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   let mut function = -1
   let mut sinkhorn = -1
   for ordinal, requirement in requirements.requirements() {

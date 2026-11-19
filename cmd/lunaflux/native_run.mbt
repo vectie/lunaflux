@@ -208,7 +208,7 @@ fn native_drain_action(
 /// Stable, payload-safe operator projection shared by the opaque CLI tests and
 /// the production Ready publication path.
 fn startup_measurement_lines(
-  cold_start_latency_millis : Int,
+  cold_start_latency_millis : Int32,
   readiness : @runtime_instance.RuntimeInstanceReadiness,
 ) -> (String, String) {
   (

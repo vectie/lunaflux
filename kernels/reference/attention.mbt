@@ -6,9 +6,9 @@
 /// heads in head-major order.
 pub fn causal_gqa_attention(
   qkv : Activation,
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  head_dimension~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  head_dimension~ : Int32,
   limits~ : ReferenceLimits,
 ) -> Activation raise ReferenceKernelError {
   if query_heads <= 0 ||

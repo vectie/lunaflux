@@ -3,11 +3,11 @@
 /// required-entry allocation or scan. Catalog-v4 artifact admission supports
 /// at most this many profile/operation contracts even when callers configured
 /// a larger generic launch-contract ceiling.
-const ABSOLUTE_MAX_PAGED_V4_ARTIFACT_CONTRACTS : Int = 1024
+const ABSOLUTE_MAX_PAGED_V4_ARTIFACT_CONTRACTS : Int32 = 1024
 
 ///|
 fn ensure_paged_v4_artifact_contract_count(
-  count : Int,
+  count : Int32,
 ) -> Unit raise KernelArtifactError {
   if count > ABSOLUTE_MAX_PAGED_V4_ARTIFACT_CONTRACTS {
     raise ContractCountExceeded(

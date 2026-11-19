@@ -123,7 +123,7 @@ fn paged_semantics_fixture(
 
 ///|
 fn paged_catalog_fixture(
-  rotary_workspace? : Int64 = 0L,
+  rotary_workspace~ : Int64 = 0L,
 ) -> @catalog.ResolvedKernelCatalog raise {
   let kinds : Array[@plan.OperationKind] = [
     Embedding,
@@ -230,7 +230,9 @@ fn operand(
 }
 
 ///|
-fn paged_operands(operation : Int) -> Array[@launch_contract.AotOperand] raise {
+fn paged_operands(
+  operation : Int32,
+) -> Array[@launch_contract.AotOperand] raise {
   let layer = @plan.KvLayerId::new(0)
   match operation {
     0 =>

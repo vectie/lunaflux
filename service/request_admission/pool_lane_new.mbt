@@ -3,8 +3,8 @@ fn new_preparation_lane(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  input_capacity : Int,
-  output_capacity : Int,
+  input_capacity : Int32,
+  output_capacity : Int32,
 ) -> LunaRequestPreparationLane raise RequestAdmissionError {
   let tokenizer_budget = @tokenizer.LunaTokenizerStepBudget::new(1) catch {
     _ => raise Invalid(LunaPreparationPool)

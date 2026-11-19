@@ -4,7 +4,7 @@
 /// semantic order. This changes read ownership, not shared storage or values.
 pub struct FragmentReadOwnership {
   priv forwarding : FragmentForwarding
-  priv group_width : Int
+  priv group_width : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -16,7 +16,7 @@ pub extend FragmentReadOwnership with @debug.Debug::{to_repr}
 ///|
 pub fn FragmentForwarding::contiguous_read(
   self : FragmentForwarding,
-  provider_group_width~ : Int,
+  provider_group_width~ : Int32,
 ) -> FragmentReadOwnership? {
   guard provider_group_width > 0 &&
     provider_group_width.to_int64() * self.geometry().0.to_int64() <=
@@ -29,8 +29,8 @@ pub fn FragmentForwarding::contiguous_read(
 ///|
 pub fn FragmentReadOwnership::provider(
   self : FragmentReadOwnership,
-  owner : Int,
-) -> Int? {
+  owner : Int32,
+) -> Int32? {
   let (words, per_instruction, _) = self.forwarding.geometry()
   guard owner >= 0 && owner < words * self.group_width else { return None }
   let word = owner / self.group_width
@@ -43,8 +43,8 @@ pub fn FragmentReadOwnership::provider(
 ///|
 pub fn FragmentReadOwnership::source_word(
   self : FragmentReadOwnership,
-  word : Int,
-) -> Int? {
+  word : Int32,
+) -> Int32? {
   let (_, per_instruction, _) = self.forwarding.geometry()
   self.forwarding.word(word / per_instruction, word % per_instruction)
 }

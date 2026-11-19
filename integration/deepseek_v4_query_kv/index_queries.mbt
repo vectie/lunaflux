@@ -1,8 +1,8 @@
 ///|
 pub fn index_queries_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.LearnedIndexQueriesPrecision raise {
   guard layer >= 0 &&
@@ -33,7 +33,7 @@ pub fn index_queries_plan(
 pub fn bind_index_queries_weights(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
+  layer~ : Int32,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   let plan = index_queries_plan(
     spec,
@@ -62,7 +62,7 @@ pub fn bind_index_queries_weights(
 ///|
 pub struct DeepSeekIndexQueries {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv layer : Int
+  priv layer : Int32
   priv frame : @index_queries_frame.LearnedIndexQueriesFrame
   priv weights : @upload.CheckpointDeviceWeights
   priv mut state : State
@@ -71,8 +71,8 @@ pub struct DeepSeekIndexQueries {
 ///|
 pub fn DeepSeekIndexQueries::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
   let plan = index_queries_plan(
@@ -123,7 +123,7 @@ pub fn DeepSeekIndexQueries::prepare(
   hidden~ : @device.Allocation,
   low_rank_queries~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

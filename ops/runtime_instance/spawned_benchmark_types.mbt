@@ -38,8 +38,8 @@ fn spawned_benchmark_error(
 pub struct RuntimeSpawnedBenchmarkContract {
   priv serving : RuntimeSpawnedServingValidationContract
   priv profile : @benchmark_evidence.BenchmarkProfile
-  priv ordinal : Int
-  priv order_position : Int
+  priv ordinal : Int32
+  priv order_position : Int32
   priv verify_expected_tokens : Bool
 }
 
@@ -56,8 +56,8 @@ pub struct RuntimeSpawnedBenchmarkResult {
 pub fn RuntimeSpawnedBenchmarkContract::new(
   serving : RuntimeSpawnedServingValidationContract,
   profile : @benchmark_evidence.BenchmarkProfile,
-  ordinal : Int,
-  order_position : Int,
+  ordinal : Int32,
+  order_position : Int32,
 ) -> RuntimeSpawnedBenchmarkContract raise RuntimeSpawnedBenchmarkError {
   if ordinal < 1 || ordinal > 3 || order_position < 0 || order_position > 2 {
     raise spawned_benchmark_error(SpawnedBenchmarkContract)

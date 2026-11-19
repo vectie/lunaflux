@@ -110,7 +110,7 @@ fn LunaOnlineTcpServer::map_stream_progress(
 fn luna_online_tcp_pipeline_boundary_ready(
   pipeline_mode : Bool,
   completed_evidence : Bool,
-  tail_length : Int,
+  tail_length : Int32,
   tail_backpressured : Bool,
   coordinator_boundary_clear : Bool,
 ) -> Bool {

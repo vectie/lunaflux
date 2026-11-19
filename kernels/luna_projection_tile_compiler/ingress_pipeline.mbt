@@ -45,7 +45,7 @@ fn projection_ingress_pipeline(
 /// changes ownership: each head retains its original dot and epilogue order.
 pub fn ProjectionTileCompilerRequest::with_ingress_head_tiles(
   self : ProjectionTileCompilerRequest,
-  heads : Int,
+  heads : Int32,
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   guard self.epilogue is ProjectionAttentionIngress(spec) &&
     heads > 0 &&
@@ -60,7 +60,7 @@ pub fn ProjectionTileCompilerRequest::with_ingress_head_tiles(
 /// the ordered dot fold. Epilogue ownership remains a complete head per row.
 pub fn ProjectionTileCompilerRequest::with_ingress_row_tiles(
   self : ProjectionTileCompilerRequest,
-  tiles : Int,
+  tiles : Int32,
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   let rows = self.dispatch.prefill().tile().dimensions().0
   guard self.epilogue is ProjectionAttentionIngress(_) &&

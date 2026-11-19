@@ -31,14 +31,14 @@ pub fn LunaBf16OfflineCompilation::new(
 
 ///|
 pub struct LunaBf16KernelProducerLimits {
-  priv max_operations : Int
+  priv max_operations : Int32
   priv launch_contracts : @launch_contract.LaunchContractLimits
   priv bundle : @luna_kernel_bundle.LunaKernelBundleLimits
 }
 
 ///|
 pub fn LunaBf16KernelProducerLimits::new(
-  max_operations~ : Int,
+  max_operations~ : Int32,
   launch_contracts~ : @launch_contract.LaunchContractLimits,
   bundle~ : @luna_kernel_bundle.LunaKernelBundleLimits,
 ) -> LunaBf16KernelProducerLimits raise LunaBf16KernelProducerError {

@@ -1,9 +1,9 @@
 ///|
 fn fixture(
-  hidden : Int,
-  heads : Int,
-  dimension : Int,
-  rank : Int,
+  hidden : Int32,
+  heads : Int32,
+  dimension : Int32,
+  rank : Int32,
 ) -> @recurrent_block_execution_cuda_source.RecurrentBlockCudaSource raise {
   @recurrent_block_execution_cuda_source.recurrent_block_source(
     @precision.RecurrentBlockPrecision::new(

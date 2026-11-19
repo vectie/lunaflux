@@ -1,8 +1,8 @@
 ///|
-const LUNA_STARTUP_VERIFIER_KEY_HEADER_BYTES : Int = 16
+const LUNA_STARTUP_VERIFIER_KEY_HEADER_BYTES : Int32 = 16
 
 ///|
-const LUNA_STARTUP_VERIFIER_KEY_MAX_PAYLOAD_BYTES : Int = 384
+const LUNA_STARTUP_VERIFIER_KEY_MAX_PAYLOAD_BYTES : Int32 = 384
 
 ///|
 fn wipe_startup_verifier_storage(
@@ -16,7 +16,7 @@ fn wipe_startup_verifier_storage(
 ///|
 fn startup_verifier_header_payload_length(
   header : FixedArray[Byte],
-) -> (Int, Int, Int, Int)? {
+) -> (Int32, Int32, Int32, Int32)? {
   if header.length() != LUNA_STARTUP_VERIFIER_KEY_HEADER_BYTES ||
     header[0] != b'L' ||
     header[1] != b'F' ||
@@ -52,8 +52,8 @@ fn startup_verifier_header_payload_length(
 ///|
 fn startup_verifier_copy_fixed(
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> FixedArray[Byte] {
   let output = FixedArray::make(length, b'\x00')
   for index in 0..<length {
@@ -65,8 +65,8 @@ fn startup_verifier_copy_fixed(
 ///|
 fn startup_verifier_decode_identifier(
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> String raise LunaCapabilityManifestError {
   let storage : Array[Byte] = []
   for index in 0..<length {

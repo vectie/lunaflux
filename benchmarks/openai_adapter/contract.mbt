@@ -91,10 +91,10 @@ pub fn require_identical_openai_comparison_inputs(
 pub fn OpenAIBaselineTrialContract::new(
   identity : OpenAIBaselineIdentity,
   inputs : OpenAIBaselineInputs,
-  ordinal : Int,
-  order_position : Int,
-  maximum_event_bytes : Int,
-  maximum_json_depth : Int,
+  ordinal : Int32,
+  order_position : Int32,
+  maximum_event_bytes : Int32,
+  maximum_json_depth : Int32,
 ) -> OpenAIBaselineTrialContract raise OpenAIBaselineAdapterError {
   if ordinal < 1 || ordinal > 3 || order_position < 0 || order_position > 2 {
     raise OpenAIBaselineInvalidInputs

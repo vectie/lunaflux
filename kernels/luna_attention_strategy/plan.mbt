@@ -1,9 +1,9 @@
 ///|
 pub fn AttentionShape::new(
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  head_dimension~ : Int,
-  tokens_per_page~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  head_dimension~ : Int32,
+  tokens_per_page~ : Int32,
 ) -> AttentionShape raise AttentionStrategyError {
   if query_heads <= 0 ||
     kv_heads <= 0 ||
@@ -18,10 +18,10 @@ pub fn AttentionShape::new(
 ///|
 pub fn plan_attention_dispatch(
   shape : AttentionShape,
-  maximum_context_tokens : Int,
-  maximum_prefill_tokens : Int,
-  maximum_key_value_splits : Int,
-  exact_key_value_splits? : Int? = None,
+  maximum_context_tokens : Int32,
+  maximum_prefill_tokens : Int32,
+  maximum_key_value_splits : Int32,
+  exact_key_value_splits~ : Int32? = None,
 ) -> AttentionDispatchPlan raise AttentionStrategyError {
   if maximum_context_tokens <= 0 ||
     maximum_prefill_tokens <= 0 ||
@@ -108,8 +108,8 @@ fn attention_checked_product(
 pub fn plan_decode_attention_workspace(
   shape : AttentionShape,
   decode : AttentionPhasePlan,
-  maximum_rows : Int,
-  maximum_context_tokens : Int,
+  maximum_rows : Int32,
+  maximum_context_tokens : Int32,
   maximum_workspace_bytes : Int64,
 ) -> AttentionDecodeWorkspacePlan raise AttentionStrategyError {
   if decode.phase != Decode ||

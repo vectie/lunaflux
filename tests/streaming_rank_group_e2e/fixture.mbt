@@ -116,7 +116,7 @@ fn ownership_source() -> @worker_wire.EncodedBootstrapSource raise {
 
 ///|
 fn ownership_rank_startup(
-  rank : Int,
+  rank : Int32,
   source : @worker_wire.EncodedBootstrapSource,
 ) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
@@ -177,7 +177,9 @@ fn ownership_topology() -> @device_topology.LocalTopologyDeclaration raise {
 }
 
 ///|
-fn ownership_binding(rank : Int) -> @rank_group_wire.RankGroupWireBinding raise {
+fn ownership_binding(
+  rank : Int32,
+) -> @rank_group_wire.RankGroupWireBinding raise {
   let startup = ownership_rank_startup(rank, ownership_source())
   let worker = @tensor_parallel_worker_bootstrap.worker_contract_digest(startup)
   @rank_group_wire.RankGroupWireBinding::new(
@@ -199,8 +201,8 @@ fn ownership_binding(rank : Int) -> @rank_group_wire.RankGroupWireBinding raise 
 ///|
 fn ownership_write_u32(
   bytes : FixedArray[Byte],
-  offset : Int,
-  value : UInt,
+  offset : Int32,
+  value : UInt32,
 ) -> Unit {
   bytes[offset] = value.to_byte()
   bytes[offset + 1] = (value >> 8).to_byte()
@@ -211,8 +213,8 @@ fn ownership_write_u32(
 ///|
 fn ownership_write_i32(
   bytes : FixedArray[Byte],
-  offset : Int,
-  value : Int,
+  offset : Int32,
+  value : Int32,
 ) -> Unit {
   ownership_write_u32(bytes, offset, value.reinterpret_as_uint())
 }
@@ -220,7 +222,7 @@ fn ownership_write_i32(
 ///|
 fn ownership_write_u64(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : UInt64,
 ) -> Unit {
   for index in 0..<8 {
@@ -231,7 +233,7 @@ fn ownership_write_u64(
 ///|
 fn ownership_write_digest(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : String,
 ) -> Unit {
   let encoded = @utf8.encode(value)
@@ -242,7 +244,7 @@ fn ownership_write_digest(
 
 ///|
 fn ownership_envelope(
-  rank : Int,
+  rank : Int32,
   _startup : @worker_wire.WorkerStartupContract,
 ) -> @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope raise {
   let binding = ownership_binding(rank)
@@ -270,7 +272,7 @@ fn ownership_envelope(
   for index in 0..<128 {
     bytes[624 + index] = b'\x5a'
   }
-  let mut checksum : UInt = 2166136261
+  let mut checksum : UInt32 = 2166136261
   for index in 0..<752 {
     if index < 12 || index >= 16 {
       checksum = (checksum ^ bytes[index].to_uint()) * 16777619
@@ -284,7 +286,7 @@ fn ownership_envelope(
 
 ///|
 fn ownership_configure(
-  rank : Int,
+  rank : Int32,
 ) -> @tensor_parallel_rank_configure.TensorParallelRankConfigureContract raise {
   let source = ownership_source()
   let startup = ownership_rank_startup(rank, source)

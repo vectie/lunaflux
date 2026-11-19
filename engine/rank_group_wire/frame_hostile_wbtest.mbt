@@ -24,7 +24,7 @@ fn fixture_private_binding() -> RankGroupWireBinding {
 }
 
 ///|
-fn canonical_private_frame() -> (FixedArray[Byte], Int, RankGroupWireLimits) {
+fn canonical_private_frame() -> (FixedArray[Byte], Int32, RankGroupWireLimits) {
   let limits = try! RankGroupWireLimits::new(max_payload_bytes=8)
   let sender = RankGroupWireFrameBuffer::new(limits)
   let payload = FixedArray::make(1, b'\x01')

@@ -32,10 +32,10 @@ pub extend HyperConnectionControlLaw with Eq::{equal, not_equal}
 /// Immutable mHC branch envelope: controls, positive Sinkhorn, collapsed
 /// branch input, weighted RMSNorm, and residual-stream publication.
 pub struct HyperConnectionPrecision {
-  priv streams : Int
-  priv hidden : Int
-  priv rows : Int
-  priv iterations : Int
+  priv streams : Int32
+  priv hidden : Int32
+  priv rows : Int32
+  priv iterations : Int32
   priv control_epsilon : Double
   priv normalization_epsilon : Double
   priv law : HyperConnectionMixLaw
@@ -55,22 +55,22 @@ pub struct HyperConnectionPrecision {
 
 ///|
 pub fn HyperConnectionPrecision::new(
-  stream_count~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
-  sinkhorn_iterations~ : Int,
+  stream_count~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
+  sinkhorn_iterations~ : Int32,
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
   mix_law~ : HyperConnectionMixLaw,
-  control_law? : HyperConnectionControlLaw = NormalizedBf16Projection,
-  control_square_law? : SquareReductionLaw = OrderedFloat32,
-  control_dot_law? : DotReductionLaw = OrderedFloat32,
-  control_vector_affine_law? : Float32AffineLaw = SeparateMultiplyAdd,
-  control_sigmoid_law? : SigmoidEvaluationLaw = StableBranches,
-  control_matrix_affine_law? : Float32AffineLaw = SeparateMultiplyAdd,
-  matrix_sum_law? : SumReductionLaw = OrderedFloat32,
-  control_root_law? : ReciprocalRootLaw = DivideRoundedSqrtFloat32,
-  normalization_square_law? : SquareReductionLaw = VectorizedTreeFloat32(
+  control_law~ : HyperConnectionControlLaw = NormalizedBf16Projection,
+  control_square_law~ : SquareReductionLaw = OrderedFloat32,
+  control_dot_law~ : DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law~ : Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law~ : SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law~ : Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law~ : SumReductionLaw = OrderedFloat32,
+  control_root_law~ : ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  normalization_square_law~ : SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -202,12 +202,12 @@ pub fn HyperConnectionPrecision::normalization_square_law(
 }
 
 ///|
-pub fn HyperConnectionPrecision::geometry(self : Self) -> (Int, Int, Int) {
+pub fn HyperConnectionPrecision::geometry(self : Self) -> (Int32, Int32, Int32) {
   (self.streams, self.hidden, self.rows)
 }
 
 ///|
-pub fn HyperConnectionPrecision::sinkhorn_iterations(self : Self) -> Int {
+pub fn HyperConnectionPrecision::sinkhorn_iterations(self : Self) -> Int32 {
   self.iterations
 }
 

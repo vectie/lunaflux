@@ -3,17 +3,17 @@
 /// Candidate IDs identify backend-owned immutable launch lists, not devices.
 pub struct ExecutionGraphRouteMeasurement {
   priv shape : ExecutionGraphShape
-  priv candidate : Int
+  priv candidate : Int32
   priv median_ns : Int64
-  priv samples : Int
+  priv samples : Int32
 }
 
 ///|
 pub fn ExecutionGraphRouteMeasurement::new(
   shape : ExecutionGraphShape,
-  candidate~ : Int,
+  candidate~ : Int32,
   median_ns~ : Int64,
-  samples~ : Int,
+  samples~ : Int32,
 ) -> ExecutionGraphRouteMeasurement raise ExecutionGraphBucketError {
   if candidate < 0 || median_ns <= 0L || samples < 3 {
     raise InvalidExecutionGraphBucket(Shape)
@@ -26,7 +26,7 @@ pub fn ExecutionGraphRouteMeasurement::new(
 /// route, rather than generalizing a winner from another context or phase.
 pub struct ExecutionGraphMeasuredRoutes {
   priv buckets : ExecutionGraphBucketTable
-  priv candidates : ReadOnlyArray[Int]
+  priv candidates : ReadOnlyArray[Int32]
 }
 
 ///|
@@ -35,9 +35,9 @@ pub struct ExecutionGraphMeasuredRoutes {
 /// is responsible for checking device/source scope and vector identity.
 pub fn ExecutionGraphMeasuredRoutes::new(
   buckets : ExecutionGraphBucketTable,
-  baseline~ : Int,
+  baseline~ : Int32,
   observations : ArrayView[ExecutionGraphRouteMeasurement],
-  minimum_improvement_basis_points? : Int = 100,
+  minimum_improvement_basis_points~ : Int32 = 100,
 ) -> ExecutionGraphMeasuredRoutes raise ExecutionGraphBucketError {
   if baseline < 0 ||
     observations.length() > 4096 ||
@@ -112,7 +112,7 @@ pub fn ExecutionGraphMeasuredRoutes::new(
 pub fn ExecutionGraphMeasuredRoutes::select(
   self : ExecutionGraphMeasuredRoutes,
   shape : ExecutionGraphShape,
-) -> Int? raise ExecutionGraphBucketError {
+) -> Int32? raise ExecutionGraphBucketError {
   let candidate = self.candidates[self.buckets.select(shape).slot()]
   if candidate < 0 {
     None
@@ -126,6 +126,6 @@ pub fn ExecutionGraphMeasuredRoutes::select(
 /// Negative entries retain the normal route. The returned storage is immutable.
 pub fn ExecutionGraphMeasuredRoutes::bucket_candidates(
   self : ExecutionGraphMeasuredRoutes,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.candidates
 }

@@ -35,10 +35,10 @@ pub extend GenerationFinish with @debug.Debug::{to_repr}
 /// completed final-prefill plan, never from a model-specific synthetic recipe.
 pub struct SerialGreedyGeneration {
   priv frames : FixedArray[@wire.PlanFrameBuffer]
-  priv tokens : FixedArray[Int]
-  priv stops : ReadOnlyArray[Int]
-  priv mut current : Int
-  priv mut count : Int
+  priv tokens : FixedArray[Int32]
+  priv stops : ReadOnlyArray[Int32]
+  priv mut current : Int32
+  priv mut count : Int32
   priv mut pending : Bool
   priv mut reason : GenerationFinish
   priv mut completion : @wire.ValidatedCompletionFrame
@@ -52,9 +52,9 @@ pub fn SerialGreedyGeneration::new(
   completion : @wire.ValidatedCompletionFrame,
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_new_tokens~ : Int,
-  maximum_context~ : Int,
-  stop_tokens~ : ArrayView[Int],
+  maximum_new_tokens~ : Int32,
+  maximum_context~ : Int32,
+  stop_tokens~ : ArrayView[Int32],
 ) -> Self raise {
   guard maximum_new_tokens > 0 &&
     maximum_new_tokens <= inference.max_new_tokens() &&
@@ -182,15 +182,15 @@ pub fn SerialGreedyGeneration::finish_reason(self : Self) -> GenerationFinish {
 }
 
 ///|
-pub fn SerialGreedyGeneration::token_count(self : Self) -> Int {
+pub fn SerialGreedyGeneration::token_count(self : Self) -> Int32 {
   self.count
 }
 
 ///|
 pub fn SerialGreedyGeneration::token_at(
   self : Self,
-  index : Int,
-) -> Int raise SerialGenerationError {
+  index : Int32,
+) -> Int32 raise SerialGenerationError {
   guard index >= 0 && index < self.count else { raise InvalidLimit }
   self.tokens[index]
 }

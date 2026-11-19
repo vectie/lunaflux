@@ -1,5 +1,5 @@
 ///|
-extern "c" fn raw_test_collectives(cycles : Int) -> Int = "lunaflux_nccl_test_collectives"
+extern "c" fn raw_test_collectives(cycles : Int32) -> Int32 = "lunaflux_nccl_test_collectives"
 
 ///|
 test "fake native seam executes exact BF16 collectives and commits after poll" {

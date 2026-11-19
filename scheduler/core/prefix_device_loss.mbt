@@ -1,7 +1,7 @@
 ///|
 fn Scheduler::preflight_table_page_release(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
 ) -> Unit raise SchedulerError {
   let table = self.request_tables.read(slot) catch {
     error => raise BlockTable(error)
@@ -28,7 +28,7 @@ fn Scheduler::preflight_table_page_release(
 ///|
 fn Scheduler::preflight_prefix_entry_release(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
 ) -> Unit raise SchedulerError {
   let entry_index = self.prefix_entry_indices[slot]
   if entry_index == NO_INDEX {

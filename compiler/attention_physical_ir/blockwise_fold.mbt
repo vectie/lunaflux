@@ -3,9 +3,9 @@
 /// tile probabilities stay F32, and one max/denominator/numerator state is
 /// merged per ascending key tile. No BF16 probability rounding is permitted.
 pub struct BlockwiseFold {
-  priv dimensions : Int
-  priv keys : Int
-  priv score_owners : Int
+  priv dimensions : Int32
+  priv keys : Int32
+  priv score_owners : Int32
   priv contraction : Bool
 } derive(Debug, Eq)
 
@@ -17,10 +17,10 @@ pub extend BlockwiseFold with @debug.Debug::{to_repr}
 
 ///|
 pub fn BlockwiseFold::new(
-  dimensions~ : Int,
-  keys~ : Int,
-  score_owners? : Int = 1,
-  contraction? : Bool = false,
+  dimensions~ : Int32,
+  keys~ : Int32,
+  score_owners~ : Int32 = 1,
+  contraction~ : Bool = false,
 ) -> BlockwiseFold? {
   if dimensions > 0 &&
     keys > 0 &&
@@ -37,7 +37,7 @@ pub fn BlockwiseFold::new(
 }
 
 ///|
-pub fn BlockwiseFold::dimensions(self : BlockwiseFold) -> (Int, Int) {
+pub fn BlockwiseFold::dimensions(self : BlockwiseFold) -> (Int32, Int32) {
   (self.dimensions, self.keys)
 }
 
@@ -64,7 +64,7 @@ pub fn BlockwiseFold::contracts_multiply_add(self : BlockwiseFold) -> Bool {
 ///|
 /// Number of independent score reductions sharing a physical subgroup.
 /// It is a portable ownership choice, not a device instruction or lane count.
-pub fn BlockwiseFold::score_owners(self : BlockwiseFold) -> Int {
+pub fn BlockwiseFold::score_owners(self : BlockwiseFold) -> Int32 {
   self.score_owners
 }
 

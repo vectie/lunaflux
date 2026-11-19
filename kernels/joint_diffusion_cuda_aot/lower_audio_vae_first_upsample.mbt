@@ -1,7 +1,7 @@
 ///|
 fn first_upsample_dimensions(
   elements : Int64,
-  block_x : Int,
+  block_x : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise JointDiffusionCudaAotError {
   let grid = (elements + block_x.to_int64() - 1L) / block_x.to_int64()
   if grid > 2147483647L {
@@ -53,7 +53,7 @@ fn first_upsample_stage_text(
 pub fn lower_audio_vae_decoder_first_upsample_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstUpsample,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

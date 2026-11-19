@@ -1,9 +1,9 @@
 ///|
 fn Qwen3TokenSseBuffer::append(
   self : Qwen3TokenSseBuffer,
-  offset : Int,
+  offset : Int32,
   bytes : BytesView,
-) -> Int {
+) -> Int32 {
   for index, byte in bytes {
     self.storage[offset + index] = byte
   }
@@ -13,9 +13,9 @@ fn Qwen3TokenSseBuffer::append(
 ///|
 fn Qwen3TokenSseBuffer::append_json_text(
   self : Qwen3TokenSseBuffer,
-  offset : Int,
+  offset : Int32,
   text : BytesView,
-) -> Int {
+) -> Int32 {
   let mut cursor = offset
   for byte in text {
     match byte {
@@ -26,7 +26,7 @@ fn Qwen3TokenSseBuffer::append_json_text(
       b'\n' => cursor = self.append(cursor, b"\\n")
       b'\r' => cursor = self.append(cursor, b"\\r")
       b'\t' => cursor = self.append(cursor, b"\\t")
-      b'\x00'..=b'\x1f' => {
+      b'\x00'..<=b'\x1f' => {
         let hex = b"0123456789abcdef"
         cursor = self.append(cursor, b"\\u00")
         self.storage[cursor] = hex[byte.to_int() >> 4]
@@ -45,7 +45,7 @@ fn Qwen3TokenSseBuffer::append_json_text(
 ///|
 pub fn Qwen3TokenSseBuffer::stage(
   self : Qwen3TokenSseBuffer,
-  token_id : Int,
+  token_id : Int32,
   text : BytesView,
 ) -> Bytes {
   let mut offset = self.append(

@@ -4,7 +4,7 @@ fn shape_is(actual : ReadOnlyArray[Int64], expected : ArrayView[Int64]) -> Bool 
 }
 
 ///|
-fn index_in(value : StringView, upper : Int) -> Bool {
+fn index_in(value : StringView, upper : Int32) -> Bool {
   let parsed = @string.parse_int(value, base=10) catch { _ => return false }
   parsed >= 0 && parsed < upper
 }
@@ -12,7 +12,7 @@ fn index_in(value : StringView, upper : Int) -> Bool {
 ///|
 fn suffix_is(
   parts : Array[StringView],
-  offset : Int,
+  offset : Int32,
   expected : Array[String],
 ) -> Bool {
   if parts.length() != offset + expected.length() {
@@ -69,7 +69,7 @@ fn language_shape(name : String, shape : ReadOnlyArray[Int64]) -> Bool {
 ///|
 fn merger_shape(
   parts : Array[StringView],
-  offset : Int,
+  offset : Int32,
   shape : ReadOnlyArray[Int64],
   normalization_width : Int64,
 ) -> Bool {

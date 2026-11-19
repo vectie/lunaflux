@@ -22,30 +22,30 @@ pub(all) enum LunaTileParallelExecutionPath {
 
 ///|
 pub struct LunaTileParallelPolicy {
-  priv compute_major : Int
-  priv compute_minor : Int
-  priv block_threads : Int
-  priv block_count : Int
-  priv tile_m : Int
-  priv tile_n : Int
-  priv tile_k : Int
-  priv pipeline_stages : Int
-  priv vector_bytes : Int
+  priv compute_major : Int32
+  priv compute_minor : Int32
+  priv block_threads : Int32
+  priv block_count : Int32
+  priv tile_m : Int32
+  priv tile_n : Int32
+  priv tile_k : Int32
+  priv pipeline_stages : Int32
+  priv vector_bytes : Int32
   priv max_shared_memory_bytes : Int64
   priv tensor_core_policy : LunaTileTensorCorePolicy
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaTileParallelPolicy::new(
-  compute_major~ : Int,
-  compute_minor~ : Int,
-  block_threads~ : Int,
-  block_count~ : Int,
-  tile_m~ : Int,
-  tile_n~ : Int,
-  tile_k~ : Int,
-  pipeline_stages~ : Int,
-  vector_bytes~ : Int,
+  compute_major~ : Int32,
+  compute_minor~ : Int32,
+  block_threads~ : Int32,
+  block_count~ : Int32,
+  tile_m~ : Int32,
+  tile_n~ : Int32,
+  tile_k~ : Int32,
+  pipeline_stages~ : Int32,
+  vector_bytes~ : Int32,
   max_shared_memory_bytes~ : Int64,
   tensor_core_policy~ : LunaTileTensorCorePolicy,
 ) -> LunaTileParallelPolicy raise LunaTileError {
@@ -84,12 +84,12 @@ pub fn LunaTileParallelPolicy::new(
 
 ///|
 pub struct LunaTileParallelMapping {
-  priv block_threads : Int
-  priv block_count : Int
-  priv warps_per_block : Int
-  priv tile_m : Int
-  priv tile_n : Int
-  priv tile_k : Int
+  priv block_threads : Int32
+  priv block_count : Int32
+  priv warps_per_block : Int32
+  priv tile_m : Int32
+  priv tile_n : Int32
+  priv tile_k : Int32
   priv tile_count : Int64
   priv rounds_per_worker : Int64
 } derive(Debug, Eq)
@@ -97,28 +97,28 @@ pub struct LunaTileParallelMapping {
 ///|
 pub fn LunaTileParallelMapping::block_threads(
   self : LunaTileParallelMapping,
-) -> Int {
+) -> Int32 {
   self.block_threads
 }
 
 ///|
 pub fn LunaTileParallelMapping::block_count(
   self : LunaTileParallelMapping,
-) -> Int {
+) -> Int32 {
   self.block_count
 }
 
 ///|
 pub fn LunaTileParallelMapping::warps_per_block(
   self : LunaTileParallelMapping,
-) -> Int {
+) -> Int32 {
   self.warps_per_block
 }
 
 ///|
 pub fn LunaTileParallelMapping::tile_shape(
   self : LunaTileParallelMapping,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.tile_m, self.tile_n, self.tile_k)
 }
 
@@ -141,8 +141,8 @@ pub struct LunaTileSharedPlacement {
   priv tensor : LunaTileTensorId
   priv offset_bytes : Int64
   priv size_bytes : Int64
-  priv first_instruction : Int
-  priv last_instruction : Int
+  priv first_instruction : Int32
+  priv last_instruction : Int32
   priv reused_slot : Bool
 } derive(Debug, Eq)
 
@@ -170,14 +170,14 @@ pub fn LunaTileSharedPlacement::size_bytes(
 ///|
 pub fn LunaTileSharedPlacement::first_instruction(
   self : LunaTileSharedPlacement,
-) -> Int {
+) -> Int32 {
   self.first_instruction
 }
 
 ///|
 pub fn LunaTileSharedPlacement::last_instruction(
   self : LunaTileSharedPlacement,
-) -> Int {
+) -> Int32 {
   self.last_instruction
 }
 
@@ -193,20 +193,20 @@ pub struct LunaTileParallelSharedPlan {
   priv placements : ReadOnlyArray[LunaTileSharedPlacement]
   priv arena_bytes : Int64
   priv total_shared_memory_bytes : Int64
-  priv reuse_count : Int
+  priv reuse_count : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaTileParallelSharedPlan::placement_count(
   self : LunaTileParallelSharedPlan,
-) -> Int {
+) -> Int32 {
   self.placements.length()
 }
 
 ///|
 pub fn LunaTileParallelSharedPlan::placement_at(
   self : LunaTileParallelSharedPlan,
-  index : Int,
+  index : Int32,
 ) -> LunaTileSharedPlacement? {
   self.placements.get(index)
 }
@@ -228,7 +228,7 @@ pub fn LunaTileParallelSharedPlan::total_shared_memory_bytes(
 ///|
 pub fn LunaTileParallelSharedPlan::reuse_count(
   self : LunaTileParallelSharedPlan,
-) -> Int {
+) -> Int32 {
   self.reuse_count
 }
 
@@ -255,8 +255,8 @@ pub struct LunaTileParallelCandidate {
   priv serial_oracle_digest : LunaTileCudaTranslationDigest
   priv program_digest : LunaTileProgramDigest
   priv planning_digest : LunaTileCudaAotDigest
-  priv compute_major : Int
-  priv compute_minor : Int
+  priv compute_major : Int32
+  priv compute_minor : Int32
   priv mapping : LunaTileParallelMapping
   priv shared : LunaTileParallelSharedPlan
   priv tensor_core : LunaTileTensorCoreEligibility
@@ -292,7 +292,7 @@ pub fn LunaTileParallelCandidate::planning_digest(
 ///|
 pub fn LunaTileParallelCandidate::compute_capability(
   self : LunaTileParallelCandidate,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.compute_major, self.compute_minor)
 }
 

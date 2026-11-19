@@ -57,7 +57,7 @@ pub fn CudaAttentionTileLowering::matrix_storage_layout(
 ///|
 pub fn CudaAttentionTileLowering::launch(
   self : CudaAttentionTileLowering,
-) -> (Int, Int, Int, Int64) {
+) -> (Int32, Int32, Int32, Int64) {
   (self.grid_x, self.grid_y, self.block_threads, self.shared_memory_bytes)
 }
 
@@ -66,28 +66,28 @@ pub fn CudaAttentionTileLowering::launch(
 /// CUDA maps this value to grid Z only in the partitioned pipeline emitter.
 pub fn CudaAttentionTileLowering::key_value_partition_grain(
   self : CudaAttentionTileLowering,
-) -> Int {
+) -> Int32 {
   self.key_value_partition_grain
 }
 
 ///|
 pub fn CudaAttentionTileLowering::key_value_partitions(
   self : CudaAttentionTileLowering,
-) -> Int {
+) -> Int32 {
   self.key_value_partitions
 }
 
 ///|
 pub fn CudaAttentionTileLowering::tile(
   self : CudaAttentionTileLowering,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.query_tile, self.key_value_tile, self.head_dimension)
 }
 
 ///|
 pub fn CudaAttentionTileLowering::pipeline(
   self : CudaAttentionTileLowering,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.pipeline_stages, self.vector_bytes)
 }
 

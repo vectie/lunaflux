@@ -12,8 +12,8 @@ pub fn window_compressed_kv_source(
 ) -> WindowCompressedKvCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (heads, width, window, rows, positions) = plan.window().geometry()
@@ -44,7 +44,7 @@ pub fn window_compressed_kv_source(
   }
   let selected_row = if learned {
     "selected[(unsigned long long)row * " +
-    Int::max(slots, 1).to_string() +
+    Int32::max(slots, 1).to_string() +
     "ULL + slot] - " +
     offset
   } else {
@@ -187,15 +187,18 @@ pub fn WindowCompressedKvCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn WindowCompressedKvCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn WindowCompressedKvCudaSource::symbol(
+  self : Self,
+  stage : Int32,
+) -> String {
   self.symbols[stage]
 }
 
 ///|
 pub fn WindowCompressedKvCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (heads, _, window, rows, _) = self.plan.window().geometry()
   match stage {
     1 =>

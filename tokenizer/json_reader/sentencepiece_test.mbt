@@ -1,5 +1,5 @@
 ///|
-fn sentencepiece_hex_byte(value : Int) -> String {
+fn sentencepiece_hex_byte(value : Int32) -> String {
   let hex = value.to_string(radix=16).to_upper()
   if hex.length() == 1 {
     "0\{hex}"
@@ -9,7 +9,7 @@ fn sentencepiece_hex_byte(value : Int) -> String {
 }
 
 ///|
-fn sentencepiece_added_token(id : Int, content : String) -> Json {
+fn sentencepiece_added_token(id : Int32, content : String) -> Json {
   Json::object({
     "id": Json::number(id.to_double()),
     "content": Json::string(content),
@@ -25,7 +25,7 @@ fn sentencepiece_added_token(id : Int, content : String) -> Json {
 fn sentencepiece_template_item(
   kind : String,
   id : String,
-  type_id : Int,
+  type_id : Int32,
 ) -> Json {
   let wrapper : Map[String, Json] = Map([])
   wrapper[kind] = Json::object({
@@ -37,11 +37,11 @@ fn sentencepiece_template_item(
 
 ///|
 fn sentencepiece_document(
-  normalized_content? : String = "▁",
-  fuse_unknown? : Bool = true,
-  byte_fallback? : Bool = true,
-  decoder_start? : Int = 1,
-  template_bos_id? : Int = 1,
+  normalized_content~ : String = "▁",
+  fuse_unknown~ : Bool = true,
+  byte_fallback~ : Bool = true,
+  decoder_start~ : Int32 = 1,
+  template_bos_id~ : Int32 = 1,
 ) -> String {
   let vocab : Map[String, Json] = {
     "<unk>": Json::number(0.0),
@@ -161,7 +161,7 @@ test "selected SentencePiece JSON profile is exact and executable" {
 
 ///|
 test "nearby SentencePiece normalizer template decoder and model profiles fail closed" {
-  let variants : Array[(String, JsonComponent, UnsupportedFeature)] = [
+  let variants : Array[(String, @json_reader.JsonComponent, @json_reader.UnsupportedFeature)] = [
     (
       sentencepiece_document(normalized_content="_"),
       Normalizer,

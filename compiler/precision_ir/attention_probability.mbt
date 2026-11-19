@@ -8,7 +8,7 @@ pub(all) enum AttentionProbabilityLaw {
   /// Round exp(score-global_max) before P×V; denominator stays unrounded F32.
   GlobalUnnormalizedBf16
   OrderedOnlineF32
-  OnlineBf16(block_tokens~ : Int)
+  OnlineBf16(block_tokens~ : Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -26,3 +26,9 @@ pub fn AttentionProbabilityLaw::validate(
     }
   }
 }
+
+///|
+pub extend AttentionProbabilityLaw with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionProbabilityLaw with @debug.Debug::{to_repr}

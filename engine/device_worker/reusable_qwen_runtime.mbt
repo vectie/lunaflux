@@ -1,10 +1,10 @@
 ///|
 fn require_qwen_ingress_operation_kinds(
   model_plan : @plan.ModelPlan,
-  qkv_operation : Int,
-  qk_norm_operation : Int,
-  rope_operation : Int,
-  attention_operation : Int,
+  qkv_operation : Int32,
+  qk_norm_operation : Int32,
+  rope_operation : Int32,
+  attention_operation : Int32,
 ) -> Unit raise DeviceWorkerError {
   let operations = model_plan.operations()
   if qkv_operation < 0 ||

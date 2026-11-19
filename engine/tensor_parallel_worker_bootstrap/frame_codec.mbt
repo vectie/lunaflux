@@ -1,23 +1,23 @@
 ///|
-const RANK_ENVELOPE_MAGIC : UInt = 0x4254504c
+const RANK_ENVELOPE_MAGIC : UInt32 = 0x4254504c
 
 ///|
-const RANK_ENVELOPE_VERSION : UInt = 4
+const RANK_ENVELOPE_VERSION : UInt32 = 4
 
 ///|
-const RANK_ENVELOPE_LENGTH : Int = 752
+const RANK_ENVELOPE_LENGTH : Int32 = 752
 
 ///|
 // Version 4 repurposes the unused checksum word as an explicit bounded lease.
-const RANK_ENVELOPE_LEASE_OFFSET : Int = 12
+const RANK_ENVELOPE_LEASE_OFFSET : Int32 = 12
 
 ///|
-const RANK_ENVELOPE_RENDEZVOUS_OFFSET : Int = 624
+const RANK_ENVELOPE_RENDEZVOUS_OFFSET : Int32 = 624
 
 ///|
 fn frame_write_digest(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : StringView,
 ) -> Unit raise TensorParallelWorkerBootstrapError {
   if !is_lower_sha256(value) {
@@ -32,7 +32,7 @@ fn frame_write_digest(
 ///|
 fn frame_read_digest(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
 ) -> String raise TensorParallelWorkerBootstrapError {
   let encoded = Bytes::makei(64, index => bytes[offset + index])
   let value = @utf8.decode(encoded) catch { _ => raise rejected(Digest, -1) }
@@ -88,7 +88,7 @@ fn write_rank_envelope(
 ///|
 fn validate_rank_envelope_source(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise TensorParallelWorkerBootstrapError {
   if length != RANK_ENVELOPE_LENGTH || bytes.length() < RANK_ENVELOPE_LENGTH {
     raise rejected(FrameLength, -1)
@@ -182,7 +182,7 @@ fn decode_rank_envelope(
 }
 
 ///|
-pub fn tensor_parallel_rank_envelope_frame_bytes() -> Int {
+pub fn tensor_parallel_rank_envelope_frame_bytes() -> Int32 {
   RANK_ENVELOPE_LENGTH
 }
 
@@ -198,7 +198,7 @@ pub fn TensorParallelRankEnvelopeFrameBuffer::new() -> TensorParallelRankEnvelop
 ///|
 pub fn TensorParallelRankEnvelopeFrameBuffer::capacity(
   self : TensorParallelRankEnvelopeFrameBuffer,
-) -> Int {
+) -> Int32 {
   self.storage.length()
 }
 
@@ -220,7 +220,7 @@ pub fn TensorParallelRankEnvelopeFrameBuffer::encode(
 pub fn TensorParallelRankEnvelopeFrameBuffer::load(
   self : TensorParallelRankEnvelopeFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedTensorParallelRankEnvelopeFrame raise TensorParallelWorkerBootstrapError {
   if self.epoch == 0xffffffffffffffffUL {
     raise FrameEpochOverflow
@@ -254,7 +254,7 @@ pub fn ValidatedTensorParallelRankEnvelopeFrame::envelope(
 ///|
 pub fn ValidatedTensorParallelRankEnvelopeFrame::length(
   self : ValidatedTensorParallelRankEnvelopeFrame,
-) -> Int raise TensorParallelWorkerBootstrapError {
+) -> Int32 raise TensorParallelWorkerBootstrapError {
   self.owner().length
 }
 
@@ -262,7 +262,7 @@ pub fn ValidatedTensorParallelRankEnvelopeFrame::length(
 pub fn ValidatedTensorParallelRankEnvelopeFrame::copy_to(
   self : ValidatedTensorParallelRankEnvelopeFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise TensorParallelWorkerBootstrapError {
   let owner = self.owner()
   if destination_offset < 0 ||

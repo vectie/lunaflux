@@ -16,7 +16,7 @@ fn is_power_of_two(value : Int64) -> Bool {
 fn checked_align(
   value : Int64,
   alignment : Int64,
-  reference : Int,
+  reference : Int32,
 ) -> Int64 raise DeviceWeightError {
   let remainder = value % alignment
   if remainder == 0L {

@@ -1,9 +1,9 @@
 ///|
 fn table_limits(
-  tables : Int,
-  pages : Int,
-  tokens? : Int = 4,
-  generation? : Int = 100,
+  tables : Int32,
+  pages : Int32,
+  tokens~ : Int32 = 4,
+  generation~ : Int32 = 100,
 ) -> @block_table.BlockTableLimits {
   try! @block_table.BlockTableLimits::new(
     table_capacity=tables,
@@ -14,7 +14,7 @@ fn table_limits(
 }
 
 ///|
-fn page_allocator(capacity : Int) -> @page_allocator.PageAllocator {
+fn page_allocator(capacity : Int32) -> @page_allocator.PageAllocator {
   let limits = try! @page_allocator.PageAllocatorLimits::new(
     page_capacity=capacity,
     max_run_pages=capacity,

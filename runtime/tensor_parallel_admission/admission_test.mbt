@@ -1,5 +1,5 @@
 ///|
-fn tp_target(minor? : Int = 0) -> @catalog.DeviceTarget {
+fn tp_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=8,
     compute_minor=minor,
@@ -10,7 +10,7 @@ fn tp_target(minor? : Int = 0) -> @catalog.DeviceTarget {
 
 ///|
 fn tp_topology(
-  physical_bytes? : Int64 = 8589934592L,
+  physical_bytes~ : Int64 = 8589934592L,
 ) -> @device_topology.AdmittedLocalTopology {
   let target = tp_target()
   let ranks = [
@@ -62,17 +62,17 @@ fn tp_topology(
 
 ///|
 fn tp_claim(
-  rank : Int,
-  world_size? : Int = 2,
-  process_ordinal? : Int = -1,
-  device_name? : String = "",
-  target? : @catalog.DeviceTarget = tp_target(),
-  peer_rank_count? : Int = 1,
-  memory_ceiling_bytes? : Int64 = 6442450944L,
-  weight_reserved_bytes? : Int64 = 1073741824L,
-  activation_workspace_reserved_bytes? : Int64 = 536870912L,
-  kv_reserved_bytes? : Int64 = 1073741824L,
-  collective_reserved_bytes? : Int64 = 268435456L,
+  rank : Int32,
+  world_size~ : Int32 = 2,
+  process_ordinal~ : Int32 = -1,
+  device_name~ : String = "",
+  target~ : @catalog.DeviceTarget = tp_target(),
+  peer_rank_count~ : Int32 = 1,
+  memory_ceiling_bytes~ : Int64 = 6442450944L,
+  weight_reserved_bytes~ : Int64 = 1073741824L,
+  activation_workspace_reserved_bytes~ : Int64 = 536870912L,
+  kv_reserved_bytes~ : Int64 = 1073741824L,
+  collective_reserved_bytes~ : Int64 = 268435456L,
 ) -> TensorParallelRankDeclaration raise TensorParallelAdmissionError {
   let ordinal = if process_ordinal < 0 {
     if rank == 0 {
@@ -114,9 +114,9 @@ fn tp_default_ranks() -> Array[TensorParallelRankDeclaration] {
 
 ///|
 fn tp_declaration(
-  host_count? : Int = 1,
-  pipeline_stage_count? : Int = 1,
-  ranks? : Array[TensorParallelRankDeclaration] = tp_default_ranks(),
+  host_count~ : Int32 = 1,
+  pipeline_stage_count~ : Int32 = 1,
+  ranks~ : Array[TensorParallelRankDeclaration] = tp_default_ranks(),
 ) -> TensorParallelRuntimeDeclaration raise TensorParallelAdmissionError {
   @tensor_parallel_admission.TensorParallelRuntimeDeclaration::new(
     host_count~,

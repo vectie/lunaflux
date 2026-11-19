@@ -6,8 +6,8 @@ fn kernel_bundle_sha256(bytes : Bytes) -> String {
 
 ///|
 fn bundle_fixture_limits(
-  max_operations? : Int = 8,
-  max_total_module_bytes? : Int64 = 4096L,
+  max_operations~ : Int32 = 8,
+  max_total_module_bytes~ : Int64 = 4096L,
 ) -> LunaKernelBundleLimits raise {
   LunaKernelBundleLimits::new(
     max_module_bytes=1024L,
@@ -35,8 +35,8 @@ fn bundle_fixture_limits(
 ///|
 fn bundle_fixture_receipt(
   module_bytes : Bytes,
-  source? : String = "1".repeat(64),
-  recipe? : String = "2".repeat(64),
+  source~ : String = "1".repeat(64),
+  recipe~ : String = "2".repeat(64),
 ) -> LunaDeterministicCompileReceipt raise {
   let digest = kernel_bundle_sha256(module_bytes)
   LunaDeterministicCompileReceipt::from_offline_builder(
@@ -51,7 +51,7 @@ fn bundle_fixture_receipt(
 
 ///|
 fn bundle_fixture_compiled(
-  operation : Int,
+  operation : Int32,
 ) -> LunaKernelCompiledOperation raise {
   let contract = bundle_fixture_contracts().contracts()[operation]
   let module_bytes = bundle_fixture_module(operation)

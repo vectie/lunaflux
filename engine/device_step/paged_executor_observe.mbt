@@ -1,8 +1,8 @@
 ///|
 fn validate_offline_logit_selection(
-  vocabulary_size : Int,
-  token_ids : ArrayView[Int],
-  destination_length : Int,
+  vocabulary_size : Int32,
+  token_ids : ArrayView[Int32],
+  destination_length : Int32,
 ) -> Unit raise DeviceStepError {
   if token_ids.length() == 0 ||
     token_ids.length() > 32 ||
@@ -27,8 +27,8 @@ fn validate_offline_logit_selection(
 pub fn PagedGraphExecutor::observe_offline_selected_logits(
   self : PagedGraphExecutor,
   executed : ExecutedPagedGraphExecution,
-  batch_index : Int,
-  token_ids : ArrayView[Int],
+  batch_index : Int32,
+  token_ids : ArrayView[Int32],
   destination : FixedArray[Double],
 ) -> Unit raise DeviceStepError {
   let descriptor = authenticate_executed_paged(executed, self)

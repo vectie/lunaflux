@@ -60,7 +60,7 @@ test "plan validation rejects checksum-valid foreign completion semantics" {
   let (owner, valid, prior) = load_plan_completion(plan)
   prior.validate_for(plan)
   let entry = completion_entry_offset(0)
-  let attacks : Array[(Int, Int, UInt64, WorkerWireFrameRule, String)] = [
+  let attacks : Array[(Int32, Int32, UInt64, WorkerWireFrameRule, String)] = [
     (16, 8, 2UL, CompletionEntry, "sequence"),
     (24, 8, 3UL, CompletionEntry, "model generation"),
     (entry, 4, 1UL, CompletionSlot, "completion slot"),

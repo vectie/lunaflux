@@ -1,9 +1,9 @@
 ///|
 priv struct LunaServerSchedulerSample {
-  queue_depth : Int
-  active_requests : Int
-  kv_pages_used : Int
-  kv_pages_free : Int
+  queue_depth : Int32
+  active_requests : Int32
+  kv_pages_used : Int32
+  kv_pages_free : Int32
   prefix_lookups : UInt64
   prefix_hits : UInt64
   prefix_misses : UInt64
@@ -11,11 +11,11 @@ priv struct LunaServerSchedulerSample {
   prefix_tokens_reused : UInt64
   prefix_tokens_computed : UInt64
   prefix_publications : UInt64
-  prefix_entries : Int
-  prefix_pages : Int
+  prefix_entries : Int32
+  prefix_pages : Int32
   plan_sequence : UInt64
-  plan_rows : Int
-  plan_tokens : Int
+  plan_rows : Int32
+  plan_tokens : Int32
 }
 
 ///|
@@ -24,11 +24,11 @@ priv struct LunaServerTelemetryBridge {
   log : @instance_log.LunaInstanceLog
   clock : @monotonic_clock.MonotonicClock
   mut last_log_timestamp : UInt64
-  mut total_kv_pages : Int
+  mut total_kv_pages : Int32
   mut kv_total_initialized : Bool
   mut last_plan_sequence : UInt64
-  mut last_plan_rows : Int
-  mut last_plan_tokens : Int
+  mut last_plan_rows : Int32
+  mut last_plan_tokens : Int32
   mut prefix_lookups : UInt64
   mut prefix_hits : UInt64
   mut prefix_misses : UInt64
@@ -70,7 +70,7 @@ fn luna_server_scheduler_sample(
 
 ///|
 fn LunaServerTelemetryBridge::new(
-  log_capacity : Int,
+  log_capacity : Int32,
 ) -> LunaServerTelemetryBridge raise LunaOnlineTcpError {
   let log = @instance_log.LunaInstanceLog::new(log_capacity) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpLimits)
@@ -131,8 +131,8 @@ fn LunaServerTelemetryBridge::refresh_graph_runtime(
 /// committed, and 1 after recording the first valid startup interval.
 fn LunaServerTelemetryBridge::record_cold_start_latency_millis(
   self : LunaServerTelemetryBridge,
-  duration_millis : Int,
-) -> Int {
+  duration_millis : Int32,
+) -> Int32 {
   if duration_millis < 0 || duration_millis > 86400000 {
     return -1
   }

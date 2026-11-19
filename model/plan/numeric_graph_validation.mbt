@@ -1,7 +1,7 @@
 ///|
 fn numeric_shape_is_1d(
   shape : @numeric_contract.NumericShape,
-  first : Int,
+  first : Int32,
 ) -> Bool {
   shape.rank() == 1 && shape.dimension(0) == Some(Int64::from_int(first))
 }
@@ -9,8 +9,8 @@ fn numeric_shape_is_1d(
 ///|
 fn numeric_shape_is_2d(
   shape : @numeric_contract.NumericShape,
-  first : Int,
-  second : Int,
+  first : Int32,
+  second : Int32,
 ) -> Bool {
   shape.rank() == 2 &&
   shape.dimension(0) == Some(Int64::from_int(first)) &&
@@ -20,7 +20,7 @@ fn numeric_shape_is_2d(
 ///|
 fn valid_numeric_tensor_shape(
   operation : PlanOperation,
-  input_index : Int,
+  input_index : Int32,
   shape : @numeric_contract.NumericShape,
   constraints : ShapeConstraints,
 ) -> Bool {
@@ -47,7 +47,7 @@ fn valid_numeric_tensor_shape(
 ///|
 fn validate_numeric_tensor_operand(
   operation : PlanOperation,
-  input_index : Int,
+  input_index : Int32,
   reference : TensorRef,
   execution : @numeric_contract.OperationExecutionContract,
   tensors : ReadOnlyArray[PlanTensor],

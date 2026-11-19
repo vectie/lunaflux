@@ -1,5 +1,5 @@
 ///|
-let canonical_sha256_round_constants : ReadOnlyArray[UInt] = ReadOnlyArray::from_array([
+let canonical_sha256_round_constants : ReadOnlyArray[UInt32] = ReadOnlyArray::from_array([
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
     0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
     0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
@@ -16,12 +16,12 @@ let canonical_sha256_round_constants : ReadOnlyArray[UInt] = ReadOnlyArray::from
 ///|
 /// Fixed-scratch streaming SHA-256 for bounded canonical encoders.
 pub struct CanonicalSha256 {
-  priv state : FixedArray[UInt]
+  priv state : FixedArray[UInt32]
   priv block : FixedArray[Byte]
-  priv schedule : FixedArray[UInt]
-  priv mut block_length : Int
+  priv schedule : FixedArray[UInt32]
+  priv mut block_length : Int32
   priv mut byte_count : UInt64
-  priv mut transformed_blocks : Int
+  priv mut transformed_blocks : Int32
   priv mut finalized : Bool
   priv mut cached_hex : String?
 }
@@ -44,7 +44,7 @@ pub fn CanonicalSha256::new() -> CanonicalSha256 {
 }
 
 ///|
-fn rotate_right(value : UInt, amount : Int) -> UInt {
+fn rotate_right(value : UInt32, amount : Int32) -> UInt32 {
   (value >> amount) | (value << (32 - amount))
 }
 

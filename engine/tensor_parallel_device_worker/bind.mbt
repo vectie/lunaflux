@@ -17,7 +17,7 @@ fn descriptor_stage(
 fn module_index_for_digest(
   artifacts : @artifact.KernelArtifactBundle,
   digest : @catalog.AotArtifactDigest,
-) -> Int {
+) -> Int32 {
   for index, artifact_module in artifacts.modules() {
     if artifact_module.digest() == digest {
       return index
@@ -46,9 +46,9 @@ fn load_modules(
 ///|
 fn find_function_blueprint(
   blueprints : ArrayView[TensorParallelFunctionBlueprint],
-  module_index : Int,
+  module_index : Int32,
   symbol : String,
-) -> Int {
+) -> Int32 {
   for index, blueprint in blueprints {
     if blueprint.module_index == module_index && blueprint.symbol == symbol {
       return index
@@ -60,7 +60,7 @@ fn find_function_blueprint(
 ///|
 fn collect_function_blueprints(
   plan : TensorParallelDeviceWorkerPlan,
-) -> (ReadOnlyArray[TensorParallelFunctionBlueprint], FixedArray[Int]) raise TensorParallelDeviceWorkerError {
+) -> (ReadOnlyArray[TensorParallelFunctionBlueprint], FixedArray[Int32]) raise TensorParallelDeviceWorkerError {
   let blueprints : Array[TensorParallelFunctionBlueprint] = []
   let indices = FixedArray::make(plan.execution.operation_count(), 0)
   for operation_index in 0..<plan.execution.operation_count() {

@@ -21,8 +21,8 @@ pub fn Context::prepare_transfer_pool(
   self : Context,
   allocation : Allocation,
   host_bytes~ : Int64,
-  lanes~ : Int,
-  max_regions_per_lane~ : Int,
+  lanes~ : Int32,
+  max_regions_per_lane~ : Int32,
 ) -> TransferPool {
   {
     raw: self.raw.prepare_streaming(
@@ -54,7 +54,7 @@ pub fn TransferPool::check_prepared(
 /// On failure drain the lane before resetting or releasing its reservations.
 pub fn TransferPool::enqueue(
   self : TransferPool,
-  lane~ : Int,
+  lane~ : Int32,
   host_offset~ : Int64,
   device_offset~ : Int64,
   bytes~ : Int64,
@@ -68,7 +68,7 @@ pub fn TransferPool::enqueue(
 ///|
 pub fn TransferPool::record(
   self : TransferPool,
-  lane : Int,
+  lane : Int32,
 ) -> Unit raise DeviceError {
   self.raw.record(lane) catch {
     error => raise error_from_cuda(error)
@@ -78,7 +78,7 @@ pub fn TransferPool::record(
 ///|
 pub fn TransferPool::poll(
   self : TransferPool,
-  lane : Int,
+  lane : Int32,
 ) -> Bool raise DeviceError {
   self.raw.poll(lane) catch {
     error => raise error_from_cuda(error)
@@ -89,7 +89,7 @@ pub fn TransferPool::poll(
 /// Fault/drain path only. Normal progress uses nonblocking poll.
 pub fn TransferPool::drain(
   self : TransferPool,
-  lane : Int,
+  lane : Int32,
 ) -> Unit raise DeviceError {
   self.raw.drain(lane) catch {
     error => raise error_from_cuda(error)
@@ -99,7 +99,7 @@ pub fn TransferPool::drain(
 ///|
 pub fn TransferPool::reset(
   self : TransferPool,
-  lane : Int,
+  lane : Int32,
 ) -> Unit raise DeviceError {
   self.raw.reset(lane) catch {
     error => raise error_from_cuda(error)
@@ -119,8 +119,8 @@ pub fn TransferPool::write_host(
   self : TransferPool,
   source : FixedArray[Byte],
   host_offset~ : Int64,
-  source_offset~ : Int,
-  bytes~ : Int,
+  source_offset~ : Int32,
+  bytes~ : Int32,
 ) -> Unit raise DeviceError {
   self.raw.host_copy(source, host_offset, source_offset, bytes, true) catch {
     error => raise error_from_cuda(error)
@@ -133,8 +133,8 @@ pub fn TransferPool::read_host(
   self : TransferPool,
   destination : FixedArray[Byte],
   host_offset~ : Int64,
-  destination_offset~ : Int,
-  bytes~ : Int,
+  destination_offset~ : Int32,
+  bytes~ : Int32,
 ) -> Unit raise DeviceError {
   self.raw.host_copy(destination, host_offset, destination_offset, bytes, false) catch {
     error => raise error_from_cuda(error)

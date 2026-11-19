@@ -1,5 +1,5 @@
 ///|
-fn checked_tensor_count(layer_count : Int) -> Int {
+fn checked_tensor_count(layer_count : Int32) -> Int32 {
   // `LlamaModelSpec` dimensions are positive Int values. The model reader and
   // spec constructor bound practical layer counts before this startup-only
   // multiplication; use Int64 here so malformed metadata cannot wrap Int.
@@ -15,7 +15,7 @@ fn checked_tensor_count(layer_count : Int) -> Int {
 fn dimensions_match(
   actual : ReadOnlyArray[Int64],
   expected : ArrayView[Int64],
-  reference : Int,
+  reference : Int32,
 ) -> Unit raise LlamaWeightsError {
   if actual.length() != expected.length() {
     raise ShapeRankMismatch(reference~)

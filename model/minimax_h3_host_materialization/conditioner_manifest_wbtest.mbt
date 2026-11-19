@@ -13,7 +13,7 @@ fn append_conditioner_tensor(
 fn append_language_layer(
   entries : Array[@safetensors.RawTensorMetadata],
   indexes : Array[MiniMaxH3TensorIndexInput],
-  layer : Int,
+  layer : Int32,
   offset : Int64,
 ) -> Int64 {
   let prefix = "model.language_model.layers.\{layer}"
@@ -47,7 +47,7 @@ fn append_language_layer(
 fn append_vision_block(
   entries : Array[@safetensors.RawTensorMetadata],
   indexes : Array[MiniMaxH3TensorIndexInput],
-  layer : Int,
+  layer : Int32,
   offset : Int64,
 ) -> Int64 {
   let prefix = "model.visual.blocks.\{layer}"
@@ -84,7 +84,7 @@ fn append_merger(
   indexes : Array[MiniMaxH3TensorIndexInput],
   prefix : String,
   offset : Int64,
-  normalization_width? : Int64 = 1152L,
+  normalization_width~ : Int64 = 1152L,
 ) -> Int64 {
   let mut next = offset
   for

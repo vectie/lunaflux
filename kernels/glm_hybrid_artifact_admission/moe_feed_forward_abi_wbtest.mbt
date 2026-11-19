@@ -1,9 +1,9 @@
 ///|
 fn moe_feed_forward_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  output_role? : GlmHybridLaunchOperandRole = MoeRoutedOutput,
-  selected_bytes? : Int64 = 256L,
-  symbol? : String = "lunaflux_glm_hybrid_moe_routed_experts_bf16_v1",
+  output_role~ : GlmHybridLaunchOperandRole = MoeRoutedOutput,
+  selected_bytes~ : Int64 = 256L,
+  symbol~ : String = "lunaflux_glm_hybrid_moe_routed_experts_bf16_v1",
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

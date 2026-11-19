@@ -2,9 +2,9 @@
 /// Renders bias-free BF16 SwiGLU over separate row-major gate/up/down weights.
 /// Gate and up are `[intermediate,hidden]`; down is `[hidden,intermediate]`.
 pub fn separate_gate_up_swiglu_dense_bf16_source(
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  maximum_rows~ : Int,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> SeparateWeightGatedMlpCudaSource raise GatedMlpCudaSourceError {
   if hidden_size <= 0 || intermediate_size <= 0 {
@@ -71,17 +71,19 @@ pub fn SeparateWeightGatedMlpCudaSource::numerical_contract(
 }
 
 ///|
-pub fn SeparateWeightGatedMlpCudaSource::hidden_size(self : Self) -> Int {
+pub fn SeparateWeightGatedMlpCudaSource::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn SeparateWeightGatedMlpCudaSource::intermediate_size(self : Self) -> Int {
+pub fn SeparateWeightGatedMlpCudaSource::intermediate_size(
+  self : Self,
+) -> Int32 {
   self.intermediate_size
 }
 
 ///|
-pub fn SeparateWeightGatedMlpCudaSource::maximum_rows(self : Self) -> Int {
+pub fn SeparateWeightGatedMlpCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

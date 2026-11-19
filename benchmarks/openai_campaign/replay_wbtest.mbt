@@ -4,7 +4,7 @@ fn campaign_test_digest(unit : Char) -> String {
 }
 
 ///|
-fn campaign_test_profile_name(index : Int) -> String {
+fn campaign_test_profile_name(index : Int32) -> String {
   match index {
     0 => "latency"
     1 => "chat"
@@ -19,7 +19,7 @@ fn campaign_test_profile_name(index : Int) -> String {
 }
 
 ///|
-fn campaign_test_engine_name(index : Int) -> String {
+fn campaign_test_engine_name(index : Int32) -> String {
   match index {
     0 => "lunaflux"
     1 => "vllm"
@@ -28,7 +28,7 @@ fn campaign_test_engine_name(index : Int) -> String {
 }
 
 ///|
-fn campaign_test_declaration(endpoint_host? : String = "127.0.0.1") -> Bytes {
+fn campaign_test_declaration(endpoint_host~ : String = "127.0.0.1") -> Bytes {
   let engines = StringBuilder()
   for index in 0..<3 {
     if index > 0 {
@@ -97,7 +97,7 @@ fn campaign_test_declaration(endpoint_host? : String = "127.0.0.1") -> Bytes {
 ///|
 fn campaign_test_event(
   kind : String,
-  timestamp : Int,
+  timestamp : Int32,
   input_tokens : String,
   status : String,
   content_type : String,
@@ -124,8 +124,8 @@ fn campaign_test_event(
 ///|
 fn campaign_test_capture(
   declaration_digest : String,
-  index : Int,
-  reversed_head? : Bool = false,
+  index : Int32,
+  reversed_head~ : Bool = false,
 ) -> Bytes {
   let profile_index = index / 9
   let ordinal = index % 9 / 3 + 1

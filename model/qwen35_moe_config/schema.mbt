@@ -130,7 +130,7 @@ fn expect_int_array(
   area : Qwen35ConfigArea,
   name : String,
   field : Qwen35ConfigField,
-  expected : ArrayView[Int],
+  expected : ArrayView[Int32],
 ) -> Unit raise Qwen35ConfigError {
   match require_value(object, area, name, field) {
     Array(values) => {

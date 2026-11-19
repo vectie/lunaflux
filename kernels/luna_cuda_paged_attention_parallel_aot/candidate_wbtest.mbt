@@ -1,5 +1,5 @@
 ///|
-fn parallel_test_plan(head_dimension? : Int = 32) -> @plan.ModelPlan raise {
+fn parallel_test_plan(head_dimension~ : Int32 = 32) -> @plan.ModelPlan raise {
   let query_heads = 4
   let hidden_size = query_heads * head_dimension
   let model = @spec.LlamaModelSpec::new(
@@ -41,7 +41,7 @@ fn parallel_test_compiler() -> @luna_specialization.LunaCompilerPolicy raise {
 
 ///|
 fn parallel_reference_candidate(
-  head_dimension? : Int = 32,
+  head_dimension~ : Int32 = 32,
 ) -> @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering raise {
   let plan = parallel_test_plan(head_dimension~)
   let layout = @device_layout.plan(
@@ -182,10 +182,10 @@ test "parallel attention shape and arithmetic boundaries fail closed" {
 ///|
 fn parallel_host_attention(
   qkv : @reference.Activation,
-  query_heads : Int,
-  kv_heads : Int,
-  head_dimension : Int,
-) -> (@reference.Activation, Int) raise {
+  query_heads : Int32,
+  kv_heads : Int32,
+  head_dimension : Int32,
+) -> (@reference.Activation, Int32) raise {
   let rows = qkv.rows()
   let query_width = query_heads * head_dimension
   let kv_width = kv_heads * head_dimension
@@ -303,7 +303,7 @@ fn parallel_digest(digit : Char) -> PagedAttentionParallelDigest raise {
 
 ///|
 fn parallel_promotion_trials(
-  slow? : Bool = false,
+  slow~ : Bool = false,
 ) -> Array[PagedAttentionParallelPromotionTrial] raise {
   let result = []
   for shape in 0..<2 {

@@ -32,9 +32,9 @@ pub extend GreedyVerificationFinish with Eq::{equal, not_equal}
 /// both ranks retire that state transaction.
 #valtype
 pub struct VerifiedGreedyPrefix {
-  priv accepted_rows : Int
-  priv emitted : Int
-  priv seed : Int
+  priv accepted_rows : Int32
+  priv emitted : Int32
+  priv seed : Int32
   priv rollback : Bool
   priv finish : GreedyVerificationFinish
 } derive(Debug, Eq)
@@ -51,11 +51,11 @@ pub extend VerifiedGreedyPrefix with Eq::{equal, not_equal}
 /// Stop/length truncation can require rollback even if every inspected draft
 /// matches. No device, model family, mutable cache or transport enters this law.
 pub fn verify_greedy_prefix(
-  draft_inputs : ArrayView[Int],
-  target_outputs : ArrayView[Int],
-  remaining_new_tokens~ : Int,
-  vocabulary_size~ : Int,
-  stop_tokens~ : ArrayView[Int],
+  draft_inputs : ArrayView[Int32],
+  target_outputs : ArrayView[Int32],
+  remaining_new_tokens~ : Int32,
+  vocabulary_size~ : Int32,
+  stop_tokens~ : ArrayView[Int32],
 ) -> VerifiedGreedyPrefix raise GreedyVerificationError {
   guard !draft_inputs.is_empty() &&
     draft_inputs.length() == target_outputs.length() &&
@@ -94,8 +94,8 @@ pub fn verify_greedy_prefix(
 
 ///|
 fn validate_tokens(
-  tokens : ArrayView[Int],
-  vocabulary : Int,
+  tokens : ArrayView[Int32],
+  vocabulary : Int32,
 ) -> Unit raise GreedyVerificationError {
   for token in tokens {
     guard token >= 0 && token < vocabulary else { raise InvalidToken }
@@ -103,23 +103,23 @@ fn validate_tokens(
 }
 
 ///|
-pub fn VerifiedGreedyPrefix::accepted_input_rows(self : Self) -> Int {
+pub fn VerifiedGreedyPrefix::accepted_input_rows(self : Self) -> Int32 {
   self.accepted_rows
 }
 
 ///|
-pub fn VerifiedGreedyPrefix::accepted_draft_tokens(self : Self) -> Int {
+pub fn VerifiedGreedyPrefix::accepted_draft_tokens(self : Self) -> Int32 {
   self.accepted_rows - 1
 }
 
 ///|
 /// Newly emitted tokens are target_outputs[0 .. emitted_token_count()).
-pub fn VerifiedGreedyPrefix::emitted_token_count(self : Self) -> Int {
+pub fn VerifiedGreedyPrefix::emitted_token_count(self : Self) -> Int32 {
   self.emitted
 }
 
 ///|
-pub fn VerifiedGreedyPrefix::next_seed(self : Self) -> Int {
+pub fn VerifiedGreedyPrefix::next_seed(self : Self) -> Int32 {
   self.seed
 }
 

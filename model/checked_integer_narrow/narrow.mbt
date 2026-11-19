@@ -1,8 +1,8 @@
 ///|
 fn checked_table_elements(
-  row_count : Int,
-  column_count : Int,
-) -> Int raise CheckedIntegerNarrowError {
+  row_count : Int32,
+  column_count : Int32,
+) -> Int32 raise CheckedIntegerNarrowError {
   if row_count <= 0 ||
     column_count <= 0 ||
     row_count.to_int64() > 2147483647L / column_count.to_int64() {
@@ -12,7 +12,7 @@ fn checked_table_elements(
 }
 
 ///|
-fn decode_i64_le(input : ArrayView[Byte], offset : Int) -> Int64 {
+fn decode_i64_le(input : ArrayView[Byte], offset : Int32) -> Int64 {
   let mut raw = 0UL
   for shift in 0..<8 {
     raw = raw | (input[offset + shift].to_uint64() << (shift * 8))
@@ -21,7 +21,11 @@ fn decode_i64_le(input : ArrayView[Byte], offset : Int) -> Int64 {
 }
 
 ///|
-fn write_i32_le(output : FixedArray[Byte], offset : Int, value : Int64) -> Unit {
+fn write_i32_le(
+  output : FixedArray[Byte],
+  offset : Int32,
+  value : Int64,
+) -> Unit {
   let raw = value.reinterpret_as_uint64()
   for shift in 0..<4 {
     output[offset + shift] = ((raw >> (shift * 8)) & 0xffUL).to_byte()
@@ -31,10 +35,10 @@ fn write_i32_le(output : FixedArray[Byte], offset : Int, value : Int64) -> Unit 
 ///|
 fn require_index_range(
   value : Int64,
-  row : Int,
-  column : Int,
-  minimum : Int,
-  maximum : Int,
+  row : Int32,
+  column : Int32,
+  minimum : Int32,
+  maximum : Int32,
 ) -> Unit raise CheckedIntegerNarrowError {
   if value < minimum.to_int64() || value >= maximum.to_int64() {
     raise ValueOutOfRange(row~, column~, value~)
@@ -48,11 +52,11 @@ fn require_index_range(
 /// no duplicate value.
 pub fn narrow_unique_i64_le_rows(
   input : ArrayView[Byte],
-  row_count~ : Int,
-  column_count~ : Int,
-  minimum_value~ : Int,
-  exclusive_maximum_value~ : Int,
-  maximum_output_bytes~ : Int,
+  row_count~ : Int32,
+  column_count~ : Int32,
+  minimum_value~ : Int32,
+  exclusive_maximum_value~ : Int32,
+  maximum_output_bytes~ : Int32,
 ) -> CheckedI32Table raise CheckedIntegerNarrowError {
   if minimum_value < -2147483648 ||
     exclusive_maximum_value <= minimum_value ||
@@ -81,9 +85,7 @@ pub fn narrow_unique_i64_le_rows(
       let value = decode_i64_le(input, element * 8)
       require_index_range(
         value, row, column, minimum_value, exclusive_maximum_value,
-      ) catch {
-        error => raise error
-      }
+      )
       for previous in 0..<column {
         let previous_element = row * column_count + previous
         if decode_i64_le(input, previous_element * 8) == value {

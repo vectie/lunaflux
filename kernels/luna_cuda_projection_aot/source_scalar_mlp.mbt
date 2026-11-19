@@ -5,7 +5,7 @@
 fn projection_scalar_mlp_source(
   symbol : String,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
   materialize : Bool,
   physical : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
 ) -> Bytes {

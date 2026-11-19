@@ -18,7 +18,7 @@ test "sibling row product is partially evaluated from the immutable token bound"
     let (maximum_tokens, expected_rows) = row_case
     let request = ProjectionTileCompilerRequest::new(
       dispatch~,
-      maximum_rows=Int::min(32, maximum_tokens),
+      maximum_rows=Int32::min(32, maximum_tokens),
       maximum_tokens~,
       demand=AllTokenRows,
     )
@@ -67,13 +67,13 @@ test "sibling row demand preserves shape-neutral reduction and output geometry" 
       let compilation = compile_projection_tile(
         ProjectionTileCompilerRequest::new(
           dispatch~,
-          maximum_rows=Int::min(32, maximum_tokens),
+          maximum_rows=Int32::min(32, maximum_tokens),
           maximum_tokens~,
           demand=AllTokenRows,
         ),
       )
       let pipeline = compilation.schedule().sibling_pipeline().unwrap()
-      assert_eq(pipeline.row_width(), Int::max(16, maximum_tokens))
+      assert_eq(pipeline.row_width(), Int32::max(16, maximum_tokens))
       assert_eq(pipeline.tile_count() * pipeline.tile_width(), width)
       assert_eq(pipeline.transfer_width(), 32)
     }

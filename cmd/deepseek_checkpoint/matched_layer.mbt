@@ -1,7 +1,11 @@
 ///|
 // Offline matched-layer replay. The ordinary service graph is unchanged.
 // Only one complete production decoder layer and its state reside on device.
-fn matched_layer_shape(layer : Int, rows : Int, input_bytes : Int) -> Int raise {
+fn matched_layer_shape(
+  layer : Int32,
+  rows : Int32,
+  input_bytes : Int32,
+) -> Int32 raise {
   guard layer >= 0 &&
     layer < 43 &&
     rows > 0 &&
@@ -59,7 +63,7 @@ async fn matched_upload(pool : @device.TransferPool, bytes : Bytes) -> Unit {
 }
 
 ///|
-fn matched_ints(values : ArrayView[Int]) -> Bytes {
+fn matched_ints(values : ArrayView[Int32]) -> Bytes {
   Bytes::from_array(
     [
       for i in 0..<(values.length() * 4) => {
@@ -72,27 +76,27 @@ fn matched_ints(values : ArrayView[Int]) -> Bytes {
 ///|
 async fn replay_matched_layer(
   arguments : ArrayView[String],
-  routing_projection_law? : @precision.DotReductionLaw = OrderedFloat32,
-  routing_softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
-  routing_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
-  shared_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  output_accumulation? : @precision.DotReductionLaw = OrderedFloat32,
-  output_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  routing_projection_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  routing_softplus_law~ : @precision.SoftplusEvaluationLaw = StableFloat32,
+  routing_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
+  shared_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  output_accumulation~ : @precision.DotReductionLaw = OrderedFloat32,
+  output_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
-  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
-  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
-  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
-  control_matrix_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  matrix_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
-  control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
-  normalization_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  control_square_law~ : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law~ : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
+  control_root_law~ : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  normalization_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),

@@ -45,7 +45,7 @@ fn paged_v3_semantics(
 fn paged_v3_entry(
   kind : @plan.OperationKind,
   layer : @plan.KvLayerId,
-  family_id : Int,
+  family_id : Int32,
 ) -> @catalog.CatalogEntry raise {
   let (shape, capability) = match kind {
     Embedding =>
@@ -101,7 +101,7 @@ fn paged_v3_catalog(layer : @plan.KvLayerId) -> @catalog.KernelCatalog raise {
 
 ///|
 fn paged_v3_layout(
-  tokens_per_page? : Int = 4,
+  tokens_per_page~ : Int32 = 4,
 ) -> @device_layout.DeviceKvLayout raise {
   let plan = catalog_paged_plan()
   @device_layout.plan(

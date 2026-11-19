@@ -1,17 +1,17 @@
 ///|
-const INSTANCE_COUNTER_COUNT : Int = 22
+const INSTANCE_COUNTER_COUNT : Int32 = 22
 
 ///|
-const INSTANCE_GAUGE_COUNT : Int = 6
+const INSTANCE_GAUGE_COUNT : Int32 = 6
 
 ///|
-const INSTANCE_HISTOGRAM_COUNT : Int = 6
+const INSTANCE_HISTOGRAM_COUNT : Int32 = 6
 
 ///|
-const INSTANCE_HISTOGRAM_BUCKET_COUNT : Int = 16
+const INSTANCE_HISTOGRAM_BUCKET_COUNT : Int32 = 16
 
 ///|
-fn counter_index(counter : LunaInstanceCounter) -> Int {
+fn counter_index(counter : LunaInstanceCounter) -> Int32 {
   match counter {
     Admissions => 0
     Completions => 1
@@ -39,7 +39,7 @@ fn counter_index(counter : LunaInstanceCounter) -> Int {
 }
 
 ///|
-fn gauge_index(gauge : LunaInstanceGauge) -> Int {
+fn gauge_index(gauge : LunaInstanceGauge) -> Int32 {
   match gauge {
     QueueDepth => 0
     ActiveRequests => 1
@@ -51,7 +51,7 @@ fn gauge_index(gauge : LunaInstanceGauge) -> Int {
 }
 
 ///|
-fn histogram_index(histogram : LunaInstanceHistogram) -> Int {
+fn histogram_index(histogram : LunaInstanceHistogram) -> Int32 {
   match histogram {
     RequestLatencyMillis => 0
     FirstTokenLatencyMillis => 1
@@ -63,7 +63,7 @@ fn histogram_index(histogram : LunaInstanceHistogram) -> Int {
 }
 
 ///|
-fn latency_bucket_bound(index : Int) -> Int {
+fn latency_bucket_bound(index : Int32) -> Int32 {
   match index {
     0 => 1
     1 => 2
@@ -85,7 +85,7 @@ fn latency_bucket_bound(index : Int) -> Int {
 }
 
 ///|
-fn batch_rows_bucket_bound(index : Int) -> Int {
+fn batch_rows_bucket_bound(index : Int32) -> Int32 {
   match index {
     0 => 1
     1 => 2
@@ -107,7 +107,7 @@ fn batch_rows_bucket_bound(index : Int) -> Int {
 }
 
 ///|
-fn batch_tokens_bucket_bound(index : Int) -> Int {
+fn batch_tokens_bucket_bound(index : Int32) -> Int32 {
   match index {
     0 => 1
     1 => 2
@@ -129,30 +129,30 @@ fn batch_tokens_bucket_bound(index : Int) -> Int {
 }
 
 ///|
-pub fn luna_instance_counter_count() -> Int {
+pub fn luna_instance_counter_count() -> Int32 {
   INSTANCE_COUNTER_COUNT
 }
 
 ///|
-pub fn luna_instance_gauge_count() -> Int {
+pub fn luna_instance_gauge_count() -> Int32 {
   INSTANCE_GAUGE_COUNT
 }
 
 ///|
-pub fn luna_instance_histogram_count() -> Int {
+pub fn luna_instance_histogram_count() -> Int32 {
   INSTANCE_HISTOGRAM_COUNT
 }
 
 ///|
-pub fn luna_instance_histogram_bucket_count() -> Int {
+pub fn luna_instance_histogram_bucket_count() -> Int32 {
   INSTANCE_HISTOGRAM_BUCKET_COUNT
 }
 
 ///|
 pub fn luna_instance_histogram_bucket_upper_bound(
   histogram : LunaInstanceHistogram,
-  bucket_index : Int,
-) -> Int raise LunaInstanceMetricsError {
+  bucket_index : Int32,
+) -> Int32 raise LunaInstanceMetricsError {
   if bucket_index < 0 || bucket_index >= INSTANCE_HISTOGRAM_BUCKET_COUNT {
     raise Invalid(HistogramBucket)
   }
@@ -162,8 +162,8 @@ pub fn luna_instance_histogram_bucket_upper_bound(
 ///|
 fn histogram_bucket_upper_bound_unchecked(
   histogram : LunaInstanceHistogram,
-  bucket_index : Int,
-) -> Int {
+  bucket_index : Int32,
+) -> Int32 {
   match histogram {
     RequestLatencyMillis
     | FirstTokenLatencyMillis
@@ -177,8 +177,8 @@ fn histogram_bucket_upper_bound_unchecked(
 ///|
 fn histogram_bucket_index(
   histogram : LunaInstanceHistogram,
-  value : Int,
-) -> Int {
+  value : Int32,
+) -> Int32 {
   for index = 0; index < INSTANCE_HISTOGRAM_BUCKET_COUNT; index = index + 1 {
     if value <= histogram_bucket_upper_bound_unchecked(histogram, index) {
       break index
@@ -191,7 +191,7 @@ fn histogram_bucket_index(
 ///|
 fn histogram_cell_index(
   histogram : LunaInstanceHistogram,
-  bucket_index : Int,
-) -> Int {
+  bucket_index : Int32,
+) -> Int32 {
   histogram_index(histogram) * INSTANCE_HISTOGRAM_BUCKET_COUNT + bucket_index
 }

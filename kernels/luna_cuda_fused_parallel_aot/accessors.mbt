@@ -43,7 +43,7 @@ pub fn FusedQkvRopeKvWriteCudaCandidate::function_symbol(
 ///|
 pub fn FusedQkvRopeKvWriteCudaCandidate::dispatch_canary(
   self : FusedQkvRopeKvWriteCudaCandidate,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary
 }
 
@@ -113,14 +113,14 @@ pub fn FusedQkvRopeKvWriteCudaCandidate::kv_write_fallback(
 ///|
 pub fn FusedQkvRopeKvWriteCudaCandidate::head_dimension(
   self : FusedQkvRopeKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.parameters.head_dimension
 }
 
 ///|
 pub fn FusedQkvRopeKvWriteCudaCandidate::tokens_per_page(
   self : FusedQkvRopeKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.parameters.tokens_per_page
 }
 
@@ -239,7 +239,7 @@ pub fn FusedResidualRmsNormCudaCandidate::function_symbol(
 ///|
 pub fn FusedResidualRmsNormCudaCandidate::dispatch_canary(
   self : FusedResidualRmsNormCudaCandidate,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary
 }
 
@@ -302,7 +302,7 @@ pub fn FusedResidualRmsNormCudaCandidate::norm_fallback(
 ///|
 pub fn FusedResidualRmsNormCudaCandidate::width(
   self : FusedResidualRmsNormCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.parameters.width
 }
 

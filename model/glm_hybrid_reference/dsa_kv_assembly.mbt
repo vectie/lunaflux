@@ -2,11 +2,11 @@
 pub fn dsa_kv_attention_assembly(
   packed_kv : ArrayView[Double],
   shared_key_suffix : ArrayView[Double],
-  row_count~ : Int,
-  head_count~ : Int,
-  key_nope_width~ : Int,
-  shared_key_suffix_width~ : Int,
-  value_width~ : Int,
+  row_count~ : Int32,
+  head_count~ : Int32,
+  key_nope_width~ : Int32,
+  shared_key_suffix_width~ : Int32,
+  value_width~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmDsaKvAssemblyResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)
@@ -59,22 +59,22 @@ pub fn dsa_kv_attention_assembly(
 }
 
 ///|
-pub fn GlmDsaKvAssemblyResult::row_count(self : Self) -> Int {
+pub fn GlmDsaKvAssemblyResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmDsaKvAssemblyResult::head_count(self : Self) -> Int {
+pub fn GlmDsaKvAssemblyResult::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmDsaKvAssemblyResult::key_width(self : Self) -> Int {
+pub fn GlmDsaKvAssemblyResult::key_width(self : Self) -> Int32 {
   self.key_width
 }
 
 ///|
-pub fn GlmDsaKvAssemblyResult::value_width(self : Self) -> Int {
+pub fn GlmDsaKvAssemblyResult::value_width(self : Self) -> Int32 {
   self.value_width
 }
 

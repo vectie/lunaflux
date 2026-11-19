@@ -2,7 +2,7 @@
 fn require_qwen_fused_attention_plan_span(
   plan : @plan.ModelPlan,
   blueprint : PagedKvExecutionBlueprint,
-  qkv_index : Int,
+  qkv_index : Int32,
 ) -> Unit raise FusedGroupedOperationError {
   let qk_norm_index = qkv_index + 1
   let rope_index = qkv_index + 2
@@ -68,8 +68,8 @@ fn require_qwen_fused_attention_plan_span(
 ///|
 fn qwen_fused_attention_shapes_equal(
   operations : ReadOnlyArray[@plan.PlanOperation],
-  seed_qkv : Int,
-  candidate_qkv : Int,
+  seed_qkv : Int32,
+  candidate_qkv : Int32,
 ) -> Bool {
   for offset in 0..<4 {
     guard operations.get(seed_qkv + offset) is Some(seed) &&
@@ -128,8 +128,8 @@ fn qwen_fused_blueprint_step_shape_equal(
 ///|
 fn require_qwen_fused_blueprint_span_shape(
   blueprint : PagedKvExecutionBlueprint,
-  seed_qkv : Int,
-  candidate_qkv : Int,
+  seed_qkv : Int32,
+  candidate_qkv : Int32,
 ) -> Unit raise FusedGroupedOperationError {
   for offset in 0..<4 {
     guard blueprint.steps().get(seed_qkv + offset) is Some(seed) &&
@@ -153,10 +153,10 @@ fn qwen_partitioned_workspace_product(
 
 ///|
 fn qwen_partitioned_prefill_workspace_bytes(
-  maximum_tokens : Int,
-  query_heads : Int,
-  head_dimension : Int,
-  partitions : Int,
+  maximum_tokens : Int32,
+  query_heads : Int32,
+  head_dimension : Int32,
+  partitions : Int32,
 ) -> Int64 raise FusedGroupedOperationError {
   let states = qwen_partitioned_workspace_product(
     qwen_partitioned_workspace_product(
@@ -179,11 +179,11 @@ fn admit_qwen_partitioned_prefill_pair(
   )?,
   partial_abi : @luna_fused_artifact_admission.ReusableFusedRuntimeKernelAbi,
   merge_abi : @luna_fused_artifact_admission.ReusableFusedRuntimeKernelAbi,
-  attention_operation : Int,
-  compiler_prefill_grid : Int,
-  maximum_tokens : Int,
-  query_heads : Int,
-  head_dimension : Int,
+  attention_operation : Int32,
+  compiler_prefill_grid : Int32,
+  maximum_tokens : Int32,
+  query_heads : Int32,
+  head_dimension : Int32,
 ) -> ApprovedQwenPartitionedPrefill? raise FusedGroupedOperationError {
   match modules {
     Some((partial, merge)) => {
@@ -560,7 +560,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     readonly_launch.shared_memory_bytes() > 0 &&
     readonly_launch.shared_memory_bytes() <= 100000
   } else {
-    readonly_launch.grid_x() == Int::min(maximum_tokens, 128) &&
+    readonly_launch.grid_x() == Int32::min(maximum_tokens, 128) &&
     readonly_launch.block_x() == 128 &&
     readonly_launch.shared_memory_bytes() == 0
   }
@@ -582,7 +582,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     decode_launch.shared_memory_bytes() > 0 &&
     decode_launch.shared_memory_bytes() <= 100000
   } else {
-    decode_launch.grid_x() == Int::min(maximum_tokens, 128) &&
+    decode_launch.grid_x() == Int32::min(maximum_tokens, 128) &&
     decode_launch.block_x() == 128 &&
     decode_launch.shared_memory_bytes() == 0
   }
@@ -592,7 +592,7 @@ pub fn admit_reusable_qwen_fused_attention_spans(
     let rows = postprocess.query_tile_rows().unwrap_or(16)
     (maximum_tokens - 1) / rows + 1
   } else {
-    Int::min(blueprint.profile().max_query_tokens(), 4096)
+    Int32::min(blueprint.profile().max_query_tokens(), 4096)
   }
   let ingress_heads = query_heads + 2 * kv_heads
   let ingress_head_groups = postprocess.launch_dimensions().grid_y()

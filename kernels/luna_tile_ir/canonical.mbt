@@ -1,7 +1,7 @@
 ///|
 priv struct LunaTileEncoder {
   bytes : Array[Byte]
-  maximum : Int
+  maximum : Int32
 }
 
 ///|
@@ -28,7 +28,7 @@ fn LunaTileEncoder::append_u64(
 ///|
 fn LunaTileEncoder::append_int(
   self : LunaTileEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit raise LunaTileError {
   self.append_u64(Int64::from_int(value).reinterpret_as_uint64())
 }
@@ -42,7 +42,7 @@ fn LunaTileEncoder::append_i64(
 }
 
 ///|
-fn luna_tile_dtype_code(value : LunaTileDType) -> Int {
+fn luna_tile_dtype_code(value : LunaTileDType) -> Int32 {
   match value {
     BFloat16 => 1
     Float16 => 2
@@ -53,7 +53,7 @@ fn luna_tile_dtype_code(value : LunaTileDType) -> Int {
 }
 
 ///|
-fn luna_tile_space_code(value : LunaTileAddressSpace) -> Int {
+fn luna_tile_space_code(value : LunaTileAddressSpace) -> Int32 {
   match value {
     Global => 1
     Shared => 2
@@ -194,7 +194,7 @@ fn encode_luna_tile_program(
   tensors : ReadOnlyArray[LunaTileTensorView],
   instructions : ReadOnlyArray[LunaTileInstruction],
   constraints : ReadOnlyArray[LunaTileConstraint],
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaTileError {
   let encoder : LunaTileEncoder = { bytes: [], maximum, }
   for byte in @utf8.encode("LUNATILE-IR-V2") {

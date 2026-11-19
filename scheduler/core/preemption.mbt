@@ -1,7 +1,7 @@
 ///|
 fn Scheduler::aged_requires_preemption(
   self : Scheduler,
-  urgent : Int,
+  urgent : Int32,
 ) -> Bool raise SchedulerError {
   if urgent == NO_INDEX ||
     !self.is_aged(urgent) ||
@@ -52,7 +52,7 @@ fn Scheduler::aged_requires_preemption(
 }
 
 ///|
-fn Scheduler::preemption_victim(self : Scheduler, urgent : Int) -> Int {
+fn Scheduler::preemption_victim(self : Scheduler, urgent : Int32) -> Int32 {
   if urgent == NO_INDEX || self.active_count == 0 {
     return NO_INDEX
   }
@@ -75,7 +75,7 @@ fn Scheduler::preemption_victim(self : Scheduler, urgent : Int) -> Int {
 ///|
 fn Scheduler::release_active_for_recompute(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
 ) -> Unit raise SchedulerError {
   self.preflight_active_release(slot)
   let table = try! self.request_tables.read(slot)
@@ -103,7 +103,7 @@ fn Scheduler::release_active_for_recompute(
 ///|
 fn Scheduler::preempt_for_aged_waiter(
   self : Scheduler,
-) -> Int raise SchedulerError {
+) -> Int32 raise SchedulerError {
   let urgent = self.oldest_prefill()
   if !self.aged_requires_preemption(urgent) {
     return NO_INDEX

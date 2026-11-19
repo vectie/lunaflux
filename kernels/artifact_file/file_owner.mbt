@@ -1,6 +1,6 @@
 ///|
 priv struct OpenedModuleFile {
-  index : Int
+  index : Int32
   digest : @catalog.AotArtifactDigest
   file : @approved_fs.ApprovedFile
   byte_count : Int64

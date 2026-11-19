@@ -8,7 +8,7 @@ pub fn CudaAttentionTileAotRequest::new(
   maximum_shared_memory_bytes~ : Int64,
   abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi,
   symbol~ : String,
-  maximum_source_bytes~ : Int,
+  maximum_source_bytes~ : Int32,
 ) -> CudaAttentionTileAotRequest raise CudaAttentionTileAotError {
   if maximum_shared_memory_bytes <= 0L ||
     maximum_source_bytes <= 0 ||
@@ -42,7 +42,7 @@ pub fn CudaPartitionedAttentionTileAotRequest::new(
   partial_symbol~ : String,
   merge_symbol~ : String,
   maximum_workspace_bytes~ : Int64,
-  maximum_source_bytes~ : Int,
+  maximum_source_bytes~ : Int32,
 ) -> CudaPartitionedAttentionTileAotRequest raise CudaAttentionTileAotError {
   if maximum_shared_memory_bytes <= 0L ||
     maximum_workspace_bytes <= 0L ||

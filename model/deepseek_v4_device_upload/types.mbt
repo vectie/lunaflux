@@ -9,10 +9,10 @@ pub(all) suberror DeepSeekV4DeviceUploadError {
   Borrow(@segmented_host_borrow.SegmentedHostBorrowError)
   Device(@segmented_device_materialize.SegmentedDeviceMaterializationError)
   TokenHashSourceReleased
-  TokenHashLayerCountMismatch(Int)
-  TokenHashLayerOrderMismatch(ordinal~ : Int, layer~ : Int)
-  TokenHashTableByteCountMismatch(ordinal~ : Int, actual~ : Int)
-  TokenHashMetadataDigestInvalid(Int)
+  TokenHashLayerCountMismatch(Int32)
+  TokenHashLayerOrderMismatch(ordinal~ : Int32, layer~ : Int32)
+  TokenHashTableByteCountMismatch(ordinal~ : Int32, actual~ : Int32)
+  TokenHashMetadataDigestInvalid(Int32)
   TokenHashIdentityMismatch
   TokenHashSourceDigestMismatch
   TokenHashLayoutMismatch

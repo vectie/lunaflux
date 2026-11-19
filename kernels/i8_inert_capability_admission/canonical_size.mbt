@@ -1,32 +1,32 @@
 ///|
-const I8_ADMISSION_INTEGER_BYTES : Int = 8
+const I8_ADMISSION_INTEGER_BYTES : Int32 = 8
 
 ///|
-const I8_ADMISSION_SHA256_HEX_BYTES : Int = 64
+const I8_ADMISSION_SHA256_HEX_BYTES : Int32 = 64
 
 ///|
-const I8_ADMISSION_SHA256_TEXT_BYTES : Int = 72
+const I8_ADMISSION_SHA256_TEXT_BYTES : Int32 = 72
 
 ///|
-const I8_ADMISSION_V1_DOMAIN_BYTES : Int = 49
+const I8_ADMISSION_V1_DOMAIN_BYTES : Int32 = 49
 
 ///|
-const I8_ADMISSION_V1_BASE_BYTES : Int = 393
+const I8_ADMISSION_V1_BASE_BYTES : Int32 = 393
 
 ///|
-const I8_ADMISSION_V1_OPERATION_BYTES : Int = 216
+const I8_ADMISSION_V1_OPERATION_BYTES : Int32 = 216
 
 ///|
-const I8_ADMISSION_V1_WEIGHT_BYTES : Int = 224
+const I8_ADMISSION_V1_WEIGHT_BYTES : Int32 = 224
 
 ///|
-const I8_ADMISSION_MAX_OPERATIONS : Int = 65536
+const I8_ADMISSION_MAX_OPERATIONS : Int32 = 65536
 
 ///|
-const I8_ADMISSION_MAX_WEIGHTS : Int = 299590
+const I8_ADMISSION_MAX_WEIGHTS : Int32 = 299590
 
 ///|
-const I8_ADMISSION_MAX_CANONICAL_BYTES : Int = 64 * 1024 * 1024
+const I8_ADMISSION_MAX_CANONICAL_BYTES : Int32 = 64 * 1024 * 1024
 
 ///|
 fn i8_admission_v1_constants_are_consistent() -> Bool {
@@ -62,10 +62,10 @@ fn i8_admission_v1_constants_are_consistent() -> Bool {
 /// Returns the exact v1 size only when every intermediate fits the supplied
 /// envelope. Division-before-multiplication keeps hostile counts from wrapping.
 fn i8_admission_v1_size_within(
-  operation_count : Int,
-  weight_count : Int,
-  maximum : Int,
-) -> Int? {
+  operation_count : Int32,
+  weight_count : Int32,
+  maximum : Int32,
+) -> Int32? {
   if !i8_admission_v1_constants_are_consistent() ||
     operation_count < 0 ||
     weight_count < 0 ||

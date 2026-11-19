@@ -33,8 +33,8 @@ pub fn TextConditioningProgram::new(
 
 ///|
 fn text_conditioning_bytes(
-  rows : Int,
-  width : Int,
+  rows : Int32,
+  width : Int32,
   budget : Int64,
 ) -> Int64 raise @device.DeviceError {
   guard rows > 0 &&

@@ -4,7 +4,7 @@
 /// Inactive instruction rows are explicitly masked. Probability quantization
 /// is a named alternative law, not an exact rewrite of the SIMT F32 fold.
 pub struct GroupedMatrixDecodeFold {
-  priv heads : Int
+  priv heads : Int32
   priv fold : OnlineFold
 } derive(Debug, Eq)
 
@@ -16,9 +16,9 @@ pub extend GroupedMatrixDecodeFold with @debug.Debug::{to_repr}
 
 ///|
 pub fn GroupedMatrixDecodeFold::new(
-  heads~ : Int,
-  keys~ : Int,
-  dimensions~ : Int,
+  heads~ : Int32,
+  keys~ : Int32,
+  dimensions~ : Int32,
 ) -> GroupedMatrixDecodeFold? {
   if heads <= 0 ||
     heads > 16 ||
@@ -33,7 +33,7 @@ pub fn GroupedMatrixDecodeFold::new(
 ///|
 pub fn GroupedMatrixDecodeFold::head_rows(
   self : GroupedMatrixDecodeFold,
-) -> Int {
+) -> Int32 {
   self.heads
 }
 
@@ -54,7 +54,7 @@ pub fn GroupedMatrixDecodeFold::numeric_law(
 ///|
 pub fn GroupedMatrixDecodeFold::active_head(
   self : GroupedMatrixDecodeFold,
-  row : Int,
+  row : Int32,
 ) -> Bool {
   row >= 0 && row < self.heads
 }

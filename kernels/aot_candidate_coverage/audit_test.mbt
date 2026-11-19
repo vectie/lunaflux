@@ -8,9 +8,9 @@ fn coverage_identity(fill : Char) -> @spec.ModelIdentity {
 
 ///|
 fn coverage_limits(
-  maximum_requirements? : Int = 16,
-  maximum_candidates? : Int = 16,
-  maximum_encoding_bytes? : Int = 4096,
+  maximum_requirements~ : Int32 = 16,
+  maximum_candidates~ : Int32 = 16,
+  maximum_encoding_bytes~ : Int32 = 4096,
 ) -> AotCandidateCoverageLimits {
   try! AotCandidateCoverageLimits::new(
     maximum_requirements~,
@@ -22,7 +22,7 @@ fn coverage_limits(
 ///|
 fn coverage_candidate(
   identity : @spec.ModelIdentity,
-  ordinal : Int,
+  ordinal : Int32,
   bindable : Bool,
   recipe_fill? : Char,
 ) -> AotCandidateEvidenceInput {

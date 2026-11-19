@@ -32,7 +32,7 @@ fn readonly_fixture_operation() -> @plan.PlanOperation raise {
 
 ///|
 fn readonly_fixture_layout(
-  tokens_per_page? : Int = 2,
+  tokens_per_page~ : Int32 = 2,
 ) -> @device_layout.DeviceKvLayout raise {
   @device_layout.plan(
     readonly_fixture_identity(),
@@ -140,7 +140,7 @@ fn readonly_fixture_reference() -> @luna_cuda_paged_attention_aot.PagedAttention
 
 ///|
 fn readonly_fixture_candidate(
-  entry? : Int = 103,
+  entry~ : Int32 = 103,
 ) -> @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyCudaCandidate raise {
   @luna_cuda_paged_attention_readonly_aot.lower_paged_attention_readonly_cuda_aot_candidate(
     readonly_fixture_reference(),

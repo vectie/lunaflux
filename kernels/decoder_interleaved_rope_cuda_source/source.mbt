@@ -2,18 +2,18 @@
 fn valid_interleaved_rope_symbol(symbol : StringView) -> Bool {
   !symbol.is_empty() &&
   symbol.length() <= 128 &&
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn interleaved_pair_rope_with_query_prefix_copy_bf16_source(
-  query_head_count~ : Int,
-  key_head_count~ : Int,
-  query_head_dimension~ : Int,
-  rope_dimension~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  query_head_count~ : Int32,
+  key_head_count~ : Int32,
+  query_head_dimension~ : Int32,
+  rope_dimension~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   theta~ : Double,
   function_symbol~ : String,
 ) -> DecoderInterleavedRopeCudaSource raise DecoderInterleavedRopeCudaSourceError {

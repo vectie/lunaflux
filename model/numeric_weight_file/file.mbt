@@ -13,9 +13,9 @@ fn open_numeric_weight_file(
 fn read_numeric_weight_range(
   file : @approved_fs.ApprovedFile,
   destination : FixedArray[Byte],
-  destination_offset : Int,
+  destination_offset : Int32,
   position : Int64,
-  byte_count : Int,
+  byte_count : Int32,
 ) -> Unit raise NumericWeightFileError {
   file.read_exactly_at(destination, destination_offset~, byte_count~, position~) catch {
     Truncated => raise FileTruncated

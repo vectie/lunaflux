@@ -1,25 +1,25 @@
 ///|
-pub fn CheckedI32Table::row_count(self : Self) -> Int {
+pub fn CheckedI32Table::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn CheckedI32Table::column_count(self : Self) -> Int {
+pub fn CheckedI32Table::column_count(self : Self) -> Int32 {
   self.column_count
 }
 
 ///|
-pub fn CheckedI32Table::minimum_value(self : Self) -> Int {
+pub fn CheckedI32Table::minimum_value(self : Self) -> Int32 {
   self.minimum_value
 }
 
 ///|
-pub fn CheckedI32Table::exclusive_maximum_value(self : Self) -> Int {
+pub fn CheckedI32Table::exclusive_maximum_value(self : Self) -> Int32 {
   self.exclusive_maximum_value
 }
 
 ///|
-pub fn CheckedI32Table::byte_count(self : Self) -> Int {
+pub fn CheckedI32Table::byte_count(self : Self) -> Int32 {
   self.row_count * self.column_count * 4
 }
 

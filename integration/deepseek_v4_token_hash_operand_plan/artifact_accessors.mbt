@@ -20,14 +20,14 @@ pub fn DeepSeekV4TokenHashArtifactBinding::requirements_digest(
 }
 
 ///|
-pub fn DeepSeekV4TokenHashArtifactBinding::layer_index(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashArtifactBinding::layer_index(self : Self) -> Int32 {
   self.layer_index
 }
 
 ///|
 pub fn DeepSeekV4TokenHashArtifactBinding::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -62,7 +62,7 @@ pub fn DeepSeekV4TokenHashArtifactBinding::module_digest(
 ///|
 pub fn DeepSeekV4TokenHashArtifactBinding::module_byte_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.module_byte_count
 }
 
@@ -88,14 +88,14 @@ pub fn DeepSeekV4TokenHashArtifactBinding::dimensions(
 }
 
 ///|
-pub fn DeepSeekV4TokenHashArtifactBinding::operand_count(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashArtifactBinding::operand_count(self : Self) -> Int32 {
   self.operand_count
 }
 
 ///|
 pub fn DeepSeekV4TokenHashArtifactBinding::token_hash_operand_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.token_hash_operand_ordinal
 }
 

@@ -23,15 +23,15 @@ pub fn QkNormRopePagedKvWriteKernelAbi::canonical_name(
 /// generated CUDA. Operands 0..<9 are read-only; operands 9..<12 are writable
 /// and must be disjoint from every other operand and from one another.
 pub struct QkNormRopePagedKvWriteAliasContract {
-  priv first_writable_operand : Int
-  priv operand_count : Int
+  priv first_writable_operand : Int32
+  priv operand_count : Int32
 }
 
 ///|
 pub fn QkNormRopePagedKvWriteAliasContract::requires_nonoverlap(
   self : QkNormRopePagedKvWriteAliasContract,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Bool {
   if left < 0 ||
     right < 0 ||
@@ -59,22 +59,22 @@ pub fn QkNormRopePagedKvWriteAliasContract::canonical_name(
 
 ///|
 pub struct QkNormRopePagedKvWriteAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
   priv max_module_bytes : Int64
-  priv max_receipt_bytes : Int
-  priv max_binding_bytes : Int
-  priv maximum_grid_x : Int
+  priv max_receipt_bytes : Int32
+  priv max_binding_bytes : Int32
+  priv maximum_grid_x : Int32
 }
 
 ///|
 pub fn QkNormRopePagedKvWriteAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
   max_module_bytes~ : Int64,
-  max_receipt_bytes~ : Int,
-  max_binding_bytes~ : Int,
-  maximum_grid_x? : Int = 4096,
+  max_receipt_bytes~ : Int32,
+  max_binding_bytes~ : Int32,
+  maximum_grid_x~ : Int32 = 4096,
 ) -> QkNormRopePagedKvWriteAotLimits raise QkNormRopePagedKvWriteAotError {
   if max_source_bytes <= 0 ||
     max_source_bytes > 1048576 ||

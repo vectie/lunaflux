@@ -1,11 +1,11 @@
 ///|
 fn kda_short_convolution_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  channel_count : Int,
-  kernel_size : Int,
-  maximum_tokens : Int,
-  maximum_sequences : Int,
+  ordinal : Int32,
+  channel_count : Int32,
+  kernel_size : Int32,
+  maximum_tokens : Int32,
+  maximum_sequences : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -103,9 +103,9 @@ fn kda_short_convolution_recipe(
 /// deliberately outside this artifact.
 pub fn lower_kda_short_convolution_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
-  maximum_sequences~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
+  maximum_sequences~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

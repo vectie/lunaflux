@@ -16,7 +16,7 @@ fn BatchedDecoderFrame::commit_slots(self : Self) -> Unit {
 /// poisons this owner. Invalid samples are failures, never successful tokens.
 pub fn BatchedDecoderFrame::complete(
   self : Self,
-  sampled_tokens : ArrayView[Int],
+  sampled_tokens : ArrayView[Int32],
   execution_failed~ : Bool,
 ) -> @wire.ValidatedCompletionFrame raise {
   self.require_staged()
@@ -101,8 +101,12 @@ pub fn BatchedDecoderFrame::contains_request(
   self.require_idle()
   guard request_id > 0UL else { raise UnknownRequest }
   let slot = self.find_live(request_id)
-  if slot < 0 { return false }
-  guard self.generations[slot] == request_generation else { raise GenerationMismatch }
+  if slot < 0 {
+    return false
+  }
+  guard self.generations[slot] == request_generation else {
+    raise GenerationMismatch
+  }
   true
 }
 
@@ -122,7 +126,7 @@ pub fn BatchedDecoderFrame::processed_tokens(
   self : Self,
   request_id : UInt64,
   request_generation : UInt64,
-) -> Int raise BatchFrameError {
+) -> Int32 raise BatchFrameError {
   guard !(self.state is Closed) else { raise Closed }
   let slot = self.find_live(request_id)
   guard slot >= 0 else { raise UnknownRequest }

@@ -44,7 +44,7 @@ fn validate_fp8_executor_weights_v3(
 ///|
 fn collect_fp8_paged_functions_v3(
   blueprint : Fp8PagedExecutionBlueprintV3,
-) -> (ReadOnlyArray[PagedFunctionBlueprint], FixedArray[Int]) {
+) -> (ReadOnlyArray[PagedFunctionBlueprint], FixedArray[Int32]) {
   let functions : Array[PagedFunctionBlueprint] = []
   let indices = FixedArray::make(blueprint.steps().length(), 0)
   for step_index, step in blueprint.steps() {
@@ -91,7 +91,7 @@ fn validate_fp8_physical_regions_v3(
 ///|
 fn prepare_fp8_paged_steps_v3(
   blueprint : Fp8PagedExecutionBlueprintV3,
-  function_indices : FixedArray[Int],
+  function_indices : FixedArray[Int32],
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
@@ -149,8 +149,8 @@ pub fn prepare_fp8_paged_graph_executor_v3(
   weights : @numeric_weight_file.AuthenticatedNumericWeightAuthority,
   has_accepted_predecessor~ : Bool,
   accepted_predecessor_value~ : UInt64,
-  graph_policy? : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
-  diagnostic_policy? : PagedExecutionDiagnosticPolicy = ProductionFastPath,
+  graph_policy~ : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
+  diagnostic_policy~ : PagedExecutionDiagnosticPolicy = ProductionFastPath,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let resources = empty_paged_resources()
   resources.numeric_weights = Some(Fp8NumericWeights(weights))

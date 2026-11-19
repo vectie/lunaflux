@@ -41,7 +41,7 @@ fn qualification_http_request(credential : String?, body : String) -> Bytes {
 async fn qualification_write_all(
   client : @socket.Tcp,
   source : Bytes,
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> Unit raise RuntimeOpenAiQualificationValidationError {
   let mut cursor = 0
   while cursor < source.length() {
@@ -66,8 +66,8 @@ async fn qualification_write_all(
 ///|
 async fn qualification_read_all(
   client : @socket.Tcp,
-  maximum_bytes : Int,
-  timeout_millis : Int,
+  maximum_bytes : Int32,
+  timeout_millis : Int32,
 ) -> String raise RuntimeOpenAiQualificationValidationError {
   let storage = FixedArray::make(maximum_bytes, b'\x00')
   let mut cursor = 0
@@ -102,7 +102,7 @@ async fn qualification_read_all(
 ///|
 async fn qualification_connect(
   owner : RuntimeInstanceOwner,
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> @socket.Tcp raise RuntimeOpenAiQualificationValidationError {
   let addr = owner.singular_ingress_addr() catch {
     _ => raise openai_qualification_validation_error(OpenAiQualificationConnect)
@@ -122,7 +122,7 @@ async fn qualification_connect(
 ///|
 async fn qualification_wait_connected(
   owner : RuntimeInstanceOwner,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeOpenAiQualificationValidationError {
   for turn in 0..<turn_limit {
     ignore(
@@ -151,7 +151,7 @@ async fn qualification_wait_connected(
 async fn qualification_wait_retired(
   owner : RuntimeInstanceOwner,
   expected_disconnects : UInt64,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeOpenAiQualificationValidationError {
   for turn in 0..<turn_limit {
     ignore(
@@ -211,7 +211,7 @@ async fn qualification_exchange(
 ///|
 async fn qualification_operational_connect(
   owner : RuntimeInstanceOwner,
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> @socket.Tcp raise RuntimeOpenAiQualificationValidationError {
   let connected = @async.with_timeout_opt(timeout_millis, () => {
     @socket.Tcp::connect(owner.operational_local_addr())
@@ -229,7 +229,7 @@ async fn qualification_operational_connect(
 async fn qualification_wait_operational_state(
   owner : RuntimeInstanceOwner,
   connected : Bool,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeOpenAiQualificationValidationError {
   for turn in 0..<turn_limit {
     ignore(
@@ -289,7 +289,11 @@ async fn qualification_operational_exchange(
 }
 
 ///|
-fn qualification_find_from(source : Bytes, needle : Bytes, start : Int) -> Int {
+fn qualification_find_from(
+  source : Bytes,
+  needle : Bytes,
+  start : Int32,
+) -> Int32 {
   if needle.length() == 0 || start < 0 || needle.length() > source.length() {
     return -1
   }

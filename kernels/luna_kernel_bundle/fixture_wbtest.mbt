@@ -1,5 +1,5 @@
 ///|
-fn bundle_fixture_module(operation : Int) -> Bytes {
+fn bundle_fixture_module(operation : Int32) -> Bytes {
   if operation == 1 {
     b"cubin-b"
   } else {
@@ -8,14 +8,16 @@ fn bundle_fixture_module(operation : Int) -> Bytes {
 }
 
 ///|
-fn bundle_fixture_digest(operation : Int) -> @catalog.AotArtifactDigest raise {
+fn bundle_fixture_digest(operation : Int32) -> @catalog.AotArtifactDigest raise {
   @catalog.AotArtifactDigest::from_sha256(
     kernel_bundle_sha256(bundle_fixture_module(operation)),
   )
 }
 
 ///|
-fn bundle_fixture_entry(operation : Int) -> @catalog.AotKernelEntryPoint raise {
+fn bundle_fixture_entry(
+  operation : Int32,
+) -> @catalog.AotKernelEntryPoint raise {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
       module_digest=bundle_fixture_digest(operation),
@@ -189,7 +191,7 @@ fn bundle_fixture_operand(
 
 ///|
 fn bundle_fixture_operands(
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] raise {
   let layer = @plan.KvLayerId::new(0)
   match operation {
@@ -245,7 +247,7 @@ fn bundle_fixture_operands(
 
 ///|
 fn bundle_fixture_dimensions(
-  operation : Int,
+  operation : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=if operation == 2 { 4 } else { operation + 1 },

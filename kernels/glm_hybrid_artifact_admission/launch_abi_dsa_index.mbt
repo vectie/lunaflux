@@ -1,8 +1,8 @@
 ///|
 fn dsa_pooling_policy(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Bool)? {
-  let mut result : (Int, Bool)? = None
+) -> (Int32, Bool)? {
+  let mut result : (Int32, Bool)? = None
   for requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexPooling(pool_size, true, tail) {
       if result is Some(_) {
@@ -20,7 +20,7 @@ fn dsa_pooling_policy(
 ///|
 fn dsa_index_geometry(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int, Int, Bool)? {
+) -> (Int32, Int32, Int32, Bool)? {
   let mut result = None
   for requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexCompute(a, b, c, d) {
@@ -36,9 +36,9 @@ fn dsa_index_geometry(
 ///|
 fn exact_dsa_index_compute_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  head_count : Int,
-  head_dimension : Int,
-  top_k : Int,
+  head_count : Int32,
+  head_dimension : Int32,
+  top_k : Int32,
   rope_interleave : Bool,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {

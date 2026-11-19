@@ -26,8 +26,8 @@ pub fn load_paged_fp8_v5(
   reusable_limits : @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3Limits,
   approval : @worker_wire.WorkerBootstrapLunaApproval,
   release_limits : @fp8_release_authority.Fp8ReleaseAuthorityLimits,
-  verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
-  parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
+  verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  parent_witness~ : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
 ) -> Fp8PagedExecutionAdmissionV5 raise ExecutionManifestFileError {
   if inspection.identity() != plan.identity() ||
     inspection.layout().identity() != plan.identity() ||

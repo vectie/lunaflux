@@ -22,7 +22,7 @@ fn fixture_digest(value : String) -> String {
 
 ///|
 fn fixture_operations(
-  projection_workspace? : Int64 = 64L,
+  projection_workspace~ : Int64 = 64L,
 ) -> Array[@plan.PlanOperation] {
   [
     try! @plan.PlanOperation::new_stateless(
@@ -50,7 +50,7 @@ fn fixture_operations(
 }
 
 ///|
-fn fixture_plan(projection_workspace? : Int64 = 64L) -> @plan.ModelPlan {
+fn fixture_plan(projection_workspace~ : Int64 = 64L) -> @plan.ModelPlan {
   let operations = fixture_operations(projection_workspace~)
   let numeric = @plan_test_fixture.synthetic_fp8_w8a8_numeric_schema(
     operations,
@@ -98,7 +98,7 @@ fn fixture_module_digest() -> @catalog.AotArtifactDigest {
 }
 
 ///|
-fn fixture_family(id : Int) -> @catalog.AotKernelFamily {
+fn fixture_family(id : Int32) -> @catalog.AotKernelFamily {
   @catalog.AotKernelFamily::new(
     module_digest=fixture_module_digest(),
     family_id=try! @catalog.AotKernelFamilyId::from_stable_int(id),
@@ -106,7 +106,7 @@ fn fixture_family(id : Int) -> @catalog.AotKernelFamily {
 }
 
 ///|
-fn fixture_entry(family : Int, id : Int) -> @catalog.AotKernelEntryPoint {
+fn fixture_entry(family : Int32, id : Int32) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=fixture_family(family),
     entry_point_id=try! @catalog.AotKernelEntryPointId::from_stable_int(id),
@@ -156,8 +156,8 @@ fn fixture_catalog(plan : @plan.ModelPlan) -> @catalog.ResolvedKernelCatalog {
 
 ///|
 fn fixture_profile(
-  id? : Int = 1,
-  sequence_tokens? : Int = 2,
+  id~ : Int32 = 1,
+  sequence_tokens~ : Int32 = 2,
 ) -> @launch_contract.KernelProfile {
   try! @launch_contract.KernelProfile::full_prefill(
     id=@launch_contract.KernelProfileId::from_stable_int(id),
@@ -170,7 +170,7 @@ fn fixture_profile(
 ///|
 fn fixture_operands(
   operation : @plan.PlanOperation,
-  sequence_tokens? : Int = 2,
+  sequence_tokens~ : Int32 = 2,
 ) -> Array[@launch_contract.AotOperand] {
   let activation_bytes = sequence_tokens.to_int64() * 32L
   if operation.id().as_int() == 0 {
@@ -333,7 +333,7 @@ fn fixture_region(
   offset : Int64,
   length : Int64,
   alignment : Int64,
-  workspace? : Bool = false,
+  workspace~ : Bool = false,
 ) -> @fp8_launch_abi.Fp8LaunchStorageRegion {
   try! @fp8_launch_abi.Fp8LaunchStorageRegion::new(
     storage=@fp8_launch_abi.Fp8LaunchStorageIdentity::from_sha256(

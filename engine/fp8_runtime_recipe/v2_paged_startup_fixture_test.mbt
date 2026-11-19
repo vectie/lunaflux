@@ -1,6 +1,6 @@
 ///|
 fn runtime_recipe_v2_fixture(
-  content? : String = "1111111111111111111111111111111111111111111111111111111111111111",
+  content~ : String = "1111111111111111111111111111111111111111111111111111111111111111",
 ) -> RuntimeRecipeV2Fixture raise {
   let plan = recipe_v2_plan(content~)
   let resolved = recipe_v2_resolved(plan)

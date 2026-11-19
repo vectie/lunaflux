@@ -13,7 +13,7 @@ fn video_vae_model_metadata() -> @minimax_h3_spec.MiniMaxH3ModelMetadata {
 
 ///|
 fn video_vae_manifest_fixture(
-  original? : Bool = false,
+  original~ : Bool = false,
 ) -> MiniMaxH3HostComponentManifest {
   let schema = @minimax_h3_weights.MiniMaxH3VideoVaeSchema::official_v1()
   let source = @minimax_h3_weights.MiniMaxH3OriginalVideoVaeSchema::official_v1()

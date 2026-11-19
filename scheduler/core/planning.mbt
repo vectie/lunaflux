@@ -1,7 +1,7 @@
 ///|
 fn Scheduler::row_table(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
 ) -> @block_table.BlockTableId raise SchedulerError {
   let occupied = try self.request_tables.is_occupied(slot) catch {
     error => raise BlockTable(error)
@@ -36,9 +36,9 @@ fn Scheduler::row_table(
 fn Scheduler::append_pages(
   self : Scheduler,
   table : @block_table.BlockTableId,
-  old_count : Int,
-  target_count : Int,
-  slot : Int,
+  old_count : Int32,
+  target_count : Int32,
+  slot : Int32,
 ) -> Unit raise SchedulerError {
   let needed = target_count - old_count
   if needed > 0 {
@@ -73,7 +73,7 @@ fn Scheduler::append_pages(
 ///|
 fn Scheduler::stage_selected_prefix_pages(
   self : Scheduler,
-  row : Int,
+  row : Int32,
   table : @block_table.BlockTableId,
 ) -> Unit raise SchedulerError {
   let offset = self.prefix_selection_offsets[row]
@@ -154,7 +154,7 @@ fn[T] rollback_plan_build(
 fn Scheduler::build_prefill_row(
   self : Scheduler,
   plan : @worker_protocol.SchedulePlanBuffer,
-  row : Int,
+  row : Int32,
 ) -> Unit raise SchedulerError {
   let slot = self.prefill_slots[row]
   let request = self.requests[slot].unwrap()
@@ -225,7 +225,7 @@ fn Scheduler::build_prefill_row(
 fn Scheduler::build_decode_row(
   self : Scheduler,
   plan : @worker_protocol.SchedulePlanBuffer,
-  row : Int,
+  row : Int32,
 ) -> Unit raise SchedulerError {
   let slot = self.decode_slots[row]
   let request = self.requests[slot].unwrap()

@@ -19,8 +19,8 @@ pub struct DeepSeekTextIo {
 ///|
 pub fn DeepSeekTextIo::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
-  maximum_output_rows~ : Int,
+  maximum_rows~ : Int32,
+  maximum_output_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
   {
@@ -63,7 +63,7 @@ pub fn DeepSeekTextIo::prepare(
   checkpoint : @materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   output_count~ : @device.Allocation,

@@ -50,14 +50,14 @@ pub fn AdmittedLunaTensorCorePhysicalEvidence::instruction_family(
 ///|
 pub fn AdmittedLunaTensorCorePhysicalEvidence::numeric_case_count(
   self : AdmittedLunaTensorCorePhysicalEvidence,
-) -> Int {
+) -> Int32 {
   self.numeric_case_count
 }
 
 ///|
 pub fn AdmittedLunaTensorCorePhysicalEvidence::registers_per_thread(
   self : AdmittedLunaTensorCorePhysicalEvidence,
-) -> Int {
+) -> Int32 {
   self.registers_per_thread
 }
 

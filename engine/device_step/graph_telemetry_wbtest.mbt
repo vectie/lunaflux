@@ -1,7 +1,7 @@
 ///|
 fn graph_telemetry_shape(
-  batch_rows : Int,
-  sequence_tokens : Int,
+  batch_rows : Int32,
+  sequence_tokens : Int32,
 ) -> @luna_capability_manifest.LunaGraphShapeClass raise {
   @luna_capability_manifest.LunaGraphShapeClass::from_execution_shape(
     @device_profile.ExactExecutionShape::full_recompute(

@@ -1,13 +1,13 @@
 ///|
 pub(all) suberror BlockFp8Ue8M0ReferenceError {
-  InvalidE4M3Code(Int)
-  InvalidE8M0Code(Int)
+  InvalidE4M3Code(Int32)
+  InvalidE8M0Code(Int32)
   InvalidShape
-  NonFiniteInput(Int)
+  NonFiniteInput(Int32)
 } derive(Debug, Eq)
 
 ///|
-fn power_of_two(exponent : Int) -> Float {
+fn power_of_two(exponent : Int32) -> Float {
   let mut value = 1.0F
   if exponent >= 0 {
     for _ in 0..<exponent {
@@ -31,7 +31,7 @@ fn round_bf16_rne(value : Float) -> Float {
 ///|
 /// Decode one finite NVIDIA E4M3FN storage code.
 pub fn decode_e4m3_finite(
-  code : Int,
+  code : Int32,
 ) -> Float raise BlockFp8Ue8M0ReferenceError {
   if code < 0 || code > 255 || code == 0x7f || code == 0xff {
     raise InvalidE4M3Code(code)
@@ -50,7 +50,7 @@ pub fn decode_e4m3_finite(
 
 ///|
 /// Decode NVIDIA UE8M0FNU: codes 0..254 are 2^(code-127); 255 is NaN.
-pub fn decode_ue8m0(code : Int) -> Float raise BlockFp8Ue8M0ReferenceError {
+pub fn decode_ue8m0(code : Int32) -> Float raise BlockFp8Ue8M0ReferenceError {
   if code < 0 || code >= 255 {
     raise InvalidE8M0Code(code)
   }
@@ -61,7 +61,7 @@ pub fn decode_ue8m0(code : Int) -> Float raise BlockFp8Ue8M0ReferenceError {
 /// Round finite F32 to finite E4M3FN, ties to an even stored significand.
 pub fn round_e4m3_finite_code(
   value : Float,
-) -> Int raise BlockFp8Ue8M0ReferenceError {
+) -> Int32 raise BlockFp8Ue8M0ReferenceError {
   if value.is_nan() || value.is_inf() {
     raise NonFiniteInput(0)
   }
@@ -89,7 +89,7 @@ pub fn round_e4m3_finite_code(
 /// Official activation scale code for one non-empty block of at most 128.
 pub fn activation_scale_ue8m0_code(
   values : ArrayView[Float],
-) -> Int raise BlockFp8Ue8M0ReferenceError {
+) -> Int32 raise BlockFp8Ue8M0ReferenceError {
   if values.length() <= 0 || values.length() > 128 {
     raise InvalidShape
   }
@@ -113,8 +113,8 @@ pub fn activation_scale_ue8m0_code(
 /// Ordered scalar oracle for one K-wide dot, K a positive multiple of 128.
 pub fn block128_dot_bf16_boundary(
   input : ArrayView[Float],
-  weight_codes : ArrayView[Int],
-  weight_scale_codes : ArrayView[Int],
+  weight_codes : ArrayView[Int32],
+  weight_scale_codes : ArrayView[Int32],
 ) -> Float raise BlockFp8Ue8M0ReferenceError {
   if input.length() <= 0 ||
     input.length() % 128 != 0 ||

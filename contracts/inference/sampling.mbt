@@ -14,7 +14,7 @@ pub(all) enum SamplingMode {
 pub struct SamplingParameters {
   priv mode : SamplingMode
   priv temperature : Double
-  priv top_k : Int?
+  priv top_k : Int32?
   priv top_p : Double?
 } derive(Debug, Eq)
 
@@ -26,7 +26,7 @@ pub struct LunaValidatedSampling {
   priv mode : SamplingMode
   priv temperature : Double
   priv has_top_k : Bool
-  priv top_k : Int
+  priv top_k : Int32
   priv has_top_p : Bool
   priv top_p : Double
 }
@@ -47,7 +47,7 @@ pub fn LunaValidatedSampling::greedy() -> Self {
 pub fn LunaValidatedSampling::sample(
   temperature~ : Double,
   has_top_k~ : Bool,
-  top_k~ : Int,
+  top_k~ : Int32,
   has_top_p~ : Bool,
   top_p~ : Double,
   limits : InferenceLimits,
@@ -97,7 +97,7 @@ pub fn SamplingParameters::greedy() -> SamplingParameters {
 /// Constructs temperature sampling with optional top-k and top-p filters.
 pub fn SamplingParameters::sample(
   temperature~ : Double,
-  top_k? : Int,
+  top_k? : Int32,
   top_p? : Double,
   limits : InferenceLimits,
 ) -> SamplingParameters raise InferenceContractError {
@@ -133,7 +133,7 @@ pub fn SamplingParameters::temperature(self : SamplingParameters) -> Double {
 }
 
 ///|
-pub fn SamplingParameters::top_k(self : SamplingParameters) -> Int? {
+pub fn SamplingParameters::top_k(self : SamplingParameters) -> Int32? {
   self.top_k
 }
 
@@ -172,3 +172,15 @@ fn SamplingParameters::validate(
       )
   }
 }
+
+///|
+pub extend SamplingMode with @debug.Debug::{to_repr}
+
+///|
+pub extend SamplingMode with Eq::{not_equal, equal}
+
+///|
+pub extend SamplingParameters with @debug.Debug::{to_repr}
+
+///|
+pub extend SamplingParameters with Eq::{not_equal, equal}

@@ -1,6 +1,6 @@
 ///|
 priv struct FusedBenchmarkIntegerSummary {
-  count : Int
+  count : Int32
   minimum : Int64
   p50 : Int64
   maximum : Int64
@@ -12,7 +12,7 @@ pub struct FusedCandidateBenchmarkQualificationEvidence {
   priv family : @luna_cuda_fused_parallel_aot.FusedParallelFamily
   priv candidate : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   priv shape_set : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  priv observation_count : Int
+  priv observation_count : Int32
   priv canonical : Bytes
   priv digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
 }
@@ -41,7 +41,7 @@ pub fn FusedCandidateBenchmarkQualificationEvidence::shape_set_identity(
 ///|
 pub fn FusedCandidateBenchmarkQualificationEvidence::observation_count(
   self : FusedCandidateBenchmarkQualificationEvidence,
-) -> Int {
+) -> Int32 {
   self.observation_count
 }
 

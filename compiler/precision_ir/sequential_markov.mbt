@@ -6,10 +6,10 @@
 /// Temperature zero is stable argmax; positive temperature is categorical
 /// Gumbel-max. RNG seed and sequence are explicit caller-owned device ports.
 pub struct SequentialMarkovPrecision {
-  priv vocabulary : Int
-  priv hidden : Int
-  priv rank : Int
-  priv rows : Int
+  priv vocabulary : Int32
+  priv hidden : Int32
+  priv rank : Int32
+  priv rows : Int32
   priv temperature : Double
   priv embedding_bytes : Int64
   priv confidence_weight_bytes : Int64
@@ -18,10 +18,10 @@ pub struct SequentialMarkovPrecision {
 
 ///|
 pub fn SequentialMarkovPrecision::new(
-  vocabulary_size~ : Int,
-  hidden_width~ : Int,
-  embedding_width~ : Int,
-  maximum_rows~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_width~ : Int32,
+  embedding_width~ : Int32,
+  maximum_rows~ : Int32,
   temperature~ : Double,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
@@ -65,7 +65,9 @@ pub fn SequentialMarkovPrecision::new(
 }
 
 ///|
-pub fn SequentialMarkovPrecision::geometry(self : Self) -> (Int, Int, Int, Int) {
+pub fn SequentialMarkovPrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32) {
   (self.vocabulary, self.hidden, self.rank, self.rows)
 }
 

@@ -1,7 +1,7 @@
 ///|
 pub fn GlmDecoderSlice::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Ready else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)

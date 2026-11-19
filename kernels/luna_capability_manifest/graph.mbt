@@ -1,9 +1,9 @@
 ///|
 pub struct LunaGraphShapeClass {
   priv phase : @device_profile.ExecutionPhase
-  priv batch_rows : Int
-  priv query_tokens_per_row : Int
-  priv context_tokens : Int
+  priv batch_rows : Int32
+  priv query_tokens_per_row : Int32
+  priv context_tokens : Int32
   priv token_rows : Int64
 } derive(Debug, Eq)
 
@@ -21,7 +21,7 @@ pub fn LunaGraphShapeClass::from_execution_shape(
 }
 
 ///|
-pub fn LunaGraphShapeClass::batch_rows(self : LunaGraphShapeClass) -> Int {
+pub fn LunaGraphShapeClass::batch_rows(self : LunaGraphShapeClass) -> Int32 {
   self.batch_rows
 }
 
@@ -35,12 +35,12 @@ pub fn LunaGraphShapeClass::phase(
 ///|
 pub fn LunaGraphShapeClass::query_tokens_per_row(
   self : LunaGraphShapeClass,
-) -> Int {
+) -> Int32 {
   self.query_tokens_per_row
 }
 
 ///|
-pub fn LunaGraphShapeClass::context_tokens(self : LunaGraphShapeClass) -> Int {
+pub fn LunaGraphShapeClass::context_tokens(self : LunaGraphShapeClass) -> Int32 {
   self.context_tokens
 }
 

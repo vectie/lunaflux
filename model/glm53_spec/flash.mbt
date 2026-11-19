@@ -43,127 +43,129 @@ pub fn Glm53FlashSpec::vision_model_type(self : Self) -> String {
 }
 
 ///|
-pub fn Glm53FlashSpec::vocabulary_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vocabulary_size(self : Self) -> Int32 {
   ignore(self)
   154880
 }
 
 ///|
-pub fn Glm53FlashSpec::hidden_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::hidden_size(self : Self) -> Int32 {
   ignore(self)
   4096
 }
 
 ///|
-pub fn Glm53FlashSpec::dense_intermediate_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::dense_intermediate_size(self : Self) -> Int32 {
   ignore(self)
   12288
 }
 
 ///|
-pub fn Glm53FlashSpec::moe_intermediate_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::moe_intermediate_size(self : Self) -> Int32 {
   ignore(self)
   2048
 }
 
 ///|
-pub fn Glm53FlashSpec::layer_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::layer_count(self : Self) -> Int32 {
   ignore(self)
   45
 }
 
 ///|
-pub fn Glm53FlashSpec::attention_head_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::attention_head_count(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn Glm53FlashSpec::kv_head_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::kv_head_count(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn Glm53FlashSpec::q_lora_rank(self : Self) -> Int {
+pub fn Glm53FlashSpec::q_lora_rank(self : Self) -> Int32 {
   ignore(self)
   1536
 }
 
 ///|
-pub fn Glm53FlashSpec::kv_lora_rank(self : Self) -> Int {
+pub fn Glm53FlashSpec::kv_lora_rank(self : Self) -> Int32 {
   ignore(self)
   512
 }
 
 ///|
-pub fn Glm53FlashSpec::qk_nope_head_dimension(self : Self) -> Int {
+pub fn Glm53FlashSpec::qk_nope_head_dimension(self : Self) -> Int32 {
   ignore(self)
   256
 }
 
 ///|
-pub fn Glm53FlashSpec::qk_rope_head_dimension(self : Self) -> Int {
+pub fn Glm53FlashSpec::qk_rope_head_dimension(self : Self) -> Int32 {
   ignore(self)
   0
 }
 
 ///|
-pub fn Glm53FlashSpec::value_head_dimension(self : Self) -> Int {
+pub fn Glm53FlashSpec::value_head_dimension(self : Self) -> Int32 {
   ignore(self)
   256
 }
 
 ///|
-pub fn Glm53FlashSpec::index_head_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::index_head_count(self : Self) -> Int32 {
   ignore(self)
   32
 }
 
 ///|
-pub fn Glm53FlashSpec::index_head_dimension(self : Self) -> Int {
+pub fn Glm53FlashSpec::index_head_dimension(self : Self) -> Int32 {
   ignore(self)
   128
 }
 
 ///|
-pub fn Glm53FlashSpec::index_topk(self : Self) -> Int {
+pub fn Glm53FlashSpec::index_topk(self : Self) -> Int32 {
   ignore(self)
   2048
 }
 
 ///|
-pub fn Glm53FlashSpec::index_kpool(self : Self) -> Int {
+pub fn Glm53FlashSpec::index_kpool(self : Self) -> Int32 {
   ignore(self)
   4
 }
 
 ///|
-pub fn Glm53FlashSpec::linear_head_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::linear_head_count(self : Self) -> Int32 {
   ignore(self)
   64
 }
 
 ///|
-pub fn Glm53FlashSpec::linear_head_dimension(self : Self) -> Int {
+pub fn Glm53FlashSpec::linear_head_dimension(self : Self) -> Int32 {
   ignore(self)
   128
 }
 
 ///|
-pub fn Glm53FlashSpec::linear_conv_kernel_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::linear_conv_kernel_size(self : Self) -> Int32 {
   ignore(self)
   4
 }
 
 ///|
-pub fn Glm53FlashSpec::hyper_connection_streams(self : Self) -> Int {
+pub fn Glm53FlashSpec::hyper_connection_streams(self : Self) -> Int32 {
   ignore(self)
   4
 }
 
 ///|
-pub fn Glm53FlashSpec::hyper_connection_sinkhorn_iterations(self : Self) -> Int {
+pub fn Glm53FlashSpec::hyper_connection_sinkhorn_iterations(
+  self : Self,
+) -> Int32 {
   ignore(self)
   20
 }
@@ -175,7 +177,7 @@ pub fn Glm53FlashSpec::hyper_connection_epsilon(self : Self) -> Double {
 }
 
 ///|
-pub fn Glm53FlashSpec::context_length(self : Self) -> Int {
+pub fn Glm53FlashSpec::context_length(self : Self) -> Int32 {
   ignore(self)
   1048576
 }
@@ -193,19 +195,19 @@ pub fn Glm53FlashSpec::routed_scaling_factor(self : Self) -> Double {
 }
 
 ///|
-pub fn Glm53FlashSpec::expert_group_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::expert_group_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn Glm53FlashSpec::selected_expert_group_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::selected_expert_group_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn Glm53FlashSpec::expert_group_score_topk(self : Self) -> Int {
+pub fn Glm53FlashSpec::expert_group_score_topk(self : Self) -> Int32 {
   ignore(self)
   2
 }
@@ -267,115 +269,117 @@ pub fn Glm53FlashSpec::index_share_for_mtp_iteration(self : Self) -> Bool {
 }
 
 ///|
-pub fn Glm53FlashSpec::routed_expert_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::routed_expert_count(self : Self) -> Int32 {
   ignore(self)
   288
 }
 
 ///|
-pub fn Glm53FlashSpec::shared_expert_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::shared_expert_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn Glm53FlashSpec::experts_per_token(self : Self) -> Int {
+pub fn Glm53FlashSpec::experts_per_token(self : Self) -> Int32 {
   ignore(self)
   8
 }
 
 ///|
-pub fn Glm53FlashSpec::mtp_layer_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::mtp_layer_count(self : Self) -> Int32 {
   ignore(self)
   1
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_layer_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_layer_count(self : Self) -> Int32 {
   ignore(self)
   24
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_hidden_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_hidden_size(self : Self) -> Int32 {
   ignore(self)
   1024
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_intermediate_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_intermediate_size(self : Self) -> Int32 {
   ignore(self)
   4096
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_head_count(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_head_count(self : Self) -> Int32 {
   ignore(self)
   16
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_patch_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_patch_size(self : Self) -> Int32 {
   ignore(self)
   14
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_temporal_patch_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_temporal_patch_size(self : Self) -> Int32 {
   ignore(self)
   2
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_spatial_merge_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_spatial_merge_size(self : Self) -> Int32 {
   ignore(self)
   2
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_projection_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_projection_size(self : Self) -> Int32 {
   ignore(self)
   4096
 }
 
 ///|
-pub fn Glm53FlashSpec::vision_projection_intermediate_size(self : Self) -> Int {
+pub fn Glm53FlashSpec::vision_projection_intermediate_size(
+  self : Self,
+) -> Int32 {
   ignore(self)
   10240
 }
 
 ///|
-pub fn Glm53FlashSpec::image_token_id(self : Self) -> Int {
+pub fn Glm53FlashSpec::image_token_id(self : Self) -> Int32 {
   ignore(self)
   154854
 }
 
 ///|
-pub fn Glm53FlashSpec::video_token_id(self : Self) -> Int {
+pub fn Glm53FlashSpec::video_token_id(self : Self) -> Int32 {
   ignore(self)
   154855
 }
 
 ///|
-pub fn Glm53FlashSpec::image_start_token_id(self : Self) -> Int {
+pub fn Glm53FlashSpec::image_start_token_id(self : Self) -> Int32 {
   ignore(self)
   154830
 }
 
 ///|
-pub fn Glm53FlashSpec::image_end_token_id(self : Self) -> Int {
+pub fn Glm53FlashSpec::image_end_token_id(self : Self) -> Int32 {
   ignore(self)
   154831
 }
 
 ///|
-pub fn Glm53FlashSpec::video_start_token_id(self : Self) -> Int {
+pub fn Glm53FlashSpec::video_start_token_id(self : Self) -> Int32 {
   ignore(self)
   154832
 }
 
 ///|
-pub fn Glm53FlashSpec::video_end_token_id(self : Self) -> Int {
+pub fn Glm53FlashSpec::video_end_token_id(self : Self) -> Int32 {
   ignore(self)
   154833
 }
@@ -383,7 +387,7 @@ pub fn Glm53FlashSpec::video_end_token_id(self : Self) -> Int {
 ///|
 pub fn Glm53FlashSpec::attention_kind(
   self : Self,
-  layer : Int,
+  layer : Int32,
 ) -> Glm53AttentionKind raise Glm53SpecError {
   if layer < 0 || layer >= self.layer_count() {
     raise InvalidLayerIndex
@@ -398,7 +402,7 @@ pub fn Glm53FlashSpec::attention_kind(
 ///|
 pub fn Glm53FlashSpec::feed_forward_kind(
   self : Self,
-  layer : Int,
+  layer : Int32,
 ) -> Glm53FeedForwardKind raise Glm53SpecError {
   if layer < 0 || layer >= self.layer_count() {
     raise InvalidLayerIndex
@@ -409,3 +413,9 @@ pub fn Glm53FlashSpec::feed_forward_kind(
     RoutedMixtureOfExperts
   }
 }
+
+///|
+pub extend Glm53FlashSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend Glm53FlashSpec with Eq::{not_equal, equal}

@@ -1,7 +1,7 @@
 ///|
 fn prepare_rank(
   startup : Startup,
-  ordinal : Int,
+  ordinal : Int32,
   context : @device.Context,
   aot : @device.Module,
   stream : @device.Stream,
@@ -291,9 +291,9 @@ async fn run_ingress(
   root : @approved_fs.ApprovedRoot,
   arguments : ArrayView[String],
   generate~ : Bool,
-  speculate? : Bool = true,
-  sequence? : Bool = false,
-  cancellation? : @generation.SerialRequestCancellation? = None,
+  speculate~ : Bool = true,
+  sequence~ : Bool = false,
+  cancellation~ : @generation.SerialRequestCancellation? = None,
 ) -> Unit {
   let speculative_enabled = startup.dspark && speculate
   let count = @string.parse_int(arguments[5])

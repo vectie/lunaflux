@@ -53,3 +53,12 @@ fn tensor_core_evidence_read_digest(
     _ => raise LunaTensorCorePhysicalEvidenceInvalid(Digest)
   }
 }
+
+///|
+pub extend LunaTensorCorePhysicalEvidenceDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend LunaTensorCorePhysicalEvidenceDigest with Eq::{not_equal, equal}
+
+///|
+pub extend LunaTensorCorePhysicalEvidenceDigest with Hash::{hash, hash_combine}

@@ -1,5 +1,5 @@
 ///|
-fn Scheduler::active_cursor_slot(self : Scheduler, cursor : Int) -> Int {
+fn Scheduler::active_cursor_slot(self : Scheduler, cursor : Int32) -> Int32 {
   if cursor >= 0 &&
     cursor < self.active_positions.length() &&
     self.active_positions[cursor] != NO_INDEX {
@@ -12,7 +12,7 @@ fn Scheduler::active_cursor_slot(self : Scheduler, cursor : Int) -> Int {
 }
 
 ///|
-fn Scheduler::active_cursor_position(self : Scheduler, cursor : Int) -> Int {
+fn Scheduler::active_cursor_position(self : Scheduler, cursor : Int32) -> Int32 {
   let slot = self.active_cursor_slot(cursor)
   if slot == NO_INDEX {
     0
@@ -22,7 +22,7 @@ fn Scheduler::active_cursor_position(self : Scheduler, cursor : Int) -> Int {
 }
 
 ///|
-fn Scheduler::add_active(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::add_active(self : Scheduler, slot : Int32) -> Unit {
   if slot < 0 ||
     slot >= self.active_positions.length() ||
     self.active_positions[slot] != NO_INDEX ||
@@ -40,7 +40,7 @@ fn Scheduler::add_active(self : Scheduler, slot : Int) -> Unit {
 }
 
 ///|
-fn Scheduler::remove_active(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::remove_active(self : Scheduler, slot : Int32) -> Unit {
   if slot < 0 || slot >= self.active_positions.length() {
     abort("scheduler active remove range invariant")
   }

@@ -1,14 +1,14 @@
 ///|
 fn valid_sha256(value : StringView) -> Bool {
   value.length() == 64 &&
-  value.all(character => character is ('0'..='9' | 'a'..='f'))
+  value.all(character => character is ('0'..<='9' | 'a'..<='f'))
 }
 
 ///|
 pub fn AotCandidateCoverageLimits::new(
-  maximum_requirements~ : Int,
-  maximum_candidates~ : Int,
-  maximum_encoding_bytes~ : Int,
+  maximum_requirements~ : Int32,
+  maximum_candidates~ : Int32,
+  maximum_encoding_bytes~ : Int32,
 ) -> Self raise AotCandidateCoverageError {
   if maximum_requirements <= 0 ||
     maximum_requirements > 4096 ||
@@ -25,7 +25,7 @@ pub fn AotCandidateCoverageLimits::new(
 pub fn AotCandidateEvidenceInput::new(
   source_identity~ : @spec.ModelIdentity,
   requirements_digest_sha256~ : String,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   source_digest_sha256~ : String,
   recipe_digest_sha256~ : String,
   manifest_bindable~ : Bool,

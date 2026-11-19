@@ -3,7 +3,7 @@ fn plan_rank_constants(
   contracts : ArrayView[
     @tensor_parallel_launch_contract.TensorParallelAotLaunchContract,
   ],
-  expected_version : Int,
+  expected_version : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   let mut byte_count = -1L
   let mut alignment = -1L
@@ -113,8 +113,8 @@ fn plan_memory(
 fn activation_region(
   memory : PlanningMemory,
   reference : @plan.ActivationRef,
-  operation : Int,
-  operand : Int,
+  operation : Int32,
+  operand : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   let index = reference.as_int()
   if index < 0 || index >= memory.activations.length() {

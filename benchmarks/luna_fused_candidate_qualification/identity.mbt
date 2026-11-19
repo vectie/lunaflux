@@ -5,32 +5,32 @@ priv struct FusedBenchmarkCandidateIdentity {
   candidate : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   source : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   recipe : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  target_compute_major : Int
-  target_compute_minor : Int
+  target_compute_major : Int32
+  target_compute_minor : Int32
   target_bf16 : Bool
   target_cublas_lt : Bool
-  profile_id : Int
-  max_query_rows : Int
-  max_query_tokens : Int
-  max_page_table_entries : Int
-  grid_x : Int
-  grid_y : Int
-  grid_z : Int
-  block_x : Int
-  block_y : Int
-  block_z : Int
-  shared_memory_bytes : Int
+  profile_id : Int32
+  max_query_rows : Int32
+  max_query_tokens : Int32
+  max_page_table_entries : Int32
+  grid_x : Int32
+  grid_y : Int32
+  grid_z : Int32
+  block_x : Int32
+  block_y : Int32
+  block_z : Int32
+  shared_memory_bytes : Int32
   toolchain : String
-  compiler_major : Int
-  compiler_minor : Int
-  compiler_patch : Int
-  optimization_level : Int
+  compiler_major : Int32
+  compiler_minor : Int32
+  compiler_patch : Int32
+  optimization_level : Int32
   fused_multiply_add : Bool
   reassociate : Bool
-  max_registers : Int
+  max_registers : Int32
   numerical_policy : String
   function_symbol : String
-  dispatch_canary : UInt
+  dispatch_canary : UInt32
   fallback_lines : String
 }
 
@@ -47,7 +47,7 @@ fn fused_benchmark_common_identity(
   compiler : @luna_specialization.LunaCompilerPolicy,
   numerical_policy : String,
   function_symbol : String,
-  dispatch_canary : UInt,
+  dispatch_canary : UInt32,
   fallback_lines : String,
 ) -> FusedBenchmarkCandidateIdentity {
   let compiler_identity = compiler.identity()

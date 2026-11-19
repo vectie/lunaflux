@@ -29,7 +29,7 @@ pub fn AdvancedDecoderInverseRotaryCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderInverseRotaryCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,35 +57,35 @@ pub fn AdvancedDecoderInverseRotaryCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderInverseRotaryCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderInverseRotaryCudaCandidate::head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_count
 }
 
 ///|
 pub fn AdvancedDecoderInverseRotaryCudaCandidate::head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn AdvancedDecoderInverseRotaryCudaCandidate::rope_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.rope_dimension
 }
 
 ///|
 pub fn AdvancedDecoderInverseRotaryCudaCandidate::maximum_positions(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_positions
 }
 

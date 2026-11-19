@@ -20,7 +20,9 @@ pub fn DeepSeekV4OutputAParameterPlan::requirements_digest(
 }
 
 ///|
-pub fn DeepSeekV4OutputAParameterPlan::requirement_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4OutputAParameterPlan::requirement_ordinal(
+  self : Self,
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -60,7 +62,7 @@ pub fn DeepSeekV4OutputAParameterPlan::layout_digest_sha256(
 }
 
 ///|
-pub fn DeepSeekV4OutputAParameterPlan::operand_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4OutputAParameterPlan::operand_ordinal(self : Self) -> Int32 {
   self.operand_ordinal
 }
 
@@ -82,19 +84,19 @@ pub fn DeepSeekV4OutputAParameterPlan::operand_alignment(self : Self) -> Int64 {
 }
 
 ///|
-pub fn DeepSeekV4OutputAParameterPlan::group_count(self : Self) -> Int {
+pub fn DeepSeekV4OutputAParameterPlan::group_count(self : Self) -> Int32 {
   self.group_count
 }
 
 ///|
-pub fn DeepSeekV4OutputAParameterPlan::output_rank(self : Self) -> Int {
+pub fn DeepSeekV4OutputAParameterPlan::output_rank(self : Self) -> Int32 {
   self.output_rank
 }
 
 ///|
 pub fn DeepSeekV4OutputAParameterPlan::input_width_per_group(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_width_per_group
 }
 

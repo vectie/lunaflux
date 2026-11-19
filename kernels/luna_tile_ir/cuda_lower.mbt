@@ -1,11 +1,11 @@
 ///|
 pub struct LunaTileCudaLoweringLimits {
-  priv max_source_bytes : Int
+  priv max_source_bytes : Int32
 }
 
 ///|
 pub fn LunaTileCudaLoweringLimits::new(
-  max_source_bytes~ : Int,
+  max_source_bytes~ : Int32,
 ) -> LunaTileCudaLoweringLimits raise LunaTileError {
   if max_source_bytes <= 0 {
     raise InvalidProgram(CudaLowering)
@@ -156,7 +156,7 @@ fn luna_tile_affine_byte_aligned(
 fn luna_tile_region_supports_vector(
   region : LunaTileRegion,
   tensor : LunaTileTensorView,
-  width : Int,
+  width : Int32,
 ) -> Bool raise LunaTileError {
   let last = tensor.shape.length() - 1
   let width64 = Int64::from_int(width)
@@ -196,8 +196,8 @@ fn luna_tile_copy_vector_width(
   source_tensor : LunaTileTensorView,
   destination : LunaTileRegion,
   destination_tensor : LunaTileTensorView,
-  requested : Int,
-) -> Int raise LunaTileError {
+  requested : Int32,
+) -> Int32 raise LunaTileError {
   let mut width = requested
   while width >= 4 {
     if luna_tile_region_supports_vector(source, source_tensor, width) &&
@@ -221,7 +221,7 @@ fn luna_tile_cuda_type(dtype : LunaTileDType) -> String {
 }
 
 ///|
-fn luna_tile_cuda_vector_type(width : Int) -> String {
+fn luna_tile_cuda_vector_type(width : Int32) -> String {
   match width {
     16 => "uint4"
     8 => "uint2"
@@ -309,7 +309,7 @@ fn luna_tile_cuda_open_loops(
   output : StringBuilder,
   prefix : String,
   extents : ReadOnlyArray[Int64],
-  rank : Int,
+  rank : Int32,
 ) -> Array[String] {
   let indices : Array[String] = []
   for dimension in 0..<rank {
@@ -329,7 +329,7 @@ fn luna_tile_cuda_open_loops(
 }
 
 ///|
-fn luna_tile_cuda_close_loops(output : StringBuilder, rank : Int) -> Unit {
+fn luna_tile_cuda_close_loops(output : StringBuilder, rank : Int32) -> Unit {
   for _ in 0..<rank {
     output.write_string("    }\n")
   }
@@ -356,8 +356,8 @@ fn lower_luna_tile_cuda_copy(
   program : LunaTileProgram,
   source : LunaTileRegion,
   destination : LunaTileRegion,
-  instruction_index : Int,
-  requested_vector : Int,
+  instruction_index : Int32,
+  requested_vector : Int32,
   asynchronous : Bool,
 ) -> Unit raise LunaTileError {
   let source_tensor = require_luna_tile_tensor(program.tensors, source.tensor)

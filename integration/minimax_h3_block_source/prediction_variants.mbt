@@ -11,10 +11,10 @@ pub struct PredictionSources {
 pub fn build_prediction_sources(
   model : @joint_diffusion_plan.JointDiffusionPlan,
   sequence : @minimax_h3_sequence.Sequence,
-  distinct_timesteps~ : Int,
+  distinct_timesteps~ : Int32,
   block_norm_epsilon~ : Double,
   function_prefix~ : String,
-  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
+  probability_law~ : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> PredictionSources raise {
   guard distinct_timesteps > 0 && distinct_timesteps <= 4 else {
     raise InvalidShape

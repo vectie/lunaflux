@@ -136,7 +136,7 @@ test "shape and plan envelope mismatches fail closed" {
       _ => fail("expected exact shape outside the static envelope")
     }
   }
-  let invalid_shapes : Array[(Int, Int, @device_profile.ProfileShapeRule)] = [
+  let invalid_shapes : Array[(Int32, Int32, @device_profile.ProfileShapeRule)] = [
     (0, 1, NonPositiveBatchRows),
     (1, 0, NonPositiveQueryTokens),
   ]

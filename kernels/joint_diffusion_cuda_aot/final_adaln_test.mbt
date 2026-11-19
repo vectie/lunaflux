@@ -2,7 +2,7 @@
 fn final_adaln_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoFinalAdaLnF32Boundary(_) if latent == VideoLatent => return ordinal

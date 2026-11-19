@@ -22,7 +22,7 @@ pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -50,21 +50,21 @@ pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::values_digest(
 ///|
 pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.row_count
 }
 
 ///|
 pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::input_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_width
 }
 
 ///|
 pub fn JointDiffusionDistinctTimestepAdaLnCudaCandidate::hidden_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_size
 }
 

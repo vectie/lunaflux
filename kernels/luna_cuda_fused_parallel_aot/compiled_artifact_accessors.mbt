@@ -78,7 +78,7 @@ pub fn FusedParallelCompiledArtifactBinding::artifact_purpose(
 ///|
 pub fn FusedParallelCompiledArtifactBinding::dispatch_canary_per_token(
   self : FusedParallelCompiledArtifactBinding,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary_per_token
 }
 

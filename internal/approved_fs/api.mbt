@@ -1,10 +1,10 @@
 ///|
-pub fn open_root(path : Bytes, status : Ref[Int]) -> ApprovedHandle {
+pub fn open_root(path : Bytes, status : Ref[Int32]) -> ApprovedHandle {
   raw_open_root(path, status)
 }
 
 ///|
-pub fn require_absolute_identity(root : ApprovedHandle, path : Bytes) -> Int {
+pub fn require_absolute_identity(root : ApprovedHandle, path : Bytes) -> Int32 {
   raw_require_absolute_identity(root, path)
 }
 
@@ -12,13 +12,13 @@ pub fn require_absolute_identity(root : ApprovedHandle, path : Bytes) -> Int {
 pub fn open_file(
   root : ApprovedHandle,
   locator : Bytes,
-  status : Ref[Int],
+  status : Ref[Int32],
 ) -> ApprovedHandle {
   raw_open_file(root, locator, status)
 }
 
 ///|
-pub fn close(handle : ApprovedHandle) -> Int {
+pub fn close(handle : ApprovedHandle) -> Int32 {
   raw_close(handle)
 }
 
@@ -31,15 +31,15 @@ pub fn is_closed(handle : ApprovedHandle) -> Bool {
 pub fn read_exact_at(
   file : ApprovedHandle,
   destination : FixedArray[Byte],
-  destination_offset : Int,
-  byte_count : Int,
+  destination_offset : Int32,
+  byte_count : Int32,
   position : Int64,
-) -> Int {
+) -> Int32 {
   raw_read_exact_at(file, destination, destination_offset, byte_count, position)
 }
 
 ///|
-pub fn stamp(file : ApprovedHandle, output : FixedArray[Int64]) -> Int {
+pub fn stamp(file : ApprovedHandle, output : FixedArray[Int64]) -> Int32 {
   raw_stamp(file, output)
 }
 
@@ -47,7 +47,7 @@ pub fn stamp(file : ApprovedHandle, output : FixedArray[Int64]) -> Int {
 pub fn read_immutable_snapshot(
   file : ApprovedHandle,
   maximum_bytes : Int64,
-  status : Ref[Int],
+  status : Ref[Int32],
 ) -> Bytes {
   raw_read_immutable_snapshot(file, maximum_bytes, b"", status)
 }
@@ -56,7 +56,7 @@ pub fn read_immutable_snapshot(
 pub fn acquire_worker_roots(
   model_root : ApprovedHandle,
   kernel_root : ApprovedHandle,
-  status : Ref[Int],
+  status : Ref[Int32],
 ) -> @inheritance.WorkerApprovedRoots {
   raw_acquire_worker_roots(model_root, kernel_root, status)
 }
@@ -71,15 +71,15 @@ pub fn acquire_prepared_worker_roots(
   roots : @inheritance.WorkerApprovedRoots,
   model_root : ApprovedHandle,
   kernel_root : ApprovedHandle,
-) -> Int {
+) -> Int32 {
   raw_acquire_prepared_worker_roots(roots, model_root, kernel_root)
 }
 
 ///|
 pub fn duplicate_worker_root(
   roots : @inheritance.WorkerApprovedRoots,
-  role : Int,
-  status : Ref[Int],
+  role : Int32,
+  status : Ref[Int32],
 ) -> ApprovedHandle {
   raw_duplicate_worker_root(roots, role, status)
 }
@@ -92,7 +92,7 @@ pub fn worker_root_spawn_authority(
 }
 
 ///|
-pub fn open_inherited_root(role : Int, status : Ref[Int]) -> ApprovedHandle {
+pub fn open_inherited_root(role : Int32, status : Ref[Int32]) -> ApprovedHandle {
   raw_open_inherited_root(role, status)
 }
 
@@ -102,6 +102,6 @@ pub fn worker_roots_is_closed(roots : @inheritance.WorkerApprovedRoots) -> Bool 
 }
 
 ///|
-pub fn close_worker_roots(roots : @inheritance.WorkerApprovedRoots) -> Int {
+pub fn close_worker_roots(roots : @inheritance.WorkerApprovedRoots) -> Int32 {
   raw_close_worker_roots(roots)
 }

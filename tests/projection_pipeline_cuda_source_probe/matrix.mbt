@@ -98,7 +98,7 @@ fn probe_matrix_family(
         "FAMILY [STAGES TRANSFER_TILES FRAGMENT_STAGES [ROW_TILES OUTPUT_TILES HOIST MAX_REGISTERS]]",
       )
   }
-  let (kind, input_width, widths) : (@plan.OperationKind, Int, Array[Int]) = match
+  let (kind, input_width, widths) : (@plan.OperationKind, Int32, Array[Int32]) = match
     family {
     "qkv" => (QkvProjection, 1024, [2048, 1024, 1024])
     "output" => (OutputProjection, 2048, [1024])

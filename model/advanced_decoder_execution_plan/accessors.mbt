@@ -1,70 +1,70 @@
 ///|
-pub fn AdvancedDecoderShape::vocabulary_size(self : Self) -> Int {
+pub fn AdvancedDecoderShape::vocabulary_size(self : Self) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn AdvancedDecoderShape::hidden_size(self : Self) -> Int {
+pub fn AdvancedDecoderShape::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn AdvancedDecoderShape::decoder_layer_count(self : Self) -> Int {
+pub fn AdvancedDecoderShape::decoder_layer_count(self : Self) -> Int32 {
   self.decoder_layer_count
 }
 
 ///|
-pub fn AdvancedDecoderShape::attention_head_count(self : Self) -> Int {
+pub fn AdvancedDecoderShape::attention_head_count(self : Self) -> Int32 {
   self.attention_head_count
 }
 
 ///|
-pub fn AdvancedDecoderShape::kv_head_count(self : Self) -> Int {
+pub fn AdvancedDecoderShape::kv_head_count(self : Self) -> Int32 {
   self.kv_head_count
 }
 
 ///|
-pub fn AdvancedDecoderShape::attention_head_dimension(self : Self) -> Int {
+pub fn AdvancedDecoderShape::attention_head_dimension(self : Self) -> Int32 {
   self.attention_head_dimension
 }
 
 ///|
-pub fn AdvancedDecoderShape::rope_head_dimension(self : Self) -> Int {
+pub fn AdvancedDecoderShape::rope_head_dimension(self : Self) -> Int32 {
   self.rope_head_dimension
 }
 
 ///|
-pub fn AdvancedDecoderShape::query_low_rank(self : Self) -> Int {
+pub fn AdvancedDecoderShape::query_low_rank(self : Self) -> Int32 {
   self.query_low_rank
 }
 
 ///|
-pub fn AdvancedDecoderShape::output_low_rank(self : Self) -> Int {
+pub fn AdvancedDecoderShape::output_low_rank(self : Self) -> Int32 {
   self.output_low_rank
 }
 
 ///|
-pub fn AdvancedDecoderShape::output_group_count(self : Self) -> Int {
+pub fn AdvancedDecoderShape::output_group_count(self : Self) -> Int32 {
   self.output_group_count
 }
 
 ///|
-pub fn AdvancedDecoderShape::maximum_position_count(self : Self) -> Int {
+pub fn AdvancedDecoderShape::maximum_position_count(self : Self) -> Int32 {
   self.maximum_position_count
 }
 
 ///|
-pub fn LowRankAttentionPlan::query_rank(self : Self) -> Int {
+pub fn LowRankAttentionPlan::query_rank(self : Self) -> Int32 {
   self.query_rank
 }
 
 ///|
-pub fn LowRankAttentionPlan::output_rank(self : Self) -> Int {
+pub fn LowRankAttentionPlan::output_rank(self : Self) -> Int32 {
   self.output_rank
 }
 
 ///|
-pub fn LowRankAttentionPlan::output_group_count(self : Self) -> Int {
+pub fn LowRankAttentionPlan::output_group_count(self : Self) -> Int32 {
   self.output_group_count
 }
 
@@ -84,7 +84,7 @@ pub fn PositionEncodingPlan::compressed_rope_theta(self : Self) -> Double {
 }
 
 ///|
-pub fn PositionEncodingPlan::original_position_count(self : Self) -> Int {
+pub fn PositionEncodingPlan::original_position_count(self : Self) -> Int32 {
   self.original_position_count
 }
 
@@ -104,7 +104,7 @@ pub fn PositionEncodingPlan::beta_slow(self : Self) -> Double {
 }
 
 ///|
-pub fn HyperConnectionPlan::width(self : Self) -> Int {
+pub fn HyperConnectionPlan::width(self : Self) -> Int32 {
   self.width
 }
 
@@ -125,27 +125,27 @@ pub fn HyperConnectionPlan::normalization_epsilon(self : Self) -> Double {
 }
 
 ///|
-pub fn HyperConnectionPlan::sinkhorn_iterations(self : Self) -> Int {
+pub fn HyperConnectionPlan::sinkhorn_iterations(self : Self) -> Int32 {
   self.sinkhorn_iterations
 }
 
 ///|
-pub fn MoeExecutionPlan::routed_expert_count(self : Self) -> Int {
+pub fn MoeExecutionPlan::routed_expert_count(self : Self) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
-pub fn MoeExecutionPlan::shared_expert_count(self : Self) -> Int {
+pub fn MoeExecutionPlan::shared_expert_count(self : Self) -> Int32 {
   self.shared_expert_count
 }
 
 ///|
-pub fn MoeExecutionPlan::experts_per_token(self : Self) -> Int {
+pub fn MoeExecutionPlan::experts_per_token(self : Self) -> Int32 {
   self.experts_per_token
 }
 
 ///|
-pub fn MoeExecutionPlan::intermediate_size(self : Self) -> Int {
+pub fn MoeExecutionPlan::intermediate_size(self : Self) -> Int32 {
   self.intermediate_size
 }
 
@@ -175,7 +175,7 @@ pub fn MoeExecutionPlan::activation(self : Self) -> ExpertActivation {
 }
 
 ///|
-pub fn AdvancedDecoderLayerPlan::layer_index(self : Self) -> Int {
+pub fn AdvancedDecoderLayerPlan::layer_index(self : Self) -> Int32 {
   self.layer_index
 }
 
@@ -187,27 +187,29 @@ pub fn AdvancedDecoderLayerPlan::attention(
 }
 
 ///|
-pub fn DsparkExecutionPlan::block_size(self : Self) -> Int {
+pub fn DsparkExecutionPlan::block_size(self : Self) -> Int32 {
   self.block_size
 }
 
 ///|
-pub fn DsparkExecutionPlan::noise_token_id(self : Self) -> Int {
+pub fn DsparkExecutionPlan::noise_token_id(self : Self) -> Int32 {
   self.noise_token_id
 }
 
 ///|
-pub fn DsparkExecutionPlan::target_layer_ids(self : Self) -> ReadOnlyArray[Int] {
+pub fn DsparkExecutionPlan::target_layer_ids(
+  self : Self,
+) -> ReadOnlyArray[Int32] {
   self.target_layer_ids
 }
 
 ///|
-pub fn DsparkExecutionPlan::markov_rank(self : Self) -> Int {
+pub fn DsparkExecutionPlan::markov_rank(self : Self) -> Int32 {
   self.markov_rank
 }
 
 ///|
-pub fn AdvancedDecoderExecutionPlan::schema_version(self : Self) -> Int {
+pub fn AdvancedDecoderExecutionPlan::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 

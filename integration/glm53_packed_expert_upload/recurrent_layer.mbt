@@ -14,30 +14,30 @@ priv enum RecurrentLayerState {
 /// intermediates, borrowing the module, stream and frame I/O.
 pub struct GlmRecurrentLayer {
   priv spec : @glm53_spec.Glm53FlashSpec
-  priv layer_index : Int
+  priv layer_index : Int32
   priv program : @recurrent.RecurrentDeltaProgram
   priv weights : @upload.CheckpointDeviceWeights
   priv hyper : @hyper.HyperConnectionFrame?
   priv ffn : GlmFfn?
-  priv tensor_group : (Int, Int)?
+  priv tensor_group : (Int32, Int32)?
   priv mut status : RecurrentLayerState
 }
 
 ///|
 pub fn GlmRecurrentLayer::new(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
   maximum_state_bytes~ : Int64,
-  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  matrix_tile_rows? : Int = 16,
-  matrix_reuse_minimum_inner? : Int = 0,
-  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
-  tensor_group? : (Int, Int),
+  evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  matrix_tile_rows~ : Int32 = 16,
+  matrix_reuse_minimum_inner~ : Int32 = 0,
+  tensor_publication~ : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
+  tensor_group? : (Int32, Int32),
 ) -> Self raise {
   let plan = recurrent_block_plan(
     spec,
@@ -116,7 +116,7 @@ pub fn GlmRecurrentLayer::prepare(
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   sequence_offsets~ : @device.Allocation,
@@ -152,7 +152,7 @@ fn GlmRecurrentLayer::prepare_layer(
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   sequence_offsets~ : @device.Allocation,
@@ -286,7 +286,7 @@ fn GlmRecurrentLayer::prepare_layer(
 ///|
 pub fn GlmRecurrentLayer::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Ready else {
     raise @device.DeviceError::Busy(OrderedExecutorEnqueue)

@@ -1,17 +1,17 @@
 ///|
-const I8_BOOTSTRAP_SOURCE_VERSION_V6 : UInt = 6
+const I8_BOOTSTRAP_SOURCE_VERSION_V6 : UInt32 = 6
 
 ///|
-const I8_BOOTSTRAP_SOURCE_RECIPE_V6 : Int = 6
+const I8_BOOTSTRAP_SOURCE_RECIPE_V6 : Int32 = 6
 
 ///|
-const I8_BOOTSTRAP_SOURCE_HEADER_BYTES_V6 : Int = 232
+const I8_BOOTSTRAP_SOURCE_HEADER_BYTES_V6 : Int32 = 232
 
 ///|
-const I8_BOOTSTRAP_SOURCE_CAPACITY_V6 : Int = BOOTSTRAP_SOURCE_CAPACITY
+const I8_BOOTSTRAP_SOURCE_CAPACITY_V6 : Int32 = BOOTSTRAP_SOURCE_CAPACITY
 
 ///|
-pub fn i8_bootstrap_source_v6_capacity() -> Int {
+pub fn i8_bootstrap_source_v6_capacity() -> Int32 {
   I8_BOOTSTRAP_SOURCE_CAPACITY_V6
 }
 
@@ -20,7 +20,7 @@ fn i8_source_lengths(
   roots : WorkerBootstrapRoots,
   model : WorkerI8BootstrapModelSource,
   kernel : WorkerBootstrapKernelSource,
-) -> FixedArray[Int] {
+) -> FixedArray[Int32] {
   FixedArray::from_array([
     @utf8.encode(roots.model_root()).length(),
     @utf8.encode(model.config_locator()).length(),
@@ -33,9 +33,9 @@ fn i8_source_lengths(
 ///|
 fn i8_source_write_string(
   destination : FixedArray[Byte],
-  cursor : Int,
+  cursor : Int32,
   value : StringView,
-) -> Int {
+) -> Int32 {
   let encoded = @utf8.encode(value)
   for index in 0..<encoded.length() {
     destination[cursor + index] = encoded[index]
@@ -46,8 +46,8 @@ fn i8_source_write_string(
 ///|
 fn i8_source_read_string(
   source : FixedArray[Byte],
-  cursor : Int,
-  length : Int,
+  cursor : Int32,
+  length : Int32,
 ) -> String raise WorkerWireError {
   @utf8.decode(Bytes::makei(length, index => source[cursor + index])) catch {
     _ => raise InvalidBootstrapSource(Utf8)
@@ -169,7 +169,7 @@ pub fn admit_i8_bootstrap_source_v6(
 ///|
 fn validate_i8_source_header(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise WorkerWireError {
   if source.length() < I8_BOOTSTRAP_SOURCE_HEADER_BYTES_V6 ||
     length < I8_BOOTSTRAP_SOURCE_HEADER_BYTES_V6 + BOOTSTRAP_SOURCE_DIGEST_BYTES ||
@@ -197,7 +197,7 @@ fn validate_i8_source_header(
 ///|
 pub fn decode_i8_bootstrap_source_v6(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   validate_i8_source_header(source, length)
   let lengths = FixedArray::make(5, 0)

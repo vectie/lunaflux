@@ -1,7 +1,7 @@
 ///|
 priv enum CudaProjectionFragmentForm {
   Packed(
-    products~ : ReadOnlyArray[(Int, String)],
+    products~ : ReadOnlyArray[(Int32, String)],
     row_origin~ : String,
     row_owner~ : String,
     row_limit~ : String,
@@ -9,7 +9,7 @@ priv enum CudaProjectionFragmentForm {
     weight_displacement~ : String
   )
   HeadColumns(
-    input_elements~ : Int,
+    input_elements~ : Int32,
     domain~ : @physical_tile_ir.FragmentRowDomain
   )
 }
@@ -21,8 +21,8 @@ pub struct CudaProjectionFoldBody {
   priv program : @physical_tile_ir.FragmentProgram
   priv form : CudaProjectionFragmentForm
   priv storage : String
-  priv slot_elements : Int
-  priv consumers : Int?
+  priv slot_elements : Int32
+  priv consumers : Int32?
 }
 
 ///|
@@ -31,7 +31,7 @@ pub struct CudaProjectionFoldBody {
 fn projection_storage_fold_body(
   physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   storage~ : String,
-  consumers~ : Int,
+  consumers~ : Int32,
 ) -> CudaProjectionFoldBody {
   let pipeline = physical.schedule
   let operands = physical.operands
@@ -53,13 +53,13 @@ fn projection_storage_fold_body(
 fn projection_packed_fold_body(
   physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
   storage~ : String,
-  consumers? : Int,
-  products? : Array[(Int, String)] = [],
-  row_origin? : String = "row_begin",
-  row_owner? : String = "consumer_row",
-  row_limit? : String = "pipeline_rows",
-  column_owner? : String = "consumer_column",
-  weight_displacement? : String = "0",
+  consumers? : Int32,
+  products~ : Array[(Int32, String)] = [],
+  row_origin~ : String = "row_begin",
+  row_owner~ : String = "consumer_row",
+  row_limit~ : String = "pipeline_rows",
+  column_owner~ : String = "consumer_column",
+  weight_displacement~ : String = "0",
 ) -> CudaProjectionFoldBody {
   let pipeline = physical.schedule
   let operands = physical.operands

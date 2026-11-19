@@ -12,7 +12,7 @@ priv enum AttentionState {
 /// mHC input/output mixing and prediction FFN remain enclosing operations.
 pub struct DeepSeekPredictionAttention {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv stage : Int
+  priv stage : Int32
   priv main : @frame.RowProjectionNormFrame
   priv main_rotary : @rotary_frame.RotaryCacheFrame
   priv query : @query_frame.QuantizedQueryKvFrame
@@ -31,9 +31,9 @@ pub struct DeepSeekPredictionAttention {
 ///|
 pub fn DeepSeekPredictionAttention::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  stage~ : Int,
-  maximum_main_rows~ : Int,
-  maximum_positions~ : Int,
+  stage~ : Int32,
+  maximum_main_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
   require_prediction_stage(spec, stage)
@@ -171,7 +171,7 @@ pub fn DeepSeekPredictionAttention::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn DeepSeekPredictionAttention::workspace_bytes(
   self : Self,
-  output_borrowed? : Bool = false,
+  output_borrowed~ : Bool = false,
 ) -> Int64 {
   self.workspace - (if output_borrowed { self.output_bytes } else { 0L })
 }
@@ -180,7 +180,7 @@ pub fn DeepSeekPredictionAttention::workspace_bytes(
 pub fn DeepSeekPredictionAttention::required_device_bytes(
   self : Self,
   checkpoint : @materialize.PackedCheckpoint,
-  output_borrowed? : Bool = false,
+  output_borrowed~ : Bool = false,
 ) -> Int64 raise {
   bind_prediction_attention_weights(checkpoint, self.spec, stage=self.stage).fold(
     init=self.workspace_bytes(output_borrowed~),
@@ -205,7 +205,7 @@ pub fn DeepSeekPredictionAttention::prepare(
   start_position~ : @device.Allocation,
   output? : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh && !main_counts.same_storage(draft_counts) else {

@@ -15,19 +15,19 @@
 /// tests pin the exact byte lengths and representative boundary lookups.
 
 ///|
-fn qwen3_unicode_u16(table : Bytes, offset : Int) -> Int {
+fn qwen3_unicode_u16(table : Bytes, offset : Int32) -> Int32 {
   (table[offset].to_int() << 8) | table[offset + 1].to_int()
 }
 
 ///|
-fn qwen3_unicode_u24(table : Bytes, offset : Int) -> Int {
+fn qwen3_unicode_u24(table : Bytes, offset : Int32) -> Int32 {
   (table[offset].to_int() << 16) |
   (table[offset + 1].to_int() << 8) |
   table[offset + 2].to_int()
 }
 
 ///|
-fn qwen3_is_letter(scalar : Int) -> Bool {
+fn qwen3_is_letter(scalar : Int32) -> Bool {
   let record_bytes = 6
   let mut low = 0
   let mut high = qwen3_unicode_letter_ranges.length() / record_bytes
@@ -50,7 +50,7 @@ fn qwen3_is_letter(scalar : Int) -> Bool {
 ///|
 /// Exact Unicode 17.0.0 `General_Category=Mark` membership used only by the
 /// separately admitted Qwen3.5/Qwen3.6 split regex.
-fn qwen35_is_mark(scalar : Int) -> Bool {
+fn qwen35_is_mark(scalar : Int32) -> Bool {
   let record_bytes = 6
   let mut low = 0
   let mut high = qwen35_unicode_mark_ranges.length() / record_bytes
@@ -71,7 +71,7 @@ fn qwen35_is_mark(scalar : Int) -> Bool {
 }
 
 ///|
-fn qwen3_canonical_combining_class(scalar : Int) -> Int {
+fn qwen3_canonical_combining_class(scalar : Int32) -> Int32 {
   let record_bytes = 7
   let mut low = 0
   let mut high = qwen3_unicode_combining_ranges.length() / record_bytes
@@ -92,7 +92,7 @@ fn qwen3_canonical_combining_class(scalar : Int) -> Int {
 }
 
 ///|
-fn qwen3_canonical_decomposition(scalar : Int) -> (Int, Int)? {
+fn qwen3_canonical_decomposition(scalar : Int32) -> (Int32, Int32)? {
   let record_bytes = 6
   let mut low = 0
   let mut high = qwen3_unicode_decomposition_index.length() / record_bytes
@@ -117,12 +117,12 @@ fn qwen3_canonical_decomposition(scalar : Int) -> (Int, Int)? {
 }
 
 ///|
-fn qwen3_decomposition_scalar(index : Int) -> Int {
+fn qwen3_decomposition_scalar(index : Int32) -> Int32 {
   qwen3_unicode_u24(qwen3_unicode_decomposition_scalars, index * 3)
 }
 
 ///|
-fn qwen3_table_composition(first : Int, second : Int) -> Int? {
+fn qwen3_table_composition(first : Int32, second : Int32) -> Int32? {
   let record_bytes = 9
   let mut low = 0
   let mut high = qwen3_unicode_composition_pairs.length() / record_bytes
@@ -152,7 +152,7 @@ fn qwen3_table_composition(first : Int, second : Int) -> Int? {
 }
 
 ///|
-fn qwen3_canonical_composition(first : Int, second : Int) -> Int? {
+fn qwen3_canonical_composition(first : Int32, second : Int32) -> Int32? {
   let l_base = 0x1100
   let v_base = 0x1161
   let t_base = 0x11a7
@@ -181,7 +181,7 @@ fn qwen3_canonical_composition(first : Int, second : Int) -> Int? {
 }
 
 ///|
-let qwen3_nonzero_combining_classes : ReadOnlyArray[Int] = [
+let qwen3_nonzero_combining_classes : ReadOnlyArray[Int32] = [
   1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
   26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 84, 91, 103, 107, 118, 122, 129, 130,
   132, 202, 214, 216, 218, 220, 222, 224, 226, 228, 230, 232, 233, 234, 240,

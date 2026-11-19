@@ -18,9 +18,9 @@ pub extend IngressEffect with @debug.Debug::{to_repr}
 /// rotation. Publication precedes cross-owner pair reads, and retirement keeps
 /// the next token from overwriting scratch before stores have consumed it.
 pub struct IngressProgram {
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv head_dimension : Int
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv head_dimension : Int32
   priv ownership : @physical_tile_ir.VectorOwnership
 } derive(Eq, Debug)
 
@@ -32,10 +32,10 @@ pub extend IngressProgram with @debug.Debug::{to_repr}
 
 ///|
 pub fn IngressProgram::new(
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  head_dimension~ : Int,
-  owners~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  head_dimension~ : Int32,
+  owners~ : Int32,
 ) -> IngressProgram? {
   guard query_heads > 0 &&
     kv_heads > 0 &&
@@ -53,7 +53,7 @@ pub fn IngressProgram::new(
 }
 
 ///|
-pub fn IngressProgram::geometry(self : IngressProgram) -> (Int, Int, Int) {
+pub fn IngressProgram::geometry(self : IngressProgram) -> (Int32, Int32, Int32) {
   (
     self.query_heads + 2 * self.kv_heads,
     self.query_heads + self.kv_heads,

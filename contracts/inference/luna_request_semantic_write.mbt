@@ -13,7 +13,7 @@ fn LunaRequestSemanticWrite::require_storage(
 /// Appends the next raw stop token; canonical range/duplicate checks are Work.
 pub fn LunaRequestSemanticWrite::push_stop_token(
   self : LunaRequestSemanticWrite,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit raise InferenceContractError {
   let storage = self.require_storage()
   if storage.write_token_index >= storage.stop_token_count ||
@@ -34,7 +34,7 @@ pub fn LunaRequestSemanticWrite::push_stop_token(
 /// Starts the next stop string. Its declared bytes must immediately follow.
 pub fn LunaRequestSemanticWrite::push_stop_string_length(
   self : LunaRequestSemanticWrite,
-  byte_length : Int,
+  byte_length : Int32,
 ) -> Unit raise InferenceContractError {
   let storage = self.require_storage()
   if storage.write_token_index != storage.stop_token_count ||

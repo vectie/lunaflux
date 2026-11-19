@@ -3,7 +3,7 @@
 // Still keep its maximum segment within both the caller's component budget
 // and the signed-Int allocation ABI; tiny components must remain admissible.
 fn component_host_limits(
-  required : Int,
+  required : Int32,
   maximum_component_bytes : Int64,
 ) -> @host.MiniMaxH3HostMaterializationLimits raise {
   @host.MiniMaxH3HostMaterializationLimits::new(

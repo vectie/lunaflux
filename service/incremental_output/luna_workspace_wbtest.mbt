@@ -59,7 +59,7 @@ test "decoded delta uses actual pieces rather than the vocabulary admission ceil
 }
 
 ///|
-fn wb_output_workspace(budget : Int) -> LunaIncrementalOutputWorkspace raise {
+fn wb_output_workspace(budget : Int32) -> LunaIncrementalOutputWorkspace raise {
   LunaIncrementalOutputWorkspace::new(
     fixture_tokenizer(),
     fixture_inference(),

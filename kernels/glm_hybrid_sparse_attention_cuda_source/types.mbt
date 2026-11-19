@@ -26,13 +26,13 @@ pub(all) suberror GlmHybridSparseAttentionCudaSourceError {
 pub struct GlmHybridSparseAttentionCudaSource {
   priv operation : GlmHybridSparseAttentionCudaOperation
   priv numerical_contract : GlmHybridSparseAttentionNumericalContract
-  priv query_head_count : Int
-  priv key_value_head_count : Int
-  priv query_key_dimension : Int
-  priv value_dimension : Int
-  priv selected_width : Int
-  priv maximum_tokens : Int
-  priv maximum_queries : Int
+  priv query_head_count : Int32
+  priv key_value_head_count : Int32
+  priv query_key_dimension : Int32
+  priv value_dimension : Int32
+  priv selected_width : Int32
+  priv maximum_tokens : Int32
+  priv maximum_queries : Int32
   priv function_symbol : String
   priv source : Bytes
 }

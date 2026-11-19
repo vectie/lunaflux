@@ -9,8 +9,8 @@ pub struct VaeInputLayout {
 ///|
 pub fn VaeInputLayout::new(
   permutation : @dense_permutation_plan.Permutation,
-  batch~ : Int,
-  channels~ : Int,
+  batch~ : Int32,
+  channels~ : Int32,
   elements_per_channel~ : Int64,
   max_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {

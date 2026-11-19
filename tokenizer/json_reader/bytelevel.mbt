@@ -1,5 +1,5 @@
 ///|
-fn byte_from_bytelevel_scalar(scalar : Int) -> Int? {
+fn byte_from_bytelevel_scalar(scalar : Int32) -> Int32? {
   if (scalar >= 0x21 && scalar <= 0x7e) ||
     (scalar >= 0xa1 && scalar <= 0xac) ||
     (scalar >= 0xae && scalar <= 0xff) {
@@ -19,7 +19,7 @@ fn byte_from_bytelevel_scalar(scalar : Int) -> Int? {
 /// Reverse the canonical GPT-2/ByteLevel byte-to-Unicode alphabet.
 fn decode_bytelevel_piece(
   piece : String,
-  entry_index : Int,
+  entry_index : Int32,
 ) -> Bytes raise TokenizerJsonError {
   let output : Array[Byte] = []
   let mut character_index = 0

@@ -2,10 +2,10 @@
 pub fn bind_audio_decoder_amp_activation(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  stage_index~ : Int,
-  decoder_batch_count~ : Int,
-  channel_count~ : Int,
-  time_count~ : Int,
+  stage_index~ : Int32,
+  decoder_batch_count~ : Int32,
+  channel_count~ : Int32,
+  time_count~ : Int32,
   alpha_name~ : String,
   beta_name~ : String,
   upsample_filter_name~ : String,
@@ -74,9 +74,9 @@ pub fn bind_audio_decoder_amp_activation(
 
 ///|
 fn execute_audio_decoder_amp_activation_values(
-  channel_count~ : Int,
-  time_count~ : Int,
-  upsample_time~ : Int,
+  channel_count~ : Int32,
+  time_count~ : Int32,
+  upsample_time~ : Int32,
   element_count~ : Int64,
   intermediate_element_count~ : Int64,
   input : ArrayView[Float],

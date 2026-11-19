@@ -2,8 +2,8 @@
 fn reference_domain_admission_test(
   symbol : String,
   coverage : @luna_attention_strategy.AttentionMixedRowCoverage,
-  shared_memory_bytes? : Int = 81920,
-  accepted? : Bool = true,
+  shared_memory_bytes~ : Int32 = 81920,
+  accepted~ : Bool = true,
 ) -> Unit raise {
   let plan = qwen_fused_test_plan()
   let base = qwen_fused_test_blueprint(plan)

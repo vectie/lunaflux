@@ -27,12 +27,12 @@ pub fn JointVaeLatentDestandardization::layout(
 }
 
 ///|
-pub fn JointVaeLatentDestandardization::channel_count(self : Self) -> Int {
+pub fn JointVaeLatentDestandardization::channel_count(self : Self) -> Int32 {
   self.channel_count
 }
 
 ///|
-pub fn JointVaeLatentDestandardization::batch_count(self : Self) -> Int {
+pub fn JointVaeLatentDestandardization::batch_count(self : Self) -> Int32 {
   self.batch_count
 }
 
@@ -51,7 +51,7 @@ pub fn JointVaeLatentDestandardization::element_count(self : Self) -> Int64 {
 ///|
 pub fn JointVaeLatentDestandardization::mean(
   self : Self,
-  channel : Int,
+  channel : Int32,
 ) -> Float? {
   self.means.get(channel)
 }
@@ -59,7 +59,7 @@ pub fn JointVaeLatentDestandardization::mean(
 ///|
 pub fn JointVaeLatentDestandardization::standard_deviation(
   self : Self,
-  channel : Int,
+  channel : Int32,
 ) -> Float? {
   self.standard_deviations.get(channel)
 }

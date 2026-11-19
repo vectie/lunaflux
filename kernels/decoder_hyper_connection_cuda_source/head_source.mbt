@@ -5,9 +5,9 @@
 /// derives normalized sigmoid controls; all threads then reduce streams in
 /// ascending order and round the output once to BF16-RNE.
 pub fn head_reduce_v1_bf16_f32_source(
-  stream_width~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
+  stream_width~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
   function_symbol~ : String,

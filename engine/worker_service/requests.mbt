@@ -27,7 +27,7 @@ pub fn WorkerService::cancel(
 pub fn WorkerService::expire_deadlines(
   self : WorkerService,
   now_millis : UInt64,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.require_lifecycle(ServiceReady)
   self.scheduler.expire_deadlines(now_millis) catch {
@@ -90,7 +90,7 @@ pub fn WorkerService::take_next_publication(
 ///|
 pub fn WorkerService::live_request_count(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.scheduler.live_request_count()
 }
@@ -98,7 +98,7 @@ pub fn WorkerService::live_request_count(
 ///|
 pub fn WorkerService::generated_token_count(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.scheduler.generated_token_count()
 }
@@ -106,7 +106,7 @@ pub fn WorkerService::generated_token_count(
 ///|
 pub fn WorkerService::terminal_notice_count(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.scheduler.terminal_notice_count()
 }
@@ -114,7 +114,7 @@ pub fn WorkerService::terminal_notice_count(
 ///|
 pub fn WorkerService::free_page_count(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.scheduler.free_page_count()
 }
@@ -122,7 +122,7 @@ pub fn WorkerService::free_page_count(
 ///|
 pub fn WorkerService::allocated_block_table_count(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.scheduler.allocated_block_table_count()
 }

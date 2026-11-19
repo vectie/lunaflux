@@ -1,8 +1,8 @@
 ///|
 fn qk_normalization_shape(
-  query_heads : Int,
-  kv_heads : Int,
-  head_dimension : Int,
+  query_heads : Int32,
+  kv_heads : Int32,
+  head_dimension : Int32,
   epsilon : Double,
 ) -> @plan.OperationShape {
   QkNormalizationShape(query_heads~, kv_heads~, head_dimension~, epsilon~)

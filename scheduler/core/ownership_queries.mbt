@@ -1,5 +1,5 @@
 ///|
-fn Scheduler::status_at(self : Scheduler, index : Int) -> RequestStatus {
+fn Scheduler::status_at(self : Scheduler, index : Int32) -> RequestStatus {
   let request = match self.requests[index] {
     Some(value) => value
     None => abort("scheduler status invariant")
@@ -34,22 +34,22 @@ pub fn Scheduler::status(
 }
 
 ///|
-pub fn Scheduler::live_request_count(self : Scheduler) -> Int {
+pub fn Scheduler::live_request_count(self : Scheduler) -> Int32 {
   self.live_count
 }
 
 ///|
-pub fn Scheduler::waiting_request_count(self : Scheduler) -> Int {
+pub fn Scheduler::waiting_request_count(self : Scheduler) -> Int32 {
   self.waiting_count
 }
 
 ///|
-pub fn Scheduler::free_page_count(self : Scheduler) -> Int {
+pub fn Scheduler::free_page_count(self : Scheduler) -> Int32 {
   self.page_allocator.free_page_count()
 }
 
 ///|
-pub fn Scheduler::allocated_block_table_count(self : Scheduler) -> Int {
+pub fn Scheduler::allocated_block_table_count(self : Scheduler) -> Int32 {
   self.block_tables.allocated_table_count()
 }
 
@@ -83,12 +83,12 @@ pub fn Scheduler::last_retired_plan_sequence(self : Scheduler) -> UInt64 {
 }
 
 ///|
-pub fn Scheduler::terminal_notice_count(self : Scheduler) -> Int {
+pub fn Scheduler::terminal_notice_count(self : Scheduler) -> Int32 {
   self.terminal_count
 }
 
 ///|
-pub fn Scheduler::generated_token_count(self : Scheduler) -> Int {
+pub fn Scheduler::generated_token_count(self : Scheduler) -> Int32 {
   self.output_count
 }
 

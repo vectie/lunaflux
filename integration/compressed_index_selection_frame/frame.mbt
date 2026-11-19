@@ -85,7 +85,7 @@ pub fn CompressedIndexSelectionFrame::prepare(
   let w = region(head_weights, rows.to_int64() * heads.to_int64() * 2L, 2L)
   let k = region(
     cache_values,
-    Int::max(plan.cache_capacity(), 1).to_int64() * width.to_int64() * 2L,
+    Int32::max(plan.cache_capacity(), 1).to_int64() * width.to_int64() * 2L,
     2L,
   )
   let o = match (plan.coordinates(), offsets) {

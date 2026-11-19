@@ -1,6 +1,6 @@
 ///|
 priv struct Glm53ExpectedHostTensor {
-  ordinal : Int
+  ordinal : Int32
   name : String
   dtype : @glm53_weights.Glm53TensorDType
   shape : ReadOnlyArray[Int64]
@@ -8,13 +8,13 @@ priv struct Glm53ExpectedHostTensor {
 
 ///|
 priv struct Glm53HostTensorLocation {
-  shard_ordinal : Int
-  tensor_ordinal : Int
+  shard_ordinal : Int32
+  tensor_ordinal : Int32
 }
 
 ///|
 priv struct Glm53HostTransfer {
-  ordinal : Int
+  ordinal : Int32
   location : Glm53HostTensorLocation
   byte_length : Int64
   spans : ReadOnlyArray[Glm53HostTensorSpan]

@@ -1,7 +1,7 @@
 ///|
 fn attention_dimensions(
   elements : Int64,
-  block_x : Int,
+  block_x : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise JointDiffusionCudaAotError {
   let grid = (elements + block_x.to_int64() - 1L) / block_x.to_int64()
   if grid > 2147483647L {
@@ -35,11 +35,11 @@ fn attention_stage(
 ///|
 fn attention_scope_stages(
   scope : JointDiffusionAttentionRowScope,
-  rows : Int,
-  hidden : Int,
-  heads : Int,
-  head_dim : Int,
-  rotary : Int,
+  rows : Int32,
+  hidden : Int32,
+  heads : Int32,
+  head_dim : Int32,
+  rotary : Int32,
   projection_weights : Int64,
 ) -> Array[JointDiffusionAttentionCudaStage] raise JointDiffusionCudaAotError {
   let inner = checked_mul(heads.to_int64(), head_dim.to_int64())
@@ -168,11 +168,11 @@ pub fn lower_transformer_attention_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request~ : @joint_diffusion_io_plan.JointDiffusionIoPlan,
   packed_timestep~ : @joint_diffusion_io_plan.JointPackedTimestepSelection,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,
-  document_boundaries? : ArrayView[Int] = [],
+  document_boundaries~ : ArrayView[Int32] = [],
 ) -> JointDiffusionTransformerAttentionCudaCandidate raise JointDiffusionCudaAotError {
   if request.identity() != requirements.source_identity() ||
     packed_timestep.identity() != request.identity() ||

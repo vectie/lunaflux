@@ -1,7 +1,7 @@
 ///|
 fn exact_moe_sigmoid_correction_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  expert_count : Int,
+  expert_count : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if expert_count <= 0 {

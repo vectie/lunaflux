@@ -1,5 +1,5 @@
 ///|
-fn qwen3_corpus_int(value : Json) -> Int raise Qwen3PhysicalError {
+fn qwen3_corpus_int(value : Json) -> Int32 raise Qwen3PhysicalError {
   guard value is Number(number, repr=_) else {
     raise CorpusMismatch("token ID is not numeric")
   }
@@ -9,7 +9,7 @@ fn qwen3_corpus_int(value : Json) -> Int raise Qwen3PhysicalError {
 }
 
 ///|
-fn qwen3_corpus_ids(value : Json) -> Array[Int] raise Qwen3PhysicalError {
+fn qwen3_corpus_ids(value : Json) -> Array[Int32] raise Qwen3PhysicalError {
   guard value is Array(values) else {
     raise CorpusMismatch("token IDs are not an array")
   }
@@ -22,7 +22,7 @@ async fn qwen3_verify_reference_corpus(
   tokenizer_sha256 : String,
   corpus_path : String,
   corpus_sha256 : String,
-) -> Int raise Qwen3PhysicalError {
+) -> Int32 raise Qwen3PhysicalError {
   let tokenizer_bytes = qwen3_read_pinned(
     model_root + "/tokenizer.json",
     tokenizer_sha256,

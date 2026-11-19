@@ -104,7 +104,7 @@ fn wb_closure_request_key(
 fn wb_closure_publish(
   index : PrefixIndex,
   identity : ClosureIdentity,
-  values : ArrayView[Int],
+  values : ArrayView[Int32],
   physical : ArrayView[@page_allocator.PageId],
 ) -> PrefixEntryId raise {
   let tokens = PrefixTokenBuffer::new(values.length())
@@ -130,7 +130,7 @@ fn wb_closure_publish(
 fn wb_closure_lookup(
   index : PrefixIndex,
   identity : ClosureIdentity,
-  values : ArrayView[Int],
+  values : ArrayView[Int32],
   output : PrefixLookupBuffer,
 ) -> Unit raise {
   let tokens = PrefixTokenBuffer::new(values.length())

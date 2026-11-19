@@ -29,7 +29,7 @@ pub fn GlmHybridHyperControlCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridHyperControlCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,19 +48,19 @@ pub fn GlmHybridHyperControlCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridHyperControlCudaCandidate::stream_count(self : Self) -> Int {
+pub fn GlmHybridHyperControlCudaCandidate::stream_count(self : Self) -> Int32 {
   self.stream_count
 }
 
 ///|
-pub fn GlmHybridHyperControlCudaCandidate::hidden_width(self : Self) -> Int {
+pub fn GlmHybridHyperControlCudaCandidate::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
 pub fn GlmHybridHyperControlCudaCandidate::sinkhorn_iterations(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.sinkhorn_iterations
 }
 
@@ -79,7 +79,7 @@ pub fn GlmHybridHyperControlCudaCandidate::normalization_epsilon(
 }
 
 ///|
-pub fn GlmHybridHyperControlCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridHyperControlCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

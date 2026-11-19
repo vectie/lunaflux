@@ -11,9 +11,9 @@ pub struct AudioAmpLayout {
 
 ///|
 pub fn AudioAmpLayout::new(
-  batch~ : Int,
-  channels~ : Int,
-  time~ : Int,
+  batch~ : Int32,
+  channels~ : Int32,
+  time~ : Int32,
   max_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   let activation = AliasFreeActivationLayout::new(

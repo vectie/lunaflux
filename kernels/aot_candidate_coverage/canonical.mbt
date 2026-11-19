@@ -1,19 +1,19 @@
 ///|
 priv struct CoverageWriter {
   hash : @canonical_sha256.CanonicalSha256
-  mut bytes : Int
-  maximum_bytes : Int
+  mut bytes : Int32
+  maximum_bytes : Int32
 }
 
 ///|
-fn CoverageWriter::new(maximum_bytes : Int) -> Self {
+fn CoverageWriter::new(maximum_bytes : Int32) -> Self {
   { hash: @canonical_sha256.CanonicalSha256::new(), bytes: 0, maximum_bytes, }
 }
 
 ///|
 fn CoverageWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise AotCandidateCoverageError {
   if count < 0 || self.bytes > self.maximum_bytes - count {
     raise CoverageEncodingTooLarge
@@ -35,7 +35,7 @@ fn CoverageWriter::byte(
 ///|
 fn CoverageWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise AotCandidateCoverageError {
   self.reserve(8)
   if !self.hash.update_u64_le(Int64::from_int(value).reinterpret_as_uint64()) {
@@ -60,9 +60,9 @@ fn CoverageWriter::text(
 fn coverage_digest(
   source_identity : @spec.ModelIdentity,
   requirements_digest_sha256 : String,
-  requirement_count : Int,
+  requirement_count : Int32,
   ordered : FixedArray[AotCandidateEvidenceInput?],
-  maximum_encoding_bytes : Int,
+  maximum_encoding_bytes : Int32,
 ) -> AotCandidateCoverageDigest raise AotCandidateCoverageError {
   let writer = CoverageWriter::new(maximum_encoding_bytes)
   writer.text("lunaflux/aot-candidate-coverage/v1")

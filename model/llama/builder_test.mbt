@@ -47,7 +47,7 @@ fn copy_operations(
 ///|
 fn numeric_schema_prefix(
   plan : @plan.ModelPlan,
-  operation_count : Int,
+  operation_count : Int32,
 ) -> @numeric_contract.ModelNumericSchema raise {
   let operations : Array[@numeric_contract.NumericOperationSchema] = []
   let mut tensor_count = 0

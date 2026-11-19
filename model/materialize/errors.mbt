@@ -23,11 +23,11 @@ pub(all) suberror MaterializationError {
   EnvelopeLengthMismatch
   MaterializedSizeOverflow
   TooManyTensors
-  MissingBinding(reference~ : Int)
-  BindingOrderMismatch(reference~ : Int)
-  InvalidTensorRange(reference~ : Int)
-  TensorRangeOutsidePayload(reference~ : Int)
-  TensorRangeOverflow(reference~ : Int)
+  MissingBinding(reference~ : Int32)
+  BindingOrderMismatch(reference~ : Int32)
+  InvalidTensorRange(reference~ : Int32)
+  TensorRangeOutsidePayload(reference~ : Int32)
+  TensorRangeOverflow(reference~ : Int32)
   MaterializedSizeMismatch
   HostMaterializationTooLarge
 } derive(Debug, Eq)

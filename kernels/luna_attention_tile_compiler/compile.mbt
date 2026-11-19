@@ -163,7 +163,7 @@ pub fn compile_partitioned_attention_tile(
 /// A partition count alone cannot identify tile geometry or memory scheduling.
 pub fn compile_partitioned_attention_tile_frontier(
   request : AttentionTileCompilerRequest,
-  parallel_workgroup_targets : ArrayView[Int],
+  parallel_workgroup_targets : ArrayView[Int32],
 ) -> AttentionPartitionedTileCompilationFrontier raise AttentionTileCompilerError {
   if parallel_workgroup_targets.length() == 0 ||
     parallel_workgroup_targets.length() > 16 {
@@ -239,7 +239,7 @@ fn attention_tile_resource_score(
   let shared_residency = if shared_bytes <= 0L {
     1
   } else {
-    Int::max(1, Int::min(2, (shared_capacity / shared_bytes).to_int()))
+    Int32::max(1, Int32::min(2, (shared_capacity / shared_bytes).to_int()))
   }
   let divisor = Int64::max(
     1L,
@@ -277,7 +277,7 @@ pub fn compile_attention_tile_frontier(
 pub fn compile_attention_tile_frontier_incremental(
   request : AttentionTileCompilerRequest,
   previous : AttentionTileCompilationFrontier,
-) -> (AttentionTileCompilationFrontier, Int) raise AttentionTileCompilerError {
+) -> (AttentionTileCompilationFrontier, Int32) raise AttentionTileCompilerError {
   compile_attention_tile_frontier_reusing(request, Some(previous))
 }
 
@@ -308,7 +308,7 @@ fn reuse_attention_tile(
 fn compile_attention_tile_frontier_reusing(
   request : AttentionTileCompilerRequest,
   previous : AttentionTileCompilationFrontier?,
-) -> (AttentionTileCompilationFrontier, Int) raise AttentionTileCompilerError {
+) -> (AttentionTileCompilationFrontier, Int32) raise AttentionTileCompilerError {
   let mut reused = 0
   let selected = select_attention_tile(request)
   let variants : ReadOnlyArray[ScheduledAttentionTileCompilation] = if selected

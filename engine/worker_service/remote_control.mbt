@@ -60,7 +60,7 @@ fn RemoteWorkerServiceControl::begin_recovery(
 ///|
 pub fn RemoteWorkerServiceControl::confirm_release(
   self : RemoteWorkerServiceControl,
-  rank : Int,
+  rank : Int32,
   receipt : @remote_release.RemoteReleaseReceipt,
 ) -> Unit raise {
   self.current.confirm_release(rank, receipt)
@@ -126,7 +126,7 @@ pub fn RemoteWorkerServiceControl::prepare_replacement(
 /// A receipt for the old group never retires a failed replacement's resources.
 pub fn RemoteWorkerServiceControl::confirm_replacement_release(
   self : RemoteWorkerServiceControl,
-  rank : Int,
+  rank : Int32,
   receipt : @remote_release.RemoteReleaseReceipt,
 ) -> Unit raise {
   guard self.replacement is Some(replacement) else { raise Invalid(Recovery) }

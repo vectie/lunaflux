@@ -1,7 +1,7 @@
 ///|
 fn probe_int_arrays_equal(
-  left : ReadOnlyArray[Int],
-  right : ArrayView[Int],
+  left : ReadOnlyArray[Int32],
+  right : ArrayView[Int32],
 ) -> Bool {
   if left.length() != right.length() {
     return false

@@ -8,9 +8,9 @@ fn emit_decode_independent_stage(
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
   hoist_page_lookup : Bool,
   retention : @attention_physical_ir.RetainedCopyOwnership,
-  vector_elements : Int,
-  tile_rows : Int,
-  start_alignment : Int,
+  vector_elements : Int32,
+  tile_rows : Int32,
+  start_alignment : Int32,
   storage_index : String,
 ) -> String {
   let (_, heads, dimensions, page_rows) = abi.shape()

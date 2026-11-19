@@ -2,7 +2,7 @@
 fn CompletionBuffer::find_slot(
   self : CompletionBuffer,
   slot : CompletionSlot,
-) -> Int {
+) -> Int32 {
   let value = slot.value()
   if value < 0 || value >= self.slot_to_entry.length() {
     -1
@@ -14,10 +14,10 @@ fn CompletionBuffer::find_slot(
 ///|
 fn CompletionBuffer::validate_identity(
   self : CompletionBuffer,
-  index : Int,
+  index : Int32,
   request_id : @inference.RequestId,
   request_generation : @inference.RequestGeneration,
-  row_index : Int,
+  row_index : Int32,
 ) -> Unit raise WorkerProtocolError {
   if self.request_ids[index] != request_id ||
     self.request_generations[index] != request_generation {
@@ -149,14 +149,14 @@ pub fn SubmittedCompletion::model_plan_generation_wire(
 ///|
 pub fn SubmittedCompletion::entry_count(
   self : SubmittedCompletion,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.authenticate().entry_count
 }
 
 ///|
 pub fn SubmittedCompletion::entry(
   self : SubmittedCompletion,
-  index : Int,
+  index : Int32,
 ) -> SubmittedCompletionEntry raise WorkerProtocolError {
   let owner = self.authenticate()
   if index < 0 || index >= owner.entry_count {
@@ -239,7 +239,7 @@ pub fn SubmittedCompletionEntry::kind(
 ///|
 pub fn SubmittedCompletionEntry::processed_tokens(
   self : SubmittedCompletionEntry,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   let owner = self.owner()
   match owner.kinds[self.2] {
     PrefillCompletion | FinalPrefillCompletion => ()
@@ -251,7 +251,7 @@ pub fn SubmittedCompletionEntry::processed_tokens(
 ///|
 pub fn SubmittedCompletionEntry::token_id(
   self : SubmittedCompletionEntry,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   let owner = self.owner()
   match owner.kinds[self.2] {
     FinalPrefillCompletion | DecodeCompletion => ()

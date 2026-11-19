@@ -5,10 +5,10 @@
 pub struct RequestStatus {
   handle : RequestHandle
   state : SchedulerRequestState
-  input_tokens : Int
-  processed_input_tokens : Int
-  cached_input_tokens : Int
-  output_tokens : Int
+  input_tokens : Int32
+  processed_input_tokens : Int32
+  cached_input_tokens : Int32
+  output_tokens : Int32
   deadline_at_millis : UInt64
   in_flight : Bool
 } derive(Debug, Eq)
@@ -24,22 +24,22 @@ pub fn RequestStatus::state(self : RequestStatus) -> SchedulerRequestState {
 }
 
 ///|
-pub fn RequestStatus::input_tokens(self : RequestStatus) -> Int {
+pub fn RequestStatus::input_tokens(self : RequestStatus) -> Int32 {
   self.input_tokens
 }
 
 ///|
-pub fn RequestStatus::processed_input_tokens(self : RequestStatus) -> Int {
+pub fn RequestStatus::processed_input_tokens(self : RequestStatus) -> Int32 {
   self.processed_input_tokens
 }
 
 ///|
-pub fn RequestStatus::cached_input_tokens(self : RequestStatus) -> Int {
+pub fn RequestStatus::cached_input_tokens(self : RequestStatus) -> Int32 {
   self.cached_input_tokens
 }
 
 ///|
-pub fn RequestStatus::output_tokens(self : RequestStatus) -> Int {
+pub fn RequestStatus::output_tokens(self : RequestStatus) -> Int32 {
   self.output_tokens
 }
 

@@ -13,7 +13,7 @@ pub fn TensorParallelRankConfigureFrameBuffer::new(
 ///|
 pub fn TensorParallelRankConfigureFrameBuffer::capacity(
   self : TensorParallelRankConfigureFrameBuffer,
-) -> Int {
+) -> Int32 {
   self.storage.length()
 }
 
@@ -46,7 +46,7 @@ pub fn TensorParallelRankConfigureFrameBuffer::encode(
 pub fn TensorParallelRankConfigureFrameBuffer::load(
   self : TensorParallelRankConfigureFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedTensorParallelRankConfigureFrame raise TensorParallelRankConfigureError {
   let contract = decode_rank_configure(source, length, self.binding)
   self.publish(contract)
@@ -65,7 +65,7 @@ fn ValidatedTensorParallelRankConfigureFrame::owner(
 ///|
 pub fn ValidatedTensorParallelRankConfigureFrame::length(
   self : ValidatedTensorParallelRankConfigureFrame,
-) -> Int raise TensorParallelRankConfigureError {
+) -> Int32 raise TensorParallelRankConfigureError {
   self.owner().length
 }
 
@@ -81,7 +81,7 @@ pub fn ValidatedTensorParallelRankConfigureFrame::contract(
 pub fn ValidatedTensorParallelRankConfigureFrame::copy_to(
   self : ValidatedTensorParallelRankConfigureFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise TensorParallelRankConfigureError {
   let owner = self.owner()
   if destination_offset < 0 ||

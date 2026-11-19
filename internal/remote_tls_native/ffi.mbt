@@ -26,38 +26,38 @@ extern "C" fn session_valid(session : NativeSession) -> Bool = "lunaflux_tls_ses
 extern "C" fn release_session(session : NativeSession) -> Unit = "lunaflux_tls_session_release"
 
 ///|
-extern "C" fn handshake(session : NativeSession) -> Int = "lunaflux_tls_handshake"
+extern "C" fn handshake(session : NativeSession) -> Int32 = "lunaflux_tls_handshake"
 
 ///|
 #borrow(bytes)
 extern "C" fn feed(
   session : NativeSession,
   bytes : FixedArray[Byte],
-  count : Int,
-) -> Int = "lunaflux_tls_feed"
+  count : Int32,
+) -> Int32 = "lunaflux_tls_feed"
 
 ///|
 #borrow(bytes)
 extern "C" fn drain(
   session : NativeSession,
   bytes : FixedArray[Byte],
-  capacity : Int,
-) -> Int = "lunaflux_tls_drain"
+  capacity : Int32,
+) -> Int32 = "lunaflux_tls_drain"
 
 ///|
 #borrow(bytes)
 extern "C" fn decrypt(
   session : NativeSession,
   bytes : FixedArray[Byte],
-  offset : Int,
-  count : Int,
-) -> Int = "lunaflux_tls_read"
+  offset : Int32,
+  count : Int32,
+) -> Int32 = "lunaflux_tls_read"
 
 ///|
 #borrow(bytes)
 extern "C" fn encrypt(
   session : NativeSession,
   bytes : Bytes,
-  offset : Int,
-  count : Int,
-) -> Int = "lunaflux_tls_write"
+  offset : Int32,
+  count : Int32,
+) -> Int32 = "lunaflux_tls_write"

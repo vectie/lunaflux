@@ -72,7 +72,7 @@ fn read_luna_evidence_snapshot(
 ///|
 fn luna_canonical_limit(
   limits : ExecutionManifestFileLimits,
-) -> Int raise ExecutionManifestFileError {
+) -> Int32 raise ExecutionManifestFileError {
   let value = limits.max_manifest_bytes().to_int()
   if value <= 0 || Int64::from_int(value) != limits.max_manifest_bytes() {
     raise InvalidLimit(ManifestBytes)

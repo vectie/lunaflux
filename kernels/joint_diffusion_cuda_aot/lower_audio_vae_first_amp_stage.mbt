@@ -1,7 +1,7 @@
 ///|
 fn amp_stage_dimensions(
   count : Int64,
-  block_size : Int,
+  block_size : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise JointDiffusionCudaAotError {
   let grid = (count + block_size.to_int64() - 1L) / block_size.to_int64()
   if grid <= 0L || grid > 2147483647L {
@@ -24,7 +24,7 @@ fn amp_stage_dimensions(
 fn amp_parameter_index(
   layout : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout,
   role : @joint_audio_amp_parameter_layout.JointAudioAmpParameterRole,
-) -> Int raise JointDiffusionCudaAotError {
+) -> Int32 raise JointDiffusionCudaAotError {
   for index, region in layout.regions() {
     if region.role() == role {
       return index
@@ -36,10 +36,10 @@ fn amp_parameter_index(
 ///|
 fn amp_activation_parameter_indices(
   layout : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout,
-  block : Int,
-  activation : Int,
+  block : Int32,
+  activation : Int32,
   phase : @joint_audio_amp_workspace_layout.JointAudioAmpActivationPhase,
-) -> Array[Int] raise JointDiffusionCudaAotError {
+) -> Array[Int32] raise JointDiffusionCudaAotError {
   match phase {
     Upsample =>
       [amp_parameter_index(layout, ActivationUpsampleFilter(block, activation))]
@@ -61,11 +61,11 @@ fn amp_activation_parameter_indices(
 ///|
 fn amp_convolution_parameter_indices(
   layout : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout,
-  block : Int,
-  pair : Int,
-  side : Int,
+  block : Int32,
+  pair : Int32,
+  side : Int32,
   phase : @joint_audio_amp_workspace_layout.JointAudioAmpConvolutionPhase,
-) -> Array[Int] raise JointDiffusionCudaAotError {
+) -> Array[Int32] raise JointDiffusionCudaAotError {
   match phase {
     Normalize =>
       [
@@ -79,8 +79,8 @@ fn amp_convolution_parameter_indices(
 
 ///|
 fn amp_state_role(
-  _block : Int,
-  pair : Int,
+  _block : Int32,
+  pair : Int32,
 ) -> @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceRole {
   if pair == 0 {
     OriginalUpsamplerOutput
@@ -93,8 +93,8 @@ fn amp_state_role(
 
 ///|
 fn amp_residual_output_role(
-  block : Int,
-  pair : Int,
+  block : Int32,
+  pair : Int32,
 ) -> @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceRole {
   if pair == 0 {
     ResidualPingWorkspace
@@ -206,9 +206,9 @@ fn append_amp_source(builder : StringBuilder, source : Bytes) -> Unit {
 
 ///|
 fn render_amp_stage_source(
-  batch : Int,
-  channels : Int,
-  time : Int,
+  batch : Int32,
+  channels : Int32,
+  time : Int32,
   elements : Int64,
 ) -> Bytes raise JointDiffusionCudaAotError {
   let builder = StringBuilder()
@@ -261,7 +261,7 @@ pub fn lower_audio_vae_decoder_first_amp_stage_cuda_aot_candidate(
   request~ : @joint_diffusion_plan.JointDiffusionRequestShape,
   parameter_layout~ : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout,
   workspace_layout~ : @joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayout,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

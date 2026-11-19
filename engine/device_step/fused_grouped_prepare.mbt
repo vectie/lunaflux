@@ -3,7 +3,7 @@ fn prepare_fused_residual_resources(
   context : @device.Context,
   span : ApprovedFusedResidualRmsNormSpan,
   resources : PagedGraphResources,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   let module_index = resources.modules.length()
   let loaded = context.load_module(span.approved_module_bytes()) catch {
     error => raise ExecutorDevice(Module, error)
@@ -32,7 +32,7 @@ fn fused_residual_argument(
   weight : @device.Allocation,
   activation_workspace : @device.Allocation,
   persistent_kv : @device.Allocation,
-  counts_offset? : Int64 = -1L,
+  counts_offset~ : Int64 = -1L,
 ) -> @device.KernelArgument raise DeviceStepError {
   @device.KernelArgument::device_region(
     allocation_for_paged_operand(
@@ -53,7 +53,7 @@ fn fused_residual_argument(
 ///|
 fn fused_residual_argument_count_for_abi(
   abi : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   match abi {
     ResidualRmsNormAbiV1 => 7
     ResidualRmsNormProductionAbiV2 => 6
@@ -65,7 +65,7 @@ fn fused_residual_argument_count_for_abi(
 fn prepare_fused_residual_step(
   blueprint : PagedKvExecutionBlueprint,
   span : ApprovedFusedResidualRmsNormSpan,
-  function_index : Int,
+  function_index : Int32,
   resources : PagedGraphResources,
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
@@ -214,9 +214,9 @@ fn validate_fused_dispatch_canary(
 
 ///|
 fn fused_expected_dispatch_canary(
-  per_token : UInt,
-  token_count : Int,
-) -> UInt raise DeviceStepError {
+  per_token : UInt32,
+  token_count : Int32,
+) -> UInt32 raise DeviceStepError {
   if per_token == 0U ||
     token_count <= 0 ||
     token_count.reinterpret_as_uint() > 0xffffffffU / per_token {
@@ -226,7 +226,7 @@ fn fused_expected_dispatch_canary(
 }
 
 ///|
-fn fused_decode_dispatch_canary(host : FixedArray[Byte]) -> UInt {
+fn fused_decode_dispatch_canary(host : FixedArray[Byte]) -> UInt32 {
   host[0].to_uint() |
   (host[1].to_uint() << 8) |
   (host[2].to_uint() << 16) |
@@ -235,9 +235,9 @@ fn fused_decode_dispatch_canary(host : FixedArray[Byte]) -> UInt {
 
 ///|
 fn require_fused_dispatch_canary_observation(
-  per_token : UInt,
-  token_count : Int,
-  observed : UInt,
+  per_token : UInt32,
+  token_count : Int32,
+  observed : UInt32,
 ) -> Unit raise DeviceStepError {
   if observed != fused_expected_dispatch_canary(per_token, token_count) {
     raise InvalidExecutor(ResourceState)

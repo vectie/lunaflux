@@ -6,7 +6,7 @@ pub fn DeepSeekV4QueryAParameterPlan::source_identity(
 }
 
 ///|
-pub fn DeepSeekV4QueryAParameterPlan::requirement_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4QueryAParameterPlan::requirement_ordinal(self : Self) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -18,17 +18,17 @@ pub fn DeepSeekV4QueryAParameterPlan::layout_digest_sha256(
 }
 
 ///|
-pub fn DeepSeekV4QueryAParameterPlan::input_width(self : Self) -> Int {
+pub fn DeepSeekV4QueryAParameterPlan::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn DeepSeekV4QueryAParameterPlan::output_width(self : Self) -> Int {
+pub fn DeepSeekV4QueryAParameterPlan::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn DeepSeekV4QueryAParameterPlan::block_width(self : Self) -> Int {
+pub fn DeepSeekV4QueryAParameterPlan::block_width(self : Self) -> Int32 {
   self.block_width
 }
 

@@ -28,7 +28,7 @@ test "retention variants are distinct same-law schedules and need measurements" 
     ),
   )
   let candidates = generate_attention_tile_candidates(problem, capabilities)
-  let ids : Map[Int, Bool] = Map([])
+  let ids : Map[Int32, Bool] = Map([])
   for candidate in candidates {
     assert_false(ids.contains(candidate.stable_id()))
     ids[candidate.stable_id()] = true

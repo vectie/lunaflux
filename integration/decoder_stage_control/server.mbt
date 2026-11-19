@@ -36,12 +36,12 @@ pub struct DecoderStageServer {
   priv plan : @wire.PlanFrameBuffer
   priv completion : @wire.CompletionFrameBuffer
   priv ready_to_submit : () -> Bool raise
-  priv arm_activation : (UInt64, Int, UInt64) -> Unit raise
+  priv arm_activation : (UInt64, Int32, UInt64) -> Unit raise
   priv committed_effect : ((Bool) -> Unit raise)?
   priv poll_committed_effect : () -> Bool raise
   priv state_transaction : StageStateTransaction?
   priv draft_execution : StageDraftExecution?
-  priv maximum_token : Int
+  priv maximum_token : Int32
   priv timeout_millis : UInt64
   priv mut last_tick : UInt64
   priv mut phase_deadline : UInt64
@@ -63,9 +63,9 @@ pub fn DecoderStageServer::new(
   timeout_millis~ : UInt64,
   local_now_millis~ : UInt64,
   ready_to_submit~ : () -> Bool raise,
-  arm_activation? : (UInt64, Int, UInt64) -> Unit raise = (_, _, _) => (),
+  arm_activation~ : (UInt64, Int32, UInt64) -> Unit raise = (_, _, _) => (),
   committed_effect? : (Bool) -> Unit raise,
-  poll_committed_effect? : () -> Bool raise = () => true,
+  poll_committed_effect~ : () -> Bool raise = () => true,
   state_transaction? : StageStateTransaction,
   draft_execution? : StageDraftExecution,
 ) -> Self raise {
@@ -118,9 +118,9 @@ fn prepare_server(
   timeout_millis~ : UInt64,
   local_now_millis~ : UInt64,
   ready_to_submit~ : () -> Bool raise,
-  arm_activation? : (UInt64, Int, UInt64) -> Unit raise = (_, _, _) => (),
+  arm_activation~ : (UInt64, Int32, UInt64) -> Unit raise = (_, _, _) => (),
   committed_effect? : (Bool) -> Unit raise,
-  poll_committed_effect? : () -> Bool raise = () => true,
+  poll_committed_effect~ : () -> Bool raise = () => true,
   state_transaction? : StageStateTransaction,
   draft_execution? : StageDraftExecution,
 ) -> DecoderStageServer raise {
@@ -175,9 +175,9 @@ fn prepare_server(
 ///|
 fn DecoderStageServer::reply(
   self : Self,
-  kind : Int,
-  flags : Int,
-  token : Int,
+  kind : Int32,
+  flags : Int32,
+  token : Int32,
   now : UInt64,
 ) -> Unit raise {
   header(self.message, kind, self.epoch, flags, token)
@@ -188,7 +188,7 @@ fn DecoderStageServer::reply(
 ///|
 fn DecoderStageServer::command(
   self : Self,
-  length : Int,
+  length : Int32,
   now : UInt64,
 ) -> Unit raise {
   validate_header(self.message, length)

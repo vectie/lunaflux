@@ -3,8 +3,8 @@ fn valid_token_hash_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -13,10 +13,10 @@ fn valid_token_hash_symbol(symbol : StringView) -> Bool {
 /// entries write the fail-closed sentinel `-1` without reading out of bounds.
 /// Launch geometry is `[maximum_rows,1,1]` blocks of 256 threads.
 pub fn token_hash_lookup_i32_source(
-  vocabulary_size~ : Int,
-  experts_per_token~ : Int,
-  routed_expert_count~ : Int,
-  maximum_rows~ : Int,
+  vocabulary_size~ : Int32,
+  experts_per_token~ : Int32,
+  routed_expert_count~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> DecoderTokenHashCudaSource raise DecoderTokenHashCudaSourceError {
   if vocabulary_size <= 0 {

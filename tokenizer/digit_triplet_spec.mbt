@@ -8,7 +8,7 @@ pub fn TokenizerSpec::new_digit_triplet_bpe(
   merges : ArrayView[MergeRule],
   digest : TokenizerDigest,
   limits : TokenizerLimits,
-  ignore_merges? : Bool = false,
+  ignore_merges~ : Bool = false,
 ) -> TokenizerSpec raise TokenizerError {
   new_bytelevel_bpe(
     vocabulary,

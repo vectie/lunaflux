@@ -112,7 +112,7 @@ pub fn OnlineWorkerLease::progress(
 }
 
 ///|
-fn classify_online_worker_error(error : WorkerServiceError) -> Int {
+fn classify_online_worker_error(error : WorkerServiceError) -> Int32 {
   match error {
     Scheduler(Invalid(issue=Backpressured, ..)) => 0
     PhysicalTransport(PhysicalBackpressured) => 0
@@ -213,7 +213,7 @@ pub fn OnlineWorkerPublication::kind(
 ///|
 pub fn OnlineWorkerPublication::token_id(
   self : OnlineWorkerPublication,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   if self.0 != 0 {
     raise Invalid(Sequence)
   }
@@ -223,7 +223,7 @@ pub fn OnlineWorkerPublication::token_id(
 ///|
 pub fn OnlineWorkerPublication::position(
   self : OnlineWorkerPublication,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   if self.0 != 0 {
     raise Invalid(Sequence)
   }
@@ -253,7 +253,7 @@ pub fn OnlineWorkerPublication::terminal_reason(
 /// publications do not own terminal usage and reject this accessor.
 pub fn OnlineWorkerPublication::cached_input_tokens(
   self : OnlineWorkerPublication,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   if self.0 != 1 || self.1 < 0 {
     raise Invalid(Sequence)
   }
@@ -278,7 +278,7 @@ pub fn OnlineWorkerPublication::route(
 }
 
 ///|
-fn online_terminal_code(reason : @core.TerminalReason) -> Int {
+fn online_terminal_code(reason : @core.TerminalReason) -> Int32 {
   match reason {
     CancelledByCaller => 0
     DeadlineReached => 1

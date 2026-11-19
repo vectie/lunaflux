@@ -1,8 +1,8 @@
 ///|
 fn bootstrap_reusable_qwen_bundle(
-  query_metadata? : Bool = false,
+  query_metadata~ : Bool = false,
   attention_bucket_routes? : Bytes,
-  vendor_projection_exact_rows? : Int = 0,
+  vendor_projection_exact_rows~ : Int32 = 0,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let target = @catalog.DeviceTarget::new(
     compute_major=12,

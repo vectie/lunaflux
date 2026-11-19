@@ -2,24 +2,24 @@
 /// Offline device facts. A unit is an independently resident execution unit;
 /// backend discovery translates its native limits into this portable value.
 pub struct AttentionResourceBudget {
-  priv units : Int
-  priv threads_per_unit : Int
-  priv registers_per_unit : Int
-  priv register_allocation_grain : Int
-  priv register_allocation_threads : Int
+  priv units : Int32
+  priv threads_per_unit : Int32
+  priv registers_per_unit : Int32
+  priv register_allocation_grain : Int32
+  priv register_allocation_threads : Int32
   priv shared_bytes_per_unit : Int64
-  priv blocks_per_unit : Int
+  priv blocks_per_unit : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn AttentionResourceBudget::new(
-  units~ : Int,
-  threads_per_unit~ : Int,
-  registers_per_unit~ : Int,
-  register_allocation_grain~ : Int,
-  register_allocation_threads? : Int = 1,
+  units~ : Int32,
+  threads_per_unit~ : Int32,
+  registers_per_unit~ : Int32,
+  register_allocation_grain~ : Int32,
+  register_allocation_threads~ : Int32 = 1,
   shared_bytes_per_unit~ : Int64,
-  blocks_per_unit~ : Int,
+  blocks_per_unit~ : Int32,
 ) -> AttentionResourceBudget raise AttentionTileCompilerError {
   if units <= 0 ||
     units > 1048576 ||
@@ -54,13 +54,13 @@ pub fn AttentionResourceBudget::new(
 /// model. No profiling is performed in this package or in request execution.
 pub struct AttentionRegisterObservation {
   priv schedule : @luna_attention_tile_schedule.AttentionTileScheduleDigest
-  priv registers_per_thread : Int
+  priv registers_per_thread : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn AttentionRegisterObservation::new(
   schedule : @luna_attention_tile_schedule.AttentionTileScheduleDigest,
-  registers_per_thread~ : Int,
+  registers_per_thread~ : Int32,
 ) -> AttentionRegisterObservation raise AttentionTileCompilerError {
   if registers_per_thread <= 0 || registers_per_thread > 1024 {
     raise InvalidAttentionTileCompilation(ResourceFeedback)
@@ -146,11 +146,11 @@ fn attention_observed_resource_score(
   } else {
     (budget.shared_bytes_per_unit / shared).to_int()
   }
-  let residency = Int::min(
+  let residency = Int32::min(
     budget.blocks_per_unit,
-    Int::min(
+    Int32::min(
       by_registers,
-      Int::min(by_shared, budget.threads_per_unit / threads),
+      Int32::min(by_shared, budget.threads_per_unit / threads),
     ),
   )
   if residency <= 0 {

@@ -1,7 +1,7 @@
 ///|
 fn v4_entry_point(
   claims : ManifestV4Claims,
-  operation_index : Int,
+  operation_index : Int32,
 ) -> @catalog.AotKernelEntryPoint {
   let claim = claims.operations[operation_index]
   let module_claim = claims.modules[claim.module_index]

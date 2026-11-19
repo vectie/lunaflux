@@ -22,10 +22,10 @@ pub(all) suberror TwoStageProjectionCudaSourceError {
 pub struct TwoStageProjectionCudaSource {
   priv operation : TwoStageProjectionOperation
   priv numerical_contract : TwoStageProjectionNumericalContract
-  priv input_width : Int
-  priv intermediate_width : Int
-  priv output_width : Int
-  priv maximum_rows : Int
+  priv input_width : Int32
+  priv intermediate_width : Int32
+  priv output_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

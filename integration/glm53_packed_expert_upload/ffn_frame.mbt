@@ -83,12 +83,12 @@ fn GlmFfn::prepare(
   weights : @upload.CheckpointDeviceWeights,
   checkpoint : @precision_materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
-  layer_index~ : Int,
-  chunk_bytes~ : Int,
+  layer_index~ : Int32,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   output~ : @device.Allocation,
-  weight_offset? : Int = 19,
+  weight_offset~ : Int32 = 19,
   transient_scratch? : @device.Allocation,
 ) -> Unit raise {
   let input = context.allocate(self.input_bytes)

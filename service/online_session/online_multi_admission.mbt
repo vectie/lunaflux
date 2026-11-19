@@ -1,7 +1,7 @@
 ///|
 fn luna_online_multi_admission(
   kind : LunaOnlineInstanceAdmissionKind,
-  lane : Int,
+  lane : Int32,
   generation : UInt64,
 ) -> LunaOnlineInstanceAdmission {
   {
@@ -51,7 +51,7 @@ fn LunaOnlineInstance::require_active_multi_ticket(
 #warnings("-unused_value")
 fn LunaOnlineInstance::multi_claim_owner(
   self : LunaOnlineInstance,
-  lane : Int,
+  lane : Int32,
 ) -> @request_admission.LunaPreparedRequestClaim {
   if lane < 0 ||
     lane >= self.multi.lanes.length() ||
@@ -65,7 +65,7 @@ fn LunaOnlineInstance::multi_claim_owner(
 #warnings("-unused_value")
 fn LunaOnlineInstance::multi_worker_request(
   self : LunaOnlineInstance,
-  lane : Int,
+  lane : Int32,
 ) -> @worker_service.LunaOnlineWorkerRequest {
   if lane < 0 ||
     lane >= self.multi.lanes.length() ||
@@ -78,7 +78,7 @@ fn LunaOnlineInstance::multi_worker_request(
 ///|
 fn LunaOnlineInstance::mark_multi_event_published(
   self : LunaOnlineInstance,
-  lane : Int,
+  lane : Int32,
   kind : SessionEventKind,
 ) -> Unit {
   if self.multi.event_lane >= 0 || !self.events.has_event() {
@@ -104,12 +104,12 @@ fn LunaOnlineInstance::multi_event_ticket(
 #warnings("-unused_value")
 fn LunaOnlineInstance::multi_active_request_count(
   self : LunaOnlineInstance,
-) -> Int {
+) -> Int32 {
   self.multi.active_count
 }
 
 ///|
-fn LunaOnlineInstance::peek_free_multi_lane(self : LunaOnlineInstance) -> Int {
+fn LunaOnlineInstance::peek_free_multi_lane(self : LunaOnlineInstance) -> Int32 {
   if self.multi.free_count == 0 {
     return -1
   }
@@ -125,7 +125,7 @@ fn LunaOnlineInstance::peek_free_multi_lane(self : LunaOnlineInstance) -> Int {
 ///|
 fn LunaOnlineInstance::commit_free_multi_lane(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   if self.multi.free_count <= 0 ||
     self.multi.free_lanes[self.multi.free_head] != lane_index {

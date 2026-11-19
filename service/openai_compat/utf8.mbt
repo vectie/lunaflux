@@ -1,8 +1,8 @@
 ///|
 fn luna_openai_range_is_valid(
-  source_length : Int,
-  source_offset : Int,
-  length : Int,
+  source_length : Int32,
+  source_offset : Int32,
+  length : Int32,
 ) -> Bool {
   source_offset >= 0 &&
   length >= 0 &&
@@ -13,8 +13,8 @@ fn luna_openai_range_is_valid(
 ///|
 fn luna_openai_valid_utf8(
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> Bool {
   let end = offset + length
   let mut index = offset

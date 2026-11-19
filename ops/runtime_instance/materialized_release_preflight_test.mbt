@@ -13,7 +13,7 @@ fn materialized_test_evidence(
   descriptor_sha : String,
   policy_sha : String,
   worker_sha : String,
-  descriptor_relative? : String = "runtime.json",
+  descriptor_relative~ : String = "runtime.json",
 ) -> Bytes {
   @utf8.encode(
     "schema=lunaflux.deployment-bundle.v1\n" +
@@ -55,7 +55,7 @@ fn materialized_test_evidence(
 ///|
 async fn write_materialized_test_bundle(
   root : String,
-  evidence_descriptor_relative? : String = "runtime.json",
+  evidence_descriptor_relative~ : String = "runtime.json",
 ) -> Bytes {
   @fs.mkdir("\{root}/evidence", recursive=true)
   @fs.mkdir("\{root}/launch-root", recursive=true)

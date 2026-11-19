@@ -108,7 +108,7 @@ fn i8_fixture_resolved(
 ///|
 fn i8_fixture_memory(
   static_plan : @device_plan.StaticDevicePlan,
-  maximum? : Int64 = 65536L,
+  maximum~ : Int64 = 65536L,
 ) -> @device_memory.DeviceMemoryPlan raise {
   @device_memory.plan(
     static_plan,
@@ -270,7 +270,7 @@ fn i8_fixture_contracts(
 ///|
 fn i8_fixture_artifacts(
   contracts : @launch_contract.PagedV4LaunchContractSet,
-  alternate_symbols? : Bool = false,
+  alternate_symbols~ : Bool = false,
 ) -> @artifact.KernelArtifactBundle raise {
   let module_digest = @catalog.AotArtifactDigest::from_sha256(
     "039058c6f2c0cb492c533b0a4d14ef77cc0f78abccced5287d84a1a2011cfb81",

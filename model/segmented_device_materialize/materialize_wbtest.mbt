@@ -1,11 +1,11 @@
 ///|
 priv struct FakeSegmentedAllocation {
   bytes : FixedArray[Byte]
-  mut validate_calls : Int
-  mut copy_calls : Int
-  fail_validate_at : Int
-  fail_copy_at : Int
-  mut close_failures : Int
+  mut validate_calls : Int32
+  mut copy_calls : Int32
+  fail_validate_at : Int32
+  fail_copy_at : Int32
+  mut close_failures : Int32
   mut closed : Bool
 }
 
@@ -24,7 +24,7 @@ fn segmented_test_source_digest(seed : Char) -> SegmentedHostSourceDigest {
 
 ///|
 fn segmented_test_limits(
-  maximum_device_arena_bytes? : Int64 = 1024L,
+  maximum_device_arena_bytes~ : Int64 = 1024L,
 ) -> SegmentedDeviceMaterializationLimits {
   try! SegmentedDeviceMaterializationLimits::new(
     alignment_bytes=64L,
@@ -69,9 +69,9 @@ fn segmented_test_layout() -> SegmentedDeviceLayout {
 ///|
 fn fake_segmented_allocation(
   byte_count : Int64,
-  fail_validate_at~ : Int,
-  fail_copy_at~ : Int,
-  close_failures~ : Int,
+  fail_validate_at~ : Int32,
+  fail_copy_at~ : Int32,
+  close_failures~ : Int32,
 ) -> FakeSegmentedAllocation {
   {
     bytes: FixedArray::make(byte_count.to_int(), b'!'),
@@ -142,9 +142,9 @@ fn fake_close_segmented(
 fn fake_prepare(
   layout : SegmentedDeviceLayout,
   arenas : ArrayView[FixedArray[Byte]],
-  fail_validate_at : Int,
-  fail_copy_at : Int,
-  close_failures : Int,
+  fail_validate_at : Int32,
+  fail_copy_at : Int32,
+  close_failures : Int32,
 ) -> SegmentedResourcePreparation[FakeSegmentedAllocation] raise SegmentedDeviceMaterializationError {
   prepare_with_resource(
     layout,

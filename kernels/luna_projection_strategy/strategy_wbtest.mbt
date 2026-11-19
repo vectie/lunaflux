@@ -13,8 +13,8 @@ fn strategy_test_capabilities() -> ProjectionCapabilities raise ProjectionStrate
 
 ///|
 fn strategy_test_candidate(
-  stable_id : Int,
-  row_bucket : Int,
+  stable_id : Int32,
+  row_bucket : Int32,
 ) -> ProjectionStrategy raise ProjectionStrategyError {
   ProjectionStrategy::new(
     stable_id~,

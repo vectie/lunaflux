@@ -1,12 +1,12 @@
 ///|
 /// Startup-only batch envelope for the paged dense Qwen3 plan.
 pub struct Qwen3PagedBatchEnvelope {
-  priv max_batch_rows : Int
+  priv max_batch_rows : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn Qwen3PagedBatchEnvelope::new(
-  max_batch_rows : Int,
+  max_batch_rows : Int32,
 ) -> Qwen3PagedBatchEnvelope raise @plan.PlanValidationError {
   if max_batch_rows <= 0 {
     raise InvalidShape(PositiveDimension)
@@ -20,7 +20,7 @@ pub fn Qwen3PagedBatchEnvelope::single_row() -> Self {
 }
 
 ///|
-pub fn Qwen3PagedBatchEnvelope::max_batch_rows(self : Self) -> Int {
+pub fn Qwen3PagedBatchEnvelope::max_batch_rows(self : Self) -> Int32 {
   self.max_batch_rows
 }
 
@@ -38,7 +38,7 @@ fn checked_product(
 }
 
 ///|
-fn tensor(reference : Int) -> @plan.ValueRef raise @plan.PlanValidationError {
+fn tensor(reference : Int32) -> @plan.ValueRef raise @plan.PlanValidationError {
   Tensor(@plan.TensorRef::new(reference))
 }
 
@@ -116,7 +116,7 @@ fn append_layer_operation(
 fn build_with_execution(
   metadata : @qwen3_spec.Qwen3ModelMetadata,
   kv_execution : @plan.ModelKvExecution,
-  max_batch_rows : Int,
+  max_batch_rows : Int32,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   let spec = metadata.spec()
   let hidden = spec.hidden_size()
@@ -352,7 +352,7 @@ pub fn build(
 ///|
 pub fn build_paged(
   metadata : @qwen3_spec.Qwen3ModelMetadata,
-  batch? : Qwen3PagedBatchEnvelope = Qwen3PagedBatchEnvelope::single_row(),
+  batch~ : Qwen3PagedBatchEnvelope = Qwen3PagedBatchEnvelope::single_row(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   build_with_execution(metadata, PagedKeyValue, batch.max_batch_rows())
 }

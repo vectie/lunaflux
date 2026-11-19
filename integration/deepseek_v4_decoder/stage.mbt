@@ -9,19 +9,19 @@ pub struct DeepSeekDecoderStage {
   priv decoder : DeepSeekDecoderSlice
   priv ingress : @text.DeepSeekTextIngress?
   priv egress : @text.DeepSeekTextIo?
-  priv maximum_rows : Int
-  priv maximum_output_rows : Int
-  priv maximum_context : Int
-  priv vocabulary : Int
+  priv maximum_rows : Int32
+  priv maximum_output_rows : Int32
+  priv maximum_context : Int32
+  priv vocabulary : Int32
   priv residual_bytes : Int64
-  priv token_table_count : Int
+  priv token_table_count : Int32
   priv token_tables : @upload.CheckpointDeviceIndexTables
   priv residuals : Array[@device.Allocation]
   priv mut counts : @device.Allocation?
   priv mut activation_leased : Bool
   priv mut prediction_leased : Bool
   priv prediction_complete : Bool
-  priv mut active_rows : Int
+  priv mut active_rows : Int32
   priv mut submission_epoch : UInt64
   priv mut state : SliceState
 }
@@ -30,15 +30,15 @@ pub struct DeepSeekDecoderStage {
 pub fn DeepSeekDecoderStage::new(
   spec : @spec.DeepSeekV4ModelSpec,
   range : @pipeline.DecoderStageRange,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_layer_state_bytes~ : Int64,
   maximum_layer_workspace_bytes~ : Int64,
   maximum_layer_expert_bytes~ : Int64,
   maximum_text_workspace_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
-  capture_prediction_inputs? : Bool = false,
-  maximum_output_rows? : Int = 1,
+  capture_prediction_inputs~ : Bool = false,
+  maximum_output_rows~ : Int32 = 1,
 ) -> Self raise {
   guard range.layer_count() == spec.layer_count() &&
     maximum_output_rows > 0 &&
@@ -107,7 +107,7 @@ pub fn DeepSeekDecoderStage::new(
 }
 
 ///|
-pub fn DeepSeekDecoderStage::layer_range(self : Self) -> (Int, Int) {
+pub fn DeepSeekDecoderStage::layer_range(self : Self) -> (Int32, Int32) {
   self.range.layer_range()
 }
 
@@ -184,7 +184,7 @@ pub fn DeepSeekDecoderStage::prepare(
   ports : @serial.SerialDecoderWorker,
   maximum_device_bytes~ : Int64,
   maximum_host_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh else {
@@ -323,7 +323,7 @@ pub fn DeepSeekDecoderStage::output_residual(
 }
 
 ///|
-pub fn DeepSeekDecoderStage::launch_count(self : Self) -> Int {
+pub fn DeepSeekDecoderStage::launch_count(self : Self) -> Int32 {
   self.decoder.launch_count()
 }
 
@@ -337,7 +337,7 @@ pub fn DeepSeekDecoderStage::append_descriptors(
 ///|
 pub fn DeepSeekDecoderStage::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
 ) -> Unit raise {
   guard self.state is Prepared &&
     !self.activation_leased &&

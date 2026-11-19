@@ -14,14 +14,14 @@ pub(all) enum Fp8ProjectionNumericalContract {
 
 ///|
 pub struct Fp8ProjectionAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
 }
 
 ///|
 pub fn Fp8ProjectionAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
 ) -> Fp8ProjectionAotLimits raise Fp8ProjectionAotError {
   if max_source_bytes <= 0 ||
     max_source_bytes > 16 * 1024 * 1024 ||
@@ -71,9 +71,9 @@ pub struct Fp8ProjectionCudaLowering {
   priv entry_point_id : @catalog.AotKernelEntryPointId
   priv target : @catalog.DeviceTarget
   priv profile : @launch_contract.PagedKernelProfile
-  priv input_width : Int
-  priv output_width : Int
-  priv intermediate_width : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv intermediate_width : Int32
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv numerical_contract : Fp8ProjectionNumericalContract

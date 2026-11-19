@@ -2,8 +2,8 @@
 /// One disjoint immutable operand strip in a reusable storage slot. Producer
 /// vector addresses and consumer scalar addresses use this exact layout.
 pub struct OperandRegion {
-  priv base : Int
-  priv rows : Int
+  priv base : Int32
+  priv rows : Int32
   priv layout : OperandLayout
   priv ownership : VectorOwnership
 } derive(Eq, Debug)
@@ -15,7 +15,7 @@ pub extend OperandRegion with Eq::{equal, not_equal}
 pub extend OperandRegion with @debug.Debug::{to_repr}
 
 ///|
-pub fn OperandRegion::geometry(self : OperandRegion) -> (Int, Int, Int) {
+pub fn OperandRegion::geometry(self : OperandRegion) -> (Int32, Int32, Int32) {
   let (columns, _, _, _) = self.layout.geometry()
   (self.base, self.rows, columns)
 }
@@ -35,9 +35,9 @@ pub fn OperandRegion::layout(self : OperandRegion) -> OperandLayout {
 /// Allocation-relative element offset, bounded to this operand's own rows.
 pub fn OperandRegion::offset(
   self : OperandRegion,
-  row : Int,
-  column : Int,
-) -> Int? {
+  row : Int32,
+  column : Int32,
+) -> Int32? {
   guard row >= 0 && row < self.rows else { return None }
   self.layout.offset(row, column).map(offset => self.base + offset)
 }
@@ -47,9 +47,9 @@ pub fn OperandRegion::offset(
 /// returned storage offset. Invalid owner/round pairs have no memory effect.
 pub fn OperandRegion::copy_at(
   self : OperandRegion,
-  owner : Int,
-  round : Int,
-) -> (Int, Int, Int)? {
+  owner : Int32,
+  round : Int32,
+) -> (Int32, Int32, Int32)? {
   guard self.ownership.vector_at(owner, round) is Some(index) else {
     return None
   }
@@ -65,8 +65,8 @@ pub fn OperandRegion::copy_at(
 pub struct OperandStorage {
   priv regions : ReadOnlyArray[OperandRegion]
   priv layout : OperandLayout
-  priv slot_elements : Int
-  priv stages : Int
+  priv slot_elements : Int32
+  priv stages : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -78,9 +78,9 @@ pub extend OperandStorage with @debug.Debug::{to_repr}
 ///|
 pub fn OperandStorage::new(
   layout : OperandLayout,
-  operand_rows : ArrayView[Int],
-  owners~ : Int,
-  stages~ : Int,
+  operand_rows : ArrayView[Int32],
+  owners~ : Int32,
+  stages~ : Int32,
 ) -> OperandStorage? {
   guard !operand_rows.is_empty() && owners > 0 && stages > 0 else {
     return None
@@ -116,7 +116,7 @@ pub fn OperandStorage::new(
 ///|
 pub fn OperandStorage::region(
   self : OperandStorage,
-  index : Int,
+  index : Int32,
 ) -> OperandRegion? {
   self.regions.get(index)
 }
@@ -127,12 +127,12 @@ pub fn OperandStorage::layout(self : OperandStorage) -> OperandLayout {
 }
 
 ///|
-pub fn OperandStorage::slot_elements(self : OperandStorage) -> Int {
+pub fn OperandStorage::slot_elements(self : OperandStorage) -> Int32 {
   self.slot_elements
 }
 
 ///|
-pub fn OperandStorage::allocation_elements(self : OperandStorage) -> Int {
+pub fn OperandStorage::allocation_elements(self : OperandStorage) -> Int32 {
   self.slot_elements * self.stages
 }
 

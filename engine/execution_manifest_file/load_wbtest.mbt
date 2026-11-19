@@ -122,8 +122,8 @@ async test "paged admission rejects fewer packed tokens than rows before IO" {
 ///|
 fn v3_manifest_claim(
   valid : String,
-  operation_id : Int,
-  specialization_locator? : String = "luna/residual.specialization",
+  operation_id : Int32,
+  specialization_locator~ : String = "luna/residual.specialization",
 ) -> String {
   valid.replace(
     old="\"schema_version\":2",
@@ -144,7 +144,7 @@ fn v3_manifest_claim(
 }
 
 ///|
-fn first_residual_operation_id(plan : @plan.ModelPlan) -> Int {
+fn first_residual_operation_id(plan : @plan.ModelPlan) -> Int32 {
   for operation in plan.operations() {
     if operation.kind() == ResidualAdd {
       return operation.id().as_int()
@@ -155,7 +155,7 @@ fn first_residual_operation_id(plan : @plan.ModelPlan) -> Int {
 
 ///|
 fn v3_approval(
-  manifest_digest? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  manifest_digest~ : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 ) -> @worker_wire.WorkerBootstrapLunaApproval raise {
   @worker_wire.WorkerBootstrapLunaApproval::from_untrusted_wire_claim(
     manifest_digest_sha256=manifest_digest,

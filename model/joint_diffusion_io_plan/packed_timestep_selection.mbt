@@ -1,9 +1,9 @@
 ///|
 pub fn JointPackedTimestepSelection::new(
   request : JointDiffusionIoPlan,
-  evaluation_index~ : Int,
-  distinct_timestep_count~ : Int,
-  indices~ : ArrayView[Int],
+  evaluation_index~ : Int32,
+  distinct_timestep_count~ : Int32,
+  indices~ : ArrayView[Int32],
 ) -> Self raise JointDiffusionIoPlanError {
   let packed_row_count = indices.length()
   if evaluation_index < 0 ||
@@ -14,7 +14,7 @@ pub fn JointPackedTimestepSelection::new(
     packed_row_count > 2147483647 {
     raise InvalidPackedTimestepSelection
   }
-  let owned : Array[Int] = []
+  let owned : Array[Int32] = []
   let canonical = StringBuilder()
   canonical <+
     "lunaflux.joint-packed-timestep-selection.v1|model=\{request.identity().content().as_hex()}:\{request.identity().plan().as_hex()}|request=\{request.request_digest().as_hex()}|evaluation=\{evaluation_index}|rows=\{packed_row_count}|distinct=\{distinct_timestep_count}|indices="
@@ -64,23 +64,25 @@ pub fn JointPackedTimestepSelection::digest(self : Self) -> @spec.PlanDigest {
 }
 
 ///|
-pub fn JointPackedTimestepSelection::evaluation_index(self : Self) -> Int {
+pub fn JointPackedTimestepSelection::evaluation_index(self : Self) -> Int32 {
   self.evaluation_index
 }
 
 ///|
-pub fn JointPackedTimestepSelection::packed_row_count(self : Self) -> Int {
+pub fn JointPackedTimestepSelection::packed_row_count(self : Self) -> Int32 {
   self.packed_row_count
 }
 
 ///|
 pub fn JointPackedTimestepSelection::distinct_timestep_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.distinct_timestep_count
 }
 
 ///|
-pub fn JointPackedTimestepSelection::indices(self : Self) -> ReadOnlyArray[Int] {
+pub fn JointPackedTimestepSelection::indices(
+  self : Self,
+) -> ReadOnlyArray[Int32] {
   self.indices
 }

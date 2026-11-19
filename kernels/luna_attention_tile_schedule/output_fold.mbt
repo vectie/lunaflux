@@ -9,9 +9,9 @@ pub(all) enum AttentionOutputFoldStorage {
 ///|
 fn output_fold_storage(
   compute : @luna_attention_strategy.AttentionTileCompute,
-  query_tile : Int,
-  head_dimension : Int,
-  subgroups : Int,
+  query_tile : Int32,
+  head_dimension : Int32,
+  subgroups : Int32,
 ) -> AttentionOutputFoldStorage {
   // Bound the live accumulator to two matrix-row fragments per subgroup.
   // Wider query tiles retain the shared realization until a measured resource

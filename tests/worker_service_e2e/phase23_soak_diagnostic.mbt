@@ -1,5 +1,5 @@
 ///|
-const PHASE23_SOAK_DIAGNOSTIC_CYCLES : Int = 2300
+const PHASE23_SOAK_DIAGNOSTIC_CYCLES : Int32 = 2300
 
 ///|
 priv struct Phase23SoakTrace {
@@ -25,7 +25,7 @@ fn phase23_soak_trace_breadcrumb(
   trace : Phase23SoakTrace?,
   server : @online_tcp.LunaOnlineTcpServer,
   ledger : Phase23SoakLedger,
-  cycle : Int,
+  cycle : Int32,
   stage : String,
 ) -> Unit raise {
   guard trace is Some(owner) else { return }
@@ -41,8 +41,8 @@ fn phase23_soak_trace_progress_predicate(
   trace : Phase23SoakTrace?,
   server : @online_tcp.LunaOnlineTcpServer,
   ledger : Phase23SoakLedger,
-  cycle : Int,
-  attempts : Int,
+  cycle : Int32,
+  attempts : Int32,
   saw_two_live : Bool,
   saw_two_row_plan : Bool,
   saw_backpressure : Bool,

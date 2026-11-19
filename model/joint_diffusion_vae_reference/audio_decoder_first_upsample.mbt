@@ -2,7 +2,7 @@
 pub fn bind_audio_decoder_first_upsample(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  decoder_batch_count~ : Int,
+  decoder_batch_count~ : Int32,
   weight_g_name~ : String,
   weight_v_name~ : String,
   bias_name~ : String,

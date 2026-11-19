@@ -1,11 +1,11 @@
 ///|
 fn llama_tp_append_collective(
   output : Array[@tensor_parallel_plan.TensorCollectiveSite],
-  operation : Int,
+  operation : Int32,
   kind : @tensor_parallel_plan.TensorCollectiveKind,
-  full_width : Int,
-  local_width : Int,
-  world_size : Int,
+  full_width : Int32,
+  local_width : Int32,
+  world_size : Int32,
 ) -> Unit raise LlamaTensorParallelError {
   let operation_id = @plan.OperationId::new(operation) catch {
     _ => raise UnsupportedPlan(operation~)
@@ -26,9 +26,9 @@ fn llama_tp_append_collective(
 
 ///|
 fn llama_tp_build_collectives(
-  layer_count : Int,
-  hidden : Int,
-  vocabulary : Int,
+  layer_count : Int32,
+  hidden : Int32,
+  vocabulary : Int32,
   topology : @tensor_parallel_plan.TensorParallelTopology,
 ) -> ReadOnlyArray[@tensor_parallel_plan.TensorCollectiveSite] raise LlamaTensorParallelError {
   let output : Array[@tensor_parallel_plan.TensorCollectiveSite] = []
@@ -169,8 +169,8 @@ fn llama_tp_wrap_rank_plan(
 pub fn build_rank_plan(
   model : @plan.ModelPlan,
   bindings : @llama_weights.LlamaWeightBindings,
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
   alignment_bytes~ : Int64,
   max_arena_bytes~ : Int64,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan raise LlamaTensorParallelError {

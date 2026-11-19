@@ -3,7 +3,7 @@ pub struct LearnedGatedPoolCudaSource {
   priv plan : @precision.LearnedGatedPoolPrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
-  priv order : ReadOnlyArray[Int]
+  priv order : ReadOnlyArray[Int32]
 }
 
 ///|
@@ -13,8 +13,8 @@ pub fn learned_gated_pool_source(
 ) -> LearnedGatedPoolCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (hidden, width, ratio, overlap, rows, positions) = plan.geometry()
@@ -165,7 +165,7 @@ pub fn learned_gated_pool_source(
 ///|
 pub fn LearnedGatedPoolCudaSource::execution_order(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.order
 }
 
@@ -182,15 +182,15 @@ pub fn LearnedGatedPoolCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn LearnedGatedPoolCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn LearnedGatedPoolCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.symbols[stage]
 }
 
 ///|
 pub fn LearnedGatedPoolCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (_, width, _, overlap, rows, _) = self.plan.geometry()
   match stage {
     1 => (rows, (width * (if overlap { 2 } else { 1 }) + 255) / 256, 256)

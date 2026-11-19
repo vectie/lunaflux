@@ -1,9 +1,9 @@
 ///|
 fn fused_production_test_fallback(
   role : @luna_fused_artifact_admission.FusedStandaloneFallbackRole,
-  operation? : Int = 2,
-  source? : String = "1",
-  recipe? : String = "2",
+  operation~ : Int32 = 2,
+  source~ : String = "1",
+  recipe~ : String = "2",
 ) -> @luna_fused_artifact_admission.FusedStandaloneFallbackIdentity raise {
   @luna_fused_artifact_admission.FusedStandaloneFallbackIdentity::new(
     role~,

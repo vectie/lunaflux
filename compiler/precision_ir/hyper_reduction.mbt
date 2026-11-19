@@ -3,7 +3,7 @@
 /// explicit semantics, never an implicit reassociation by device lowering.
 pub(all) enum HyperControlReduction {
   Ordered
-  Tree(partitions~ : Int)
+  Tree(partitions~ : Int32)
 }
 
 ///|

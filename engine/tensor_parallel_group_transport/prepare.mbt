@@ -167,7 +167,7 @@ pub fn TensorParallelGroupTransport::lifecycle(
 ///|
 pub fn TensorParallelGroupTransport::world_size(
   self : TensorParallelGroupTransport,
-) -> Int {
+) -> Int32 {
   self.inputs.topology.world_size()
 }
 

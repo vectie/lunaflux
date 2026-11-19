@@ -5,7 +5,7 @@ priv suberror Qwen3WeightConvertError {
   ConfigAdmission
   SourceAdmission
   ConversionPlan
-  Publication(status~ : Int)
+  Publication(status~ : Int32)
   OutputAdmission
   Cleanup
 }
@@ -17,7 +17,7 @@ priv struct Qwen3WeightConvertArguments {
   model_content_sha256 : String
   source_locator : String
   source_sha256 : String
-  max_batch_rows : Int
+  max_batch_rows : Int32
   output_locator : String
 }
 

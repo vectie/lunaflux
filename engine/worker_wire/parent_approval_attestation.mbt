@@ -1,5 +1,5 @@
 ///|
-const PARENT_APPROVAL_ATTESTATION_BYTES : Int = 252
+const PARENT_APPROVAL_ATTESTATION_BYTES : Int32 = 252
 
 ///|
 pub struct WorkerParentApprovalSubjects {
@@ -34,7 +34,7 @@ pub fn WorkerParentApprovalSubjects::from_fp8_authorization(
 }
 
 ///|
-pub fn parent_approval_attestation_capacity() -> Int {
+pub fn parent_approval_attestation_capacity() -> Int32 {
   PARENT_APPROVAL_ATTESTATION_BYTES
 }
 
@@ -60,8 +60,8 @@ fn encode_parent_approval_attestation_v1(
   bootstrap_digest_sha256~ : String,
   source_digest_sha256~ : String,
   model_generation~ : UInt64,
-  device_ordinal~ : Int,
-) -> Int raise WorkerWireError {
+  device_ordinal~ : Int32,
+) -> Int32 raise WorkerWireError {
   if destination.length() < PARENT_APPROVAL_ATTESTATION_BYTES ||
     model_generation == 0UL ||
     device_ordinal < 0 {
@@ -88,8 +88,8 @@ pub fn encode_parent_approval_subjects_attestation_v1(
   bootstrap_digest_sha256~ : String,
   source_digest_sha256~ : String,
   model_generation~ : UInt64,
-  device_ordinal~ : Int,
-) -> Int raise WorkerWireError {
+  device_ordinal~ : Int32,
+) -> Int32 raise WorkerWireError {
   encode_parent_approval_attestation_v1(
     destination,
     manifest_digest_sha256=subjects.manifest_digest_sha256,
@@ -106,7 +106,7 @@ pub fn encode_parent_approval_subjects_attestation_v1(
 ///|
 pub fn encode_absent_parent_approval_attestation_v1(
   destination : FixedArray[Byte],
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   if destination.length() < PARENT_APPROVAL_ATTESTATION_BYTES {
     raise InvalidBootstrapSource(CanonicalEncoding)
   }
@@ -118,7 +118,7 @@ pub fn encode_absent_parent_approval_attestation_v1(
 ///|
 pub fn decode_parent_approval_attestation_v1(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> @luna_capability_manifest.LunaParentStartupApprovalWitness? raise WorkerWireError {
   if length != PARENT_APPROVAL_ATTESTATION_BYTES ||
     source.length() < length ||

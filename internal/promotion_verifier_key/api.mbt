@@ -4,7 +4,7 @@ pub fn open_fixed() -> PromotionVerifierKeyHandle {
 }
 
 ///|
-pub fn open_status(handle : PromotionVerifierKeyHandle) -> Int {
+pub fn open_status(handle : PromotionVerifierKeyHandle) -> Int32 {
   raw_open_status(handle.native)
 }
 
@@ -12,19 +12,19 @@ pub fn open_status(handle : PromotionVerifierKeyHandle) -> Int {
 pub fn try_read(
   handle : PromotionVerifierKeyHandle,
   destination : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int {
+  offset : Int32,
+  length : Int32,
+) -> Int32 {
   raw_try_read(handle.native, destination, offset, length)
 }
 
 ///|
-pub fn peek(handle : PromotionVerifierKeyHandle) -> Int {
+pub fn peek(handle : PromotionVerifierKeyHandle) -> Int32 {
   raw_peek(handle.native)
 }
 
 ///|
-pub fn close(handle : PromotionVerifierKeyHandle) -> Int {
+pub fn close(handle : PromotionVerifierKeyHandle) -> Int32 {
   raw_close(handle.native)
 }
 

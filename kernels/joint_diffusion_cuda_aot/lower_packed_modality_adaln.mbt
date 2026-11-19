@@ -3,7 +3,7 @@ pub fn lower_packed_modality_adaln_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   timestep~ : @joint_diffusion_io_plan.JointPackedTimestepSelection,
   modality~ : @joint_diffusion_io_plan.JointPackedModalitySelection,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

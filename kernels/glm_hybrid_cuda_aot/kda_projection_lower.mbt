@@ -1,11 +1,11 @@
 ///|
 fn kda_projection_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  hidden_width : Int,
-  head_count : Int,
-  head_dimension : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  hidden_width : Int32,
+  head_count : Int32,
+  head_dimension : Int32,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -99,8 +99,8 @@ fn kda_projection_recipe(
 /// projections. The adjacent F32 decay-control requirement remains separate.
 pub fn lower_kda_projection_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

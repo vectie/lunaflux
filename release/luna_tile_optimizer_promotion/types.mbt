@@ -1,5 +1,5 @@
 ///|
-const LUNA_TILE_PROMOTION_MAX_CANONICAL_BYTES : Int = 262144
+const LUNA_TILE_PROMOTION_MAX_CANONICAL_BYTES : Int32 = 262144
 
 ///|
 fn luna_tile_promotion_is_sha256(value : StringView) -> Bool {
@@ -7,7 +7,7 @@ fn luna_tile_promotion_is_sha256(value : StringView) -> Bool {
     return false
   }
   for character in value {
-    if !(character is ('0'..='9' | 'a'..='f')) {
+    if !(character is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -99,10 +99,10 @@ pub struct AdmittedLunaTilePairedBenchmarkWin {
   priv candidate : LunaTileOptimizerDigest
   priv fallback : LunaTileOptimizerDigest
   priv physical : LunaTileOptimizerDigest
-  priv observation_count : Int
+  priv observation_count : Int32
   priv candidate_total_ns : Int64
   priv fallback_total_ns : Int64
-  priv observed_win_ppm : Int
+  priv observed_win_ppm : Int32
   priv canonical : Bytes
   priv digest : LunaTileOptimizerDigest
 }
@@ -122,7 +122,7 @@ pub fn LunaTilePromotionArtifactInput::new(
     raise LunaTileOptimizerPromotionInvalid(Artifact)
   }
   for character in entry_point {
-    if !(character is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) {
+    if !(character is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) {
       raise LunaTileOptimizerPromotionInvalid(Artifact)
     }
   }

@@ -1,9 +1,9 @@
 ///|
 fn normalized_component(
   values : ArrayView[Double],
-  base : Int,
-  component : Int,
-  dimension : Int,
+  base : Int32,
+  component : Int32,
+  dimension : Int32,
 ) -> Double {
   let mut squares = 0.0
   for offset in 0..<dimension {
@@ -25,9 +25,9 @@ pub fn kda_recurrent_delta_update(
   log_decay : ArrayView[Double],
   beta : ArrayView[Double],
   initial_state : ArrayView[Double],
-  sequence_length~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  sequence_length~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmKdaRecurrentResult raise GlmHybridReferenceError {
   limits.check_sequence(sequence_length)

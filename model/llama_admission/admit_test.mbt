@@ -11,8 +11,8 @@ fn append_entry(
   first : Bool,
   name : String,
   shape : String,
-  bytes : Int,
-  offset : Ref[Int],
+  bytes : Int32,
+  offset : Ref[Int32],
 ) -> Unit {
   if !first {
     text.write_string(",")

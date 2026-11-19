@@ -2,8 +2,8 @@
 fn valid_short_convolution_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -24,10 +24,10 @@ fn positive_product(left : Int64, right : Int64) -> Int64? {
 /// array of length `maximum_sequences+1`; live entries partition the exact
 /// `counts[3]` token prefix into `counts[2]` non-empty sequences.
 pub fn depthwise_causal_silu_bf16_source(
-  channel_count~ : Int,
-  kernel_size~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
+  channel_count~ : Int32,
+  kernel_size~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
   function_symbol~ : String,
 ) -> CausalShortConvolutionCudaSource raise CausalShortConvolutionCudaSourceError {
   if channel_count <= 0 {
@@ -142,22 +142,24 @@ pub fn CausalShortConvolutionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn CausalShortConvolutionCudaSource::channel_count(self : Self) -> Int {
+pub fn CausalShortConvolutionCudaSource::channel_count(self : Self) -> Int32 {
   self.channel_count
 }
 
 ///|
-pub fn CausalShortConvolutionCudaSource::kernel_size(self : Self) -> Int {
+pub fn CausalShortConvolutionCudaSource::kernel_size(self : Self) -> Int32 {
   self.kernel_size
 }
 
 ///|
-pub fn CausalShortConvolutionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn CausalShortConvolutionCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 
 ///|
-pub fn CausalShortConvolutionCudaSource::maximum_sequences(self : Self) -> Int {
+pub fn CausalShortConvolutionCudaSource::maximum_sequences(
+  self : Self,
+) -> Int32 {
   self.maximum_sequences
 }
 

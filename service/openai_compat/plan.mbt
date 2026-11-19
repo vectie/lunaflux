@@ -1,5 +1,5 @@
 ///|
-fn luna_openai_responses_part(event_kind : Int, part : Int) -> Int {
+fn luna_openai_responses_part(event_kind : Int32, part : Int32) -> Int32 {
   match event_kind {
     LUNA_OPENAI_EVENT_ACCEPTED =>
       match part {
@@ -56,7 +56,7 @@ fn luna_openai_responses_part(event_kind : Int, part : Int) -> Int {
 }
 
 ///|
-fn luna_openai_chat_part(event_kind : Int, part : Int) -> Int {
+fn luna_openai_chat_part(event_kind : Int32, part : Int32) -> Int32 {
   match event_kind {
     LUNA_OPENAI_EVENT_ACCEPTED =>
       match part {
@@ -116,7 +116,11 @@ fn luna_openai_chat_part(event_kind : Int, part : Int) -> Int {
 }
 
 ///|
-fn luna_openai_part_kind(mode : Int, event_kind : Int, part : Int) -> Int {
+fn luna_openai_part_kind(
+  mode : Int32,
+  event_kind : Int32,
+  part : Int32,
+) -> Int32 {
   if mode == 1 {
     luna_openai_responses_part(event_kind, part)
   } else {
@@ -125,7 +129,7 @@ fn luna_openai_part_kind(mode : Int, event_kind : Int, part : Int) -> Int {
 }
 
 ///|
-fn luna_openai_responses_literal(event_kind : Int, part : Int) -> Bytes {
+fn luna_openai_responses_literal(event_kind : Int32, part : Int32) -> Bytes {
   match (event_kind, part) {
     (LUNA_OPENAI_EVENT_ACCEPTED, 0) =>
       b"data: {\"type\":\"response.created\",\"response\":{\"id\":\""
@@ -168,7 +172,7 @@ fn luna_openai_responses_literal(event_kind : Int, part : Int) -> Bytes {
 }
 
 ///|
-fn luna_openai_chat_literal(event_kind : Int, part : Int) -> Bytes {
+fn luna_openai_chat_literal(event_kind : Int32, part : Int32) -> Bytes {
   match (event_kind, part) {
     (LUNA_OPENAI_EVENT_ACCEPTED, 0) => b"data: {\"id\":\""
     (LUNA_OPENAI_EVENT_ACCEPTED, 3) =>
@@ -214,7 +218,7 @@ fn luna_openai_chat_literal(event_kind : Int, part : Int) -> Bytes {
 }
 
 ///|
-fn luna_openai_literal(mode : Int, event_kind : Int, part : Int) -> Bytes {
+fn luna_openai_literal(mode : Int32, event_kind : Int32, part : Int32) -> Bytes {
   if mode == 1 {
     luna_openai_responses_literal(event_kind, part)
   } else {

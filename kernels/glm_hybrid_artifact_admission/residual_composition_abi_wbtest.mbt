@@ -1,9 +1,9 @@
 ///|
 fn hyper_mix_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  post_role? : GlmHybridLaunchOperandRole = HyperPostControlInput,
-  output_role? : GlmHybridLaunchOperandRole = HyperMixedStreamsOutput,
-  combine_bytes? : Int64 = 2048L,
+  post_role~ : GlmHybridLaunchOperandRole = HyperPostControlInput,
+  output_role~ : GlmHybridLaunchOperandRole = HyperMixedStreamsOutput,
+  combine_bytes~ : Int64 = 2048L,
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

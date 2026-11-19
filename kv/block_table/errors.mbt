@@ -58,3 +58,27 @@ pub(all) suberror BlockTableError {
   TokenPositionOutOfBounds(BlockTableId)
   InvariantViolation(BlockTableInvariantRule)
 } derive(Debug, Eq)
+
+///|
+pub extend BlockTableLimitRule with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableLimitRule with Eq::{not_equal, equal}
+
+///|
+pub extend BlockTableIdentity with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableIdentity with Eq::{not_equal, equal}
+
+///|
+pub extend BlockTableInvariantRule with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableInvariantRule with Eq::{not_equal, equal}
+
+///|
+pub extend BlockTableError with @debug.Debug::{to_repr}
+
+///|
+pub extend BlockTableError with Eq::{not_equal, equal}

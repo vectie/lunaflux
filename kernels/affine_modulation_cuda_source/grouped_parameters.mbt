@@ -4,11 +4,11 @@
 /// [fields,rows*groups,width], directly consumed by indexed modulation.
 /// One thread computes one output; no per-token expansion or transpose launch.
 pub fn grouped_parameter_projection_source(
-  rows~ : Int,
-  input_width~ : Int,
-  width~ : Int,
-  groups~ : Int,
-  fields~ : Int,
+  rows~ : Int32,
+  input_width~ : Int32,
+  width~ : Int32,
+  groups~ : Int32,
+  fields~ : Int32,
   function_symbol~ : String,
 ) -> Bytes raise AffineModulationCudaSourceError {
   if rows <= 0 {

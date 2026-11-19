@@ -11,18 +11,18 @@ fn two_stage_product(left : Int64, right : Int64) -> Int64? {
 fn valid_two_stage_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 /// Serial correctness renderer for two bias-free dense projections with an
 /// explicit BF16 intermediate round. All matrices are output-major row-major.
 pub fn bias_free_bf16_low_rank_projection_source(
-  input_width~ : Int,
-  intermediate_width~ : Int,
-  output_width~ : Int,
-  maximum_rows~ : Int,
+  input_width~ : Int32,
+  intermediate_width~ : Int32,
+  output_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> TwoStageProjectionCudaSource raise TwoStageProjectionCudaSourceError {
   if input_width <= 0 {
@@ -111,22 +111,22 @@ pub fn TwoStageProjectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn TwoStageProjectionCudaSource::input_width(self : Self) -> Int {
+pub fn TwoStageProjectionCudaSource::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn TwoStageProjectionCudaSource::intermediate_width(self : Self) -> Int {
+pub fn TwoStageProjectionCudaSource::intermediate_width(self : Self) -> Int32 {
   self.intermediate_width
 }
 
 ///|
-pub fn TwoStageProjectionCudaSource::output_width(self : Self) -> Int {
+pub fn TwoStageProjectionCudaSource::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn TwoStageProjectionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn TwoStageProjectionCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

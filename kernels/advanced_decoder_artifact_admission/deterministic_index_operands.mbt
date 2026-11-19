@@ -1,6 +1,6 @@
 ///|
 fn deterministic_compressed_index_operands_are_exact(
-  compression_ratio : Int,
+  compression_ratio : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,

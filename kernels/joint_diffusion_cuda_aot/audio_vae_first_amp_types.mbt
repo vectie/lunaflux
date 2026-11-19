@@ -20,15 +20,15 @@ pub struct JointDiffusionAudioVaeFirstAmpCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv parameter_digest : @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstAmpActivationDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv batch_count : Int
-  priv channel_count : Int
-  priv time_count : Int
-  priv upsample_time : Int
+  priv batch_count : Int32
+  priv channel_count : Int32
+  priv time_count : Int32
+  priv upsample_time : Int32
   priv element_count : Int64
   priv intermediate_element_count : Int64
   priv target : @catalog.DeviceTarget

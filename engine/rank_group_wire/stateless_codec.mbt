@@ -1,7 +1,7 @@
 ///|
 fn decode_wire_digest_string(
   source : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
 ) -> String raise RankGroupWireError {
   let encoded = Bytes::makei(64, index => source[offset + index])
   let value = @utf8.decode(encoded) catch { _ => raise Invalid(Digest) }
@@ -71,7 +71,7 @@ fn rank_group_wire_source_matches_binding(
 /// The result does not retain `source`.
 pub fn decode_rank_group_wire_header(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
 ) -> RankGroupWireDecodedHeader raise RankGroupWireError {
   validate_frame_source(source, length, limits)
@@ -93,7 +93,7 @@ pub fn decode_rank_group_wire_header(
 /// `validate_rank_group_wire_binding`.
 pub fn decode_rank_group_wire_configure(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
 ) -> RankGroupWireDecodedConfigure raise RankGroupWireError {
   let header = decode_rank_group_wire_header(source, length, limits)
@@ -110,7 +110,7 @@ pub fn decode_rank_group_wire_configure(
 /// reference in its scalar result.
 pub fn validate_rank_group_wire_binding(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
   binding : RankGroupWireBinding,
 ) -> RankGroupWireDecodedHeader raise RankGroupWireError {
@@ -131,8 +131,8 @@ fn encode_rank_group_wire_into(
   slot : RankGroupWireSlot?,
   sequence_value : UInt64,
   payload : FixedArray[Byte]?,
-  payload_length : Int,
-) -> Int raise RankGroupWireError {
+  payload_length : Int32,
+) -> Int32 raise RankGroupWireError {
   if payload_length < 0 || payload_length > limits.max_payload_bytes() {
     raise Invalid(Payload)
   }
@@ -190,7 +190,7 @@ pub fn encode_rank_group_wire_control_into(
   direction : RankGroupWireDirection,
   slot : RankGroupWireSlot?,
   sequence_value : UInt64,
-) -> Int raise RankGroupWireError {
+) -> Int32 raise RankGroupWireError {
   encode_rank_group_wire_into(
     destination,
     limits,
@@ -219,8 +219,8 @@ pub fn encode_rank_group_wire_payload_into(
   slot : RankGroupWireSlot?,
   sequence_value : UInt64,
   payload : FixedArray[Byte],
-  payload_length : Int,
-) -> Int raise RankGroupWireError {
+  payload_length : Int32,
+) -> Int32 raise RankGroupWireError {
   encode_rank_group_wire_into(
     destination,
     limits,
@@ -246,8 +246,8 @@ pub fn seal_rank_group_wire_embedded_payload(
   direction : RankGroupWireDirection,
   slot : RankGroupWireSlot?,
   sequence_value : UInt64,
-  payload_length : Int,
-) -> Int raise RankGroupWireError {
+  payload_length : Int32,
+) -> Int32 raise RankGroupWireError {
   if payload_length < 0 || payload_length > limits.max_payload_bytes() {
     raise Invalid(Payload)
   }

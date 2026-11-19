@@ -32,7 +32,8 @@ pub fn prepare_device_state_snapshot(
     maximum_backup_bytes~,
   )
   let backup = context.allocate(plan.backup_bytes())
-  let copy = try {
+  let copy = {
+    errdefer backup.close()
     let regions = state.mapi((i, allocation) => {
       @device.DeviceCopyRegion::new(
         allocation,
@@ -42,11 +43,6 @@ pub fn prepare_device_state_snapshot(
       )
     })
     context.prepare_device_copy(stream, regions)
-  } catch {
-    error => {
-      backup.close()
-      raise error
-    }
   }
   { plan, backup, copy, copy_closed: false, phase: Ready, }
 }
@@ -72,11 +68,9 @@ pub fn DeviceStateSnapshot::poll_completion(self : Self) -> Bool raise {
     raise @device.DeviceError::InvalidArgument(DeviceCopyPoll)
   }
   let phase = self.phase
-  let ready = self.copy.poll_completion() catch {
-    error => {
-      self.phase = Failed
-      raise error
-    }
+  let ready = {
+    errdefer { self.phase = Failed }
+    self.copy.poll_completion()
   }
   if ready {
     self.phase = if phase is Saving { Tentative } else { Ready }

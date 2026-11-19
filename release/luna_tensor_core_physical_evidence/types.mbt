@@ -1,11 +1,11 @@
 ///|
-const TENSOR_CORE_EVIDENCE_RESULT_LINES : Int = 67
+const TENSOR_CORE_EVIDENCE_RESULT_LINES : Int32 = 67
 
 ///|
-const TENSOR_CORE_EVIDENCE_MAXIMUM_RESULT_BYTES : Int = 65536
+const TENSOR_CORE_EVIDENCE_MAXIMUM_RESULT_BYTES : Int32 = 65536
 
 ///|
-const TENSOR_CORE_EVIDENCE_MAXIMUM_MANIFEST_BYTES : Int = 262144
+const TENSOR_CORE_EVIDENCE_MAXIMUM_MANIFEST_BYTES : Int32 = 262144
 
 ///|
 priv struct LunaTensorCoreToolFacts {
@@ -30,8 +30,8 @@ pub struct AdmittedLunaTensorCorePhysicalEvidence {
   priv cubin_digest : LunaTensorCorePhysicalEvidenceDigest
   priv driver_identity_digest : LunaTensorCorePhysicalEvidenceDigest
   priv instruction_family : String
-  priv numeric_case_count : Int
-  priv registers_per_thread : Int
+  priv numeric_case_count : Int32
+  priv registers_per_thread : Int32
   priv canonical : Bytes
   priv digest : LunaTensorCorePhysicalEvidenceDigest
   priv files_manifest_digest : LunaTensorCorePhysicalEvidenceDigest
@@ -46,14 +46,14 @@ pub struct QualifiedLunaTileBf16Mma16x16x16Artifact {
 
 ///|
 pub struct LunaTensorCorePhysicalEvidenceLimits {
-  priv maximum_result_bytes : Int
-  priv maximum_manifest_bytes : Int
+  priv maximum_result_bytes : Int32
+  priv maximum_manifest_bytes : Int32
 }
 
 ///|
 pub fn LunaTensorCorePhysicalEvidenceLimits::new(
-  maximum_result_bytes~ : Int,
-  maximum_manifest_bytes~ : Int,
+  maximum_result_bytes~ : Int32,
+  maximum_manifest_bytes~ : Int32,
 ) -> LunaTensorCorePhysicalEvidenceLimits raise LunaTensorCorePhysicalEvidenceError {
   if maximum_result_bytes <= 0 ||
     maximum_result_bytes > TENSOR_CORE_EVIDENCE_MAXIMUM_RESULT_BYTES ||

@@ -161,7 +161,7 @@ pub fn ComponentCheckpoint::prepare(
   owner : @startup.WeightStartup,
   context : @device.Context,
   root : @approved_fs.ApprovedRoot,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   owner.prepare_component(
     context,

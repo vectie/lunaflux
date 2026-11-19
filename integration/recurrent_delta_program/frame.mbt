@@ -15,8 +15,8 @@ pub fn RecurrentDeltaProgram::prepare_block_frame(
   reset_flags~ : @device.Allocation,
   hidden~ : @device.Allocation,
   output~ : @device.Allocation,
-  prefix? : ArrayView[@device.OrderedKernelLaunch] = [],
-  suffix? : ArrayView[@device.OrderedKernelLaunch] = [],
+  prefix~ : ArrayView[@device.OrderedKernelLaunch] = [],
+  suffix~ : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise @device.DeviceError {
   guard self.block is Some(_) else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
@@ -62,7 +62,7 @@ pub fn RecurrentDeltaProgram::launches(
 }
 
 ///|
-pub fn RecurrentDeltaProgram::tensor_width(self : Self) -> Int? {
+pub fn RecurrentDeltaProgram::tensor_width(self : Self) -> Int32? {
   match self.block {
     Some(block) if block.plan().publication() != LocalBFloat16 => {
       let (hidden, _) = block.plan().projection_geometry()
@@ -82,7 +82,7 @@ pub fn RecurrentDeltaProgram::tensor_is_bfloat16(self : Self) -> Bool {
 /// Borrowed partials; the caller must reduce them before the indicated launch.
 pub fn RecurrentDeltaProgram::tensor_boundary(
   self : Self,
-) -> (Int, @device.Allocation, Int)? raise @device.DeviceError {
+) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   guard self.status is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
   }

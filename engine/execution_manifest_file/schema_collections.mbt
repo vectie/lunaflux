@@ -1,9 +1,9 @@
 ///|
 fn parse_entry_claim(
   value : Json,
-  module_index : Int,
-  entry_index : Int,
-  maximum_symbol_bytes : Int,
+  module_index : Int32,
+  entry_index : Int32,
+  maximum_symbol_bytes : Int32,
 ) -> ManifestEntryClaim raise ExecutionManifestFileError {
   guard value is Object(object) else {
     raise invalid_field(Module, ExpectedObject, index=module_index)
@@ -127,7 +127,7 @@ fn parse_module_claims(
 ///|
 fn parse_dimensions(
   operation : Map[String, Json],
-  operation_index : Int,
+  operation_index : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise ExecutionManifestFileError {
   let value = require_object(
     operation,
@@ -161,7 +161,7 @@ fn module_entry_index(
   module_claim : ManifestModuleClaim,
   family_id : @catalog.AotKernelFamilyId,
   entry_point_id : @catalog.AotKernelEntryPointId,
-) -> Int? {
+) -> Int32? {
   let family = family_id.as_int()
   let entry_point = entry_point_id.as_int()
   let mut lower = 0

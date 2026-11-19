@@ -1,5 +1,5 @@
 ///|
-const TP_WORLD_SIZE : Int = 2
+const TP_WORLD_SIZE : Int32 = 2
 
 ///|
 const TP_MODEL_GENERATION : UInt64 = 7UL
@@ -8,29 +8,29 @@ const TP_MODEL_GENERATION : UInt64 = 7UL
 const TP_GROUP_GENERATION : UInt64 = 9UL
 
 ///|
-const TP_RUNTIME_VERSION : Int = 21403
+const TP_RUNTIME_VERSION : Int32 = 21403
 
 ///|
-const TP_TOKENS_PER_PAGE : Int = 64
+const TP_TOKENS_PER_PAGE : Int32 = 64
 
 ///|
-const TP_TOTAL_PAGE_COUNT : Int = 8
+const TP_TOTAL_PAGE_COUNT : Int32 = 8
 
 ///|
-const TP_MAX_ROWS : Int = 2
+const TP_MAX_ROWS : Int32 = 2
 
 ///|
-const TP_MAX_TOKENS : Int = 16
+const TP_MAX_TOKENS : Int32 = 16
 
 ///|
-const TP_MAX_PAGES : Int = 2
+const TP_MAX_PAGES : Int32 = 2
 
 ///|
 fn weight_entry(
   name : String,
   shape : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String {
   "\"\{name}\":{\"dtype\":\"BF16\",\"shape\":\{shape},\"data_offsets\":[\{start},\{end}]}"
 }

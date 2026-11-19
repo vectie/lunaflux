@@ -1,7 +1,7 @@
 ///|
 fn LunaOnlineOpenAIConnectionPool::free_slot(
   self : LunaOnlineOpenAIConnectionPool,
-) -> Int {
+) -> Int32 {
   for offset in 0..<self.slots.length() {
     let index = (self.io_cursor + offset) % self.slots.length()
     if self.slots[index].phase == LUNA_OPENAI_POOL_FREE {
@@ -40,7 +40,7 @@ fn LunaOnlineOpenAIConnectionSlot::activate(
 ///|
 async fn LunaOnlineOpenAIConnectionPool::accept_one(
   self : LunaOnlineOpenAIConnectionPool,
-  poll_timeout_millis : Int,
+  poll_timeout_millis : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   if self.listeners.length() != 1 ||
     self.active_connections >= self.slots.length() {

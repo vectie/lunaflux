@@ -5,7 +5,7 @@ pub struct QuantizedQueryKvCudaSource {
   priv plan : @precision.QuantizedQueryKvPrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
-  priv geometry : ReadOnlyArray[(Int, Int, Int)]
+  priv geometry : ReadOnlyArray[(Int32, Int32, Int32)]
 }
 
 ///|
@@ -108,7 +108,7 @@ pub fn QuantizedQueryKvCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn QuantizedQueryKvCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn QuantizedQueryKvCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.symbols[stage]
 }
 
@@ -116,7 +116,7 @@ pub fn QuantizedQueryKvCudaSource::symbol(self : Self, stage : Int) -> String {
 /// Grid X, grid Y, block X; head and output-column axes remain separate.
 pub fn QuantizedQueryKvCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   self.geometry[stage]
 }

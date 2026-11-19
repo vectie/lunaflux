@@ -3,10 +3,10 @@
 /// that group's operand fragments. No local-memory materialization is shared
 /// with another consumer. This changes value placement, not the ordered fold.
 pub struct ProjectionSelectedRowGather {
-  rows : Int
-  columns : Int
-  reduction : Int
-  prefetch_fragments : Int
+  rows : Int32
+  columns : Int32
+  reduction : Int32
+  prefetch_fragments : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -46,7 +46,7 @@ pub fn projection_selected_row_gather(
 ///|
 pub fn ProjectionSelectedRowGather::dimensions(
   self : ProjectionSelectedRowGather,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.rows, self.columns, self.reduction)
 }
 
@@ -55,7 +55,7 @@ pub fn ProjectionSelectedRowGather::dimensions(
 /// The window is bounded independently of the full reduction extent.
 pub fn ProjectionSelectedRowGather::prefetch_fragments(
   self : ProjectionSelectedRowGather,
-) -> Int {
+) -> Int32 {
   self.prefetch_fragments
 }
 

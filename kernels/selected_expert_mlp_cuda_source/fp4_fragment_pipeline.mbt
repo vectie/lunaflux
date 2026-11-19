@@ -3,21 +3,21 @@
 /// Quantized bytes/scales stay unchanged. Each chunk publishes once and retires
 /// all readers before storage reuse; matrix folds retain ascending K order.
 fn fp4_fragment_pipeline(
-  stage : Int,
-  inner : Int,
-  columns : Int,
-  selected : Int,
+  stage : Int32,
+  inner : Int32,
+  columns : Int32,
+  selected : Int32,
   input_scales : Int64,
   weight_scales : Int64,
   symbol : String,
-  work_tile? : String = "blockIdx.x",
+  work_tile~ : String = "blockIdx.x",
   paired_weight_scales? : Int64,
-  tile_columns? : Int = 32,
-  packed_input? : Bool = false,
+  tile_columns~ : Int32 = 32,
+  packed_input~ : Bool = false,
   pipeline? : @physical_tile_ir.ProducerConsumerPipeline,
-  buffered? : Bool = false,
+  buffered~ : Bool = false,
   borrowed_ring? : String,
-  fragment_slots? : Int = 1,
+  fragment_slots~ : Int32 = 1,
 ) -> String {
   let layout = @physical_tile_ir.OperandLayout::new(
     columns=128,

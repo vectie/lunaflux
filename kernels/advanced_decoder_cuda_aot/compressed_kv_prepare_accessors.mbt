@@ -29,7 +29,7 @@ pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,49 +57,49 @@ pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_batches(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_batches
 }
 
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::window_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.window_size
 }
 
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::compression_ratio(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.compression_ratio
 }
 
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_position_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_position_count
 }
 
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_compressed_slots(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_compressed_slots
 }
 
 ///|
 pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::maximum_key_slots(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_key_slots
 }
 

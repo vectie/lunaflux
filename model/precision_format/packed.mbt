@@ -9,7 +9,7 @@ pub struct PackedTensor {
 }
 
 ///|
-fn read_code(bytes : Bytes, offset : Int, width : Int) -> UInt {
+fn read_code(bytes : Bytes, offset : Int32, width : Int32) -> UInt32 {
   for i in 0..<width; code = 0U {
     continue code | (bytes[offset + i].to_uint() << (8 * i))
   } nobreak {
@@ -20,9 +20,9 @@ fn read_code(bytes : Bytes, offset : Int, width : Int) -> UInt {
 ///|
 fn write_code(
   bytes : FixedArray[Byte],
-  offset : Int,
-  width : Int,
-  code : UInt,
+  offset : Int32,
+  width : Int32,
+  code : UInt32,
 ) -> Unit {
   for i in 0..<width {
     bytes[offset + i] = (code >> (8 * i)).to_byte()
@@ -32,9 +32,9 @@ fn write_code(
 ///|
 fn PackedTensor::payload_code(
   self : PackedTensor,
-  row : Int,
-  column : Int,
-) -> UInt {
+  row : Int32,
+  column : Int32,
+) -> UInt32 {
   let offset = row.to_int64() * self.representation.row_bytes
   let bits = self.representation.element.bits()
   if bits == 4 {
@@ -57,7 +57,7 @@ pub fn PackedTensor::new(
   representation : Representation,
   payload~ : Bytes,
   scales~ : Bytes,
-  global_scale? : Float = 1.0F,
+  global_scale~ : Float = 1.0F,
 ) -> PackedTensor raise PrecisionError {
   if representation.payload_bytes != payload.length().to_int64() ||
     representation.scale_bytes != scales.length().to_int64() {
@@ -121,8 +121,8 @@ pub fn PackedTensor::global_scale(self : PackedTensor) -> Float {
 /// codebooks and storage swizzles cannot be silently inferred from filenames.
 pub fn PackedTensor::decode(
   self : PackedTensor,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
 ) -> Float raise PrecisionError {
   let rep = self.representation
   if row < 0 || row >= rep.rows || column < 0 || column >= rep.columns {
@@ -157,9 +157,9 @@ pub fn PackedTensor::decode(
 pub fn PackedTensor::decode_bf16_chunk(
   self : PackedTensor,
   first_element : Int64,
-  element_count : Int,
+  element_count : Int32,
   destination : FixedArray[Byte],
-  destination_offset? : Int = 0,
+  destination_offset~ : Int32 = 0,
 ) -> Unit raise PrecisionError {
   let total = self.representation.rows.to_int64() *
     self.representation.columns.to_int64()

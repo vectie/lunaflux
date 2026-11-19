@@ -2,18 +2,18 @@
 pub struct AudioAmpSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  batch : Int
-  channels : Int
-  time : Int
+  batch : Int32
+  channels : Int32
+  time : Int32
 }
 
 ///|
 /// Offline bundle for AudioAmpLayout's 41-function ABI. The three parallel
 /// branches use kernels 3/7/11 and residual-pair dilations 1/3/5, then 1.
 pub fn build_audio_amp(
-  batch~ : Int,
-  channels~ : Int,
-  time~ : Int,
+  batch~ : Int32,
+  channels~ : Int32,
+  time~ : Int32,
   function_prefix~ : String,
 ) -> AudioAmpSource raise {
   let symbols = [

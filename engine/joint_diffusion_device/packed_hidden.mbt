@@ -56,7 +56,7 @@ pub fn PackedHidden::output_argument(
 pub fn[T] PackedHidden::with_state(
   self : Self,
   expected_mapping : Bytes,
-  width~ : Int,
+  width~ : Int32,
   bind : (@device.Allocation, Int64) -> T raise,
 ) -> T raise {
   guard width == self.plan.width() && expected_mapping == self.plan.mapping() else {
@@ -75,7 +75,7 @@ pub fn PackedHidden::launch(
   projections : LatentProjections,
   conditioning~ : @device.Allocation?,
   conditioning_offset~ : Int64,
-  block_size~ : Int,
+  block_size~ : Int32,
 ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
   for
     (latent, source) in [

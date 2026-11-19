@@ -97,7 +97,7 @@ pub fn Scheduler::take_next_publication(
 /// obligation through `complete` or `fail_plan`.
 pub fn Scheduler::invalidate_device_state(
   self : Scheduler,
-) -> Int raise SchedulerError {
+) -> Int32 raise SchedulerError {
   self.require_no_cancel_reservation()
   if self.plan_a_sequence != 0UL ||
     self.plan_b_sequence != 0UL ||
@@ -244,7 +244,7 @@ pub fn Scheduler::take_generated_token(
 ///|
 fn Scheduler::preflight_active_release(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
 ) -> Unit raise SchedulerError {
   if slot < 0 ||
     slot >= self.slot_states.length() ||
@@ -264,7 +264,7 @@ fn Scheduler::preflight_active_release(
 }
 
 ///|
-fn Scheduler::release_active_request(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::release_active_request(self : Scheduler, slot : Int32) -> Unit {
   let table = try! self.request_tables.read(slot)
   try! self.block_tables.reset_and_release(table, self.release_pages)
   for index in 0..<self.release_pages.length() {
@@ -281,8 +281,8 @@ fn Scheduler::release_active_request(self : Scheduler, slot : Int) -> Unit {
 ///|
 fn Scheduler::terminate_waiting(
   self : Scheduler,
-  index : Int,
-  state : Int,
+  index : Int32,
+  state : Int32,
   reason : TerminalReason,
 ) -> Unit raise SchedulerError {
   let request_id = match self.requests[index] {

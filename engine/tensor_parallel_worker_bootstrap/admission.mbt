@@ -3,8 +3,8 @@ fn require_worker_contract(
   contract : @worker_wire.WorkerStartupContract,
   identity : @spec.ModelIdentity,
   model_generation_value : UInt64,
-  rank : Int,
-  device_ordinal : Int,
+  rank : Int32,
+  device_ordinal : Int32,
   reference : @worker_wire.WorkerStartupContract,
 ) -> Unit raise TensorParallelWorkerBootstrapError {
   if contract.identity() != identity {
@@ -32,9 +32,9 @@ fn require_kv_binding(
   binding : @tensor_parallel_kv_plan.TensorParallelKvRankBinding,
   identity : @spec.ModelIdentity,
   model_generation_value : UInt64,
-  rank : Int,
-  world_size : Int,
-  device_ordinal : Int,
+  rank : Int32,
+  world_size : Int32,
+  device_ordinal : Int32,
   target : @catalog.DeviceTarget,
 ) -> Unit raise TensorParallelWorkerBootstrapError {
   if binding.identity() != identity {
@@ -55,9 +55,9 @@ fn require_kv_binding(
 fn require_execution_plan(
   execution_plan : @tensor_parallel_execution_plan.TensorParallelExecutionPlan,
   identity : @spec.ModelIdentity,
-  rank : Int,
-  world_size : Int,
-  device_ordinal : Int,
+  rank : Int32,
+  world_size : Int32,
+  device_ordinal : Int32,
   target : @catalog.DeviceTarget,
 ) -> Unit raise TensorParallelWorkerBootstrapError {
   if execution_plan.identity() != identity {
@@ -84,7 +84,7 @@ fn rank_claim(
   model_generation_value : UInt64,
   group_generation_value : UInt64,
   topology : @device_topology.AdmittedLocalTopology,
-  rank : Int,
+  rank : Int32,
   startup : @worker_wire.WorkerStartupContract,
   reference_startup : @worker_wire.WorkerStartupContract,
   inspection : @device_materialize.DeviceShardedWeightFileInspection,
@@ -169,7 +169,7 @@ fn order_and_validate_claims(
   identity : @spec.ModelIdentity,
   model_generation_value : UInt64,
   group_generation_value : UInt64,
-  world_size : Int,
+  world_size : Int32,
   claims : ArrayView[RankBootstrapClaim],
 ) -> FixedArray[RankBootstrapClaim] raise TensorParallelWorkerBootstrapError {
   if world_size < 2 || world_size > 16 {
@@ -219,12 +219,12 @@ fn admit_claims(
   model_generation_value : UInt64,
   group_generation_value : UInt64,
   topology_digest : TensorParallelTopologyDigest,
-  collective_runtime_version_code : Int,
+  collective_runtime_version_code : Int32,
   rendezvous_id : @device.TensorCollectiveGroupId,
-  world_size : Int,
+  world_size : Int32,
   claims : ArrayView[RankBootstrapClaim],
-  template_digest_sha256? : StringView = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-  network_lease_millis? : UInt64 = 0UL,
+  template_digest_sha256~ : StringView = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  network_lease_millis~ : UInt64 = 0UL,
 ) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError {
   if model_generation_value == 0UL || !is_lower_sha256(template_digest_sha256) {
     raise rejected(ModelGeneration, -1)
@@ -302,7 +302,7 @@ pub fn admit_with_template(
   ],
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
   rendezvous_id : @device.TensorCollectiveGroupId,
-  collective_runtime_version_code~ : Int,
+  collective_runtime_version_code~ : Int32,
 ) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError {
   let world_size = topology.world_size()
   if world_size < 2 || world_size > 16 {
@@ -404,7 +404,7 @@ pub fn admit(
   ],
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
   rendezvous_id : @device.TensorCollectiveGroupId,
-  collective_runtime_version_code~ : Int,
+  collective_runtime_version_code~ : Int32,
 ) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError {
   admit_with_template(
     "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",

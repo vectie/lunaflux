@@ -125,8 +125,8 @@ test "expected-token substitutions do not alter the encoded request" {
 ///|
 fn expect_serving_contract_rejection(
   frame : FixedArray[Byte],
-  first_token? : Int = 1031,
-  tokens_per_page? : Int = CAMPAIGN_TOKENS_PER_PAGE,
+  first_token~ : Int32 = 1031,
+  tokens_per_page~ : Int32 = CAMPAIGN_TOKENS_PER_PAGE,
 ) -> Unit {
   try
     @runtime_instance.RuntimeSpawnedServingValidationContract::new(

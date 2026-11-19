@@ -2,27 +2,27 @@
 priv type NativeCredentialPeer
 
 ///|
-extern "c" fn fixture_install(mode : Int) -> NativeCredentialPeer = "lunaflux_inference_credential_fixture_install"
+extern "c" fn fixture_install(mode : Int32) -> NativeCredentialPeer = "lunaflux_inference_credential_fixture_install"
 
 ///|
 #borrow(peer, source)
 extern "c" fn fixture_send(
   peer : NativeCredentialPeer,
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int = "lunaflux_inference_credential_fixture_send"
+  offset : Int32,
+  length : Int32,
+) -> Int32 = "lunaflux_inference_credential_fixture_send"
 
 ///|
 #borrow(peer)
-extern "c" fn fixture_close_write(peer : NativeCredentialPeer) -> Int = "lunaflux_inference_credential_fixture_close_write"
+extern "c" fn fixture_close_write(peer : NativeCredentialPeer) -> Int32 = "lunaflux_inference_credential_fixture_close_write"
 
 ///|
 #borrow(peer)
-extern "c" fn fixture_close(peer : NativeCredentialPeer) -> Int = "lunaflux_inference_credential_fixture_close"
+extern "c" fn fixture_close(peer : NativeCredentialPeer) -> Int32 = "lunaflux_inference_credential_fixture_close"
 
 ///|
-extern "c" fn fixture_clear_fixed() -> Int = "lunaflux_inference_credential_fixture_clear_fixed"
+extern "c" fn fixture_clear_fixed() -> Int32 = "lunaflux_inference_credential_fixture_clear_fixed"
 
 ///|
 extern "c" fn fixture_fixed_closed() -> Bool = "lunaflux_inference_credential_fixture_fixed_closed"

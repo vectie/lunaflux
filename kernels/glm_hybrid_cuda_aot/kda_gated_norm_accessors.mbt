@@ -29,7 +29,7 @@ pub fn GlmHybridKdaGatedNormCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridKdaGatedNormCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,12 +48,12 @@ pub fn GlmHybridKdaGatedNormCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridKdaGatedNormCudaCandidate::head_count(self : Self) -> Int {
+pub fn GlmHybridKdaGatedNormCudaCandidate::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn GlmHybridKdaGatedNormCudaCandidate::head_dimension(self : Self) -> Int {
+pub fn GlmHybridKdaGatedNormCudaCandidate::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
@@ -63,7 +63,7 @@ pub fn GlmHybridKdaGatedNormCudaCandidate::epsilon(self : Self) -> Double {
 }
 
 ///|
-pub fn GlmHybridKdaGatedNormCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridKdaGatedNormCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

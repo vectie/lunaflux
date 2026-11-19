@@ -8,7 +8,7 @@ fn prepare_owned_luna_online_framed_service_approved_internal(
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  preparation_lane_count : Int,
+  preparation_lane_count : Int32,
   preparation_step_budget : @request_admission.LunaRequestPreparationStepBudget,
   preparation_work_limit : @request_admission.LunaRequestPreparationWorkLimit,
   preparation_storage_budget : @request_admission.LunaRequestPreparationStorageBudget,
@@ -89,7 +89,7 @@ pub fn prepare_owned_luna_online_framed_service_approved(
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  preparation_lane_count : Int,
+  preparation_lane_count : Int32,
   preparation_step_budget : @request_admission.LunaRequestPreparationStepBudget,
   preparation_work_limit : @request_admission.LunaRequestPreparationWorkLimit,
   preparation_storage_budget : @request_admission.LunaRequestPreparationStorageBudget,
@@ -180,7 +180,7 @@ pub fn prepare_owned_tensor_parallel_luna_online_framed_service(
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  preparation_lane_count : Int,
+  preparation_lane_count : Int32,
   preparation_step_budget : @request_admission.LunaRequestPreparationStepBudget,
   preparation_work_limit : @request_admission.LunaRequestPreparationWorkLimit,
   preparation_storage_budget : @request_admission.LunaRequestPreparationStorageBudget,
@@ -294,7 +294,7 @@ fn LunaOnlineFramedServicePreparation::require_ready_service(
 ///|
 pub fn LunaOnlineFramedServicePreparation::maximum_transport_wait_millis(
   self : LunaOnlineFramedServicePreparation,
-) -> Int raise LunaOnlineInstancePreparationError {
+) -> Int32 raise LunaOnlineInstancePreparationError {
   admitted_maximum_transport_wait_millis(self.require_ready_service().inference)
 }
 
@@ -303,7 +303,7 @@ pub fn LunaOnlineFramedServicePreparation::maximum_transport_wait_millis(
 /// service preparation and transport policy admission.
 pub fn admitted_maximum_transport_wait_millis(
   inference : @inference.InferenceLimits,
-) -> Int raise LunaOnlineInstancePreparationError {
+) -> Int32 raise LunaOnlineInstancePreparationError {
   let wait = inference.max_deadline_millis()
   if wait == 0UL || wait > 0x7fffffffUL {
     raise luna_coordinator_preparation_failure(LunaOnlineFramedPreparation)
@@ -344,7 +344,7 @@ pub fn prepare_owned_luna_online_framed_coordinator_approved(
   expected_model : @spec.ModelIdentity,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  preparation_lane_count : Int,
+  preparation_lane_count : Int32,
   preparation_step_budget : @request_admission.LunaRequestPreparationStepBudget,
   preparation_work_limit : @request_admission.LunaRequestPreparationWorkLimit,
   preparation_storage_budget : @request_admission.LunaRequestPreparationStorageBudget,
@@ -406,7 +406,7 @@ pub fn LunaOnlineFramedCoordinatorPreparation::state(
 /// preparation still owns its coordinator.
 pub fn LunaOnlineFramedCoordinatorPreparation::maximum_transport_wait_millis(
   self : LunaOnlineFramedCoordinatorPreparation,
-) -> Int raise LunaOnlineInstancePreparationError {
+) -> Int32 raise LunaOnlineInstancePreparationError {
   if self.consumed || self.state != LunaOnlineInstanceReady {
     raise luna_coordinator_preparation_failure(LunaOnlineFramedOwnership)
   }

@@ -1,11 +1,11 @@
 ///|
-const PHYSICAL_TOPOLOGY_SCHEMA_VERSION : Int = 1
+const PHYSICAL_TOPOLOGY_SCHEMA_VERSION : Int32 = 1
 
 ///|
-const MINIMUM_COLLECTIVE_RUNTIME_VERSION : Int = 21403
+const MINIMUM_COLLECTIVE_RUNTIME_VERSION : Int32 = 21403
 
 ///|
-const MAXIMUM_COLLECTIVE_RUNTIME_VERSION : Int = 29999
+const MAXIMUM_COLLECTIVE_RUNTIME_VERSION : Int32 = 29999
 
 ///|
 pub(all) enum PhysicalTopologyDiagnosticStage {
@@ -26,13 +26,13 @@ pub(all) enum PhysicalTopologyDiagnosticStatus {
 ///|
 pub(all) enum PhysicalTopologyDiagnosticRejection {
   DeviceUnavailable(@device.UnavailableReason)
-  PeerQueryFailed(source_rank~ : Int, destination_rank~ : Int)
+  PeerQueryFailed(source_rank~ : Int32, destination_rank~ : Int32)
   TopologyRejected(
     stage~ : PhysicalTopologyDiagnosticStage,
     area~ : @device_topology.LocalTopologyArea,
     rule~ : @device_topology.LocalTopologyRule,
-    first~ : Int,
-    second~ : Int
+    first~ : Int32,
+    second~ : Int32
   )
   CollectiveUnavailable(@device.TensorCollectiveRuntimeAvailability)
   CollectiveVersionRejected
@@ -45,23 +45,23 @@ pub(all) suberror PhysicalTopologyDiagnosticError {
 
 ///|
 pub struct PhysicalTopologyDeviceObservation {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv name : String
   priv capability : @device.DeviceCapability
 } derive(Debug, Eq)
 
 ///|
 pub struct PhysicalPeerObservation {
-  priv source_ordinal : Int
-  priv destination_ordinal : Int
+  priv source_ordinal : Int32
+  priv destination_ordinal : Int32
   priv accessible : Bool
 } derive(Debug, Eq)
 
 ///|
 pub struct PhysicalCollectiveObservation {
   priv availability : @device.TensorCollectiveRuntimeAvailability
-  priv version_code : Int
-  priv admitted_version_code : Int
+  priv version_code : Int32
+  priv admitted_version_code : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -70,7 +70,7 @@ pub struct PhysicalCollectiveObservation {
 /// collective runtime independently rejects. No runtime owner is retained in
 /// either outcome.
 pub struct PhysicalTopologyDiagnosticEvidence {
-  priv driver_version : Int
+  priv driver_version : Int32
   priv devices : ReadOnlyArray[PhysicalTopologyDeviceObservation]
   priv peers : ReadOnlyArray[PhysicalPeerObservation]
   priv peer_query_complete : Bool

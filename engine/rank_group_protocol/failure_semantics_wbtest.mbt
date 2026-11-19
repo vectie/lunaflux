@@ -1,7 +1,7 @@
 ///|
 fn wb_failure_report(
   reason : RankGroupFailureReason,
-  failed_rank : Int,
+  failed_rank : Int32,
 ) -> RankGroupFailureReport {
   RankGroupFailureReport(1UL, 7UL, reason, failed_rank, 3)
 }

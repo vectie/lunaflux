@@ -29,11 +29,11 @@ fn compressed_index_operand_text(
 ///|
 fn compressed_index_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  compression_ratio : Int,
-  maximum_position_count : Int,
-  maximum_slots_per_row : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  compression_ratio : Int32,
+  maximum_position_count : Int32,
+  maximum_slots_per_row : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -119,8 +119,8 @@ fn compressed_index_recipe(
 /// offline compilation and physical correctness qualification.
 pub fn lower_deterministic_compressed_index_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

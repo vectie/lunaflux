@@ -3,7 +3,7 @@
 // mislowers destructuring a multi-value loop result into pointer field access;
 // a regular record preserves the pure scalar-state transformation on both hosts.
 priv struct PromptGeometry {
-  input_tokens : Int
+  input_tokens : Int32
   encoded_bytes : Int64
 }
 
@@ -13,8 +13,8 @@ priv struct PromptGeometry {
 /// byte snapshots, never reopens the prompt files or authenticates their payloads.
 pub struct PreparedSerialPrompt {
   priv frames : ReadOnlyArray[Bytes]
-  priv input_tokens : Int
-  priv maximum_new_tokens : Int
+  priv input_tokens : Int32
+  priv maximum_new_tokens : Int32
   priv encoded_bytes : Int64
 }
 
@@ -23,8 +23,8 @@ pub fn PreparedSerialPrompt::new(
   frames : ArrayView[Bytes],
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_new_tokens~ : Int,
-  maximum_context~ : Int,
+  maximum_new_tokens~ : Int32,
+  maximum_context~ : Int32,
   maximum_encoded_bytes~ : Int64,
   model_generation~ : UInt64,
 ) -> Self raise {
@@ -88,17 +88,17 @@ pub fn PreparedSerialPrompt::new(
 }
 
 ///|
-pub fn PreparedSerialPrompt::frame_count(self : Self) -> Int {
+pub fn PreparedSerialPrompt::frame_count(self : Self) -> Int32 {
   self.frames.length()
 }
 
 ///|
-pub fn PreparedSerialPrompt::input_token_count(self : Self) -> Int {
+pub fn PreparedSerialPrompt::input_token_count(self : Self) -> Int32 {
   self.input_tokens
 }
 
 ///|
-pub fn PreparedSerialPrompt::maximum_new_tokens(self : Self) -> Int {
+pub fn PreparedSerialPrompt::maximum_new_tokens(self : Self) -> Int32 {
   self.maximum_new_tokens
 }
 
@@ -112,7 +112,7 @@ pub fn PreparedSerialPrompt::encoded_bytes(self : Self) -> Int64 {
 ///|
 pub fn PreparedSerialPrompt::frame_bytes(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Bytes raise {
   guard self.frames.get(index) is Some(bytes) else {
     fail("prompt replay index is outside its prepared frames")

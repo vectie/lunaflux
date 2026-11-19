@@ -3,7 +3,7 @@
 /// shared page anchors, and prefix identities remain in the same radix index.
 pub fn PrefixLookupBuffer::host_at(
   self : PrefixLookupBuffer,
-  index : Int,
+  index : Int32,
 ) -> @streaming_ir.HostPage raise PrefixIndexError {
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds
@@ -14,8 +14,8 @@ pub fn PrefixLookupBuffer::host_at(
 ///|
 pub fn PrefixLookupBuffer::cell_at(
   self : PrefixLookupBuffer,
-  index : Int,
-) -> Int raise PrefixIndexError {
+  index : Int32,
+) -> Int32 raise PrefixIndexError {
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds
   }
@@ -35,7 +35,7 @@ pub fn PrefixLookupBuffer::fully_resident(self : PrefixLookupBuffer) -> Bool {
 ///|
 pub fn PrefixEvictionBuffer::host_at(
   self : PrefixEvictionBuffer,
-  index : Int,
+  index : Int32,
 ) -> @streaming_ir.HostPage raise PrefixIndexError {
   if index < 0 || index >= self.page_count {
     raise ResultIndexOutOfBounds
@@ -44,7 +44,7 @@ pub fn PrefixEvictionBuffer::host_at(
 }
 
 ///|
-pub fn PrefixIndex::page_occupied(self : PrefixIndex, cell : Int) -> Bool {
+pub fn PrefixIndex::page_occupied(self : PrefixIndex, cell : Int32) -> Bool {
   cell >= 0 &&
   cell < self.page_hosts.length() &&
   (try! self.page_values.is_occupied(cell))
@@ -53,7 +53,7 @@ pub fn PrefixIndex::page_occupied(self : PrefixIndex, cell : Int) -> Bool {
 ///|
 pub fn PrefixIndex::page_host(
   self : PrefixIndex,
-  cell : Int,
+  cell : Int32,
 ) -> @streaming_ir.HostPage raise PrefixIndexError {
   if !self.page_occupied(cell) {
     raise ResultIndexOutOfBounds
@@ -64,7 +64,7 @@ pub fn PrefixIndex::page_host(
 ///|
 pub fn PrefixIndex::page_value(
   self : PrefixIndex,
-  cell : Int,
+  cell : Int32,
 ) -> @page_allocator.PageId raise PrefixIndexError {
   if !self.page_occupied(cell) {
     raise ResultIndexOutOfBounds
@@ -79,7 +79,7 @@ pub fn PrefixIndex::page_value(
 /// exact prior payload before committing; no token/key reconstruction occurs.
 pub fn PrefixIndex::spill_page(
   self : PrefixIndex,
-  cell : Int,
+  cell : Int32,
   expected : @page_allocator.PageId,
   host : @streaming_ir.HostPage,
 ) -> Bool {
@@ -99,7 +99,7 @@ pub fn PrefixIndex::spill_page(
 ///|
 pub fn PrefixIndex::restore_page(
   self : PrefixIndex,
-  cell : Int,
+  cell : Int32,
   expected : @streaming_ir.HostPage,
   page : @page_allocator.PageId,
 ) -> Bool {

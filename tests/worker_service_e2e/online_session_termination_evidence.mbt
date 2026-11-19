@@ -1,7 +1,7 @@
 ///|
 fn assert_cancel_bundle(
   session : FoundationSession,
-  expected_output_tokens : Int,
+  expected_output_tokens : Int32,
 ) -> Unit raise {
   progress_foundation_to_event(session)
   match foundation_event(session) {

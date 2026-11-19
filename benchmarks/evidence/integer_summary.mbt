@@ -1,12 +1,12 @@
 ///|
-const BENCHMARK_MAX_REQUEST_EVENTS : Int = 8192
+const BENCHMARK_MAX_REQUEST_EVENTS : Int32 = 8192
 
 ///|
 const BENCHMARK_MAX_INT64 : Int64 = 9223372036854775807L
 
 ///|
 /// The hard request-event bound for one in-memory summary admission.
-pub fn maximum_request_events_per_summary() -> Int {
+pub fn maximum_request_events_per_summary() -> Int32 {
   BENCHMARK_MAX_REQUEST_EVENTS
 }
 
@@ -14,7 +14,7 @@ pub fn maximum_request_events_per_summary() -> Int {
 /// A deterministic nearest-rank integer distribution. Empty observation sets
 /// have count and all scalars equal to zero.
 pub struct BenchmarkIntegerSummary {
-  priv count : Int
+  priv count : Int32
   priv minimum : Int64
   priv p50 : Int64
   priv p95 : Int64
@@ -35,7 +35,7 @@ fn checked_summary_add(
 }
 
 ///|
-fn percentile_index(length : Int, percentile : Int) -> Int {
+fn percentile_index(length : Int32, percentile : Int32) -> Int32 {
   (length * percentile + 99) / 100 - 1
 }
 
@@ -72,7 +72,7 @@ fn summarize_integers(
 }
 
 ///|
-pub fn BenchmarkIntegerSummary::count(self : BenchmarkIntegerSummary) -> Int {
+pub fn BenchmarkIntegerSummary::count(self : BenchmarkIntegerSummary) -> Int32 {
   self.count
 }
 

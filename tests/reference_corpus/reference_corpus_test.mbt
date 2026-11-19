@@ -60,8 +60,8 @@ fn execution_limits() -> @reference.ExecutionLimits raise {
 ///|
 fn assert_logit(
   result : @reference.ExecutionResult,
-  row : Int,
-  token : Int,
+  row : Int32,
+  token : Int32,
   expected : Float,
 ) -> Unit raise {
   assert_true(
@@ -77,7 +77,7 @@ fn assert_logit(
 }
 
 ///|
-fn corpus_int(value : Json) -> Int raise {
+fn corpus_int(value : Json) -> Int32 raise {
   guard value is Number(number, repr=_) else {
     fail("corpus integer must be a number")
   }
@@ -97,7 +97,7 @@ fn corpus_float(value : Json) -> Float raise {
 }
 
 ///|
-fn corpus_tokens(value : Json) -> Array[Int] raise {
+fn corpus_tokens(value : Json) -> Array[Int32] raise {
   guard value is Array(values) else {
     fail("corpus token IDs must be an array")
   }
@@ -186,7 +186,7 @@ async test "exact pinned BF16 model matches independent logits and greedy tokens
       corpus_int(fields["greedy_token"]),
     )
     for token_text, expected in sampled_logits {
-      let token : Int = @string.parse_int(token_text)
+      let token : Int32 = @string.parse_int(token_text)
       assert_logit(
         execution,
         input_ids.length() - 1,

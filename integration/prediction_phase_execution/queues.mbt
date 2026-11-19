@@ -13,9 +13,9 @@ pub struct PredictionPhaseExecution {
   priv prime : @device.OrderedKernelExecutor
   priv predict : @device.OrderedKernelExecutor
   priv committed : @device.OrderedKernelExecutor?
-  priv prime_count : Int
-  priv predict_count : Int
-  priv committed_count : Int
+  priv prime_count : Int32
+  priv predict_count : Int32
+  priv committed_count : Int32
   priv mut active : PredictionPhase?
   priv mut closed : Bool
 }

@@ -8,7 +8,7 @@ fn valid_operand_region_sha256(value : StringView) -> Bool {
 
 ///|
 pub fn AdvancedDecoderOperandRegionInput::new(
-  operand_ordinal~ : Int,
+  operand_ordinal~ : Int32,
   role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole,
   allocation_identity_sha256~ : String,
   device_offset~ : Int64,
@@ -33,9 +33,9 @@ pub fn AdvancedDecoderOperandRegionInput::new(
 
 ///|
 pub fn AdvancedDecoderOperandRegionPlanLimits::new(
-  maximum_operands~ : Int,
+  maximum_operands~ : Int32,
   maximum_allocation_bytes~ : Int64,
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> Self raise AdvancedDecoderOperandRegionPlanError {
   if maximum_operands <= 0 ||
     maximum_operands > 64 ||

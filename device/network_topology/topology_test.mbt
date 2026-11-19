@@ -1,8 +1,8 @@
 ///|
 fn node(
   name : String,
-  minor? : Int = 1,
-  ordinal? : Int = 0,
+  minor~ : Int32 = 1,
+  ordinal~ : Int32 = 0,
 ) -> @network_topology.NetworkRank raise {
   @network_topology.NetworkRank::new(
     node=@network_topology.NodeIdentity::new(name),

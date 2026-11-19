@@ -2,10 +2,10 @@
 /// Fixed output-domain transport, independent of the decoder input row count.
 /// This is used for compact rank-major candidate records, not a numeric sum.
 pub fn ReductionBoundary::fixed_gather(
-  before_kernel~ : Int,
-  local_width~ : Int,
-  world~ : Int,
-  operation_id~ : Int,
+  before_kernel~ : Int32,
+  local_width~ : Int32,
+  world~ : Int32,
+  operation_id~ : Int32,
   send~ : @device.Allocation,
   receive~ : @device.Allocation,
 ) -> Self raise @device.DeviceError {
@@ -25,6 +25,6 @@ pub fn ReductionBoundary::fixed_gather(
 }
 
 ///|
-fn ReductionBoundary::row_count(self : Self, live : Int) -> Int {
+fn ReductionBoundary::row_count(self : Self, live : Int32) -> Int32 {
   self.fixed_rows.unwrap_or(live)
 }

@@ -1,11 +1,11 @@
 ///|
 fn phase4_fixture_policy_bytes(
   declaration_sha256 : String,
-  hardware? : String = phase4_fixture_digest('1'),
-  rich_workload? : String = phase4_fixture_digest('d'),
-  lunaflux_revision? : String = phase4_fixture_digest('a'),
-  campaign_tool? : String = phase4_fixture_digest('b'),
-  gate_executable? : String = phase4_fixture_digest('f'),
+  hardware~ : String = phase4_fixture_digest('1'),
+  rich_workload~ : String = phase4_fixture_digest('d'),
+  lunaflux_revision~ : String = phase4_fixture_digest('a'),
+  campaign_tool~ : String = phase4_fixture_digest('b'),
+  gate_executable~ : String = phase4_fixture_digest('f'),
 ) -> Bytes {
   @utf8.encode(
     "schema=lunaflux.phase4-prefix-benchmark-policy.v1\n" +

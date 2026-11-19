@@ -20,8 +20,8 @@ fn exact_child_binding(
 ///|
 pub fn open_configure_receiver(
   wire_limits : @rank_group_wire.RankGroupWireLimits,
-  io_timeout_millis~ : Int,
-  shutdown_timeout_millis~ : Int,
+  io_timeout_millis~ : Int32,
+  shutdown_timeout_millis~ : Int32,
 ) -> TensorParallelRankChildConfigureReceiver raise TensorParallelRankChildError {
   let control = @rank_child_control.open_rank_child_control(
     wire_limits,

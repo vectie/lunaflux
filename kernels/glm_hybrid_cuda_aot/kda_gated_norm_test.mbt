@@ -1,7 +1,7 @@
 ///|
 fn kda_gated_norm_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaGatedRmsNorm(_, _, _) {
       return ordinal

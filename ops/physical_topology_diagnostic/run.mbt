@@ -35,11 +35,11 @@ fn unavailable_device_evidence(
 
 ///|
 fn failed_peer_evidence(
-  driver_version : Int,
+  driver_version : Int32,
   devices : Array[PhysicalTopologyDeviceObservation],
   peers : Array[PhysicalPeerObservation],
-  source_rank : Int,
-  destination_rank : Int,
+  source_rank : Int32,
+  destination_rank : Int32,
   collective : PhysicalCollectiveObservation,
 ) -> PhysicalTopologyDiagnosticEvidence {
   rejected_evidence(

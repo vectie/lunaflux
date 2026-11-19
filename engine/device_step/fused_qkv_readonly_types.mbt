@@ -8,11 +8,11 @@ pub struct FusedQkvReadOnlyAttentionCompositeRequirement {
   priv live_device : @device.ContextDeviceIdentity
   priv live_device_join : FusedQkvReadOnlyLiveDeviceJoin
   priv kv_write : @luna_paged_composite_artifact_admission.QualifiedPagedKvWriteFallbackIdentity
-  priv qkv_index : Int
-  priv rope_index : Int
-  priv attention_index : Int
+  priv qkv_index : Int32
+  priv rope_index : Int32
+  priv attention_index : Int32
   priv positioned_qkv : @plan.ActivationRef
-  priv full_qkv_row_width : Int
+  priv full_qkv_row_width : Int32
   priv canonical : Bytes
   priv digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
 }
@@ -27,7 +27,7 @@ pub fn FusedQkvReadOnlyAttentionCompositeRequirement::model_generation(
 ///|
 pub fn FusedQkvReadOnlyAttentionCompositeRequirement::operation_indices(
   self : FusedQkvReadOnlyAttentionCompositeRequirement,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.qkv_index, self.rope_index, self.attention_index)
 }
 
@@ -41,7 +41,7 @@ pub fn FusedQkvReadOnlyAttentionCompositeRequirement::positioned_qkv_activation(
 ///|
 pub fn FusedQkvReadOnlyAttentionCompositeRequirement::full_qkv_row_width(
   self : FusedQkvReadOnlyAttentionCompositeRequirement,
-) -> Int {
+) -> Int32 {
   self.full_qkv_row_width
 }
 
@@ -111,16 +111,16 @@ priv struct FusedQkvReadOnlyLiveDeviceJoin {
   expected_pci : String
   expected_name_hex : String
   expected_memory_bytes : Int64
-  expected_compute_major : Int
-  expected_compute_minor : Int
+  expected_compute_major : Int32
+  expected_compute_minor : Int32
   expected_bf16 : Bool
   expected_cublas_lt : Bool
   observed_uuid : String
   observed_pci : String
   observed_name_hex : String
   observed_memory_bytes : Int64
-  observed_compute_major : Int
-  observed_compute_minor : Int
+  observed_compute_major : Int32
+  observed_compute_minor : Int32
   observed_bf16 : Bool
   observed_cublas_lt : Bool
 }

@@ -120,7 +120,7 @@ priv struct TensorParallelOwnedModule {
 ///|
 priv struct TensorParallelOwnedFunction {
   resource : @device.Function
-  module_index : Int
+  module_index : Int32
   mut open : Bool
 }
 
@@ -151,7 +151,7 @@ priv struct TensorParallelPreparedLaunches {
 
 ///|
 priv struct TensorParallelFunctionBlueprint {
-  module_index : Int
+  module_index : Int32
   symbol : String
 }
 
@@ -162,10 +162,10 @@ priv struct TensorParallelLeaderScratch {
   sampler : @sampling.SamplerScratch
   encoded_logits : FixedArray[Byte]
   logits : FixedArray[Double]
-  selected_tokens : FixedArray[Int]
+  selected_tokens : FixedArray[Int32]
   final_output_offset : Int64
   row_bytes : Int64
-  vocabulary_size : Int
+  vocabulary_size : Int32
 }
 
 ///|
@@ -225,7 +225,7 @@ pub struct TensorParallelDeviceWorkerPlan {
   priv kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan
   priv collective_contract : @device.TensorCollectiveContract
   priv rendezvous_id : @device.TensorCollectiveGroupId
-  priv collective_runtime_version_code : Int
+  priv collective_runtime_version_code : Int32
   priv descriptor_limits : @device_step.DeviceStepLimits
 }
 
@@ -239,10 +239,10 @@ pub struct TensorParallelDeviceWorkerOwner {
   priv mut lifecycle : TensorParallelDeviceWorkerLifecycle
   priv mut active_epoch : UInt64
   priv mut active_sequence : UInt64
-  priv mut active_rows : Int
-  priv mut active_tokens : Int
-  priv mut operation_index : Int
-  priv mut collective_index : Int
+  priv mut active_rows : Int32
+  priv mut active_tokens : Int32
+  priv mut operation_index : Int32
+  priv mut collective_index : Int32
   priv mut next_global_collective_sequence : UInt64
   priv mut graph_hits : UInt64
   priv mut graph_misses : UInt64
@@ -302,6 +302,6 @@ pub struct TensorParallelFollowerExecutionAck {
   priv group_generation_value : UInt64
   priv model_generation_value : UInt64
   priv plan_sequence_value : UInt64
-  priv rank : Int
-  priv world_size : Int
+  priv rank : Int32
+  priv world_size : Int32
 }

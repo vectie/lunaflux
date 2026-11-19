@@ -1,5 +1,5 @@
 ///|
-fn bytelevel_scalar_for_byte(value : Int) -> Int {
+fn bytelevel_scalar_for_byte(value : Int32) -> Int32 {
   if (value >= 0x21 && value <= 0x7e) ||
     (value >= 0xa1 && value <= 0xac) ||
     (value >= 0xae && value <= 0xff) {
@@ -14,12 +14,12 @@ fn bytelevel_scalar_for_byte(value : Int) -> Int {
 }
 
 ///|
-fn bytelevel_token(value : Int) -> String {
+fn bytelevel_token(value : Int32) -> String {
   bytelevel_scalar_for_byte(value).to_char().unwrap().to_string()
 }
 
 ///|
-fn selected_config(executable? : Bool = false) -> Bytes {
+fn selected_config(executable~ : Bool = false) -> Bytes {
   let suffix = if executable {
     ",\"auto_map\":{\"AutoModel\":\"unsafe.py\"}"
   } else {
@@ -72,7 +72,7 @@ fn selected_tokenizer() -> Bytes {
 }
 
 ///|
-fn safetensors_file(truncated? : Bool = false) -> Bytes {
+fn safetensors_file(truncated~ : Bool = false) -> Bytes {
   let header = if truncated {
     b"{"
   } else {
@@ -104,9 +104,9 @@ fn artifact_digest(bytes : BytesView) -> @artifact.ArtifactDigest {
 
 ///|
 fn test_source(
-  model_config? : StringView = "config.json",
-  tokenizer? : StringView = "tokenizer.json",
-  weights? : StringView = "model.safetensors",
+  model_config~ : StringView = "config.json",
+  tokenizer~ : StringView = "tokenizer.json",
+  weights~ : StringView = "model.safetensors",
 ) -> @artifact.ArtifactSource {
   try! @artifact.ArtifactSource::new(model_config~, tokenizer~, weights~)
 }
@@ -126,8 +126,8 @@ fn test_expected(
 
 ///|
 fn test_limits(
-  max_model_config_bytes? : Int64 = 4096L,
-  max_total_bytes? : Int64 = 131072L,
+  max_model_config_bytes~ : Int64 = 4096L,
+  max_total_bytes~ : Int64 = 131072L,
 ) -> @artifact.ArtifactLimits {
   let tokenizer_limits : @tokenizer.TokenizerLimits = {
     max_input_bytes: 1024,

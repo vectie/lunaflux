@@ -83,14 +83,14 @@ pub(all) suberror RuntimeDescriptorFileError {
   DigestMismatch
   InvalidUtf8
   MalformedJson
-  JsonDepthExceeded(maximum~ : Int)
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(area~ : RuntimeDescriptorArea, index~ : Int)
-  MissingField(area~ : RuntimeDescriptorArea, index~ : Int)
+  JsonDepthExceeded(maximum~ : Int32)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(area~ : RuntimeDescriptorArea, index~ : Int32)
+  MissingField(area~ : RuntimeDescriptorArea, index~ : Int32)
   InvalidField(
     area~ : RuntimeDescriptorArea,
     issue~ : RuntimeDescriptorIssue,
-    index~ : Int
+    index~ : Int32
   )
   AdmissionRejected(RuntimeDescriptorAdmissionStage)
 } derive(Debug, Eq)

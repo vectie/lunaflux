@@ -33,7 +33,7 @@ pub extend FusionSpanCost with Eq::{equal, not_equal}
 ///|
 pub fn FusionSpanCost::measured(
   median_nanoseconds~ : Int64,
-  samples~ : Int,
+  samples~ : Int32,
 ) -> FusionSpanCost raise FusionSelectionError {
   if median_nanoseconds <= 0L || samples < 3 {
     raise InvalidCost

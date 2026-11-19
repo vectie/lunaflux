@@ -5,15 +5,15 @@
 /// This small compositional form coexists with the existing explicit tree/dot
 /// laws; it does not reclassify those alternative laws as equivalent folds.
 pub struct OrderedNumericFold {
-  extent : Int
-  initial_bits : UInt
+  extent : Int32
+  initial_bits : UInt32
   update : NumericExpression
 }
 
 ///|
 pub fn OrderedNumericFold::new(
-  extent~ : Int,
-  initial_bits~ : UInt,
+  extent~ : Int32,
+  initial_bits~ : UInt32,
   update~ : NumericExpression,
 ) -> Self raise PrecisionPlanError {
   guard extent > 0 &&

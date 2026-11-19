@@ -4,7 +4,7 @@
 fn striped_dot_source(
   plan : @precision.GroupedAttentionOutputPrecision,
   symbol : String,
-  partitions : Int,
+  partitions : Int32,
 ) -> String raise {
   guard partitions <= 32 else {
     raise @precision.PrecisionPlanError::NoImplementation

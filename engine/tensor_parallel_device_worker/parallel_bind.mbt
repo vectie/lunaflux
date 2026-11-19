@@ -6,17 +6,17 @@ priv enum ParallelExecution {
 
 ///|
 priv enum ParallelCommand {
-  Kernel(Int)
+  Kernel(Int32)
   Collective(@tensor_parallel_execution_plan.TensorParallelCollectiveBinding)
-  Record(Int)
-  Wait(Int)
+  Record(Int32)
+  Wait(Int32)
 }
 
 ///|
 priv struct ParallelCommands {
   compute : ReadOnlyArray[ParallelCommand]
   communication : ReadOnlyArray[ParallelCommand]
-  event_count : Int
+  event_count : Int32
 }
 
 ///|
@@ -31,8 +31,8 @@ priv struct TensorParallelOverlap {
   communication_stream : TensorParallelOwnedStream
   events : Array[ParallelEvent]
   recorded : FixedArray[Bool]
-  mut compute_cursor : Int
-  mut communication_cursor : Int
+  mut compute_cursor : Int32
+  mut communication_cursor : Int32
   mut collective_pending : Bool
   mut submission_pending : Bool
   mut completion_recorded : Bool

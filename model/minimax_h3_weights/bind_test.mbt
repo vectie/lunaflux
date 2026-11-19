@@ -1,7 +1,7 @@
 ///|
 fn h3_weight_metadata(
-  variant? : @minimax_h3_spec.MiniMaxH3Variant = Ref2va,
-  seed? : Char = '5',
+  variant~ : @minimax_h3_spec.MiniMaxH3Variant = Ref2va,
+  seed~ : Char = '5',
 ) -> @minimax_h3_spec.MiniMaxH3ModelMetadata {
   @minimax_h3_spec.MiniMaxH3ModelMetadata::from_verified_content(
     @minimax_h3_spec.MiniMaxH3TransformerSpec::official(
@@ -15,8 +15,8 @@ fn h3_weight_metadata(
 ///|
 fn one_tensor(
   name : String,
-  shape? : ArrayView[Int64] = [1L, 1L],
-  dtype? : String = "BF16",
+  shape~ : ArrayView[Int64] = [1L, 1L],
+  dtype~ : String = "BF16",
 ) -> @safetensors.SafetensorsMetadata raise @safetensors.SafetensorsError {
   let mut elements = 1L
   for dimension in shape {

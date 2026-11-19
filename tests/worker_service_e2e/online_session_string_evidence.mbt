@@ -4,7 +4,7 @@ fn assert_string_stop_session(
   tokenizer : @tokenizer.TokenizerSpec,
   received : @request_admission.ReceivedRequest,
   expected_tokens : Array[String?],
-  expected_output_tokens : Int,
+  expected_output_tokens : Int32,
 ) -> Unit raise {
   let instance = prepare_foundation_instance(executable, tokenizer.digest())
   let session = begin_foundation_session(

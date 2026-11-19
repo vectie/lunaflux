@@ -5,8 +5,8 @@
 /// binary32 value. The byte count must match the declared shape exactly.
 pub fn decode_bfloat16_le(
   bytes : BytesView,
-  rows~ : Int,
-  columns~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
   limits~ : ReferenceLimits,
 ) -> Tensor raise ReferenceKernelError {
   let elements = checked_element_count(rows, columns, limits)

@@ -1,5 +1,5 @@
 ///|
-const READONLY_PHYSICAL_RESULT_LINES : Int = 98
+const READONLY_PHYSICAL_RESULT_LINES : Int32 = 98
 
 ///|
 pub struct ApprovedPagedAttentionReadOnlyPhysicalPolicy {
@@ -20,14 +20,14 @@ pub struct ApprovedPagedAttentionReadOnlyPhysicalPolicy {
 
 ///|
 pub struct PagedAttentionReadOnlyPhysicalEvidenceLimits {
-  priv maximum_result_bytes : Int
-  priv maximum_manifest_bytes : Int
+  priv maximum_result_bytes : Int32
+  priv maximum_manifest_bytes : Int32
 }
 
 ///|
 pub fn PagedAttentionReadOnlyPhysicalEvidenceLimits::new(
-  maximum_result_bytes~ : Int,
-  maximum_manifest_bytes~ : Int,
+  maximum_result_bytes~ : Int32,
+  maximum_manifest_bytes~ : Int32,
 ) -> PagedAttentionReadOnlyPhysicalEvidenceLimits raise PagedAttentionReadOnlyPhysicalEvidenceError {
   if maximum_result_bytes <= 0 ||
     maximum_result_bytes > 131072 ||
@@ -47,10 +47,10 @@ pub struct AdmittedPagedAttentionReadOnlyPhysicalEvidence {
   priv fallback_recipe_digest : String
   priv operation_id : @plan.OperationId
   priv input_activation : @plan.ActivationRef
-  priv input_row_width : Int
-  priv dispatch_canary_per_token : Int
-  priv dispatch_canary_cell_count : Int
-  priv numeric_case_count : Int
+  priv input_row_width : Int32
+  priv dispatch_canary_per_token : Int32
+  priv dispatch_canary_cell_count : Int32
+  priv numeric_case_count : Int32
   priv canonical : Bytes
   priv digest : PagedAttentionReadOnlyPhysicalEvidenceDigest
   priv files_manifest_digest : PagedAttentionReadOnlyPhysicalEvidenceDigest

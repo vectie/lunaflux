@@ -19,7 +19,7 @@ fn empty_fp8_resources(
 fn fp8_module_index(
   modules : Array[Fp8OwnedModule],
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, module_ in modules {
     if module_.digest == digest {
       return Some(index)
@@ -76,7 +76,7 @@ fn fp8_stream(
 ///|
 fn fp8_function(
   resources : Fp8DeviceResources,
-  index : Int,
+  index : Int32,
 ) -> @device.Function raise Fp8DeviceExecutorError {
   guard resources.functions.get(index) is Some(function) && function.open else {
     raise InvalidFp8DeviceExecutor(ResourceState)

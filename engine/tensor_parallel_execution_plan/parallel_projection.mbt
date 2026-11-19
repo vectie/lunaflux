@@ -1,5 +1,5 @@
 ///|
-fn parallel_arena(space : TensorParallelMemorySpace) -> Int {
+fn parallel_arena(space : TensorParallelMemorySpace) -> Int32 {
   match space {
     DescriptorSpace => 0
     RankConstantsSpace => 1
@@ -12,8 +12,8 @@ fn parallel_arena(space : TensorParallelMemorySpace) -> Int {
 ///|
 fn parallel_access(
   buffers : Array[@parallel_ir.Buffer],
-  indices : Map[(Int, Int64, Int64), Int],
-  arena : Int,
+  indices : Map[(Int32, Int64, Int64), Int32],
+  arena : Int32,
   offset : Int64,
   bytes : Int64,
   mode : @parallel_ir.AccessMode,
@@ -54,7 +54,7 @@ pub fn TensorParallelExecutionPlan::parallel_program(
     ),
   ]
   let buffers : Array[@parallel_ir.Buffer] = []
-  let indices : Map[(Int, Int64, Int64), Int] = Map([])
+  let indices : Map[(Int32, Int64, Int64), Int32] = Map([])
   let steps : Array[@parallel_ir.Step] = []
   let mut collective_index = 0
   for operation in self.operations {

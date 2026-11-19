@@ -5,7 +5,7 @@ pub(all) suberror AttentionTuningError {
 
 ///|
 fn positive(text : StringView) -> Int64 raise AttentionTuningError {
-  if text.is_empty() || !text.iter().all(c => c is ('0'..='9')) {
+  if text.is_empty() || !text.iter().all(c => c is ('0'..<='9')) {
     raise InvalidTable
   }
   let value = @string.parse_int64(text) catch { _ => raise InvalidTable }
@@ -42,7 +42,7 @@ pub fn parse_attention_tuning_records(
   let records : Array[@strategy.AttentionAutotuneRecord] = []
   let mut workloads = 0
   let mut provenance = false
-  let mut sample_count : Int? = None
+  let mut sample_count : Int32? = None
   for line in lines {
     match line.split("\t").to_array() {
       ["workload", phase, queries, rows, history, bucket_queries, bucket_rows] => {

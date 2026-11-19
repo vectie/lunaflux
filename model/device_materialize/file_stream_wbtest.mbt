@@ -1,6 +1,6 @@
 ///|
 fn wb_stream_limits(
-  transfer_chunk_bytes? : Int = 17,
+  transfer_chunk_bytes~ : Int32 = 17,
 ) -> DeviceWeightFileLimits raise {
   let safetensors = @safetensors.HeaderLimits::new(
     max_header_bytes=8192,
@@ -21,8 +21,8 @@ fn wb_stream_limits(
 fn wb_stream_entry(
   name : String,
   shape : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String {
   "\"\{name}\":{\"dtype\":\"BF16\",\"shape\":\{shape},\"data_offsets\":[\{start},\{end}]}"
 }
@@ -88,9 +88,9 @@ fn wb_stream_plan(file : BytesView) -> @plan.ModelPlan raise {
 fn wb_fill(
   file : BytesView,
   destination : FixedArray[Byte],
-  destination_offset : Int,
+  destination_offset : Int32,
   position : Int64,
-  count : Int,
+  count : Int32,
 ) -> Unit raise DeviceWeightError {
   let start = position.to_int()
   if start < 0 || count < 0 || start > file.length() - count {
@@ -105,16 +105,16 @@ fn wb_fill(
 priv struct SourceStamp {
   file_bytes : Int64
   modified_seconds : Int64
-  modified_nanoseconds : Int
+  modified_nanoseconds : Int32
   changed_seconds : Int64
-  changed_nanoseconds : Int
+  changed_nanoseconds : Int32
 } derive(Eq)
 
 ///|
 fn wb_stamp(
   file : BytesView,
-  modified? : Int = 1,
-  changed? : Int = modified,
+  modified~ : Int32 = 1,
+  changed~ : Int32 = modified,
 ) -> SourceStamp {
   {
     file_bytes: file.length().to_int64(),

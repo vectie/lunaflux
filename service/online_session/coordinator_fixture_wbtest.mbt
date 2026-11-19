@@ -88,7 +88,7 @@ fn coordinator_fixture_frame() -> FixedArray[Byte] raise {
 
 ///|
 fn coordinator_fixture_instance(
-  multi_lane_count? : Int = 1,
+  multi_lane_count~ : Int32 = 1,
 ) -> LunaOnlineInstance raise {
   let inference = coordinator_fixture_inference()
   {
@@ -128,7 +128,7 @@ fn coordinator_fixture_instance(
 
 ///|
 fn coordinator_fixture(
-  multi_lane_count? : Int = 1,
+  multi_lane_count~ : Int32 = 1,
 ) -> LunaOnlineFramedCoordinator raise {
   let inference = coordinator_fixture_inference()
   let tokenizer = coordinator_fixture_tokenizer()

@@ -20,21 +20,21 @@ pub fn LunaHttp1ResponseView::is_live(self : LunaHttp1ResponseView) -> Bool {
 ///|
 pub fn LunaHttp1ResponseView::status_code(
   self : LunaHttp1ResponseView,
-) -> Int raise LunaHttp1Error {
+) -> Int32 raise LunaHttp1Error {
   self.require_workspace().status_code
 }
 
 ///|
 pub fn LunaHttp1ResponseView::length(
   self : LunaHttp1ResponseView,
-) -> Int raise LunaHttp1Error {
+) -> Int32 raise LunaHttp1Error {
   self.require_workspace().response_length
 }
 
 ///|
 pub fn LunaHttp1ResponseView::byte_at(
   self : LunaHttp1ResponseView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaHttp1Error {
   let workspace = self.require_workspace()
   if index < 0 || index >= workspace.response_length {
@@ -48,19 +48,19 @@ pub fn LunaHttp1ResponseView::byte_at(
 pub fn LunaHttp1ResponseView::copy_chunk(
   self : LunaHttp1ResponseView,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise LunaHttp1Error {
+  destination_offset~ : Int32,
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise LunaHttp1Error {
   let workspace = self.require_workspace()
   if source_offset < 0 ||
     source_offset > workspace.response_length ||
     length < 0 {
     raise luna_http1_error(LunaHttp1Source, LunaHttp1OutOfRange)
   }
-  let amount = Int::min(
+  let amount = Int32::min(
     length,
-    Int::min(
+    Int32::min(
       workspace.budget.work_units(),
       workspace.response_length - source_offset,
     ),

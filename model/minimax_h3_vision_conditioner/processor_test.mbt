@@ -1,12 +1,12 @@
 ///|
 fn pixel_value(
-  p : ProcessedPixels,
-  patch : Int,
-  c : Int,
-  t : Int,
-  y : Int,
-  x : Int,
-) -> UInt {
+  p : @minimax_h3_vision_conditioner.ProcessedPixels,
+  patch : Int32,
+  c : Int32,
+  t : Int32,
+  y : Int32,
+  x : Int32,
+) -> UInt32 {
   let i = (patch * 1536 + c * 512 + t * 256 + y * 16 + x) * 2
   p.patches[i].to_uint() | (p.patches[i + 1].to_uint() << 8)
 }
@@ -27,7 +27,7 @@ test "RGB processor duplicates image temporal slot and groups spatial patches" {
       0
     }
   })
-  let p = preprocess_rgb(
+  let p = @minimax_h3_vision_conditioner.preprocess_rgb(
     [Bytes::from_array(data)],
     height=32,
     width=32,
@@ -57,7 +57,7 @@ test "RGB processor duplicates image temporal slot and groups spatial patches" {
 test "RGB processor pads odd videos without mixing temporal pairs" {
   let dark = Bytes::from_array(Array::make(32 * 32 * 3, 0))
   let light = Bytes::from_array(Array::make(32 * 32 * 3, 255))
-  let p = preprocess_rgb(
+  let p = @minimax_h3_vision_conditioner.preprocess_rgb(
     [dark, light, dark],
     height=32,
     width=32,
@@ -74,10 +74,10 @@ test "RGB processor pads odd videos without mixing temporal pairs" {
 
 ///|
 test "RGB smart resize bounds and constant resampling" {
-  assert_eq(resized_shape(48, 48, min_pixels=1024, max_pixels=100000), (64, 64))
-  assert_eq(resized_shape(80, 80, min_pixels=1024, max_pixels=100000), (64, 64))
+  assert_eq(@minimax_h3_vision_conditioner.resized_shape(48, 48, min_pixels=1024, max_pixels=100000), (64, 64))
+  assert_eq(@minimax_h3_vision_conditioner.resized_shape(80, 80, min_pixels=1024, max_pixels=100000), (64, 64))
   let frame = Bytes::from_array(Array::make(16 * 16 * 3, 255))
-  let p = preprocess_rgb(
+  let p = @minimax_h3_vision_conditioner.preprocess_rgb(
     [frame],
     height=16,
     width=16,
@@ -87,7 +87,7 @@ test "RGB smart resize bounds and constant resampling" {
   )
   assert_eq(pixel_value(p, 3, 2, 1, 15, 15), 0x3f80U)
   try
-    preprocess_rgb(
+    @minimax_h3_vision_conditioner.preprocess_rgb(
       [frame],
       height=16,
       width=16,
@@ -100,7 +100,7 @@ test "RGB smart resize bounds and constant resampling" {
   } noraise {
     _ => fail("unbounded preprocess accepted")
   }
-  try resized_shape(1, 1000) catch {
+  try @minimax_h3_vision_conditioner.resized_shape(1, 1000) catch {
     _ => ()
   } noraise {
     _ => fail("extreme aspect accepted")

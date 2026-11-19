@@ -2,7 +2,7 @@
 fn evidence(
   source_identity : @spec.ModelIdentity,
   requirements_digest_sha256 : String,
-  requirement_ordinal : Int,
+  requirement_ordinal : Int32,
   source_digest_sha256 : String,
   recipe_digest_sha256 : String,
   manifest_bindable : Bool,

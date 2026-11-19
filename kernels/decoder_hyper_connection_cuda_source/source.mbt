@@ -3,8 +3,8 @@ fn valid_hyper_connection_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -12,10 +12,10 @@ fn valid_hyper_connection_symbol(symbol : StringView) -> Bool {
 /// `pre[rows,width]`, `post[rows,width]`, and
 /// `combination[rows,width,width]`, with destination before source.
 pub fn block_control_v1_bf16_f32_source(
-  stream_width~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
-  sinkhorn_iterations~ : Int,
+  stream_width~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
+  sinkhorn_iterations~ : Int32,
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
   function_symbol~ : String,
@@ -190,9 +190,9 @@ pub fn block_control_v1_bf16_f32_source(
 /// `streams[rows,width,hidden]`, `pre[rows,width]`, and
 /// `output[rows,hidden]`. Each output element rounds once to BF16-RNE.
 pub fn pre_reduce_v1_bf16_source(
-  stream_width~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
+  stream_width~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> DecoderHyperConnectionPreReduceCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
@@ -257,11 +257,11 @@ pub fn pre_reduce_v1_bf16_source(
 /// `post[rows,width]`, `combination[rows,width,width]`, and
 /// `output[rows,width,hidden]`, with destination before source.
 pub fn post_combine_v1_bf16_source(
-  stream_width~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
+  stream_width~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
-  mix_law? : @precision.HyperConnectionMixLaw = OrderedF32SingleBf16Round,
+  mix_law~ : @precision.HyperConnectionMixLaw = OrderedF32SingleBf16Round,
 ) -> DecoderHyperConnectionPostCombineCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth

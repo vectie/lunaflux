@@ -4,15 +4,15 @@
 /// a partial reduction or changes tie order. Selection reads the published
 /// score/validity region only after every tile has completed.
 pub struct CandidateScorePlan {
-  priv queries : Int
-  priv candidates : Int
-  priv width : Int
+  priv queries : Int32
+  priv candidates : Int32
+  priv width : Int32
 }
 
 ///|
 pub fn RetainedIndexPlan::score_tiles(
   self : Self,
-  width : Int,
+  width : Int32,
 ) -> CandidateScorePlan? {
   guard width > 0 && self.candidates > width else { return None }
   let tiles = (self.candidates.to_int64() + width.to_int64() - 1L) /
@@ -22,18 +22,18 @@ pub fn RetainedIndexPlan::score_tiles(
 }
 
 ///|
-pub fn CandidateScorePlan::geometry(self : Self) -> (Int, Int, Int) {
+pub fn CandidateScorePlan::geometry(self : Self) -> (Int32, Int32, Int32) {
   (self.queries, self.candidates, self.width)
 }
 
 ///|
-pub fn CandidateScorePlan::tiles_per_query(self : Self) -> Int {
+pub fn CandidateScorePlan::tiles_per_query(self : Self) -> Int32 {
   ((self.candidates.to_int64() + self.width.to_int64() - 1L) /
   self.width.to_int64()).to_int()
 }
 
 ///|
-pub fn CandidateScorePlan::workgroups(self : Self) -> Int {
+pub fn CandidateScorePlan::workgroups(self : Self) -> Int32 {
   self.queries * self.tiles_per_query()
 }
 
@@ -44,9 +44,9 @@ pub fn CandidateScorePlan::workgroups(self : Self) -> Int {
 /// a host readback or a different numerical program.
 pub fn CandidateScorePlan::owner(
   self : Self,
-  workgroup : Int,
-  live_rows : Int,
-) -> (Int, Int)? {
+  workgroup : Int32,
+  live_rows : Int32,
+) -> (Int32, Int32)? {
   guard live_rows > 0 &&
     live_rows <= self.queries &&
     workgroup >= 0 &&

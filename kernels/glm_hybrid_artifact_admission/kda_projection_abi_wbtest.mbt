@@ -1,10 +1,10 @@
 ///|
 fn kda_projection_abi_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  raw_role? : GlmHybridLaunchOperandRole = KdaRawForgetOutput,
-  low_bytes? : Int64 = 8192L,
-  gate_weight_bytes? : Int64 = 524288L,
-  symbol? : String = "lunaflux_glm_hybrid_kda_projection_bf16_v1",
+  raw_role~ : GlmHybridLaunchOperandRole = KdaRawForgetOutput,
+  low_bytes~ : Int64 = 8192L,
+  gate_weight_bytes~ : Int64 = 524288L,
+  symbol~ : String = "lunaflux_glm_hybrid_kda_projection_bf16_v1",
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

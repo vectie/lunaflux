@@ -1,10 +1,10 @@
 ///|
 fn spawned_long_context_kv_valid(
-  active_requests : Int,
-  kv_pages_used : Int,
-  kv_pages_free : Int,
-  total_kv_pages : Int,
-  expected_live_pages : Int,
+  active_requests : Int32,
+  kv_pages_used : Int32,
+  kv_pages_free : Int32,
+  total_kv_pages : Int32,
+  expected_live_pages : Int32,
 ) -> Bool {
   (
     active_requests == 1 &&
@@ -64,12 +64,12 @@ fn require_long_context_accepted(
 fn require_long_context_token(
   service : @online_session.LunaOnlineFramedService,
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  expected_token : Int,
+  expected_token : Int32,
   previous_plan_sequence : UInt64,
-  input_tokens : Int,
-  total_kv_pages : Int,
-  expected_live_pages : Int,
-) -> (Int, UInt64) raise RuntimeSpawnedLongContextError {
+  input_tokens : Int32,
+  total_kv_pages : Int32,
+  expected_live_pages : Int32,
+) -> (Int32, UInt64) raise RuntimeSpawnedLongContextError {
   let view = long_context_event_view(event)
   let observed = try {
     if view.kind() != LunaTokenEventKind {
@@ -119,7 +119,7 @@ fn require_long_context_token(
 ///|
 fn require_long_context_usage(
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedLongContextError {
   let view = long_context_event_view(event)
   let valid = try {
@@ -144,7 +144,7 @@ fn require_long_context_usage(
 ///|
 fn require_long_context_completed(
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedLongContextError {
   let view = long_context_event_view(event)
   let valid = try {

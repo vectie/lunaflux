@@ -1,6 +1,6 @@
 ///|
 fn expert_score_operands_are_exact(
-  routed_expert_count : Int,
+  routed_expert_count : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
 ) -> Bool {

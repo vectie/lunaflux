@@ -1,11 +1,11 @@
 ///|
 /// Startup capacity for reusable CSR/SoA step descriptors.
 pub struct DeviceStepLimits {
-  priv max_rows : Int
-  priv max_tokens : Int
-  priv max_pages : Int
-  priv max_sequence_tokens : Int
-  priv max_token_id : Int
+  priv max_rows : Int32
+  priv max_tokens : Int32
+  priv max_pages : Int32
+  priv max_sequence_tokens : Int32
+  priv max_token_id : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -54,11 +54,11 @@ pub struct FailedDeviceStepPreparation {
 #valtype
 priv struct DeviceStepSummary {
   sequence_value : UInt64
-  prefill_count : Int
-  decode_count : Int
-  row_count : Int
-  token_count : Int
-  page_count : Int
+  prefill_count : Int32
+  decode_count : Int32
+  row_count : Int32
+  token_count : Int32
+  page_count : Int32
 } derive(Eq)
 
 ///|
@@ -74,27 +74,27 @@ fn empty_device_step_summary() -> DeviceStepSummary {
 }
 
 ///|
-pub fn DeviceStepLimits::max_rows(self : DeviceStepLimits) -> Int {
+pub fn DeviceStepLimits::max_rows(self : DeviceStepLimits) -> Int32 {
   self.max_rows
 }
 
 ///|
-pub fn DeviceStepLimits::max_tokens(self : DeviceStepLimits) -> Int {
+pub fn DeviceStepLimits::max_tokens(self : DeviceStepLimits) -> Int32 {
   self.max_tokens
 }
 
 ///|
-pub fn DeviceStepLimits::max_pages(self : DeviceStepLimits) -> Int {
+pub fn DeviceStepLimits::max_pages(self : DeviceStepLimits) -> Int32 {
   self.max_pages
 }
 
 ///|
-pub fn DeviceStepLimits::max_sequence_tokens(self : DeviceStepLimits) -> Int {
+pub fn DeviceStepLimits::max_sequence_tokens(self : DeviceStepLimits) -> Int32 {
   self.max_sequence_tokens
 }
 
 ///|
-pub fn DeviceStepLimits::max_token_id(self : DeviceStepLimits) -> Int {
+pub fn DeviceStepLimits::max_token_id(self : DeviceStepLimits) -> Int32 {
   self.max_token_id
 }
 

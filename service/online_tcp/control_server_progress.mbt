@@ -1,18 +1,18 @@
 ///|
 /// A control turn may attempt ready I/O but must never wait for another peer.
 /// Connection deadlines are tracked separately from this zero-wait poll.
-const LUNA_ONLINE_HTTP_CONTROL_MAX_POLL_MILLIS : Int = 0
+const LUNA_ONLINE_HTTP_CONTROL_MAX_POLL_MILLIS : Int32 = 0
 
 ///|
-fn luna_online_http_control_poll_millis(configured : Int) -> Int {
-  Int::min(configured, LUNA_ONLINE_HTTP_CONTROL_MAX_POLL_MILLIS)
+fn luna_online_http_control_poll_millis(configured : Int32) -> Int32 {
+  Int32::min(configured, LUNA_ONLINE_HTTP_CONTROL_MAX_POLL_MILLIS)
 }
 
 ///|
 fn luna_online_control_io_expired(
   start : UInt64,
   now : UInt64,
-  budget : Int,
+  budget : Int32,
 ) -> Bool {
   now < start || now - start >= budget.to_uint64()
 }
@@ -30,7 +30,7 @@ fn LunaOnlineHttpControlServer::start_io_window(
 ///|
 fn LunaOnlineHttpControlServer::io_expired(
   self : LunaOnlineHttpControlServer,
-  budget : Int,
+  budget : Int32,
 ) -> Bool {
   let now = @monotonic_clock.MonotonicClock::system().now_millis() catch {
     _ => return true

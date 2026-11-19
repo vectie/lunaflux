@@ -6,19 +6,23 @@ pub fn ProjectionShape::family(
 }
 
 ///|
-pub fn ProjectionShape::dimensions(self : ProjectionShape) -> (Int, Int, Int) {
+pub fn ProjectionShape::dimensions(
+  self : ProjectionShape,
+) -> (Int32, Int32, Int32) {
   (self.input_width, self.output_width, self.intermediate_width)
 }
 
 ///|
-pub fn ProjectionTile::dimensions(self : ProjectionTile) -> (Int, Int, Int) {
+pub fn ProjectionTile::dimensions(
+  self : ProjectionTile,
+) -> (Int32, Int32, Int32) {
   (self.rows, self.columns, self.reduction)
 }
 
 ///|
 pub fn ProjectionCapabilities::subgroup_width(
   self : ProjectionCapabilities,
-) -> Int {
+) -> Int32 {
   self.subgroup_width
 }
 
@@ -42,7 +46,7 @@ pub fn ProjectionTargetId::stable_name(self : ProjectionTargetId) -> StringView 
 }
 
 ///|
-pub fn ProjectionStrategy::stable_id(self : ProjectionStrategy) -> Int {
+pub fn ProjectionStrategy::stable_id(self : ProjectionStrategy) -> Int32 {
   self.stable_id
 }
 
@@ -66,7 +70,7 @@ pub fn ProjectionStrategy::kernel_class(
 }
 
 ///|
-pub fn ProjectionStrategy::row_bucket(self : ProjectionStrategy) -> Int {
+pub fn ProjectionStrategy::row_bucket(self : ProjectionStrategy) -> Int32 {
   self.row_bucket
 }
 
@@ -155,7 +159,7 @@ pub fn ProjectionAutotuneRecord::median_latency_ns(
 ///|
 pub fn ProjectionAutotuneRecord::sample_count(
   self : ProjectionAutotuneRecord,
-) -> Int {
+) -> Int32 {
   self.sample_count
 }
 
@@ -204,7 +208,7 @@ pub fn ProjectionRuntimeDispatch::shape(
 ///|
 pub fn ProjectionRuntimeDispatch::maximum_rows(
   self : ProjectionRuntimeDispatch,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 
@@ -213,6 +217,6 @@ pub fn ProjectionRuntimeDispatch::maximum_rows(
 /// partition, not a reduction reassociation or a hardware thread count.
 pub fn ProjectionStrategy::output_tiles_per_workgroup(
   self : ProjectionStrategy,
-) -> Int {
+) -> Int32 {
   self.output_tiles_per_workgroup
 }

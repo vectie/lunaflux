@@ -9,7 +9,7 @@ fn probe_ordered_add(left : Float, right : Float) -> Float {
 }
 
 ///|
-fn expected_i8_projection_bf16() -> FixedArray[Int] {
+fn expected_i8_projection_bf16() -> FixedArray[Int32] {
   FixedArray::makei(12, index => {
     let row = index / 4
     let output_channel = index % 4

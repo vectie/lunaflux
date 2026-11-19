@@ -1,7 +1,7 @@
 ///|
 fn LunaOnlineFramedConnectionPool::retire_invalid_slot(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   self.begin_slot_retirement(index)
   LunaOnlineFramedConnectionPoolAdvanced
@@ -10,7 +10,7 @@ fn LunaOnlineFramedConnectionPool::retire_invalid_slot(
 ///|
 fn LunaOnlineFramedConnectionPool::retire_rejected_slot(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   self.telemetry.record_network_rejection(LunaLogValidation)
   self.begin_slot_retirement(index)
@@ -20,7 +20,7 @@ fn LunaOnlineFramedConnectionPool::retire_rejected_slot(
 ///|
 fn LunaOnlineFramedConnectionPool::offer_slot_request_tail(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.receipt_remaining() <= 0 ||
@@ -68,8 +68,8 @@ fn LunaOnlineFramedConnectionPool::offer_slot_request_tail(
 ///|
 async fn LunaOnlineFramedConnectionPool::read_slot_request(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
-  poll_timeout_millis : Int,
+  index : Int32,
+  poll_timeout_millis : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.connections.length() != 1 ||
@@ -86,17 +86,20 @@ async fn LunaOnlineFramedConnectionPool::read_slot_request(
   if wait <= 0 {
     return self.retire_invalid_slot(index)
   }
-  let amount = Int::min(
+  let amount = Int32::min(
     self.tcp_limits.read_chunk_bytes,
     slot.input.length() - slot.input_cursor,
   )
-  let received = @async.with_timeout_opt(Int::min(wait, poll_timeout_millis), () => {
-    slot.connections[0].read(
-      slot.input,
-      offset=slot.input_cursor,
-      max_len=amount,
-    )
-  }) catch {
+  let received = @async.with_timeout_opt(
+    Int32::min(wait, poll_timeout_millis),
+    () => {
+      slot.connections[0].read(
+        slot.input,
+        offset=slot.input_cursor,
+        max_len=amount,
+      )
+    },
+  ) catch {
     error if @async.is_being_cancelled() => raise error
     _ => return self.retire_invalid_slot(index)
   }
@@ -117,7 +120,7 @@ async fn LunaOnlineFramedConnectionPool::read_slot_request(
 ///|
 fn LunaOnlineFramedConnectionPool::finish_slot_request_validation(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.request_works.length() != 1 || slot.input_tail_length != 0 {
@@ -146,7 +149,7 @@ fn LunaOnlineFramedConnectionPool::finish_slot_request_validation(
 ///|
 fn LunaOnlineFramedConnectionPool::progress_slot_validation(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.receipt_remaining() <= 0 || slot.request_works.length() != 1 {
@@ -174,7 +177,7 @@ fn LunaOnlineFramedConnectionPool::progress_slot_validation(
 ///|
 fn LunaOnlineFramedConnectionPool::progress_slot_feed(
   self : LunaOnlineFramedConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineFramedConnectionPoolProgress {
   let slot = self.slots[index]
   if self.ingress_slot >= 0 && self.ingress_slot != index {

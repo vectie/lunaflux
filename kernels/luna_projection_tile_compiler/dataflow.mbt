@@ -71,7 +71,7 @@ fn projection_use_count(
   program : ProjectionTileProgram,
   live : ReadOnlyArray[ProjectionTileValueId],
   id : ProjectionTileValueId,
-) -> Int {
+) -> Int32 {
   program.bindings.fold(init=if program.root == id { 1 } else { 0 }, (
     count,
     binding,

@@ -1,7 +1,7 @@
 ///|
 fn output_rows_fixture(
   produces : ArrayView[Bool],
-  sequence? : UInt64 = 1UL,
+  sequence~ : UInt64 = 1UL,
 ) -> @worker_protocol.SubmittedSchedulePlan raise {
   let allocator = step_allocator()
   let buffer = @worker_protocol.SchedulePlanBuffer::new(step_protocol_limits())

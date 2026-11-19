@@ -49,14 +49,14 @@ pub struct RootBoundWorkerProcessSupervisor {
   priv mut cause : RootBoundWorkerProcessFailure?
   priv mut child_cleanup_failure : RootBoundWorkerProcessFailure?
   priv mut roots_cleanup_failure : RootBoundWorkerProcessFailure?
-  priv mut transport_mode : Int
+  priv mut transport_mode : Int32
   priv mut exchange_epoch : UInt64
   priv mut active_exchange_epoch : UInt64
-  priv mut exchange_phase : Int
-  priv mut exchange_side : Int
+  priv mut exchange_phase : Int32
+  priv mut exchange_side : Int32
   priv mut exchange_sequence : UInt64
   priv exchange_plan : @worker_protocol.SubmittedSchedulePlanSlot
-  priv mut maintenance_mode : Int
+  priv mut maintenance_mode : Int32
   priv mut lifecycle : RootBoundWorkerProcessLifecycle
 }
 
@@ -69,7 +69,7 @@ pub struct FailedRootBoundWorkerProcessStartup {
   priv mut child : FailedWorkerProcessStartup?
   priv mut child_cleanup_process : WorkerProcessError?
   priv mut child_cleanup_native : @process.ProcessError?
-  priv mut roots_cleanup_status : Int
+  priv mut roots_cleanup_status : Int32
   priv mut closed : Bool
 }
 
@@ -90,7 +90,7 @@ pub(all) enum RootBoundWorkerProcessRestart {
 #valtype
 pub struct RootBoundWorkerSubmission(
   RootBoundWorkerProcessSupervisor,
-  Int,
+  Int32,
   UInt64
 )
 
@@ -98,7 +98,7 @@ pub struct RootBoundWorkerSubmission(
 #valtype
 pub struct RootBoundReceivedWorkerCompletion(
   RootBoundWorkerProcessSupervisor,
-  Int,
+  Int32,
   UInt64
 )
 

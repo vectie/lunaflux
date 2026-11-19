@@ -1,8 +1,8 @@
 ///|
 fn launch_index(
   inputs : ArrayView[JointDiffusionLaunchEvidenceInput],
-  ordinal : Int,
-) -> Int? {
+  ordinal : Int32,
+) -> Int32? {
   for index, input in inputs {
     if input.requirement_ordinal == ordinal {
       return Some(index)
@@ -68,7 +68,7 @@ fn validate_launches(
 ///|
 fn required_entry_points(
   launches : ArrayView[JointDiffusionLaunchEvidenceInput],
-  requirement_count : Int,
+  requirement_count : Int32,
 ) -> Array[@catalog.AotKernelEntryPoint] {
   let required : Array[@catalog.AotKernelEntryPoint] = []
   for ordinal in 0..<requirement_count {
@@ -87,7 +87,7 @@ fn required_entry_points(
 fn entry_input_index(
   inputs : ArrayView[@artifact.KernelEntryPointInput],
   identity : @catalog.AotKernelEntryPoint,
-) -> Int? {
+) -> Int32? {
   for index, input in inputs {
     if input.identity() == identity {
       return Some(index)
@@ -151,7 +151,7 @@ fn required_module_digests(
 fn module_input_index(
   inputs : ArrayView[JointDiffusionModuleInput],
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, input in inputs {
     if input.digest == digest {
       return Some(index)
@@ -164,7 +164,7 @@ fn module_input_index(
 fn digest_index(
   digests : ArrayView[@catalog.AotArtifactDigest],
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, candidate in digests {
     if candidate == digest {
       return Some(index)

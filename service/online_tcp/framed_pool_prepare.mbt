@@ -75,7 +75,7 @@ pub fn prepare_luna_online_framed_connection_pool(
   }
   tcp_limits.require_fits_transport_wait(maximum_wait_millis)
   if pool_limits.io_poll_timeout_millis >
-    Int::min(
+    Int32::min(
       tcp_limits.input_idle_timeout_millis,
       tcp_limits.write_timeout_millis,
     ) {
@@ -94,7 +94,7 @@ pub async fn bind_luna_online_framed_connection_pool(
   addr : @socket.Addr,
   preparation : LunaOnlineFramedConnectionPoolPreparation,
   tcp_limits : LunaOnlineTcpLimits,
-  log_capacity~ : Int,
+  log_capacity~ : Int32,
 ) -> LunaOnlineFramedConnectionPool {
   if preparation.consumed {
     raise luna_online_tcp_error(LunaOnlineTcpOwnership)

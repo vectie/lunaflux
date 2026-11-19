@@ -18,27 +18,27 @@ pub fn JointVaeDecodeGapDigest::as_hex(self : Self) -> String {
 }
 
 ///|
-pub fn JointVaeDecodeAssessment::video_gap_count(self : Self) -> Int {
+pub fn JointVaeDecodeAssessment::video_gap_count(self : Self) -> Int32 {
   self.video_gaps.length()
 }
 
 ///|
 pub fn JointVaeDecodeAssessment::video_gap(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> JointVaeDecodeGap? {
   self.video_gaps.get(index)
 }
 
 ///|
-pub fn JointVaeDecodeAssessment::audio_gap_count(self : Self) -> Int {
+pub fn JointVaeDecodeAssessment::audio_gap_count(self : Self) -> Int32 {
   self.audio_gaps.length()
 }
 
 ///|
 pub fn JointVaeDecodeAssessment::audio_gap(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> JointVaeDecodeGap? {
   self.audio_gaps.get(index)
 }
@@ -49,22 +49,22 @@ pub fn JointVaeDecodeGeometry::plan_digest(self : Self) -> @spec.PlanDigest {
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_latent_channels(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_latent_channels(self : Self) -> Int32 {
   self.video_latent_channels
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_latent_frames(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_latent_frames(self : Self) -> Int32 {
   self.video_latent_frames
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_latent_height(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_latent_height(self : Self) -> Int32 {
   self.video_latent_height
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_latent_width(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_latent_width(self : Self) -> Int32 {
   self.video_latent_width
 }
 
@@ -74,17 +74,17 @@ pub fn JointVaeDecodeGeometry::video_latent_elements(self : Self) -> Int64 {
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_output_frames(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_output_frames(self : Self) -> Int32 {
   self.video_output_frames
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_output_height(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_output_height(self : Self) -> Int32 {
   self.video_output_height
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_output_width(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_output_width(self : Self) -> Int32 {
   self.video_output_width
 }
 
@@ -94,17 +94,17 @@ pub fn JointVaeDecodeGeometry::video_output_sites(self : Self) -> Int64 {
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::video_spatial_compression(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::video_spatial_compression(self : Self) -> Int32 {
   self.video_spatial_compression
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::audio_latent_channels(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::audio_latent_channels(self : Self) -> Int32 {
   self.audio_latent_channels
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::audio_latent_frames(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::audio_latent_frames(self : Self) -> Int32 {
   self.audio_latent_frames
 }
 
@@ -119,7 +119,7 @@ pub fn JointVaeDecodeGeometry::audio_output_samples(self : Self) -> Int64 {
 }
 
 ///|
-pub fn JointVaeDecodeGeometry::audio_output_channels(self : Self) -> Int {
+pub fn JointVaeDecodeGeometry::audio_output_channels(self : Self) -> Int32 {
   self.audio_output_channels
 }
 

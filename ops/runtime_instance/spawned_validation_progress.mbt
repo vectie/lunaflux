@@ -20,7 +20,7 @@ fn spawned_validation_observation_allowed(
 fn offer_spawned_validation_frame(
   stream : @online_session.LunaOnlineFramedStream,
   frame : FixedArray[Byte],
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeSpawnedValidationError {
   let mut cursor = 0
   let mut turns = 0
@@ -75,7 +75,7 @@ fn offer_spawned_validation_frame(
 ///|
 fn next_spawned_validation_event(
   stream : @online_session.LunaOnlineFramedStream,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> @online_session.LunaOnlineFramedSemanticEvent raise RuntimeSpawnedValidationError {
   for _ in 0..<turn_limit {
     let progress = stream.progress() catch {

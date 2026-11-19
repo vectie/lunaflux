@@ -1,19 +1,19 @@
 ///|
 fn aot_test_requirements(
-  score_function? : @advanced_decoder_execution_plan.ExpertScoreFunction = Sigmoid,
-  content_fill? : Char = 'a',
-  hash_layer_count? : Int = 0,
-  routed_expert_count? : Int = 8,
-  experts_per_token? : Int = 2,
-  attention_head_count? : Int = 2,
-  attention_head_dimension? : Int = 8,
-  rope_head_dimension? : Int = 2,
-  maximum_position_count? : Int = 1024,
-  deterministic_compression_ratio? : Int = 0,
-  hidden_size? : Int = 16,
-  query_low_rank? : Int = 4,
-  output_low_rank? : Int = 4,
-  output_group_count? : Int = 1,
+  score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction = Sigmoid,
+  content_fill~ : Char = 'a',
+  hash_layer_count~ : Int32 = 0,
+  routed_expert_count~ : Int32 = 8,
+  experts_per_token~ : Int32 = 2,
+  attention_head_count~ : Int32 = 2,
+  attention_head_dimension~ : Int32 = 8,
+  rope_head_dimension~ : Int32 = 2,
+  maximum_position_count~ : Int32 = 1024,
+  deterministic_compression_ratio~ : Int32 = 0,
+  hidden_size~ : Int32 = 16,
+  query_low_rank~ : Int32 = 4,
+  output_low_rank~ : Int32 = 4,
+  output_group_count~ : Int32 = 1,
 ) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements {
   let shape = try! @advanced_decoder_execution_plan.AdvancedDecoderShape::new(
     vocabulary_size=128,
@@ -104,7 +104,7 @@ fn aot_test_requirements(
 }
 
 ///|
-fn aot_test_target(bf16? : Bool = true) -> @catalog.DeviceTarget {
+fn aot_test_target(bf16~ : Bool = true) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=0,
@@ -115,8 +115,8 @@ fn aot_test_target(bf16? : Bool = true) -> @catalog.DeviceTarget {
 
 ///|
 fn aot_test_compiler(
-  reassociate? : Bool = false,
-  fused_multiply_add? : Bool = false,
+  reassociate~ : Bool = false,
+  fused_multiply_add~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy {
   let identity = try! @luna_specialization.LunaCompilerIdentity::new(
     toolchain_digest_sha256=String::make(64, 'b'),

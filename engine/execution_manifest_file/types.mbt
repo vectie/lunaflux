@@ -37,7 +37,7 @@ priv struct ManifestEntryClaim {
 
 ///|
 priv struct ManifestOperationClaim {
-  module_index : Int
+  module_index : Int32
   family_id : @catalog.AotKernelFamilyId
   entry_point_id : @catalog.AotKernelEntryPointId
   workspace_bytes : Int64
@@ -69,7 +69,7 @@ priv struct ManifestV4Claims {
 
 ///|
 priv struct ManifestLunaAuthorizationClaim {
-  operation_id : Int
+  operation_id : Int32
   specialization_locator : String
   specialization_digest : String
   capability_locator : String
@@ -323,7 +323,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }

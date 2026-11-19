@@ -109,7 +109,7 @@ pub(all) enum AdvancedDecoderCudaAotInvalidKind {
 ///|
 pub(all) suberror AdvancedDecoderCudaAotError {
   Invalid(AdvancedDecoderCudaAotInvalidKind)
-  UnsupportedRequirement(Int)
+  UnsupportedRequirement(Int32)
   SizeOverflow
   Operand(
     @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionError
@@ -148,9 +148,9 @@ pub(all) suberror AdvancedDecoderCudaAotError {
 
 ///|
 pub struct AdvancedDecoderCudaAotLimits {
-  priv maximum_tokens : Int
-  priv maximum_source_bytes : Int
-  priv maximum_recipe_bytes : Int
+  priv maximum_tokens : Int32
+  priv maximum_source_bytes : Int32
+  priv maximum_recipe_bytes : Int32
 }
 
 ///|
@@ -167,11 +167,11 @@ pub struct AdvancedDecoderFoundationCudaCandidate {
   priv numerical_contract : AdvancedDecoderFoundationNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
+  priv maximum_tokens : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -193,13 +193,13 @@ pub struct AdvancedDecoderProjectionCudaCandidate {
   priv numerical_contract : AdvancedDecoderProjectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv input_width : Int
-  priv output_width : Int
+  priv maximum_tokens : Int32
+  priv input_width : Int32
+  priv output_width : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -220,12 +220,12 @@ pub struct AdvancedDecoderRoutingCudaCandidate {
   priv numerical_contract : AdvancedDecoderRoutingNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv routed_expert_count : Int
+  priv maximum_tokens : Int32
+  priv routed_expert_count : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -247,14 +247,14 @@ pub struct AdvancedDecoderCompressedIndexCudaCandidate {
   priv numerical_contract : AdvancedDecoderCompressedIndexNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv compression_ratio : Int
-  priv maximum_position_count : Int
-  priv maximum_slots_per_row : Int
+  priv maximum_tokens : Int32
+  priv compression_ratio : Int32
+  priv maximum_position_count : Int32
+  priv maximum_slots_per_row : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -273,16 +273,16 @@ pub struct AdvancedDecoderWindowCompressedJoinCudaCandidate {
   priv numerical_contract : AdvancedDecoderWindowCompressedJoinNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv window_size : Int
-  priv compression_ratio : Int
-  priv maximum_position_count : Int
-  priv maximum_compressed_width : Int
-  priv maximum_joined_width : Int
+  priv maximum_tokens : Int32
+  priv window_size : Int32
+  priv compression_ratio : Int32
+  priv maximum_position_count : Int32
+  priv maximum_compressed_width : Int32
+  priv maximum_joined_width : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -304,18 +304,18 @@ pub struct AdvancedDecoderSparseAttentionCudaCandidate {
   priv numerical_contract : AdvancedDecoderSparseAttentionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv maximum_batches : Int
-  priv query_head_count : Int
-  priv head_dimension : Int
-  priv window_size : Int
-  priv compression_ratio : Int
-  priv selected_width : Int
-  priv maximum_key_slots : Int
+  priv maximum_tokens : Int32
+  priv maximum_batches : Int32
+  priv query_head_count : Int32
+  priv head_dimension : Int32
+  priv window_size : Int32
+  priv compression_ratio : Int32
+  priv selected_width : Int32
+  priv maximum_key_slots : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -336,15 +336,15 @@ pub struct AdvancedDecoderRotaryCudaCandidate {
   priv numerical_contract : AdvancedDecoderRotaryNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv query_head_count : Int
-  priv key_value_head_count : Int
-  priv rope_dimension : Int
-  priv maximum_positions : Int
+  priv maximum_tokens : Int32
+  priv query_head_count : Int32
+  priv key_value_head_count : Int32
+  priv rope_dimension : Int32
+  priv maximum_positions : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -365,14 +365,14 @@ pub struct AdvancedDecoderHyperConnectionCudaCandidate {
   priv numerical_contract : AdvancedDecoderHyperConnectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv stream_width : Int
-  priv hidden_width : Int
-  priv sinkhorn_iterations : Int
+  priv maximum_tokens : Int32
+  priv stream_width : Int32
+  priv hidden_width : Int32
+  priv sinkhorn_iterations : Int32
   priv control_epsilon : Double
   priv normalization_epsilon : Double
   priv dimensions : @launch_contract.AotLaunchDimensions
@@ -395,13 +395,13 @@ pub struct AdvancedDecoderHyperConnectionPreReduceCudaCandidate {
   priv numerical_contract : AdvancedDecoderHyperConnectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv stream_width : Int
-  priv hidden_width : Int
+  priv maximum_tokens : Int32
+  priv stream_width : Int32
+  priv hidden_width : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -422,13 +422,13 @@ pub struct AdvancedDecoderHyperConnectionPostCombineCudaCandidate {
   priv numerical_contract : AdvancedDecoderHyperConnectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv stream_width : Int
-  priv hidden_width : Int
+  priv maximum_tokens : Int32
+  priv stream_width : Int32
+  priv hidden_width : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
@@ -449,13 +449,13 @@ pub struct AdvancedDecoderHyperConnectionHeadReduceCudaCandidate {
   priv numerical_contract : AdvancedDecoderHyperConnectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_tokens : Int
-  priv stream_width : Int
-  priv hidden_width : Int
+  priv maximum_tokens : Int32
+  priv stream_width : Int32
+  priv hidden_width : Int32
   priv control_epsilon : Double
   priv normalization_epsilon : Double
   priv dimensions : @launch_contract.AotLaunchDimensions

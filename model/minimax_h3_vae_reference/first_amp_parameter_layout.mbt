@@ -5,7 +5,7 @@ fn amp_align64(value : Int64) -> Int64 {
 
 ///|
 fn bind_amp_parameter_layout(
-  stage_index : Int,
+  stage_index : Int32,
   channels : Int64,
 ) -> @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout raise MiniMaxH3VaeReferenceError {
   if stage_index < 0 || stage_index > 6 || channels <= 0L {
@@ -127,7 +127,7 @@ pub fn bind_second_amp_parameter_layout() -> @joint_audio_amp_parameter_layout.J
 ///|
 /// All seven released AMP stages share one parameter-layout derivation.
 pub fn bind_audio_decoder_amp_parameter_layout(
-  stage_index~ : Int,
+  stage_index~ : Int32,
 ) -> @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout raise MiniMaxH3VaeReferenceError {
   guard stage_index >= 0 && stage_index < 7 else { raise InvalidAudioVaeConfig }
   bind_amp_parameter_layout(stage_index, 1024L >> (stage_index + 1))

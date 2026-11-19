@@ -4,7 +4,7 @@
 /// back to a window-only result. Output projections remain downstream.
 pub struct DeepSeekWindowAttention {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv layer : Int
+  priv layer : Int32
   priv inputs : DeepSeekAttentionInputs
   priv window : @window_frame.WindowSharedKvFrame
   priv sink : @upload.CheckpointDeviceWeights
@@ -15,10 +15,10 @@ pub struct DeepSeekWindowAttention {
 ///|
 pub fn window_attention_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_state_bytes~ : Int64,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
 ) -> @precision.WindowSharedKvPrecision raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -44,7 +44,7 @@ pub fn window_attention_plan(
 pub fn bind_window_attention_sink(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
+  layer~ : Int32,
 ) -> @materialize.PackedCheckpointWeight raise {
   ignore(
     window_attention_plan(
@@ -62,7 +62,7 @@ pub fn bind_window_attention_sink(
 pub fn bind_attention_sink(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
+  layer~ : Int32,
 ) -> @materialize.PackedCheckpointWeight raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -80,13 +80,13 @@ pub fn bind_attention_sink(
 ///|
 pub fn DeepSeekWindowAttention::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -149,7 +149,7 @@ pub fn DeepSeekWindowAttention::prepare(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

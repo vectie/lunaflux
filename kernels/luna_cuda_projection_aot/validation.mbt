@@ -10,10 +10,10 @@ const PROJECTION_VALUE_ALIGNMENT : Int64 = 16L
 ///|
 priv struct ProjectionParameters {
   family : ProjectionAotFamily
-  input_width : Int
-  query_width : Int
-  output_width : Int
-  intermediate_width : Int
+  input_width : Int32
+  query_width : Int32
+  output_width : Int32
+  intermediate_width : Int32
 }
 
 ///|
@@ -113,7 +113,7 @@ fn projection_cuda_target_id(
 ///|
 fn projection_build_runtime_dispatch(
   parameters : ProjectionParameters,
-  maximum_rows : Int,
+  maximum_rows : Int32,
   target : @catalog.DeviceTarget,
   records : ArrayView[@luna_projection_strategy.ProjectionAutotuneRecord],
 ) -> @luna_projection_strategy.ProjectionRuntimeDispatch raise ProjectionAotError {
@@ -134,7 +134,7 @@ fn projection_build_runtime_dispatch(
 fn projection_validate_runtime_dispatch(
   runtime : @luna_projection_strategy.ProjectionRuntimeDispatch,
   parameters : ProjectionParameters,
-  maximum_rows : Int,
+  maximum_rows : Int32,
   target : @catalog.DeviceTarget,
 ) -> @luna_projection_strategy.ProjectionDispatchPlan raise ProjectionAotError {
   if runtime.backend() != projection_cuda_backend_id() ||
@@ -208,8 +208,8 @@ fn projection_checked_mul(
 
 ///|
 fn projection_matrix_bytes(
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Int64 raise ProjectionAotError {
   projection_checked_mul(
     projection_checked_mul(rows.to_int64(), columns.to_int64()),
@@ -345,8 +345,8 @@ fn projection_parameters(
 ///|
 fn projection_qkv_width_from_bytes(
   byte_count : Int64,
-  input_width : Int,
-) -> Int raise ProjectionAotError {
+  input_width : Int32,
+) -> Int32 raise ProjectionAotError {
   let row_bytes = projection_checked_mul(
     input_width.to_int64(),
     PROJECTION_BF16_BYTES,
@@ -434,7 +434,7 @@ fn projection_roles(
 fn projection_weight_bytes(
   family : ProjectionAotFamily,
   parameters : ProjectionParameters,
-  weight_index : Int,
+  weight_index : Int32,
 ) -> Int64 raise ProjectionAotError {
   match family {
     QkvProjection =>
@@ -540,7 +540,7 @@ fn projection_dimensions(
   profile : @launch_contract.PagedKernelProfile,
   parameters : ProjectionParameters,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
-  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_ownership~ : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
 ) -> @launch_contract.AotLaunchDimensions raise ProjectionAotError {
   let tensor_core = projection_tensor_core_eligible(parameters, dispatch)
   let tensor_core_mlp = projection_tensor_core_mlp_eligible(
@@ -617,7 +617,7 @@ fn projection_dimensions(
     Int64::max(
       projection_checked_mul(row_tiles, intermediate_groups),
       (
-        Int::max(parameters.intermediate_width, parameters.output_width).to_int64() +
+        Int32::max(parameters.intermediate_width, parameters.output_width).to_int64() +
         groups -
         1L
       ) /

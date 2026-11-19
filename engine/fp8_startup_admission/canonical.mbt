@@ -1,5 +1,5 @@
 ///|
-fn append_startup_int(output : Array[Byte], value : Int) -> Unit {
+fn append_startup_int(output : Array[Byte], value : Int32) -> Unit {
   for byte in Int64::from_int(value).reinterpret_as_uint64().to_le_bytes() {
     output.push(byte)
   }
@@ -19,7 +19,7 @@ fn encode_fp8_startup_admission(
   plan : @plan.ModelPlan,
   device_numeric : @device.DeviceNumericCapability,
   kernels : @numeric_capability_manifest.AdmittedFp8KernelArtifacts,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise Fp8StartupAdmissionError {
   let output : Array[Byte] = []
   for byte in b"lunaflux.fp8-startup-admission.v1\x00" {

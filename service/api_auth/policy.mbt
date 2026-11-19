@@ -8,9 +8,9 @@ fn luna_api_auth_error(
 
 ///|
 fn luna_api_auth_range_is_valid(
-  source_length : Int,
-  source_offset : Int,
-  length : Int,
+  source_length : Int32,
+  source_offset : Int32,
+  length : Int32,
 ) -> Bool {
   source_offset >= 0 &&
   length >= 0 &&
@@ -20,7 +20,7 @@ fn luna_api_auth_range_is_valid(
 
 ///|
 pub fn LunaApiAuthPolicy::required_byte_cells(
-  maximum_credential_bytes : Int,
+  maximum_credential_bytes : Int32,
 ) -> UInt64 raise LunaApiAuthError {
   if maximum_credential_bytes <= 0 {
     raise luna_api_auth_error(LunaApiAuthPolicy, LunaApiAuthInvalid)
@@ -38,9 +38,9 @@ pub fn LunaApiAuthPolicy::required_byte_cells(
 /// range and credential length. The hard supported bound is 4096 bytes.
 pub fn LunaApiAuthPolicy::new(
   expected : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
-  maximum_credential_bytes~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
+  maximum_credential_bytes~ : Int32,
 ) -> LunaApiAuthPolicy raise LunaApiAuthError {
   ignore(LunaApiAuthPolicy::required_byte_cells(maximum_credential_bytes))
   if !luna_api_auth_range_is_valid(expected.length(), source_offset, length) {
@@ -93,10 +93,10 @@ fn LunaApiAuthPolicy::is_authenticated(self : LunaApiAuthPolicy) -> Bool {
 ///|
 fn LunaApiAuthPolicy::compare_byte(
   self : LunaApiAuthPolicy,
-  index : Int,
+  index : Int32,
   actual : Byte,
-  difference : UInt,
-) -> UInt {
+  difference : UInt32,
+) -> UInt32 {
   difference | (self.expected[index].to_uint() ^ actual.to_uint())
 }
 
@@ -104,10 +104,14 @@ fn LunaApiAuthPolicy::compare_byte(
 fn LunaApiAuthPolicy::luna_api_auth_compare(
   self : LunaApiAuthPolicy,
   source : FixedArray[Byte],
-  source_offset : Int,
-  length : Int,
+  source_offset : Int32,
+  length : Int32,
 ) -> LunaApiAuthComparison {
-  let mut difference : UInt = if length == self.expected_length { 0 } else { 1 }
+  let mut difference : UInt32 = if length == self.expected_length {
+    0
+  } else {
+    1
+  }
   let mut comparison_count = 0
   for index in 0..<self.expected_length {
     let actual : Byte = if index < length {
@@ -133,8 +137,8 @@ fn LunaApiAuthPolicy::luna_api_auth_compare(
 pub fn LunaApiAuthPolicy::verify(
   self : LunaApiAuthPolicy,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaApiAuthDecision raise LunaApiAuthError {
   if !self.is_authenticated() {
     raise luna_api_auth_error(LunaApiAuthPolicy, LunaApiAuthInvalid)

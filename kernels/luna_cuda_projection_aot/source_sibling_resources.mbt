@@ -10,7 +10,7 @@
 /// and deliberately does not consume this qualifier.
 fn projection_sibling_launch_bounds_source(
   compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
-  max_registers~ : Int,
+  max_registers~ : Int32,
 ) -> String {
   let groups = compilation.schedule().output_tiles_per_workgroup()
   let threads = groups * 32

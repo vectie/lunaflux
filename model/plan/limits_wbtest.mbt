@@ -1,9 +1,9 @@
 ///|
 fn limits_wb_embedding(
-  id : Int,
+  id : Int32,
   inputs : ArrayView[ValueRef],
-  outputs? : Array[ActivationRef] = [{ value: 0, }],
-  runtime_inputs? : Array[OperationRuntimeInput] = [],
+  outputs~ : Array[ActivationRef] = [{ value: 0, }],
+  runtime_inputs~ : Array[OperationRuntimeInput] = [],
 ) -> PlanOperation raise {
   if runtime_inputs.length() == 0 {
     PlanOperation::new_stateless(
@@ -31,10 +31,10 @@ fn limits_wb_embedding(
 
 ///|
 fn limits_wb_limits(
-  numeric? : Int = 16,
-  total? : Int = 16,
-  per_operation? : Int = 8,
-  runtime? : Int = 8,
+  numeric~ : Int32 = 16,
+  total~ : Int32 = 16,
+  per_operation~ : Int32 = 8,
+  runtime~ : Int32 = 8,
 ) -> ModelPlanLimits raise {
   ModelPlanLimits::new(
     max_operations=8,
@@ -231,12 +231,12 @@ test "preflight rejects numeric operation count before schema mapping" {
 
 ///|
 fn limits_wb_invalid_kind(
-  numeric : Int,
-  total : Int,
-  per_operation : Int,
-  runtime : Int,
-  outputs : Int,
-  canonical : Int,
+  numeric : Int32,
+  total : Int32,
+  per_operation : Int32,
+  runtime : Int32,
+  outputs : Int32,
+  canonical : Int32,
 ) -> ModelPlanLimitKind? {
   try
     ignore(

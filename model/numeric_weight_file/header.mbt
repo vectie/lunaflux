@@ -1,5 +1,5 @@
 ///|
-const NUMERIC_SAFETENSORS_PREFIX_BYTES : Int = 8
+const NUMERIC_SAFETENSORS_PREFIX_BYTES : Int32 = 8
 
 ///|
 fn numeric_header_has_valid_envelope(header : BytesView) -> Bool {
@@ -19,7 +19,7 @@ fn numeric_header_has_valid_envelope(header : BytesView) -> Bool {
 ///|
 fn decode_exact_int64(
   value : Json,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Int64 raise NumericWeightFileError {
   guard value is Number(number, repr~) else { raise InvalidTensor(ordinal~) }
   match repr {
@@ -95,7 +95,7 @@ fn validate_document_metadata(
 ///|
 fn storage_dtype_name(
   storage : @numeric_contract.TensorStorageContract,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> String raise NumericWeightFileError {
   let dtype = storage.dtype()
   if dtype == @numeric_contract.StorageDType::bfloat16() {
@@ -115,7 +115,7 @@ fn storage_dtype_name(
 fn require_tensor_field(
   tensor : Map[String, Json],
   name : String,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Json raise NumericWeightFileError {
   match tensor.get(name) {
     Some(value) => value
@@ -127,7 +127,7 @@ fn require_tensor_field(
 fn validate_tensor_shape(
   value : Json,
   expected : @numeric_contract.NumericShape,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Unit raise NumericWeightFileError {
   guard value is Array(dimensions) && dimensions.length() == expected.rank() else {
     raise InvalidTensorShape(ordinal~, axis=0)
@@ -146,7 +146,7 @@ fn validate_tensor_range(
   expected_start : Int64,
   expected_length : Int64,
   payload_bytes : Int64,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Int64 raise NumericWeightFileError {
   guard value is Array(offsets) && offsets.length() == 2 else {
     raise InvalidTensorRange(ordinal~)

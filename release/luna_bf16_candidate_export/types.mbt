@@ -23,7 +23,7 @@ pub struct LunaBf16CandidateExportEvidence {
   priv model_content_sha256 : String
   priv model_plan_sha256 : String
   priv target : String
-  priv operation_count : Int
+  priv operation_count : Int32
   priv candidate_set_sha256 : String
   priv inventory_sha256 : String
   priv export_record_sha256 : String
@@ -53,7 +53,7 @@ pub fn LunaBf16CandidateExportEvidence::target(
 ///|
 pub fn LunaBf16CandidateExportEvidence::operation_count(
   self : LunaBf16CandidateExportEvidence,
-) -> Int {
+) -> Int32 {
   self.operation_count
 }
 

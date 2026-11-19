@@ -6,16 +6,16 @@ priv struct ScoreFoldModel {
   mut pending_scale : Bool
   mut pending_probability : Bool
   mut pending_output : Bool
-  mut scales : Int
-  mut probabilities : Int
-  mut outputs : Int
+  mut scales : Int32
+  mut probabilities : Int32
+  mut outputs : Int32
 }
 
 ///|
 fn ScoreFoldModel::step(
   self : ScoreFoldModel,
   step : @luna_attention_tile_schedule.AttentionScoreFoldStep,
-  tile : Int,
+  tile : Int32,
 ) -> Unit raise {
   match step {
     PublishProducedScores => self.visible_scores = true
@@ -60,7 +60,7 @@ fn ScoreFoldModel::step(
 ///|
 fn check_score_fold(
   steps : ReadOnlyArray[@luna_attention_tile_schedule.AttentionScoreFoldStep],
-  tiles : Int,
+  tiles : Int32,
   resident_output : Bool,
 ) -> Unit raise {
   let model : ScoreFoldModel = {

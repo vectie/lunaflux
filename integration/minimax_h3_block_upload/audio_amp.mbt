@@ -8,7 +8,7 @@ pub fn upload_audio_amp(
   parameters : @joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout,
   expected_identity~ : @spec.ModelIdentity,
   destination_offset~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_audio_amp_weights(parameters, expected_identity~)

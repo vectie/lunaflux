@@ -1,8 +1,8 @@
 ///|
 fn qwen3_metrics_fixture(
-  admissions? : Int = 1,
-  kv_pages_used? : Int = 0,
-  readiness? : String = "true",
+  admissions~ : Int32 = 1,
+  kv_pages_used~ : Int32 = 0,
+  readiness~ : String = "true",
 ) -> Bytes {
   @utf8.encode(
     "{\"schema\":\"lunaflux.runtime.metrics.v1\",\"cold_start_latency_millis\":41,\"readiness\":" +

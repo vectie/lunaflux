@@ -140,7 +140,7 @@ pub fn StaticDevicePlan::weight_alignment(self : StaticDevicePlan) -> Int64 {
 }
 
 ///|
-pub fn StaticDevicePlan::weight_tensor_count(self : StaticDevicePlan) -> Int {
+pub fn StaticDevicePlan::weight_tensor_count(self : StaticDevicePlan) -> Int32 {
   self.weight_layout.length()
 }
 

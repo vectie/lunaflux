@@ -1,7 +1,7 @@
 ///|
 fn graph_bound_operation(
-  id : Int,
-  input_count : Int,
+  id : Int32,
+  input_count : Int32,
 ) -> @plan.PlanOperation raise @plan.PlanValidationError {
   let inputs : Array[@plan.ValueRef] = []
   for _ in 0..<input_count {
@@ -20,7 +20,7 @@ fn graph_bound_operation(
 
 ///|
 fn graph_bound_operations(
-  count : Int,
+  count : Int32,
 ) -> ReadOnlyArray[@plan.PlanOperation] raise @plan.PlanValidationError {
   let operations : Array[@plan.PlanOperation] = []
   for id = 0; id < count; id = id + 1 {

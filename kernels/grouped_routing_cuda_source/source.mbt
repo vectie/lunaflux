@@ -2,22 +2,22 @@
 fn valid_grouped_routing_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn grouped_choice_and_selected_weight_f32_source(
-  routed_expert_count~ : Int,
-  group_count~ : Int,
-  group_score_topk~ : Int,
-  selected_group_count~ : Int,
-  experts_per_token~ : Int,
+  routed_expert_count~ : Int32,
+  group_count~ : Int32,
+  group_score_topk~ : Int32,
+  selected_group_count~ : Int32,
+  experts_per_token~ : Int32,
   normalize~ : Bool,
   scaling~ : Double,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
-  selected_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
+  selected_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
 ) -> GroupedRoutingCudaSource raise GroupedRoutingCudaSourceError {
   if routed_expert_count <= 0 ||
     routed_expert_count > 1048576 ||

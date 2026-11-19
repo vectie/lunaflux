@@ -19,7 +19,7 @@ pub extend PagedCopyOrigin with @debug.Debug::{to_repr}
 pub fn PagedCopyOrigin::new(
   page_stride~ : Int64,
   page_capacity~ : Int64,
-  within_page_offset? : Int64 = 0L,
+  within_page_offset~ : Int64 = 0L,
 ) -> PagedCopyOrigin? {
   if page_stride <= 0L ||
     page_capacity <= 0L ||

@@ -8,11 +8,11 @@ struct RuntimeRecipeV2Inputs {
 fn runtime_v2_inputs(
   fixture : RuntimeRecipeV2Fixture,
   inspection : @numeric_weight_file.NumericWeightFileInspection,
-  arena? : String = "7777777777777777777777777777777777777777777777777777777777777777",
+  arena~ : String = "7777777777777777777777777777777777777777777777777777777777777777",
   second_arena? : String,
-  second_capacity? : Int64 = 64L,
-  weight_offset_delta? : Int64 = 0L,
-  scale_offset_delta? : Int64 = 0L,
+  second_capacity~ : Int64 = 64L,
+  weight_offset_delta~ : Int64 = 0L,
+  scale_offset_delta~ : Int64 = 0L,
 ) -> RuntimeRecipeV2Inputs raise {
   let launches : Array[@fp8_launch_abi.Fp8StagedDynamicLaunchAbi] = []
   let claims : Array[Fp8LaunchWeightRegionClaimV2] = []
@@ -79,7 +79,7 @@ fn runtime_v2_inputs(
 }
 
 ///|
-fn runtime_v2_limits(canonical? : Int = 65536) -> Fp8RuntimeRecipeV2Limits {
+fn runtime_v2_limits(canonical~ : Int32 = 65536) -> Fp8RuntimeRecipeV2Limits {
   try! Fp8RuntimeRecipeV2Limits::new(
     max_launches=8,
     max_workspace_arena_bytes=1024L,

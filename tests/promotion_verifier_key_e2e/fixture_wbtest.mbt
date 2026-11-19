@@ -2,27 +2,27 @@
 priv type NativePromotionPeer
 
 ///|
-extern "c" fn fixture_install(mode : Int) -> NativePromotionPeer = "lunaflux_promotion_verifier_fixture_install"
+extern "c" fn fixture_install(mode : Int32) -> NativePromotionPeer = "lunaflux_promotion_verifier_fixture_install"
 
 ///|
 #borrow(peer, source)
 extern "c" fn fixture_send(
   peer : NativePromotionPeer,
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int = "lunaflux_promotion_verifier_fixture_send"
+  offset : Int32,
+  length : Int32,
+) -> Int32 = "lunaflux_promotion_verifier_fixture_send"
 
 ///|
 #borrow(peer)
-extern "c" fn fixture_close_write(peer : NativePromotionPeer) -> Int = "lunaflux_promotion_verifier_fixture_close_write"
+extern "c" fn fixture_close_write(peer : NativePromotionPeer) -> Int32 = "lunaflux_promotion_verifier_fixture_close_write"
 
 ///|
 #borrow(peer)
-extern "c" fn fixture_close(peer : NativePromotionPeer) -> Int = "lunaflux_promotion_verifier_fixture_close"
+extern "c" fn fixture_close(peer : NativePromotionPeer) -> Int32 = "lunaflux_promotion_verifier_fixture_close"
 
 ///|
-extern "c" fn fixture_clear_fixed() -> Int = "lunaflux_promotion_verifier_fixture_clear_fixed"
+extern "c" fn fixture_clear_fixed() -> Int32 = "lunaflux_promotion_verifier_fixture_clear_fixed"
 
 ///|
 extern "c" fn fixture_fixed_closed() -> Bool = "lunaflux_promotion_verifier_fixture_fixed_closed"

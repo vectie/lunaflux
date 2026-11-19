@@ -1,5 +1,5 @@
 ///|
-const MAX_TRANSFER_CHUNK_BYTES : Int = 16 * 1024 * 1024
+const MAX_TRANSFER_CHUNK_BYTES : Int32 = 16 * 1024 * 1024
 
 ///|
 /// Startup bounds for streaming one safetensors file into device memory.
@@ -9,14 +9,14 @@ const MAX_TRANSFER_CHUNK_BYTES : Int = 16 * 1024 * 1024
 /// `transfer_chunk_bytes`; the loader never owns a complete payload snapshot.
 pub struct DeviceWeightFileLimits {
   priv max_file_bytes : Int64
-  priv transfer_chunk_bytes : Int
+  priv transfer_chunk_bytes : Int32
   priv safetensors : @safetensors.HeaderLimits
 } derive(Debug, Eq)
 
 ///|
 pub fn DeviceWeightFileLimits::new(
   max_file_bytes~ : Int64,
-  transfer_chunk_bytes~ : Int,
+  transfer_chunk_bytes~ : Int32,
   safetensors~ : @safetensors.HeaderLimits,
 ) -> DeviceWeightFileLimits raise DeviceWeightError {
   if max_file_bytes <= 8L {
@@ -39,7 +39,7 @@ pub fn DeviceWeightFileLimits::max_file_bytes(
 ///|
 pub fn DeviceWeightFileLimits::transfer_chunk_bytes(
   self : DeviceWeightFileLimits,
-) -> Int {
+) -> Int32 {
   self.transfer_chunk_bytes
 }
 

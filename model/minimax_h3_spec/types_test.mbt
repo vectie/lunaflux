@@ -30,10 +30,10 @@ test "official MiniMax H3 variants normalize to exact schema-v1 geometry" {
 
 ///|
 fn exact_with(
-  hidden_size? : Int = 5376,
-  schema_version? : Int = 1,
-  weight_dtype? : @spec.ModelDType = BFloat16,
-  time_embedding_dimension? : Int = 2688,
+  hidden_size~ : Int32 = 5376,
+  schema_version~ : Int32 = 1,
+  weight_dtype~ : @spec.ModelDType = BFloat16,
+  time_embedding_dimension~ : Int32 = 2688,
 ) -> @minimax_h3_spec.MiniMaxH3TransformerSpec raise @minimax_h3_spec.MiniMaxH3SpecError {
   @minimax_h3_spec.MiniMaxH3TransformerSpec::new_exact(
     variant=Fl2va,

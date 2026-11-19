@@ -1,15 +1,15 @@
 ///|
-fn luna_text_u32_byte(value : UInt, index : Int) -> Byte {
+fn luna_text_u32_byte(value : UInt32, index : Int32) -> Byte {
   (value >> (index * 8)).to_byte()
 }
 
 ///|
-fn luna_text_u64_byte(value : UInt64, index : Int) -> Byte {
+fn luna_text_u64_byte(value : UInt64, index : Int32) -> Byte {
   (value >> (index * 8)).to_byte()
 }
 
 ///|
-fn LunaFramedTextRequestWorkspace::flags(self : Self) -> UInt {
+fn LunaFramedTextRequestWorkspace::flags(self : Self) -> UInt32 {
   1U |
   (if self.sampling_mode == 1 { 2U } else { 0U }) |
   (if self.top_k != 0 { 4U } else { 0U }) |
@@ -20,7 +20,7 @@ fn LunaFramedTextRequestWorkspace::flags(self : Self) -> UInt {
 ///|
 fn LunaFramedTextRequestWorkspace::header_byte(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Byte {
   let length = REQUEST_HEADER_BYTES +
     self.input_length +
@@ -221,7 +221,7 @@ pub fn LunaFramedTextRequestWork::state(
 ///|
 pub fn LunaFramedTextRequestWork::last_work_units(
   self : Self,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require().last_work_units
 }
 

@@ -1,10 +1,10 @@
 ///|
 fn moe_score_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  output_role? : GlmHybridLaunchOperandRole = MoeUncorrectedScoresOutput,
-  choice_role? : GlmHybridLaunchOperandRole = MoeChoiceScoresOutput,
-  output_bytes? : Int64 = 36864L,
-  symbol? : String = "lunaflux_glm_hybrid_moe_sigmoid_correction_f32_v1",
+  output_role~ : GlmHybridLaunchOperandRole = MoeUncorrectedScoresOutput,
+  choice_role~ : GlmHybridLaunchOperandRole = MoeChoiceScoresOutput,
+  output_bytes~ : Int64 = 36864L,
+  symbol~ : String = "lunaflux_glm_hybrid_moe_sigmoid_correction_f32_v1",
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

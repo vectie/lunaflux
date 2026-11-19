@@ -5,7 +5,7 @@ pub struct Frontend {
   symbols : ReadOnlyArray[String]
   input_bytes : Int64
   output_bytes : Int64
-  rows_per_batch : Int
+  rows_per_batch : Int32
   weights : @minimax_h3_weights.VideoFrontendWeightPacking
 }
 
@@ -13,10 +13,10 @@ pub struct Frontend {
 /// Accept destandardized contiguous [B,24,T,H,W] F32. Output is
 /// [B,T*H*W+5,2048] F32, including learned registers and the zero CLS row.
 pub fn Frontend::new(
-  batch~ : Int,
-  temporal~ : Int,
-  height~ : Int,
-  width~ : Int,
+  batch~ : Int32,
+  temporal~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   prefix~ : String,
   max_workspace_bytes~ : Int64,
 ) -> Self raise {

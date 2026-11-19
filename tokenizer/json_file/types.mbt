@@ -1,8 +1,8 @@
 ///|
 /// Bounded tokenizer artifact snapshot and JSON scan limits.
 pub struct TokenizerFileLimits {
-  priv max_file_bytes : Int
-  priv max_json_depth : Int
+  priv max_file_bytes : Int32
+  priv max_json_depth : Int32
 }
 
 ///|
@@ -51,8 +51,8 @@ pub(all) suberror TokenizerFileError {
 ///|
 /// Return or validate one exact admitted policy field.
 pub fn TokenizerFileLimits::new(
-  max_file_bytes~ : Int,
-  max_json_depth~ : Int,
+  max_file_bytes~ : Int32,
+  max_json_depth~ : Int32,
 ) -> TokenizerFileLimits raise TokenizerFileError {
   if max_file_bytes <= 0 || max_file_bytes > 1_073_741_824 {
     raise InvalidLimit(FileBytes)
@@ -65,13 +65,13 @@ pub fn TokenizerFileLimits::new(
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn TokenizerFileLimits::max_file_bytes(self : TokenizerFileLimits) -> Int {
+pub fn TokenizerFileLimits::max_file_bytes(self : TokenizerFileLimits) -> Int32 {
   self.max_file_bytes
 }
 
 ///|
 /// Return or validate one exact admitted policy field.
-pub fn TokenizerFileLimits::max_json_depth(self : TokenizerFileLimits) -> Int {
+pub fn TokenizerFileLimits::max_json_depth(self : TokenizerFileLimits) -> Int32 {
   self.max_json_depth
 }
 

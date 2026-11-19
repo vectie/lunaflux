@@ -8,7 +8,7 @@ pub struct RankGroupWireRankTranscript {
   priv mut lifecycle_value : RankGroupWireLifecycle
   priv mut previous_sequence : UInt64
   priv mut active_sequence : UInt64
-  priv mut active_slot_code : Int
+  priv mut active_slot_code : Int32
   priv mut startup_admitted : Bool
   priv mut fault_rule_value : RankGroupWireRule
   priv mut plan_failure_value : RankGroupWirePlanFailure?
@@ -116,7 +116,7 @@ fn[T] RankGroupWireRankTranscript::reject_rank(
 pub fn RankGroupWireRankTranscript::accept_configure(
   self : RankGroupWireRankTranscript,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
 ) -> RankGroupWireDecodedConfigure raise RankGroupWireError {
   if self.lifecycle_value == Faulted {
@@ -323,7 +323,7 @@ fn RankGroupWireRankTranscript::accept_rank_header(
 fn RankGroupWireRankTranscript::accept_direction(
   self : RankGroupWireRankTranscript,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
   expected : RankGroupWireDirection,
 ) -> RankGroupWireDecodedHeader raise RankGroupWireError {
@@ -352,7 +352,7 @@ fn RankGroupWireRankTranscript::accept_direction(
 pub fn RankGroupWireRankTranscript::accept_parent(
   self : RankGroupWireRankTranscript,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
 ) -> RankGroupWireDecodedHeader raise RankGroupWireError {
   self.accept_direction(source, length, limits, ParentToChild)
@@ -363,7 +363,7 @@ pub fn RankGroupWireRankTranscript::accept_parent(
 pub fn RankGroupWireRankTranscript::accept_child(
   self : RankGroupWireRankTranscript,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : RankGroupWireLimits,
 ) -> RankGroupWireDecodedHeader raise RankGroupWireError {
   self.accept_direction(source, length, limits, ChildToParent)

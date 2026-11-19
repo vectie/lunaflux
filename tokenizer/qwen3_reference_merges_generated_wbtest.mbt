@@ -1,7 +1,7 @@
 ///|
 /// Minimal ranked merge closure for the pinned Qwen3-0.6B multilingual corpus.
 /// Source tokenizer.json SHA-256: aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4.
-fn qwen3_reference_merge_ids() -> Array[(Int, Int, Int)] {
+fn qwen3_reference_merge_ids() -> Array[(Int32, Int32, Int32)] {
   [
     (220, 220, 256),
     (72, 77, 258),

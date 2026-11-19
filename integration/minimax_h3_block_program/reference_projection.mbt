@@ -2,7 +2,7 @@
 fn reference_projection_launch(
   function : @device.Function,
   copy : @minimax_h3_block_source.ConditioningCopy,
-  hidden~ : Int,
+  hidden~ : Int32,
   input~ : @device.Allocation,
   input_offset~ : Int64,
   weights~ : @device.Allocation,

@@ -5,7 +5,7 @@
 /// prediction retirement. No sampled-output counts or stale cells are consulted.
 pub fn DeepSeekPredictionExecution::submit_from_committed(
   self : Self,
-  seed_token : Int,
+  seed_token : Int32,
 ) -> Unit raise {
   guard self.state is Prepared &&
     !self.leased &&

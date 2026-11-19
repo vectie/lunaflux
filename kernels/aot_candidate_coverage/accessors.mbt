@@ -11,26 +11,26 @@ pub fn AotCandidateCoverage::requirements_digest_sha256(self : Self) -> String {
 }
 
 ///|
-pub fn AotCandidateCoverage::requirement_count(self : Self) -> Int {
+pub fn AotCandidateCoverage::requirement_count(self : Self) -> Int32 {
   self.requirement_count
 }
 
 ///|
-pub fn AotCandidateCoverage::candidate_count(self : Self) -> Int {
+pub fn AotCandidateCoverage::candidate_count(self : Self) -> Int32 {
   self.candidate_count
 }
 
 ///|
 pub fn AotCandidateCoverage::missing_ordinals(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.missing_ordinals
 }
 
 ///|
 pub fn AotCandidateCoverage::non_bindable_ordinals(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.non_bindable_ordinals
 }
 

@@ -1,9 +1,9 @@
 ///|
 pub fn ProjectionShape::new(
   family : ProjectionSemanticFamily,
-  input_width~ : Int,
-  output_width~ : Int,
-  intermediate_width? : Int = 0,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  intermediate_width~ : Int32 = 0,
 ) -> ProjectionShape raise ProjectionStrategyError {
   if input_width <= 0 || output_width <= 0 || intermediate_width < 0 {
     raise InvalidProjectionStrategy(Shape)
@@ -16,9 +16,9 @@ pub fn ProjectionShape::new(
 
 ///|
 pub fn ProjectionTile::new(
-  rows~ : Int,
-  columns~ : Int,
-  reduction~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
+  reduction~ : Int32,
 ) -> ProjectionTile raise ProjectionStrategyError {
   if rows <= 0 || columns <= 0 || reduction <= 0 {
     raise InvalidProjectionStrategy(Shape)
@@ -28,8 +28,8 @@ pub fn ProjectionTile::new(
 
 ///|
 pub fn ProjectionCapabilities::new(
-  subgroup_width~ : Int,
-  matrix_tile? : ProjectionTile? = None,
+  subgroup_width~ : Int32,
+  matrix_tile~ : ProjectionTile? = None,
 ) -> ProjectionCapabilities raise ProjectionStrategyError {
   if subgroup_width <= 0 ||
     subgroup_width > 1024 ||
@@ -66,14 +66,14 @@ pub fn ProjectionTargetId::new(
 
 ///|
 pub fn ProjectionStrategy::new(
-  stable_id~ : Int,
+  stable_id~ : Int32,
   phase~ : ProjectionPhase,
-  strategy_class? : ProjectionStrategyClass? = None,
+  strategy_class~ : ProjectionStrategyClass? = None,
   kernel_class~ : ProjectionKernelClass,
-  row_bucket~ : Int,
+  row_bucket~ : Int32,
   tile~ : ProjectionTile,
-  output_tiles_per_workgroup? : Int = 8,
-  input_residency? : ProjectionInputResidency = ReductionTileResidency,
+  output_tiles_per_workgroup~ : Int32 = 8,
+  input_residency~ : ProjectionInputResidency = ReductionTileResidency,
 ) -> ProjectionStrategy raise ProjectionStrategyError {
   if stable_id <= 0 ||
     row_bucket <= 0 ||
@@ -134,7 +134,7 @@ pub fn ProjectionAutotuneKey::new(
 pub fn ProjectionAutotuneRecord::new(
   key~ : ProjectionAutotuneKey,
   median_latency_ns~ : Int64,
-  sample_count~ : Int,
+  sample_count~ : Int32,
 ) -> ProjectionAutotuneRecord raise ProjectionStrategyError {
   if median_latency_ns <= 0L || sample_count < 3 {
     raise InvalidProjectionStrategy(Measurement)

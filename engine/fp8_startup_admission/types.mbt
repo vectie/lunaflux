@@ -1,5 +1,5 @@
 ///|
-pub struct Fp8StartupAdmissionVersion(Int) derive(Debug, Eq)
+pub struct Fp8StartupAdmissionVersion(Int32) derive(Debug, Eq)
 
 ///|
 pub fn Fp8StartupAdmissionVersion::v1() -> Fp8StartupAdmissionVersion {
@@ -9,7 +9,7 @@ pub fn Fp8StartupAdmissionVersion::v1() -> Fp8StartupAdmissionVersion {
 ///|
 pub fn Fp8StartupAdmissionVersion::as_int(
   self : Fp8StartupAdmissionVersion,
-) -> Int {
+) -> Int32 {
   self.0
 }
 
@@ -25,12 +25,12 @@ pub fn Fp8StartupAdmissionDigest::as_hex(
 
 ///|
 pub struct Fp8StartupAdmissionLimits {
-  priv max_canonical_bytes : Int
+  priv max_canonical_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn Fp8StartupAdmissionLimits::new(
-  max_canonical_bytes~ : Int,
+  max_canonical_bytes~ : Int32,
 ) -> Fp8StartupAdmissionLimits raise Fp8StartupAdmissionError {
   if max_canonical_bytes <= 0 || max_canonical_bytes > 1024 * 1024 {
     raise Fp8StartupRejected(Limit)
@@ -69,7 +69,7 @@ pub struct Fp8StartupAdmission {
 }
 
 ///|
-pub struct Fp8StartupAdmissionV2Version(Int) derive(Debug, Eq)
+pub struct Fp8StartupAdmissionV2Version(Int32) derive(Debug, Eq)
 
 ///|
 pub fn Fp8StartupAdmissionV2Version::v2() -> Fp8StartupAdmissionV2Version {
@@ -79,7 +79,7 @@ pub fn Fp8StartupAdmissionV2Version::v2() -> Fp8StartupAdmissionV2Version {
 ///|
 pub fn Fp8StartupAdmissionV2Version::as_int(
   self : Fp8StartupAdmissionV2Version,
-) -> Int {
+) -> Int32 {
   self.0
 }
 

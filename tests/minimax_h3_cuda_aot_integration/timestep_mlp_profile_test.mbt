@@ -1,7 +1,7 @@
 ///|
 fn timestep_mlp_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       TimestepEmbeddingMlpRows(_, _, _) => return ordinal
@@ -14,7 +14,7 @@ fn timestep_mlp_ordinal(
 ///|
 fn distinct_timestep_adaln_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       DistinctTimestepAdaLnParameterRows(_, _) => return ordinal

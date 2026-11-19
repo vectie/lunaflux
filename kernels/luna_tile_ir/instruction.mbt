@@ -14,7 +14,7 @@ pub(all) enum LunaTileInstruction {
     LunaTileReductionKind,
     destination~ : LunaTileTensorId,
     source~ : LunaTileTensorId,
-    axis~ : Int
+    axis~ : Int32
   )
   LunaTileElementwise(
     LunaTileElementwiseKind,

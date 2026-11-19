@@ -1,17 +1,17 @@
 ///|
 priv struct SpawnedDirectResources {
-  queue_depth : Int
-  active_requests : Int
-  kv_pages_used : Int
-  kv_pages_free : Int
+  queue_depth : Int32
+  active_requests : Int32
+  kv_pages_used : Int32
+  kv_pages_free : Int32
   prefix_lookups : UInt64
   prefix_hits : UInt64
   prefix_misses : UInt64
   prefix_publications : UInt64
   prefix_tokens_reused : UInt64
   prefix_tokens_computed : UInt64
-  prefix_entries : Int
-  prefix_pages : Int
+  prefix_entries : Int32
+  prefix_pages : Int32
 }
 
 ///|
@@ -38,7 +38,7 @@ fn capture_spawned_direct_resources(
 ///|
 fn spawned_direct_resources_valid(
   sample : SpawnedDirectResources,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
   expected_computed_tokens : UInt64,
 ) -> Bool {
   sample.queue_depth == 0 &&
@@ -73,7 +73,7 @@ fn spawned_direct_validation_owner_valid(owner : RuntimeInstanceOwner) -> Bool {
 fn retire_spawned_direct_stream(
   service : @online_session.LunaOnlineFramedService,
   stream : @online_session.LunaOnlineFramedStream,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Bool {
   stream.disconnect() catch {
     _ => return false

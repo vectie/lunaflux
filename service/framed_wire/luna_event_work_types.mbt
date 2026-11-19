@@ -1,39 +1,39 @@
 ///|
-const LUNA_FRAMED_EVENT_IDLE : Int = 0
+const LUNA_FRAMED_EVENT_IDLE : Int32 = 0
 
 ///|
-const LUNA_FRAMED_EVENT_CLEARING : Int = 1
+const LUNA_FRAMED_EVENT_CLEARING : Int32 = 1
 
 ///|
-const LUNA_FRAMED_EVENT_SETUP : Int = 2
+const LUNA_FRAMED_EVENT_SETUP : Int32 = 2
 
 ///|
-const LUNA_FRAMED_EVENT_COPYING : Int = 3
+const LUNA_FRAMED_EVENT_COPYING : Int32 = 3
 
 ///|
-const LUNA_FRAMED_EVENT_FINALIZING : Int = 5
+const LUNA_FRAMED_EVENT_FINALIZING : Int32 = 5
 
 ///|
-const LUNA_FRAMED_EVENT_READY : Int = 6
+const LUNA_FRAMED_EVENT_READY : Int32 = 6
 
 ///|
-const LUNA_FRAMED_EVENT_VIEW_LEASED : Int = 7
+const LUNA_FRAMED_EVENT_VIEW_LEASED : Int32 = 7
 
 ///|
-const LUNA_FRAMED_EVENT_FAILED : Int = 8
+const LUNA_FRAMED_EVENT_FAILED : Int32 = 8
 
 ///|
-const LUNA_FRAMED_EVENT_MAX_STEP_WORK_UNITS : Int = 65536
+const LUNA_FRAMED_EVENT_MAX_STEP_WORK_UNITS : Int32 = 65536
 
 ///|
 #valtype
 pub struct LunaFramedEventStepBudget {
-  priv work_units : Int
+  priv work_units : Int32
 }
 
 ///|
 pub fn LunaFramedEventStepBudget::new(
-  work_units : Int,
+  work_units : Int32,
 ) -> LunaFramedEventStepBudget raise FramedWireError {
   if work_units <= 0 || work_units > LUNA_FRAMED_EVENT_MAX_STEP_WORK_UNITS {
     raise InvalidLimit(LunaFramedEventWorkUnits)
@@ -44,7 +44,7 @@ pub fn LunaFramedEventStepBudget::new(
 ///|
 pub fn LunaFramedEventStepBudget::work_units(
   self : LunaFramedEventStepBudget,
-) -> Int {
+) -> Int32 {
   self.work_units
 }
 
@@ -70,13 +70,13 @@ pub struct LunaFramedEventWorkspace {
   priv storage : FixedArray[Byte]
   priv semantic_views : Array[@luna_event.LunaEventView]
   priv mut epoch : UInt64
-  priv mut phase : Int
-  priv mut event_kind : Int
-  priv mut length : Int
-  priv mut payload_length : Int
-  priv mut cursor : Int
-  priv mut failure_rule : Int
-  priv mut last_work_units : Int
+  priv mut phase : Int32
+  priv mut event_kind : Int32
+  priv mut length : Int32
+  priv mut payload_length : Int32
+  priv mut cursor : Int32
+  priv mut failure_rule : Int32
+  priv mut last_work_units : Int32
   priv mut total_work_units : UInt64
 }
 

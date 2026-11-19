@@ -125,7 +125,7 @@ fn memory_test_layout() -> @device_materialize.DeviceWeightLayout raise {
 
 ///|
 fn memory_operation(
-  id : Int,
+  id : Int32,
   kind : @plan.OperationKind,
   inputs : ArrayView[@plan.ValueRef],
   shape : @plan.OperationShape,
@@ -144,8 +144,8 @@ fn memory_operation(
 
 ///|
 fn memory_semantic_plan(
-  max_batch_rows? : Int = 2,
-  max_sequence_tokens? : Int = 3,
+  max_batch_rows~ : Int32 = 2,
+  max_sequence_tokens~ : Int32 = 3,
 ) -> @plan.ModelPlan raise {
   let operations = [
     memory_operation(
@@ -229,8 +229,8 @@ fn memory_semantic_plan(
 ///|
 fn memory_catalog_for(
   semantic : @plan.ModelPlan,
-  workspace_bytes? : Int64 = 32L,
-  workspace_alignment? : Int64 = 16L,
+  workspace_bytes~ : Int64 = 32L,
+  workspace_alignment~ : Int64 = 16L,
 ) -> @catalog.ResolvedKernelCatalog raise {
   let entries : Array[@catalog.CatalogEntry] = []
   let digest = @catalog.AotArtifactDigest::from_sha256(
@@ -280,10 +280,10 @@ fn memory_catalog_for(
 
 ///|
 fn memory_static_plan(
-  max_batch_rows? : Int = 2,
-  max_sequence_tokens? : Int = 3,
-  workspace_bytes? : Int64 = 32L,
-  workspace_alignment? : Int64 = 16L,
+  max_batch_rows~ : Int32 = 2,
+  max_sequence_tokens~ : Int32 = 3,
+  workspace_bytes~ : Int64 = 32L,
+  workspace_alignment~ : Int64 = 16L,
 ) -> @device_plan.StaticDevicePlan raise {
   let semantic = memory_semantic_plan(max_batch_rows~, max_sequence_tokens~)
   @device_plan.build(
@@ -298,7 +298,7 @@ fn memory_static_plan(
 }
 
 ///|
-fn memory_limits(max_arena_bytes? : Int64 = 4096L) -> DeviceMemoryLimits raise {
+fn memory_limits(max_arena_bytes~ : Int64 = 4096L) -> DeviceMemoryLimits raise {
   @device_memory.DeviceMemoryLimits::new(
     activation_alignment=64L,
     max_arena_bytes~,

@@ -45,10 +45,10 @@ pub(all) suberror LaunchContractError {
   InvalidDimensions(LaunchDimensionRule)
   InvalidOperandDefinition(OperandRule)
   InvalidOperand(@plan.OperationId, OperandRule)
-  ProfileCountExceeded(maximum~ : Int)
-  ContractCountExceeded(maximum~ : Int)
+  ProfileCountExceeded(maximum~ : Int32)
+  ContractCountExceeded(maximum~ : Int32)
   ContractCountMismatch
-  OperandCountExceeded(operation~ : @plan.OperationId, maximum~ : Int)
+  OperandCountExceeded(operation~ : @plan.OperationId, maximum~ : Int32)
   DuplicateProfile(KernelProfileId)
   UnknownProfile(KernelProfileId)
   IdentityMismatch

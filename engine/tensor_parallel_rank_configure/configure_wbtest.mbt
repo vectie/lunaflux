@@ -139,9 +139,9 @@ fn configure_test_inference_limits() -> @inference.InferenceLimits {
 
 ///|
 fn configure_test_startup(
-  rank : Int,
+  rank : Int32,
   source : @worker_wire.EncodedBootstrapSource,
-  predecessor? : UInt64 = 6UL,
+  predecessor~ : UInt64 = 6UL,
   streaming? : @streaming_ir.Capability,
 ) -> @worker_wire.WorkerStartupContract {
   try! @worker_wire.WorkerStartupContract::new(
@@ -167,7 +167,7 @@ fn configure_test_startup(
 
 ///|
 fn configure_test_topology(
-  swapped? : Bool = false,
+  swapped~ : Bool = false,
 ) -> @device_topology.LocalTopologyDeclaration {
   let target = try! @catalog.DeviceTarget::new(
     compute_major=8,
@@ -199,7 +199,7 @@ fn configure_test_topology(
 ///|
 fn configure_test_write_digest(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   value : String,
 ) -> Unit {
   let encoded = @utf8.encode(value)
@@ -210,11 +210,11 @@ fn configure_test_write_digest(
 
 ///|
 fn configure_test_envelope(
-  rank : Int,
+  rank : Int32,
   startup : @worker_wire.WorkerStartupContract,
-  group_generation? : UInt64 = 9UL,
-  collective_runtime_version_code? : Int = 21403,
-  execution_plan_digest? : String = "9999999999999999999999999999999999999999999999999999999999999999",
+  group_generation~ : UInt64 = 9UL,
+  collective_runtime_version_code~ : Int32 = 21403,
+  execution_plan_digest~ : String = "9999999999999999999999999999999999999999999999999999999999999999",
 ) -> @tensor_parallel_worker_bootstrap.TensorParallelRankBootstrapEnvelope {
   let worker_digest = try! @tensor_parallel_worker_bootstrap.worker_contract_digest(
     startup,
@@ -299,9 +299,9 @@ test "rank configure rejects re-signed execution-plan substitution" {
 
 ///|
 fn configure_test_binding(
-  rank : Int,
+  rank : Int32,
   startup : @worker_wire.WorkerStartupContract,
-  group_generation? : UInt64 = 9UL,
+  group_generation~ : UInt64 = 9UL,
 ) -> @rank_group_wire.RankGroupWireBinding {
   let worker_digest = try! @tensor_parallel_worker_bootstrap.worker_contract_digest(
     startup,
@@ -328,7 +328,7 @@ fn configure_test_binding(
 
 ///|
 fn configure_test_contract(
-  rank? : Int = 0,
+  rank~ : Int32 = 0,
 ) -> TensorParallelRankConfigureContract raise {
   let source = configure_test_source()
   let startup = configure_test_startup(rank, source)

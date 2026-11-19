@@ -1,24 +1,24 @@
 ///|
-const MAX_PROFILES : Int = 256
+const MAX_PROFILES : Int32 = 256
 
 ///|
-const MAX_CONTRACTS : Int = 65536
+const MAX_CONTRACTS : Int32 = 65536
 
 ///|
-const MAX_OPERANDS : Int = 32
+const MAX_OPERANDS : Int32 = 32
 
 ///|
 pub struct TensorParallelLaunchContractLimits {
-  priv max_profiles : Int
-  priv max_contracts : Int
-  priv max_operands_per_contract : Int
+  priv max_profiles : Int32
+  priv max_contracts : Int32
+  priv max_operands_per_contract : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn TensorParallelLaunchContractLimits::new(
-  max_profiles~ : Int,
-  max_contracts~ : Int,
-  max_operands_per_contract~ : Int,
+  max_profiles~ : Int32,
+  max_contracts~ : Int32,
+  max_operands_per_contract~ : Int32,
 ) -> TensorParallelLaunchContractLimits raise TensorParallelLaunchContractError {
   if max_profiles <= 0 ||
     max_profiles > MAX_PROFILES ||
@@ -34,20 +34,20 @@ pub fn TensorParallelLaunchContractLimits::new(
 ///|
 pub fn TensorParallelLaunchContractLimits::max_profiles(
   self : TensorParallelLaunchContractLimits,
-) -> Int {
+) -> Int32 {
   self.max_profiles
 }
 
 ///|
 pub fn TensorParallelLaunchContractLimits::max_contracts(
   self : TensorParallelLaunchContractLimits,
-) -> Int {
+) -> Int32 {
   self.max_contracts
 }
 
 ///|
 pub fn TensorParallelLaunchContractLimits::max_operands_per_contract(
   self : TensorParallelLaunchContractLimits,
-) -> Int {
+) -> Int32 {
   self.max_operands_per_contract
 }

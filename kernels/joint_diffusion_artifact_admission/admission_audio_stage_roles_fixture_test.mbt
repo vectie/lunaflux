@@ -1,6 +1,6 @@
 ///|
 fn admission_test_upsample_transition_roles(
-  stage : Int,
+  stage : Int32,
 ) -> Array[JointDiffusionLaunchOperandRole] {
   if stage == 1 {
     [
@@ -25,7 +25,7 @@ fn admission_test_upsample_transition_roles(
 
 ///|
 fn admission_test_amp_activation_roles(
-  stage : Int,
+  stage : Int32,
 ) -> Array[JointDiffusionLaunchOperandRole] {
   let input : JointDiffusionLaunchOperandRole = if stage == 1 {
     AudioDecoderUpsampleTransitionOutput

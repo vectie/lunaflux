@@ -1,7 +1,7 @@
 ///|
 priv struct FusedDeploymentReader {
   lines : Array[String]
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
@@ -42,9 +42,9 @@ fn FusedDeploymentReader::value(
 fn FusedDeploymentReader::int(
   self : FusedDeploymentReader,
   key : String,
-) -> Int raise FusedArtifactAdmissionError {
+) -> Int32 raise FusedArtifactAdmissionError {
   let text = self.value(key)
-  let value : Int = @string.parse_int(text) catch {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise InvalidFusedArtifact(Manifest)
   }
   if value.to_string() != text {
@@ -57,9 +57,9 @@ fn FusedDeploymentReader::int(
 fn FusedDeploymentReader::uint(
   self : FusedDeploymentReader,
   key : String,
-) -> UInt raise FusedArtifactAdmissionError {
+) -> UInt32 raise FusedArtifactAdmissionError {
   let text = self.value(key)
-  let value : UInt = @string.parse_uint(text) catch {
+  let value : UInt32 = @string.parse_uint(text) catch {
     _ => raise InvalidFusedArtifact(Manifest)
   }
   if value.to_string() != text {

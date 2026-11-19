@@ -1,5 +1,5 @@
 ///|
-const SAFETENSORS_PREFIX_BYTES : Int = 8
+const SAFETENSORS_PREFIX_BYTES : Int32 = 8
 
 ///|
 const MAX_INT_AS_UINT64 : UInt64 = 2147483647UL
@@ -23,7 +23,7 @@ fn decode_header_length(file : BytesView) -> UInt64 {
 pub fn declared_header_bytes(
   prefix : BytesView,
   limits~ : @safetensors.HeaderLimits,
-) -> Int raise SafetensorsReaderError {
+) -> Int32 raise SafetensorsReaderError {
   if prefix.length() < SAFETENSORS_PREFIX_BYTES {
     raise MissingHeaderLength
   }
@@ -65,7 +65,7 @@ fn header_has_valid_envelope(header : BytesView) -> Bool {
 /// fractional values and Int64 overflow are rejected.
 fn decode_exact_int64(
   value : Json,
-  tensor_index : Int,
+  tensor_index : Int32,
   field : TensorField,
 ) -> Int64 raise SafetensorsReaderError {
   guard value is Number(number, repr~) else {
@@ -107,7 +107,7 @@ fn validate_document_metadata(
 fn require_tensor_field(
   tensor : Map[String, Json],
   name : String,
-  tensor_index : Int,
+  tensor_index : Int32,
   field : TensorField,
 ) -> Json raise SafetensorsReaderError {
   match tensor.get(name) {
@@ -119,7 +119,7 @@ fn require_tensor_field(
 ///|
 fn decode_shape(
   value : Json,
-  tensor_index : Int,
+  tensor_index : Int32,
   limits : @safetensors.HeaderLimits,
 ) -> Array[Int64] raise SafetensorsReaderError {
   guard value is Array(dimensions) else {
@@ -138,7 +138,7 @@ fn decode_shape(
 ///|
 fn decode_offsets(
   value : Json,
-  tensor_index : Int,
+  tensor_index : Int32,
 ) -> (Int64, Int64) raise SafetensorsReaderError {
   guard value is Array(offsets) && offsets.length() == 2 else {
     raise InvalidTensorField(tensor_index, DataOffsets)
@@ -153,7 +153,7 @@ fn decode_offsets(
 fn decode_tensor(
   name : String,
   value : Json,
-  tensor_index : Int,
+  tensor_index : Int32,
   limits : @safetensors.HeaderLimits,
 ) -> @safetensors.RawTensorMetadata raise SafetensorsReaderError {
   guard value is Object(tensor) else { raise InvalidTensor(tensor_index) }

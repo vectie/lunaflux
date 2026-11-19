@@ -16,7 +16,7 @@ fn postprocess_source(
   semantic : @luna_fusion_plan.QkvQkNormPositionedRopePagedKvWritePlan,
   layout : @device_layout.DeviceKvLayout,
   profile : @launch_contract.PagedKernelProfile,
-  grid_x : Int,
+  grid_x : Int32,
   head_map : @luna_projection_tile_compiler.AttentionIngressHeadMap,
   numerics : @luna_projection_tile_compiler.AttentionIngressNumerics,
   physical : @elementwise_physical_ir.IngressProgram,

@@ -2,7 +2,7 @@
 fn aligned_device_offset(
   value : Int64,
   alignment : Int64,
-  region : Int,
+  region : Int32,
 ) -> Int64 raise SegmentedDeviceMaterializationError {
   let remainder = value % alignment
   if remainder == 0L {
@@ -17,16 +17,16 @@ fn aligned_device_offset(
 
 ///|
 fn validate_source_arenas(
-  lengths : ArrayView[Int],
+  lengths : ArrayView[Int32],
   limits : SegmentedDeviceMaterializationLimits,
-) -> ReadOnlyArray[Int] raise SegmentedDeviceMaterializationError {
+) -> ReadOnlyArray[Int32] raise SegmentedDeviceMaterializationError {
   if lengths.is_empty() {
     raise EmptySourceArenas
   }
   if lengths.length() > limits.maximum_source_arenas {
     raise TooManySourceArenas
   }
-  let owned : Array[Int] = []
+  let owned : Array[Int32] = []
   let mut total = 0L
   for index, length in lengths {
     if length <= 0 || length > limits.maximum_host_arena_bytes {
@@ -57,7 +57,7 @@ fn source_regions_overlap(
 pub fn plan_layout(
   source_identity~ : @spec.ModelIdentity,
   source_digest~ : SegmentedHostSourceDigest,
-  source_arena_lengths~ : ArrayView[Int],
+  source_arena_lengths~ : ArrayView[Int32],
   regions~ : ArrayView[SegmentedDeviceTensorRegionInput],
   limits~ : SegmentedDeviceMaterializationLimits,
 ) -> SegmentedDeviceLayout raise SegmentedDeviceMaterializationError {

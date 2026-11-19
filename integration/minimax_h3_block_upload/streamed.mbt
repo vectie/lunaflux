@@ -8,7 +8,7 @@ pub fn upload_streamed(
   allocations : ArrayView[@device.Allocation],
   requests : ArrayView[@streaming_safetensors.StreamingSafetensorsTransfer],
   destination_bytes~ : ArrayView[Int64],
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 && allocations.length() == destination_bytes.length() else {
     raise InvalidChunkSize

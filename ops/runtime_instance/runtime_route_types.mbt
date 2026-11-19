@@ -27,10 +27,10 @@ priv enum AdmittedRuntimeInstance {
 priv struct RuntimeServiceEnvelope {
   addr : @socket.Addr
   transport : @online_tcp.LunaOnlineTcpLimits
-  telemetry_capacity : Int
-  connection_capacity : Int
-  request_work_units : Int
-  event_work_units : Int
+  telemetry_capacity : Int32
+  connection_capacity : Int32
+  request_work_units : Int32
+  event_work_units : Int32
   receipt_deadline : @inference.DeadlineBudget
   loopback_openai_allowed : Bool
   openai_listener_allowed : Bool

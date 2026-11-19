@@ -13,7 +13,7 @@ pub(all) suberror LlamaI8WeightOnlyPolicyError {
 /// projection is quantized, while every ineligible parameter remains BF16.
 #valtype
 pub struct LlamaI8WeightOnlyPolicy {
-  priv version : Int
+  priv version : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -76,7 +76,7 @@ fn append_i8_llama_bf16_parameter(
 fn append_i8_llama_quantized_parameter(
   tensors : Array[@numeric_contract.NumericTensorSchema],
   dimensions : ArrayView[Int64],
-  scale_ordinal : Int,
+  scale_ordinal : Int32,
 ) -> Unit {
   tensors.push(
     try! @numeric_contract.NumericTensorSchema::new(
@@ -287,7 +287,7 @@ pub fn build_symmetric_i8_weight_only_v1(
 pub fn build_paged_symmetric_i8_weight_only_v1(
   metadata : @spec.LlamaModelMetadata,
   policy : LlamaI8WeightOnlyPolicy,
-  batch? : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
+  batch~ : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   policy.validate()
   build_with_execution(

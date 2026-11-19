@@ -45,14 +45,14 @@ pub(all) suberror DeepSeekV4QuantizedPayloadError {
 pub struct DeepSeekV4QuantizedPayloadLimits {
   priv maximum_elements : Int64
   priv maximum_payload_bytes : Int64
-  priv maximum_canonical_bytes : Int
+  priv maximum_canonical_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Exact scaling block geometry attached to a payload encoding.
 pub struct DeepSeekV4QuantizedBlockShape {
-  priv rows : Int
-  priv columns : Int
+  priv rows : Int32
+  priv columns : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -63,7 +63,7 @@ pub struct DeepSeekV4QuantizedPayloadContractDigest {
 
 ///|
 pub struct DeepSeekV4QuantizedPayloadContract {
-  priv schema_version : Int
+  priv schema_version : Int32
   priv encoding : DeepSeekV4QuantizedPayloadEncoding
   priv block_shape : DeepSeekV4QuantizedBlockShape
   priv logical_shape : ReadOnlyArray[Int64]

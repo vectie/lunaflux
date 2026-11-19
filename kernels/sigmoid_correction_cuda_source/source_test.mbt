@@ -1,6 +1,6 @@
 ///|
 test "sigmoid correction source preserves separate score outputs" {
-  let rendered = sigmoid_and_correction_f32_source(
+  let rendered = @sigmoid_correction_cuda_source.sigmoid_and_correction_f32_source(
     expert_count=288,
     maximum_rows=32,
     function_symbol="router_score",
@@ -25,7 +25,7 @@ test "sigmoid correction source preserves separate score outputs" {
 ///|
 test "sigmoid correction source rejects invalid dimensions and symbols" {
   try
-    sigmoid_and_correction_f32_source(
+    @sigmoid_correction_cuda_source.sigmoid_and_correction_f32_source(
       expert_count=0,
       maximum_rows=1,
       function_symbol="score",
@@ -37,7 +37,7 @@ test "sigmoid correction source rejects invalid dimensions and symbols" {
     _ => fail("zero experts admitted")
   }
   try
-    sigmoid_and_correction_f32_source(
+    @sigmoid_correction_cuda_source.sigmoid_and_correction_f32_source(
       expert_count=1,
       maximum_rows=0,
       function_symbol="score",
@@ -49,7 +49,7 @@ test "sigmoid correction source rejects invalid dimensions and symbols" {
     _ => fail("zero rows admitted")
   }
   try
-    sigmoid_and_correction_f32_source(
+    @sigmoid_correction_cuda_source.sigmoid_and_correction_f32_source(
       expert_count=1,
       maximum_rows=1,
       function_symbol="1score",

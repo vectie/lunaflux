@@ -26,7 +26,7 @@ fn numeric_legacy_operations() -> Array[@plan.PlanOperation] {
 }
 
 ///|
-fn numeric_legacy_plan(mode : Int) -> @plan.ModelPlan {
+fn numeric_legacy_plan(mode : Int32) -> @plan.ModelPlan {
   let operations = numeric_legacy_operations()
   let selected = [try! @plan.OperationId::new(1)]
   let numeric_schema = match mode {
@@ -54,8 +54,8 @@ fn numeric_legacy_plan(mode : Int) -> @plan.ModelPlan {
 ///|
 fn numeric_legacy_v1_entry(
   operation : @plan.PlanOperation,
-  family_id : Int,
-  compute_major? : Int = 8,
+  family_id : Int32,
+  compute_major~ : Int32 = 8,
 ) -> @catalog.CatalogEntry {
   try! @catalog.CatalogEntry::new(
     semantic_version=@catalog.KernelSemanticVersion::v1(),
@@ -145,7 +145,7 @@ fn numeric_legacy_i8_consumer_execution() -> @numeric_contract.OperationExecutio
 fn numeric_schema_with_hostile_execution(
   operations : ArrayView[@plan.PlanOperation],
   hostile : @numeric_contract.OperationExecutionContract,
-  hostile_index : Int,
+  hostile_index : Int32,
 ) -> @numeric_contract.ModelNumericSchema {
   let base = @plan_test_fixture.synthetic_bf16_numeric_schema(operations)
   let operation_schemas : Array[@numeric_contract.NumericOperationSchema] = []
@@ -176,7 +176,7 @@ fn numeric_schema_with_hostile_execution(
 ///|
 fn numeric_legacy_plan_with_hostile_execution(
   hostile : @numeric_contract.OperationExecutionContract,
-  hostile_index : Int,
+  hostile_index : Int32,
 ) -> @plan.ModelPlan {
   let operations = numeric_legacy_operations()
   try! @plan.ModelPlan::new_stateless(
@@ -196,7 +196,7 @@ fn numeric_legacy_plan_with_hostile_execution(
 ///|
 fn numeric_paged_plan_with_hostile_execution(
   hostile : @numeric_contract.OperationExecutionContract,
-  hostile_index : Int,
+  hostile_index : Int32,
 ) -> @plan.ModelPlan {
   let operations = numeric_v4_operations()
   try! @plan.ModelPlan::new_with_kv_execution(

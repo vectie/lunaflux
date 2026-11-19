@@ -11,10 +11,10 @@ pub struct DeepSeekV4OutputBQuantizedLayout {
   priv contract : DeepSeekV4OutputBQuantizationContract
   priv weight_shape : ReadOnlyArray[Int64]
   priv scale_shape : ReadOnlyArray[Int64]
-  priv input_width : Int
-  priv output_width : Int
-  priv block_width : Int
-  priv tensor_parallel_shard_axis : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv block_width : Int32
+  priv tensor_parallel_shard_axis : Int32
 }
 
 ///|
@@ -56,23 +56,23 @@ pub fn DeepSeekV4OutputBQuantizedLayout::scale_shape(
 }
 
 ///|
-pub fn DeepSeekV4OutputBQuantizedLayout::input_width(self : Self) -> Int {
+pub fn DeepSeekV4OutputBQuantizedLayout::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn DeepSeekV4OutputBQuantizedLayout::output_width(self : Self) -> Int {
+pub fn DeepSeekV4OutputBQuantizedLayout::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn DeepSeekV4OutputBQuantizedLayout::block_width(self : Self) -> Int {
+pub fn DeepSeekV4OutputBQuantizedLayout::block_width(self : Self) -> Int32 {
   self.block_width
 }
 
 ///|
 pub fn DeepSeekV4OutputBQuantizedLayout::tensor_parallel_shard_axis(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.tensor_parallel_shard_axis
 }

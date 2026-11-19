@@ -3,9 +3,9 @@
 /// the extents; copy producers and matrix consumers share the row XOR map below.
 /// No capacity expansion or storage lifetime change is required.
 fn cuda_attention_operand_layout(
-  query : Int,
-  keys : Int,
-  dimension : Int,
+  query : Int32,
+  keys : Int32,
+  dimension : Int32,
 ) -> String raise CudaAttentionTileSourceError {
   guard @luna_attention_tile_schedule.attention_operand_tile_layout(
       query, dimension, 8,

@@ -81,12 +81,12 @@ pub struct WorkerBootstrapLunaApproval {
 ///|
 /// Capacity-independent device target and physical KV-page geometry.
 pub struct WorkerBootstrapExecution {
-  priv compute_major : Int
-  priv compute_minor : Int
+  priv compute_major : Int32
+  priv compute_minor : Int32
   priv supports_bf16 : Bool
   priv supports_cublas_lt : Bool
-  priv tokens_per_page : Int
-  priv total_page_count : Int
+  priv tokens_per_page : Int32
+  priv total_page_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -94,7 +94,7 @@ pub struct WorkerBootstrapExecution {
 /// readers. Parser depths, transfer chunks, alignments, and profile identity are
 /// fixed by `DenseLlamaPagedAotV2` rather than repeated here.
 pub struct WorkerBootstrapCeilings {
-  priv max_model_config_bytes : Int
+  priv max_model_config_bytes : Int32
   priv max_weight_file_bytes : Int64
   priv max_weight_arena_bytes : Int64
   priv max_activation_arena_bytes : Int64
@@ -110,7 +110,7 @@ pub struct WorkerBootstrapCeilings {
 /// bytes and exposes no mutable storage alias.
 pub struct EncodedBootstrapSource {
   priv storage : FixedArray[Byte]
-  priv length : Int
+  priv length : Int32
   priv digest : WorkerBootstrapSourceDigest
   priv roots : WorkerBootstrapRoots
   priv model : WorkerBootstrapModelSource
@@ -147,12 +147,12 @@ pub fn WorkerBootstrapSourceDigest::as_hex(
 }
 
 ///|
-pub fn EncodedBootstrapSource::length(self : EncodedBootstrapSource) -> Int {
+pub fn EncodedBootstrapSource::length(self : EncodedBootstrapSource) -> Int32 {
   self.length
 }
 
 ///|
-pub fn EncodedBootstrapSource::capacity(self : EncodedBootstrapSource) -> Int {
+pub fn EncodedBootstrapSource::capacity(self : EncodedBootstrapSource) -> Int32 {
   self.storage.length()
 }
 
@@ -378,14 +378,14 @@ pub fn WorkerBootstrapLunaApproval::approved_source(
 ///|
 pub fn WorkerBootstrapExecution::compute_major(
   self : WorkerBootstrapExecution,
-) -> Int {
+) -> Int32 {
   self.compute_major
 }
 
 ///|
 pub fn WorkerBootstrapExecution::compute_minor(
   self : WorkerBootstrapExecution,
-) -> Int {
+) -> Int32 {
   self.compute_minor
 }
 
@@ -406,21 +406,21 @@ pub fn WorkerBootstrapExecution::supports_cublas_lt(
 ///|
 pub fn WorkerBootstrapExecution::tokens_per_page(
   self : WorkerBootstrapExecution,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
 pub fn WorkerBootstrapExecution::total_page_count(
   self : WorkerBootstrapExecution,
-) -> Int {
+) -> Int32 {
   self.total_page_count
 }
 
 ///|
 pub fn WorkerBootstrapCeilings::max_model_config_bytes(
   self : WorkerBootstrapCeilings,
-) -> Int {
+) -> Int32 {
   self.max_model_config_bytes
 }
 

@@ -37,7 +37,7 @@ async test "streamed slices preserve packed bytes and 64-bit device offsets" {
     ]
     let offsets : Array[Int64] = []
     let payload : Array[Byte] = []
-    let destinations : Array[Int] = []
+    let destinations : Array[Int32] = []
     @streaming_safetensors.transfer_ranges(
       root,
       inspection,

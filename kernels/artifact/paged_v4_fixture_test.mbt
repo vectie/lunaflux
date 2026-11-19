@@ -1,7 +1,7 @@
 ///|
 fn paged_artifact_v4_entry(
   digest : @catalog.AotArtifactDigest,
-  operation : Int,
+  operation : Int32,
 ) -> @catalog.AotKernelEntryPoint {
   if operation == 0 {
     entry(digest, 10, 3)
@@ -97,7 +97,7 @@ fn paged_artifact_v4_contracts(
 
 ///|
 fn paged_artifact_v4_operands(
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] raise {
   if operation == 0 {
     return paged_artifact_operands(operation)

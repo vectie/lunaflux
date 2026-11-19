@@ -90,7 +90,7 @@ pub fn LunaTextRequestHandoffLease::stream_preference(
 ///|
 pub fn LunaTextRequestHandoffLease::prompt_length(
   self : Self,
-) -> Int raise InferenceContractError {
+) -> Int32 raise InferenceContractError {
   self.storage.require_handoff(self.epoch, false)
   self.storage.prompt_length
 }
@@ -98,7 +98,7 @@ pub fn LunaTextRequestHandoffLease::prompt_length(
 ///|
 pub fn LunaTextRequestHandoffLease::prompt_byte_at(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Byte raise InferenceContractError {
   self.storage.require_handoff(self.epoch, false)
   if index < 0 || index >= self.storage.prompt_length {
@@ -139,14 +139,14 @@ fn LunaTextRequestHandoffClaim::require(
 ///|
 pub fn LunaTextRequestHandoffClaim::prompt_length(
   self : Self,
-) -> Int raise InferenceContractError {
+) -> Int32 raise InferenceContractError {
   self.require().prompt_length
 }
 
 ///|
 pub fn LunaTextRequestHandoffClaim::prompt_byte_at(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Byte raise InferenceContractError {
   let storage = self.require()
   if index < 0 || index >= storage.prompt_length {

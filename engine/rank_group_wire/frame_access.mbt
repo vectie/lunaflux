@@ -39,14 +39,14 @@ pub fn ValidatedRankGroupWireFrame::sequence_value(
 ///|
 pub fn ValidatedRankGroupWireFrame::payload_length(
   self : ValidatedRankGroupWireFrame,
-) -> Int raise RankGroupWireError {
+) -> Int32 raise RankGroupWireError {
   wire_read_i32(self.owner().storage, 56)
 }
 
 ///|
 pub fn ValidatedRankGroupWireFrame::length(
   self : ValidatedRankGroupWireFrame,
-) -> Int raise RankGroupWireError {
+) -> Int32 raise RankGroupWireError {
   self.owner().length
 }
 
@@ -69,7 +69,7 @@ fn ValidatedRankGroupWireFrame::matches_binding(
 pub fn ValidatedRankGroupWireFrame::copy_payload_to(
   self : ValidatedRankGroupWireFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise RankGroupWireError {
   let owner = self.owner()
   let payload_length = wire_read_i32(owner.storage, 56)
@@ -87,7 +87,7 @@ pub fn ValidatedRankGroupWireFrame::copy_payload_to(
 pub fn ValidatedRankGroupWireFrame::copy_to(
   self : ValidatedRankGroupWireFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise RankGroupWireError {
   let owner = self.owner()
   if destination_offset < 0 ||

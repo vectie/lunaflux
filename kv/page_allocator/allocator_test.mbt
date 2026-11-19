@@ -1,10 +1,10 @@
 ///|
 fn test_limits(
-  capacity : Int,
-  run : Int,
-  active? : Int = 8,
-  cached? : Int = 8,
-  generation? : Int = 100,
+  capacity : Int32,
+  run : Int32,
+  active~ : Int32 = 8,
+  cached~ : Int32 = 8,
+  generation~ : Int32 = 100,
 ) -> @page_allocator.PageAllocatorLimits {
   try! @page_allocator.PageAllocatorLimits::new(
     page_capacity=capacity,
@@ -18,7 +18,7 @@ fn test_limits(
 ///|
 fn snapshot_page(
   allocator : @page_allocator.PageAllocator,
-  index : Int,
+  index : Int32,
 ) -> @page_allocator.PageSnapshot raise @page_allocator.PageAllocatorError {
   allocator.debug_snapshot().page_at(index)
 }

@@ -1,26 +1,26 @@
 ///|
-const LUNA_ONLINE_TCP_LISTENING : Int = 0
+const LUNA_ONLINE_TCP_LISTENING : Int32 = 0
 
 ///|
-const LUNA_ONLINE_TCP_ACCEPTING : Int = 1
+const LUNA_ONLINE_TCP_ACCEPTING : Int32 = 1
 
 ///|
-const LUNA_ONLINE_TCP_CONNECTED : Int = 2
+const LUNA_ONLINE_TCP_CONNECTED : Int32 = 2
 
 ///|
-const LUNA_ONLINE_TCP_DRAINING : Int = 3
+const LUNA_ONLINE_TCP_DRAINING : Int32 = 3
 
 ///|
-const LUNA_ONLINE_TCP_CLOSE_REQUIRED : Int = 4
+const LUNA_ONLINE_TCP_CLOSE_REQUIRED : Int32 = 4
 
 ///|
-const LUNA_ONLINE_TCP_CLOSED : Int = 5
+const LUNA_ONLINE_TCP_CLOSED : Int32 = 5
 
 ///|
-const LUNA_ONLINE_TCP_MAX_TIMEOUT_MILLIS : Int = 86400000
+const LUNA_ONLINE_TCP_MAX_TIMEOUT_MILLIS : Int32 = 86400000
 
 ///|
-const LUNA_ONLINE_TCP_MAX_TRANSITIONS : Int = 65536
+const LUNA_ONLINE_TCP_MAX_TRANSITIONS : Int32 = 65536
 
 ///|
 pub(all) enum LunaOnlineTcpRule {
@@ -80,12 +80,12 @@ pub(all) enum LunaOnlineTcpRejectionRule {
 
 ///|
 pub struct LunaOnlineTcpLimits {
-  priv read_chunk_bytes : Int
-  priv write_chunk_bytes : Int
-  priv accept_timeout_millis : Int
-  priv input_idle_timeout_millis : Int
-  priv write_timeout_millis : Int
-  priv reactor_transition_budget : Int
+  priv read_chunk_bytes : Int32
+  priv write_chunk_bytes : Int32
+  priv accept_timeout_millis : Int32
+  priv input_idle_timeout_millis : Int32
+  priv write_timeout_millis : Int32
+  priv reactor_transition_budget : Int32
 }
 
 ///|
@@ -111,16 +111,16 @@ pub struct LunaOnlineTcpEndpoint {
   priv offers : Array[@online_session.LunaOnlineFramedEventOffer]
   priv flights : Array[LunaOnlineTcpOutputFlight]
   priv activity : LunaOnlineTcpActivity
-  priv mut phase : Int
-  priv mut tail_start : Int
-  priv mut tail_length : Int
+  priv mut phase : Int32
+  priv mut tail_start : Int32
+  priv mut tail_length : Int32
   priv mut tail_backpressured : Bool
   priv maintenance_handoff : LunaOnlineTcpMaintenanceHandoff
   priv mut close_pending : Bool
   priv mut drain_requested : Bool
   priv mut disconnect_requested : Bool
-  priv mut failure_rule : Int
+  priv mut failure_rule : Int32
   priv mut rejection_sequence : UInt64
-  priv mut rejection_rule : Int
+  priv mut rejection_rule : Int32
   priv mut rejection_latched : Bool
 }

@@ -4,7 +4,7 @@ fn luna_specialization_is_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -14,17 +14,17 @@ fn luna_specialization_is_sha256(value : StringView) -> Bool {
 ///|
 pub struct LunaCompilerIdentity {
   priv toolchain_digest : String
-  priv major : Int
-  priv minor : Int
-  priv patch : Int
+  priv major : Int32
+  priv minor : Int32
+  priv patch : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaCompilerIdentity::new(
   toolchain_digest_sha256~ : String,
-  major~ : Int,
-  minor~ : Int,
-  patch~ : Int,
+  major~ : Int32,
+  minor~ : Int32,
+  patch~ : Int32,
 ) -> LunaCompilerIdentity raise LunaSpecializationError {
   if !luna_specialization_is_sha256(toolchain_digest_sha256) ||
     major < 0 ||
@@ -43,36 +43,36 @@ pub fn LunaCompilerIdentity::toolchain_digest_sha256(
 }
 
 ///|
-pub fn LunaCompilerIdentity::major(self : LunaCompilerIdentity) -> Int {
+pub fn LunaCompilerIdentity::major(self : LunaCompilerIdentity) -> Int32 {
   self.major
 }
 
 ///|
-pub fn LunaCompilerIdentity::minor(self : LunaCompilerIdentity) -> Int {
+pub fn LunaCompilerIdentity::minor(self : LunaCompilerIdentity) -> Int32 {
   self.minor
 }
 
 ///|
-pub fn LunaCompilerIdentity::patch(self : LunaCompilerIdentity) -> Int {
+pub fn LunaCompilerIdentity::patch(self : LunaCompilerIdentity) -> Int32 {
   self.patch
 }
 
 ///|
 pub struct LunaCompilerPolicy {
   priv identity : LunaCompilerIdentity
-  priv optimization_level : Int
+  priv optimization_level : Int32
   priv fused_multiply_add : Bool
   priv reassociate : Bool
-  priv max_registers : Int
+  priv max_registers : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaCompilerPolicy::new(
   identity~ : LunaCompilerIdentity,
-  optimization_level~ : Int,
+  optimization_level~ : Int32,
   fused_multiply_add~ : Bool,
   reassociate~ : Bool,
-  max_registers~ : Int,
+  max_registers~ : Int32,
 ) -> LunaCompilerPolicy raise LunaSpecializationError {
   if optimization_level < 0 ||
     optimization_level > 3 ||
@@ -97,7 +97,9 @@ pub fn LunaCompilerPolicy::identity(
 }
 
 ///|
-pub fn LunaCompilerPolicy::optimization_level(self : LunaCompilerPolicy) -> Int {
+pub fn LunaCompilerPolicy::optimization_level(
+  self : LunaCompilerPolicy,
+) -> Int32 {
   self.optimization_level
 }
 
@@ -114,7 +116,7 @@ pub fn LunaCompilerPolicy::reassociate(self : LunaCompilerPolicy) -> Bool {
 }
 
 ///|
-pub fn LunaCompilerPolicy::max_registers(self : LunaCompilerPolicy) -> Int {
+pub fn LunaCompilerPolicy::max_registers(self : LunaCompilerPolicy) -> Int32 {
   self.max_registers
 }
 
@@ -201,14 +203,14 @@ pub fn LunaSpecializationEvidence::benchmark(
 
 ///|
 pub struct LunaSpecializationLimits {
-  priv max_canonical_bytes : Int
-  priv max_bound_regions : Int
+  priv max_canonical_bytes : Int32
+  priv max_bound_regions : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaSpecializationLimits::new(
-  max_canonical_bytes~ : Int,
-  max_bound_regions~ : Int,
+  max_canonical_bytes~ : Int32,
+  max_bound_regions~ : Int32,
 ) -> LunaSpecializationLimits raise LunaSpecializationError {
   if max_canonical_bytes <= 0 || max_bound_regions <= 0 {
     raise Invalid(CanonicalBytes)

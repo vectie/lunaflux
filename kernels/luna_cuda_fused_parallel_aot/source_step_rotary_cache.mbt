@@ -1,7 +1,7 @@
 ///|
 fn qwen_step_rotary_cache_plan(
   profile : @launch_contract.PagedKernelProfile,
-  head_dimension : Int,
+  head_dimension : Int32,
 ) -> @elementwise_physical_ir.StepRotaryCachePlan {
   @elementwise_physical_ir.StepRotaryCachePlan::new(
     maximum_tokens=profile.max_query_tokens(),
@@ -52,7 +52,7 @@ fn qwen_step_rotary_preparation_source(
 fn qwen_step_rotary_recipe(
   symbol : String,
   profile : @launch_contract.PagedKernelProfile,
-  head_dimension : Int,
+  head_dimension : Int32,
 ) -> String {
   let cache = qwen_step_rotary_cache_plan(profile, head_dimension)
   let (tokens, pairs) = cache.geometry()

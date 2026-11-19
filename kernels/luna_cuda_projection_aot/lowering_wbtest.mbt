@@ -1,6 +1,6 @@
 ///|
 test "projection-family candidates are deterministic and non-circular" {
-  let families : Array[(Int, ProjectionAotFamily)] = [
+  let families : Array[(Int32, ProjectionAotFamily)] = [
     (1, QkvProjection),
     (4, DenseProjection),
     (5, GatedMlp),

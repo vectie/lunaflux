@@ -15,7 +15,7 @@ fn canonical_wb_storage(
 
 ///|
 fn canonical_wb_schema(
-  dtype? : @numeric_contract.StorageDType = @numeric_contract.StorageDType::bfloat16(),
+  dtype~ : @numeric_contract.StorageDType = @numeric_contract.StorageDType::bfloat16(),
 ) -> @numeric_contract.ModelNumericSchema {
   let storage = canonical_wb_storage(dtype)
   let execution = try! @numeric_contract.OperationExecutionContract::new(
@@ -130,14 +130,14 @@ fn canonical_wb_geometry() -> KvCacheGeometry {
 
 ///|
 fn canonical_wb_hash(
-  constraints? : ShapeConstraints = canonical_wb_constraints(),
-  geometry? : KvCacheGeometry = canonical_wb_geometry(),
-  workspace? : WorkspaceBounds = { max_temporary_bytes: 0L, },
-  operations? : Array[PlanOperation] = [canonical_wb_operation()],
-  required? : Array[KernelCapabilityId] = [{ value: 1, }],
-  final_output? : ActivationRef = { value: 0, },
-  mode? : ModelKvExecution = StatelessFullContext,
-  schema? : @numeric_contract.ModelNumericSchema = canonical_wb_schema(),
+  constraints~ : ShapeConstraints = canonical_wb_constraints(),
+  geometry~ : KvCacheGeometry = canonical_wb_geometry(),
+  workspace~ : WorkspaceBounds = { max_temporary_bytes: 0L, },
+  operations~ : Array[PlanOperation] = [canonical_wb_operation()],
+  required~ : Array[KernelCapabilityId] = [{ value: 1, }],
+  final_output~ : ActivationRef = { value: 0, },
+  mode~ : ModelKvExecution = StatelessFullContext,
+  schema~ : @numeric_contract.ModelNumericSchema = canonical_wb_schema(),
 ) -> String {
   let writer = ModelPlanCanonicalWriter::new_hashing(16 * 1024 * 1024)
   try! encode_model_plan_canonical(
@@ -173,7 +173,7 @@ fn canonical_wb_append_u64(output : Array[Byte], value : UInt64) -> Unit {
 }
 
 ///|
-fn canonical_wb_append_int(output : Array[Byte], value : Int) -> Unit {
+fn canonical_wb_append_int(output : Array[Byte], value : Int32) -> Unit {
   canonical_wb_append_u64(
     output,
     Int64::from_int(value).reinterpret_as_uint64(),

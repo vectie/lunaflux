@@ -1,6 +1,6 @@
 ///|
 fn blueprint_metadata(
-  digest_head? : Char = '0',
+  digest_head~ : Char = '0',
 ) -> @spec.LlamaModelMetadata raise {
   let digest = digest_head.to_string() +
     "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -34,7 +34,7 @@ fn blueprint_weight_layout(
 
 ///|
 fn blueprint_operation(
-  id : Int,
+  id : Int32,
   kind : @plan.OperationKind,
   inputs : ArrayView[@plan.ValueRef],
   shape : @plan.OperationShape,
@@ -56,11 +56,11 @@ fn blueprint_operation(
 ///|
 fn blueprint_model_plan(
   metadata : @spec.LlamaModelMetadata,
-  extra_projection? : Bool = false,
-  rotary_workspace? : Int64 = 64L,
-  replace_qkv_with_projection? : Bool = false,
-  rope_theta? : Double = 10000.0,
-  final_language_model_head? : Bool = false,
+  extra_projection~ : Bool = false,
+  rotary_workspace~ : Int64 = 64L,
+  replace_qkv_with_projection~ : Bool = false,
+  rope_theta~ : Double = 10000.0,
+  final_language_model_head~ : Bool = false,
 ) -> @plan.ModelPlan raise {
   let operations : Array[@plan.PlanOperation] = []
   operations.push(
@@ -221,7 +221,7 @@ fn blueprint_model_plan(
 ///|
 fn blueprint_layout(
   plan : @plan.ModelPlan,
-  pages? : Int = 8,
+  pages~ : Int32 = 8,
 ) -> @device_layout.DeviceKvLayout raise {
   @device_layout.plan(
     plan.identity(),
@@ -235,7 +235,7 @@ fn blueprint_layout(
 }
 
 ///|
-fn blueprint_target(minor? : Int = 0) -> @catalog.DeviceTarget raise {
+fn blueprint_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=8,
     compute_minor=minor,

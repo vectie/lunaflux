@@ -1,5 +1,5 @@
 ///|
-fn inference_credential_header_length(source : FixedArray[Byte]) -> Int {
+fn inference_credential_header_length(source : FixedArray[Byte]) -> Int32 {
   if source.length() != INHERITED_INFERENCE_CREDENTIAL_HEADER_BYTES ||
     source[0] != b'L' ||
     source[1] != b'F' ||

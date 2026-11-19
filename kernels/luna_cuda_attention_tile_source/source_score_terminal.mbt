@@ -2,7 +2,7 @@
 fn cuda_score_terminal_effects(
   plan : @luna_attention_tile_schedule.AttentionScoreTerminalPlan,
   point : @luna_attention_tile_schedule.AttentionScoreTerminalPoint,
-  offsets : ReadOnlyArray[Int],
+  offsets : ReadOnlyArray[Int32],
 ) -> String {
   plan
   .actions(point)

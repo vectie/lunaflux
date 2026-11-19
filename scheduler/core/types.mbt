@@ -1,38 +1,38 @@
 ///|
-const SLOT_FREE : Int = 0
+const SLOT_FREE : Int32 = 0
 
 ///|
-const SLOT_WAITING : Int = 1
+const SLOT_WAITING : Int32 = 1
 
 ///|
-const SLOT_PREFILL : Int = 2
+const SLOT_PREFILL : Int32 = 2
 
 ///|
-const SLOT_DECODE : Int = 3
+const SLOT_DECODE : Int32 = 3
 
 ///|
-const SLOT_FINISHING : Int = 4
+const SLOT_FINISHING : Int32 = 4
 
 ///|
-const SLOT_CANCELLED : Int = 5
+const SLOT_CANCELLED : Int32 = 5
 
 ///|
-const SLOT_DEADLINE : Int = 6
+const SLOT_DEADLINE : Int32 = 6
 
 ///|
-const SLOT_FAILED : Int = 7
+const SLOT_FAILED : Int32 = 7
 
 ///|
-const SLOT_RETIRED : Int = 8
+const SLOT_RETIRED : Int32 = 8
 
 ///|
-const MAX_SLOT_GENERATION : Int = 2_147_483_647
+const MAX_SLOT_GENERATION : Int32 = 2_147_483_647
 
 ///|
 const MAX_GENERATION : UInt64 = 0xffffffffffffffffUL
 
 ///|
-const NO_INDEX : Int = -1
+const NO_INDEX : Int32 = -1
 
 ///|
 /// Allocation-free result of one scheduling attempt. Submitted identities are
@@ -42,7 +42,7 @@ pub enum BuildNextOutcome {
   BuildIdle
   BuildBackpressured
   BuildPreempted(UInt64, UInt64)
-  BuildSubmitted(Int, UInt64)
+  BuildSubmitted(Int32, UInt64)
 }
 
 ///|
@@ -59,7 +59,7 @@ pub(all) enum CompletionCommit {
 /// Allocation-free progress for deterministic instance-loss retirement.
 #valtype
 pub(all) enum InstanceLossDrain {
-  Remaining(Int)
+  Remaining(Int32)
   Complete
 } derive(Debug, Eq)
 
@@ -84,15 +84,15 @@ pub(all) enum CancelReservationCommit {
 ///|
 /// Opaque identity of a scheduler-owned request slot.
 #valtype
-pub struct SchedulerSlotId(Int, Int) derive(Debug, Eq, Hash)
+pub struct SchedulerSlotId(Int32, Int32) derive(Debug, Eq, Hash)
 
 ///|
-pub fn SchedulerSlotId::index(self : SchedulerSlotId) -> Int {
+pub fn SchedulerSlotId::index(self : SchedulerSlotId) -> Int32 {
   self.0
 }
 
 ///|
-pub fn SchedulerSlotId::generation(self : SchedulerSlotId) -> Int {
+pub fn SchedulerSlotId::generation(self : SchedulerSlotId) -> Int32 {
   self.1
 }
 
@@ -102,7 +102,7 @@ pub fn SchedulerSlotId::generation(self : SchedulerSlotId) -> Int {
 /// authenticated by the exact prepared admission owner.
 #valtype
 pub struct SchedulerPublicationRoute {
-  priv lane_value : Int
+  priv lane_value : Int32
   priv generation_value : UInt64
 } derive(Eq)
 
@@ -113,7 +113,7 @@ fn empty_publication_route() -> SchedulerPublicationRoute {
 
 ///|
 pub fn SchedulerPublicationRoute::new(
-  lane : Int,
+  lane : Int32,
   generation : UInt64,
 ) -> SchedulerPublicationRoute raise SchedulerError {
   if lane < 0 || generation == 0UL || generation > 0xffffffffUL {
@@ -125,7 +125,7 @@ pub fn SchedulerPublicationRoute::new(
 ///|
 pub fn SchedulerPublicationRoute::lane(
   self : SchedulerPublicationRoute,
-) -> Int {
+) -> Int32 {
   self.lane_value
 }
 
@@ -175,7 +175,7 @@ pub struct TerminalNotice(
   @inference.RequestId,
   @inference.RequestGeneration,
   TerminalReason,
-  Int,
+  Int32,
   UInt64
 ) derive(Debug, Eq)
 
@@ -202,7 +202,7 @@ pub fn TerminalNotice::reason(self : TerminalNotice) -> TerminalReason {
 /// Returns the exact full-page prompt tokens reused by this request. The
 /// scheduler snapshots this scalar before releasing its prefix reference and
 /// recycling the request slot.
-pub fn TerminalNotice::cached_input_tokens(self : TerminalNotice) -> Int {
+pub fn TerminalNotice::cached_input_tokens(self : TerminalNotice) -> Int32 {
   self.3
 }
 
@@ -218,8 +218,8 @@ pub fn TerminalNotice::publication_sequence(self : TerminalNotice) -> UInt64 {
 pub struct GeneratedTokenNotice(
   @inference.RequestId,
   @inference.RequestGeneration,
-  Int,
-  Int,
+  Int32,
+  Int32,
   UInt64
 ) derive(Eq)
 
@@ -238,12 +238,12 @@ pub fn GeneratedTokenNotice::request_generation(
 }
 
 ///|
-pub fn GeneratedTokenNotice::token_id(self : GeneratedTokenNotice) -> Int {
+pub fn GeneratedTokenNotice::token_id(self : GeneratedTokenNotice) -> Int32 {
   self.2
 }
 
 ///|
-pub fn GeneratedTokenNotice::position(self : GeneratedTokenNotice) -> Int {
+pub fn GeneratedTokenNotice::position(self : GeneratedTokenNotice) -> Int32 {
   self.3
 }
 
@@ -270,9 +270,9 @@ pub struct SchedulerPublication(
 
 ///|
 fn scheduler_publication_owner(
-  kind : Int,
-  slot_index : Int,
-  slot_generation : Int,
+  kind : Int32,
+  slot_index : Int32,
+  slot_generation : Int32,
 ) -> UInt64 {
   (kind.to_uint64() << 63) |
   (slot_generation.to_uint64() << 32) |
@@ -280,7 +280,7 @@ fn scheduler_publication_owner(
 }
 
 ///|
-fn terminal_reason_code(reason : TerminalReason) -> Int {
+fn terminal_reason_code(reason : TerminalReason) -> Int32 {
   match reason {
     CancelledByCaller => 0
     DeadlineReached => 1
@@ -291,7 +291,7 @@ fn terminal_reason_code(reason : TerminalReason) -> Int {
 }
 
 ///|
-fn terminal_reason_from_code(code : Int) -> TerminalReason {
+fn terminal_reason_from_code(code : Int32) -> TerminalReason {
   match code {
     0 => CancelledByCaller
     1 => DeadlineReached
@@ -417,10 +417,10 @@ pub fn RequestHandle::request_generation(
 ///|
 /// Immutable scalar snapshot of one scheduler owner.
 pub struct LunaSchedulerTelemetry {
-  priv queue_depth : Int
-  priv active_requests : Int
-  priv kv_pages_used : Int
-  priv kv_pages_free : Int
+  priv queue_depth : Int32
+  priv active_requests : Int32
+  priv kv_pages_used : Int32
+  priv kv_pages_free : Int32
   priv prefix_lookups : UInt64
   priv prefix_hits : UInt64
   priv prefix_misses : UInt64
@@ -428,16 +428,16 @@ pub struct LunaSchedulerTelemetry {
   priv prefix_tokens_reused : UInt64
   priv prefix_tokens_computed : UInt64
   priv prefix_publications : UInt64
-  priv prefix_entries : Int
-  priv prefix_pages : Int
+  priv prefix_entries : Int32
+  priv prefix_pages : Int32
 }
 
 ///|
 #valtype
 pub struct LunaSchedulerPlanTelemetry {
   priv plan_sequence : UInt64
-  priv plan_rows : Int
-  priv plan_tokens : Int
+  priv plan_rows : Int32
+  priv plan_tokens : Int32
 }
 
 ///|

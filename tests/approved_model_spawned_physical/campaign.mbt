@@ -75,7 +75,7 @@ fn prepare_pinned_campaign_owner(
 fn campaign_drain_action(
   phase : @runtime_instance.RuntimeInstancePhase,
   cleanup_complete : Bool,
-) -> Int {
+) -> Int32 {
   if cleanup_complete {
     return 0
   }

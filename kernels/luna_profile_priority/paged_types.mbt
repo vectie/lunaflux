@@ -7,7 +7,9 @@ pub(all) enum LunaPagedProfileRowPhase {
 } derive(Debug, Eq)
 
 ///|
-fn LunaPagedProfileRowPhase::stable_int(self : LunaPagedProfileRowPhase) -> Int {
+fn LunaPagedProfileRowPhase::stable_int(
+  self : LunaPagedProfileRowPhase,
+) -> Int32 {
   match self {
     PagedPrefill => 1
     PagedDecode => 2
@@ -21,21 +23,21 @@ fn LunaPagedProfileRowPhase::stable_int(self : LunaPagedProfileRowPhase) -> Int 
 /// at `page_table_start`.
 pub struct LunaPagedProfileRow {
   priv phase : LunaPagedProfileRowPhase
-  priv query_length : Int
-  priv context_length : Int
-  priv cache_position : Int
-  priv page_table_start : Int
-  priv block_count : Int
+  priv query_length : Int32
+  priv context_length : Int32
+  priv cache_position : Int32
+  priv page_table_start : Int32
+  priv block_count : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaPagedProfileRow::new(
   phase~ : LunaPagedProfileRowPhase,
-  query_length~ : Int,
-  context_length~ : Int,
-  cache_position~ : Int,
-  page_table_start~ : Int,
-  block_count~ : Int,
+  query_length~ : Int32,
+  context_length~ : Int32,
+  cache_position~ : Int32,
+  page_table_start~ : Int32,
+  block_count~ : Int32,
 ) -> LunaPagedProfileRow raise LunaKernelProfileError {
   if query_length <= 0 ||
     context_length <= 0 ||
@@ -67,27 +69,29 @@ pub fn LunaPagedProfileRow::phase(
 }
 
 ///|
-pub fn LunaPagedProfileRow::query_length(self : LunaPagedProfileRow) -> Int {
+pub fn LunaPagedProfileRow::query_length(self : LunaPagedProfileRow) -> Int32 {
   self.query_length
 }
 
 ///|
-pub fn LunaPagedProfileRow::context_length(self : LunaPagedProfileRow) -> Int {
+pub fn LunaPagedProfileRow::context_length(self : LunaPagedProfileRow) -> Int32 {
   self.context_length
 }
 
 ///|
-pub fn LunaPagedProfileRow::cache_position(self : LunaPagedProfileRow) -> Int {
+pub fn LunaPagedProfileRow::cache_position(self : LunaPagedProfileRow) -> Int32 {
   self.cache_position
 }
 
 ///|
-pub fn LunaPagedProfileRow::page_table_start(self : LunaPagedProfileRow) -> Int {
+pub fn LunaPagedProfileRow::page_table_start(
+  self : LunaPagedProfileRow,
+) -> Int32 {
   self.page_table_start
 }
 
 ///|
-pub fn LunaPagedProfileRow::block_count(self : LunaPagedProfileRow) -> Int {
+pub fn LunaPagedProfileRow::block_count(self : LunaPagedProfileRow) -> Int32 {
   self.block_count
 }
 
@@ -119,11 +123,11 @@ pub fn LunaPagedPageTableTraceDigest::as_hex(
 /// bytes while the rows bind their non-overlapping slices and geometry. The
 /// claim never proves physical page identity, ownership, or execution.
 pub struct LunaPagedProfileShape {
-  priv tokens_per_page : Int
-  priv prefill_row_count : Int
-  priv decode_row_count : Int
-  priv query_token_count : Int
-  priv page_table_block_count : Int
+  priv tokens_per_page : Int32
+  priv prefill_row_count : Int32
+  priv decode_row_count : Int32
+  priv query_token_count : Int32
+  priv page_table_block_count : Int32
   priv page_table_trace_digest : LunaPagedPageTableTraceDigest
   priv rows : ReadOnlyArray[LunaPagedProfileRow]
   priv digest : LunaKernelProfileDigest
@@ -131,11 +135,11 @@ pub struct LunaPagedProfileShape {
 
 ///|
 pub fn LunaPagedProfileShape::new(
-  tokens_per_page~ : Int,
-  prefill_row_count~ : Int,
-  decode_row_count~ : Int,
-  query_token_count~ : Int,
-  page_table_block_count~ : Int,
+  tokens_per_page~ : Int32,
+  prefill_row_count~ : Int32,
+  decode_row_count~ : Int32,
+  query_token_count~ : Int32,
+  page_table_block_count~ : Int32,
   page_table_trace_digest~ : LunaPagedPageTableTraceDigest,
   rows : ArrayView[LunaPagedProfileRow],
 ) -> LunaPagedProfileShape raise LunaKernelProfileError {
@@ -215,35 +219,35 @@ pub fn LunaPagedProfileShape::new(
 ///|
 pub fn LunaPagedProfileShape::tokens_per_page(
   self : LunaPagedProfileShape,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
 pub fn LunaPagedProfileShape::prefill_row_count(
   self : LunaPagedProfileShape,
-) -> Int {
+) -> Int32 {
   self.prefill_row_count
 }
 
 ///|
 pub fn LunaPagedProfileShape::decode_row_count(
   self : LunaPagedProfileShape,
-) -> Int {
+) -> Int32 {
   self.decode_row_count
 }
 
 ///|
 pub fn LunaPagedProfileShape::query_token_count(
   self : LunaPagedProfileShape,
-) -> Int {
+) -> Int32 {
   self.query_token_count
 }
 
 ///|
 pub fn LunaPagedProfileShape::page_table_block_count(
   self : LunaPagedProfileShape,
-) -> Int {
+) -> Int32 {
   self.page_table_block_count
 }
 
@@ -330,14 +334,14 @@ pub fn LunaPagedProfileContract::launches(
 ///|
 pub fn LunaPagedProfileContract::kv_head_count(
   self : LunaPagedProfileContract,
-) -> Int {
+) -> Int32 {
   self.device_kv_layout.geometry().kv_head_count()
 }
 
 ///|
 pub fn LunaPagedProfileContract::head_dimension(
   self : LunaPagedProfileContract,
-) -> Int {
+) -> Int32 {
   self.device_kv_layout.geometry().head_dimension()
 }
 
@@ -351,13 +355,13 @@ pub fn LunaPagedProfileContract::kv_dtype(
 ///|
 pub fn LunaPagedProfileContract::tokens_per_page(
   self : LunaPagedProfileContract,
-) -> Int {
+) -> Int32 {
   self.device_kv_layout.tokens_per_page()
 }
 
 ///|
 pub fn LunaPagedProfileContract::total_page_count(
   self : LunaPagedProfileContract,
-) -> Int {
+) -> Int32 {
   self.device_kv_layout.total_page_count()
 }

@@ -20,7 +20,7 @@ fn luna_external_approval_identifier(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.')) {
+    if !(unit is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '_' | '-' | '.')) {
       return false
     }
   }
@@ -112,13 +112,13 @@ pub struct LunaStartupVerifierKeyOwner {
   priv native : @promotion_key.PromotionVerifierKeyHandle
   priv header : FixedArray[Byte]
   priv payload : FixedArray[Byte]
-  priv mut header_cursor : Int
-  priv mut payload_cursor : Int
-  priv mut payload_length : Int
-  priv mut key_length : Int
-  priv mut verifier_id_length : Int
-  priv mut authority_id_length : Int
-  priv mut phase : Int
+  priv mut header_cursor : Int32
+  priv mut payload_cursor : Int32
+  priv mut payload_length : Int32
+  priv mut key_length : Int32
+  priv mut verifier_id_length : Int32
+  priv mut authority_id_length : Int32
+  priv mut phase : Int32
 }
 
 ///|
@@ -144,6 +144,6 @@ pub struct LunaParentStartupApprovalWitness {
   priv bootstrap_digest : LunaCapabilityManifestDigest
   priv source_digest : LunaCapabilityManifestDigest
   priv model_generation : UInt64
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv mut consumed : Bool
 }

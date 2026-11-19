@@ -1,6 +1,6 @@
 ///|
 fn executor_test_metadata(
-  digest? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  digest~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @spec.LlamaModelMetadata raise {
   @spec.LlamaModelMetadata::from_verified_content(
     @spec.LlamaModelSpec::new(
@@ -129,7 +129,7 @@ priv struct ExecutorTestFixture {
 
 ///|
 fn executor_test_fixture(
-  output_bytes? : Int64 = 32L,
+  output_bytes~ : Int64 = 32L,
 ) -> ExecutorTestFixture raise {
   let metadata = executor_test_metadata()
   let semantic = executor_test_semantic_plan(metadata)
@@ -349,7 +349,7 @@ test "token validation rejects negative and out-of-vocabulary values" {
 
 ///|
 priv struct FakeSibling {
-  id : Int
+  id : Int32
   mut open : Bool
 }
 
@@ -360,7 +360,7 @@ test "production sibling closer is reverse, retry-safe, and idempotent" {
     { id: 2, open: true, },
     { id: 3, open: true, },
   ]
-  let order : Array[Int] = []
+  let order : Array[Int32] = []
   let fail_once = Ref(true)
   let first : Ref[DeviceExecutorError?] = Ref(None)
   close_siblings_reverse(

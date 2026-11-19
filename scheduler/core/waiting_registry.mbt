@@ -1,5 +1,5 @@
 ///|
-fn Scheduler::enqueue_waiting(self : Scheduler, index : Int) -> Unit {
+fn Scheduler::enqueue_waiting(self : Scheduler, index : Int32) -> Unit {
   if self.waiting_link_generations[index] != 0 ||
     self.waiting_prev[index] != NO_INDEX ||
     self.waiting_next[index] != NO_INDEX {
@@ -23,7 +23,7 @@ fn Scheduler::enqueue_waiting(self : Scheduler, index : Int) -> Unit {
 }
 
 ///|
-fn Scheduler::remove_waiting(self : Scheduler, index : Int) -> Unit {
+fn Scheduler::remove_waiting(self : Scheduler, index : Int32) -> Unit {
   self.waiting_unlink_link_touches = 1
   if index < 0 ||
     index >= self.waiting_next.length() ||

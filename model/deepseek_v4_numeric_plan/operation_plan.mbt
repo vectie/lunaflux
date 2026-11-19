@@ -211,7 +211,7 @@ fn append_decoder_block(
 ///|
 fn auxiliary_attention(
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
-  stage : Int,
+  stage : Int32,
 ) -> @advanced_decoder_execution_plan.AdvancedAttentionPlan raise DeepSeekV4NumericPlanError {
   guard spec.compression_ratio(spec.layer_count() + stage) is Some(ratio) else {
     raise ProfilePlanMismatch

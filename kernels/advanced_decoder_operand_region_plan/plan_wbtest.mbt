@@ -12,11 +12,11 @@ fn operand_region_test_operand(
 
 ///|
 fn operand_region_test_input(
-  ordinal : Int,
+  ordinal : Int32,
   role : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole,
-  fill? : Char = 'a',
+  fill~ : Char = 'a',
   offset~ : Int64,
-  capacity? : Int64 = 256L,
+  capacity~ : Int64 = 256L,
 ) -> AdvancedDecoderOperandRegionInput {
   try! AdvancedDecoderOperandRegionInput::new(
     operand_ordinal=ordinal,
@@ -29,7 +29,7 @@ fn operand_region_test_input(
 
 ///|
 fn operand_region_test_limits(
-  canonical? : Int = 4096,
+  canonical~ : Int32 = 4096,
 ) -> AdvancedDecoderOperandRegionPlanLimits {
   try! AdvancedDecoderOperandRegionPlanLimits::new(
     maximum_operands=8,

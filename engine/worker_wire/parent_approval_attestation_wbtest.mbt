@@ -1,7 +1,7 @@
 ///|
 fn parent_attestation_fixture(
   canonical : Bytes,
-) -> (FixedArray[Byte], Int) raise {
+) -> (FixedArray[Byte], Int32) raise {
   let destination = FixedArray::make(
     parent_approval_attestation_capacity(),
     b'\x00',

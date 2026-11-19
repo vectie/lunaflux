@@ -23,7 +23,7 @@ fn WorkerService::require_raw_mode(
 }
 
 ///|
-fn WorkerService::raw_outstanding_count(self : WorkerService) -> Int {
+fn WorkerService::raw_outstanding_count(self : WorkerService) -> Int32 {
   let physical = match self.flight {
     FlightEmpty => 0
     _ => 1
@@ -168,7 +168,7 @@ pub fn WorkerService::lifecycle(self : WorkerService) -> WorkerServiceLifecycle 
 ///|
 pub fn WorkerService::outstanding_count(
   self : WorkerService,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   self.require_raw_mode()
   self.raw_outstanding_count()
 }

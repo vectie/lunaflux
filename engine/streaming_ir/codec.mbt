@@ -1,15 +1,15 @@
 ///|
-pub fn frame_bytes() -> Int {
+pub fn frame_bytes() -> Int32 {
   64
 }
 
 ///|
-pub fn is_frame(bytes : FixedArray[Byte], length : Int) -> Bool {
+pub fn is_frame(bytes : FixedArray[Byte], length : Int32) -> Bool {
   length == 64 && bytes.length() >= 64 && read32(bytes, 0) == 0x5254464c
 }
 
 ///|
-fn read32(bytes : FixedArray[Byte], offset : Int) -> Int {
+fn read32(bytes : FixedArray[Byte], offset : Int32) -> Int32 {
   (bytes[offset].to_uint() |
   (bytes[offset + 1].to_uint() << 8) |
   (bytes[offset + 2].to_uint() << 16) |
@@ -17,7 +17,7 @@ fn read32(bytes : FixedArray[Byte], offset : Int) -> Int {
 }
 
 ///|
-fn read64(bytes : FixedArray[Byte], offset : Int) -> UInt64 {
+fn read64(bytes : FixedArray[Byte], offset : Int32) -> UInt64 {
   for i in 0..<8; result = 0UL {
     continue result | (bytes[offset + i].to_uint64() << (i * 8))
   } nobreak {
@@ -77,7 +77,7 @@ pub fn encode(
 ///|
 pub fn decode(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Reply raise StreamingError {
   if !is_frame(bytes, length) ||
     read32(bytes, 4) != 1 ||

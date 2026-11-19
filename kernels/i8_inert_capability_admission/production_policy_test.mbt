@@ -23,7 +23,7 @@ fn production_i8_metadata() -> @spec.LlamaModelMetadata {
 fn rebuild_production_numeric_plan(
   base : @plan.ModelPlan,
   selected : ArrayView[@plan.OperationId],
-  fp8? : Bool = false,
+  fp8~ : Bool = false,
 ) -> @plan.ModelPlan {
   let numeric_schema = if fp8 {
     @plan_test_fixture.synthetic_fp8_w8a8_numeric_schema(
@@ -52,7 +52,7 @@ fn rebuild_production_numeric_plan(
 ///|
 fn production_i8_eligible(
   plan : @plan.ModelPlan,
-  omit? : @plan.OperationId? = None,
+  omit~ : @plan.OperationId? = None,
 ) -> Array[@plan.OperationId] {
   let selected : Array[@plan.OperationId] = []
   for operation in plan.operations() {

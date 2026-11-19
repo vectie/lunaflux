@@ -1,7 +1,7 @@
 ///|
 fn expect_offline_selection_rejected(
-  token_ids : ArrayView[Int],
-  destination_length : Int,
+  token_ids : ArrayView[Int32],
+  destination_length : Int32,
 ) -> Unit raise {
   try
     validate_offline_logit_selection(3000, token_ids, destination_length)

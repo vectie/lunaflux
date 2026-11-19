@@ -1,14 +1,14 @@
 ///|
-extern "c" fn raw_test_expect_clean_eof(mode : Int) -> Int = "lunaflux_process_test_expect_clean_eof"
+extern "c" fn raw_test_expect_clean_eof(mode : Int32) -> Int32 = "lunaflux_process_test_expect_clean_eof"
 
 ///|
-extern "c" fn raw_test_read_prefix_or_eof(mode : Int) -> Int = "lunaflux_process_test_read_prefix_or_eof"
+extern "c" fn raw_test_read_prefix_or_eof(mode : Int32) -> Int32 = "lunaflux_process_test_read_prefix_or_eof"
 
 ///|
-extern "c" fn raw_test_begin_inherited_frame(mode : Int) -> Int = "lunaflux_process_test_begin_inherited_frame"
+extern "c" fn raw_test_begin_inherited_frame(mode : Int32) -> Int32 = "lunaflux_process_test_begin_inherited_frame"
 
 ///|
-extern "c" fn raw_test_restore_stdin(saved_stdin : Int) -> Int = "lunaflux_process_test_restore_stdin"
+extern "c" fn raw_test_restore_stdin(saved_stdin : Int32) -> Int32 = "lunaflux_process_test_restore_stdin"
 
 ///|
 test "inherited clean EOF rejects bytes partial prefixes and timeout" {
@@ -19,7 +19,7 @@ test "inherited clean EOF rejects bytes partial prefixes and timeout" {
 }
 
 ///|
-fn[T] with_inherited_frame(mode : Int, body : () -> T raise) -> T raise {
+fn[T] with_inherited_frame(mode : Int32, body : () -> T raise) -> T raise {
   let saved = raw_test_begin_inherited_frame(mode)
   if saved < 0 {
     fail("failed to install inherited frame fixture")

@@ -5,29 +5,32 @@ extern "C" fn alloc_probe_begin() = "lunaflux_alloc_probe_begin"
 extern "C" fn alloc_probe_end() -> UInt64 = "lunaflux_alloc_probe_end"
 
 ///|
-extern "C" fn alloc_probe_check(observed : UInt64, expect_zero : Int) -> Int = "lunaflux_alloc_probe_check"
+extern "C" fn alloc_probe_check(
+  observed : UInt64,
+  expect_zero : Int32,
+) -> Int32 = "lunaflux_alloc_probe_check"
 
 ///|
 extern "C" fn alloc_probe_abort() = "lunaflux_alloc_probe_abort"
 
 ///|
-extern "C" fn alloc_probe_seed() -> Int = "lunaflux_alloc_probe_seed"
+extern "C" fn alloc_probe_seed() -> Int32 = "lunaflux_alloc_probe_seed"
 
 ///|
 #borrow(value)
-extern "C" fn keep_array_alive(value : FixedArray[Int]) = "lunaflux_alloc_probe_keep_alive"
+extern "C" fn keep_array_alive(value : FixedArray[Int32]) = "lunaflux_alloc_probe_keep_alive"
 
 ///|
 extern "C" fn execution_reset() = "lunaflux_rank_wire_execution_reset"
 
 ///|
-extern "C" fn execution_mark(bit : Int) = "lunaflux_rank_wire_execution_mark"
+extern "C" fn execution_mark(bit : Int32) = "lunaflux_rank_wire_execution_mark"
 
 ///|
 extern "C" fn execution_check(
-  expected_mask : UInt,
+  expected_mask : UInt32,
   minimum_count : UInt64,
-) -> Int = "lunaflux_rank_wire_execution_check"
+) -> Int32 = "lunaflux_rank_wire_execution_check"
 
 ///|
 fn verify_positive_control() -> Unit {
@@ -52,7 +55,7 @@ fn identity() -> @spec.ModelIdentity {
 }
 
 ///|
-fn binding(rank : Int) -> @rank_group_wire.RankGroupWireBinding {
+fn binding(rank : Int32) -> @rank_group_wire.RankGroupWireBinding {
   try! @rank_group_wire.RankGroupWireBinding::new(
     identity=identity(),
     model_generation_value=1UL,

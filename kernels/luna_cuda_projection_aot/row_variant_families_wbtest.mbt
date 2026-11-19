@@ -32,7 +32,7 @@ fn row_variant_test_profile() -> @launch_contract.PagedKernelProfile raise {
 fn row_variant_primary_test_source(
   parameters : ProjectionParameters,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
-  maximum_tokens? : Int = 1024,
+  maximum_tokens~ : Int32 = 1024,
 ) -> String raise {
   let request = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
     dispatch~,

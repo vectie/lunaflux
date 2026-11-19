@@ -1,11 +1,11 @@
 ///|
 /// Qwen RMSNorm: F32 reduction, BF16 normalized intermediate, BF16 multiply.
 pub fn norm_source(
-  rows~ : Int,
-  width~ : Int,
+  rows~ : Int32,
+  width~ : Int32,
   epsilon~ : Double,
   symbol~ : String,
-  square_reduction_law? : @precision.SquareReductionLaw = OrderedFloat32,
+  square_reduction_law~ : @precision.SquareReductionLaw = OrderedFloat32,
 ) -> Bytes raise TextEncoderSourceError {
   guard rows > 0 && rows <= 262144 && width > 0 && width <= 65536 else {
     raise InvalidShape

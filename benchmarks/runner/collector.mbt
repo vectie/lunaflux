@@ -4,9 +4,9 @@
 pub fn BenchmarkTrialCollector::new(
   engine~ : @evidence.BenchmarkEngine,
   profile~ : @evidence.BenchmarkProfile,
-  ordinal~ : Int,
-  order_position~ : Int,
-  request_capacity~ : Int,
+  ordinal~ : Int32,
+  order_position~ : Int32,
+  request_capacity~ : Int32,
 ) -> BenchmarkTrialCollector raise BenchmarkRunnerError {
   if request_capacity <= 0 ||
     request_capacity > @evidence.maximum_request_events_per_summary() {
@@ -42,9 +42,9 @@ pub fn BenchmarkTrialCollector::new(
 pub fn BenchmarkTrialCollector::new_captured(
   engine~ : @evidence.BenchmarkEngine,
   profile~ : @evidence.BenchmarkProfile,
-  ordinal~ : Int,
-  order_position~ : Int,
-  request_capacity~ : Int,
+  ordinal~ : Int32,
+  order_position~ : Int32,
+  request_capacity~ : Int32,
 ) -> BenchmarkTrialCollector raise BenchmarkRunnerError {
   let collector = BenchmarkTrialCollector::new(
     engine~,
@@ -72,7 +72,7 @@ fn BenchmarkTrialCollector::require_open(
 ///|
 fn BenchmarkTrialCollector::require_known_ordinal(
   self : BenchmarkTrialCollector,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> Unit raise BenchmarkRunnerError {
   if request_ordinal < 0 || request_ordinal >= self.request_capacity {
     raise BenchmarkRunnerInvalidRequest
@@ -82,7 +82,7 @@ fn BenchmarkTrialCollector::require_known_ordinal(
 ///|
 fn BenchmarkTrialCollector::submit_at(
   self : BenchmarkTrialCollector,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   input_tokens : Int64,
   timestamp_ns : Int64,
 ) -> Unit raise BenchmarkRunnerError {
@@ -114,7 +114,7 @@ fn BenchmarkTrialCollector::submit_at(
 /// clock. Request ordinals must be the exact sequence `0..<capacity`.
 pub fn BenchmarkTrialCollector::submit(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
   input_tokens~ : Int64,
 ) -> Unit raise BenchmarkRunnerError {
   self.require_open()
@@ -129,7 +129,7 @@ pub fn BenchmarkTrialCollector::submit(
 /// runner. The collector still enforces canonical order and monotonicity.
 pub fn BenchmarkTrialCollector::submit_captured(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
   input_tokens~ : Int64,
   timestamp~ : CapturedMonotonicTimestamp,
 ) -> Unit raise BenchmarkRunnerError {
@@ -143,7 +143,7 @@ pub fn BenchmarkTrialCollector::submit_captured(
 ///|
 fn BenchmarkTrialCollector::admit_at(
   self : BenchmarkTrialCollector,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   timestamp_ns : Int64,
 ) -> Unit raise BenchmarkRunnerError {
   self.require_open()
@@ -166,7 +166,7 @@ fn BenchmarkTrialCollector::admit_at(
 /// Records successful engine admission at the current monotonic sample.
 pub fn BenchmarkTrialCollector::admit(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
 ) -> Unit raise BenchmarkRunnerError {
   self.require_open()
   if self.captured_mode {
@@ -178,7 +178,7 @@ pub fn BenchmarkTrialCollector::admit(
 ///|
 pub fn BenchmarkTrialCollector::admit_captured(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
   timestamp~ : CapturedMonotonicTimestamp,
 ) -> Unit raise BenchmarkRunnerError {
   self.require_open()
@@ -191,7 +191,7 @@ pub fn BenchmarkTrialCollector::admit_captured(
 ///|
 fn BenchmarkTrialCollector::first_token_at(
   self : BenchmarkTrialCollector,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   timestamp_ns : Int64,
 ) -> Unit raise BenchmarkRunnerError {
   self.require_open()
@@ -214,7 +214,7 @@ fn BenchmarkTrialCollector::first_token_at(
 /// Records the first generated token at the current monotonic sample.
 pub fn BenchmarkTrialCollector::first_token(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
 ) -> Unit raise BenchmarkRunnerError {
   self.require_open()
   if self.captured_mode {
@@ -226,7 +226,7 @@ pub fn BenchmarkTrialCollector::first_token(
 ///|
 pub fn BenchmarkTrialCollector::first_token_captured(
   self : BenchmarkTrialCollector,
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
   timestamp~ : CapturedMonotonicTimestamp,
 ) -> Unit raise BenchmarkRunnerError {
   self.require_open()

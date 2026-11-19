@@ -1,7 +1,7 @@
 ///|
 fn fixture(
-  metadata? : Bool = false,
-  page? : Int = 8,
+  metadata~ : Bool = false,
+  page~ : Int32 = 8,
 ) -> @abi.CudaPagedAttentionTileAbi raise {
   @abi.CudaPagedAttentionTileAbi::new(
     query_heads=16,

@@ -45,7 +45,7 @@ pub fn MiniMaxH3StreamingComponent::manifest(
 pub fn MiniMaxH3StreamingComponent::transfers(
   self : Self,
   copies : ArrayView[@minimax_h3_weights.BlockWeightCopy],
-  destination_ordinal~ : Int,
+  destination_ordinal~ : Int32,
 ) -> Array[@streaming_safetensors.StreamingSafetensorsTransfer] raise MiniMaxH3HostMaterializationError {
   let original_video = self.manifest.component == VideoVae &&
     self.manifest.tensors.any(t => t.tensor.name() == "decoder.mask_token")
@@ -100,7 +100,7 @@ pub fn MiniMaxH3StreamingComponent::transfer(
   requests : ArrayView[@streaming_safetensors.StreamingSafetensorsTransfer],
   destination_bytes~ : ArrayView[Int64],
   scratch~ : FixedArray[Byte],
-  consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume~ : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise MiniMaxH3HostMaterializationError {
   @streaming_safetensors.transfer_ranges(
     root,

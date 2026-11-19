@@ -6,12 +6,12 @@ fn config_digest() -> @spec.ContentDigest {
 }
 
 ///|
-fn quoted_schedule(length : Int, value_at : (Int) -> String) -> String {
+fn quoted_schedule(length : Int32, value_at : (Int32) -> String) -> String {
   [ for index in 0..<length => "\"\{value_at(index)}\"" ].join(",")
 }
 
 ///|
-fn integer_schedule(length : Int, value_at : (Int) -> Int) -> String {
+fn integer_schedule(length : Int32, value_at : (Int32) -> Int32) -> String {
   [ for index in 0..<length => value_at(index).to_string() ].join(",")
 }
 

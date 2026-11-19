@@ -113,28 +113,28 @@ pub fn QualifiedPagedKvWriteArtifact::positioned_qkv_activation(
 ///|
 pub fn QualifiedPagedKvWriteArtifact::query_heads(
   self : QualifiedPagedKvWriteArtifact,
-) -> Int {
+) -> Int32 {
   self.candidate.query_heads()
 }
 
 ///|
 pub fn QualifiedPagedKvWriteArtifact::kv_heads(
   self : QualifiedPagedKvWriteArtifact,
-) -> Int {
+) -> Int32 {
   self.candidate.kv_heads()
 }
 
 ///|
 pub fn QualifiedPagedKvWriteArtifact::head_dimension(
   self : QualifiedPagedKvWriteArtifact,
-) -> Int {
+) -> Int32 {
   self.candidate.head_dimension()
 }
 
 ///|
 pub fn QualifiedPagedKvWriteArtifact::positioned_qkv_row_width(
   self : QualifiedPagedKvWriteArtifact,
-) -> Int {
+) -> Int32 {
   (self.query_heads() + 2 * self.kv_heads()) * self.head_dimension()
 }
 
@@ -155,14 +155,14 @@ pub fn QualifiedPagedKvWriteArtifact::profile(
 ///|
 pub fn QualifiedPagedKvWriteArtifact::tokens_per_page(
   self : QualifiedPagedKvWriteArtifact,
-) -> Int {
+) -> Int32 {
   self.candidate.tokens_per_page()
 }
 
 ///|
 pub fn QualifiedPagedKvWriteArtifact::total_page_count(
   self : QualifiedPagedKvWriteArtifact,
-) -> Int {
+) -> Int32 {
   self.candidate.total_page_count()
 }
 
@@ -211,7 +211,7 @@ pub fn QualifiedPagedKvWriteArtifact::launch_dimensions(
 ///|
 pub fn QualifiedPagedKvWriteArtifact::dispatch_canary_per_token(
   self : QualifiedPagedKvWriteArtifact,
-) -> UInt {
+) -> UInt32 {
   self.candidate.dispatch_canary_per_token()
 }
 

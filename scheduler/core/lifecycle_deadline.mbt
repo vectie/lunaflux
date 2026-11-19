@@ -52,7 +52,7 @@ pub fn Scheduler::expire_exact(
 pub fn Scheduler::expire_deadlines(
   self : Scheduler,
   now_millis : UInt64,
-) -> Int raise SchedulerError {
+) -> Int32 raise SchedulerError {
   self.require_no_cancel_reservation()
   if !self.deadline_root_due(now_millis) {
     self.deadline_live_visits = if self.deadline_heap_count == 0 {

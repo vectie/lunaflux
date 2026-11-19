@@ -57,7 +57,7 @@ pub fn TiledDecoderProgram::prepare(
 pub fn TiledDecoderProgram::bind(
   self : Self,
   input : @device.Allocation,
-  input_offset? : Int64 = 0L,
+  input_offset~ : Int64 = 0L,
   frontend_weights : @device.Allocation,
   blocks : ArrayView[@device.Allocation],
   head_weights : @device.Allocation,
@@ -78,7 +78,7 @@ pub fn TiledDecoderProgram::bind(
     )
   }
   fn launch(
-    i : Int,
+    i : Int32,
     bytes : Int64,
     args : Array[@device.KernelArgument],
   ) -> @device.OrderedKernelLaunch raise @device.DeviceError {

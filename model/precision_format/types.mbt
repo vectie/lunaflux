@@ -40,7 +40,7 @@ pub(all) enum ScaleGrouping {
   Absent
   Tensor
   Row
-  Block(rows~ : Int, columns~ : Int)
+  Block(rows~ : Int32, columns~ : Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -48,7 +48,7 @@ pub(all) suberror PrecisionError {
   InvalidShape
   InvalidGrouping
   SizeOverflow
-  InvalidCode(Int)
+  InvalidCode(Int32)
   NonFiniteValue
   InvalidScale
   PayloadMismatch
@@ -64,15 +64,15 @@ pub(all) suberror PrecisionError {
 pub struct Representation {
   priv format : Format
   priv element : Element
-  priv rows : Int
-  priv columns : Int
+  priv rows : Int32
+  priv columns : Int32
   priv grouping : ScaleGrouping
   priv scale_element : ScaleElement
   priv global_scale : Bool
   priv row_bytes : Int64
   priv payload_bytes : Int64
-  priv scale_rows : Int
-  priv scale_columns : Int
+  priv scale_rows : Int32
+  priv scale_columns : Int32
   priv scale_bytes : Int64
 } derive(Debug, Eq)
 
@@ -91,7 +91,7 @@ pub fn Format::element(self : Format) -> Element {
 }
 
 ///|
-pub fn Element::bits(self : Element) -> Int {
+pub fn Element::bits(self : Element) -> Int32 {
   match self {
     Bf16 | Fp16 => 16
     F32 => 32
@@ -119,7 +119,7 @@ pub fn Format::name(self : Format) -> String {
 }
 
 ///|
-pub fn ScaleElement::bytes(self : ScaleElement) -> Int {
+pub fn ScaleElement::bytes(self : ScaleElement) -> Int32 {
   match self {
     Absent => 0
     F32 => 4
@@ -133,8 +133,8 @@ pub fn ScaleElement::bytes(self : ScaleElement) -> Int {
 /// The default integer group is one output row, never a model-specific rule.
 pub fn Representation::new(
   format~ : Format,
-  rows~ : Int,
-  columns~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
   grouping? : ScaleGrouping,
 ) -> Representation raise PrecisionError {
   if rows <= 0 || columns <= 0 {
@@ -217,7 +217,7 @@ pub fn Representation::element(self : Representation) -> Element {
 }
 
 ///|
-pub fn Representation::shape(self : Representation) -> (Int, Int) {
+pub fn Representation::shape(self : Representation) -> (Int32, Int32) {
   (self.rows, self.columns)
 }
 
@@ -247,7 +247,7 @@ pub fn Representation::payload_bytes(self : Representation) -> Int64 {
 }
 
 ///|
-pub fn Representation::scale_shape(self : Representation) -> (Int, Int) {
+pub fn Representation::scale_shape(self : Representation) -> (Int32, Int32) {
   (self.scale_rows, self.scale_columns)
 }
 
@@ -274,8 +274,8 @@ pub fn Representation::total_bytes(
 ///|
 pub fn Representation::scale_index(
   self : Representation,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
 ) -> Int64 raise PrecisionError {
   if row < 0 || row >= self.rows || column < 0 || column >= self.columns {
     raise IndexOutOfBounds

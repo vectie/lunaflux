@@ -10,7 +10,7 @@ fn cuda_score_transfer_effects(
   mode : @luna_attention_tile_schedule.AttentionScoreTransferMode,
   point : @luna_attention_tile_schedule.AttentionScoreTransferPoint,
   cooperative_transfer : String,
-  first_pair? : String = "  if (partition_begin < partition_end) stage_prefill_tile(partition_begin, 0);",
+  first_pair~ : String = "  if (partition_begin < partition_end) stage_prefill_tile(partition_begin, 0);",
 ) -> String {
   mode
   .actions(point)

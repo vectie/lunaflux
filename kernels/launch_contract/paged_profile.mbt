@@ -6,17 +6,17 @@
 /// live values remain bounded by v3 `StepCounts` at execution time.
 pub struct PagedKernelProfile {
   priv id : KernelProfileId
-  priv max_query_rows : Int
-  priv max_query_tokens : Int
-  priv max_page_table_entries : Int
+  priv max_query_rows : Int32
+  priv max_query_tokens : Int32
+  priv max_page_table_entries : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn PagedKernelProfile::new(
   id~ : KernelProfileId,
-  max_query_rows~ : Int,
-  max_query_tokens~ : Int,
-  max_page_table_entries~ : Int,
+  max_query_rows~ : Int32,
+  max_query_tokens~ : Int32,
+  max_page_table_entries~ : Int32,
 ) -> PagedKernelProfile raise LaunchContractError {
   if max_query_rows <= 0 || max_query_tokens <= 0 || max_page_table_entries <= 0 {
     raise InvalidProfile(NonPositiveDimension)
@@ -30,18 +30,18 @@ pub fn PagedKernelProfile::id(self : PagedKernelProfile) -> KernelProfileId {
 }
 
 ///|
-pub fn PagedKernelProfile::max_query_rows(self : PagedKernelProfile) -> Int {
+pub fn PagedKernelProfile::max_query_rows(self : PagedKernelProfile) -> Int32 {
   self.max_query_rows
 }
 
 ///|
-pub fn PagedKernelProfile::max_query_tokens(self : PagedKernelProfile) -> Int {
+pub fn PagedKernelProfile::max_query_tokens(self : PagedKernelProfile) -> Int32 {
   self.max_query_tokens
 }
 
 ///|
 pub fn PagedKernelProfile::max_page_table_entries(
   self : PagedKernelProfile,
-) -> Int {
+) -> Int32 {
   self.max_page_table_entries
 }

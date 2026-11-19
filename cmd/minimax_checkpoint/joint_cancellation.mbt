@@ -3,7 +3,7 @@
 // currently runs one request; its steps are synchronous prepared pipeline frames.
 fn joint_cancellation_arguments(
   arguments : ArrayView[String],
-) -> (ArrayView[String], Int) raise {
+) -> (ArrayView[String], Int32) raise {
   let (plain, cancellation) = @prompt_file.split_request_cancellation_options(
     arguments,
   )
@@ -27,8 +27,8 @@ fn advance_joint_frames(
   advance : () -> @execution.PipelineStage raise,
   cancel : () -> Unit,
   close : () -> Unit raise,
-  cancel_after_frames : Int,
-) -> (@execution.PipelineStage, Int) raise {
+  cancel_after_frames : Int32,
+) -> (@execution.PipelineStage, Int32) raise {
   guard cancel_after_frames >= 0 else {
     fail("invalid cancellation frame count")
   }

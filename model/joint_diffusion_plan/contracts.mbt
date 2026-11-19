@@ -22,9 +22,9 @@ pub fn JointDiffusionStage::presence(
 pub fn JointDiffusionScheduler::new(
   latent~ : JointDiffusionLatentKind,
   kind~ : JointDiffusionSchedulerKind,
-  shift_numerator~ : Int,
-  shift_denominator~ : Int,
-  training_timestep_count? : Int = 1000,
+  shift_numerator~ : Int32,
+  shift_denominator~ : Int32,
+  training_timestep_count~ : Int32 = 1000,
 ) -> JointDiffusionScheduler raise JointDiffusionPlanError {
   if shift_numerator <= 0 ||
     shift_denominator <= 0 ||
@@ -48,12 +48,12 @@ pub fn JointDiffusionScheduler::kind(
 }
 
 ///|
-pub fn JointDiffusionScheduler::shift_numerator(self : Self) -> Int {
+pub fn JointDiffusionScheduler::shift_numerator(self : Self) -> Int32 {
   self.shift_numerator
 }
 
 ///|
-pub fn JointDiffusionScheduler::shift_denominator(self : Self) -> Int {
+pub fn JointDiffusionScheduler::shift_denominator(self : Self) -> Int32 {
   self.shift_denominator
 }
 
@@ -63,17 +63,17 @@ pub fn JointDiffusionScheduler::shift(self : Self) -> Double {
 }
 
 ///|
-pub fn JointDiffusionScheduler::training_timestep_count(self : Self) -> Int {
+pub fn JointDiffusionScheduler::training_timestep_count(self : Self) -> Int32 {
   self.training_timestep_count
 }
 
 ///|
 pub fn JointDiffusionConditioningLimits::new(
-  max_keyframes~ : Int,
-  max_image_references~ : Int,
-  max_video_references~ : Int,
-  max_audio_references~ : Int,
-  max_total_references~ : Int,
+  max_keyframes~ : Int32,
+  max_image_references~ : Int32,
+  max_video_references~ : Int32,
+  max_audio_references~ : Int32,
+  max_total_references~ : Int32,
   allow_audio_only_references~ : Bool,
 ) -> JointDiffusionConditioningLimits raise JointDiffusionPlanError {
   if max_keyframes < 0 ||
@@ -97,35 +97,35 @@ pub fn JointDiffusionConditioningLimits::new(
 }
 
 ///|
-pub fn JointDiffusionConditioningLimits::max_keyframes(self : Self) -> Int {
+pub fn JointDiffusionConditioningLimits::max_keyframes(self : Self) -> Int32 {
   self.max_keyframes
 }
 
 ///|
 pub fn JointDiffusionConditioningLimits::max_image_references(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.max_image_references
 }
 
 ///|
 pub fn JointDiffusionConditioningLimits::max_video_references(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.max_video_references
 }
 
 ///|
 pub fn JointDiffusionConditioningLimits::max_audio_references(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.max_audio_references
 }
 
 ///|
 pub fn JointDiffusionConditioningLimits::max_total_references(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.max_total_references
 }
 
@@ -138,21 +138,21 @@ pub fn JointDiffusionConditioningLimits::allow_audio_only_references(
 
 ///|
 pub fn JointDiffusionDenoiserShape::new(
-  hidden_size~ : Int,
-  layer_count~ : Int,
-  refiner_layer_count~ : Int,
-  attention_head_count~ : Int,
-  attention_head_dimension~ : Int,
-  attention_rotary_dimension? : Int = 2,
-  query_key_norm_epsilon_numerator? : Int = 1,
-  query_key_norm_epsilon_denominator? : Int = 100000,
-  feed_forward_dimension~ : Int,
-  text_conditioning_dimension~ : Int,
-  timestep_frequency_dimension~ : Int,
-  timestep_embedding_hidden_dimension? : Int = 4,
-  final_adaln_conditioning_dimension? : Int = 2,
-  final_norm_epsilon_numerator? : Int = 1,
-  final_norm_epsilon_denominator? : Int = 100000,
+  hidden_size~ : Int32,
+  layer_count~ : Int32,
+  refiner_layer_count~ : Int32,
+  attention_head_count~ : Int32,
+  attention_head_dimension~ : Int32,
+  attention_rotary_dimension~ : Int32 = 2,
+  query_key_norm_epsilon_numerator~ : Int32 = 1,
+  query_key_norm_epsilon_denominator~ : Int32 = 100000,
+  feed_forward_dimension~ : Int32,
+  text_conditioning_dimension~ : Int32,
+  timestep_frequency_dimension~ : Int32,
+  timestep_embedding_hidden_dimension~ : Int32 = 4,
+  final_adaln_conditioning_dimension~ : Int32 = 2,
+  final_norm_epsilon_numerator~ : Int32 = 1,
+  final_norm_epsilon_denominator~ : Int32 = 100000,
 ) -> JointDiffusionDenoiserShape raise JointDiffusionPlanError {
   if hidden_size <= 0 ||
     layer_count <= 0 ||
@@ -207,102 +207,104 @@ pub fn JointDiffusionDenoiserShape::new(
 }
 
 ///|
-pub fn JointDiffusionDenoiserShape::hidden_size(self : Self) -> Int {
+pub fn JointDiffusionDenoiserShape::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn JointDiffusionDenoiserShape::layer_count(self : Self) -> Int {
+pub fn JointDiffusionDenoiserShape::layer_count(self : Self) -> Int32 {
   self.layer_count
 }
 
 ///|
-pub fn JointDiffusionDenoiserShape::refiner_layer_count(self : Self) -> Int {
+pub fn JointDiffusionDenoiserShape::refiner_layer_count(self : Self) -> Int32 {
   self.refiner_layer_count
 }
 
 ///|
-pub fn JointDiffusionDenoiserShape::attention_head_count(self : Self) -> Int {
+pub fn JointDiffusionDenoiserShape::attention_head_count(self : Self) -> Int32 {
   self.attention_head_count
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::attention_head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.attention_head_dimension
 }
 
 ///|
-pub fn JointDiffusionDenoiserShape::attention_width(self : Self) -> Int {
+pub fn JointDiffusionDenoiserShape::attention_width(self : Self) -> Int32 {
   self.attention_head_count * self.attention_head_dimension
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::attention_rotary_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.attention_rotary_dimension
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::query_key_norm_epsilon_numerator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_key_norm_epsilon_numerator
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::query_key_norm_epsilon_denominator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_key_norm_epsilon_denominator
 }
 
 ///|
-pub fn JointDiffusionDenoiserShape::feed_forward_dimension(self : Self) -> Int {
+pub fn JointDiffusionDenoiserShape::feed_forward_dimension(
+  self : Self,
+) -> Int32 {
   self.feed_forward_dimension
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::text_conditioning_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.text_conditioning_dimension
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::timestep_frequency_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.timestep_frequency_dimension
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::timestep_embedding_hidden_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.timestep_embedding_hidden_dimension
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::final_adaln_conditioning_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.final_adaln_conditioning_dimension
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::final_norm_epsilon_numerator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.final_norm_epsilon_numerator
 }
 
 ///|
 pub fn JointDiffusionDenoiserShape::final_norm_epsilon_denominator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.final_norm_epsilon_denominator
 }
 

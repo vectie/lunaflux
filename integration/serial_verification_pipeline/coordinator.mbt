@@ -5,7 +5,7 @@ pub fn TwoRankGreedyVerification::begin(
   self : Self,
   plan : @wire.ValidatedPlanFrame,
   epoch~ : UInt64,
-  remaining_new_tokens~ : Int,
+  remaining_new_tokens~ : Int32,
   local_now_millis~ : UInt64,
 ) -> Unit raise {
   guard !self.busy &&
@@ -71,7 +71,10 @@ pub fn TwoRankGreedyVerification::result(
 }
 
 ///|
-pub fn TwoRankGreedyVerification::token_at(self : Self, row : Int) -> Int raise {
+pub fn TwoRankGreedyVerification::token_at(
+  self : Self,
+  row : Int32,
+) -> Int32 raise {
   let decision = self.result()
   guard row >= 0 && row < decision.emitted_token_count() else {
     raise @control.StageControlError::InvalidState

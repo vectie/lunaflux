@@ -4,9 +4,9 @@
 /// round. This semantic boundary cannot be removed by fusion without an
 /// explicit alternative accuracy contract.
 pub struct RowProjectionNormPrecision {
-  priv input : Int
-  priv output : Int
-  priv rows : Int
+  priv input : Int32
+  priv output : Int32
+  priv rows : Int32
   priv epsilon : Double
   priv matrix : @format.Representation
   priv quantization : QuantizationPlan
@@ -15,9 +15,9 @@ pub struct RowProjectionNormPrecision {
 
 ///|
 pub fn RowProjectionNormPrecision::new(
-  input_width~ : Int,
-  output_width~ : Int,
-  maximum_rows~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  maximum_rows~ : Int32,
   normalization_epsilon~ : Double,
   activation_amax_floor~ : Double,
   maximum_workspace_bytes~ : Int64,
@@ -75,7 +75,9 @@ pub fn RowProjectionNormPrecision::new(
 }
 
 ///|
-pub fn RowProjectionNormPrecision::geometry(self : Self) -> (Int, Int, Int) {
+pub fn RowProjectionNormPrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32) {
   (self.input, self.output, self.rows)
 }
 

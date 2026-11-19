@@ -1,6 +1,6 @@
 ///|
 fn responses_comparison_test_matrix(
-  changed_identity_index? : Int = -1,
+  changed_identity_index~ : Int32 = -1,
 ) -> Array[OpenAIResponsesTrialEvidence] raise {
   let trials : Array[OpenAIResponsesTrialEvidence] = []
   let engines = openai_comparison_engines()

@@ -1,8 +1,8 @@
 ///|
 fn prompt_limits(
-  rows : Int,
-  history : Int,
-  vocabulary : Int,
+  rows : Int32,
+  history : Int32,
+  vocabulary : Int32,
 ) -> (@protocol.WorkerProtocolLimits, @inference.InferenceLimits) raise {
   (
     @protocol.WorkerProtocolLimits::new(
@@ -45,7 +45,7 @@ fn preflight_generation(
   frames : String,
   count : String,
   byte_budget : String,
-  sequence? : Bool = false,
+  sequence~ : Bool = false,
 ) -> Unit raise {
   let root = @approved_fs.ApprovedRoot::open_absolute(model_root)
   defer root.close()

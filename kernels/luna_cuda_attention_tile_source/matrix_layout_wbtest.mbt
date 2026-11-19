@@ -17,7 +17,7 @@ test "explicit matrix accumulator ownership is a bijection" {
 
 ///|
 test "float shared permutation preserves capacity and per-instruction banks" {
-  fn offset(row : Int, column : Int, columns : Int) -> Int {
+  fn offset(row : Int32, column : Int32, columns : Int32) -> Int32 {
     let r = row & 7
     let c = column & 15
     let bank = (r * 4) ^

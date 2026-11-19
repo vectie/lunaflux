@@ -10,9 +10,9 @@ pub struct ApprovedFusedResidualRmsNormSpan {
   priv function_symbol : String
   priv launch : @launch_contract.AotLaunchDimensions
   priv abi : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi
-  priv dispatch_canary_per_token : UInt
-  priv residual_index : Int
-  priv norm_index : Int
+  priv dispatch_canary_per_token : UInt32
+  priv residual_index : Int32
+  priv norm_index : Int32
 }
 
 ///|
@@ -22,9 +22,9 @@ pub struct ApprovedFusedResidualRmsNormSpan {
 pub struct FusedQkvReadOnlyAttentionSplitRequirement {
   priv generation : @worker_protocol.ModelPlanGeneration
   priv manifest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  priv qkv_index : Int
-  priv rope_index : Int
-  priv attention_index : Int
+  priv qkv_index : Int32
+  priv rope_index : Int32
+  priv attention_index : Int32
 }
 
 ///|
@@ -51,7 +51,7 @@ pub fn ApprovedFusedResidualRmsNormSpan::catalog_digest(
 ///|
 pub fn ApprovedFusedResidualRmsNormSpan::operation_indices(
   self : ApprovedFusedResidualRmsNormSpan,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.residual_index, self.norm_index)
 }
 
@@ -86,7 +86,7 @@ fn ApprovedFusedResidualRmsNormSpan::approved_launch(
 ///|
 fn ApprovedFusedResidualRmsNormSpan::dispatch_canary_per_token(
   self : ApprovedFusedResidualRmsNormSpan,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary_per_token
 }
 
@@ -107,7 +107,7 @@ fn ApprovedFusedResidualRmsNormSpan::uses_qualification_canary(
 ///|
 pub fn FusedQkvReadOnlyAttentionSplitRequirement::operation_indices(
   self : FusedQkvReadOnlyAttentionSplitRequirement,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.qkv_index, self.rope_index, self.attention_index)
 }
 

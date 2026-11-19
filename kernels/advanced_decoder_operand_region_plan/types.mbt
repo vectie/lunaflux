@@ -5,7 +5,7 @@ pub(all) enum AdvancedDecoderOperandRegionPlanStatus {
 
 ///|
 pub struct AdvancedDecoderOperandRegionInput {
-  priv operand_ordinal : Int
+  priv operand_ordinal : Int32
   priv role : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
   priv allocation_identity_sha256 : String
   priv device_offset : Int64
@@ -14,14 +14,14 @@ pub struct AdvancedDecoderOperandRegionInput {
 
 ///|
 pub struct AdvancedDecoderOperandRegionPlanLimits {
-  priv maximum_operands : Int
+  priv maximum_operands : Int32
   priv maximum_allocation_bytes : Int64
-  priv maximum_canonical_bytes : Int
+  priv maximum_canonical_bytes : Int32
 }
 
 ///|
 pub struct AdvancedDecoderOperandRegion {
-  priv operand_ordinal : Int
+  priv operand_ordinal : Int32
   priv role : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
   priv byte_count : Int64
   priv alignment : Int64
@@ -46,12 +46,12 @@ pub(all) suberror AdvancedDecoderOperandRegionPlanError {
   InvalidAllocationIdentity
   InvalidRegionInput
   OperandCountMismatch
-  OperandOrdinalMismatch(Int)
-  OperandRoleMismatch(Int)
-  OperandAlignmentMismatch(Int)
-  AllocationCapacityMismatch(Int)
-  RegionUndersized(Int)
-  RegionOverlap(Int, Int)
+  OperandOrdinalMismatch(Int32)
+  OperandRoleMismatch(Int32)
+  OperandAlignmentMismatch(Int32)
+  AllocationCapacityMismatch(Int32)
+  RegionUndersized(Int32)
+  RegionOverlap(Int32, Int32)
   CanonicalEncodingTooLarge
   LaunchAuthorityUnavailable
 } derive(Debug, Eq)

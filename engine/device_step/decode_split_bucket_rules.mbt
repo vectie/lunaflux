@@ -14,11 +14,11 @@ fn paged_ordered_device_policy(
 /// launch rules across attention expansion. A replacement can be bounded only
 /// by its own admitted row-domain contract, never the removed operation's rule.
 fn remap_decode_split_bucket_rules(
-  original : ReadOnlyArray[(@plan.OperationId, Int)],
-  expanded : ReadOnlyArray[(@plan.OperationId, Int)],
+  original : ReadOnlyArray[(@plan.OperationId, Int32)],
+  expanded : ReadOnlyArray[(@plan.OperationId, Int32)],
   contract : PagedGraphLaunchContract,
-  row_bounded_replacements? : ReadOnlyArray[
-    ((@plan.OperationId, Int), @launch_contract.AotLaunchDimensions),
+  row_bounded_replacements~ : ReadOnlyArray[
+    ((@plan.OperationId, Int32), @launch_contract.AotLaunchDimensions),
   ] = [],
 ) -> FixedArray[PagedBucketStepLaunch] raise DeviceStepError {
   for index, replacement in row_bounded_replacements {
@@ -54,11 +54,11 @@ fn prepare_decode_split_bucket_owners(
   operation_ids : ReadOnlyArray[@plan.OperationId],
   resources : PagedGraphResources,
   policy : PagedGraphExecutionPolicy,
-  slots : FixedArray[Int],
+  slots : FixedArray[Int32],
 ) -> Unit raise DeviceStepError {
   guard resources.graph_launch_contract is Some(contract) else { return }
   let bounded : Array[
-    ((@plan.OperationId, Int), @launch_contract.AotLaunchDimensions),
+    ((@plan.OperationId, Int32), @launch_contract.AotLaunchDimensions),
   ] = []
   for companion in resources.attention_partitioned_decode_companions {
     // Only admitted read-only row-indexed ABIs enter this collection. Carry

@@ -48,7 +48,7 @@ pub fn FrontendProgram::bind(
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
   let regions = self.frontend.weights.copies
-  fn weight(i : Int) -> @device.KernelArgument raise @device.DeviceError {
+  fn weight(i : Int32) -> @device.KernelArgument raise @device.DeviceError {
     @device.KernelArgument::device_region(
       weights,
       offset=regions[i].destination_offset,

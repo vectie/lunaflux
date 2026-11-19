@@ -1,8 +1,8 @@
 ///|
 fn hostile_i8_schema(
   base : @plan.ModelPlan,
-  selected_operation : Int,
-  partial? : Bool = false,
+  selected_operation : Int32,
+  partial~ : Bool = false,
 ) -> @numeric_contract.ModelNumericSchema {
   let tensor_count = base.numeric_binding().tensors().length()
   let i8_tensors : Array[Bool] = []

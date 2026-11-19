@@ -1,7 +1,7 @@
 ///|
 /// Startup output envelope. Ordinary generation retains one last-row sample;
 /// all-position verification reserves one result for every input row.
-pub fn SerialDecoderFrame::output_capacity(self : Self) -> Int {
+pub fn SerialDecoderFrame::output_capacity(self : Self) -> Int32 {
   if self.all_position_outputs {
     self.maximum_rows
   } else {
@@ -12,7 +12,7 @@ pub fn SerialDecoderFrame::output_capacity(self : Self) -> Int {
 ///|
 pub fn SerialDecoderFrame::output_rows(
   self : Self,
-) -> Int raise SerialDecoderError {
+) -> Int32 raise SerialDecoderError {
   guard self.state is Staged else { raise Busy }
   if !self.pending_output {
     0

@@ -4,9 +4,9 @@
 /// Rotary or quantized index transforms are separate plans, not implicit here.
 pub struct IndexedSparseProjectionPrecision {
   priv attention : IndexedSparseAttentionPrecision
-  priv hidden : Int
-  priv query_rank : Int
-  priv kv_rank : Int
+  priv hidden : Int32
+  priv query_rank : Int32
+  priv kv_rank : Int32
   priv rms_epsilon : Double
   priv index_epsilon : Double
   priv frame_sizes : ReadOnlyArray[Int64]
@@ -20,14 +20,14 @@ pub struct IndexedSparseProjectionPrecision {
 ///|
 pub fn IndexedSparseProjectionPrecision::new(
   attention : IndexedSparseAttentionPrecision,
-  hidden_width~ : Int,
-  query_rank~ : Int,
-  key_value_rank~ : Int,
+  hidden_width~ : Int32,
+  query_rank~ : Int32,
+  key_value_rank~ : Int32,
   rms_epsilon~ : Double,
   index_layer_norm_epsilon~ : Double,
   maximum_workspace_bytes~ : Int64,
-  projection_law? : DenseDotLaw = ScalarFloat32,
-  cache_law? : SparseCacheLaw = ExpandedBFloat16,
+  projection_law~ : DenseDotLaw = ScalarFloat32,
+  cache_law~ : SparseCacheLaw = ExpandedBFloat16,
 ) -> Self raise PrecisionPlanError {
   guard hidden_width > 0 &&
     hidden_width <= 65536 &&
@@ -128,8 +128,8 @@ pub fn IndexedSparseProjectionPrecision::execution_attention(
 /// release follow owner identity, never the number of borrowed ports.
 pub fn IndexedSparseProjectionPrecision::frame_owner(
   self : Self,
-  index : Int,
-) -> Int {
+  index : Int32,
+) -> Int32 {
   if self.cache_law is LatentBFloat16 && index is (5 | 6 | 7) {
     4
   } else {
@@ -140,7 +140,7 @@ pub fn IndexedSparseProjectionPrecision::frame_owner(
 ///|
 pub fn IndexedSparseProjectionPrecision::execution_order(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   ReadOnlyArray::from_array(
     if self.cache_law is LatentBFloat16 {
       [0, 1, 2, 3, 4, 12, 7, 8, 9, 10, 11]
@@ -167,7 +167,7 @@ pub fn IndexedSparseProjectionPrecision::attention(
 ///|
 pub fn IndexedSparseProjectionPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.hidden, self.query_rank, self.kv_rank)
 }
 

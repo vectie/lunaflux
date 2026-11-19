@@ -80,8 +80,8 @@ fn startup_target() -> @catalog.DeviceTarget {
 
 ///|
 fn startup_device(
-  major? : Int = 8,
-  minor? : Int = 9,
+  major~ : Int32 = 8,
+  minor~ : Int32 = 9,
 ) -> @device.DeviceNumericCapability {
   let observed = try! @device.DeviceCapability::from_observed_facts(
     compute_major=major,
@@ -103,13 +103,13 @@ fn startup_digest() -> @catalog.AotArtifactDigest {
 }
 
 ///|
-fn startup_family(id : Int) -> @catalog.AotKernelFamily {
+fn startup_family(id : Int32) -> @catalog.AotKernelFamily {
   let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(id)
   @catalog.AotKernelFamily::new(module_digest=startup_digest(), family_id~)
 }
 
 ///|
-fn startup_entry(operation : Int) -> @catalog.AotKernelEntryPoint {
+fn startup_entry(operation : Int32) -> @catalog.AotKernelEntryPoint {
   let entry_point_id = try! @catalog.AotKernelEntryPointId::from_stable_int(
     operation + 1,
   )
@@ -144,7 +144,7 @@ fn startup_resolved(plan : @plan.ModelPlan) -> @catalog.ResolvedKernelCatalog {
 }
 
 ///|
-fn startup_operands(operation : Int) -> Array[@launch_contract.AotOperand] {
+fn startup_operands(operation : Int32) -> Array[@launch_contract.AotOperand] {
   if operation == 0 {
     [
       try! @launch_contract.AotOperand::new(

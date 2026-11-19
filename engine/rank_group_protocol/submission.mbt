@@ -2,7 +2,7 @@
 fn RankGroupOwner::fault(
   self : RankGroupOwner,
   reason : RankGroupFailureReason,
-  failed_rank : Int,
+  failed_rank : Int32,
   rank_is_lost : Bool,
 ) -> Unit {
   self.lifecycle = Faulted
@@ -25,7 +25,7 @@ fn RankGroupOwner::fault(
 fn RankGroupOwner::protocol_fault(
   self : RankGroupOwner,
   rule : RankGroupRule,
-  rank : Int,
+  rank : Int32,
 ) -> Unit {
   self.fault(ProtocolViolation(rule), rank, false)
 }
@@ -34,7 +34,7 @@ fn RankGroupOwner::protocol_fault(
 fn[T] RankGroupOwner::reject_protocol(
   self : RankGroupOwner,
   rule : RankGroupRule,
-  rank : Int,
+  rank : Int32,
 ) -> T raise RankGroupError {
   match self.lifecycle {
     Faulted => raise GroupFaulted(self.failure_reason)
@@ -51,7 +51,7 @@ fn[T] RankGroupOwner::reject_protocol(
 fn RankGroupOwner::find_plan_buffer(
   self : RankGroupOwner,
   identity : @worker_protocol.PlanBufferIdentity,
-) -> Int {
+) -> Int32 {
   for index in 0..<self.plan_buffer_identities.length() {
     if self.plan_buffer_identities[index].same_owner(identity) {
       return index
@@ -185,7 +185,7 @@ pub fn SubmittedRankGroupPlan::deadline_tick(
 pub fn SubmittedRankGroupPlan::lease(
   self : SubmittedRankGroupPlan,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
 ) -> RankPlanLease raise RankGroupError {
   let owner = self.authenticate_plan(plan, Executing)
   if rank < 0 || rank >= owner.world_size {

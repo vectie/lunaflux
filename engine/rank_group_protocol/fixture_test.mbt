@@ -88,7 +88,7 @@ fn fixture_completion(
 
 ///|
 fn fixture_group(
-  world_size : Int,
+  world_size : Int32,
   plan_buffer : @worker_protocol.SchedulePlanBuffer,
 ) -> @rank_group_protocol.RankGroupOwner {
   try! @rank_group_protocol.RankGroupOwner::new(

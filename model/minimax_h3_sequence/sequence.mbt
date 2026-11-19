@@ -3,9 +3,9 @@
 /// after projection, not raw media dimensions. A video-bearing reference places
 /// its audio rows before its visual rows, matching the H3 packed contract.
 pub(all) enum ConditionBlock {
-  Image(Int)
-  Audio(Int)
-  Video(audio_rows~ : Int, video_rows~ : Int)
+  Image(Int32)
+  Audio(Int32)
+  Video(audio_rows~ : Int32, video_rows~ : Int32)
 }
 
 ///|
@@ -20,8 +20,8 @@ pub(all) enum SegmentKind {
 ///|
 pub struct Segment {
   kind : SegmentKind
-  start : Int
-  count : Int
+  start : Int32
+  count : Int32
 } derive(Eq)
 
 ///|
@@ -35,7 +35,7 @@ pub(all) suberror SequenceError {
 pub struct Sequence {
   priv assembly : @packed_rows_plan.Plan
   priv segments : ReadOnlyArray[Segment]
-  priv used : Int
+  priv used : Int32
 }
 
 ///|
@@ -44,12 +44,12 @@ pub struct Sequence {
 /// anchors, rotary coordinates, timestep values and attention masks remain
 /// separate numerical metadata and must use these same row ranges.
 pub fn Sequence::new(
-  hidden_width~ : Int,
-  text_rows~ : Int,
-  video_rows~ : Int,
-  audio_rows~ : Int,
+  hidden_width~ : Int32,
+  text_rows~ : Int32,
+  video_rows~ : Int32,
+  audio_rows~ : Int32,
   conditioning~ : ArrayView[ConditionBlock],
-  max_rows~ : Int,
+  max_rows~ : Int32,
 ) -> Self raise SequenceError {
   guard hidden_width > 0 && text_rows > 0 && video_rows > 0 && audio_rows > 0 else {
     raise InvalidShape
@@ -58,9 +58,9 @@ pub fn Sequence::new(
   let segments : Array[Segment] = []
   fn append(
     kind : SegmentKind,
-    count : Int,
-    cursor : Int,
-  ) -> Int raise SequenceError {
+    count : Int32,
+    cursor : Int32,
+  ) -> Int32 raise SequenceError {
     guard count >= 0 else { raise InvalidConditioning }
     guard count <= max_rows - cursor else { raise RowLimitExceeded }
     if count > 0 {
@@ -116,6 +116,6 @@ pub fn Sequence::segments(self : Self) -> ReadOnlyArray[Segment] {
 
 ///|
 /// Attention sequence boundaries distinguish live rows and padded rows.
-pub fn Sequence::used_rows(self : Self) -> Int {
+pub fn Sequence::used_rows(self : Self) -> Int32 {
   self.used
 }

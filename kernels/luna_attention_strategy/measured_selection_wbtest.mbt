@@ -42,6 +42,6 @@ test "measured selection retains exact candidate cost and deterministic ties" {
   assert_eq(first, second)
   assert_eq(
     first.candidate().stable_id(),
-    Int::min(a.stable_id(), b.stable_id()),
+    Int32::min(a.stable_id(), b.stable_id()),
   )
 }

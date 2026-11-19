@@ -1,5 +1,5 @@
 ///|
-fn runtime_uses_concurrent_ingress(connection_capacity : Int) -> Bool {
+fn runtime_uses_concurrent_ingress(connection_capacity : Int32) -> Bool {
   connection_capacity > 1
 }
 

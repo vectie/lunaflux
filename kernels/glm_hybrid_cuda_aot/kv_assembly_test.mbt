@@ -1,7 +1,7 @@
 ///|
 fn kv_assembly_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is DsaKeyValueAttentionAssembly(_, _, _, _) {
       return ordinal

@@ -25,13 +25,13 @@ pub(all) suberror Glm53HostMaterializeError {
   ProfileMismatch
   SourceCountMismatch
   StreamingAdmission(@streaming_safetensors.StreamingSafetensorsError)
-  PayloadCoverageMismatch(shard~ : Int)
-  TensorCountMismatch(expected~ : Int, actual~ : Int)
-  TensorNameMismatch(ordinal~ : Int)
-  TensorDTypeMismatch(ordinal~ : Int)
-  TensorShapeMismatch(ordinal~ : Int)
-  TensorByteCountMismatch(ordinal~ : Int)
-  NumericTensorMismatch(ordinal~ : Int)
+  PayloadCoverageMismatch(shard~ : Int32)
+  TensorCountMismatch(expected~ : Int32, actual~ : Int32)
+  TensorNameMismatch(ordinal~ : Int32)
+  TensorDTypeMismatch(ordinal~ : Int32)
+  TensorShapeMismatch(ordinal~ : Int32)
+  TensorByteCountMismatch(ordinal~ : Int32)
+  NumericTensorMismatch(ordinal~ : Int32)
   ArenaSizeOverflow
   Closed
   TensorOrdinalOutOfRange
@@ -79,25 +79,25 @@ pub struct Glm53HostSourceDigest {
 
 ///|
 pub struct Glm53HostMaterializationLimits {
-  priv max_header_bytes : Int
-  priv max_tensor_count : Int
-  priv max_rank : Int
-  priv max_name_bytes : Int
-  priv max_source_count : Int
+  priv max_header_bytes : Int32
+  priv max_tensor_count : Int32
+  priv max_rank : Int32
+  priv max_name_bytes : Int32
+  priv max_source_count : Int32
   priv max_file_bytes : Int64
-  priv max_arena_bytes : Int
+  priv max_arena_bytes : Int32
   priv max_total_arena_bytes : Int64
 }
 
 ///|
 pub fn Glm53HostMaterializationLimits::new(
-  max_header_bytes~ : Int,
-  max_tensor_count~ : Int,
-  max_rank~ : Int,
-  max_name_bytes~ : Int,
-  max_source_count~ : Int,
+  max_header_bytes~ : Int32,
+  max_tensor_count~ : Int32,
+  max_rank~ : Int32,
+  max_name_bytes~ : Int32,
+  max_source_count~ : Int32,
   max_file_bytes~ : Int64,
-  max_arena_bytes~ : Int,
+  max_arena_bytes~ : Int32,
   max_total_arena_bytes~ : Int64,
 ) -> Glm53HostMaterializationLimits raise Glm53HostMaterializeError {
   if max_header_bytes <= 0 || max_header_bytes > 64 * 1024 * 1024 {
@@ -138,35 +138,35 @@ pub fn Glm53HostMaterializationLimits::new(
 
 ///|
 pub struct Glm53HostTensorSpan {
-  priv arena_index : Int
-  priv offset_bytes : Int
-  priv byte_length : Int
+  priv arena_index : Int32
+  priv offset_bytes : Int32
+  priv byte_length : Int32
 }
 
 ///|
-pub fn Glm53HostTensorSpan::arena_index(self : Self) -> Int {
+pub fn Glm53HostTensorSpan::arena_index(self : Self) -> Int32 {
   self.arena_index
 }
 
 ///|
-pub fn Glm53HostTensorSpan::offset_bytes(self : Self) -> Int {
+pub fn Glm53HostTensorSpan::offset_bytes(self : Self) -> Int32 {
   self.offset_bytes
 }
 
 ///|
-pub fn Glm53HostTensorSpan::byte_length(self : Self) -> Int {
+pub fn Glm53HostTensorSpan::byte_length(self : Self) -> Int32 {
   self.byte_length
 }
 
 ///|
 pub struct Glm53HostTensorRegion {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv byte_length : Int64
   priv spans : ReadOnlyArray[Glm53HostTensorSpan]
 }
 
 ///|
-pub fn Glm53HostTensorRegion::ordinal(self : Self) -> Int {
+pub fn Glm53HostTensorRegion::ordinal(self : Self) -> Int32 {
   self.ordinal
 }
 
@@ -176,14 +176,14 @@ pub fn Glm53HostTensorRegion::byte_length(self : Self) -> Int64 {
 }
 
 ///|
-pub fn Glm53HostTensorRegion::span_count(self : Self) -> Int {
+pub fn Glm53HostTensorRegion::span_count(self : Self) -> Int32 {
   self.spans.length()
 }
 
 ///|
 pub fn Glm53HostTensorRegion::span(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> Glm53HostTensorSpan? {
   self.spans.get(index)
 }

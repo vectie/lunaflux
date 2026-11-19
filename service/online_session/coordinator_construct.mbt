@@ -14,7 +14,7 @@ fn new_luna_online_framed_coordinator(
   pool : @request_admission.LunaRequestPreparationPool,
   instance : LunaOnlineInstance,
   outbound : @framed_wire.LunaFramedEventWorkspace,
-  event_copy_quantum : Int,
+  event_copy_quantum : Int32,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
   expected_model : @spec.ModelIdentity,

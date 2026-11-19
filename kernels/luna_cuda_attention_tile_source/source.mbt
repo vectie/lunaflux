@@ -6,7 +6,7 @@ fn emit_cuda_prefill_attention_tile_source(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
   let physical = cuda_shared_score_program(lowering)
   if abi.query_metadata {
@@ -465,7 +465,7 @@ fn emit_cuda_decode_attention_tile_source(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
   let compute = lowering.compute()
   let effect_plan = cuda_grouped_effect_plan(lowering)
@@ -637,7 +637,7 @@ pub fn emit_cuda_attention_tile_source(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
   if !valid_cuda_symbol(symbol) {
     raise InvalidCudaAttentionTileSource(InvalidSymbol)

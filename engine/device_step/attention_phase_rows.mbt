@@ -4,15 +4,15 @@
 /// index; no gather, renumbering, or KV mutation is involved.
 #valtype
 priv struct PagedAttentionPhaseRows {
-  prefill_rows : Int
-  prefill_tokens : Int
+  prefill_rows : Int32
+  prefill_tokens : Int32
 }
 
 ///|
 fn attention_phase_rows(
-  prefill_rows : Int,
-  decode_rows : Int,
-  token_count : Int,
+  prefill_rows : Int32,
+  decode_rows : Int32,
+  token_count : Int32,
 ) -> PagedAttentionPhaseRows {
   { prefill_rows, prefill_tokens: token_count - decode_rows, }
 }

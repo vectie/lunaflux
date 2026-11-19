@@ -12,14 +12,14 @@ pub(all) enum AttentionDecodeLaunchStage {
 ///|
 pub struct AttentionMultiLaunchLimits {
   priv maximum_workspace_bytes : Int64
-  priv maximum_symbol_bytes : Int
-  priv maximum_operands_per_launch : Int
+  priv maximum_symbol_bytes : Int32
+  priv maximum_operands_per_launch : Int32
 } derive(Debug, Eq)
 
 ///|
 pub struct AttentionDecodeWorkspaceContract {
   priv scalar : AttentionWorkspaceScalar
-  priv split_count : Int
+  priv split_count : Int32
   priv partial_count : Int64
   priv maximum_offset_bytes : Int64
   priv denominator_offset_bytes : Int64
@@ -39,7 +39,7 @@ pub struct AttentionOrderedLaunchInput {
 
 ///|
 pub struct AttentionOrderedLaunchContract {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv stage : AttentionDecodeLaunchStage
   priv entry_point : @catalog.AotKernelEntryPoint
   priv function_symbol : String

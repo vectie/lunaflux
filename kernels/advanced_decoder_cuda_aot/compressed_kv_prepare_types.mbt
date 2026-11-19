@@ -17,17 +17,17 @@ pub struct AdvancedDecoderCompressedKvPrepareCudaCandidate {
   priv numerical_contract : AdvancedDecoderCompressedKvPrepareNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   priv capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   priv target : @catalog.DeviceTarget
-  priv maximum_batches : Int
-  priv window_size : Int
-  priv compression_ratio : Int
-  priv head_dimension : Int
-  priv maximum_position_count : Int
-  priv maximum_compressed_slots : Int
-  priv maximum_key_slots : Int
+  priv maximum_batches : Int32
+  priv window_size : Int32
+  priv compression_ratio : Int32
+  priv head_dimension : Int32
+  priv maximum_position_count : Int32
+  priv maximum_compressed_slots : Int32
+  priv maximum_key_slots : Int32
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[
     @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,

@@ -8,7 +8,7 @@ pub fn LunaCapabilityManifestEntry::from_specialization(
   kv_layout~ : LunaKvLayoutContract,
   minimum_alignment_bytes~ : Int64,
   graph~ : LunaGraphCapabilityMetadata,
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> LunaCapabilityManifestEntry raise LunaCapabilityManifestError {
   if maximum_canonical_bytes <= 0 {
     raise Invalid(CanonicalBytes)

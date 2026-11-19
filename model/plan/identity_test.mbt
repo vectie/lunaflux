@@ -6,8 +6,8 @@ fn identity_test_content(hex : String) -> @spec.ContentDigest {
 ///|
 fn identity_test_stateless_plan(
   content : @spec.ContentDigest,
-  workspace_bytes? : Int64 = 4096L,
-  limits? : @plan.ModelPlanLimits = @plan.ModelPlanLimits::production(),
+  workspace_bytes~ : Int64 = 4096L,
+  limits~ : @plan.ModelPlanLimits = @plan.ModelPlanLimits::production(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   let operation = @plan.PlanOperation::new_stateless(
     id=@plan.OperationId::new(0),

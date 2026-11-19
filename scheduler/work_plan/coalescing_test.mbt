@@ -2,13 +2,13 @@
 /// Enumerate the semantic KV-write trace, not model arithmetic. Every chunk
 /// continues from its predecessor and only the terminal one demands output.
 fn prefill_trace(
-  computed : Int,
-  target : Int,
-  budget : Int,
-  chunk : Int,
-) -> (Array[Int], Array[Int], Int) raise {
-  let writes : Array[Int] = []
-  let outputs : Array[Int] = []
+  computed : Int32,
+  target : Int32,
+  budget : Int32,
+  chunk : Int32,
+) -> (Array[Int32], Array[Int32], Int32) raise {
+  let writes : Array[Int32] = []
+  let outputs : Array[Int32] = []
   for cursor = computed, steps = 0; cursor < target; {
     let count = @work_plan.prefill_query_count(
       computed=cursor,
@@ -68,7 +68,7 @@ test "larger chunk remains bounded by decode reservation and KV capacity" {
       chunk_limit=1024,
       kv_token_capacity=1528,
     )
-    assert_eq(count, Int::min(budget, 528))
+    assert_eq(count, Int32::min(budget, 528))
   }
   assert_eq(
     @work_plan.prefill_query_count(

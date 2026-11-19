@@ -1,7 +1,7 @@
 ///|
 fn repeated_plan(
   kind : @plan.OperationKind,
-  repeat_count : Int,
+  repeat_count : Int32,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   let operations : Array[@plan.PlanOperation] = [try! device_plan_embedding(0)]
   let mut first_repeated_id = 1

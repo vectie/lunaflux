@@ -1,7 +1,7 @@
 ///|
 fn validate_token_ids(
   token_bytes : Bytes,
-  vocabulary_size : Int,
+  vocabulary_size : Int32,
 ) -> Unit raise DeviceExecutorError {
   let token_count = token_bytes.length() / 4
   for index in 0..<token_count {
@@ -93,7 +93,7 @@ pub fn PreparedDeviceExecutor::dispatch(
 /// This is a Phase-1 correctness API, not a steady-state sampling path.
 pub fn PreparedDeviceExecutor::copy_terminal_row(
   self : PreparedDeviceExecutor,
-  batch_index : Int,
+  batch_index : Int32,
 ) -> Bytes raise DeviceExecutorError {
   require_ready(self.lifecycle)
   if !self.output_valid {

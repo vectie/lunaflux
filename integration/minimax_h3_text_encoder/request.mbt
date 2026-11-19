@@ -26,7 +26,7 @@ pub struct EncoderRequest {
   priv allocations : Array[@device.Allocation]
   priv mut weights : EncoderWeights?
   priv mut queue : @device.OrderedKernelExecutor?
-  priv observations : Array[(@device.OrderedKernelExecutor, Int)]
+  priv observations : Array[(@device.OrderedKernelExecutor, Int32)]
   priv mut phase : Phase
 }
 
@@ -58,7 +58,7 @@ fn EncoderRequest::prepare_execution(
   stream : @device.Stream,
   aot_module : @device.Module,
   weights : EncoderWeights,
-  ids : ArrayView[Int],
+  ids : ArrayView[Int32],
   max_device_bytes~ : Int64,
   max_table_bytes~ : Int64,
   observation~ : ObservationMode,

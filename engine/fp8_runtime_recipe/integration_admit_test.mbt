@@ -29,7 +29,7 @@ fn fixture_shape(tensor : @numeric_contract.NumericTensorSchema) -> String {
 ///|
 fn recipe_numeric_file(
   plan : @plan.ModelPlan,
-  fp8_code? : Byte = b'\x00',
+  fp8_code~ : Byte = b'\x00',
 ) -> Bytes {
   let tensors = plan.numeric_binding().schema().tensors()
   let header = StringBuilder()
@@ -87,7 +87,7 @@ fn inspect_recipe_file(
   plan : @plan.ModelPlan,
   name : String,
   file : BytesView,
-  alignment? : Int64 = 16L,
+  alignment~ : Int64 = 16L,
 ) -> @numeric_weight_file.NumericWeightFileInspection {
   try! @numeric_weight_file.inspect_file(
     root,
@@ -117,9 +117,9 @@ struct RuntimeRecipeInputs {
 fn layout_region(
   inspection : @numeric_weight_file.NumericWeightFileInspection,
   tensor : @plan.TensorRef,
-  offset_delta? : Int64 = 0L,
-  length_delta? : Int64 = 0L,
-  alignment? : Int64 = 16L,
+  offset_delta~ : Int64 = 0L,
+  length_delta~ : Int64 = 0L,
+  alignment~ : Int64 = 16L,
 ) -> @fp8_launch_abi.Fp8LaunchStorageRegion {
   let layout = inspection.layout()
   let exact = layout.region(tensor).unwrap()
@@ -138,14 +138,14 @@ fn layout_region(
 fn runtime_inputs(
   fixture : RuntimeRecipeFixture,
   inspection : @numeric_weight_file.NumericWeightFileInspection,
-  workspace? : String = "2222222222222222222222222222222222222222222222222222222222222222",
-  workspace_bytes? : Int64 = 64L,
-  weight_offset_delta? : Int64 = 0L,
-  weight_length_delta? : Int64 = 0L,
-  weight_alignment? : Int64 = 16L,
-  scale_offset_delta? : Int64 = 0L,
-  scale_alignment? : Int64 = 16L,
-  claim_operation_delta? : Int = 0,
+  workspace~ : String = "2222222222222222222222222222222222222222222222222222222222222222",
+  workspace_bytes~ : Int64 = 64L,
+  weight_offset_delta~ : Int64 = 0L,
+  weight_length_delta~ : Int64 = 0L,
+  weight_alignment~ : Int64 = 16L,
+  scale_offset_delta~ : Int64 = 0L,
+  scale_alignment~ : Int64 = 16L,
+  claim_operation_delta~ : Int32 = 0,
 ) -> RuntimeRecipeInputs {
   let launches : Array[@fp8_launch_abi.Fp8DynamicLaunchAbi] = []
   let claims : Array[Fp8LaunchWeightRegionClaim] = []
@@ -213,7 +213,7 @@ fn runtime_inputs(
 }
 
 ///|
-fn recipe_limits(canonical? : Int = 65536) -> Fp8RuntimeRecipeLimits {
+fn recipe_limits(canonical~ : Int32 = 65536) -> Fp8RuntimeRecipeLimits {
   try! Fp8RuntimeRecipeLimits::new(
     max_launches=8,
     max_workspace_bytes=1024L,

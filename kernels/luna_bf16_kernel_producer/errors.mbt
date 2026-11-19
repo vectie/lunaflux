@@ -24,5 +24,5 @@ pub(all) enum LunaBf16KernelProducerRule {
 pub(all) suberror LunaBf16KernelProducerError {
   Invalid(LunaBf16KernelProducerRule)
   Mismatch(LunaBf16KernelProducerRule)
-  LimitExceeded(LunaBf16KernelProducerRule, maximum~ : Int)
+  LimitExceeded(LunaBf16KernelProducerRule, maximum~ : Int32)
 } derive(Debug, Eq)

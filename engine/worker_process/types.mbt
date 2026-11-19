@@ -42,10 +42,10 @@ pub(all) suberror WorkerProcessError {
 /// Public limits owned by the supervisor boundary, not its native ABI. Startup
 /// I/O has a separate per-prefix/per-payload timeout from steady plan traffic.
 pub struct WorkerProcessLimits {
-  priv max_frame_bytes : Int
-  priv startup_io_timeout_millis : Int
-  priv io_timeout_millis : Int
-  priv shutdown_timeout_millis : Int
+  priv max_frame_bytes : Int32
+  priv startup_io_timeout_millis : Int32
+  priv io_timeout_millis : Int32
+  priv shutdown_timeout_millis : Int32
 }
 
 ///|
@@ -67,8 +67,8 @@ pub struct WorkerProcessSupervisor {
   priv rx_staging : FixedArray[Byte]
   priv graph_rx : FixedArray[Byte]
   priv graph_rx_staging : FixedArray[Byte]
-  priv mut state_a : Int
-  priv mut state_b : Int
+  priv mut state_a : Int32
+  priv mut state_b : Int32
   priv mut sequence_a : UInt64
   priv mut sequence_b : UInt64
   priv graph_telemetry_a : @worker_wire.WorkerGraphTelemetrySlot
@@ -76,7 +76,7 @@ pub struct WorkerProcessSupervisor {
   priv last_graph_telemetry : @worker_wire.WorkerGraphTelemetrySlot
   priv mut last_submitted : UInt64
   priv mut last_retired : UInt64
-  priv mut maintenance_phase : Int
+  priv mut maintenance_phase : Int32
   priv mut maintenance_failure : WorkerProcessError?
   priv mut lifecycle : WorkerProcessLifecycle
 }
@@ -90,13 +90,13 @@ priv struct PreparedWorkerProcessStartup {
   approved_executable : @worker_executable_file.WorkerExecutableAdmission
   child : @process.PreparedChildProcess
   startup_outgoing : FixedArray[Byte]
-  startup_outgoing_length : Int
+  startup_outgoing_length : Int32
   source_outgoing : FixedArray[Byte]
   attestation_outgoing : FixedArray[Byte]
-  attestation_outgoing_length : Int
+  attestation_outgoing_length : Int32
   startup_incoming : FixedArray[Byte]
   expected_ready : FixedArray[Byte]
-  expected_ready_length : Int
+  expected_ready_length : Int32
   supervisor : WorkerProcessSupervisor
   failed : FailedWorkerProcessStartup
 }
@@ -114,9 +114,9 @@ pub(all) enum WorkerProcessPreparation {
 pub struct FailedWorkerProcessStartup {
   priv child : @process.ChildProcess
   priv mut child_selected : Bool
-  priv mut cause_kind : Int
-  priv mut cause_status : Int
-  priv mut cleanup_status : Int
+  priv mut cause_kind : Int32
+  priv mut cause_status : Int32
+  priv mut cleanup_status : Int32
   priv mut cleanup_active : Bool
   priv mut closed : Bool
 }
@@ -124,34 +124,34 @@ pub struct FailedWorkerProcessStartup {
 ///|
 /// Exact submitted-side capability. No process or buffer owner escapes.
 #valtype
-pub struct WorkerSubmission(WorkerProcessSupervisor, Int, UInt64)
+pub struct WorkerSubmission(WorkerProcessSupervisor, Int32, UInt64)
 
 ///|
 /// Completion-frame retention capability held through scheduler acceptance.
 #valtype
-pub struct ReceivedWorkerCompletion(WorkerProcessSupervisor, Int, UInt64)
+pub struct ReceivedWorkerCompletion(WorkerProcessSupervisor, Int32, UInt64)
 
 ///|
 /// Allocation-free scalar progress evidence for owner-resident child cleanup.
 #valtype
 pub struct WorkerProcessMaintenanceProgress {
-  priv kind : Int
+  priv kind : Int32
 }
 
 ///|
 /// Exact payload-safe exit evidence copied out of the private process owner.
 #valtype
 pub struct WorkerProcessExit {
-  priv kind : Int
-  priv code : Int
+  priv kind : Int32
+  priv code : Int32
 }
 
 ///|
 pub fn WorkerProcessLimits::new(
-  max_frame_bytes~ : Int,
-  startup_io_timeout_millis~ : Int,
-  io_timeout_millis~ : Int,
-  shutdown_timeout_millis~ : Int,
+  max_frame_bytes~ : Int32,
+  startup_io_timeout_millis~ : Int32,
+  io_timeout_millis~ : Int32,
+  shutdown_timeout_millis~ : Int32,
 ) -> WorkerProcessLimits raise WorkerProcessError {
   if max_frame_bytes < 64 ||
     max_frame_bytes > 67108864 ||
@@ -174,26 +174,28 @@ pub fn WorkerProcessLimits::new(
 ///|
 pub fn WorkerProcessLimits::startup_io_timeout_millis(
   self : WorkerProcessLimits,
-) -> Int {
+) -> Int32 {
   self.startup_io_timeout_millis
 }
 
 ///|
-pub fn WorkerProcessLimits::max_frame_bytes(self : WorkerProcessLimits) -> Int {
+pub fn WorkerProcessLimits::max_frame_bytes(
+  self : WorkerProcessLimits,
+) -> Int32 {
   self.max_frame_bytes
 }
 
 ///|
 pub fn WorkerProcessLimits::io_timeout_millis(
   self : WorkerProcessLimits,
-) -> Int {
+) -> Int32 {
   self.io_timeout_millis
 }
 
 ///|
 pub fn WorkerProcessLimits::shutdown_timeout_millis(
   self : WorkerProcessLimits,
-) -> Int {
+) -> Int32 {
   self.shutdown_timeout_millis
 }
 
@@ -325,7 +327,7 @@ fn FailedWorkerProcessStartup::progress_cleanup_maintenance(
 ///|
 fn FailedWorkerProcessStartup::cleanup_maintenance_remaining_millis(
   self : FailedWorkerProcessStartup,
-) -> Int raise WorkerProcessError {
+) -> Int32 raise WorkerProcessError {
   if !self.cleanup_active || self.closed {
     raise Invalid(Lifecycle)
   }
@@ -344,7 +346,7 @@ pub fn WorkerProcessSupervisor::has_capacity(
 ///|
 pub fn WorkerProcessSupervisor::outstanding_count(
   self : WorkerProcessSupervisor,
-) -> Int {
+) -> Int32 {
   (if self.state_a == 0 { 0 } else { 1 }) +
   (if self.state_b == 0 { 0 } else { 1 })
 }
@@ -399,12 +401,12 @@ pub fn WorkerProcessMaintenanceProgress::is_cleanup_stuck(
 }
 
 ///|
-pub fn WorkerProcessExit::kind(self : WorkerProcessExit) -> Int {
+pub fn WorkerProcessExit::kind(self : WorkerProcessExit) -> Int32 {
   self.kind
 }
 
 ///|
-pub fn WorkerProcessExit::code(self : WorkerProcessExit) -> Int {
+pub fn WorkerProcessExit::code(self : WorkerProcessExit) -> Int32 {
   self.code
 }
 

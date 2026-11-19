@@ -1,5 +1,5 @@
 ///|
-fn wb_ready_resource(resource : Int) -> ResourcePreparation[Int] raise {
+fn wb_ready_resource(resource : Int32) -> ResourcePreparation[Int32] raise {
   let inspection = wb_inspect_file(wb_stream_file())
   ResourceReady({ resource, layout: inspection.layout, })
 }
@@ -7,7 +7,7 @@ fn wb_ready_resource(resource : Int) -> ResourcePreparation[Int] raise {
 ///|
 test "file close failure preserves an earlier inspection failure" {
   let closed = Ref(false)
-  let outcome : Result[Int, DeviceWeightError] = Err(FileTruncated)
+  let outcome : Result[Int32, DeviceWeightError] = Err(FileTruncated)
   try
     finish_weight_file_body(outcome, () => {
       closed.val = true
@@ -24,7 +24,7 @@ test "file close failure preserves an earlier inspection failure" {
 
 ///|
 test "successful inspection reports deterministic file close failure" {
-  let outcome : Result[Int, DeviceWeightError] = Ok(7)
+  let outcome : Result[Int32, DeviceWeightError] = Ok(7)
   try finish_weight_file_body(outcome, () => raise FileCloseFailed) catch {
     FileCloseFailed => ()
     _ => fail("unexpected successful-inspection close error")
@@ -74,7 +74,7 @@ test "dual file and allocation close failure retains cleanup authority" {
 
 ///|
 test "file close failure preserves existing cleanup authority" {
-  let retained : ResourcePreparation[Int] = ResourceCleanupRequired({
+  let retained : ResourcePreparation[Int32] = ResourceCleanupRequired({
     resource: 13,
     cause: ContentDigestMismatch,
     stage: Transfer,

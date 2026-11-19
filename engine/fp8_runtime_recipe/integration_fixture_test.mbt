@@ -7,7 +7,7 @@ struct RuntimeRecipeFixture {
 
 ///|
 fn recipe_operations(
-  projection_workspace? : Int64 = 0L,
+  projection_workspace~ : Int64 = 0L,
 ) -> Array[@plan.PlanOperation] {
   [
     try! @plan.PlanOperation::new_stateless(
@@ -48,9 +48,9 @@ fn recipe_operations(
 
 ///|
 fn recipe_plan(
-  content? : String = "1111111111111111111111111111111111111111111111111111111111111111",
-  fp8_operations? : Array[@plan.OperationId] = [try! @plan.OperationId::new(1)],
-  projection_workspace? : Int64 = 0L,
+  content~ : String = "1111111111111111111111111111111111111111111111111111111111111111",
+  fp8_operations~ : Array[@plan.OperationId] = [try! @plan.OperationId::new(1)],
+  projection_workspace~ : Int64 = 0L,
 ) -> @plan.ModelPlan {
   let operations = recipe_operations(projection_workspace~)
   try! @plan.ModelPlan::new_stateless(
@@ -115,7 +115,7 @@ fn recipe_module_digest() -> @catalog.AotArtifactDigest {
 }
 
 ///|
-fn recipe_entry(index : Int) -> @catalog.AotKernelEntryPoint {
+fn recipe_entry(index : Int32) -> @catalog.AotKernelEntryPoint {
   let family_index = if index == 0 { 1 } else { 2 }
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
@@ -169,7 +169,7 @@ fn recipe_resolved(plan : @plan.ModelPlan) -> @catalog.ResolvedKernelCatalog {
 
 ///|
 fn recipe_operands(
-  index : Int,
+  index : Int32,
   workspace_bytes~ : Int64,
 ) -> Array[@launch_contract.AotOperand] {
   let operands = if index == 0 {
@@ -272,7 +272,7 @@ fn recipe_contracts(
 
 ///|
 fn runtime_recipe_fixture(
-  plan? : @plan.ModelPlan = recipe_plan(),
+  plan~ : @plan.ModelPlan = recipe_plan(),
 ) -> RuntimeRecipeFixture {
   let resolved = recipe_resolved(plan)
   let contracts = recipe_contracts(plan, resolved)

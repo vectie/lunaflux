@@ -17,7 +17,7 @@ fn RankPlanLease::authenticate(
 }
 
 ///|
-pub fn RankPlanLease::rank(self : RankPlanLease) -> Int raise RankGroupError {
+pub fn RankPlanLease::rank(self : RankPlanLease) -> Int32 raise RankGroupError {
   ignore(self.authenticate())
   self.2
 }
@@ -25,7 +25,7 @@ pub fn RankPlanLease::rank(self : RankPlanLease) -> Int raise RankGroupError {
 ///|
 pub fn RankPlanLease::world_size(
   self : RankPlanLease,
-) -> Int raise RankGroupError {
+) -> Int32 raise RankGroupError {
   self.authenticate().world_size
 }
 
@@ -86,8 +86,8 @@ pub fn RankExecutionAck::from_wire(
   group_generation_value~ : UInt64,
   plan_sequence_value~ : UInt64,
   model_plan_generation_value~ : UInt64,
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
 ) -> RankExecutionAck raise RankGroupError {
   validate_world_size(world_size)
   if group_generation_value == 0UL {
@@ -110,6 +110,6 @@ pub fn RankExecutionAck::from_wire(
 }
 
 ///|
-pub fn RankExecutionAck::rank(self : RankExecutionAck) -> Int {
+pub fn RankExecutionAck::rank(self : RankExecutionAck) -> Int32 {
   self.3
 }

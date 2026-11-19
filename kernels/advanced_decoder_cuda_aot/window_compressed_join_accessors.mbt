@@ -29,7 +29,7 @@ pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,42 +57,42 @@ pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::window_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.window_size
 }
 
 ///|
 pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::compression_ratio(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.compression_ratio
 }
 
 ///|
 pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_position_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_position_count
 }
 
 ///|
 pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_compressed_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_compressed_width
 }
 
 ///|
 pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::maximum_joined_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_joined_width
 }
 

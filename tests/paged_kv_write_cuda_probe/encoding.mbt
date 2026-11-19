@@ -1,5 +1,5 @@
 ///|
-fn kv_i32_bytes(values : ReadOnlyArray[Int]) -> Bytes {
+fn kv_i32_bytes(values : ReadOnlyArray[Int32]) -> Bytes {
   let output = FixedArray::make(values.length() * 4, b'\x00')
   for index, value in values {
     output[index * 4] = value.to_byte()
@@ -11,7 +11,7 @@ fn kv_i32_bytes(values : ReadOnlyArray[Int]) -> Bytes {
 }
 
 ///|
-fn kv_bf16_bytes(values : ArrayView[Int]) -> Bytes {
+fn kv_bf16_bytes(values : ArrayView[Int32]) -> Bytes {
   let output = FixedArray::make(values.length() * 2, b'\x00')
   for index, value in values {
     output[index * 2] = value.to_byte()
@@ -21,7 +21,7 @@ fn kv_bf16_bytes(values : ArrayView[Int]) -> Bytes {
 }
 
 ///|
-fn kv_bf16_bits(bytes : Bytes) -> Array[Int] raise {
+fn kv_bf16_bits(bytes : Bytes) -> Array[Int32] raise {
   require_kv_probe(bytes.length() % 2 == 0, "truncated BF16 readback")
   Array::makei(bytes.length() / 2, index => {
     bytes[index * 2].to_int() | (bytes[index * 2 + 1].to_int() << 8)
@@ -29,7 +29,7 @@ fn kv_bf16_bits(bytes : Bytes) -> Array[Int] raise {
 }
 
 ///|
-fn kv_u32(bytes : Bytes) -> UInt raise {
+fn kv_u32(bytes : Bytes) -> UInt32 raise {
   require_kv_probe(bytes.length() == 4, "truncated canary readback")
   (bytes[0].to_int() |
   (bytes[1].to_int() << 8) |

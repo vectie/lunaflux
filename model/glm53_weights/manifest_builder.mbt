@@ -1,7 +1,7 @@
 ///|
 fn add_full_layer(
   tensors : Array[Glm53TensorDescriptor],
-  layer : Int,
+  layer : Int32,
   spec : @glm53_spec.Glm53FullSpec,
 ) -> Unit {
   let prefix = "model.layers.\{layer}"
@@ -30,7 +30,10 @@ fn add_full_layer(
 }
 
 ///|
-fn add_flash_layer(tensors : Array[Glm53TensorDescriptor], layer : Int) -> Unit {
+fn add_flash_layer(
+  tensors : Array[Glm53TensorDescriptor],
+  layer : Int32,
+) -> Unit {
   let prefix = "model.language_model.layers.\{layer}"
   add_tensor(tensors, "\{prefix}.input_layernorm.weight", BFloat16, [4096L])
   add_tensor(tensors, "\{prefix}.post_attention_layernorm.weight", BFloat16, [

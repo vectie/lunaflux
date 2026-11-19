@@ -1,6 +1,6 @@
 ///|
 fn ready_control_owner(
-  rank? : Int = 0,
+  rank~ : Int32 = 0,
 ) -> (RankChildControl, @rank_group_wire.RankGroupWireBinding) raise {
   let owner = control_test_owner()
   let binding = control_test_binding(rank~)
@@ -130,7 +130,7 @@ fn assert_child_response(
   kind : @rank_group_wire.RankGroupWireKind,
   slot : @rank_group_wire.RankGroupWireSlot?,
   sequence_value : UInt64,
-  payload_length : Int,
+  payload_length : Int32,
 ) -> Unit raise {
   let length = @rank_group_wire.rank_group_wire_header_bytes() + payload_length
   let header = try! @rank_group_wire.validate_rank_group_wire_binding(

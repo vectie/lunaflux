@@ -1,13 +1,13 @@
 ///|
 pub struct VideoBlockWeightPacking {
-  layer : Int
+  layer : Int32
   byte_count : Int64
   copies : ReadOnlyArray[BlockWeightCopy]
 }
 
 ///|
 pub fn video_block_weight_packing(
-  layer~ : Int,
+  layer~ : Int32,
   max_bytes~ : Int64,
 ) -> VideoBlockWeightPacking raise BlockPackingError {
   let stem = video_attention_weight_packing(layer~, max_bytes~)

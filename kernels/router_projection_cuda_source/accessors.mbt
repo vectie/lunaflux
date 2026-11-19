@@ -13,17 +13,17 @@ pub fn RouterProjectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn RouterProjectionCudaSource::input_width(self : Self) -> Int {
+pub fn RouterProjectionCudaSource::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn RouterProjectionCudaSource::output_width(self : Self) -> Int {
+pub fn RouterProjectionCudaSource::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn RouterProjectionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn RouterProjectionCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

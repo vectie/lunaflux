@@ -37,7 +37,7 @@ fn LunaInstanceLogSnapshot::require_live(
 ///|
 fn LunaInstanceLogSnapshot::require_index(
   self : LunaInstanceLogSnapshot,
-  index : Int,
+  index : Int32,
 ) -> Unit raise LunaInstanceLogError {
   self.require_live()
   if index < 0 || index >= self.owner.snapshot_length {
@@ -48,7 +48,7 @@ fn LunaInstanceLogSnapshot::require_index(
 ///|
 pub fn LunaInstanceLogSnapshot::length(
   self : LunaInstanceLogSnapshot,
-) -> Int raise LunaInstanceLogError {
+) -> Int32 raise LunaInstanceLogError {
   self.require_live()
   self.owner.snapshot_length
 }
@@ -64,7 +64,7 @@ pub fn LunaInstanceLogSnapshot::dropped_count(
 ///|
 pub fn LunaInstanceLogSnapshot::event_at(
   self : LunaInstanceLogSnapshot,
-  index : Int,
+  index : Int32,
 ) -> LunaInstanceLogEvent raise LunaInstanceLogError {
   self.require_index(index)
   luna_instance_log_event_from_code(self.owner.snapshot_events[index])
@@ -73,7 +73,7 @@ pub fn LunaInstanceLogSnapshot::event_at(
 ///|
 pub fn LunaInstanceLogSnapshot::reason_at(
   self : LunaInstanceLogSnapshot,
-  index : Int,
+  index : Int32,
 ) -> LunaInstanceLogReason raise LunaInstanceLogError {
   self.require_index(index)
   luna_instance_log_reason_from_code(self.owner.snapshot_reasons[index])
@@ -82,7 +82,7 @@ pub fn LunaInstanceLogSnapshot::reason_at(
 ///|
 pub fn LunaInstanceLogSnapshot::timestamp_millis_at(
   self : LunaInstanceLogSnapshot,
-  index : Int,
+  index : Int32,
 ) -> UInt64 raise LunaInstanceLogError {
   self.require_index(index)
   self.owner.snapshot_timestamps[index]
@@ -91,8 +91,8 @@ pub fn LunaInstanceLogSnapshot::timestamp_millis_at(
 ///|
 pub fn LunaInstanceLogSnapshot::count_at(
   self : LunaInstanceLogSnapshot,
-  index : Int,
-) -> Int raise LunaInstanceLogError {
+  index : Int32,
+) -> Int32 raise LunaInstanceLogError {
   self.require_index(index)
   self.owner.snapshot_counts[index]
 }
@@ -100,8 +100,8 @@ pub fn LunaInstanceLogSnapshot::count_at(
 ///|
 pub fn LunaInstanceLogSnapshot::duration_millis_at(
   self : LunaInstanceLogSnapshot,
-  index : Int,
-) -> Int raise LunaInstanceLogError {
+  index : Int32,
+) -> Int32 raise LunaInstanceLogError {
   self.require_index(index)
   self.owner.snapshot_durations[index]
 }

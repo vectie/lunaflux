@@ -3,8 +3,8 @@ fn valid_projection_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -12,10 +12,10 @@ fn valid_projection_symbol(symbol : StringView) -> Bool {
 /// one `(row,group)` pair, and threads cover output columns in increasing
 /// strides. Each result uses ordered F32 multiply/add and one BF16-RNE round.
 pub fn grouped_projection_bf16_source(
-  group_count~ : Int,
-  input_width~ : Int,
-  output_width~ : Int,
-  maximum_rows~ : Int,
+  group_count~ : Int32,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> GroupedDecoderProjectionCudaSource raise DecoderProjectionCudaSourceError {
   if group_count <= 0 || group_count > 1024 {
@@ -92,11 +92,11 @@ pub fn grouped_projection_bf16_source(
 /// Renders one correctness-grade BF16 dense projection. Weights are row-major
 /// `[output_width, input_width]`; there is deliberately no bias operand.
 pub fn dense_projection_bf16_source(
-  input_width~ : Int,
-  output_width~ : Int,
-  maximum_rows~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
-  dot_reduction_law? : @precision.DotReductionLaw = OrderedFloat32,
+  dot_reduction_law~ : @precision.DotReductionLaw = OrderedFloat32,
 ) -> DecoderProjectionCudaSource raise DecoderProjectionCudaSourceError {
   if input_width <= 0 {
     raise InvalidInputWidth

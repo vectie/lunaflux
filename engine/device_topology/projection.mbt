@@ -1,7 +1,7 @@
 ///|
 pub fn LocalPeerAccess::new(
-  source_ordinal~ : Int,
-  destination_ordinal~ : Int,
+  source_ordinal~ : Int32,
+  destination_ordinal~ : Int32,
 ) -> LocalPeerAccess raise LocalTopologyError {
   if source_ordinal < 0 ||
     destination_ordinal < 0 ||
@@ -14,8 +14,8 @@ pub fn LocalPeerAccess::new(
 ///|
 fn device_index_for_ordinal(
   devices : ReadOnlyArray[LocalProbeDevice],
-  ordinal : Int,
-) -> Int {
+  ordinal : Int32,
+) -> Int32 {
   for index, device in devices {
     if device.ordinal == ordinal {
       return index
@@ -99,7 +99,7 @@ fn validate_probe_links(
 
 ///|
 pub fn LocalProbeDevice::new(
-  ordinal~ : Int,
+  ordinal~ : Int32,
   name~ : StringView,
   total_memory_bytes~ : Int64,
   target~ : @catalog.DeviceTarget,
@@ -119,7 +119,7 @@ pub fn LocalProbeDevice::new(
 ///|
 /// Constructs the pure host-test seam from already bounded observations.
 pub fn LocalTopologyProbeProjection::from_observations(
-  driver_version~ : Int,
+  driver_version~ : Int32,
   devices : ArrayView[LocalProbeDevice],
   peer_access : ArrayView[LocalPeerAccess],
 ) -> LocalTopologyProbeProjection raise LocalTopologyError {
@@ -178,7 +178,7 @@ pub fn LocalTopologyProbeProjection::from_probe(
 ///|
 fn collect_peer_access(
   devices : ReadOnlyArray[LocalProbeDevice],
-  query : (Int, Int) -> Bool raise @device.DeviceError,
+  query : (Int32, Int32) -> Bool raise @device.DeviceError,
 ) -> Array[LocalPeerAccess] raise LocalTopologyError {
   let peer_access : Array[LocalPeerAccess] = []
   for source_index, source in devices {

@@ -1,8 +1,8 @@
 ///|
 fn RankGroupProcessSupervisor::stage_terminal_encoded_write(
   self : RankGroupProcessSupervisor,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise RankGroupProcessError {
   ignore(
     self.wire_transcript.accept_bytes(self.tx, length, self.wire_limits) catch {
@@ -23,7 +23,7 @@ fn RankGroupProcessSupervisor::stage_terminal_encoded_write(
 ///|
 fn RankGroupProcessSupervisor::stage_terminal(
   self : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
   kind : @rank_group_wire.RankGroupWireKind,
 ) -> Unit raise RankGroupProcessError {
   let length = @rank_group_wire.encode_rank_group_wire_control_into(
@@ -43,7 +43,7 @@ fn RankGroupProcessSupervisor::stage_terminal(
 ///|
 fn RankGroupProcessSupervisor::stage_abort(
   self : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupProcessError {
   let slot = self.active_slot()
   let length = @rank_group_wire.encode_rank_group_wire_control_into(
@@ -115,8 +115,8 @@ fn RankGroupProcessSupervisor::begin_cooperative_failure(
 ///|
 fn RankGroupProcessSupervisor::accept_terminal_response(
   self : RankGroupProcessSupervisor,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise RankGroupProcessError {
   let header = self.wire_transcript.accept_bytes(
     self.rx,

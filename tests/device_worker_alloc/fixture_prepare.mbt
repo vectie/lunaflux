@@ -1,6 +1,6 @@
 ///|
 fn fixture_execution_limits(
-  operation_count : Int,
+  operation_count : Int32,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise {
   let artifact = @artifact.KernelArtifactLimits::new(
     max_modules=1,
@@ -82,7 +82,7 @@ fn fixture_inference_limits() -> @inference.InferenceLimits raise {
 ///|
 fn fixture_startup(
   execution : @execution_manifest_file.PagedExecutionAdmission,
-  source_digest? : String = "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
+  source_digest~ : String = "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff00",
 ) -> @worker_wire.WorkerStartupContract raise {
   let manifest = @device_step.admit_device_worker_bootstrap(
     execution.blueprint(),

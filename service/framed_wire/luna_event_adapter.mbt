@@ -37,7 +37,7 @@ pub fn LunaFramedEventAdapter::stage(
 ///|
 pub fn LunaFramedEventAdapter::length(
   self : LunaFramedEventAdapter,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   if self.views.length() != 1 {
     raise StaleFrame
   }
@@ -48,8 +48,8 @@ pub fn LunaFramedEventAdapter::length(
 pub fn LunaFramedEventAdapter::copy_to(
   self : LunaFramedEventAdapter,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise FramedWireError {
+  destination_offset~ : Int32,
+) -> Int32 raise FramedWireError {
   let length = self.length()
   if destination_offset < 0 ||
     destination_offset > destination.length() - length {
@@ -59,7 +59,7 @@ pub fn LunaFramedEventAdapter::copy_to(
   let quantum = self.workspace.budget.work_units()
   let mut cursor = 0
   while cursor < length {
-    let amount = Int::min(quantum, length - cursor)
+    let amount = Int32::min(quantum, length - cursor)
     ignore(
       view.copy_chunk_to(
         destination,

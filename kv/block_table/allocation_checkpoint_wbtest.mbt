@@ -1,5 +1,5 @@
 ///|
-fn checkpoint_wb_table_limits(generation? : Int = 8) -> BlockTableLimits {
+fn checkpoint_wb_table_limits(generation~ : Int32 = 8) -> BlockTableLimits {
   try! BlockTableLimits::new(
     table_capacity=2,
     max_pages_per_table=1,

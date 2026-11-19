@@ -285,7 +285,7 @@ test "Luna adapter busy stale and copy rejection preserve exact credit" {
 
 ///|
 fn luna_adapter_inference_limits(
-  max_delta_bytes : Int,
+  max_delta_bytes : Int32,
 ) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=64,
@@ -308,7 +308,7 @@ fn luna_adapter_inference_limits(
 ///|
 fn luna_assert_adapter_limit_rejected(
   inference : @inference.InferenceLimits,
-  max_frame_bytes : Int,
+  max_frame_bytes : Int32,
 ) -> Unit raise {
   let limits = FramedWireLimits::new(inference, max_frame_bytes~)
   try LunaFramedEventAdapter::new(limits) catch {

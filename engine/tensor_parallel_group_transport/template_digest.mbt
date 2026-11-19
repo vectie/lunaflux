@@ -16,7 +16,7 @@ fn GroupTemplateEncoder::append(self : Self, value : StringView) -> Unit {
 }
 
 ///|
-fn GroupTemplateEncoder::append_int(self : Self, value : Int) -> Unit {
+fn GroupTemplateEncoder::append_int(self : Self, value : Int32) -> Unit {
   self.append(value.to_string())
 }
 
@@ -28,7 +28,7 @@ fn GroupTemplateEncoder::append_int64(self : Self, value : Int64) -> Unit {
 ///|
 fn template_placement_code(
   value : @tensor_parallel_plan.TensorPlacement,
-) -> Int {
+) -> Int32 {
   match value {
     Replicated => 1
     ShardColumns => 2
@@ -39,7 +39,7 @@ fn template_placement_code(
 ///|
 fn template_collective_code(
   value : @tensor_parallel_plan.TensorCollectiveKind,
-) -> Int {
+) -> Int32 {
   match value {
     SumAllReduce => 1
     LastAxisAllGather => 2

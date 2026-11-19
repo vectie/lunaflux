@@ -3,8 +3,8 @@ fn valid_selected_attention_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -34,12 +34,12 @@ fn checked_selected_attention_product(left : Int64, right : Int64) -> Int64? {
 /// softmax denominator. Invalid count, batch, cache-length, or index evidence
 /// produces a deterministic zero row without an out-of-bounds access.
 pub fn shared_key_value_selected_attention_bf16_source(
-  query_head_count~ : Int,
-  head_dimension~ : Int,
-  selected_width~ : Int,
-  maximum_key_slots~ : Int,
-  maximum_rows~ : Int,
-  maximum_batches~ : Int,
+  query_head_count~ : Int32,
+  head_dimension~ : Int32,
+  selected_width~ : Int32,
+  maximum_key_slots~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_batches~ : Int32,
   function_symbol~ : String,
 ) -> DecoderSelectedSparseAttentionCudaSource raise DecoderSelectedSparseAttentionCudaSourceError {
   if query_head_count <= 0 || query_head_count > 1024 {

@@ -2,8 +2,8 @@
 /// Construct a bounded one-shot consumer. Family host owners receive this
 /// capability but never receive or import device state.
 pub fn SegmentedHostArenaConsumer::new(
-  arena_ordinal~ : Int,
-  expected_length~ : Int,
+  arena_ordinal~ : Int32,
+  expected_length~ : Int32,
   consume~ : (FixedArray[Byte]) -> Bool,
 ) -> Self raise SegmentedHostBorrowError {
   if arena_ordinal < 0 || expected_length <= 0 {

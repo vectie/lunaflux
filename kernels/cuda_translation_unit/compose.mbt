@@ -7,7 +7,7 @@
 /// ```mbt check
 /// test {
 ///   assert_eq(
-///     compose([b"void a() {}", b"#include <stdint.h>"]),
+///     @cuda_translation_unit.compose([b"void a() {}", b"#include <stdint.h>"]),
 ///     b"void a() {}\n#include <stdint.h>\n",
 ///   )
 /// }

@@ -2,9 +2,9 @@
 /// Device geometry implements the semantic fold; its launch requirement travels
 /// with the lowered source instead of being rediscovered by the runtime.
 fn vector_prefix_norm_source(
-  prefix_width~ : Int,
-  suffix_width~ : Int,
-  maximum_rows~ : Int,
+  prefix_width~ : Int32,
+  suffix_width~ : Int32,
+  maximum_rows~ : Int32,
   epsilon~ : Double,
   function_symbol~ : String,
   square_law~ : @precision.SquareReductionLaw,

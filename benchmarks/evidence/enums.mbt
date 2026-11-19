@@ -53,7 +53,7 @@ pub(all) suberror BenchmarkEvidenceError {
 } derive(Debug, Eq)
 
 ///|
-fn engine_tag(engine : BenchmarkEngine) -> Int {
+fn engine_tag(engine : BenchmarkEngine) -> Int32 {
   match engine {
     LunaFlux => 0
     Vllm => 1
@@ -62,7 +62,7 @@ fn engine_tag(engine : BenchmarkEngine) -> Int {
 }
 
 ///|
-fn profile_tag(profile : BenchmarkProfile) -> Int {
+fn profile_tag(profile : BenchmarkProfile) -> Int32 {
   match profile {
     Latency => 0
     Chat => 1
@@ -77,7 +77,7 @@ fn profile_tag(profile : BenchmarkProfile) -> Int {
 }
 
 ///|
-fn request_outcome_tag(outcome : BenchmarkRequestOutcome) -> Int {
+fn request_outcome_tag(outcome : BenchmarkRequestOutcome) -> Int32 {
   match outcome {
     Completed => 0
     Rejected => 1

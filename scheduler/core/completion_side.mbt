@@ -2,7 +2,7 @@
 fn Scheduler::completion_side(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
-) -> Int raise SchedulerError {
+) -> Int32 raise SchedulerError {
   let sequence = try plan.sequence_wire() catch {
     error => raise WorkerProtocol(error)
   } noraise {

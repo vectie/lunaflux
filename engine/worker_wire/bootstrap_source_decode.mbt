@@ -1,7 +1,7 @@
 ///|
 fn validate_bootstrap_source_header(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise WorkerWireError {
   if source.length() < 20 {
     raise InvalidBootstrapSource(Length)
@@ -18,11 +18,14 @@ fn validate_bootstrap_source_header(
     version != BOOTSTRAP_SOURCE_VERSION_V10 &&
     version != MISTRAL_BOOTSTRAP_SOURCE_VERSION_V11 &&
     version != QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 &&
-    version != QWEN3_BOOTSTRAP_SOURCE_VERSION_V13 && version != 14U {
+    version != QWEN3_BOOTSTRAP_SOURCE_VERSION_V13 &&
+    version != 14U {
     raise InvalidBootstrapSource(Version)
   }
   let header_bytes = if version == 14U {
-    if recipe != 14 { raise InvalidBootstrapSource(Recipe) }
+    if recipe != 14 {
+      raise InvalidBootstrapSource(Recipe)
+    }
     BOOTSTRAP_SOURCE_HEADER_BYTES_V2
   } else if version == BOOTSTRAP_SOURCE_VERSION_V2 {
     if recipe != BOOTSTRAP_SOURCE_RECIPE_V2 {
@@ -130,7 +133,10 @@ fn validate_bootstrap_source_header(
 }
 
 ///|
-fn bootstrap_source_read_i64(source : FixedArray[Byte], offset : Int) -> Int64 {
+fn bootstrap_source_read_i64(
+  source : FixedArray[Byte],
+  offset : Int32,
+) -> Int64 {
   read_u64(source, offset).reinterpret_as_int64()
 }
 
@@ -143,7 +149,7 @@ fn bootstrap_source_read_i64(source : FixedArray[Byte], offset : Int) -> Int64 {
 /// `source`.
 pub fn decode_bootstrap_source(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   validate_bootstrap_source_header(source, length)
   if read_u32(source, 4) == BOOTSTRAP_SOURCE_VERSION_V5 ||

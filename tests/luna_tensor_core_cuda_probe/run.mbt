@@ -46,7 +46,7 @@ struct LunaTensorCoreProbeObservation {
 fn run_tensor_core_device_probe(
   serial_cubin : Bytes,
   tensor_core_cubin : Bytes,
-  cycles : Int,
+  cycles : Int32,
   balance : LunaTensorCoreProbeBalance,
 ) -> LunaTensorCoreProbeObservation raise {
   let (serial, candidate) = tensor_core_probe_candidates()

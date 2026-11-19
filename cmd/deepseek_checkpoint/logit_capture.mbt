@@ -4,10 +4,10 @@
 /// after control EOF. It never changes the execution graph or token steps.
 async fn capture_retired_logits(
   pool : @device.TransferPool,
-  bytes : Int,
+  bytes : Int32,
   destination : String,
-  filename? : String = "logits.f32",
-  create_directory? : Bool = true,
+  filename~ : String = "logits.f32",
+  create_directory~ : Bool = true,
 ) -> Unit {
   pool.enqueue(
     lane=0,

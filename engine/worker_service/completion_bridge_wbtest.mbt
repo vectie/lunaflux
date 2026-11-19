@@ -2,15 +2,15 @@
 #valtype
 priv enum BridgeFrameOutcome {
   BridgePrefill
-  BridgeFinalPrefill(Int)
-  BridgeDecode(Int)
+  BridgeFinalPrefill(Int32)
+  BridgeDecode(Int32)
   BridgeFailure(@worker_protocol.WorkerFailure)
 }
 
 ///|
 fn wb_bridge_request(
   request_value : UInt64,
-  tokens : Array[Int],
+  tokens : Array[Int32],
 ) -> @core.TokenizedRequest {
   let limits = wb_service_inference_limits()
   try! @core.TokenizedRequest::new(

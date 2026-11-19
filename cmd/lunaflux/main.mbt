@@ -47,7 +47,7 @@ fn print_usage() -> Unit {
 }
 
 ///|
-const REFERENCE_MAX_TOKENS : Int = 4096
+const REFERENCE_MAX_TOKENS : Int32 = 4096
 
 ///|
 enum ReferenceArgument {
@@ -61,8 +61,8 @@ suberror CliError {
 } derive(Debug, Eq)
 
 ///|
-fn parse_positive(text : StringView) -> Int raise CliError {
-  let value : Int = @string.parse_int(text) catch {
+fn parse_positive(text : StringView) -> Int32 raise CliError {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise InvalidReferenceArgument(MaximumNewTokens)
   }
   if value <= 0 || value > REFERENCE_MAX_TOKENS {
@@ -72,13 +72,13 @@ fn parse_positive(text : StringView) -> Int raise CliError {
 }
 
 ///|
-fn parse_token_ids(text : StringView) -> Array[Int] raise CliError {
-  let tokens : Array[Int] = []
+fn parse_token_ids(text : StringView) -> Array[Int32] raise CliError {
+  let tokens : Array[Int32] = []
   for part in text.split(",") {
     if part.is_empty() || tokens.length() >= REFERENCE_MAX_TOKENS {
       raise InvalidReferenceArgument(TokenIds)
     }
-    let token : Int = @string.parse_int(part) catch {
+    let token : Int32 = @string.parse_int(part) catch {
       _ => raise InvalidReferenceArgument(TokenIds)
     }
     if token < 0 {
@@ -137,7 +137,7 @@ fn reference_execution_limits() -> @reference.ExecutionLimits raise {
 }
 
 ///|
-fn print_tokens(tokens : ReadOnlyArray[Int]) -> Unit {
+fn print_tokens(tokens : ReadOnlyArray[Int32]) -> Unit {
   let output = StringBuilder()
   for index, token in tokens {
     if index > 0 {

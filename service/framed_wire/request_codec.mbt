@@ -1,8 +1,8 @@
 ///|
-let request_magic : UInt = 0x5152464c
+let request_magic : UInt32 = 0x5152464c
 
 ///|
-let request_version : UInt = 1
+let request_version : UInt32 = 1
 
 ///|
 fn request_invalid(rule : FramedWireRule) -> FramedWireError {
@@ -11,9 +11,9 @@ fn request_invalid(rule : FramedWireRule) -> FramedWireError {
 
 ///|
 fn request_room(
-  cursor : Int,
-  amount : Int,
-  limit : Int,
+  cursor : Int32,
+  amount : Int32,
+  limit : Int32,
 ) -> Unit raise FramedWireError {
   if amount < 0 || cursor < 0 || cursor > limit || amount > limit - cursor {
     raise request_invalid(Payload)
@@ -22,10 +22,10 @@ fn request_room(
 
 ///|
 fn request_append(
-  cursor : Int,
-  amount : Int,
-  maximum : Int,
-) -> Int raise FramedWireError {
+  cursor : Int32,
+  amount : Int32,
+  maximum : Int32,
+) -> Int32 raise FramedWireError {
   if amount < 0 || cursor < 0 || cursor > maximum || amount > maximum - cursor {
     raise FrameTooLarge(frame=RequestFrame)
   }
@@ -33,7 +33,7 @@ fn request_append(
 }
 
 ///|
-fn cache_permission_code(value : @inference.CachePermission) -> Int {
+fn cache_permission_code(value : @inference.CachePermission) -> Int32 {
   match value {
     Disabled => 0
     ReadOnly => 1
@@ -45,8 +45,8 @@ fn cache_permission_code(value : @inference.CachePermission) -> Int {
 fn encode_request_payload(
   bytes : FixedArray[Byte],
   request : @inference.GenerateRequest,
-  maximum : Int,
-) -> (Int, UInt) raise FramedWireError {
+  maximum : Int32,
+) -> (Int32, UInt32) raise FramedWireError {
   clear_header(bytes, REQUEST_HEADER_BYTES)
   let input_bytes : Bytes = match request.input() {
     Text(value) => value.utf8()
@@ -93,7 +93,7 @@ fn encode_request_payload(
   cursor = request_append(cursor, trace.length(), maximum)
   ignore(write_bytes(bytes, cursor - trace.length(), trace))
   let sampling = request.sampling()
-  let mut flags : UInt = 0
+  let mut flags : UInt32 = 0
   match request.input() {
     Text(_) => flags = flags | 1
     _ => ()
@@ -178,7 +178,7 @@ fn encode_request_payload(
 fn drive_luna_framed_request_work(
   work : LunaFramedRequestWork,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> LunaFramedRequestView raise FramedWireError {
   let mut cursor = 0
   while cursor < length {
@@ -247,7 +247,7 @@ fn drive_luna_framed_request_work(
 fn drive_luna_framed_request(
   workspace : LunaFramedRequestWorkspace,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> LunaFramedRequestView raise FramedWireError {
   if length < REQUEST_HEADER_BYTES ||
     length > workspace.limits.max_frame_bytes() ||
@@ -281,7 +281,7 @@ pub fn RequestFrameBuffer::encode(
 pub fn RequestFrameBuffer::load(
   self : RequestFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedRequestFrame raise FramedWireError {
   let view = drive_luna_framed_request(self.request_workspace, source, length)
   let outcome : Result[@inference.GenerateRequest, FramedWireError] = Ok(

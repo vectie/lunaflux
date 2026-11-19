@@ -55,6 +55,6 @@ pub fn AttentionTileCandidate::joint_query_consumers(
 ///|
 pub fn AttentionTileCandidate::retained_query_dimensions(
   self : AttentionTileCandidate,
-) -> Int {
+) -> Int32 {
   self.retained_query_dimensions
 }

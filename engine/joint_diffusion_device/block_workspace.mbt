@@ -3,11 +3,11 @@
 /// state and weights are external. Attention and MLP temporaries overlap only
 /// because their producer/consumer intervals do not overlap in the block list.
 pub struct BlockWorkspaceLayout {
-  priv rows : Int
-  priv hidden : Int
-  priv heads : Int
-  priv dimension : Int
-  priv intermediate : Int
+  priv rows : Int32
+  priv hidden : Int32
+  priv heads : Int32
+  priv dimension : Int32
+  priv intermediate : Int32
   hidden_bytes : Int64
   normalized_offset : Int64
   branch_offset : Int64
@@ -23,11 +23,11 @@ fn aligned_block_bytes(bytes : Int64) -> Int64 {
 
 ///|
 pub fn BlockWorkspaceLayout::new(
-  rows~ : Int,
-  hidden_width~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
-  intermediate_width~ : Int,
+  rows~ : Int32,
+  hidden_width~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  intermediate_width~ : Int32,
   max_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   let mlp = StagedMlpLayout::new(rows~, hidden_width~, intermediate_width~)

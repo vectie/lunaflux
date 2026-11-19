@@ -1,24 +1,24 @@
 ///|
 priv struct KvWriteCase {
   name : String
-  step_counts : ReadOnlyArray[Int]
-  positions : ReadOnlyArray[Int]
-  row_offsets : ReadOnlyArray[Int]
-  sequence_lengths : ReadOnlyArray[Int]
-  page_offsets : ReadOnlyArray[Int]
-  pages : ReadOnlyArray[Int]
+  step_counts : ReadOnlyArray[Int32]
+  positions : ReadOnlyArray[Int32]
+  row_offsets : ReadOnlyArray[Int32]
+  sequence_lengths : ReadOnlyArray[Int32]
+  page_offsets : ReadOnlyArray[Int32]
+  pages : ReadOnlyArray[Int32]
 }
 
 ///|
 fn kv_case(
   name : String,
-  prefill : Int,
-  decode : Int,
-  positions : Array[Int],
-  row_offsets : Array[Int],
-  sequence_lengths : Array[Int],
-  page_offsets : Array[Int],
-  pages : Array[Int],
+  prefill : Int32,
+  decode : Int32,
+  positions : Array[Int32],
+  row_offsets : Array[Int32],
+  sequence_lengths : Array[Int32],
+  page_offsets : Array[Int32],
+  pages : Array[Int32],
 ) -> KvWriteCase {
   {
     name,
@@ -70,7 +70,7 @@ fn kv_probe_cases() -> ReadOnlyArray[KvWriteCase] {
 }
 
 ///|
-fn kv_case_row(case_ : KvWriteCase, token : Int) -> Int {
+fn kv_case_row(case_ : KvWriteCase, token : Int32) -> Int32 {
   let mut row = 0
   while row + 1 < case_.step_counts[2] && token >= case_.row_offsets[row + 1] {
     row += 1
@@ -79,7 +79,7 @@ fn kv_case_row(case_ : KvWriteCase, token : Int) -> Int {
 }
 
 ///|
-fn kv_case_qkv_bits(case_ : KvWriteCase) -> Array[Int] {
+fn kv_case_qkv_bits(case_ : KvWriteCase) -> Array[Int32] {
   Array::makei(case_.positions.length() * 256, index => {
     0x3c00 + (case_.name.length() * 257 + index * 13) % 0x0200
   })

@@ -36,9 +36,9 @@ fn projection_refine_fold_dimensions(
   // Matrix folds can stride through an admitted persistent launch ceiling;
   // the one-row scalar route cannot. A smaller consumer product therefore
   // needs a larger scalar floor even in a small bounded-row executable.
-  let grid = Int::max(
+  let grid = Int32::max(
     scalar_work.to_int(),
-    Int::min(work.to_int(), dimensions.grid_x()),
+    Int32::min(work.to_int(), dimensions.grid_x()),
   )
   @launch_contract.AotLaunchDimensions::new(
     grid_x=grid,

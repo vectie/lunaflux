@@ -1,7 +1,7 @@
 ///|
 priv struct FakeKvResource {
   byte_count : Int64
-  context_id : Int
+  context_id : Int32
   mut open : Bool
 }
 

@@ -11,9 +11,9 @@ pub struct ApprovedFusedQkvReadOnlyAttentionSpan {
   priv readonly_module_bytes : Bytes
   priv readonly_symbol : String
   priv readonly_launch : @launch_contract.AotLaunchDimensions
-  priv qkv_index : Int
-  priv rope_index : Int
-  priv attention_index : Int
+  priv qkv_index : Int32
+  priv rope_index : Int32
+  priv attention_index : Int32
 }
 
 ///|
@@ -26,7 +26,7 @@ pub fn ApprovedFusedQkvReadOnlyAttentionSpan::model_generation(
 ///|
 pub fn ApprovedFusedQkvReadOnlyAttentionSpan::operation_indices(
   self : ApprovedFusedQkvReadOnlyAttentionSpan,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.qkv_index, self.rope_index, self.attention_index)
 }
 

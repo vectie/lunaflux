@@ -135,7 +135,7 @@ fn fixture_model_and_weights() -> (
 }
 
 ///|
-fn fixture_family(index : Int) -> @catalog.AotKernelFamily raise {
+fn fixture_family(index : Int32) -> @catalog.AotKernelFamily raise {
   @catalog.AotKernelFamily::new(
     module_digest=@catalog.AotArtifactDigest::from_sha256(
       "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
@@ -145,7 +145,7 @@ fn fixture_family(index : Int) -> @catalog.AotKernelFamily raise {
 }
 
 ///|
-fn fixture_family_index(operation : @plan.PlanOperation) -> Int {
+fn fixture_family_index(operation : @plan.PlanOperation) -> Int32 {
   match operation.kind() {
     Embedding => 0
     RmsNorm => 1
@@ -163,7 +163,7 @@ fn fixture_family_index(operation : @plan.PlanOperation) -> Int {
 ///|
 fn fixture_semantics(
   operation : @plan.PlanOperation,
-  tokens_per_page : Int,
+  tokens_per_page : Int32,
 ) -> @catalog.KernelExecutionSemantics raise {
   let kv_layout = match operation.persistent_state() {
     NoPersistentState => None
@@ -262,9 +262,9 @@ fn fixture() -> LaunchFixture raise {
 
 ///|
 fn fixture_profile(
-  rows? : Int = 2,
-  tokens? : Int = 4,
-  pages? : Int = 2,
+  rows~ : Int32 = 2,
+  tokens~ : Int32 = 4,
+  pages~ : Int32 = 2,
 ) -> @launch_contract.PagedKernelProfile raise {
   @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
@@ -293,9 +293,9 @@ fn fixture_inputs(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
   target : @catalog.DeviceTarget,
   profile : @launch_contract.PagedKernelProfile,
-  changed_index? : Int = -1,
-  changed_family? : Bool = false,
-  full_profile? : Bool = false,
+  changed_index~ : Int32 = -1,
+  changed_family~ : Bool = false,
+  full_profile~ : Bool = false,
 ) -> Array[TensorParallelAotLaunchContractInput] raise {
   let output : Array[TensorParallelAotLaunchContractInput] = []
   for index, operation in model.operations() {
@@ -355,10 +355,10 @@ fn admit_fixture(
   source : LaunchFixture,
   profile : @launch_contract.PagedKernelProfile,
   inputs : ArrayView[TensorParallelAotLaunchContractInput],
-  rank? : Int = 1,
-  world? : Int = 2,
-  target? : @catalog.DeviceTarget? = None,
-  layout? : @device_layout.DeviceKvLayout? = None,
+  rank~ : Int32 = 1,
+  world~ : Int32 = 2,
+  target~ : @catalog.DeviceTarget? = None,
+  layout~ : @device_layout.DeviceKvLayout? = None,
 ) -> TensorParallelAotLaunchContractSet raise TensorParallelLaunchContractError {
   admit_paged_rank(
     source.model,

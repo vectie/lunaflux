@@ -4,13 +4,13 @@
 /// published. This avoids millions of per-row requests/seeks for column TP.
 /// Compacting cannot overwrite unread bytes because write <= read throughout.
 fn transfer_strided_file(
-  shard : Int,
+  shard : Int32,
   file : @approved_fs.ApprovedFile,
-  request_index : Int,
+  request_index : Int32,
   request : StreamingSafetensorsTransfer,
   start : Int64,
   scratch : FixedArray[Byte],
-  consume : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise StreamingSafetensorsError {
   let stride = request.source_row_stride
   let width = request.byte_count / request.row_count.to_int64()

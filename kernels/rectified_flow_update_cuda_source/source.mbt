@@ -8,7 +8,10 @@ pub(all) suberror SourceError {
 /// [1-f32(timestep), f32(next_sigma)/f32(sigma), 1-ratio]. They are prepared
 /// once per step, outside the element loop. Exact in-place state/output alias
 /// is allowed; partial overlap and coefficient/output overlap are not.
-pub fn render(elements~ : Int64, block_size~ : Int) -> Bytes raise SourceError {
+pub fn render(
+  elements~ : Int64,
+  block_size~ : Int32,
+) -> Bytes raise SourceError {
   guard elements > 0L &&
     elements <= 2147483647L &&
     block_size > 0 &&

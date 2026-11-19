@@ -144,7 +144,7 @@ pub fn AudioRequest::execute(self : Self) -> Unit raise @device.DeviceError {
 /// succeeds. Use exclusively to bind a downstream queue ordered after this one.
 pub fn[T] AudioRequest::with_destination(
   self : Self,
-  consume : (@device.Allocation, Int64, Int) -> T raise @device.DeviceError,
+  consume : (@device.Allocation, Int64, Int32) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard (self.phase == Prepared || self.phase == Complete) &&
     self.source is Some(source) &&
@@ -178,7 +178,7 @@ pub impl @execution.PreparedFrame for AudioRequest with fn release(self) {
 /// consumers must finish and close their queues before this owner closes.
 pub fn[T] AudioRequest::with_rows(
   self : Self,
-  consume : (@device.Allocation, Int64, Int) -> T raise @device.DeviceError,
+  consume : (@device.Allocation, Int64, Int32) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Complete &&
     self.source is Some(source) &&

@@ -14,10 +14,10 @@ fn checked_product(
 
 ///|
 fn checked_conv_transpose_output_time(
-  input_time : Int,
-  kernel_size : Int,
-  stride : Int,
-  padding : Int,
+  input_time : Int32,
+  kernel_size : Int32,
+  stride : Int32,
+  padding : Int32,
 ) -> Int64 raise JointVaeDecodeReferenceError {
   if input_time <= 0 || kernel_size <= 0 || stride <= 0 || padding < 0 {
     raise GeometryOverflow
@@ -122,7 +122,7 @@ fn audio_gaps() -> ReadOnlyArray[JointVaeDecodeGap] {
 }
 
 ///|
-fn gap_tag(gap : JointVaeDecodeGap) -> Int {
+fn gap_tag(gap : JointVaeDecodeGap) -> Int32 {
   match gap {
     VideoOutputChannels => 1
     VideoDecoderDTypeCast => 2

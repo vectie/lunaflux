@@ -1,6 +1,6 @@
 ///|
 fn query_a_projection_operands_are_exact(
-  rank : Int,
+  rank : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,

@@ -1,7 +1,7 @@
 ///|
 fn framed_pool_source(
   request : @inference.GenerateRequest,
-) -> (FixedArray[Byte], Int) raise {
+) -> (FixedArray[Byte], Int32) raise {
   let limits = @framed_wire.FramedWireLimits::new(
     fixture_inference(),
     max_frame_bytes=4096,
@@ -43,10 +43,10 @@ fn framed_token_request() -> @inference.GenerateRequest raise {
 fn drive_framed_preparation(
   pool : LunaRequestPreparationPool,
   source : FixedArray[Byte],
-  length : Int,
-  chunk : Int,
+  length : Int32,
+  chunk : Int32,
 ) -> LunaRequestPreparationWork raise {
-  let initial = Int::min(chunk, length)
+  let initial = Int32::min(chunk, length)
   let admission = pool.try_begin_luna_framed(
     source,
     source_offset=0,
@@ -60,7 +60,7 @@ fn drive_framed_preparation(
   while offset < length {
     let lane = pool.lanes[work.lane]
     if lane.phase == LUNA_PREPARATION_FRAMED_RECEIVING {
-      let offered = Int::min(chunk, length - offset)
+      let offered = Int32::min(chunk, length - offset)
       let consumed = work.offer_luna_framed(
         source,
         source_offset=offset,

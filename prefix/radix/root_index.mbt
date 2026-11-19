@@ -1,5 +1,5 @@
 ///|
-fn compare_int(left : Int, right : Int) -> Int {
+fn compare_int(left : Int32, right : Int32) -> Int32 {
   if left < right {
     -1
   } else if left > right {
@@ -10,8 +10,8 @@ fn compare_int(left : Int, right : Int) -> Int {
 }
 
 ///|
-fn compare_string(left : String, right : String) -> Int {
-  let common = Int::min(left.length(), right.length())
+fn compare_string(left : String, right : String) -> Int32 {
+  let common = Int32::min(left.length(), right.length())
   for index in 0..<common {
     if left[index] < right[index] {
       return -1
@@ -26,9 +26,9 @@ fn compare_string(left : String, right : String) -> Int {
 ///|
 fn PrefixIndex::compare_root_fixed(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
-) -> Int {
+  left : Int32,
+  right : Int32,
+) -> Int32 {
   let left_model = self.root_models[left].unwrap()
   let right_model = self.root_models[right].unwrap()
   let mut order = compare_string(
@@ -65,7 +65,7 @@ fn PrefixIndex::compare_root_fixed(
   if order != 0 {
     return order
   }
-  let common = Int::min(
+  let common = Int32::min(
     self.root_scope_lengths[left],
     self.root_scope_lengths[right],
   )
@@ -86,8 +86,8 @@ fn PrefixIndex::compare_root_fixed(
 fn PrefixIndex::compare_request_root(
   self : PrefixIndex,
   key : PrefixRequestKey,
-  root : Int,
-) -> Int raise PrefixIndexError {
+  root : Int32,
+) -> Int32 raise PrefixIndexError {
   if !key.is_live() {
     raise StaleKey
   }
@@ -123,7 +123,7 @@ fn PrefixIndex::compare_request_root(
     return order
   }
   let length = key.semantic.scope_length() catch { _ => raise StaleKey }
-  let common = Int::min(length, self.root_scope_lengths[root])
+  let common = Int32::min(length, self.root_scope_lengths[root])
   for index in 0..<common {
     let left = key.semantic.scope_byte_at(index) catch { _ => raise StaleKey }
     let right = self.root_scope_byte(root, index)
@@ -138,7 +138,7 @@ fn PrefixIndex::compare_request_root(
 }
 
 ///|
-fn PrefixIndex::root_index_height(self : PrefixIndex, edge : Int) -> Int {
+fn PrefixIndex::root_index_height(self : PrefixIndex, edge : Int32) -> Int32 {
   if edge < 0 {
     0
   } else {
@@ -149,10 +149,10 @@ fn PrefixIndex::root_index_height(self : PrefixIndex, edge : Int) -> Int {
 ///|
 fn PrefixIndex::root_index_update_height(
   self : PrefixIndex,
-  edge : Int,
+  edge : Int32,
 ) -> Unit {
   self.root_index_heights[edge] = 1 +
-    Int::max(
+    Int32::max(
       self.root_index_height(self.root_index_left[edge]),
       self.root_index_height(self.root_index_right[edge]),
     )
@@ -161,8 +161,8 @@ fn PrefixIndex::root_index_update_height(
 ///|
 fn PrefixIndex::root_index_replace_parent(
   self : PrefixIndex,
-  old_edge : Int,
-  new_edge : Int,
+  old_edge : Int32,
+  new_edge : Int32,
 ) -> Unit {
   let parent = self.root_index_parents[old_edge]
   if parent < 0 {
@@ -178,7 +178,10 @@ fn PrefixIndex::root_index_replace_parent(
 }
 
 ///|
-fn PrefixIndex::root_index_rotate_left(self : PrefixIndex, edge : Int) -> Int {
+fn PrefixIndex::root_index_rotate_left(
+  self : PrefixIndex,
+  edge : Int32,
+) -> Int32 {
   let pivot = self.root_index_right[edge]
   let middle = self.root_index_left[pivot]
   self.root_index_replace_parent(edge, pivot)
@@ -194,7 +197,10 @@ fn PrefixIndex::root_index_rotate_left(self : PrefixIndex, edge : Int) -> Int {
 }
 
 ///|
-fn PrefixIndex::root_index_rotate_right(self : PrefixIndex, edge : Int) -> Int {
+fn PrefixIndex::root_index_rotate_right(
+  self : PrefixIndex,
+  edge : Int32,
+) -> Int32 {
   let pivot = self.root_index_left[edge]
   let middle = self.root_index_right[pivot]
   self.root_index_replace_parent(edge, pivot)
@@ -210,7 +216,7 @@ fn PrefixIndex::root_index_rotate_right(self : PrefixIndex, edge : Int) -> Int {
 }
 
 ///|
-fn PrefixIndex::root_index_rebalance(self : PrefixIndex, start : Int) -> Unit {
+fn PrefixIndex::root_index_rebalance(self : PrefixIndex, start : Int32) -> Unit {
   let mut edge = start
   while edge >= 0 {
     self.root_index_update_height(edge)
@@ -238,7 +244,7 @@ fn PrefixIndex::root_index_rebalance(self : PrefixIndex, start : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::root_index_insert(self : PrefixIndex, root : Int) -> Unit {
+fn PrefixIndex::root_index_insert(self : PrefixIndex, root : Int32) -> Unit {
   let edge = self.root_index_free_head
   if edge < 0 {
     abort("prefix root-index preflight invariant")
@@ -283,7 +289,7 @@ fn PrefixIndex::root_index_insert(self : PrefixIndex, root : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::root_index_remove(self : PrefixIndex, root : Int) -> Unit {
+fn PrefixIndex::root_index_remove(self : PrefixIndex, root : Int32) -> Unit {
   let mut edge = self.root_index_slots[root]
   if edge < 0 {
     abort("prefix root-index removal invariant")
@@ -323,7 +329,7 @@ fn PrefixIndex::root_index_remove(self : PrefixIndex, root : Int) -> Unit {
 fn PrefixIndex::find_request_root(
   self : PrefixIndex,
   key : PrefixRequestKey,
-) -> Int raise PrefixIndexError {
+) -> Int32 raise PrefixIndexError {
   let mut edge = self.root_index_root
   while edge >= 0 {
     self.root_lookup_comparisons += 1
@@ -345,7 +351,7 @@ fn PrefixIndex::find_request_root(
 }
 
 ///|
-fn PrefixIndex::take_free_root(self : PrefixIndex) -> Int {
+fn PrefixIndex::take_free_root(self : PrefixIndex) -> Int32 {
   let root = self.root_free_head
   if root < 0 {
     return -1
@@ -357,7 +363,7 @@ fn PrefixIndex::take_free_root(self : PrefixIndex) -> Int {
 }
 
 ///|
-fn PrefixIndex::release_root_slot(self : PrefixIndex, root : Int) -> Unit {
+fn PrefixIndex::release_root_slot(self : PrefixIndex, root : Int32) -> Unit {
   self.root_free_next[root] = self.root_free_head
   self.root_free_head = root
   self.free_stack_touches += 1

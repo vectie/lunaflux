@@ -1,9 +1,9 @@
 ///|
 fn read_numeric_exact(
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
   scratch : FixedArray[Byte],
   position : Int64,
-  byte_count : Int,
+  byte_count : Int32,
 ) -> Unit raise NumericWeightFileError {
   if byte_count < 0 || byte_count > scratch.length() {
     raise FileTruncated
@@ -12,7 +12,7 @@ fn read_numeric_exact(
 }
 
 ///|
-fn decode_f32_le(source : FixedArray[Byte], offset : Int) -> (UInt, Float) {
+fn decode_f32_le(source : FixedArray[Byte], offset : Int32) -> (UInt32, Float) {
   let bits = source[offset].to_uint() |
     (source[offset + 1].to_uint() << 8) |
     (source[offset + 2].to_uint() << 16) |
@@ -24,8 +24,8 @@ fn decode_f32_le(source : FixedArray[Byte], offset : Int) -> (UInt, Float) {
 fn validate_scale_region(
   region : NumericTransferRegion,
   scratch : FixedArray[Byte],
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  chunk_bytes : Int32,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
 ) -> Unit raise NumericWeightFileError {
   if region.byte_length % 4L != 0L {
     raise InvalidScale(ordinal=region.ordinal, row=0)
@@ -66,8 +66,8 @@ fn row_contains_nonzero_i8(
   row : Int64,
   row_bytes : Int64,
   scratch : FixedArray[Byte],
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  chunk_bytes : Int32,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
 ) -> Bool raise NumericWeightFileError {
   let mut offset = 0L
   let mut nonzero = false
@@ -104,8 +104,8 @@ fn validate_i8_scale_rows(
   row_count : Int64,
   row_bytes : Int64,
   scratch : FixedArray[Byte],
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  chunk_bytes : Int32,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
 ) -> Unit raise NumericWeightFileError {
   if scale.byte_length != row_count * 4L {
     raise InvalidScale(ordinal=scale.ordinal, row=0)
@@ -185,8 +185,8 @@ fn validate_i8_scale_rows(
 fn validate_plain_i8_region(
   region : NumericTransferRegion,
   scratch : FixedArray[Byte],
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  chunk_bytes : Int32,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
 ) -> Unit raise NumericWeightFileError {
   let mut position = 0L
   while position < region.byte_length {
@@ -215,8 +215,8 @@ fn validate_plain_i8_region(
 fn validate_finite_fp8_region(
   region : NumericTransferRegion,
   scratch : FixedArray[Byte],
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  chunk_bytes : Int32,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
 ) -> Unit raise NumericWeightFileError {
   let mut position = 0L
   while position < region.byte_length {
@@ -252,8 +252,8 @@ fn validate_numeric_payload(
   model_plan : @plan.ModelPlan,
   regions : ReadOnlyArray[NumericTransferRegion],
   scratch : FixedArray[Byte],
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  chunk_bytes : Int32,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
 ) -> Unit raise NumericWeightFileError {
   let tensors = model_plan.numeric_binding().schema().tensors()
   for ordinal, tensor in tensors {

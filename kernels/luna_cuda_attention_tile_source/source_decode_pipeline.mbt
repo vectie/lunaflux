@@ -6,10 +6,10 @@ fn emit_decode_async_stage(
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
   hoist_page_lookup : Bool,
   retention : @attention_physical_ir.RetainedCopyOwnership,
-  vector_elements? : Int = 4,
-  tile_rows~ : Int,
-  start_alignment~ : Int,
-  storage_index? : String = "linear",
+  vector_elements~ : Int32 = 4,
+  tile_rows~ : Int32,
+  start_alignment~ : Int32,
+  storage_index~ : String = "linear",
 ) -> String {
   if effects.independently_refills() {
     return emit_decode_independent_stage(
@@ -104,7 +104,7 @@ fn emit_decode_async_stage(
 ///|
 fn emit_decode_pipeline_iteration(
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
-  retained_validity? : Bool = false,
+  retained_validity~ : Bool = false,
 ) -> String {
   (
     $|    const int slot = ((key_base - key_begin) / LF_KEY_VALUE_TILE) & 1;

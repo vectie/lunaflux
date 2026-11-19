@@ -12,8 +12,8 @@ pub fn retained_rows_source(
 ) -> RetainedRowsCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (width, stride, rows, capacity) = plan.geometry()
@@ -62,15 +62,15 @@ pub fn RetainedRowsCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn RetainedRowsCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn RetainedRowsCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.symbols[stage]
 }
 
 ///|
 pub fn RetainedRowsCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (_, _, rows, _) = self.plan.geometry()
   if stage == 1 {
     (rows, 1, 256)

@@ -20,8 +20,8 @@ test "pipeline requires complete reduction blocks and shares no model identity" 
         ),
       ),
     )
-    let compiled = compile_projection_tile(
-      ProjectionTileCompilerRequest::new(
+    let compiled = @luna_projection_tile_compiler.compile_projection_tile(
+      @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
         dispatch~,
         maximum_rows=8,
         maximum_tokens=128,

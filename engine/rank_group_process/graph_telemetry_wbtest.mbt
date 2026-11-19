@@ -13,7 +13,7 @@ fn graph_test_report(
 
 ///|
 fn graph_test_shape(
-  batch_rows : Int,
+  batch_rows : Int32,
 ) -> @worker_wire.WorkerGraphShapeClass raise {
   @worker_wire.WorkerGraphShapeClass::new(
     phase=1,

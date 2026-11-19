@@ -34,3 +34,27 @@ pub(all) suberror ApprovedFsError {
   Busy(ApprovedFsOperation)
   OperationFailed(ApprovedFsOperation)
 } derive(Debug, Eq)
+
+///|
+pub extend ApprovedFsRule with @debug.Debug::{to_repr}
+
+///|
+pub extend ApprovedFsRule with Eq::{not_equal, equal}
+
+///|
+pub extend ApprovedFsObject with @debug.Debug::{to_repr}
+
+///|
+pub extend ApprovedFsObject with Eq::{not_equal, equal}
+
+///|
+pub extend ApprovedFsOperation with @debug.Debug::{to_repr}
+
+///|
+pub extend ApprovedFsOperation with Eq::{not_equal, equal}
+
+///|
+pub extend ApprovedFsError with @debug.Debug::{to_repr}
+
+///|
+pub extend ApprovedFsError with Eq::{not_equal, equal}

@@ -36,7 +36,7 @@ fn phase23_balance_semantic_leases() -> FixedArray[
 ///|
 fn phase23_balance_stop_view(
   leases : FixedArray[@inference.LunaRequestSemanticLease?],
-  index : Int,
+  index : Int32,
 ) -> @inference.LunaRequestStopTokenView raise {
   match leases[index] {
     Some(lease) => lease.stop_token_view()
@@ -72,7 +72,7 @@ fn phase23_balance_request(
 }
 
 ///|
-fn phase23_balance_index(id : @inference.RequestId) -> Int raise {
+fn phase23_balance_index(id : @inference.RequestId) -> Int32 raise {
   let value = id.value()
   if value == 0UL || value > PHASE23_BALANCE_REQUEST_COUNT.to_uint64() {
     raise Failure("balance publication request ID escaped the admitted range")
@@ -81,7 +81,7 @@ fn phase23_balance_index(id : @inference.RequestId) -> Int raise {
 }
 
 ///|
-fn phase23_expected_reason(index : Int) -> @scheduler.TerminalReason {
+fn phase23_expected_reason(index : Int32) -> @scheduler.TerminalReason {
   match index % PHASE23_BALANCE_WAVE_SIZE {
     6 | 7 => CancelledByCaller
     8 | 9 => DeadlineReached
@@ -92,8 +92,8 @@ fn phase23_expected_reason(index : Int) -> @scheduler.TerminalReason {
 ///|
 fn phase23_drain_publications(
   service : @worker_service.WorkerService,
-  ledger : FixedArray[Int],
-) -> Int raise {
+  ledger : FixedArray[Int32],
+) -> Int32 raise {
   let mut terminals = 0
   while service.generated_token_count() + service.terminal_notice_count() > 0 {
     let publication = service.take_next_publication()
@@ -138,8 +138,8 @@ fn phase23_assert_balanced(
 fn phase23_run_wave(
   service : @worker_service.WorkerService,
   leases : FixedArray[@inference.LunaRequestSemanticLease?],
-  ledger : FixedArray[Int],
-  first_index : Int,
+  ledger : FixedArray[Int32],
+  first_index : Int32,
 ) -> Unit raise {
   for offset in 0..<2 {
     let id = (first_index + offset + 1).to_uint64()

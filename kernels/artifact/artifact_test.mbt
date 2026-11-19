@@ -68,7 +68,7 @@ fn digest_for(bytes : FixedArray[Byte]) -> @catalog.AotArtifactDigest {
 ///|
 fn family(
   digest : @catalog.AotArtifactDigest,
-  stable_id : Int,
+  stable_id : Int32,
 ) -> @catalog.AotKernelFamily {
   let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(stable_id)
   @catalog.AotKernelFamily::new(module_digest=digest, family_id~)
@@ -114,7 +114,7 @@ fn resolved_catalog(
 }
 
 ///|
-fn profile(stable_id : Int, rows : Int) -> @launch_contract.KernelProfile {
+fn profile(stable_id : Int32, rows : Int32) -> @launch_contract.KernelProfile {
   let id = try! @launch_contract.KernelProfileId::from_stable_int(stable_id)
   try! @launch_contract.KernelProfile::full_prefill(
     id~,
@@ -125,7 +125,7 @@ fn profile(stable_id : Int, rows : Int) -> @launch_contract.KernelProfile {
 }
 
 ///|
-fn dimensions(rows : Int) -> @launch_contract.AotLaunchDimensions {
+fn dimensions(rows : Int32) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x=rows,
     grid_y=1,
@@ -140,8 +140,8 @@ fn dimensions(rows : Int) -> @launch_contract.AotLaunchDimensions {
 ///|
 fn entry(
   digest : @catalog.AotArtifactDigest,
-  family_id : Int,
-  entry_id : Int,
+  family_id : Int32,
+  entry_id : Int32,
 ) -> @catalog.AotKernelEntryPoint {
   let entry_point_id = try! @catalog.AotKernelEntryPointId::from_stable_int(
     entry_id,
@@ -153,7 +153,10 @@ fn entry(
 }
 
 ///|
-fn operands(operation : Int, rows : Int) -> Array[@launch_contract.AotOperand] {
+fn operands(
+  operation : Int32,
+  rows : Int32,
+) -> Array[@launch_contract.AotOperand] {
   let row_bytes = rows.to_int64() * 32L
   if operation == 0 {
     [
@@ -197,10 +200,10 @@ fn operands(operation : Int, rows : Int) -> Array[@launch_contract.AotOperand] {
 ///|
 fn contract_input(
   digest : @catalog.AotArtifactDigest,
-  profile_id : Int,
-  operation_id : Int,
-  entry_id : Int,
-  rows : Int,
+  profile_id : Int32,
+  operation_id : Int32,
+  entry_id : Int32,
+  rows : Int32,
 ) -> @launch_contract.AotLaunchContractInput {
   let resolved_profile = try! @launch_contract.KernelProfileId::from_stable_int(
     profile_id,
@@ -239,11 +242,11 @@ fn contracts(
 
 ///|
 fn limits(
-  max_modules? : Int = 4,
-  max_entry_points? : Int = 8,
-  max_module_bytes? : Int64 = 1024L,
-  max_total_module_bytes? : Int64 = 4096L,
-  max_function_symbol_bytes? : Int = 64,
+  max_modules~ : Int32 = 4,
+  max_entry_points~ : Int32 = 8,
+  max_module_bytes~ : Int64 = 1024L,
+  max_total_module_bytes~ : Int64 = 4096L,
+  max_function_symbol_bytes~ : Int32 = 64,
 ) -> @artifact.KernelArtifactLimits {
   try! @artifact.KernelArtifactLimits::new(
     max_modules~,
@@ -257,8 +260,8 @@ fn limits(
 ///|
 fn export_input(
   digest : @catalog.AotArtifactDigest,
-  family_id : Int,
-  entry_id : Int,
+  family_id : Int32,
+  entry_id : Int32,
   symbol : String,
 ) -> @artifact.KernelEntryPointInput {
   @artifact.KernelEntryPointInput::new(

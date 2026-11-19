@@ -2,24 +2,24 @@
 pub struct AudioUpsampleSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  batch : Int
-  input_channels : Int
-  output_channels : Int
-  input_time : Int
-  kernel : Int
-  stride : Int
-  padding : Int
+  batch : Int32
+  input_channels : Int32
+  output_channels : Int32
+  input_time : Int32
+  kernel : Int32
+  stride : Int32
+  padding : Int32
 }
 
 ///|
 pub fn build_audio_upsample(
-  batch~ : Int,
-  input_channels~ : Int,
-  output_channels~ : Int,
-  input_time~ : Int,
-  kernel~ : Int,
-  stride~ : Int,
-  padding~ : Int,
+  batch~ : Int32,
+  input_channels~ : Int32,
+  output_channels~ : Int32,
+  input_time~ : Int32,
+  kernel~ : Int32,
+  stride~ : Int32,
+  padding~ : Int32,
   function_prefix~ : String,
 ) -> AudioUpsampleSource raise {
   let symbols = [function_prefix + "_norm", function_prefix + "_conv"]

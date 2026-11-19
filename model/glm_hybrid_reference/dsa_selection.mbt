@@ -7,11 +7,11 @@ pub fn select_dsa_pools(
   query_heads : ArrayView[Double],
   head_weights : ArrayView[Double],
   pooled : GlmDsaPooledKeys,
-  candidate_pools : ArrayView[Int],
-  head_count~ : Int,
-  top_k_pools~ : Int,
-  source_layer~ : Int,
-  key_count~ : Int,
+  candidate_pools : ArrayView[Int32],
+  head_count~ : Int32,
+  top_k_pools~ : Int32,
+  source_layer~ : Int32,
+  key_count~ : Int32,
   limits~ : GlmHybridReferenceLimits,
   advanced_limits~ : @advanced_decoder_reference.ReferenceLimits,
 ) -> GlmDsaTopKState raise GlmHybridReferenceError {
@@ -26,7 +26,7 @@ pub fn select_dsa_pools(
   }
   require_finite(query_heads)
   require_finite(head_weights)
-  let seen : Map[Int, Unit] = Map([])
+  let seen : Map[Int32, Unit] = Map([])
   let candidate_keys : Array[Float] = []
   for pool in candidate_pools {
     if pool < 0 || pool >= pooled.pool_count {
@@ -61,7 +61,7 @@ pub fn select_dsa_pools(
   ) catch {
     _ => raise SharedPrimitiveFailure
   }
-  let raw_indices : Array[Int] = []
+  let raw_indices : Array[Int32] = []
   for local_pool in selected.indices() {
     let pool = candidate_pools[local_pool]
     for offset in 0..<pooled.pool_size {

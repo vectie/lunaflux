@@ -4,7 +4,7 @@
 fn matrix_window_attention_source(
   plan : @precision.WindowSharedKvPrecision,
   symbol_prefix~ : String,
-  maximum_slots~ : Int,
+  maximum_slots~ : Int32,
   logical_slots~ : String,
   setup~ : String,
   lookup~ : String,

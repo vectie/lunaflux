@@ -40,7 +40,7 @@ pub fn GroupedAttentionOutputFrame::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn GroupedAttentionOutputFrame::workspace_bytes(
   self : Self,
-  output_borrowed? : Bool = false,
+  output_borrowed~ : Bool = false,
 ) -> Int64 {
   let plan = self.source.plan()
   plan.workspace_bytes() -

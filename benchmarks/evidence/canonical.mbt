@@ -1,7 +1,7 @@
 ///|
 priv struct BenchmarkEncoder {
   bytes : Array[Byte]
-  maximum : Int
+  maximum : Int32
 }
 
 ///|
@@ -18,7 +18,7 @@ fn BenchmarkEncoder::append_byte(
 ///|
 fn BenchmarkEncoder::append_int(
   self : BenchmarkEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit raise BenchmarkEvidenceError {
   for byte in Int64::from_int(value).reinterpret_as_uint64().to_le_bytes() {
     self.append_byte(byte)

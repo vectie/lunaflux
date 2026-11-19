@@ -4,9 +4,9 @@
 /// dequantization has a BF16 boundary; Output-B quantizes activations per block.
 pub struct GroupedAttentionOutputPrecision {
   priv rotary : RotaryTensorPrecision
-  priv groups : Int
-  priv rank : Int
-  priv hidden : Int
+  priv groups : Int32
+  priv rank : Int32
+  priv hidden : Int32
   priv matrices : ReadOnlyArray[@format.Representation]
   priv frames : ReadOnlyArray[Int64]
   priv accumulation : DotReductionLaw
@@ -15,19 +15,19 @@ pub struct GroupedAttentionOutputPrecision {
 
 ///|
 pub fn GroupedAttentionOutputPrecision::new(
-  head_count~ : Int,
-  head_width~ : Int,
-  rotary_width~ : Int,
-  group_count~ : Int,
-  output_rank~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  head_count~ : Int32,
+  head_width~ : Int32,
+  rotary_width~ : Int32,
+  group_count~ : Int32,
+  output_rank~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   frequency~ : RotaryFrequency,
   maximum_workspace_bytes~ : Int64,
-  rotary_product? : RotaryProductLaw = SeparateFloat32Products,
-  accumulation? : DotReductionLaw = OrderedFloat32,
-  projection_scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
+  rotary_product~ : RotaryProductLaw = SeparateFloat32Products,
+  accumulation~ : DotReductionLaw = OrderedFloat32,
+  projection_scaled_dot_law~ : ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> Self raise {
   match projection_scaled_dot_law {
     DecodeOperandsFloat32 => ()
@@ -123,13 +123,13 @@ pub fn GroupedAttentionOutputPrecision::rotary(
 ///|
 pub fn GroupedAttentionOutputPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   let (heads, width, _, rows, _) = self.rotary.geometry()
   (self.groups, heads * width / self.groups, self.rank, rows)
 }
 
 ///|
-pub fn GroupedAttentionOutputPrecision::hidden_width(self : Self) -> Int {
+pub fn GroupedAttentionOutputPrecision::hidden_width(self : Self) -> Int32 {
   self.hidden
 }
 

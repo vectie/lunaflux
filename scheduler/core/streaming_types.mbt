@@ -2,7 +2,7 @@
 #valtype
 priv enum StreamingFlight {
   Empty
-  Spilling(@streaming_ir.Command, Int, @page_allocator.PageId)
+  Spilling(@streaming_ir.Command, Int32, @page_allocator.PageId)
   Restoring(@streaming_ir.Command)
   Dropping(@streaming_ir.Command)
 }
@@ -24,21 +24,21 @@ priv struct StreamingOwner {
   mut sequence : UInt64
   mut flight : StreamingFlight
   drops : FixedArray[@streaming_ir.HostPage]
-  mut drop_count : Int
-  mut host_used : Int
+  mut drop_count : Int32
+  mut host_used : Int32
   host_live : FixedArray[Bool]
-  host_generations : FixedArray[Int]
+  host_generations : FixedArray[Int32]
   mut last_now : UInt64
   mut started_at : UInt64
-  cells : FixedArray[Int]
+  cells : FixedArray[Int32]
   hosts : FixedArray[@streaming_ir.HostPage]
   pages : @page_allocator.PageIdStorage
-  mut count : Int
-  mut cursor : Int
-  mut request_slot : Int
-  mut request_generation : Int
+  mut count : Int32
+  mut cursor : Int32
+  mut request_slot : Int32
+  mut request_generation : Int32
   mut entry : StreamingEntry
-  mut spill_cursor : Int
+  mut spill_cursor : Int32
 }
 
 ///|

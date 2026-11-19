@@ -12,8 +12,8 @@ pub enum MistralWeightRule {
 ///|
 pub(all) suberror MistralWeightsError {
   Mismatch(MistralWeightRule)
-  MissingTensor(reference~ : Int)
-  InvalidTensor(reference~ : Int, MistralWeightRule)
+  MissingTensor(reference~ : Int32)
+  InvalidTensor(reference~ : Int32, MistralWeightRule)
   InvalidModelPlan(@plan.PlanValidationError)
   InvalidNumericWeightFile(@numeric_weight_file.NumericWeightFileError)
 } derive(Debug, Eq)
@@ -48,7 +48,7 @@ pub fn MistralWeightManifest::identity(self : Self) -> @spec.ModelIdentity {
 }
 
 ///|
-pub fn MistralWeightManifest::length(self : Self) -> Int {
+pub fn MistralWeightManifest::length(self : Self) -> Int32 {
   self.bindings.length()
 }
 

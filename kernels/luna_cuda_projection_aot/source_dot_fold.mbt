@@ -64,8 +64,8 @@ fn projection_dot_fold_source(
 fn projection_scalar_map_source(
   symbol : String,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
-  maximum_rows : Int,
+  maximum_tokens : Int32,
+  maximum_rows : Int32,
   compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
 ) -> Bytes {
   let selected = compilation.schedule().demand() == QueryRowEnds

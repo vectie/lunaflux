@@ -61,7 +61,7 @@ pub struct AttentionTileCompilationFrontier {
 /// `parallel_workgroup_target` is the portable resource-model input; the
 /// resulting partition count is carried by the compiled schedule itself.
 pub struct AttentionPartitionedTileCompilationVariant {
-  priv parallel_workgroup_target : Int
+  priv parallel_workgroup_target : Int32
   priv compilation : ScheduledAttentionTileCompilation
 } derive(Debug, Eq)
 

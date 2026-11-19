@@ -3,17 +3,17 @@ pub struct RefinerSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
   model : @joint_diffusion_plan.JointDiffusionPlan
-  rows : Int
+  rows : Int32
   probability_law : @precision.AttentionProbabilityLaw
 }
 
 ///|
 pub fn build_refiner(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  text_rows~ : Int,
+  text_rows~ : Int32,
   block_norm_epsilon~ : Double,
   function_prefix~ : String,
-  probability_law? : @precision.AttentionProbabilityLaw = GlobalF32,
+  probability_law~ : @precision.AttentionProbabilityLaw = GlobalF32,
 ) -> RefinerSource raise {
   let s = model.denoiser()
   let symbols = [

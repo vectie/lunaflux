@@ -1,6 +1,6 @@
 ///|
 fn output_path_unit_is_safe(unit : Char) -> Bool {
-  unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '.' | '_' | '-' | '/')
+  unit is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '.' | '_' | '-' | '/')
 }
 
 ///|
@@ -114,7 +114,7 @@ fn step_limits() -> @device_step.DeviceStepLimits raise LunaBf16ReleaseBindError
 
 ///|
 fn execution_limits(
-  operation_count : Int,
+  operation_count : Int32,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise LunaBf16ReleaseBindError {
   @execution_manifest_file.ExecutionManifestFileLimits::new(
     max_manifest_bytes=1048576L,

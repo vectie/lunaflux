@@ -1,7 +1,7 @@
 ///|
 pub fn TensorParallelTopology::new(
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
 ) -> TensorParallelTopology raise TensorParallelPlanError {
   if world_size <= 0 || world_size > 16 || rank < 0 || rank >= world_size {
     raise invalid(Topology)
@@ -167,12 +167,12 @@ pub fn TensorParallelOperationPlan::new(
   operation~ : @plan.OperationId,
   kind~ : @plan.OperationKind,
   capability~ : @plan.KernelCapabilityId,
-  input_width~ : Int,
-  output_width~ : Int,
-  inner_width~ : Int,
-  query_head_count~ : Int,
-  kv_head_count~ : Int,
-  head_dimension~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  inner_width~ : Int32,
+  query_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  head_dimension~ : Int32,
 ) -> TensorParallelOperationPlan raise TensorParallelPlanError {
   let index = operation.as_int()
   if kind == QkRmsNorm {
@@ -239,12 +239,12 @@ pub fn TensorParallelOperationPlan::new(
 
 ///|
 pub fn TensorCollectiveSite::new(
-  sequence~ : Int,
+  sequence~ : Int32,
   operation~ : @plan.OperationId,
   kind~ : TensorCollectiveKind,
-  full_width~ : Int,
-  local_width~ : Int,
-  world_size~ : Int,
+  full_width~ : Int32,
+  local_width~ : Int32,
+  world_size~ : Int32,
 ) -> TensorCollectiveSite raise TensorParallelPlanError {
   if sequence <= 0 || world_size <= 1 || full_width <= 0 || local_width <= 0 {
     raise invalid(CollectiveGeometry, index=sequence)
@@ -273,7 +273,7 @@ pub fn TensorCollectiveSite::new(
 fn validate_tensor_topology(
   tensor : TensorRankPlacement,
   topology : TensorParallelTopology,
-  index : Int,
+  index : Int32,
 ) -> Unit raise TensorParallelPlanError {
   let extent = tensor.extent
   let world = topology.world_size.to_int64()
@@ -313,7 +313,7 @@ fn validate_operation_topology(
   model : @plan.ModelPlan,
   semantic : @plan.PlanOperation,
   topology : TensorParallelTopology,
-  index : Int,
+  index : Int32,
 ) -> Unit raise TensorParallelPlanError {
   let world = topology.world_size
   let mut valid = false

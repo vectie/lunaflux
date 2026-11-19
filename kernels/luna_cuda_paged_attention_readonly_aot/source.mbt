@@ -14,8 +14,8 @@ fn readonly_symbol(id : @catalog.AotKernelEntryPointId) -> String {
 fn readonly_cuda_source(
   symbol : String,
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
-  input_row_width : Int,
-  diagnostic_canary_per_token : Int?,
+  input_row_width : Int32,
+  diagnostic_canary_per_token : Int32?,
 ) -> Bytes {
   let query_heads = reference.query_heads()
   let kv_heads = reference.kv_heads()

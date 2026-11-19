@@ -1,6 +1,6 @@
 ///|
 fn kvp_identity(
-  content? : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  content~ : String = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 ) -> @spec.ModelIdentity {
   try! @spec.ModelIdentity::new(
     try! @spec.ContentDigest::from_sha256(content),
@@ -12,9 +12,9 @@ fn kvp_identity(
 
 ///|
 fn kvp_geometry(
-  heads? : Int = 8,
-  layers? : Int = 2,
-  width? : Int = 64,
+  heads~ : Int32 = 8,
+  layers~ : Int32 = 2,
+  width~ : Int32 = 64,
 ) -> @plan.KvCacheGeometry {
   try! @plan.KvCacheGeometry::new(
     layer_count=layers,
@@ -26,7 +26,7 @@ fn kvp_geometry(
 }
 
 ///|
-fn kvp_target(minor? : Int = 0) -> @catalog.DeviceTarget {
+fn kvp_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=8,
     compute_minor=minor,
@@ -37,7 +37,7 @@ fn kvp_target(minor? : Int = 0) -> @catalog.DeviceTarget {
 
 ///|
 fn kvp_generation(
-  value? : UInt64 = 7UL,
+  value~ : UInt64 = 7UL,
 ) -> @worker_protocol.ModelPlanGeneration {
   try! @worker_protocol.ModelPlanGeneration::from_wire(value)
 }
@@ -45,12 +45,12 @@ fn kvp_generation(
 ///|
 fn kvp_device_facts(
   identity : @spec.ModelIdentity,
-  world : Int,
-  changed_rank? : Int = -1,
-  changed_world? : Int = -1,
-  changed_identity_rank? : Int = -1,
-  changed_target_rank? : Int = -1,
-  changed_ordinal_rank? : Int = -1,
+  world : Int32,
+  changed_rank~ : Int32 = -1,
+  changed_world~ : Int32 = -1,
+  changed_identity_rank~ : Int32 = -1,
+  changed_target_rank~ : Int32 = -1,
+  changed_ordinal_rank~ : Int32 = -1,
 ) -> Array[RankDeviceFacts] {
   let output : Array[RankDeviceFacts] = []
   for rank in 0..<world {
@@ -85,11 +85,11 @@ fn kvp_device_facts(
 
 ///|
 fn kvp_runtime_facts(
-  world : Int,
-  changed_rank? : Int = -1,
-  changed_world? : Int = -1,
-  changed_target_rank? : Int = -1,
-  reservation? : Int64 = 1048576L,
+  world : Int32,
+  changed_rank~ : Int32 = -1,
+  changed_world~ : Int32 = -1,
+  changed_target_rank~ : Int32 = -1,
+  reservation~ : Int64 = 1048576L,
 ) -> Array[RankRuntimeFacts] {
   let output : Array[RankRuntimeFacts] = []
   for rank in 0..<world {
@@ -114,14 +114,14 @@ fn kvp_runtime_facts(
 
 ///|
 fn kvp_admit(
-  geometry? : @plan.KvCacheGeometry = kvp_geometry(),
-  generation? : UInt64 = 7UL,
-  world? : Int = 2,
+  geometry~ : @plan.KvCacheGeometry = kvp_geometry(),
+  generation~ : UInt64 = 7UL,
+  world~ : Int32 = 2,
   devices? : Array[RankDeviceFacts],
   runtime_ranks? : Array[RankRuntimeFacts],
-  runtime_target? : @catalog.DeviceTarget = kvp_target(),
-  tokens? : Int = 16,
-  pages? : Int = 4,
+  runtime_target~ : @catalog.DeviceTarget = kvp_target(),
+  tokens~ : Int32 = 16,
+  pages~ : Int32 = 4,
 ) -> TensorParallelKvPlan raise TensorParallelKvPlanError {
   let identity = kvp_identity()
   let actual_devices = match devices {

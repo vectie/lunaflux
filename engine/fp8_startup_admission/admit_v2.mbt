@@ -33,7 +33,7 @@ fn encode_fp8_startup_admission_v2(
   plan : @plan.ModelPlan,
   device_numeric : @device.DeviceNumericCapability,
   kernels : @numeric_capability_manifest.AdmittedFp8KernelArtifacts,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise Fp8StartupAdmissionError {
   let output : Array[Byte] = []
   for byte in b"lunaflux.fp8-startup-admission.v2\x00" {

@@ -71,7 +71,7 @@ fn fixture_digest(bytes : Bytes) -> @spec.ContentDigest {
 }
 
 ///|
-fn fixture_identity(foreign? : Bool = false) -> @spec.ModelIdentity {
+fn fixture_identity(foreign~ : Bool = false) -> @spec.ModelIdentity {
   let content = if foreign {
     "1111111111111111111111111111111111111111111111111111111111111111"
   } else {

@@ -2,15 +2,15 @@
 fn paged_attention_decode_split_cuda_source(
   partial_symbol : String,
   merge_symbol : String,
-  query_heads : Int,
-  kv_heads : Int,
-  head_dimension : Int,
-  tokens_per_page : Int,
+  query_heads : Int32,
+  kv_heads : Int32,
+  head_dimension : Int32,
+  tokens_per_page : Int32,
   page_stride_bytes : Int64,
   physical_page_capacity : Int64,
-  max_rows : Int,
-  max_tokens : Int,
-  max_page_entries : Int,
+  max_rows : Int32,
+  max_tokens : Int32,
+  max_page_entries : Int32,
   workspace : @luna_attention_strategy.AttentionDecodeWorkspacePlan,
 ) -> Bytes {
   let query_width = query_heads * head_dimension

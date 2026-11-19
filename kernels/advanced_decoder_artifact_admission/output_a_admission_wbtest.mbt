@@ -1,9 +1,9 @@
 ///|
 fn output_a_admission_requirements(
-  hidden_size? : Int = 16,
-  query_rank? : Int = 4,
-  output_rank? : Int = 4,
-  attention_head_dimension? : Int = 64,
+  hidden_size~ : Int32 = 16,
+  query_rank~ : Int32 = 4,
+  output_rank~ : Int32 = 4,
+  attention_head_dimension~ : Int32 = 64,
 ) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements {
   let shape = try! @advanced_decoder_execution_plan.AdvancedDecoderShape::new(
     vocabulary_size=128,

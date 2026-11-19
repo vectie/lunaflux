@@ -1,10 +1,10 @@
 ///|
 fn fused_qualification_residual_reference(
   shape : FusedQualificationShape,
-  residual : ArrayView[Int],
-  branch : ArrayView[Int],
-  norm_weight : ArrayView[Int],
-) -> (Array[Int], Array[Int]) raise FusedQualificationError {
+  residual : ArrayView[Int32],
+  branch : ArrayView[Int32],
+  norm_weight : ArrayView[Int32],
+) -> (Array[Int32], Array[Int32]) raise FusedQualificationError {
   let elements = shape.token_count * FUSED_QUALIFICATION_INPUT_WIDTH
   if residual.length() != elements ||
     branch.length() != elements ||

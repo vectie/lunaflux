@@ -1,20 +1,20 @@
 ///|
-const ROOT_TRANSPORT_LEGACY : Int = 1
+const ROOT_TRANSPORT_LEGACY : Int32 = 1
 
 ///|
-const ROOT_TRANSPORT_EXCHANGE : Int = 2
+const ROOT_TRANSPORT_EXCHANGE : Int32 = 2
 
 ///|
-const EXCHANGE_IDLE : Int = -1
+const EXCHANGE_IDLE : Int32 = -1
 
 ///|
-const EXCHANGE_WRITING : Int = 0
+const EXCHANGE_WRITING : Int32 = 0
 
 ///|
-const EXCHANGE_READING_COMPLETION : Int = 1
+const EXCHANGE_READING_COMPLETION : Int32 = 1
 
 ///|
-const EXCHANGE_READING_GRAPH_TELEMETRY : Int = 2
+const EXCHANGE_READING_GRAPH_TELEMETRY : Int32 = 2
 
 ///|
 fn RootBoundWorkerProcessSupervisor::clear_exchange(
@@ -44,8 +44,8 @@ fn[T] RootBoundWorkerProcessSupervisor::fail_exchange(
 fn WorkerProcessSupervisor::begin_exchange_write(
   self : WorkerProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  timeout_millis : Int,
-) -> Int raise WorkerProcessError {
+  timeout_millis : Int32,
+) -> Int32 raise WorkerProcessError {
   self.require_ready()
   if self.outstanding_count() != 0 {
     raise Backpressured
@@ -112,9 +112,9 @@ fn WorkerProcessSupervisor::begin_exchange_write(
 ///|
 fn WorkerProcessSupervisor::accept_exchange_completion_bytes(
   self : WorkerProcessSupervisor,
-  side : Int,
+  side : Int32,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  length : Int,
+  length : Int32,
 ) -> Unit raise WorkerProcessError {
   let frame = if side == 0 {
     self.completion_a.load(self.rx, length) catch {

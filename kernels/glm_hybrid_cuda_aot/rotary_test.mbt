@@ -1,7 +1,7 @@
 ///|
 fn glm_rotary_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is GlmRotaryPosition(_, _) {
       return ordinal

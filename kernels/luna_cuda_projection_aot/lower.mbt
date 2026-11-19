@@ -23,9 +23,9 @@ fn projection_finish_candidate(
   symbol : String,
   embed_greedy_sampling : Bool,
   limits : ProjectionAotLimits,
-  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
-  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
-  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  fold_choices~ : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  sibling_ownership~ : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport~ : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
   sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   projection_validate_policy(target, compiler)
@@ -320,9 +320,9 @@ pub fn lower_reusable_projection_cuda_aot_candidate_with_dispatch(
   operands : ArrayView[@launch_contract.AotOperand],
   runtime_dispatch : @luna_projection_strategy.ProjectionRuntimeDispatch,
   limits : ProjectionAotLimits,
-  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
-  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
-  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  fold_choices~ : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  sibling_ownership~ : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport~ : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
   sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   let parameters = projection_parameters(operation)
@@ -366,9 +366,9 @@ pub fn lower_reusable_projection_cuda_aot_candidate(
   compiler : @luna_specialization.LunaCompilerPolicy,
   operands : ArrayView[@launch_contract.AotOperand],
   limits : ProjectionAotLimits,
-  fold_choices? : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
-  sibling_ownership? : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
-  sibling_transport? : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
+  fold_choices~ : ArrayView[@luna_projection_tile_compiler.ProjectionFoldChoice] = [],
+  sibling_ownership~ : @luna_projection_tile_compiler.ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport~ : @luna_projection_tile_compiler.ProjectionSiblingTransport = BaselineSiblingTransport,
   sibling_execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   let records : Array[@luna_projection_strategy.ProjectionAutotuneRecord] = []

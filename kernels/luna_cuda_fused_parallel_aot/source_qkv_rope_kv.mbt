@@ -3,7 +3,7 @@ fn fused_qkv_rope_kv_source(
   symbol : String,
   parameters : FusedQkvParameters,
   profile : @launch_contract.PagedKernelProfile,
-  diagnostic_canary : UInt?,
+  diagnostic_canary : UInt32?,
 ) -> Bytes {
   let output = StringBuilder()
   let canary_argument = match diagnostic_canary {

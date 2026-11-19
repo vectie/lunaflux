@@ -32,11 +32,11 @@ pub(all) suberror ReferenceAttentionError {
 pub fn ReferenceAttentionPlan::new(
   backend~ : ReferenceAttentionBackend,
   abi~ : @abi.CudaPagedAttentionTileAbi,
-  query_dtype? : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
-  kv_dtype? : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
-  output_dtype? : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
-  accumulator? : @numeric.AccumulatorDType = @numeric.AccumulatorDType::f32(),
-  prefill_schedule? : ReferencePrefillSchedule = Query64Kv128,
+  query_dtype~ : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
+  kv_dtype~ : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
+  output_dtype~ : @numeric.ComputeDType = @numeric.ComputeDType::bfloat16(),
+  accumulator~ : @numeric.AccumulatorDType = @numeric.AccumulatorDType::f32(),
+  prefill_schedule~ : ReferencePrefillSchedule = Query64Kv128,
 ) -> ReferenceAttentionPlan raise ReferenceAttentionError {
   // Resolve the terminal specialization at startup, never by casting a
   // quantized cache to BF16. Weight dtype is deliberately not an attention
@@ -120,7 +120,7 @@ pub fn ReferenceAttentionPlan::numeric_law(
 /// compiler heuristic. Grid X covers the same row-major tile domain.
 pub fn ReferenceAttentionPlan::launch(
   self : ReferenceAttentionPlan,
-) -> (Int, Int, Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32, Int32, Int32) {
   let (heads, kv_heads, _, _) = self.abi.shape()
   let (rows, tokens, _) = self.abi.limits()
   match self.backend {

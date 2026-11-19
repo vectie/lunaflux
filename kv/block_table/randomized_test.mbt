@@ -4,7 +4,7 @@ fn block_next_random(seed : Int64) -> Int64 {
 }
 
 ///|
-fn first_used_table(states : Array[Int], start : Int) -> Int {
+fn first_used_table(states : Array[Int32], start : Int32) -> Int32 {
   for offset in 0..<states.length() {
     let index = (start + offset) % states.length()
     if states[index] == 1 {
@@ -37,7 +37,7 @@ test "deterministic randomized table model preserves FIFO and dense mappings" {
   for _ in 0..<table_capacity {
     model_pages.push([])
   }
-  let free_fifo : Array[Int] = [0, 1, 2, 3, 4]
+  let free_fifo : Array[Int32] = [0, 1, 2, 3, 4]
   let mut seed = 19L
   for _step in 0..<2000 {
     seed = block_next_random(seed)

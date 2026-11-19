@@ -17,16 +17,16 @@ pub(all) suberror Fp8ReusablePagedRecipeV3Error {
 
 ///|
 pub struct Fp8ReusablePagedRecipeV3Limits {
-  priv max_launches : Int
+  priv max_launches : Int32
   priv max_workspace_arena_bytes : Int64
-  priv max_canonical_bytes : Int
+  priv max_canonical_bytes : Int32
 }
 
 ///|
 pub fn Fp8ReusablePagedRecipeV3Limits::new(
-  max_launches~ : Int,
+  max_launches~ : Int32,
   max_workspace_arena_bytes~ : Int64,
-  max_canonical_bytes~ : Int,
+  max_canonical_bytes~ : Int32,
 ) -> Fp8ReusablePagedRecipeV3Limits raise Fp8ReusablePagedRecipeV3Error {
   if max_launches <= 0 ||
     max_launches > 65536 ||
@@ -138,14 +138,14 @@ pub fn Fp8ReusablePagedLaunchV3::workspace_alignment(
 ///|
 pub fn Fp8ReusablePagedLaunchV3::stage_count(
   self : Fp8ReusablePagedLaunchV3,
-) -> Int {
+) -> Int32 {
   self.source.stages().length()
 }
 
 ///|
 pub fn Fp8ReusablePagedLaunchV3::stage_at(
   self : Fp8ReusablePagedLaunchV3,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @numeric_contract.ActivationScaleStage? {
   self.source.stages().get(ordinal).map(stage => stage.stage())
 }

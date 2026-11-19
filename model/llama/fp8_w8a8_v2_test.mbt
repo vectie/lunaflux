@@ -1,5 +1,5 @@
 ///|
-fn fp8_v2_metadata(layer_count? : Int = 1) -> @spec.LlamaModelMetadata raise {
+fn fp8_v2_metadata(layer_count~ : Int32 = 1) -> @spec.LlamaModelMetadata raise {
   @spec.LlamaModelMetadata::from_verified_content(
     @spec.LlamaModelSpec::new(
       vocabulary_size=32,
@@ -38,7 +38,7 @@ fn fp8_v2_execution(
 ///|
 fn fp8_v2_schema_with_execution(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
   execution : @numeric_contract.OperationExecutionContract,
 ) -> @numeric_contract.ModelNumericSchema raise {
   let source = plan.numeric_binding().schema()

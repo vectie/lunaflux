@@ -2,7 +2,7 @@
 const ABSOLUTE_MAX_CONFIG_BYTES : Int64 = 67108864L
 
 ///|
-const ABSOLUTE_MAX_JSON_DEPTH : Int = 64
+const ABSOLUTE_MAX_JSON_DEPTH : Int32 = 64
 
 ///|
 /// Supplied lowercase SHA-256-format configuration label. File loading does
@@ -15,7 +15,7 @@ pub struct ModelConfigDigest {
 /// Exact startup allocation and parser ceilings for one model configuration.
 pub struct ModelConfigFileLimits {
   priv maximum_bytes : Int64
-  priv maximum_depth : Int
+  priv maximum_depth : Int32
 }
 
 ///|
@@ -37,7 +37,7 @@ pub fn ModelConfigDigest::as_hex(self : ModelConfigDigest) -> String {
 ///|
 pub fn ModelConfigFileLimits::new(
   maximum_bytes~ : Int64,
-  maximum_depth~ : Int,
+  maximum_depth~ : Int32,
 ) -> ModelConfigFileLimits raise ModelConfigFileError {
   if maximum_bytes <= 0L || maximum_bytes > ABSOLUTE_MAX_CONFIG_BYTES {
     raise InvalidLimit(ConfigBytes)
@@ -58,6 +58,6 @@ pub fn ModelConfigFileLimits::maximum_bytes(
 ///|
 pub fn ModelConfigFileLimits::maximum_depth(
   self : ModelConfigFileLimits,
-) -> Int {
+) -> Int32 {
   self.maximum_depth
 }

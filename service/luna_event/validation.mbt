@@ -6,8 +6,8 @@ fn luna_event_invalid(rule : LunaEventRule) -> LunaEventError {
 ///|
 fn luna_valid_utf8_range(
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> Bool {
   let end = offset + length
   let mut index = offset
@@ -67,8 +67,8 @@ fn luna_valid_utf8_range(
 ///|
 fn luna_valid_public_code_range(
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> Bool {
   if length <= 0 ||
     length > 64 ||
@@ -94,9 +94,9 @@ fn luna_valid_public_code_range(
 ///|
 fn luna_valid_usage(
   limits : @inference.InferenceLimits,
-  input_tokens : Int,
-  cached_input_tokens : Int,
-  output_tokens : Int,
+  input_tokens : Int32,
+  cached_input_tokens : Int32,
+  output_tokens : Int32,
 ) -> Bool {
   input_tokens >= 0 &&
   input_tokens <= limits.max_context_tokens() &&
@@ -110,9 +110,9 @@ fn luna_valid_usage(
 ///|
 fn luna_valid_source_range(
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-  maximum : Int,
+  offset : Int32,
+  length : Int32,
+  maximum : Int32,
 ) -> Bool {
   offset >= 0 &&
   length >= 0 &&

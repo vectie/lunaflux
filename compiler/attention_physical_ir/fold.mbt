@@ -91,9 +91,9 @@ pub extend AttentionExponentialLaw with @debug.Debug::{to_repr}
 /// is scalar and construction is constant-space. There is no CUDA, model name,
 /// source string, memory allocation or transfer scheduling authority here.
 pub struct OnlineFold {
-  priv queries : Int
-  priv keys : Int
-  priv dimensions : Int
+  priv queries : Int32
+  priv keys : Int32
+  priv dimensions : Int32
   priv exponential : AttentionExponentialLaw
 } derive(Eq, Debug)
 
@@ -105,9 +105,9 @@ pub extend OnlineFold with @debug.Debug::{to_repr}
 
 ///|
 pub fn OnlineFold::new(
-  queries~ : Int,
-  keys~ : Int,
-  dimensions~ : Int,
+  queries~ : Int32,
+  keys~ : Int32,
+  dimensions~ : Int32,
 ) -> OnlineFold? {
   guard queries > 0 &&
     keys > 0 &&
@@ -137,7 +137,7 @@ pub fn OnlineFold::exponential_law(
 }
 
 ///|
-pub fn OnlineFold::geometry(self : OnlineFold) -> (Int, Int, Int) {
+pub fn OnlineFold::geometry(self : OnlineFold) -> (Int32, Int32, Int32) {
   (self.queries, self.keys, self.dimensions)
 }
 

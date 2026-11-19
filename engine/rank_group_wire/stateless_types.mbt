@@ -8,8 +8,8 @@ pub struct RankGroupWireDecodedHeader {
   priv direction : RankGroupWireDirection
   priv slot : RankGroupWireSlot?
   priv sequence_value : UInt64
-  priv payload_length : Int
-  priv length : Int
+  priv payload_length : Int32
+  priv length : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -52,14 +52,14 @@ pub fn RankGroupWireDecodedHeader::sequence_value(
 ///|
 pub fn RankGroupWireDecodedHeader::payload_length(
   self : RankGroupWireDecodedHeader,
-) -> Int {
+) -> Int32 {
   self.payload_length
 }
 
 ///|
 pub fn RankGroupWireDecodedHeader::length(
   self : RankGroupWireDecodedHeader,
-) -> Int {
+) -> Int32 {
   self.length
 }
 
@@ -76,3 +76,9 @@ pub fn RankGroupWireDecodedConfigure::binding(
 ) -> RankGroupWireBinding {
   self.binding
 }
+
+///|
+pub extend RankGroupWireDecodedHeader with @debug.Debug::{to_repr}
+
+///|
+pub extend RankGroupWireDecodedHeader with Eq::{not_equal, equal}

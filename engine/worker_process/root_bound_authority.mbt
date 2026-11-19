@@ -20,12 +20,12 @@ fn close_root_pair(
 }
 
 ///|
-fn close_root_pair_status(roots : @approved_fs.WorkerApprovedRoots) -> Int {
+fn close_root_pair_status(roots : @approved_fs.WorkerApprovedRoots) -> Int32 {
   @approved_fs.worker_approved_roots_close_status(roots)
 }
 
 ///|
-fn root_failure_status(status : Int) -> RootBoundWorkerProcessFailure? {
+fn root_failure_status(status : Int32) -> RootBoundWorkerProcessFailure? {
   if status == 0 {
     None
   } else if status == 7 {

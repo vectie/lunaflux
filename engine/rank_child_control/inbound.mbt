@@ -33,7 +33,7 @@ pub fn RankChildInbound::sequence_value(
 ///|
 pub fn RankChildInbound::payload_length(
   self : RankChildInbound,
-) -> Int raise RankChildControlError {
+) -> Int32 raise RankChildControlError {
   self.owner().inbound_payload_length
 }
 
@@ -52,7 +52,7 @@ pub fn RankChildInbound::binding(
 pub fn RankChildInbound::copy_payload_to(
   self : RankChildInbound,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise RankChildControlError {
   let owner = self.owner()
   let payload_length = owner.inbound_payload_length

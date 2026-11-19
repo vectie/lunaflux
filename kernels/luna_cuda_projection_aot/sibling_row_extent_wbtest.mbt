@@ -1,12 +1,12 @@
 ///|
 fn sibling_bounded_source_for_test(
-  maximum_tokens : Int,
-  groups : Int,
+  maximum_tokens : Int32,
+  groups : Int32,
 ) -> String raise {
   let parameters = sibling_resource_test_parameters()
   let target = projection_fixture_target()
   let baseline = projection_build_runtime_dispatch(parameters, 1024, target, [])
-  let dispatch_rows = Int::max(8, maximum_tokens)
+  let dispatch_rows = Int32::max(8, maximum_tokens)
   let strategy = sibling_resource_test_strategy(baseline, dispatch_rows, groups)
   let runtime = projection_build_runtime_dispatch(parameters, 1024, target, [
     row_variant_test_record(parameters, strategy),
@@ -15,7 +15,7 @@ fn sibling_bounded_source_for_test(
   let compilation = @luna_projection_tile_compiler.compile_projection_tile(
     @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
       dispatch~,
-      maximum_rows=Int::min(32, maximum_tokens),
+      maximum_rows=Int32::min(32, maximum_tokens),
       maximum_tokens~,
       demand=AllTokenRows,
       single_row_numerics=AllowDeterministicDotTree,
@@ -26,7 +26,7 @@ fn sibling_bounded_source_for_test(
       "bounded_gate",
       parameters,
       maximum_tokens,
-      Int::min(32, maximum_tokens),
+      Int32::min(32, maximum_tokens),
       dispatch,
       compilation,
       false,
@@ -42,7 +42,7 @@ test "bounded sibling rows remove dead staging and accumulator products" {
   for maximum_tokens in [2, 8, 16] {
     for groups in [1, 2, 4, 8, 16] {
       let source = sibling_bounded_source_for_test(maximum_tokens, groups)
-      let columns = Int::max(1, groups / 4) * 16
+      let columns = Int32::max(1, groups / 4) * 16
       let width = if groups <= 8 { 64 } else { 32 }
       let slot = (16 + 2 * columns) * width
       assert_true(source.contains("sibling_storage[\{slot * 2}]"))
@@ -123,7 +123,7 @@ test "larger sibling envelopes retain bounded reuse and the measured resource to
 test "partial sibling consumers do not duplicate shared transfer ownership" {
   for groups in [4, 8, 16] {
     let rows = 48
-    let columns = Int::max(1, groups / 4) * 16
+    let columns = Int32::max(1, groups / 4) * 16
     let threads = groups * 32
     let vectors = (rows + columns * 2) * 32 / 8
     let batches = (vectors + threads - 1) / threads

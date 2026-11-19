@@ -1,8 +1,8 @@
 ///|
 pub(all) suberror Glm53NvFp4ExpertError {
-  InvalidMoeLayer(Int)
-  InvalidExpert(Int)
-  DuplicateExpert(Int)
+  InvalidMoeLayer(Int32)
+  InvalidExpert(Int32)
+  DuplicateExpert(Int32)
   EmptyExpertPartition
   Precision(@precision_format.PrecisionError)
 } derive(Debug, Eq)
@@ -17,19 +17,19 @@ pub extend Glm53NvFp4ExpertError with @debug.Debug::{to_repr}
 /// Pure checkpoint mapping for one projection. The logical GLM graph is
 /// unchanged; ModelOpt's three physical planes implement its weight operand.
 pub struct Glm53NvFp4ExpertWeight {
-  priv layer : Int
-  priv expert : Int
+  priv layer : Int32
+  priv expert : Int32
   priv payload_name : String
   priv representation : @precision_format.Representation
 }
 
 ///|
-pub fn Glm53NvFp4ExpertWeight::layer_index(self : Self) -> Int {
+pub fn Glm53NvFp4ExpertWeight::layer_index(self : Self) -> Int32 {
   self.layer
 }
 
 ///|
-pub fn Glm53NvFp4ExpertWeight::expert_index(self : Self) -> Int {
+pub fn Glm53NvFp4ExpertWeight::expert_index(self : Self) -> Int32 {
   self.expert
 }
 
@@ -61,8 +61,8 @@ pub fn Glm53NvFp4ExpertWeight::representation(
 /// implied and no full-bank BF16 expansion. Layer 45 is the checkpoint's MTP
 /// layer; layers 0..2 are dense and therefore not routed expert banks.
 pub fn nvfp4_expert_weights(
-  layer_index~ : Int,
-  expert_indices~ : ArrayView[Int],
+  layer_index~ : Int32,
+  expert_indices~ : ArrayView[Int32],
 ) -> Array[Glm53NvFp4ExpertWeight] raise Glm53NvFp4ExpertError {
   if layer_index < 3 || layer_index > 45 {
     raise InvalidMoeLayer(layer_index)
@@ -70,7 +70,7 @@ pub fn nvfp4_expert_weights(
   if expert_indices.is_empty() {
     raise EmptyExpertPartition
   }
-  let seen : Set[Int] = Set([])
+  let seen : Set[Int32] = Set([])
   let weights = []
   for expert in expert_indices {
     if expert < 0 || expert >= 288 {

@@ -26,11 +26,11 @@ fn fused_common_recipe(
   compiler : @luna_specialization.LunaCompilerPolicy,
   source_digest : FusedParallelDigest,
   symbol : String,
-  canary : UInt,
+  canary : UInt32,
   numerical : FusedParallelNumericalPolicy,
-  grid_x : Int,
-  grid_y : Int,
-  shared_memory_bytes : Int,
+  grid_x : Int32,
+  grid_y : Int32,
+  shared_memory_bytes : Int32,
 ) -> String {
   "schema=lunaflux-fused-parallel-cuda-aot-candidate.v1\nfamily=" +
   family +
@@ -78,7 +78,7 @@ fn fused_qkv_recipe(
   profile : @launch_contract.PagedKernelProfile,
   compiler : @luna_specialization.LunaCompilerPolicy,
   symbol : String,
-  canary : UInt,
+  canary : UInt32,
   numerical : FusedParallelNumericalPolicy,
 ) -> Bytes {
   let record = fused_common_recipe(
@@ -242,7 +242,7 @@ fn fused_residual_norm_recipe(
   profile : @launch_contract.PagedKernelProfile,
   compiler : @luna_specialization.LunaCompilerPolicy,
   symbol : String,
-  canary : UInt,
+  canary : UInt32,
   numerical : FusedParallelNumericalPolicy,
 ) -> Bytes {
   let record = fused_common_recipe(

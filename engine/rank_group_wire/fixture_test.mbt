@@ -11,8 +11,8 @@ fn fixture_wire_identity() -> @spec.ModelIdentity {
 
 ///|
 fn fixture_wire_binding(
-  rank : Int,
-  group_generation_value? : UInt64 = 1UL,
+  rank : Int32,
+  group_generation_value~ : UInt64 = 1UL,
 ) -> @rank_group_wire.RankGroupWireBinding {
   try! @rank_group_wire.RankGroupWireBinding::new(
     identity=fixture_wire_identity(),

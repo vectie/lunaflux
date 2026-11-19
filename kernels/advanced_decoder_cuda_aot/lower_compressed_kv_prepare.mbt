@@ -31,10 +31,10 @@ fn compressed_kv_prepare_operand_text(
 ///|
 fn compressed_kv_prepare_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_batches : Int,
-  window_size : Int,
-  compression_ratio : Int,
+  ordinal : Int32,
+  maximum_batches : Int32,
+  window_size : Int32,
+  compression_ratio : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -107,8 +107,8 @@ fn compressed_kv_prepare_recipe(
 /// ownership, index construction, sparse attention, and execution remain out.
 pub fn lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_batches~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_batches~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

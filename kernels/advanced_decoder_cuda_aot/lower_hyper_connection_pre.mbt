@@ -28,9 +28,9 @@ fn hyper_connection_pre_operand_text(
 ///|
 fn hyper_connection_pre_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  stream_width : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  stream_width : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -105,8 +105,8 @@ fn hyper_connection_pre_recipe(
 /// Lowers exact V1 pre-reduction only. The F32 sum is rounded once to BF16.
 pub fn lower_hyper_connection_pre_reduce_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

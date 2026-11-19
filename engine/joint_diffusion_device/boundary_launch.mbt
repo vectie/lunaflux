@@ -7,7 +7,7 @@ pub fn LatentStorage::boundary_launch(
   self : Self,
   function : @device.Function,
   boundary~ : @joint_diffusion_loop.LatentBoundary,
-  block_size~ : Int,
+  block_size~ : Int32,
 ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
   let transfer = self.plan.boundary(boundary)
   let dimensions = linear_dimensions(
@@ -26,7 +26,7 @@ pub fn LatentStorage::boundary_launch(
 /// keep the renderer's Int32 element bound and avoid addition overflow.
 fn linear_dimensions(
   elements : Int64,
-  block_size : Int,
+  block_size : Int32,
 ) -> @device.KernelLaunchDimensions raise @device.DeviceError {
   guard elements > 0L &&
     elements <= 2147483647L &&

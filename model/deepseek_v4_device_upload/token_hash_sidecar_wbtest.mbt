@@ -11,8 +11,8 @@ fn sidecar_test_identity(seed : Char) -> @spec.ModelIdentity {
 fn sidecar_test_metadata(
   identity : @spec.ModelIdentity,
   manifest_seed : Char,
-  layers : ArrayView[Int],
-  byte_counts : ArrayView[Int],
+  layers : ArrayView[Int32],
+  byte_counts : ArrayView[Int32],
   table_digest_seed : Char,
   released : Bool,
 ) -> TokenHashSidecarMetadata {
@@ -48,11 +48,11 @@ fn exact_sidecar_test_metadata() -> TokenHashSidecarMetadata {
 
 ///|
 fn sidecar_test_limits(
-  maximum_source_arenas? : Int = 3,
-  maximum_regions? : Int = 3,
-  maximum_host_arena_bytes? : Int = official_token_hash_table_bytes,
-  maximum_total_source_bytes? : Int64 = 9308160L,
-  maximum_device_arena_bytes? : Int64 = 9308160L,
+  maximum_source_arenas~ : Int32 = 3,
+  maximum_regions~ : Int32 = 3,
+  maximum_host_arena_bytes~ : Int32 = official_token_hash_table_bytes,
+  maximum_total_source_bytes~ : Int64 = 9308160L,
+  maximum_device_arena_bytes~ : Int64 = 9308160L,
 ) -> @segmented_device_materialize.SegmentedDeviceMaterializationLimits {
   try! @segmented_device_materialize.SegmentedDeviceMaterializationLimits::new(
     alignment_bytes=256L,
@@ -66,7 +66,7 @@ fn sidecar_test_limits(
 
 ///|
 fn exact_sidecar_regions(
-  source_order : ArrayView[Int],
+  source_order : ArrayView[Int32],
 ) -> Array[@segmented_device_materialize.SegmentedDeviceTensorRegionInput] {
   let regions : Array[
     @segmented_device_materialize.SegmentedDeviceTensorRegionInput,

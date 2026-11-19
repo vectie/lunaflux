@@ -4,7 +4,7 @@ pub fn deferred_post_pre_dispatch_source(
   consumer : @precision.HyperConnectionPrecision,
   dispatch : @physical.DeferredPostPreDispatch,
   symbol~ : String,
-  subgroup_width? : Int = 32,
+  subgroup_width~ : Int32 = 32,
 ) -> Bytes raise {
   let text = StringBuilder()
   let arms = StringBuilder()

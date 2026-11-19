@@ -6,27 +6,27 @@ pub fn DecoderScaledRopeCudaSource::numerical_contract(
 }
 
 ///|
-pub fn DecoderScaledRopeCudaSource::query_head_count(self : Self) -> Int {
+pub fn DecoderScaledRopeCudaSource::query_head_count(self : Self) -> Int32 {
   self.query_head_count
 }
 
 ///|
-pub fn DecoderScaledRopeCudaSource::key_value_head_count(self : Self) -> Int {
+pub fn DecoderScaledRopeCudaSource::key_value_head_count(self : Self) -> Int32 {
   self.key_value_head_count
 }
 
 ///|
-pub fn DecoderScaledRopeCudaSource::rope_dimension(self : Self) -> Int {
+pub fn DecoderScaledRopeCudaSource::rope_dimension(self : Self) -> Int32 {
   self.rope_dimension
 }
 
 ///|
-pub fn DecoderScaledRopeCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderScaledRopeCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 
 ///|
-pub fn DecoderScaledRopeCudaSource::maximum_positions(self : Self) -> Int {
+pub fn DecoderScaledRopeCudaSource::maximum_positions(self : Self) -> Int32 {
   self.maximum_positions
 }
 

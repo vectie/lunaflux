@@ -10,7 +10,7 @@ pub fn lower_measured_projection_cuda_aot_candidate(
   dispatch : @luna_projection_strategy.ProjectionRuntimeDispatch,
   limits : ProjectionAotLimits,
   records : ArrayView[@luna_projection_tuning.ProjectionFoldRecord],
-  minimum_improvement_basis_points? : Int = 100,
+  minimum_improvement_basis_points~ : Int32 = 100,
 ) -> ProjectionCudaLowering raise ProjectionAotError {
   if minimum_improvement_basis_points < 0 ||
     minimum_improvement_basis_points > 10000 {

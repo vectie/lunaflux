@@ -35,7 +35,7 @@ async fn bind_spawned_serving_listener(owner : RuntimeInstanceOwner) -> Unit {
 ///|
 async fn accept_spawned_serving_client(
   owner : RuntimeInstanceOwner,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit {
   for turn in 0..<turn_limit {
     ignore(owner.progress())
@@ -59,7 +59,7 @@ async fn accept_spawned_serving_client(
 async fn progress_spawned_serving_request(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> SpawnedServingMetricSample {
   for turn in 0..<contract.turn_limit {
     ignore(owner.progress())
@@ -96,7 +96,7 @@ async fn progress_spawned_serving_request(
 async fn retire_spawned_serving_client(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> SpawnedServingMetricSample {
   for turn in 0..<contract.turn_limit {
     ignore(owner.progress())
@@ -221,7 +221,7 @@ async fn run_spawned_serving_validation(
 ///|
 async fn drain_spawned_serving_owner(
   owner : RuntimeInstanceOwner,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Bool {
   if owner.cleanup_complete() {
     return true

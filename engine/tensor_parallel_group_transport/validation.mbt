@@ -1,7 +1,7 @@
 ///|
 fn[T] rejected(
   rule : TensorParallelGroupTransportRule,
-  rank? : Int = -1,
+  rank~ : Int32 = -1,
 ) -> T raise TensorParallelGroupTransportError {
   raise Rejected(rule~, rank~)
 }

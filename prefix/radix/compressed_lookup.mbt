@@ -1,9 +1,9 @@
 ///|
 fn PrefixIndex::lookup_rooted(
   self : PrefixIndex,
-  root : Int,
+  root : Int32,
   tokens : PrefixTokenBuffer,
-  maximum_reusable_tokens : Int,
+  maximum_reusable_tokens : Int32,
   output : PrefixLookupBuffer,
 ) -> Unit raise PrefixIndexError {
   if maximum_reusable_tokens < 0 || maximum_reusable_tokens > tokens.length() {
@@ -89,7 +89,7 @@ pub fn PrefixIndex::lookup(
   self : PrefixIndex,
   key : PrefixRequestKey,
   tokens : PrefixTokenBuffer,
-  maximum_reusable_tokens~ : Int,
+  maximum_reusable_tokens~ : Int32,
   output : PrefixLookupBuffer,
 ) -> Unit raise PrefixIndexError {
   if !key.is_live() {
@@ -146,7 +146,7 @@ pub fn PrefixIndex::release_active(
 pub fn PrefixIndex::active_reference_count(
   self : PrefixIndex,
   entry : PrefixEntryId,
-) -> Int raise PrefixIndexError {
+) -> Int32 raise PrefixIndexError {
   self.entry_active_references[self.checked_entry(entry)]
 }
 

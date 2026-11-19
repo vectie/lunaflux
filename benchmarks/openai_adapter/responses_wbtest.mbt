@@ -1,6 +1,6 @@
 ///|
 fn responses_test_observer(
-  engine? : @evidence.BenchmarkEngine = LunaFlux,
+  engine~ : @evidence.BenchmarkEngine = LunaFlux,
 ) -> OpenAIResponsesTrialObserver raise {
   OpenAIResponsesTrialContract::new(
     baseline_test_identity(engine~),

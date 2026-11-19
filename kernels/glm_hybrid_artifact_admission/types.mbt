@@ -2,30 +2,30 @@
 pub(all) suberror GlmHybridArtifactAdmissionError {
   InvalidLimit
   InvalidDeclaredQualificationDigest
-  ClaimCountMismatch(expected~ : Int, actual~ : Int)
-  MissingClaim(ordinal~ : Int)
-  DuplicateClaim(ordinal~ : Int)
-  DuplicateEntryPoint(ordinal~ : Int)
-  SourceDigestMismatch(ordinal~ : Int)
-  SourceIdentityMismatch(ordinal~ : Int)
-  TargetMismatch(ordinal~ : Int)
-  CapabilityMismatch(ordinal~ : Int)
-  GeometryMismatch(ordinal~ : Int)
-  ArtifactDigestMismatch(ordinal~ : Int)
-  EntryPointModuleMismatch(ordinal~ : Int)
-  InvalidLaunch(ordinal~ : Int)
-  InvalidFunctionSymbol(ordinal~ : Int)
-  InvalidLaunchOperands(ordinal~ : Int)
+  ClaimCountMismatch(expected~ : Int32, actual~ : Int32)
+  MissingClaim(ordinal~ : Int32)
+  DuplicateClaim(ordinal~ : Int32)
+  DuplicateEntryPoint(ordinal~ : Int32)
+  SourceDigestMismatch(ordinal~ : Int32)
+  SourceIdentityMismatch(ordinal~ : Int32)
+  TargetMismatch(ordinal~ : Int32)
+  CapabilityMismatch(ordinal~ : Int32)
+  GeometryMismatch(ordinal~ : Int32)
+  ArtifactDigestMismatch(ordinal~ : Int32)
+  EntryPointModuleMismatch(ordinal~ : Int32)
+  InvalidLaunch(ordinal~ : Int32)
+  InvalidFunctionSymbol(ordinal~ : Int32)
+  InvalidLaunchOperands(ordinal~ : Int32)
   AdmissionEncodingTooLarge
   NoExecutionAuthority
 } derive(Debug, Eq)
 
 ///|
 pub struct GlmHybridArtifactAdmissionLimits {
-  priv maximum_claims : Int
-  priv maximum_module_bytes : Int
+  priv maximum_claims : Int32
+  priv maximum_module_bytes : Int32
   priv maximum_total_module_bytes : Int64
-  priv maximum_canonical_bytes : Int
+  priv maximum_canonical_bytes : Int32
 }
 
 ///|
@@ -174,10 +174,10 @@ pub fn GlmHybridLaunchOperand::new(
 
 ///|
 pub fn GlmHybridArtifactAdmissionLimits::new(
-  maximum_claims~ : Int,
-  maximum_module_bytes~ : Int,
+  maximum_claims~ : Int32,
+  maximum_module_bytes~ : Int32,
   maximum_total_module_bytes~ : Int64,
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> Self raise GlmHybridArtifactAdmissionError {
   if maximum_claims <= 0 ||
     maximum_claims > 4096 ||
@@ -229,7 +229,7 @@ pub(all) enum GlmHybridArtifactAdmissionStatus {
 
 ///|
 pub struct GlmHybridArtifactClaimInput {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv source_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
   priv source_identity : @spec.ModelIdentity
   priv target : @catalog.DeviceTarget
@@ -246,7 +246,7 @@ pub struct GlmHybridArtifactClaimInput {
 
 ///|
 pub fn GlmHybridArtifactClaimInput::new(
-  ordinal~ : Int,
+  ordinal~ : Int32,
   source_digest~ : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest,
   source_identity~ : @spec.ModelIdentity,
   target~ : @catalog.DeviceTarget,
@@ -279,11 +279,11 @@ pub fn GlmHybridArtifactClaimInput::new(
 
 ///|
 pub struct GlmHybridAdmittedArtifact {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
   priv module_digest : @catalog.AotArtifactDigest
-  priv module_byte_length : Int
+  priv module_byte_length : Int32
   priv entry_point : @catalog.AotKernelEntryPoint
   priv function_symbol : String
   priv launch : @launch_contract.AotLaunchDimensions

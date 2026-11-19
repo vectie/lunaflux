@@ -5,21 +5,21 @@
 pub struct ProjectionOperandTransferPlan {
   priv input : ProjectionVectorTransferMap
   priv weight : ProjectionVectorTransferMap
-  priv input_elements : Int
-  priv slot_elements : Int
-  priv row_width : Int
-  priv vector_width : Int
+  priv input_elements : Int32
+  priv slot_elements : Int32
+  priv row_width : Int32
+  priv vector_width : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Construct a complete strip-transfer domain, rejecting truncated vectors and
 /// unrepresentable storage before a backend can emit wrapped loop bounds.
 pub fn ProjectionOperandTransferPlan::new(
-  input_rows~ : Int,
-  weight_rows~ : Int,
-  row_width~ : Int,
-  vector_width~ : Int,
-  owners~ : Int,
+  input_rows~ : Int32,
+  weight_rows~ : Int32,
+  row_width~ : Int32,
+  vector_width~ : Int32,
+  owners~ : Int32,
 ) -> ProjectionOperandTransferPlan? {
   guard input_rows > 0 &&
     weight_rows > 0 &&
@@ -68,14 +68,14 @@ pub fn ProjectionOperandTransferPlan::weight_map(
 /// The weight strip begins immediately after the input strip in each slot.
 pub fn ProjectionOperandTransferPlan::weight_offset(
   self : ProjectionOperandTransferPlan,
-) -> Int {
+) -> Int32 {
   self.input_elements
 }
 
 ///|
 pub fn ProjectionOperandTransferPlan::slot_elements(
   self : ProjectionOperandTransferPlan,
-) -> Int {
+) -> Int32 {
   self.slot_elements
 }
 
@@ -85,7 +85,7 @@ pub fn ProjectionOperandTransferPlan::slot_elements(
 pub fn ProjectionOperandTransferPlan::storage(
   self : ProjectionOperandTransferPlan,
   layout : @physical_tile_ir.OperandLayout,
-  stages~ : Int,
+  stages~ : Int32,
 ) -> @physical_tile_ir.OperandStorage? {
   let (columns, vector, _, _) = layout.geometry()
   guard columns == self.row_width && vector == self.vector_width else {
@@ -102,3 +102,9 @@ pub fn ProjectionOperandTransferPlan::storage(
     stages~,
   )
 }
+
+///|
+pub extend ProjectionOperandTransferPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionOperandTransferPlan with Eq::{not_equal, equal}

@@ -4,19 +4,19 @@
 /// layers rather than substituting dense computation for routed experts.
 pub fn GlmRecurrentLayer::with_dense_block(
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
   maximum_state_bytes~ : Int64,
-  evaluation? : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  matrix_tile_rows? : Int = 16,
-  matrix_reuse_minimum_inner? : Int = 0,
-  hc_reduction? : @precision_ir.HyperControlReduction = Ordered,
-  tensor_publication? : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
-  tensor_group? : (Int, Int),
+  evaluation~ : @precision_ir.RecurrentEvaluationLaw = OrderedTokenFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  matrix_tile_rows~ : Int32 = 16,
+  matrix_reuse_minimum_inner~ : Int32 = 0,
+  hc_reduction~ : @precision_ir.HyperControlReduction = Ordered,
+  tensor_publication~ : @precision_ir.ProjectionPublication = ReduceFloat32BeforeRound,
+  tensor_group? : (Int32, Int32),
 ) -> Self raise {
   guard spec.feed_forward_kind(layer_index) is DenseSwiGlu else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement
@@ -99,8 +99,8 @@ pub fn GlmRecurrentLayer::with_dense_block(
 fn bind_dense_ffn_weights(
   checkpoint : @precision_materialize.PackedCheckpoint,
   spec : @glm53_spec.Glm53FlashSpec,
-  layer : Int,
-  tensor_group? : (Int, Int),
+  layer : Int32,
+  tensor_group? : (Int32, Int32),
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   let prefix = "model.language_model.layers.\{layer}."
   let hidden = spec.hidden_size()
@@ -141,7 +141,7 @@ fn bind_dense_ffn_weights(
 fn bind_ffn_hyper_weights(
   checkpoint : @precision_materialize.PackedCheckpoint,
   spec : @glm53_spec.Glm53FlashSpec,
-  layer : Int,
+  layer : Int32,
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   let prefix = "model.language_model.layers.\{layer}."
   let hidden = spec.hidden_size()

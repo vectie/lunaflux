@@ -3,10 +3,10 @@
 /// rotation, cache conversion and sparse indexing are separate downstream work.
 pub fn compressor_pool_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  for_indexer? : Bool = false,
-  maximum_rows~ : Int,
-  maximum_context? : Int,
+  layer~ : Int32,
+  for_indexer~ : Bool = false,
+  maximum_rows~ : Int32,
+  maximum_context? : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.LearnedGatedPoolPrecision raise {
@@ -43,8 +43,8 @@ pub fn compressor_pool_plan(
 pub fn bind_compressor_pool_weights(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  for_indexer? : Bool = false,
+  layer~ : Int32,
+  for_indexer~ : Bool = false,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   let plan = compressor_pool_plan(
     spec,
@@ -96,7 +96,7 @@ pub fn bind_compressor_pool_weights(
 /// Its launches join the containing decoder's existing ordered queue.
 pub struct DeepSeekCompressorPool {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv layer : Int
+  priv layer : Int32
   priv indexer : Bool
   priv source : @pool_source.LearnedGatedPoolCudaSource
   priv frame : @pool_frame.LearnedGatedPoolFrame
@@ -107,10 +107,10 @@ pub struct DeepSeekCompressorPool {
 ///|
 pub fn DeepSeekCompressorPool::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  for_indexer? : Bool = false,
-  maximum_rows~ : Int,
-  maximum_context? : Int,
+  layer~ : Int32,
+  for_indexer~ : Bool = false,
+  maximum_rows~ : Int32,
+  maximum_context? : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
@@ -171,7 +171,7 @@ pub fn DeepSeekCompressorPool::prepare(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

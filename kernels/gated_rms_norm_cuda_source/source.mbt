@@ -2,15 +2,15 @@
 fn valid_gated_norm_symbol(symbol : StringView) -> Bool {
   !symbol.is_empty() &&
   symbol.length() <= 128 &&
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn sigmoid_gated_rms_norm_bf16_source(
-  head_count~ : Int,
-  head_dimension~ : Int,
-  maximum_rows~ : Int,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  maximum_rows~ : Int32,
   epsilon~ : Double,
   function_symbol~ : String,
 ) -> GatedRmsNormCudaSource raise GatedRmsNormCudaSourceError {

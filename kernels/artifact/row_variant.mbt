@@ -2,20 +2,20 @@
 /// One AOT specialization sharing the parent entry's operands and numerical
 /// contract. The bound describes token rows, not context or output rows.
 pub struct KernelRowVariant {
-  priv maximum_token_rows : Int
+  priv maximum_token_rows : Int32
   priv function_symbol : String
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv companion_dimensions : @launch_contract.AotLaunchDimensions?
-  priv bounded_work_grid_x : Int?
+  priv bounded_work_grid_x : Int32?
 } derive(Debug, Eq)
 
 ///|
 pub fn KernelRowVariant::new(
-  maximum_token_rows~ : Int,
+  maximum_token_rows~ : Int32,
   function_symbol~ : String,
   dimensions~ : @launch_contract.AotLaunchDimensions,
-  companion_dimensions? : @launch_contract.AotLaunchDimensions? = None,
-  bounded_work_grid_x? : Int? = None,
+  companion_dimensions~ : @launch_contract.AotLaunchDimensions? = None,
+  bounded_work_grid_x~ : Int32? = None,
 ) -> KernelRowVariant {
   {
     maximum_token_rows,
@@ -30,12 +30,12 @@ pub fn KernelRowVariant::new(
 /// Optional compiler-derived work cardinality for this bounded executable.
 /// It preserves the published launch's block/storage contract. Absent values
 /// retain legacy launch planning; no execution layer reconstructs a schedule.
-pub fn KernelRowVariant::bounded_work_grid_x(self : KernelRowVariant) -> Int? {
+pub fn KernelRowVariant::bounded_work_grid_x(self : KernelRowVariant) -> Int32? {
   self.bounded_work_grid_x
 }
 
 ///|
-pub fn KernelRowVariant::maximum_token_rows(self : KernelRowVariant) -> Int {
+pub fn KernelRowVariant::maximum_token_rows(self : KernelRowVariant) -> Int32 {
   self.maximum_token_rows
 }
 
@@ -54,7 +54,7 @@ pub fn KernelRowVariant::dimensions(
 ///|
 fn validate_row_variants(
   input : KernelEntryPointInput,
-  maximum_symbol_bytes : Int,
+  maximum_symbol_bytes : Int32,
 ) -> Unit raise KernelArtifactError {
   if input.row_variants.length() > 19 {
     raise InvalidRowVariants(input.entry_point)

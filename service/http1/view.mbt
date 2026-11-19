@@ -32,14 +32,14 @@ pub fn LunaHttp1View::route(
 ///|
 pub fn LunaHttp1View::body_length(
   self : LunaHttp1View,
-) -> Int raise LunaHttp1Error {
+) -> Int32 raise LunaHttp1Error {
   self.require_workspace().body_length
 }
 
 ///|
 pub fn LunaHttp1View::body_byte_at(
   self : LunaHttp1View,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaHttp1Error {
   let workspace = self.require_workspace()
   if index < 0 || index >= workspace.body_length {

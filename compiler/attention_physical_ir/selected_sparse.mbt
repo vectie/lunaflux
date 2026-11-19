@@ -4,12 +4,12 @@
 /// split an ordered numeric reduction. Units are portable logical workers,
 /// not CUDA warps. Sentinel filtering preserves selected-rank order.
 pub struct SelectedSparseSchedule {
-  priv groups : Int
-  priv slots : Int
-  priv workers : Int
+  priv groups : Int32
+  priv slots : Int32
+  priv workers : Int32
   priv scratch : Int64
-  priv history : Int
-  priv selected_width : Int
+  priv history : Int32
+  priv selected_width : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -20,11 +20,11 @@ pub extend SelectedSparseSchedule with @debug.Debug::{to_repr}
 
 ///|
 pub fn SelectedSparseSchedule::new(
-  queries~ : Int,
-  heads~ : Int,
-  selected_width~ : Int,
-  history~ : Int,
-  workers~ : Int,
+  queries~ : Int32,
+  heads~ : Int32,
+  selected_width~ : Int32,
+  history~ : Int32,
+  workers~ : Int32,
 ) -> Self? {
   guard queries > 0 &&
     heads > 0 &&
@@ -35,7 +35,7 @@ pub fn SelectedSparseSchedule::new(
     return None
   }
   let groups = queries * heads
-  let slots = Int::min(selected_width, history)
+  let slots = Int32::min(selected_width, history)
   guard groups.to_int64() <= 9223372036854775807L / 8L / slots.to_int64() else {
     return None
   }
@@ -50,17 +50,17 @@ pub fn SelectedSparseSchedule::new(
 }
 
 ///|
-pub fn SelectedSparseSchedule::workgroups(self : Self) -> Int {
+pub fn SelectedSparseSchedule::workgroups(self : Self) -> Int32 {
   self.groups
 }
 
 ///|
-pub fn SelectedSparseSchedule::workers(self : Self) -> Int {
+pub fn SelectedSparseSchedule::workers(self : Self) -> Int32 {
   self.workers
 }
 
 ///|
-pub fn SelectedSparseSchedule::retained_slots(self : Self) -> Int {
+pub fn SelectedSparseSchedule::retained_slots(self : Self) -> Int32 {
   self.slots
 }
 
@@ -74,7 +74,7 @@ pub fn SelectedSparseSchedule::scratch_bytes(self : Self) -> Int64 {
 /// after maximum/denominator consumers finish. Offsets are in four-byte cells.
 pub fn SelectedSparseSchedule::region_cells(
   self : Self,
-  group : Int,
+  group : Int32,
 ) -> (Int64, Int64)? {
   guard group >= 0 && group < self.groups else { return None }
   let base = group.to_int64() * self.slots.to_int64() * 2L
@@ -84,8 +84,8 @@ pub fn SelectedSparseSchedule::region_cells(
 ///|
 pub fn SelectedSparseSchedule::independent_owner(
   self : Self,
-  item : Int,
-) -> Int? {
+  item : Int32,
+) -> Int32? {
   if item < 0 {
     None
   } else {

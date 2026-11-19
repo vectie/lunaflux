@@ -2,7 +2,7 @@
 #borrow(handle)
 extern "c" fn raw_test_close_while_active(
   handle : @cap.ApprovedExecutableHandle,
-) -> Int = "lunaflux_worker_executable_test_close_while_active"
+) -> Int32 = "lunaflux_worker_executable_test_close_while_active"
 
 ///|
 async test "active spawn lease makes executable close retryably busy" {

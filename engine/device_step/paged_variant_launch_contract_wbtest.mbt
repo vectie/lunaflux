@@ -1,6 +1,6 @@
 ///|
 fn variant_test_launch(
-  shared : Int,
+  shared : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=94,

@@ -7,7 +7,7 @@ struct RuntimeRecipeV2Fixture {
 }
 
 ///|
-fn recipe_v2_entry(index : Int) -> @catalog.AotKernelEntryPoint {
+fn recipe_v2_entry(index : Int32) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
       module_digest=recipe_module_digest(),
@@ -167,7 +167,7 @@ fn recipe_v2_schema(
 
 ///|
 fn recipe_v2_plan(
-  content? : String = "1111111111111111111111111111111111111111111111111111111111111111",
+  content~ : String = "1111111111111111111111111111111111111111111111111111111111111111",
 ) -> @plan.ModelPlan raise {
   let operations = recipe_v2_operations()
   @plan.ModelPlan::new_with_kv_execution(
@@ -293,7 +293,7 @@ fn recipe_v2_operand(
 ///|
 fn recipe_v2_operands(
   plan : @plan.ModelPlan,
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] {
   let result : Array[@launch_contract.AotOperand] = [
     recipe_v2_operand(RuntimeInput(StepCounts), 20L, 4L),

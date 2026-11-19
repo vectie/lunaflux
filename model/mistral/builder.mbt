@@ -1,12 +1,12 @@
 ///|
 /// Startup-only batch envelope for the bounded paged Mistral plan.
 pub struct MistralPagedBatchEnvelope {
-  priv max_batch_rows : Int
+  priv max_batch_rows : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn MistralPagedBatchEnvelope::new(
-  max_batch_rows : Int,
+  max_batch_rows : Int32,
 ) -> MistralPagedBatchEnvelope raise @plan.PlanValidationError {
   // The existing dense operation graph owns one canonical validation rule for
   // its batch envelope. This value exposes no Llama-family type to callers.
@@ -20,7 +20,7 @@ pub fn MistralPagedBatchEnvelope::single_row() -> Self {
 }
 
 ///|
-pub fn MistralPagedBatchEnvelope::max_batch_rows(self : Self) -> Int {
+pub fn MistralPagedBatchEnvelope::max_batch_rows(self : Self) -> Int32 {
   self.max_batch_rows
 }
 
@@ -65,7 +65,7 @@ pub fn build(
 /// Mistral sliding window. Ordinary full causal attention is therefore exact.
 pub fn build_paged(
   metadata : @mistral_spec.MistralModelMetadata,
-  batch? : MistralPagedBatchEnvelope = MistralPagedBatchEnvelope::single_row(),
+  batch~ : MistralPagedBatchEnvelope = MistralPagedBatchEnvelope::single_row(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   let dense_batch = @llama.LlamaPagedBatchEnvelope::new(batch.max_batch_rows())
   @llama.build_paged(dense_core_metadata(metadata), batch=dense_batch)

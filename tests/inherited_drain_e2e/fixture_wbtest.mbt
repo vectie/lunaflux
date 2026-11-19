@@ -2,36 +2,36 @@
 priv type NativeDrainPeer
 
 ///|
-extern "c" fn fixture_install(mode : Int) -> NativeDrainPeer = "lunaflux_inherited_drain_fixture_install"
+extern "c" fn fixture_install(mode : Int32) -> NativeDrainPeer = "lunaflux_inherited_drain_fixture_install"
 
 ///|
 #borrow(peer, source)
 extern "c" fn fixture_send(
   peer : NativeDrainPeer,
   source : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int = "lunaflux_inherited_drain_fixture_send"
+  offset : Int32,
+  length : Int32,
+) -> Int32 = "lunaflux_inherited_drain_fixture_send"
 
 ///|
 #borrow(peer, destination)
 extern "c" fn fixture_read(
   peer : NativeDrainPeer,
   destination : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int = "lunaflux_inherited_drain_fixture_read"
+  offset : Int32,
+  length : Int32,
+) -> Int32 = "lunaflux_inherited_drain_fixture_read"
 
 ///|
 #borrow(peer)
-extern "c" fn fixture_close_write(peer : NativeDrainPeer) -> Int = "lunaflux_inherited_drain_fixture_close_write"
+extern "c" fn fixture_close_write(peer : NativeDrainPeer) -> Int32 = "lunaflux_inherited_drain_fixture_close_write"
 
 ///|
 #borrow(peer)
-extern "c" fn fixture_close(peer : NativeDrainPeer) -> Int = "lunaflux_inherited_drain_fixture_close"
+extern "c" fn fixture_close(peer : NativeDrainPeer) -> Int32 = "lunaflux_inherited_drain_fixture_close"
 
 ///|
-extern "c" fn fixture_clear_fixed() -> Int = "lunaflux_inherited_drain_fixture_clear_fixed"
+extern "c" fn fixture_clear_fixed() -> Int32 = "lunaflux_inherited_drain_fixture_clear_fixed"
 
 ///|
 extern "c" fn fixture_fixed_closed() -> Bool = "lunaflux_inherited_drain_fixture_fixed_closed"

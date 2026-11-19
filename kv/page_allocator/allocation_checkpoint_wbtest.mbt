@@ -1,5 +1,5 @@
 ///|
-fn checkpoint_wb_limits(generation? : Int = 8) -> PageAllocatorLimits {
+fn checkpoint_wb_limits(generation~ : Int32 = 8) -> PageAllocatorLimits {
   try! PageAllocatorLimits::new(
     page_capacity=2,
     max_run_pages=2,

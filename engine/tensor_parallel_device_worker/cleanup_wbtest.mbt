@@ -1,9 +1,9 @@
 ///|
 test "partial startup cleanup is reverse ordered and retry preserves remaining authority" {
   let open = FixedArray::make(11, true)
-  let attempts : Array[Int] = []
+  let attempts : Array[Int32] = []
   let fail_stream_once = Ref(true)
-  let close = (index : Int) => {
+  let close = (index : Int32) => {
     if open[index] {
       attempts.push(index)
       if index == 4 && fail_stream_once.val {

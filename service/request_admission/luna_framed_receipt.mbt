@@ -44,10 +44,10 @@ fn LunaRequestPreparationPool::offer_framed_lane(
   self : LunaRequestPreparationPool,
   lane : LunaRequestPreparationLane,
   source : FixedArray[Byte],
-  source_offset : Int,
-  length : Int,
+  source_offset : Int32,
+  length : Int32,
   observed_at_millis : UInt64,
-) -> Int raise RequestAdmissionError {
+) -> Int32 raise RequestAdmissionError {
   lane.last_work_units = 0
   if length < 0 || source_offset < 0 || source_offset > source.length() - length {
     raise Invalid(FrameContract)
@@ -142,8 +142,8 @@ fn LunaRequestPreparationPool::offer_framed_lane(
 pub fn LunaRequestPreparationPool::try_begin_luna_framed(
   self : LunaRequestPreparationPool,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaRequestPreparationAdmission raise RequestAdmissionError {
   if self.draining {
     return preparation_admission(
@@ -212,7 +212,7 @@ pub fn LunaRequestPreparationPool::try_begin_luna_framed(
   lane.claim = None
   lane.last_work_units = 0
   lane.total_work_units = 0UL
-  let offer_result : Result[Int, RequestAdmissionError] = Ok(
+  let offer_result : Result[Int32, RequestAdmissionError] = Ok(
     self.offer_framed_lane(lane, source, source_offset, length, receipt),
   ) catch {
     error => Err(error)
@@ -241,9 +241,9 @@ pub fn LunaRequestPreparationPool::try_begin_luna_framed(
 pub fn LunaRequestPreparationWork::offer_luna_framed(
   self : LunaRequestPreparationWork,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise RequestAdmissionError {
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise RequestAdmissionError {
   let lane = self.require_lane()
   if !lane.framed_direct {
     raise Invalid(LunaPreparedLifecycle)
@@ -294,7 +294,7 @@ pub fn LunaRequestPreparationWork::luna_framed_receipt_complete(
 /// object-form work reject without exposing the absolute deadline.
 pub fn LunaRequestPreparationWork::luna_framed_receipt_remaining_millis(
   self : LunaRequestPreparationWork,
-) -> Int raise RequestAdmissionError {
+) -> Int32 raise RequestAdmissionError {
   let lane = self.require_lane()
   if !lane.framed_direct ||
     lane.framed_receipt_complete ||

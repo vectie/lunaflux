@@ -13,10 +13,10 @@ pub fn lower_paged_attention_decode_split_cuda_aot_candidate(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   operands : ArrayView[@launch_contract.AotOperand],
-  maximum_key_value_splits : Int,
+  maximum_key_value_splits : Int32,
   maximum_workspace_bytes : Int64,
   limits : PagedAttentionAotLimits,
-  compiler_readonly? : Bool = false,
+  compiler_readonly~ : Bool = false,
 ) -> PagedAttentionDecodeSplitCudaBundle raise PagedAttentionAotError {
   if partial_entry_point_id == merge_entry_point_id ||
     maximum_key_value_splits <= 0 ||

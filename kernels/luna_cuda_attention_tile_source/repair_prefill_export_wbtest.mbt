@@ -2,8 +2,8 @@
 /// Diagnostic export uses the production Q/KV geometry and bucket ceilings;
 /// synthetic timing observations choose a fixture, never enter a release.
 fn repair_prefill_lifetime_lowering(
-  candidate_id : Int,
-  affine_current? : Bool = false,
+  candidate_id : Int32,
+  affine_current~ : Bool = false,
 ) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,

@@ -13,10 +13,10 @@ struct BridgeConfig {
   tokenizer : @tokenizer.TokenizerSpec
   model_content_sha256 : String
   model_plan_sha256 : String
-  max_input_tokens : Int
-  max_output_tokens : Int
-  max_token_id : Int
-  max_context_tokens : Int
+  max_input_tokens : Int32
+  max_output_tokens : Int32
+  max_token_id : Int32
+  max_context_tokens : Int32
 }
 
 ///|

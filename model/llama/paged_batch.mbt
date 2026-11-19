@@ -5,13 +5,13 @@
 /// and every admitted execution artifact bind this ceiling into their model
 /// identity before runtime scheduling begins.
 pub struct LlamaPagedBatchEnvelope {
-  priv max_batch_rows : Int
+  priv max_batch_rows : Int32
 } derive(Debug, Eq)
 
 ///|
 #warnings("-unnecessary_annotation")
 pub fn LlamaPagedBatchEnvelope::new(
-  max_batch_rows : Int,
+  max_batch_rows : Int32,
 ) -> LlamaPagedBatchEnvelope raise @plan.PlanValidationError {
   if max_batch_rows <= 0 {
     raise @plan.InvalidShape(PositiveDimension)
@@ -27,6 +27,6 @@ pub fn LlamaPagedBatchEnvelope::single_row() -> LlamaPagedBatchEnvelope {
 ///|
 pub fn LlamaPagedBatchEnvelope::max_batch_rows(
   self : LlamaPagedBatchEnvelope,
-) -> Int {
+) -> Int32 {
   self.max_batch_rows
 }

@@ -1,5 +1,5 @@
 ///|
-const ABSOLUTE_MAX_OPERANDS_PER_CONTRACT : Int = 32
+const ABSOLUTE_MAX_OPERANDS_PER_CONTRACT : Int32 = 32
 
 ///|
 /// Semantic address passed at one position in an AOT kernel parameter array.

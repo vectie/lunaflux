@@ -1,11 +1,11 @@
 ///|
-const CAMPAIGN_TOKENS_PER_PAGE : Int = 8
+const CAMPAIGN_TOKENS_PER_PAGE : Int32 = 8
 
 ///|
-const CAMPAIGN_CONTEXT_PAGES : Int = 32
+const CAMPAIGN_CONTEXT_PAGES : Int32 = 32
 
 ///|
-const CAMPAIGN_CONTEXT_TOKENS : Int = CAMPAIGN_TOKENS_PER_PAGE *
+const CAMPAIGN_CONTEXT_TOKENS : Int32 = CAMPAIGN_TOKENS_PER_PAGE *
   CAMPAIGN_CONTEXT_PAGES
 
 ///|
@@ -63,7 +63,7 @@ fn broad_campaign_request_frame(
   request_id : UInt64,
   seed : UInt64,
   model_identity : @spec.ModelIdentity,
-  maximum_new_tokens : Int,
+  maximum_new_tokens : Int32,
   scope : Bytes,
 ) -> FixedArray[Byte] raise {
   let limits = campaign_inference_limits()
@@ -96,8 +96,8 @@ fn broad_campaign_request_frame(
 
 ///|
 fn broad_campaign_validation_contract(
-  first_token? : Int = 1031,
-  second_token? : Int = 2185,
+  first_token~ : Int32 = 1031,
+  second_token~ : Int32 = 2185,
 ) -> @runtime_instance.RuntimeSpawnedBroadServingValidationContract raise {
   @runtime_instance.RuntimeSpawnedBroadServingValidationContract::new(
     broad_campaign_request_frame(
@@ -144,8 +144,8 @@ fn broad_campaign_validation_contract(
 
 ///|
 fn campaign_validation_contract(
-  first_token? : Int = 1031,
-  second_token? : Int = 2185,
+  first_token~ : Int32 = 1031,
+  second_token~ : Int32 = 2185,
 ) -> @runtime_instance.RuntimeSpawnedValidationContract raise {
   @runtime_instance.RuntimeSpawnedValidationContract::new(
     campaign_request_frame(),
@@ -161,8 +161,8 @@ fn campaign_validation_contract(
 
 ///|
 fn campaign_serving_validation_contract(
-  first_token? : Int = 1031,
-  second_token? : Int = 2185,
+  first_token~ : Int32 = 1031,
+  second_token~ : Int32 = 2185,
 ) -> @runtime_instance.RuntimeSpawnedServingValidationContract raise {
   @runtime_instance.RuntimeSpawnedServingValidationContract::new(
     campaign_request_frame(),

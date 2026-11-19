@@ -2,7 +2,7 @@
 fn parallel_cuda_source(
   symbol : String,
   reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering,
-  maximum_context_tokens : Int,
+  maximum_context_tokens : Int32,
 ) -> Bytes {
   let query_heads = reference.query_heads()
   let kv_heads = reference.kv_heads()

@@ -4,18 +4,18 @@
 /// from unrelated DeepSeek implementations or the low-rank RMSNorm epsilon.
 pub fn flash_sparse_projection_plan(
   spec : @spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  maximum_queries~ : Int,
-  maximum_history~ : Int,
+  layer_index~ : Int32,
+  maximum_queries~ : Int32,
+  maximum_history~ : Int32,
   index_layer_norm_epsilon~ : Double,
   maximum_attention_workspace_bytes~ : Int64,
   maximum_projection_workspace_bytes~ : Int64,
-  projection_law? : @precision.DenseDotLaw = ScalarFloat32,
-  tensor_group? : (Int, Int),
+  projection_law~ : @precision.DenseDotLaw = ScalarFloat32,
+  tensor_group? : (Int32, Int32),
   paged_history? : @history.PagedHistoryDomain,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
-  index_scoring? : @precision.IndexScoringLaw = OrderedBFloat16,
-  cache_law? : @precision.SparseCacheLaw = ExpandedBFloat16,
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  index_scoring~ : @precision.IndexScoringLaw = OrderedBFloat16,
+  cache_law~ : @precision.SparseCacheLaw = ExpandedBFloat16,
 ) -> @precision.IndexedSparseProjectionPrecision raise {
   guard spec.attention_kind(layer_index) is DeepSeekSparseAttention &&
     spec.qk_rope_head_dimension() == 0 &&

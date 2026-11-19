@@ -1,5 +1,5 @@
 ///|
-fn luna_http1_response_http_prefix(index : Int) -> Byte {
+fn luna_http1_response_http_prefix(index : Int32) -> Byte {
   match index {
     0 => b'H'
     1 => b'T'
@@ -14,7 +14,7 @@ fn luna_http1_response_http_prefix(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_status_byte(kind : Int, index : Int) -> Byte {
+fn luna_http1_response_status_byte(kind : Int32, index : Int32) -> Byte {
   match kind {
     0 =>
       match index {
@@ -126,7 +126,7 @@ fn luna_http1_response_status_byte(kind : Int, index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_content_prefix(index : Int) -> Byte {
+fn luna_http1_response_content_prefix(index : Int32) -> Byte {
   match index {
     0 => b'C'
     1 => b'o'
@@ -146,7 +146,7 @@ fn luna_http1_response_content_prefix(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_event_type(index : Int) -> Byte {
+fn luna_http1_response_event_type(index : Int32) -> Byte {
   match index {
     0 => b't'
     1 => b'e'
@@ -169,7 +169,7 @@ fn luna_http1_response_event_type(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_json_type(index : Int) -> Byte {
+fn luna_http1_response_json_type(index : Int32) -> Byte {
   match index {
     0 => b'a'
     1 => b'p'
@@ -191,7 +191,7 @@ fn luna_http1_response_json_type(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_cache_byte(index : Int) -> Byte {
+fn luna_http1_response_cache_byte(index : Int32) -> Byte {
   match index {
     0 => b'C'
     1 => b'a'
@@ -222,7 +222,7 @@ fn luna_http1_response_cache_byte(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_connection_byte(index : Int) -> Byte {
+fn luna_http1_response_connection_byte(index : Int32) -> Byte {
   match index {
     0 => b'C'
     1 => b'o'
@@ -249,7 +249,7 @@ fn luna_http1_response_connection_byte(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_length_prefix(index : Int) -> Byte {
+fn luna_http1_response_length_prefix(index : Int32) -> Byte {
   match index {
     0 => b'C'
     1 => b'o'
@@ -271,7 +271,7 @@ fn luna_http1_response_length_prefix(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_error_prefix(index : Int) -> Byte {
+fn luna_http1_response_error_prefix(index : Int32) -> Byte {
   match index {
     0 => b'{'
     1 => b'"'
@@ -295,7 +295,7 @@ fn luna_http1_response_error_prefix(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_error_type_byte(kind : Int, index : Int) -> Byte {
+fn luna_http1_response_error_type_byte(kind : Int32, index : Int32) -> Byte {
   match kind {
     1 =>
       match index {
@@ -376,7 +376,7 @@ fn luna_http1_response_error_type_byte(kind : Int, index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_response_status_length(kind : Int) -> Int {
+fn luna_http1_response_status_length(kind : Int32) -> Int32 {
   match kind {
     0 => 8
     1 => 18
@@ -387,7 +387,7 @@ fn luna_http1_response_status_length(kind : Int) -> Int {
 }
 
 ///|
-fn luna_http1_response_error_type_length(kind : Int) -> Int {
+fn luna_http1_response_error_type_length(kind : Int32) -> Int32 {
   match kind {
     1 => 20
     2 => 16
@@ -397,7 +397,7 @@ fn luna_http1_response_error_type_length(kind : Int) -> Int {
 }
 
 ///|
-fn luna_http1_response_content_length(kind : Int) -> Int {
+fn luna_http1_response_content_length(kind : Int32) -> Int32 {
   match kind {
     1 => 41
     2 => 37
@@ -407,7 +407,7 @@ fn luna_http1_response_content_length(kind : Int) -> Int {
 }
 
 ///|
-fn luna_http1_response_byte(kind : Int, index : Int) -> Byte {
+fn luna_http1_response_byte(kind : Int32, index : Int32) -> Byte {
   if index < 9 {
     return luna_http1_response_http_prefix(index)
   }

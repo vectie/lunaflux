@@ -17,14 +17,14 @@ pub fn ValidatedCompletionFrame::model_generation_value(
 ///|
 pub fn ValidatedCompletionFrame::entry_count(
   self : ValidatedCompletionFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.owner().entry_count
 }
 
 ///|
 pub fn ValidatedCompletionFrame::entry(
   self : ValidatedCompletionFrame,
-  index : Int,
+  index : Int32,
 ) -> CompletionFrameEntry raise WorkerWireError {
   let owner = self.owner()
   if index < 0 || index >= owner.entry_count {
@@ -36,7 +36,7 @@ pub fn ValidatedCompletionFrame::entry(
 ///|
 pub fn ValidatedCompletionFrame::entry_for_slot(
   self : ValidatedCompletionFrame,
-  slot : Int,
+  slot : Int32,
 ) -> CompletionFrameEntry raise WorkerWireError {
   let owner = self.owner()
   if slot < 0 || slot >= owner.slot_to_entry.length() {
@@ -52,7 +52,7 @@ pub fn ValidatedCompletionFrame::entry_for_slot(
 ///|
 fn CompletionFrameEntry::offset(
   self : CompletionFrameEntry,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   ignore(ValidatedCompletionFrame(self.0, self.1).owner())
   if self.2 < 0 || self.2 >= self.0.entry_count {
     raise InvalidFrame(CompletionEntry)
@@ -63,7 +63,7 @@ fn CompletionFrameEntry::offset(
 ///|
 pub fn CompletionFrameEntry::slot(
   self : CompletionFrameEntry,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset())
 }
 
@@ -91,14 +91,14 @@ pub fn CompletionFrameEntry::request_generation_value(
 ///|
 pub fn CompletionFrameEntry::processed_tokens(
   self : CompletionFrameEntry,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 24)
 }
 
 ///|
 pub fn CompletionFrameEntry::token_id(
   self : CompletionFrameEntry,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   read_i32(self.0.storage, self.offset() + 28)
 }
 

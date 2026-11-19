@@ -1,5 +1,5 @@
 ///|
-fn pow2(exponent : Int) -> Float {
+fn pow2(exponent : Int32) -> Float {
   if exponent >= -126 {
     Float::reinterpret_from_uint((exponent + 127).reinterpret_as_uint() << 23)
   } else {
@@ -11,7 +11,7 @@ fn pow2(exponent : Int) -> Float {
 /// Exact finite storage decode; E5M2 NaN/Inf and E4M3FN NaN are rejected.
 pub fn decode_element(
   element : Element,
-  code : UInt,
+  code : UInt32,
 ) -> Float raise PrecisionError {
   let bits = element.bits()
   if bits < 32 && code >= 1U << bits {
@@ -91,7 +91,7 @@ pub fn decode_element(
 ///|
 pub fn decode_scale(
   element : ScaleElement,
-  code : UInt,
+  code : UInt32,
 ) -> Float raise PrecisionError {
   let value = match element {
     Absent => raise InvalidScale
@@ -130,7 +130,7 @@ pub fn Element::maximum(self : Element) -> Float {
 pub fn encode_element(
   element : Element,
   value : Float,
-) -> UInt raise PrecisionError {
+) -> UInt32 raise PrecisionError {
   if value.is_nan() || value.is_inf() {
     raise NonFiniteValue
   }
@@ -192,7 +192,7 @@ pub fn encode_element(
 pub fn encode_scale(
   element : ScaleElement,
   value : Float,
-) -> UInt raise PrecisionError {
+) -> UInt32 raise PrecisionError {
   if value.is_nan() || value.is_inf() || value <= 0.0F {
     raise InvalidScale
   }

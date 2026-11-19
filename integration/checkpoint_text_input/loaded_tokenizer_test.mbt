@@ -8,7 +8,7 @@ async test "shared loaded tokenizer decodes outputs after root release without c
     })
     let vocabulary : Map[String, Json] = Map([])
     for byte in 0..<256 {
-      let scalar = if byte is (0x21..=0x7e | 0xa1..=0xac | 0xae..=0xff) {
+      let scalar = if byte is (0x21..<=0x7e | 0xa1..<=0xac | 0xae..<=0xff) {
         byte
       } else if byte <= 0x20 {
         0x100 + byte

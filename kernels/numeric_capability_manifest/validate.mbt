@@ -185,7 +185,7 @@ fn validate_base(
 fn artifact_module_index(
   artifacts : @artifact.KernelArtifactBundle,
   entry_point : @catalog.AotKernelEntryPoint,
-) -> Int raise Fp8KernelManifestError {
+) -> Int32 raise Fp8KernelManifestError {
   guard artifacts.entry_point(entry_point) is Some(entry) else {
     raise InvalidFp8KernelManifest(ArtifactBundle)
   }

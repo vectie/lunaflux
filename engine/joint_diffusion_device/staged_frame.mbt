@@ -25,12 +25,12 @@ pub fn KernelFrame::denoise_staged(
   timestep : ArrayView[@device.OrderedKernelLaunch],
   inputs : ArrayView[@device.OrderedKernelLaunch],
   denoiser : ArrayView[@device.OrderedKernelLaunch],
-  step~ : Int,
+  step~ : Int32,
   video_update~ : @device.Function,
   audio_update~ : @device.Function,
-  video_block_size~ : Int,
-  audio_block_size~ : Int,
-  policy? : @device.OrderedKernelExecutionPolicy = OrderedKernelEagerOnly,
+  video_block_size~ : Int32,
+  audio_block_size~ : Int32,
+  policy~ : @device.OrderedKernelExecutionPolicy = OrderedKernelEagerOnly,
 ) -> Self raise {
   let prediction = prediction_stages(timestep, inputs, denoiser)
   KernelFrame::denoise(

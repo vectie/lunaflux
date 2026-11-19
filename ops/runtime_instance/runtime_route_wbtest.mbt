@@ -146,12 +146,12 @@ async test "legacy and I8 launches cannot cross decode a Mistral descriptor" {
 ///|
 fn assert_forced_route_failure_never_probes_other_loader(
   recipe : @launch_file.LaunchRuntimeRecipe,
-  expected_legacy_calls : Int,
-  expected_i8_calls : Int,
-  expected_mistral_calls : Int,
-  expected_qwen3_calls : Int,
-  expected_tensor_parallel_calls : Int,
-  expected_fp8_calls : Int,
+  expected_legacy_calls : Int32,
+  expected_i8_calls : Int32,
+  expected_mistral_calls : Int32,
+  expected_qwen3_calls : Int32,
+  expected_tensor_parallel_calls : Int32,
+  expected_fp8_calls : Int32,
 ) -> Unit {
   let legacy_calls = Ref(0)
   let i8_calls = Ref(0)

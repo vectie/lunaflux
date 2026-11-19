@@ -12,7 +12,7 @@ pub fn load_materialized(
   descriptor_locator : @approved_fs.ApprovedRelativeLocator,
   expected_digest : RuntimeDescriptorDigest,
   limits : RuntimeDescriptorFileLimits,
-  luna_approval? : @worker_wire.WorkerBootstrapLunaApproval? = None,
+  luna_approval~ : @worker_wire.WorkerBootstrapLunaApproval? = None,
 ) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError {
   load_bound(
     model.source_root(),

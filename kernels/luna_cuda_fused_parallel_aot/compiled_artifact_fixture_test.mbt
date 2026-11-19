@@ -133,9 +133,9 @@ fn fused_compiled_black_box_fixture() -> FusedCompiledBlackBoxFixture raise {
 
 ///|
 fn fused_compiled_black_box_limits(
-  maximum_module_bytes? : Int64 = 1048576L,
-  maximum_receipt_bytes? : Int = 65536,
-  maximum_binding_bytes? : Int = 65536,
+  maximum_module_bytes~ : Int64 = 1048576L,
+  maximum_receipt_bytes~ : Int32 = 65536,
+  maximum_binding_bytes~ : Int32 = 65536,
 ) -> @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactLimits raise {
   @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactLimits::new(
     maximum_module_bytes~,

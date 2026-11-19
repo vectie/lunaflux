@@ -21,7 +21,7 @@ pub(all) enum AttentionTileRewriteRule {
 /// merge law.
 pub(all) enum AttentionTileReductionTopology {
   AttentionOrderedOnlineSoftmaxFold
-  AttentionPartitionedOnlineSoftmaxFold(Int)
+  AttentionPartitionedOnlineSoftmaxFold(Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -37,7 +37,7 @@ pub struct AttentionTileRewriteRegion {
 pub struct AttentionTileRewriteStep {
   priv rule : AttentionTileRewriteRule
   priv changed : Bool
-  priv region_count : Int
+  priv region_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -64,3 +64,54 @@ pub(all) enum AttentionTileOptimizerRule {
 pub(all) suberror AttentionTileOptimizerError {
   InvalidAttentionTileOptimization(AttentionTileOptimizerRule)
 } derive(Debug, Eq)
+
+///|
+pub extend AttentionTileRewriteRule with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileRewriteRule with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionTileReductionTopology with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileReductionTopology with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionTileRewriteRegion with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileRewriteRegion with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionTileRewriteStep with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileRewriteStep with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionTileOptimizationDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileOptimizationDigest with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionTileOptimizationDigest with Hash::{hash, hash_combine}
+
+///|
+pub extend AttentionTileOptimization with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileOptimization with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionTileOptimizerRule with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileOptimizerRule with Eq::{not_equal, equal}
+
+///|
+pub extend AttentionTileOptimizerError with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionTileOptimizerError with Eq::{not_equal, equal}

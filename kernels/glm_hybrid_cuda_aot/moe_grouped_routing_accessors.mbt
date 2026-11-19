@@ -29,7 +29,7 @@ pub fn GlmHybridMoeGroupedRoutingCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridMoeGroupedRoutingCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -50,14 +50,14 @@ pub fn GlmHybridMoeGroupedRoutingCudaCandidate::capability(
 ///|
 pub fn GlmHybridMoeGroupedRoutingCudaCandidate::routed_expert_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
 pub fn GlmHybridMoeGroupedRoutingCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 

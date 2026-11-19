@@ -1,7 +1,7 @@
 ///|
 fn require_prediction_stage(
   spec : @spec.DeepSeekV4ModelSpec,
-  stage : Int,
+  stage : Int32,
 ) -> Unit raise {
   guard spec.has_dspark() && stage >= 0 && stage < spec.prediction_stage_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -15,7 +15,7 @@ fn require_prediction_stage(
 pub fn bind_prediction_attention_weights(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  stage~ : Int,
+  stage~ : Int32,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   require_prediction_stage(spec, stage)
   let q = @precision.QuantizedQueryKvPrecision::new(

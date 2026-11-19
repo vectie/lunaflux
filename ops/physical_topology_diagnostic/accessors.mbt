@@ -1,7 +1,7 @@
 ///|
 pub fn PhysicalTopologyDiagnosticEvidence::schema_version(
   _self : PhysicalTopologyDiagnosticEvidence,
-) -> Int {
+) -> Int32 {
   PHYSICAL_TOPOLOGY_SCHEMA_VERSION
 }
 
@@ -19,21 +19,21 @@ pub fn PhysicalTopologyDiagnosticEvidence::status(
 ///|
 pub fn PhysicalTopologyDiagnosticEvidence::driver_version(
   self : PhysicalTopologyDiagnosticEvidence,
-) -> Int {
+) -> Int32 {
   self.driver_version
 }
 
 ///|
 pub fn PhysicalTopologyDiagnosticEvidence::device_count(
   self : PhysicalTopologyDiagnosticEvidence,
-) -> Int {
+) -> Int32 {
   self.devices.length()
 }
 
 ///|
 pub fn PhysicalTopologyDiagnosticEvidence::device(
   self : PhysicalTopologyDiagnosticEvidence,
-  index : Int,
+  index : Int32,
 ) -> PhysicalTopologyDeviceObservation? {
   self.devices.get(index)
 }
@@ -41,14 +41,14 @@ pub fn PhysicalTopologyDiagnosticEvidence::device(
 ///|
 pub fn PhysicalTopologyDiagnosticEvidence::peer_count(
   self : PhysicalTopologyDiagnosticEvidence,
-) -> Int {
+) -> Int32 {
   self.peers.length()
 }
 
 ///|
 pub fn PhysicalTopologyDiagnosticEvidence::peer(
   self : PhysicalTopologyDiagnosticEvidence,
-  index : Int,
+  index : Int32,
 ) -> PhysicalPeerObservation? {
   self.peers.get(index)
 }

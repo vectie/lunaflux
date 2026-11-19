@@ -4,8 +4,8 @@
 /// not verify or commit drafts; the base scheduler retains that authority.
 pub struct DeepSeekPredictor {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv main_rows : Int
-  priv output_rows : Int
+  priv main_rows : Int32
+  priv output_rows : Int32
   priv main : DeepSeekPredictionMain
   priv seed : @text_frame.SeededTokenBlockFrame
   priv embedding : @text_frame.TextIoFrame
@@ -21,13 +21,13 @@ pub struct DeepSeekPredictor {
 ///|
 pub fn DeepSeekPredictor::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_main_rows~ : Int,
-  maximum_positions~ : Int,
+  maximum_main_rows~ : Int32,
+  maximum_positions~ : Int32,
   maximum_workspace_bytes~ : Int64,
   maximum_expert_bytes~ : Int64,
   temperature~ : Double,
   accuracy~ : @precision.Accuracy,
-  maximum_output_rows? : Int = 1,
+  maximum_output_rows~ : Int32 = 1,
 ) -> Self raise {
   let rows = spec.dspark_block_size()
   require_prediction_stage(spec, spec.prediction_stage_count() - 1)
@@ -145,7 +145,7 @@ pub fn DeepSeekPredictor::prepare(
   main_counts~ : @device.Allocation,
   main_positions~ : @device.Allocation,
   captured_hidden~ : @device.Allocation,
-  target_layers~ : ArrayView[Int],
+  target_layers~ : ArrayView[Int32],
   embedding_weight~ : @device.Allocation,
   vocabulary_weight~ : @device.Allocation,
   seed_token~ : @device.Allocation,
@@ -155,7 +155,7 @@ pub fn DeepSeekPredictor::prepare(
   confidence~ : @device.Allocation,
   rng~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

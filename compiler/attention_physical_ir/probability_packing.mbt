@@ -5,8 +5,8 @@
 /// exponential array or deferred permutation is necessary.
 pub struct OrderedProbabilityPacking {
   priv program : OnlineFragmentProgram
-  priv owners : ReadOnlyArray[Int]
-  priv elements_per_word : Int
+  priv owners : ReadOnlyArray[Int32]
+  priv elements_per_word : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -18,8 +18,8 @@ pub extend OrderedProbabilityPacking with @debug.Debug::{to_repr}
 ///|
 pub fn OnlineFragmentProgram::pack_probabilities(
   self : OnlineFragmentProgram,
-  element_owners : ArrayView[Int],
-  elements_per_word~ : Int,
+  element_owners : ArrayView[Int32],
+  elements_per_word~ : Int32,
 ) -> OrderedProbabilityPacking? {
   guard elements_per_word > 0 &&
     elements_per_word <= 64 &&
@@ -48,16 +48,16 @@ pub fn OrderedProbabilityPacking::program(
 ///|
 pub fn OrderedProbabilityPacking::geometry(
   self : OrderedProbabilityPacking,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.owners.length() / self.elements_per_word, self.elements_per_word)
 }
 
 ///|
 pub fn OrderedProbabilityPacking::owner(
   self : OrderedProbabilityPacking,
-  word : Int,
-  element : Int,
-) -> Int? {
+  word : Int32,
+  element : Int32,
+) -> Int32? {
   guard word >= 0 &&
     word < self.geometry().0 &&
     element >= 0 &&
@@ -70,6 +70,6 @@ pub fn OrderedProbabilityPacking::owner(
 ///|
 pub fn OrderedProbabilityPacking::peak_scalar_inputs(
   self : OrderedProbabilityPacking,
-) -> Int {
+) -> Int32 {
   self.elements_per_word
 }

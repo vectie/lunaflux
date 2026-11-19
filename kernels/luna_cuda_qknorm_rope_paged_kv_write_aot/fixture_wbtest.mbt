@@ -48,7 +48,7 @@ fn postprocess_test_compiler() -> @luna_specialization.LunaCompilerPolicy raise 
 
 ///|
 fn postprocess_test_fixture(
-  head_dimension? : Int = 128,
+  head_dimension~ : Int32 = 128,
 ) -> PostprocessTestFixture raise {
   let model = @qwen3_spec.Qwen3ModelSpec::new(
     vocabulary_size=1024,

@@ -1,6 +1,6 @@
 ///|
 pub fn LunaHttp1ControlLimits::new(
-  max_head_bytes~ : Int,
+  max_head_bytes~ : Int32,
 ) -> LunaHttp1ControlLimits raise LunaHttp1Error {
   if max_head_bytes < LUNA_HTTP1_CONTROL_MIN_HEAD_BYTES ||
     max_head_bytes > LUNA_HTTP1_CONTROL_MAX_HEAD_BYTES {
@@ -59,7 +59,7 @@ fn LunaHttp1ControlRequest::require_workspace(
 }
 
 ///|
-fn luna_http1_control_terminator_next(state : Int, byte : Byte) -> Int {
+fn luna_http1_control_terminator_next(state : Int32, byte : Byte) -> Int32 {
   match state {
     0 => if byte == b'\r' { 1 } else { 0 }
     1 => if byte == b'\n' { 2 } else if byte == b'\r' { 1 } else { 0 }
@@ -72,8 +72,8 @@ fn luna_http1_control_terminator_next(state : Int, byte : Byte) -> Int {
 ///|
 fn luna_http1_control_ascii_equal(
   storage : FixedArray[Byte],
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   expected : Bytes,
 ) -> Bool {
   if start < 0 || end < start || end - start != expected.length() {
@@ -90,8 +90,8 @@ fn luna_http1_control_ascii_equal(
 ///|
 fn luna_http1_control_ascii_case_equal(
   storage : FixedArray[Byte],
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
   expected : Bytes,
 ) -> Bool {
   if start < 0 || end < start || end - start != expected.length() {
@@ -108,9 +108,9 @@ fn luna_http1_control_ascii_case_equal(
 ///|
 fn luna_http1_control_trim_left(
   storage : FixedArray[Byte],
-  start : Int,
-  end : Int,
-) -> Int {
+  start : Int32,
+  end : Int32,
+) -> Int32 {
   for cursor = start; cursor < end; {
     if storage[cursor] == b' ' || storage[cursor] == b'\t' {
       continue cursor + 1
@@ -124,8 +124,8 @@ fn luna_http1_control_trim_left(
 ///|
 fn luna_http1_control_parse_request_line(
   storage : FixedArray[Byte],
-  end : Int,
-) -> Int {
+  end : Int32,
+) -> Int32 {
   let mut first_space = -1
   let mut second_space = -1
   for index in 0..<end {
@@ -192,7 +192,7 @@ fn luna_http1_control_parse_request_line(
 ///|
 fn luna_http1_control_validate_head(
   workspace : LunaHttp1ControlWorkspace,
-) -> Int {
+) -> Int32 {
   let end = workspace.length - 2
   let mut line_start = 0
   let mut line_end = -1
@@ -273,9 +273,9 @@ fn luna_http1_control_validate_head(
 pub fn LunaHttp1ControlRequest::offer(
   self : LunaHttp1ControlRequest,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise LunaHttp1Error {
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise LunaHttp1Error {
   let workspace = self.require_workspace()
   if workspace.phase != LUNA_HTTP1_CONTROL_RECEIVING {
     raise luna_http1_error(LunaHttp1Body, LunaHttp1Trailing)

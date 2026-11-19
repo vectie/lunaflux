@@ -1,5 +1,5 @@
 ///|
-fn luna_http1_response_challenge_byte(index : Int) -> Byte {
+fn luna_http1_response_challenge_byte(index : Int32) -> Byte {
   match index {
     0 => b'W'
     1 => b'W'

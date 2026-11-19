@@ -12,7 +12,7 @@ fn shape_expert_decode(
   zero~ : String,
 ) -> (String, String) raise {
   let (rows, hidden, intermediate, experts, selected) = plan.geometry()
-  fn prepare(width : Int) -> String {
+  fn prepare(width : Int32) -> String {
     "const int job=column/\{width},out=column%\{width},expert=selected_indices[job]; int local=(expert>=0&&expert<\{experts})?expert_map[expert]:-1; if(local>=\{plan.local_experts().length()}) local=-1;"
   }
   let gate = @tiled.shape_decode_body(

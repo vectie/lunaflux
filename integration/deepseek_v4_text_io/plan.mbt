@@ -2,8 +2,8 @@
 /// Translate the model's learned head semantics into model-neutral precision IR.
 pub fn learned_text_io_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
-  maximum_output_rows~ : Int,
+  maximum_rows~ : Int32,
+  maximum_output_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> @precision.LearnedTextIoPrecision raise {
   @precision.LearnedTextIoPrecision::new(

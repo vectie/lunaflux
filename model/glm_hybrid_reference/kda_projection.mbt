@@ -2,9 +2,9 @@
 fn kda_dense_row(
   input : ArrayView[Double],
   weights : ArrayView[Double],
-  input_base : Int,
-  output_index : Int,
-  input_width : Int,
+  input_base : Int32,
+  output_index : Int32,
+  input_width : Int32,
 ) -> Double {
   let mut sum = 0.0
   let weight_base = output_index * input_width
@@ -27,11 +27,11 @@ pub fn kda_projection_control(
   forget_a_weights : ArrayView[Double],
   forget_b_weights : ArrayView[Double],
   input_gate_weights : ArrayView[Double],
-  row_count~ : Int,
-  hidden_width~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
-  control_rank~ : Int,
+  row_count~ : Int32,
+  hidden_width~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  control_rank~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmKdaProjectionResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)

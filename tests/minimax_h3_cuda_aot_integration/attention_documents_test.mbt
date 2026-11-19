@@ -2,7 +2,7 @@
 test "attention AOT carries document isolation into source and recipe identity" {
   let requirements = official_requirements(Fl2va)
   let (io, timestep, _, _) = packed_selection_fixture_with_io(Fl2va)
-  fn lower(boundaries : ArrayView[Int]) raise {
+  fn lower(boundaries : ArrayView[Int32]) raise {
     @joint_diffusion_cuda_aot.lower_transformer_attention_cuda_aot_candidate(
       requirements,
       request=io,

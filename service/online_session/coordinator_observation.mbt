@@ -1,5 +1,7 @@
 ///|
-fn luna_online_observation_code(kind : LunaOnlineFramedObservationKind) -> Int {
+fn luna_online_observation_code(
+  kind : LunaOnlineFramedObservationKind,
+) -> Int32 {
   return match kind {
     LunaOnlineFramedAdmissionObservation => 1
     LunaOnlineFramedUsageObservation => 2
@@ -18,11 +20,11 @@ fn luna_online_observation_code(kind : LunaOnlineFramedObservationKind) -> Int {
 fn LunaOnlineFramedService::publish_observation(
   self : LunaOnlineFramedService,
   kind : LunaOnlineFramedObservationKind,
-  input_tokens : Int,
-  cached_input_tokens : Int,
-  output_tokens : Int,
-  total_tokens : Int,
-  latency? : LunaOnlineFramedTimingSample = no_luna_online_framed_timing_sample(),
+  input_tokens : Int32,
+  cached_input_tokens : Int32,
+  output_tokens : Int32,
+  total_tokens : Int32,
+  latency~ : LunaOnlineFramedTimingSample = no_luna_online_framed_timing_sample(),
 ) -> Unit raise LunaOnlineFramedCoordinatorError {
   if self.observation_kind != 0 || self.observation_taken {
     raise luna_coordinator_error(LunaOnlineFramedLifecycle)
@@ -230,7 +232,7 @@ pub fn LunaOnlineFramedObservation::latency_kind(
 ///|
 pub fn LunaOnlineFramedObservation::latency_millis(
   self : LunaOnlineFramedObservation,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   let owner = self.require_owner()
   if owner.observation_latency_kind == 0 {
     raise luna_coordinator_error(LunaOnlineFramedLifecycle)
@@ -252,28 +254,28 @@ fn LunaOnlineFramedObservation::require_usage_owner(
 ///|
 pub fn LunaOnlineFramedObservation::input_tokens(
   self : LunaOnlineFramedObservation,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.require_usage_owner().observation_input_tokens
 }
 
 ///|
 pub fn LunaOnlineFramedObservation::cached_input_tokens(
   self : LunaOnlineFramedObservation,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.require_usage_owner().observation_cached_input_tokens
 }
 
 ///|
 pub fn LunaOnlineFramedObservation::output_tokens(
   self : LunaOnlineFramedObservation,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.require_usage_owner().observation_output_tokens
 }
 
 ///|
 pub fn LunaOnlineFramedObservation::total_tokens(
   self : LunaOnlineFramedObservation,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   self.require_usage_owner().observation_total_tokens
 }
 

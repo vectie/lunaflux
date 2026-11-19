@@ -15,52 +15,52 @@ pub fn WeightNormalizedConvTranspose1dCudaSource::numerical_contract(
 ///|
 pub fn WeightNormalizedConvTranspose1dCudaSource::batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.batch_count
 }
 
 ///|
 pub fn WeightNormalizedConvTranspose1dCudaSource::input_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_channels
 }
 
 ///|
 pub fn WeightNormalizedConvTranspose1dCudaSource::output_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_channels
 }
 
 ///|
 pub fn WeightNormalizedConvTranspose1dCudaSource::input_time(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_time
 }
 
 ///|
 pub fn WeightNormalizedConvTranspose1dCudaSource::output_time(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_time
 }
 
 ///|
 pub fn WeightNormalizedConvTranspose1dCudaSource::kernel_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.kernel_size
 }
 
 ///|
-pub fn WeightNormalizedConvTranspose1dCudaSource::padding(self : Self) -> Int {
+pub fn WeightNormalizedConvTranspose1dCudaSource::padding(self : Self) -> Int32 {
   self.padding
 }
 
 ///|
-pub fn WeightNormalizedConvTranspose1dCudaSource::stride(self : Self) -> Int {
+pub fn WeightNormalizedConvTranspose1dCudaSource::stride(self : Self) -> Int32 {
   self.stride
 }
 

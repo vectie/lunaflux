@@ -27,7 +27,7 @@ pub struct Decision {
 pub struct ResolvedPlan {
   diagnostic_mode : @service.DiagnosticMode
   selected_architecture : String
-  primary_device : Int
+  primary_device : Int32
   memory_ceiling_bytes : Int64
   decisions : ReadOnlyArray[Decision]
 } derive(Debug, Eq)
@@ -81,7 +81,7 @@ pub fn ResolvedPlan::selected_architecture(self : ResolvedPlan) -> String {
 }
 
 ///|
-pub fn ResolvedPlan::primary_device(self : ResolvedPlan) -> Int {
+pub fn ResolvedPlan::primary_device(self : ResolvedPlan) -> Int32 {
   self.primary_device
 }
 
@@ -94,3 +94,27 @@ pub fn ResolvedPlan::memory_ceiling_bytes(self : ResolvedPlan) -> Int64 {
 pub fn ResolvedPlan::decisions(self : ResolvedPlan) -> ReadOnlyArray[Decision] {
   self.decisions
 }
+
+///|
+pub extend DecisionSubject with @debug.Debug::{to_repr}
+
+///|
+pub extend DecisionSubject with Eq::{not_equal, equal}
+
+///|
+pub extend DecisionReason with @debug.Debug::{to_repr}
+
+///|
+pub extend DecisionReason with Eq::{not_equal, equal}
+
+///|
+pub extend Decision with @debug.Debug::{to_repr}
+
+///|
+pub extend Decision with Eq::{not_equal, equal}
+
+///|
+pub extend ResolvedPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend ResolvedPlan with Eq::{not_equal, equal}

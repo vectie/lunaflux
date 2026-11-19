@@ -1,7 +1,7 @@
 ///|
 pub fn LaunchFileLimits::new(
   maximum_bytes~ : Int64,
-  maximum_json_depth~ : Int,
+  maximum_json_depth~ : Int32,
 ) -> LaunchFileLimits raise LaunchFileError {
   if maximum_bytes <= 0L ||
     maximum_bytes > 1048576L ||
@@ -18,7 +18,7 @@ pub fn LaunchFileLimits::maximum_bytes(self : LaunchFileLimits) -> Int64 {
 }
 
 ///|
-pub fn LaunchFileLimits::maximum_json_depth(self : LaunchFileLimits) -> Int {
+pub fn LaunchFileLimits::maximum_json_depth(self : LaunchFileLimits) -> Int32 {
   self.maximum_json_depth
 }
 
@@ -28,7 +28,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }

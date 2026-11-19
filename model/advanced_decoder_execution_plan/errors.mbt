@@ -32,3 +32,15 @@ pub(all) suberror AdvancedDecoderPlanError {
   InvalidAuxiliaryPrediction
   CanonicalPlanTooLarge
 } derive(Debug, Eq)
+
+///|
+pub extend AdvancedDecoderDimension with @debug.Debug::{to_repr}
+
+///|
+pub extend AdvancedDecoderDimension with Eq::{not_equal, equal}
+
+///|
+pub extend AdvancedDecoderPlanError with @debug.Debug::{to_repr}
+
+///|
+pub extend AdvancedDecoderPlanError with Eq::{not_equal, equal}

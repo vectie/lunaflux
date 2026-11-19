@@ -1,7 +1,7 @@
 ///|
 fn kda_output_projection_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaOutputProjection(_, _) {
       return ordinal

@@ -42,22 +42,22 @@ pub struct RuntimeSpawnedPrefixValidationContract {
   priv first_frame : FixedArray[Byte]
   priv second_frame : FixedArray[Byte]
   priv expected_model : @spec.ModelIdentity
-  priv expected_first_token : Int
-  priv expected_second_token : Int
-  priv first_input_tokens : Int
-  priv second_input_tokens : Int
-  priv expected_reused_tokens : Int
-  priv context_ceiling : Int
-  priv tokens_per_page : Int
-  priv turn_limit : Int
+  priv expected_first_token : Int32
+  priv expected_second_token : Int32
+  priv first_input_tokens : Int32
+  priv second_input_tokens : Int32
+  priv expected_reused_tokens : Int32
+  priv context_ceiling : Int32
+  priv tokens_per_page : Int32
+  priv turn_limit : Int32
 }
 
 ///|
 /// Opaque scalar evidence returned only after both requests, stream epochs,
 /// service, worker, device resources, and the runtime owner have closed.
 pub struct RuntimeSpawnedPrefixValidationResult {
-  priv first_token : Int
-  priv second_token : Int
+  priv first_token : Int32
+  priv second_token : Int32
   priv first_terminal_plan_sequence : UInt64
   priv second_terminal_plan_sequence : UInt64
   priv prefix_lookups : UInt64
@@ -65,9 +65,9 @@ pub struct RuntimeSpawnedPrefixValidationResult {
   priv prefix_misses : UInt64
   priv prefix_publications : UInt64
   priv reused_tokens : UInt64
-  priv retained_prefix_pages : Int
-  priv initial_kv_pages_free : Int
-  priv kv_pages_free : Int
+  priv retained_prefix_pages : Int32
+  priv initial_kv_pages_free : Int32
+  priv kv_pages_free : Int32
 }
 
 ///|
@@ -87,14 +87,14 @@ pub fn RuntimeSpawnedPrefixValidationContract::new(
   first_frame : FixedArray[Byte],
   second_frame : FixedArray[Byte],
   expected_model : @spec.ModelIdentity,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  first_input_tokens : Int,
-  second_input_tokens : Int,
-  expected_reused_tokens : Int,
-  context_ceiling : Int,
-  tokens_per_page : Int,
-  turn_limit : Int,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  first_input_tokens : Int32,
+  second_input_tokens : Int32,
+  expected_reused_tokens : Int32,
+  context_ceiling : Int32,
+  tokens_per_page : Int32,
+  turn_limit : Int32,
 ) -> RuntimeSpawnedPrefixValidationContract raise RuntimeSpawnedPrefixValidationError {
   let valid = first_frame.length() > 0 &&
     first_frame.length() <= 1048576 &&
@@ -132,14 +132,14 @@ pub fn RuntimeSpawnedPrefixValidationContract::new(
 ///|
 pub fn RuntimeSpawnedPrefixValidationResult::first_token(
   self : RuntimeSpawnedPrefixValidationResult,
-) -> Int {
+) -> Int32 {
   self.first_token
 }
 
 ///|
 pub fn RuntimeSpawnedPrefixValidationResult::second_token(
   self : RuntimeSpawnedPrefixValidationResult,
-) -> Int {
+) -> Int32 {
   self.second_token
 }
 
@@ -195,20 +195,20 @@ pub fn RuntimeSpawnedPrefixValidationResult::reused_tokens(
 ///|
 pub fn RuntimeSpawnedPrefixValidationResult::retained_prefix_pages(
   self : RuntimeSpawnedPrefixValidationResult,
-) -> Int {
+) -> Int32 {
   self.retained_prefix_pages
 }
 
 ///|
 pub fn RuntimeSpawnedPrefixValidationResult::initial_kv_pages_free(
   self : RuntimeSpawnedPrefixValidationResult,
-) -> Int {
+) -> Int32 {
   self.initial_kv_pages_free
 }
 
 ///|
 pub fn RuntimeSpawnedPrefixValidationResult::kv_pages_free(
   self : RuntimeSpawnedPrefixValidationResult,
-) -> Int {
+) -> Int32 {
   self.kv_pages_free
 }

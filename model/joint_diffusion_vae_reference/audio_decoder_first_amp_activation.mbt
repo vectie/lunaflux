@@ -2,7 +2,7 @@
 pub fn bind_audio_decoder_first_amp_activation(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  decoder_batch_count~ : Int,
+  decoder_batch_count~ : Int32,
   alpha_name~ : String,
   beta_name~ : String,
   upsample_filter_name~ : String,

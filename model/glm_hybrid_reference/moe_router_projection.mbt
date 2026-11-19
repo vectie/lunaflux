@@ -5,9 +5,9 @@
 pub fn moe_router_projection(
   input : ArrayView[Double],
   weight : ArrayView[Double],
-  row_count~ : Int,
-  hidden_width~ : Int,
-  expert_count~ : Int,
+  row_count~ : Int32,
+  hidden_width~ : Int32,
+  expert_count~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmMoeRouterProjectionResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)
@@ -38,17 +38,17 @@ pub fn moe_router_projection(
 }
 
 ///|
-pub fn GlmMoeRouterProjectionResult::row_count(self : Self) -> Int {
+pub fn GlmMoeRouterProjectionResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmMoeRouterProjectionResult::hidden_width(self : Self) -> Int {
+pub fn GlmMoeRouterProjectionResult::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn GlmMoeRouterProjectionResult::expert_count(self : Self) -> Int {
+pub fn GlmMoeRouterProjectionResult::expert_count(self : Self) -> Int32 {
   self.expert_count
 }
 

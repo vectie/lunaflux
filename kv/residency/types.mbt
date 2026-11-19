@@ -2,8 +2,8 @@
 /// Fixed capacities admitted before any storage is allocated.
 #valtype
 pub struct Limits {
-  slots : Int
-  transfers : Int
+  slots : Int32
+  transfers : Int32
   bytes_per_slot : Int64
   host_bytes : Int64
 }
@@ -16,8 +16,8 @@ pub(all) suberror ResidencyError {
 ///|
 /// The capacity tier requires physically separate host and device memory.
 pub fn Limits::new(
-  slots~ : Int,
-  transfers~ : Int,
+  slots~ : Int32,
+  transfers~ : Int32,
   bytes_per_slot~ : Int64,
   host_budget~ : Int64,
   separate_host_memory~ : Bool,
@@ -45,12 +45,12 @@ pub fn Limits::host_bytes(self : Limits) -> Int64 {
 }
 
 ///|
-pub fn Limits::slots(self : Limits) -> Int {
+pub fn Limits::slots(self : Limits) -> Int32 {
   self.slots
 }
 
 ///|
-pub fn Limits::transfers(self : Limits) -> Int {
+pub fn Limits::transfers(self : Limits) -> Int32 {
   self.transfers
 }
 
@@ -74,8 +74,8 @@ priv enum Phase {
 #valtype
 priv struct State {
   phase : Phase
-  generation : Int
-  epoch : Int
+  generation : Int32
+  epoch : Int32
   cancelled : Bool
 }
 
@@ -117,8 +117,8 @@ priv struct Transition {
 #valtype
 pub struct Entry {
   priv owner : Pool
-  priv slot : Int
-  priv generation : Int
+  priv slot : Int32
+  priv generation : Int32
 }
 
 ///|
@@ -126,7 +126,7 @@ pub struct Entry {
 #valtype
 pub struct Transfer {
   priv entry : Entry
-  priv epoch : Int
+  priv epoch : Int32
 }
 
 ///|
@@ -143,9 +143,9 @@ pub(all) enum Begin {
 pub struct Pool {
   priv limits : Limits
   priv states : FixedArray[State]
-  priv free : FixedArray[Int]
-  priv mut free_count : Int
-  priv mut inflight : Int
+  priv free : FixedArray[Int32]
+  priv mut free_count : Int32
+  priv mut inflight : Int32
   priv mut closed : Bool
 }
 
@@ -155,17 +155,17 @@ pub fn Transfer::entry(self : Transfer) -> Entry {
 }
 
 ///|
-pub fn Transfer::slot(self : Transfer) -> Int {
+pub fn Transfer::slot(self : Transfer) -> Int32 {
   self.entry.slot
 }
 
 ///|
-pub fn Entry::slot(self : Entry) -> Int {
+pub fn Entry::slot(self : Entry) -> Int32 {
   self.slot
 }
 
 ///|
-pub fn Entry::generation(self : Entry) -> Int {
+pub fn Entry::generation(self : Entry) -> Int32 {
   self.generation
 }
 

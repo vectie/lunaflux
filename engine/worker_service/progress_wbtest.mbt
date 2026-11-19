@@ -126,7 +126,7 @@ fn owned_preparation_allocation_positive_control() -> Bytes {
 }
 
 ///|
-fn wb_online_request(deadline? : UInt64 = 100UL) -> @core.TokenizedRequest {
+fn wb_online_request(deadline~ : UInt64 = 100UL) -> @core.TokenizedRequest {
   let limits = wb_service_inference_limits()
   wb_online_request_with_stop_tokens(
     wb_service_stop_token_projection(limits),

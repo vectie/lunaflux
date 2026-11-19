@@ -1,6 +1,6 @@
 ///|
 fn wb_topology_device(
-  ordinal : Int,
+  ordinal : Int32,
   name : String,
 ) -> LocalProbeDevice raise LocalTopologyError {
   LocalProbeDevice::new(
@@ -23,7 +23,7 @@ test "physical pair projection is canonical directed and exact" {
     wb_topology_device(5, "five"),
     wb_topology_device(9, "nine"),
   ])
-  let observed : Array[(Int, Int)] = []
+  let observed : Array[(Int32, Int32)] = []
   let peers = collect_peer_access(devices, (source, destination) => {
     observed.push((source, destination))
     source != 5 || destination != 2

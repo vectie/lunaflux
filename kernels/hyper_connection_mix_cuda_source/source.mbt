@@ -14,18 +14,18 @@ pub(all) enum HyperConnectionMixNumericalContract {
 
 ///|
 pub struct HyperConnectionMixCudaSource {
-  priv hidden_width : Int
-  priv stream_count : Int
-  priv maximum_rows : Int
+  priv hidden_width : Int32
+  priv stream_count : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }
 
 ///|
 pub fn hyper_connection_mix_bf16_source(
-  hidden_width~ : Int,
-  stream_count~ : Int,
-  maximum_rows~ : Int,
+  hidden_width~ : Int32,
+  stream_count~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> HyperConnectionMixCudaSource raise HyperConnectionMixCudaSourceError {
   if hidden_width <= 0 {
@@ -43,8 +43,8 @@ pub fn hyper_connection_mix_bf16_source(
   }
   if function_symbol.is_empty() ||
     function_symbol.length() > 128 ||
-    !(function_symbol[0] is ('a'..='z' | 'A'..='Z' | '_')) ||
-    !function_symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) {
+    !(function_symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_')) ||
+    !function_symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) {
     raise InvalidFunctionSymbol
   }
   let law : @precision.HyperConnectionMixLaw = RoundedBf16ControlsAndProducts
@@ -98,17 +98,17 @@ pub fn hyper_connection_mix_bf16_source(
 }
 
 ///|
-pub fn HyperConnectionMixCudaSource::hidden_width(self : Self) -> Int {
+pub fn HyperConnectionMixCudaSource::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn HyperConnectionMixCudaSource::stream_count(self : Self) -> Int {
+pub fn HyperConnectionMixCudaSource::stream_count(self : Self) -> Int32 {
   self.stream_count
 }
 
 ///|
-pub fn HyperConnectionMixCudaSource::maximum_rows(self : Self) -> Int {
+pub fn HyperConnectionMixCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

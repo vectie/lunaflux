@@ -23,7 +23,7 @@ fn conditioning_text() -> @joint_diffusion_io_plan.ValidatedTextConditioning {
 ///|
 fn conditioning_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       OrderedKeyframeConditioning(_, _)
@@ -36,8 +36,8 @@ fn conditioning_ordinal(
 
 ///|
 fn conditioning_limits(
-  rows? : Int64 = 100000L,
-  elements? : Int64 = 10000000L,
+  rows~ : Int64 = 100000L,
+  elements~ : Int64 = 10000000L,
 ) -> @joint_diffusion_conditioning_reference.JointConditioningReferenceLimits {
   try! @joint_diffusion_conditioning_reference.JointConditioningReferenceLimits::new(
     maximum_conditioning_rows=rows,
@@ -47,7 +47,7 @@ fn conditioning_limits(
 
 ///|
 fn fl_conditioning_request(
-  keyframe_count? : Int = 2,
+  keyframe_count~ : Int32 = 2,
 ) -> @joint_diffusion_io_plan.JointDiffusionIoPlan {
   let plan = conditioning_plan(Fl2va)
   let keyframes : Array[@joint_diffusion_io_plan.JointKeyframeConditioning] = [

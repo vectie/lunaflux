@@ -93,7 +93,7 @@ pub fn WindowCompressedKvFrame::prepare(
   let sink = region(attention_sink, heads.to_int64() * 4L, 4L)
   let compressed = region(
     compressed_values,
-    Int::max(plan.cache_capacity(), 1).to_int64() * width.to_int64() * 2L,
+    Int32::max(plan.cache_capacity(), 1).to_int64() * width.to_int64() * 2L,
     2L,
   )
   let cache_count = region(compressed_counts, 20L, 4L)
@@ -109,7 +109,7 @@ pub fn WindowCompressedKvFrame::prepare(
         region(counts, rows.to_int64() * 4L, 4L),
         region(
           ids,
-          rows.to_int64() * Int::max(plan.selected_width(), 1).to_int64() * 4L,
+          rows.to_int64() * Int32::max(plan.selected_width(), 1).to_int64() * 4L,
           4L,
         ),
         region(offsets, rows.to_int64() * 4L, 4L),
@@ -123,7 +123,7 @@ pub fn WindowCompressedKvFrame::prepare(
         region(counts, rows.to_int64() * 4L, 4L),
         region(
           ids,
-          rows.to_int64() * Int::max(plan.selected_width(), 1).to_int64() * 4L,
+          rows.to_int64() * Int32::max(plan.selected_width(), 1).to_int64() * 4L,
           4L,
         ),
         reset, // Cache-relative source never dereferences this ABI slot.

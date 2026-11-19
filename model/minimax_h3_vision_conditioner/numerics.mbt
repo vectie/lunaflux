@@ -38,8 +38,8 @@ pub fn interpolate_bf16(
 /// merge-group row order. Temporal frames reuse the same spatial coordinates.
 pub fn VisionPlan::position_stencil(
   self : Self,
-  row : Int,
-) -> ReadOnlyArray[(Int, Float)] raise VisionError {
+  row : Int32,
+) -> ReadOnlyArray[(Int32, Float)] raise VisionError {
   let (_, _, y, x) = self.position(row)
   let (grid_index, _, _, _) = self.merged_position(row / 4)
   let grid = self.grids[grid_index]
@@ -47,8 +47,8 @@ pub fn VisionPlan::position_stencil(
   let fx = Float::from_int(x) * 47.0F / Float::from_int(grid.width - 1)
   let y0 = fy.to_int()
   let x0 = fx.to_int()
-  let y1 = Int::min(y0 + 1, 47)
-  let x1 = Int::min(x0 + 1, 47)
+  let y1 = Int32::min(y0 + 1, 47)
+  let x1 = Int32::min(x0 + 1, 47)
   let dy = fy - Float::from_int(y0)
   let dx = fx - Float::from_int(x0)
   [

@@ -24,7 +24,7 @@ fn paged_kv_write_test_limits() -> PagedKvWriteAotLimits raise {
 
 ///|
 fn paged_kv_write_test_compiler(
-  reassociate? : Bool = false,
+  reassociate~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(

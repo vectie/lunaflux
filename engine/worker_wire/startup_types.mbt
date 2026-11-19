@@ -18,7 +18,7 @@ pub struct WorkerStartupContract {
   priv identity : @spec.ModelIdentity
   priv bootstrap_digest : WorkerBootstrapDigest
   priv bootstrap_source_digest : WorkerBootstrapSourceDigest
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv model_generation_value : UInt64
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv inference_limits : @inference.InferenceLimits
@@ -31,7 +31,7 @@ pub struct WorkerStartupContract {
 pub struct StartupFrameBuffer {
   priv storage : FixedArray[Byte]
   priv mut epoch : UInt64
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|
@@ -44,14 +44,14 @@ pub fn WorkerStartupContract::new(
   identity~ : @spec.ModelIdentity,
   bootstrap_digest~ : WorkerBootstrapDigest,
   bootstrap_source_digest~ : WorkerBootstrapSourceDigest,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
   model_generation_value~ : UInt64,
   worker_limits~ : @worker_protocol.WorkerProtocolLimits,
   inference_limits~ : @inference.InferenceLimits,
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
   streaming? : @streaming_ir.Capability,
-  streaming_epoch? : UInt64 = 1UL,
+  streaming_epoch~ : UInt64 = 1UL,
 ) -> WorkerStartupContract raise WorkerWireError {
   if (streaming is Some(_) && streaming_epoch == 0UL) ||
     device_ordinal < 0 ||
@@ -91,7 +91,7 @@ pub fn WorkerBootstrapDigest::from_sha256(
     raise InvalidFrame(StartupIdentity)
   }
   for character in value {
-    if !(character is ('0'..='9' | 'a'..='f')) {
+    if !(character is ('0'..<='9' | 'a'..<='f')) {
       raise InvalidFrame(StartupIdentity)
     }
   }
@@ -129,7 +129,7 @@ pub fn WorkerStartupContract::bootstrap_source_digest(
 /// process. This value is not a persistent hardware UUID.
 pub fn WorkerStartupContract::device_ordinal(
   self : WorkerStartupContract,
-) -> Int {
+) -> Int32 {
   self.device_ordinal
 }
 
@@ -169,7 +169,7 @@ pub fn WorkerStartupContract::predecessor_value(
 }
 
 ///|
-pub fn StartupFrameBuffer::new(streaming? : Bool = false) -> StartupFrameBuffer {
+pub fn StartupFrameBuffer::new(streaming~ : Bool = false) -> StartupFrameBuffer {
   {
     storage: FixedArray::make(
       if streaming {
@@ -207,6 +207,6 @@ pub fn WorkerStartupContract::with_streaming(
 }
 
 ///|
-pub fn StartupFrameBuffer::capacity(self : StartupFrameBuffer) -> Int {
+pub fn StartupFrameBuffer::capacity(self : StartupFrameBuffer) -> Int32 {
   self.storage.length()
 }

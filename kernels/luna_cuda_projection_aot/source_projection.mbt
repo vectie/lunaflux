@@ -53,7 +53,7 @@ fn projection_workspace_bytes(
 }
 
 ///|
-fn projection_count_guard(maximum_tokens : Int) -> String {
+fn projection_count_guard(maximum_tokens : Int32) -> String {
   "  const int token_count = counts[3];\n" +
   "  if (token_count <= 0 || token_count > " +
   maximum_tokens.to_string() +
@@ -64,8 +64,8 @@ fn projection_count_guard(maximum_tokens : Int) -> String {
 fn projection_tensor_core_direct_dense_source(
   symbol : String,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
-  maximum_rows : Int,
+  maximum_tokens : Int32,
+  maximum_rows : Int32,
   tile_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
   precision? : @precision.PhysicalOperand,
 ) -> Bytes {
@@ -197,9 +197,9 @@ fn projection_tensor_core_direct_dense_source(
 fn projection_tensor_core_direct_qkv_source(
   symbol : String,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
   tile_compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
-  groups? : Int = 8,
+  groups~ : Int32 = 8,
 ) -> Bytes {
   let (weight_binding, weight_branch) = projection_weight_selection_source(
     tile_compilation.weight_selection,

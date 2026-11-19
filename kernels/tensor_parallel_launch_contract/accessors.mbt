@@ -60,42 +60,42 @@ pub fn TensorParallelAotLaunchContract::dimensions(
 ///|
 pub fn TensorParallelAotLaunchContract::input_width(
   self : TensorParallelAotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.input_width
 }
 
 ///|
 pub fn TensorParallelAotLaunchContract::output_width(
   self : TensorParallelAotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.output_width
 }
 
 ///|
 pub fn TensorParallelAotLaunchContract::inner_width(
   self : TensorParallelAotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.inner_width
 }
 
 ///|
 pub fn TensorParallelAotLaunchContract::query_head_count(
   self : TensorParallelAotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.query_head_count
 }
 
 ///|
 pub fn TensorParallelAotLaunchContract::kv_head_count(
   self : TensorParallelAotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.kv_head_count
 }
 
 ///|
 pub fn TensorParallelAotLaunchContract::head_dimension(
   self : TensorParallelAotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
@@ -123,14 +123,14 @@ pub fn TensorParallelAotLaunchContractSet::model_identity(
 ///|
 pub fn TensorParallelAotLaunchContractSet::rank(
   self : TensorParallelAotLaunchContractSet,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelAotLaunchContractSet::world_size(
   self : TensorParallelAotLaunchContractSet,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 

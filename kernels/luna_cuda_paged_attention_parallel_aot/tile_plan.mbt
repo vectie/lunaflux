@@ -1,8 +1,8 @@
 ///|
 fn parallel_checked_product(
-  left : Int,
-  right : Int,
-) -> Int raise PagedAttentionParallelAotError {
+  left : Int32,
+  right : Int32,
+) -> Int32 raise PagedAttentionParallelAotError {
   if left <= 0 || right <= 0 || left > 2147483647 / right {
     raise PagedAttentionParallelOverflow(StaticResources)
   }
@@ -10,18 +10,18 @@ fn parallel_checked_product(
 }
 
 ///|
-fn parallel_is_power_of_two(value : Int) -> Bool {
+fn parallel_is_power_of_two(value : Int32) -> Bool {
   value > 0 && (value & (value - 1)) == 0
 }
 
 ///|
 fn parallel_tensor(
-  id : Int,
+  id : Int32,
   dtype : @luna_tile_ir.LunaTileDType,
   space : @luna_tile_ir.LunaTileAddressSpace,
-  extent : Int,
-  offset : Int,
-  alignment : Int,
+  extent : Int32,
+  offset : Int32,
+  alignment : Int32,
 ) -> @luna_tile_ir.LunaTileTensorView raise PagedAttentionParallelAotError {
   @luna_tile_ir.LunaTileTensorView::new(
     id=@luna_tile_ir.LunaTileTensorId::from_stable_int(id),
@@ -38,8 +38,8 @@ fn parallel_tensor(
 
 ///|
 fn parallel_region(
-  id : Int,
-  extent : Int,
+  id : Int32,
+  extent : Int32,
 ) -> @luna_tile_ir.LunaTileRegion raise PagedAttentionParallelAotError {
   @luna_tile_ir.LunaTileRegion::new(
     tensor=@luna_tile_ir.LunaTileTensorId::from_stable_int(id),
@@ -52,9 +52,9 @@ fn parallel_region(
 
 ///|
 fn parallel_tile_aot(
-  maximum_context_tokens : Int,
-  shared_memory_bytes : Int,
-  maximum_canonical_bytes : Int,
+  maximum_context_tokens : Int32,
+  shared_memory_bytes : Int32,
+  maximum_canonical_bytes : Int32,
 ) -> (@luna_tile_ir.LunaTileProgram, @luna_tile_ir.LunaTileCudaAotInput) raise PagedAttentionParallelAotError {
   let threads = PAGED_ATTENTION_PARALLEL_BLOCK_THREADS
   let score_bytes = parallel_checked_product(maximum_context_tokens, 4)

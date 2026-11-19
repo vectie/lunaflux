@@ -9,8 +9,8 @@ priv struct LunaOpenAIEmbeddedControl {
   metrics_output : LunaOnlineTcpOutputScratch
   metrics_flights : Array[LunaOnlineTcpOutputFlight]
   mut output : Bytes
-  mut output_cursor : Int
-  mut output_length : Int
+  mut output_cursor : Int32
+  mut output_length : Int32
 }
 
 ///|
@@ -94,7 +94,7 @@ fn LunaOpenAIEmbeddedControl::prepare_static(
 fn LunaOpenAIEmbeddedControl::prepare_metrics(
   self : LunaOpenAIEmbeddedControl,
   snapshot : @metrics.LunaInstanceMetricsSnapshot,
-  cold_start_latency_millis : Int,
+  cold_start_latency_millis : Int32,
   readiness : Bool,
 ) -> Bool {
   let write = self.metrics_output.begin_write() catch { _ => return false }
@@ -127,9 +127,9 @@ fn LunaOpenAIEmbeddedControl::prepare_metrics(
 fn LunaOpenAIEmbeddedControl::offer(
   self : LunaOpenAIEmbeddedControl,
   input : FixedArray[Byte],
-  offset : Int,
-  length : Int,
-) -> Int {
+  offset : Int32,
+  length : Int32,
+) -> Int32 {
   if self.requests.length() != 1 || length <= 0 {
     return -1
   }
@@ -171,8 +171,8 @@ fn LunaOpenAIEmbeddedControl::offer(
 async fn LunaOpenAIEmbeddedControl::write_once(
   self : LunaOpenAIEmbeddedControl,
   connection : @socket.Tcp,
-  timeout_millis : Int,
-) -> Int {
+  timeout_millis : Int32,
+) -> Int32 {
   if self.output_cursor < 0 ||
     self.output_cursor >= self.output_length ||
     self.output_length > self.output.length() {

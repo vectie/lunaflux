@@ -1,11 +1,11 @@
 ///|
-const PAGE_FREE : Int = 0
+const PAGE_FREE : Int32 = 0
 
 ///|
-const PAGE_ALLOCATED : Int = 1
+const PAGE_ALLOCATED : Int32 = 1
 
 ///|
-const PAGE_RETIRED : Int = 2
+const PAGE_RETIRED : Int32 = 2
 
 ///|
 /// Preallocates every metadata array and initializes a deterministic FIFO of
@@ -53,17 +53,17 @@ pub fn PageAllocator::limits(self : PageAllocator) -> PageAllocatorLimits {
 }
 
 ///|
-pub fn PageAllocator::free_page_count(self : PageAllocator) -> Int {
+pub fn PageAllocator::free_page_count(self : PageAllocator) -> Int32 {
   self.free_pages
 }
 
 ///|
-pub fn PageAllocator::allocated_page_count(self : PageAllocator) -> Int {
+pub fn PageAllocator::allocated_page_count(self : PageAllocator) -> Int32 {
   self.allocated_pages
 }
 
 ///|
-pub fn PageAllocator::retired_page_count(self : PageAllocator) -> Int {
+pub fn PageAllocator::retired_page_count(self : PageAllocator) -> Int32 {
   self.retired_pages
 }
 
@@ -95,7 +95,7 @@ fn PageAllocator::pop_free(self : PageAllocator) -> PageId {
 ///|
 fn PageAllocator::preflight_allocate(
   self : PageAllocator,
-  count : Int,
+  count : Int32,
 ) -> Unit raise PageAllocatorError {
   if self.allocation_checkpoint_open &&
     self.allocation_journal_length + count > self.allocation_journal.length() {
@@ -137,7 +137,7 @@ pub fn PageAllocator::allocate_one(
 /// output buffer remain unchanged; success performs no collection growth.
 pub fn PageAllocator::allocate_run(
   self : PageAllocator,
-  count : Int,
+  count : Int32,
   output : PageRunBuffer,
 ) -> Unit raise PageAllocatorError {
   if count <= 0 || count > self.max_run_pages {
@@ -169,7 +169,7 @@ fn PageAllocator::require_reference_mutation_allowed(
 fn PageAllocator::checked_index(
   self : PageAllocator,
   page : PageId,
-) -> Int raise PageAllocatorError {
+) -> Int32 raise PageAllocatorError {
   let index = page.index()
   if index < 0 ||
     index >= self.page_capacity ||
@@ -183,7 +183,7 @@ fn PageAllocator::checked_index(
 }
 
 ///|
-fn PageAllocator::enqueue_free(self : PageAllocator, index : Int) -> Unit {
+fn PageAllocator::enqueue_free(self : PageAllocator, index : Int32) -> Unit {
   self.free_next[index] = -1
   if self.free_tail == -1 {
     self.free_head = index
@@ -196,7 +196,10 @@ fn PageAllocator::enqueue_free(self : PageAllocator, index : Int) -> Unit {
 }
 
 ///|
-fn PageAllocator::recycle_if_unowned(self : PageAllocator, index : Int) -> Unit {
+fn PageAllocator::recycle_if_unowned(
+  self : PageAllocator,
+  index : Int32,
+) -> Unit {
   if self.active_references[index] != 0 || self.cached_references[index] != 0 {
     return
   }
@@ -276,7 +279,7 @@ pub fn PageAllocator::release_cached(
 pub fn PageAllocator::active_reference_count(
   self : PageAllocator,
   page : PageId,
-) -> Int raise PageAllocatorError {
+) -> Int32 raise PageAllocatorError {
   let index = self.checked_index(page)
   self.active_references[index]
 }
@@ -302,7 +305,7 @@ pub fn PageAllocator::validate_active(
 pub fn PageAllocator::cached_reference_count(
   self : PageAllocator,
   page : PageId,
-) -> Int raise PageAllocatorError {
+) -> Int32 raise PageAllocatorError {
   let index = self.checked_index(page)
   self.cached_references[index]
 }

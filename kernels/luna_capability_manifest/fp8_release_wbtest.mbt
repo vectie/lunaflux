@@ -1,8 +1,8 @@
 ///|
 fn fp8_release_manifest_fixture(
-  source? : String = "1".repeat(64),
-  recipe? : String = "2".repeat(64),
-  supports_cublas_lt? : Bool = true,
+  source~ : String = "1".repeat(64),
+  recipe~ : String = "2".repeat(64),
+  supports_cublas_lt~ : Bool = true,
 ) -> LunaFp8ReleaseManifestV2 {
   let family = try! @catalog.AotKernelFamily::new(
     module_digest=@catalog.AotArtifactDigest::from_sha256("3".repeat(64)),

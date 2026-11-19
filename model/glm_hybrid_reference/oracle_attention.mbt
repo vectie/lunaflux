@@ -1,9 +1,9 @@
 ///|
 fn oracle_validate_selected_indices(
-  selected : ArrayView[Int],
-  token_count : Int,
-  head_count : Int,
-  top_k : Int,
+  selected : ArrayView[Int32],
+  token_count : Int32,
+  head_count : Int32,
+  top_k : Int32,
 ) -> Unit raise GlmHybridReferenceError {
   if selected.length() != token_count * head_count * top_k {
     raise InvalidShape
@@ -39,11 +39,11 @@ fn oracle_sparse_attention(
   query : ArrayView[Double],
   key : ArrayView[Double],
   value : ArrayView[Double],
-  selected : ArrayView[Int],
-  token_count : Int,
-  head_count : Int,
-  head_dimension : Int,
-  top_k : Int,
+  selected : ArrayView[Int32],
+  token_count : Int32,
+  head_count : Int32,
+  head_dimension : Int32,
+  top_k : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   let width = head_count * head_dimension

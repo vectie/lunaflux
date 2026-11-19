@@ -1,6 +1,6 @@
 ///|
 test "reusable clock supports repeated watchdog reads while one-shot remains distinct" {
-  let clock = MonotonicClock::system().prepare_poller()
+  let clock = @monotonic_clock.MonotonicClock::system().prepare_poller()
   try clock.value() catch {
     Unavailable => ()
     _ => fail("unexpected error")

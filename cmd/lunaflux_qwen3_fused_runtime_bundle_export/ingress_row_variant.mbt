@@ -1,8 +1,8 @@
 ///|
 priv struct IngressRowVariantArguments {
-  maximum_token_rows : Int
-  query_tile_rows : Int
-  shared_bytes : Int
+  maximum_token_rows : Int32
+  query_tile_rows : Int32
+  shared_bytes : Int32
   module_path : String
 }
 

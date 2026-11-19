@@ -12,7 +12,7 @@ fn luna_framed_request_checked_multiply_cells(
 ///|
 fn luna_framed_request_workspace_requirements(
   limits : FramedWireLimits,
-) -> (Int, Int, UInt64, UInt64) raise FramedWireError {
+) -> (Int32, Int32, UInt64, UInt64) raise FramedWireError {
   let byte_capacity = limits.max_frame_bytes()
   if byte_capacity < REQUEST_HEADER_BYTES ||
     byte_capacity > ABSOLUTE_MAX_FRAME_BYTES {
@@ -181,7 +181,7 @@ fn LunaFramedRequestWorkspace::fail(
 ///|
 fn LunaFramedRequestWorkspace::charge(
   self : LunaFramedRequestWorkspace,
-  work_units : Int,
+  work_units : Int32,
 ) -> Unit {
   self.last_work_units = work_units
   self.total_work_units += work_units.to_uint64()
@@ -194,9 +194,9 @@ fn LunaFramedRequestWorkspace::charge(
 pub fn LunaFramedRequestWork::offer(
   self : LunaFramedRequestWork,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
-) -> Int raise FramedWireError {
+  source_offset~ : Int32,
+  length~ : Int32,
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   workspace.last_work_units = 0
   if source_offset < 0 || length < 0 || source_offset > source.length() - length {
@@ -215,9 +215,9 @@ pub fn LunaFramedRequestWork::offer(
     LUNA_FRAMED_REQUEST_READY => raise LunaFramedRequestNotReady
     _ => return 0
   }
-  let amount = Int::min(
+  let amount = Int32::min(
     length,
-    Int::min(capacity, workspace.budget.work_units()),
+    Int32::min(capacity, workspace.budget.work_units()),
   )
   for index in 0..<amount {
     workspace.storage[workspace.length + index] = source[source_offset + index]
@@ -253,7 +253,7 @@ pub fn LunaFramedRequestWork::state(
 ///|
 pub fn LunaFramedRequestWork::last_work_units(
   self : LunaFramedRequestWork,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().last_work_units
 }
 

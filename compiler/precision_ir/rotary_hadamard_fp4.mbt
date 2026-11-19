@@ -4,19 +4,19 @@
 /// final storage remains BF16, not packed FP4. No device geometry is semantic.
 pub struct RotaryHadamardFp4Precision {
   priv rotary : RotaryTensorPrecision
-  priv block : Int
+  priv block : Int32
   priv frames : ReadOnlyArray[Int64]
 }
 
 ///|
 pub fn RotaryHadamardFp4Precision::new(
-  head_count~ : Int,
-  head_width~ : Int,
-  rotary_width~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  head_count~ : Int32,
+  head_width~ : Int32,
+  rotary_width~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   frequency~ : RotaryFrequency,
-  simulation_block_width~ : Int,
+  simulation_block_width~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
   guard head_width > 0 &&
@@ -54,7 +54,7 @@ pub fn RotaryHadamardFp4Precision::rotary(self : Self) -> RotaryTensorPrecision 
 }
 
 ///|
-pub fn RotaryHadamardFp4Precision::block_width(self : Self) -> Int {
+pub fn RotaryHadamardFp4Precision::block_width(self : Self) -> Int32 {
   self.block
 }
 

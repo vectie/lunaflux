@@ -22,7 +22,7 @@ fn window_join_operands() -> Array[AdvancedDecoderLaunchOperand] {
 
 ///|
 fn window_join_dimensions(
-  block_x? : Int = 1,
+  block_x~ : Int32 = 1,
 ) -> @launch_contract.AotLaunchDimensions {
   try! @launch_contract.AotLaunchDimensions::new(
     grid_x=2,

@@ -9,7 +9,7 @@ fn ActivationLink::write_header(self : ActivationLink) -> Unit {
 ///|
 fn ActivationLink::validate_header(
   self : ActivationLink,
-  length : Int,
+  length : Int32,
 ) -> Unit raise {
   guard length == self.rows * self.row_bytes + activation_header_bytes else {
     raise MismatchedStep

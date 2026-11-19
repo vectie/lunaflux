@@ -32,13 +32,13 @@ fn qwen3_sha256(bytes : BytesView) -> String {
 }
 
 ///|
-fn qwen3_parse_uint(value : String) -> UInt raise Qwen3PhysicalError {
+fn qwen3_parse_uint(value : String) -> UInt32 raise Qwen3PhysicalError {
   if value.is_empty() || value.length() > 6 {
     raise InvalidInput("compiler version component is invalid")
   }
   let mut result = 0U
   for character in value {
-    guard character is ('0'..='9') else {
+    guard character is ('0'..<='9') else {
       raise InvalidInput("compiler version component is invalid")
     }
     result = result * 10U +
@@ -51,7 +51,7 @@ fn qwen3_parse_uint(value : String) -> UInt raise Qwen3PhysicalError {
 async fn qwen3_read_pinned(
   path : String,
   expected_sha256 : String,
-  maximum_bytes : Int,
+  maximum_bytes : Int32,
 ) -> Bytes raise Qwen3PhysicalError {
   qwen3_require(qwen3_is_sha256(expected_sha256), "digest is not SHA-256")
   let canonical = @fs.realpath(path) catch {
@@ -74,7 +74,7 @@ async fn qwen3_read_pinned(
 ///|
 async fn qwen3_read_canonical(
   path : String,
-  maximum_bytes : Int,
+  maximum_bytes : Int32,
 ) -> Bytes raise Qwen3PhysicalError {
   let canonical = @fs.realpath(path) catch {
     _ => raise InvalidInput("input path is unavailable")
@@ -97,12 +97,12 @@ struct Qwen3PhysicalInputs {
 
 ///|
 struct Qwen3ProbeBalance {
-  mut contexts : Int
-  mut streams : Int
-  mut allocations : Int
-  mut modules : Int
-  mut functions : Int
-  mut cleanup : Int
+  mut contexts : Int32
+  mut streams : Int32
+  mut allocations : Int32
+  mut modules : Int32
+  mut functions : Int32
+  mut cleanup : Int32
 }
 
 ///|

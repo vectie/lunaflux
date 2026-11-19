@@ -3,7 +3,7 @@ fn prepare_openai_pool_e2e(
   executable : Bytes,
   tcp_limits : @online_tcp.LunaOnlineTcpLimits,
   fixture_root~ : String = "/private/tmp",
-  output_buffer_bytes~ : Int = 16384,
+  output_buffer_bytes~ : Int32 = 16384,
 ) -> @online_tcp.LunaOnlineOpenAIConnectionPoolPreparation raise {
   let inference = tcp_inference_limits()
   let model = openai_e2e_bytes("model-x")
@@ -49,7 +49,7 @@ fn prepare_openai_pool_e2e(
 ///|
 async fn progress_openai_pool_to_connections(
   pool : @online_tcp.LunaOnlineOpenAIConnectionPool,
-  expected : Int,
+  expected : Int32,
   stage : String,
 ) -> Unit {
   let mut turns = 0
@@ -175,7 +175,7 @@ async fn run_luna_openai_active_drain_evidence(
   executable : Bytes,
   fixture_root : String,
   after_failure~ : Bool = false,
-  request_count~ : Int = 1,
+  request_count~ : Int32 = 1,
 ) -> Unit {
   let tcp = @online_tcp.LunaOnlineTcpLimits::new(
     read_chunk_bytes=2048,

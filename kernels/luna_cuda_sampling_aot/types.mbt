@@ -14,7 +14,7 @@ pub struct HostSamplingBoundary {
   priv owner : SamplingExecutionOwner
   priv producer : @plan.OperationId
   priv final_output : @plan.ActivationRef
-  priv vocabulary_size : Int
+  priv vocabulary_size : Int32
   priv logits_row_bytes : Int64
 } derive(Debug, Eq)
 
@@ -42,7 +42,7 @@ pub fn HostSamplingBoundary::final_output(
 ///|
 pub fn HostSamplingBoundary::vocabulary_size(
   self : HostSamplingBoundary,
-) -> Int {
+) -> Int32 {
   self.vocabulary_size
 }
 

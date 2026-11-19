@@ -4,11 +4,11 @@ fn SchedulePlanBuffer::start_draft(
   kind : WorkerRowKind,
   request_id : @inference.RequestId,
   request_generation : @inference.RequestGeneration,
-  sequence_position : Int,
+  sequence_position : Int32,
   produces_token : Bool,
   sampling : @inference.SamplingParameters,
   sampling_seed_value : UInt64,
-  sample_index : Int,
+  sample_index : Int32,
   completion_slot : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
   self.require_state(Writable)
@@ -83,7 +83,7 @@ pub fn SchedulePlanBuffer::begin_prefill(
   self : SchedulePlanBuffer,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  sequence_token_start~ : Int,
+  sequence_token_start~ : Int32,
   completion_slot~ : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
   self.start_draft(
@@ -105,10 +105,10 @@ pub fn SchedulePlanBuffer::begin_final_prefill(
   self : SchedulePlanBuffer,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  sequence_token_start~ : Int,
+  sequence_token_start~ : Int32,
   sampling~ : @inference.SamplingParameters,
   sampling_seed~ : @inference.SamplingSeed,
-  sample_index~ : Int,
+  sample_index~ : Int32,
   completion_slot~ : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
   self.start_draft(
@@ -130,10 +130,10 @@ pub fn SchedulePlanBuffer::begin_decode(
   self : SchedulePlanBuffer,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  sequence_token_position~ : Int,
+  sequence_token_position~ : Int32,
   sampling~ : @inference.SamplingParameters,
   sampling_seed~ : @inference.SamplingSeed,
-  sample_index~ : Int,
+  sample_index~ : Int32,
   completion_slot~ : CompletionSlot,
 ) -> PlanRowDraft raise WorkerProtocolError {
   self.start_draft(
@@ -201,7 +201,7 @@ pub fn SchedulePlanBuffer::rollback_draft(
 ///|
 pub fn PlanRowDraft::push_token(
   self : PlanRowDraft,
-  token : Int,
+  token : Int32,
 ) -> Unit raise WorkerProtocolError {
   let owner = self.owner()
   if owner.token_count >= owner.limits.max_plan_tokens() {

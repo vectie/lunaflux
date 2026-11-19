@@ -1,8 +1,8 @@
 ///|
 fn inverse_rotary_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
   operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
@@ -111,8 +111,8 @@ fn inverse_rotary_recipe(
 /// cache state, compilation, loader, or execution authority is included.
 pub fn lower_attention_output_inverse_rotary_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

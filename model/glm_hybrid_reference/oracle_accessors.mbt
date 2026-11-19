@@ -20,6 +20,6 @@ pub fn GlmTinyHybridBlockResult::output(self : Self) -> ReadOnlyArray[Double] {
 ///|
 pub fn GlmTinyHybridBlockResult::selected_experts(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.selected_experts
 }

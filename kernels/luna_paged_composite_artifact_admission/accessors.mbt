@@ -99,42 +99,42 @@ pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::target(
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::operation_id(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> Int {
+) -> Int32 {
   self.operation
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::activation_ref(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> Int {
+) -> Int32 {
   self.activation
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::input_row_width(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> Int {
+) -> Int32 {
   self.input_row_width
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::profile_id(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> Int {
+) -> Int32 {
   self.profile_id
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::profile_shape(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.profile_rows, self.profile_tokens, self.profile_page_entries)
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::tokens_per_page(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 
@@ -183,14 +183,14 @@ pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::module_bytes(
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::dispatch_canary_per_token(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> Int {
+) -> Int32 {
   self.dispatch_canary
 }
 
 ///|
 pub fn ApprovedPagedAttentionReadOnlyRuntimeIdentity::dispatch_canary_cell_count(
   self : ApprovedPagedAttentionReadOnlyRuntimeIdentity,
-) -> Int {
+) -> Int32 {
   self.dispatch_canary_cells
 }
 
@@ -323,7 +323,7 @@ pub fn QualifiedPagedKvWriteFallbackIdentity::positioned_qkv_activation(
 ///|
 pub fn QualifiedPagedKvWriteFallbackIdentity::positioned_qkv_row_width(
   self : QualifiedPagedKvWriteFallbackIdentity,
-) -> Int {
+) -> Int32 {
   self.row_width
 }
 
@@ -344,14 +344,14 @@ pub fn QualifiedPagedKvWriteFallbackIdentity::profile(
 ///|
 pub fn QualifiedPagedKvWriteFallbackIdentity::tokens_per_page(
   self : QualifiedPagedKvWriteFallbackIdentity,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
 pub fn QualifiedPagedKvWriteFallbackIdentity::total_page_count(
   self : QualifiedPagedKvWriteFallbackIdentity,
-) -> Int {
+) -> Int32 {
   self.total_page_count
 }
 

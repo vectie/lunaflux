@@ -35,7 +35,7 @@ pub(all) suberror JointVaeDecodeReferenceError {
   GeometryOverflow
   GeometryBudgetExceeded(@joint_diffusion_plan.JointDiffusionComponent)
   InvalidLatentElementCount(@joint_diffusion_plan.JointDiffusionComponent)
-  NonFiniteLatent(@joint_diffusion_plan.JointDiffusionComponent, Int)
+  NonFiniteLatent(@joint_diffusion_plan.JointDiffusionComponent, Int32)
   LatentIdentityMismatch(@joint_diffusion_plan.JointDiffusionComponent)
   InvalidDestandardizationCoefficients
   InvalidDestandardizationInput
@@ -58,21 +58,21 @@ pub struct JointVaeDecodeReferenceLimits {
 ///|
 pub struct JointVaeDecodeGeometry {
   priv plan_digest : @spec.PlanDigest
-  priv video_latent_channels : Int
-  priv video_latent_frames : Int
-  priv video_latent_height : Int
-  priv video_latent_width : Int
+  priv video_latent_channels : Int32
+  priv video_latent_frames : Int32
+  priv video_latent_height : Int32
+  priv video_latent_width : Int32
   priv video_latent_elements : Int64
-  priv video_output_frames : Int
-  priv video_output_height : Int
-  priv video_output_width : Int
+  priv video_output_frames : Int32
+  priv video_output_height : Int32
+  priv video_output_width : Int32
   priv video_output_sites : Int64
-  priv video_spatial_compression : Int
-  priv audio_latent_channels : Int
-  priv audio_latent_frames : Int
+  priv video_spatial_compression : Int32
+  priv audio_latent_channels : Int32
+  priv audio_latent_frames : Int32
   priv audio_latent_elements : Int64
   priv audio_output_samples : Int64
-  priv audio_output_channels : Int
+  priv audio_output_channels : Int32
   priv audio_output_elements : Int64
 }
 
@@ -109,8 +109,8 @@ pub struct JointVaeLatentDestandardization {
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionVaeLatentDestandardizationStorage
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionVideoVaeLatentLayout
-  priv batch_count : Int
-  priv channel_count : Int
+  priv batch_count : Int32
+  priv channel_count : Int32
   priv elements_per_channel : Int64
   priv element_count : Int64
   priv means : ReadOnlyArray[Float]
@@ -126,8 +126,8 @@ pub struct JointVaeAudioLatentDestandardization {
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionVaeLatentDestandardizationStorage
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
-  priv batch_count : Int
-  priv channel_count : Int
+  priv batch_count : Int32
+  priv channel_count : Int32
   priv elements_per_channel : Int64
   priv element_count : Int64
   priv means : ReadOnlyArray[Float]
@@ -147,10 +147,10 @@ pub struct JointVaeAudioDecoderInputProjectionDigest {
 pub struct JointVaeAudioDecoderInputProjection {
   priv plan_digest : @spec.PlanDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv decoder_batch_count : Int
-  priv input_channels : Int
-  priv output_channels : Int
-  priv kernel_size : Int
+  priv decoder_batch_count : Int32
+  priv input_channels : Int32
+  priv output_channels : Int32
+  priv kernel_size : Int32
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeInputProjectionStorage
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
   priv weight_name : String
@@ -171,12 +171,12 @@ pub struct JointVaeAudioDecoderConvPreDigest {
 pub struct JointVaeAudioDecoderConvPre {
   priv plan_digest : @spec.PlanDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv decoder_batch_count : Int
-  priv input_channels : Int
-  priv output_channels : Int
-  priv kernel_size : Int
-  priv padding : Int
-  priv stride : Int
+  priv decoder_batch_count : Int32
+  priv input_channels : Int32
+  priv output_channels : Int32
+  priv kernel_size : Int32
+  priv padding : Int32
+  priv stride : Int32
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeConvPreStorage
   priv axes : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeWeightNormAxes
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
@@ -200,14 +200,14 @@ pub struct JointVaeAudioDecoderFirstUpsampleDigest {
 pub struct JointVaeAudioDecoderFirstUpsample {
   priv plan_digest : @spec.PlanDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv decoder_batch_count : Int
-  priv input_channels : Int
-  priv output_channels : Int
-  priv input_time : Int
-  priv output_time : Int
-  priv kernel_size : Int
-  priv stride : Int
-  priv padding : Int
+  priv decoder_batch_count : Int32
+  priv input_channels : Int32
+  priv output_channels : Int32
+  priv input_time : Int32
+  priv output_time : Int32
+  priv kernel_size : Int32
+  priv stride : Int32
+  priv padding : Int32
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeConvTransposeStorage
   priv axes : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeWeightNormAxes
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
@@ -231,15 +231,15 @@ pub struct JointVaeAudioDecoderUpsampleTransitionDigest {
 pub struct JointVaeAudioDecoderUpsampleTransition {
   priv plan_digest : @spec.PlanDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv stage_index : Int
-  priv decoder_batch_count : Int
-  priv input_channels : Int
-  priv output_channels : Int
-  priv input_time : Int
-  priv output_time : Int
-  priv kernel_size : Int
-  priv stride : Int
-  priv padding : Int
+  priv stage_index : Int32
+  priv decoder_batch_count : Int32
+  priv input_channels : Int32
+  priv output_channels : Int32
+  priv input_time : Int32
+  priv output_time : Int32
+  priv kernel_size : Int32
+  priv stride : Int32
+  priv padding : Int32
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeConvTransposeStorage
   priv axes : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeWeightNormAxes
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
@@ -263,12 +263,12 @@ pub struct JointVaeAudioDecoderFirstAmpActivationDigest {
 pub struct JointVaeAudioDecoderFirstAmpActivation {
   priv plan_digest : @spec.PlanDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv decoder_batch_count : Int
-  priv channel_count : Int
-  priv time_count : Int
-  priv upsample_time : Int
-  priv ratio : Int
-  priv kernel_size : Int
+  priv decoder_batch_count : Int32
+  priv channel_count : Int32
+  priv time_count : Int32
+  priv upsample_time : Int32
+  priv ratio : Int32
+  priv kernel_size : Int32
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeAliasFreeActivationStorage
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
   priv alpha_name : String
@@ -289,13 +289,13 @@ pub struct JointVaeAudioDecoderAmpActivationDigest {
 pub struct JointVaeAudioDecoderAmpActivation {
   priv plan_digest : @spec.PlanDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv stage_index : Int
-  priv decoder_batch_count : Int
-  priv channel_count : Int
-  priv time_count : Int
-  priv upsample_time : Int
-  priv ratio : Int
-  priv kernel_size : Int
+  priv stage_index : Int32
+  priv decoder_batch_count : Int32
+  priv channel_count : Int32
+  priv time_count : Int32
+  priv upsample_time : Int32
+  priv ratio : Int32
+  priv kernel_size : Int32
   priv storage : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeAliasFreeActivationStorage
   priv layout : @joint_diffusion_kernel_requirements.JointDiffusionAudioVaeLatentLayout
   priv alpha_name : String

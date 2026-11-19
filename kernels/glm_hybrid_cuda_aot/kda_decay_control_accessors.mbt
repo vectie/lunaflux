@@ -29,7 +29,7 @@ pub fn GlmHybridKdaDecayControlCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridKdaDecayControlCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,14 +48,14 @@ pub fn GlmHybridKdaDecayControlCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridKdaDecayControlCudaCandidate::head_count(self : Self) -> Int {
+pub fn GlmHybridKdaDecayControlCudaCandidate::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
 pub fn GlmHybridKdaDecayControlCudaCandidate::head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
@@ -69,7 +69,7 @@ pub fn GlmHybridKdaDecayControlCudaCandidate::lower_bound(
 ///|
 pub fn GlmHybridKdaDecayControlCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 

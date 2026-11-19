@@ -66,7 +66,7 @@ pub fn BlockWorkspace::bind_refiner_stages(
   let p = self.layout
   let a = self.allocation
   fn normalization(
-    half : Int,
+    half : Int32,
   ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
     block_rms_norm_launch(
       norm,

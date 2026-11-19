@@ -44,7 +44,7 @@ fn CheckpointTestLayer::prepare(
   operand : @device.Allocation,
   output : @device.Allocation,
   maximum_device_bytes : Int64,
-  chunk_bytes : Int,
+  chunk_bytes : Int32,
   limits : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   match self {
@@ -137,7 +137,7 @@ fn CheckpointTestLayer::prepare(
 ///|
 fn CheckpointTestLayer::submit(
   self : Self,
-  live_rows~ : Int,
+  live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   match self {
     Recurrent(layer) => layer.submit(live_rows~)

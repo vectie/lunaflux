@@ -11,10 +11,10 @@ pub(all) suberror Glm53ExpertBankLayoutError {
 pub struct Glm53MoeExpertBankLayout {
   priv execution_identity : @spec.ModelIdentity
   priv manifest_layout_digest : @spec.PlanDigest
-  priv layer_index : Int
-  priv routed_expert_count : Int
-  priv hidden_width : Int
-  priv intermediate_width : Int
+  priv layer_index : Int32
+  priv routed_expert_count : Int32
+  priv hidden_width : Int32
+  priv intermediate_width : Int32
   priv routed_gate : @indexed_parameter_bank_layout.IndexedParameterBankLayout
   priv routed_up : @indexed_parameter_bank_layout.IndexedParameterBankLayout
   priv routed_down : @indexed_parameter_bank_layout.IndexedParameterBankLayout
@@ -60,8 +60,8 @@ fn find_expert_tensor(
 
 ///|
 fn expert_tensor_bytes(
-  hidden_width : Int,
-  intermediate_width : Int,
+  hidden_width : Int32,
+  intermediate_width : Int32,
 ) -> Int64 raise Glm53ExpertBankLayoutError {
   let hidden = hidden_width.to_int64()
   let intermediate = intermediate_width.to_int64()
@@ -79,7 +79,7 @@ fn build_expert_bank(
   manifest : Glm53TensorManifest,
   prefix : String,
   suffix : String,
-  expert_count : Int,
+  expert_count : Int32,
   shape : ArrayView[Int64],
   tensor_bytes : Int64,
 ) -> @indexed_parameter_bank_layout.IndexedParameterBankLayout raise Glm53ExpertBankLayoutError {
@@ -142,7 +142,7 @@ fn build_shared_bank(
 /// It performs no allocation, copy, upload, or launch.
 pub fn build_moe_expert_bank_layout(
   manifest : Glm53TensorManifest,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Glm53MoeExpertBankLayout raise Glm53ExpertBankLayoutError {
   if manifest.encoding() != BFloat16WithFloat32Routing {
     raise UnsupportedExpertBankEncoding
@@ -245,22 +245,22 @@ pub fn Glm53MoeExpertBankLayout::manifest_layout_digest(
 }
 
 ///|
-pub fn Glm53MoeExpertBankLayout::layer_index(self : Self) -> Int {
+pub fn Glm53MoeExpertBankLayout::layer_index(self : Self) -> Int32 {
   self.layer_index
 }
 
 ///|
-pub fn Glm53MoeExpertBankLayout::routed_expert_count(self : Self) -> Int {
+pub fn Glm53MoeExpertBankLayout::routed_expert_count(self : Self) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
-pub fn Glm53MoeExpertBankLayout::hidden_width(self : Self) -> Int {
+pub fn Glm53MoeExpertBankLayout::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn Glm53MoeExpertBankLayout::intermediate_width(self : Self) -> Int {
+pub fn Glm53MoeExpertBankLayout::intermediate_width(self : Self) -> Int32 {
   self.intermediate_width
 }
 

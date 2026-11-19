@@ -15,11 +15,11 @@ pub extend QueryHeadNormalization with @debug.Debug::{to_repr}
 /// Model-neutral low-rank query and shared-KV projection prefix. Rotary,
 /// cache quantization, compression and attention are subsequent operations.
 pub struct QuantizedQueryKvPrecision {
-  priv hidden : Int
-  priv rank : Int
-  priv heads : Int
-  priv width : Int
-  priv rows : Int
+  priv hidden : Int32
+  priv rank : Int32
+  priv heads : Int32
+  priv width : Int32
+  priv rows : Int32
   priv epsilon : Double
   priv query_square : SquareReductionLaw
   priv projection_scaled_dot : ScaledDotReductionLaw
@@ -32,19 +32,19 @@ pub struct QuantizedQueryKvPrecision {
 
 ///|
 pub fn QuantizedQueryKvPrecision::new(
-  hidden_width~ : Int,
-  query_rank~ : Int,
-  head_count~ : Int,
-  head_width~ : Int,
-  maximum_rows~ : Int,
+  hidden_width~ : Int32,
+  query_rank~ : Int32,
+  head_count~ : Int32,
+  head_width~ : Int32,
+  maximum_rows~ : Int32,
   normalization_epsilon~ : Double,
   activation_amax_floor~ : Double,
   maximum_workspace_bytes~ : Int64,
-  query_square_law? : SquareReductionLaw = VectorizedTreeFloat32(
+  query_square_law~ : SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
-  projection_scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
+  projection_scaled_dot_law~ : ScaledDotReductionLaw = DecodeOperandsFloat32,
 ) -> Self raise {
   query_square_law.validate()
   match projection_scaled_dot_law {
@@ -100,7 +100,7 @@ pub fn QuantizedQueryKvPrecision::new(
     )
     .quantization()
     .with_amax_floor(activation_amax_floor)
-  let row_bytes = (width : Int) => {
+  let row_bytes = (width : Int32) => {
     expert_checked_mul(
       expert_checked_mul(maximum_rows.to_int64(), width.to_int64()),
       2L,
@@ -148,7 +148,7 @@ pub fn QuantizedQueryKvPrecision::new(
 ///|
 pub fn QuantizedQueryKvPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (self.hidden, self.rank, self.heads, self.width, self.rows)
 }
 

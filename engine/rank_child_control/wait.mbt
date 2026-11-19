@@ -3,7 +3,7 @@
 /// readable, bounded by both the caller interval and the frame deadline.
 pub fn RankChildControl::wait_receive(
   self : RankChildControl,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise RankChildControlError {
   self.require_usable()
   if !self.receive_active || self.receive_held || self.inbound_active {
@@ -19,7 +19,7 @@ pub fn RankChildControl::wait_receive(
 /// writable, bounded by both the caller interval and the frame deadline.
 pub fn RankChildControl::wait_send(
   self : RankChildControl,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise RankChildControlError {
   self.require_usable()
   if !self.send_active {
@@ -35,7 +35,7 @@ pub fn RankChildControl::wait_send(
 /// subsequent receive may yet begin. It consumes no command bytes.
 pub fn RankChildControl::wait_peer_readable(
   self : RankChildControl,
-  maximum_wait_millis~ : Int,
+  maximum_wait_millis~ : Int32,
 ) -> Bool raise RankChildControlError {
   self.require_usable()
   if self.receive_active || self.receive_held || self.send_active {

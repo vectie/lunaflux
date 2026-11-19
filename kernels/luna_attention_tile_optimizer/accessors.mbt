@@ -36,7 +36,7 @@ pub fn AttentionTileRewriteStep::changed(
 ///|
 pub fn AttentionTileRewriteStep::region_count(
   self : AttentionTileRewriteStep,
-) -> Int {
+) -> Int32 {
   self.region_count
 }
 

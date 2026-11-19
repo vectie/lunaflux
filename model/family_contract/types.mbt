@@ -58,7 +58,7 @@ pub struct ModelFamilyRequirements {
   priv family : ModelFamilyId
   priv architecture : String
   priv model_type : String
-  priv schema_version : Int
+  priv schema_version : Int32
   priv workload : ModelWorkload
   priv capabilities : ReadOnlyArray[ModelSemanticCapability]
 } derive(Debug, Eq)

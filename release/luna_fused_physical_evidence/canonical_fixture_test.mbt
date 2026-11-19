@@ -26,7 +26,7 @@ fn fused_physical_test_family(
   abi : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi,
   compiled : @luna_cuda_fused_parallel_aot.FusedParallelCompiledArtifactBinding,
   numerical : @luna_cuda_fused_parallel_aot.FusedParallelNumericalPolicy,
-  canary : UInt,
+  canary : UInt32,
   observed_absolute : Int64,
   observed_relative : Int64,
 ) -> Unit {
@@ -383,7 +383,7 @@ fn fused_physical_test_audit(
 fn fused_physical_test_resource(
   output : StringBuilder,
   prefix : String,
-  static_shared : Int,
+  static_shared : Int32,
 ) -> Unit {
   fused_physical_test_line(
     output,

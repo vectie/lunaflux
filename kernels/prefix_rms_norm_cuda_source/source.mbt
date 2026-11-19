@@ -2,18 +2,18 @@
 fn valid_prefix_norm_symbol(symbol : StringView) -> Bool {
   !symbol.is_empty() &&
   symbol.length() <= 128 &&
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn prefix_rms_norm_bf16_with_optional_suffix_copy_source(
-  prefix_width~ : Int,
-  suffix_width~ : Int,
-  maximum_rows~ : Int,
+  prefix_width~ : Int32,
+  suffix_width~ : Int32,
+  maximum_rows~ : Int32,
   epsilon~ : Double,
   function_symbol~ : String,
-  square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),

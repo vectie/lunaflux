@@ -48,12 +48,12 @@ pub(all) enum RuntimeSpawnedSamplingExpectation {
 pub struct RuntimeSpawnedValidationContract {
   priv frame : FixedArray[Byte]
   priv expected_model : @spec.ModelIdentity
-  priv expected_first_token : Int
-  priv expected_second_token : Int
-  priv input_tokens : Int
-  priv context_ceiling : Int
-  priv tokens_per_page : Int
-  priv turn_limit : Int
+  priv expected_first_token : Int32
+  priv expected_second_token : Int32
+  priv input_tokens : Int32
+  priv context_ceiling : Int32
+  priv tokens_per_page : Int32
+  priv turn_limit : Int32
   priv sampling_expectation : RuntimeSpawnedSamplingExpectation
   priv require_fused_runtime : Bool
 }
@@ -62,11 +62,11 @@ pub struct RuntimeSpawnedValidationContract {
 /// Opaque immutable proof values returned only after the child, stream,
 /// scheduler, KV owner, and service have all closed.
 pub struct RuntimeSpawnedValidationResult {
-  priv first_token : Int
-  priv second_token : Int
+  priv first_token : Int32
+  priv second_token : Int32
   priv prefill_plan_sequence : UInt64
   priv decode_plan_sequence : UInt64
-  priv kv_page_count : Int
+  priv kv_page_count : Int32
   priv graph_captured : Bool
   priv prefill_graph_hits : UInt64
   priv prefill_graph_misses : UInt64
@@ -83,13 +83,13 @@ fn spawned_validation_error(
 
 ///|
 fn spawned_validation_contract_values_valid(
-  frame_length : Int,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  input_tokens : Int,
-  context_ceiling : Int,
-  tokens_per_page : Int,
-  turn_limit : Int,
+  frame_length : Int32,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  input_tokens : Int32,
+  context_ceiling : Int32,
+  tokens_per_page : Int32,
+  turn_limit : Int32,
 ) -> Bool {
   frame_length > 0 &&
   frame_length <= 1048576 &&
@@ -109,12 +109,12 @@ fn spawned_validation_contract_values_valid(
 pub fn RuntimeSpawnedValidationContract::new(
   frame : FixedArray[Byte],
   expected_model : @spec.ModelIdentity,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  input_tokens : Int,
-  context_ceiling : Int,
-  tokens_per_page : Int,
-  turn_limit : Int,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  input_tokens : Int32,
+  context_ceiling : Int32,
+  tokens_per_page : Int32,
+  turn_limit : Int32,
 ) -> RuntimeSpawnedValidationContract raise RuntimeSpawnedValidationError {
   if !spawned_validation_contract_values_valid(
       frame.length(),
@@ -159,14 +159,14 @@ pub fn RuntimeSpawnedValidationContract::with_execution_expectation(
 ///|
 pub fn RuntimeSpawnedValidationResult::first_token(
   self : RuntimeSpawnedValidationResult,
-) -> Int {
+) -> Int32 {
   self.first_token
 }
 
 ///|
 pub fn RuntimeSpawnedValidationResult::second_token(
   self : RuntimeSpawnedValidationResult,
-) -> Int {
+) -> Int32 {
   self.second_token
 }
 
@@ -187,7 +187,7 @@ pub fn RuntimeSpawnedValidationResult::decode_plan_sequence(
 ///|
 pub fn RuntimeSpawnedValidationResult::kv_page_count(
   self : RuntimeSpawnedValidationResult,
-) -> Int {
+) -> Int32 {
   self.kv_page_count
 }
 

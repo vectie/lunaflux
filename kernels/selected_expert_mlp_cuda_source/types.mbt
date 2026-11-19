@@ -22,11 +22,11 @@ pub(all) suberror SelectedExpertMlpCudaSourceError {
 pub struct SelectedExpertMlpCudaSource {
   priv numerical_contract : SelectedExpertMlpNumericalContract
   priv activation : SelectedExpertActivation
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv routed_expert_count : Int
-  priv experts_per_token : Int
-  priv maximum_rows : Int
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv routed_expert_count : Int32
+  priv experts_per_token : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

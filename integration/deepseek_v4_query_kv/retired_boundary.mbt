@@ -16,7 +16,7 @@ pub fn[T] DeepSeekAttentionEnvelope::with_branch_ports(
 /// Window and compressed branches expose the same retained numerical ports.
 pub fn DeepSeekAttentionEnvelope::visit_retired_components(
   self : Self,
-  observe : (String, @device.Allocation, Int) -> Unit raise,
+  observe : (String, @device.Allocation, Int32) -> Unit raise,
 ) -> Unit raise {
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)

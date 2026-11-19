@@ -1,18 +1,18 @@
 ///|
 pub struct TileAxis {
-  starts : ReadOnlyArray[Int]
-  length : Int
-  overlaps : ReadOnlyArray[Int]
+  starts : ReadOnlyArray[Int32]
+  length : Int32
+  overlaps : ReadOnlyArray[Int32]
 }
 
 ///|
 /// Pixel-space split_tiles from the released VAE, with overlap redistributed
 /// in 16-pixel units. Whole-tile decoder attention must not see adjacent tiles.
 pub fn TileAxis::new(
-  pixels : Int,
-  tile_size~ : Int,
-  minimum_overlap~ : Int,
-  max_tiles? : Int = 4096,
+  pixels : Int32,
+  tile_size~ : Int32,
+  minimum_overlap~ : Int32,
+  max_tiles~ : Int32 = 4096,
 ) -> Self raise @video_latent_embedding_cuda_source.EmbeddingError {
   guard pixels > 0 &&
     pixels % 16 == 0 &&
@@ -52,7 +52,7 @@ pub fn TileAxis::new(
     (if i.to_int64() < units % (count - 1).to_int64() { 1L } else { 0L })).to_int() *
     16
   })
-  let starts : Array[Int] = [0]
+  let starts : Array[Int32] = [0]
   for overlap in overlaps {
     starts.push(starts[starts.length() - 1] + tile_size - overlap)
   }
@@ -65,20 +65,20 @@ pub fn TileAxis::new(
 
 ///|
 pub struct TemporalTiles {
-  latent_frames : Int
-  pad_tokens : Int
-  chunks : Int
-  available_frames : Int
-  output_frames : Int
-  trim_front : Int
+  latent_frames : Int32
+  pad_tokens : Int32
+  chunks : Int32
+  available_frames : Int32
+  output_frames : Int32
+  trim_front : Int32
 }
 
 ///|
 /// Official clip_length=17, ratio=4, token_drop=3: seven-token clips stride
 /// five; each contributes 17 frames after three padding frames, final tail five.
 pub fn TemporalTiles::new(
-  latent_frames : Int,
-  output_frames~ : Int,
+  latent_frames : Int32,
+  output_frames~ : Int32,
 ) -> Self raise @video_latent_embedding_cuda_source.EmbeddingError {
   guard latent_frames >= 3 && latent_frames <= 536870900 && output_frames > 0 else {
     raise @video_latent_embedding_cuda_source.EmbeddingError::InvalidGeometry

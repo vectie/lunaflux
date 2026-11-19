@@ -1,7 +1,7 @@
 ///|
 fn workspace_region(
   storage : String,
-  capacity? : Int64 = 64L,
+  capacity~ : Int64 = 64L,
 ) -> @fp8_launch_abi.Fp8LaunchStorageRegion {
   try! @fp8_launch_abi.Fp8LaunchStorageRegion::new(
     storage=@fp8_launch_abi.Fp8LaunchStorageIdentity::from_sha256(storage),

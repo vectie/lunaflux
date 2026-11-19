@@ -34,7 +34,7 @@ pub struct AttentionSharedScoreProgram {
   priv resident_output : Bool
   priv matrix_probability : Bool
   priv factor_shared_key : Bool
-  priv query_offsets : ReadOnlyArray[Int]
+  priv query_offsets : ReadOnlyArray[Int32]
 } derive(Debug, Eq)
 
 ///|
@@ -49,7 +49,7 @@ pub extend AttentionSharedScoreProgram with @debug.Debug::{to_repr}
 pub fn AttentionTileSchedule::physical_program(
   self : AttentionTileSchedule,
   supports_immediate_copy~ : Bool,
-  fragment_rows~ : Int,
+  fragment_rows~ : Int32,
   factor_shared_key~ : Bool,
 ) -> AttentionPhysicalProgram raise AttentionTileScheduleError {
   guard fragment_rows > 0 else {
@@ -224,7 +224,7 @@ pub fn AttentionSharedScoreProgram::factor_shared_key(
 ///|
 pub fn AttentionSharedScoreProgram::query_offsets(
   self : AttentionSharedScoreProgram,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.query_offsets
 }
 

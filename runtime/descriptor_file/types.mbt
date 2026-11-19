@@ -23,7 +23,7 @@ pub fn RuntimeDescriptorDigest::as_hex(
 /// Exact startup ceilings for the descriptor snapshot and structure scan.
 pub struct RuntimeDescriptorFileLimits {
   priv max_descriptor_bytes : Int64
-  priv max_json_depth : Int
+  priv max_json_depth : Int32
 }
 
 ///|
@@ -35,7 +35,7 @@ pub struct RuntimeDescriptorFileLimits {
 pub struct RuntimeDescriptorAdmission {
   priv descriptor_digest : RuntimeDescriptorDigest
   priv target : @catalog.DeviceTarget
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv execution : @execution_manifest_file.PagedExecutionAdmission
   priv source : @worker_wire.EncodedBootstrapSource
   priv startup : @worker_wire.WorkerStartupContract
@@ -51,7 +51,7 @@ pub struct RuntimeDescriptorAdmission {
 pub struct I8RuntimeDescriptorAdmission {
   priv descriptor_digest : RuntimeDescriptorDigest
   priv target : @catalog.DeviceTarget
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv weights : @numeric_weight_file.NumericWeightFileInspection
   priv execution : @execution_manifest_file.I8PagedExecutionAdmissionV4
   priv source : @worker_wire.EncodedBootstrapSource
@@ -64,7 +64,7 @@ pub struct I8RuntimeDescriptorAdmission {
 pub struct Fp8RuntimeDescriptorAdmission {
   priv descriptor_digest : RuntimeDescriptorDigest
   priv target : @catalog.DeviceTarget
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv execution : @execution_manifest_file.Fp8PagedExecutionAdmissionV5
   priv source : @worker_wire.EncodedBootstrapSource
   priv startup : @worker_wire.WorkerStartupContract
@@ -90,8 +90,8 @@ priv struct Fp8RuntimeDescriptorKernelClaims {
 
 ///|
 priv struct TensorParallelRankDescriptorClaims {
-  rank : Int
-  device_ordinal : Int
+  rank : Int32
+  device_ordinal : Int32
   memory_ceiling_bytes : Int64
   weight_reserved_bytes : Int64
   activation_workspace_reserved_bytes : Int64
@@ -102,9 +102,9 @@ priv struct TensorParallelRankDescriptorClaims {
 ///|
 priv struct TensorParallelDescriptorClaims {
   ranks : ReadOnlyArray[TensorParallelRankDescriptorClaims]
-  minimum_collective_runtime_version_code : Int
-  maximum_collective_runtime_version_code : Int
-  collective_exchange_timeout_millis : Int
+  minimum_collective_runtime_version_code : Int32
+  maximum_collective_runtime_version_code : Int32
+  collective_exchange_timeout_millis : Int32
 }
 
 ///|
@@ -151,7 +151,7 @@ pub struct TensorParallelRuntimeDescriptorAdmission {
   priv manifest_limits : @execution_manifest_file.ExecutionManifestFileLimits
   priv launch_limits : @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits
   priv execution_limits : @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits
-  priv collective_exchange_timeout_millis : Int
+  priv collective_exchange_timeout_millis : Int32
 }
 
 ///|
@@ -172,7 +172,7 @@ priv struct I8RuntimeDescriptorModelClaims {
   content_digest : String
   numeric_weights_locator : String
   numeric_weight_artifact_digest : String
-  max_batch_rows : Int
+  max_batch_rows : Int32
 }
 
 ///|
@@ -185,14 +185,14 @@ priv struct I8RuntimeDescriptorKernelClaims {
 
 ///|
 priv struct I8RuntimeDescriptorExecutionClaims {
-  device_ordinal : Int
-  compute_major : Int
-  compute_minor : Int
+  device_ordinal : Int32
+  compute_major : Int32
+  compute_minor : Int32
   total_memory_bytes : Int64
   supports_bf16 : Bool
   supports_cublas_lt : Bool
-  tokens_per_page : Int
-  total_page_count : Int
+  tokens_per_page : Int32
+  total_page_count : Int32
   model_generation : UInt64
 }
 
@@ -227,8 +227,8 @@ priv struct MistralRuntimeDescriptorModelClaims {
   numeric_weights_locator : String
   numeric_weight_artifact_digest : String
   weight_manifest_digest : String
-  sliding_window_tokens : Int
-  max_batch_rows : Int
+  sliding_window_tokens : Int32
+  max_batch_rows : Int32
 }
 
 ///|
@@ -252,7 +252,7 @@ priv struct Qwen3RuntimeDescriptorModelClaims {
   numeric_weight_artifact_digest : String
   weight_manifest_digest : String
   tied_embeddings : Bool
-  max_batch_rows : Int
+  max_batch_rows : Int32
 }
 
 ///|
@@ -261,7 +261,7 @@ priv struct RuntimeDescriptorModelClaims {
   config_digest : String
   weights_locator : String
   content_digest : String
-  max_batch_rows : Int
+  max_batch_rows : Int32
 }
 
 ///|
@@ -282,50 +282,50 @@ priv struct RuntimeDescriptorFusedRuntimeClaims {
 
 ///|
 priv struct RuntimeDescriptorExecutionClaims {
-  device_ordinal : Int
-  compute_major : Int
-  compute_minor : Int
+  device_ordinal : Int32
+  compute_major : Int32
+  compute_minor : Int32
   supports_bf16 : Bool
   supports_cublas_lt : Bool
-  tokens_per_page : Int
-  total_page_count : Int
+  tokens_per_page : Int32
+  total_page_count : Int32
   model_generation : UInt64
 }
 
 ///|
 priv struct RuntimeDescriptorWorkerClaims {
-  max_prefill_rows : Int
-  max_decode_rows : Int
-  max_plan_rows : Int
-  max_plan_tokens : Int
-  max_plan_pages : Int
-  max_capabilities : Int
-  max_completion_slots : Int
-  max_sequence_tokens : Int
-  max_token_id : Int
+  max_prefill_rows : Int32
+  max_decode_rows : Int32
+  max_plan_rows : Int32
+  max_plan_tokens : Int32
+  max_plan_pages : Int32
+  max_capabilities : Int32
+  max_completion_slots : Int32
+  max_sequence_tokens : Int32
+  max_token_id : Int32
 }
 
 ///|
 priv struct RuntimeDescriptorInferenceClaims {
-  max_text_bytes : Int
-  max_input_tokens : Int
-  max_new_tokens : Int
-  max_context_tokens : Int
-  max_token_id : Int
-  max_stop_token_ids : Int
-  max_stop_strings : Int
-  max_stop_string_bytes : Int
-  max_trace_bytes : Int
-  max_cache_scope_bytes : Int
-  max_decoded_delta_bytes : Int
+  max_text_bytes : Int32
+  max_input_tokens : Int32
+  max_new_tokens : Int32
+  max_context_tokens : Int32
+  max_token_id : Int32
+  max_stop_token_ids : Int32
+  max_stop_strings : Int32
+  max_stop_string_bytes : Int32
+  max_trace_bytes : Int32
+  max_cache_scope_bytes : Int32
+  max_decoded_delta_bytes : Int32
   max_deadline_millis : UInt64
-  max_top_k : Int
+  max_top_k : Int32
   max_temperature : Double
 }
 
 ///|
 priv struct RuntimeDescriptorCeilingClaims {
-  max_model_config_bytes : Int
+  max_model_config_bytes : Int32
   max_weight_file_bytes : Int64
   max_weight_arena_bytes : Int64
   max_activation_arena_bytes : Int64
@@ -342,7 +342,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }

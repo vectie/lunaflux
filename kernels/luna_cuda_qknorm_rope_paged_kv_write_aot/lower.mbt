@@ -35,7 +35,7 @@ pub fn lower_qknorm_rope_paged_kv_write_cuda_aot_candidate(
     raise Unsupported(Shape)
   }
   let (head_groups, _, _) = head_map.geometry()
-  let grid_x = Int::min(profile.max_query_tokens(), limits.maximum_grid_x)
+  let grid_x = Int32::min(profile.max_query_tokens(), limits.maximum_grid_x)
   if grid_x <= 0 {
     raise Unsupported(Profile)
   }

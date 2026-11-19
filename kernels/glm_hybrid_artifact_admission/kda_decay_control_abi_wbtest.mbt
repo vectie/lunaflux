@@ -1,8 +1,8 @@
 ///|
 fn kda_decay_control_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  bias_role? : GlmHybridLaunchOperandRole = KdaDecayBiasInput,
-  output_bytes? : Int64 = 1048576L,
+  bias_role~ : GlmHybridLaunchOperandRole = KdaDecayBiasInput,
+  output_bytes~ : Int64 = 1048576L,
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

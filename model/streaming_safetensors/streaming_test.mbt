@@ -77,7 +77,7 @@ fn streaming_test_shard0() -> Bytes {
 }
 
 ///|
-fn streaming_test_shard1(name? : String = "c") -> Bytes {
+fn streaming_test_shard1(name~ : String = "c") -> Bytes {
   streaming_test_file(
     "{\"" +
     name +

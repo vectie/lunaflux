@@ -111,7 +111,7 @@ pub fn admit_luna_external_approved_record(
   canonical : Bytes,
   envelope : LunaDetachedSignatureEnvelope,
   approval : LunaAuthenticatedExternalApproval,
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> LunaAdmittedExternalRecord raise LunaCapabilityManifestError {
   if maximum_canonical_bytes <= 0 ||
     maximum_canonical_bytes > 16777216 ||

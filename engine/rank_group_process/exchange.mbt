@@ -2,7 +2,7 @@
 fn[T] RankGroupProcessSupervisor::fail_active(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
   failure : RankGroupProcessFailure,
 ) -> T raise RankGroupProcessError {
   self.protocol.report_supervisor_failure(plan, rank) catch {
@@ -15,7 +15,7 @@ fn[T] RankGroupProcessSupervisor::fail_active(
 fn[T] RankGroupProcessSupervisor::active_transport_lost(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
 ) -> T raise RankGroupProcessError {
   self.protocol.report_supervisor_rank_loss(plan, rank) catch {
     _ => ()
@@ -26,7 +26,7 @@ fn[T] RankGroupProcessSupervisor::active_transport_lost(
 ///|
 fn[T] RankGroupProcessSupervisor::terminal_transport_lost(
   self : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
 ) -> T raise RankGroupProcessError {
   self.fail(TransportLost(rank~))
 }
@@ -35,8 +35,8 @@ fn[T] RankGroupProcessSupervisor::terminal_transport_lost(
 fn RankGroupProcessSupervisor::stage_active_encoded_write(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise RankGroupProcessError {
   ignore(
     self.wire_transcript.accept_bytes(self.tx, length, self.wire_limits) catch {
@@ -91,7 +91,7 @@ fn RankGroupProcessSupervisor::prepare_active_frame_deadline(
 fn RankGroupProcessSupervisor::stage_submit(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupProcessError {
   if !self.prepare_active_frame_deadline(plan) {
     return
@@ -125,7 +125,7 @@ fn RankGroupProcessSupervisor::stage_submit(
 fn RankGroupProcessSupervisor::stage_poll(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupProcessError {
   if !self.prepare_active_frame_deadline(plan) {
     return
@@ -219,7 +219,7 @@ pub fn RankGroupProcessSupervisor::begin(
 ///|
 fn RankGroupProcessSupervisor::next_unfinished_rank(
   self : RankGroupProcessSupervisor,
-) -> Int {
+) -> Int32 {
   for offset in 0..<self.rank_done.length() {
     let rank = (self.next_rank + offset) % self.rank_done.length()
     if !self.rank_done[rank] {
@@ -234,8 +234,8 @@ fn RankGroupProcessSupervisor::next_unfinished_rank(
 fn RankGroupProcessSupervisor::accept_response(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Bool raise RankGroupProcessError {
   let submitted = self.reauthenticate_plan(plan)
   let header = self.wire_transcript.accept_bytes(

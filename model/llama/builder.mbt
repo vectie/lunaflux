@@ -12,7 +12,7 @@ fn checked_product(
 }
 
 ///|
-fn tensor(reference : Int) -> @plan.ValueRef raise @plan.PlanValidationError {
+fn tensor(reference : Int32) -> @plan.ValueRef raise @plan.PlanValidationError {
   Tensor(@plan.TensorRef::new(reference))
 }
 
@@ -121,7 +121,7 @@ fn append_layer_operation(
 fn build_with_execution(
   metadata : @spec.LlamaModelMetadata,
   kv_execution : @plan.ModelKvExecution,
-  max_batch_rows : Int,
+  max_batch_rows : Int32,
   numeric_schema : @numeric_contract.ModelNumericSchema,
   workspace_policy : LlamaOperationWorkspacePolicy,
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
@@ -374,7 +374,7 @@ pub fn build(
 /// every larger envelope derives a distinct authenticated plan identity.
 pub fn build_paged(
   metadata : @spec.LlamaModelMetadata,
-  batch? : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
+  batch~ : LlamaPagedBatchEnvelope = LlamaPagedBatchEnvelope::single_row(),
 ) -> @plan.ModelPlan raise @plan.PlanValidationError {
   let spec = metadata.spec()
   let numeric_schema = spec.numeric_schema()

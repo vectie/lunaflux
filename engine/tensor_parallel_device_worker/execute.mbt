@@ -199,7 +199,7 @@ fn collective_kind(
 fn submit_current_collective(
   owner : TensorParallelDeviceWorkerOwner,
   collective : @tensor_parallel_execution_plan.TensorParallelCollectiveBinding,
-  stream? : @device.Stream = owner.resources.stream.resource,
+  stream~ : @device.Stream = owner.resources.stream.resource,
 ) -> Unit raise TensorParallelDeviceWorkerError {
   if owner.next_global_collective_sequence == 18446744073709551615UL {
     let error = Invalid(SequenceOverflow)

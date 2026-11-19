@@ -1,22 +1,22 @@
 ///|
 pub struct GlmTinyVisionBlockPlan {
-  priv patch_count : Int
-  priv head_count : Int
-  priv head_dimension : Int
-  priv intermediate_size : Int
-  priv merge_size : Int
-  priv project_width : Int
+  priv patch_count : Int32
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv intermediate_size : Int32
+  priv merge_size : Int32
+  priv project_width : Int32
   priv rms_epsilon : Double
 }
 
 ///|
 pub fn GlmTinyVisionBlockPlan::new(
-  patch_count~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
-  intermediate_size~ : Int,
-  merge_size~ : Int,
-  project_width~ : Int,
+  patch_count~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  intermediate_size~ : Int32,
+  merge_size~ : Int32,
+  project_width~ : Int32,
   rms_epsilon~ : Double,
   limits~ : GlmTinyOracleLimits,
 ) -> GlmTinyVisionBlockPlan raise GlmHybridReferenceError {

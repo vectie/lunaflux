@@ -37,7 +37,7 @@ pub fn DeepSeekV4NumericPlan::source_plan_digest(
 }
 
 ///|
-pub fn DeepSeekV4NumericPlan::expected_tensor_count(self : Self) -> Int {
+pub fn DeepSeekV4NumericPlan::expected_tensor_count(self : Self) -> Int32 {
   self.expected_tensor_count
 }
 
@@ -72,7 +72,7 @@ pub fn DeepSeekV4NumericPlan::physical_readiness(
 ///|
 pub fn DeepSeekV4NumericPlan::verify_manifest_tensor_count(
   self : Self,
-  actual : Int,
+  actual : Int32,
 ) -> Unit raise DeepSeekV4NumericPlanError {
   if actual != self.expected_tensor_count {
     raise ManifestCardinalityMismatch(

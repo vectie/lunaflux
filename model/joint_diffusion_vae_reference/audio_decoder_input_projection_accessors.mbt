@@ -15,22 +15,26 @@ pub fn JointVaeAudioDecoderInputProjection::request_shape(
 ///|
 pub fn JointVaeAudioDecoderInputProjection::decoder_batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
-pub fn JointVaeAudioDecoderInputProjection::input_channels(self : Self) -> Int {
+pub fn JointVaeAudioDecoderInputProjection::input_channels(
+  self : Self,
+) -> Int32 {
   self.input_channels
 }
 
 ///|
-pub fn JointVaeAudioDecoderInputProjection::output_channels(self : Self) -> Int {
+pub fn JointVaeAudioDecoderInputProjection::output_channels(
+  self : Self,
+) -> Int32 {
   self.output_channels
 }
 
 ///|
-pub fn JointVaeAudioDecoderInputProjection::kernel_size(self : Self) -> Int {
+pub fn JointVaeAudioDecoderInputProjection::kernel_size(self : Self) -> Int32 {
   self.kernel_size
 }
 

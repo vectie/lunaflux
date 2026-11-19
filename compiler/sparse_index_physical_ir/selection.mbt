@@ -16,7 +16,7 @@ pub extend StableSelectionSchedule with Eq::{equal, not_equal}
 /// This is an analytic work bound, not a measured performance claim.
 pub fn RetainedIndexPlan::selection(
   self : Self,
-  workers : Int,
+  workers : Int32,
 ) -> StableSelectionSchedule? {
   guard workers > 0 else { return None }
   if self.candidates.to_int64() <=

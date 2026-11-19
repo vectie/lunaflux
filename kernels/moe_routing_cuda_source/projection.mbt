@@ -4,7 +4,7 @@ fn projection_source(
   symbol : String,
   weight_type : String,
   weight_load : String,
-) -> (String, (Int, Int)) raise {
+) -> (String, (Int32, Int32)) raise {
   let (rows, hidden, experts, _) = plan.geometry()
   let grid = (rows.to_int64() * experts.to_int64() + 255L) / 256L
   match plan.projection_law() {

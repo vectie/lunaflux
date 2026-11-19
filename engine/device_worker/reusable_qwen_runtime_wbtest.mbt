@@ -25,7 +25,7 @@ fn reusable_qwen_test_plan() -> @plan.ModelPlan raise {
 
 ///|
 fn reusable_qwen_test_target(
-  compute_minor : Int,
+  compute_minor : Int32,
 ) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=12,
@@ -38,8 +38,8 @@ fn reusable_qwen_test_target(
 ///|
 fn reusable_qwen_test_module(
   abi : @luna_fused_artifact_admission.ReusableFusedRuntimeKernelAbi,
-  first_operation : Int,
-  operation_count : Int,
+  first_operation : Int32,
+  operation_count : Int32,
   symbol : String,
 ) -> @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput raise {
   @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
@@ -74,8 +74,8 @@ fn reusable_qwen_test_bundle(
   plan : @plan.ModelPlan,
   target : @catalog.DeviceTarget,
   include_readonly : Bool,
-  include_residual? : Bool = false,
-  full_ingress? : Bool = false,
+  include_residual~ : Bool = false,
+  full_ingress~ : Bool = false,
 ) -> @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle raise {
   let modules = [
     reusable_qwen_test_module(

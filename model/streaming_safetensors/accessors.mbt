@@ -87,43 +87,43 @@ pub fn StreamingSafetensorsShardMetadata::file_digest(
 }
 
 ///|
-pub fn StreamingSafetensorsShardMetadata::tensor_count(self : Self) -> Int {
+pub fn StreamingSafetensorsShardMetadata::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn StreamingSafetensorsShardMetadata::tensor(
   self : Self,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> StreamingSafetensorsTensorMetadata? {
   self.tensors.get(ordinal)
 }
 
 ///|
-pub fn StreamingSafetensorsInspection::shard_count(self : Self) -> Int {
+pub fn StreamingSafetensorsInspection::shard_count(self : Self) -> Int32 {
   self.shards.length()
 }
 
 ///|
-pub fn StreamingSafetensorsInspection::total_tensor_count(self : Self) -> Int {
+pub fn StreamingSafetensorsInspection::total_tensor_count(self : Self) -> Int32 {
   self.total_tensor_count
 }
 
 ///|
 pub fn StreamingSafetensorsInspection::shard(
   self : Self,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> StreamingSafetensorsShardMetadata? {
   self.shards.get(ordinal).map(shard => shard.metadata)
 }
 
 ///|
-pub fn StreamingSafetensorsVisitedRange::shard_ordinal(self : Self) -> Int {
+pub fn StreamingSafetensorsVisitedRange::shard_ordinal(self : Self) -> Int32 {
   self.shard_ordinal
 }
 
 ///|
-pub fn StreamingSafetensorsVisitedRange::tensor_ordinal(self : Self) -> Int {
+pub fn StreamingSafetensorsVisitedRange::tensor_ordinal(self : Self) -> Int32 {
   self.tensor_ordinal
 }
 
@@ -135,26 +135,28 @@ pub fn StreamingSafetensorsVisitedRange::tensor_byte_offset(
 }
 
 ///|
-pub fn StreamingSafetensorsVisitedRange::destination_offset(self : Self) -> Int {
+pub fn StreamingSafetensorsVisitedRange::destination_offset(
+  self : Self,
+) -> Int32 {
   self.destination_offset
 }
 
 ///|
-pub fn StreamingSafetensorsVisitedRange::byte_count(self : Self) -> Int {
+pub fn StreamingSafetensorsVisitedRange::byte_count(self : Self) -> Int32 {
   self.byte_count
 }
 
 ///|
 pub fn StreamingSafetensorsSegmentedVisitedRange::shard_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.shard_ordinal
 }
 
 ///|
 pub fn StreamingSafetensorsSegmentedVisitedRange::tensor_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.tensor_ordinal
 }
 
@@ -168,20 +170,20 @@ pub fn StreamingSafetensorsSegmentedVisitedRange::tensor_byte_offset(
 ///|
 pub fn StreamingSafetensorsSegmentedVisitedRange::destination_arena_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.destination_arena_ordinal
 }
 
 ///|
 pub fn StreamingSafetensorsSegmentedVisitedRange::destination_offset(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.destination_offset
 }
 
 ///|
 pub fn StreamingSafetensorsSegmentedVisitedRange::byte_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.byte_count
 }

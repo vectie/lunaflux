@@ -1,10 +1,10 @@
 ///|
-fn valid_capacity(value : Int) -> Bool {
+fn valid_capacity(value : Int32) -> Bool {
   value > 0 && value <= ABSOLUTE_MAX_PREFIX_CAPACITY
 }
 
 ///|
-const ABSOLUTE_MAX_PREFIX_SCOPE_CELLS : Int = 16_777_216
+const ABSOLUTE_MAX_PREFIX_SCOPE_CELLS : Int32 = 16_777_216
 
 ///|
 fn PrefixIndexLimits::validate(
@@ -46,14 +46,14 @@ fn PrefixIndexLimits::validate(
 
 ///|
 pub fn PrefixIndexLimits::new(
-  entry_capacity~ : Int,
-  node_capacity~ : Int,
-  max_tokens_per_entry~ : Int,
-  page_capacity~ : Int,
-  max_active_references_per_entry~ : Int,
-  token_capacity? : Int = node_capacity,
-  max_scope_bytes? : Int = 256,
-  max_generation? : Int = ABSOLUTE_MAX_PREFIX_GENERATION,
+  entry_capacity~ : Int32,
+  node_capacity~ : Int32,
+  max_tokens_per_entry~ : Int32,
+  page_capacity~ : Int32,
+  max_active_references_per_entry~ : Int32,
+  token_capacity~ : Int32 = node_capacity,
+  max_scope_bytes~ : Int32 = 256,
+  max_generation~ : Int32 = ABSOLUTE_MAX_PREFIX_GENERATION,
 ) -> PrefixIndexLimits raise PrefixIndexError {
   let limits = {
     entry_capacity,
@@ -70,44 +70,46 @@ pub fn PrefixIndexLimits::new(
 }
 
 ///|
-pub fn PrefixIndexLimits::token_capacity(self : PrefixIndexLimits) -> Int {
+pub fn PrefixIndexLimits::token_capacity(self : PrefixIndexLimits) -> Int32 {
   self.token_capacity
 }
 
 ///|
-pub fn PrefixIndexLimits::max_scope_bytes(self : PrefixIndexLimits) -> Int {
+pub fn PrefixIndexLimits::max_scope_bytes(self : PrefixIndexLimits) -> Int32 {
   self.max_scope_bytes
 }
 
 ///|
-pub fn PrefixIndexLimits::entry_capacity(self : PrefixIndexLimits) -> Int {
+pub fn PrefixIndexLimits::entry_capacity(self : PrefixIndexLimits) -> Int32 {
   self.entry_capacity
 }
 
 ///|
-pub fn PrefixIndexLimits::node_capacity(self : PrefixIndexLimits) -> Int {
+pub fn PrefixIndexLimits::node_capacity(self : PrefixIndexLimits) -> Int32 {
   self.node_capacity
 }
 
 ///|
-pub fn PrefixIndexLimits::max_tokens_per_entry(self : PrefixIndexLimits) -> Int {
+pub fn PrefixIndexLimits::max_tokens_per_entry(
+  self : PrefixIndexLimits,
+) -> Int32 {
   self.max_tokens_per_entry
 }
 
 ///|
-pub fn PrefixIndexLimits::page_capacity(self : PrefixIndexLimits) -> Int {
+pub fn PrefixIndexLimits::page_capacity(self : PrefixIndexLimits) -> Int32 {
   self.page_capacity
 }
 
 ///|
 pub fn PrefixIndexLimits::max_active_references_per_entry(
   self : PrefixIndexLimits,
-) -> Int {
+) -> Int32 {
   self.max_active_references_per_entry
 }
 
 ///|
-pub fn PrefixIndexLimits::max_generation(self : PrefixIndexLimits) -> Int {
+pub fn PrefixIndexLimits::max_generation(self : PrefixIndexLimits) -> Int32 {
   self.max_generation
 }
 

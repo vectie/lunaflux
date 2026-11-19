@@ -111,7 +111,7 @@ pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::candidate_digest(
 ///|
 pub fn FusedQwenQkvQkNormRopeKvWriteCudaCandidate::dispatch_canary(
   self : FusedQwenQkvQkNormRopeKvWriteCudaCandidate,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary
 }
 

@@ -12,7 +12,7 @@ fn lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -22,8 +22,8 @@ fn lower_sha256(value : StringView) -> Bool {
 ///|
 fn positive_int(
   value : String,
-) -> Int raise Qwen3FusedResidualRuntimeExportError {
-  let parsed : Int = @string.parse_int(value) catch {
+) -> Int32 raise Qwen3FusedResidualRuntimeExportError {
+  let parsed : Int32 = @string.parse_int(value) catch {
     _ => raise InvalidArguments
   }
   if parsed <= 0 || parsed.to_string() != value {

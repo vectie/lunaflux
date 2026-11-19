@@ -2,7 +2,7 @@
 /// Startup bounds for the fixed deployment launch envelope.
 pub struct LaunchFileLimits {
   priv maximum_bytes : Int64
-  priv maximum_json_depth : Int
+  priv maximum_json_depth : Int32
 }
 
 ///|

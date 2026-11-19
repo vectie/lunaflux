@@ -1,5 +1,5 @@
 ///|
-extern "c" fn raw_test_aot_launch_boundary(cycles : Int) -> Int = "lunaflux_cuda_test_aot_launch_boundary"
+extern "c" fn raw_test_aot_launch_boundary(cycles : Int32) -> Int32 = "lunaflux_cuda_test_aot_launch_boundary"
 
 ///|
 test "AOT launch checks parameters and balances synchronous lifetimes" {

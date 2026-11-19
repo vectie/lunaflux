@@ -1,17 +1,17 @@
 ///|
-const WORKER_GRAPH_TELEMETRY_BYTES : Int = 80
+const WORKER_GRAPH_TELEMETRY_BYTES : Int32 = 80
 
 ///|
-const WORKER_GRAPH_TELEMETRY_MAGIC : UInt = 0x4758464c
+const WORKER_GRAPH_TELEMETRY_MAGIC : UInt32 = 0x4758464c
 
 ///|
-const WORKER_GRAPH_TELEMETRY_VERSION : UInt = 1
+const WORKER_GRAPH_TELEMETRY_VERSION : UInt32 = 1
 
 ///|
-const WORKER_GRAPH_TELEMETRY_KIND : UInt = 5
+const WORKER_GRAPH_TELEMETRY_KIND : UInt32 = 5
 
 ///|
-const WORKER_GRAPH_TELEMETRY_CHECKSUM_OFFSET : Int = 72
+const WORKER_GRAPH_TELEMETRY_CHECKSUM_OFFSET : Int32 = 72
 
 ///|
 #valtype
@@ -25,10 +25,10 @@ pub(all) enum WorkerGraphExecutionPath {
 /// This is reporting data only and contains no launch or admission authority.
 #valtype
 pub struct WorkerGraphShapeClass {
-  priv phase : Int
-  priv batch_rows : Int
-  priv query_tokens_per_row : Int
-  priv context_tokens : Int
+  priv phase : Int32
+  priv batch_rows : Int32
+  priv query_tokens_per_row : Int32
+  priv context_tokens : Int32
   priv token_rows : Int64
 }
 
@@ -39,14 +39,14 @@ pub struct WorkerGraphShapeClass {
 #valtype
 pub struct WorkerGraphTelemetry {
   priv sequence : UInt64
-  priv path : Int
+  priv path : Int32
   priv shape_code : UInt64
   priv graph_hits : UInt64
   priv graph_misses : UInt64
 }
 
 ///|
-const WORKER_GRAPH_SHAPE_FIELD_MAX : Int = 0x1fffff
+const WORKER_GRAPH_SHAPE_FIELD_MAX : Int32 = 0x1fffff
 
 ///|
 fn worker_graph_shape_code(shape : WorkerGraphShapeClass) -> UInt64 {
@@ -76,10 +76,10 @@ fn worker_graph_shape_from_code(
 
 ///|
 pub fn WorkerGraphShapeClass::new(
-  phase~ : Int,
-  batch_rows~ : Int,
-  query_tokens_per_row~ : Int,
-  context_tokens~ : Int,
+  phase~ : Int32,
+  batch_rows~ : Int32,
+  query_tokens_per_row~ : Int32,
+  context_tokens~ : Int32,
   token_rows~ : Int64,
 ) -> WorkerGraphShapeClass raise WorkerWireError {
   if (phase != 0 && phase != 1) ||
@@ -154,7 +154,7 @@ pub fn WorkerGraphTelemetry::without_shape(
 }
 
 ///|
-pub fn worker_graph_telemetry_frame_capacity() -> Int {
+pub fn worker_graph_telemetry_frame_capacity() -> Int32 {
   WORKER_GRAPH_TELEMETRY_BYTES
 }
 
@@ -232,26 +232,26 @@ pub fn WorkerGraphTelemetry::counters_advance_from(
 }
 
 ///|
-pub fn WorkerGraphShapeClass::phase(self : WorkerGraphShapeClass) -> Int {
+pub fn WorkerGraphShapeClass::phase(self : WorkerGraphShapeClass) -> Int32 {
   self.phase
 }
 
 ///|
-pub fn WorkerGraphShapeClass::batch_rows(self : WorkerGraphShapeClass) -> Int {
+pub fn WorkerGraphShapeClass::batch_rows(self : WorkerGraphShapeClass) -> Int32 {
   self.batch_rows
 }
 
 ///|
 pub fn WorkerGraphShapeClass::query_tokens_per_row(
   self : WorkerGraphShapeClass,
-) -> Int {
+) -> Int32 {
   self.query_tokens_per_row
 }
 
 ///|
 pub fn WorkerGraphShapeClass::context_tokens(
   self : WorkerGraphShapeClass,
-) -> Int {
+) -> Int32 {
   self.context_tokens
 }
 
@@ -261,7 +261,7 @@ pub fn WorkerGraphShapeClass::token_rows(self : WorkerGraphShapeClass) -> Int64 
 }
 
 ///|
-fn worker_graph_path_to_wire(path : WorkerGraphExecutionPath) -> UInt {
+fn worker_graph_path_to_wire(path : WorkerGraphExecutionPath) -> UInt32 {
   match path {
     WorkerGraphCaptured => 1
     WorkerGraphOrderedEager => 2
@@ -270,7 +270,7 @@ fn worker_graph_path_to_wire(path : WorkerGraphExecutionPath) -> UInt {
 
 ///|
 fn worker_graph_path_from_wire(
-  value : UInt,
+  value : UInt32,
 ) -> WorkerGraphExecutionPath raise WorkerWireError {
   match value {
     1 => WorkerGraphCaptured
@@ -285,7 +285,7 @@ fn worker_graph_path_from_wire(
 pub fn encode_worker_graph_telemetry(
   telemetry : WorkerGraphTelemetry,
   output : FixedArray[Byte],
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   if output.length() < WORKER_GRAPH_TELEMETRY_BYTES {
     raise DestinationTooSmall
   }
@@ -322,7 +322,7 @@ pub fn encode_worker_graph_telemetry(
 /// Validates an untrusted fixed sidecar before publishing scalar telemetry.
 pub fn decode_worker_graph_telemetry(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> WorkerGraphTelemetry raise WorkerWireError {
   if length != WORKER_GRAPH_TELEMETRY_BYTES || length > source.length() {
     raise InvalidFrame(Length)

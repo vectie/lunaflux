@@ -92,7 +92,7 @@ pub fn Fp8KernelManifestEntry::module_digest(
 ///|
 pub fn Fp8KernelManifestEntry::artifact_module_index(
   self : Fp8KernelManifestEntry,
-) -> Int {
+) -> Int32 {
   self.artifact_module_index
 }
 

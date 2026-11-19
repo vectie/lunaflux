@@ -49,11 +49,11 @@ pub fn PhysicalProjectionTileCompilation::with_sibling_execution(
 ///|
 pub fn ScheduledProjectionTileCompilation::refine_physical(
   self : ScheduledProjectionTileCompilation,
-  layout : (Int) -> @physical_tile_ir.OperandLayout?,
-  execution : (Int) -> ProjectionTransferExecution,
-  owners_per_group~ : Int,
-  sibling_ownership? : ProjectionSiblingOwnership = SplitSiblingPlanes,
-  sibling_transport? : ProjectionSiblingTransport = BaselineSiblingTransport,
+  layout : (Int32) -> @physical_tile_ir.OperandLayout?,
+  execution : (Int32) -> ProjectionTransferExecution,
+  owners_per_group~ : Int32,
+  sibling_ownership~ : ProjectionSiblingOwnership = SplitSiblingPlanes,
+  sibling_transport~ : ProjectionSiblingTransport = BaselineSiblingTransport,
 ) -> PhysicalProjectionTileCompilation? {
   guard owners_per_group > 0 else { return None }
   let schedule = self.schedule()
@@ -88,8 +88,8 @@ pub fn ScheduledProjectionTileCompilation::refine_physical(
   }
   fn bind(
     pipeline : ProjectionFoldPipeline?,
-    groups : Int,
-    products : Int,
+    groups : Int32,
+    products : Int32,
   ) -> ProjectionPhysicalPipeline? {
     guard pipeline is Some(pipeline) else { return None }
     guard layout(pipeline.transfer_width()) is Some(storage) else {

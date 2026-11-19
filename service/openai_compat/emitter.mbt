@@ -43,7 +43,7 @@ fn LunaOpenAICompatWorkspace::current_literal(
 ///|
 fn LunaOpenAICompatWorkspace::part_source_length(
   self : LunaOpenAICompatWorkspace,
-) -> Int {
+) -> Int32 {
   if self.part_kind == LUNA_OPENAI_PART_MODEL {
     self.model_alias_length
   } else {
@@ -55,7 +55,7 @@ fn LunaOpenAICompatWorkspace::part_source_length(
 fn LunaOpenAICompatWorkspace::payload_byte_at(
   self : LunaOpenAICompatWorkspace,
   event : @luna_event.LunaEventView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaOpenAICompatError {
   if self.buffering &&
     self.event_kind == LUNA_OPENAI_EVENT_COMPLETED &&
@@ -93,7 +93,7 @@ fn LunaOpenAICompatWorkspace::payload_byte_at(
 }
 
 ///|
-fn luna_openai_escape_kind(byte : Byte) -> (Int, Int) {
+fn luna_openai_escape_kind(byte : Byte) -> (Int32, Int32) {
   match byte {
     b'"' => (1, 2)
     b'\\' => (2, 2)
@@ -104,7 +104,7 @@ fn luna_openai_escape_kind(byte : Byte) -> (Int, Int) {
 }
 
 ///|
-fn luna_openai_hex(value : Int) -> Byte {
+fn luna_openai_hex(value : Int32) -> Byte {
   if value < 10 {
     (b'0'.to_int() + value).to_byte()
   } else {
@@ -113,7 +113,7 @@ fn luna_openai_hex(value : Int) -> Byte {
 }
 
 ///|
-fn luna_openai_escaped_byte(kind : Int, byte : Byte, index : Int) -> Byte {
+fn luna_openai_escaped_byte(kind : Int32, byte : Byte, index : Int32) -> Byte {
   match kind {
     0 => byte
     1 => if index == 0 { b'\\' } else { b'"' }

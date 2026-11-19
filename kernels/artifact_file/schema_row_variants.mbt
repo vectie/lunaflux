@@ -3,7 +3,7 @@
 /// full-graph artifact manifests. Semantic symbol checks run during admission.
 pub fn decode_row_variants(
   value : Json,
-  maximum_symbol_bytes : Int,
+  maximum_symbol_bytes : Int32,
 ) -> ReadOnlyArray[@artifact.KernelRowVariant] raise KernelArtifactFileError {
   ReadOnlyArray::from_array(
     parse_row_variants({ "row_variants": value }, maximum_symbol_bytes),
@@ -13,7 +13,7 @@ pub fn decode_row_variants(
 ///|
 fn parse_row_variants(
   entry : Map[String, Json],
-  maximum_symbol_bytes : Int,
+  maximum_symbol_bytes : Int32,
 ) -> Array[@artifact.KernelRowVariant] raise KernelArtifactFileError {
   guard entry.get("row_variants") is Some(value) else { return [] }
   guard value is Array(values) && values.length() <= 19 else {
@@ -57,7 +57,7 @@ fn parse_row_variants(
         index~,
       )
     }
-    let integer = fn(name : String) -> Int raise KernelArtifactFileError {
+    let integer = fn(name : String) -> Int32 raise KernelArtifactFileError {
       require_nonnegative_int(
         fields,
         name,

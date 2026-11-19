@@ -92,14 +92,14 @@ pub fn AdmittedFusedPhysicalEvidence::qkv_observed_relative_error_ppb(
 ///|
 pub fn AdmittedFusedPhysicalEvidence::qkv_dispatch_canary(
   self : AdmittedFusedPhysicalEvidence,
-) -> UInt {
+) -> UInt32 {
   self.qkv.dispatch_canary
 }
 
 ///|
 pub fn AdmittedFusedPhysicalEvidence::qkv_dispatch_canary_per_token(
   self : AdmittedFusedPhysicalEvidence,
-) -> UInt {
+) -> UInt32 {
   self.qkv.dispatch_canary_per_token
 }
 
@@ -155,14 +155,14 @@ pub fn AdmittedFusedPhysicalEvidence::residual_observed_relative_error_ppb(
 ///|
 pub fn AdmittedFusedPhysicalEvidence::residual_dispatch_canary(
   self : AdmittedFusedPhysicalEvidence,
-) -> UInt {
+) -> UInt32 {
   self.residual_norm.dispatch_canary
 }
 
 ///|
 pub fn AdmittedFusedPhysicalEvidence::residual_dispatch_canary_per_token(
   self : AdmittedFusedPhysicalEvidence,
-) -> UInt {
+) -> UInt32 {
   self.residual_norm.dispatch_canary_per_token
 }
 

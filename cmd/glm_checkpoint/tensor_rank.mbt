@@ -6,7 +6,7 @@ async fn connect_tensor_contract(
   context : @device.Context,
   contract : @device.TensorCollectiveContract,
   connection : @socket.Tcp,
-  rank~ : Int,
+  rank~ : Int32,
 ) -> @device.TensorCollectiveOwner {
   let runtime = @device.admit_tensor_collective_runtime(
     minimum_version_code=21403,
@@ -67,7 +67,7 @@ async fn connect_tensor_group(
   context : @device.Context,
   stage : @glm.GlmDecoderStage,
   connection : @socket.Tcp,
-  rank~ : Int,
+  rank~ : Int32,
 ) -> @device.TensorCollectiveOwner {
   // Declared operation-table label; not a computed payload digest.
   let contract = stage.tensor_contract(

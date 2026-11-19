@@ -12,8 +12,8 @@ pub fn window_shared_kv_source(
 ) -> WindowSharedKvCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (heads, width, window, rows, positions) = plan.geometry()
@@ -144,8 +144,8 @@ pub fn window_shared_kv_transfer_source(
 ) -> Bytes raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (_, width, window, _, _) = plan.geometry()
@@ -179,15 +179,15 @@ pub fn WindowSharedKvCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn WindowSharedKvCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn WindowSharedKvCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.symbols[stage]
 }
 
 ///|
 pub fn WindowSharedKvCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (heads, _, window, rows, _) = self.plan.geometry()
   match stage {
     1 =>

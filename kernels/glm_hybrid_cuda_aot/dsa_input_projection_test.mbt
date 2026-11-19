@@ -1,7 +1,7 @@
 ///|
 fn query_a_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is DsaQueryAProjection(_, _) {
       return ordinal
@@ -13,7 +13,7 @@ fn query_a_ordinal(
 ///|
 fn kv_a_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is DsaKeyValueAProjection(_, _, _) {
       return ordinal
@@ -25,7 +25,7 @@ fn kv_a_ordinal(
 ///|
 fn query_a_norm_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is DsaQueryARmsNorm(_, _) {
       return ordinal
@@ -37,7 +37,7 @@ fn query_a_norm_ordinal(
 ///|
 fn query_b_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is DsaQueryBProjection(_, _, _) {
       return ordinal
@@ -49,7 +49,7 @@ fn query_b_ordinal(
 ///|
 fn key_value_b_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is KeyValueLowRankProjection(_, _, _, _) {
       return ordinal

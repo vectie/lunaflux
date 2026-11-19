@@ -13,22 +13,22 @@ pub fn DecoderTokenHashCudaSource::numerical_contract(
 }
 
 ///|
-pub fn DecoderTokenHashCudaSource::vocabulary_size(self : Self) -> Int {
+pub fn DecoderTokenHashCudaSource::vocabulary_size(self : Self) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn DecoderTokenHashCudaSource::experts_per_token(self : Self) -> Int {
+pub fn DecoderTokenHashCudaSource::experts_per_token(self : Self) -> Int32 {
   self.experts_per_token
 }
 
 ///|
-pub fn DecoderTokenHashCudaSource::routed_expert_count(self : Self) -> Int {
+pub fn DecoderTokenHashCudaSource::routed_expert_count(self : Self) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
-pub fn DecoderTokenHashCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderTokenHashCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

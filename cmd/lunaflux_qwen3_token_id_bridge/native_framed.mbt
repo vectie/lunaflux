@@ -13,10 +13,10 @@ fn bridge_internal_greedy_seed() -> UInt64 {
 
 ///|
 fn bridge_limits_for_bounds(
-  max_input_tokens : Int,
-  max_output_tokens : Int,
-  max_token_id : Int,
-  max_context_tokens : Int,
+  max_input_tokens : Int32,
+  max_output_tokens : Int32,
+  max_token_id : Int32,
+  max_context_tokens : Int32,
 ) -> @inference.InferenceLimits raise BridgeRuntimeError {
   @inference.InferenceLimits::new(
     max_text_bytes=1,
@@ -125,7 +125,7 @@ fn bridge_request_frame(
 }
 
 ///|
-fn bridge_event_length(prefix : FixedArray[Byte]) -> Int {
+fn bridge_event_length(prefix : FixedArray[Byte]) -> Int32 {
   prefix[12].to_int() |
   (prefix[13].to_int() << 8) |
   (prefix[14].to_int() << 16) |

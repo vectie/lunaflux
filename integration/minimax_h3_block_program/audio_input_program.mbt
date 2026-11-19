@@ -21,7 +21,7 @@ pub fn AudioInputProgram::allocate(
   context : @device.Context,
   permutation : @device.Function,
   destandardize : @device.Function,
-  time~ : Int,
+  time~ : Int32,
   standard_deviations~ : @device.Allocation,
   means~ : @device.Allocation,
   max_bytes~ : Int64,

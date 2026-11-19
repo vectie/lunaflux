@@ -4,10 +4,10 @@ fn encode_fp8_reusable_paged_release_manifest_v3(
   target : @catalog.DeviceTarget,
   recipe_digest : String,
   profile : @launch_contract.PagedKernelProfile,
-  kv_layout_version : Int,
-  tokens_per_page : Int,
+  kv_layout_version : Int32,
+  tokens_per_page : Int32,
   operations : ReadOnlyArray[LunaFp8ReleaseOperationV2],
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaCapabilityManifestError {
   let output : Array[Byte] = []
   fp8_release_text(
@@ -91,10 +91,10 @@ pub fn LunaFp8ReusablePagedReleaseManifestV3::new(
   target~ : @catalog.DeviceTarget,
   reusable_recipe_digest_sha256~ : String,
   profile~ : @launch_contract.PagedKernelProfile,
-  kv_layout_version~ : Int,
-  tokens_per_page~ : Int,
+  kv_layout_version~ : Int32,
+  tokens_per_page~ : Int32,
   operations~ : ArrayView[LunaFp8ReleaseOperationV2],
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> LunaFp8ReusablePagedReleaseManifestV3 raise LunaCapabilityManifestError {
   if !luna_capability_is_sha256(reusable_recipe_digest_sha256) ||
     kv_layout_version <= 0 ||

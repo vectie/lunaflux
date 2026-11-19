@@ -6,14 +6,14 @@ priv struct ExecutionPolicy {
   staging : @matrix.MatrixStaging
   sparse_staging : @matrix.MatrixStaging
   sparse_row_reuse : @matrix.MatrixRowReuse?
-  recurrent_tile_rows : Int
-  recurrent_reuse_minimum_inner : Int
+  recurrent_tile_rows : Int32
+  recurrent_reuse_minimum_inner : Int32
   transport : @matrix.ExpertTransport
-  scale_partitions : Int
+  scale_partitions : Int32
   moe_reduction : @precision.MoeReductionPlacement
   tensor_publication : @precision.ProjectionPublication
   exact_capacity_replay : Bool
-  collective_window_sites : Int
+  collective_window_sites : Int32
 }
 
 ///|
@@ -193,7 +193,7 @@ fn ExecutionPolicy::description(self : Self) -> String {
 ///|
 fn ExecutionPolicy::replay(
   self : Self,
-  capacity : Int,
+  capacity : Int32,
 ) -> @parallel.ReplayPolicy {
   if self.exact_capacity_replay && capacity > 1 {
     if self.collective_window_sites > 0 {

@@ -1,6 +1,6 @@
 ///|
 fn sampling_selection_program(
-  values : Int,
+  values : Int32,
   segmented~ : Bool,
 ) -> @elementwise_physical_ir.SelectionProgram raise SamplingBoundaryError {
   guard @elementwise_physical_ir.SelectionProgram::new(

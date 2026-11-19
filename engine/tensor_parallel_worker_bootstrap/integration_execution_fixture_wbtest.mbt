@@ -1,5 +1,5 @@
 ///|
-fn tp_execution_family_index(operation : @plan.PlanOperation) -> Int {
+fn tp_execution_family_index(operation : @plan.PlanOperation) -> Int32 {
   match operation.kind() {
     Embedding => 0
     RmsNorm => 1
@@ -132,7 +132,7 @@ fn tp_execution_launch_inputs(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
   target : @catalog.DeviceTarget,
   digest : @catalog.AotArtifactDigest,
-  rank : Int,
+  rank : Int32,
 ) -> Array[
   @tensor_parallel_launch_contract.TensorParallelAotLaunchContractInput,
 ] raise {
@@ -236,7 +236,7 @@ fn tp_bootstrap_execution_plans(
     @tensor_parallel_device_plan.TensorParallelDevicePlan,
   ],
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
-  module_text? : String = "tp-bootstrap-module-primary",
+  module_text~ : String = "tp-bootstrap-module-primary",
 ) -> Array[@tensor_parallel_execution_plan.TensorParallelExecutionPlan] raise {
   let module_bytes = @utf8.encode(module_text)
   let digest = @catalog.AotArtifactDigest::from_sha256(

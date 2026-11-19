@@ -1,10 +1,10 @@
 ///|
 fn optimization_program(
   causal : Bool,
-  context_tokens? : Int = 4096,
-  query_rows? : Int = 64,
-  batch_rows? : Int = 1,
-  phase? : @luna_attention_strategy.AttentionExecutionPhase = Prefill,
+  context_tokens~ : Int32 = 4096,
+  query_rows~ : Int32 = 64,
+  batch_rows~ : Int32 = 1,
+  phase~ : @luna_attention_strategy.AttentionExecutionPhase = Prefill,
 ) -> @luna_attention_tile_ir.AttentionTileProgram raise {
   let shape = @luna_attention_strategy.AttentionShape::new(
     query_heads=16,

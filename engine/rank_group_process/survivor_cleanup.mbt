@@ -1,7 +1,7 @@
 ///|
 fn RankGroupProcessSupervisor::mark_survivor_lost(
   self : RankGroupProcessSupervisor,
-  rank : Int,
+  rank : Int32,
 ) -> Unit {
   if rank < 0 || rank >= self.children.length() || self.cleanup_lost[rank] {
     return
@@ -17,8 +17,8 @@ fn RankGroupProcessSupervisor::mark_survivor_lost(
 ///|
 fn RankGroupProcessSupervisor::next_survivor_rank(
   self : RankGroupProcessSupervisor,
-  start : Int,
-) -> Int {
+  start : Int32,
+) -> Int32 {
   for rank in start..<self.children.length() {
     if !self.cleanup_lost[rank] {
       return rank
@@ -50,7 +50,7 @@ fn RankGroupProcessSupervisor::finish_survivor_phase(
 ///|
 fn RankGroupProcessSupervisor::stage_next_survivor(
   self : RankGroupProcessSupervisor,
-  start : Int,
+  start : Int32,
 ) -> Unit raise RankGroupProcessError {
   let mut next = self.next_survivor_rank(start)
   while next >= 0 {
@@ -124,8 +124,8 @@ fn RankGroupProcessSupervisor::begin_survivor_cleanup(
 ///|
 fn RankGroupProcessSupervisor::accept_survivor_response(
   self : RankGroupProcessSupervisor,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise RankGroupProcessError {
   let header = @rank_group_wire.validate_rank_group_wire_binding(
     self.rx,

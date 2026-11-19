@@ -82,14 +82,14 @@ pub fn TensorParallelFollowerExecutionAck::plan_sequence_value(
 ///|
 pub fn TensorParallelFollowerExecutionAck::rank(
   self : TensorParallelFollowerExecutionAck,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelFollowerExecutionAck::world_size(
   self : TensorParallelFollowerExecutionAck,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 

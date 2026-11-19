@@ -138,7 +138,7 @@ fn paged_file_semantics(
 ///|
 fn paged_file_family(
   digest : @catalog.AotArtifactDigest,
-  stable_id : Int,
+  stable_id : Int32,
 ) -> @catalog.AotKernelFamily {
   try! @catalog.AotKernelFamily::new(
     module_digest=digest,
@@ -185,7 +185,7 @@ fn paged_file_operand(
 
 ///|
 fn paged_file_operands(
-  operation_id : Int,
+  operation_id : Int32,
 ) -> Array[@launch_contract.AotOperand] {
   let layout = paged_file_layout()
   let input = try! @plan.ActivationRef::new(operation_id - 1)
@@ -224,7 +224,7 @@ fn paged_file_operands(
 ///|
 fn paged_file_entry(
   digest : @catalog.AotArtifactDigest,
-  operation_id : Int,
+  operation_id : Int32,
 ) -> @catalog.AotKernelEntryPoint {
   try! @catalog.AotKernelEntryPoint::new(
     family=paged_file_family(digest, operation_id + 10),
@@ -282,7 +282,7 @@ fn paged_file_contracts() -> @launch_contract.PagedKvLaunchContractSet {
 }
 
 ///|
-fn paged_valid_manifest(entry_count? : Int = 2) -> Bytes {
+fn paged_valid_manifest(entry_count~ : Int32 = 2) -> Bytes {
   let entries = [
     entry_json(11, 21, "paged_rotary"),
     entry_json(12, 22, "paged_attention"),

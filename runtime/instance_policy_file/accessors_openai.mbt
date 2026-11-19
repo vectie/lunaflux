@@ -1,40 +1,46 @@
 ///|
-pub fn OpenAiServicePolicyClaims::maximum_credential_bytes(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::maximum_credential_bytes(
+  self : Self,
+) -> Int32 {
   self.maximum_credential_bytes
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::max_head_bytes(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::max_head_bytes(self : Self) -> Int32 {
   self.max_head_bytes
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::max_body_bytes(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::max_body_bytes(self : Self) -> Int32 {
   self.max_body_bytes
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::http_step_work_units(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::http_step_work_units(self : Self) -> Int32 {
   self.http_step_work_units
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::response_step_work_units(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::response_step_work_units(
+  self : Self,
+) -> Int32 {
   self.response_step_work_units
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::inbound_step_work_units(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::inbound_step_work_units(self : Self) -> Int32 {
   self.inbound_step_work_units
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::outbound_step_work_units(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::outbound_step_work_units(
+  self : Self,
+) -> Int32 {
   self.outbound_step_work_units
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::max_messages(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::max_messages(self : Self) -> Int32 {
   self.max_messages
 }
 
@@ -74,7 +80,9 @@ pub fn OpenAiServicePolicyClaims::assistant_cue(self : Self) -> String {
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::max_rendered_prompt_bytes(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::max_rendered_prompt_bytes(
+  self : Self,
+) -> Int32 {
   self.max_rendered_prompt_bytes
 }
 
@@ -94,12 +102,12 @@ pub fn OpenAiServicePolicyClaims::cache_scope_ascii(self : Self) -> String {
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::max_new_tokens(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::max_new_tokens(self : Self) -> Int32 {
   self.max_new_tokens
 }
 
 ///|
-pub fn OpenAiServicePolicyClaims::context_ceiling(self : Self) -> Int {
+pub fn OpenAiServicePolicyClaims::context_ceiling(self : Self) -> Int32 {
   self.context_ceiling
 }
 

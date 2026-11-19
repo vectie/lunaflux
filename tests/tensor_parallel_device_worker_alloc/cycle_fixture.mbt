@@ -53,7 +53,7 @@ fn prepare_cycle(
 }
 
 ///|
-fn prepare_cycles(count : Int, model : @plan.ModelPlan) -> CycleFixture raise {
+fn prepare_cycles(count : Int32, model : @plan.ModelPlan) -> CycleFixture raise {
   if count < 2 {
     abort("TP allocation fixture requires warm and measured cycles")
   }
@@ -99,7 +99,7 @@ fn finish_progress(
 ///|
 fn execute_cycle(
   worker : @tensor_parallel_device_worker.TensorParallelDeviceWorkerOwner,
-  rank : Int,
+  rank : Int32,
   cycle : PreparedCycle,
 ) -> Unit raise {
   let staged = worker.stage_frame(cycle.frame)

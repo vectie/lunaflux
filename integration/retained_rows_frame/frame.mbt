@@ -128,7 +128,7 @@ pub fn RetainedRowsFrame::launches(
 ///|
 fn RetainedRowsFrame::buffer(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> @device.Allocation raise {
   guard self.state is Prepared else {
     raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)

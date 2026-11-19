@@ -45,7 +45,7 @@ async fn bridge_generate(
   )
   response_started.val = true
   let mut token_count = 0
-  let mut usage_count : Int? = None
+  let mut usage_count : Int32? = None
   for ;; {
     match bridge_read_event(native, decoder, storage) {
       Token(token) => {

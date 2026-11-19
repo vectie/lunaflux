@@ -1,7 +1,7 @@
 ///|
 fn audio_input_projection_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       AudioVaeDecoderInputProjection(_, _, _, _, _, _) => return ordinal

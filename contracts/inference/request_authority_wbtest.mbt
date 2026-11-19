@@ -32,7 +32,7 @@ fn authority_model_identity() -> @spec.ModelIdentity raise {
 
 ///|
 fn forged_stops(
-  token_ids : Array[Int],
+  token_ids : Array[Int32],
   strings : Array[String],
 ) -> StopConditions {
   {
@@ -45,7 +45,7 @@ fn forged_stops(
 fn validate_authority_request(
   protocol_version~ : ProtocolVersion,
   request_id~ : RequestId,
-  max_new_tokens~ : Int,
+  max_new_tokens~ : Int32,
   sampling~ : SamplingParameters,
   stops~ : StopConditions,
   deadline~ : DeadlineBudget,
@@ -85,9 +85,9 @@ fn valid_authority_cache() -> CachePolicy {
 
 ///|
 fn forged_owned_input(
-  token_ids : Array[Int],
-  token_count : Int,
-  maximum_token_id : Int,
+  token_ids : Array[Int32],
+  token_count : Int32,
+  maximum_token_id : Int32,
 ) -> Input {
   TokenIds({
     backing: LunaOwnedTokenBacking(ReadOnlyArray::from_array(token_ids)),

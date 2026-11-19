@@ -1,8 +1,8 @@
 ///|
 /// (exclusive launch end, workspace region, tensor name), derived from the
 /// binding recipe. Combined Q/K operators have two observable outputs.
-fn first_layer_operator_outputs() -> ReadOnlyArray[(Int, Int, String)] {
-  let outputs : Array[(Int, Int, String)] = [(1, 0, "embedding")]
+fn first_layer_operator_outputs() -> ReadOnlyArray[(Int32, Int32, String)] {
+  let outputs : Array[(Int32, Int32, String)] = [(1, 0, "embedding")]
   for ordinal, function in layer_function_order() {
     let end = ordinal + 2
     match function {
@@ -50,7 +50,7 @@ fn first_layer_operator_outputs() -> ReadOnlyArray[(Int, Int, String)] {
 }
 
 ///|
-fn first_layer_operator_boundaries() -> ReadOnlyArray[(Int, Int)] {
+fn first_layer_operator_boundaries() -> ReadOnlyArray[(Int32, Int32)] {
   ReadOnlyArray::from_array(
     Array::makei(layer_function_order().length() + 1, i => (i, i + 1)),
   )
@@ -103,9 +103,9 @@ pub fn EncoderRequest::execute_operator_observed(
 
 ///|
 fn observe_operator_outputs(
-  count : Int,
-  run : (Int) -> Unit raise,
-  snapshot : (Int) -> Bytes raise,
+  count : Int32,
+  run : (Int32) -> Unit raise,
+  snapshot : (Int32) -> Bytes raise,
   consume : (String, Bytes) -> Unit raise,
 ) -> Unit raise {
   let outputs = first_layer_operator_outputs()

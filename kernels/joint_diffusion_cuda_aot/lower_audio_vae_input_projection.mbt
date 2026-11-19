@@ -2,7 +2,7 @@
 pub fn lower_audio_vae_decoder_input_projection_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderInputProjection,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

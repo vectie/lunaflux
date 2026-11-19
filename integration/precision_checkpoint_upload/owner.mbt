@@ -29,7 +29,7 @@ pub fn CheckpointDeviceWeights::upload(
   root : @approved_fs.ApprovedRoot,
   weights : ArrayView[@materialize.PackedCheckpointWeight],
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.status is Fresh && !weights.is_empty() && chunk_bytes > 0 else {
@@ -78,7 +78,7 @@ pub fn CheckpointDeviceWeights::upload(
 ///|
 pub fn CheckpointDeviceWeights::allocation(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.status is Ready && self.allocations.get(index) is Some(allocation) else {
     raise @device.DeviceError::InvalidArgument(AllocationCreate)

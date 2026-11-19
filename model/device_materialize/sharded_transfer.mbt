@@ -59,11 +59,11 @@ fn[S] advance_sharded_transfer(
 fn[S : Eq, T] transfer_sharded_streaming_load(
   prepared : PreparedShardedStreamingLoad[S],
   file_bytes : Int64,
-  chunk_bytes : Int,
+  chunk_bytes : Int32,
   resource : T,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise DeviceWeightError,
   observe_stamp : () -> S raise DeviceWeightError,
-  copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
+  copy : (T, FixedArray[Byte], Int32, Int64, Int64) -> Unit raise @device.DeviceError,
 ) -> Unit raise DeviceWeightError {
   let cursor : ShardedTransferCursor = {
     order_index: 0,
@@ -130,11 +130,11 @@ fn[T] sharded_resource_failure(
 fn[S : Eq, T] load_prepared_sharded_streaming_with_resource(
   prepared : PreparedShardedStreamingLoad[S],
   file_bytes : Int64,
-  chunk_bytes : Int,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  chunk_bytes : Int32,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise DeviceWeightError,
   observe_stamp : () -> S raise DeviceWeightError,
   open : (Int64) -> T raise @device.DeviceError,
-  copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
+  copy : (T, FixedArray[Byte], Int32, Int64, Int64) -> Unit raise @device.DeviceError,
   close : (T) -> Unit raise @device.DeviceError,
 ) -> ShardedResourcePreparation[T] raise DeviceWeightError {
   let resource = open(prepared.rank_plan.arena_bytes()) catch {

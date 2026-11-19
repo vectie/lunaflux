@@ -1,6 +1,6 @@
 ///|
 test "router projection renders F32 input BF16 row-major weight F32 output" {
-  let rendered = f32_input_bf16_weight_projection_source(
+  let rendered = @router_projection_cuda_source.f32_input_bf16_weight_projection_source(
     input_width=6144,
     output_width=256,
     maximum_rows=32,
@@ -21,7 +21,7 @@ test "router projection renders F32 input BF16 row-major weight F32 output" {
 ///|
 test "router projection rejects invalid geometry and symbol" {
   try
-    f32_input_bf16_weight_projection_source(
+    @router_projection_cuda_source.f32_input_bf16_weight_projection_source(
       input_width=0,
       output_width=256,
       maximum_rows=1,
@@ -34,7 +34,7 @@ test "router projection rejects invalid geometry and symbol" {
     _ => fail("zero width admitted")
   }
   try
-    f32_input_bf16_weight_projection_source(
+    @router_projection_cuda_source.f32_input_bf16_weight_projection_source(
       input_width=1,
       output_width=1,
       maximum_rows=0,
@@ -47,7 +47,7 @@ test "router projection rejects invalid geometry and symbol" {
     _ => fail("zero rows admitted")
   }
   try
-    f32_input_bf16_weight_projection_source(
+    @router_projection_cuda_source.f32_input_bf16_weight_projection_source(
       input_width=1,
       output_width=1,
       maximum_rows=1,

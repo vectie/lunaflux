@@ -1,10 +1,12 @@
 ///|
-pub fn TensorParallelTopology::rank(self : TensorParallelTopology) -> Int {
+pub fn TensorParallelTopology::rank(self : TensorParallelTopology) -> Int32 {
   self.rank
 }
 
 ///|
-pub fn TensorParallelTopology::world_size(self : TensorParallelTopology) -> Int {
+pub fn TensorParallelTopology::world_size(
+  self : TensorParallelTopology,
+) -> Int32 {
   self.world_size
 }
 
@@ -197,49 +199,49 @@ pub fn TensorParallelOperationPlan::capability(
 ///|
 pub fn TensorParallelOperationPlan::input_width(
   self : TensorParallelOperationPlan,
-) -> Int {
+) -> Int32 {
   self.input_width
 }
 
 ///|
 pub fn TensorParallelOperationPlan::output_width(
   self : TensorParallelOperationPlan,
-) -> Int {
+) -> Int32 {
   self.output_width
 }
 
 ///|
 pub fn TensorParallelOperationPlan::inner_width(
   self : TensorParallelOperationPlan,
-) -> Int {
+) -> Int32 {
   self.inner_width
 }
 
 ///|
 pub fn TensorParallelOperationPlan::query_head_count(
   self : TensorParallelOperationPlan,
-) -> Int {
+) -> Int32 {
   self.query_head_count
 }
 
 ///|
 pub fn TensorParallelOperationPlan::kv_head_count(
   self : TensorParallelOperationPlan,
-) -> Int {
+) -> Int32 {
   self.kv_head_count
 }
 
 ///|
 pub fn TensorParallelOperationPlan::head_dimension(
   self : TensorParallelOperationPlan,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn TensorCollectiveSequenceId::as_int(
   self : TensorCollectiveSequenceId,
-) -> Int {
+) -> Int32 {
   self.0
 }
 
@@ -265,12 +267,12 @@ pub fn TensorCollectiveSite::kind(
 }
 
 ///|
-pub fn TensorCollectiveSite::full_width(self : TensorCollectiveSite) -> Int {
+pub fn TensorCollectiveSite::full_width(self : TensorCollectiveSite) -> Int32 {
   self.full_width
 }
 
 ///|
-pub fn TensorCollectiveSite::local_width(self : TensorCollectiveSite) -> Int {
+pub fn TensorCollectiveSite::local_width(self : TensorCollectiveSite) -> Int32 {
   self.local_width
 }
 
@@ -312,7 +314,7 @@ pub fn TensorParallelRankPlan::materialized_bytes(
 ///|
 pub fn TensorParallelRankPlan::tensor_count(
   self : TensorParallelRankPlan,
-) -> Int {
+) -> Int32 {
   self.tensors.length()
 }
 
@@ -332,7 +334,7 @@ pub fn TensorParallelRankPlan::tensor(
 ///|
 pub fn TensorParallelRankPlan::operation_count(
   self : TensorParallelRankPlan,
-) -> Int {
+) -> Int32 {
   self.operations.length()
 }
 
@@ -352,14 +354,14 @@ pub fn TensorParallelRankPlan::operation(
 ///|
 pub fn TensorParallelRankPlan::collective_count(
   self : TensorParallelRankPlan,
-) -> Int {
+) -> Int32 {
   self.collectives.length()
 }
 
 ///|
 pub fn TensorParallelRankPlan::collective(
   self : TensorParallelRankPlan,
-  index : Int,
+  index : Int32,
 ) -> TensorCollectiveSite? {
   self.collectives.get(index)
 }

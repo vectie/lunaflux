@@ -4,7 +4,7 @@ fn luna_json_space(byte : Byte) -> Bool {
 }
 
 ///|
-fn LunaOpenAIInboundWorkspace::required_top_bits(self : Self) -> Int {
+fn LunaOpenAIInboundWorkspace::required_top_bits(self : Self) -> Int32 {
   if self.route == 1 {
     3
   } else {

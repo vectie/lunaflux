@@ -1,6 +1,6 @@
 ///|
 fn paged_host(
-  physical_pages? : Int = 8,
+  physical_pages~ : Int32 = 8,
 ) -> @batched_decoder_frame.BatchedDecoderFrame raise {
   let domain = @history.PagedHistoryDomain::new(
     rows_per_page=2,

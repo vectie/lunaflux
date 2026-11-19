@@ -1,5 +1,5 @@
 ///|
-fn read_i32(bytes : FixedArray[Byte], offset : Int) -> Int {
+fn read_i32(bytes : FixedArray[Byte], offset : Int32) -> Int32 {
   (bytes[offset].to_uint() |
   (bytes[offset + 1].to_uint() << 8) |
   (bytes[offset + 2].to_uint() << 16) |
@@ -22,7 +22,7 @@ test "rank constants encode exact little-endian v2 rank runtime cells" {
   assert_eq(bytes[2], b'\xff')
   assert_eq(bytes[35], b'\xff')
   assert_eq(bytes[37], b'\xff')
-  let expected : Array[Int] = [2, 1, 2, 8, 0, 1, 64, 0]
+  let expected : Array[Int32] = [2, 1, 2, 8, 0, 1, 64, 0]
   for index, value in expected {
     assert_eq(read_i32(bytes, 3 + index * 4), value)
   }

@@ -1,6 +1,6 @@
 ///|
 async test "original expert replay exports all six actual routed jobs" {
-  fn weight(rows : Int, columns : Int) -> @precision_ir.OperandPlan raise {
+  fn weight(rows : Int32, columns : Int32) -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
       role=Weight,
       representation=@format.Representation::new(format=MxFp4, rows~, columns~),
@@ -12,8 +12,8 @@ async test "original expert replay exports all six actual routed jobs" {
     )
   }
   fn activation(
-    rows : Int,
-    columns : Int,
+    rows : Int32,
+    columns : Int32,
   ) -> @precision_ir.QuantizationPlan raise {
     @precision_ir.plan_operand(
       role=Activation,

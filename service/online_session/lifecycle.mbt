@@ -152,7 +152,7 @@ fn LunaOnlineInstance::advance_recovery_maintenance(
 /// Returns a bounded host wake interval without sleeping or advancing restart.
 pub fn LunaOnlineInstance::maintenance_wait_remaining_millis(
   self : LunaOnlineInstance,
-) -> Int raise LunaOnlineInstanceError {
+) -> Int32 raise LunaOnlineInstanceError {
   self.require_owner()
   if self.maintenance_state == 6 {
     return self.lease_owner().restart_backoff_remaining_millis() catch {

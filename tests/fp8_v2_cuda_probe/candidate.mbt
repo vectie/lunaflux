@@ -73,7 +73,7 @@ fn fp8_probe_candidates(
   )
   fn lower(
     plan : @plan.ModelPlan,
-    operation : Int,
+    operation : Int32,
     profile : @launch_contract.PagedKernelProfile,
     target : @catalog.DeviceTarget,
     compiler : @luna_specialization.LunaCompilerPolicy,

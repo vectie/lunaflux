@@ -4,7 +4,7 @@
 /// physical plan as the segmented producer; neither renderer chooses it.
 fn projection_sibling_independent_transfer_source(
   physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
-  input_width : Int,
+  input_width : Int32,
 ) -> String {
   let operands = physical.operands
   let copies = StringBuilder()
@@ -72,7 +72,7 @@ fn projection_sibling_independent_transfer_source(
 ///|
 fn projection_sibling_transport_source(
   physical : @luna_projection_tile_compiler.ProjectionPhysicalPipeline,
-  input_width : Int,
+  input_width : Int32,
 ) -> String {
   match physical.sibling_transport {
     SegmentedSiblingTransport =>

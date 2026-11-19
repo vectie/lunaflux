@@ -24,7 +24,7 @@ fn region_id_for_activation(
 ///|
 fn region_id_for_workspace(
   static_plan : @device_plan.StaticDevicePlan,
-  activation_count : Int,
+  activation_count : Int32,
 ) -> ProfileRegionId raise DeviceProfileError {
   checked_region_id_add(
     activation_region_base(static_plan),

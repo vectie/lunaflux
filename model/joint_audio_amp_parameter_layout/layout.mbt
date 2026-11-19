@@ -16,7 +16,7 @@ pub fn JointAudioAmpParameterRegionInput::new(
 }
 
 ///|
-fn expected_role(index : Int) -> JointAudioAmpParameterRole {
+fn expected_role(index : Int32) -> JointAudioAmpParameterRole {
   let block = index / 42
   let within = index % 42
   if within < 24 {

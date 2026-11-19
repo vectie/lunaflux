@@ -22,14 +22,14 @@ pub fn PagedKvWriteCudaCandidate::model_plan_digest_sha256(
 ///|
 pub fn PagedKvWriteCudaCandidate::tokens_per_page(
   self : PagedKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
 pub fn PagedKvWriteCudaCandidate::total_page_count(
   self : PagedKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.total_page_count
 }
 
@@ -43,28 +43,28 @@ pub fn PagedKvWriteCudaCandidate::page_stride_bytes(
 ///|
 pub fn PagedKvWriteCudaCandidate::kv_width(
   self : PagedKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.kv_width
 }
 
 ///|
 pub fn PagedKvWriteCudaCandidate::query_heads(
   self : PagedKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.query_heads
 }
 
 ///|
 pub fn PagedKvWriteCudaCandidate::kv_heads(
   self : PagedKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.kv_heads
 }
 
 ///|
 pub fn PagedKvWriteCudaCandidate::head_dimension(
   self : PagedKvWriteCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
@@ -127,7 +127,7 @@ pub fn PagedKvWriteCudaCandidate::kernel_abi(
 ///|
 pub fn PagedKvWriteCudaCandidate::dispatch_canary_per_token(
   self : PagedKvWriteCudaCandidate,
-) -> UInt {
+) -> UInt32 {
   self.dispatch_canary
 }
 

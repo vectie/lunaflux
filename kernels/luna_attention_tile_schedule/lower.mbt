@@ -1,7 +1,7 @@
 ///|
 fn numeric_bytes(
   numeric_type : @luna_attention_strategy.AttentionNumericType,
-) -> Int {
+) -> Int32 {
   match numeric_type {
     AttentionBFloat16 | AttentionFloat16 => 2
     AttentionFloat32 => 4
@@ -10,7 +10,7 @@ fn numeric_bytes(
 }
 
 ///|
-fn iteration_kind_code(kind : AttentionIterationKind) -> Int {
+fn iteration_kind_code(kind : AttentionIterationKind) -> Int32 {
   match kind {
     AttentionParallelMap => 1
     AttentionSequentialFold => 2
@@ -20,7 +20,7 @@ fn iteration_kind_code(kind : AttentionIterationKind) -> Int {
 }
 
 ///|
-fn iteration_axis_code(axis : AttentionIterationAxis) -> Int {
+fn iteration_axis_code(axis : AttentionIterationAxis) -> Int32 {
   match axis {
     AttentionQueryRowAxis => 1
     AttentionQueryHeadAxis => 2
@@ -32,7 +32,9 @@ fn iteration_axis_code(axis : AttentionIterationAxis) -> Int {
 }
 
 ///|
-fn compute_code(compute : @luna_attention_strategy.AttentionTileCompute) -> Int {
+fn compute_code(
+  compute : @luna_attention_strategy.AttentionTileCompute,
+) -> Int32 {
   match compute {
     AttentionScalarDot => 1
     AttentionSubgroupDot => 2
@@ -51,7 +53,7 @@ fn compute_code(compute : @luna_attention_strategy.AttentionTileCompute) -> Int 
 }
 
 ///|
-fn memory_code(memory : @luna_attention_strategy.AttentionTileMemory) -> Int {
+fn memory_code(memory : @luna_attention_strategy.AttentionTileMemory) -> Int32 {
   match memory {
     AttentionDirectGlobal => 1
     AttentionStagedShared => 2
@@ -62,7 +64,7 @@ fn memory_code(memory : @luna_attention_strategy.AttentionTileMemory) -> Int {
 ///|
 fn validate_schedule_loops(
   loops : ReadOnlyArray[AttentionLoopCombinator],
-  key_value_partitions : Int,
+  key_value_partitions : Int32,
 ) -> Unit raise AttentionTileScheduleError {
   if key_value_partitions <= 0 ||
     loops.length() < 2 ||
@@ -102,8 +104,8 @@ fn validate_schedule_loops(
 fn canonical_schedule(
   program : @luna_attention_tile_ir.AttentionTileProgram,
   loops : ReadOnlyArray[AttentionLoopCombinator],
-  key_value_partitions : Int,
-  key_value_partition_grain : Int,
+  key_value_partitions : Int32,
+  key_value_partition_grain : Int32,
   hoist_paged_key_value_page_lookup : Bool,
   reuse_online_softmax_tile_storage : Bool,
   shared_memory_bytes : Int64,
@@ -246,7 +248,7 @@ fn attention_optimization_has_rule(
 ///|
 fn schedule_attention_tile_program_with_partitions(
   program : @luna_attention_tile_ir.AttentionTileProgram,
-  key_value_partitions : Int,
+  key_value_partitions : Int32,
   hoist_paged_key_value_page_lookup : Bool,
   reuse_online_softmax_tile_storage : Bool,
 ) -> AttentionTileSchedule raise AttentionTileScheduleError {
@@ -370,7 +372,7 @@ fn schedule_attention_tile_program_with_partitions(
   // changes transfer/storage granularity. Each logical partition is traversed
   // by one or more smaller ordered staging tiles, not repartitioned.
   let key_value_partition_grain = match candidate.compute() {
-    AttentionGroupedQuerySplitSubgroupDot => Int::max(64, key_value_tile)
+    AttentionGroupedQuerySplitSubgroupDot => Int32::max(64, key_value_tile)
     _ => key_value_tile
   }
   let canonical = canonical_schedule(

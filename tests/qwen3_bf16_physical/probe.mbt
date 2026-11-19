@@ -1,7 +1,7 @@
 ///|
 fn qwen3_region(
   allocation : @device.Allocation,
-  bytes : Int,
+  bytes : Int32,
   alignment : Int64,
 ) -> @device.KernelArgument raise {
   @device.KernelArgument::device_region(
@@ -36,7 +36,7 @@ fn qwen3_run_lowering_probe_inner(
   qk_cubin : Bytes,
   expected_uuid : String,
   expected_pci : String,
-  cycles : Int,
+  cycles : Int32,
   balance : Qwen3ProbeBalance,
 ) -> Float raise Qwen3PhysicalError {
   let context = @device.open_context(0) catch {
@@ -83,7 +83,7 @@ fn qwen3_run_lowering_probe_inner(
   let host = [
     counts, input, query_weight, key_weight, value_weight, q_norm, k_norm,
   ]
-  let allocations : Array[(@device.Allocation, Int)] = []
+  let allocations : Array[(@device.Allocation, Int32)] = []
   for bytes in host {
     let allocation = context.allocate(bytes.length().to_int64()) catch {
       _ => raise NumericMaterialization("probe allocation failed")
@@ -222,7 +222,7 @@ fn qwen3_run_lowering_probe(
   qk_cubin : Bytes,
   expected_uuid : String,
   expected_pci : String,
-  cycles : Int,
+  cycles : Int32,
 ) -> Float raise Qwen3PhysicalError {
   let balance = qwen3_probe_balance()
   let maximum_error = qwen3_run_lowering_probe_inner(

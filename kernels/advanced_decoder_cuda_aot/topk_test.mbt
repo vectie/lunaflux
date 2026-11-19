@@ -1,7 +1,7 @@
 ///|
 fn aot_test_top_k_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is NoAuxiliaryLossTopK(_, _) {
       return ordinal
@@ -13,7 +13,7 @@ fn aot_test_top_k_ordinal(
 ///|
 fn aot_test_finalize_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is SelectedExpertWeightFinalize(_, _, _, _) {
       return ordinal

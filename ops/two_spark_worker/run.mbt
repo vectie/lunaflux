@@ -5,7 +5,7 @@
 pub async fn run(
   deployment_root : String,
   expected_sha256 : String,
-  parallel_policy? : @parallel_ir.Policy = Ordered,
+  parallel_policy~ : @parallel_ir.Policy = Ordered,
 ) -> Unit {
   let root = @approved_fs.ApprovedRoot::open_absolute(deployment_root)
   defer (root.close() catch { _ => () })

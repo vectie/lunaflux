@@ -1,13 +1,13 @@
 ///|
 fn parse_positive_decimal(
   value : String,
-) -> Int raise LunaBf16CandidateExportCliError {
+) -> Int32 raise LunaBf16CandidateExportCliError {
   if value.is_empty() || value.length() > 9 {
     raise InvalidArguments
   }
   let mut result = 0
   for unit in value {
-    guard unit is ('0'..='9') else { raise InvalidArguments }
+    guard unit is ('0'..<='9') else { raise InvalidArguments }
     let digit = unit.to_int() - '0'.to_int()
     if result > (2147483647 - digit) / 10 {
       raise InvalidArguments
@@ -23,13 +23,13 @@ fn parse_positive_decimal(
 ///|
 fn parse_compiler_component(
   value : String,
-) -> UInt raise LunaBf16CandidateExportCliError {
+) -> UInt32 raise LunaBf16CandidateExportCliError {
   if value.is_empty() || value.length() > 6 {
     raise InvalidArguments
   }
   let mut result = 0U
   for unit in value {
-    guard unit is ('0'..='9') else { raise InvalidArguments }
+    guard unit is ('0'..<='9') else { raise InvalidArguments }
     result = result * 10U + (unit.to_int() - '0'.to_int()).reinterpret_as_uint()
   }
   result

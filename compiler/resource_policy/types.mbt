@@ -3,13 +3,13 @@
 /// supported candidate set, not inferred from a model name or device string.
 pub struct Policy {
   priv id : String
-  priv consumers : Int
-  priv accumulators : Int
-  priv stages : Int
-  priv tiles : Int
-  priv fragments : Int
-  priv row_tiles : Int
-  priv head_tiles : Int
+  priv consumers : Int32
+  priv accumulators : Int32
+  priv stages : Int32
+  priv tiles : Int32
+  priv fragments : Int32
+  priv row_tiles : Int32
+  priv head_tiles : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -21,13 +21,13 @@ pub extend Policy with @debug.Debug::{to_repr}
 ///|
 pub fn Policy::new(
   id~ : String,
-  consumer_groups~ : Int,
-  live_accumulators~ : Int,
-  operand_stages~ : Int,
-  transfer_tiles~ : Int,
-  fragment_stages~ : Int,
-  row_tiles? : Int = 1,
-  head_tiles? : Int = 1,
+  consumer_groups~ : Int32,
+  live_accumulators~ : Int32,
+  operand_stages~ : Int32,
+  transfer_tiles~ : Int32,
+  fragment_stages~ : Int32,
+  row_tiles~ : Int32 = 1,
+  head_tiles~ : Int32 = 1,
 ) -> Policy? {
   guard valid_label(id) &&
     consumer_groups > 0 &&
@@ -58,37 +58,37 @@ pub fn Policy::id(self : Policy) -> String {
 }
 
 ///|
-pub fn Policy::consumer_groups(self : Policy) -> Int {
+pub fn Policy::consumer_groups(self : Policy) -> Int32 {
   self.consumers
 }
 
 ///|
-pub fn Policy::live_accumulators(self : Policy) -> Int {
+pub fn Policy::live_accumulators(self : Policy) -> Int32 {
   self.accumulators
 }
 
 ///|
-pub fn Policy::operand_stages(self : Policy) -> Int {
+pub fn Policy::operand_stages(self : Policy) -> Int32 {
   self.stages
 }
 
 ///|
-pub fn Policy::transfer_tiles(self : Policy) -> Int {
+pub fn Policy::transfer_tiles(self : Policy) -> Int32 {
   self.tiles
 }
 
 ///|
-pub fn Policy::fragment_stages(self : Policy) -> Int {
+pub fn Policy::fragment_stages(self : Policy) -> Int32 {
   self.fragments
 }
 
 ///|
-pub fn Policy::row_tiles(self : Policy) -> Int {
+pub fn Policy::row_tiles(self : Policy) -> Int32 {
   self.row_tiles
 }
 
 ///|
-pub fn Policy::head_tiles(self : Policy) -> Int {
+pub fn Policy::head_tiles(self : Policy) -> Int32 {
   self.head_tiles
 }
 
@@ -140,10 +140,10 @@ fn valid_label(value : String) -> Bool {
 /// The backend owns hardware/launch limits. None means the caller deliberately
 /// does not impose that resource constraint; it is not an invented measurement.
 pub struct ResourceBudget {
-  priv threads : Int
+  priv threads : Int32
   priv shared : Int64
-  priv registers : Int?
-  priv residency : Int?
+  priv registers : Int32?
+  priv residency : Int32?
   priv machine_limits : MachineWork?
 } derive(Eq, Debug)
 
@@ -155,11 +155,11 @@ pub extend ResourceBudget with @debug.Debug::{to_repr}
 
 ///|
 pub fn ResourceBudget::new(
-  max_threads~ : Int,
+  max_threads~ : Int32,
   max_shared_bytes~ : Int64,
-  max_registers_per_thread~ : Int?,
-  min_resident_groups~ : Int?,
-  machine_limits? : MachineWork? = None,
+  max_registers_per_thread~ : Int32?,
+  min_resident_groups~ : Int32?,
+  machine_limits~ : MachineWork? = None,
 ) -> ResourceBudget? {
   guard max_threads > 0 && max_shared_bytes >= 0L else { return None }
   if max_registers_per_thread is Some(n) && n <= 0 {
@@ -189,15 +189,15 @@ pub fn ResourceBudget::intersect(
       (Some(a), None) | (None, Some(a)) => Some(a)
       _ => None
     },
-    threads: Int::min(self.threads, other.threads),
+    threads: Int32::min(self.threads, other.threads),
     shared: Int64::min(self.shared, other.shared),
     registers: match (self.registers, other.registers) {
-      (Some(a), Some(b)) => Some(Int::min(a, b))
+      (Some(a), Some(b)) => Some(Int32::min(a, b))
       (Some(a), None) | (None, Some(a)) => Some(a)
       _ => None
     },
     residency: match (self.residency, other.residency) {
-      (Some(a), Some(b)) => Some(Int::max(a, b))
+      (Some(a), Some(b)) => Some(Int32::max(a, b))
       (Some(a), None) | (None, Some(a)) => Some(a)
       _ => None
     },
@@ -213,10 +213,10 @@ pub fn ResourceBudget::max_shared_bytes(self : ResourceBudget) -> Int64 {
 pub struct Candidate {
   priv policy : Policy
   priv artifact : String
-  priv threads : Int
+  priv threads : Int32
   priv shared : Int64
-  priv registers : Int?
-  priv residency : Int?
+  priv registers : Int32?
+  priv residency : Int32?
 } derive(Eq, Debug)
 
 ///|
@@ -231,10 +231,10 @@ pub extend Candidate with @debug.Debug::{to_repr}
 pub fn Candidate::new(
   policy : Policy,
   artifact~ : String,
-  threads~ : Int,
+  threads~ : Int32,
   shared_bytes~ : Int64,
-  registers_per_thread~ : Int?,
-  resident_groups~ : Int?,
+  registers_per_thread~ : Int32?,
+  resident_groups~ : Int32?,
 ) -> Candidate? {
   guard valid_label(artifact) && threads > 0 && shared_bytes >= 0L else {
     return None
@@ -261,9 +261,9 @@ pub struct Observation {
   priv policy_id : String
   priv artifact : String
   priv latency : Int64
-  priv samples : Int
-  priv registers : Int
-  priv residency : Int
+  priv samples : Int32
+  priv registers : Int32
+  priv residency : Int32
   priv machine_work : MachineWork?
 } derive(Eq, Debug)
 
@@ -279,10 +279,10 @@ pub fn Observation::new(
   policy_id~ : String,
   artifact~ : String,
   latency_ns~ : Int64,
-  samples~ : Int,
-  registers_per_thread~ : Int,
-  resident_groups~ : Int,
-  machine_work? : MachineWork? = None,
+  samples~ : Int32,
+  registers_per_thread~ : Int32,
+  resident_groups~ : Int32,
+  machine_work~ : MachineWork? = None,
 ) -> Observation? {
   guard valid_label(policy_id) &&
     valid_label(artifact) &&
@@ -306,7 +306,7 @@ pub fn Observation::new(
 
 ///|
 pub(all) enum SelectionOrigin {
-  Measured(latency_ns~ : Int64, samples~ : Int)
+  Measured(latency_ns~ : Int64, samples~ : Int32)
   UnmeasuredPreferred
   UnmeasuredEligible
 } derive(Eq, Debug)

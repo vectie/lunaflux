@@ -113,7 +113,7 @@ fn select_contracts(
 fn validate_artifact_binding(
   artifacts : @artifact.KernelArtifactBundle,
   contract : @tensor_parallel_launch_contract.TensorParallelAotLaunchContract,
-  operation : Int,
+  operation : Int32,
 ) -> (@catalog.AotArtifactDigest, String) raise TensorParallelExecutionPlanError {
   let identity = contract.entry_point()
   guard artifacts.entry_point(identity) is Some(entry) else {
@@ -139,8 +139,8 @@ fn validate_weight_region(
   reference : @plan.TensorRef,
   byte_count : Int64,
   alignment : Int64,
-  operation : Int,
-  operand : Int,
+  operation : Int32,
+  operand : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   guard device_plan.tensor(reference) is Some(view) else {
     raise rejected(WeightRegion, operation~, operand~)
@@ -192,8 +192,8 @@ fn kv_component_offset(
   layout : @device_layout.DeviceKvLayout,
   layer : @plan.KvLayerId,
   component : @device_layout.DeviceKvComponent,
-  operation : Int,
-  operand : Int,
+  operation : Int32,
+  operand : Int32,
 ) -> Int64 raise TensorParallelExecutionPlanError {
   let component_offset = match component {
     Key => 0L
@@ -219,8 +219,8 @@ fn validate_kv_region(
   component : @device_layout.DeviceKvComponent,
   byte_count : Int64,
   alignment : Int64,
-  operation : Int,
-  operand : Int,
+  operation : Int32,
+  operand : Int32,
 ) -> TensorParallelScalarRegion raise TensorParallelExecutionPlanError {
   if byte_count != layout.component_stride_bytes() ||
     alignment != layout.segment_alignment_bytes() ||

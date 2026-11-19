@@ -22,7 +22,7 @@ fn fused_qkv_readonly_bundle_identity(
 
 ///|
 fn fused_qkv_readonly_operation_id(
-  index : Int,
+  index : Int32,
 ) -> @plan.OperationId raise FusedGroupedOperationError {
   @plan.OperationId::new(index) catch {
     _ => raise MismatchedFusedGroupedOperation(OperationOrder)
@@ -46,10 +46,10 @@ fn require_fused_qkv_readonly_attention_fallback_join(
 ///|
 fn require_fused_qkv_readonly_plan_span(
   plan : @plan.ModelPlan,
-  qkv_index : Int,
-  rope_index : Int,
-  attention_index : Int,
-) -> (@plan.ActivationRef, Int) raise FusedGroupedOperationError {
+  qkv_index : Int32,
+  rope_index : Int32,
+  attention_index : Int32,
+) -> (@plan.ActivationRef, Int32) raise FusedGroupedOperationError {
   guard qkv_index + 1 == rope_index &&
     rope_index + 1 == attention_index &&
     plan.operations().get(qkv_index) is Some(qkv) &&
@@ -87,9 +87,9 @@ fn require_fused_qkv_readonly_fallbacks(
   qkv_module : @luna_fused_artifact_admission.ApprovedFusedKernelModule,
   readonly_identity : @luna_paged_composite_artifact_admission.ApprovedPagedAttentionReadOnlyRuntimeIdentity,
   kv_write : @luna_paged_composite_artifact_admission.QualifiedPagedKvWriteFallbackIdentity,
-  qkv_index : Int,
-  rope_index : Int,
-  attention_index : Int,
+  qkv_index : Int32,
+  rope_index : Int32,
+  attention_index : Int32,
 ) -> Unit raise FusedGroupedOperationError {
   let fallbacks = qkv_module.fallbacks()
   if fallbacks.length() != 3 ||
@@ -157,11 +157,11 @@ fn fused_qkv_readonly_canonical(
   readonly_identity : @luna_paged_composite_artifact_admission.ApprovedPagedAttentionReadOnlyRuntimeIdentity,
   live_device : @device.ContextDeviceIdentity,
   kv_write : @luna_paged_composite_artifact_admission.QualifiedPagedKvWriteFallbackIdentity,
-  qkv_index : Int,
-  rope_index : Int,
-  attention_index : Int,
+  qkv_index : Int32,
+  rope_index : Int32,
+  attention_index : Int32,
   positioned_qkv : @plan.ActivationRef,
-  full_qkv_row_width : Int,
+  full_qkv_row_width : Int32,
 ) -> Bytes {
   let profile = blueprint.profile()
   let layout = blueprint.layout()

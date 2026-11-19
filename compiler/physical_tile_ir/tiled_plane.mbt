@@ -3,17 +3,17 @@
 /// layout defines shared producer/consumer addresses; outer tiles are stored
 /// row-major. No values, scales or numerical operations change.
 pub struct TiledPlane {
-  priv rows : Int
-  priv columns : Int
-  priv tile_rows : Int
+  priv rows : Int32
+  priv columns : Int32
+  priv tile_rows : Int32
   priv layout : OperandLayout
 } derive(Eq, Debug)
 
 ///|
 pub fn TiledPlane::new(
-  rows~ : Int,
-  columns~ : Int,
-  tile_rows~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
+  tile_rows~ : Int32,
   layout~ : OperandLayout,
 ) -> Self? {
   let (width, _, rotations, row_group) = layout.geometry()
@@ -31,12 +31,12 @@ pub fn TiledPlane::new(
 }
 
 ///|
-pub fn TiledPlane::geometry(self : Self) -> (Int, Int, Int, Int) {
+pub fn TiledPlane::geometry(self : Self) -> (Int32, Int32, Int32, Int32) {
   (self.rows, self.columns, self.tile_rows, self.layout.geometry().0)
 }
 
 ///|
-pub fn TiledPlane::offset(self : Self, row : Int, column : Int) -> Int? {
+pub fn TiledPlane::offset(self : Self, row : Int32, column : Int32) -> Int32? {
   guard row >= 0 && row < self.rows && column >= 0 && column < self.columns else {
     return None
   }
@@ -49,7 +49,7 @@ pub fn TiledPlane::offset(self : Self, row : Int, column : Int) -> Int? {
 }
 
 ///|
-pub fn TiledPlane::elements(self : Self) -> Int {
+pub fn TiledPlane::elements(self : Self) -> Int32 {
   self.rows * self.columns
 }
 
@@ -57,3 +57,8 @@ pub fn TiledPlane::elements(self : Self) -> Int {
 pub fn TiledPlane::layout(self : Self) -> OperandLayout {
   self.layout
 }
+
+///|
+pub extend TiledPlane with Eq::{equal, not_equal}
+///|
+pub extend TiledPlane with @debug.Debug::{to_repr}

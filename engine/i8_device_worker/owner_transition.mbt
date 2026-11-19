@@ -1,5 +1,5 @@
 ///|
-fn owner_phase_active_count(phase : I8OwnerSlotPhase) -> Int {
+fn owner_phase_active_count(phase : I8OwnerSlotPhase) -> Int32 {
   match phase {
     OwnerSlotsEmpty | ExecutorConstructionOwner => 0
     RawNumericOwner
@@ -44,7 +44,7 @@ fn owner_transition_allowed(
 }
 
 ///|
-fn active_owner_slot_count(resources : I8DeviceWorkerResources) -> Int {
+fn active_owner_slot_count(resources : I8DeviceWorkerResources) -> Int32 {
   (if resources.executor is Some(_) { 1 } else { 0 }) +
   (if resources.numeric is Some(_) { 1 } else { 0 })
 }
@@ -53,9 +53,9 @@ fn active_owner_slot_count(resources : I8DeviceWorkerResources) -> Int {
 fn validate_owner_transition(
   expected : I8OwnerSlotPhase,
   observed_before : I8OwnerSlotPhase,
-  active_before : Int,
+  active_before : Int32,
   next : I8OwnerSlotPhase,
-  active_after : Int,
+  active_after : Int32,
 ) -> Unit raise I8DeviceWorkerError {
   if observed_before != expected ||
     active_before != owner_phase_active_count(expected) ||

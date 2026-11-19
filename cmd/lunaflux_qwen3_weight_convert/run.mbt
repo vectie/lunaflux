@@ -59,7 +59,7 @@ fn source_limits() -> @qwen3_weights.Qwen3SourceFileLimits raise Qwen3WeightConv
 ///|
 fn numeric_limits(
   payload_bytes : Int64,
-  header_bytes : Int,
+  header_bytes : Int32,
 ) -> @numeric_weight_file.NumericWeightFileLimits raise Qwen3WeightConvertError {
   @numeric_weight_file.NumericWeightFileLimits::new(
     max_file_bytes=payload_bytes + header_bytes.to_int64() + 8L,

@@ -92,7 +92,7 @@ pub fn PredictionMetadata::bind_predictions(
     self.sequence.assembly().mapping() else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }
-  let selected : Map[Int, PredictionVariant] = Map([])
+  let selected : Map[Int32, PredictionVariant] = Map([])
   for variant in variants {
     let count = variant.timestep.source.rows
     guard !selected.contains(count) else {

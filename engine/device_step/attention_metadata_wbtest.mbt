@@ -42,7 +42,7 @@ test "step metadata covers ragged prefill once and excludes decode on every tile
       let record = records + tile * 8
       let row = read_descriptor_i32(host.counts, record)
       let begin = read_descriptor_i32(host.counts, record + 1)
-      let end = Int::min(
+      let end = Int32::min(
         begin + width,
         read_descriptor_i32(host.counts, record + 3),
       )

@@ -23,10 +23,10 @@ pub(all) suberror DecoderTokenHashCudaSourceError {
 pub struct DecoderTokenHashCudaSource {
   priv operation : DecoderTokenHashCudaOperation
   priv numerical_contract : DecoderTokenHashNumericalContract
-  priv vocabulary_size : Int
-  priv experts_per_token : Int
-  priv routed_expert_count : Int
-  priv maximum_rows : Int
+  priv vocabulary_size : Int32
+  priv experts_per_token : Int32
+  priv routed_expert_count : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

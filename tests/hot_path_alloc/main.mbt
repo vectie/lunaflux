@@ -5,21 +5,24 @@ extern "C" fn alloc_probe_begin() = "lunaflux_alloc_probe_begin"
 extern "C" fn alloc_probe_end() -> UInt64 = "lunaflux_alloc_probe_end"
 
 ///|
-extern "C" fn alloc_probe_check(observed : UInt64, expect_zero : Int) -> Int = "lunaflux_alloc_probe_check"
+extern "C" fn alloc_probe_check(
+  observed : UInt64,
+  expect_zero : Int32,
+) -> Int32 = "lunaflux_alloc_probe_check"
 
 ///|
 extern "C" fn alloc_probe_abort() = "lunaflux_alloc_probe_abort"
 
 ///|
-extern "C" fn alloc_probe_seed() -> Int = "lunaflux_alloc_probe_seed"
+extern "C" fn alloc_probe_seed() -> Int32 = "lunaflux_alloc_probe_seed"
 
 ///|
 #borrow(value)
-extern "C" fn keep_array_alive(value : FixedArray[Int]) = "lunaflux_alloc_probe_keep_alive"
+extern "C" fn keep_array_alive(value : FixedArray[Int32]) = "lunaflux_alloc_probe_keep_alive"
 
 ///|
 struct PositiveControl {
-  value : Int
+  value : Int32
 }
 
 ///|
@@ -107,7 +110,7 @@ fn worker_limits() -> @worker_protocol.WorkerProtocolLimits {
 
 ///|
 fn resolved_capacity(
-  prefix? : Bool = false,
+  prefix~ : Bool = false,
 ) -> @runtime_resolved.ResolvedRuntimeCapacity {
   let scheduler = try! @scheduler_config.new(
     step_token_budget=1,
@@ -146,7 +149,7 @@ fn resolved_capacity(
 }
 
 ///|
-fn scheduler(prefix? : Bool = false) -> @scheduler.Scheduler {
+fn scheduler(prefix~ : Bool = false) -> @scheduler.Scheduler {
   let identity = model_identity()
   let generation = @worker_protocol.ModelPlanGeneration::first()
   let recipe = try! @worker_protocol.RowCapabilityRecipe::new(
@@ -378,7 +381,7 @@ fn complete_final_prefill(
 fn complete_decode(
   owner : @scheduler.Scheduler,
   audit : WireAudit,
-  token : Int,
+  token : Int32,
 ) -> Unit {
   let outcome = try! owner.build_next()
   let submitted = try! owner.submitted_plan(outcome)

@@ -20,7 +20,7 @@ test "graph bucket geometry follows the selected matrix distribution" {
     assert_eq(paged_projection_bucket_grid_x(down, 1), 1024 / groups)
     assert_eq(
       paged_projection_bucket_grid_x(down, 32),
-      128 / Int::min(4, groups),
+      128 / Int32::min(4, groups),
     )
     let launch = paged_bucket_launch(dense, 8)
     assert_eq(launch.block_x(), groups * 32)

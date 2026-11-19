@@ -11,7 +11,7 @@ fn invalid(
   area : Qwen35ConfigArea,
   field : Qwen35ConfigField,
   issue : Qwen35ConfigValueIssue,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Qwen35ConfigError {
   InvalidValue(area~, field~, issue~, index~)
 }
@@ -60,7 +60,7 @@ fn parse_decimal_int64(
   text : StringView,
   area : Qwen35ConfigArea,
   field : Qwen35ConfigField,
-  index : Int,
+  index : Int32,
 ) -> Int64 raise Qwen35ConfigError {
   if text.is_empty() {
     raise invalid(area, field, ExpectedInteger, index~)
@@ -99,7 +99,7 @@ fn exact_int64(
   value : Json,
   area : Qwen35ConfigArea,
   field : Qwen35ConfigField,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Int64 raise Qwen35ConfigError {
   guard value is Number(number, repr~) else {
     raise invalid(area, field, ExpectedInteger, index~)
@@ -125,7 +125,7 @@ fn require_int(
   area : Qwen35ConfigArea,
   name : String,
   field : Qwen35ConfigField,
-) -> Int raise Qwen35ConfigError {
+) -> Int32 raise Qwen35ConfigError {
   let value = exact_int64(require_value(object, area, name, field), area, field)
   if value < -2147483648L || value > 2147483647L {
     raise invalid(area, field, ExpectedInteger)
@@ -192,7 +192,7 @@ fn expect_int(
   area : Qwen35ConfigArea,
   name : String,
   field : Qwen35ConfigField,
-  expected : Int,
+  expected : Int32,
 ) -> Unit raise Qwen35ConfigError {
   if require_int(object, area, name, field) != expected {
     raise invalid(area, field, UnsupportedValue)

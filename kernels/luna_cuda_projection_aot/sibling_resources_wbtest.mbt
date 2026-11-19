@@ -1,6 +1,6 @@
 ///|
 fn sibling_resource_test_parameters(
-  family? : ProjectionAotFamily = GatedMlp,
+  family~ : ProjectionAotFamily = GatedMlp,
 ) -> ProjectionParameters {
   {
     family,
@@ -18,8 +18,8 @@ fn sibling_resource_test_parameters(
 ///|
 fn sibling_resource_test_strategy(
   runtime : @luna_projection_strategy.ProjectionRuntimeDispatch,
-  rows : Int,
-  groups : Int,
+  rows : Int32,
+  groups : Int32,
 ) -> @luna_projection_strategy.ProjectionStrategy raise {
   for
     strategy in runtime

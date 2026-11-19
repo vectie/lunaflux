@@ -2,9 +2,9 @@
 fn new_workload(
   kind : WorkloadExecutionKind,
   identity : @spec.ModelIdentity,
-  schema_version : Int,
-  decoder_layer_count : Int?,
-  maximum_token_context : Int?,
+  schema_version : Int32,
+  decoder_layer_count : Int32?,
+  maximum_token_context : Int32?,
 ) -> WorkloadExecutionPlan raise WorkloadExecutionPlanError {
   if schema_version <= 0 {
     raise InvalidSchemaVersion
@@ -33,9 +33,9 @@ fn new_workload(
 ///|
 pub fn WorkloadExecutionPlan::decoder_only(
   identity~ : @spec.ModelIdentity,
-  schema_version~ : Int,
-  decoder_layer_count~ : Int,
-  maximum_token_context~ : Int,
+  schema_version~ : Int32,
+  decoder_layer_count~ : Int32,
+  maximum_token_context~ : Int32,
 ) -> WorkloadExecutionPlan raise WorkloadExecutionPlanError {
   new_workload(
     DecoderOnlyText,
@@ -49,9 +49,9 @@ pub fn WorkloadExecutionPlan::decoder_only(
 ///|
 pub fn WorkloadExecutionPlan::multimodal_conditional(
   identity~ : @spec.ModelIdentity,
-  schema_version~ : Int,
-  decoder_layer_count~ : Int,
-  maximum_token_context~ : Int,
+  schema_version~ : Int32,
+  decoder_layer_count~ : Int32,
+  maximum_token_context~ : Int32,
 ) -> WorkloadExecutionPlan raise WorkloadExecutionPlanError {
   new_workload(
     MultimodalConditionalGeneration,
@@ -65,7 +65,7 @@ pub fn WorkloadExecutionPlan::multimodal_conditional(
 ///|
 pub fn WorkloadExecutionPlan::joint_audio_video_diffusion(
   identity~ : @spec.ModelIdentity,
-  schema_version~ : Int,
+  schema_version~ : Int32,
 ) -> WorkloadExecutionPlan raise WorkloadExecutionPlanError {
   new_workload(JointAudioVideoDiffusion, identity, schema_version, None, None)
 }
@@ -81,16 +81,16 @@ pub fn WorkloadExecutionPlan::identity(self : Self) -> @spec.ModelIdentity {
 }
 
 ///|
-pub fn WorkloadExecutionPlan::schema_version(self : Self) -> Int {
+pub fn WorkloadExecutionPlan::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 
 ///|
-pub fn WorkloadExecutionPlan::decoder_layer_count(self : Self) -> Int? {
+pub fn WorkloadExecutionPlan::decoder_layer_count(self : Self) -> Int32? {
   self.decoder_layer_count
 }
 
 ///|
-pub fn WorkloadExecutionPlan::maximum_token_context(self : Self) -> Int? {
+pub fn WorkloadExecutionPlan::maximum_token_context(self : Self) -> Int32? {
   self.maximum_token_context
 }

@@ -5,7 +5,7 @@
 /// explicit bundle choice and independent accuracy qualification.
 fn reference_prefill_plan(
   source : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi,
-  schedule? : @luna_cuda_reference_attention.ReferencePrefillSchedule = Query64Kv128,
+  schedule~ : @luna_cuda_reference_attention.ReferencePrefillSchedule = Query64Kv128,
 ) -> @luna_cuda_reference_attention.ReferenceAttentionPlan? {
   let (query_heads, key_value_heads, head_dimension, tokens_per_page) = source.shape()
   let (input_row_width, page_stride_values, physical_page_capacity) = source.layout()
@@ -39,7 +39,7 @@ fn reference_prefill_plan(
 async fn publish_reference_prefill_candidate(
   output : String,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
-  operation : Int,
+  operation : Int32,
   abi : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi,
 ) -> Unit raise Qwen3Bf16CandidateExportCliError {
   for
@@ -55,7 +55,7 @@ async fn publish_reference_prefill_candidate(
 async fn publish_reference_prefill_schedule(
   output : String,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
-  operation : Int,
+  operation : Int32,
   abi : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi,
   schedule : @luna_cuda_reference_attention.ReferencePrefillSchedule,
 ) -> Unit raise Qwen3Bf16CandidateExportCliError {

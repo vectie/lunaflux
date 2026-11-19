@@ -16,8 +16,8 @@ pub extend PackedCheckpointError with @debug.Debug::{to_repr}
 
 ///|
 priv struct CheckpointLocation {
-  shard : Int
-  tensor : Int
+  shard : Int32
+  tensor : Int32
   metadata : @streaming.StreamingSafetensorsTensorMetadata
 }
 
@@ -209,7 +209,7 @@ pub fn PackedCheckpointWeight::buffer_bytes(self : Self) -> Int64 {
 ///|
 fn transfer_plane(
   location : CheckpointLocation,
-  destination : Int,
+  destination : Int32,
   offset : Int64,
 ) -> @streaming.StreamingSafetensorsTransfer raise PackedCheckpointError {
   @streaming.StreamingSafetensorsTransfer::new(
@@ -235,7 +235,7 @@ pub fn PackedCheckpoint::transfer_weights(
   weights : ArrayView[PackedCheckpointWeight],
   scratch~ : FixedArray[Byte],
   limits~ : @streaming.StreamingSafetensorsLimits,
-  consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume~ : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise PackedCheckpointError {
   self.transfer_weights_to(
     root,
@@ -256,11 +256,11 @@ pub fn PackedCheckpoint::transfer_weights_to(
   self : Self,
   root : @approved_fs.ApprovedRoot,
   weights : ArrayView[PackedCheckpointWeight],
-  destinations~ : ArrayView[(Int, Int64)],
+  destinations~ : ArrayView[(Int32, Int64)],
   destination_bytes~ : ArrayView[Int64],
   scratch~ : FixedArray[Byte],
   limits~ : @streaming.StreamingSafetensorsLimits,
-  consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume~ : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise PackedCheckpointError {
   if destinations.length() != weights.length() {
     raise InvalidDestinationMapping

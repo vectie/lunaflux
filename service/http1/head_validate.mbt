@@ -1,5 +1,5 @@
 ///|
-fn luna_http1_header_name_byte(kind : Int, index : Int) -> Byte {
+fn luna_http1_header_name_byte(kind : Int32, index : Int32) -> Byte {
   match kind {
     LUNA_HTTP1_HEADER_AUTHORIZATION =>
       match index {
@@ -73,7 +73,7 @@ fn luna_http1_header_name_byte(kind : Int, index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_content_type_byte(index : Int) -> Byte {
+fn luna_http1_content_type_byte(index : Int32) -> Byte {
   match index {
     0 => b'a'
     1 => b'p'
@@ -95,7 +95,7 @@ fn luna_http1_content_type_byte(index : Int) -> Byte {
 }
 
 ///|
-fn luna_http1_bearer_prefix_byte(index : Int) -> Byte {
+fn luna_http1_bearer_prefix_byte(index : Int32) -> Byte {
   match index {
     0 => b'b'
     1 => b'e'

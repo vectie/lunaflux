@@ -63,7 +63,7 @@ fn candidate_target_name(
 }
 
 ///|
-fn candidate_key(operation_id : Int, family : String) -> String {
+fn candidate_key(operation_id : Int32, family : String) -> String {
   let id = operation_id.to_string()
   "op_" + "0".repeat(8 - id.length()) + id + "_" + family
 }
@@ -241,10 +241,10 @@ pub fn prepare_luna_bf16_candidate_set(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : LunaBf16CandidateSetLimits,
-  projection_records? : ArrayView[
+  projection_records~ : ArrayView[
     @luna_projection_strategy.ProjectionAutotuneRecord,
   ] = [],
-  fold_records? : ArrayView[@luna_projection_tuning.ProjectionFoldRecord] = [],
+  fold_records~ : ArrayView[@luna_projection_tuning.ProjectionFoldRecord] = [],
 ) -> LunaBf16CandidateSet raise LunaBf16KernelProducerError {
   let operations = model_plan.operations()
   if operations.length() < 9 || operations.length() > limits.max_operations {

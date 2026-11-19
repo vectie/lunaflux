@@ -1,19 +1,19 @@
 ///|
 pub struct TimestepMlpLayout {
-  priv rows : Int
-  priv input_width : Int
-  priv hidden_width : Int
-  priv output_width : Int
+  priv rows : Int32
+  priv input_width : Int32
+  priv hidden_width : Int32
+  priv output_width : Int32
   scratch_bytes : Int64
   output_bytes : Int64
 }
 
 ///|
 pub fn TimestepMlpLayout::new(
-  rows~ : Int,
-  input_width~ : Int,
-  hidden_width~ : Int,
-  output_width~ : Int,
+  rows~ : Int32,
+  input_width~ : Int32,
+  hidden_width~ : Int32,
+  output_width~ : Int32,
 ) -> Self raise @device.DeviceError {
   guard rows > 0 &&
     input_width > 0 &&

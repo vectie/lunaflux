@@ -3,7 +3,7 @@ pub struct GroupedAttentionOutputCudaSource {
   priv plan : @precision.GroupedAttentionOutputPrecision
   priv source : Bytes
   priv symbols : ReadOnlyArray[String]
-  priv output_launch : (Int, Int, Int)
+  priv output_launch : (Int32, Int32, Int32)
 }
 
 ///|
@@ -13,8 +13,8 @@ pub fn grouped_attention_output_source(
 ) -> GroupedAttentionOutputCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (_, _, _, rows, _) = plan.rotary().geometry()
@@ -92,7 +92,7 @@ pub fn GroupedAttentionOutputCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn GroupedAttentionOutputCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String {
   self.symbols[stage]
 }
@@ -100,8 +100,8 @@ pub fn GroupedAttentionOutputCudaSource::symbol(
 ///|
 pub fn GroupedAttentionOutputCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (heads, _, _, rows, _) = self.plan.rotary().geometry()
   let (groups, _, _, _) = self.plan.geometry()
   match stage {

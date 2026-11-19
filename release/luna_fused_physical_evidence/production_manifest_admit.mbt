@@ -209,7 +209,7 @@ fn fused_production_family(
   expected_fallback_roles : ArrayView[
     @luna_fused_artifact_admission.FusedStandaloneFallbackRole,
   ],
-  physical_dispatch_canary_per_token : UInt,
+  physical_dispatch_canary_per_token : UInt32,
 ) -> ApprovedFusedProductionFamily raise FusedProductionManifestError {
   if compiled.manifest_bindable() ||
     compiled.candidate_digest() != physical_candidate ||

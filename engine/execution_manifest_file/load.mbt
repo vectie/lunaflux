@@ -15,9 +15,9 @@ pub fn load_paged(
   target : @catalog.DeviceTarget,
   device_step_limits : @device_step.DeviceStepLimits,
   limits : ExecutionManifestFileLimits,
-  luna_approval? : @worker_wire.WorkerBootstrapLunaApproval? = None,
-  luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
-  luna_parent_witness? : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
+  luna_approval~ : @worker_wire.WorkerBootstrapLunaApproval? = None,
+  luna_verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  luna_parent_witness~ : @luna_capability_manifest.LunaParentStartupApprovalWitness? = None,
 ) -> PagedExecutionAdmission raise ExecutionManifestFileError {
   let shape = model_plan.shape_constraints()
   if shape.max_batch_rows() != device_step_limits.max_rows() ||

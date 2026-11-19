@@ -16,14 +16,14 @@ fn fixture_digest(
 
 ///|
 fn fixture_content(
-  value? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  value~ : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 ) -> @spec.ContentDigest {
   try! @spec.ContentDigest::from_sha256(value)
 }
 
 ///|
 fn fixture_limits(
-  maximum_bytes? : Int64 = 4096L,
+  maximum_bytes~ : Int64 = 4096L,
 ) -> @config_file.ModelConfigFileLimits {
   try! @config_file.ModelConfigFileLimits::new(maximum_bytes~, maximum_depth=8)
 }

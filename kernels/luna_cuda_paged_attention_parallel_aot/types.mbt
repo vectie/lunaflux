@@ -1,24 +1,24 @@
 ///|
-const PAGED_ATTENTION_PARALLEL_BLOCK_THREADS : Int = 128
+const PAGED_ATTENTION_PARALLEL_BLOCK_THREADS : Int32 = 128
 
 ///|
-const PAGED_ATTENTION_PARALLEL_MAX_CONTEXT : Int = 8192
+const PAGED_ATTENTION_PARALLEL_MAX_CONTEXT : Int32 = 8192
 
 ///|
-const PAGED_ATTENTION_PARALLEL_MAX_SHARED_BYTES : Int = 48 * 1024
+const PAGED_ATTENTION_PARALLEL_MAX_SHARED_BYTES : Int32 = 48 * 1024
 
 ///|
 pub struct PagedAttentionParallelAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
-  priv max_canonical_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
+  priv max_canonical_bytes : Int32
 }
 
 ///|
 pub fn PagedAttentionParallelAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
-  max_canonical_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
+  max_canonical_bytes~ : Int32,
 ) -> PagedAttentionParallelAotLimits raise PagedAttentionParallelAotError {
   if max_source_bytes <= 0 ||
     max_source_bytes > 16777216 ||
@@ -42,7 +42,7 @@ pub fn PagedAttentionParallelDigest::from_sha256(
     raise PagedAttentionParallelInvalid(Digest)
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       raise PagedAttentionParallelInvalid(Digest)
     }
   }
@@ -111,8 +111,8 @@ pub struct PagedAttentionParallelCudaCandidate {
   priv reference : @luna_cuda_paged_attention_aot.PagedAttentionCudaLowering
   priv entry_point_id : @catalog.AotKernelEntryPointId
   priv dimensions : @launch_contract.AotLaunchDimensions
-  priv maximum_context_tokens : Int
-  priv shared_memory_bytes : Int
+  priv maximum_context_tokens : Int32
+  priv shared_memory_bytes : Int32
   priv tile_program_digest : @luna_tile_ir.LunaTileProgramDigest
   priv tile_aot_digest : @luna_tile_ir.LunaTileCudaAotDigest
   priv numerical_policy : PagedAttentionParallelNumericalPolicy
@@ -148,28 +148,28 @@ pub fn PagedAttentionParallelCudaCandidate::profile(
 ///|
 pub fn PagedAttentionParallelCudaCandidate::query_heads(
   self : PagedAttentionParallelCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.reference.query_heads()
 }
 
 ///|
 pub fn PagedAttentionParallelCudaCandidate::kv_heads(
   self : PagedAttentionParallelCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.reference.kv_heads()
 }
 
 ///|
 pub fn PagedAttentionParallelCudaCandidate::head_dimension(
   self : PagedAttentionParallelCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.reference.head_dimension()
 }
 
 ///|
 pub fn PagedAttentionParallelCudaCandidate::tokens_per_page(
   self : PagedAttentionParallelCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.reference.tokens_per_page()
 }
 
@@ -190,14 +190,14 @@ pub fn PagedAttentionParallelCudaCandidate::launch_dimensions(
 ///|
 pub fn PagedAttentionParallelCudaCandidate::maximum_context_tokens(
   self : PagedAttentionParallelCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.maximum_context_tokens
 }
 
 ///|
 pub fn PagedAttentionParallelCudaCandidate::shared_memory_bytes(
   self : PagedAttentionParallelCudaCandidate,
-) -> Int {
+) -> Int32 {
   self.shared_memory_bytes
 }
 

@@ -14,7 +14,7 @@ pub(all) enum ProjectionSingleRowNumerics {
 /// Subgroup instruction names and lane-movement primitives belong in lowering.
 pub(all) enum ProjectionSingleRowReduction {
   OrderedDot
-  StridedPairwiseDot(Int)
+  StridedPairwiseDot(Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -39,3 +39,15 @@ pub fn ProjectionTileSchedule::single_row_reduction(
 ) -> ProjectionSingleRowReduction {
   self.single_row_reduction
 }
+
+///|
+pub extend ProjectionSingleRowNumerics with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionSingleRowNumerics with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionSingleRowReduction with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionSingleRowReduction with Eq::{not_equal, equal}

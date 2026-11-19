@@ -1,29 +1,29 @@
 ///|
-let plan_magic : UInt = 0x3158464c
+let plan_magic : UInt32 = 0x3158464c
 
 ///|
-let wire_version : UInt = 1
+let wire_version : UInt32 = 1
 
 ///|
-let plan_kind : UInt = 1
+let plan_kind : UInt32 = 1
 
 ///|
-let plan_header_bytes : Int = 64
+let plan_header_bytes : Int32 = 64
 
 ///|
-let plan_checksum_offset : Int = 60
+let plan_checksum_offset : Int32 = 60
 
 ///|
-let prefill_row_bytes : Int = 96
+let prefill_row_bytes : Int32 = 96
 
 ///|
-let decode_row_bytes : Int = 88
+let decode_row_bytes : Int32 = 88
 
 ///|
-let max_plan_frame_bytes : Int = 268435456
+let max_plan_frame_bytes : Int32 = 268435456
 
 ///|
-fn checked_wire_add(left : Int, right : Int) -> Int raise WorkerWireError {
+fn checked_wire_add(left : Int32, right : Int32) -> Int32 raise WorkerWireError {
   if left < 0 || right < 0 || left > max_plan_frame_bytes - right {
     raise InvalidLimit(PlanFrameBytes)
   }
@@ -31,7 +31,10 @@ fn checked_wire_add(left : Int, right : Int) -> Int raise WorkerWireError {
 }
 
 ///|
-fn checked_wire_product(left : Int, right : Int) -> Int raise WorkerWireError {
+fn checked_wire_product(
+  left : Int32,
+  right : Int32,
+) -> Int32 raise WorkerWireError {
   if left < 0 || right < 0 || (left > 0 && right > max_plan_frame_bytes / left) {
     raise InvalidLimit(PlanFrameBytes)
   }
@@ -41,7 +44,7 @@ fn checked_wire_product(left : Int, right : Int) -> Int raise WorkerWireError {
 ///|
 pub fn plan_frame_byte_capacity(
   limits : @worker_protocol.WorkerProtocolLimits,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   let tokens_end = checked_wire_add(
     plan_header_bytes,
     checked_wire_product(limits.max_plan_tokens(), 4),
@@ -66,12 +69,12 @@ pub fn plan_frame_byte_capacity(
 
 ///|
 fn exact_plan_frame_bytes(
-  token_count : Int,
-  page_count : Int,
-  capability_count : Int,
-  prefill_count : Int,
-  decode_count : Int,
-) -> Int raise WorkerWireError {
+  token_count : Int32,
+  page_count : Int32,
+  capability_count : Int32,
+  prefill_count : Int32,
+  decode_count : Int32,
+) -> Int32 raise WorkerWireError {
   let tokens_end = checked_wire_add(
     plan_header_bytes,
     checked_wire_product(token_count, 4),
@@ -95,36 +98,36 @@ fn exact_plan_frame_bytes(
 }
 
 ///|
-fn token_table_offset() -> Int {
+fn token_table_offset() -> Int32 {
   plan_header_bytes
 }
 
 ///|
-fn page_table_offset(token_count : Int) -> Int {
+fn page_table_offset(token_count : Int32) -> Int32 {
   plan_header_bytes + token_count * 4
 }
 
 ///|
-fn capability_table_offset(token_count : Int, page_count : Int) -> Int {
+fn capability_table_offset(token_count : Int32, page_count : Int32) -> Int32 {
   page_table_offset(token_count) + page_count * 8
 }
 
 ///|
 fn prefill_table_offset(
-  token_count : Int,
-  page_count : Int,
-  capability_count : Int,
-) -> Int {
+  token_count : Int32,
+  page_count : Int32,
+  capability_count : Int32,
+) -> Int32 {
   capability_table_offset(token_count, page_count) + capability_count * 4
 }
 
 ///|
 fn decode_table_offset(
-  token_count : Int,
-  page_count : Int,
-  capability_count : Int,
-  prefill_count : Int,
-) -> Int {
+  token_count : Int32,
+  page_count : Int32,
+  capability_count : Int32,
+  prefill_count : Int32,
+) -> Int32 {
   prefill_table_offset(token_count, page_count, capability_count) +
   prefill_count * prefill_row_bytes
 }

@@ -2,7 +2,7 @@
 fn request_budget(
   bytes : FixedArray[Byte],
   inference : @inference.InferenceLimits,
-) -> Int raise {
+) -> Int32 raise {
   @framed_wire.RequestFrameBuffer::new(
     @framed_wire.FramedWireLimits::new(inference, max_frame_bytes=4096),
   )

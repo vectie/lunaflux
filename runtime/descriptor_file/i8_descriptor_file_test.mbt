@@ -73,7 +73,7 @@ async fn with_hostile_i8_descendants(
 }
 
 ///|
-fn assert_i8_preflight_error(kind : Int, error : Error) -> Unit {
+fn assert_i8_preflight_error(kind : Int32, error : Error) -> Unit {
   match (kind, error) {
     (0, @descriptor_file.AdmissionRejected(ModelConfig)) => ()
     (1, @descriptor_file.AdmissionRejected(ModelIdentity)) => ()
@@ -96,7 +96,7 @@ fn assert_i8_preflight_error(kind : Int, error : Error) -> Unit {
 ///|
 async test "I8 scalar and lexical failures precede hostile descendants" {
   let canonical = i8_public_descriptor_fixture()
-  let cases : Array[(String, Int)] = [
+  let cases : Array[(String, Int32)] = [
     (
       canonical.replace(
         old="\"config_locator\":\"config.json\"",

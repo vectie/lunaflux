@@ -116,8 +116,8 @@ fn i8_admission_operations() -> Array[@plan.PlanOperation] {
 
 ///|
 fn i8_admission_plan(
-  mode : Int,
-  identity_seed? : String = "base",
+  mode : Int32,
+  identity_seed~ : String = "base",
 ) -> @plan.ModelPlan {
   let operations = i8_admission_operations()
   let gated_id = try! @plan.OperationId::new(1)
@@ -163,9 +163,9 @@ fn i8_admission_layout(plan : @plan.ModelPlan) -> @device_layout.DeviceKvLayout 
 
 ///|
 fn i8_admission_device(
-  major? : Int = 8,
-  minor? : Int = 9,
-  cublas_lt? : Bool = true,
+  major~ : Int32 = 8,
+  minor~ : Int32 = 9,
+  cublas_lt~ : Bool = true,
 ) -> @device.DeviceNumericCapability {
   let observed = try! @device.DeviceCapability::from_observed_facts(
     compute_major=major,
@@ -191,9 +191,9 @@ fn i8_admission_fp8_device() -> @device.DeviceNumericCapability {
 
 ///|
 fn i8_admission_target(
-  major? : Int = 8,
-  minor? : Int = 9,
-  cublas_lt? : Bool = true,
+  major~ : Int32 = 8,
+  minor~ : Int32 = 9,
+  cublas_lt~ : Bool = true,
 ) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=major,
@@ -206,7 +206,7 @@ fn i8_admission_target(
 ///|
 fn i8_admission_operation_digest(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
 ) -> @numeric_contract.OperationExecutionDigest {
   plan.numeric_binding().operations()[index].execution().digest()
 }
@@ -214,7 +214,7 @@ fn i8_admission_operation_digest(
 ///|
 fn i8_admission_family(
   module_digest : String,
-  id : Int,
+  id : Int32,
 ) -> @catalog.AotKernelFamily {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(module_digest)
   let family_id = try! @catalog.AotKernelFamilyId::from_stable_int(id)
@@ -248,9 +248,9 @@ fn i8_admission_semantics(
 ///|
 fn i8_admission_entry(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
   module_digest : String,
-  entry_offset? : Int = 0,
+  entry_offset~ : Int32 = 0,
 ) -> @catalog.CatalogEntry {
   let operation = plan.operations()[index]
   let family = i8_admission_family(module_digest, index + 1)
@@ -277,10 +277,10 @@ fn i8_admission_entry(
 ///|
 fn i8_admission_resolved(
   plan : @plan.ModelPlan,
-  module_digest? : String = "13579bdf02468ace13579bdf02468ace13579bdf02468ace13579bdf02468ace",
-  entry_offset? : Int = 0,
-  reverse_catalog? : Bool = false,
-  cublas_lt? : Bool = true,
+  module_digest~ : String = "13579bdf02468ace13579bdf02468ace13579bdf02468ace13579bdf02468ace",
+  entry_offset~ : Int32 = 0,
+  reverse_catalog~ : Bool = false,
+  cublas_lt~ : Bool = true,
 ) -> @catalog.ResolvedKernelCatalog {
   let entries : Array[@catalog.CatalogEntry] = []
   if reverse_catalog {
@@ -344,9 +344,9 @@ fn i8_admission_legacy_resolved(
 
 ///|
 fn i8_admission_limits(
-  max_operations? : Int = 8,
-  max_weights? : Int = 16,
-  max_canonical_bytes? : Int = 16384,
+  max_operations~ : Int32 = 8,
+  max_weights~ : Int32 = 16,
+  max_canonical_bytes~ : Int32 = 16384,
 ) -> @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionLimits {
   try! @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionLimits::new(
     max_operations~,
@@ -359,8 +359,8 @@ fn i8_admission_limits(
 fn i8_admit_fixture(
   plan : @plan.ModelPlan,
   resolved : @catalog.ResolvedKernelCatalog,
-  device? : @device.DeviceNumericCapability = i8_admission_device(),
-  limits? : @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionLimits = i8_admission_limits(),
+  device~ : @device.DeviceNumericCapability = i8_admission_device(),
+  limits~ : @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionLimits = i8_admission_limits(),
 ) -> @i8_inert_capability_admission.I8InertKernelCapabilityAdmission {
   try! @i8_inert_capability_admission.admit_catalog_only_symmetric_i8_weight_only_v1(
     plan, device, resolved, limits,

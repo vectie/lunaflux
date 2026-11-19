@@ -4,19 +4,19 @@
 /// A zero logical capacity has one physical sentinel row, never a readable row.
 /// CUDA submission geometry and model/compression names do not belong here.
 pub struct RetainedRowsPrecision {
-  priv width : Int
-  priv stride : Int
-  priv rows : Int
-  priv capacity : Int
+  priv width : Int32
+  priv stride : Int32
+  priv rows : Int32
+  priv capacity : Int32
   priv states : ReadOnlyArray[Int64]
 }
 
 ///|
 pub fn RetainedRowsPrecision::new(
-  word_width~ : Int,
-  position_stride~ : Int,
-  maximum_input_rows~ : Int,
-  maximum_stored_rows~ : Int,
+  word_width~ : Int32,
+  position_stride~ : Int32,
+  maximum_input_rows~ : Int32,
+  maximum_stored_rows~ : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise PrecisionPlanError {
@@ -52,7 +52,9 @@ pub fn RetainedRowsPrecision::new(
 }
 
 ///|
-pub fn RetainedRowsPrecision::geometry(self : Self) -> (Int, Int, Int, Int) {
+pub fn RetainedRowsPrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32) {
   (self.width, self.stride, self.rows, self.capacity)
 }
 

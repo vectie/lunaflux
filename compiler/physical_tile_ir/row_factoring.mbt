@@ -27,8 +27,8 @@ pub fn OperandRowFactoring::layout(self : OperandRowFactoring) -> OperandLayout 
 /// is checked once and can serve every column in the retained row domain.
 pub fn OperandRowFactoring::row(
   self : OperandRowFactoring,
-  row : Int,
-) -> (Int, Int)? {
+  row : Int32,
+) -> (Int32, Int32)? {
   let (columns, vector, rotations, row_group) = self.layout.geometry()
   guard row >= 0 else { return None }
   let origin = row.to_int64() * columns.to_int64()
@@ -39,9 +39,9 @@ pub fn OperandRowFactoring::row(
 ///|
 pub fn OperandRowFactoring::column(
   self : OperandRowFactoring,
-  permutation : Int,
-  column : Int,
-) -> Int? {
+  permutation : Int32,
+  column : Int32,
+) -> Int32? {
   let (columns, vector, rotations, _) = self.layout.geometry()
   guard column >= 0 &&
     column < columns &&

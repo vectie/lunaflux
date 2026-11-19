@@ -9,7 +9,7 @@ pub fn upload_bank(
   plan : @precision.ExpertMlpPrecision,
   bank : @device.Allocation,
   weights~ : ArrayView[@materialize.PackedCheckpointWeight],
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard chunk_bytes > 0 && weights.length() == plan.local_experts().length() * 3 else {

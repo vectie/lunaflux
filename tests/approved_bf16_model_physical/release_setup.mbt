@@ -1,11 +1,11 @@
 ///|
-const APPROVED_CONTEXT_TOKENS : Int = 256
+const APPROVED_CONTEXT_TOKENS : Int32 = 256
 
 ///|
-const APPROVED_TOKENS_PER_PAGE : Int = 8
+const APPROVED_TOKENS_PER_PAGE : Int32 = 8
 
 ///|
-const APPROVED_CONTEXT_PAGE_COUNT : Int = 32
+const APPROVED_CONTEXT_PAGE_COUNT : Int32 = 32
 
 ///|
 fn approved_target() -> @catalog.DeviceTarget raise {
@@ -45,9 +45,9 @@ fn approved_kv_layout(
 ///|
 fn approved_compiler_policy(
   toolchain_sha256 : String,
-  compiler_major : UInt,
-  compiler_minor : UInt,
-  compiler_patch : UInt,
+  compiler_major : UInt32,
+  compiler_minor : UInt32,
+  compiler_patch : UInt32,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   if compiler_major == 0U ||
     compiler_major > 999999U ||
@@ -73,9 +73,9 @@ fn approved_compiler_policy(
 fn approved_candidate_set(
   inputs : ApprovedBf16Inputs,
   toolchain_sha256 : String,
-  compiler_major : UInt,
-  compiler_minor : UInt,
-  compiler_patch : UInt,
+  compiler_major : UInt32,
+  compiler_minor : UInt32,
+  compiler_patch : UInt32,
 ) -> @luna_bf16_kernel_producer.LunaBf16CandidateSet raise {
   @luna_bf16_kernel_producer.prepare_luna_bf16_candidate_set(
     inputs.plan,

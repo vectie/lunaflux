@@ -1,8 +1,8 @@
 ///|
 fn output_b_projection_operands_are_exact(
-  rank : Int,
-  groups : Int,
-  hidden : Int,
+  rank : Int32,
+  groups : Int32,
+  hidden : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,

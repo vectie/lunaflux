@@ -138,7 +138,7 @@ fn validate_paged_physical_regions(
 fn paged_function_index(
   functions : Array[PagedFunctionBlueprint],
   identity : @catalog.AotKernelEntryPoint,
-) -> Int? {
+) -> Int32? {
   for index, function in functions {
     if function.identity == identity {
       return Some(index)
@@ -150,9 +150,9 @@ fn paged_function_index(
 ///|
 fn paged_function_symbol_index(
   functions : Array[PagedFunctionBlueprint],
-  module_index : Int,
+  module_index : Int32,
   symbol : StringView,
-) -> Int? {
+) -> Int32? {
   for index, function in functions {
     if function.module_index == module_index &&
       function.symbol == symbol.to_owned() {
@@ -171,7 +171,11 @@ fn paged_step_has_split_decode_mlp(step : PagedKvExecutionStep) -> Bool {
 ///|
 fn collect_paged_functions(
   blueprint : PagedKvExecutionBlueprint,
-) -> (ReadOnlyArray[PagedFunctionBlueprint], FixedArray[Int], FixedArray[Int]) {
+) -> (
+  ReadOnlyArray[PagedFunctionBlueprint],
+  FixedArray[Int32],
+  FixedArray[Int32],
+) {
   let functions : Array[PagedFunctionBlueprint] = []
   let indices = FixedArray::make(blueprint.steps().length(), 0)
   let split_decode_indices = FixedArray::make(blueprint.steps().length(), -1)
@@ -280,13 +284,13 @@ fn load_paged_functions(
 ///|
 fn prepare_paged_steps(
   blueprint : PagedKvExecutionBlueprint,
-  function_indices : FixedArray[Int],
+  function_indices : FixedArray[Int32],
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation_workspace : @device.Allocation,
   persistent_kv : @device.Allocation,
-  project_output_rows? : Bool = false,
-  effect_operation_prefix? : Int = 0,
+  project_output_rows~ : Bool = false,
+  effect_operation_prefix~ : Int32 = 0,
 ) -> ReadOnlyArray[PreparedPagedGraphStep] raise DeviceStepError {
   let prepared : Array[PreparedPagedGraphStep] = []
   for step_index, step in blueprint.steps() {
@@ -385,19 +389,19 @@ pub fn prepare_paged_graph_executor(
   artifacts : @artifact.KernelArtifactBundle,
   has_accepted_predecessor~ : Bool,
   accepted_predecessor_value~ : UInt64,
-  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
-  graph_policy? : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
-  fused_residual_spans? : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
+  luna_authorization~ : @luna_artifact_admission.LunaAotKernelAdmission? = None,
+  graph_policy~ : PagedGraphExecutionPolicy = PagedOrderedEagerOnly,
+  fused_residual_spans~ : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan] = ReadOnlyArray::from_array([],
   ),
-  fused_qkv_readonly_span? : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
-  qwen_fused_attention_spans? : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
+  fused_qkv_readonly_span~ : ApprovedFusedQkvReadOnlyAttentionSpan? = None,
+  qwen_fused_attention_spans~ : ReadOnlyArray[ApprovedQwenFusedAttentionSpan] = ReadOnlyArray::from_array([],
   ),
-  decode_split_bindings? : ReadOnlyArray[
+  decode_split_bindings~ : ReadOnlyArray[
     @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitRuntimeCudaBinding,
   ] = ReadOnlyArray::from_array([]),
-  decode_split_maximum_workspace_bytes? : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
-  diagnostic_policy? : PagedExecutionDiagnosticPolicy = ProductionFastPath,
-  sampling_policy? : PagedSamplingExecutionPolicy = PagedHostSampling,
+  decode_split_maximum_workspace_bytes~ : Int64 = PAGED_DECODE_SPLIT_MAXIMUM_WORKSPACE_BYTES,
+  diagnostic_policy~ : PagedExecutionDiagnosticPolicy = ProductionFastPath,
+  sampling_policy~ : PagedSamplingExecutionPolicy = PagedHostSampling,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let blueprint = admit_paged_graph_execution_blueprint(
     model_plan,

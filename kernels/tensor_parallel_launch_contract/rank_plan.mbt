@@ -3,7 +3,7 @@ const TP_MAX_INT64 : Int64 = 9223372036854775807L
 
 ///|
 fn tensor_reference(
-  index : Int,
+  index : Int32,
 ) -> @plan.TensorRef raise TensorParallelLaunchContractError {
   @plan.TensorRef::new(index) catch {
     _ => raise invalid(TensorExtent, operation=index)
@@ -14,8 +14,8 @@ fn tensor_reference(
 fn validate_rank_plan(
   model : @plan.ModelPlan,
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
-  expected_rank : Int,
-  expected_world_size : Int,
+  expected_rank : Int32,
+  expected_world_size : Int32,
 ) -> Unit raise TensorParallelLaunchContractError {
   let topology = rank_plan.topology()
   if rank_plan.identity() != model.identity() {

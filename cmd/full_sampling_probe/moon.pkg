@@ -15,6 +15,11 @@ import {
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/sampling",
 }
+
 supported_targets = "native"
+
 pkgtype(kind: "executable")
-options(link: { "native": { "cc-link-flags": "-pthread -ldl" } })
+
+options(
+  link: { "native": { "cc-link-flags": "-pthread -ldl" } },
+)

@@ -1,8 +1,8 @@
 ///|
 fn tile_plane(
-  rows : Int,
-  columns : Int,
-  tile_rows : Int,
+  rows : Int32,
+  columns : Int32,
+  tile_rows : Int32,
   payload : Bool,
 ) -> @physical_tile_ir.TiledPlane {
   @physical_tile_ir.TiledPlane::new(
@@ -34,7 +34,7 @@ fn tile_address(
 /// byte size, scale identity, global scale and numerical publication contracts.
 fn fp4_tile_bank_source(
   plan : @precision_ir.ExpertMlpPrecision,
-  tile_columns : Int,
+  tile_columns : Int32,
   symbol : String,
 ) -> String raise {
   let (_, hidden, intermediate, _, _) = plan.geometry()

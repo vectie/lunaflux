@@ -2,9 +2,9 @@
 /// Bounded ahead-of-use operand values. Consuming a window remains ordered in
 /// K; loading the next value into a temporary does not advance the accumulator.
 pub struct ProjectionOperandWindow {
-  priv extent : Int
-  priv quantum : Int
-  priv slots : Int
+  priv extent : Int32
+  priv quantum : Int32
+  priv slots : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -15,9 +15,9 @@ pub extend ProjectionOperandWindow with @debug.Debug::{to_repr}
 
 ///|
 pub fn ProjectionOperandWindow::new(
-  extent~ : Int,
-  quantum~ : Int,
-  slots~ : Int,
+  extent~ : Int32,
+  quantum~ : Int32,
+  slots~ : Int32,
 ) -> ProjectionOperandWindow? {
   guard extent > 0 &&
     quantum > 0 &&
@@ -32,7 +32,7 @@ pub fn ProjectionOperandWindow::new(
 ///|
 pub fn ProjectionOperandWindow::geometry(
   self : ProjectionOperandWindow,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (self.extent, self.quantum, self.slots, self.quantum * self.slots)
 }
 
@@ -41,9 +41,9 @@ pub fn ProjectionOperandWindow::geometry(
 /// and next-window prefetch. The last partial window never issues an extra load.
 pub fn ProjectionOperandWindow::read_at(
   self : ProjectionOperandWindow,
-  window~ : Int,
-  slot~ : Int,
-) -> Int? {
+  window~ : Int32,
+  slot~ : Int32,
+) -> Int32? {
   guard window >= 0 && slot >= 0 && slot < self.slots else { return None }
   let fragment = window.to_int64() * self.slots.to_int64() + slot.to_int64()
   guard fragment < (self.extent / self.quantum).to_int64() else { return None }
@@ -53,7 +53,7 @@ pub fn ProjectionOperandWindow::read_at(
 ///|
 pub fn ProjectionSelectedRowGather::operand_window(
   self : ProjectionSelectedRowGather,
-  input_width : Int,
+  input_width : Int32,
 ) -> ProjectionOperandWindow? {
   ProjectionOperandWindow::new(
     extent=input_width,
@@ -68,7 +68,7 @@ pub fn ProjectionSelectedRowGather::operand_window(
 /// semantics. Device-specific fragment lane maps remain in backend lowering.
 pub fn ProjectionTileSchedule::mapped_fragment_program(
   self : ProjectionTileSchedule,
-  input_width : Int,
+  input_width : Int32,
 ) -> @physical_tile_ir.FragmentProgram? {
   for combinator in self.loops {
     if combinator.axis == ProjectionReductionAxis {

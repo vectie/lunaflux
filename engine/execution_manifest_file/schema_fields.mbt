@@ -2,7 +2,7 @@
 fn invalid_field(
   area : ExecutionManifestArea,
   issue : ExecutionManifestIssue,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> ExecutionManifestFileError {
   InvalidField(area~, issue~, index~)
 }
@@ -32,7 +32,7 @@ fn require_object(
   object : Map[String, Json],
   name : String,
   area : ExecutionManifestArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Map[String, Json] raise ExecutionManifestFileError {
   match object.get(name) {
     Some(Object(value)) => value
@@ -46,7 +46,7 @@ fn require_array(
   object : Map[String, Json],
   name : String,
   area : ExecutionManifestArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Array[Json] raise ExecutionManifestFileError {
   match object.get(name) {
     Some(Array(value)) => value
@@ -60,7 +60,7 @@ fn require_string(
   object : Map[String, Json],
   name : String,
   area : ExecutionManifestArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> String raise ExecutionManifestFileError {
   match object.get(name) {
     Some(String(value)) => value
@@ -74,7 +74,7 @@ fn require_bool(
   object : Map[String, Json],
   name : String,
   area : ExecutionManifestArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Bool raise ExecutionManifestFileError {
   match object.get(name) {
     Some(True) => true
@@ -88,7 +88,7 @@ fn require_bool(
 fn parse_nonnegative_int64(
   value : Json,
   area : ExecutionManifestArea,
-  index : Int,
+  index : Int32,
 ) -> Int64 raise ExecutionManifestFileError {
   guard value is Number(number, repr~) else {
     raise invalid_field(area, ExpectedInteger, index~)
@@ -100,7 +100,7 @@ fn parse_nonnegative_int64(
       }
       let mut result = 0UL
       for unit in text {
-        if !(unit is ('0'..='9')) {
+        if !(unit is ('0'..<='9')) {
           raise invalid_field(area, ExpectedInteger, index~)
         }
         let digit = (unit.to_int() - '0').to_uint64()
@@ -129,7 +129,7 @@ fn require_nonnegative_int64(
   object : Map[String, Json],
   name : String,
   area : ExecutionManifestArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Int64 raise ExecutionManifestFileError {
   match object.get(name) {
     Some(value) => parse_nonnegative_int64(value, area, index)
@@ -142,8 +142,8 @@ fn require_nonnegative_int(
   object : Map[String, Json],
   name : String,
   area : ExecutionManifestArea,
-  index? : Int = 0,
-) -> Int raise ExecutionManifestFileError {
+  index~ : Int32 = 0,
+) -> Int32 raise ExecutionManifestFileError {
   let value = require_nonnegative_int64(object, name, area, index~)
   if value > 2147483647L {
     raise invalid_field(area, UnsupportedValue, index~)

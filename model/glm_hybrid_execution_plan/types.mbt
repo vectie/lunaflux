@@ -9,7 +9,7 @@ pub(all) enum GlmSparseIndexAction {
 ///|
 /// Optional learned compression before DSA top-k selection.
 pub struct GlmSparseIndexPoolingPlan {
-  priv kernel_size : Int
+  priv kernel_size : Int32
   priv compress : Bool
   priv always_select_tail : Bool
 } derive(Debug, Eq)
@@ -18,19 +18,19 @@ pub struct GlmSparseIndexPoolingPlan {
 /// Complete GLM low-rank dynamic sparse-attention geometry shared by DSA
 /// layers in one profile.
 pub struct GlmDynamicSparseAttentionPlan {
-  priv query_head_count : Int
-  priv kv_head_count : Int
-  priv query_lora_rank : Int
-  priv kv_lora_rank : Int
-  priv qk_nope_head_dimension : Int
-  priv qk_rope_head_dimension : Int
-  priv value_head_dimension : Int
+  priv query_head_count : Int32
+  priv kv_head_count : Int32
+  priv query_lora_rank : Int32
+  priv kv_lora_rank : Int32
+  priv qk_nope_head_dimension : Int32
+  priv qk_rope_head_dimension : Int32
+  priv value_head_dimension : Int32
   priv rms_norm_epsilon : Double
   priv rope_theta : Double?
   priv rope_interleave : Bool
-  priv index_head_count : Int
-  priv index_head_dimension : Int
-  priv index_topk : Int
+  priv index_head_count : Int32
+  priv index_head_dimension : Int32
+  priv index_topk : Int32
   priv indexer_rope_interleave : Bool
   priv index_share_for_mtp_iteration : Bool
   priv index_pooling : GlmSparseIndexPoolingPlan?
@@ -40,9 +40,9 @@ pub struct GlmDynamicSparseAttentionPlan {
 /// Kimi Delta Attention recurrent-state geometry. The convolution history and
 /// delta state are distinct from a decoder KV cache.
 pub struct GlmKdaExecutionPlan {
-  priv head_count : Int
-  priv head_dimension : Int
-  priv short_convolution_kernel_size : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv short_convolution_kernel_size : Int32
   priv gate_lower_bound : Double
 } derive(Debug, Eq)
 
@@ -64,7 +64,7 @@ pub(all) enum GlmLayerFeedForwardPlan {
 ///|
 /// One immutable decoder layer in execution order.
 pub struct GlmHybridLayerPlan {
-  priv layer_index : Int
+  priv layer_index : Int32
   priv attention : GlmLayerAttentionPlan
   priv feed_forward : GlmLayerFeedForwardPlan
 } derive(Debug, Eq)
@@ -73,21 +73,21 @@ pub struct GlmHybridLayerPlan {
 /// Exact vision frontend and special-token contract for a conditional GLM
 /// decoder. This grants no image decoding or preprocessing authority.
 pub struct GlmVisionConditioningPlan {
-  priv layer_count : Int
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv attention_head_count : Int
-  priv spatial_patch_size : Int
-  priv temporal_patch_size : Int
-  priv spatial_merge_size : Int
-  priv decoder_projection_size : Int
-  priv projection_intermediate_size : Int
-  priv image_token_id : Int
-  priv video_token_id : Int
-  priv image_start_token_id : Int
-  priv image_end_token_id : Int
-  priv video_start_token_id : Int
-  priv video_end_token_id : Int
+  priv layer_count : Int32
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv attention_head_count : Int32
+  priv spatial_patch_size : Int32
+  priv temporal_patch_size : Int32
+  priv spatial_merge_size : Int32
+  priv decoder_projection_size : Int32
+  priv projection_intermediate_size : Int32
+  priv image_token_id : Int32
+  priv video_token_id : Int32
+  priv image_start_token_id : Int32
+  priv image_end_token_id : Int32
+  priv video_start_token_id : Int32
+  priv video_end_token_id : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -115,15 +115,15 @@ pub(all) suberror GlmHybridExecutionPlanError {
 /// DSA-sharing, KDA, layer mixing, and vision conditioning are GLM-owned here.
 pub struct GlmHybridExecutionPlan {
   priv identity : @spec.ModelIdentity
-  priv schema_version : Int
+  priv schema_version : Int32
   priv profile_identity : String
   priv architecture : String
   priv model_type : String
-  priv vocabulary_size : Int
-  priv hidden_size : Int
-  priv dense_intermediate_size : Int
-  priv decoder_layer_count : Int
-  priv context_length : Int
+  priv vocabulary_size : Int32
+  priv hidden_size : Int32
+  priv dense_intermediate_size : Int32
+  priv decoder_layer_count : Int32
+  priv context_length : Int32
   priv sparse_attention : GlmDynamicSparseAttentionPlan
   priv kda : GlmKdaExecutionPlan?
   priv hyper_connection : @advanced_decoder_execution_plan.HyperConnectionPlan?

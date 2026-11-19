@@ -43,9 +43,9 @@ fn exact_production_bf16_execution(
 ///|
 fn validate_production_tensor_policy(
   plan : @plan.ModelPlan,
-) -> (Int, Int) raise I8InertKernelCapabilityAdmissionError {
+) -> (Int32, Int32) raise I8InertKernelCapabilityAdmissionError {
   let tensors = plan.numeric_binding().tensors()
-  let scale_uses : Array[Int] = Array::make(tensors.length(), 0)
+  let scale_uses : Array[Int32] = Array::make(tensors.length(), 0)
   let mut i8_parameter_count = 0
   let mut scale_tensor_count = 0
   for index, tensor in tensors {
@@ -153,7 +153,7 @@ fn validate_production_operation_policy(
 ///|
 fn require_production_kind(
   operations : ReadOnlyArray[@plan.PlanOperation],
-  index : Int,
+  index : Int32,
   kind : @plan.OperationKind,
   layer : @plan.KvLayerId?,
 ) -> Unit raise I8InertKernelCapabilityAdmissionError {
@@ -287,13 +287,13 @@ pub fn I8ProductionPolicyAdmission::digest(
 ///|
 pub fn I8ProductionPolicyAdmission::i8_parameter_count(
   self : I8ProductionPolicyAdmission,
-) -> Int {
+) -> Int32 {
   self.i8_parameter_count
 }
 
 ///|
 pub fn I8ProductionPolicyAdmission::scale_tensor_count(
   self : I8ProductionPolicyAdmission,
-) -> Int {
+) -> Int32 {
   self.scale_tensor_count
 }

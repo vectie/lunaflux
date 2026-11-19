@@ -2,15 +2,15 @@
 fn valid_router_projection_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn f32_input_bf16_weight_projection_source(
-  input_width~ : Int,
-  output_width~ : Int,
-  maximum_rows~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> RouterProjectionCudaSource raise RouterProjectionCudaSourceError {
   if input_width <= 0 {

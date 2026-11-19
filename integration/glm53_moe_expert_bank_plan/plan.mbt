@@ -14,7 +14,7 @@ pub(all) suberror Glm53MoeExpertBankPlanError {
 pub struct Glm53MoeExpertBankCandidatePlan {
   priv execution_identity : @spec.ModelIdentity
   priv manifest_layout_digest : @spec.PlanDigest
-  priv layer_index : Int
+  priv layer_index : Int32
   priv expert_bank_layout_digest : @glm53_weights.Glm53MoeExpertBankLayoutDigest
   priv routed_recipe_digest : @glm_hybrid_cuda_aot.GlmHybridCudaRecipeDigest
   priv shared_recipe_digest : @glm_hybrid_cuda_aot.GlmHybridCudaRecipeDigest
@@ -43,7 +43,7 @@ pub fn join_moe_expert_bank_candidates(
   bank_layout : @glm53_weights.Glm53MoeExpertBankLayout,
   routed : @glm_hybrid_cuda_aot.GlmHybridMoeFeedForwardCudaCandidate,
   shared : @glm_hybrid_cuda_aot.GlmHybridMoeFeedForwardCudaCandidate,
-  expected_layer_index~ : Int,
+  expected_layer_index~ : Int32,
 ) -> Glm53MoeExpertBankCandidatePlan raise Glm53MoeExpertBankPlanError {
   if bank_layout.layer_index() != expected_layer_index {
     raise LayerMismatch
@@ -196,7 +196,7 @@ pub fn Glm53MoeExpertBankCandidatePlan::manifest_layout_digest(
 }
 
 ///|
-pub fn Glm53MoeExpertBankCandidatePlan::layer_index(self : Self) -> Int {
+pub fn Glm53MoeExpertBankCandidatePlan::layer_index(self : Self) -> Int32 {
   self.layer_index
 }
 

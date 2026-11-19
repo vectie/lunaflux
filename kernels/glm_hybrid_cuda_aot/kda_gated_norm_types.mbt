@@ -9,13 +9,13 @@ pub struct GlmHybridKdaGatedNormCudaCandidate {
   priv numerical_contract : @gated_rms_norm_cuda_source.GatedRmsNormNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv head_count : Int
-  priv head_dimension : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
   priv epsilon : Double
-  priv maximum_tokens : Int
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[

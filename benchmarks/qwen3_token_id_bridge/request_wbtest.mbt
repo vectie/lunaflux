@@ -1,10 +1,10 @@
 ///|
 fn bridge_fixture(
-  model? : String = "Qwen3-0.6B",
-  sampling? : String = "{\"mode\":\"greedy\",\"temperature\":0,\"top_p\":1,\"seed\":0,\"ignore_eos\":true}",
-  input? : String = "[151644,872]",
-  output? : String = "32",
-  stream? : String = "true",
+  model~ : String = "Qwen3-0.6B",
+  sampling~ : String = "{\"mode\":\"greedy\",\"temperature\":0,\"top_p\":1,\"seed\":0,\"ignore_eos\":true}",
+  input~ : String = "[151644,872]",
+  output~ : String = "32",
+  stream~ : String = "true",
 ) -> String {
   "{\"schema\":\"lunaflux.benchmark-token-ids-request.v1\",\"model\":\"" +
   model +

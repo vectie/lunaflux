@@ -9,8 +9,8 @@ fn luna_tile_promotion_record_canonical(
   artifact : LunaTilePromotionArtifactInput,
   physical : LunaTileOptimizerDigest,
   benchmark : LunaTileOptimizerDigest,
-  grid_x : Int,
-  block_x : Int,
+  grid_x : Int32,
+  block_x : Int32,
   shared_memory_bytes : Int64,
 ) -> Bytes raise LunaTileOptimizerPromotionError {
   let canonical = @utf8.encode(
@@ -74,8 +74,8 @@ fn luna_tile_make_promotion_record(
   artifact : LunaTilePromotionArtifactInput,
   physical : LunaTileOptimizerDigest,
   benchmark : AdmittedLunaTilePairedBenchmarkWin,
-  grid_x : Int,
-  block_x : Int,
+  grid_x : Int32,
+  block_x : Int32,
   shared_memory_bytes : Int64,
 ) -> LunaTilePromotionApprovalRecord raise LunaTileOptimizerPromotionError {
   if promotion_epoch == 0UL ||

@@ -5,8 +5,8 @@
 pub fn JointDiffusionScheduler::sigma_at(
   self : Self,
   grid : JointDiffusionSigmaGrid,
-  requested_points : Int,
-  index : Int,
+  requested_points : Int32,
+  index : Int32,
 ) -> Double raise JointDiffusionPlanError {
   guard requested_points >= 2 && index >= 0 else { raise InvalidScheduler }
   match grid {

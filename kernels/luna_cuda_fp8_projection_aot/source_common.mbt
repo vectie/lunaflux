@@ -21,7 +21,7 @@ fn fp8_cuda_prelude() -> String {
 }
 
 ///|
-fn fp8_count_guard(maximum_tokens : Int) -> String {
+fn fp8_count_guard(maximum_tokens : Int32) -> String {
   "  const int token_count = counts[3];\n" +
   "  if (token_count <= 0 || token_count > " +
   maximum_tokens.to_string() +
@@ -51,7 +51,7 @@ fn fp8_common_index(parameters : Fp8ProjectionParameters) -> String {
 }
 
 ///|
-fn fp8_dot_loop(input_width : Int) -> String {
+fn fp8_dot_loop(input_width : Int32) -> String {
   "  float accumulator = 0.0f;\n" +
   "  for (int inner = 0; inner < " +
   input_width.to_string() +

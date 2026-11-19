@@ -14,7 +14,7 @@ pub(all) enum IndexScoringLaw {
 pub extend IndexScoringLaw with Eq::{equal, not_equal}
 
 ///|
-pub fn IndexScoringLaw::pooled_row_bytes(self : Self, width : Int) -> Int64 {
+pub fn IndexScoringLaw::pooled_row_bytes(self : Self, width : Int32) -> Int64 {
   match self {
     OrderedBFloat16 => width.to_int64() * 2L
     RowScaledE4M3Matrix => width.to_int64() + 4L

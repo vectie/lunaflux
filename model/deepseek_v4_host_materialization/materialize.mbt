@@ -41,7 +41,7 @@ fn validate_manifest_replay(
 
 ///|
 fn allocate_final_arenas(
-  sizes : ReadOnlyArray[Int],
+  sizes : ReadOnlyArray[Int32],
 ) -> (Array[FixedArray[Byte]?], Array[FixedArray[Byte]]) {
   let owners : Array[FixedArray[Byte]?] = []
   let destinations : Array[FixedArray[Byte]] = []
@@ -82,7 +82,7 @@ fn copy_layout_into_final_arenas(
   root : @approved_fs.ApprovedRoot,
   inspection : @streaming_safetensors.StreamingSafetensorsInspection,
   tensors : ReadOnlyArray[DeepSeekV4HostLayoutTensor],
-  arena_sizes : ReadOnlyArray[Int],
+  arena_sizes : ReadOnlyArray[Int32],
   streaming_limits : @streaming_safetensors.StreamingSafetensorsLimits,
 ) -> Array[FixedArray[Byte]?] raise DeepSeekV4HostMaterializationError {
   let (owners, destinations) = allocate_final_arenas(arena_sizes)

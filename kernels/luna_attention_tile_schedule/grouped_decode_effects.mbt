@@ -22,7 +22,7 @@ pub(all) enum AttentionGroupedEffect {
   PublishWorkgroup
   StageFirstPair
   StageCurrentPair
-  AwaitPendingTransfers(Int)
+  AwaitPendingTransfers(Int32)
   RequireValidTile
   RequireValidStage
   StageNextPairInOtherSlot
@@ -45,9 +45,9 @@ pub struct AttentionGroupedEffectPlan {
 /// supported grouped folds. No target or model name participates in selection.
 pub fn AttentionGroupedEffectPlan::new(
   memory : @luna_attention_strategy.AttentionTileMemory,
-  stages~ : Int,
+  stages~ : Int32,
   readiness~ : AttentionTransferReadiness,
-  independent? : Bool = false,
+  independent~ : Bool = false,
 ) -> AttentionGroupedEffectPlan raise AttentionTileScheduleError {
   let pipelined = match (memory, stages, readiness) {
     (AttentionStagedShared, 1, JoinedKeyValueReadiness) => false

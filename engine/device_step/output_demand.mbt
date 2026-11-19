@@ -26,9 +26,9 @@ fn effect_capture_budget(
 /// Unknown/reordered mappings keep the full executor rather than omit effects.
 fn effect_only_launch_count(
   operations : ReadOnlyArray[@plan.OperationId],
-  semantic_prefix : Int,
-  preparation_prefix? : Int = 0,
-) -> Int {
+  semantic_prefix : Int32,
+  preparation_prefix~ : Int32 = 0,
+) -> Int32 {
   if semantic_prefix <= 0 ||
     preparation_prefix < 0 ||
     preparation_prefix >= operations.length() {
@@ -65,8 +65,8 @@ fn prepare_paged_effect_only_executor(
   launches : ArrayView[@device.OrderedKernelLaunch],
   operation_ids : ReadOnlyArray[@plan.OperationId],
   resources : PagedGraphResources,
-  owner_index : Int,
-  projection_query_bound? : Int = 0,
+  owner_index : Int32,
+  projection_query_bound~ : Int32 = 0,
 ) -> Unit raise DeviceStepError {
   let owner = resources.ordered_executors[owner_index]
   let count = effect_only_launch_count(
@@ -143,9 +143,9 @@ fn prepare_paged_effect_only_executor(
 ///|
 fn select_paged_output_demand(
   executor : PagedGraphExecutor,
-  owner_index : Int,
-  output_rows : Int,
-) -> Int {
+  owner_index : Int32,
+  output_rows : Int32,
+) -> Int32 {
   // Diagnostic canaries and FP8 envelopes observe a full graph explicitly.
   if output_rows != 0 ||
     executor.fused_dispatch_canary is Some(_) ||

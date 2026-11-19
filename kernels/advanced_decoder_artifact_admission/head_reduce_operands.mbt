@@ -1,6 +1,6 @@
 ///|
 fn head_reduce_operands_are_exact(
-  width : Int,
+  width : Int32,
   operands : ReadOnlyArray[AdvancedDecoderLaunchOperand],
   dimensions : @launch_contract.AotLaunchDimensions,
   geometry : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelGeometry,

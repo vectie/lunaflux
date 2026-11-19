@@ -8,7 +8,7 @@ priv enum SpawnedContextChurnOutcome {
 fn offer_context_churn_frame(
   stream : @online_session.LunaOnlineFramedStream,
   frame : FixedArray[Byte],
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeSpawnedContextChurnError {
   offer_spawned_validation_frame(stream, frame, turn_limit) catch {
     _ => raise spawned_context_churn_error(SpawnedContextChurnIngress)
@@ -18,7 +18,7 @@ fn offer_context_churn_frame(
 ///|
 fn next_context_churn_event(
   stream : @online_session.LunaOnlineFramedStream,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> @online_session.LunaOnlineFramedSemanticEvent raise RuntimeSpawnedContextChurnError {
   next_spawned_validation_event(stream, turn_limit) catch {
     _ => raise spawned_context_churn_error(SpawnedContextChurnEvent)
@@ -29,7 +29,7 @@ fn next_context_churn_event(
 fn retire_context_churn_stream(
   service : @online_session.LunaOnlineFramedService,
   stream : @online_session.LunaOnlineFramedStream,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeSpawnedContextChurnError {
   if !retire_spawned_direct_stream(service, stream, turn_limit) {
     raise spawned_context_churn_error(SpawnedContextChurnCleanup)
@@ -40,10 +40,10 @@ fn retire_context_churn_stream(
 fn run_one_context_churn_request(
   service : @online_session.LunaOnlineFramedService,
   frame : FixedArray[Byte],
-  context_ceiling : Int,
+  context_ceiling : Int32,
   contract : RuntimeSpawnedContextChurnContract,
   previous_plan_sequence : UInt64,
-  total_kv_pages : Int,
+  total_kv_pages : Int32,
 ) -> UInt64 raise RuntimeSpawnedContextChurnError {
   let opened = service.open_semantic_stream()
   if opened.kind() != LunaOnlineFramedOpened {

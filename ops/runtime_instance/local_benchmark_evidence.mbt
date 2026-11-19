@@ -1,5 +1,5 @@
 ///|
-const LOCAL_BENCHMARK_MAXIMUM_EVIDENCE_BYTES : Int = 65536
+const LOCAL_BENCHMARK_MAXIMUM_EVIDENCE_BYTES : Int32 = 65536
 
 ///|
 fn local_benchmark_evidence(

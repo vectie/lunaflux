@@ -19,13 +19,13 @@ pub(all) enum TensorParallelPlanRule {
 
 ///|
 pub(all) suberror TensorParallelPlanError {
-  InvalidTensorParallelPlan(rule~ : TensorParallelPlanRule, index~ : Int)
+  InvalidTensorParallelPlan(rule~ : TensorParallelPlanRule, index~ : Int32)
 } derive(Debug, Eq)
 
 ///|
 fn invalid(
   rule : TensorParallelPlanRule,
-  index? : Int = -1,
+  index~ : Int32 = -1,
 ) -> TensorParallelPlanError {
   InvalidTensorParallelPlan(rule~, index~)
 }

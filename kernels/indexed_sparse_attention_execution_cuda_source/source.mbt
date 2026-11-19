@@ -7,7 +7,7 @@ pub struct IndexedSparseAttentionCudaSource {
   priv plan : @precision.IndexedSparseAttentionPrecision
   priv symbols : ReadOnlyArray[String]
   priv source : Bytes
-  priv order : ReadOnlyArray[Int]
+  priv order : ReadOnlyArray[Int32]
   priv attention : @attention.SelectedSparseCudaSource
   priv index : @index_physical.RetainedIndexPlan
   priv score_tiles : @index_physical.CandidateScorePlan?
@@ -136,8 +136,8 @@ pub fn IndexedSparseAttentionCudaSource::attention_scratch_bytes(
 ///|
 pub fn IndexedSparseAttentionCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32) {
   if stage == 2 {
     self.attention.launch()
   } else if stage == 3 && self.score_tiles is Some(tiles) {
@@ -158,7 +158,7 @@ pub fn IndexedSparseAttentionCudaSource::launch(
 ///|
 pub fn IndexedSparseAttentionCudaSource::execution_order(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.order
 }
 
@@ -172,7 +172,7 @@ pub fn IndexedSparseAttentionCudaSource::plan(
 ///|
 pub fn IndexedSparseAttentionCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String {
   self.symbols[stage]
 }

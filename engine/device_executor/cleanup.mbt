@@ -57,7 +57,7 @@ fn[Child, Parent] close_unblocked_parents_reverse(
   children : Array[Child],
   parents : Array[Parent],
   child_is_open : (Child) -> Bool,
-  child_parent_index : (Child) -> Int,
+  child_parent_index : (Child) -> Int32,
   parent_is_open : (Parent) -> Bool,
   close : (Parent) -> Unit raise DeviceExecutorError,
   mark_closed : (Parent) -> Unit,

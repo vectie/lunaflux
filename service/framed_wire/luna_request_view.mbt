@@ -23,7 +23,7 @@ pub fn LunaFramedRequestView::release(
 ///|
 pub fn LunaFramedRequestView::length(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().declared_length
 }
 
@@ -37,7 +37,7 @@ pub fn LunaFramedRequestView::inference_limits(
 ///|
 pub fn LunaFramedRequestView::protocol_version_wire(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   read_i32(workspace.storage, 24)
 }
@@ -64,14 +64,14 @@ pub fn LunaFramedRequestView::input_kind(
 ///|
 pub fn LunaFramedRequestView::input_length(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().input_count
 }
 
 ///|
 pub fn LunaFramedRequestView::input_byte_at(
   self : LunaFramedRequestView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise FramedWireError {
   let workspace = self.require_workspace()
   if (workspace.flags & 1) == 0 || index < 0 || index >= workspace.input_count {
@@ -83,8 +83,8 @@ pub fn LunaFramedRequestView::input_byte_at(
 ///|
 pub fn LunaFramedRequestView::input_token_at(
   self : LunaFramedRequestView,
-  index : Int,
-) -> Int raise FramedWireError {
+  index : Int32,
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   if (workspace.flags & 1) != 0 || index < 0 || index >= workspace.input_count {
     raise request_invalid(Input)
@@ -95,7 +95,7 @@ pub fn LunaFramedRequestView::input_token_at(
 ///|
 pub fn LunaFramedRequestView::max_new_tokens(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   read_i32(workspace.storage, 52)
 }
@@ -103,7 +103,7 @@ pub fn LunaFramedRequestView::max_new_tokens(
 ///|
 pub fn LunaFramedRequestView::context_ceiling(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   read_i32(workspace.storage, 56)
 }
@@ -138,7 +138,7 @@ pub fn LunaFramedRequestView::has_top_k(
 ///|
 pub fn LunaFramedRequestView::top_k(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   read_i32(workspace.storage, 64)
 }
@@ -204,7 +204,7 @@ pub fn LunaFramedRequestView::cache_permission(
 ///|
 pub fn LunaFramedRequestView::content_digest_byte_at(
   self : LunaFramedRequestView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise FramedWireError {
   let workspace = self.require_workspace()
   if index < 0 || index >= 64 {
@@ -216,7 +216,7 @@ pub fn LunaFramedRequestView::content_digest_byte_at(
 ///|
 pub fn LunaFramedRequestView::plan_digest_byte_at(
   self : LunaFramedRequestView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise FramedWireError {
   let workspace = self.require_workspace()
   if index < 0 || index >= 64 {
@@ -228,15 +228,15 @@ pub fn LunaFramedRequestView::plan_digest_byte_at(
 ///|
 pub fn LunaFramedRequestView::stop_token_count(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().stop_token_count
 }
 
 ///|
 pub fn LunaFramedRequestView::stop_token_at(
   self : LunaFramedRequestView,
-  index : Int,
-) -> Int raise FramedWireError {
+  index : Int32,
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   if index < 0 || index >= workspace.stop_token_count {
     raise request_invalid(StopTable)
@@ -247,15 +247,15 @@ pub fn LunaFramedRequestView::stop_token_at(
 ///|
 pub fn LunaFramedRequestView::stop_string_count(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().stop_string_count
 }
 
 ///|
 pub fn LunaFramedRequestView::stop_string_length(
   self : LunaFramedRequestView,
-  index : Int,
-) -> Int raise FramedWireError {
+  index : Int32,
+) -> Int32 raise FramedWireError {
   let workspace = self.require_workspace()
   if index < 0 || index >= workspace.stop_string_count {
     raise request_invalid(StopTable)
@@ -266,8 +266,8 @@ pub fn LunaFramedRequestView::stop_string_length(
 ///|
 pub fn LunaFramedRequestView::stop_string_byte_at(
   self : LunaFramedRequestView,
-  string_index : Int,
-  byte_index : Int,
+  string_index : Int32,
+  byte_index : Int32,
 ) -> Byte raise FramedWireError {
   let workspace = self.require_workspace()
   if string_index < 0 ||
@@ -282,14 +282,14 @@ pub fn LunaFramedRequestView::stop_string_byte_at(
 ///|
 pub fn LunaFramedRequestView::cache_scope_length(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().scope_length
 }
 
 ///|
 pub fn LunaFramedRequestView::cache_scope_byte_at(
   self : LunaFramedRequestView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise FramedWireError {
   let workspace = self.require_workspace()
   if index < 0 || index >= workspace.scope_length {
@@ -301,14 +301,14 @@ pub fn LunaFramedRequestView::cache_scope_byte_at(
 ///|
 pub fn LunaFramedRequestView::trace_length(
   self : LunaFramedRequestView,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().trace_length
 }
 
 ///|
 pub fn LunaFramedRequestView::trace_byte_at(
   self : LunaFramedRequestView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise FramedWireError {
   let workspace = self.require_workspace()
   if index < 0 || index >= workspace.trace_length {
@@ -335,7 +335,7 @@ fn materialize_luna_framed_request(
       _ => raise request_invalid(Input)
     }
   } else {
-    let tokens : Array[Int] = []
+    let tokens : Array[Int32] = []
     for index in 0..<workspace.input_count {
       tokens.push(
         read_i32(workspace.storage, workspace.input_offset + index * 4),
@@ -345,7 +345,7 @@ fn materialize_luna_framed_request(
       _ => raise request_invalid(Input)
     }
   }
-  let stop_tokens : Array[Int] = []
+  let stop_tokens : Array[Int32] = []
   for index in 0..<workspace.stop_token_count {
     stop_tokens.push(
       read_i32(workspace.storage, workspace.stop_token_offset + index * 4),

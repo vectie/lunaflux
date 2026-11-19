@@ -2,8 +2,8 @@
 fn valid_recurrent_delta_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -32,13 +32,13 @@ fn recurrent_float_literal(value : Double) -> String {
 /// initial/final state is F32 `[sequence, head, key-component,
 /// value-component]`. Sequence offsets partition the live row prefix.
 pub fn causal_normalized_recurrent_delta_bf16_f32_source(
-  head_count~ : Int,
-  key_dimension~ : Int,
-  value_dimension~ : Int,
+  head_count~ : Int32,
+  key_dimension~ : Int32,
+  value_dimension~ : Int32,
   normalization_epsilon~ : Double,
   log_decay_lower_bound~ : Double,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
   function_symbol~ : String,
 ) -> RecurrentDeltaCudaSource raise RecurrentDeltaCudaSourceError {
   if head_count <= 0 {
@@ -216,17 +216,17 @@ pub fn RecurrentDeltaCudaSource::numerical_contract(
 }
 
 ///|
-pub fn RecurrentDeltaCudaSource::head_count(self : Self) -> Int {
+pub fn RecurrentDeltaCudaSource::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn RecurrentDeltaCudaSource::key_dimension(self : Self) -> Int {
+pub fn RecurrentDeltaCudaSource::key_dimension(self : Self) -> Int32 {
   self.key_dimension
 }
 
 ///|
-pub fn RecurrentDeltaCudaSource::value_dimension(self : Self) -> Int {
+pub fn RecurrentDeltaCudaSource::value_dimension(self : Self) -> Int32 {
   self.value_dimension
 }
 
@@ -241,12 +241,12 @@ pub fn RecurrentDeltaCudaSource::log_decay_lower_bound(self : Self) -> Double {
 }
 
 ///|
-pub fn RecurrentDeltaCudaSource::maximum_rows(self : Self) -> Int {
+pub fn RecurrentDeltaCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 
 ///|
-pub fn RecurrentDeltaCudaSource::maximum_sequences(self : Self) -> Int {
+pub fn RecurrentDeltaCudaSource::maximum_sequences(self : Self) -> Int32 {
   self.maximum_sequences
 }
 

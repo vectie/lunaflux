@@ -5,10 +5,10 @@ struct PreparedBatchCycle {
   frame : @worker_wire.ValidatedPlanFrame
   expected_ids : FixedArray[UInt64]
   expected_generations : FixedArray[UInt64]
-  expected_slots : FixedArray[Int]
+  expected_slots : FixedArray[Int32]
   expected_kinds : FixedArray[@worker_protocol.CompletionEntryKind]
-  expected_processed : FixedArray[Int]
-  expected_tokens : FixedArray[Int]
+  expected_processed : FixedArray[Int32]
+  expected_tokens : FixedArray[Int32]
   pages : FixedArray[@page_allocator.PageId]
 }
 
@@ -20,7 +20,7 @@ struct PreparedBatchMatrix {
 }
 
 ///|
-fn oracle_counter_state(seed : UInt64, sample_index : Int) -> UInt64 {
+fn oracle_counter_state(seed : UInt64, sample_index : Int32) -> UInt64 {
   let mut value = seed + (sample_index + 1).to_uint64() * 0x9e3779b97f4a7c15UL
   value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL
   value = (value ^ (value >> 27)) * 0x94d049bb133111ebUL
@@ -33,7 +33,7 @@ fn oracle_counter_state(seed : UInt64, sample_index : Int) -> UInt64 {
 }
 
 ///|
-fn oracle_logit(token_row : Int, token_id : Int) -> Double {
+fn oracle_logit(token_row : Int32, token_id : Int32) -> Double {
   let first = token_row % 5
   if token_id >= first && token_id < first + 4 {
     (4 - (token_id - first)).to_double()
@@ -43,14 +43,18 @@ fn oracle_logit(token_row : Int, token_id : Int) -> Double {
 }
 
 ///|
-fn oracle_preferred_before(token_row : Int, left : Int, right : Int) -> Bool {
+fn oracle_preferred_before(
+  token_row : Int32,
+  left : Int32,
+  right : Int32,
+) -> Bool {
   let left_logit = oracle_logit(token_row, left)
   let right_logit = oracle_logit(token_row, right)
   left_logit > right_logit || (left_logit == right_logit && left < right)
 }
 
 ///|
-fn oracle_sorted_tokens(token_row : Int) -> FixedArray[Int] {
+fn oracle_sorted_tokens(token_row : Int32) -> FixedArray[Int32] {
   let tokens = FixedArray::make(8, 0)
   for token in 0..<8 {
     tokens[token] = token
@@ -71,9 +75,9 @@ fn oracle_sorted_tokens(token_row : Int) -> FixedArray[Int] {
 ///|
 fn oracle_stochastic_token(
   seed : UInt64,
-  sample_index : Int,
-  token_row : Int,
-) -> Int {
+  sample_index : Int32,
+  token_row : Int32,
+) -> Int32 {
   let tokens = oracle_sorted_tokens(token_row)
   let weights = FixedArray::make(4, 0.0)
   let maximum = oracle_logit(token_row, tokens[0])
@@ -112,7 +116,7 @@ fn oracle_stochastic_token(
 }
 
 ///|
-fn oracle_greedy_token(token_row : Int) -> Int {
+fn oracle_greedy_token(token_row : Int32) -> Int32 {
   oracle_sorted_tokens(token_row)[0]
 }
 
@@ -281,7 +285,7 @@ fn prepare_batch_cycle(
 
 ///|
 fn prepare_batch_matrix(
-  count : Int,
+  count : Int32,
   model_plan : @plan.ModelPlan,
 ) -> PreparedBatchMatrix raise {
   if count <= 0 {

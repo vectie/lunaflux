@@ -4,7 +4,7 @@
 // reconstruct the same owner. Callers validate their recipe and field bounds.
 fn own_decoded_bootstrap_source(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   roots~ : WorkerBootstrapRoots,
   model~ : WorkerBootstrapModelSource,
   kernel~ : WorkerBootstrapKernelSource,

@@ -1,17 +1,17 @@
 ///|
-const OUTPUT_COUNTS_CELL : Int = 5
+const OUTPUT_COUNTS_CELL : Int32 = 5
 
 ///|
-const PURE_SUFFIX_COUNTS_CELL : Int = 10
+const PURE_SUFFIX_COUNTS_CELL : Int32 = 10
 
 ///|
-const PREFILL_ATTENTION_COUNTS_CELL : Int = 15
+const PREFILL_ATTENTION_COUNTS_CELL : Int32 = 15
 
 ///|
-const OUTPUT_ROW_ENDS_CELL : Int = 20
+const OUTPUT_ROW_ENDS_CELL : Int32 = 20
 
 ///|
-fn output_descriptor_cells(limits : DeviceStepLimits) -> Int {
+fn output_descriptor_cells(limits : DeviceStepLimits) -> Int32 {
   OUTPUT_ROW_ENDS_CELL +
   row_offset_cells(limits) +
   attention_metadata_layout(limits).cell_count()
@@ -21,7 +21,7 @@ fn output_descriptor_cells(limits : DeviceStepLimits) -> Int {
 fn uploaded_count_cells(
   host : DeviceStepHostBuffers,
   summary : DeviceStepSummary,
-) -> Int {
+) -> Int32 {
   if host.attention_metadata_enabled {
     host.attention_metadata_offset + host.attention_metadata_layout.cell_count()
   } else {
@@ -32,8 +32,8 @@ fn uploaded_count_cells(
 ///|
 fn write_output_row(
   host : DeviceStepHostBuffers,
-  row : Int,
-  token_row : Int,
+  row : Int32,
+  token_row : Int32,
 ) -> Unit {
   if token_row < 0 {
     host.output_indices[row] = -1
@@ -54,7 +54,7 @@ fn write_output_row(
 fn output_physical_rows(
   host : DeviceStepHostBuffers,
   summary : DeviceStepSummary,
-) -> Int {
+) -> Int32 {
   if host.output_rows == 1 && summary.row_count > 1 {
     2
   } else {
@@ -95,7 +95,7 @@ fn publish_output_counts(
 }
 
 ///|
-fn projected_result_row(descriptor : DeviceStepOwner, row : Int) -> Int {
+fn projected_result_row(descriptor : DeviceStepOwner, row : Int32) -> Int32 {
   if descriptor.host.project_output_rows {
     descriptor.host.output_indices[row]
   } else {
@@ -104,7 +104,7 @@ fn projected_result_row(descriptor : DeviceStepOwner, row : Int) -> Int {
 }
 
 ///|
-fn projected_result_count(descriptor : DeviceStepOwner, rows : Int) -> Int {
+fn projected_result_count(descriptor : DeviceStepOwner, rows : Int32) -> Int32 {
   if descriptor.host.project_output_rows {
     descriptor.host.output_rows
   } else {
@@ -130,7 +130,7 @@ fn projected_operand_offset(binding : PagedKvOperandBinding) -> Int64 {
 }
 
 ///|
-fn pure_suffix_counts_offset(operation : Int, effect_prefix : Int) -> Int64 {
+fn pure_suffix_counts_offset(operation : Int32, effect_prefix : Int32) -> Int64 {
   if effect_prefix > 0 && operation >= effect_prefix {
     byte_capacity(PURE_SUFFIX_COUNTS_CELL)
   } else {

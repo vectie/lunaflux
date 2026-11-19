@@ -8,7 +8,9 @@ fn fused_selection_test_digest(
 }
 
 ///|
-fn fused_selection_test_target(minor? : Int = 0) -> @catalog.DeviceTarget raise {
+fn fused_selection_test_target(
+  minor~ : Int32 = 0,
+) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=12,
     compute_minor=minor,
@@ -19,7 +21,7 @@ fn fused_selection_test_target(minor? : Int = 0) -> @catalog.DeviceTarget raise 
 
 ///|
 fn fused_selection_test_launch(
-  block_x? : Int = 128,
+  block_x~ : Int32 = 128,
 ) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=8,
@@ -60,14 +62,14 @@ fn fused_selection_test_entry() -> ApprovedFusedKernelModule raise {
 ///|
 fn fused_selection_test_exact(
   entry : ApprovedFusedKernelModule,
-  family? : @luna_cuda_fused_parallel_aot.FusedParallelFamily = QkvPositionedRopePagedKvWrite,
+  family~ : @luna_cuda_fused_parallel_aot.FusedParallelFamily = QkvPositionedRopePagedKvWrite,
   candidate? : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
   source? : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
   recipe? : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
-  toolchain? : String = "4".repeat(64),
-  driver? : String = "5".repeat(64),
-  symbol? : String = "lunaflux_fused_qkv_rope_paged_kv_write_bf16_v1",
-  abi? : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi = QkvPositionedRopePagedKvWriteAbiV1,
+  toolchain~ : String = "4".repeat(64),
+  driver~ : String = "5".repeat(64),
+  symbol~ : String = "lunaflux_fused_qkv_rope_paged_kv_write_bf16_v1",
+  abi~ : @luna_cuda_fused_parallel_aot.FusedParallelKernelAbi = QkvPositionedRopePagedKvWriteAbiV1,
   launch? : @launch_contract.AotLaunchDimensions,
   module_digest? : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
   binding? : @luna_cuda_fused_parallel_aot.FusedParallelDigest,

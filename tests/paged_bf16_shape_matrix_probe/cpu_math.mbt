@@ -9,15 +9,15 @@ fn matrix_ordered_add(left : Float, right : Float) -> Float {
 }
 
 ///|
-fn matrix_poison_values(elements : Int) -> FixedArray[Int] {
+fn matrix_poison_values(elements : Int32) -> FixedArray[Int32] {
   FixedArray::make(elements, matrix_bf16_bits(91.0F))
 }
 
 ///|
 fn matrix_embedding(
   case : ShapeMatrixCase,
-  table : FixedArray[Int],
-) -> FixedArray[Int] {
+  table : FixedArray[Int32],
+) -> FixedArray[Int32] {
   let output = matrix_poison_values(12)
   for token in 0..<case.live_tokens() {
     for column in 0..<4 {
@@ -29,13 +29,13 @@ fn matrix_embedding(
 
 ///|
 fn matrix_project(
-  input : FixedArray[Int],
-  weight : FixedArray[Int],
-  rows : Int,
-  inner : Int,
-  columns : Int,
-  capacity_rows : Int,
-) -> FixedArray[Int] {
+  input : FixedArray[Int32],
+  weight : FixedArray[Int32],
+  rows : Int32,
+  inner : Int32,
+  columns : Int32,
+  capacity_rows : Int32,
+) -> FixedArray[Int32] {
   let output = matrix_poison_values(capacity_rows * columns)
   for row in 0..<rows {
     for column in 0..<columns {
@@ -57,10 +57,10 @@ fn matrix_project(
 
 ///|
 fn matrix_norm(
-  input : FixedArray[Int],
-  weight : FixedArray[Int],
-  rows : Int,
-) -> FixedArray[Int] {
+  input : FixedArray[Int32],
+  weight : FixedArray[Int32],
+  rows : Int32,
+) -> FixedArray[Int32] {
   let output = matrix_poison_values(12)
   for row in 0..<rows {
     let mut sum = 0.0F
@@ -85,7 +85,7 @@ fn matrix_norm(
 }
 
 ///|
-fn matrix_qkv(input : FixedArray[Int], rows : Int) -> FixedArray[Int] {
+fn matrix_qkv(input : FixedArray[Int32], rows : Int32) -> FixedArray[Int32] {
   let query = matrix_project(input, matrix_fixture_bf16(4, 16), rows, 4, 4, 3)
   let key = matrix_project(input, matrix_fixture_bf16(5, 8), rows, 4, 2, 3)
   let value = matrix_project(input, matrix_fixture_bf16(6, 8), rows, 4, 2, 3)
@@ -105,8 +105,8 @@ fn matrix_qkv(input : FixedArray[Int], rows : Int) -> FixedArray[Int] {
 ///|
 fn matrix_rope(
   case : ShapeMatrixCase,
-  qkv : FixedArray[Int],
-) -> FixedArray[Int] {
+  qkv : FixedArray[Int32],
+) -> FixedArray[Int32] {
   let output = matrix_poison_values(24)
   for row in 0..<case.live_tokens() {
     let angle = Float::from_int(case.positions[row])
@@ -136,10 +136,10 @@ fn matrix_rope(
 
 ///|
 fn matrix_residual(
-  left : FixedArray[Int],
-  right : FixedArray[Int],
-  rows : Int,
-) -> FixedArray[Int] {
+  left : FixedArray[Int32],
+  right : FixedArray[Int32],
+  rows : Int32,
+) -> FixedArray[Int32] {
   let output = matrix_poison_values(12)
   for index in 0..<(rows * 4) {
     output[index] = matrix_bf16_bits(

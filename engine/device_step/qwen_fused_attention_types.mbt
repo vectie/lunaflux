@@ -13,7 +13,7 @@ priv struct ApprovedQwenPrefillVariant {
   module_bytes : Bytes
   symbol : String
   launch : @launch_contract.AotLaunchDimensions
-  query_tile_rows : Int
+  query_tile_rows : Int32
 } derive(Eq)
 
 ///|
@@ -25,7 +25,7 @@ priv struct ApprovedQwenPartitionedPrefill {
   partial_launch : @launch_contract.AotLaunchDimensions
   merge_symbol : String
   merge_launch : @launch_contract.AotLaunchDimensions
-  query_tile_rows : Int
+  query_tile_rows : Int32
   workspace_bytes : Int64
   workspace_alignment : Int64
 } derive(Eq)
@@ -47,9 +47,9 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv generation : @worker_protocol.ModelPlanGeneration
   priv target : @catalog.DeviceTarget
   priv runtime_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
-  priv measured_attention_candidates : ReadOnlyArray[Int]?
+  priv measured_attention_candidates : ReadOnlyArray[Int32]?
   priv ingress_includes_projection : Bool
-  priv ingress_query_tile_rows : Int
+  priv ingress_query_tile_rows : Int32
   priv ingress_row_variant : @luna_fused_artifact_admission.ReusableFusedRuntimeRowVariant?
   priv step_rotary_cache : @elementwise_physical_ir.StepRotaryCachePlan?
   priv postprocess_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
@@ -60,7 +60,7 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv readonly_module_bytes : Bytes
   priv readonly_symbol : String
   priv readonly_launch : @launch_contract.AotLaunchDimensions
-  priv readonly_query_tile_rows : Int
+  priv readonly_query_tile_rows : Int32
   priv readonly_query_metadata : Bool
   priv mixed_row_coverage : @luna_attention_strategy.AttentionMixedRowCoverage
   priv decode_module_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
@@ -70,10 +70,10 @@ pub struct ApprovedQwenFusedAttentionSpan {
   priv wide_query_prefill : ApprovedQwenPrefillVariant?
   priv partitioned_prefill : ApprovedQwenPartitionedPrefill?
   priv deep_partitioned_prefill : ApprovedQwenPartitionedPrefill?
-  priv qkv_index : Int
-  priv qk_norm_index : Int
-  priv rope_index : Int
-  priv attention_index : Int
+  priv qkv_index : Int32
+  priv qk_norm_index : Int32
+  priv rope_index : Int32
+  priv attention_index : Int32
 }
 
 ///|
@@ -86,7 +86,7 @@ pub fn ApprovedQwenFusedAttentionSpan::model_generation(
 ///|
 pub fn ApprovedQwenFusedAttentionSpan::operation_indices(
   self : ApprovedQwenFusedAttentionSpan,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (self.qkv_index, self.qk_norm_index, self.rope_index, self.attention_index)
 }
 

@@ -2,8 +2,8 @@
 fn compiled_operation_index(
   operations : ArrayView[LunaKernelCompiledOperation],
   operation_id : @plan.OperationId,
-) -> Int? raise LunaKernelBundleError {
-  let mut found : Int? = None
+) -> Int32? raise LunaKernelBundleError {
+  let mut found : Int32? = None
   for index, operation in operations {
     if operation.operation_id() == operation_id {
       if found is Some(_) {
@@ -19,7 +19,7 @@ fn compiled_operation_index(
 fn module_index(
   modules : ArrayView[LunaKernelBundleModule],
   digest : @catalog.AotArtifactDigest,
-) -> Int? {
+) -> Int32? {
   for index, module_item in modules {
     if module_item.digest == digest {
       return Some(index)

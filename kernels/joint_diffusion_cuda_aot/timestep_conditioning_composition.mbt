@@ -58,35 +58,35 @@ pub fn JointDiffusionTimestepConditioningComposition::values_digest(
 ///|
 pub fn JointDiffusionTimestepConditioningComposition::row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.row_count
 }
 
 ///|
 pub fn JointDiffusionTimestepConditioningComposition::frequency_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.frequency_width
 }
 
 ///|
 pub fn JointDiffusionTimestepConditioningComposition::mlp_hidden_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.mlp_hidden_width
 }
 
 ///|
 pub fn JointDiffusionTimestepConditioningComposition::conditioning_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.conditioning_width
 }
 
 ///|
 pub fn JointDiffusionTimestepConditioningComposition::adaln_hidden_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.adaln_hidden_size
 }
 

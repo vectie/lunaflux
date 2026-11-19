@@ -24,5 +24,5 @@ pub(all) suberror Fp8ProjectionAotError {
   Invalid(Fp8ProjectionAotRule)
   Unsupported(Fp8ProjectionAotRule)
   Mismatch(Fp8ProjectionAotRule)
-  LimitExceeded(rule~ : Fp8ProjectionAotRule, maximum~ : Int)
+  LimitExceeded(rule~ : Fp8ProjectionAotRule, maximum~ : Int32)
 } derive(Debug, Eq)

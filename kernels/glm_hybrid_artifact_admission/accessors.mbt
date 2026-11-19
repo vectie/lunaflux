@@ -14,7 +14,7 @@ pub fn GlmHybridLaunchOperand::alignment(self : Self) -> Int64 {
 }
 
 ///|
-pub fn GlmHybridAdmittedArtifact::ordinal(self : Self) -> Int {
+pub fn GlmHybridAdmittedArtifact::ordinal(self : Self) -> Int32 {
   self.ordinal
 }
 
@@ -40,7 +40,7 @@ pub fn GlmHybridAdmittedArtifact::module_digest(
 }
 
 ///|
-pub fn GlmHybridAdmittedArtifact::module_byte_length(self : Self) -> Int {
+pub fn GlmHybridAdmittedArtifact::module_byte_length(self : Self) -> Int32 {
   self.module_byte_length
 }
 

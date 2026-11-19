@@ -142,7 +142,7 @@ pub fn VideoRequest::execute(self : Self) -> Unit raise @device.DeviceError {
 /// must enforce producer completion. No initialized-output authority is given.
 pub fn[T] VideoRequest::with_destination(
   self : Self,
-  consume : (@device.Allocation, Int64, Int) -> T raise @device.DeviceError,
+  consume : (@device.Allocation, Int64, Int32) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard (self.phase == Prepared || self.phase == Complete) &&
     self.source is Some(s) &&
@@ -159,7 +159,7 @@ pub fn[T] VideoRequest::with_destination(
 ///|
 pub fn[T] VideoRequest::with_rows(
   self : Self,
-  consume : (@device.Allocation, Int64, Int) -> T raise @device.DeviceError,
+  consume : (@device.Allocation, Int64, Int32) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Complete else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)

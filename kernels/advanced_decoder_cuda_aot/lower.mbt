@@ -1,8 +1,8 @@
 ///|
 pub fn AdvancedDecoderCudaAotLimits::new(
-  maximum_tokens~ : Int,
-  maximum_source_bytes~ : Int,
-  maximum_recipe_bytes~ : Int,
+  maximum_tokens~ : Int32,
+  maximum_source_bytes~ : Int32,
+  maximum_recipe_bytes~ : Int32,
 ) -> Self raise AdvancedDecoderCudaAotError {
   if maximum_tokens <= 0 ||
     maximum_tokens > 1048576 ||
@@ -52,8 +52,8 @@ fn recipe(
   family : AdvancedDecoderFoundationAotFamily,
   numerical_contract : AdvancedDecoderFoundationNumericalContract,
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -244,8 +244,8 @@ fn recipe(
 /// Only token embedding and final RMSNorm are admitted in this first slice.
 pub fn lower_foundation_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

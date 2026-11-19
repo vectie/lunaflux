@@ -3,9 +3,9 @@
 /// input width. One raw block is encoded once per CTA, then all output warps
 /// consume it before the next block replaces it.
 fn matrix_projection_source(
-  input_width~ : Int,
-  output_width~ : Int,
-  maximum_rows~ : Int,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
   scaled_dot_law~ : @precision.ScaledDotReductionLaw,
 ) -> Bytes raise BlockFp8Ue8M0ProjectionCudaSourceError {

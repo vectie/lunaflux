@@ -9,7 +9,7 @@ fn Scanner::scan_string(self : Scanner) -> String raise JsonGuardError {
     match unit {
       '"' => return output.to_string()
       '\\' => self.scan_escape(output)
-      '\u{0000}'..='\u{001f}' => raise MalformedStructure
+      '\u{0000}'..<='\u{001f}' => raise MalformedStructure
       _ => {
         let character = self.input.get_char(self.position - 1)
         match character {
@@ -70,13 +70,13 @@ fn Scanner::scan_unicode_escape(
 }
 
 ///|
-fn Scanner::scan_hex_quad(self : Scanner) -> Int raise JsonGuardError {
+fn Scanner::scan_hex_quad(self : Scanner) -> Int32 raise JsonGuardError {
   let mut value = 0
   for _ in 0..<4 {
     let digit = match self.advance() {
-      '0'..='9' as unit => unit.to_int() - '0'
-      'a'..='f' as unit => unit.to_int() - 'a' + 10
-      'A'..='F' as unit => unit.to_int() - 'A' + 10
+      '0'..<='9' as unit => unit.to_int() - '0'
+      'a'..<='f' as unit => unit.to_int() - 'a' + 10
+      'A'..<='F' as unit => unit.to_int() - 'A' + 10
       _ => raise MalformedStructure
     }
     value = value * 16 + digit

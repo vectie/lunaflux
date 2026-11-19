@@ -86,7 +86,7 @@ fn LunaRequestReceipt::observe(
 ///|
 pub fn LunaRequestReceipt::remaining_millis(
   self : LunaRequestReceipt,
-) -> Int raise RequestAdmissionError {
+) -> Int32 raise RequestAdmissionError {
   let workspace = self.require_workspace()
   let observed = (workspace.clock_read)()
   if observed < workspace.received_at_millis {

@@ -57,7 +57,7 @@ fn LunaOnlineOpenAIServer::record_observation(
 /// interval exactly once. This telemetry-only call does not confer readiness.
 pub fn LunaOnlineOpenAIServer::record_cold_start_latency_millis(
   self : LunaOnlineOpenAIServer,
-  duration_millis : Int,
+  duration_millis : Int32,
 ) -> Unit raise LunaOnlineTcpError {
   if self.activity.reactor_active || self.activity.maintenance_active {
     raise luna_online_tcp_error(LunaOnlineTcpOwnership)

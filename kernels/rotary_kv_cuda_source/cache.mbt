@@ -56,20 +56,20 @@ pub fn RotaryCacheCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn RotaryCacheCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn RotaryCacheCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.symbols[stage]
 }
 
 ///|
 pub fn RotaryCacheCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (heads, width, rotary, rows, _) = self.plan.geometry()
   let (block, _, _) = self.plan.simulation()
   if stage == 0 {
     (rows, heads, 256)
   } else {
-    (rows, Int::max(1, heads * ((width - rotary) / block)), block)
+    (rows, Int32::max(1, heads * ((width - rotary) / block)), block)
   }
 }

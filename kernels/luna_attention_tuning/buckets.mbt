@@ -6,8 +6,8 @@ pub fn parse_attention_bucket_routes(
   bytes : Bytes,
   scope~ : String,
   buckets : @graph.ExecutionGraphBucketTable,
-  baseline~ : Int,
-  admitted_candidates : ArrayView[Int],
+  baseline~ : Int32,
+  admitted_candidates : ArrayView[Int32],
 ) -> @graph.ExecutionGraphMeasuredRoutes raise AttentionTuningError {
   if bytes.length() > 1048576 ||
     scope.is_empty() ||

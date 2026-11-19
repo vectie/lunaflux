@@ -136,8 +136,8 @@ fn supervisor_startup() -> @worker_wire.WorkerStartupContract raise {
 
 ///|
 fn test_supervisor(
-  executable? : Bytes = @worker_executable_fixture.cat_path(),
-  shutdown_timeout_millis? : Int = 1000,
+  executable~ : Bytes = @worker_executable_fixture.cat_path(),
+  shutdown_timeout_millis~ : Int32 = 1000,
 ) -> WorkerProcessSupervisor raise {
   let worker_limits = supervisor_limits()
   let inference_limits = supervisor_inference_limits()
@@ -223,8 +223,8 @@ fn supervisor_page() -> @page_allocator.PageId raise {
 ///|
 fn supervisor_plan(
   sequence : UInt64,
-  generation? : UInt64 = 1UL,
-  completion_slot? : Int = 0,
+  generation~ : UInt64 = 1UL,
+  completion_slot~ : Int32 = 0,
 ) -> @worker_protocol.SubmittedSchedulePlan raise {
   let limits = supervisor_limits()
   let owner = @worker_protocol.SchedulePlanBuffer::new(limits)
@@ -271,7 +271,7 @@ test "submission rejects a foreign loaded model generation before write" {
 fn encoded_completion(
   plan : @worker_protocol.SubmittedSchedulePlan,
   destination : FixedArray[Byte],
-) -> Int raise {
+) -> Int32 raise {
   let limits = supervisor_limits()
   let inference = supervisor_inference_limits()
   let plan_owner = @worker_wire.PlanFrameBuffer::new(limits, inference)
@@ -291,7 +291,7 @@ fn encoded_graph_telemetry(
   sequence : UInt64,
   hits : UInt64,
   destination : FixedArray[Byte],
-) -> Int raise {
+) -> Int32 raise {
   let shape = @worker_wire.WorkerGraphShapeClass::new(
     phase=1,
     batch_rows=1,
@@ -314,7 +314,7 @@ fn encoded_graph_telemetry(
 ///|
 fn inject_completion(
   owner : WorkerProcessSupervisor,
-  side : Int,
+  side : Int32,
   plan : @worker_protocol.SubmittedSchedulePlan,
 ) -> ReceivedWorkerCompletion raise {
   let length = encoded_completion(plan, owner.rx)

@@ -25,13 +25,13 @@ fn deepseek_dtype_specs() -> Array[
 fn validate_index_membership(
   inspection : @streaming_safetensors.StreamingSafetensorsInspection,
   index : ArrayView[DeepSeekV4TensorIndexInput],
-  maximum_entries : Int,
+  maximum_entries : Int32,
 ) -> Unit raise DeepSeekV4HostMaterializationError {
   let expected = inspection.total_tensor_count()
   if index.length() != expected || index.length() > maximum_entries {
     raise InvalidIndexCount(expected~, actual=index.length())
   }
-  let claims : Map[String, (Int, Int)] = Map([], capacity=index.length())
+  let claims : Map[String, (Int32, Int32)] = Map([], capacity=index.length())
   for claim_index, claim in index {
     if claim.tensor_name.is_empty() ||
       claim.tensor_name.length() > 256 ||

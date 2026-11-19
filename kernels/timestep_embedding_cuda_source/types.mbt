@@ -14,8 +14,8 @@ pub(all) suberror TimestepEmbeddingCudaSourceError {
 ///|
 pub struct TimestepEmbeddingCudaSource {
   priv numerical_contract : TimestepEmbeddingNumericalContract
-  priv row_count : Int
-  priv frequency_width : Int
+  priv row_count : Int32
+  priv frequency_width : Int32
   priv function_symbol : String
   priv source : Bytes
 }

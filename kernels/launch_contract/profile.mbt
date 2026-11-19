@@ -1,6 +1,6 @@
 ///|
 pub struct KernelProfileId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -11,14 +11,14 @@ pub struct KernelProfileId {
 /// a smaller live profile.
 pub struct KernelProfile {
   priv id : KernelProfileId
-  priv batch_rows : Int
-  priv sequence_tokens : Int
+  priv batch_rows : Int32
+  priv sequence_tokens : Int32
   priv token_rows : Int64
 } derive(Debug, Eq)
 
 ///|
 pub fn KernelProfileId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> KernelProfileId raise LaunchContractError {
   if value <= 0 {
     raise InvalidProfile(NonPositiveId)
@@ -27,15 +27,15 @@ pub fn KernelProfileId::from_stable_int(
 }
 
 ///|
-pub fn KernelProfileId::as_int(self : KernelProfileId) -> Int {
+pub fn KernelProfileId::as_int(self : KernelProfileId) -> Int32 {
   self.value
 }
 
 ///|
 pub fn KernelProfile::full_prefill(
   id~ : KernelProfileId,
-  batch_rows~ : Int,
-  sequence_tokens~ : Int,
+  batch_rows~ : Int32,
+  sequence_tokens~ : Int32,
   token_rows~ : Int64,
 ) -> KernelProfile raise LaunchContractError {
   if batch_rows <= 0 || sequence_tokens <= 0 || token_rows <= 0L {
@@ -58,12 +58,12 @@ pub fn KernelProfile::id(self : KernelProfile) -> KernelProfileId {
 }
 
 ///|
-pub fn KernelProfile::batch_rows(self : KernelProfile) -> Int {
+pub fn KernelProfile::batch_rows(self : KernelProfile) -> Int32 {
   self.batch_rows
 }
 
 ///|
-pub fn KernelProfile::sequence_tokens(self : KernelProfile) -> Int {
+pub fn KernelProfile::sequence_tokens(self : KernelProfile) -> Int32 {
   self.sequence_tokens
 }
 

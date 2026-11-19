@@ -2,11 +2,11 @@
 fn run_luna_streamed_input(
   spec : TokenizerSpec,
   input : Bytes,
-  split : Int,
+  split : Int32,
   special_policy : SpecialTokenPolicy,
-  output_limit : Int,
+  output_limit : Int32,
   truncation : TruncationPolicy,
-  budget_units : Int,
+  budget_units : Int32,
 ) -> LunaWorkRun raise {
   let budget = LunaTokenizerStepBudget::new(budget_units)
   let worker = LunaTokenizerWorker::new(
@@ -44,7 +44,7 @@ fn run_luna_streamed_input(
         let destination = FixedArray::make(count, -1)
         let mut copied = 0
         while copied < count {
-          let amount = Int::min(count - copied, budget.work_units())
+          let amount = Int32::min(count - copied, budget.work_units())
           work.copy_tokens_to(
             destination,
             source_offset=copied,
@@ -54,7 +54,7 @@ fn run_luna_streamed_input(
           assert_eq(work.last_work_units(), amount)
           copied += amount
         }
-        let token_ids : Array[Int] = []
+        let token_ids : Array[Int32] = []
         for token_id in destination {
           token_ids.push(token_id)
         }
@@ -77,7 +77,7 @@ fn assert_streamed_all_splits(
   spec : TokenizerSpec,
   input : Bytes,
   special_policy : SpecialTokenPolicy,
-  output_limit : Int,
+  output_limit : Int32,
   truncation : TruncationPolicy,
 ) -> Unit raise {
   let expected = reference_encode_bytes(

@@ -21,7 +21,7 @@ fn LunaRequestPreparationPool::progress_framed_waiting(
 fn LunaRequestPreparationPool::progress_framed_scanner(
   self : LunaRequestPreparationPool,
   lane : LunaRequestPreparationLane,
-) -> Int raise RequestAdmissionError {
+) -> Int32 raise RequestAdmissionError {
   ignore(self)
   let work = lane.require_framed_work()
   ignore(work.progress() catch { _ => raise Invalid(FrameContract) })
@@ -118,9 +118,9 @@ fn LunaRequestPreparationPool::progress_framed_bind_scalars(
   ) catch {
     _ => raise Invalid(Input)
   }
-  let input_capacity = Int::min(
+  let input_capacity = Int32::min(
     effective.context_ceiling() - effective.max_new_tokens(),
-    Int::min(
+    Int32::min(
       self.inference.max_input_tokens(),
       self.tokenizer.limits().max_output_tokens,
     ),

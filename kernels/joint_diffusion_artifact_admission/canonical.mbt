@@ -1,7 +1,7 @@
 ///|
 priv struct AdmissionCanonicalWriter {
   hasher : @canonical_sha256.CanonicalSha256
-  mut byte_count : Int
+  mut byte_count : Int32
 }
 
 ///|
@@ -12,7 +12,7 @@ fn AdmissionCanonicalWriter::new() -> Self {
 ///|
 fn AdmissionCanonicalWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise JointDiffusionArtifactAdmissionError {
   if count < 0 || self.byte_count > 262144 - count {
     raise AdmissionEncodingTooLarge
@@ -34,7 +34,7 @@ fn AdmissionCanonicalWriter::byte(
 ///|
 fn AdmissionCanonicalWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise JointDiffusionArtifactAdmissionError {
   self.reserve(8)
   if !self.hasher.update_u64_le(Int64::from_int(value).reinterpret_as_uint64()) {

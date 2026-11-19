@@ -75,3 +75,33 @@ pub(all) suberror PlanValidationError {
   LimitExceeded(ModelPlanLimitKind)
   CanonicalEncodingMismatch
 } derive(Debug, Eq)
+
+///|
+pub extend PlanIdentifierKind with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanIdentifierKind with Eq::{not_equal, equal}
+
+///|
+pub extend ModelPlanLimitKind with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelPlanLimitKind with Eq::{not_equal, equal}
+
+///|
+pub extend PlanShapeRule with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanShapeRule with Eq::{not_equal, equal}
+
+///|
+pub extend PlanGraphRule with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanGraphRule with Eq::{not_equal, equal}
+
+///|
+pub extend PlanValidationError with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanValidationError with Eq::{not_equal, equal}

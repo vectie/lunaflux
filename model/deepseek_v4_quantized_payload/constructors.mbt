@@ -2,7 +2,7 @@
 pub fn DeepSeekV4QuantizedPayloadLimits::new(
   maximum_elements~ : Int64,
   maximum_payload_bytes~ : Int64,
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> Self raise DeepSeekV4QuantizedPayloadError {
   if maximum_elements <= 0L ||
     maximum_elements > 2147483647L ||
@@ -17,8 +17,8 @@ pub fn DeepSeekV4QuantizedPayloadLimits::new(
 
 ///|
 pub fn DeepSeekV4QuantizedBlockShape::new(
-  rows~ : Int,
-  columns~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
 ) -> Self raise DeepSeekV4QuantizedPayloadError {
   if rows <= 0 || columns <= 0 || rows > 4096 || columns > 4096 {
     raise InvalidBlockShape
@@ -27,12 +27,12 @@ pub fn DeepSeekV4QuantizedBlockShape::new(
 }
 
 ///|
-pub fn DeepSeekV4QuantizedBlockShape::rows(self : Self) -> Int {
+pub fn DeepSeekV4QuantizedBlockShape::rows(self : Self) -> Int32 {
   self.rows
 }
 
 ///|
-pub fn DeepSeekV4QuantizedBlockShape::columns(self : Self) -> Int {
+pub fn DeepSeekV4QuantizedBlockShape::columns(self : Self) -> Int32 {
   self.columns
 }
 

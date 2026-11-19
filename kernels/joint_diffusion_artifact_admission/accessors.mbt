@@ -18,7 +18,7 @@ pub fn JointDiffusionAdmittedEntryPoint::identity(
 }
 
 ///|
-pub fn JointDiffusionAdmittedEntryPoint::module_index(self : Self) -> Int {
+pub fn JointDiffusionAdmittedEntryPoint::module_index(self : Self) -> Int32 {
   self.module_index
 }
 
@@ -28,7 +28,7 @@ pub fn JointDiffusionAdmittedEntryPoint::function_symbol(self : Self) -> String 
 }
 
 ///|
-pub fn JointDiffusionAdmittedLaunch::requirement_ordinal(self : Self) -> Int {
+pub fn JointDiffusionAdmittedLaunch::requirement_ordinal(self : Self) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -73,7 +73,7 @@ pub fn JointDiffusionArtifactAdmissionDigest::as_hex(self : Self) -> String {
 }
 
 ///|
-pub fn JointDiffusionArtifactAdmission::schema_version(self : Self) -> Int {
+pub fn JointDiffusionArtifactAdmission::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 

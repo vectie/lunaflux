@@ -1,8 +1,8 @@
 ///|
-extern "C" fn fake_set_fault(mode : Int) = "lunaflux_device_worker_fake_set_fault"
+extern "C" fn fake_set_fault(mode : Int32) = "lunaflux_device_worker_fake_set_fault"
 
 ///|
-extern "C" fn fake_fault_mode() -> Int = "lunaflux_device_worker_fake_fault_mode"
+extern "C" fn fake_fault_mode() -> Int32 = "lunaflux_device_worker_fake_fault_mode"
 
 ///|
 fn assert_execute_failure(
@@ -11,8 +11,8 @@ fn assert_execute_failure(
   model : @spec.LlamaModelMetadata,
   model_plan : @plan.ModelPlan,
   target : @catalog.DeviceTarget,
-  fault_mode : Int,
-  branch : Int,
+  fault_mode : Int32,
+  branch : Int32,
 ) -> Unit raise {
   let owner = prepare_fixture_owner(
     directory, manifest, model, model_plan, target,

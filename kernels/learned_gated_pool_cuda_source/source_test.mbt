@@ -1,6 +1,6 @@
 ///|
 fn fixture(
-  ratio : Int,
+  ratio : Int32,
   overlap : Bool,
   prefix : String,
 ) -> @learned_gated_pool_cuda_source.LearnedGatedPoolCudaSource raise {

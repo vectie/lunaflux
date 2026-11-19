@@ -1,8 +1,8 @@
 ///|
 priv struct LunaTileSharedLifetime {
   tensor : LunaTileTensorView
-  first : Int
-  last : Int
+  first : Int32
+  last : Int32
   size : Int64
 }
 
@@ -10,7 +10,7 @@ priv struct LunaTileSharedLifetime {
 priv struct LunaTileSharedSlot {
   offset : Int64
   capacity : Int64
-  mut last_use : Int
+  mut last_use : Int32
 }
 
 ///|

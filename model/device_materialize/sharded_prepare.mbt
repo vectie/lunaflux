@@ -2,8 +2,8 @@
 fn sharded_checked_add(
   left : Int64,
   right : Int64,
-  reference : Int,
-  segment : Int,
+  reference : Int32,
+  segment : Int32,
 ) -> Int64 raise DeviceWeightError {
   if left < 0L || right < 0L || left > 9223372036854775807L - right {
     raise InvalidShardedTransfer(reference~, segment~)
@@ -16,8 +16,8 @@ fn build_authenticated_sharded_rank_plan(
   model : @spec.LlamaModelMetadata,
   semantic_plan : @plan.ModelPlan,
   bindings : @llama_weights.LlamaWeightBindings,
-  rank : Int,
-  world_size : Int,
+  rank : Int32,
+  world_size : Int32,
   alignment_bytes : Int64,
   max_arena_bytes : Int64,
 ) -> @tensor_parallel_plan.TensorParallelRankPlan raise DeviceWeightError {
@@ -41,7 +41,7 @@ fn absolute_sharded_transfer(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
   payload_offset_bytes : Int64,
   file_bytes : Int64,
-  reference : Int,
+  reference : Int32,
   segment_index : Int64,
 ) -> AbsoluteShardedTransfer raise DeviceWeightError {
   let tensor_reference = @plan.TensorRef::new(reference) catch {
@@ -91,7 +91,7 @@ fn absolute_sharded_transfer(
 ///|
 fn validate_sharded_transfers(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
-  source_order : FixedArray[Int],
+  source_order : FixedArray[Int32],
   payload_offset_bytes : Int64,
   file_bytes : Int64,
 ) -> Unit raise DeviceWeightError {
@@ -148,7 +148,7 @@ fn validate_sharded_transfers(
 ///|
 fn sharded_first_source_offset(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
-  reference : Int,
+  reference : Int32,
 ) -> Int64 raise DeviceWeightError {
   let tensor_reference = try! @plan.TensorRef::new(reference)
   guard rank_plan.tensor(tensor_reference) is Some(placement) else {
@@ -163,7 +163,7 @@ fn sharded_first_source_offset(
 ///|
 fn sharded_source_order(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
-) -> FixedArray[Int] raise DeviceWeightError {
+) -> FixedArray[Int32] raise DeviceWeightError {
   let order = FixedArray::make(rank_plan.tensor_count(), 0)
   for reference in 0..<rank_plan.tensor_count() {
     order[reference] = reference
@@ -186,14 +186,14 @@ fn sharded_source_order(
 fn[S : Eq] prepare_sharded_streaming_load(
   model : @spec.LlamaModelMetadata,
   semantic_plan : @plan.ModelPlan,
-  rank : Int,
-  world_size : Int,
+  rank : Int32,
+  world_size : Int32,
   alignment_bytes : Int64,
   max_arena_bytes : Int64,
   source_stamp : S,
   file_bytes : Int64,
   limits : DeviceWeightFileLimits,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise DeviceWeightError,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise DeviceWeightError,
   observe_stamp : () -> S raise DeviceWeightError,
 ) -> PreparedShardedStreamingLoad[S] raise DeviceWeightError {
   if file_bytes <= SAFETENSORS_PREFIX_BYTES64 {

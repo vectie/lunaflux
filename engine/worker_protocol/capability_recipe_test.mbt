@@ -1,6 +1,6 @@
 ///|
 fn recipe_limits(
-  max_capabilities : Int,
+  max_capabilities : Int32,
 ) -> @worker_protocol.WorkerProtocolLimits {
   try! @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows=3,

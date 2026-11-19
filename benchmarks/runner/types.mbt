@@ -34,12 +34,12 @@ enum BenchmarkRequestState {
 pub struct BenchmarkTrialCollector {
   priv engine : @evidence.BenchmarkEngine
   priv profile : @evidence.BenchmarkProfile
-  priv ordinal : Int
-  priv order_position : Int
-  priv request_capacity : Int
+  priv ordinal : Int32
+  priv order_position : Int32
+  priv request_capacity : Int32
   priv slots : FixedArray[BenchmarkRequestState]
-  priv mut submitted : Int
-  priv mut terminal : Int
+  priv mut submitted : Int32
+  priv mut terminal : Int32
   priv mut input_tokens : Int64
   priv mut generated_tokens : Int64
   priv mut last_timestamp_ns : Int64?
@@ -56,3 +56,15 @@ pub struct BenchmarkTrialCollector {
 pub struct CapturedMonotonicTimestamp {
   priv nanoseconds : Int64
 } derive(Debug, Eq)
+
+///|
+pub extend BenchmarkRunnerError with @debug.Debug::{to_repr}
+
+///|
+pub extend BenchmarkRunnerError with Eq::{not_equal, equal}
+
+///|
+pub extend CapturedMonotonicTimestamp with @debug.Debug::{to_repr}
+
+///|
+pub extend CapturedMonotonicTimestamp with Eq::{not_equal, equal}

@@ -6,7 +6,7 @@ pub fn prepare_with_approved_executable(
   limits : WorkerProcessLimits,
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
-  parent_approval? : @worker_wire.WorkerParentApprovalSubjects? = None,
+  parent_approval~ : @worker_wire.WorkerParentApprovalSubjects? = None,
 ) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError {
   prepare_root_bound_with_authority(
     executable, startup, source, limits, model_root, kernel_root, false, 0UL, parent_approval,
@@ -24,7 +24,7 @@ pub fn prepare_exchange_with_approved_executable(
   model_root : @approved_fs.ApprovedRoot,
   kernel_root : @approved_fs.ApprovedRoot,
   expected_predecessor : UInt64,
-  parent_approval? : @worker_wire.WorkerParentApprovalSubjects? = None,
+  parent_approval~ : @worker_wire.WorkerParentApprovalSubjects? = None,
 ) -> RootBoundWorkerProcessPreparation raise RootBoundWorkerProcessError {
   prepare_root_bound_with_authority(
     executable, startup, source, limits, model_root, kernel_root, true, expected_predecessor,
@@ -139,7 +139,7 @@ pub fn RootBoundWorkerProcessSupervisor::has_capacity(
 ///|
 pub fn RootBoundWorkerProcessSupervisor::outstanding_count(
   self : RootBoundWorkerProcessSupervisor,
-) -> Int {
+) -> Int32 {
   self.process.outstanding_count()
 }
 
@@ -168,7 +168,7 @@ pub fn RootBoundWorkerProcessSupervisor::validate_recovery_binding(
   identity : @spec.ModelIdentity,
   bootstrap_digest : @worker_wire.WorkerBootstrapDigest,
   bootstrap_source_digest : @worker_wire.WorkerBootstrapSourceDigest,
-  device_ordinal : Int,
+  device_ordinal : Int32,
   model_generation_value : UInt64,
   worker_limits : @worker_protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,

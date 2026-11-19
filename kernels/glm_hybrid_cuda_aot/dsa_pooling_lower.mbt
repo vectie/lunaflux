@@ -123,8 +123,8 @@ fn dsa_pooling_operand_tag(
 ///|
 fn dsa_pooling_index_geometry(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int) raise GlmHybridCudaAotError {
-  let mut found : (Int, Int)? = None
+) -> (Int32, Int32) raise GlmHybridCudaAotError {
+  let mut found : (Int32, Int32)? = None
   for requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexCompute(_, head_dimension, topk, _) {
       if found is Some(_) {
@@ -140,11 +140,11 @@ fn dsa_pooling_index_geometry(
 ///|
 fn dsa_pooling_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  head_dimension : Int,
-  pool_size : Int,
-  index_topk : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  head_dimension : Int32,
+  pool_size : Int32,
+  index_topk : Int32,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -233,8 +233,8 @@ fn dsa_pooling_recipe(
 /// intentionally excludes scoring, top-k, and query-dependent tail selection.
 pub fn lower_dsa_key_pooling_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

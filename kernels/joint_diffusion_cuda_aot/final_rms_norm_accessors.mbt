@@ -22,7 +22,7 @@ pub fn JointDiffusionFinalRmsNormCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionFinalRmsNormCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -60,21 +60,23 @@ pub fn JointDiffusionFinalRmsNormCudaCandidate::row_count(self : Self) -> Int64 
 }
 
 ///|
-pub fn JointDiffusionFinalRmsNormCudaCandidate::hidden_size(self : Self) -> Int {
+pub fn JointDiffusionFinalRmsNormCudaCandidate::hidden_size(
+  self : Self,
+) -> Int32 {
   self.hidden_size
 }
 
 ///|
 pub fn JointDiffusionFinalRmsNormCudaCandidate::epsilon_numerator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.epsilon_numerator
 }
 
 ///|
 pub fn JointDiffusionFinalRmsNormCudaCandidate::epsilon_denominator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.epsilon_denominator
 }
 

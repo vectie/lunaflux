@@ -1,6 +1,6 @@
 ///|
 fn output_path_unit_is_safe(unit : Char) -> Bool {
-  unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '.' | '_' | '-' | '/')
+  unit is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '.' | '_' | '-' | '/')
 }
 
 ///|

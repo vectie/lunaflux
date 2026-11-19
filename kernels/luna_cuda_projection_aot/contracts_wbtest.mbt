@@ -1,6 +1,6 @@
 ///|
 fn projection_fixture_operands(
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] raise {
   let counts = projection_fixture_operand(RuntimeInput(StepCounts), 20L, 4L)
   match operation {
@@ -169,7 +169,7 @@ fn projection_fixture_operands(
 
 ///|
 fn projection_fixture_dimensions(
-  operation : Int,
+  operation : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise {
   let block = if operation == 3 { 1 } else { 256 }
   let grid_x = match operation {
@@ -190,8 +190,8 @@ fn projection_fixture_dimensions(
 
 ///|
 fn projection_fixture_contracts(
-  qkv_query_weight_bytes? : Int64 = 32L,
-  qkv_grid_x? : Int = 1,
+  qkv_query_weight_bytes~ : Int64 = 32L,
+  qkv_grid_x~ : Int32 = 1,
 ) -> @launch_contract.PagedKvLaunchContractSet raise {
   let plan = projection_fixture_plan()
   let profile = @launch_contract.PagedKernelProfile::new(
@@ -249,8 +249,8 @@ fn projection_fixture_contracts(
 
 ///|
 fn projection_fixture_compiler(
-  reassociate? : Bool = false,
-  max_registers? : Int = 128,
+  reassociate~ : Bool = false,
+  max_registers~ : Int32 = 128,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(
@@ -268,13 +268,15 @@ fn projection_fixture_compiler(
 
 ///|
 fn projection_fixture_limits(
-  max_source_bytes? : Int = 32768,
+  max_source_bytes~ : Int32 = 32768,
 ) -> ProjectionAotLimits raise {
   ProjectionAotLimits::new(max_source_bytes~, max_recipe_bytes=8192)
 }
 
 ///|
-fn projection_fixture_lowering(operation : Int) -> ProjectionCudaLowering raise {
+fn projection_fixture_lowering(
+  operation : Int32,
+) -> ProjectionCudaLowering raise {
   let plan = projection_fixture_plan()
   let contracts = projection_fixture_contracts()
   let contract = contracts.contracts()[operation]

@@ -118,7 +118,7 @@ test "sharded preflight reads only bounded metadata, not whole payload" {
 test "sharded source close failure preserves retryable allocation ownership" {
   let file = wb_sharded_file()
   let rank_plan = wb_sharded_rank_plan(file, 0)
-  let ready : ShardedResourcePreparation[Int] = ShardedResourceReady({
+  let ready : ShardedResourcePreparation[Int32] = ShardedResourceReady({
     resource: 13,
     rank_plan,
   })
@@ -144,7 +144,7 @@ test "sharded source close failure preserves retryable allocation ownership" {
 ///|
 test "sharded source close preserves existing cleanup authority" {
   let file = wb_sharded_file()
-  let retained : ShardedResourcePreparation[Int] = ShardedResourceCleanupRequired({
+  let retained : ShardedResourcePreparation[Int32] = ShardedResourceCleanupRequired({
       resource: 17,
       rank_plan: wb_sharded_rank_plan(file, 1),
       cause: DeviceFailed(DriverFailure(CopyToDevice)),

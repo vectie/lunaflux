@@ -99,10 +99,10 @@ test "phased transfer batching covers arbitrary tile products once" {
 
 ///|
 fn projection_test_operand_storage(
-  rows : Int,
-  columns : Int,
-  width : Int,
-  owners : Int,
+  rows : Int32,
+  columns : Int32,
+  width : Int32,
+  owners : Int32,
 ) -> @physical_tile_ir.OperandStorage {
   let layout : CudaProjectionTransportLayout = { columns: width, }
   @physical_tile_ir.OperandStorage::new(

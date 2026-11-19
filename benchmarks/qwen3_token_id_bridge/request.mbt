@@ -17,9 +17,9 @@ fn bridge_exact_fields(
 ///|
 fn bridge_exact_int(
   value : Json,
-  lower : Int,
-  upper : Int,
-) -> Int raise Qwen3TokenBridgeError {
+  lower : Int32,
+  upper : Int32,
+) -> Int32 raise Qwen3TokenBridgeError {
   guard value is Number(number, repr=_) else { raise MalformedRequest }
   let parsed = number.to_int()
   if number != number.floor() || parsed < lower || parsed > upper {
@@ -31,9 +31,9 @@ fn bridge_exact_int(
 ///|
 pub fn parse_qwen3_token_id_request(
   document : StringView,
-  max_input_tokens : Int,
-  max_output_tokens : Int,
-  max_token_id : Int,
+  max_input_tokens : Int32,
+  max_output_tokens : Int32,
+  max_token_id : Int32,
 ) -> Qwen3TokenIdRequest raise Qwen3TokenBridgeError {
   if document.length() == 0 ||
     document.length() > 131072 ||
@@ -71,7 +71,7 @@ pub fn parse_qwen3_token_id_request(
     !(sampling.get("ignore_eos") is Some(True)) {
     raise UnsupportedRequest
   }
-  let ids : Array[Int] = []
+  let ids : Array[Int32] = []
   for value in input_values {
     ids.push(bridge_exact_int(value, 0, max_token_id))
   }

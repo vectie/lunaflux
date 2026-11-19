@@ -56,13 +56,13 @@ pub(all) suberror InstancePolicyFileError {
   DigestMismatch
   InvalidUtf8
   MalformedJson
-  JsonDepthExceeded(maximum~ : Int)
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(area~ : InstancePolicyArea, index~ : Int)
-  MissingField(area~ : InstancePolicyArea, index~ : Int)
+  JsonDepthExceeded(maximum~ : Int32)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(area~ : InstancePolicyArea, index~ : Int32)
+  MissingField(area~ : InstancePolicyArea, index~ : Int32)
   InvalidField(
     area~ : InstancePolicyArea,
     issue~ : InstancePolicyIssue,
-    index~ : Int
+    index~ : Int32
   )
 } derive(Debug, Eq)

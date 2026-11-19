@@ -30,13 +30,13 @@ pub(all) enum Glm53ConfigField {
 pub(all) suberror Glm53ConfigError {
   InvalidByteLimit
   InvalidDepthLimit
-  ByteLimitExceeded(limit~ : Int)
+  ByteLimitExceeded(limit~ : Int32)
   InvalidUtf8
   MalformedJson
   NonObjectRoot
-  NestingLimitExceeded(limit~ : Int)
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(component~ : Glm53ConfigField, index~ : Int)
+  NestingLimitExceeded(limit~ : Int32)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(component~ : Glm53ConfigField, index~ : Int32)
   ExecutableMetadata
   MissingField(Glm53ConfigField)
   InvalidValue(Glm53ConfigField)

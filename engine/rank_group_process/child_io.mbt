@@ -2,8 +2,8 @@
 fn RankGroupChildOwner::startup_write(
   self : RankGroupChildOwner,
   source : FixedArray[Byte],
-  length : Int,
-  timeout_millis : Int,
+  length : Int32,
+  timeout_millis : Int32,
 ) -> Bool {
   match self {
     LiveChild(child) =>
@@ -16,8 +16,8 @@ fn RankGroupChildOwner::startup_write(
 fn RankGroupChildOwner::startup_read(
   self : RankGroupChildOwner,
   destination : FixedArray[Byte],
-  timeout_millis : Int,
-) -> Int {
+  timeout_millis : Int32,
+) -> Int32 {
   match self {
     LiveChild(child) =>
       child.startup_read_frame_status(destination, timeout_millis)
@@ -29,8 +29,8 @@ fn RankGroupChildOwner::startup_read(
 fn RankGroupChildOwner::begin_write(
   self : RankGroupChildOwner,
   source : FixedArray[Byte],
-  length : Int,
-  timeout_millis : Int,
+  length : Int32,
+  timeout_millis : Int32,
 ) -> Unit raise RankGroupProcessError {
   match self {
     LiveChild(child) =>
@@ -50,7 +50,7 @@ fn RankGroupChildOwner::begin_write(
 fn RankGroupChildOwner::begin_write_until(
   self : RankGroupChildOwner,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   deadline_millis : Int64,
 ) -> Unit raise RankGroupProcessError {
   match self {
@@ -85,7 +85,7 @@ fn RankGroupChildOwner::begin_read(
   self : RankGroupChildOwner,
   destination : FixedArray[Byte],
   staging : FixedArray[Byte],
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> Unit raise RankGroupProcessError {
   match self {
     LiveChild(child) =>
@@ -115,7 +115,7 @@ fn RankGroupChildOwner::begin_read_until(
 ///|
 fn RankGroupChildOwner::progress_read(
   self : RankGroupChildOwner,
-) -> Int? raise RankGroupProcessError {
+) -> Int32? raise RankGroupProcessError {
   match self {
     LiveChild(child) =>
       child.progress_read_frame() catch {

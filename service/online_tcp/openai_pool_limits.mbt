@@ -1,8 +1,8 @@
 ///|
 pub fn LunaOnlineOpenAIConnectionPoolLimits::new(
-  connection_capacity~ : Int,
-  output_buffer_bytes~ : Int,
-  io_poll_timeout_millis~ : Int,
+  connection_capacity~ : Int32,
+  output_buffer_bytes~ : Int32,
+  io_poll_timeout_millis~ : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolLimits raise LunaOnlineTcpError {
   if connection_capacity <= 1 ||
     connection_capacity > LUNA_ONLINE_TCP_MAX_TRANSITIONS ||
@@ -18,14 +18,14 @@ pub fn LunaOnlineOpenAIConnectionPoolLimits::new(
 ///|
 pub fn LunaOnlineOpenAIConnectionPoolLimits::connection_capacity(
   self : LunaOnlineOpenAIConnectionPoolLimits,
-) -> Int {
+) -> Int32 {
   self.connection_capacity
 }
 
 ///|
 pub fn LunaOnlineOpenAIConnectionPoolLimits::output_buffer_bytes(
   self : LunaOnlineOpenAIConnectionPoolLimits,
-) -> Int {
+) -> Int32 {
   self.output_buffer_bytes
 }
 

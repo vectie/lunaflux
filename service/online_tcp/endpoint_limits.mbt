@@ -22,7 +22,7 @@ fn LunaOnlineTcpLimits::is_valid(self : LunaOnlineTcpLimits) -> Bool {
 ///|
 fn LunaOnlineTcpLimits::fits_transport_wait(
   self : LunaOnlineTcpLimits,
-  maximum_wait_millis : Int,
+  maximum_wait_millis : Int32,
 ) -> Bool {
   maximum_wait_millis > 0 &&
   self.input_idle_timeout_millis <= maximum_wait_millis &&
@@ -36,7 +36,7 @@ fn LunaOnlineTcpLimits::fits_transport_wait(
 /// exposed for pure instance admission so policy validation cannot drift.
 pub fn LunaOnlineTcpLimits::require_fits_transport_wait(
   self : LunaOnlineTcpLimits,
-  maximum_wait_millis : Int,
+  maximum_wait_millis : Int32,
 ) -> Unit raise LunaOnlineTcpError {
   if !self.is_valid() || !self.fits_transport_wait(maximum_wait_millis) {
     raise luna_online_tcp_error(LunaOnlineTcpLimits)
@@ -45,23 +45,23 @@ pub fn LunaOnlineTcpLimits::require_fits_transport_wait(
 
 ///|
 fn luna_online_tcp_safe_wait(
-  configured_millis : Int,
-  remaining_millis : Int,
-) -> Int {
+  configured_millis : Int32,
+  remaining_millis : Int32,
+) -> Int32 {
   if configured_millis <= 0 || remaining_millis <= 1 {
     return 0
   }
-  Int::min(configured_millis, remaining_millis - 1)
+  Int32::min(configured_millis, remaining_millis - 1)
 }
 
 ///|
 pub fn LunaOnlineTcpLimits::new(
-  read_chunk_bytes~ : Int,
-  write_chunk_bytes~ : Int,
-  accept_timeout_millis~ : Int,
-  input_idle_timeout_millis~ : Int,
-  write_timeout_millis~ : Int,
-  reactor_transition_budget~ : Int,
+  read_chunk_bytes~ : Int32,
+  write_chunk_bytes~ : Int32,
+  accept_timeout_millis~ : Int32,
+  input_idle_timeout_millis~ : Int32,
+  write_timeout_millis~ : Int32,
+  reactor_transition_budget~ : Int32,
 ) -> LunaOnlineTcpLimits raise LunaOnlineTcpError {
   let limits = {
     read_chunk_bytes,
@@ -78,26 +78,28 @@ pub fn LunaOnlineTcpLimits::new(
 }
 
 ///|
-pub fn LunaOnlineTcpLimits::read_chunk_bytes(self : LunaOnlineTcpLimits) -> Int {
+pub fn LunaOnlineTcpLimits::read_chunk_bytes(
+  self : LunaOnlineTcpLimits,
+) -> Int32 {
   self.read_chunk_bytes
 }
 
 ///|
 pub fn LunaOnlineTcpLimits::write_chunk_bytes(
   self : LunaOnlineTcpLimits,
-) -> Int {
+) -> Int32 {
   self.write_chunk_bytes
 }
 
 ///|
 pub fn LunaOnlineTcpLimits::reactor_transition_budget(
   self : LunaOnlineTcpLimits,
-) -> Int {
+) -> Int32 {
   self.reactor_transition_budget
 }
 
 ///|
-const LUNA_ONLINE_POOL_POLL_MAX_MILLIS : Int = 1
+const LUNA_ONLINE_POOL_POLL_MAX_MILLIS : Int32 = 1
 
 ///|
 /// Returns the exact authenticated transport ceiling used by pool-owned short
@@ -107,12 +109,12 @@ const LUNA_ONLINE_POOL_POLL_MAX_MILLIS : Int = 1
 /// within every authenticated accept, input-idle, and write authority.
 pub fn LunaOnlineTcpLimits::pool_poll_timeout_millis(
   self : LunaOnlineTcpLimits,
-) -> Int {
-  Int::min(
+) -> Int32 {
+  Int32::min(
     LUNA_ONLINE_POOL_POLL_MAX_MILLIS,
-    Int::min(
+    Int32::min(
       self.accept_timeout_millis,
-      Int::min(self.input_idle_timeout_millis, self.write_timeout_millis),
+      Int32::min(self.input_idle_timeout_millis, self.write_timeout_millis),
     ),
   )
 }

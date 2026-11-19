@@ -5,9 +5,9 @@
 pub fn kda_output_projection(
   input : ArrayView[Double],
   weights : ArrayView[Double],
-  row_count~ : Int,
-  input_width~ : Int,
-  output_width~ : Int,
+  row_count~ : Int32,
+  input_width~ : Int32,
+  output_width~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmKdaOutputProjectionResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)
@@ -38,17 +38,17 @@ pub fn kda_output_projection(
 }
 
 ///|
-pub fn GlmKdaOutputProjectionResult::row_count(self : Self) -> Int {
+pub fn GlmKdaOutputProjectionResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmKdaOutputProjectionResult::input_width(self : Self) -> Int {
+pub fn GlmKdaOutputProjectionResult::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn GlmKdaOutputProjectionResult::output_width(self : Self) -> Int {
+pub fn GlmKdaOutputProjectionResult::output_width(self : Self) -> Int32 {
   self.output_width
 }
 

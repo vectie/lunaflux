@@ -9,7 +9,7 @@ fn hash_text(
 }
 
 ///|
-fn hash_int(hasher : @canonical_sha256.CanonicalSha256, value : Int) -> Unit {
+fn hash_int(hasher : @canonical_sha256.CanonicalSha256, value : Int32) -> Unit {
   ignore(hasher.update_u64_le(Int64::from_int(value).reinterpret_as_uint64()))
 }
 
@@ -103,7 +103,7 @@ fn hash_scope(
 fn logical_manifest_digest(
   profile : @deepseek_v4_spec.DeepSeekV4Profile,
   identity : @spec.ModelIdentity,
-  expected_tensor_count : Int,
+  expected_tensor_count : Int32,
   runs : ArrayView[DeepSeekV4NumericTensorRun],
   codebook : DeepSeekV4Fp4CodebookBinding?,
 ) -> @spec.PlanDigest {

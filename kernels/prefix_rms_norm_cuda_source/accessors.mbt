@@ -13,17 +13,17 @@ pub fn PrefixRmsNormCudaSource::numerical_contract(
 }
 
 ///|
-pub fn PrefixRmsNormCudaSource::prefix_width(self : Self) -> Int {
+pub fn PrefixRmsNormCudaSource::prefix_width(self : Self) -> Int32 {
   self.prefix_width
 }
 
 ///|
-pub fn PrefixRmsNormCudaSource::suffix_width(self : Self) -> Int {
+pub fn PrefixRmsNormCudaSource::suffix_width(self : Self) -> Int32 {
   self.suffix_width
 }
 
 ///|
-pub fn PrefixRmsNormCudaSource::maximum_rows(self : Self) -> Int {
+pub fn PrefixRmsNormCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 
@@ -43,6 +43,6 @@ pub fn PrefixRmsNormCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn PrefixRmsNormCudaSource::launch_threads(self : Self) -> Int {
+pub fn PrefixRmsNormCudaSource::launch_threads(self : Self) -> Int32 {
   self.threads
 }

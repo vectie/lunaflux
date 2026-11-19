@@ -5,7 +5,7 @@ fn test_content(seed : Char) -> @spec.ContentDigest {
 
 ///|
 fn tiny_transformer_plan(
-  reference? : Bool = false,
+  reference~ : Bool = false,
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   let stages = if reference {
     [
@@ -149,7 +149,7 @@ fn tiny_request(
 }
 
 ///|
-fn dense_bias(input : Int, bias : ArrayView[Double]) -> JointTinyDense {
+fn dense_bias(input : Int32, bias : ArrayView[Double]) -> JointTinyDense {
   try! JointTinyDense::new(
     input_width=input,
     output_width=bias.length(),
@@ -159,7 +159,7 @@ fn dense_bias(input : Int, bias : ArrayView[Double]) -> JointTinyDense {
 }
 
 ///|
-fn identity_dense(width : Int) -> JointTinyDense {
+fn identity_dense(width : Int32) -> JointTinyDense {
   let values = Array::make(width * width, 0.0)
   for index in 0..<width {
     values[index * width + index] = 1.0
@@ -173,7 +173,7 @@ fn identity_dense(width : Int) -> JointTinyDense {
 }
 
 ///|
-fn output_selector(width : Int) -> JointTinyDense {
+fn output_selector(width : Int32) -> JointTinyDense {
   let values = Array::make(width * 4, 0.0)
   for output in 0..<width {
     values[output * 4 + output % 4] = 1.0
@@ -250,8 +250,8 @@ fn conditioning(reference : Bool) -> JointTinyConditioningInput {
 
 ///|
 fn limits(
-  maximum_rows? : Int = 16,
-  maximum_elements? : Int = 1024,
+  maximum_rows~ : Int32 = 16,
+  maximum_elements~ : Int32 = 1024,
 ) -> JointTinyTransformerLimits {
   try! JointTinyTransformerLimits::new(
     maximum_rows~,

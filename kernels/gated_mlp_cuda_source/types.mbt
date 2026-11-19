@@ -16,9 +16,9 @@ pub(all) suberror GatedMlpCudaSourceError {
 ///|
 pub struct GatedMlpCudaSource {
   priv numerical_contract : GatedMlpNumericalContract
-  priv row_count : Int
-  priv hidden_size : Int
-  priv intermediate_size : Int
+  priv row_count : Int32
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
   priv function_symbol : String
   priv source : Bytes
 }
@@ -28,9 +28,9 @@ pub struct GatedMlpCudaSource {
 /// It carries no compiler, artifact, launch, or qualification authority.
 pub struct SeparateWeightGatedMlpCudaSource {
   priv numerical_contract : GatedMlpNumericalContract
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv maximum_rows : Int
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

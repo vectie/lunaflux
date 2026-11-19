@@ -1,7 +1,7 @@
 ///|
 priv struct LunaCapabilityEncoder {
   bytes : Array[Byte]
-  maximum : Int
+  maximum : Int32
 }
 
 ///|
@@ -28,7 +28,7 @@ fn LunaCapabilityEncoder::append_u64(
 ///|
 fn LunaCapabilityEncoder::append_int(
   self : LunaCapabilityEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit raise LunaCapabilityManifestError {
   self.append_u64(Int64::from_int(value).reinterpret_as_uint64())
 }
@@ -84,7 +84,7 @@ fn encode_luna_capability_entry(
   kv_layout : LunaKvLayoutContract,
   minimum_alignment_bytes : Int64,
   graph : LunaGraphCapabilityMetadata,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaCapabilityManifestError {
   let encoder : LunaCapabilityEncoder = { bytes: [], maximum, }
   encoder.append_string("LUNA-CAPABILITY-MANIFEST-ENTRY-V1")

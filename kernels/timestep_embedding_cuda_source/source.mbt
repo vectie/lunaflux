@@ -2,16 +2,16 @@
 fn valid_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 /// Renders MiniMax-compatible generic sinusoidal timestep rows: unscaled F32
 /// input, period 10000, downscale shift zero, and flipped `[cos,sin]` halves.
 pub fn cosine_sine_timestep_rows_source(
-  rows~ : Int,
-  frequency_width~ : Int,
+  rows~ : Int32,
+  frequency_width~ : Int32,
   function_symbol~ : String,
 ) -> TimestepEmbeddingCudaSource raise TimestepEmbeddingCudaSourceError {
   if rows <= 0 {
@@ -63,10 +63,10 @@ pub fn cosine_sine_timestep_rows_source(
 /// Renders a workspace-free correctness kernel for two biased F32 dense
 /// layers with SiLU between them. Weights are row-major `[output,input]`.
 pub fn dense_silu_dense_f32_rows_source(
-  rows~ : Int,
-  input_width~ : Int,
-  hidden_width~ : Int,
-  output_width~ : Int,
+  rows~ : Int32,
+  input_width~ : Int32,
+  hidden_width~ : Int32,
+  output_width~ : Int32,
   function_symbol~ : String,
 ) -> TimestepEmbeddingCudaSource raise TimestepEmbeddingCudaSourceError {
   if rows <= 0 {
@@ -128,12 +128,12 @@ pub fn TimestepEmbeddingCudaSource::numerical_contract(
 }
 
 ///|
-pub fn TimestepEmbeddingCudaSource::row_count(self : Self) -> Int {
+pub fn TimestepEmbeddingCudaSource::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn TimestepEmbeddingCudaSource::frequency_width(self : Self) -> Int {
+pub fn TimestepEmbeddingCudaSource::frequency_width(self : Self) -> Int32 {
   self.frequency_width
 }
 

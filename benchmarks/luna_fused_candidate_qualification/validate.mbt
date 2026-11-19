@@ -1,6 +1,6 @@
 ///|
 fn fused_benchmark_expected_order(
-  trial_ordinal : Int,
+  trial_ordinal : Int32,
 ) -> FusedCandidateBenchmarkPairOrder {
   if trial_ordinal % 2 == 0 {
     BaselineThenCandidate
@@ -61,7 +61,7 @@ fn fused_benchmark_validate_observation(
   identity : FusedBenchmarkCandidateIdentity,
   protocol : FusedCandidateBenchmarkProtocol,
   expected_shape : FusedCandidateBenchmarkShape,
-  expected_trial : Int,
+  expected_trial : Int32,
   observation : FusedCandidateBenchmarkPairedObservation,
 ) -> Unit raise FusedCandidateBenchmarkError {
   if observation.shape != expected_shape {

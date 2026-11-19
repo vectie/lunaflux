@@ -1,7 +1,7 @@
 ///|
 fn text_capture_boundaries(
-  counts : ArrayView[Int],
-) -> Array[(String, Int)] raise @device.DeviceError {
+  counts : ArrayView[Int32],
+) -> Array[(String, Int32)] raise @device.DeviceError {
   let boundaries = [("context.bf16", 1)]
   for index, count in counts {
     guard count > 0 && count <= 2147483646 - boundaries.last().unwrap().1 else {
@@ -40,7 +40,7 @@ pub fn TextConditioningProgram::capture_stages(
     .map(stage => stage.0)
   })
   let targets : Map[String, @joint_diffusion_device.RefinerStage] = Map([])
-  let boundaries : Array[(String, Int)] = [("context.bf16", 1)]
+  let boundaries : Array[(String, Int32)] = [("context.bf16", 1)]
   for layer, stages in descriptions {
     for stage in stages {
       let name = match stage {
@@ -95,8 +95,8 @@ pub fn TextConditioningProgram::capture_stages(
 
 ///|
 fn observe_conditioning_stages(
-  boundaries : ArrayView[(String, Int)],
-  enqueue : (Int) -> Unit raise @device.DeviceError,
+  boundaries : ArrayView[(String, Int32)],
+  enqueue : (Int32) -> Unit raise @device.DeviceError,
   synchronize : () -> Unit raise @device.DeviceError,
   finish : () -> Unit raise @device.DeviceError,
   snapshot : (String) -> Unit raise @device.DeviceError,

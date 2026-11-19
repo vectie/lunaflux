@@ -9,14 +9,14 @@ pub(all) suberror StreamingError {
 /// Startup-only, immutable capacity and measured-policy contract. Host memory
 /// must be a separate physical tier. Costs describe one complete logical page.
 pub struct Capability {
-  slots : Int
+  slots : Int32
   host_bytes : Int64
   page_bytes : Int64
-  page_count : Int
-  reserve_pages : Int
+  page_count : Int32
+  reserve_pages : Int32
   restore_ns : Int64
   recompute_ns : Int64
-  transfer_timeout_millis : Int
+  transfer_timeout_millis : Int32
   workspace_budget : Int64
   shapes : ReadOnlyArray[Shape]
 } derive(Eq, Debug)
@@ -29,17 +29,17 @@ pub extend Capability with Debug::{to_repr}
 
 ///|
 pub fn Capability::new(
-  slots~ : Int,
+  slots~ : Int32,
   host_bytes~ : Int64,
   page_bytes~ : Int64,
-  page_count~ : Int,
-  reserve_pages~ : Int,
+  page_count~ : Int32,
+  reserve_pages~ : Int32,
   restore_ns~ : Int64,
   recompute_ns~ : Int64,
   separate_host_memory~ : Bool,
-  transfer_timeout_millis? : Int = 10000,
-  workspace_budget? : Int64 = 0L,
-  shapes? : ArrayView[Shape] = [],
+  transfer_timeout_millis~ : Int32 = 10000,
+  workspace_budget~ : Int64 = 0L,
+  shapes~ : ArrayView[Shape] = [],
 ) -> Capability raise StreamingError {
   if !separate_host_memory ||
     slots <= 0 ||
@@ -82,7 +82,7 @@ pub fn Capability::new(
 }
 
 ///|
-pub fn Capability::slots(self : Capability) -> Int {
+pub fn Capability::slots(self : Capability) -> Int32 {
   self.slots
 }
 
@@ -97,12 +97,12 @@ pub fn Capability::page_bytes(self : Capability) -> Int64 {
 }
 
 ///|
-pub fn Capability::page_count(self : Capability) -> Int {
+pub fn Capability::page_count(self : Capability) -> Int32 {
   self.page_count
 }
 
 ///|
-pub fn Capability::reserve_pages(self : Capability) -> Int {
+pub fn Capability::reserve_pages(self : Capability) -> Int32 {
   self.reserve_pages
 }
 
@@ -117,7 +117,7 @@ pub fn Capability::recompute_ns(self : Capability) -> Int64 {
 }
 
 ///|
-pub fn Capability::transfer_timeout_millis(self : Capability) -> Int {
+pub fn Capability::transfer_timeout_millis(self : Capability) -> Int32 {
   self.transfer_timeout_millis
 }
 
@@ -127,19 +127,19 @@ pub fn Capability::workspace_budget(self : Capability) -> Int64 {
 }
 
 ///|
-pub fn Capability::shape_count(self : Capability) -> Int {
+pub fn Capability::shape_count(self : Capability) -> Int32 {
   self.shapes.length()
 }
 
 ///|
-pub fn Capability::shape_at(self : Capability, index : Int) -> Shape {
+pub fn Capability::shape_at(self : Capability, index : Int32) -> Shape {
   self.shapes[index]
 }
 
 ///|
 #valtype
 pub struct Shape {
-  tokens : Int
+  tokens : Int32
   workspace_bytes : Int64
 } derive(Eq, Debug)
 
@@ -151,7 +151,7 @@ pub extend Shape with Debug::{to_repr}
 
 ///|
 pub fn Shape::new(
-  tokens~ : Int,
+  tokens~ : Int32,
   workspace_bytes~ : Int64,
 ) -> Shape raise StreamingError {
   if tokens <= 0 || tokens > 1048576 || workspace_bytes < 0L {
@@ -161,7 +161,7 @@ pub fn Shape::new(
 }
 
 ///|
-pub fn Shape::tokens(self : Shape) -> Int {
+pub fn Shape::tokens(self : Shape) -> Int32 {
   self.tokens
 }
 
@@ -174,8 +174,8 @@ pub fn Shape::workspace_bytes(self : Shape) -> Int64 {
 /// No owner references or pointers cross the process boundary.
 #valtype
 pub(all) struct HostPage {
-  slot : Int
-  generation : Int
+  slot : Int32
+  generation : Int32
 }
 
 ///|
@@ -194,8 +194,8 @@ pub(all) struct Command {
   worker : UInt64
   sequence : UInt64
   opcode : Opcode
-  page : Int
-  page_generation : Int
+  page : Int32
+  page_generation : Int32
   host : HostPage
 }
 

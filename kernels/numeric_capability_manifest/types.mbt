@@ -1,5 +1,5 @@
 ///|
-pub struct Fp8KernelCapabilityManifestVersion(Int) derive(Debug, Eq)
+pub struct Fp8KernelCapabilityManifestVersion(Int32) derive(Debug, Eq)
 
 ///|
 pub fn Fp8KernelCapabilityManifestVersion::v1() -> Fp8KernelCapabilityManifestVersion {
@@ -9,7 +9,7 @@ pub fn Fp8KernelCapabilityManifestVersion::v1() -> Fp8KernelCapabilityManifestVe
 ///|
 pub fn Fp8KernelCapabilityManifestVersion::as_int(
   self : Fp8KernelCapabilityManifestVersion,
-) -> Int {
+) -> Int32 {
   self.0
 }
 
@@ -67,7 +67,7 @@ pub struct Fp8KernelManifestEntry {
   priv execution : @numeric_contract.OperationExecutionDigest
   priv entry_point : @catalog.AotKernelEntryPoint
   priv module_digest : @catalog.AotArtifactDigest
-  priv artifact_module_index : Int
+  priv artifact_module_index : Int32
   priv weights : ReadOnlyArray[Fp8KernelWeightBinding]
 } derive(Debug, Eq)
 
@@ -96,14 +96,14 @@ pub struct AdmittedFp8KernelArtifacts {
 
 ///|
 pub struct Fp8KernelManifestLimits {
-  priv max_entries : Int
-  priv max_canonical_bytes : Int
+  priv max_entries : Int32
+  priv max_canonical_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn Fp8KernelManifestLimits::new(
-  max_entries~ : Int,
-  max_canonical_bytes~ : Int,
+  max_entries~ : Int32,
+  max_canonical_bytes~ : Int32,
 ) -> Fp8KernelManifestLimits raise Fp8KernelManifestError {
   if max_entries <= 0 ||
     max_entries > 65536 ||

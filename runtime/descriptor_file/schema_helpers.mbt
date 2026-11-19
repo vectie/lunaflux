@@ -2,7 +2,7 @@
 fn invalid_field(
   area : RuntimeDescriptorArea,
   issue : RuntimeDescriptorIssue,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> RuntimeDescriptorFileError {
   InvalidField(area~, issue~, index~)
 }
@@ -53,7 +53,7 @@ fn require_object(
   object : Map[String, Json],
   name : String,
   area : RuntimeDescriptorArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Map[String, Json] raise RuntimeDescriptorFileError {
   match object.get(name) {
     Some(Object(value)) => value
@@ -67,7 +67,7 @@ fn require_string(
   object : Map[String, Json],
   name : String,
   area : RuntimeDescriptorArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> String raise RuntimeDescriptorFileError {
   match object.get(name) {
     Some(String(value)) => value
@@ -81,7 +81,7 @@ fn require_bool(
   object : Map[String, Json],
   name : String,
   area : RuntimeDescriptorArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Bool raise RuntimeDescriptorFileError {
   match object.get(name) {
     Some(True) => true
@@ -95,14 +95,14 @@ fn require_bool(
 fn parse_uint64_text(
   text : StringView,
   area : RuntimeDescriptorArea,
-  index : Int,
+  index : Int32,
 ) -> UInt64 raise RuntimeDescriptorFileError {
   if text.is_empty() {
     raise invalid_field(area, ExpectedInteger, index~)
   }
   let mut result = 0UL
   for unit in text {
-    if !(unit is ('0'..='9')) {
+    if !(unit is ('0'..<='9')) {
       raise invalid_field(area, ExpectedInteger, index~)
     }
     let digit = (unit.to_int() - '0'.to_int()).to_uint64()
@@ -118,7 +118,7 @@ fn parse_uint64_text(
 fn parse_uint64(
   value : Json,
   area : RuntimeDescriptorArea,
-  index : Int,
+  index : Int32,
 ) -> UInt64 raise RuntimeDescriptorFileError {
   guard value is Number(number, repr~) else {
     raise invalid_field(area, ExpectedInteger, index~)
@@ -143,7 +143,7 @@ fn require_uint64(
   object : Map[String, Json],
   name : String,
   area : RuntimeDescriptorArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> UInt64 raise RuntimeDescriptorFileError {
   match object.get(name) {
     Some(value) => parse_uint64(value, area, index)
@@ -156,7 +156,7 @@ fn require_int64(
   object : Map[String, Json],
   name : String,
   area : RuntimeDescriptorArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Int64 raise RuntimeDescriptorFileError {
   let value = require_uint64(object, name, area, index~)
   if value > 0x7fffffffffffffffUL {
@@ -170,8 +170,8 @@ fn require_int(
   object : Map[String, Json],
   name : String,
   area : RuntimeDescriptorArea,
-  index? : Int = 0,
-) -> Int raise RuntimeDescriptorFileError {
+  index~ : Int32 = 0,
+) -> Int32 raise RuntimeDescriptorFileError {
   let value = require_uint64(object, name, area, index~)
   if value > 2147483647UL {
     raise invalid_field(area, UnsupportedValue, index~)
@@ -184,7 +184,7 @@ fn require_number(
   object : Map[String, Json],
   name : String,
   area : RuntimeDescriptorArea,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> Double raise RuntimeDescriptorFileError {
   match object.get(name) {
     Some(Number(value, repr=_)) if !value.is_nan() && !value.is_inf() => value

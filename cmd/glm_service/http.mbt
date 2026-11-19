@@ -7,8 +7,8 @@ fn bytes(text : String) -> FixedArray[Byte] {
 ///|
 fn model_stops(
   root : @approved_fs.ApprovedRoot,
-  vocabulary : Int,
-) -> Array[Int] raise {
+  vocabulary : Int32,
+) -> Array[Int32] raise {
   let j = @json.parse(
     @utf8.decode(read_bounded(root, "generation_config.json", 1048576L)),
   )
@@ -19,7 +19,7 @@ fn model_stops(
     Array(values) => values
     value => [value]
   }
-  let stops : Array[Int] = []
+  let stops : Array[Int32] = []
   for value in ids {
     guard value is Number(n, ..) &&
       n >= 0.0 &&
@@ -62,8 +62,8 @@ async fn serve(
   kernels : @approved_fs.ApprovedRoot,
 ) -> Unit {
   let spec = inspect_spec(root)
-  let tokenizer = plan.load_tokenizer(root,spec)
-  let inference = plan.inference(spec,tokenizer)
+  let tokenizer = plan.load_tokenizer(root, spec)
+  let inference = plan.inference(spec, tokenizer)
   let stops = model_stops(root, spec.vocabulary_size())
   let credential = read_bounded(kernels, plan.credential_file, 4096L)
   let secret = FixedArray::makei(credential.length(), i => credential[i])
@@ -81,7 +81,9 @@ async fn serve(
     write_timeout_millis=30000,
     reactor_transition_budget=64,
   )
-  let prepared = prepare_service(plan, manifest, root, kernels, spec,tokenizer,inference) catch {
+  let prepared = prepare_service(
+    plan, manifest, root, kernels, spec, tokenizer, inference,
+  ) catch {
     @session.LunaOnlineInstancePreparationFailed(cause) => {
       auth.close()
       fail("GLM preparation: \{Repr(cause)}")

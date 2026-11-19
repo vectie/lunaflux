@@ -10,15 +10,15 @@ pub struct GlmHybridHyperControlCudaCandidate {
   priv numerical_contract : @decoder_hyper_connection_cuda_source.DecoderHyperConnectionNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
   priv capability : @glm_hybrid_kernel_requirements.GlmHybridAotCapability
-  priv stream_count : Int
-  priv hidden_width : Int
-  priv sinkhorn_iterations : Int
+  priv stream_count : Int32
+  priv hidden_width : Int32
+  priv sinkhorn_iterations : Int32
   priv control_epsilon : Double
   priv normalization_epsilon : Double
-  priv maximum_tokens : Int
+  priv maximum_tokens : Int32
   priv target : @catalog.DeviceTarget
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[

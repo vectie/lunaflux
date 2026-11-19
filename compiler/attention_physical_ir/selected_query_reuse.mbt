@@ -4,20 +4,20 @@
 /// partitioned by sequence at execution. Scores have a separate publication
 /// epoch before normalized probabilities reuse their storage.
 pub struct SelectedQueryReuse {
-  priv queries : Int
-  priv heads : Int
-  priv history : Int
-  priv rows : Int
+  priv queries : Int32
+  priv heads : Int32
+  priv history : Int32
+  priv rows : Int32
 }
 
 ///|
 pub fn SelectedQueryReuse::new(
-  queries~ : Int,
-  heads~ : Int,
-  history~ : Int,
-  query_dimension~ : Int,
-  value_dimension~ : Int,
-  rows~ : Int,
+  queries~ : Int32,
+  heads~ : Int32,
+  history~ : Int32,
+  query_dimension~ : Int32,
+  value_dimension~ : Int32,
+  rows~ : Int32,
   shared_budget~ : Int64,
 ) -> Self? {
   guard queries >= rows &&
@@ -33,7 +33,7 @@ pub fn SelectedQueryReuse::new(
   let words = (history.to_int64() + 31L) / 32L
   let shared = rows.to_int64() * words * 4L +
     rows.to_int64() *
-    Int::max(query_dimension, value_dimension).to_int64() *
+    Int32::max(query_dimension, value_dimension).to_int64() *
     2L +
     4096L
   guard shared <= shared_budget &&
@@ -46,18 +46,18 @@ pub fn SelectedQueryReuse::new(
 }
 
 ///|
-pub fn SelectedQueryReuse::workgroups(self : Self) -> Int {
+pub fn SelectedQueryReuse::workgroups(self : Self) -> Int32 {
   ((self.queries - 1) / self.rows + 1) * self.heads
 }
 
 ///|
-pub fn SelectedQueryReuse::cohort_rows(self : Self) -> Int {
+pub fn SelectedQueryReuse::cohort_rows(self : Self) -> Int32 {
   self.rows
 }
 
 ///|
 /// The dispatch covers both row-wise decode and cohort prefill ownership.
-pub fn SelectedQueryReuse::dispatch_workgroups(self : Self) -> Int {
+pub fn SelectedQueryReuse::dispatch_workgroups(self : Self) -> Int32 {
   self.queries * self.heads
 }
 
@@ -69,8 +69,8 @@ pub fn SelectedQueryReuse::scratch_bytes(self : Self) -> Int64 {
 ///|
 pub fn SelectedQueryReuse::owns_sequence(
   self : Self,
-  sequences : ArrayView[Int],
-  row : Int,
+  sequences : ArrayView[Int32],
+  row : Int32,
 ) -> Bool {
   guard row >= 0 &&
     row < sequences.length() &&

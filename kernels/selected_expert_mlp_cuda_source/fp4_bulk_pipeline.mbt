@@ -2,17 +2,17 @@
 /// Byte-counted row transfers are a terminal device realization of the same
 /// finite publication/retirement ring. No tensor descriptor or host readback.
 fn fp4_bulk_pipeline(
-  stage : Int,
-  inner : Int,
-  columns : Int,
-  tile_columns : Int,
+  stage : Int32,
+  inner : Int32,
+  columns : Int32,
+  tile_columns : Int32,
   input_scales : Int64,
   weight_scales : Int64,
   symbol : String,
   pipeline : @physical_tile_ir.ProducerConsumerPipeline,
-  fragment_slots : Int,
+  fragment_slots : Int32,
   paired_weight_scales : Int64?,
-  tiled? : Bool = false,
+  tiled~ : Bool = false,
 ) -> String {
   let (stages, producers, consumers) = pipeline.geometry()
   let paired = paired_weight_scales is Some(_)

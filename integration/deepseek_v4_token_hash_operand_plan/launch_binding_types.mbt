@@ -10,11 +10,11 @@ pub struct DeepSeekV4TokenHashLaunchBindingDigest(String) derive(Debug, Eq, Hash
 pub struct DeepSeekV4TokenHashLaunchBinding {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  priv layer_index : Int
-  priv requirement_ordinal : Int
-  priv maximum_tokens : Int
-  priv experts_per_token : Int
-  priv routed_expert_count : Int
+  priv layer_index : Int32
+  priv requirement_ordinal : Int32
+  priv maximum_tokens : Int32
+  priv experts_per_token : Int32
+  priv routed_expert_count : Int32
   priv operand_plan_digest : DeepSeekV4TokenHashOperandPlanDigest
   priv sidecar_layout_digest : @segmented_device_materialize.SegmentedDeviceLayoutDigest
   priv artifact_binding_digest : DeepSeekV4TokenHashArtifactBindingDigest
@@ -42,7 +42,7 @@ pub(all) suberror DeepSeekV4TokenHashLaunchBindingError {
   SidecarLayoutMismatch
   ArtifactEvidenceMismatch
   CompileEvidenceMismatch
-  CandidateGeometryMismatch(Int)
+  CandidateGeometryMismatch(Int32)
   LoaderAuthorityUnavailable
   LaunchAuthorityUnavailable
   PhysicalQualificationUnavailable

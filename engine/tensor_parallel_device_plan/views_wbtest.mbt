@@ -10,7 +10,7 @@ fn tpdp_assert_local_shard(view : TensorParallelMatrixView) -> Unit raise {
 ///|
 fn tpdp_tensor(
   plan : TensorParallelDevicePlan,
-  index : Int,
+  index : Int32,
 ) -> TensorParallelMatrixView raise {
   guard plan.tensor(@plan.TensorRef::new(index)) is Some(view) else {
     fail("ordered tensor view is missing")

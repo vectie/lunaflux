@@ -14,7 +14,7 @@ pub fn MoeProgram::prepare_routed_frame(
   correction_bias? : @device.Allocation,
   token_ids? : @device.Allocation,
   token_table? : @device.Allocation,
-  token_table_offset? : Int64 = 0L,
+  token_table_offset~ : Int64 = 0L,
   routed_bank~ : @device.Allocation,
   shared_bank~ : @device.Allocation,
   output~ : @device.Allocation,

@@ -5,43 +5,46 @@ extern "C" fn alloc_probe_begin() = "lunaflux_alloc_probe_begin"
 extern "C" fn alloc_probe_end() -> UInt64 = "lunaflux_alloc_probe_end"
 
 ///|
-extern "C" fn alloc_probe_check(observed : UInt64, expect_zero : Int) -> Int = "lunaflux_alloc_probe_check"
+extern "C" fn alloc_probe_check(
+  observed : UInt64,
+  expect_zero : Int32,
+) -> Int32 = "lunaflux_alloc_probe_check"
 
 ///|
 extern "C" fn alloc_probe_abort() = "lunaflux_alloc_probe_abort"
 
 ///|
-extern "C" fn alloc_probe_seed() -> Int = "lunaflux_alloc_probe_seed"
+extern "C" fn alloc_probe_seed() -> Int32 = "lunaflux_alloc_probe_seed"
 
 ///|
 #borrow(value)
-extern "C" fn keep_array_alive(value : FixedArray[Int]) = "lunaflux_alloc_probe_keep_alive"
+extern "C" fn keep_array_alive(value : FixedArray[Int32]) = "lunaflux_alloc_probe_keep_alive"
 
 ///|
-extern "C" fn fixture_begin() -> Int = "lunaflux_rank_child_fixture_begin"
+extern "C" fn fixture_begin() -> Int32 = "lunaflux_rank_child_fixture_begin"
 
 ///|
 #borrow(source)
-extern "C" fn fixture_send(source : FixedArray[Byte], length : Int) -> Int = "lunaflux_rank_child_fixture_send"
+extern "C" fn fixture_send(source : FixedArray[Byte], length : Int32) -> Int32 = "lunaflux_rank_child_fixture_send"
 
 ///|
 #borrow(destination)
-extern "C" fn fixture_receive(destination : FixedArray[Byte]) -> Int = "lunaflux_rank_child_fixture_receive"
+extern "C" fn fixture_receive(destination : FixedArray[Byte]) -> Int32 = "lunaflux_rank_child_fixture_receive"
 
 ///|
-extern "C" fn fixture_shutdown_write() -> Int = "lunaflux_rank_child_fixture_shutdown_write"
+extern "C" fn fixture_shutdown_write() -> Int32 = "lunaflux_rank_child_fixture_shutdown_write"
 
 ///|
-extern "C" fn fixture_finish() -> Int = "lunaflux_rank_child_fixture_finish"
+extern "C" fn fixture_finish() -> Int32 = "lunaflux_rank_child_fixture_finish"
 
 ///|
 extern "C" fn fixture_reset_evidence() = "lunaflux_rank_child_fixture_reset_evidence"
 
 ///|
 extern "C" fn fixture_check_evidence(
-  expected_mask : UInt,
+  expected_mask : UInt32,
   minimum_count : UInt64,
-) -> Int = "lunaflux_rank_child_fixture_check_evidence"
+) -> Int32 = "lunaflux_rank_child_fixture_check_evidence"
 
 ///|
 fn fixture_identity() -> @spec.ModelIdentity {

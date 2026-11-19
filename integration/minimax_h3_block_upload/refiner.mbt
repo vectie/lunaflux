@@ -6,7 +6,7 @@ pub fn upload_refiner(
   packing : @minimax_h3_weights.RefinerWeightPacking,
   expected_identity~ : @spec.ModelIdentity,
   destination_offset~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_refiner_weights(packing, expected_identity~)

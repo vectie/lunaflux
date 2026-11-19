@@ -12,14 +12,14 @@ pub fn compressed_index_selection_source(
 ) -> CompressedIndexSelectionCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 112 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (heads, width, ratio, rows, positions, _) = plan.geometry()
   let capacity = plan.cache_capacity()
-  let physical = Int::max(capacity, 1)
-  let slots = Int::max(plan.selected_width(), 1)
+  let physical = Int32::max(capacity, 1)
+  let slots = Int32::max(plan.selected_width(), 1)
   let symbols = [symbol_prefix + "_scores", symbol_prefix + "_select"]
   let offset = match plan.coordinates() {
     CacheRelative => "0"
@@ -104,7 +104,7 @@ pub fn CompressedIndexSelectionCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn CompressedIndexSelectionCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String {
   self.symbols[stage]
 }
@@ -112,13 +112,13 @@ pub fn CompressedIndexSelectionCudaSource::symbol(
 ///|
 pub fn CompressedIndexSelectionCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (_, _, _, rows, _, _) = self.plan.geometry()
   (
     rows,
     if stage == 0 {
-      (Int::max(self.plan.cache_capacity(), 1) + 255) / 256
+      (Int32::max(self.plan.cache_capacity(), 1) + 255) / 256
     } else {
       1
     },

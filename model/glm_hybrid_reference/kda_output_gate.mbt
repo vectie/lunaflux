@@ -3,10 +3,10 @@ pub fn kda_output_gate_projection(
   hidden : ArrayView[Double],
   first_weights : ArrayView[Double],
   second_weights : ArrayView[Double],
-  row_count~ : Int,
-  hidden_width~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  row_count~ : Int32,
+  hidden_width~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmKdaOutputGateResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)

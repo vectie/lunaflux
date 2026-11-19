@@ -1,8 +1,8 @@
 ///|
 fn reusable_runtime_validate_head_ownership(
   abi : ReusableFusedRuntimeKernelAbi,
-  heads : Int,
-  rows : Int?,
+  heads : Int32,
+  rows : Int32?,
 ) -> Unit raise FusedArtifactAdmissionError {
   if !(heads is (1 | 2 | 4)) ||
     (

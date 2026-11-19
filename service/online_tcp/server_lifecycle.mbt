@@ -143,8 +143,8 @@ fn LunaOnlineTcpServer::latch_service_drain(self : LunaOnlineTcpServer) -> Unit 
 ///|
 fn LunaOnlineTcpServer::bounded_transport_wait(
   self : LunaOnlineTcpServer,
-  configured_millis : Int,
-) -> Int raise LunaOnlineTcpError {
+  configured_millis : Int32,
+) -> Int32 raise LunaOnlineTcpError {
   let remaining = self.stream().transport_wait_remaining_millis() catch {
       _ => raise luna_online_tcp_error(LunaOnlineTcpCoordinator)
     }

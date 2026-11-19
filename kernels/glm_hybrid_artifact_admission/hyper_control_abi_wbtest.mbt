@@ -2,9 +2,9 @@
 fn hyper_control_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
   sinkhorn~ : Bool,
-  hostile_role? : Bool = false,
-  hostile_bytes? : Bool = false,
-  hostile_symbol? : Bool = false,
+  hostile_role~ : Bool = false,
+  hostile_bytes~ : Bool = false,
+  hostile_symbol~ : Bool = false,
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

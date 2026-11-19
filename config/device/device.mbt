@@ -19,20 +19,20 @@ pub(all) enum DeviceIssue {
 ///|
 /// Payload-safe device configuration validation failure.
 pub(all) suberror DeviceConfigError {
-  Invalid(field~ : DeviceField, issue~ : DeviceIssue, index~ : Int)
+  Invalid(field~ : DeviceField, issue~ : DeviceIssue, index~ : Int32)
 } derive(Debug, Eq)
 
 ///|
 /// Immutable assignment and memory ceiling for local accelerators.
 pub struct DeviceConfig {
-  visible_devices : ReadOnlyArray[Int]
+  visible_devices : ReadOnlyArray[Int32]
   memory_ceiling_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 /// Constructs validated explicit device settings.
 pub fn new(
-  visible_devices : ArrayView[Int],
+  visible_devices : ArrayView[Int32],
   memory_ceiling_bytes : Int64,
 ) -> DeviceConfig raise DeviceConfigError {
   if visible_devices.length() == 0 {
@@ -67,7 +67,9 @@ pub fn new(
 }
 
 ///|
-pub fn DeviceConfig::visible_devices(self : DeviceConfig) -> ReadOnlyArray[Int] {
+pub fn DeviceConfig::visible_devices(
+  self : DeviceConfig,
+) -> ReadOnlyArray[Int32] {
   self.visible_devices
 }
 

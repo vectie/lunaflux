@@ -3,10 +3,10 @@ fn selection_recipe(
   family : String,
   numerical : String,
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  routed_expert_count : Int,
-  top_k : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  routed_expert_count : Int32,
+  top_k : Int32,
   normalize : Bool,
   scaling : Double,
   target : @catalog.DeviceTarget,
@@ -89,7 +89,7 @@ fn selection_recipe(
 
 ///|
 fn selection_dimensions(
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
 ) -> @launch_contract.AotLaunchDimensions raise AdvancedDecoderCudaAotError {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=maximum_tokens,
@@ -106,7 +106,7 @@ fn selection_dimensions(
 
 ///|
 fn validate_selection_policy(
-  maximum_tokens : Int,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   limits : AdvancedDecoderCudaAotLimits,
@@ -127,8 +127,8 @@ fn validate_selection_policy(
 /// expert id. This candidate does not gather or normalize selected weights.
 pub fn lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,
@@ -218,8 +218,8 @@ pub fn lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
 /// indices may be produced by stable top-k or token-hash lookup.
 pub fn lower_selected_expert_weight_finalize_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

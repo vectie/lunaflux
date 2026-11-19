@@ -1,8 +1,8 @@
 ///|
 fn PrefixIndex::recency_normalization_precedes(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Bool {
   self.recency_normalization_comparisons += 1
   self.entry_recencies[left] < self.entry_recencies[right] ||
@@ -12,8 +12,8 @@ fn PrefixIndex::recency_normalization_precedes(
 ///|
 fn PrefixIndex::recency_normalization_swap(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Unit {
   let entry = self.recency_entry_scratch[left]
   self.recency_entry_scratch[left] = self.recency_entry_scratch[right]
@@ -24,8 +24,8 @@ fn PrefixIndex::recency_normalization_swap(
 ///|
 fn PrefixIndex::recency_normalization_sift_down(
   self : PrefixIndex,
-  start : Int,
-  length : Int,
+  start : Int32,
+  length : Int32,
 ) -> Unit {
   let mut position = start
   while position < length / 2 {

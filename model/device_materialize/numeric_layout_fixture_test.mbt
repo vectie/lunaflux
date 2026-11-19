@@ -26,7 +26,7 @@ fn numeric_layout_operations() -> Array[@plan.PlanOperation] {
 }
 
 ///|
-fn numeric_layout_plan(mode : Int) -> @plan.ModelPlan {
+fn numeric_layout_plan(mode : Int32) -> @plan.ModelPlan {
   let operations = numeric_layout_operations()
   let selected = [try! @plan.OperationId::new(1)]
   let numeric_schema = match mode {

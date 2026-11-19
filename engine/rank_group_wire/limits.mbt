@@ -1,6 +1,6 @@
 ///|
 pub fn RankGroupWireLimits::new(
-  max_payload_bytes~ : Int,
+  max_payload_bytes~ : Int32,
 ) -> RankGroupWireLimits raise RankGroupWireError {
   if max_payload_bytes <= 0 ||
     max_payload_bytes > RANK_GROUP_WIRE_MAX_PAYLOAD_BYTES {
@@ -16,16 +16,18 @@ pub fn RankGroupWireLimits::new(
 ///|
 pub fn RankGroupWireLimits::max_payload_bytes(
   self : RankGroupWireLimits,
-) -> Int {
+) -> Int32 {
   self.max_payload_bytes
 }
 
 ///|
-pub fn RankGroupWireLimits::max_frame_bytes(self : RankGroupWireLimits) -> Int {
+pub fn RankGroupWireLimits::max_frame_bytes(
+  self : RankGroupWireLimits,
+) -> Int32 {
   RANK_GROUP_WIRE_HEADER_BYTES + self.max_payload_bytes
 }
 
 ///|
-pub fn rank_group_wire_header_bytes() -> Int {
+pub fn rank_group_wire_header_bytes() -> Int32 {
   RANK_GROUP_WIRE_HEADER_BYTES
 }

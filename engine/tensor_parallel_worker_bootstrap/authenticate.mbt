@@ -33,7 +33,7 @@ pub fn TensorParallelRankBootstrapEnvelope::authenticate_local(
   kv_binding : @tensor_parallel_kv_plan.TensorParallelKvRankBinding,
   expected_group_digest~ : TensorParallelGroupBootstrapDigest,
   expected_rendezvous_id~ : @device.TensorCollectiveGroupId,
-  expected_collective_runtime_version_code~ : Int,
+  expected_collective_runtime_version_code~ : Int32,
 ) -> @device.TensorCollectiveContract raise TensorParallelWorkerBootstrapError {
   let rank = self.rank
   if self.identity != model_plan.identity() {

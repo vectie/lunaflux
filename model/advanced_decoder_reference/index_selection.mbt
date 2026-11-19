@@ -6,9 +6,9 @@ pub fn learned_index_top_k(
   query_heads : ArrayView[Float],
   keys : ArrayView[Float],
   head_weights : ArrayView[Float],
-  head_count~ : Int,
-  head_dimension~ : Int,
-  top_k~ : Int,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  top_k~ : Int32,
   limits~ : ReferenceLimits,
 ) -> ReferenceTopK raise AdvancedDecoderReferenceError {
   validate_shape(head_count, head_dimension, limits)
@@ -62,11 +62,11 @@ pub fn learned_index_top_k(
 /// Returns exactly the causal compressed-cache slots available to one absolute
 /// query position, matching `floor((query_position + 1) / ratio)` semantics.
 pub fn deterministic_compressed_indices(
-  compression_ratio~ : Int,
-  query_position~ : Int,
-  cache_offset~ : Int,
+  compression_ratio~ : Int32,
+  query_position~ : Int32,
+  cache_offset~ : Int32,
   limits~ : ReferenceLimits,
-) -> ReadOnlyArray[Int] raise AdvancedDecoderReferenceError {
+) -> ReadOnlyArray[Int32] raise AdvancedDecoderReferenceError {
   if compression_ratio <= 1 || query_position < 0 || cache_offset < 0 {
     raise InvalidCompression
   }
@@ -80,7 +80,7 @@ pub fn deterministic_compressed_indices(
   if count > limits.max_values {
     raise InvalidDimension
   }
-  let indices : Array[Int] = []
+  let indices : Array[Int32] = []
   for index in 0..<count {
     let absolute = Int64::from_int(cache_offset) + Int64::from_int(index)
     if absolute > 2147483647L {

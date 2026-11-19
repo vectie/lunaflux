@@ -32,7 +32,7 @@ test "Qwen3 plan represents exact wide-head query-key normalization" {
   assert_eq(model_plan.numeric_binding().tensors().length(), 310)
   let first_qkv = model_plan.operations()[2]
   let first_qk_norm = model_plan.operations()[3]
-  let expected_qkv : Array[Int] = [2, 3, 4]
+  let expected_qkv : Array[Int32] = [2, 3, 4]
   for index in 1..<4 {
     guard first_qkv.inputs()[index] is Tensor(reference) else {
       fail("Qwen3 projection tensor role drift")

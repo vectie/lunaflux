@@ -7,15 +7,15 @@ pub(all) enum DeepSeekHyperBranch {
 ///|
 pub fn hyper_connection_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
-  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
-  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
-  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
-  control_matrix_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  matrix_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
-  control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
-  normalization_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  maximum_rows~ : Int32,
+  control_square_law~ : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law~ : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
+  control_root_law~ : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  normalization_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -44,7 +44,7 @@ pub fn hyper_connection_plan(
 pub fn bind_hyper_connection_weights(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
+  layer~ : Int32,
   branch~ : DeepSeekHyperBranch,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   guard layer >= 0 && layer < spec.layer_count() else {

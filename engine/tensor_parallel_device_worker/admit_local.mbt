@@ -17,7 +17,7 @@ pub fn admit_plan(
   kv_plan : @tensor_parallel_kv_plan.TensorParallelKvPlan,
   expected_group_digest : @tensor_parallel_worker_bootstrap.TensorParallelGroupBootstrapDigest,
   expected_rendezvous_id : @device.TensorCollectiveGroupId,
-  collective_runtime_version_code~ : Int,
+  collective_runtime_version_code~ : Int32,
 ) -> TensorParallelDeviceWorkerPlan raise TensorParallelDeviceWorkerError {
   admit_bound_plan(
     model,

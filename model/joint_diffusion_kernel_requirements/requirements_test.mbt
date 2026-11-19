@@ -5,7 +5,7 @@ fn joint_kernel_content(seed : Char) -> @spec.ContentDigest {
 
 ///|
 fn joint_kernel_plan(
-  variant? : @minimax_h3_spec.MiniMaxH3Variant = Fl2va,
+  variant~ : @minimax_h3_spec.MiniMaxH3Variant = Fl2va,
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @minimax_h3.build(
     @minimax_h3_spec.MiniMaxH3ModelMetadata::from_verified_content(
@@ -20,8 +20,8 @@ fn joint_kernel_plan(
 
 ///|
 fn joint_kernel_limits(
-  maximum_layers? : Int = 64,
-  maximum_requirements? : Int = 33,
+  maximum_layers~ : Int32 = 64,
+  maximum_requirements~ : Int32 = 33,
 ) -> JointDiffusionKernelRequirementLimits {
   try! JointDiffusionKernelRequirementLimits::new(
     maximum_transformer_layers=maximum_layers,

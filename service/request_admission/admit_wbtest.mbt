@@ -81,7 +81,7 @@ fn fixture_tokenizer_with_digest(
 ///|
 fn fixture_request(
   identity : @spec.ModelIdentity,
-  deadline_millis? : UInt64 = 100UL,
+  deadline_millis~ : UInt64 = 100UL,
 ) -> @inference.GenerateRequest raise {
   let limits = fixture_inference()
   @inference.GenerateRequest::new(
@@ -110,7 +110,7 @@ fn fixture_request(
 ///|
 fn fixture_received_source(
   request : @inference.GenerateRequest,
-) -> (FixedArray[Byte], Int, @framed_wire.RequestFrameBuffer) raise {
+) -> (FixedArray[Byte], Int32, @framed_wire.RequestFrameBuffer) raise {
   let limits = @framed_wire.FramedWireLimits::new(
     fixture_inference(),
     max_frame_bytes=4096,

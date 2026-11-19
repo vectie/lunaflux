@@ -61,7 +61,7 @@ pub fn RemoteGroup::begin(
 }
 
 ///|
-fn RemoteGroup::stage_poll(self : RemoteGroup, rank : Int) -> Unit raise {
+fn RemoteGroup::stage_poll(self : RemoteGroup, rank : Int32) -> Unit raise {
   let length = @wire.encode_rank_group_wire_control_into(
     self.tx,
     self.limits,
@@ -79,8 +79,8 @@ fn RemoteGroup::stage_poll(self : RemoteGroup, rank : Int) -> Unit raise {
 fn RemoteGroup::response(
   self : RemoteGroup,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise {
   let submitted = self.protocol.reauthenticate_submitted(plan)
   let header = self.receive(rank, length)

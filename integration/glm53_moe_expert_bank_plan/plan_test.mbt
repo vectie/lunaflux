@@ -1,6 +1,6 @@
 ///|
 fn bank_test_full_metadata(
-  digest? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  digest~ : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 ) -> @glm53_spec.Glm53FullMetadata {
   @glm53_spec.Glm53FullMetadata::from_verified_content(
     @glm53_spec.Glm53FullSpec::official(),
@@ -57,7 +57,7 @@ fn bank_test_limits() -> @glm_hybrid_cuda_aot.GlmHybridCudaAotLimits {
 fn bank_test_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
   shared : Bool,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match (shared, requirement.operation()) {
       (false, RoutedExpertFeedForward(_, _, _)) => return ordinal

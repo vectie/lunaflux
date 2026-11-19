@@ -6,7 +6,7 @@ fn emit_cuda_grouped_matrix_decode_source(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   requested_symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
   matrix : @attention_physical_ir.GroupedMatrixDecodeFold,
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {

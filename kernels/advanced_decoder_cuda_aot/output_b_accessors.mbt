@@ -29,7 +29,7 @@ pub fn AdvancedDecoderOutputBProjectionCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderOutputBProjectionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,35 +57,35 @@ pub fn AdvancedDecoderOutputBProjectionCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderOutputBProjectionCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderOutputBProjectionCudaCandidate::input_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_width
 }
 
 ///|
 pub fn AdvancedDecoderOutputBProjectionCudaCandidate::output_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_width
 }
 
 ///|
 pub fn AdvancedDecoderOutputBProjectionCudaCandidate::block_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.block_width
 }
 
 ///|
 pub fn AdvancedDecoderOutputBProjectionCudaCandidate::tensor_parallel_world_size(
   _self : Self,
-) -> Int {
+) -> Int32 {
   1
 }
 

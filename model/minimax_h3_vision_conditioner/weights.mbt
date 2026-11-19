@@ -45,7 +45,7 @@ pub fn frontend_weights() -> WeightGroup {
 }
 
 ///|
-pub fn block_weights(layer : Int) -> WeightGroup raise VisionError {
+pub fn block_weights(layer : Int32) -> WeightGroup raise VisionError {
   guard layer >= 0 && layer < 27 else { raise InvalidGeometry }
   weight_group("block\{layer}", "model.visual.blocks.\{layer}", [
     ("norm1.weight", [1152L]),
@@ -64,7 +64,7 @@ pub fn block_weights(layer : Int) -> WeightGroup raise VisionError {
 }
 
 ///|
-pub fn merger_weights(index : Int) -> WeightGroup raise VisionError {
+pub fn merger_weights(index : Int32) -> WeightGroup raise VisionError {
   guard index >= 0 && index < 4 else { raise InvalidGeometry }
   let prefix = if index == 0 {
     "model.visual.merger"

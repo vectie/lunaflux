@@ -35,8 +35,8 @@ pub(all) suberror LocalTopologyError {
   InvalidLocalTopology(
     area~ : LocalTopologyArea,
     rule~ : LocalTopologyRule,
-    first~ : Int,
-    second~ : Int
+    first~ : Int32,
+    second~ : Int32
   )
 } derive(Debug, Eq)
 
@@ -44,8 +44,8 @@ pub(all) suberror LocalTopologyError {
 fn invalid(
   area : LocalTopologyArea,
   rule : LocalTopologyRule,
-  first : Int,
-  second : Int,
+  first : Int32,
+  second : Int32,
 ) -> LocalTopologyError {
   InvalidLocalTopology(area~, rule~, first~, second~)
 }

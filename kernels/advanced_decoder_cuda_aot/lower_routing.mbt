@@ -1,9 +1,9 @@
 ///|
 fn expert_score_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  routed_expert_count : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  routed_expert_count : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -77,12 +77,12 @@ fn expert_score_recipe(
 ///|
 fn token_hash_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  hash_layer_count : Int,
-  vocabulary_size : Int,
-  experts_per_token : Int,
-  routed_expert_count : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  hash_layer_count : Int32,
+  vocabulary_size : Int32,
+  experts_per_token : Int32,
+  routed_expert_count : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -161,8 +161,8 @@ fn token_hash_recipe(
 
 ///|
 fn expert_score_source(
-  maximum_tokens : Int,
-  routed_expert_count : Int,
+  maximum_tokens : Int32,
+  routed_expert_count : Int32,
   function_symbol : String,
 ) -> Bytes {
   @utf8.encode(
@@ -197,8 +197,8 @@ fn expert_score_source(
 /// offline compilation and correctness qualification.
 pub fn lower_token_hash_routing_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,
@@ -328,8 +328,8 @@ pub fn lower_token_hash_routing_cuda_aot_candidate(
 /// and independent CUDA numerical qualification.
 pub fn lower_expert_score_transform_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

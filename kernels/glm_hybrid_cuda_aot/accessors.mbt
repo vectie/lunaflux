@@ -1,8 +1,8 @@
 ///|
 pub fn GlmHybridCudaAotLimits::new(
-  maximum_tokens~ : Int,
-  maximum_source_bytes~ : Int,
-  maximum_recipe_bytes~ : Int,
+  maximum_tokens~ : Int32,
+  maximum_source_bytes~ : Int32,
+  maximum_recipe_bytes~ : Int32,
 ) -> Self raise GlmHybridCudaAotError {
   if maximum_tokens <= 0 ||
     maximum_tokens > 1048576 ||
@@ -61,7 +61,7 @@ pub fn GlmHybridFoundationCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridFoundationCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -87,7 +87,7 @@ pub fn GlmHybridFoundationCudaCandidate::target(
 }
 
 ///|
-pub fn GlmHybridFoundationCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridFoundationCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

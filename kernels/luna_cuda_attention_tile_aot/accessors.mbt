@@ -113,7 +113,7 @@ pub fn CudaPartitionedAttentionTileAotCompilation::digest(
 ///|
 pub fn CudaPartitionedAttentionTileAotVariant::parallel_workgroup_target(
   self : CudaPartitionedAttentionTileAotVariant,
-) -> Int {
+) -> Int32 {
   self.parallel_workgroup_target
 }
 
@@ -157,6 +157,6 @@ pub fn CudaPartitionedAttentionTileAotFrontier::digest(
 /// diagnostics, not executable artifact bytes or runtime validation work.
 pub fn CudaAttentionTileAotFrontier::rejected_candidates(
   self : CudaAttentionTileAotFrontier,
-) -> ReadOnlyArray[(Int, CudaAttentionTileAotRule)] {
+) -> ReadOnlyArray[(Int32, CudaAttentionTileAotRule)] {
   self.rejected
 }

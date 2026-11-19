@@ -63,9 +63,9 @@ pub fn LunaRequestPreparationPool::try_begin_luna_text_handoff_with_receipt(
     source_deadline.milliseconds() > self.inference.max_deadline_millis() {
     raise Invalid(Deadline)
   }
-  let input_capacity = Int::min(
+  let input_capacity = Int32::min(
     effective.context_ceiling() - effective.max_new_tokens(),
-    Int::min(
+    Int32::min(
       self.inference.max_input_tokens(),
       self.tokenizer.limits().max_output_tokens,
     ),

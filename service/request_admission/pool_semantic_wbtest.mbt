@@ -38,11 +38,11 @@ test "semantic import preserves stops and external retention blocks claim releas
 test "semantic storage int and byte cells are mandatory per preparation lane" {
   let tokenizer = fixture_tokenizer()
   let inference = fixture_inference()
-  let input_capacity = Int::min(
+  let input_capacity = Int32::min(
     tokenizer.limits().max_input_bytes,
     inference.max_text_bytes(),
   )
-  let output_capacity = Int::min(
+  let output_capacity = Int32::min(
     tokenizer.limits().max_output_tokens,
     inference.max_input_tokens(),
   )

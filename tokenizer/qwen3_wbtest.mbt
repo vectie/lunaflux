@@ -63,7 +63,7 @@ fn qwen3_test_spec() -> TokenizerSpec raise TokenizerError {
 }
 
 ///|
-fn qwen3_reference_placeholder(token_id : Int) -> Bytes {
+fn qwen3_reference_placeholder(token_id : Int32) -> Bytes {
   Bytes::from_array([
     (0xff).to_byte(),
     (0xfe).to_byte(),
@@ -163,7 +163,7 @@ fn qwen3_reference_spec() -> TokenizerSpec raise TokenizerError {
 fn qwen3_reference_encode(
   spec : TokenizerSpec,
   text : String,
-) -> Array[Int] raise TokenizerError {
+) -> Array[Int32] raise TokenizerError {
   spec.encode_text(
     text,
     special_policy=Allow,
@@ -315,7 +315,7 @@ test "Qwen3 atomic added and special tokens retain distinct decode policy" {
 ///|
 test "Qwen3 pinned Transformers corpus matches exact IDs and decode" {
   let spec = qwen3_reference_spec()
-  let cases : Array[(String, Array[Int], String)] = [
+  let cases : Array[(String, Array[Int32], String)] = [
     ("Hello, Qwen!", [9707, 11, 1207, 16948, 0], "Hello, Qwen!"),
     (
       "I can't believe it's 2026.",

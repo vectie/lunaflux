@@ -1,6 +1,6 @@
 ///|
 pub fn AttentionTileValueId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> AttentionTileValueId raise AttentionTileIrError {
   if value <= 0 || value > 4096 {
     raise InvalidAttentionTileIr(InvalidValueId)
@@ -9,7 +9,7 @@ pub fn AttentionTileValueId::from_stable_int(
 }
 
 ///|
-pub fn AttentionTileValueId::as_int(self : AttentionTileValueId) -> Int {
+pub fn AttentionTileValueId::as_int(self : AttentionTileValueId) -> Int32 {
   self.0
 }
 

@@ -28,7 +28,7 @@ fn broad_serving_three_frames(
 ///|
 async fn connect_broad_serving_client(
   owner : RuntimeInstanceOwner,
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> @socket.Tcp {
   connect_spawned_serving_client(owner, timeout_millis) catch {
     _ => raise broad_serving_error(BroadServingConnect)
@@ -38,7 +38,7 @@ async fn connect_broad_serving_client(
 ///|
 async fn accept_broad_serving_client(
   owner : RuntimeInstanceOwner,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit {
   accept_spawned_serving_client(owner, turn_limit) catch {
     RuntimeSpawnedServingValidationFailed(SpawnedServingHealth) =>
@@ -53,7 +53,7 @@ async fn accept_broad_serving_client(
 async fn write_broad_serving_frame(
   client : @socket.Tcp,
   frame : FixedArray[Byte],
-  timeout_millis : Int,
+  timeout_millis : Int32,
 ) -> Unit {
   write_spawned_serving_frame(client, frame, timeout_millis) catch {
     _ => raise broad_serving_error(BroadServingIngress)
@@ -66,7 +66,7 @@ async fn read_broad_serving_event(
   client : @socket.Tcp,
   storage : FixedArray[Byte],
   decoder : @framed_wire.EventFrameBuffer,
-  timeout_millis : Int,
+  timeout_millis : Int32,
   failure_rule : RuntimeSpawnedBroadServingValidationRule,
 ) -> @inference.StreamEvent {
   let mut cursor = 0
@@ -112,7 +112,7 @@ async fn read_broad_serving_event(
 ///|
 async fn retire_broad_serving_client(
   owner : RuntimeInstanceOwner,
-  turn_limit : Int,
+  turn_limit : Int32,
   expected_accepts : UInt64,
   expected_disconnects : UInt64,
   expected_rejections : UInt64,

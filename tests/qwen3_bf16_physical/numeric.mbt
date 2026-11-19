@@ -1,18 +1,18 @@
 ///|
-fn qwen3_bf16_bits(value : Float) -> Int {
+fn qwen3_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn qwen3_bf16_float(bits : Int) -> Float {
+fn qwen3_bf16_float(bits : Int32) -> Float {
   Float::reinterpret_from_uint(bits.reinterpret_as_uint() << 16)
 }
 
 ///|
 fn qwen3_write_bf16(
   output : FixedArray[Byte],
-  index : Int,
+  index : Int32,
   value : Float,
 ) -> Unit {
   let bits = qwen3_bf16_bits(value)
@@ -21,7 +21,7 @@ fn qwen3_write_bf16(
 }
 
 ///|
-fn qwen3_read_bf16(input : Bytes, index : Int) -> Float {
+fn qwen3_read_bf16(input : Bytes, index : Int32) -> Float {
   let bits = input[index * 2].to_int() | (input[index * 2 + 1].to_int() << 8)
   qwen3_bf16_float(bits)
 }
@@ -34,7 +34,7 @@ fn qwen3_i32_counts() -> Bytes {
 }
 
 ///|
-fn qwen3_input_fixture(width : Int) -> Bytes {
+fn qwen3_input_fixture(width : Int32) -> Bytes {
   let output = FixedArray::make(width * 2, b'\x00')
   for index in 0..<width {
     qwen3_write_bf16(output, index, Float::from_int(index % 13 - 6) * 0.0625F)
@@ -43,7 +43,7 @@ fn qwen3_input_fixture(width : Int) -> Bytes {
 }
 
 ///|
-fn qwen3_sparse_weight(rows : Int, columns : Int, phase : Int) -> Bytes {
+fn qwen3_sparse_weight(rows : Int32, columns : Int32, phase : Int32) -> Bytes {
   let output = FixedArray::make(rows * columns * 2, b'\x00')
   for row in 0..<rows {
     let scale = Float::from_int((row + phase) % 7 - 3) * 0.125F
@@ -53,7 +53,7 @@ fn qwen3_sparse_weight(rows : Int, columns : Int, phase : Int) -> Bytes {
 }
 
 ///|
-fn qwen3_norm_weight(width : Int, phase : Int) -> Bytes {
+fn qwen3_norm_weight(width : Int32, phase : Int32) -> Bytes {
   let output = FixedArray::make(width * 2, b'\x00')
   for index in 0..<width {
     qwen3_write_bf16(
@@ -71,10 +71,10 @@ fn qwen3_expected_qkv(
   query_weight : Bytes,
   key_weight : Bytes,
   value_weight : Bytes,
-  hidden : Int,
-  query_width : Int,
-  kv_width : Int,
-) -> FixedArray[Int] {
+  hidden : Int32,
+  query_width : Int32,
+  kv_width : Int32,
+) -> FixedArray[Int32] {
   let output = FixedArray::make(query_width + 2 * kv_width, 0)
   for column in 0..<output.length() {
     let weight = if column < query_width {
@@ -103,7 +103,7 @@ fn qwen3_expected_qkv(
 ///|
 fn qwen3_compare_qkv(
   actual : Bytes,
-  expected : FixedArray[Int],
+  expected : FixedArray[Int32],
 ) -> Unit raise Qwen3PhysicalError {
   qwen3_require(actual.length() == expected.length() * 2, "QKV size differs")
   for index in 0..<expected.length() {
@@ -120,9 +120,9 @@ fn qwen3_compare_qk_norm(
   actual : Bytes,
   q_norm : Bytes,
   k_norm : Bytes,
-  query_heads : Int,
-  kv_heads : Int,
-  head_dimension : Int,
+  query_heads : Int32,
+  kv_heads : Int32,
+  head_dimension : Int32,
   epsilon : Float,
 ) -> Float raise Qwen3PhysicalError {
   let packed_heads = query_heads + 2 * kv_heads

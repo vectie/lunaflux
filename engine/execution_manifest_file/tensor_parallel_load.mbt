@@ -23,7 +23,7 @@ pub fn load_tensor_parallel(
   limits : ExecutionManifestFileLimits,
   launch_limits : @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits,
   execution_limits : @tensor_parallel_execution_plan.TensorParallelExecutionPlanLimits,
-  external_approval? : @worker_wire.WorkerBootstrapLunaApproval? = None,
+  external_approval~ : @worker_wire.WorkerBootstrapLunaApproval? = None,
 ) -> TensorParallelExecutionAdmission raise ExecutionManifestFileError {
   let full_kv_layout = validate_tensor_parallel_envelope(
     model_plan, rank_plan, sharded_inspection, device_plan, local_kv_layout, local_kv_binding,

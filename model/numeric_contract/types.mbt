@@ -23,35 +23,35 @@ pub struct ModelNumericSchemaDigest {
 /// Stable tensor position inside a reference-free numeric schema.
 #valtype
 pub struct NumericTensorOrdinal {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
 /// Stable operation position inside a reference-free numeric schema.
 #valtype
 pub struct NumericOperationOrdinal {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
 /// Typed scale-metadata ordinal in the same numeric schema.
 #valtype
 pub struct ScaleTensorOrdinal {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
 /// Typed zero-point-metadata ordinal in the same numeric schema.
 #valtype
 pub struct ZeroPointTensorOrdinal {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
 /// Typed codebook-metadata ordinal in the same numeric schema.
 #valtype
 pub struct CodebookTensorOrdinal {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -75,7 +75,7 @@ pub struct TensorStorageContract {
   priv zero_point : ZeroPointMode
   priv codebook_layout : CodebookLayout
   priv conversion : NumericConversion
-  priv canonical_length : Int
+  priv canonical_length : Int32
   priv digest : TensorStorageDigest
 } derive(Debug, Eq)
 
@@ -93,7 +93,7 @@ pub struct OperationExecutionContract {
   priv output : ComputeDType
   priv conversion : NumericConversion
   priv order : OperationOrderPolicy
-  priv canonical_length : Int
+  priv canonical_length : Int32
   priv digest : OperationExecutionDigest
 } derive(Debug, Eq)
 
@@ -101,7 +101,7 @@ pub struct OperationExecutionContract {
 /// Generic role of one numeric-schema tensor entry.
 #valtype
 pub struct NumericTensorRole {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -128,6 +128,6 @@ pub struct NumericOperationSchema {
 pub struct ModelNumericSchema {
   priv tensors : ReadOnlyArray[NumericTensorSchema]
   priv operations : ReadOnlyArray[NumericOperationSchema]
-  priv canonical_length : Int
+  priv canonical_length : Int32
   priv digest : ModelNumericSchemaDigest
 } derive(Debug, Eq)

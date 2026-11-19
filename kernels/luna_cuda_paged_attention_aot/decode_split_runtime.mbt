@@ -14,14 +14,14 @@ pub fn bind_reusable_paged_attention_decode_split_cuda_aot(
   expected_module_sha256 : String,
   partial_entry_point_id : @catalog.AotKernelEntryPointId,
   merge_entry_point_id : @catalog.AotKernelEntryPointId,
-  maximum_key_value_splits : Int,
+  maximum_key_value_splits : Int32,
   maximum_workspace_bytes : Int64,
-  compiler_readonly? : Bool = false,
-  blockwise_readonly? : Bool = false,
+  compiler_readonly~ : Bool = false,
+  blockwise_readonly~ : Bool = false,
   blockwise_execution? : (
     @luna_attention_strategy.AttentionTileCompute,
-    Int,
-    Int,
+    Int32,
+    Int32,
   ),
 ) -> PagedAttentionDecodeSplitRuntimeCudaBinding raise PagedAttentionAotError {
   if (compiler_readonly && blockwise_readonly) ||

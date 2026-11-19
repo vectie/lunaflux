@@ -3,7 +3,7 @@
 /// checksum or equality. Declared module labels do not authenticate the bytes.
 fn check_release_module_length(
   bytes : Bytes,
-  expected_length : Int,
+  expected_length : Int32,
 ) -> Unit raise Fp8ReleaseAuthorityError {
   if bytes.is_empty() || bytes.length() != expected_length {
     raise InvalidFp8ReleaseAuthority(ArtifactBytes)

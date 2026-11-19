@@ -28,13 +28,13 @@ pub(all) suberror RecurrentDeltaCudaSourceError {
 pub struct RecurrentDeltaCudaSource {
   priv operation : RecurrentDeltaOperation
   priv numerical_contract : RecurrentDeltaNumericalContract
-  priv head_count : Int
-  priv key_dimension : Int
-  priv value_dimension : Int
+  priv head_count : Int32
+  priv key_dimension : Int32
+  priv value_dimension : Int32
   priv normalization_epsilon : Double
   priv log_decay_lower_bound : Double
-  priv maximum_rows : Int
-  priv maximum_sequences : Int
+  priv maximum_rows : Int32
+  priv maximum_sequences : Int32
   priv function_symbol : String
   priv source : Bytes
 }

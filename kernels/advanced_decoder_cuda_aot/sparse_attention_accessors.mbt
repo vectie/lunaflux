@@ -29,7 +29,7 @@ pub fn AdvancedDecoderSparseAttentionCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,56 +57,56 @@ pub fn AdvancedDecoderSparseAttentionCudaCandidate::target(
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::maximum_tokens(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::maximum_batches(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_batches
 }
 
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::query_head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_head_count
 }
 
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::window_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.window_size
 }
 
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::compression_ratio(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.compression_ratio
 }
 
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::selected_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.selected_width
 }
 
 ///|
 pub fn AdvancedDecoderSparseAttentionCudaCandidate::maximum_key_slots(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_key_slots
 }
 

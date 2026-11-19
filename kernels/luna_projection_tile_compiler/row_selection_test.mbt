@@ -1,8 +1,8 @@
 ///|
 fn evaluate_selection(
   tree : @luna_projection_tile_compiler.ProjectionRowSelection,
-  row : Int,
-) -> (Int, Int) {
+  row : Int32,
+) -> (Int32, Int32) {
   match tree {
     Operand(operand) => (operand, row)
     Skip(width~, operand~, next) =>

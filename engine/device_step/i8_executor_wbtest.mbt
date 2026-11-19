@@ -1,14 +1,14 @@
 ///|
 priv struct FakeI8ConstructionState {
   open : Array[Bool]
-  events : Array[Int]
-  mut cleanup_failure : Int
+  events : Array[Int32]
+  mut cleanup_failure : Int32
 }
 
 ///|
 fn close_fake_i8_construction(
   state : FakeI8ConstructionState,
-  fail_close? : Int = 0,
+  fail_close~ : Int32 = 0,
 ) -> Unit {
   let stages : Array[() -> Unit] = []
   for index in 0..<state.open.length() {
@@ -29,8 +29,8 @@ fn close_fake_i8_construction(
 
 ///|
 fn injected_i8_construction(
-  fail_stage : Int,
-  fail_close? : Int = 0,
+  fail_stage : Int32,
+  fail_close~ : Int32 = 0,
 ) -> FakeI8ConstructionState raise {
   let state : FakeI8ConstructionState = {
     open: Array::make(9, false),
@@ -182,7 +182,7 @@ test "production I8 blueprint rejects any unselected launch profile" {
 test "I8 host launch canary uses admitted semantic order including scale steps" {
   let steps = i8_blueprint_fixture().blueprint.steps()
   let lifecycle = Ref(GraphStaged)
-  let launches : Array[Int] = []
+  let launches : Array[Int32] = []
   run_paged_ordered_step_range(
     steps,
     lifecycle.val,
@@ -208,7 +208,7 @@ test "I8 host launch canary uses admitted semantic order including scale steps" 
 test "I8 host launch failure poisons before any later admitted operation" {
   let steps = i8_blueprint_fixture().blueprint.steps()
   let lifecycle = Ref(GraphStaged)
-  let launches : Array[Int] = []
+  let launches : Array[Int32] = []
   let failed_operation = steps[2].operation_id()
   try
     run_paged_ordered_step_range(

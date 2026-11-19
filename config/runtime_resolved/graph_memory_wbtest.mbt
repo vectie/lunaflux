@@ -4,9 +4,9 @@ fn expect_graph_memory_error(
   bound : Int64?,
   alignment : Int64?,
   ceiling : Int64?,
-  weight? : Int64 = 10L,
-  activation? : Int64 = 20L,
-  kv? : Int64 = 30L,
+  weight~ : Int64 = 10L,
+  activation~ : Int64 = 20L,
+  kv~ : Int64 = 30L,
   expected~ : RuntimeCapacityRule,
 ) -> Unit raise {
   try

@@ -48,7 +48,7 @@ pub fn build_input(
 ///|
 fn video_projection_width(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-) -> Int raise BlockSourceError {
+) -> Int32 raise BlockSourceError {
   let shape = model.shapes()
   let mut width = shape.video_latent_channels()
   for

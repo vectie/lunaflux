@@ -22,8 +22,8 @@ pub(all) enum AttentionIterationAxis {
 pub struct AttentionLoopCombinator {
   priv kind : AttentionIterationKind
   priv axis : AttentionIterationAxis
-  priv extent : Int
-  priv tile : Int
+  priv extent : Int32
+  priv tile : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -37,12 +37,12 @@ pub struct AttentionTileSchedule {
   priv loops : ReadOnlyArray[AttentionLoopCombinator]
   priv compute : @luna_attention_strategy.AttentionTileCompute
   priv memory : @luna_attention_strategy.AttentionTileMemory
-  priv subgroups_per_block : Int
-  priv pipeline_stages : Int
-  priv vector_bytes : Int
+  priv subgroups_per_block : Int32
+  priv pipeline_stages : Int32
+  priv vector_bytes : Int32
   priv shared_memory_bytes : Int64
-  priv key_value_partitions : Int
-  priv key_value_partition_grain : Int
+  priv key_value_partitions : Int32
+  priv key_value_partition_grain : Int32
   priv hoist_paged_key_value_page_lookup : Bool
   priv reuse_online_softmax_tile_storage : Bool
   priv matrix_storage_layout : AttentionTileStorageLayout?

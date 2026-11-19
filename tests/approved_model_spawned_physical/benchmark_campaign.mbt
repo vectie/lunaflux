@@ -1,10 +1,10 @@
 ///|
-const PHYSICAL_BENCHMARK_MAX_CANONICAL_BYTES : Int = 16384
+const PHYSICAL_BENCHMARK_MAX_CANONICAL_BYTES : Int32 = 16384
 
 ///|
 fn physical_benchmark_artifact_lengths_valid(
-  raw_events_bytes : Int,
-  summary_bytes : Int,
+  raw_events_bytes : Int32,
+  summary_bytes : Int32,
 ) -> Bool {
   raw_events_bytes > 0 &&
   summary_bytes > 0 &&

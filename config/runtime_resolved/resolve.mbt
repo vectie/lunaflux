@@ -1,11 +1,11 @@
 ///|
-const REQUIRED_PLAN_BUFFER_COUNT : Int = 2
+const REQUIRED_PLAN_BUFFER_COUNT : Int32 = 2
 
 ///|
-const MAX_SAFE_INT : Int = 2_147_483_647
+const MAX_SAFE_INT : Int32 = 2_147_483_647
 
 ///|
-fn checked_add_nonnegative(left : Int, right : Int) -> Int? {
+fn checked_add_nonnegative(left : Int32, right : Int32) -> Int32? {
   if left < 0 || right < 0 || left > MAX_SAFE_INT - right {
     None
   } else {
@@ -14,7 +14,7 @@ fn checked_add_nonnegative(left : Int, right : Int) -> Int? {
 }
 
 ///|
-fn checked_multiply_nonnegative(left : Int, right : Int) -> Int? {
+fn checked_multiply_nonnegative(left : Int32, right : Int32) -> Int32? {
   if left < 0 || right < 0 {
     None
   } else if left == 0 || right == 0 {
@@ -27,7 +27,7 @@ fn checked_multiply_nonnegative(left : Int, right : Int) -> Int? {
 }
 
 ///|
-fn ceiling_divide_positive(numerator : Int, denominator : Int) -> Int? {
+fn ceiling_divide_positive(numerator : Int32, denominator : Int32) -> Int32? {
   if numerator <= 0 || denominator <= 0 {
     None
   } else {
@@ -37,8 +37,8 @@ fn ceiling_divide_positive(numerator : Int, denominator : Int) -> Int? {
 
 ///|
 fn require_at_least(
-  available : Int,
-  required : Int,
+  available : Int32,
+  required : Int32,
   rule : RuntimeCapacityRule,
 ) -> Unit raise RuntimeCapacityError {
   if available < required {
@@ -63,7 +63,7 @@ fn materialize_page_allocator_limits(
 ///|
 fn materialize_block_table_limits(
   cache : @cache.CacheConfig,
-  table_capacity : Int,
+  table_capacity : Int32,
 ) -> @block_table.BlockTableLimits raise RuntimeCapacityError {
   @block_table.BlockTableLimits::new(
     table_capacity~,
@@ -173,7 +173,7 @@ pub fn resolve(
     Some(value) => value
     None => MAX_SAFE_INT
   }
-  let required_worker_page_table_cells = Int::min(
+  let required_worker_page_table_cells = Int32::min(
     row_context_page_table_cells, physical_reference_page_table_cells,
   )
   require_at_least(

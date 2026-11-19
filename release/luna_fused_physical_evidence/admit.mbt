@@ -136,7 +136,7 @@ fn fused_physical_admit_global(
 fn fused_physical_admit_resources(
   reader : FusedPhysicalReader,
   prefix : String,
-  expected_static_shared : Int,
+  expected_static_shared : Int32,
 ) -> Unit raise FusedPhysicalEvidenceError {
   ignore(reader.read_digest(prefix + "cuobjdump_sass_sha256"))
   let cu_count = reader.read_int(prefix + "cuobjdump_sass_instruction_count")

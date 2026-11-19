@@ -2,12 +2,12 @@
 /// Root-free text result shared by checkpoint diagnostics. This is not a chat
 /// template: the installed tokenizer owns normalization and added-token rules.
 pub struct CheckpointTextInput {
-  priv ids : ReadOnlyArray[Int]
+  priv ids : ReadOnlyArray[Int32]
   priv decoded : Bytes
 }
 
 ///|
-pub fn CheckpointTextInput::token_ids(self : Self) -> ArrayView[Int] {
+pub fn CheckpointTextInput::token_ids(self : Self) -> ArrayView[Int32] {
   self.ids[:]
 }
 
@@ -21,7 +21,7 @@ pub fn CheckpointTextInput::decoded_bytes(self : Self) -> Bytes {
 pub fn encode_text_input(
   spec : @tokenizer.TokenizerSpec,
   input : Bytes,
-  maximum_tokens~ : Int,
+  maximum_tokens~ : Int32,
 ) -> CheckpointTextInput raise @tokenizer.TokenizerError {
   let encoded = spec.encode_bytes(
     input,
@@ -42,7 +42,7 @@ pub fn CheckpointTextInput::i32_le_bytes(self : Self) -> Bytes {
 }
 
 ///|
-fn read_text_input(path : String, maximum : Int) -> Bytes raise {
+fn read_text_input(path : String, maximum : Int32) -> Bytes raise {
   guard path.has_prefix("/") && path.rev_find("/") is Some(separator) else {
     fail("text input requires an absolute canonical path")
   }
@@ -91,8 +91,8 @@ pub fn load_checkpoint_tokenizer(
   root_name : String,
   tokenizer_relative : String,
   tokenizer_label : String,
-  vocabulary_size~ : Int,
-  maximum_tokens~ : Int,
+  vocabulary_size~ : Int32,
+  maximum_tokens~ : Int32,
 ) -> @tokenizer.TokenizerSpec raise {
   load_tokenizer(
     root,
@@ -123,8 +123,8 @@ pub fn load_checkpoint_text(
   tokenizer_relative : String,
   tokenizer_label : String,
   input_path : String,
-  vocabulary_size~ : Int,
-  maximum_tokens~ : Int,
+  vocabulary_size~ : Int32,
+  maximum_tokens~ : Int32,
 ) -> CheckpointTextInput raise {
   let spec = load_checkpoint_tokenizer(
     root,

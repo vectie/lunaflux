@@ -2,10 +2,10 @@
 /// The installed Flash router uses BF16 weights, F32 score arithmetic and a
 /// true F32 rank-one correction vector. Selection policy stays in numeric IR.
 pub fn routing_compute_plan(
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
   accuracy~ : @precision_ir.Accuracy,
-  matrix_law? : @precision_ir.DenseDotLaw = ScalarFloat32,
+  matrix_law~ : @precision_ir.DenseDotLaw = ScalarFloat32,
 ) -> @precision_ir.MoeRoutingPrecision raise {
   let profile = @glm53_spec.Glm53FlashSpec::official()
   let representation = @precision_format.Representation::new(
@@ -48,7 +48,7 @@ pub fn routing_compute_plan(
 ///|
 pub fn bind_router(
   checkpoint : @precision_materialize.PackedCheckpoint,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   guard layer_index >= 3 && layer_index <= 45 else {
     raise @glm53_weights.Glm53NvFp4ExpertError::InvalidMoeLayer(layer_index)

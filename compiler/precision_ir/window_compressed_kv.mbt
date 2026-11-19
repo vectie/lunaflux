@@ -1,25 +1,25 @@
 ///|
 pub(all) enum CompressedRowReadSet {
-  Learned(top_k~ : Int)
+  Learned(top_k~ : Int32)
   AllCausal
 }
 
 ///|
 pub struct WindowCompressedKvPrecision {
   priv window : WindowSharedKvPrecision
-  priv ratio : Int
+  priv ratio : Int32
   priv read_set : CompressedRowReadSet
   priv coordinates : CompressedRowCoordinates
-  priv capacity : Int
-  priv selected : Int
+  priv capacity : Int32
+  priv selected : Int32
 }
 
 ///|
 pub fn WindowCompressedKvPrecision::new(
   window : WindowSharedKvPrecision,
-  compression_ratio~ : Int,
+  compression_ratio~ : Int32,
   read_set~ : CompressedRowReadSet,
-  coordinates? : CompressedRowCoordinates = OffsetRelative,
+  coordinates~ : CompressedRowCoordinates = OffsetRelative,
 ) -> Self raise PrecisionPlanError {
   guard compression_ratio > 1 && compression_ratio <= 1048576 else {
     raise IllegalPlacement
@@ -29,7 +29,7 @@ pub fn WindowCompressedKvPrecision::new(
   let selected = match read_set {
     Learned(top_k~) => {
       guard top_k > 0 && top_k <= 65536 else { raise IllegalPlacement }
-      Int::min(top_k, capacity)
+      Int32::min(top_k, capacity)
     }
     AllCausal => capacity
   }
@@ -58,7 +58,7 @@ pub fn WindowCompressedKvPrecision::window(
 }
 
 ///|
-pub fn WindowCompressedKvPrecision::compression_ratio(self : Self) -> Int {
+pub fn WindowCompressedKvPrecision::compression_ratio(self : Self) -> Int32 {
   self.ratio
 }
 
@@ -70,12 +70,12 @@ pub fn WindowCompressedKvPrecision::read_set(
 }
 
 ///|
-pub fn WindowCompressedKvPrecision::cache_capacity(self : Self) -> Int {
+pub fn WindowCompressedKvPrecision::cache_capacity(self : Self) -> Int32 {
   self.capacity
 }
 
 ///|
-pub fn WindowCompressedKvPrecision::selected_width(self : Self) -> Int {
+pub fn WindowCompressedKvPrecision::selected_width(self : Self) -> Int32 {
   self.selected
 }
 

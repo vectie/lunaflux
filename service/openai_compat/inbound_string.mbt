@@ -1,5 +1,5 @@
 ///|
-fn luna_json_hex(byte : Byte) -> Int {
+fn luna_json_hex(byte : Byte) -> Int32 {
   if byte >= b'0' && byte <= b'9' {
     return byte.to_int() - 48
   }
@@ -13,7 +13,7 @@ fn luna_json_hex(byte : Byte) -> Int {
 }
 
 ///|
-fn luna_json_codepoint_width(value : Int) -> Int {
+fn luna_json_codepoint_width(value : Int32) -> Int32 {
   if value <= 0x7f {
     1
   } else if value <= 0x7ff {
@@ -26,7 +26,11 @@ fn luna_json_codepoint_width(value : Int) -> Int {
 }
 
 ///|
-fn luna_json_codepoint_byte(value : Int, width : Int, index : Int) -> Byte {
+fn luna_json_codepoint_byte(
+  value : Int32,
+  width : Int32,
+  index : Int32,
+) -> Byte {
   match (width, index) {
     (1, _) => value.to_byte()
     (2, 0) => (0xc0 | (value >> 6)).to_byte()
@@ -42,7 +46,7 @@ fn luna_json_codepoint_byte(value : Int, width : Int, index : Int) -> Byte {
 }
 
 ///|
-fn luna_known_byte(group : Int, candidate : Int, index : Int) -> Int {
+fn luna_known_byte(group : Int32, candidate : Int32, index : Int32) -> Int32 {
   let bytes = match (group, candidate) {
     (1, 0) => b"model"
     (1, 1) => b"input"
@@ -72,7 +76,7 @@ fn luna_known_byte(group : Int, candidate : Int, index : Int) -> Int {
 }
 
 ///|
-fn luna_known_length(group : Int, candidate : Int) -> Int {
+fn luna_known_length(group : Int32, candidate : Int32) -> Int32 {
   match (group, candidate) {
     (1, 0) | (1, 1) => 5
     (1, 2) => 6
@@ -140,8 +144,8 @@ fn LunaOpenAIInboundWorkspace::accept_string_byte(
 ///|
 fn LunaOpenAIInboundWorkspace::start_string(
   self : Self,
-  purpose : Int,
-  return_phase : Int,
+  purpose : Int32,
+  return_phase : Int32,
 ) -> Unit {
   if purpose == LUNA_STRING_STOP {
     self.current_stop_start = self.stop_string_byte_count

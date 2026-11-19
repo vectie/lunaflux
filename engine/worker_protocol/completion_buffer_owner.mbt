@@ -12,7 +12,7 @@ fn CompletionBuffer::require_state(
 fn CompletionBuffer::entry_index_for_slot(
   self : CompletionBuffer,
   slot : CompletionSlot,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   let value = slot.value()
   if value < 0 || value >= self.slot_to_entry.length() {
     raise InvalidCompletionSlot
@@ -34,8 +34,8 @@ fn CompletionBuffer::append(
   request_id : @inference.RequestId,
   request_generation : @inference.RequestGeneration,
   kind : CompletionEntryKind,
-  processed_tokens : Int,
-  token_id : Int,
+  processed_tokens : Int32,
+  token_id : Int32,
   failure : WorkerFailure,
 ) -> Unit raise WorkerProtocolError {
   self.require_state(CompletionWritable)
@@ -100,7 +100,7 @@ pub fn CompletionBuffer::append_prefill_completed(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  processed_tokens~ : Int,
+  processed_tokens~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   self.require_direct_access()
   self.append_prefill_completed_unleased(
@@ -117,7 +117,7 @@ fn CompletionBuffer::append_prefill_completed_unleased(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  processed_tokens~ : Int,
+  processed_tokens~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   if processed_tokens <= 0 || processed_tokens > self.limits.max_plan_tokens() {
     raise CompletionTokenCountMismatch(index=self.entry_count)
@@ -140,8 +140,8 @@ pub fn CompletionBuffer::append_final_prefill_completed(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  processed_tokens~ : Int,
-  token_id~ : Int,
+  processed_tokens~ : Int32,
+  token_id~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   self.require_direct_access()
   self.append_final_prefill_completed_unleased(
@@ -159,8 +159,8 @@ fn CompletionBuffer::append_final_prefill_completed_unleased(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  processed_tokens~ : Int,
-  token_id~ : Int,
+  processed_tokens~ : Int32,
+  token_id~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   if processed_tokens <= 0 || processed_tokens > self.limits.max_plan_tokens() {
     raise CompletionTokenCountMismatch(index=self.entry_count)
@@ -185,7 +185,7 @@ pub fn CompletionBuffer::append_decode_completed(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  token_id~ : Int,
+  token_id~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   self.require_direct_access()
   self.append_decode_completed_unleased(
@@ -202,7 +202,7 @@ fn CompletionBuffer::append_decode_completed_unleased(
   slot~ : CompletionSlot,
   request_id~ : @inference.RequestId,
   request_generation~ : @inference.RequestGeneration,
-  token_id~ : Int,
+  token_id~ : Int32,
 ) -> Unit raise WorkerProtocolError {
   if token_id < 0 || token_id > self.limits.max_token_id() {
     raise InvalidCompletionToken(slot=slot.value())

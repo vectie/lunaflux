@@ -19,7 +19,7 @@ pub(all) enum ReductionEffect {
   SynchronizeOwners
   ReducePartials
   PublishTotal
-  ReduceOwnerTree(Int)
+  ReduceOwnerTree(Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -33,9 +33,9 @@ pub extend ReductionEffect with @debug.Debug::{to_repr}
 /// BF16 before reduction, matching the unfused semantic boundary. The target
 /// supplies subgroup width; no device instruction or fixed lane count lives here.
 pub struct NormalizationProgram {
-  priv width : Int
-  priv owners : Int
-  priv subgroup_lanes : Int
+  priv width : Int32
+  priv owners : Int32
+  priv subgroup_lanes : Int32
   priv residual : Bool
   priv owner_tree : Bool
 } derive(Eq, Debug)
@@ -48,11 +48,11 @@ pub extend NormalizationProgram with @debug.Debug::{to_repr}
 
 ///|
 pub fn NormalizationProgram::new(
-  width~ : Int,
-  owners~ : Int,
-  subgroup_lanes~ : Int,
+  width~ : Int32,
+  owners~ : Int32,
+  subgroup_lanes~ : Int32,
   residual~ : Bool,
-  owner_tree? : Bool = false,
+  owner_tree~ : Bool = false,
 ) -> NormalizationProgram? {
   guard width > 0 &&
     owners > 0 &&
@@ -72,12 +72,14 @@ pub fn NormalizationProgram::new(
 ///|
 pub fn NormalizationProgram::geometry(
   self : NormalizationProgram,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.width, self.owners, self.subgroup_lanes)
 }
 
 ///|
-pub fn NormalizationProgram::partial_count(self : NormalizationProgram) -> Int {
+pub fn NormalizationProgram::partial_count(
+  self : NormalizationProgram,
+) -> Int32 {
   if self.owner_tree {
     self.owners
   } else {
@@ -88,7 +90,7 @@ pub fn NormalizationProgram::partial_count(self : NormalizationProgram) -> Int {
 ///|
 pub fn NormalizationProgram::values_per_owner(
   self : NormalizationProgram,
-) -> Int {
+) -> Int32 {
   (self.width - 1) / self.owners + 1
 }
 

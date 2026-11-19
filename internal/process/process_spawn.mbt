@@ -88,7 +88,7 @@ pub fn PreparedChildProcess::spawn_with_approved_roots(
 pub fn PreparedChildProcess::spawn_with_approved_roots_status(
   self : PreparedChildProcess,
   roots : @inheritance.WorkerApprovedRootSpawnAuthority,
-) -> Int {
+) -> Int32 {
   if self.consumed {
     return 1
   }
@@ -116,9 +116,9 @@ pub fn PreparedChildProcess::spawn_with_approved_roots_status(
 pub fn ChildProcess::startup_write_frame_status(
   self : ChildProcess,
   source : FixedArray[Byte],
-  byte_count : Int,
-  timeout_millis : Int,
-) -> Int {
+  byte_count : Int32,
+  timeout_millis : Int32,
+) -> Int32 {
   if self.closed ||
     self.failed ||
     self.maintenance_phase != 0 ||
@@ -160,8 +160,8 @@ pub fn ChildProcess::startup_write_frame_status(
 pub fn ChildProcess::startup_read_frame_status(
   self : ChildProcess,
   destination : FixedArray[Byte],
-  timeout_millis : Int,
-) -> Int {
+  timeout_millis : Int32,
+) -> Int32 {
   if self.closed ||
     self.failed ||
     self.maintenance_phase != 0 ||
@@ -204,7 +204,7 @@ pub fn ChildProcess::startup_read_frame_status(
 }
 
 ///|
-pub fn ChildProcess::startup_close_status(self : ChildProcess) -> Int {
+pub fn ChildProcess::startup_close_status(self : ChildProcess) -> Int32 {
   if self.closed {
     return 0
   }

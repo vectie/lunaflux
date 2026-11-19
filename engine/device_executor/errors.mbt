@@ -66,8 +66,8 @@ pub(all) suberror DeviceExecutorError {
   MemoryFailed(DeviceExecutorStage, @device_memory.DeviceMemoryError)
   CleanupFailed(DeviceExecutorStage, DeviceExecutorCleanupCause)
   InvalidTokenBytes(expected~ : Int64, actual~ : Int64)
-  InvalidTokenId(index~ : Int)
-  InvalidOutputRow(index~ : Int)
+  InvalidTokenId(index~ : Int32)
+  InvalidOutputRow(index~ : Int32)
   OutputUnavailable
   Closed
 } derive(Debug, Eq)

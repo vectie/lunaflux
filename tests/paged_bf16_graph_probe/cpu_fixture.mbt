@@ -1,11 +1,11 @@
 ///|
-fn bf16_bits(value : Float) -> Int {
+fn bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn bf16_float(bits : Int) -> Float {
+fn bf16_float(bits : Int32) -> Float {
   Float::reinterpret_from_uint(bits.reinterpret_as_uint() << 16)
 }
 
@@ -20,7 +20,11 @@ fn ordered_add(left : Float, right : Float) -> Float {
 }
 
 ///|
-fn write_i32_le(output : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn write_i32_le(
+  output : FixedArray[Byte],
+  index : Int32,
+  value : Int32,
+) -> Unit {
   let offset = index * 4
   output[offset] = value.to_byte()
   output[offset + 1] = (value >> 8).to_byte()
@@ -29,7 +33,11 @@ fn write_i32_le(output : FixedArray[Byte], index : Int, value : Int) -> Unit {
 }
 
 ///|
-fn write_bf16_le(output : FixedArray[Byte], index : Int, value : Float) -> Unit {
+fn write_bf16_le(
+  output : FixedArray[Byte],
+  index : Int32,
+  value : Float,
+) -> Unit {
   let bits = bf16_bits(value)
   let offset = index * 2
   output[offset] = bits.to_byte()
@@ -39,10 +47,10 @@ fn write_bf16_le(output : FixedArray[Byte], index : Int, value : Float) -> Unit 
 ///|
 fn fill_weight(
   output : FixedArray[Byte],
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   scale : Float,
-  phase : Int,
+  phase : Int32,
 ) -> Unit {
   for row in 0..<rows {
     for column in 0..<columns {
@@ -57,7 +65,10 @@ fn fill_weight(
 }
 
 ///|
-fn fill_i32_values(output : FixedArray[Byte], values : ArrayView[Int]) -> Unit {
+fn fill_i32_values(
+  output : FixedArray[Byte],
+  values : ArrayView[Int32],
+) -> Unit {
   for index, value in values {
     write_i32_le(output, index, value)
   }
@@ -74,7 +85,7 @@ fn fill_bf16_values(
 }
 
 ///|
-fn fill_graph_fixture(kind : Int, output : FixedArray[Byte]) -> Bool {
+fn fill_graph_fixture(kind : Int32, output : FixedArray[Byte]) -> Bool {
   for index in 0..<output.length() {
     output[index] = b'\x00'
   }
@@ -249,7 +260,7 @@ fn fill_graph_fixture(kind : Int, output : FixedArray[Byte]) -> Bool {
 }
 
 ///|
-fn fixture_bf16(kind : Int, elements : Int) -> FixedArray[Int] {
+fn fixture_bf16(kind : Int32, elements : Int32) -> FixedArray[Int32] {
   let bytes = FixedArray::make(elements * 2, b'\x00')
   try! assert_true(fill_graph_fixture(kind, bytes))
   FixedArray::makei(elements, index => {

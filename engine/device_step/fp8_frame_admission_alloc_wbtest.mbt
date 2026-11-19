@@ -26,7 +26,7 @@ fn fp8_admission_test_summary(sequence : UInt64) -> DeviceStepSummary {
 
 ///|
 fn fp8_admission_allocation_positive_control(
-  seed : Int,
+  seed : Int32,
 ) -> Fp8FrameAdmissionStateV3 {
   {
     armed: seed < 0,
@@ -44,7 +44,7 @@ fn fp8_admission_allocation_positive_control(
 fn fp8_admission_warmed_cycles(
   executor : PagedGraphExecutor,
   wire_owner : @worker_wire.PlanFrameOwnerIdentity,
-  cycle_count : Int,
+  cycle_count : Int32,
 ) -> Unit raise DeviceStepError {
   for cycle in 1..<=cycle_count {
     let epoch = cycle.to_uint64()

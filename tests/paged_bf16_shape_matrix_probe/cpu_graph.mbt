@@ -1,5 +1,5 @@
 ///|
-fn matrix_mlp(input : FixedArray[Int], rows : Int) -> FixedArray[Int] {
+fn matrix_mlp(input : FixedArray[Int32], rows : Int32) -> FixedArray[Int32] {
   let gate = matrix_fixture_bf16(16, 32)
   let up = matrix_fixture_bf16(17, 32)
   let down = matrix_fixture_bf16(18, 32)
@@ -43,7 +43,7 @@ fn matrix_mlp(input : FixedArray[Int], rows : Int) -> FixedArray[Int] {
 }
 
 ///|
-fn matrix_reference(case : ShapeMatrixCase) -> FixedArray[FixedArray[Int]] {
+fn matrix_reference(case : ShapeMatrixCase) -> FixedArray[FixedArray[Int32]] {
   let rows = case.live_tokens()
   let embedding = matrix_embedding(case, matrix_fixture_bf16(2, 64))
   let norm1 = matrix_norm(embedding, matrix_fixture_bf16(3, 4), rows)
@@ -80,7 +80,7 @@ fn matrix_reference(case : ShapeMatrixCase) -> FixedArray[FixedArray[Int]] {
 ///|
 fn matrix_compare_output(
   actual : Bytes,
-  expected : FixedArray[Int],
+  expected : FixedArray[Int32],
   tolerance : Float,
   maximum_error : Ref[Double],
 ) -> Bool {
@@ -105,7 +105,7 @@ fn matrix_compare_output(
 fn matrix_validate_reference(
   case : ShapeMatrixCase,
   outputs : FixedArray[Bytes],
-) -> (Int, Double) raise ShapeMatrixFailure {
+) -> (Int32, Double) raise ShapeMatrixFailure {
   require_matrix(outputs.length() == 14, "matrix output set is incomplete")
   let expected = matrix_reference(case)
   let tolerances : FixedArray[Float] = [

@@ -2,7 +2,7 @@
 fn require_luna_sha256(
   object : Map[String, Json],
   field : String,
-  index : Int,
+  index : Int32,
 ) -> String raise ExecutionManifestFileError {
   let value = require_string(object, field, LunaAuthorization, index~)
   if !is_lower_sha256(value) {

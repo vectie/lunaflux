@@ -12,7 +12,7 @@ pub fn BlockWorkspace::bind_conditioned_block(
   modulation : ModulationBindings,
   conditioning~ : @device.Allocation,
   conditioning_offset~ : Int64,
-  conditioning_width~ : Int,
+  conditioning_width~ : Int32,
   state~ : @device.Allocation,
   state_offset~ : Int64,
   weights~ : @device.Allocation,
@@ -23,7 +23,7 @@ pub fn BlockWorkspace::bind_conditioned_block(
   parameter_bias_offset~ : Int64,
   parameters~ : @device.Allocation,
   parameter_offset~ : Int64,
-  modality_count~ : Int,
+  modality_count~ : Int32,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   let rows = conditioning_rows(modulation.parameter_rows, modality_count)
   let producer = ParameterProjectionLayout::new(
@@ -62,9 +62,9 @@ pub fn BlockWorkspace::bind_conditioned_block(
 
 ///|
 fn conditioning_rows(
-  parameter_rows : Int,
-  modalities : Int,
-) -> Int raise @device.DeviceError {
+  parameter_rows : Int32,
+  modalities : Int32,
+) -> Int32 raise @device.DeviceError {
   guard modalities > 0 && parameter_rows > 0 && parameter_rows % modalities == 0 else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }

@@ -129,14 +129,14 @@ fn LunaOnlineOpenAIConnectionPool::progress_service_once(
 priv enum LunaOpenAIListenerPoll {
   SkipListener
   ProbeListener
-  WaitListener(Int)
+  WaitListener(Int32)
 }
 
 ///|
 fn luna_openai_listener_poll(
   progress : LunaOnlineOpenAIConnectionPoolProgress,
   service_waiting : Bool,
-  idle_timeout_millis : Int,
+  idle_timeout_millis : Int32,
 ) -> LunaOpenAIListenerPoll {
   if progress != LunaOnlineOpenAIConnectionPoolBackpressured {
     SkipListener
@@ -150,7 +150,7 @@ fn luna_openai_listener_poll(
 ///|
 async fn LunaOnlineOpenAIConnectionPool::progress_slot(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   match slot.phase {

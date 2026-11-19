@@ -24,7 +24,7 @@ fn Pool::owns(self : Pool, entry : Entry) -> Bool {
 }
 
 ///|
-fn Pool::commit(self : Pool, slot : Int, event : Event) -> Effect {
+fn Pool::commit(self : Pool, slot : Int32, event : Event) -> Effect {
   let before = self.states[slot]
   let decision = transition(before, event)
   self.states[slot] = decision.state
@@ -122,12 +122,12 @@ pub fn Pool::is_host_ready(self : Pool, entry : Entry) -> Bool {
 }
 
 ///|
-pub fn Pool::inflight(self : Pool) -> Int {
+pub fn Pool::inflight(self : Pool) -> Int32 {
   self.inflight
 }
 
 ///|
-pub fn Pool::available(self : Pool) -> Int {
+pub fn Pool::available(self : Pool) -> Int32 {
   self.free_count
 }
 

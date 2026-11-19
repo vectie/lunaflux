@@ -2,9 +2,9 @@
 test "split attention preserves following operation bucket rules after expansion" {
   let launch = variant_test_launch(45056)
   let make = fn(
-    operation : Int,
-    function_index : Int,
-  ) -> (@plan.OperationId, Int) raise {
+    operation : Int32,
+    function_index : Int32,
+  ) -> (@plan.OperationId, Int32) raise {
     (@plan.OperationId::new(operation), function_index)
   }
   let original = ReadOnlyArray::from_array([make(1, 1), make(2, 2), make(3, 3)])
@@ -65,7 +65,7 @@ test "admitted split row domains reach both partial and merge capture buckets" {
   for bound in [1, 8, 16, 32] {
     for index, source in [launch, merge] {
       let selected = paged_bucket_launch(rules[index], bound)
-      assert_eq(selected.grid_x(), Int::min(source.grid_x(), bound))
+      assert_eq(selected.grid_x(), Int32::min(source.grid_x(), bound))
       assert_eq(selected.grid_y(), source.grid_y())
       assert_eq(selected.grid_z(), source.grid_z())
       assert_eq(selected.block_x(), source.block_x())

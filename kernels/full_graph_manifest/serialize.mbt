@@ -26,7 +26,7 @@ fn append_manifest_dimensions(
 fn append_manifest_modules(
   output : StringBuilder,
   modules : ArrayView[FullGraphManifestModule],
-) -> Int {
+) -> Int32 {
   let mut entry_count = 0
   output.write_string("\"modules\":[")
   for module_index, item in modules {

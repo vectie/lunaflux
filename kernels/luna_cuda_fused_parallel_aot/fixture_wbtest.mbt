@@ -37,10 +37,10 @@ fn fused_test_plan() -> @plan.ModelPlan raise {
 
 ///|
 fn fused_test_compiler(
-  reassociate? : Bool = false,
-  major? : Int = 13,
-  minor? : Int = 1,
-  patch? : Int = 115,
+  reassociate~ : Bool = false,
+  major~ : Int32 = 13,
+  minor~ : Int32 = 1,
+  patch~ : Int32 = 115,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(

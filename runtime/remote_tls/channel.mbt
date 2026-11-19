@@ -31,7 +31,7 @@ pub struct AuthenticatedRemoteChannel {
   priv input : FixedArray[Byte]
   priv output : Bytes
   priv output_alias : FixedArray[Byte]
-  priv timeout_millis : Int
+  priv timeout_millis : Int32
   priv binding : Bytes
   priv mut open : Bool
   priv mut reading : Bool
@@ -41,8 +41,8 @@ pub struct AuthenticatedRemoteChannel {
 ///|
 fn validate_limits(
   binding : Bytes,
-  max_frame_bytes : Int,
-  timeout_millis : Int,
+  max_frame_bytes : Int32,
+  timeout_millis : Int32,
 ) -> Unit raise RemoteTlsError {
   if binding.length() < 1 ||
     binding.length() > 65536 ||
@@ -58,8 +58,8 @@ fn validate_limits(
 async fn read_exact(
   tls : RemoteTlsSession,
   bytes : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> Unit {
   let mut cursor = offset
   while cursor < offset + length {
@@ -101,8 +101,8 @@ fn channel(
   socket : @socket.Tcp,
   tls : RemoteTlsSession,
   binding : Bytes,
-  max_frame_bytes : Int,
-  timeout_millis : Int,
+  max_frame_bytes : Int32,
+  timeout_millis : Int32,
 ) -> AuthenticatedRemoteChannel {
   let output = Bytes::make(max_frame_bytes + 4, b'\x00')
   {
@@ -128,8 +128,8 @@ pub async fn connect(
   expected_binding : Bytes,
   server_name~ : String,
   ca_pem_file~ : String,
-  max_frame_bytes~ : Int,
-  timeout_millis~ : Int,
+  max_frame_bytes~ : Int32,
+  timeout_millis~ : Int32,
 ) -> AuthenticatedRemoteChannel {
   errdefer socket.close()
   validate_limits(expected_binding, max_frame_bytes, timeout_millis)
@@ -164,8 +164,8 @@ pub async fn accept(
   expected_binding : Bytes,
   certificate_pem_file~ : String,
   private_key_pem_file~ : String,
-  max_frame_bytes~ : Int,
-  timeout_millis~ : Int,
+  max_frame_bytes~ : Int32,
+  timeout_millis~ : Int32,
 ) -> AuthenticatedRemoteChannel {
   errdefer socket.close()
   let identity = RemoteServerIdentity::load(
@@ -190,8 +190,8 @@ pub async fn accept_prepared(
   credential : RemoteCredential,
   expected_binding : Bytes,
   identity : RemoteServerIdentity,
-  max_frame_bytes~ : Int,
-  timeout_millis~ : Int,
+  max_frame_bytes~ : Int32,
+  timeout_millis~ : Int32,
 ) -> AuthenticatedRemoteChannel {
   errdefer socket.close()
   validate_limits(expected_binding, max_frame_bytes, timeout_millis)
@@ -248,7 +248,7 @@ pub fn AuthenticatedRemoteChannel::verify_binding(
 ///|
 pub fn AuthenticatedRemoteChannel::capacity(
   self : AuthenticatedRemoteChannel,
-) -> Int {
+) -> Int32 {
   self.input.length() - 4
 }
 
@@ -258,7 +258,7 @@ pub fn AuthenticatedRemoteChannel::capacity(
 pub async fn AuthenticatedRemoteChannel::send(
   self : AuthenticatedRemoteChannel,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit {
   if !self.open {
     raise Closed
@@ -303,7 +303,7 @@ pub async fn AuthenticatedRemoteChannel::send(
 pub async fn AuthenticatedRemoteChannel::receive(
   self : AuthenticatedRemoteChannel,
   destination : FixedArray[Byte],
-) -> Int {
+) -> Int32 {
   if !self.open {
     raise Closed
   }

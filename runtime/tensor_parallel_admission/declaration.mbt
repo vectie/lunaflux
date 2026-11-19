@@ -13,12 +13,12 @@ fn valid_device_name(value : StringView) -> Bool {
 
 ///|
 pub fn TensorParallelRankDeclaration::new(
-  rank~ : Int,
-  world_size~ : Int,
-  process_ordinal~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
+  process_ordinal~ : Int32,
   device_name~ : StringView,
   target~ : @catalog.DeviceTarget,
-  peer_rank_count~ : Int,
+  peer_rank_count~ : Int32,
   memory_ceiling_bytes~ : Int64,
   weight_reserved_bytes~ : Int64,
   activation_workspace_reserved_bytes~ : Int64,
@@ -70,8 +70,8 @@ pub fn TensorParallelRankDeclaration::new(
 
 ///|
 pub fn TensorParallelRuntimeDeclaration::new(
-  host_count~ : Int,
-  pipeline_stage_count~ : Int,
+  host_count~ : Int32,
+  pipeline_stage_count~ : Int32,
   ranks : ArrayView[TensorParallelRankDeclaration],
 ) -> TensorParallelRuntimeDeclaration raise TensorParallelAdmissionError {
   if host_count <= 0 ||

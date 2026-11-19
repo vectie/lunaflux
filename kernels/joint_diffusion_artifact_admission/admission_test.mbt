@@ -5,7 +5,7 @@ fn admission_test_content(fill : Char) -> @spec.ContentDigest {
 
 ///|
 fn admission_test_plan(
-  fill? : Char = 'a',
+  fill~ : Char = 'a',
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @joint_diffusion_plan.JointDiffusionPlan::new(
     schema_version=1,
@@ -111,7 +111,7 @@ fn admission_test_plan(
 
 ///|
 fn admission_test_requirements(
-  fill? : Char = 'a',
+  fill~ : Char = 'a',
 ) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements {
   try! @joint_diffusion_kernel_requirements.derive_requirements(
     admission_test_plan(fill~),
@@ -123,7 +123,7 @@ fn admission_test_requirements(
 }
 
 ///|
-fn admission_test_target(minor? : Int = 0) -> @catalog.DeviceTarget {
+fn admission_test_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=minor,
@@ -159,8 +159,8 @@ fn admission_test_module_digest() -> @catalog.AotArtifactDigest {
 
 ///|
 fn admission_test_entry(
-  ordinal : Int,
-  digest? : @catalog.AotArtifactDigest = admission_test_module_digest(),
+  ordinal : Int32,
+  digest~ : @catalog.AotArtifactDigest = admission_test_module_digest(),
 ) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
@@ -358,7 +358,7 @@ fn admission_test_roles(
 ///|
 fn admission_test_launch(
   target : @catalog.DeviceTarget,
-  ordinal : Int,
+  ordinal : Int32,
   operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation,
   capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability,
   digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest,

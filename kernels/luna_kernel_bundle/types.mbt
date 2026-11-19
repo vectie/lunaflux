@@ -54,8 +54,8 @@ pub fn LunaDeterministicCompileReceipt::artifact_label(
 pub struct LunaKernelBundleLimits {
   priv max_module_bytes : Int64
   priv max_total_module_bytes : Int64
-  priv max_modules : Int
-  priv max_operations : Int
+  priv max_modules : Int32
+  priv max_operations : Int32
   priv manifest : @full_graph_manifest.FullGraphManifestLimits
 }
 
@@ -63,8 +63,8 @@ pub struct LunaKernelBundleLimits {
 pub fn LunaKernelBundleLimits::new(
   max_module_bytes~ : Int64,
   max_total_module_bytes~ : Int64,
-  max_modules~ : Int,
-  max_operations~ : Int,
+  max_modules~ : Int32,
+  max_operations~ : Int32,
   manifest~ : @full_graph_manifest.FullGraphManifestLimits,
 ) -> LunaKernelBundleLimits raise LunaKernelBundleError {
   if max_module_bytes <= 0L ||

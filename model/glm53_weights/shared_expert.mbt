@@ -2,13 +2,13 @@
 /// Shared experts in the installed Flash NVFP4 checkpoint remain dense BF16.
 /// They are replicated, not members of a routed expert partition.
 pub struct Glm53SharedExpertWeight {
-  priv layer : Int
+  priv layer : Int32
   priv name : String
   priv representation : @precision_format.Representation
 }
 
 ///|
-pub fn Glm53SharedExpertWeight::layer_index(self : Self) -> Int {
+pub fn Glm53SharedExpertWeight::layer_index(self : Self) -> Int32 {
   self.layer
 }
 
@@ -27,7 +27,7 @@ pub fn Glm53SharedExpertWeight::representation(
 ///|
 /// Returns the gate/up/down matrices without scale planes or BF16 expansion.
 pub fn shared_expert_weights(
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[Glm53SharedExpertWeight] raise Glm53NvFp4ExpertError {
   guard layer_index >= 3 && layer_index <= 45 else {
     raise InvalidMoeLayer(layer_index)

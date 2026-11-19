@@ -3,9 +3,9 @@ fn oracle_dense_vision_attention(
   query : ArrayView[Double],
   key : ArrayView[Double],
   value : ArrayView[Double],
-  patch_count : Int,
-  head_count : Int,
-  head_dimension : Int,
+  patch_count : Int32,
+  head_count : Int32,
+  head_dimension : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   let width = head_count * head_dimension
@@ -62,9 +62,9 @@ fn oracle_vision_merge(
   input : ArrayView[Double],
   weights : ArrayView[Double],
   bias : ArrayView[Double],
-  patch_count : Int,
-  width : Int,
-  merge_size : Int,
+  patch_count : Int32,
+  width : Int32,
+  merge_size : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   let area = merge_size * merge_size

@@ -6,7 +6,7 @@ fn preflight_i8_v4_envelope(
   device_numeric : @device.DeviceNumericCapability,
   target : @catalog.DeviceTarget,
   device_step_limits : @device_step.DeviceStepLimits,
-  device_ordinal : Int,
+  device_ordinal : Int32,
   limits : ExecutionManifestFileLimits,
 ) -> Unit raise ExecutionManifestFileError {
   let shape = model_plan.shape_constraints()
@@ -76,7 +76,7 @@ pub fn load_paged_i8_v4(
   device_numeric : @device.DeviceNumericCapability,
   target : @catalog.DeviceTarget,
   device_step_limits : @device_step.DeviceStepLimits,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
   limits : ExecutionManifestFileLimits,
   i8_limits : @i8_admission.I8InertKernelCapabilityAdmissionLimits,
   bootstrap_limits : @device_step.DeviceBootstrapLimits,

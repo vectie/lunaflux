@@ -1,7 +1,7 @@
 ///|
 fn official_compressed_kv_prepare_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation()
       is NonOverlappingCompressedKeyValuePrepareV1(128, 128) {

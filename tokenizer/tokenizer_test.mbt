@@ -1,8 +1,8 @@
 ///|
 fn test_limits(
-  max_input_bytes? : Int = 1_024,
-  max_output_tokens? : Int = 1_024,
-  max_decoded_bytes? : Int = 2_048,
+  max_input_bytes~ : Int32 = 1_024,
+  max_output_tokens~ : Int32 = 1_024,
+  max_decoded_bytes~ : Int32 = 2_048,
 ) -> @tokenizer.TokenizerLimits {
   {
     max_input_bytes,

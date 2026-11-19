@@ -5,8 +5,8 @@
 pub fn bind_recurrent_weights(
   checkpoint : @precision_materialize.PackedCheckpoint,
   spec : @glm53_spec.Glm53FlashSpec,
-  layer_index~ : Int,
-  tensor_group? : (Int, Int),
+  layer_index~ : Int32,
+  tensor_group? : (Int32, Int32),
 ) -> Array[@precision_materialize.PackedCheckpointWeight] raise {
   guard spec.attention_kind(layer_index) is KimiDeltaAttention else {
     raise @precision_ir.PrecisionPlanError::IllegalPlacement

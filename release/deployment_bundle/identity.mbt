@@ -5,7 +5,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
   }
   let mut nonzero = false
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
     if unit != '0' {

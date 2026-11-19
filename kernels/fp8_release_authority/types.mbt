@@ -28,7 +28,7 @@ pub struct Fp8ReleaseAuthorityLimits {
   priv max_manifest_bytes : Int64
   priv max_module_bytes : Int64
   priv max_total_module_bytes : Int64
-  priv max_operations : Int
+  priv max_operations : Int32
 }
 
 ///|
@@ -36,7 +36,7 @@ pub fn Fp8ReleaseAuthorityLimits::new(
   max_manifest_bytes~ : Int64,
   max_module_bytes~ : Int64,
   max_total_module_bytes~ : Int64,
-  max_operations~ : Int,
+  max_operations~ : Int32,
 ) -> Fp8ReleaseAuthorityLimits raise Fp8ReleaseAuthorityError {
   if max_manifest_bytes <= 0L ||
     max_manifest_bytes > 16L * 1024L * 1024L ||

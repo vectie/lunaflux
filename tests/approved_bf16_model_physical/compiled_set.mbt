@@ -43,13 +43,13 @@ fn require_compiled_sha256(
 fn parse_physical_compiler_component(
   value : String,
   allow_zero : Bool,
-) -> UInt raise ApprovedBf16PhysicalError {
+) -> UInt32 raise ApprovedBf16PhysicalError {
   if value.is_empty() || value.length() > 6 {
     raise InvalidInput("compiler version component is invalid")
   }
   let mut result = 0U
   for unit in value {
-    guard unit is ('0'..='9') else {
+    guard unit is ('0'..<='9') else {
       raise InvalidInput("compiler version component is invalid")
     }
     result = result * 10U + (unit.to_int() - '0'.to_int()).reinterpret_as_uint()
@@ -63,7 +63,7 @@ fn parse_physical_compiler_component(
 ///|
 fn candidate_operation_row(
   document : String,
-  operation_id : Int,
+  operation_id : Int32,
 ) -> FixedArray[String] raise ApprovedBf16PhysicalError {
   let prefix = "operation=\{operation_id},"
   let mut found : FixedArray[String]? = None

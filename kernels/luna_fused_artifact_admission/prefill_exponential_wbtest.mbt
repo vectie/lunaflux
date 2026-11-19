@@ -2,7 +2,7 @@
 fn prefill_numeric_test_input(
   law : PrefillExponentialLaw,
   allow : Bool,
-  abi? : ReusableFusedRuntimeKernelAbi = QwenPagedAttentionReadOnlyProductionV2,
+  abi~ : ReusableFusedRuntimeKernelAbi = QwenPagedAttentionReadOnlyProductionV2,
 ) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
   ReusableFusedRuntimeModuleInput::new(
     abi~,

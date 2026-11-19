@@ -16,7 +16,7 @@ pub(all) enum AttentionTileValueKind {
 } derive(Debug, Eq)
 
 ///|
-pub struct AttentionTileValueId(Int) derive(Debug, Eq, Hash)
+pub struct AttentionTileValueId(Int32) derive(Debug, Eq, Hash)
 
 ///|
 pub(all) enum AttentionTileExpression {

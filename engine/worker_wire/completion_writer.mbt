@@ -63,13 +63,13 @@ fn CompletionFrameWriter::validate_decode_row(
 ///|
 fn write_direct_completion_entry(
   owner : CompletionFrameBuffer,
-  slot : Int,
+  slot : Int32,
   request_id : UInt64,
   request_generation : UInt64,
   kind : @worker_protocol.CompletionEntryKind,
-  processed_tokens : Int,
-  token_id : Int,
-  failure_wire : UInt,
+  processed_tokens : Int32,
+  token_id : Int32,
+  failure_wire : UInt32,
 ) -> Unit raise WorkerWireError {
   if owner.entry_count >= owner.worker_limits.max_completion_slots() ||
     slot < 0 ||
@@ -94,7 +94,7 @@ fn write_direct_completion_entry(
 ///|
 fn CompletionFrameWriter::validate_token(
   self : CompletionFrameWriter,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit raise WorkerWireError {
   let owner = self.owner()
   let max_token = if owner.worker_limits.max_token_id() <
@@ -170,7 +170,7 @@ pub fn CompletionFrameWriter::append_prefill_completed(
 pub fn CompletionFrameWriter::append_final_prefill_completed(
   self : CompletionFrameWriter,
   row : PlanFramePrefillRow,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit raise WorkerWireError {
   let owner = self.validate_prefill_row(row)
   if !row.produces_token() {
@@ -193,7 +193,7 @@ pub fn CompletionFrameWriter::append_final_prefill_completed(
 pub fn CompletionFrameWriter::append_decode_completed(
   self : CompletionFrameWriter,
   row : PlanFrameDecodeRow,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit raise WorkerWireError {
   let owner = self.validate_decode_row(row)
   self.validate_token(token_id)

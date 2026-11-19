@@ -3,7 +3,7 @@
 /// Timestamps are monotonic-clock nanoseconds in one caller-declared domain;
 /// this inert package never samples a clock itself.
 pub struct BenchmarkRequestEvent {
-  priv request_ordinal : Int
+  priv request_ordinal : Int32
   priv outcome : BenchmarkRequestOutcome
   priv submitted_at_ns : Int64
   priv admitted_at_ns : Int64?
@@ -18,7 +18,7 @@ pub struct BenchmarkRequestEvent {
 /// count requires a first-token timestamp; a rejected request cannot have
 /// entered the engine or generated output.
 pub fn BenchmarkRequestEvent::new(
-  request_ordinal~ : Int,
+  request_ordinal~ : Int32,
   outcome~ : BenchmarkRequestOutcome,
   submitted_at_ns~ : Int64,
   admitted_at_ns~ : Int64?,
@@ -83,7 +83,7 @@ pub fn BenchmarkRequestEvent::new(
 ///|
 pub fn BenchmarkRequestEvent::request_ordinal(
   self : BenchmarkRequestEvent,
-) -> Int {
+) -> Int32 {
   self.request_ordinal
 }
 

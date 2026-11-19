@@ -1,7 +1,7 @@
 ///|
 fn luna_work_limits(
-  max_input_bytes? : Int = 128,
-  max_output_tokens? : Int = 128,
+  max_input_bytes~ : Int32 = 128,
+  max_output_tokens~ : Int32 = 128,
 ) -> TokenizerLimits {
   {
     max_input_bytes,
@@ -87,8 +87,8 @@ fn luna_new_better_rank_spec() -> TokenizerSpec raise {
 ///|
 struct LunaWorkRun {
   result : EncodeResult
-  progress_calls : Int
-  work_units : Int
+  progress_calls : Int32
+  work_units : Int32
 }
 
 ///|
@@ -96,9 +96,9 @@ fn run_luna_work(
   spec : TokenizerSpec,
   input : Bytes,
   special_policy : SpecialTokenPolicy,
-  output_limit : Int,
+  output_limit : Int32,
   truncation : TruncationPolicy,
-  budget_units : Int,
+  budget_units : Int32,
 ) -> LunaWorkRun raise {
   let budget = LunaTokenizerStepBudget::new(budget_units)
   let worker = LunaTokenizerWorker::new(
@@ -144,7 +144,7 @@ fn run_luna_work(
           assert_eq(work.last_work_units(), amount)
           copied += amount
         }
-        let token_ids : Array[Int] = []
+        let token_ids : Array[Int32] = []
         for token_id in destination {
           token_ids.push(token_id)
         }
@@ -167,13 +167,13 @@ fn assert_luna_work_equivalent(
   spec : TokenizerSpec,
   input : Bytes,
   special_policy : SpecialTokenPolicy,
-  output_limit : Int,
+  output_limit : Int32,
   truncation : TruncationPolicy,
 ) -> Unit raise {
   let expected = reference_encode_bytes(
     spec, input, special_policy, output_limit, truncation,
   )
-  let totals : Array[Int] = []
+  let totals : Array[Int32] = []
   for budget in [1, 17, 65536] {
     let actual = run_luna_work(
       spec, input, special_policy, output_limit, truncation, budget,

@@ -1,6 +1,6 @@
 ///|
 priv struct ExpectedQwen3Tensor {
-  reference : Int
+  reference : Int32
   name : String
   shape : ReadOnlyArray[Int64]
 }

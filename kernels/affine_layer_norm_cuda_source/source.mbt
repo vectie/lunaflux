@@ -3,7 +3,7 @@
 /// A row belongs to one thread in this numerical reference implementation.
 pub struct AffineLayerNormCudaSource {
   priv source : Bytes
-  priv rows : Int
+  priv rows : Int32
 }
 
 ///|
@@ -21,8 +21,8 @@ pub extend AffineLayerNormSourceError with @debug.Debug::{to_repr}
 
 ///|
 pub fn affine_layer_norm_bf16_source(
-  width~ : Int,
-  maximum_rows~ : Int,
+  width~ : Int32,
+  maximum_rows~ : Int32,
   epsilon~ : Double,
   function_symbol~ : String,
 ) -> AffineLayerNormCudaSource raise AffineLayerNormSourceError {
@@ -35,8 +35,8 @@ pub fn affine_layer_norm_bf16_source(
   guard epsilon > 0.0 && epsilon <= 1.0 else { raise InvalidEpsilon }
   guard !function_symbol.is_empty() &&
     function_symbol.length() <= 128 &&
-    function_symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    function_symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    function_symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    function_symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise InvalidSymbol
   }
   let source = @utf8.encode(
@@ -68,6 +68,6 @@ pub fn AffineLayerNormCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn AffineLayerNormCudaSource::launch(self : Self) -> (Int, Int) {
+pub fn AffineLayerNormCudaSource::launch(self : Self) -> (Int32, Int32) {
   (self.rows, 1)
 }

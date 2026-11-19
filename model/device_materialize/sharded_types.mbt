@@ -3,7 +3,7 @@ priv struct PreparedShardedStreamingLoad[S] {
   source_stamp : S
   payload_offset_bytes : Int64
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan
-  source_order : FixedArray[Int]
+  source_order : FixedArray[Int32]
   scratch : FixedArray[Byte]
 }
 
@@ -70,7 +70,7 @@ priv struct AbsoluteShardedTransfer {
 
 ///|
 priv struct ShardedTransferCursor {
-  mut order_index : Int
+  mut order_index : Int32
   mut segment : Int64
   mut source_offset_bytes : Int64
   mut destination_offset_bytes : Int64

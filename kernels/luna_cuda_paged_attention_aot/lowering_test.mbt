@@ -181,7 +181,7 @@ test "digest constructors reject non-canonical values" {
 
 ///|
 fn pa_decode_split_profile(
-  max_page_table_entries : Int,
+  max_page_table_entries : Int32,
 ) -> @launch_contract.PagedKernelProfile raise {
   @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(9),
@@ -193,7 +193,7 @@ fn pa_decode_split_profile(
 
 ///|
 fn pa_decode_split_operands(
-  max_page_table_entries : Int,
+  max_page_table_entries : Int32,
 ) -> Array[@launch_contract.AotOperand] raise {
   let layer = @plan.KvLayerId::new(0)
   [
@@ -216,10 +216,10 @@ fn pa_decode_split_operands(
 
 ///|
 fn pa_decode_split_lowering(
-  max_page_table_entries? : Int = 3,
-  maximum_key_value_splits? : Int = 8,
-  maximum_workspace_bytes? : Int64 = 1048576L,
-  compiler_readonly? : Bool = false,
+  max_page_table_entries~ : Int32 = 3,
+  maximum_key_value_splits~ : Int32 = 8,
+  maximum_workspace_bytes~ : Int64 = 1048576L,
+  compiler_readonly~ : Bool = false,
 ) -> @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle raise {
   let profile = pa_decode_split_profile(max_page_table_entries)
   @luna_cuda_paged_attention_aot.lower_paged_attention_decode_split_cuda_aot_candidate(
@@ -366,10 +366,10 @@ test "decode split candidate fails closed on workspace and entry geometry" {
 ///|
 fn pa_decode_split_multilaunch_contract(
   candidate : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle,
-  module_digest? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  partial_symbol? : String = "",
-  partial_entry_id? : Int = 41,
-  workspace_partial_count? : Int64 = 0L,
+  module_digest~ : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  partial_symbol~ : String = "",
+  partial_entry_id~ : Int32 = 41,
+  workspace_partial_count~ : Int64 = 0L,
 ) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract raise {
   let limits = @luna_attention_multilaunch_contract.AttentionMultiLaunchLimits::new(
     maximum_workspace_bytes=1048576L,

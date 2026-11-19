@@ -3,8 +3,8 @@
 /// The original semantic graph remains in OptimizedProjectionTileCompilation.
 priv struct ProjectionTileNormalization {
   program : ProjectionTileProgram
-  common_subexpressions : Int
-  dead_bindings : Int
+  common_subexpressions : Int32
+  dead_bindings : Int32
 } derive(Debug, Eq)
 
 ///|

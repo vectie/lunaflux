@@ -10,9 +10,9 @@ pub struct AudioTailLayout {
 
 ///|
 pub fn AudioTailLayout::new(
-  batch~ : Int,
-  channels~ : Int,
-  time~ : Int,
+  batch~ : Int32,
+  channels~ : Int32,
+  time~ : Int32,
   max_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   let activation = AliasFreeActivationLayout::new(

@@ -37,7 +37,7 @@ fn require_sha256(
 ///|
 fn operation_row(
   document : String,
-  operation_id : Int,
+  operation_id : Int32,
 ) -> FixedArray[String] raise Qwen3Bf16ReleaseBindError {
   let prefix = "operation=\{operation_id},"
   let mut found : FixedArray[String]? = None

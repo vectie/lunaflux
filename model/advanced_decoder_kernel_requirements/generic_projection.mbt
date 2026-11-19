@@ -4,7 +4,7 @@
 /// weakened to dense kernels.
 pub fn AdvancedDecoderKernelRequirement::current_generic_capability(
   self : Self,
-  ordinal~ : Int,
+  ordinal~ : Int32,
 ) -> @plan.KernelCapabilityId raise AdvancedDecoderKernelRequirementsError {
   match self.operation {
     TokenEmbedding => @plan.KernelCapabilityId::embedding_lookup()

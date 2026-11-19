@@ -5,11 +5,11 @@ priv struct LunaOnlineMultiLane {
   worker_requests : Array[@worker_service.LunaOnlineWorkerRequest]
   output : FixedArray[Byte]
   mut generation : UInt64
-  mut input_tokens : Int
-  mut cached_input_tokens : Int
+  mut input_tokens : Int32
+  mut cached_input_tokens : Int32
   mut accepted_acked : Bool
-  mut output_tokens : Int
-  mut final_tail_length : Int
+  mut output_tokens : Int32
+  mut final_tail_length : Int32
   mut finish_kind : SessionFinishKind
   mut string_cut : SessionStringCut
   mut terminal_cut : SessionTerminalCut
@@ -24,15 +24,15 @@ priv struct LunaOnlineMultiLane {
 #warnings("-unused_field")
 priv struct LunaOnlineMultiState {
   lanes : FixedArray[LunaOnlineMultiLane]
-  free_lanes : FixedArray[Int]
+  free_lanes : FixedArray[Int32]
   routes : LunaOnlinePublicationRoutes
-  mut active_count : Int
-  mut free_head : Int
-  mut free_count : Int
-  mut event_lane : Int
-  mut progress_lane : Int
-  mut retirement_lane : Int
-  mut failure_mark_cursor : Int
+  mut active_count : Int32
+  mut free_head : Int32
+  mut free_count : Int32
+  mut event_lane : Int32
+  mut progress_lane : Int32
+  mut retirement_lane : Int32
+  mut failure_mark_cursor : Int32
   mut failure_mark_active : Bool
 }
 
@@ -63,7 +63,7 @@ fn new_luna_online_multi_lane(
 
 ///|
 fn new_luna_online_multi_state(
-  capacity : Int,
+  capacity : Int32,
   inference : @inference.InferenceLimits,
 ) -> LunaOnlineMultiState {
   if capacity <= 0 {

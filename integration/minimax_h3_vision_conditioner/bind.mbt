@@ -14,9 +14,9 @@ fn region(
 
 ///|
 fn grid(
-  x : Int,
-  y : Int,
-  threads : Int,
+  x : Int32,
+  y : Int32,
+  threads : Int32,
 ) -> @device.KernelLaunchDimensions raise @device.DeviceError {
   @device.KernelLaunchDimensions::new(
     grid_x=x,
@@ -84,7 +84,7 @@ pub fn VisionSource::bind(
   let merged = args[7]
   let launches : Array[@device.OrderedKernelLaunch] = []
   fn append(
-    index : Int,
+    index : Int32,
     dimensions : @device.KernelLaunchDimensions,
     operands : Array[@device.KernelArgument],
   ) -> Unit raise @device.DeviceError {
@@ -97,8 +97,8 @@ pub fn VisionSource::bind(
     )
   }
   fn linear(
-    rows : Int,
-    width : Int,
+    rows : Int32,
+    width : Int32,
   ) -> @device.KernelLaunchDimensions raise @device.DeviceError {
     grid(((rows.to_int64() * width.to_int64() + 255L) / 256L).to_int(), 1, 256)
   }
@@ -108,7 +108,7 @@ pub fn VisionSource::bind(
   ) -> ReadOnlyArray[@device.KernelArgument] raise @device.DeviceError {
     layout.regions.map(r => region(allocation, r.offset, r.bytes))
   }
-  fn merge(index : Int) -> Unit raise {
+  fn merge(index : Int32) -> Unit raise {
     let w = weight_args(@vision.merger_weights(index), mergers[index])
     append(
       if index == 0 {

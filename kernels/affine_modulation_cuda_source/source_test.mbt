@@ -1,6 +1,6 @@
 ///|
 test "fixed-row BF16 affine modulation stages every BF16 round before F32 output" {
-  let rendered = bf16_shift_scale_f32_fixed_rows_source(
+  let rendered = @affine_modulation_cuda_source.bf16_shift_scale_f32_fixed_rows_source(
     rows=3L,
     width=4,
     function_symbol="affine_test_v1",
@@ -22,7 +22,7 @@ test "fixed-row BF16 affine modulation stages every BF16 round before F32 output
 
 ///|
 test "F32 channel-major destandardization binds exact ordered four-operand ABI" {
-  let rendered = f32_channel_major_destandardization_source(
+  let rendered = @affine_modulation_cuda_source.f32_channel_major_destandardization_source(
     batch_count=1,
     channels=3,
     elements_per_channel=5L,
@@ -47,7 +47,7 @@ test "F32 channel-major destandardization rejects hostile geometry and symbol" {
   for hostile in [(0, 1L), (1, 0L), (1, -1L)] {
     let (channels, elements) = hostile
     try
-      f32_channel_major_destandardization_source(
+      @affine_modulation_cuda_source.f32_channel_major_destandardization_source(
         batch_count=1,
         channels~,
         elements_per_channel=elements,
@@ -61,7 +61,7 @@ test "F32 channel-major destandardization rejects hostile geometry and symbol" {
     }
   }
   try
-    f32_channel_major_destandardization_source(
+    @affine_modulation_cuda_source.f32_channel_major_destandardization_source(
       batch_count=1,
       channels=2,
       elements_per_channel=4611686018427387904L,
@@ -74,7 +74,7 @@ test "F32 channel-major destandardization rejects hostile geometry and symbol" {
     _ => fail("overflowing channel affine geometry admitted")
   }
   try
-    f32_channel_major_destandardization_source(
+    @affine_modulation_cuda_source.f32_channel_major_destandardization_source(
       batch_count=1,
       channels=1,
       elements_per_channel=1L,
@@ -90,7 +90,7 @@ test "F32 channel-major destandardization rejects hostile geometry and symbol" {
 
 ///|
 test "F32 channel-major destandardization binds batch and rejects invalid batch" {
-  let rendered = try! f32_channel_major_destandardization_source(
+  let rendered = try! @affine_modulation_cuda_source.f32_channel_major_destandardization_source(
     batch_count=2,
     channels=32,
     elements_per_channel=207L,
@@ -98,7 +98,7 @@ test "F32 channel-major destandardization binds batch and rejects invalid batch"
   )
   assert_true(rendered.source_bytes().length() > 0)
   try
-    f32_channel_major_destandardization_source(
+    @affine_modulation_cuda_source.f32_channel_major_destandardization_source(
       batch_count=0,
       channels=32,
       elements_per_channel=207L,
@@ -116,7 +116,7 @@ test "F32 channel-major destandardization binds batch and rejects invalid batch"
 test "affine source rejects hostile geometry and symbols" {
   for rows in [0L, -1L, 2147483648L] {
     try
-      bf16_shift_scale_f32_fixed_rows_source(
+      @affine_modulation_cuda_source.bf16_shift_scale_f32_fixed_rows_source(
         rows~,
         width=4,
         function_symbol="ok",
@@ -129,7 +129,7 @@ test "affine source rejects hostile geometry and symbols" {
     }
   }
   try
-    bf16_shift_scale_f32_fixed_rows_source(
+    @affine_modulation_cuda_source.bf16_shift_scale_f32_fixed_rows_source(
       rows=1L,
       width=0,
       function_symbol="ok",
@@ -141,7 +141,7 @@ test "affine source rejects hostile geometry and symbols" {
     _ => fail("zero width was accepted")
   }
   try
-    bf16_shift_scale_f32_fixed_rows_source(
+    @affine_modulation_cuda_source.bf16_shift_scale_f32_fixed_rows_source(
       rows=1L,
       width=4,
       function_symbol="bad-name",
@@ -153,7 +153,7 @@ test "affine source rejects hostile geometry and symbols" {
     _ => fail("hostile symbol was accepted")
   }
   try
-    bf16_shift_scale_f32_fixed_rows_source(
+    @affine_modulation_cuda_source.bf16_shift_scale_f32_fixed_rows_source(
       rows=1L,
       width=4,
       function_symbol="9bad",
@@ -168,7 +168,7 @@ test "affine source rejects hostile geometry and symbols" {
 
 ///|
 test "final AdaLN parameter row binds exact F32 SiLU BF16 dense split ABI" {
-  let rendered = final_adaln_parameter_row_source(
+  let rendered = @affine_modulation_cuda_source.final_adaln_parameter_row_source(
     input_width=4,
     hidden_size=2,
     function_symbol="parameter_row_v1",
@@ -195,7 +195,7 @@ test "final AdaLN parameter row binds exact F32 SiLU BF16 dense split ABI" {
 ///|
 test "final AdaLN parameter row rejects output-width overflow before rendering" {
   try
-    final_adaln_parameter_row_source(
+    @affine_modulation_cuda_source.final_adaln_parameter_row_source(
       input_width=1,
       hidden_size=1073741824,
       function_symbol="overflow_must_not_render",
@@ -210,7 +210,7 @@ test "final AdaLN parameter row rejects output-width overflow before rendering" 
 
 ///|
 test "multirow final AdaLN parameters preserve row-major tables and BF16 rounds" {
-  let rendered = final_adaln_parameter_rows_source(
+  let rendered = @affine_modulation_cuda_source.final_adaln_parameter_rows_source(
     rows=3,
     input_width=4,
     hidden_size=2,
@@ -235,7 +235,7 @@ test "multirow final AdaLN parameters preserve row-major tables and BF16 rounds"
 test "multirow final AdaLN parameters reject hostile row geometry" {
   for rows in [0, -1, 1073741824] {
     try
-      final_adaln_parameter_rows_source(
+      @affine_modulation_cuda_source.final_adaln_parameter_rows_source(
         rows~,
         input_width=1,
         hidden_size=2,
@@ -252,7 +252,7 @@ test "multirow final AdaLN parameters reject hostile row geometry" {
 
 ///|
 test "packed modality gather renders exact eight-operand BF16 copy ABI" {
-  let rendered = packed_modality_adaln_gather_source(
+  let rendered = @affine_modulation_cuda_source.packed_modality_adaln_gather_source(
     packed_rows=9,
     video_rows=3,
     audio_rows=2,
@@ -267,7 +267,7 @@ test "packed modality gather renders exact eight-operand BF16 copy ABI" {
   assert_true(source.contains("__nv_bfloat16 *audio_scale"))
   assert_false(source.contains("invalid"))
   try
-    packed_modality_adaln_gather_source(
+    @affine_modulation_cuda_source.packed_modality_adaln_gather_source(
       packed_rows=4,
       video_rows=3,
       audio_rows=2,

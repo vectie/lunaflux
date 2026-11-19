@@ -72,7 +72,7 @@ fn validate_absolute_label(value : StringView) -> Unit raise LaunchFileError {
       segment_length = 0
       dots = 0
     } else {
-      if !(unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.')) {
+      if !(unit is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '_' | '-' | '.')) {
         raise InvalidField(Root)
       }
       segment_length += 1

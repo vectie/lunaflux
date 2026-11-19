@@ -1,7 +1,7 @@
 ///|
 priv struct Qwen3GreedyCorpusCase {
-  input_ids : Array[Int]
-  expected_ids : Array[Int]
+  input_ids : Array[Int32]
+  expected_ids : Array[Int32]
 }
 
 ///|

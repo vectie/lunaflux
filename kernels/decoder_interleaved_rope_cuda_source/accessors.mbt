@@ -13,34 +13,36 @@ pub fn DecoderInterleavedRopeCudaSource::numerical_contract(
 }
 
 ///|
-pub fn DecoderInterleavedRopeCudaSource::query_head_count(self : Self) -> Int {
+pub fn DecoderInterleavedRopeCudaSource::query_head_count(self : Self) -> Int32 {
   self.query_head_count
 }
 
 ///|
-pub fn DecoderInterleavedRopeCudaSource::key_head_count(self : Self) -> Int {
+pub fn DecoderInterleavedRopeCudaSource::key_head_count(self : Self) -> Int32 {
   self.key_head_count
 }
 
 ///|
 pub fn DecoderInterleavedRopeCudaSource::query_head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.query_head_dimension
 }
 
 ///|
-pub fn DecoderInterleavedRopeCudaSource::rope_dimension(self : Self) -> Int {
+pub fn DecoderInterleavedRopeCudaSource::rope_dimension(self : Self) -> Int32 {
   self.rope_dimension
 }
 
 ///|
-pub fn DecoderInterleavedRopeCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderInterleavedRopeCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 
 ///|
-pub fn DecoderInterleavedRopeCudaSource::maximum_positions(self : Self) -> Int {
+pub fn DecoderInterleavedRopeCudaSource::maximum_positions(
+  self : Self,
+) -> Int32 {
   self.maximum_positions
 }
 

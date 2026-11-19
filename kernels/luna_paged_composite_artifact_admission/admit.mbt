@@ -4,7 +4,7 @@ fn paged_composite_is_sha256(value : String) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -29,22 +29,22 @@ pub fn admit_paged_attention_readonly_runtime_identity(
   toolchain_sha256~ : String,
   driver_sha256~ : String,
   target~ : @catalog.DeviceTarget,
-  operation~ : Int,
-  activation~ : Int,
-  input_row_width~ : Int,
-  profile_id~ : Int,
-  profile_rows~ : Int,
-  profile_tokens~ : Int,
-  profile_page_entries~ : Int,
-  tokens_per_page~ : Int,
+  operation~ : Int32,
+  activation~ : Int32,
+  input_row_width~ : Int32,
+  profile_id~ : Int32,
+  profile_rows~ : Int32,
+  profile_tokens~ : Int32,
+  profile_page_entries~ : Int32,
+  tokens_per_page~ : Int32,
   page_stride_bytes~ : Int64,
   physical_page_capacity~ : Int64,
   symbol~ : String,
   abi~ : @luna_cuda_paged_attention_readonly_aot.PagedAttentionReadOnlyKernelAbi,
   launch~ : @launch_contract.AotLaunchDimensions,
   module_bytes~ : Bytes,
-  dispatch_canary~ : Int,
-  dispatch_canary_cells~ : Int,
+  dispatch_canary~ : Int32,
+  dispatch_canary_cells~ : Int32,
   approved_device_uuid~ : String,
   approved_device_pci~ : String,
   approved_device_name_hex~ : String,
@@ -158,11 +158,11 @@ pub fn qualified_paged_kv_write_fallback_identity(
   fallback_recipe_sha256~ : String,
   operation~ : @plan.OperationId,
   activation~ : @plan.ActivationRef,
-  row_width~ : Int,
+  row_width~ : Int32,
   target~ : @catalog.DeviceTarget,
   profile~ : @launch_contract.PagedKernelProfile,
-  tokens_per_page~ : Int,
-  total_page_count~ : Int,
+  tokens_per_page~ : Int32,
+  total_page_count~ : Int32,
   page_stride_bytes~ : Int64,
   toolchain_sha256~ : String,
   driver_sha256~ : String,

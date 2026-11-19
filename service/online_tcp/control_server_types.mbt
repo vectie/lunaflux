@@ -1,23 +1,23 @@
 ///|
-const LUNA_CONTROL_SERVER_LISTENING : Int = 0
+const LUNA_CONTROL_SERVER_LISTENING : Int32 = 0
 
 ///|
-const LUNA_CONTROL_SERVER_ACCEPTING : Int = 1
+const LUNA_CONTROL_SERVER_ACCEPTING : Int32 = 1
 
 ///|
-const LUNA_CONTROL_SERVER_RECEIVING : Int = 2
+const LUNA_CONTROL_SERVER_RECEIVING : Int32 = 2
 
 ///|
-const LUNA_CONTROL_SERVER_WRITING : Int = 3
+const LUNA_CONTROL_SERVER_WRITING : Int32 = 3
 
 ///|
-const LUNA_CONTROL_SERVER_DRAINING : Int = 4
+const LUNA_CONTROL_SERVER_DRAINING : Int32 = 4
 
 ///|
-const LUNA_CONTROL_SERVER_CLOSED : Int = 5
+const LUNA_CONTROL_SERVER_CLOSED : Int32 = 5
 
 ///|
-const LUNA_CONTROL_SERVER_FAILED : Int = 6
+const LUNA_CONTROL_SERVER_FAILED : Int32 = 6
 
 ///|
 priv enum LunaOnlineControlSource {
@@ -79,12 +79,12 @@ pub struct LunaOnlineHttpControlServer {
   priv metrics_output : LunaOnlineTcpOutputScratch
   priv metrics_flights : Array[LunaOnlineTcpOutputFlight]
   priv mut output : Bytes
-  priv mut output_cursor : Int
-  priv mut output_length : Int
-  priv mut phase : Int
+  priv mut output_cursor : Int32
+  priv mut output_length : Int32
+  priv mut phase : Int32
   priv mut drain_requested : Bool
   priv mut failed : Bool
   priv mut startup_measurement_published : Bool
-  priv mut cold_start_latency_millis : Int
+  priv mut cold_start_latency_millis : Int32
   priv mut io_started_millis : UInt64
 }

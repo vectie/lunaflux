@@ -120,7 +120,7 @@ test "decode split replacement preserves partial then merge order" {
 
 ///|
 test "attention allocation cleanup is explicit reverse acquisition order" {
-  let events : Array[Int] = []
+  let events : Array[Int32] = []
   run_paged_attention_allocation_close_order(
     () => events.push(4),
     () => events.push(3),

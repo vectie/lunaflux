@@ -1,32 +1,32 @@
 ///|
 pub fn JointDiffusionShapeContract::new(
-  frames_per_second~ : Int,
-  min_duration_seconds~ : Int,
-  max_duration_seconds~ : Int,
-  frames_per_chunk~ : Int,
-  latents_per_chunk~ : Int,
-  canvas_multiple~ : Int,
+  frames_per_second~ : Int32,
+  min_duration_seconds~ : Int32,
+  max_duration_seconds~ : Int32,
+  frames_per_chunk~ : Int32,
+  latents_per_chunk~ : Int32,
+  canvas_multiple~ : Int32,
   max_canvas_pixels~ : Int64,
-  min_aspect_numerator~ : Int,
-  min_aspect_denominator~ : Int,
-  max_aspect_numerator~ : Int,
-  max_aspect_denominator~ : Int,
-  video_latent_channels~ : Int,
-  video_spatial_compression~ : Int,
-  audio_latent_channels~ : Int,
-  audio_latents_per_second~ : Int,
-  audio_sample_rate~ : Int,
-  audio_output_channels~ : Int,
-  audio_vae_latent_dimension~ : Int,
-  audio_vae_decoder_dimension~ : Int,
-  min_inference_steps~ : Int,
-  max_inference_steps~ : Int,
-  video_patch_temporal? : Int = 1,
-  video_patch_height? : Int = 1,
-  video_patch_width? : Int = 1,
-  audio_latent_streams? : Int = 1,
-  audio_output_length? : JointAudioOutputLength = FrameDuration,
-  sigma_grid? : JointDiffusionSigmaGrid = TrainingFloorFloat64,
+  min_aspect_numerator~ : Int32,
+  min_aspect_denominator~ : Int32,
+  max_aspect_numerator~ : Int32,
+  max_aspect_denominator~ : Int32,
+  video_latent_channels~ : Int32,
+  video_spatial_compression~ : Int32,
+  audio_latent_channels~ : Int32,
+  audio_latents_per_second~ : Int32,
+  audio_sample_rate~ : Int32,
+  audio_output_channels~ : Int32,
+  audio_vae_latent_dimension~ : Int32,
+  audio_vae_decoder_dimension~ : Int32,
+  min_inference_steps~ : Int32,
+  max_inference_steps~ : Int32,
+  video_patch_temporal~ : Int32 = 1,
+  video_patch_height~ : Int32 = 1,
+  video_patch_width~ : Int32 = 1,
+  audio_latent_streams~ : Int32 = 1,
+  audio_output_length~ : JointAudioOutputLength = FrameDuration,
+  sigma_grid~ : JointDiffusionSigmaGrid = TrainingFloorFloat64,
 ) -> JointDiffusionShapeContract raise JointDiffusionPlanError {
   if frames_per_second <= 0 ||
     frames_per_second > 1000000 ||
@@ -116,32 +116,32 @@ pub fn JointDiffusionShapeContract::new(
 }
 
 ///|
-pub fn JointDiffusionShapeContract::frames_per_second(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::frames_per_second(self : Self) -> Int32 {
   self.frames_per_second
 }
 
 ///|
-pub fn JointDiffusionShapeContract::min_duration_seconds(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::min_duration_seconds(self : Self) -> Int32 {
   self.min_duration_seconds
 }
 
 ///|
-pub fn JointDiffusionShapeContract::max_duration_seconds(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::max_duration_seconds(self : Self) -> Int32 {
   self.max_duration_seconds
 }
 
 ///|
-pub fn JointDiffusionShapeContract::frames_per_chunk(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::frames_per_chunk(self : Self) -> Int32 {
   self.frames_per_chunk
 }
 
 ///|
-pub fn JointDiffusionShapeContract::latents_per_chunk(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::latents_per_chunk(self : Self) -> Int32 {
   self.latents_per_chunk
 }
 
 ///|
-pub fn JointDiffusionShapeContract::canvas_multiple(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::canvas_multiple(self : Self) -> Int32 {
   self.canvas_multiple
 }
 
@@ -151,56 +151,60 @@ pub fn JointDiffusionShapeContract::max_canvas_pixels(self : Self) -> Int64 {
 }
 
 ///|
-pub fn JointDiffusionShapeContract::min_aspect_numerator(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::min_aspect_numerator(self : Self) -> Int32 {
   self.min_aspect_numerator
 }
 
 ///|
-pub fn JointDiffusionShapeContract::min_aspect_denominator(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::min_aspect_denominator(
+  self : Self,
+) -> Int32 {
   self.min_aspect_denominator
 }
 
 ///|
-pub fn JointDiffusionShapeContract::max_aspect_numerator(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::max_aspect_numerator(self : Self) -> Int32 {
   self.max_aspect_numerator
 }
 
 ///|
-pub fn JointDiffusionShapeContract::max_aspect_denominator(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::max_aspect_denominator(
+  self : Self,
+) -> Int32 {
   self.max_aspect_denominator
 }
 
 ///|
-pub fn JointDiffusionShapeContract::video_latent_channels(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::video_latent_channels(self : Self) -> Int32 {
   self.video_latent_channels
 }
 
 ///|
 pub fn JointDiffusionShapeContract::video_spatial_compression(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.video_spatial_compression
 }
 
 ///|
-pub fn JointDiffusionShapeContract::audio_latent_channels(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::audio_latent_channels(self : Self) -> Int32 {
   self.audio_latent_channels
 }
 
 ///|
 pub fn JointDiffusionShapeContract::audio_latents_per_second(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.audio_latents_per_second
 }
 
 ///|
-pub fn JointDiffusionShapeContract::audio_sample_rate(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::audio_sample_rate(self : Self) -> Int32 {
   self.audio_sample_rate
 }
 
 ///|
-pub fn JointDiffusionShapeContract::audio_output_channels(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::audio_output_channels(self : Self) -> Int32 {
   self.audio_output_channels
 }
 
@@ -214,47 +218,47 @@ pub fn JointDiffusionShapeContract::audio_output_length(
 ///|
 pub fn JointDiffusionShapeContract::audio_vae_latent_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.audio_vae_latent_dimension
 }
 
 ///|
 pub fn JointDiffusionShapeContract::audio_vae_decoder_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.audio_vae_decoder_dimension
 }
 
 ///|
-pub fn JointDiffusionShapeContract::min_inference_steps(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::min_inference_steps(self : Self) -> Int32 {
   self.min_inference_steps
 }
 
 ///|
-pub fn JointDiffusionShapeContract::max_inference_steps(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::max_inference_steps(self : Self) -> Int32 {
   self.max_inference_steps
 }
 
 ///|
-pub fn JointDiffusionShapeContract::video_patch_temporal(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::video_patch_temporal(self : Self) -> Int32 {
   self.video_patch_temporal
 }
 
 ///|
-pub fn JointDiffusionShapeContract::video_patch_height(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::video_patch_height(self : Self) -> Int32 {
   self.video_patch_height
 }
 
 ///|
-pub fn JointDiffusionShapeContract::video_patch_width(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::video_patch_width(self : Self) -> Int32 {
   self.video_patch_width
 }
 
 ///|
 fn JointDiffusionShapeContract::align_frames(
   self : Self,
-  requested : Int,
-) -> Int raise JointDiffusionPlanError {
+  requested : Int32,
+) -> Int32 raise JointDiffusionPlanError {
   if requested <= 0 {
     raise InvalidFrameCount
   }
@@ -274,10 +278,10 @@ fn JointDiffusionShapeContract::align_frames(
 ///|
 pub fn JointDiffusionShapeContract::resolve_request(
   self : Self,
-  height~ : Int,
-  width~ : Int,
-  requested_frames~ : Int,
-  inference_steps~ : Int,
+  height~ : Int32,
+  width~ : Int32,
+  requested_frames~ : Int32,
+  inference_steps~ : Int32,
 ) -> JointDiffusionRequestShape raise JointDiffusionPlanError {
   if height <= 0 ||
     width <= 0 ||
@@ -346,27 +350,27 @@ pub fn JointDiffusionShapeContract::resolve_request(
 }
 
 ///|
-pub fn JointDiffusionRequestShape::height(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::height(self : Self) -> Int32 {
   self.height
 }
 
 ///|
-pub fn JointDiffusionRequestShape::width(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::width(self : Self) -> Int32 {
   self.width
 }
 
 ///|
-pub fn JointDiffusionRequestShape::frames(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::frames(self : Self) -> Int32 {
   self.frames
 }
 
 ///|
-pub fn JointDiffusionRequestShape::inference_steps(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::inference_steps(self : Self) -> Int32 {
   self.inference_steps
 }
 
 ///|
-pub fn JointDiffusionRequestShape::model_evaluations(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::model_evaluations(self : Self) -> Int32 {
   self.model_evaluations
 }
 
@@ -385,33 +389,33 @@ pub fn JointDiffusionRequestShape::sigma_grid(
 }
 
 ///|
-pub fn JointDiffusionRequestShape::video_latent_frames(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::video_latent_frames(self : Self) -> Int32 {
   self.video_latent_frames
 }
 
 ///|
-pub fn JointDiffusionRequestShape::video_latent_height(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::video_latent_height(self : Self) -> Int32 {
   self.video_latent_height
 }
 
 ///|
-pub fn JointDiffusionRequestShape::video_latent_width(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::video_latent_width(self : Self) -> Int32 {
   self.video_latent_width
 }
 
 ///|
-pub fn JointDiffusionRequestShape::audio_latent_frames(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::audio_latent_frames(self : Self) -> Int32 {
   self.audio_latent_frames
 }
 
 ///|
 /// Per-stream time is distinct from the concatenated stream-major DiT rows.
-pub fn JointDiffusionRequestShape::audio_token_rows(self : Self) -> Int {
+pub fn JointDiffusionRequestShape::audio_token_rows(self : Self) -> Int32 {
   self.audio_token_rows
 }
 
 ///|
-pub fn JointDiffusionShapeContract::audio_latent_streams(self : Self) -> Int {
+pub fn JointDiffusionShapeContract::audio_latent_streams(self : Self) -> Int32 {
   self.audio_latent_streams
 }
 

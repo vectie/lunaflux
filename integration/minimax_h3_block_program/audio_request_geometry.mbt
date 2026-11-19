@@ -3,9 +3,9 @@
 /// latent duration; it only reinterprets [2,1,L] as [1,2,L], without cropping
 /// to the independently rounded frame-duration sample count.
 fn audio_join_geometry(
-  latent_frames : Int,
-  channels : Int,
-  samples : Int,
+  latent_frames : Int32,
+  channels : Int32,
+  samples : Int32,
   bytes : Int64,
 ) -> Bool {
   latent_frames > 0 &&
@@ -19,7 +19,7 @@ fn audio_join_geometry(
 /// The canonical H3 output retains the rounded latent duration like upstream.
 pub fn AudioDecodeRequest::waveform_samples(
   self : Self,
-) -> Int raise @device.DeviceError {
+) -> Int32 raise @device.DeviceError {
   guard self.decoder is Some(decoder) && self.output is Some(_) else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
   }

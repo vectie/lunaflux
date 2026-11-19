@@ -1,5 +1,5 @@
 ///|
-fn ModelSemanticCapability::stable_index(self : Self) -> Int {
+fn ModelSemanticCapability::stable_index(self : Self) -> Int32 {
   match self {
     DenseCausalAttention => 0
     QueryKeyRmsNorm => 1
@@ -21,7 +21,7 @@ fn ModelSemanticCapability::stable_index(self : Self) -> Int {
 }
 
 ///|
-fn capability_count() -> Int {
+fn capability_count() -> Int32 {
   16
 }
 

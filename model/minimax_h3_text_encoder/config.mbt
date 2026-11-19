@@ -12,14 +12,14 @@ pub(all) suberror EncoderConfigError {
 pub struct EncoderConfig {
   epsilon : Double
   theta : Double
-  max_positions : Int
-  vocabulary_size : Int
-  image_token : Int
-  video_token : Int
-  vision_start_token : Int
-  vision_end_token : Int
-  mrope_height : Int
-  mrope_width : Int
+  max_positions : Int32
+  vocabulary_size : Int32
+  image_token : Int32
+  video_token : Int32
+  vision_start_token : Int32
+  vision_end_token : Int32
+  mrope_height : Int32
+  mrope_width : Int32
 }
 
 ///|
@@ -51,7 +51,10 @@ fn number(
 }
 
 ///|
-fn integer(o : Map[String, Json], key : String) -> Int raise EncoderConfigError {
+fn integer(
+  o : Map[String, Json],
+  key : String,
+) -> Int32 raise EncoderConfigError {
   let v = number(o, key)
   guard v >= 0.0 && v <= 2147483647.0 && v == v.trunc() else {
     raise InvalidArchitecture
@@ -65,7 +68,7 @@ fn integer(o : Map[String, Json], key : String) -> Int raise EncoderConfigError 
 /// For text-only input all three mRoPE axes have identical positions.
 pub fn parse_config(
   bytes : Bytes,
-  max_bytes~ : Int,
+  max_bytes~ : Int32,
 ) -> EncoderConfig raise EncoderConfigError {
   guard max_bytes > 0 && bytes.length() <= max_bytes else {
     raise ByteBudgetExceeded
@@ -145,7 +148,7 @@ pub fn parse_config(
     None => [Json::number(24.0), Json::number(20.0), Json::number(20.0)]
     _ => raise UnsupportedRotary
   }
-  let counts : Array[Int] = []
+  let counts : Array[Int32] = []
   for v in sections {
     guard v is Number(n, ..) && n >= 0.0 && n <= 64.0 && n == n.trunc() else {
       raise UnsupportedRotary
@@ -198,7 +201,7 @@ pub fn parse_config(
 ///|
 pub fn EncoderConfig::plan(
   self : Self,
-  ids : ArrayView[Int],
+  ids : ArrayView[Int32],
 ) -> TextEncoderPlan raise {
   guard ids.length() <= self.max_positions else { raise InvalidRequest }
   let plan = TextEncoderPlan::new(rows=ids.length(), epsilon=self.epsilon)

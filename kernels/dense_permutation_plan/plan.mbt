@@ -20,8 +20,8 @@ pub struct IndexTerm {
 /// e.g. video [B,C,T,H,W] is split into [B,C,t,pt,h,ph,w,pw] before permutation.
 /// There are no device names, launch dimensions, or tensor payloads here.
 pub struct Permutation {
-  priv source_shape : ReadOnlyArray[Int]
-  priv output_order : ReadOnlyArray[Int]
+  priv source_shape : ReadOnlyArray[Int32]
+  priv output_order : ReadOnlyArray[Int32]
   priv terms : ReadOnlyArray[IndexTerm]
   priv elements : Int64
 }
@@ -30,8 +30,8 @@ pub struct Permutation {
 /// Build a bijective permutation under an explicit element ceiling.
 /// `output_order[j]` is the source axis occupying output axis j.
 pub fn Permutation::new(
-  source_shape : ArrayView[Int],
-  output_order : ArrayView[Int],
+  source_shape : ArrayView[Int32],
+  output_order : ArrayView[Int32],
   max_elements~ : Int64,
 ) -> Self raise PermutationError {
   let rank = source_shape.length()

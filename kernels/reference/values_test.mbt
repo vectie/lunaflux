@@ -19,10 +19,10 @@ fn assert_float_close(
 ///|
 fn assert_activation_close(
   actual : @reference.Activation,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   expected : ArrayView[Float],
-  tolerance? : Float = 1.0e-5F,
+  tolerance~ : Float = 1.0e-5F,
 ) -> Unit raise {
   assert_eq(actual.rows(), rows)
   assert_eq(actual.columns(), columns)

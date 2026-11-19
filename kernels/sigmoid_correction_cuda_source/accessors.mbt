@@ -13,12 +13,12 @@ pub fn SigmoidCorrectionCudaSource::numerical_contract(
 }
 
 ///|
-pub fn SigmoidCorrectionCudaSource::expert_count(self : Self) -> Int {
+pub fn SigmoidCorrectionCudaSource::expert_count(self : Self) -> Int32 {
   self.expert_count
 }
 
 ///|
-pub fn SigmoidCorrectionCudaSource::maximum_rows(self : Self) -> Int {
+pub fn SigmoidCorrectionCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

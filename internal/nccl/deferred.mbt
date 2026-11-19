@@ -1,19 +1,22 @@
 ///|
 #borrow(c)
-extern "c" fn raw_prepare_deferred(c : NcclCommunicator, capacity : Int) -> Int = "lunaflux_nccl_prepare_deferred"
+extern "c" fn raw_prepare_deferred(
+  c : NcclCommunicator,
+  capacity : Int32,
+) -> Int32 = "lunaflux_nccl_prepare_deferred"
 
 ///|
 #borrow(c)
-extern "c" fn raw_defer_submitted(c : NcclCommunicator) -> Int = "lunaflux_nccl_defer_submitted"
+extern "c" fn raw_defer_submitted(c : NcclCommunicator) -> Int32 = "lunaflux_nccl_defer_submitted"
 
 ///|
 #borrow(c)
-extern "c" fn raw_poll_deferred(c : NcclCommunicator) -> Int = "lunaflux_nccl_poll_deferred"
+extern "c" fn raw_poll_deferred(c : NcclCommunicator) -> Int32 = "lunaflux_nccl_poll_deferred"
 
 ///|
 pub fn NcclCommunicator::prepare_deferred(
   self : Self,
-  capacity : Int,
+  capacity : Int32,
 ) -> Unit raise NcclError {
   check_status(raw_prepare_deferred(self, capacity), CollectiveExecution)
 }

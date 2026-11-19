@@ -1,10 +1,10 @@
 ///|
 async fn exercise_glm_checkpoint_owner(
   with_dense_block~ : Bool,
-  with_moe_block? : Bool = false,
-  with_sparse_block? : Bool = false,
-  with_decoder_slice? : Bool = false,
-  with_decoder_stage? : Bool = false,
+  with_moe_block~ : Bool = false,
+  with_sparse_block~ : Bool = false,
+  with_decoder_slice~ : Bool = false,
+  with_decoder_stage~ : Bool = false,
 ) -> Unit {
   @async.with_task_group() <| group => {
     let directory = @fs.realpath(@fs.tmpdir(prefix="lunaflux-glm-recurrent"))

@@ -62,12 +62,12 @@ pub struct CounterBasedJointLatentRng {
 /// projected segments share the denoiser hidden width.
 pub struct JointPackedRowLayout {
   priv plan_digest : @spec.PlanDigest
-  priv hidden_width : Int
-  priv conditioning_rows : Int
-  priv video_rows : Int
-  priv audio_rows : Int
-  priv video_input_width : Int
-  priv audio_input_width : Int
+  priv hidden_width : Int32
+  priv conditioning_rows : Int32
+  priv video_rows : Int32
+  priv audio_rows : Int32
+  priv video_input_width : Int32
+  priv audio_input_width : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -90,6 +90,6 @@ pub struct JointProjectedRowSplit {
 pub struct JointDiffusionStageMachine {
   priv plan_digest : @spec.PlanDigest
   priv stages : ReadOnlyArray[@joint_diffusion_plan.JointDiffusionStage]
-  priv next_index : Int
+  priv next_index : Int32
   priv cancelled : Bool
 } derive(Debug, Eq)

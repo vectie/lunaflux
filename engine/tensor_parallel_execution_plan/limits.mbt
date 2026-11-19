@@ -1,9 +1,9 @@
 ///|
 pub struct TensorParallelExecutionPlanLimits {
-  priv max_operations : Int
-  priv max_operands : Int
-  priv max_descriptors : Int
-  priv max_collectives : Int
+  priv max_operations : Int32
+  priv max_operands : Int32
+  priv max_descriptors : Int32
+  priv max_collectives : Int32
   priv max_descriptor_bytes : Int64
   priv max_activation_workspace_bytes : Int64
   priv artifact_limits : @artifact.KernelArtifactLimits
@@ -11,10 +11,10 @@ pub struct TensorParallelExecutionPlanLimits {
 
 ///|
 pub fn TensorParallelExecutionPlanLimits::new(
-  max_operations~ : Int,
-  max_operands~ : Int,
-  max_descriptors~ : Int,
-  max_collectives~ : Int,
+  max_operations~ : Int32,
+  max_operands~ : Int32,
+  max_descriptors~ : Int32,
+  max_collectives~ : Int32,
   max_descriptor_bytes~ : Int64,
   max_activation_workspace_bytes~ : Int64,
   artifact_limits~ : @artifact.KernelArtifactLimits,
@@ -41,28 +41,28 @@ pub fn TensorParallelExecutionPlanLimits::new(
 ///|
 pub fn TensorParallelExecutionPlanLimits::max_operations(
   self : TensorParallelExecutionPlanLimits,
-) -> Int {
+) -> Int32 {
   self.max_operations
 }
 
 ///|
 pub fn TensorParallelExecutionPlanLimits::max_operands(
   self : TensorParallelExecutionPlanLimits,
-) -> Int {
+) -> Int32 {
   self.max_operands
 }
 
 ///|
 pub fn TensorParallelExecutionPlanLimits::max_descriptors(
   self : TensorParallelExecutionPlanLimits,
-) -> Int {
+) -> Int32 {
   self.max_descriptors
 }
 
 ///|
 pub fn TensorParallelExecutionPlanLimits::max_collectives(
   self : TensorParallelExecutionPlanLimits,
-) -> Int {
+) -> Int32 {
   self.max_collectives
 }
 

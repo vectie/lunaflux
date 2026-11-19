@@ -9,7 +9,7 @@ fn approved_weight_file_limits() -> @device_materialize.DeviceWeightFileLimits r
 
 ///|
 fn approved_execution_limits(
-  operation_count : Int,
+  operation_count : Int32,
 ) -> @execution_manifest_file.ExecutionManifestFileLimits raise {
   let artifact_limits = @artifact.KernelArtifactLimits::new(
     max_modules=32,
@@ -94,9 +94,9 @@ async fn run_approved_bf16_physical(
   runtime_root : String,
   toolchain_sha256 : String,
   driver_identity_sha256 : String,
-  compiler_major : UInt,
-  compiler_minor : UInt,
-  compiler_patch : UInt,
+  compiler_major : UInt32,
+  compiler_minor : UInt32,
+  compiler_patch : UInt32,
 ) -> Double {
   let inputs = load_approved_bf16_inputs(model_root_path)
   let corpus = approved_corpus_case(inputs.corpus)

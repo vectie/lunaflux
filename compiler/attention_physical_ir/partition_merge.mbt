@@ -4,8 +4,8 @@
 /// them, publishes them once, then disjoint component owners apply the same
 /// ascending-partition numerator fold. Sharing does not reassociate sums.
 pub struct PartitionMerge {
-  priv partitions : Int
-  priv dimensions : Int
+  priv partitions : Int32
+  priv dimensions : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -16,8 +16,8 @@ pub extend PartitionMerge with @debug.Debug::{to_repr}
 
 ///|
 pub fn PartitionMerge::new(
-  partitions~ : Int,
-  dimensions~ : Int,
+  partitions~ : Int32,
+  dimensions~ : Int32,
 ) -> PartitionMerge? {
   if partitions > 1 && dimensions > 0 {
     Some({ partitions, dimensions, })
@@ -27,7 +27,7 @@ pub fn PartitionMerge::new(
 }
 
 ///|
-pub fn PartitionMerge::dimensions(self : PartitionMerge) -> (Int, Int) {
+pub fn PartitionMerge::dimensions(self : PartitionMerge) -> (Int32, Int32) {
   (self.partitions, self.dimensions)
 }
 

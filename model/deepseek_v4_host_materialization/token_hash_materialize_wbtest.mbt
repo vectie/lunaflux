@@ -1,8 +1,8 @@
 ///|
 fn token_hash_test_write_i64(
   arena : FixedArray[Byte],
-  offset : Int,
-  value : Int,
+  offset : Int32,
+  value : Int32,
 ) -> Unit {
   let raw = value.to_int64().reinterpret_as_uint64()
   for shift in 0..<8 {

@@ -1,7 +1,7 @@
 ///|
 fn selection_projection(
   second_target? : @catalog.DeviceTarget,
-  reverse_peer? : Bool = true,
+  reverse_peer~ : Bool = true,
 ) -> LocalTopologyProbeProjection raise {
   let target = try! @catalog.DeviceTarget::new(
     compute_major=8,

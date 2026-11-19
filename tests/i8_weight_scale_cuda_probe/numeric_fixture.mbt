@@ -15,7 +15,7 @@ let probe_input_values : FixedArray[Float] = [
 ]
 
 ///|
-let probe_weight_codes : FixedArray[Int] = [
+let probe_weight_codes : FixedArray[Int32] = [
   127, -3, 0, 8, -127, 7, 2, -1, 5, 0, -9, 11, 1, 2, 3, 4,
 ]
 
@@ -25,21 +25,21 @@ let probe_scale_values : FixedArray[Float] = [
 ]
 
 ///|
-fn probe_bf16_bits(value : Float) -> Int {
+fn probe_bf16_bits(value : Float) -> Int32 {
   let bits = value.reinterpret_as_uint()
   ((bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16).reinterpret_as_int()
 }
 
 ///|
-fn probe_bf16_float(bits : Int) -> Float {
+fn probe_bf16_float(bits : Int32) -> Float {
   Float::reinterpret_from_uint(bits.reinterpret_as_uint() << 16)
 }
 
 ///|
 fn probe_write_i32_le(
   output : FixedArray[Byte],
-  index : Int,
-  value : Int,
+  index : Int32,
+  value : Int32,
 ) -> Unit {
   let offset = index * 4
   output[offset] = value.to_byte()
@@ -51,7 +51,7 @@ fn probe_write_i32_le(
 ///|
 fn probe_write_bf16_le(
   output : FixedArray[Byte],
-  index : Int,
+  index : Int32,
   value : Float,
 ) -> Unit {
   let bits = probe_bf16_bits(value)
@@ -63,7 +63,7 @@ fn probe_write_bf16_le(
 ///|
 fn probe_write_f32_le(
   output : FixedArray[Byte],
-  index : Int,
+  index : Int32,
   value : Float,
 ) -> Unit {
   let bits = value.reinterpret_as_uint()

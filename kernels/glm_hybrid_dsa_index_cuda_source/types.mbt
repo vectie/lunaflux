@@ -28,14 +28,14 @@ pub(all) suberror GlmHybridDsaIndexCudaSourceError {
 pub struct GlmHybridDsaIndexCudaSource {
   priv operation : GlmHybridDsaIndexCudaOperation
   priv numerical_contract : GlmHybridDsaIndexNumericalContract
-  priv head_count : Int
-  priv head_dimension : Int
-  priv top_k : Int
-  priv pool_size : Int
-  priv maximum_tokens : Int
-  priv maximum_queries : Int
-  priv candidate_capacity : Int
-  priv output_width : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv top_k : Int32
+  priv pool_size : Int32
+  priv maximum_tokens : Int32
+  priv maximum_queries : Int32
+  priv candidate_capacity : Int32
+  priv output_width : Int32
   priv function_symbol : String
   priv source : Bytes
 }

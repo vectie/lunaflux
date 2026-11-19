@@ -4,8 +4,8 @@
 async fn prepare_text_frames(
   root : @approved_fs.ApprovedRoot,
   model_root : String,
-  rows : Int,
-  history : Int,
+  rows : Int32,
+  history : Int32,
   tokenizer_label : String,
   input_path : String,
   output : String,

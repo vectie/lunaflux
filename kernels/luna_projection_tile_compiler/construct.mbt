@@ -1,10 +1,10 @@
 ///|
 pub fn ProjectionTileCompilerRequest::new(
   dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan,
-  maximum_rows~ : Int,
-  maximum_tokens~ : Int,
+  maximum_rows~ : Int32,
+  maximum_tokens~ : Int32,
   demand~ : ProjectionResultDemand,
-  single_row_numerics? : ProjectionSingleRowNumerics = PreserveDotOrder,
+  single_row_numerics~ : ProjectionSingleRowNumerics = PreserveDotOrder,
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   if maximum_rows <= 0 ||
     maximum_tokens < maximum_rows ||
@@ -30,9 +30,9 @@ pub fn ProjectionTileCompilerRequest::new(
 
 ///|
 pub fn ProjectionAttentionIngressEpilogue::new(
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  head_dimension~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  head_dimension~ : Int32,
   norm_epsilon~ : Double,
   rope_theta~ : Double,
 ) -> ProjectionAttentionIngressEpilogue raise ProjectionTileCompilerError {
@@ -53,10 +53,10 @@ pub fn ProjectionAttentionIngressEpilogue::new(
 ///|
 pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
   dispatch~ : @luna_projection_strategy.ProjectionDispatchPlan,
-  maximum_rows~ : Int,
-  maximum_tokens~ : Int,
+  maximum_rows~ : Int32,
+  maximum_tokens~ : Int32,
   epilogue~ : ProjectionAttentionIngressEpilogue,
-  single_row_numerics? : ProjectionSingleRowNumerics = PreserveDotOrder,
+  single_row_numerics~ : ProjectionSingleRowNumerics = PreserveDotOrder,
 ) -> ProjectionTileCompilerRequest raise ProjectionTileCompilerError {
   let request = ProjectionTileCompilerRequest::new(
     dispatch~,
@@ -83,6 +83,6 @@ pub fn ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
 }
 
 ///|
-fn projection_tile_value_id(value : Int) -> ProjectionTileValueId {
+fn projection_tile_value_id(value : Int32) -> ProjectionTileValueId {
   ProjectionTileValueId(value)
 }

@@ -23,7 +23,7 @@ fn tensor_core_evidence_safe_path(path : String) -> Bool {
 ///|
 fn tensor_core_evidence_manifest_entries(
   bytes : Bytes,
-  maximum_bytes : Int,
+  maximum_bytes : Int32,
 ) -> Array[LunaTensorCoreEvidenceManifestEntry] raise LunaTensorCorePhysicalEvidenceError {
   if bytes.length() == 0 || bytes.length() > maximum_bytes {
     raise LunaTensorCorePhysicalEvidenceLimitExceeded

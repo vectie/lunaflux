@@ -1,7 +1,7 @@
 ///|
 fn joint_attention_fixture(
   read_set : @precision.CompressedRowReadSet,
-  coordinates? : @precision.CompressedRowCoordinates = OffsetRelative,
+  coordinates~ : @precision.CompressedRowCoordinates = OffsetRelative,
 ) -> @joint_frame.WindowCompressedKvFrame raise {
   @joint_frame.WindowCompressedKvFrame::new(
     @joint_source.window_compressed_kv_source(

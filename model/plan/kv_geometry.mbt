@@ -14,9 +14,9 @@ pub(all) enum KvCacheLayout {
 /// ownership belong to later KV storage planning. This value records only the
 /// model facts needed to derive those decisions without model-family checks.
 pub struct KvCacheGeometry {
-  priv layer_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
+  priv layer_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
   priv dtype : @spec.ModelDType
   priv layout : KvCacheLayout
 } derive(Debug, Eq)
@@ -24,9 +24,9 @@ pub struct KvCacheGeometry {
 ///|
 /// Validates persistent KV geometry independently from a graph operation.
 pub fn KvCacheGeometry::new(
-  layer_count~ : Int,
-  kv_head_count~ : Int,
-  head_dimension~ : Int,
+  layer_count~ : Int32,
+  kv_head_count~ : Int32,
+  head_dimension~ : Int32,
   dtype~ : @spec.ModelDType,
   layout~ : KvCacheLayout,
 ) -> KvCacheGeometry raise PlanValidationError {
@@ -46,17 +46,17 @@ pub fn KvCacheGeometry::new(
 }
 
 ///|
-pub fn KvCacheGeometry::layer_count(self : KvCacheGeometry) -> Int {
+pub fn KvCacheGeometry::layer_count(self : KvCacheGeometry) -> Int32 {
   self.layer_count
 }
 
 ///|
-pub fn KvCacheGeometry::kv_head_count(self : KvCacheGeometry) -> Int {
+pub fn KvCacheGeometry::kv_head_count(self : KvCacheGeometry) -> Int32 {
   self.kv_head_count
 }
 
 ///|
-pub fn KvCacheGeometry::head_dimension(self : KvCacheGeometry) -> Int {
+pub fn KvCacheGeometry::head_dimension(self : KvCacheGeometry) -> Int32 {
   self.head_dimension
 }
 
@@ -71,8 +71,20 @@ pub fn KvCacheGeometry::layout(self : KvCacheGeometry) -> KvCacheLayout {
 }
 
 ///|
-pub fn KvCacheLayout::stable_version(self : KvCacheLayout) -> Int {
+pub fn KvCacheLayout::stable_version(self : KvCacheLayout) -> Int32 {
   match self {
     LayerMajorSplitKeyValueV1 => 1
   }
 }
+
+///|
+pub extend KvCacheLayout with @debug.Debug::{to_repr}
+
+///|
+pub extend KvCacheLayout with Eq::{not_equal, equal}
+
+///|
+pub extend KvCacheGeometry with @debug.Debug::{to_repr}
+
+///|
+pub extend KvCacheGeometry with Eq::{not_equal, equal}

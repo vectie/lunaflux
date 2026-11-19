@@ -4,7 +4,7 @@ pub fn GlmHybridExecutionPlan::identity(self : Self) -> @spec.ModelIdentity {
 }
 
 ///|
-pub fn GlmHybridExecutionPlan::schema_version(self : Self) -> Int {
+pub fn GlmHybridExecutionPlan::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 
@@ -24,27 +24,27 @@ pub fn GlmHybridExecutionPlan::model_type(self : Self) -> String {
 }
 
 ///|
-pub fn GlmHybridExecutionPlan::vocabulary_size(self : Self) -> Int {
+pub fn GlmHybridExecutionPlan::vocabulary_size(self : Self) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn GlmHybridExecutionPlan::hidden_size(self : Self) -> Int {
+pub fn GlmHybridExecutionPlan::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn GlmHybridExecutionPlan::dense_intermediate_size(self : Self) -> Int {
+pub fn GlmHybridExecutionPlan::dense_intermediate_size(self : Self) -> Int32 {
   self.dense_intermediate_size
 }
 
 ///|
-pub fn GlmHybridExecutionPlan::decoder_layer_count(self : Self) -> Int {
+pub fn GlmHybridExecutionPlan::decoder_layer_count(self : Self) -> Int32 {
   self.decoder_layer_count
 }
 
 ///|
-pub fn GlmHybridExecutionPlan::context_length(self : Self) -> Int {
+pub fn GlmHybridExecutionPlan::context_length(self : Self) -> Int32 {
   self.context_length
 }
 

@@ -36,7 +36,7 @@ fn encode_reusable_paged_v3(
   kv_layout : @device_layout.DeviceKvLayout,
   launches : ReadOnlyArray[Fp8ReusablePagedLaunchV3],
   workspace_capacity_bytes : Int64,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise Fp8ReusablePagedRecipeV3Error {
   let output : Array[Byte] = []
   let append = value => {

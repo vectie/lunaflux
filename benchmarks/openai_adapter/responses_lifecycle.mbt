@@ -1,7 +1,7 @@
 ///|
 fn OpenAIResponsesTrialObserver::require_open_lane(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> OpenAIResponsesLane raise OpenAIBaselineAdapterError {
   if self.finished ||
     request_ordinal < 0 ||
@@ -14,7 +14,7 @@ fn OpenAIResponsesTrialObserver::require_open_lane(
 ///|
 pub fn OpenAIResponsesTrialObserver::submit(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> Unit raise OpenAIBaselineAdapterError {
   if self.captured_mode {
     raise OpenAIBaselineInvalidLifecycle
@@ -25,7 +25,7 @@ pub fn OpenAIResponsesTrialObserver::submit(
 ///|
 fn OpenAIResponsesTrialObserver::submit_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)
   if request_ordinal != self.submitted || lane.phase != OPENAI_BASELINE_VACANT {
@@ -40,7 +40,7 @@ fn OpenAIResponsesTrialObserver::submit_observed(
 ///|
 pub fn OpenAIResponsesTrialObserver::submit_captured(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   timestamp : @runner.CapturedMonotonicTimestamp,
 ) -> Unit raise OpenAIBaselineAdapterError {
   if !self.captured_mode {
@@ -54,8 +54,8 @@ pub fn OpenAIResponsesTrialObserver::submit_captured(
 ///|
 pub fn OpenAIResponsesTrialObserver::observe_response_head(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
-  status : Int,
+  request_ordinal : Int32,
+  status : Int32,
   content_type : StringView,
 ) -> Unit raise OpenAIBaselineAdapterError {
   if self.captured_mode {
@@ -67,8 +67,8 @@ pub fn OpenAIResponsesTrialObserver::observe_response_head(
 ///|
 fn OpenAIResponsesTrialObserver::observe_response_head_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
-  status : Int,
+  request_ordinal : Int32,
+  status : Int32,
   content_type : StringView,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)
@@ -99,8 +99,8 @@ fn OpenAIResponsesTrialObserver::observe_response_head_observed(
 ///|
 pub fn OpenAIResponsesTrialObserver::observe_response_head_captured(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
-  status : Int,
+  request_ordinal : Int32,
+  status : Int32,
   content_type : StringView,
   timestamp : @runner.CapturedMonotonicTimestamp,
 ) -> Unit raise OpenAIBaselineAdapterError {
@@ -115,7 +115,7 @@ pub fn OpenAIResponsesTrialObserver::observe_response_head_captured(
 ///|
 pub fn OpenAIResponsesTrialObserver::terminate_transport(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   outcome : @evidence.BenchmarkRequestOutcome,
 ) -> Unit raise OpenAIBaselineAdapterError {
   if self.captured_mode {
@@ -127,7 +127,7 @@ pub fn OpenAIResponsesTrialObserver::terminate_transport(
 ///|
 fn OpenAIResponsesTrialObserver::terminate_transport_observed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   outcome : @evidence.BenchmarkRequestOutcome,
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.require_open_lane(request_ordinal)
@@ -148,7 +148,7 @@ fn OpenAIResponsesTrialObserver::terminate_transport_observed(
 ///|
 pub fn OpenAIResponsesTrialObserver::terminate_transport_captured(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   outcome : @evidence.BenchmarkRequestOutcome,
   timestamp : @runner.CapturedMonotonicTimestamp,
 ) -> Unit raise OpenAIBaselineAdapterError {

@@ -4,13 +4,13 @@
 pub(all) suberror JointDiffusionArtifactAdmissionError {
   InvalidLimit
   RequirementCountExceeded
-  RequirementDigestMismatch(Int)
-  TargetMismatch(Int)
-  MissingLaunch(Int)
-  DuplicateLaunch(Int)
-  WrongOperation(Int)
-  WrongCapability(Int)
-  InvalidLaunchOperands(Int)
+  RequirementDigestMismatch(Int32)
+  TargetMismatch(Int32)
+  MissingLaunch(Int32)
+  DuplicateLaunch(Int32)
+  WrongOperation(Int32)
+  WrongCapability(Int32)
+  InvalidLaunchOperands(Int32)
   MissingEntryPoint(@catalog.AotKernelEntryPoint)
   DuplicateEntryPoint(@catalog.AotKernelEntryPoint)
   UnreferencedEntryPoint(@catalog.AotKernelEntryPoint)
@@ -29,13 +29,13 @@ pub(all) suberror JointDiffusionArtifactAdmissionError {
 ///|
 /// Absolute startup ceilings for the separate diffusion evidence vocabulary.
 pub struct JointDiffusionArtifactAdmissionLimits {
-  priv maximum_requirements : Int
-  priv maximum_modules : Int
-  priv maximum_entry_points : Int
+  priv maximum_requirements : Int32
+  priv maximum_modules : Int32
+  priv maximum_entry_points : Int32
   priv maximum_module_bytes : Int64
   priv maximum_total_module_bytes : Int64
-  priv maximum_symbol_bytes : Int
-  priv maximum_operands_per_launch : Int
+  priv maximum_symbol_bytes : Int32
+  priv maximum_operands_per_launch : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -181,7 +181,7 @@ pub struct JointDiffusionLaunchOperand {
 /// Untrusted evidence for one required semantic launch.
 pub struct JointDiffusionLaunchEvidenceInput {
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv target : @catalog.DeviceTarget
@@ -201,14 +201,14 @@ pub struct JointDiffusionAdmittedModule {
 /// One admitted stable entry-point identity and bounded CUDA symbol mapping.
 pub struct JointDiffusionAdmittedEntryPoint {
   priv identity : @catalog.AotKernelEntryPoint
-  priv module_index : Int
+  priv module_index : Int32
   priv function_symbol : String
 } derive(Debug, Eq)
 
 ///|
 /// Exact admitted launch evidence in requirement order.
 pub struct JointDiffusionAdmittedLaunch {
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv entry_point : @catalog.AotKernelEntryPoint
@@ -232,7 +232,7 @@ pub(all) enum JointDiffusionArtifactAdmissionStatus {
 /// Immutable inert admission result. It grants no loading or execution
 /// authority and contains no device handle.
 pub struct JointDiffusionArtifactAdmission {
-  priv schema_version : Int
+  priv schema_version : Int32
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
   priv target : @catalog.DeviceTarget

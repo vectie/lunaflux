@@ -1,9 +1,9 @@
 ///|
 fn complexity_limits(
-  entries : Int,
-  nodes : Int,
-  tokens : Int,
-  pages : Int,
+  entries : Int32,
+  nodes : Int32,
+  tokens : Int32,
+  pages : Int32,
 ) -> PrefixIndexLimits raise {
   PrefixIndexLimits::new(
     entry_capacity=entries,
@@ -93,7 +93,7 @@ fn complexity_key(
 fn complexity_publish(
   index : PrefixIndex,
   identity : ComplexityIdentity,
-  values : ArrayView[Int],
+  values : ArrayView[Int32],
   physical : ArrayView[@page_allocator.PageId],
 ) -> PrefixEntryId raise {
   let tokens = PrefixTokenBuffer::new(values.length())
@@ -129,7 +129,7 @@ fn complexity_publish(
 fn complexity_lookup(
   index : PrefixIndex,
   identity : ComplexityIdentity,
-  values : ArrayView[Int],
+  values : ArrayView[Int32],
   output : PrefixLookupBuffer,
 ) -> Unit raise {
   let tokens = PrefixTokenBuffer::new(values.length())
@@ -154,7 +154,7 @@ fn complexity_evict(
 }
 
 ///|
-fn complexity_pages(count : Int) -> Array[@page_allocator.PageId] raise {
+fn complexity_pages(count : Int32) -> Array[@page_allocator.PageId] raise {
   let allocator = @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(
       page_capacity=count,
@@ -326,7 +326,7 @@ test "eviction and compaction visit only changed path and incident edges" {
   let identity = complexity_identity("a")
   let pages = complexity_pages(count)
   let entries : Array[PrefixEntryId] = []
-  let tokens : Array[Int] = []
+  let tokens : Array[Int32] = []
   for depth in 1..<(count + 1) {
     tokens.push(depth * 2 - 1)
     tokens.push(depth * 2)

@@ -2,14 +2,14 @@
 fn valid_tensor_name(name : StringView) -> Bool {
   !name.is_empty() &&
   name.length() <= 256 &&
-  name.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '.'))
+  name.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_' | '.'))
 }
 
 ///|
 pub fn bind_audio_decoder_input_projection(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   request : @joint_diffusion_plan.JointDiffusionRequestShape,
-  decoder_batch_count~ : Int,
+  decoder_batch_count~ : Int32,
   weight_name~ : String,
   bias_name~ : String,
 ) -> JointVaeAudioDecoderInputProjection raise JointVaeDecodeReferenceError {

@@ -1,9 +1,9 @@
 ///|
 pub fn BlockTableLimits::new(
-  table_capacity~ : Int,
-  max_pages_per_table~ : Int,
-  tokens_per_page~ : Int,
-  max_generation? : Int = ABSOLUTE_MAX_TABLE_GENERATION,
+  table_capacity~ : Int32,
+  max_pages_per_table~ : Int32,
+  tokens_per_page~ : Int32,
+  max_generation~ : Int32 = ABSOLUTE_MAX_TABLE_GENERATION,
 ) -> BlockTableLimits raise BlockTableError {
   if table_capacity <= 0 || table_capacity > ABSOLUTE_MAX_TABLE_CAPACITY {
     raise InvalidLimit(TableCapacity)
@@ -25,21 +25,21 @@ pub fn BlockTableLimits::new(
 }
 
 ///|
-pub fn BlockTableLimits::table_capacity(self : BlockTableLimits) -> Int {
+pub fn BlockTableLimits::table_capacity(self : BlockTableLimits) -> Int32 {
   self.table_capacity
 }
 
 ///|
-pub fn BlockTableLimits::max_pages_per_table(self : BlockTableLimits) -> Int {
+pub fn BlockTableLimits::max_pages_per_table(self : BlockTableLimits) -> Int32 {
   self.max_pages_per_table
 }
 
 ///|
-pub fn BlockTableLimits::tokens_per_page(self : BlockTableLimits) -> Int {
+pub fn BlockTableLimits::tokens_per_page(self : BlockTableLimits) -> Int32 {
   self.tokens_per_page
 }
 
 ///|
-pub fn BlockTableLimits::max_generation(self : BlockTableLimits) -> Int {
+pub fn BlockTableLimits::max_generation(self : BlockTableLimits) -> Int32 {
   self.max_generation
 }

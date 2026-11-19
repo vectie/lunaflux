@@ -57,7 +57,7 @@ pub fn TensorParallelGroupBootstrap::group_generation_value(
 ///|
 pub fn TensorParallelGroupBootstrap::world_size(
   self : TensorParallelGroupBootstrap,
-) -> Int {
+) -> Int32 {
   self.envelopes.length()
 }
 
@@ -86,7 +86,7 @@ pub fn TensorParallelGroupBootstrap::template_digest_sha256(
 ///|
 pub fn TensorParallelGroupBootstrap::rank_envelope(
   self : TensorParallelGroupBootstrap,
-  rank : Int,
+  rank : Int32,
 ) -> TensorParallelRankBootstrapEnvelope? {
   self.envelopes.get(rank)
 }
@@ -97,7 +97,7 @@ pub fn TensorParallelGroupBootstrap::rank_envelope(
 /// match. Wire envelope labels are separate from these execution semantics.
 pub fn TensorParallelGroupBootstrap::matches_worker_contract(
   self : Self,
-  rank : Int,
+  rank : Int32,
   contract : @worker_wire.WorkerStartupContract,
 ) -> Bool {
   match self.worker_contracts.get(rank) {
@@ -138,35 +138,35 @@ pub fn TensorParallelRankBootstrapEnvelope::group_generation_value(
 ///|
 pub fn TensorParallelRankBootstrapEnvelope::rank(
   self : TensorParallelRankBootstrapEnvelope,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelRankBootstrapEnvelope::world_size(
   self : TensorParallelRankBootstrapEnvelope,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
 ///|
 pub fn TensorParallelRankBootstrapEnvelope::device_ordinal(
   self : TensorParallelRankBootstrapEnvelope,
-) -> Int {
+) -> Int32 {
   self.device_ordinal
 }
 
 ///|
 pub fn TensorParallelRankBootstrapEnvelope::collective_runtime_version_code(
   self : TensorParallelRankBootstrapEnvelope,
-) -> Int {
+) -> Int32 {
   self.collective_runtime_version_code
 }
 
 ///|
 pub fn TensorParallelGroupBootstrap::collective_runtime_version_code(
   self : TensorParallelGroupBootstrap,
-) -> Int {
+) -> Int32 {
   self.collective_runtime_version_code
 }
 

@@ -20,7 +20,7 @@ pub(all) enum ModelIssue {
 ///|
 /// Payload-safe model configuration validation failure.
 pub(all) suberror ModelConfigError {
-  Invalid(field~ : ModelField, issue~ : ModelIssue, index~ : Int)
+  Invalid(field~ : ModelField, issue~ : ModelIssue, index~ : Int32)
 } derive(Debug, Eq)
 
 ///|

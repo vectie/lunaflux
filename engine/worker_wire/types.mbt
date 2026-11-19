@@ -5,18 +5,18 @@ pub struct PlanFrameBuffer {
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv inference_limits : @inference.InferenceLimits
   priv storage : FixedArray[Byte]
-  priv frame_offset : Int
+  priv frame_offset : Int32
   priv validation_requests : FixedArray[UInt64]
-  priv validation_slots : FixedArray[Int]
+  priv validation_slots : FixedArray[Int32]
   priv mut epoch : UInt64
-  priv mut length : Int
+  priv mut length : Int32
 }
 
 ///|
 /// Opaque unforgeable identity of one startup-owned plan-frame buffer. The
 /// value exposes no storage or mutation authority.
 pub struct PlanFrameOwnerIdentity {
-  priv marker : Ref[Int]
+  priv marker : Ref[Int32]
 }
 
 ///|
@@ -27,12 +27,12 @@ pub struct ValidatedPlanFrame(PlanFrameBuffer, UInt64)
 ///|
 /// Opaque prefill-row view tied to one exact frame epoch.
 #valtype
-pub struct PlanFramePrefillRow(PlanFrameBuffer, UInt64, Int)
+pub struct PlanFramePrefillRow(PlanFrameBuffer, UInt64, Int32)
 
 ///|
 /// Opaque decode-row view tied to one exact frame epoch.
 #valtype
-pub struct PlanFrameDecodeRow(PlanFrameBuffer, UInt64, Int)
+pub struct PlanFrameDecodeRow(PlanFrameBuffer, UInt64, Int32)
 
 ///|
 pub fn PlanFrameBuffer::new(
@@ -62,7 +62,7 @@ pub fn PlanFrameBuffer::new_transport_owned(
   worker_limits : @worker_protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
   transport : FixedArray[Byte],
-  frame_offset~ : Int,
+  frame_offset~ : Int32,
 ) -> PlanFrameBuffer raise WorkerWireError {
   let capacity = plan_frame_byte_capacity(worker_limits)
   if frame_offset < 0 ||
@@ -84,7 +84,7 @@ pub fn PlanFrameBuffer::new_transport_owned(
 }
 
 ///|
-pub fn PlanFrameBuffer::capacity(self : PlanFrameBuffer) -> Int {
+pub fn PlanFrameBuffer::capacity(self : PlanFrameBuffer) -> Int32 {
   self.storage.length() - self.frame_offset
 }
 
@@ -92,7 +92,7 @@ pub fn PlanFrameBuffer::capacity(self : PlanFrameBuffer) -> Int {
 /// Byte offset of this immutable frame within its privately owned transport.
 pub fn ValidatedPlanFrame::transport_offset(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.owner().frame_offset
 }
 
@@ -120,7 +120,7 @@ fn ValidatedPlanFrame::owner(
 ///|
 pub fn ValidatedPlanFrame::length(
   self : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.owner().length
 }
 

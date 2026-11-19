@@ -1,8 +1,8 @@
 ///|
 fn dsa_index_policy(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Bool) raise GlmHybridCudaAotError {
-  let mut policy : (Int, Bool)? = None
+) -> (Int32, Bool) raise GlmHybridCudaAotError {
+  let mut policy : (Int32, Bool)? = None
   for requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexPooling(pool_size, true, tail) {
       if policy is Some(_) {
@@ -19,9 +19,9 @@ fn dsa_index_policy(
 
 ///|
 fn exact_official_dsa_index_geometry(
-  head_count : Int,
-  head_dimension : Int,
-  top_k : Int,
+  head_count : Int32,
+  head_dimension : Int32,
+  top_k : Int32,
   rope_interleave : Bool,
 ) -> Unit raise GlmHybridCudaAotError {
   if head_count != 32 ||
@@ -37,14 +37,14 @@ fn dsa_index_candidate(
   family : GlmHybridDsaIndexAotFamily,
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
   requirement : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirement,
-  requirement_ordinal : Int,
-  head_count : Int,
-  head_dimension : Int,
-  top_k : Int,
-  pool_size : Int,
-  maximum_tokens : Int,
-  candidate_capacity : Int,
-  output_width : Int,
+  requirement_ordinal : Int32,
+  head_count : Int32,
+  head_dimension : Int32,
+  top_k : Int32,
+  pool_size : Int32,
+  maximum_tokens : Int32,
+  candidate_capacity : Int32,
+  output_width : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -115,8 +115,8 @@ fn dsa_index_candidate(
 /// part of this candidate.
 pub fn lower_dsa_index_selection_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,
@@ -265,8 +265,8 @@ pub fn lower_dsa_index_selection_cuda_aot_candidate(
 /// Lowers Full-profile cross-layer reuse as a bit-exact counts-bounded copy.
 pub fn lower_dsa_index_reuse_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,
@@ -353,7 +353,7 @@ pub fn lower_dsa_index_reuse_cuda_aot_candidate(
 ///|
 fn dsa_index_compute_geometry(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int, Int, Bool)? {
+) -> (Int32, Int32, Int32, Bool)? {
   let mut result = None
   for requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexCompute(a, b, c, d) {

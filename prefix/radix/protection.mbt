@@ -1,8 +1,8 @@
 ///|
 fn PrefixIndex::entry_protection_precedes(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Bool {
   right < 0 ||
   self.entry_token_counts[left] < self.entry_token_counts[right] ||
@@ -15,8 +15,8 @@ fn PrefixIndex::entry_protection_precedes(
 ///|
 fn PrefixIndex::propagate_protecting_entry(
   self : PrefixIndex,
-  terminal : Int,
-  entry : Int,
+  terminal : Int32,
+  entry : Int32,
 ) -> Unit {
   let mut node = terminal
   while node >= 0 {
@@ -28,7 +28,10 @@ fn PrefixIndex::propagate_protecting_entry(
 }
 
 ///|
-fn PrefixIndex::refresh_node_protector(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::refresh_node_protector(
+  self : PrefixIndex,
+  node : Int32,
+) -> Unit {
   let mut selected = self.node_terminals[node]
   let mut child = self.node_child_heads[node]
   while child >= 0 {
@@ -43,6 +46,6 @@ fn PrefixIndex::refresh_node_protector(self : PrefixIndex, node : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::protecting_entry(self : PrefixIndex, node : Int) -> Int {
+fn PrefixIndex::protecting_entry(self : PrefixIndex, node : Int32) -> Int32 {
   self.node_protecting_entries[node]
 }

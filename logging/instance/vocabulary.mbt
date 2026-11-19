@@ -1,5 +1,5 @@
 ///|
-fn luna_instance_log_event_code(event : LunaInstanceLogEvent) -> Int {
+fn luna_instance_log_event_code(event : LunaInstanceLogEvent) -> Int32 {
   match event {
     LunaInstanceStarting => 0
     LunaInstanceReady => 1
@@ -21,7 +21,7 @@ fn luna_instance_log_event_code(event : LunaInstanceLogEvent) -> Int {
 }
 
 ///|
-fn luna_instance_log_event_from_code(code : Int) -> LunaInstanceLogEvent {
+fn luna_instance_log_event_from_code(code : Int32) -> LunaInstanceLogEvent {
   match code {
     0 => LunaInstanceStarting
     1 => LunaInstanceReady
@@ -43,7 +43,7 @@ fn luna_instance_log_event_from_code(code : Int) -> LunaInstanceLogEvent {
 }
 
 ///|
-fn luna_instance_log_reason_code(reason : LunaInstanceLogReason) -> Int {
+fn luna_instance_log_reason_code(reason : LunaInstanceLogReason) -> Int32 {
   match reason {
     LunaLogNoReason => 0
     LunaLogAuthentication => 1
@@ -62,7 +62,7 @@ fn luna_instance_log_reason_code(reason : LunaInstanceLogReason) -> Int {
 }
 
 ///|
-fn luna_instance_log_reason_from_code(code : Int) -> LunaInstanceLogReason {
+fn luna_instance_log_reason_from_code(code : Int32) -> LunaInstanceLogReason {
   match code {
     0 => LunaLogNoReason
     1 => LunaLogAuthentication

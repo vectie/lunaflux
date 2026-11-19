@@ -1,9 +1,9 @@
 ///|
 priv struct TokenHashSidecarTableMetadata {
-  layer_index : Int
+  layer_index : Int32
   // Supplied source label, not a table-payload checksum.
   digest : String
-  byte_count : Int
+  byte_count : Int32
 }
 
 ///|
@@ -15,10 +15,10 @@ priv struct TokenHashSidecarMetadata {
 }
 
 ///|
-let official_token_hash_layer_count : Int = 3
+let official_token_hash_layer_count : Int32 = 3
 
 ///|
-let official_token_hash_table_bytes : Int = 129280 * 6 * 4
+let official_token_hash_table_bytes : Int32 = 129280 * 6 * 4
 
 ///|
 fn canonical_digest_text(value : StringView) -> Bool {
@@ -99,7 +99,7 @@ fn plan_token_hash_metadata_upload(
 ) -> @segmented_device_materialize.SegmentedDeviceLayout raise DeepSeekV4DeviceUploadError {
   validate_token_hash_metadata(metadata)
   let digest = token_hash_source_label(metadata)
-  let arena_lengths : Array[Int] = []
+  let arena_lengths : Array[Int32] = []
   let regions : Array[
     @segmented_device_materialize.SegmentedDeviceTensorRegionInput,
   ] = []
@@ -212,7 +212,7 @@ pub fn validate_token_hash_sidecar_source(
 fn validate_token_hash_metadata_source(
   metadata : TokenHashSidecarMetadata,
   layout : @segmented_device_materialize.SegmentedDeviceLayout,
-  provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
+  provide~ : (Int32, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
 ) -> Unit raise DeepSeekV4DeviceUploadError {
   validate_token_hash_layout(metadata, layout)
   from_device(() => {

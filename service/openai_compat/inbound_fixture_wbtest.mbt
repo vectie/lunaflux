@@ -19,7 +19,7 @@ fn inbound_identity() -> @spec.ModelIdentity raise {
 ///|
 fn inbound_template(
   inference : @inference.InferenceLimits,
-  maximum~ : Int = 64,
+  maximum~ : Int32 = 64,
   document_prefix~ : FixedArray[Byte] = [],
 ) -> LunaOpenAIChatTemplate raise {
   LunaOpenAIChatTemplate::new(
@@ -39,13 +39,13 @@ fn inbound_template(
 ///|
 fn inbound_workspace(
   inference : @inference.InferenceLimits,
-  budget : Int,
-  template_maximum~ : Int = 64,
-  max_messages~ : Int = 8,
-  max_new_tokens~ : Int = 4,
-  context_ceiling~ : Int = 16,
+  budget : Int32,
+  template_maximum~ : Int32 = 64,
+  max_messages~ : Int32 = 8,
+  max_new_tokens~ : Int32 = 4,
+  context_ceiling~ : Int32 = 16,
   document_prefix~ : FixedArray[Byte] = [],
-  required_stop_tokens~ : ArrayView[Int] = [],
+  required_stop_tokens~ : ArrayView[Int32] = [],
   template_response_input~ : Bool = false,
 ) -> LunaOpenAIInboundWorkspace raise {
   let model = inbound_bytes("model-x")
@@ -73,9 +73,9 @@ fn inbound_workspace(
 
 ///|
 fn inbound_http_raw_view(
-  route : Int,
+  route : Int32,
   body_bytes : FixedArray[Byte],
-  chunk~ : Int = 2147483647,
+  chunk~ : Int32 = 2147483647,
 ) -> @http1.LunaHttp1View raise {
   let secret = inbound_bytes("secret")
   let policy = @api_auth.LunaApiAuthPolicy::new(
@@ -116,7 +116,7 @@ fn inbound_http_raw_view(
     let consumed = work.offer(
       request,
       source_offset=offset,
-      length=Int::min(chunk, request.length() - offset),
+      length=Int32::min(chunk, request.length() - offset),
     )
     offset += consumed
     if consumed == 0 {
@@ -131,9 +131,9 @@ fn inbound_http_raw_view(
 
 ///|
 fn inbound_http_view(
-  route : Int,
+  route : Int32,
   body : String,
-  chunk~ : Int = 2147483647,
+  chunk~ : Int32 = 2147483647,
 ) -> @http1.LunaHttp1View raise {
   inbound_http_raw_view(route, inbound_bytes(body), chunk~)
 }

@@ -24,7 +24,7 @@ pub extend Cost with Eq::{equal, not_equal}
 ///|
 pub fn Cost::measured(
   nanoseconds~ : Int64,
-  samples~ : Int,
+  samples~ : Int32,
 ) -> Cost raise FusionRegionError {
   if nanoseconds <= 0L || samples < 3 {
     raise InvalidCost
@@ -52,7 +52,7 @@ pub fn Cost::nanoseconds(self : Cost) -> Int64 {
 
 ///|
 pub struct Candidate {
-  priv id : Int
+  priv id : Int32
   priv region : Region
   priv cost : Cost
   priv workspace_bytes : Int64
@@ -61,7 +61,7 @@ pub struct Candidate {
 
 ///|
 pub fn Candidate::new(
-  id~ : Int,
+  id~ : Int32,
   region : Region,
   cost : Cost,
   workspace_bytes~ : Int64,
@@ -76,7 +76,7 @@ pub fn Candidate::new(
 ///|
 pub struct Selection {
   priv partition : Partition
-  priv ids : ReadOnlyArray[Int]
+  priv ids : ReadOnlyArray[Int32]
   priv cost : Cost
 }
 
@@ -86,7 +86,7 @@ pub fn Selection::partition(self : Selection) -> Partition {
 }
 
 ///|
-pub fn Selection::implementation_ids(self : Selection) -> ReadOnlyArray[Int] {
+pub fn Selection::implementation_ids(self : Selection) -> ReadOnlyArray[Int32] {
   self.ids
 }
 
@@ -96,7 +96,7 @@ pub fn Selection::cost(self : Selection) -> Cost {
 }
 
 ///|
-fn ids_less(left : ArrayView[Int], right : ArrayView[Int]) -> Bool {
+fn ids_less(left : ArrayView[Int32], right : ArrayView[Int32]) -> Bool {
   for index in 0..<left.length().min(right.length()) {
     if left[index] != right[index] {
       return left[index] < right[index]
@@ -108,7 +108,7 @@ fn ids_less(left : ArrayView[Int], right : ArrayView[Int]) -> Bool {
 ///|
 priv struct Path {
   candidates : ReadOnlyArray[Candidate]
-  ids : ReadOnlyArray[Int]
+  ids : ReadOnlyArray[Int32]
   nanoseconds : Int64
 }
 
@@ -195,7 +195,7 @@ pub fn select_regions(
 /// An end-to-end observation of a whole partition is distinct from summing
 /// individual region measurements (cache and launch interactions may differ).
 pub struct PartitionAlternative {
-  priv id : Int
+  priv id : Int32
   priv partition : Partition
   priv cost : Cost
   priv workspace_bytes : Int64
@@ -205,12 +205,12 @@ pub struct PartitionAlternative {
 
 ///|
 pub fn PartitionAlternative::new(
-  id~ : Int,
+  id~ : Int32,
   partition : Partition,
   cost : Cost,
   workspace_bytes~ : Int64,
   local_bytes~ : Int64,
-  continuation_class? : ContinuationClass = Materialized,
+  continuation_class~ : ContinuationClass = Materialized,
 ) -> PartitionAlternative raise FusionRegionError {
   if id < 0 ||
     workspace_bytes < 0L ||
@@ -226,8 +226,8 @@ pub fn select_partition(
   alternatives : ArrayView[PartitionAlternative],
   maximum_workspace_bytes~ : Int64,
   maximum_local_bytes~ : Int64,
-  continuation_class? : ContinuationClass = Materialized,
-) -> Int raise FusionRegionError {
+  continuation_class~ : ContinuationClass = Materialized,
+) -> Int32 raise FusionRegionError {
   PartitionFrontier::new(alternatives)
   .select(continuation_class~, maximum_workspace_bytes~, maximum_local_bytes~)
   .implementation_id()

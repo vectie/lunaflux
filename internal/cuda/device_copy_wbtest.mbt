@@ -1,5 +1,5 @@
 ///|
-extern "c" fn test_device_copy(cycles : Int) -> Int = "lunaflux_cuda_test_device_copy"
+extern "c" fn test_device_copy(cycles : Int32) -> Int32 = "lunaflux_cuda_test_device_copy"
 
 ///|
 test "device-only copy snapshots restore bytes and retain asynchronous ownership" {

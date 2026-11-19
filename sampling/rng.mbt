@@ -29,7 +29,10 @@ pub fn SamplingRng::reseed(
 }
 
 ///|
-fn counter_state(seed : @inference.SamplingSeed, sample_index : Int) -> UInt64 {
+fn counter_state(
+  seed : @inference.SamplingSeed,
+  sample_index : Int32,
+) -> UInt64 {
   let value = seed.value() +
     (sample_index + 1).to_uint64() * 0x9e3779b97f4a7c15UL
   let value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9UL
@@ -43,7 +46,7 @@ fn counter_state(seed : @inference.SamplingSeed, sample_index : Int) -> UInt64 {
 }
 
 ///|
-fn counter_unit(seed : @inference.SamplingSeed, sample_index : Int) -> Double {
+fn counter_unit(seed : @inference.SamplingSeed, sample_index : Int32) -> Double {
   let value = counter_state(seed, sample_index)
   (value >> 11).to_double() * 1.1102230246251565e-16
 }

@@ -3,8 +3,8 @@ fn valid_scaled_rope_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -17,12 +17,12 @@ fn finite_positive(value : Double) -> Bool {
 /// key/value operands contain only their RoPE suffixes, laid out as
 /// `[row, head, rope_dimension]`; unrelated head components are excluded.
 pub fn scaled_yarn_rope_bf16_source(
-  query_head_count~ : Int,
-  key_value_head_count~ : Int,
-  rope_dimension~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
-  original_positions~ : Int,
+  query_head_count~ : Int32,
+  key_value_head_count~ : Int32,
+  rope_dimension~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
+  original_positions~ : Int32,
   compressed_theta~ : Double,
   scaling_factor~ : Double,
   beta_fast~ : Double,

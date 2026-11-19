@@ -19,7 +19,7 @@ fn prepare_verification_session(
   stage : @deepseek.DeepSeekDecoderStage,
   edge : @deepseek.DeepSeekActivationEdge,
   backup : @snapshot.DeviceStateSnapshot,
-  stop~ : Int,
+  stop~ : Int32,
 ) -> @verification.TwoRankGreedyVerification raise {
   @verification.TwoRankGreedyVerification::new(
     rank,
@@ -50,8 +50,8 @@ async fn generate_speculative(
   verifier : @verification.TwoRankGreedyVerification,
   clock : @clock.MonotonicClock,
   first_epoch~ : UInt64,
-  previous_submitted_steps? : Int = 0,
-  cancel_after_steps? : Int = 0,
+  previous_submitted_steps~ : Int32 = 0,
+  cancel_after_steps~ : Int32 = 0,
 ) -> UInt64 {
   let proposal = FixedArray::make(startup.rows, 0)
   let target = FixedArray::make(startup.rows, 0)

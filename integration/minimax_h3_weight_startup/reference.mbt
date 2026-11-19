@@ -39,7 +39,7 @@ pub fn reference_encoder_packing(
 ///|
 fn reference_reservation(
   payload : Int64,
-  count : Int,
+  count : Int32,
   maximum : Int64,
 ) -> Int64 raise StartupError {
   guard payload > 0L && count > 0 && payload <= maximum else {

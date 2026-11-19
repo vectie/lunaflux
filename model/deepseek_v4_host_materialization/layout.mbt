@@ -1,12 +1,12 @@
 ///|
-fn aligned64(value : Int) -> Int64 {
+fn aligned64(value : Int32) -> Int64 {
   (value.to_int64() + 63L) & -64L
 }
 
 ///|
 fn append_arena_size(
-  sizes : Array[Int],
-  size : Int,
+  sizes : Array[Int32],
+  size : Int32,
   limits : DeepSeekV4HostMaterializationLimits,
 ) -> Unit raise DeepSeekV4HostMaterializationError {
   if size <= 0 {
@@ -24,7 +24,7 @@ fn build_layout(
   limits : DeepSeekV4HostMaterializationLimits,
 ) -> (
   ReadOnlyArray[DeepSeekV4HostLayoutTensor],
-  ReadOnlyArray[Int],
+  ReadOnlyArray[Int32],
   Int64,
   Int64,
 ) raise DeepSeekV4HostMaterializationError {
@@ -35,7 +35,7 @@ fn build_layout(
     )
   }
   let layouts : Array[DeepSeekV4HostLayoutTensor] = []
-  let sizes : Array[Int] = []
+  let sizes : Array[Int32] = []
   let mut arena_ordinal = 0
   let mut arena_used = 0
   let mut total_tensor_bytes = 0L
@@ -98,7 +98,7 @@ fn attach_quantized_parameter_pairs(
   binding : @deepseek_v4_weights.DeepSeekV4WeightBinding,
   layouts : ReadOnlyArray[DeepSeekV4HostLayoutTensor],
 ) -> ReadOnlyArray[DeepSeekV4HostLayoutTensor] raise DeepSeekV4HostMaterializationError {
-  let by_name : Map[String, Int] = Map([], capacity=binding.tensor_count())
+  let by_name : Map[String, Int32] = Map([], capacity=binding.tensor_count())
   for index in 0..<binding.tensor_count() {
     guard binding.tensor(index) is Some(bound) else {
       raise WeightBindingFailure

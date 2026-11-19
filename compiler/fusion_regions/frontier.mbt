@@ -3,7 +3,7 @@
 /// IDs are local to one comparison, not model names or backend instructions.
 pub(all) enum ContinuationClass {
   Materialized
-  Scoped(Int)
+  Scoped(Int32)
 } derive(Eq, Debug)
 
 ///|
@@ -127,7 +127,7 @@ pub fn PartitionFrontier::select(
 ///|
 pub fn PartitionAlternative::implementation_id(
   self : PartitionAlternative,
-) -> Int {
+) -> Int32 {
   self.id
 }
 

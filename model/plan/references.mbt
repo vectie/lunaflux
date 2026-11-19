@@ -1,7 +1,7 @@
 ///|
 /// Stable position of an operation in an ordered model plan.
 pub struct OperationId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -10,7 +10,7 @@ pub struct OperationId {
 /// The reference is semantic plan data. It is not a tensor, allocation,
 /// address, file offset, or device handle.
 pub struct TensorRef {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -34,7 +34,7 @@ pub struct CodebookTensorRef {
 ///|
 /// Stable reference to an intermediate value produced by an earlier operation.
 pub struct ActivationRef {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -44,7 +44,7 @@ pub struct ActivationRef {
 /// validation binds the complete ordered attention graph to the cache geometry
 /// so later planners never recover a layer by counting operations.
 pub struct KvLayerId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -92,11 +92,11 @@ pub(all) enum PersistentStateAccess {
 ///
 /// IDs identify behavior, never a vendor API or a concrete kernel artifact.
 pub struct KernelCapabilityId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
-pub fn OperationId::new(value : Int) -> OperationId raise PlanValidationError {
+pub fn OperationId::new(value : Int32) -> OperationId raise PlanValidationError {
   if value < 0 {
     raise InvalidIdentifier(Operation)
   }
@@ -104,12 +104,12 @@ pub fn OperationId::new(value : Int) -> OperationId raise PlanValidationError {
 }
 
 ///|
-pub fn OperationId::as_int(self : OperationId) -> Int {
+pub fn OperationId::as_int(self : OperationId) -> Int32 {
   self.value
 }
 
 ///|
-pub fn TensorRef::new(value : Int) -> TensorRef raise PlanValidationError {
+pub fn TensorRef::new(value : Int32) -> TensorRef raise PlanValidationError {
   if value < 0 {
     raise InvalidIdentifier(Tensor)
   }
@@ -117,7 +117,7 @@ pub fn TensorRef::new(value : Int) -> TensorRef raise PlanValidationError {
 }
 
 ///|
-pub fn TensorRef::as_int(self : TensorRef) -> Int {
+pub fn TensorRef::as_int(self : TensorRef) -> Int32 {
   self.value
 }
 
@@ -153,7 +153,7 @@ pub fn CodebookTensorRef::tensor(self : CodebookTensorRef) -> TensorRef {
 
 ///|
 pub fn ActivationRef::new(
-  value : Int,
+  value : Int32,
 ) -> ActivationRef raise PlanValidationError {
   if value < 0 {
     raise InvalidIdentifier(Activation)
@@ -162,12 +162,12 @@ pub fn ActivationRef::new(
 }
 
 ///|
-pub fn ActivationRef::as_int(self : ActivationRef) -> Int {
+pub fn ActivationRef::as_int(self : ActivationRef) -> Int32 {
   self.value
 }
 
 ///|
-pub fn KvLayerId::new(value : Int) -> KvLayerId raise PlanValidationError {
+pub fn KvLayerId::new(value : Int32) -> KvLayerId raise PlanValidationError {
   if value < 0 {
     raise InvalidIdentifier(KvLayer)
   }
@@ -175,13 +175,13 @@ pub fn KvLayerId::new(value : Int) -> KvLayerId raise PlanValidationError {
 }
 
 ///|
-pub fn KvLayerId::as_int(self : KvLayerId) -> Int {
+pub fn KvLayerId::as_int(self : KvLayerId) -> Int32 {
   self.value
 }
 
 ///|
 pub fn KernelCapabilityId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> KernelCapabilityId raise PlanValidationError {
   if value <= 0 {
     raise InvalidIdentifier(KernelCapability)
@@ -190,7 +190,7 @@ pub fn KernelCapabilityId::from_stable_int(
 }
 
 ///|
-pub fn KernelCapabilityId::as_int(self : KernelCapabilityId) -> Int {
+pub fn KernelCapabilityId::as_int(self : KernelCapabilityId) -> Int32 {
   self.value
 }
 
@@ -260,3 +260,75 @@ pub fn KernelCapabilityId::paged_causal_attention() -> KernelCapabilityId {
 pub fn KernelCapabilityId::qk_rms_norm() -> KernelCapabilityId {
   { value: 11, }
 }
+
+///|
+pub extend OperationId with @debug.Debug::{to_repr}
+
+///|
+pub extend OperationId with Eq::{not_equal, equal}
+
+///|
+pub extend TensorRef with @debug.Debug::{to_repr}
+
+///|
+pub extend TensorRef with Eq::{not_equal, equal}
+
+///|
+pub extend ScaleTensorRef with @debug.Debug::{to_repr}
+
+///|
+pub extend ScaleTensorRef with Eq::{not_equal, equal}
+
+///|
+pub extend ZeroPointTensorRef with @debug.Debug::{to_repr}
+
+///|
+pub extend ZeroPointTensorRef with Eq::{not_equal, equal}
+
+///|
+pub extend CodebookTensorRef with @debug.Debug::{to_repr}
+
+///|
+pub extend CodebookTensorRef with Eq::{not_equal, equal}
+
+///|
+pub extend ActivationRef with @debug.Debug::{to_repr}
+
+///|
+pub extend ActivationRef with Eq::{not_equal, equal}
+
+///|
+pub extend KvLayerId with @debug.Debug::{to_repr}
+
+///|
+pub extend KvLayerId with Eq::{not_equal, equal}
+
+///|
+pub extend ModelInputRef with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelInputRef with Eq::{not_equal, equal}
+
+///|
+pub extend ValueRef with @debug.Debug::{to_repr}
+
+///|
+pub extend ValueRef with Eq::{not_equal, equal}
+
+///|
+pub extend OperationRuntimeInput with @debug.Debug::{to_repr}
+
+///|
+pub extend OperationRuntimeInput with Eq::{not_equal, equal}
+
+///|
+pub extend PersistentStateAccess with @debug.Debug::{to_repr}
+
+///|
+pub extend PersistentStateAccess with Eq::{not_equal, equal}
+
+///|
+pub extend KernelCapabilityId with @debug.Debug::{to_repr}
+
+///|
+pub extend KernelCapabilityId with Eq::{not_equal, equal}

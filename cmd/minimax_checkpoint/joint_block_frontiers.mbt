@@ -2,7 +2,7 @@
 // Initial parameter producer, norm/affine, four attention stages, residual,
 // norm/affine, two MLP stages, residual. These are diagnostic frontiers of the
 // existing bound launch list, not a second implementation of block arithmetic.
-fn joint_block_frontiers() -> Array[(String, Int, @latent.RefinerStage)] {
+fn joint_block_frontiers() -> Array[(String, Int32, @latent.RefinerStage)] {
   [
     ("norm1", 2, Norm1),
     ("attention-input", 3, Norm1),
@@ -30,7 +30,7 @@ test "first-block observers retire attention before overlapping MLP scratch" {
 }
 
 ///|
-fn joint_parameter_capture_bytes(times : Int, width : Int) -> Int64 {
+fn joint_parameter_capture_bytes(times : Int32, width : Int32) -> Int64 {
   // Six AdaLN fields, three modalities, BF16; native output is field-major.
   times.to_int64() * 6L * 3L * width.to_int64() * 2L
 }

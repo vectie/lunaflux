@@ -25,8 +25,8 @@ fn valid_initial_graph_counters(
 ///|
 fn WorkerProcessSupervisor::accept_graph_telemetry_bytes_in_place(
   self : WorkerProcessSupervisor,
-  side : Int,
-  length : Int,
+  side : Int32,
+  length : Int32,
 ) -> Unit raise WorkerProcessError {
   let expected_sequence = if side == 0 {
     self.sequence_a
@@ -78,7 +78,7 @@ fn WorkerProcessSupervisor::accept_graph_telemetry_bytes_in_place(
 ///|
 fn WorkerProcessSupervisor::accept_unsampled_graph_telemetry(
   self : WorkerProcessSupervisor,
-  side : Int,
+  side : Int32,
 ) -> Unit raise WorkerProcessError {
   if side == 0 {
     if self.state_a != 1 {

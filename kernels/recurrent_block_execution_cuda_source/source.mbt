@@ -7,8 +7,8 @@ pub struct RecurrentBlockCudaSource {
   priv convolution : @convolution.CausalConvolutionCudaSource
   priv input_region : @matrix.SegmentedMatrixPlan?
   priv matrix_staging : @matrix.MatrixStaging
-  priv matrix_tile_rows : Int
-  priv matrix_reuse_minimum_inner : Int
+  priv matrix_tile_rows : Int32
+  priv matrix_reuse_minimum_inner : Int32
 }
 
 ///|
@@ -17,10 +17,10 @@ pub struct RecurrentBlockCudaSource {
 pub fn recurrent_block_source(
   plan : @precision.RecurrentBlockPrecision,
   symbol_prefix~ : String,
-  fuse_input_projections? : Bool = false,
-  matrix_staging? : @matrix.MatrixStaging = Synchronous,
-  matrix_tile_rows? : Int = 16,
-  matrix_reuse_minimum_inner? : Int = 0,
+  fuse_input_projections~ : Bool = false,
+  matrix_staging~ : @matrix.MatrixStaging = Synchronous,
+  matrix_tile_rows~ : Int32 = 16,
+  matrix_reuse_minimum_inner~ : Int32 = 0,
 ) -> RecurrentBlockCudaSource raise {
   guard matrix_tile_rows is (16 | 32) &&
     (matrix_tile_rows == 16 || plan.projection_law() != ScalarFloat32) else {
@@ -193,9 +193,9 @@ pub fn recurrent_block_source(
 ///|
 pub fn RecurrentBlockCudaSource::projection_launch(
   self : Self,
-  input_width : Int,
-  output_width : Int,
-) -> (Int, Int) raise {
+  input_width : Int32,
+  output_width : Int32,
+) -> (Int32, Int32) raise {
   let (rows, _, _) = self.plan.delta().capacity()
   if self.plan.projection_law() != ScalarFloat32 {
     let tile = @matrix.MatrixTilePlan::new(
@@ -241,11 +241,11 @@ pub fn RecurrentBlockCudaSource::convolution(
 }
 
 ///|
-pub fn RecurrentBlockCudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn RecurrentBlockCudaSource::symbol(self : Self, stage : Int32) -> String {
   self.prefix + "_" + (if stage == 17 { "inputs" } else { stage.to_string() })
 }
 
 ///|
-pub fn RecurrentBlockCudaSource::input_region_tiles(self : Self) -> Int? {
+pub fn RecurrentBlockCudaSource::input_region_tiles(self : Self) -> Int32? {
   self.input_region.map(region => region.tile_count())
 }

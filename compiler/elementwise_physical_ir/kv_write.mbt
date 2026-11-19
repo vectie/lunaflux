@@ -14,8 +14,8 @@ pub extend KvWriteEffect with @debug.Debug::{to_repr}
 /// Ordered writes into disjoint split-K/V arenas from packed Q/K/V rows.
 /// Page lookup remains an explicit runtime input, never a compiler-owned cache.
 pub struct KvWriteProgram {
-  priv query_width : Int
-  priv kv_width : Int
+  priv query_width : Int32
+  priv kv_width : Int32
   priv page_stride_elements : Int64
   priv ownership : @physical_tile_ir.VectorOwnership
 } derive(Eq, Debug)
@@ -28,12 +28,12 @@ pub extend KvWriteProgram with @debug.Debug::{to_repr}
 
 ///|
 pub fn KvWriteProgram::new(
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  head_dimension~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  head_dimension~ : Int32,
   page_stride_bytes~ : Int64,
-  element_bytes~ : Int,
-  owners~ : Int,
+  element_bytes~ : Int32,
+  owners~ : Int32,
 ) -> KvWriteProgram? {
   guard query_heads > 0 &&
     kv_heads > 0 &&
@@ -59,7 +59,7 @@ pub fn KvWriteProgram::new(
 }
 
 ///|
-pub fn KvWriteProgram::geometry(self : KvWriteProgram) -> (Int, Int, Int64) {
+pub fn KvWriteProgram::geometry(self : KvWriteProgram) -> (Int32, Int32, Int64) {
   (self.query_width, self.kv_width, self.page_stride_elements)
 }
 

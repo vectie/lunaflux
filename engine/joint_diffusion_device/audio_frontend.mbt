@@ -15,12 +15,12 @@ pub struct AudioFrontendLayout {
 
 ///|
 pub fn AudioFrontendLayout::new(
-  batch~ : Int,
-  input_channels~ : Int,
-  hidden_channels~ : Int,
-  output_channels~ : Int,
-  time~ : Int,
-  kernel~ : Int,
+  batch~ : Int32,
+  input_channels~ : Int32,
+  hidden_channels~ : Int32,
+  output_channels~ : Int32,
+  time~ : Int32,
+  kernel~ : Int32,
   max_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   guard input_channels > 0 &&

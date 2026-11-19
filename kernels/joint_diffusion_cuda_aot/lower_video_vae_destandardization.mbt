@@ -2,7 +2,7 @@
 pub fn lower_video_vae_latent_destandardization_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   parameters~ : @joint_diffusion_vae_reference.JointVaeLatentDestandardization,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

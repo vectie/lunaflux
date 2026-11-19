@@ -42,7 +42,7 @@ fn read_qwen3_config(
   root : @approved_fs.ApprovedRoot,
   source : @worker_wire.WorkerQwen3BootstrapModelSource,
   content : @spec.ContentDigest,
-  maximum : Int,
+  maximum : Int32,
 ) -> @qwen3_spec.Qwen3ModelMetadata raise DeviceWorkerBootstrapError {
   let locator = @approved_fs.ApprovedRelativeLocator::new(
     source.config_locator(),

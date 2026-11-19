@@ -22,7 +22,7 @@ pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -64,21 +64,21 @@ pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::workspace_layout_digest
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpStageCudaCandidate::time_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.time_count
 }
 
@@ -178,7 +178,7 @@ pub fn JointDiffusionAudioVaeFirstAmpExecutionStage::dimensions(
 ///|
 pub fn JointDiffusionAudioVaeFirstAmpExecutionStage::parameter_region_indices(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.parameter_region_indices
 }
 

@@ -9,10 +9,10 @@ suberror ContextChurnCampaignError {
 ///|
 fn encode_context_churn_evidence(
   release : @runtime_instance.RuntimeReleaseAdmission,
-  request_count : Int,
-  event_count : Int,
-  plan_count : Int,
-  kv_pages_free : Int,
+  request_count : Int32,
+  event_count : Int32,
+  plan_count : Int32,
+  kv_pages_free : Int32,
 ) -> String {
   let evidence = "schema=lunaflux-approved-model-bf16-context-churn-qualification.v1\n" +
     "campaign_scope=qualification-only\n" +

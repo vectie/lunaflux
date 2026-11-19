@@ -1,6 +1,6 @@
 ///|
 fn test_limits(
-  io_timeout_millis? : Int = 1000,
+  io_timeout_millis~ : Int32 = 1000,
 ) -> ProcessLimits raise ProcessError {
   ProcessLimits::new(
     max_frame_bytes=4096,

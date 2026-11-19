@@ -3,7 +3,7 @@
 /// its last byte. A short or blocked write retains its flight until retirement.
 fn LunaOnlineOpenAIConnectionPool::release_completed_slot_output(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.flights.length() != 1 ||

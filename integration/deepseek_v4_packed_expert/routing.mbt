@@ -3,13 +3,13 @@
 /// Both modes project the installed BF16 gate and compute F32 sqrt-softplus.
 pub fn routing_compute_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
-  maximum_rows~ : Int,
+  layer_index~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
-  projection_law? : @precision.DotReductionLaw = OrderedFloat32,
-  softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
-  selected_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
+  projection_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  softplus_law~ : @precision.SoftplusEvaluationLaw = StableFloat32,
+  selected_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
 ) -> @precision.MoeRoutingPrecision raise {
   guard layer_index >= 0 && layer_index < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -30,12 +30,12 @@ pub fn routing_compute_plan(
 pub fn block_routing_compute_plan(
   spec : @spec.DeepSeekV4ModelSpec,
   block~ : @spec.DeepSeekV4BlockAddress,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
   accuracy~ : @precision.Accuracy,
-  projection_law? : @precision.DotReductionLaw = OrderedFloat32,
-  softplus_law? : @precision.SoftplusEvaluationLaw = StableFloat32,
-  selected_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
+  projection_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  softplus_law~ : @precision.SoftplusEvaluationLaw = StableFloat32,
+  selected_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
 ) -> @precision.MoeRoutingPrecision raise {
   let hash = block.uses_token_hash(spec)
   let representation = @format.Representation::new(
@@ -78,7 +78,7 @@ pub fn block_routing_compute_plan(
 pub fn bind_router(
   checkpoint : @materialize.PackedCheckpoint,
   spec : @spec.DeepSeekV4ModelSpec,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[@materialize.PackedCheckpointWeight] raise {
   guard layer_index >= 0 && layer_index < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement

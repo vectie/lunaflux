@@ -24,6 +24,6 @@ pub(all) enum FullGraphManifestRule {
 /// generated document fragment.
 pub(all) suberror FullGraphManifestError {
   Invalid(FullGraphManifestRule)
-  Mismatch(rule~ : FullGraphManifestRule, operation_index~ : Int)
+  Mismatch(rule~ : FullGraphManifestRule, operation_index~ : Int32)
   LimitExceeded(rule~ : FullGraphManifestRule, maximum~ : Int64)
 } derive(Debug, Eq)

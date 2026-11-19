@@ -51,7 +51,7 @@ fn append_tensor(
 
 ///|
 fn test_weights(
-  non_degenerate? : Bool = false,
+  non_degenerate~ : Bool = false,
 ) -> @materialize.HostMaterialization raise {
   let entries : Array[@safetensors.RawTensorMetadata] = []
   let payload : Array[Byte] = []

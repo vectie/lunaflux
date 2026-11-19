@@ -8,7 +8,7 @@ fn probe_module_digest(bytes : Bytes) -> @catalog.AotArtifactDigest raise {
 ///|
 fn probe_family(
   module_digest : @catalog.AotArtifactDigest,
-  index : Int,
+  index : Int32,
 ) -> @catalog.AotKernelFamily raise {
   @catalog.AotKernelFamily::new(
     module_digest~,
@@ -19,7 +19,7 @@ fn probe_family(
 ///|
 fn probe_entry_point(
   module_digest : @catalog.AotArtifactDigest,
-  index : Int,
+  index : Int32,
 ) -> @catalog.AotKernelEntryPoint raise {
   @catalog.AotKernelEntryPoint::new(
     family=probe_family(module_digest, index),
@@ -28,7 +28,10 @@ fn probe_entry_point(
 }
 
 ///|
-fn probe_representative_operation(plan : @plan.ModelPlan, index : Int) -> Int {
+fn probe_representative_operation(
+  plan : @plan.ModelPlan,
+  index : Int32,
+) -> Int32 {
   let operation = plan.operations()[index]
   for earlier in 0..<index {
     let candidate = plan.operations()[earlier]

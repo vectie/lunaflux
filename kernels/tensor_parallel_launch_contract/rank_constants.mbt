@@ -1,5 +1,5 @@
 ///|
-const TP_RANK_CONSTANTS_VERSION : Int = 2
+const TP_RANK_CONSTANTS_VERSION : Int32 = 2
 
 ///|
 const TP_RANK_CONSTANTS_BYTES : Int64 = 32L
@@ -9,8 +9,8 @@ const TP_RANK_CONSTANTS_ALIGNMENT : Int64 = 16L
 
 ///|
 fn build_rank_constants(
-  rank : Int,
-  world_size : Int,
+  rank : Int32,
+  world_size : Int32,
   target : @catalog.DeviceTarget,
   layout : @device_layout.DeviceKvLayout,
 ) -> TensorParallelRankConstants {
@@ -34,7 +34,7 @@ fn build_rank_constants(
 pub fn TensorParallelRankConstants::encode_into(
   self : TensorParallelRankConstants,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise TensorParallelLaunchContractError {
   if destination_offset < 0 ||
     destination_offset > destination.length() ||
@@ -74,9 +74,9 @@ pub fn TensorParallelRankConstants::encode_into(
 ///|
 fn rank_constants_write_i32(
   destination : FixedArray[Byte],
-  destination_offset : Int,
-  field : Int,
-  value : Int,
+  destination_offset : Int32,
+  field : Int32,
+  value : Int32,
 ) -> Unit {
   destination.unsafe_write_uint32_le(
     destination_offset + field * 4,
@@ -87,7 +87,7 @@ fn rank_constants_write_i32(
 ///|
 pub fn TensorParallelRankConstants::version(
   self : TensorParallelRankConstants,
-) -> Int {
+) -> Int32 {
   self.version
 }
 
@@ -108,41 +108,41 @@ pub fn TensorParallelRankConstants::alignment(
 ///|
 pub fn TensorParallelRankConstants::rank(
   self : TensorParallelRankConstants,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelRankConstants::world_size(
   self : TensorParallelRankConstants,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
 ///|
 pub fn TensorParallelRankConstants::compute_major(
   self : TensorParallelRankConstants,
-) -> Int {
+) -> Int32 {
   self.compute_major
 }
 
 ///|
 pub fn TensorParallelRankConstants::compute_minor(
   self : TensorParallelRankConstants,
-) -> Int {
+) -> Int32 {
   self.compute_minor
 }
 
 ///|
 pub fn TensorParallelRankConstants::kv_layout_version(
   self : TensorParallelRankConstants,
-) -> Int {
+) -> Int32 {
   self.kv_layout_version
 }
 
 ///|
 pub fn TensorParallelRankConstants::tokens_per_page(
   self : TensorParallelRankConstants,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }

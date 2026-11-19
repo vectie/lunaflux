@@ -44,7 +44,7 @@ fn fixture_moe() -> @advanced_decoder_execution_plan.MoeExecutionPlan {
 
 ///|
 fn fixture_layer(
-  index : Int,
+  index : Int32,
   attention : @glm_hybrid_execution_plan.GlmLayerAttentionPlan,
   feed_forward : @glm_hybrid_execution_plan.GlmLayerFeedForwardPlan,
 ) -> @glm_hybrid_execution_plan.GlmHybridLayerPlan {
@@ -58,7 +58,7 @@ fn fixture_layer(
 ///|
 fn fixture_plan(
   layers : ArrayView[@glm_hybrid_execution_plan.GlmHybridLayerPlan],
-  decoder_layer_count : Int,
+  decoder_layer_count : Int32,
   kda : @glm_hybrid_execution_plan.GlmKdaExecutionPlan?,
 ) -> @glm_hybrid_execution_plan.GlmHybridExecutionPlan raise @glm_hybrid_execution_plan.GlmHybridExecutionPlanError {
   @glm_hybrid_execution_plan.GlmHybridExecutionPlan::new(

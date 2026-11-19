@@ -31,7 +31,7 @@ fn readonly_physical_outer_seal(
 ///|
 fn readonly_physical_manifest_entries(
   bytes : Bytes,
-  maximum : Int,
+  maximum : Int32,
 ) -> Array[ReadonlyPhysicalManifestEntry] raise PagedAttentionReadOnlyPhysicalEvidenceError {
   if bytes.length() == 0 || bytes.length() > maximum {
     raise PagedAttentionReadOnlyPhysicalEvidenceLimitExceeded

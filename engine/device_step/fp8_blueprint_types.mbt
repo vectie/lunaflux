@@ -4,7 +4,7 @@ pub struct Fp8PagedExecutionStepV3 {
   priv operation_kind : @plan.OperationKind
   priv operation_execution_digest : @numeric_contract.OperationExecutionDigest
   priv entry_point : @catalog.AotKernelEntryPoint
-  priv artifact_module_index : Int
+  priv artifact_module_index : Int32
   priv function_symbol : String
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[PagedKvOperandBinding]
@@ -137,7 +137,7 @@ pub fn Fp8PagedExecutionStepV3::entry_point(
 ///|
 pub fn Fp8PagedExecutionStepV3::artifact_module_index(
   self : Fp8PagedExecutionStepV3,
-) -> Int {
+) -> Int32 {
   self.artifact_module_index
 }
 

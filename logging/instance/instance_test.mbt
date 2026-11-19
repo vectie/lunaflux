@@ -1,8 +1,8 @@
 ///|
 test "public instance log records and snapshots scalar events" {
-  assert_eq(try! LunaInstanceLog::required_int_cells(2), 16UL)
-  assert_eq(try! LunaInstanceLog::required_uint64_cells(2), 4UL)
-  let log = try! LunaInstanceLog::new(2)
+  assert_eq(try! @instance.LunaInstanceLog::required_int_cells(2), 16UL)
+  assert_eq(try! @instance.LunaInstanceLog::required_uint64_cells(2), 4UL)
+  let log = try! @instance.LunaInstanceLog::new(2)
   assert_eq(log.capacity(), 2)
   try! log.record(
     LunaInstanceReady,

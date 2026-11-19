@@ -51,23 +51,23 @@ pub suberror RuntimeSpawnedServingValidationError {
 pub struct RuntimeSpawnedServingValidationContract {
   priv frame : FixedArray[Byte]
   priv expected_model : @spec.ModelIdentity
-  priv expected_first_token : Int
-  priv expected_second_token : Int
-  priv input_tokens : Int
-  priv context_ceiling : Int
+  priv expected_first_token : Int32
+  priv expected_second_token : Int32
+  priv input_tokens : Int32
+  priv context_ceiling : Int32
   priv framed_limits : @framed_wire.FramedWireLimits
-  priv turn_limit : Int
-  priv io_timeout_millis : Int
+  priv turn_limit : Int32
+  priv io_timeout_millis : Int32
 }
 
 ///|
 /// Immutable proof scalars published only after client, listener, service,
 /// child, scheduler, and KV authority have terminally closed.
 pub struct RuntimeSpawnedServingValidationResult {
-  priv first_token : Int
-  priv second_token : Int
-  priv event_count : Int
-  priv kv_pages_free : Int
+  priv first_token : Int32
+  priv second_token : Int32
+  priv event_count : Int32
+  priv kv_pages_free : Int32
   priv network_accepts : UInt64
   priv network_disconnects : UInt64
 }
@@ -81,17 +81,17 @@ fn spawned_serving_error(
 
 ///|
 fn spawned_serving_contract_scalars_valid(
-  frame_length : Int,
-  maximum_frame_length : Int,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  maximum_token_id : Int,
-  input_tokens : Int,
-  context_ceiling : Int,
-  maximum_context_tokens : Int,
-  tokens_per_page : Int,
-  turn_limit : Int,
-  io_timeout_millis : Int,
+  frame_length : Int32,
+  maximum_frame_length : Int32,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  maximum_token_id : Int32,
+  input_tokens : Int32,
+  context_ceiling : Int32,
+  maximum_context_tokens : Int32,
+  tokens_per_page : Int32,
+  turn_limit : Int32,
+  io_timeout_millis : Int32,
 ) -> Bool {
   frame_length > 0 &&
   frame_length <= maximum_frame_length &&
@@ -113,8 +113,8 @@ fn spawned_serving_contract_scalars_valid(
 fn spawned_serving_request_matches(
   request : @inference.GenerateRequest,
   expected_model : @spec.ModelIdentity,
-  input_tokens : Int,
-  context_ceiling : Int,
+  input_tokens : Int32,
+  context_ceiling : Int32,
 ) -> Bool {
   let token_count = match request.input() {
     TokenIds(tokens) => tokens.length()
@@ -133,15 +133,15 @@ fn spawned_serving_request_matches(
 pub fn RuntimeSpawnedServingValidationContract::new(
   frame : FixedArray[Byte],
   expected_model : @spec.ModelIdentity,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  input_tokens : Int,
-  context_ceiling : Int,
-  tokens_per_page : Int,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  input_tokens : Int32,
+  context_ceiling : Int32,
+  tokens_per_page : Int32,
   inference_limits : @inference.InferenceLimits,
-  maximum_frame_bytes : Int,
-  turn_limit : Int,
-  io_timeout_millis : Int,
+  maximum_frame_bytes : Int32,
+  turn_limit : Int32,
+  io_timeout_millis : Int32,
 ) -> RuntimeSpawnedServingValidationContract raise RuntimeSpawnedServingValidationError {
   let framed_limits = @framed_wire.FramedWireLimits::new(
     inference_limits,
@@ -194,28 +194,28 @@ pub fn RuntimeSpawnedServingValidationContract::new(
 ///|
 pub fn RuntimeSpawnedServingValidationResult::first_token(
   self : RuntimeSpawnedServingValidationResult,
-) -> Int {
+) -> Int32 {
   self.first_token
 }
 
 ///|
 pub fn RuntimeSpawnedServingValidationResult::second_token(
   self : RuntimeSpawnedServingValidationResult,
-) -> Int {
+) -> Int32 {
   self.second_token
 }
 
 ///|
 pub fn RuntimeSpawnedServingValidationResult::event_count(
   self : RuntimeSpawnedServingValidationResult,
-) -> Int {
+) -> Int32 {
   self.event_count
 }
 
 ///|
 pub fn RuntimeSpawnedServingValidationResult::kv_pages_free(
   self : RuntimeSpawnedServingValidationResult,
-) -> Int {
+) -> Int32 {
   self.kv_pages_free
 }
 

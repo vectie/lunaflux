@@ -144,7 +144,7 @@ fn luna_online_control_responses() -> FixedArray[Bytes] raise LunaOnlineTcpError
 }
 
 ///|
-fn luna_online_startup_measurement_valid(duration_millis : Int) -> Bool {
+fn luna_online_startup_measurement_valid(duration_millis : Int32) -> Bool {
   duration_millis >= 0 && duration_millis <= 86400000
 }
 
@@ -153,7 +153,7 @@ fn luna_online_startup_measurement_publish_allowed(
   published : Bool,
   failed : Bool,
   drain_requested : Bool,
-  phase : Int,
+  phase : Int32,
 ) -> Bool {
   !published &&
   !failed &&
@@ -167,7 +167,7 @@ fn luna_online_startup_measurement_publish_allowed(
 /// only when the control listener accepts an exact `/metrics` request.
 pub fn LunaOnlineHttpControlServer::publish_startup_measurement(
   self : LunaOnlineHttpControlServer,
-  duration_millis : Int,
+  duration_millis : Int32,
 ) -> Unit raise LunaOnlineTcpError {
   if !luna_online_startup_measurement_valid(duration_millis) ||
     !luna_online_startup_measurement_publish_allowed(

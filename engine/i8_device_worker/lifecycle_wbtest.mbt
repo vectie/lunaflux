@@ -15,7 +15,7 @@ test "readiness requires complete executor transfer and live context" {
 ///|
 fn fake_owner_advance(
   phase : Ref[I8OwnerSlotPhase],
-  active : Ref[Int],
+  active : Ref[Int32],
   next : I8OwnerSlotPhase,
   events : Array[String],
   event : String,
@@ -159,9 +159,9 @@ test "failed loader owns exactly one retryable numeric cleanup slot" {
 ///|
 fn expect_invalid_transition(
   before : I8OwnerSlotPhase,
-  active_before : Int,
+  active_before : Int32,
   after : I8OwnerSlotPhase,
-  active_after : Int,
+  active_after : Int32,
 ) -> Unit raise {
   try
     validate_owner_transition(

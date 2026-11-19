@@ -27,7 +27,7 @@ pub struct RemoteRankStartup {
   priv frame : Bytes
   priv worker : @worker_wire.WorkerStartupContract
   priv node : @network_topology.NetworkRank
-  priv rank : Int
+  priv rank : Int32
   priv group_generation : UInt64
   priv group_digest : String
   priv lease_millis : UInt64
@@ -50,7 +50,7 @@ pub struct RemoteGroupStartup {
 ///|
 pub fn RemoteGroupStartup::rank(
   self : RemoteGroupStartup,
-  rank : Int,
+  rank : Int32,
 ) -> RemoteRankStartup? {
   self.ranks.get(rank)
 }
@@ -62,7 +62,7 @@ pub fn RemoteGroupStartup::digest_sha256(self : RemoteGroupStartup) -> String {
 }
 
 ///|
-pub fn RemoteRankStartup::rank(self : RemoteRankStartup) -> Int {
+pub fn RemoteRankStartup::rank(self : RemoteRankStartup) -> Int32 {
   self.rank
 }
 

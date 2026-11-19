@@ -14,8 +14,8 @@ pub fn load(
   descriptor_locator : @approved_fs.ApprovedRelativeLocator,
   expected_digest : RuntimeDescriptorDigest,
   limits : RuntimeDescriptorFileLimits,
-  luna_approval? : @worker_wire.WorkerBootstrapLunaApproval? = None,
-  luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  luna_approval~ : @worker_wire.WorkerBootstrapLunaApproval? = None,
+  luna_verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
 ) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError {
   bind_root_label(
     model_root,
@@ -51,8 +51,8 @@ fn load_bound(
   descriptor_locator : @approved_fs.ApprovedRelativeLocator,
   expected_digest : RuntimeDescriptorDigest,
   limits : RuntimeDescriptorFileLimits,
-  luna_approval? : @worker_wire.WorkerBootstrapLunaApproval? = None,
-  luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  luna_approval~ : @worker_wire.WorkerBootstrapLunaApproval? = None,
+  luna_verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
 ) -> RuntimeDescriptorAdmission raise RuntimeDescriptorFileError {
   let bytes = read_descriptor_snapshot(
     model_root, descriptor_locator, expected_digest, limits,

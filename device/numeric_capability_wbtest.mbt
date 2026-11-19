@@ -1,9 +1,9 @@
 ///|
 fn numeric_device_fixture(
-  major : Int,
-  minor : Int,
+  major : Int32,
+  minor : Int32,
   bf16 : Bool,
-  cublas_lt? : Bool = false,
+  cublas_lt~ : Bool = false,
 ) -> DeviceCapability {
   {
     compute_major: major,

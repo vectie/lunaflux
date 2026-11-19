@@ -1,6 +1,6 @@
 ///|
 fn fixture_operation(
-  id : Int,
+  id : Int32,
   kind : @plan.OperationKind,
   inputs : ArrayView[@plan.ValueRef],
   shape : @plan.OperationShape,
@@ -104,7 +104,7 @@ fn sampling_test_target() -> @catalog.DeviceTarget {
 
 ///|
 fn sampling_test_compiler(
-  reassociate? : Bool = false,
+  reassociate~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy {
   try! @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(

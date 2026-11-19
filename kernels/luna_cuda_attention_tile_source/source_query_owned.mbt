@@ -6,7 +6,7 @@ fn emit_cuda_query_owned_attention_source(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
   let (q, k, d) = lowering.tile()
   let (_, _, threads, shared) = lowering.launch()

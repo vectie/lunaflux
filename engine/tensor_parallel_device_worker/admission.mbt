@@ -114,8 +114,8 @@ fn admit_bound_plan(
   model : @plan.ModelPlan,
   model_generation : @worker_protocol.ModelPlanGeneration,
   group_generation : @rank_group_protocol.RankGroupGeneration,
-  world_size : Int,
-  expected_rank : Int,
+  world_size : Int32,
+  expected_rank : Int32,
   startup : @worker_wire.WorkerStartupContract,
   remote : @remote_startup.RemoteRankStartup?,
   inspection : @device_materialize.DeviceShardedWeightFileInspection,
@@ -130,7 +130,7 @@ fn admit_bound_plan(
     @tensor_parallel_kv_plan.TensorParallelKvRankBinding,
   ) -> @device.TensorCollectiveContract raise TensorParallelDeviceWorkerError,
   expected_rendezvous_id : @device.TensorCollectiveGroupId,
-  collective_runtime_version_code~ : Int,
+  collective_runtime_version_code~ : Int32,
 ) -> TensorParallelDeviceWorkerPlan raise TensorParallelDeviceWorkerError {
   if model_generation.value() == 0UL ||
     startup.model_generation_value() != model_generation.value() {

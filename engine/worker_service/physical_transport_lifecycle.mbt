@@ -381,7 +381,7 @@ fn WorkerPhysicalMaintenanceProgress::is_complete(
 ///|
 fn WorkerPhysicalTransport::maintenance_remaining_millis(
   self : WorkerPhysicalTransport,
-) -> Int raise WorkerServiceError {
+) -> Int32 raise WorkerServiceError {
   match self {
     RemoteGroup(group) => {
       ignore(group)

@@ -72,7 +72,7 @@ pub fn BlockWorkspace::bind_block(
     ),
   )
   fn prefix(
-    half : Int,
+    half : Int32,
   ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
     let norm = block_rms_norm_launch(
       functions.norm,
@@ -101,7 +101,7 @@ pub fn BlockWorkspace::bind_block(
     [norm, affine]
   }
   fn residual(
-    half : Int,
+    half : Int32,
   ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
     modulation.launch(
       functions.residual,

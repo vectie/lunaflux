@@ -15,7 +15,7 @@ fn phase4_fraction_compare(
   left_denominator : Int64,
   right_numerator : Int64,
   right_denominator : Int64,
-) -> Int raise Phase4PrefixGateError {
+) -> Int32 raise Phase4PrefixGateError {
   if left_numerator < 0L ||
     left_denominator <= 0L ||
     right_numerator < 0L ||
@@ -63,7 +63,7 @@ fn phase4_rate_at_least(
 fn phase4_rate_within_budget(
   candidate : Phase4ProfileAggregate,
   baseline : Phase4ProfileAggregate,
-  budget_bps : Int,
+  budget_bps : Int32,
 ) -> Bool raise Phase4PrefixGateError {
   if budget_bps < 0 || budget_bps > PHASE4_MAX_COLD_REGRESSION_BPS {
     raise Phase4InvalidPolicy

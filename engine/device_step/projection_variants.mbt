@@ -17,7 +17,7 @@ fn prepare_projection_variants(
       step.operation_kind() != GatedMlp {
       raise executor_operation_error(step.operation_id(), GraphBucket)
     }
-    let find = fn(symbol : String) -> Int raise DeviceStepError {
+    let find = fn(symbol : String) -> Int32 raise DeviceStepError {
       for index, function in functions {
         if function.module_index == step.artifact_module_index() &&
           function.symbol == symbol {
@@ -81,8 +81,8 @@ fn prepare_projection_variants(
 ///|
 fn select_projection_variant(
   variants : ArrayView[PagedProjectionVariant],
-  base_function_index : Int,
-  query_token_bound : Int,
+  base_function_index : Int32,
+  query_token_bound : Int32,
 ) -> PagedProjectionVariant? {
   if query_token_bound <= 0 {
     return None

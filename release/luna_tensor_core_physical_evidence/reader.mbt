@@ -1,13 +1,13 @@
 ///|
 priv struct LunaTensorCoreEvidenceReader {
   lines : Array[String]
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
 fn tensor_core_evidence_reader(
   canonical : Bytes,
-  maximum_bytes : Int,
+  maximum_bytes : Int32,
 ) -> LunaTensorCoreEvidenceReader raise LunaTensorCorePhysicalEvidenceError {
   if canonical.length() == 0 || canonical.length() > maximum_bytes {
     raise LunaTensorCorePhysicalEvidenceLimitExceeded
@@ -76,9 +76,9 @@ fn LunaTensorCoreEvidenceReader::require_digest_text(
 fn LunaTensorCoreEvidenceReader::read_int(
   self : LunaTensorCoreEvidenceReader,
   key : String,
-) -> Int raise LunaTensorCorePhysicalEvidenceError {
+) -> Int32 raise LunaTensorCorePhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : Int = @string.parse_int(text) catch {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise LunaTensorCorePhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {
@@ -91,7 +91,7 @@ fn LunaTensorCoreEvidenceReader::read_int(
 fn LunaTensorCoreEvidenceReader::require_int(
   self : LunaTensorCoreEvidenceReader,
   key : String,
-  expected : Int,
+  expected : Int32,
   rule : LunaTensorCorePhysicalEvidenceRule,
 ) -> Unit raise LunaTensorCorePhysicalEvidenceError {
   if self.read_int(key) != expected {

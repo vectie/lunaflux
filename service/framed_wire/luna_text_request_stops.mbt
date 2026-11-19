@@ -1,7 +1,7 @@
 ///|
 pub fn LunaFramedTextRequestWrite::push_stop_token(
   self : Self,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit raise FramedWireError {
   let workspace = self.require()
   let inference = workspace.limits.inference_limits()
@@ -23,7 +23,7 @@ pub fn LunaFramedTextRequestWrite::push_stop_token(
 ///|
 pub fn LunaFramedTextRequestWrite::push_stop_string_length(
   self : Self,
-  byte_length : Int,
+  byte_length : Int32,
 ) -> Unit raise FramedWireError {
   let workspace = self.require()
   let inference = workspace.limits.inference_limits()

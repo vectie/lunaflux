@@ -2,9 +2,9 @@
 /// Compares a positive token ceiling against rows * tokens-per-row without
 /// evaluating the potentially overflowing product.
 fn fp8_reusable_token_capacity_contains(
-  rows : Int,
-  tokens_per_row : Int,
-  requested : Int,
+  rows : Int32,
+  tokens_per_row : Int32,
+  requested : Int32,
 ) -> Bool {
   if rows <= 0 || tokens_per_row <= 0 || requested <= 0 {
     return false

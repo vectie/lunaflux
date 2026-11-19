@@ -4,7 +4,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -122,7 +122,7 @@ fn split_absolute_path(
       segment_length = 0
       dots = 0
     } else {
-      if !(unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.')) {
+      if !(unit is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '_' | '-' | '.')) {
         raise InvalidPath
       }
       segment_length += 1

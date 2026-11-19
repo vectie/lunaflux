@@ -95,7 +95,7 @@ fn full_manifest_target() -> @catalog.DeviceTarget raise {
 }
 
 ///|
-fn full_manifest_digest(operation : Int) -> @catalog.AotArtifactDigest raise {
+fn full_manifest_digest(operation : Int32) -> @catalog.AotArtifactDigest raise {
   @catalog.AotArtifactDigest::from_sha256(
     if operation == 1 {
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -106,7 +106,7 @@ fn full_manifest_digest(operation : Int) -> @catalog.AotArtifactDigest raise {
 }
 
 ///|
-fn full_manifest_entry(operation : Int) -> @catalog.AotKernelEntryPoint raise {
+fn full_manifest_entry(operation : Int32) -> @catalog.AotKernelEntryPoint raise {
   @catalog.AotKernelEntryPoint::new(
     family=@catalog.AotKernelFamily::new(
       module_digest=full_manifest_digest(operation),
@@ -120,7 +120,7 @@ fn full_manifest_entry(operation : Int) -> @catalog.AotKernelEntryPoint raise {
 
 ///|
 fn full_manifest_semantics(
-  operation : Int,
+  operation : Int32,
 ) -> @catalog.KernelExecutionSemantics raise {
   let layer = @plan.KvLayerId::new(0)
   match operation {
@@ -212,7 +212,7 @@ fn full_manifest_operand(
 
 ///|
 fn full_manifest_operands(
-  operation : Int,
+  operation : Int32,
 ) -> Array[@launch_contract.AotOperand] raise {
   let layer = @plan.KvLayerId::new(0)
   match operation {

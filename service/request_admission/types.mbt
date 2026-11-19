@@ -73,11 +73,11 @@ pub struct LunaPreparedRequestClaim {
   priv semantic_lease : Array[@inference.LunaRequestSemanticLease]
   priv stop_tokens : @inference.LunaRequestStopTokenView
   priv mut pool : LunaRequestPreparationPool?
-  priv lane : Int
+  priv lane : Int32
   priv generation : UInt64
   priv tokenizer_digest : @tokenizer.TokenizerDigest
   priv inference_limits : @inference.InferenceLimits
-  priv input_tokens : Int
+  priv input_tokens : Int32
   priv token_ids_only : Bool
 }
 
@@ -116,7 +116,7 @@ pub fn LunaPreparedRequest::discard(
 ///|
 pub fn LunaPreparedRequest::input_token_count(
   self : LunaPreparedRequest,
-) -> Int raise RequestAdmissionError {
+) -> Int32 raise RequestAdmissionError {
   self.require_claim().input_tokens
 }
 
@@ -228,7 +228,7 @@ pub fn LunaPreparedRequestClaim::scheduler_request(
 ///|
 pub fn LunaPreparedRequestClaim::is_stop_token(
   self : LunaPreparedRequestClaim,
-  token_id : Int,
+  token_id : Int32,
 ) -> Bool {
   ignore(
     try self.require_scheduler_request() catch {
@@ -253,9 +253,9 @@ pub fn LunaPreparedRequestClaim::token_ids_only(
 ///|
 pub fn LunaPreparedRequestClaim::push_token_into_status(
   self : LunaPreparedRequestClaim,
-  token_id : Int,
+  token_id : Int32,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> @incremental_output.IncrementalOutputStatus {
   if self.is_stop_token(token_id) {
     return @incremental_output.IncrementalOutputStatus::rejected()
@@ -271,7 +271,7 @@ pub fn LunaPreparedRequestClaim::push_token_into_status(
 pub fn LunaPreparedRequestClaim::finish_into_status(
   self : LunaPreparedRequestClaim,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> @incremental_output.IncrementalOutputStatus {
   match self.pooled_output {
     Some(output) => output.finish_into_status(destination, destination_offset~)
@@ -285,12 +285,15 @@ pub fn LunaPreparedRequestClaim::finish_into_status(
 pub fn LunaPreparedRequestClaim::finish_token_limit_into_status(
   self : LunaPreparedRequestClaim,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> @incremental_output.IncrementalOutputStatus {
   match self.pooled_output {
-    Some(output) => output.finish_into_status(
-      destination, destination_offset~, boundary=TokenLimit,
-    )
+    Some(output) =>
+      output.finish_into_status(
+        destination,
+        destination_offset~,
+        boundary=TokenLimit,
+      )
     None => @incremental_output.IncrementalOutputStatus::rejected()
   }
 }

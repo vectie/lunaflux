@@ -14,8 +14,8 @@ pub fn sequential_markov_source(
 ) -> SequentialMarkovCudaSource raise {
   guard !symbol_prefix.is_empty() &&
     symbol_prefix.length() <= 80 &&
-    symbol_prefix[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol_prefix.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   let (v, h, k, rows) = plan.geometry()
@@ -103,7 +103,7 @@ pub fn SequentialMarkovCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn SequentialMarkovCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String raise {
   let suffix = match stage {
     0 => "_gather"
@@ -118,8 +118,8 @@ pub fn SequentialMarkovCudaSource::symbol(
 ///|
 pub fn SequentialMarkovCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int) raise {
+  stage : Int32,
+) -> (Int32, Int32) raise {
   let (v, _, _, _) = self.plan.geometry()
   match stage {
     0 | 2 => (1, 256)

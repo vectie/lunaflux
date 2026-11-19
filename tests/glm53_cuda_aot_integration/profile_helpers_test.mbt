@@ -53,7 +53,7 @@ fn limits() -> @glm_hybrid_cuda_aot.GlmHybridCudaAotLimits {
 ///|
 fn find_head_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is LanguageModelHead(_, _) {
       return ordinal
@@ -65,7 +65,7 @@ fn find_head_ordinal(
 ///|
 fn find_attention_output_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is AttentionOutputProjection(_, _) {
       return ordinal
@@ -77,7 +77,7 @@ fn find_attention_output_ordinal(
 ///|
 fn find_hyper_function_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is HyperConnectionFunction(_, _, _, _) {
       return ordinal
@@ -89,7 +89,7 @@ fn find_hyper_function_ordinal(
 ///|
 fn find_hyper_sinkhorn_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is HyperConnectionSinkhorn(_, _, _) {
       return ordinal
@@ -101,7 +101,7 @@ fn find_hyper_sinkhorn_ordinal(
 ///|
 fn find_dsa_pooling_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int? {
+) -> Int32? {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexPooling(_, _, _) {
       return Some(ordinal)
@@ -113,7 +113,7 @@ fn find_dsa_pooling_ordinal(
 ///|
 fn find_dsa_index_compute_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexCompute(_, _, _, _) {
       return ordinal
@@ -125,7 +125,7 @@ fn find_dsa_index_compute_ordinal(
 ///|
 fn find_dsa_reuse_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int? {
+) -> Int32? {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexReuse {
       return Some(ordinal)
@@ -137,7 +137,7 @@ fn find_dsa_reuse_ordinal(
 ///|
 fn find_dsa_sparse_attention_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaSparseAttention(_, _, _, _) {
       return ordinal
@@ -149,7 +149,7 @@ fn find_dsa_sparse_attention_ordinal(
 ///|
 fn find_query_a_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaQueryAProjection(_, _) {
       return ordinal
@@ -161,7 +161,7 @@ fn find_query_a_ordinal(
 ///|
 fn find_kv_a_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaKeyValueAProjection(_, _, _) {
       return ordinal
@@ -173,7 +173,7 @@ fn find_kv_a_ordinal(
 ///|
 fn find_query_a_norm_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaQueryARmsNorm(_, _) {
       return ordinal
@@ -185,7 +185,7 @@ fn find_query_a_norm_ordinal(
 ///|
 fn find_query_b_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaQueryBProjection(_, _, _) {
       return ordinal
@@ -197,7 +197,7 @@ fn find_query_b_ordinal(
 ///|
 fn find_key_value_b_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KeyValueLowRankProjection(_, _, _, _) {
       return ordinal
@@ -209,7 +209,7 @@ fn find_key_value_b_ordinal(
 ///|
 fn find_kv_split_norm_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is QueryKeyRmsNorm(_) {
       return ordinal
@@ -221,7 +221,7 @@ fn find_kv_split_norm_ordinal(
 ///|
 fn find_rotary_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is GlmRotaryPosition(_, _) {
       return ordinal
@@ -233,7 +233,7 @@ fn find_rotary_ordinal(
 ///|
 fn find_dense_swiglu_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DenseSwiGlu(_, _) {
       return ordinal
@@ -245,7 +245,7 @@ fn find_dense_swiglu_ordinal(
 ///|
 fn find_kda_short_convolution_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaShortConvolution(_, _) {
       return ordinal
@@ -257,7 +257,7 @@ fn find_kda_short_convolution_ordinal(
 ///|
 fn find_kda_projection_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaProjection(_, _) {
       return ordinal
@@ -269,7 +269,7 @@ fn find_kda_projection_ordinal(
 ///|
 fn find_kda_output_gate_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaOutputGateProjection(_, _, _) {
       return ordinal
@@ -281,7 +281,7 @@ fn find_kda_output_gate_ordinal(
 ///|
 fn find_kda_gated_norm_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaGatedRmsNorm(_, _, _) {
       return ordinal
@@ -293,7 +293,7 @@ fn find_kda_gated_norm_ordinal(
 ///|
 fn find_kda_output_projection_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaOutputProjection(_, _) {
       return ordinal
@@ -305,7 +305,7 @@ fn find_kda_output_projection_ordinal(
 ///|
 fn find_kda_decay_control_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaDecayControl(_, _, _) {
       return ordinal
@@ -317,7 +317,7 @@ fn find_kda_decay_control_ordinal(
 ///|
 fn find_kda_recurrent_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is KdaRecurrentUpdate(_, _, _) {
       return ordinal
@@ -329,7 +329,7 @@ fn find_kda_recurrent_ordinal(
 ///|
 fn find_moe_router_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is MoeRouterProjection(_, _, _) {
       return ordinal
@@ -341,7 +341,7 @@ fn find_moe_router_ordinal(
 ///|
 fn find_moe_score_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is MoeSigmoidAndCorrectionBias(_) {
       return ordinal
@@ -353,7 +353,7 @@ fn find_moe_score_ordinal(
 ///|
 fn find_moe_grouped_routing_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation()
       is MoeGroupedNoAuxiliaryLossTopK(_, _, _, _, _, _, _) {
@@ -394,7 +394,7 @@ fn find_head_tensor(
 fn count_attention_output_tensors(
   manifest : @glm53_weights.Glm53TensorManifest,
   shape : ReadOnlyArray[Int64],
-) -> Int {
+) -> Int32 {
   let mut count = 0
   for ordinal in 0..<manifest.tensor_count() {
     guard manifest.tensor(ordinal) is Some(tensor) else { continue }
@@ -410,7 +410,7 @@ fn count_attention_output_tensors(
 ///|
 fn count_exact_pool_ape_tensors(
   manifest : @glm53_weights.Glm53TensorManifest,
-) -> Int {
+) -> Int32 {
   let mut count = 0
   for ordinal in 0..<manifest.tensor_count() {
     guard manifest.tensor(ordinal) is Some(tensor) else { continue }
@@ -426,7 +426,7 @@ fn count_exact_pool_ape_tensors(
 ///|
 fn count_numeric_dsa_pooling(
   plan : @glm53_numeric_plan.Glm53NumericPlan,
-) -> Int {
+) -> Int32 {
   let mut count = 0
   for ordinal in 0..<plan.operation_count() {
     guard plan.operation(ordinal) is Some(operation) else { continue }
@@ -440,7 +440,7 @@ fn count_numeric_dsa_pooling(
 ///|
 fn count_numeric_dsa_low_rank_projection(
   plan : @glm53_numeric_plan.Glm53NumericPlan,
-) -> Int {
+) -> Int32 {
   let mut count = 0
   for ordinal in 0..<plan.operation_count() {
     guard plan.operation(ordinal) is Some(operation) else { continue }

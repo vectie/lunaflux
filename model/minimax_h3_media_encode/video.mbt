@@ -1,32 +1,32 @@
 ///|
 pub struct VideoEncoder {
   graph : @plan.Graph
-  frames : Int
-  height : Int
-  width : Int
-  latent_time : Int
-  noise_value : Int
-  means_value : Int
-  deviations_value : Int
-  tile_count : Int
+  frames : Int32
+  height : Int32
+  width : Int32
+  latent_time : Int32
+  noise_value : Int32
+  means_value : Int32
+  deviations_value : Int32
+  tile_count : Int32
 }
 
 ///|
 fn Builder::conv3d(
   self : Self,
-  input : Int,
+  input : Int32,
   name : String,
-  ci : Int,
-  co : Int,
-  t : Int,
-  h : Int,
-  w : Int,
-  kernel : Int,
-  st : Int,
-  ss : Int,
-  before : Int,
-  after : Int,
-) -> (Int, Int, Int, Int) raise @plan.PlanError {
+  ci : Int32,
+  co : Int32,
+  t : Int32,
+  h : Int32,
+  w : Int32,
+  kernel : Int32,
+  st : Int32,
+  ss : Int32,
+  before : Int32,
+  after : Int32,
+) -> (Int32, Int32, Int32, Int32) raise @plan.PlanError {
   let op : @plan.Operation = Conv3d(
     input_channels=ci,
     output_channels=co,
@@ -57,13 +57,13 @@ fn Builder::conv3d(
 ///|
 fn Builder::group_silu(
   self : Self,
-  input : Int,
+  input : Int32,
   name : String,
-  c : Int,
-  t : Int,
-  h : Int,
-  w : Int,
-) -> Int raise @plan.PlanError {
+  c : Int32,
+  t : Int32,
+  h : Int32,
+  w : Int32,
+) -> Int32 raise @plan.PlanError {
   self.emit(GroupNormSilu(channels=c, frames=t, height=h, width=w, groups=32), [
     input,
     self.weight(name + ".weight", [c.to_int64()]),
@@ -74,11 +74,11 @@ fn Builder::group_silu(
 ///|
 fn Builder::encode_tile(
   self : Self,
-  input : Int,
-  frames : Int,
-  height : Int,
-  width : Int,
-) -> Int raise @plan.PlanError {
+  input : Int32,
+  frames : Int32,
+  height : Int32,
+  width : Int32,
+) -> Int32 raise @plan.PlanError {
   let (first, _, _, _) = self.conv3d(
     input, "encoder.conv_in", 3, 128, frames, height, width, 3, 1, 1, 1, 1,
   )
@@ -186,11 +186,11 @@ fn Builder::encode_tile(
 /// Complete spatial tiles blend moments (vertical then horizontal), temporal
 /// clips replicate the last frame, then token_drop=3 precedes posterior sample.
 pub fn VideoEncoder::new(
-  frames~ : Int,
-  height~ : Int,
-  width~ : Int,
+  frames~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   image~ : Bool,
-  max_tiles~ : Int,
+  max_tiles~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise @plan.PlanError {
   guard frames > 0 && frames <= 65536 && (!image || frames == 1) else {
@@ -227,7 +227,7 @@ pub fn VideoEncoder::new(
   let th = ys.extent / 16
   let tw = xs.extent / 16
   for clip in 0..<slices {
-    let tiles : Array[Int] = []
+    let tiles : Array[Int32] = []
     for y in ys.starts {
       for x in xs.starts {
         let input = b.emit(
@@ -290,7 +290,7 @@ pub fn VideoEncoder::new(
         width=lw,
         tile_frames=chunk_latent,
         start=clip * chunk_latent,
-        count=Int::min(chunk_latent, latent_time - clip * chunk_latent),
+        count=Int32::min(chunk_latent, latent_time - clip * chunk_latent),
       ),
       [all_moments, canvas],
     )

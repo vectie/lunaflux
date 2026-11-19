@@ -21,7 +21,7 @@ pub extend StochasticFinalStep with @debug.Debug::{to_repr}
 /// a subtraction or parallel reduction changes deterministic replay semantics.
 pub struct StochasticProgram {
   priv selection : SelectionProgram
-  priv maximum_top_k : Int
+  priv maximum_top_k : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -32,10 +32,10 @@ pub extend StochasticProgram with @debug.Debug::{to_repr}
 
 ///|
 pub fn StochasticProgram::new(
-  values~ : Int,
-  owners~ : Int,
-  subgroup_lanes~ : Int,
-  maximum_top_k~ : Int,
+  values~ : Int32,
+  owners~ : Int32,
+  subgroup_lanes~ : Int32,
+  maximum_top_k~ : Int32,
 ) -> StochasticProgram? {
   guard maximum_top_k > 0 && maximum_top_k <= values else { return None }
   guard SelectionProgram::new(
@@ -58,7 +58,7 @@ pub fn StochasticProgram::selection(
 }
 
 ///|
-pub fn StochasticProgram::maximum_top_k(self : StochasticProgram) -> Int {
+pub fn StochasticProgram::maximum_top_k(self : StochasticProgram) -> Int32 {
   self.maximum_top_k
 }
 

@@ -25,16 +25,16 @@ fn required_pool_storage(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  lane_count : Int,
-) -> (Int, Int, LunaRequestPreparationStorageBudget) raise RequestAdmissionError {
+  lane_count : Int32,
+) -> (Int32, Int32, LunaRequestPreparationStorageBudget) raise RequestAdmissionError {
   if lane_count <= 0 || lane_count > LUNA_PREPARATION_MAX_LANES {
     raise Invalid(LunaPreparationPool)
   }
-  let input_capacity = Int::min(
+  let input_capacity = Int32::min(
     tokenizer.limits().max_input_bytes,
     inference.max_text_bytes(),
   )
-  let output_capacity = Int::min(
+  let output_capacity = Int32::min(
     tokenizer.limits().max_output_tokens,
     inference.max_input_tokens(),
   )
@@ -128,9 +128,9 @@ fn validate_pool_storage(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  lane_count : Int,
+  lane_count : Int32,
   budget : LunaRequestPreparationStorageBudget,
-) -> (Int, Int) raise RequestAdmissionError {
+) -> (Int32, Int32) raise RequestAdmissionError {
   let (input_capacity, output_capacity, required) = required_pool_storage(
     tokenizer, inference, framed_limits, lane_count,
   )
@@ -149,7 +149,7 @@ pub fn LunaRequestPreparationStorageBudget::required(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  lane_count : Int,
+  lane_count : Int32,
 ) -> Self raise RequestAdmissionError {
   required_pool_storage(tokenizer, inference, framed_limits, lane_count).2
 }
@@ -169,7 +169,7 @@ pub fn LunaRequestPreparationStorageBudget::require_fits(
   tokenizer : @tokenizer.TokenizerSpec,
   inference : @inference.InferenceLimits,
   framed_limits : @framed_wire.FramedWireLimits,
-  lane_count : Int,
+  lane_count : Int32,
 ) -> Unit raise RequestAdmissionError {
   ignore(
     validate_pool_storage(tokenizer, inference, framed_limits, lane_count, self),

@@ -12,23 +12,23 @@ priv struct BroadServingMetricSample {
   network_accepts : UInt64
   network_disconnects : UInt64
   network_rejections : UInt64
-  queue_depth : Int
-  active_requests : Int
-  kv_pages_used : Int
-  kv_pages_free : Int
+  queue_depth : Int32
+  active_requests : Int32
+  kv_pages_used : Int32
+  kv_pages_free : Int32
 }
 
 ///|
 priv struct BroadServingEventLedger {
-  mut tail_accepts : Int
-  mut first_tokens : Int
-  mut second_tokens : Int
-  mut cancelled_usage : Int
-  mut survivor_usage : Int
-  mut tail_usage : Int
-  mut cancelled_completed : Int
-  mut survivor_completed : Int
-  mut tail_completed : Int
+  mut tail_accepts : Int32
+  mut first_tokens : Int32
+  mut second_tokens : Int32
+  mut cancelled_usage : Int32
+  mut survivor_usage : Int32
+  mut tail_usage : Int32
+  mut cancelled_completed : Int32
+  mut survivor_completed : Int32
+  mut tail_completed : Int32
 }
 
 ///|
@@ -100,9 +100,9 @@ fn broad_serving_initial_metrics_valid(
 ///|
 fn broad_serving_pair_metrics_valid(
   sample : BroadServingMetricSample,
-  input_tokens : Int,
-  initial_kv_pages_free : Int,
-  pooled? : Bool = false,
+  input_tokens : Int32,
+  initial_kv_pages_free : Int32,
+  pooled~ : Bool = false,
 ) -> Bool {
   sample.admissions == 3UL &&
   sample.completions == 2UL &&
@@ -156,8 +156,8 @@ fn broad_serving_pool_cancel_progress_valid(
 ///|
 fn broad_serving_malformed_request_metrics_valid(
   sample : BroadServingMetricSample,
-  input_tokens : Int,
-  pooled? : Bool = false,
+  input_tokens : Int32,
+  pooled~ : Bool = false,
 ) -> Bool {
   sample.admissions == 4UL &&
   sample.completions == 3UL &&
@@ -173,7 +173,7 @@ fn broad_serving_malformed_request_metrics_valid(
 ///|
 fn broad_serving_malformed_network_metrics_valid(
   sample : BroadServingMetricSample,
-  pooled? : Bool = false,
+  pooled~ : Bool = false,
 ) -> Bool {
   sample.network_accepts == (if pooled { 6UL } else { 4UL }) &&
   sample.network_disconnects == (if pooled { 6UL } else { 4UL }) &&
@@ -183,7 +183,7 @@ fn broad_serving_malformed_network_metrics_valid(
 ///|
 fn broad_serving_resource_metrics_valid(
   sample : BroadServingMetricSample,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> Bool {
   sample.queue_depth == 0 &&
   sample.active_requests == 0 &&
@@ -194,8 +194,8 @@ fn broad_serving_resource_metrics_valid(
 ///|
 fn broad_serving_final_request_metrics_valid(
   sample : BroadServingMetricSample,
-  input_tokens : Int,
-  pooled? : Bool = false,
+  input_tokens : Int32,
+  pooled~ : Bool = false,
 ) -> Bool {
   sample.admissions == 5UL &&
   sample.completions == 4UL &&
@@ -211,7 +211,7 @@ fn broad_serving_final_request_metrics_valid(
 ///|
 fn broad_serving_final_network_metrics_valid(
   sample : BroadServingMetricSample,
-  pooled? : Bool = false,
+  pooled~ : Bool = false,
 ) -> Bool {
   sample.network_accepts == (if pooled { 7UL } else { 5UL }) &&
   sample.network_disconnects == (if pooled { 7UL } else { 5UL }) &&
@@ -221,8 +221,8 @@ fn broad_serving_final_network_metrics_valid(
 ///|
 fn broad_serving_usage_valid(
   usage : @inference.Usage,
-  input_tokens : Int,
-  output_tokens : Int,
+  input_tokens : Int32,
+  output_tokens : Int32,
 ) -> Bool {
   usage.input_tokens() == input_tokens &&
   usage.cached_input_tokens() == 0 &&
@@ -313,7 +313,7 @@ fn BroadServingEventLedger::require_exact(
 fn require_broad_accepted(
   event : @inference.StreamEvent,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  maximum_new_tokens : Int,
+  maximum_new_tokens : Int32,
   failure_rule : RuntimeSpawnedBroadServingValidationRule,
 ) -> Unit raise RuntimeSpawnedBroadServingValidationError {
   let valid = match event {
@@ -331,8 +331,8 @@ fn require_broad_accepted(
 ///|
 fn require_broad_token(
   event : @inference.StreamEvent,
-  expected_token : Int,
-  expected_position : Int,
+  expected_token : Int32,
+  expected_position : Int32,
   failure_rule : RuntimeSpawnedBroadServingValidationRule,
 ) -> Unit raise RuntimeSpawnedBroadServingValidationError {
   match event {
@@ -345,8 +345,8 @@ fn require_broad_token(
 ///|
 fn require_broad_usage(
   event : @inference.StreamEvent,
-  input_tokens : Int,
-  output_tokens : Int,
+  input_tokens : Int32,
+  output_tokens : Int32,
   failure_rule : RuntimeSpawnedBroadServingValidationRule,
 ) -> Unit raise RuntimeSpawnedBroadServingValidationError {
   match event {
@@ -360,8 +360,8 @@ fn require_broad_usage(
 ///|
 fn require_broad_completed(
   event : @inference.StreamEvent,
-  input_tokens : Int,
-  output_tokens : Int,
+  input_tokens : Int32,
+  output_tokens : Int32,
   reason : @inference.FinishReason,
   failure_rule : RuntimeSpawnedBroadServingValidationRule,
 ) -> Unit raise RuntimeSpawnedBroadServingValidationError {

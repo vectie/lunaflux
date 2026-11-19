@@ -7,7 +7,7 @@ pub(all) enum FusedCandidateBenchmarkShape {
 } derive(Debug, Eq)
 
 ///|
-fn fused_benchmark_shape_ordinal(shape : FusedCandidateBenchmarkShape) -> Int {
+fn fused_benchmark_shape_ordinal(shape : FusedCandidateBenchmarkShape) -> Int32 {
   match shape {
     SingleOrigin => 0
     SinglePageTail => 1
@@ -27,7 +27,7 @@ fn fused_benchmark_shape_name(shape : FusedCandidateBenchmarkShape) -> String {
 }
 
 ///|
-fn fused_benchmark_shape_tokens(shape : FusedCandidateBenchmarkShape) -> Int {
+fn fused_benchmark_shape_tokens(shape : FusedCandidateBenchmarkShape) -> Int32 {
   match shape {
     SingleOrigin | SinglePageTail => 1
     CrossPagePair => 2

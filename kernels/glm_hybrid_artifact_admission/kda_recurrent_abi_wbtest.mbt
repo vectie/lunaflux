@@ -1,14 +1,14 @@
 ///|
 fn kda_recurrent_abi_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  operation? : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = KdaRecurrentUpdate(
+  operation~ : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = KdaRecurrentUpdate(
     64, 128, -5.0,
   ),
-  beta_role? : GlmHybridLaunchOperandRole = KdaInputGateInput,
-  beta_bytes? : Int64 = 4096L,
-  state_bytes? : Int64 = 33554432L,
-  offsets_bytes? : Int64 = 36L,
-  symbol? : String = "lunaflux_glm_hybrid_kda_recurrent_delta_bf16_f32_v1",
+  beta_role~ : GlmHybridLaunchOperandRole = KdaInputGateInput,
+  beta_bytes~ : Int64 = 4096L,
+  state_bytes~ : Int64 = 33554432L,
+  offsets_bytes~ : Int64 = 36L,
+  symbol~ : String = "lunaflux_glm_hybrid_kda_recurrent_delta_bf16_f32_v1",
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

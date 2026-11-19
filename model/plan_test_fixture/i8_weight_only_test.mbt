@@ -284,7 +284,7 @@ fn i8_fixture_partial_qkv_schema() -> @numeric_contract.ModelNumericSchema {
 fn i8_fixture_plan(
   operations : ArrayView[@plan.PlanOperation],
   schema : @numeric_contract.ModelNumericSchema,
-  content_digest? : @spec.ContentDigest = i8_fixture_content(),
+  content_digest~ : @spec.ContentDigest = i8_fixture_content(),
 ) -> @plan.ModelPlan raise {
   @plan.ModelPlan::new_stateless(
     content_digest~,

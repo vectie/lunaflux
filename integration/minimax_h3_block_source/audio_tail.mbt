@@ -2,18 +2,18 @@
 pub struct AudioTailSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  batch : Int
-  channels : Int
-  time : Int
+  batch : Int32
+  channels : Int32
+  time : Int32
 }
 
 ///|
 /// BigVGAN waveform tail: alias-free SnakeBeta, 7-tap channel-to-one
 /// bias-free convolution. Official H3 disables final tanh as well as bias.
 pub fn build_audio_tail(
-  batch~ : Int,
-  channels~ : Int,
-  time~ : Int,
+  batch~ : Int32,
+  channels~ : Int32,
+  time~ : Int32,
   function_prefix~ : String,
 ) -> AudioTailSource raise {
   let symbols = [

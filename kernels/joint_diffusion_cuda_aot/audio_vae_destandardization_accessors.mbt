@@ -22,7 +22,7 @@ pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::requirements_
 ///|
 pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,14 +57,14 @@ pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::request_shape
 ///|
 pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::decoder_batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeLatentDestandardizationCudaCandidate::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 

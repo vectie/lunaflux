@@ -58,8 +58,8 @@ fn LunaIncrementalOutputWorkspace::authenticate_setup_semantics(
 fn LunaIncrementalOutputWorkspace::semantic_stop_string_length(
   self : LunaIncrementalOutputWorkspace,
   semantics : @inference.LunaRequestSemanticView,
-  index : Int,
-) -> Int raise IncrementalOutputError {
+  index : Int32,
+) -> Int32 raise IncrementalOutputError {
   semantics.stop_string_length(index) catch {
     _ => {
       self.fail_setup(LunaIncrementalOutputEpoch, Stale)
@@ -72,8 +72,8 @@ fn LunaIncrementalOutputWorkspace::semantic_stop_string_length(
 fn LunaIncrementalOutputWorkspace::semantic_stop_string_byte_at(
   self : LunaIncrementalOutputWorkspace,
   semantics : @inference.LunaRequestSemanticView,
-  string_index : Int,
-  byte_index : Int,
+  string_index : Int32,
+  byte_index : Int32,
 ) -> Byte raise IncrementalOutputError {
   semantics.stop_string_byte_at(string_index~, byte_index~) catch {
     _ => {

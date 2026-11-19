@@ -6,8 +6,8 @@ fn prepare_mixed_attention_executor(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   launches : ArrayView[@device.OrderedKernelLaunch],
   resources : PagedGraphResources,
-  owner_index : Int,
-  projection_query_bound? : Int = 0,
+  owner_index : Int32,
+  projection_query_bound~ : Int32 = 0,
 ) -> Unit raise DeviceStepError {
   if prepare_mixed_attention_variant(
       context,
@@ -31,12 +31,12 @@ fn prepare_mixed_attention_variant(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   launches : ArrayView[@device.OrderedKernelLaunch],
   resources : PagedGraphResources,
-  owner_index : Int,
-  partitioned_decode? : Bool = false,
-  capture_budget_reserved? : Bool = false,
-  decode_row_bound? : Int? = None,
-  projection_query_bound? : Int = 0,
-) -> Int? raise DeviceStepError {
+  owner_index : Int32,
+  partitioned_decode~ : Bool = false,
+  capture_budget_reserved~ : Bool = false,
+  decode_row_bound~ : Int32? = None,
+  projection_query_bound~ : Int32 = 0,
+) -> Int32? raise DeviceStepError {
   if steps.length() != launches.length() {
     raise InvalidExecutor(GraphBucket)
   }

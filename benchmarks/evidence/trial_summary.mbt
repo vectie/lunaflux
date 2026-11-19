@@ -1,12 +1,12 @@
 ///|
 /// Integer-only scalars derived from one complete, bounded request event set.
 pub struct BenchmarkTrialSummary {
-  priv submitted : Int
-  priv completed : Int
-  priv rejected : Int
-  priv timed_out : Int
-  priv cancelled : Int
-  priv failed : Int
+  priv submitted : Int32
+  priv completed : Int32
+  priv rejected : Int32
+  priv timed_out : Int32
+  priv cancelled : Int32
+  priv failed : Int32
   priv input_tokens : Int64
   priv generated_tokens : Int64
   priv elapsed_ns : Int64
@@ -18,32 +18,32 @@ pub struct BenchmarkTrialSummary {
 }
 
 ///|
-pub fn BenchmarkTrialSummary::submitted(self : BenchmarkTrialSummary) -> Int {
+pub fn BenchmarkTrialSummary::submitted(self : BenchmarkTrialSummary) -> Int32 {
   self.submitted
 }
 
 ///|
-pub fn BenchmarkTrialSummary::completed(self : BenchmarkTrialSummary) -> Int {
+pub fn BenchmarkTrialSummary::completed(self : BenchmarkTrialSummary) -> Int32 {
   self.completed
 }
 
 ///|
-pub fn BenchmarkTrialSummary::rejected(self : BenchmarkTrialSummary) -> Int {
+pub fn BenchmarkTrialSummary::rejected(self : BenchmarkTrialSummary) -> Int32 {
   self.rejected
 }
 
 ///|
-pub fn BenchmarkTrialSummary::timed_out(self : BenchmarkTrialSummary) -> Int {
+pub fn BenchmarkTrialSummary::timed_out(self : BenchmarkTrialSummary) -> Int32 {
   self.timed_out
 }
 
 ///|
-pub fn BenchmarkTrialSummary::cancelled(self : BenchmarkTrialSummary) -> Int {
+pub fn BenchmarkTrialSummary::cancelled(self : BenchmarkTrialSummary) -> Int32 {
   self.cancelled
 }
 
 ///|
-pub fn BenchmarkTrialSummary::failed(self : BenchmarkTrialSummary) -> Int {
+pub fn BenchmarkTrialSummary::failed(self : BenchmarkTrialSummary) -> Int32 {
   self.failed
 }
 

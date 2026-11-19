@@ -1,25 +1,25 @@
 ///|
 #borrow(path)
-extern "c" fn raw_test_mkfifo(path : Bytes) -> Int = "lunaflux_approved_fs_test_mkfifo"
+extern "c" fn raw_test_mkfifo(path : Bytes) -> Int32 = "lunaflux_approved_fs_test_mkfifo"
 
 ///|
 #borrow(handle)
 extern "c" fn raw_test_close_while_active(
   handle : ApprovedHandle,
-  expected_kind : Int,
-) -> Int = "lunaflux_approved_fs_test_close_while_active"
+  expected_kind : Int32,
+) -> Int32 = "lunaflux_approved_fs_test_close_while_active"
 
 ///|
 #borrow(roots)
 extern "c" fn raw_test_close_worker_roots_while_active(
   roots : @inheritance.WorkerApprovedRoots,
-) -> Int = "lunaflux_approved_fs_test_close_worker_roots_while_active"
+) -> Int32 = "lunaflux_approved_fs_test_close_worker_roots_while_active"
 
 ///|
 extern "c" fn raw_test_reduce_identity_close(
-  primary_status : Int,
-  close_status : Int,
-) -> Int = "lunaflux_approved_fs_test_reduce_identity_close"
+  primary_status : Int32,
+  close_status : Int32,
+) -> Int32 = "lunaflux_approved_fs_test_reduce_identity_close"
 
 ///|
 test "identity close reducer preserves the primary result" {

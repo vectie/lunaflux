@@ -16,7 +16,7 @@ fn batch_control_limits() -> @protocol.WorkerProtocolLimits raise {
 ///|
 // Each request has one committed frontier even when its ordinal changes.
 fn batch_control_plan(
-  entries : ArrayView[(UInt64, UInt64, Int, Bool)],
+  entries : ArrayView[(UInt64, UInt64, Int32, Bool)],
   stochastic~ : Bool = false,
 ) -> (
   @protocol.SubmittedSchedulePlan,

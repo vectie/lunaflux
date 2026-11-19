@@ -14,8 +14,8 @@ pub(all) enum DriverAvailability {
 ///|
 pub struct DriverInventory {
   availability : DriverAvailability
-  driver_version : Int
-  device_count : Int
+  driver_version : Int32
+  device_count : Int32
   cublas_lt_available : Bool
 } derive(Debug, Eq)
 
@@ -27,12 +27,12 @@ pub fn DriverInventory::availability(
 }
 
 ///|
-pub fn DriverInventory::driver_version(self : DriverInventory) -> Int {
+pub fn DriverInventory::driver_version(self : DriverInventory) -> Int32 {
   self.driver_version
 }
 
 ///|
-pub fn DriverInventory::device_count(self : DriverInventory) -> Int {
+pub fn DriverInventory::device_count(self : DriverInventory) -> Int32 {
   self.device_count
 }
 
@@ -44,8 +44,8 @@ pub fn DriverInventory::cublas_lt_available(self : DriverInventory) -> Bool {
 ///|
 pub struct RawDeviceInfo {
   total_memory_bytes : Int64
-  compute_major : Int
-  compute_minor : Int
+  compute_major : Int32
+  compute_minor : Int32
   supports_bf16 : Bool
   cublas_lt_available : Bool
   name : String
@@ -59,12 +59,12 @@ pub fn RawDeviceInfo::total_memory_bytes(self : RawDeviceInfo) -> Int64 {
 }
 
 ///|
-pub fn RawDeviceInfo::compute_major(self : RawDeviceInfo) -> Int {
+pub fn RawDeviceInfo::compute_major(self : RawDeviceInfo) -> Int32 {
   self.compute_major
 }
 
 ///|
-pub fn RawDeviceInfo::compute_minor(self : RawDeviceInfo) -> Int {
+pub fn RawDeviceInfo::compute_minor(self : RawDeviceInfo) -> Int32 {
   self.compute_minor
 }
 

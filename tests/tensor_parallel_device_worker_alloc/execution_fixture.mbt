@@ -18,7 +18,7 @@ priv struct ExecutionFixture {
 }
 
 ///|
-fn family_index(operation : @plan.PlanOperation) -> Int {
+fn family_index(operation : @plan.PlanOperation) -> Int32 {
   match operation.kind() {
     Embedding => 0
     RmsNorm => 1
@@ -149,7 +149,7 @@ fn launch_inputs(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
   target : @catalog.DeviceTarget,
   digest : @catalog.AotArtifactDigest,
-  rank : Int,
+  rank : Int32,
   profile : @launch_contract.PagedKernelProfile,
 ) -> Array[
   @tensor_parallel_launch_contract.TensorParallelAotLaunchContractInput,

@@ -1,5 +1,5 @@
 ///|
-fn checkpoint_limits(capacity : Int) -> @page_allocator.PageAllocatorLimits {
+fn checkpoint_limits(capacity : Int32) -> @page_allocator.PageAllocatorLimits {
   try! @page_allocator.PageAllocatorLimits::new(
     page_capacity=capacity,
     max_run_pages=capacity,

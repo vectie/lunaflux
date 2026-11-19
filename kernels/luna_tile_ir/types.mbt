@@ -4,7 +4,7 @@ fn luna_tile_is_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -49,11 +49,11 @@ pub(all) enum LunaTileElementwiseKind {
 
 ///|
 pub(all) enum LunaTileConstraint {
-  LunaTileDimensionEquals(LunaTileConstraintId, LunaTileTensorId, Int, Int64)
+  LunaTileDimensionEquals(LunaTileConstraintId, LunaTileTensorId, Int32, Int64)
   LunaTileDimensionMultipleOf(
     LunaTileConstraintId,
     LunaTileTensorId,
-    Int,
+    Int32,
     Int64
   )
   LunaTileAlignmentAtLeast(LunaTileConstraintId, LunaTileTensorId, Int64)
@@ -61,23 +61,23 @@ pub(all) enum LunaTileConstraint {
 
 ///|
 pub struct LunaTileLimits {
-  priv max_tensors : Int
-  priv max_instructions : Int
-  priv max_rank : Int
-  priv max_loop_rank : Int
-  priv max_constraints : Int
-  priv max_canonical_bytes : Int
+  priv max_tensors : Int32
+  priv max_instructions : Int32
+  priv max_rank : Int32
+  priv max_loop_rank : Int32
+  priv max_constraints : Int32
+  priv max_canonical_bytes : Int32
   priv max_shared_memory_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaTileLimits::new(
-  max_tensors~ : Int,
-  max_instructions~ : Int,
-  max_rank~ : Int,
-  max_loop_rank~ : Int,
-  max_constraints~ : Int,
-  max_canonical_bytes~ : Int,
+  max_tensors~ : Int32,
+  max_instructions~ : Int32,
+  max_rank~ : Int32,
+  max_loop_rank~ : Int32,
+  max_constraints~ : Int32,
+  max_canonical_bytes~ : Int32,
   max_shared_memory_bytes~ : Int64,
 ) -> LunaTileLimits raise LunaTileError {
   if max_tensors <= 0 {

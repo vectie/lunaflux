@@ -18,7 +18,7 @@ fn scaling_plain(dtype : StorageDType) -> TensorStorageContract {
 
 ///|
 fn scaling_tensor(
-  ordinal : Int,
+  ordinal : Int32,
   role : NumericTensorRole,
   shape : NumericShape,
   storage : TensorStorageContract,
@@ -284,7 +284,7 @@ test "canonical overflow rejects before owner tables copies and hash" {
 ///|
 fn assert_zero_padded_le(
   bytes : Bytes,
-  offset : Int,
+  offset : Int32,
   value : Byte,
 ) -> Unit raise {
   assert_eq(bytes[offset], value)

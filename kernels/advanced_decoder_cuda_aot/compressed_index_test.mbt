@@ -1,7 +1,7 @@
 ///|
 fn compressed_index_test_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DeterministicCompressedIndex(_) {
       return ordinal

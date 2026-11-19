@@ -42,8 +42,11 @@ pub fn transform_expert_scores(
 }
 
 ///|
-fn stable_top_k_indices(scores : ArrayView[Float], top_k : Int) -> Array[Int] {
-  let selected : Array[Int] = []
+fn stable_top_k_indices(
+  scores : ArrayView[Float],
+  top_k : Int32,
+) -> Array[Int32] {
+  let selected : Array[Int32] = []
   for candidate in 0..<scores.length() {
     let mut insertion = selected.length()
     for position, previous in selected {
@@ -68,7 +71,7 @@ fn stable_top_k_indices(scores : ArrayView[Float], top_k : Int) -> Array[Int] {
 ///|
 fn selected_weights(
   transformed : ArrayView[Float],
-  indices : ArrayView[Int],
+  indices : ArrayView[Int32],
   normalize : Bool,
   scaling : Float,
 ) -> Array[Float] raise AdvancedDecoderReferenceError {
@@ -103,7 +106,7 @@ fn selected_weights(
 pub fn route_top_k(
   logits : ArrayView[Float],
   selection_bias : ArrayView[Float],
-  top_k~ : Int,
+  top_k~ : Int32,
   score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction,
   normalize~ : Bool,
   scaling~ : Float,
@@ -146,10 +149,10 @@ pub fn route_top_k(
 /// Every row must contain distinct in-range expert indices.
 pub fn route_token_hash(
   logits : ArrayView[Float],
-  table : ArrayView[Int],
-  vocabulary_size~ : Int,
-  experts_per_token~ : Int,
-  token_id~ : Int,
+  table : ArrayView[Int32],
+  vocabulary_size~ : Int32,
+  experts_per_token~ : Int32,
+  token_id~ : Int32,
   score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction,
   normalize~ : Bool,
   scaling~ : Float,
@@ -180,7 +183,7 @@ pub fn route_token_hash(
     }
   }
   let transformed = transform_expert_scores(logits, score_function, limits~)
-  let indices : Array[Int] = []
+  let indices : Array[Int32] = []
   for position in 0..<experts_per_token {
     indices.push(table[token_id * experts_per_token + position])
   }
@@ -198,7 +201,7 @@ pub fn combine_expert_outputs(
   routing : ExpertRouting,
   routed_outputs : ArrayView[Float],
   shared_outputs : ArrayView[Float],
-  width~ : Int,
+  width~ : Int32,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {
   validate_shape(routing.selected_count(), width, limits)

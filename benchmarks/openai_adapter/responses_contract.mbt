@@ -4,10 +4,10 @@
 pub fn OpenAIResponsesTrialContract::new(
   identity : OpenAIBaselineIdentity,
   inputs : OpenAIBaselineInputs,
-  ordinal : Int,
-  order_position : Int,
-  maximum_event_bytes : Int,
-  maximum_json_depth : Int,
+  ordinal : Int32,
+  order_position : Int32,
+  maximum_event_bytes : Int32,
+  maximum_json_depth : Int32,
 ) -> OpenAIResponsesTrialContract raise OpenAIBaselineAdapterError {
   if ordinal < 1 || ordinal > 3 || order_position < 0 || order_position > 2 {
     raise OpenAIBaselineInvalidInputs
@@ -29,7 +29,7 @@ pub fn OpenAIResponsesTrialContract::new(
 }
 
 ///|
-fn new_openai_responses_lane(capacity : Int) -> OpenAIResponsesLane {
+fn new_openai_responses_lane(capacity : Int32) -> OpenAIResponsesLane {
   {
     event_storage: FixedArray::make(capacity, b'\x00'),
     event_length: 0,

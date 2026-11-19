@@ -23,7 +23,7 @@ pub struct Cache {
 #valtype
 pub struct Operation {
   priv owner : Cache
-  priv lane : Int
+  priv lane : Int32
   priv transfer : @residency.Transfer
 }
 

@@ -2,7 +2,7 @@
 test "optional compiler grid preserves old manifest bytes and round trips" {
   let identity = full_manifest_entry(0)
   let dimensions = full_manifest_dimensions(191)
-  let render = fn(grid : Int?) -> String {
+  let render = fn(grid : Int32?) -> String {
     let output = StringBuilder()
     let count = append_manifest_modules(output, [
       {

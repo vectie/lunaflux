@@ -1,18 +1,18 @@
 ///|
-const FUSED_PHYSICAL_MAXIMUM_CANONICAL_BYTES : Int = 131072
+const FUSED_PHYSICAL_MAXIMUM_CANONICAL_BYTES : Int32 = 131072
 
 ///|
-const FUSED_PHYSICAL_CANONICAL_LINE_COUNT : Int = 172
+const FUSED_PHYSICAL_CANONICAL_LINE_COUNT : Int32 = 172
 
 ///|
-const FUSED_PHYSICAL_REFEREE_SHAPE_COUNT : Int = 4
+const FUSED_PHYSICAL_REFEREE_SHAPE_COUNT : Int32 = 4
 
 ///|
-const FUSED_PHYSICAL_REFEREE_TOKEN_COUNT : UInt = 12U
+const FUSED_PHYSICAL_REFEREE_TOKEN_COUNT : UInt32 = 12U
 
 ///|
 priv struct FusedStandaloneFallbackIdentity {
-  operation : Int
+  operation : Int32
   source : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   recipe : @luna_cuda_fused_parallel_aot.FusedParallelDigest
 }
@@ -34,7 +34,7 @@ priv struct ExpectedFusedPhysicalFamily {
   receipt_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   driver_identity_sha256 : String
   numerical_policy : @luna_cuda_fused_parallel_aot.FusedParallelNumericalPolicy
-  dispatch_canary : UInt
+  dispatch_canary : UInt32
   fallbacks : ReadOnlyArray[FusedStandaloneFallbackIdentity]
 }
 
@@ -47,8 +47,8 @@ priv struct AdmittedFusedPhysicalFamily {
   receipt_digest : @luna_cuda_fused_parallel_aot.FusedParallelDigest
   observed_absolute_error_ppb : Int64
   observed_relative_error_ppb : Int64
-  dispatch_canary : UInt
-  dispatch_canary_per_token : UInt
+  dispatch_canary : UInt32
+  dispatch_canary_per_token : UInt32
   fallbacks : ReadOnlyArray[FusedStandaloneFallbackIdentity]
 }
 

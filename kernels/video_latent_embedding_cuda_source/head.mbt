@@ -2,13 +2,13 @@
 /// Final affine LayerNorm (not RMSNorm) and F32 output projection directly to
 /// channel-major video. Patch axis order is [channel,pt,ph,pw].
 pub fn decoder_head_source(
-  temporal~ : Int,
-  height~ : Int,
-  width~ : Int,
-  hidden~ : Int,
-  patch_t~ : Int,
-  patch_hw~ : Int,
-  channels~ : Int,
+  temporal~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
+  hidden~ : Int32,
+  patch_t~ : Int32,
+  patch_hw~ : Int32,
+  channels~ : Int32,
   prefix~ : String,
 ) -> Bytes raise EmbeddingError {
   guard temporal > 0 &&

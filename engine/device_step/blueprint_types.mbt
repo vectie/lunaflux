@@ -29,7 +29,7 @@ pub struct PagedKvExecutionStep {
   priv capability : @plan.KernelCapabilityId
   priv semantic_version : @catalog.KernelSemanticVersion
   priv entry_point : @catalog.AotKernelEntryPoint
-  priv artifact_module_index : Int
+  priv artifact_module_index : Int32
   priv function_symbol : String
   priv row_variants : ReadOnlyArray[@artifact.KernelRowVariant]
   priv companion_dimensions : @launch_contract.AotLaunchDimensions?
@@ -69,7 +69,7 @@ pub struct I8PagedExecutionStep {
   priv semantic_version : @catalog.KernelSemanticVersion
   priv operation_execution_digest : @numeric_contract.OperationExecutionDigest
   priv entry_point : @catalog.AotKernelEntryPoint
-  priv artifact_module_index : Int
+  priv artifact_module_index : Int32
   priv function_symbol : String
   priv dimensions : @launch_contract.AotLaunchDimensions
   priv operands : ReadOnlyArray[PagedKvOperandBinding]
@@ -191,7 +191,7 @@ pub fn PagedKvExecutionStep::entry_point(
 ///|
 pub fn PagedKvExecutionStep::artifact_module_index(
   self : PagedKvExecutionStep,
-) -> Int {
+) -> Int32 {
   self.artifact_module_index
 }
 
@@ -348,7 +348,7 @@ pub fn I8PagedExecutionStep::entry_point(
 ///|
 pub fn I8PagedExecutionStep::artifact_module_index(
   self : I8PagedExecutionStep,
-) -> Int {
+) -> Int32 {
   self.artifact_module_index
 }
 

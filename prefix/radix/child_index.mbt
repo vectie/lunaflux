@@ -1,11 +1,11 @@
 ///|
 fn PrefixIndex::compare_child_key(
   self : PrefixIndex,
-  root : Int,
-  parent : Int,
-  token : Int,
-  node : Int,
-) -> Int {
+  root : Int32,
+  parent : Int32,
+  token : Int32,
+  node : Int32,
+) -> Int32 {
   let mut order = compare_int(root, self.node_roots[node])
   if order != 0 {
     return order
@@ -20,9 +20,9 @@ fn PrefixIndex::compare_child_key(
 ///|
 fn PrefixIndex::compare_child_nodes(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
-) -> Int {
+  left : Int32,
+  right : Int32,
+) -> Int32 {
   self.compare_child_key(
     self.node_roots[left],
     self.node_parents[left],
@@ -32,7 +32,7 @@ fn PrefixIndex::compare_child_nodes(
 }
 
 ///|
-fn PrefixIndex::child_index_height(self : PrefixIndex, edge : Int) -> Int {
+fn PrefixIndex::child_index_height(self : PrefixIndex, edge : Int32) -> Int32 {
   if edge < 0 {
     0
   } else {
@@ -43,10 +43,10 @@ fn PrefixIndex::child_index_height(self : PrefixIndex, edge : Int) -> Int {
 ///|
 fn PrefixIndex::child_index_update_height(
   self : PrefixIndex,
-  edge : Int,
+  edge : Int32,
 ) -> Unit {
   self.child_index_heights[edge] = 1 +
-    Int::max(
+    Int32::max(
       self.child_index_height(self.child_index_left[edge]),
       self.child_index_height(self.child_index_right[edge]),
     )
@@ -55,8 +55,8 @@ fn PrefixIndex::child_index_update_height(
 ///|
 fn PrefixIndex::child_index_replace_parent(
   self : PrefixIndex,
-  old_edge : Int,
-  new_edge : Int,
+  old_edge : Int32,
+  new_edge : Int32,
 ) -> Unit {
   let parent = self.child_index_parents[old_edge]
   if parent < 0 {
@@ -72,7 +72,10 @@ fn PrefixIndex::child_index_replace_parent(
 }
 
 ///|
-fn PrefixIndex::child_index_rotate_left(self : PrefixIndex, edge : Int) -> Int {
+fn PrefixIndex::child_index_rotate_left(
+  self : PrefixIndex,
+  edge : Int32,
+) -> Int32 {
   let pivot = self.child_index_right[edge]
   let middle = self.child_index_left[pivot]
   self.child_index_replace_parent(edge, pivot)
@@ -88,7 +91,10 @@ fn PrefixIndex::child_index_rotate_left(self : PrefixIndex, edge : Int) -> Int {
 }
 
 ///|
-fn PrefixIndex::child_index_rotate_right(self : PrefixIndex, edge : Int) -> Int {
+fn PrefixIndex::child_index_rotate_right(
+  self : PrefixIndex,
+  edge : Int32,
+) -> Int32 {
   let pivot = self.child_index_left[edge]
   let middle = self.child_index_right[pivot]
   self.child_index_replace_parent(edge, pivot)
@@ -104,7 +110,10 @@ fn PrefixIndex::child_index_rotate_right(self : PrefixIndex, edge : Int) -> Int 
 }
 
 ///|
-fn PrefixIndex::child_index_rebalance(self : PrefixIndex, start : Int) -> Unit {
+fn PrefixIndex::child_index_rebalance(
+  self : PrefixIndex,
+  start : Int32,
+) -> Unit {
   let mut edge = start
   while edge >= 0 {
     self.child_index_update_height(edge)
@@ -132,7 +141,7 @@ fn PrefixIndex::child_index_rebalance(self : PrefixIndex, start : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::child_index_insert(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::child_index_insert(self : PrefixIndex, node : Int32) -> Unit {
   let edge = self.child_index_free_head
   if edge < 0 {
     abort("prefix child-index preflight invariant")
@@ -180,7 +189,7 @@ fn PrefixIndex::child_index_insert(self : PrefixIndex, node : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::child_index_remove(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::child_index_remove(self : PrefixIndex, node : Int32) -> Unit {
   let mut edge = self.child_index_slots[node]
   if edge < 0 {
     abort("prefix child-index removal invariant")
@@ -217,7 +226,7 @@ fn PrefixIndex::child_index_remove(self : PrefixIndex, node : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::link_child(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::link_child(self : PrefixIndex, node : Int32) -> Unit {
   let parent = self.node_parents[node]
   let head = if parent < 0 {
     self.root_child_heads[self.node_roots[node]]
@@ -240,7 +249,7 @@ fn PrefixIndex::link_child(self : PrefixIndex, node : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::unlink_child(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::unlink_child(self : PrefixIndex, node : Int32) -> Unit {
   let parent = self.node_parents[node]
   let previous = self.node_sibling_prev[node]
   let next = self.node_sibling_next[node]
@@ -264,13 +273,13 @@ fn PrefixIndex::unlink_child(self : PrefixIndex, node : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::attach_node(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::attach_node(self : PrefixIndex, node : Int32) -> Unit {
   self.link_child(node)
   self.child_index_insert(node)
 }
 
 ///|
-fn PrefixIndex::detach_node(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::detach_node(self : PrefixIndex, node : Int32) -> Unit {
   self.child_index_remove(node)
   self.unlink_child(node)
 }
@@ -278,10 +287,10 @@ fn PrefixIndex::detach_node(self : PrefixIndex, node : Int) -> Unit {
 ///|
 fn PrefixIndex::find_child(
   self : PrefixIndex,
-  root : Int,
-  parent : Int,
-  token : Int,
-) -> Int {
+  root : Int32,
+  parent : Int32,
+  token : Int32,
+) -> Int32 {
   let mut edge = self.child_index_root
   while edge >= 0 {
     self.child_lookup_comparisons += 1
@@ -300,7 +309,7 @@ fn PrefixIndex::find_child(
 }
 
 ///|
-fn PrefixIndex::single_child(self : PrefixIndex, parent : Int) -> Int {
+fn PrefixIndex::single_child(self : PrefixIndex, parent : Int32) -> Int32 {
   if self.node_child_counts[parent] == 1 {
     self.node_child_heads[parent]
   } else if self.node_child_counts[parent] == 0 {
@@ -311,7 +320,7 @@ fn PrefixIndex::single_child(self : PrefixIndex, parent : Int) -> Int {
 }
 
 ///|
-fn PrefixIndex::take_free_node(self : PrefixIndex) -> Int {
+fn PrefixIndex::take_free_node(self : PrefixIndex) -> Int32 {
   let node = self.node_free_head
   if node < 0 {
     return -1
@@ -323,7 +332,7 @@ fn PrefixIndex::take_free_node(self : PrefixIndex) -> Int {
 }
 
 ///|
-fn PrefixIndex::release_node_slot(self : PrefixIndex, node : Int) -> Unit {
+fn PrefixIndex::release_node_slot(self : PrefixIndex, node : Int32) -> Unit {
   self.node_free_next[node] = self.node_free_head
   self.node_free_head = node
   self.free_stack_touches += 1

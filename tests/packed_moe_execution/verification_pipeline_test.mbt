@@ -1,9 +1,9 @@
 ///|
 fn fixture_state_transaction(
-  value : Ref[Int],
-  saves : Ref[Int],
-  restores : Ref[Int],
-  keeps : Ref[Int],
+  value : Ref[Int32],
+  saves : Ref[Int32],
+  restores : Ref[Int32],
+  keeps : Ref[Int32],
 ) -> @stage_control.StageStateTransaction {
   let backup = Ref(0)
   let phase = Ref(0)
@@ -40,14 +40,14 @@ fn fixture_state_transaction(
 
 ///|
 async fn run_verification_pipeline_case(
-  target : ArrayView[Int],
-  accepted : Int,
-  remaining? : Int = 10,
-  stop? : Int = -1,
-  failure? : Bool = false,
-  fail_replay? : Bool = false,
-  reuse? : Bool = false,
-  cancel_at? : Int = -1,
+  target : ArrayView[Int32],
+  accepted : Int32,
+  remaining~ : Int32 = 10,
+  stop~ : Int32 = -1,
+  failure~ : Bool = false,
+  fail_replay~ : Bool = false,
+  reuse~ : Bool = false,
+  cancel_at~ : Int32 = -1,
 ) -> Unit {
   device_fixture_lane.acquire()
   defer device_fixture_lane.release()

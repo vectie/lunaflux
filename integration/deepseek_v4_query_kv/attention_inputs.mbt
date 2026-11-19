@@ -18,12 +18,12 @@ pub(all) struct DeepSeekAttentionInputBuffers {
 ///|
 pub fn DeepSeekAttentionInputs::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -79,7 +79,7 @@ pub fn DeepSeekAttentionInputs::prepare(
   positions~ : @device.Allocation,
   hidden~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

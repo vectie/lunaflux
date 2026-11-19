@@ -7,9 +7,9 @@
 pub fn LatentStorage::flow_launch(
   self : Self,
   function : @device.Function,
-  step~ : Int,
+  step~ : Int32,
   latent~ : @joint_diffusion_plan.JointDiffusionLatentKind,
-  block_size~ : Int,
+  block_size~ : Int32,
 ) -> @device.OrderedKernelLaunch raise {
   let (state, velocity) = match latent {
     VideoLatent =>

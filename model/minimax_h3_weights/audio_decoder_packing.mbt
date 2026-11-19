@@ -1,7 +1,7 @@
 ///|
 pub(all) enum AudioDecoderWeightGroup {
   Frontend
-  Upsample(Int)
+  Upsample(Int32)
   WaveformTail
 } derive(Eq)
 

@@ -1,7 +1,7 @@
 ///|
 test "aged prefill budget preserves decode and prompt forward progress" {
   assert_eq(
-    aged_prefill_token_budget(
+    @work_plan.aged_prefill_token_budget(
       token_budget=2048,
       row_limit=32,
       runnable_decodes=1,
@@ -9,7 +9,7 @@ test "aged prefill budget preserves decode and prompt forward progress" {
     2047,
   )
   assert_eq(
-    aged_prefill_token_budget(
+    @work_plan.aged_prefill_token_budget(
       token_budget=2048,
       row_limit=32,
       runnable_decodes=16,
@@ -17,15 +17,15 @@ test "aged prefill budget preserves decode and prompt forward progress" {
     2032,
   )
   assert_eq(
-    aged_prefill_token_budget(token_budget=2, row_limit=2, runnable_decodes=2),
+    @work_plan.aged_prefill_token_budget(token_budget=2, row_limit=2, runnable_decodes=2),
     1,
   )
   assert_eq(
-    aged_prefill_token_budget(token_budget=1, row_limit=2, runnable_decodes=1),
+    @work_plan.aged_prefill_token_budget(token_budget=1, row_limit=2, runnable_decodes=1),
     1,
   )
   assert_eq(
-    aged_prefill_token_budget(
+    @work_plan.aged_prefill_token_budget(
       token_budget=2048,
       row_limit=1,
       runnable_decodes=1,
@@ -33,7 +33,7 @@ test "aged prefill budget preserves decode and prompt forward progress" {
     2048,
   )
   assert_eq(
-    aged_prefill_token_budget(
+    @work_plan.aged_prefill_token_budget(
       token_budget=2048,
       row_limit=32,
       runnable_decodes=0,
@@ -41,14 +41,14 @@ test "aged prefill budget preserves decode and prompt forward progress" {
     2048,
   )
   assert_eq(
-    aged_prefill_token_budget(token_budget=0, row_limit=32, runnable_decodes=16),
+    @work_plan.aged_prefill_token_budget(token_budget=0, row_limit=32, runnable_decodes=16),
     0,
   )
 }
 
 ///|
 test "work ranges preserve KV effects when output is absent" {
-  let work = RowWork::new(
+  let work = @work_plan.RowWork::new(
     packed_start=17,
     computed=256,
     query_count=128,
@@ -62,7 +62,7 @@ test "work ranges preserve KV effects when output is absent" {
   assert_eq((work.cached_context_end(), work.context_end()), (256, 384))
   assert_eq((work.kv_write_start(), work.kv_write_end()), (256, 384))
   assert_eq(work.output_token_row(), -1)
-  let terminal = RowWork::new(
+  let terminal = @work_plan.RowWork::new(
     packed_start=17,
     computed=256,
     query_count=128,
@@ -77,7 +77,7 @@ test "work ranges preserve KV effects when output is absent" {
 test "progress planner respects each independent bound" {
   for budget in [0, 1, 8, 256, 512] {
     for capacity in [0, 255, 256, 257, 512, 1024] {
-      let count = prefill_query_count(
+      let count = @work_plan.prefill_query_count(
         computed=256,
         target=768,
         token_budget=budget,
@@ -91,7 +91,7 @@ test "progress planner respects each independent bound" {
     }
   }
   assert_eq(
-    prefill_query_count(
+    @work_plan.prefill_query_count(
       computed=256,
       target=768,
       token_budget=512,
@@ -101,7 +101,7 @@ test "progress planner respects each independent bound" {
     128,
   )
   assert_eq(
-    prefill_query_count(
+    @work_plan.prefill_query_count(
       computed=768,
       target=768,
       token_budget=512,
@@ -115,7 +115,7 @@ test "progress planner respects each independent bound" {
 ///|
 test "work construction rejects overflow before arithmetic" {
   try
-    RowWork::new(
+    @work_plan.RowWork::new(
       packed_start=2147483647,
       computed=0,
       query_count=1,
@@ -128,7 +128,7 @@ test "work construction rejects overflow before arithmetic" {
     _ => fail("packed offset overflow accepted")
   }
   try
-    RowWork::new(
+    @work_plan.RowWork::new(
       packed_start=0,
       computed=2147483647,
       query_count=1,
@@ -140,7 +140,7 @@ test "work construction rejects overflow before arithmetic" {
   } noraise {
     _ => fail("KV offset overflow accepted")
   }
-  let last = RowWork::new(
+  let last = @work_plan.RowWork::new(
     packed_start=0,
     computed=2147483646,
     query_count=1,

@@ -116,7 +116,7 @@ fn admit_rank_graph_report(
 fn[T] RankGroupProcessSupervisor::fail_graph_telemetry(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
+  rank : Int32,
 ) -> T raise RankGroupProcessError {
   self.fail_active(plan, rank, GraphTelemetry(rank~))
 }
@@ -125,8 +125,8 @@ fn[T] RankGroupProcessSupervisor::fail_graph_telemetry(
 fn RankGroupProcessSupervisor::accept_graph_telemetry_bytes_in_place(
   self : RankGroupProcessSupervisor,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  rank : Int,
-  length : Int,
+  rank : Int32,
+  length : Int32,
 ) -> Unit raise RankGroupProcessError {
   if rank < 0 ||
     rank >= self.rank_done.length() ||

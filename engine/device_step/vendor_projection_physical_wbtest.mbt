@@ -1,10 +1,10 @@
 ///|
-fn projection_fixture_value(index : Int, seed : Int) -> Double {
+fn projection_fixture_value(index : Int32, seed : Int32) -> Double {
   ((index * 13 + seed * 7) % 17 - 8).to_double() / 8.0
 }
 
 ///|
-fn projection_fixture_bytes(count : Int, seed : Int) -> Bytes {
+fn projection_fixture_bytes(count : Int32, seed : Int32) -> Bytes {
   let bytes = FixedArray::make(count * 2, b'\x00')
   for i in 0..<count {
     let bits = projection_fixture_value(i, seed)

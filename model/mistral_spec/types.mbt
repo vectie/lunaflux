@@ -7,16 +7,16 @@
 /// smaller of the declared position ceiling and an optional sliding window.
 /// The semantic plan never needs a scheduler or KV-family branch.
 pub struct MistralModelSpec {
-  priv vocabulary_size : Int
-  priv hidden_size : Int
-  priv intermediate_size : Int
-  priv layer_count : Int
-  priv attention_head_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
-  priv max_position_embeddings : Int
-  priv sliding_window : Int?
-  priv context_length : Int
+  priv vocabulary_size : Int32
+  priv hidden_size : Int32
+  priv intermediate_size : Int32
+  priv layer_count : Int32
+  priv attention_head_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
+  priv max_position_embeddings : Int32
+  priv sliding_window : Int32?
+  priv context_length : Int32
   priv rope_theta : Double
   priv rms_norm_epsilon : Double
   priv weight_dtype : @spec.ModelDType
@@ -38,16 +38,16 @@ pub struct MistralModelMetadata {
 /// An optional sliding window only narrows the public context ceiling; LunaFlux
 /// never silently runs a sequence whose attention semantics would differ.
 pub fn MistralModelSpec::new(
-  vocabulary_size~ : Int,
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  layer_count~ : Int,
-  attention_head_count~ : Int,
-  kv_head_count~ : Int,
-  max_position_embeddings~ : Int,
-  sliding_window? : Int,
+  vocabulary_size~ : Int32,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  layer_count~ : Int32,
+  attention_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  max_position_embeddings~ : Int32,
+  sliding_window? : Int32,
   rope_theta~ : Double,
-  rms_norm_epsilon? : Double = 0.000001,
+  rms_norm_epsilon~ : Double = 0.000001,
   weight_dtype~ : @spec.ModelDType,
   kv_dtype~ : @spec.ModelDType,
 ) -> MistralModelSpec raise @spec.ModelSpecError {
@@ -95,52 +95,52 @@ pub fn MistralModelSpec::new(
 }
 
 ///|
-pub fn MistralModelSpec::vocabulary_size(self : Self) -> Int {
+pub fn MistralModelSpec::vocabulary_size(self : Self) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn MistralModelSpec::hidden_size(self : Self) -> Int {
+pub fn MistralModelSpec::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn MistralModelSpec::intermediate_size(self : Self) -> Int {
+pub fn MistralModelSpec::intermediate_size(self : Self) -> Int32 {
   self.intermediate_size
 }
 
 ///|
-pub fn MistralModelSpec::layer_count(self : Self) -> Int {
+pub fn MistralModelSpec::layer_count(self : Self) -> Int32 {
   self.layer_count
 }
 
 ///|
-pub fn MistralModelSpec::attention_head_count(self : Self) -> Int {
+pub fn MistralModelSpec::attention_head_count(self : Self) -> Int32 {
   self.attention_head_count
 }
 
 ///|
-pub fn MistralModelSpec::kv_head_count(self : Self) -> Int {
+pub fn MistralModelSpec::kv_head_count(self : Self) -> Int32 {
   self.kv_head_count
 }
 
 ///|
-pub fn MistralModelSpec::head_dimension(self : Self) -> Int {
+pub fn MistralModelSpec::head_dimension(self : Self) -> Int32 {
   self.head_dimension
 }
 
 ///|
-pub fn MistralModelSpec::max_position_embeddings(self : Self) -> Int {
+pub fn MistralModelSpec::max_position_embeddings(self : Self) -> Int32 {
   self.max_position_embeddings
 }
 
 ///|
-pub fn MistralModelSpec::sliding_window(self : Self) -> Int? {
+pub fn MistralModelSpec::sliding_window(self : Self) -> Int32? {
   self.sliding_window
 }
 
 ///|
-pub fn MistralModelSpec::context_length(self : Self) -> Int {
+pub fn MistralModelSpec::context_length(self : Self) -> Int32 {
   self.context_length
 }
 
@@ -199,3 +199,15 @@ pub fn MistralModelMetadata::spec(self : Self) -> MistralModelSpec {
 pub fn MistralModelMetadata::content_digest(self : Self) -> @spec.ContentDigest {
   self.content_digest
 }
+
+///|
+pub extend MistralModelSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend MistralModelSpec with Eq::{not_equal, equal}
+
+///|
+pub extend MistralModelMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend MistralModelMetadata with Eq::{not_equal, equal}

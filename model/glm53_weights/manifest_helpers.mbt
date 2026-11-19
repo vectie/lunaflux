@@ -37,7 +37,7 @@ fn add_moe(
   prefix : String,
   hidden : Int64,
   intermediate : Int64,
-  expert_count : Int,
+  expert_count : Int32,
 ) -> Unit {
   add_tensor(tensors, "\{prefix}.gate.weight", BFloat16, [
     Int64::from_int(expert_count),

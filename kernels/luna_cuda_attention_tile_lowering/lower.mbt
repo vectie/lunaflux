@@ -50,7 +50,7 @@ fn cuda_copy_primitive(
 }
 
 ///|
-fn cuda_compute_code(compute : CudaAttentionComputePrimitive) -> Int {
+fn cuda_compute_code(compute : CudaAttentionComputePrimitive) -> Int32 {
   match compute {
     CudaScalarFma => 1
     CudaSubgroupShuffleDot => 2
@@ -63,7 +63,7 @@ fn cuda_compute_code(compute : CudaAttentionComputePrimitive) -> Int {
 }
 
 ///|
-fn cuda_copy_code(copy : CudaAttentionCopyPrimitive) -> Int {
+fn cuda_copy_code(copy : CudaAttentionCopyPrimitive) -> Int32 {
   match copy {
     CudaDirectGlobalLoad => 1
     CudaCooperativeSharedLoad => 2
@@ -74,7 +74,7 @@ fn cuda_copy_code(copy : CudaAttentionCopyPrimitive) -> Int {
 ///|
 fn attention_phase_code(
   phase : @luna_attention_strategy.AttentionExecutionPhase,
-) -> Int {
+) -> Int32 {
   match phase {
     Prefill => 1
     Decode => 2

@@ -1,5 +1,5 @@
 ///|
-const QWEN3_SAFETENSORS_PREFIX_BYTES : Int = 8
+const QWEN3_SAFETENSORS_PREFIX_BYTES : Int32 = 8
 
 ///|
 fn qwen3_open_source_file(
@@ -15,9 +15,9 @@ fn qwen3_open_source_file(
 fn qwen3_read_source_range(
   file : @approved_fs.ApprovedFile,
   destination : FixedArray[Byte],
-  destination_offset : Int,
+  destination_offset : Int32,
   position : Int64,
-  byte_count : Int,
+  byte_count : Int32,
 ) -> Unit raise Qwen3WeightsError {
   file.read_exactly_at(destination, destination_offset~, position~, byte_count~) catch {
     _ => raise SourceFileUnavailable

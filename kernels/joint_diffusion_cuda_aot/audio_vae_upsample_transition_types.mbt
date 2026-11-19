@@ -3,20 +3,20 @@ pub struct JointDiffusionAudioVaeUpsampleTransitionCudaCandidate {
   priv numerical_contract : JointDiffusionCudaNumericalContract
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
   priv parameter_digest : @joint_diffusion_vae_reference.JointVaeAudioDecoderUpsampleTransitionDigest
   priv request_shape : @joint_diffusion_plan.JointDiffusionRequestShape
-  priv stage_index : Int
-  priv decoder_batch_count : Int
-  priv input_channels : Int
-  priv output_channels : Int
-  priv input_time : Int
-  priv output_time : Int
-  priv kernel_size : Int
-  priv stride : Int
-  priv padding : Int
+  priv stage_index : Int32
+  priv decoder_batch_count : Int32
+  priv input_channels : Int32
+  priv output_channels : Int32
+  priv input_time : Int32
+  priv output_time : Int32
+  priv kernel_size : Int32
+  priv stride : Int32
+  priv padding : Int32
   priv input_element_count : Int64
   priv weight_g_element_count : Int64
   priv weight_v_element_count : Int64

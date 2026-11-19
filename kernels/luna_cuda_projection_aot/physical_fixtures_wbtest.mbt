@@ -11,13 +11,13 @@ fn CudaProjectionTransportLayout::plan(
 fn projection_source(
   symbol : String,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
-  maximum_rows : Int,
+  maximum_tokens : Int32,
+  maximum_rows : Int32,
   dispatch : @luna_projection_strategy.ProjectionDispatchPlan,
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   embed : Bool,
   shared : Bool,
-  max_registers~ : Int,
+  max_registers~ : Int32,
 ) -> Bytes raise ProjectionAotError {
   projection_emit_source(
     symbol,
@@ -35,8 +35,8 @@ fn projection_source(
 ///|
 fn physical_pipeline_fixture(
   pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
-  groups : Int,
-  products? : Int = 1,
+  groups : Int32,
+  products~ : Int32 = 1,
   execution? : @luna_projection_tile_compiler.ProjectionTransferExecution,
 ) -> @luna_projection_tile_compiler.ProjectionPhysicalPipeline {
   @luna_projection_tile_compiler.ProjectionPhysicalPipeline::new(
@@ -57,7 +57,7 @@ fn physical_pipeline_fixture(
 
 ///|
 fn dot_fold_fixture(
-  extent : Int,
+  extent : Int32,
   dots : ArrayView[CudaProjectionDot],
   reduction : @luna_projection_tile_compiler.ProjectionSingleRowReduction,
 ) -> String {
@@ -76,9 +76,9 @@ fn fold_pipeline_fixture(
   pipeline : @luna_projection_tile_compiler.ProjectionFoldPipeline,
   input : String,
   weight : String,
-  stride : Int,
-  groups : Int,
-  output : Int,
+  stride : Int32,
+  groups : Int32,
+  output : Int32,
 ) -> String {
   let physical = @luna_projection_tile_compiler.ProjectionPhysicalPipeline::new(
     pipeline,
@@ -116,7 +116,7 @@ fn projection_concatenated_weight_selection(
 ///|
 fn phased_transfer_fixture(
   operands : @physical_tile_ir.OperandStorage,
-  input_width : Int,
+  input_width : Int32,
 ) -> String {
   let segments = @luna_projection_tile_compiler.partition_projection_transfer_segments(
     [

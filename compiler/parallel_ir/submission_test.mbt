@@ -1,7 +1,7 @@
 ///|
 test "submission fences preserve every compute interval and collective cut" {
-  for policy in [RetirementPolicy::EachCollective, WholeFrame] {
-    let plan = OrderedSubmissionPlan::new(
+  for policy in [@parallel_ir.RetirementPolicy::EachCollective, WholeFrame] {
+    let plan = @parallel_ir.OrderedSubmissionPlan::new(
       kernel_count=7,
       [1, 3, 6],
       retirement=policy,
@@ -15,7 +15,7 @@ test "submission fences preserve every compute interval and collective cut" {
   }
   for cuts in [[], [0], [7], [3, 3], [4, 2]] {
     try
-      OrderedSubmissionPlan::new(kernel_count=7, cuts, retirement=WholeFrame)
+      @parallel_ir.OrderedSubmissionPlan::new(kernel_count=7, cuts, retirement=WholeFrame)
     catch {
       _ => ()
     } noraise {
@@ -26,7 +26,7 @@ test "submission fences preserve every compute interval and collective cut" {
 
 ///|
 test "replay budgeting is explicit and overflow checked" {
-  let plan = OrderedSubmissionPlan::new(
+  let plan = @parallel_ir.OrderedSubmissionPlan::new(
     kernel_count=7,
     [1, 3, 6],
     retirement=WholeFrame,
@@ -51,7 +51,7 @@ test "replay budgeting is explicit and overflow checked" {
 ///|
 test "collective-inclusive replay requires whole-frame retirement" {
   try
-    OrderedSubmissionPlan::new(
+    @parallel_ir.OrderedSubmissionPlan::new(
       kernel_count=3,
       [1, 2],
       retirement=EachCollective,
@@ -62,7 +62,7 @@ test "collective-inclusive replay requires whole-frame retirement" {
   } noraise {
     _ => fail("per-site capture retirement accepted")
   }
-  let p = OrderedSubmissionPlan::new(
+  let p = @parallel_ir.OrderedSubmissionPlan::new(
     kernel_count=3,
     [1, 2],
     retirement=WholeFrame,
@@ -77,7 +77,7 @@ test "collective-inclusive replay requires whole-frame retirement" {
 
 ///|
 test "collective buckets distinguish decode from prefill with bounded storage" {
-  let p = OrderedSubmissionPlan::new(
+  let p = @parallel_ir.OrderedSubmissionPlan::new(
     kernel_count=3,
     [1, 2],
     retirement=WholeFrame,
@@ -93,7 +93,7 @@ test "collective buckets distinguish decode from prefill with bounded storage" {
     660L,
   )
   try
-    OrderedSubmissionPlan::new(
+    @parallel_ir.OrderedSubmissionPlan::new(
       kernel_count=3,
       [1, 2],
       retirement=EachCollective,
@@ -108,7 +108,7 @@ test "collective buckets distinguish decode from prefill with bounded storage" {
 
 ///|
 test "decode effects and prefill intervals have independent legal replay regimes" {
-  let p = OrderedSubmissionPlan::new(
+  let p = @parallel_ir.OrderedSubmissionPlan::new(
     kernel_count=3,
     [1, 2],
     retirement=WholeFrame,
@@ -129,7 +129,7 @@ test "decode effects and prefill intervals have independent legal replay regimes
 
 ///|
 test "exact-row replay never pads partial chunks and budgets the fallback graphs" {
-  let p = OrderedSubmissionPlan::new(
+  let p = @parallel_ir.OrderedSubmissionPlan::new(
     kernel_count=3,
     [1, 2],
     retirement=WholeFrame,
@@ -154,7 +154,7 @@ test "exact-row replay never pads partial chunks and budgets the fallback graphs
   }
   for rows in [-1, 0, 1] {
     try
-      OrderedSubmissionPlan::new(
+      @parallel_ir.OrderedSubmissionPlan::new(
         kernel_count=3,
         [1],
         retirement=WholeFrame,
@@ -167,7 +167,7 @@ test "exact-row replay never pads partial chunks and budgets the fallback graphs
     }
   }
   try
-    OrderedSubmissionPlan::new(
+    @parallel_ir.OrderedSubmissionPlan::new(
       kernel_count=3,
       [1],
       retirement=EachCollective,

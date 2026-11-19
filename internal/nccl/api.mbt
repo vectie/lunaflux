@@ -1,8 +1,8 @@
 ///|
-const NCCL_COMMUNICATOR_ID_BYTES : Int = 128
+const NCCL_COMMUNICATOR_ID_BYTES : Int32 = 128
 
 ///|
-fn availability_from_code(code : Int) -> NcclAvailability {
+fn availability_from_code(code : Int32) -> NcclAvailability {
   match code {
     0 => Available
     1 => UnsupportedPlatform
@@ -14,7 +14,7 @@ fn availability_from_code(code : Int) -> NcclAvailability {
 
 ///|
 fn check_status(
-  status : Int,
+  status : Int32,
   operation : NcclOperation,
 ) -> Unit raise NcclError {
   match status {
@@ -41,8 +41,8 @@ pub fn probe() -> NcclRuntimeInventory {
 ///|
 /// Admits the loaded process-lifetime runtime against explicit caller bounds.
 pub fn admit_runtime(
-  minimum_version_code~ : Int,
-  maximum_version_code~ : Int,
+  minimum_version_code~ : Int32,
+  maximum_version_code~ : Int32,
 ) -> NcclRuntimeAdmission raise NcclError {
   let version = Ref(0)
   check_status(
@@ -91,8 +91,8 @@ pub fn NcclCommunicatorId::to_bytes(self : NcclCommunicatorId) -> Bytes {
 pub fn NcclRuntimeAdmission::create_communicator(
   self : NcclRuntimeAdmission,
   id : NcclCommunicatorId,
-  world_size~ : Int,
-  rank~ : Int,
+  world_size~ : Int32,
+  rank~ : Int32,
   generation~ : UInt64,
   previous_plan_sequence~ : UInt64,
 ) -> NcclCommunicator raise NcclError {
@@ -116,8 +116,8 @@ pub fn NcclRuntimeAdmission::create_communicator(
 pub fn NcclRuntimeAdmission::create_communicator_on_context(
   self : NcclRuntimeAdmission,
   id : NcclCommunicatorId,
-  world_size~ : Int,
-  rank~ : Int,
+  world_size~ : Int32,
+  rank~ : Int32,
   generation~ : UInt64,
   previous_plan_sequence~ : UInt64,
   context~ : @device_collective_interop.ContextToken,
@@ -138,7 +138,7 @@ pub fn NcclRuntimeAdmission::create_communicator_on_context(
 }
 
 ///|
-fn collective_operation_code(operation : NcclCollectiveOperation) -> Int {
+fn collective_operation_code(operation : NcclCollectiveOperation) -> Int32 {
   match operation {
     AllReduce => 1
     AllGather => 2
@@ -164,7 +164,7 @@ pub fn NcclCommunicator::submit_bf16(
   generation~ : UInt64,
   plan_sequence~ : UInt64,
   collective_sequence~ : UInt64,
-  operation_id~ : Int,
+  operation_id~ : Int32,
   collective_kind~ : NcclCollectiveOperation,
   context~ : @device_collective_interop.ContextToken,
   send~ : @device_collective_interop.RegionToken,
@@ -207,7 +207,7 @@ pub fn NcclCommunicator::submit_typed(
   generation~ : UInt64,
   plan_sequence~ : UInt64,
   collective_sequence~ : UInt64,
-  operation_id~ : Int,
+  operation_id~ : Int32,
   collective_kind~ : NcclCollectiveOperation,
   context~ : @device_collective_interop.ContextToken,
   send~ : @device_collective_interop.RegionToken,
@@ -313,11 +313,14 @@ pub fn NcclCommunicator::next_collective_sequence(
 }
 
 ///|
-pub fn NcclCommunicator::world_size(self : NcclCommunicator) -> Int {
+pub fn NcclCommunicator::world_size(self : NcclCommunicator) -> Int32 {
   raw_communicator_world_size(self)
 }
 
 ///|
-pub fn NcclCommunicator::rank(self : NcclCommunicator) -> Int {
+pub fn NcclCommunicator::rank(self : NcclCommunicator) -> Int32 {
   raw_communicator_rank(self)
 }
+
+///|
+pub extend CollectiveElementType with Eq::{equal, not_equal}

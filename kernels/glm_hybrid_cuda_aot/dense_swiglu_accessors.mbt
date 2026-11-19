@@ -29,7 +29,7 @@ pub fn GlmHybridDenseSwiGluCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridDenseSwiGluCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,17 +48,19 @@ pub fn GlmHybridDenseSwiGluCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridDenseSwiGluCudaCandidate::hidden_size(self : Self) -> Int {
+pub fn GlmHybridDenseSwiGluCudaCandidate::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn GlmHybridDenseSwiGluCudaCandidate::intermediate_size(self : Self) -> Int {
+pub fn GlmHybridDenseSwiGluCudaCandidate::intermediate_size(
+  self : Self,
+) -> Int32 {
   self.intermediate_size
 }
 
 ///|
-pub fn GlmHybridDenseSwiGluCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridDenseSwiGluCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

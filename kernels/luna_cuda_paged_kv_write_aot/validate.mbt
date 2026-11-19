@@ -34,7 +34,7 @@ fn paged_kv_write_validate_operands(
   roles : ArrayView[@launch_contract.AotOperandRole],
   profile : @launch_contract.PagedKernelProfile,
   layout : @device_layout.DeviceKvLayout,
-  qkv_width : Int,
+  qkv_width : Int32,
 ) -> Unit raise PagedKvWriteAotError {
   if operands.length() != roles.length() {
     raise Mismatch(OperandOrder)
@@ -83,7 +83,7 @@ fn paged_kv_write_validate_positioned_input(
   plan : @plan.ModelPlan,
   attention : @plan.PlanOperation,
   input : PositionedQkvActivation,
-) -> (Int, Int, Int, @plan.KvLayerId) raise PagedKvWriteAotError {
+) -> (Int32, Int32, Int32, @plan.KvLayerId) raise PagedKvWriteAotError {
   let operation_index = attention.id().as_int()
   guard operation_index > 0 &&
     plan.operations().get(operation_index) is Some(bound_attention) &&
@@ -129,7 +129,7 @@ fn paged_kv_write_validate(
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   operands : ArrayView[@launch_contract.AotOperand],
-) -> (Int, Int, Int, @plan.KvLayerId) raise PagedKvWriteAotError {
+) -> (Int32, Int32, Int32, @plan.KvLayerId) raise PagedKvWriteAotError {
   guard attention.kind() == CausalAttention else { raise Mismatch(Operation) }
   let (query_heads, kv_heads, head_dimension, layer) = paged_kv_write_validate_positioned_input(
     plan, attention, input,

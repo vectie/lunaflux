@@ -13,7 +13,7 @@ test "terminal descriptor close failure prevents successful publication" {
 ///|
 test "terminal descriptor close preserves an earlier primary failure" {
   let close_called = Ref(false)
-  let outcome : Result[Int, RuntimeDescriptorFileError] = Err(DigestMismatch)
+  let outcome : Result[Int32, RuntimeDescriptorFileError] = Err(DigestMismatch)
   try
     finish_descriptor_body(outcome, () => {
       close_called.val = true

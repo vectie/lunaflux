@@ -2,7 +2,7 @@
 fn luna_openai_requirements(
   inference : @inference.InferenceLimits,
   buffered~ : Bool = false,
-) -> (Int, UInt64, UInt64) raise LunaOpenAICompatError {
+) -> (Int32, UInt64, UInt64) raise LunaOpenAICompatError {
   let delta = inference.max_decoded_delta_bytes()
   if delta <= 0 || delta > 16384 {
     raise LunaOpenAICompatInvalid(LunaOpenAICompatLimits)
@@ -54,11 +54,11 @@ pub fn LunaOpenAICompatWorkspace::new(
   inference : @inference.InferenceLimits,
   budget : LunaOpenAICompatStepBudget,
   deployment_model_alias : FixedArray[Byte],
-  model_alias_offset~ : Int,
-  model_alias_length~ : Int,
+  model_alias_offset~ : Int32,
+  model_alias_length~ : Int32,
   response_id_prefix : FixedArray[Byte],
-  response_id_prefix_offset~ : Int,
-  response_id_prefix_length~ : Int,
+  response_id_prefix_offset~ : Int32,
+  response_id_prefix_length~ : Int32,
   buffered~ : Bool = false,
   output_framing? : LunaOpenAIOutputFraming,
 ) -> LunaOpenAICompatWorkspace raise LunaOpenAICompatError {
@@ -204,7 +204,7 @@ fn LunaOpenAICompatWorkspace::reset_operation(
 }
 
 ///|
-fn luna_openai_event_kind(kind : @luna_event.LunaEventKind) -> Int {
+fn luna_openai_event_kind(kind : @luna_event.LunaEventKind) -> Int32 {
   match kind {
     LunaAcceptedEventKind => LUNA_OPENAI_EVENT_ACCEPTED
     LunaTokenEventKind => LUNA_OPENAI_EVENT_TOKEN

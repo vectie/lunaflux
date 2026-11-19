@@ -13,7 +13,7 @@ fn checked_mul(
 fn operand(
   role : GlmHybridFoundationOperandRole,
   byte_count : Int64,
-  alignment? : Int64 = 16L,
+  alignment~ : Int64 = 16L,
 ) -> GlmHybridFoundationOperand raise GlmHybridCudaAotError {
   if byte_count <= 0L ||
     byte_count > 2147483647L ||
@@ -63,8 +63,8 @@ fn recipe(
   family : GlmHybridFoundationAotFamily,
   numerical_contract : @decoder_foundation_cuda_source.DecoderFoundationNumericalContract,
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -162,8 +162,8 @@ fn recipe(
 
 ///|
 fn render_embedding(
-  vocabulary_size : Int,
-  hidden_size : Int,
+  vocabulary_size : Int32,
+  hidden_size : Int32,
   symbol : String,
 ) -> @decoder_foundation_cuda_source.DecoderFoundationCudaSource raise GlmHybridCudaAotError {
   @decoder_foundation_cuda_source.token_embedding_bf16_source(
@@ -181,7 +181,7 @@ fn render_embedding(
 
 ///|
 fn render_norm(
-  hidden_size : Int,
+  hidden_size : Int32,
   epsilon : Double,
   symbol : String,
 ) -> @decoder_foundation_cuda_source.DecoderFoundationCudaSource raise GlmHybridCudaAotError {
@@ -201,8 +201,8 @@ fn render_norm(
 /// Lowers the shared GLM embedding, decoder RMSNorm, and final RMSNorm subset.
 pub fn lower_foundation_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

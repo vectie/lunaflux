@@ -1,6 +1,6 @@
 ///|
 fn polling_control_owner(
-  rank? : Int = 0,
+  rank~ : Int32 = 0,
 ) -> (RankChildControl, @rank_group_wire.RankGroupWireBinding, RankChildInbound) raise {
   let (owner, binding) = ready_control_owner(rank~)
   let payload = FixedArray::make(1, b'\x41')

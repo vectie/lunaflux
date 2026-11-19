@@ -29,7 +29,7 @@ pub fn GlmHybridKvAssemblyCudaCandidate::requirements_digest(
 ///|
 pub fn GlmHybridKvAssemblyCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -48,7 +48,7 @@ pub fn GlmHybridKvAssemblyCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridKvAssemblyCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridKvAssemblyCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

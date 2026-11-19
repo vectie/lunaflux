@@ -11,9 +11,9 @@ pub struct AliasFreeActivationLayout {
 
 ///|
 pub fn AliasFreeActivationLayout::new(
-  batch~ : Int,
-  channels~ : Int,
-  time~ : Int,
+  batch~ : Int32,
+  channels~ : Int32,
+  time~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   guard batch > 0 &&

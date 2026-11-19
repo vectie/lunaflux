@@ -5,15 +5,15 @@
 /// deduplication. `decode_mode=false` models `start_pos == 0`; `true` models
 /// the single-token `start_pos > 0` branch.
 pub fn deterministic_window_compressed_index_join_v1(
-  window_size~ : Int,
-  compression_ratio~ : Int,
-  query_position~ : Int,
-  sequence_length~ : Int,
+  window_size~ : Int32,
+  compression_ratio~ : Int32,
+  query_position~ : Int32,
+  sequence_length~ : Int32,
   decode_mode~ : Bool,
-  compressed_count~ : Int,
-  compressed_indices : ArrayView[Int],
+  compressed_count~ : Int32,
+  compressed_indices : ArrayView[Int32],
   limits~ : ReferenceLimits,
-) -> ReadOnlyArray[Int] raise AdvancedDecoderReferenceError {
+) -> ReadOnlyArray[Int32] raise AdvancedDecoderReferenceError {
   if window_size <= 0 ||
     compression_ratio <= 1 ||
     query_position < 0 ||
@@ -50,7 +50,7 @@ pub fn deterministic_window_compressed_index_join_v1(
       raise InvalidIndexLayout
     }
   }
-  let joined : Array[Int] = []
+  let joined : Array[Int32] = []
   if decode_mode {
     if query_position >= window_size - 1 {
       let first = (query_position % window_size + 1) % window_size

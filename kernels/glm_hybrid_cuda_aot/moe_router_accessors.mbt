@@ -27,7 +27,9 @@ pub fn GlmHybridMoeRouterCudaCandidate::requirements_digest(
 }
 
 ///|
-pub fn GlmHybridMoeRouterCudaCandidate::requirement_ordinal(self : Self) -> Int {
+pub fn GlmHybridMoeRouterCudaCandidate::requirement_ordinal(
+  self : Self,
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -46,17 +48,17 @@ pub fn GlmHybridMoeRouterCudaCandidate::capability(
 }
 
 ///|
-pub fn GlmHybridMoeRouterCudaCandidate::hidden_width(self : Self) -> Int {
+pub fn GlmHybridMoeRouterCudaCandidate::hidden_width(self : Self) -> Int32 {
   self.hidden_width
 }
 
 ///|
-pub fn GlmHybridMoeRouterCudaCandidate::expert_count(self : Self) -> Int {
+pub fn GlmHybridMoeRouterCudaCandidate::expert_count(self : Self) -> Int32 {
   self.expert_count
 }
 
 ///|
-pub fn GlmHybridMoeRouterCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn GlmHybridMoeRouterCudaCandidate::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 

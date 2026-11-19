@@ -1,7 +1,7 @@
 ///|
 pub fn visual_scatter_source(
-  rows~ : Int,
-  width~ : Int,
+  rows~ : Int32,
+  width~ : Int32,
   prefix~ : String,
 ) -> Bytes raise TextEncoderSourceError {
   guard rows > 0 && rows <= 262144 && width > 0 && width <= 65536 else {

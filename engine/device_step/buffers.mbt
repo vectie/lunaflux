@@ -1,12 +1,12 @@
 ///|
 priv struct DeviceStepHostBuffers {
   // Host execution demand only; the existing GPU descriptor ABI is unchanged.
-  mut output_rows : Int
+  mut output_rows : Int32
   mut project_output_rows : Bool
   mut attention_metadata_enabled : Bool
   attention_metadata_layout : @luna_attention_metadata.AttentionMetadataLayout
-  attention_metadata_offset : Int
-  output_indices : FixedArray[Int]
+  attention_metadata_offset : Int32
+  output_indices : FixedArray[Int32]
   counts : FixedArray[Byte]
   token_ids : FixedArray[Byte]
   token_positions : FixedArray[Byte]
@@ -86,7 +86,7 @@ fn empty_partial_resources() -> PartialDeviceStepResources {
 }
 
 ///|
-fn write_i32(buffer : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn write_i32(buffer : FixedArray[Byte], index : Int32, value : Int32) -> Unit {
   buffer.unsafe_write_uint32_le(
     index * INT32_BYTES,
     value.reinterpret_as_uint(),

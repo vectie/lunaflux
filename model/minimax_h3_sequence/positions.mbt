@@ -1,17 +1,17 @@
 ///|
 pub struct VideoGrid {
-  priv frames : Int
-  priv height : Int
-  priv width : Int
-  priv rows : Int
+  priv frames : Int32
+  priv height : Int32
+  priv width : Int32
+  priv rows : Int32
 }
 
 ///|
 pub fn VideoGrid::new(
-  frames~ : Int,
-  height~ : Int,
-  width~ : Int,
-  max_rows~ : Int,
+  frames~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
+  max_rows~ : Int32,
 ) -> Self raise SequenceError {
   guard frames > 0 &&
     height > 0 &&
@@ -31,8 +31,8 @@ pub fn VideoGrid::new(
 ///|
 pub(all) enum ReferenceGrid {
   ImageGrid(VideoGrid)
-  AudioGrid(Int)
-  VideoAudioGrid(VideoGrid, Int)
+  AudioGrid(Int32)
+  VideoAudioGrid(VideoGrid, Int32)
 }
 
 ///|
@@ -49,7 +49,7 @@ pub struct PositionedSequence {
 }
 
 ///|
-fn spatial_axis(dim : Int, other : Int, index : Int) -> Double {
+fn spatial_axis(dim : Int32, other : Int32, index : Int32) -> Double {
   let area = (dim.to_double() * other.to_double()).sqrt()
   let ratio = dim.to_double() / area
   let left = (1.0 - ratio) / 2.0
@@ -85,7 +85,7 @@ fn append_video(
 ///|
 fn append_audio(
   output : Array[Position3],
-  frames : Int,
+  frames : Int32,
   grid : VideoGrid,
   origin : Double,
 ) -> Unit {
@@ -104,11 +104,11 @@ fn append_audio(
 /// Audio has two stream-major channels pinned to each spatial grid's extremes.
 pub fn PositionedSequence::references(
   target : VideoGrid,
-  hidden_width~ : Int,
-  text_rows~ : Int,
-  audio_frames~ : Int,
+  hidden_width~ : Int32,
+  text_rows~ : Int32,
+  audio_frames~ : Int32,
   references~ : ArrayView[ReferenceGrid],
-  max_rows~ : Int,
+  max_rows~ : Int32,
 ) -> Self raise SequenceError {
   guard audio_frames > 0 && audio_frames <= max_rows / 2 else {
     raise InvalidShape

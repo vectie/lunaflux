@@ -4,8 +4,8 @@
 /// coincide. Ordinals must be unique within this export.
 pub fn SourceExport::with_reference_audio(
   self : Self,
-  ordinal~ : Int,
-  samples~ : Int,
+  ordinal~ : Int32,
+  samples~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise {
   guard ordinal >= 0 else { raise InvalidModule }
@@ -26,12 +26,12 @@ pub fn SourceExport::with_reference_audio(
 ///|
 pub fn SourceExport::with_reference_video(
   self : Self,
-  ordinal~ : Int,
-  frames~ : Int,
-  height~ : Int,
-  width~ : Int,
+  ordinal~ : Int32,
+  frames~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
   image~ : Bool,
-  max_tiles~ : Int,
+  max_tiles~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise {
   guard ordinal >= 0 else { raise InvalidModule }

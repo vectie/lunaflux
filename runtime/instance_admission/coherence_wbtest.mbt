@@ -65,9 +65,9 @@ test "worker process capacity uses exact public wire formulas" {
     max_sequence_tokens=128,
     max_token_id=255,
   )
-  let expected = Int::max(
+  let expected = Int32::max(
     @worker_wire.bootstrap_source_capacity(),
-    Int::max(
+    Int32::max(
       try! @worker_wire.plan_frame_byte_capacity(worker),
       try! @worker_wire.completion_frame_byte_capacity(worker),
     ),

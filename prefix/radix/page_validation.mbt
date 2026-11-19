@@ -12,8 +12,8 @@ fn PrefixIndex::page_precedes(
 ///|
 fn PrefixIndex::duplicate_page_swap(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Unit {
   if left == right {
     return
@@ -28,8 +28,8 @@ fn PrefixIndex::duplicate_page_swap(
 ///|
 fn PrefixIndex::duplicate_page_sift_down(
   self : PrefixIndex,
-  start : Int,
-  length : Int,
+  start : Int32,
+  length : Int32,
 ) -> Unit {
   let mut parent = start
   while parent < length / 2 {
@@ -57,7 +57,7 @@ fn PrefixIndex::duplicate_page_sift_down(
 ///|
 fn PrefixIndex::clear_duplicate_page_scratch(
   self : PrefixIndex,
-  length : Int,
+  length : Int32,
 ) -> Unit {
   for index in 0..<length {
     try! self.duplicate_page_scratch.clear(index)

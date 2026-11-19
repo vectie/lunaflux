@@ -5,7 +5,7 @@
 pub fn bind_flash_sparse_projection_weights(
   checkpoint : @checkpoint.PackedCheckpoint,
   spec : @spec.Glm53FlashSpec,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[@checkpoint.PackedCheckpointWeight] raise {
   guard spec.attention_kind(layer_index) is DeepSeekSparseAttention &&
     spec.qk_rope_head_dimension() == 0 else {
@@ -63,7 +63,7 @@ pub fn bind_flash_sparse_projection_weights(
 pub fn bind_flash_sparse_output_weights(
   checkpoint : @checkpoint.PackedCheckpoint,
   spec : @spec.Glm53FlashSpec,
-  layer_index~ : Int,
+  layer_index~ : Int32,
 ) -> Array[@checkpoint.PackedCheckpointWeight] raise {
   guard spec.attention_kind(layer_index) is DeepSeekSparseAttention &&
     spec.qk_rope_head_dimension() == 0 else {

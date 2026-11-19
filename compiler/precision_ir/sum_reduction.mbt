@@ -16,7 +16,7 @@ pub extend SumReductionLaw with Eq::{equal, not_equal}
 ///|
 fn SumReductionLaw::validate(
   self : Self,
-  width : Int,
+  width : Int32,
 ) -> Unit raise PrecisionPlanError {
   guard width > 0 else { raise IllegalPlacement }
   if self is ButterflyFloat32 && (width & (width - 1)) != 0 {

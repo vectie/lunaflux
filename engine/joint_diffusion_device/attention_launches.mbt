@@ -36,9 +36,9 @@ pub fn RotaryBindings::attention_launches(
   scratch_offset~ : Int64,
   weights~ : @device.Allocation,
   weight_offset~ : Int64,
-  hidden_width~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  hidden_width~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   functions.launches(
     rows=self.rows,
@@ -62,7 +62,7 @@ pub fn RotaryBindings::attention_launches(
 /// norm operands). Rotated functions retain the eight-operand ABI.
 pub fn AttentionFunctions::launches(
   self : Self,
-  rows~ : Int,
+  rows~ : Int32,
   rotary? : RotaryBindings,
   input~ : @device.Allocation,
   input_offset~ : Int64,
@@ -72,9 +72,9 @@ pub fn AttentionFunctions::launches(
   scratch_offset~ : Int64,
   weights~ : @device.Allocation,
   weight_offset~ : Int64,
-  hidden_width~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  hidden_width~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   let functions = self
   let scratch_bytes = staged_attention_scratch_bytes(
@@ -197,10 +197,10 @@ fn[T] normalization_arguments(
 
 ///|
 fn attention_projection_geometry(
-  rows : Int,
-  hidden : Int,
-  heads : Int,
-  dimension : Int,
+  rows : Int32,
+  hidden : Int32,
+  heads : Int32,
+  dimension : Int32,
 ) -> (Int64, Int64) raise @device.DeviceError {
   guard rows > 0 && hidden > 0 && heads > 0 && dimension > 0 else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
@@ -218,9 +218,9 @@ fn attention_projection_geometry(
 /// Required reusable scratch for the current staged BF16 attention ABI.
 /// This is an allocation size, not an estimate of compiler-local spills.
 pub fn staged_attention_scratch_bytes(
-  rows~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  rows~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
 ) -> Int64 raise @device.DeviceError {
   guard rows > 0 && head_count > 0 && head_dimension > 0 else {
     raise @device.DeviceError::InvalidArgument(AllocationCreate)

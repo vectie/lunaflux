@@ -1,6 +1,6 @@
 ///|
 test "limits reject every unsupported scalar envelope" {
-  let cases : Array[(Int, Int, Int64, @device_layout.DeviceKvLimitRule)] = [
+  let cases : Array[(Int32, Int32, Int64, @device_layout.DeviceKvLimitRule)] = [
     (0, 1, 1L, TokensPerPage),
     (-1, 1, 1L, TokensPerPage),
     (1, 0, 1L, TotalPageCount),

@@ -7,7 +7,7 @@ fn projection_producer_address_source(
   name : String,
   global_base : String,
   storage : String,
-  stride : Int,
+  stride : Int32,
   row_binding : String,
   validity : String,
   weight_binding : String,
@@ -36,7 +36,7 @@ fn projection_producer_address_source(
 fn projection_hoisted_transfer_source(
   plan : @luna_projection_tile_compiler.ProjectionProducerAddressPlan,
   name : String,
-  slot_elements : Int,
+  slot_elements : Int32,
   offset : String,
   asynchronous : Bool,
 ) -> String {

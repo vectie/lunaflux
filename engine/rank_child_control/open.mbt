@@ -3,8 +3,8 @@
 /// still perform local artifact/device bootstrap admission before `begin_ready`.
 pub fn open_rank_child_control(
   wire_limits : @rank_group_wire.RankGroupWireLimits,
-  io_timeout_millis~ : Int,
-  shutdown_timeout_millis~ : Int,
+  io_timeout_millis~ : Int32,
+  shutdown_timeout_millis~ : Int32,
 ) -> RankChildControl raise RankChildControlError {
   let frame_bytes = wire_limits.max_frame_bytes()
   let process_limits = @process.ProcessLimits::new(

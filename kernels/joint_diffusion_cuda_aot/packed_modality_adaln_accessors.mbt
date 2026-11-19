@@ -22,7 +22,7 @@ pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,28 +57,28 @@ pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::modality_digest(
 ///|
 pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::hidden_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_size
 }
 
 ///|
 pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::packed_row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.packed_rows
 }
 
 ///|
 pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::video_row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.video_rows
 }
 
 ///|
 pub fn JointDiffusionPackedModalityAdaLnCudaCandidate::audio_row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.audio_rows
 }
 

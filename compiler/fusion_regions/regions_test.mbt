@@ -11,11 +11,11 @@ fn chain() -> @fusion_regions.Graph raise {
 ///|
 fn candidate(
   graph : @fusion_regions.Graph,
-  id : Int,
-  start : Int,
-  count : Int,
+  id : Int32,
+  start : Int32,
+  count : Int32,
   ns : Int64,
-  local_bytes? : Int64 = 0L,
+  local_bytes~ : Int64 = 0L,
 ) -> @fusion_regions.Candidate raise {
   @fusion_regions.Candidate::new(
     id~,

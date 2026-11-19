@@ -2,7 +2,7 @@
 fn activation_fact(
   facts : ArrayView[MutableActivationFact],
   reference : @plan.ActivationRef,
-) -> Int {
+) -> Int32 {
   let index = reference.as_int()
   if index >= 0 &&
     index < facts.length() &&
@@ -32,8 +32,8 @@ fn record_activation_input(
   facts : Array[MutableActivationFact],
   reference : @plan.ActivationRef,
   byte_count : Int64,
-  operation : Int,
-  operand : Int,
+  operation : Int32,
+  operand : Int32,
 ) -> Unit raise TensorParallelExecutionPlanError {
   let index = activation_fact(facts, reference)
   if index < 0 || facts[index].producer.as_int() >= operation {
@@ -52,8 +52,8 @@ fn collect_activation_facts(
   contracts : ArrayView[
     @tensor_parallel_launch_contract.TensorParallelAotLaunchContract,
   ],
-  rank : Int,
-  world_size : Int,
+  rank : Int32,
+  world_size : Int32,
 ) -> Array[MutableActivationFact] raise TensorParallelExecutionPlanError {
   let facts : Array[MutableActivationFact] = []
   let operations = model.operations()

@@ -4,8 +4,8 @@
 /// runtime adapter. Buffers are borrowed and weights must not overlap output.
 pub fn block_rms_norm_launch(
   function : @device.Function,
-  rows~ : Int,
-  width~ : Int,
+  rows~ : Int32,
+  width~ : Int32,
   input~ : @device.Allocation,
   input_offset~ : Int64,
   weights~ : @device.Allocation,

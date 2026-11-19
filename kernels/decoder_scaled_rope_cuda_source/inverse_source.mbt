@@ -4,12 +4,12 @@
 /// copied as raw BF16 words; only the final `rope_dimension` components are
 /// multiplied by conjugated unit-magnitude frequencies.
 pub fn inverse_scaled_yarn_attention_output_bf16_source(
-  head_count~ : Int,
-  head_dimension~ : Int,
-  rope_dimension~ : Int,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
-  original_positions~ : Int,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  rope_dimension~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
+  original_positions~ : Int32,
   compressed_theta~ : Double,
   scaling_factor~ : Double,
   beta_fast~ : Double,

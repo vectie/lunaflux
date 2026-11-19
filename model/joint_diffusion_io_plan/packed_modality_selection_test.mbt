@@ -2,8 +2,8 @@
 fn modality_fixture() -> (
   JointDiffusionIoPlan,
   JointPackedTimestepSelection,
-  Array[Int],
-  Array[Int],
+  Array[Int32],
+  Array[Int32],
 ) {
   let request = io_text_request(io_minimax_plan())
   let video_count = 37296

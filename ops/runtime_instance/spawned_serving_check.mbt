@@ -11,10 +11,10 @@ priv struct SpawnedServingMetricSample {
   network_accepts : UInt64
   network_disconnects : UInt64
   network_rejections : UInt64
-  queue_depth : Int
-  active_requests : Int
-  kv_pages_used : Int
-  kv_pages_free : Int
+  queue_depth : Int32
+  active_requests : Int32
+  kv_pages_used : Int32
+  kv_pages_free : Int32
 }
 
 ///|
@@ -39,10 +39,10 @@ fn spawned_serving_bound_state_valid(
 
 ///|
 fn spawned_serving_ingress_shape_valid(
-  server_count : Int,
-  framed_pool_count : Int,
-  openai_server_count : Int,
-  openai_pool_count : Int,
+  server_count : Int32,
+  framed_pool_count : Int32,
+  openai_server_count : Int32,
+  openai_pool_count : Int32,
 ) -> Bool {
   server_count + framed_pool_count == 1 &&
   openai_server_count == 0 &&
@@ -55,7 +55,7 @@ fn spawned_serving_pool_live_state_valid(
   health : RuntimeInstanceHealth,
   readiness : RuntimeInstanceReadiness,
   pool_state : @online_tcp.LunaOnlineFramedConnectionPoolState,
-  active_connections : Int,
+  active_connections : Int32,
 ) -> Bool {
   if phase != Ready ||
     health != RuntimeHealthy ||
@@ -138,8 +138,8 @@ fn RuntimeInstanceOwner::spawned_serving_ingress_listening(
 
 ///|
 fn spawned_serving_terminal_ingress_state_valid(
-  server_count : Int,
-  framed_pool_count : Int,
+  server_count : Int32,
+  framed_pool_count : Int32,
   server_active : Bool,
   framed_pool_live : Bool,
 ) -> Bool {
@@ -250,8 +250,8 @@ fn spawned_serving_initial_metrics_valid(
 ///|
 fn spawned_serving_terminal_metrics_valid(
   sample : SpawnedServingMetricSample,
-  input_tokens : Int,
-  initial_kv_pages_free : Int,
+  input_tokens : Int32,
+  initial_kv_pages_free : Int32,
   disconnected : Bool,
 ) -> Bool {
   sample.admissions == 1UL &&
@@ -291,10 +291,10 @@ fn require_spawned_serving_accepted(
 ///|
 fn require_spawned_serving_token(
   event : @inference.StreamEvent,
-  expected_token : Int,
-  expected_position : Int,
+  expected_token : Int32,
+  expected_position : Int32,
   rule : RuntimeSpawnedServingValidationRule,
-) -> Int raise RuntimeSpawnedServingValidationError {
+) -> Int32 raise RuntimeSpawnedServingValidationError {
   match event {
     Token(token) if token.token_id() == expected_token &&
       token.position() == expected_position => token.token_id()
@@ -305,7 +305,7 @@ fn require_spawned_serving_token(
 ///|
 fn spawned_serving_usage_valid(
   usage : @inference.Usage,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Bool {
   usage.input_tokens() == input_tokens &&
   usage.cached_input_tokens() == 0 &&
@@ -316,7 +316,7 @@ fn spawned_serving_usage_valid(
 ///|
 fn require_spawned_serving_usage(
   event : @inference.StreamEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedServingValidationError {
   match event {
     Usage(usage) if spawned_serving_usage_valid(usage, input_tokens) => ()
@@ -327,7 +327,7 @@ fn require_spawned_serving_usage(
 ///|
 fn require_spawned_serving_completed(
   event : @inference.StreamEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedServingValidationError {
   match event {
     Completed(completed) if completed.finish_reason() == TokenLimit &&

@@ -139,7 +139,7 @@ fn fp8_bundle_bytes() -> Bytes {
 }
 
 ///|
-fn fp8_bundle_family(index : Int) -> @catalog.AotKernelFamily {
+fn fp8_bundle_family(index : Int32) -> @catalog.AotKernelFamily {
   @catalog.AotKernelFamily::new(
     module_digest=try! @catalog.AotArtifactDigest::from_sha256(
       kernel_bundle_sha256(fp8_bundle_bytes()),
@@ -149,7 +149,7 @@ fn fp8_bundle_family(index : Int) -> @catalog.AotKernelFamily {
 }
 
 ///|
-fn fp8_bundle_entry(index : Int) -> @catalog.AotKernelEntryPoint {
+fn fp8_bundle_entry(index : Int32) -> @catalog.AotKernelEntryPoint {
   @catalog.AotKernelEntryPoint::new(
     family=fp8_bundle_family(index),
     entry_point_id=try! @catalog.AotKernelEntryPointId::from_stable_int(
@@ -236,7 +236,7 @@ fn fp8_bundle_operand(
 ///|
 fn fp8_bundle_operands(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
 ) -> Array[@launch_contract.AotOperand] {
   let layer = try! @plan.KvLayerId::new(0)
   match index {
@@ -388,7 +388,7 @@ fn fp8_bundle_candidate(
 ///|
 fn fp8_bundle_artifacts(
   plan : @plan.ModelPlan,
-  output_symbol? : String = "lunaflux_luna_dense_projection_fp8_e4m3_w8a8_release_v1",
+  output_symbol~ : String = "lunaflux_luna_dense_projection_fp8_e4m3_w8a8_release_v1",
 ) -> @artifact.KernelArtifactBundle {
   let entries : Array[@artifact.KernelEntryPointInput] = []
   for index in 0..<4 {
@@ -426,7 +426,7 @@ fn fp8_bundle_artifacts(
 fn fp8_bundle_receipt(
   candidate : @luna_cuda_fp8_projection_aot.Fp8ProjectionCudaLowering,
   first : Bytes,
-  second? : Bytes = fp8_bundle_bytes(),
+  second~ : Bytes = fp8_bundle_bytes(),
 ) -> LunaDeterministicCompileReceipt {
   try! LunaDeterministicCompileReceipt::from_offline_builder(
     source_digest_sha256=candidate.source_digest().as_hex(),

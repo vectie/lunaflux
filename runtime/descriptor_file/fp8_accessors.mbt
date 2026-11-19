@@ -13,7 +13,7 @@ pub fn Fp8RuntimeDescriptorAdmission::target(
 }
 
 ///|
-pub fn Fp8RuntimeDescriptorAdmission::device_ordinal(self : Self) -> Int {
+pub fn Fp8RuntimeDescriptorAdmission::device_ordinal(self : Self) -> Int32 {
   self.device_ordinal
 }
 

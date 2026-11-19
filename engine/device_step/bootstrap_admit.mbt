@@ -3,7 +3,7 @@ fn validate_bootstrap_inputs(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
   luna_authorization : @luna_artifact_admission.LunaAotKernelAdmission?,
-  device_ordinal : Int,
+  device_ordinal : Int32,
   limits : DeviceBootstrapLimits,
 ) -> Unit raise DeviceBootstrapError {
   if device_ordinal < 0 || device_ordinal > 1023 {
@@ -69,7 +69,7 @@ fn encode_bootstrap(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
   luna_authorization : @luna_artifact_admission.LunaAotKernelAdmission?,
-  device_ordinal : Int,
+  device_ordinal : Int32,
   limits : DeviceBootstrapLimits,
 ) -> Bytes raise DeviceBootstrapError {
   let encoder : BootstrapEncoder = {
@@ -221,9 +221,9 @@ fn encode_bootstrap(
 pub fn admit_device_worker_bootstrap(
   blueprint : PagedKvExecutionBlueprint,
   artifacts : @artifact.KernelArtifactBundle,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
   limits : DeviceBootstrapLimits,
-  luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission? = None,
+  luna_authorization~ : @luna_artifact_admission.LunaAotKernelAdmission? = None,
 ) -> DeviceWorkerBootstrapManifest raise DeviceBootstrapError {
   validate_bootstrap_inputs(
     blueprint, artifacts, luna_authorization, device_ordinal, limits,

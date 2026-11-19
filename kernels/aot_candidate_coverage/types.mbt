@@ -10,28 +10,28 @@ pub(all) enum AotCandidateDigestField {
 /// request data.
 pub(all) suberror AotCandidateCoverageError {
   InvalidLimit
-  InvalidRequirementCount(Int)
+  InvalidRequirementCount(Int32)
   InvalidDigest(AotCandidateDigestField)
-  CandidateCountExceedsLimit(Int)
-  CandidateIdentityMismatch(Int)
-  CandidateRequirementsDigestMismatch(Int)
-  InvalidRequirementOrdinal(candidate~ : Int, ordinal~ : Int)
+  CandidateCountExceedsLimit(Int32)
+  CandidateIdentityMismatch(Int32)
+  CandidateRequirementsDigestMismatch(Int32)
+  InvalidRequirementOrdinal(candidate~ : Int32, ordinal~ : Int32)
   DuplicateRequirementOrdinal(
-    first_candidate~ : Int,
-    second_candidate~ : Int,
-    ordinal~ : Int
+    first_candidate~ : Int32,
+    second_candidate~ : Int32,
+    ordinal~ : Int32
   )
-  DuplicateRecipeDigest(first_candidate~ : Int, second_candidate~ : Int)
+  DuplicateRecipeDigest(first_candidate~ : Int32, second_candidate~ : Int32)
   CoverageEncodingTooLarge
-  IncompleteCoverage(Int)
-  NonBindableCoverage(Int)
+  IncompleteCoverage(Int32)
+  NonBindableCoverage(Int32)
 } derive(Debug, Eq)
 
 ///|
 pub struct AotCandidateCoverageLimits {
-  priv maximum_requirements : Int
-  priv maximum_candidates : Int
-  priv maximum_encoding_bytes : Int
+  priv maximum_requirements : Int32
+  priv maximum_candidates : Int32
+  priv maximum_encoding_bytes : Int32
 }
 
 ///|
@@ -41,7 +41,7 @@ pub struct AotCandidateCoverageLimits {
 pub struct AotCandidateEvidenceInput {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest_sha256 : String
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv source_digest_sha256 : String
   priv recipe_digest_sha256 : String
   priv manifest_bindable : Bool
@@ -67,10 +67,37 @@ pub struct AotCandidateCoverageDigest {
 pub struct AotCandidateCoverage {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest_sha256 : String
-  priv requirement_count : Int
-  priv candidate_count : Int
-  priv missing_ordinals : ReadOnlyArray[Int]
-  priv non_bindable_ordinals : ReadOnlyArray[Int]
+  priv requirement_count : Int32
+  priv candidate_count : Int32
+  priv missing_ordinals : ReadOnlyArray[Int32]
+  priv non_bindable_ordinals : ReadOnlyArray[Int32]
   priv status : AotCandidateCoverageStatus
   priv digest : AotCandidateCoverageDigest
 }
+
+///|
+pub extend AotCandidateDigestField with @debug.Debug::{to_repr}
+
+///|
+pub extend AotCandidateDigestField with Eq::{not_equal, equal}
+
+///|
+pub extend AotCandidateCoverageError with @debug.Debug::{to_repr}
+
+///|
+pub extend AotCandidateCoverageError with Eq::{not_equal, equal}
+
+///|
+pub extend AotCandidateCoverageStatus with @debug.Debug::{to_repr}
+
+///|
+pub extend AotCandidateCoverageStatus with Eq::{not_equal, equal}
+
+///|
+pub extend AotCandidateCoverageDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend AotCandidateCoverageDigest with Eq::{not_equal, equal}
+
+///|
+pub extend AotCandidateCoverageDigest with Hash::{hash, hash_combine}

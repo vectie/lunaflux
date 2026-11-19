@@ -239,7 +239,7 @@ pub fn prepare(
   model_root : @approved_fs.ApprovedRoot,
   collective_runtime : @device.TensorCollectiveRuntime,
   plan : TensorParallelDeviceWorkerPlan,
-  parallel_policy? : @parallel_ir.Policy = Ordered,
+  parallel_policy~ : @parallel_ir.Policy = Ordered,
 ) -> TensorParallelDeviceWorkerPreparation raise TensorParallelDeviceWorkerError {
   // Compile before opening any device resources. Ordered admission retains its
   // original path and pays no graph construction or event allocation cost.

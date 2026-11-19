@@ -14,8 +14,8 @@ test "liveness planning deterministically reuses aligned activation slots" {
   assert_eq(result.workspace().alignment_bytes(), 16L)
   assert_eq(result.arena_bytes(), 288L)
   let offsets : Array[Int64] = []
-  let slots : Array[Int] = []
-  let live_through : Array[Int] = []
+  let slots : Array[Int32] = []
+  let live_through : Array[Int32] = []
   for reference in 0..<result.activation_count() {
     guard result.region(@plan.ActivationRef::new(reference)) is Some(region) else {
       fail("missing activation region")

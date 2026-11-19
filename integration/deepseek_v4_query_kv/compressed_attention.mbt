@@ -4,7 +4,7 @@
 /// is not implied by this single-rank composition.
 pub struct DeepSeekCompressedAttention {
   priv spec : @spec.DeepSeekV4ModelSpec
-  priv layer : Int
+  priv layer : Int32
   priv inputs : DeepSeekAttentionInputs
   priv cache : DeepSeekCompressedKvCache
   priv indexer : DeepSeekLearnedIndexer?
@@ -18,15 +18,15 @@ pub struct DeepSeekCompressedAttention {
 ///|
 pub fn DeepSeekCompressedAttention::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
-  attention_accumulation? : @precision.AttentionAccumulationLaw = OrderedFloat32,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
-  projection_scaled_dot_law? : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
-  query_square_law? : @precision.SquareReductionLaw = VectorizedTreeFloat32(
+  attention_accumulation~ : @precision.AttentionAccumulationLaw = OrderedFloat32,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
+  projection_scaled_dot_law~ : @precision.ScaledDotReductionLaw = DecodeOperandsFloat32,
+  query_square_law~ : @precision.SquareReductionLaw = VectorizedTreeFloat32(
     partitions=256,
     vector_width=1,
   ),
@@ -160,7 +160,7 @@ pub fn DeepSeekCompressedAttention::prepare(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

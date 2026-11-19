@@ -1,9 +1,9 @@
 ///|
 fn fp8_target_claims(
-  major : Int,
-  minor : Int,
-  bf16? : Bool = true,
-  cublas_lt? : Bool = true,
+  major : Int32,
+  minor : Int32,
+  bf16~ : Bool = true,
+  cublas_lt~ : Bool = true,
 ) -> I8RuntimeDescriptorExecutionClaims {
   {
     device_ordinal: 0,

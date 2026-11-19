@@ -2,13 +2,13 @@
 /// Scalar correctness lowering of an explicitly selected BF16 P boundary.
 /// Block geometry affects floating-point semantics and is never silently tuned.
 fn online_bf16_attention(
-  rows : Int,
-  heads : Int,
-  kv_heads : Int,
-  dimension : Int,
-  group : Int,
+  rows : Int32,
+  heads : Int32,
+  kv_heads : Int32,
+  dimension : Int32,
+  group : Int32,
   prefix : String,
-  block : Int,
+  block : Int32,
 ) -> String {
   let storage = block.min(rows)
   (

@@ -1,6 +1,6 @@
 ///|
 fn readonly_production_fixture_identity(
-  canary? : Int = 65521,
+  canary~ : Int32 = 65521,
 ) -> ReadOnlyQualifiedIdentity raise {
   {
     candidate: "1".repeat(64),
@@ -57,7 +57,7 @@ fn readonly_production_fixture_module() -> ApprovedPagedAttentionReadOnlyModule 
 
 ///|
 fn readonly_live_device_fixture(
-  uuid? : String = "GPU-01234567-89ab-cdef-0123-456789abcdef",
+  uuid~ : String = "GPU-01234567-89ab-cdef-0123-456789abcdef",
 ) -> ReadOnlyLiveDeviceIdentity raise {
   {
     ordinal: 0,

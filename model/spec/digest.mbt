@@ -99,3 +99,21 @@ fn ModelIdentity::validate(self : ModelIdentity) -> Unit raise ModelSpecError {
   self.content.validate()
   self.plan.validate()
 }
+
+///|
+pub extend ContentDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend ContentDigest with Eq::{not_equal, equal}
+
+///|
+pub extend PlanDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend PlanDigest with Eq::{not_equal, equal}
+
+///|
+pub extend ModelIdentity with @debug.Debug::{to_repr}
+
+///|
+pub extend ModelIdentity with Eq::{not_equal, equal}

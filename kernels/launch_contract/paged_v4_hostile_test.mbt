@@ -3,7 +3,7 @@ fn expect_v4_operand_rejection(
   plan : @plan.ModelPlan,
   operands : Array[@launch_contract.AotOperand],
   expected : @launch_contract.OperandRule,
-  operation_index? : Int = 1,
+  operation_index~ : Int32 = 1,
 ) -> Unit raise {
   try
     @launch_contract.admit_paged_graph_v4(

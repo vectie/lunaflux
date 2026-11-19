@@ -5,9 +5,9 @@ pub fn vision_patch_projection(
   patches : ArrayView[Double],
   weights : ArrayView[Double],
   bias : ArrayView[Double],
-  patch_count~ : Int,
-  patch_volume~ : Int,
-  output_width~ : Int,
+  patch_count~ : Int32,
+  patch_volume~ : Int32,
+  output_width~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmVisionReferenceResult raise GlmHybridReferenceError {
   limits.check_vision_patches(patch_count)
@@ -46,10 +46,10 @@ pub fn vision_spatial_merge(
   patch_features : ArrayView[Double],
   weights : ArrayView[Double],
   bias : ArrayView[Double],
-  patch_count~ : Int,
-  input_width~ : Int,
-  output_width~ : Int,
-  merge_size~ : Int,
+  patch_count~ : Int32,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  merge_size~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmVisionReferenceResult raise GlmHybridReferenceError {
   limits.check_vision_patches(patch_count)
@@ -94,7 +94,7 @@ pub fn vision_project_rows(
   input : GlmVisionReferenceResult,
   weights : ArrayView[Double],
   bias : ArrayView[Double],
-  output_width~ : Int,
+  output_width~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmVisionReferenceResult raise GlmHybridReferenceError {
   limits.check_vision_patches(input.row_count)

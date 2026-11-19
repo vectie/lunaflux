@@ -14,7 +14,7 @@ fn verification_host() -> @serial_frame.SerialDecoderFrame raise {
 fn store_verification_samples(
   context : @device.Context,
   ports : @serial_worker.SerialDecoderWorker,
-  samples : ArrayView[Int],
+  samples : ArrayView[Int32],
 ) -> Unit raise {
   let bytes = FixedArray::make(ports.output_capacity() * 4, b'\x00')
   for row, sample in samples {
@@ -36,7 +36,7 @@ fn store_verification_samples(
 test "greedy prefix decisions have no warmed heap allocation" {
   let inputs = [10, 11, 12, 13]
   let outputs = [11, 12, 7, 15]
-  let stops : Array[Int] = []
+  let stops : Array[Int32] = []
   begin_allocations()
   let accepted = for _ in 0..<256; total = 0 {
     let prefix = @greedy_verification.verify_greedy_prefix(

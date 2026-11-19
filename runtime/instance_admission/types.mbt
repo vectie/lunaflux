@@ -79,10 +79,10 @@ priv struct RuntimeInstanceDerived {
   restart : @worker_service.WorkerRestartBackoffPolicy
   transport : @online_tcp.LunaOnlineTcpLimits
   framed : @framed_wire.FramedWireLimits
-  preparation_lane_count : Int
+  preparation_lane_count : Int32
   preparation_step : @request_admission.LunaRequestPreparationStepBudget
   preparation_work_limit : @request_admission.LunaRequestPreparationWorkLimit
   preparation_storage : @request_admission.LunaRequestPreparationStorageBudget
   event_step : @framed_wire.LunaFramedEventStepBudget
-  telemetry_capacity : Int
+  telemetry_capacity : Int32
 }

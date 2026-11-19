@@ -1,6 +1,6 @@
 ///|
 pub fn LocalTopologyRank::new(
-  ordinal~ : Int,
+  ordinal~ : Int32,
   name~ : StringView,
   total_memory_bytes~ : Int64,
   target~ : @catalog.DeviceTarget,
@@ -19,8 +19,8 @@ pub fn LocalTopologyRank::new(
 
 ///|
 pub fn LocalTopologyLink::direct(
-  lower_rank~ : Int,
-  upper_rank~ : Int,
+  lower_rank~ : Int32,
+  upper_rank~ : Int32,
 ) -> LocalTopologyLink raise LocalTopologyError {
   if lower_rank < 0 || upper_rank < 0 || lower_rank >= upper_rank {
     raise invalid(DeclarationLinks, Unsupported, lower_rank, upper_rank)
@@ -29,7 +29,7 @@ pub fn LocalTopologyLink::direct(
 }
 
 ///|
-fn expected_link_count(rank_count : Int) -> Int {
+fn expected_link_count(rank_count : Int32) -> Int32 {
   rank_count * (rank_count - 1) / 2
 }
 
@@ -65,7 +65,7 @@ fn validate_declaration_ranks(
 
 ///|
 fn validate_declaration_links(
-  rank_count : Int,
+  rank_count : Int32,
   links : ArrayView[LocalTopologyLink],
 ) -> Unit raise LocalTopologyError {
   let required = expected_link_count(rank_count)

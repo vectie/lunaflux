@@ -28,7 +28,7 @@ pub(all) enum TensorParallelWorkerBootstrapRule {
 /// Bounded startup failures. No model path, device name, request payload, or
 /// backend error text crosses this package boundary.
 pub(all) suberror TensorParallelWorkerBootstrapError {
-  Rejected(rule~ : TensorParallelWorkerBootstrapRule, rank~ : Int)
+  Rejected(rule~ : TensorParallelWorkerBootstrapRule, rank~ : Int32)
   DestinationTooSmall
   FrameEpochOverflow
   StaleFrame
@@ -37,7 +37,7 @@ pub(all) suberror TensorParallelWorkerBootstrapError {
 ///|
 fn rejected(
   rule : TensorParallelWorkerBootstrapRule,
-  rank : Int,
+  rank : Int32,
 ) -> TensorParallelWorkerBootstrapError {
   Rejected(rule~, rank~)
 }

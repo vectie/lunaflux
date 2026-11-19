@@ -29,14 +29,14 @@ pub fn TinyAdvancedDecoderBlockInput::new(
   expert_up_weight~ : ArrayView[Float],
   expert_gate_weight~ : ArrayView[Float],
   expert_down_weight~ : ArrayView[Float],
-  stream_count~ : Int,
-  width~ : Int,
-  key_count~ : Int,
-  index_top_k~ : Int,
-  expert_count~ : Int,
-  experts_per_token~ : Int,
-  expert_hidden_width~ : Int,
-  sinkhorn_iterations~ : Int,
+  stream_count~ : Int32,
+  width~ : Int32,
+  key_count~ : Int32,
+  index_top_k~ : Int32,
+  expert_count~ : Int32,
+  experts_per_token~ : Int32,
+  expert_hidden_width~ : Int32,
+  sinkhorn_iterations~ : Int32,
   epsilon~ : Float,
   limits~ : ReferenceLimits,
 ) -> Self raise AdvancedDecoderReferenceError {
@@ -114,8 +114,8 @@ pub fn TinyAdvancedDecoderBlockInput::new(
 fn matrix_vector(
   input : ArrayView[Float],
   weight : ArrayView[Float],
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Array[Float] {
   let output = Array::make(rows, 0.0F)
   for row in 0..<rows {
@@ -151,8 +151,8 @@ fn selected_attention(
   query : ArrayView[Float],
   keys : ArrayView[Float],
   values : ArrayView[Float],
-  selected : ArrayView[Int],
-  width : Int,
+  selected : ArrayView[Int32],
+  width : Int32,
 ) -> (Array[Float], Array[Float]) raise AdvancedDecoderReferenceError {
   let logits : Array[Float] = []
   let scale = Float::from_int(width).sqrt()
@@ -192,7 +192,7 @@ fn selected_attention(
 ///|
 fn expert_swiglu(
   hidden : ArrayView[Float],
-  expert : Int,
+  expert : Int32,
   input : TinyAdvancedDecoderBlockInput,
 ) -> Array[Float] {
   let up_base = expert * input.expert_hidden_width * input.width

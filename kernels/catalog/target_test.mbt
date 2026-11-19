@@ -1,7 +1,7 @@
 ///|
 fn observed_numeric_capability(
-  major : Int,
-  minor : Int,
+  major : Int32,
+  minor : Int32,
   cublas_lt : Bool,
 ) -> @device.DeviceNumericCapability {
   let observed = try! @device.DeviceCapability::from_observed_facts(
@@ -16,8 +16,8 @@ fn observed_numeric_capability(
 
 ///|
 fn numeric_target(
-  major : Int,
-  minor : Int,
+  major : Int32,
+  minor : Int32,
   bf16 : Bool,
   cublas_lt : Bool,
 ) -> @catalog.DeviceTarget {

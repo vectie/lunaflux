@@ -1,5 +1,5 @@
 ///|
-fn luna_paged_dtype_tag(dtype : @spec.ModelDType) -> Int {
+fn luna_paged_dtype_tag(dtype : @spec.ModelDType) -> Int32 {
   match dtype {
     BFloat16 => 1
     Float16 => 2
@@ -16,7 +16,7 @@ fn LunaKernelProfileEncoder::append_digest(
 }
 
 ///|
-fn luna_paged_runtime_input_tag(value : @plan.OperationRuntimeInput) -> Int {
+fn luna_paged_runtime_input_tag(value : @plan.OperationRuntimeInput) -> Int32 {
   match value {
     StepCounts => 1
     QueryPositions => 2
@@ -178,11 +178,11 @@ fn LunaKernelProfileEncoder::append_paged_contract(
 ///|
 fn LunaKernelProfileEncoder::append_paged_shape(
   self : LunaKernelProfileEncoder,
-  tokens_per_page : Int,
-  prefill_row_count : Int,
-  decode_row_count : Int,
-  query_token_count : Int,
-  page_table_block_count : Int,
+  tokens_per_page : Int32,
+  prefill_row_count : Int32,
+  decode_row_count : Int32,
+  query_token_count : Int32,
+  page_table_block_count : Int32,
   page_table_trace_digest : LunaPagedPageTableTraceDigest,
   rows : ArrayView[LunaPagedProfileRow],
 ) -> Unit raise LunaKernelProfileError {
@@ -205,11 +205,11 @@ fn LunaKernelProfileEncoder::append_paged_shape(
 
 ///|
 fn digest_luna_paged_profile_shape(
-  tokens_per_page : Int,
-  prefill_row_count : Int,
-  decode_row_count : Int,
-  query_token_count : Int,
-  page_table_block_count : Int,
+  tokens_per_page : Int32,
+  prefill_row_count : Int32,
+  decode_row_count : Int32,
+  query_token_count : Int32,
+  page_table_block_count : Int32,
   page_table_trace_digest : LunaPagedPageTableTraceDigest,
   rows : ArrayView[LunaPagedProfileRow],
 ) -> LunaKernelProfileDigest raise LunaKernelProfileError {
@@ -237,7 +237,7 @@ fn encode_luna_paged_kernel_profile(
   sampled_wall_time_ns : Int64,
   attributed_self_time_ns : Int64,
   observations : ArrayView[LunaPagedKernelProfileObservation],
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaKernelProfileError {
   let encoder : LunaKernelProfileEncoder = { bytes: [], maximum, }
   encoder.append_string("lunaflux.kernel-paged-profile-priority.v1")

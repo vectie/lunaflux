@@ -48,7 +48,7 @@ pub fn SerialDecoderRank::produces_token(self : Self) -> Bool raise {
 }
 
 ///|
-pub fn SerialDecoderRank::live_rows(self : Self) -> Int raise {
+pub fn SerialDecoderRank::live_rows(self : Self) -> Int32 raise {
   self.worker.frame.live_rows()
 }
 
@@ -56,7 +56,7 @@ pub fn SerialDecoderRank::live_rows(self : Self) -> Int raise {
 pub fn SerialDecoderRank::bind_executor(
   self : Self,
   context : @device.Context,
-  submit~ : (Int) -> Unit raise,
+  submit~ : (Int32) -> Unit raise,
   poll~ : () -> Bool raise,
   close~ : () -> Unit raise,
   append_descriptors~ : ArrayView[@device.Allocation],
@@ -112,7 +112,7 @@ pub fn SerialDecoderRank::submit(self : Self) -> Unit raise {
 ///|
 fn SerialDecoderWorker::invalid_samples(
   self : Self,
-  sample_port : Int,
+  sample_port : Int32,
 ) -> Bool raise {
   if !self.outputs_token {
     return false
@@ -175,7 +175,7 @@ pub fn SerialDecoderRank::execution_failed(self : Self) -> Bool raise {
 }
 
 ///|
-pub fn SerialDecoderRank::sampled_token(self : Self) -> Int raise {
+pub fn SerialDecoderRank::sampled_token(self : Self) -> Int32 raise {
   let worker = self.worker
   guard worker.state is Retired &&
     !worker.stage_failed &&
@@ -189,7 +189,10 @@ pub fn SerialDecoderRank::sampled_token(self : Self) -> Int raise {
 ///|
 /// Retired all-position samples remain in startup-owned host storage until
 /// commit/rollback. This scalar accessor neither allocates nor downloads again.
-pub fn SerialDecoderRank::sampled_token_at(self : Self, row : Int) -> Int raise {
+pub fn SerialDecoderRank::sampled_token_at(
+  self : Self,
+  row : Int32,
+) -> Int32 raise {
   let worker = self.worker
   guard worker.state is Retired &&
     !worker.stage_failed &&
@@ -202,7 +205,7 @@ pub fn SerialDecoderRank::sampled_token_at(self : Self, row : Int) -> Int raise 
 }
 
 ///|
-pub fn SerialDecoderRank::output_rows(self : Self) -> Int raise {
+pub fn SerialDecoderRank::output_rows(self : Self) -> Int32 raise {
   guard self.worker.state is Retired else {
     raise @frame.SerialDecoderError::Busy
   }

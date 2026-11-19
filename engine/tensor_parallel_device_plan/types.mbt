@@ -2,9 +2,9 @@
 /// Immutable rank-to-device identity. It contains no context, allocation, or
 /// collective authority.
 pub struct TensorParallelRankDevice {
-  priv rank : Int
-  priv world_size : Int
-  priv device_ordinal : Int
+  priv rank : Int32
+  priv world_size : Int32
+  priv device_ordinal : Int32
   priv target : @catalog.DeviceTarget
 } derive(Debug, Eq)
 

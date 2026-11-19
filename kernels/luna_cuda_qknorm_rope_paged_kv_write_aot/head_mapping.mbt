@@ -1,13 +1,13 @@
 ///|
-const POSTPROCESS_HEADS_PER_WORKGROUP : Int = 4
+const POSTPROCESS_HEADS_PER_WORKGROUP : Int32 = 4
 
 ///|
 /// The production ABI admits the original one-head launch and the grouped
 /// lowering. Keeping this law beside the producer prevents runtime admission
 /// from freezing one backend layout into the execution graph.
 pub fn supports_production_head_group_count(
-  packed_heads : Int,
-  group_count : Int,
+  packed_heads : Int32,
+  group_count : Int32,
 ) -> Bool {
   packed_heads > 0 &&
   (

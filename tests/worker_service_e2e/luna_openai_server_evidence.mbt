@@ -25,8 +25,8 @@ fn openai_e2e_template(
 ///|
 fn prepare_openai_e2e_server(
   executable : Bytes,
-  deadline_millis? : UInt64 = 10000UL,
-  fixture_root? : String = "/private/tmp",
+  deadline_millis~ : UInt64 = 10000UL,
+  fixture_root~ : String = "/private/tmp",
 ) -> @online_tcp.LunaOnlineOpenAIServerPreparation raise {
   let inference = tcp_inference_limits()
   let model = openai_e2e_bytes("model-x")
@@ -86,8 +86,8 @@ fn openai_http_request(
 async fn openai_write_range(
   connection : @socket.Tcp,
   source : Bytes,
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> Unit {
   let mut cursor = 0
   while cursor < length {
@@ -115,7 +115,7 @@ async fn openai_read_all(connection : @socket.Tcp) -> String {
     let count = connection.read(
       storage,
       offset=cursor,
-      max_len=Int::min(17, storage.length() - cursor),
+      max_len=Int32::min(17, storage.length() - cursor),
     )
     if count < 0 || count > storage.length() - cursor {
       raise Failure("OpenAI loopback response returned an invalid count")
@@ -161,9 +161,9 @@ async fn progress_openai_to_first_observation(
 ///|
 async fn progress_openai_to_retired(
   server : @online_tcp.LunaOnlineOpenAIServer,
-  expected_observations : Int,
-  ordinal? : UInt64 = 0UL,
-) -> Int {
+  expected_observations : Int32,
+  ordinal~ : UInt64 = 0UL,
+) -> Int32 {
   let mut observations = 0
   let mut attempts = 0
   while attempts < 1000000 {
@@ -265,7 +265,7 @@ fn openai_log_reason_count(
   log : @instance_log.LunaInstanceLogSnapshot,
   event : @instance_log.LunaInstanceLogEvent,
   reason : @instance_log.LunaInstanceLogReason,
-) -> Int raise {
+) -> Int32 raise {
   let mut count = 0
   for index in 0..<log.length() {
     if log.event_at(index) == event && log.reason_at(index) == reason {
@@ -277,7 +277,7 @@ fn openai_log_reason_count(
 
 ///|
 fn openai_receipt_deadline_server_limits(
-  read_chunk_bytes : Int,
+  read_chunk_bytes : Int32,
 ) -> @online_tcp.LunaOnlineTcpLimits raise {
   @online_tcp.LunaOnlineTcpLimits::new(
     read_chunk_bytes~,

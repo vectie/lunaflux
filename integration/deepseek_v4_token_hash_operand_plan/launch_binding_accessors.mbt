@@ -20,31 +20,33 @@ pub fn DeepSeekV4TokenHashLaunchBinding::requirements_digest(
 }
 
 ///|
-pub fn DeepSeekV4TokenHashLaunchBinding::layer_index(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashLaunchBinding::layer_index(self : Self) -> Int32 {
   self.layer_index
 }
 
 ///|
 pub fn DeepSeekV4TokenHashLaunchBinding::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
 ///|
-pub fn DeepSeekV4TokenHashLaunchBinding::maximum_tokens(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashLaunchBinding::maximum_tokens(self : Self) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
-pub fn DeepSeekV4TokenHashLaunchBinding::experts_per_token(self : Self) -> Int {
+pub fn DeepSeekV4TokenHashLaunchBinding::experts_per_token(
+  self : Self,
+) -> Int32 {
   self.experts_per_token
 }
 
 ///|
 pub fn DeepSeekV4TokenHashLaunchBinding::routed_expert_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.routed_expert_count
 }
 

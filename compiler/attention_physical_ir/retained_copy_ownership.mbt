@@ -3,9 +3,9 @@
 /// Each owner has a statically named binding per slot, rather than an indexed
 /// mutable array whose materialization is left to a device compiler.
 pub struct RetainedCopyOwnership {
-  priv vectors : Int
-  priv owners : Int
-  priv slots : Int
+  priv vectors : Int32
+  priv owners : Int32
+  priv slots : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -16,8 +16,8 @@ pub extend RetainedCopyOwnership with @debug.Debug::{to_repr}
 
 ///|
 pub fn RetainedCopyOwnership::new(
-  vectors~ : Int,
-  owners~ : Int,
+  vectors~ : Int32,
+  owners~ : Int32,
 ) -> RetainedCopyOwnership? {
   if vectors <= 0 || owners <= 0 {
     None
@@ -33,16 +33,16 @@ pub fn RetainedCopyOwnership::new(
 ///|
 pub fn RetainedCopyOwnership::dimensions(
   self : RetainedCopyOwnership,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.vectors, self.owners, self.slots)
 }
 
 ///|
 pub fn RetainedCopyOwnership::vector_index(
   self : RetainedCopyOwnership,
-  slot : Int,
-  owner : Int,
-) -> Int? {
+  slot : Int32,
+  owner : Int32,
+) -> Int32? {
   if slot < 0 || slot >= self.slots || owner < 0 || owner >= self.owners {
     None
   } else {

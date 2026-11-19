@@ -5,16 +5,16 @@ const APPROVED_CONFIG_SHA256 : String = "9197475bfcc987a4f9361dbc22b33397b101372
 const APPROVED_MODEL_SHA256 : String = "852db1b39acb2336abc997440c6f6d6e4ab640f91e5e2aa9e2488d5794159d30"
 
 ///|
-const RELEASE_TOKENS_PER_PAGE : Int = 8
+const RELEASE_TOKENS_PER_PAGE : Int32 = 8
 
 ///|
-const RELEASE_TOTAL_PAGE_COUNT : Int = 32
+const RELEASE_TOTAL_PAGE_COUNT : Int32 = 32
 
 ///|
-const RELEASE_MAX_SEQUENCE_TOKENS : Int = 256
+const RELEASE_MAX_SEQUENCE_TOKENS : Int32 = 256
 
 ///|
-const RELEASE_MAX_PAGE_TABLE_ENTRIES : Int = 32
+const RELEASE_MAX_PAGE_TABLE_ENTRIES : Int32 = 32
 
 ///|
 suberror LunaBf16ReleaseBindError {
@@ -31,9 +31,9 @@ struct ReleaseBindArguments {
   compiled_root : String
   toolchain_manifest : String
   toolchain_sha256 : String
-  compiler_major : UInt
-  compiler_minor : UInt
-  compiler_patch : UInt
+  compiler_major : UInt32
+  compiler_minor : UInt32
+  compiler_patch : UInt32
   absolute_new_output : String
 }
 

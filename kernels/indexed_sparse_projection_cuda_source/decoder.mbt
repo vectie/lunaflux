@@ -8,16 +8,16 @@ pub struct IndexedSparseDecoderCudaSource {
   priv envelope : @hyper.HyperConnectionCudaSource
   priv output : Bytes
   priv output_symbol : String
-  priv output_launch : (Int, Int)
+  priv output_launch : (Int32, Int32)
   priv output_operand_alignment : Int64
-  priv expansion : (Bytes, String, (Int, Int))?
+  priv expansion : (Bytes, String, (Int32, Int32))?
 }
 
 ///|
 pub fn indexed_sparse_decoder_source(
   plan : @precision.IndexedSparseDecoderPrecision,
   symbol_prefix~ : String,
-  staging? : @matrix.MatrixStaging = Synchronous,
+  staging~ : @matrix.MatrixStaging = Synchronous,
   row_reuse? : @matrix.MatrixRowReuse,
 ) -> IndexedSparseDecoderCudaSource raise {
   let projection = plan.projection()
@@ -52,7 +52,8 @@ pub fn indexed_sparse_decoder_source(
     let tile = if row_reuse is Some(policy) { policy.apply(tile) } else { tile }
     if tile.staging() is FragmentPipeline(row_tile~) {
       output_operand_alignment = @matrix.MatrixFragmentPipeline::new(
-        tile, row_tile~,
+        tile,
+        row_tile~,
       ).operand_alignment()
     }
     (
@@ -128,7 +129,7 @@ pub fn IndexedSparseDecoderCudaSource::output_operand_alignment(
 ///|
 pub fn IndexedSparseDecoderCudaSource::expansion(
   self : Self,
-) -> (String, (Int, Int))? {
+) -> (String, (Int32, Int32))? {
   self.expansion.map(e => (e.1, e.2))
 }
 
@@ -175,7 +176,7 @@ pub fn IndexedSparseDecoderCudaSource::output_symbol(self : Self) -> String {
 ///|
 pub fn IndexedSparseDecoderCudaSource::output_launch(
   self : Self,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   self.output_launch
 }
 

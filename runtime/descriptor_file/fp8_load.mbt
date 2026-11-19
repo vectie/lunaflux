@@ -79,7 +79,7 @@ fn load_fp8_reusable_v3_bound(
   expected_digest : RuntimeDescriptorDigest,
   limits : RuntimeDescriptorFileLimits,
   approval : @worker_wire.WorkerBootstrapLunaApproval,
-  verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
 ) -> Fp8RuntimeDescriptorAdmission raise RuntimeDescriptorFileError {
   let bytes = read_descriptor_snapshot(
     model_root, descriptor_locator, expected_digest, limits,

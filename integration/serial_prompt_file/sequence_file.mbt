@@ -3,15 +3,15 @@
 // model family and contains no device effects or payload authentication.
 fn sequence_frame_counts(
   bytes : Bytes,
-  requests : Int,
-  maximum_context : Int,
-) -> Array[Int] raise {
+  requests : Int32,
+  maximum_context : Int32,
+) -> Array[Int32] raise {
   guard requests > 0 &&
     requests <= maximum_context &&
     bytes.length().to_int64() <= requests.to_int64() * 12L else {
     fail("invalid request-sequence metadata envelope")
   }
-  let result : Array[Int] = []
+  let result : Array[Int32] = []
   for field in @utf8.decode(bytes).trim().split(",") {
     guard result.length() < requests else {
       fail("request-sequence metadata has extra entries")
@@ -34,11 +34,11 @@ fn sequence_frame_counts(
 /// nor frame payloads are reopened, hashed or retained through file authority.
 pub fn load_generation_sequence_file(
   root : @approved_fs.ApprovedRoot,
-  requests : Int,
+  requests : Int32,
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_new_tokens~ : Int,
-  maximum_context~ : Int,
+  maximum_new_tokens~ : Int32,
+  maximum_context~ : Int32,
   maximum_bytes~ : Int64,
   model_generation~ : UInt64,
 ) -> ReadOnlyArray[@prompt.PreparedSerialPrompt] raise {

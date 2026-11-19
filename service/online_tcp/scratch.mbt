@@ -1,7 +1,7 @@
 ///|
 #warnings("-unused_value")
 fn LunaOnlineTcpOutputScratch::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> LunaOnlineTcpOutputScratch raise LunaOnlineTcpScratchError {
   if capacity <= 0 || capacity > LUNA_ONLINE_TCP_MAX_SCRATCH_BYTES {
     raise LunaOnlineTcpInvalidScratchCapacity
@@ -50,7 +50,7 @@ fn LunaOnlineTcpOutputScratch::is_idle(
 #warnings("-unused_value")
 fn LunaOnlineTcpOutputScratch::byte_capacity(
   self : LunaOnlineTcpOutputScratch,
-) -> Int {
+) -> Int32 {
   self.capacity
 }
 
@@ -70,7 +70,7 @@ fn LunaOnlineTcpOutputWrite::require_mutating(
 #warnings("-unused_value")
 fn LunaOnlineTcpOutputWrite::write_byte(
   self : LunaOnlineTcpOutputWrite,
-  index : Int,
+  index : Int32,
   value : Byte,
 ) -> Unit raise LunaOnlineTcpScratchError {
   let scratch = self.require_mutating()
@@ -85,9 +85,9 @@ fn LunaOnlineTcpOutputWrite::write_byte(
 fn LunaOnlineTcpOutputWrite::copy_from(
   self : LunaOnlineTcpOutputWrite,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  destination_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  destination_offset~ : Int32,
+  length~ : Int32,
 ) -> Unit raise LunaOnlineTcpScratchError {
   let scratch = self.require_mutating()
   if source_offset < 0 ||
@@ -106,7 +106,7 @@ fn LunaOnlineTcpOutputWrite::copy_from(
 #warnings("-unused_value")
 fn LunaOnlineTcpOutputWrite::publish(
   self : LunaOnlineTcpOutputWrite,
-  length : Int,
+  length : Int32,
 ) -> LunaOnlineTcpOutputFlight raise LunaOnlineTcpScratchError {
   let scratch = self.require_mutating()
   if length <= 0 || length > scratch.capacity {
@@ -144,7 +144,7 @@ fn LunaOnlineTcpOutputFlight::require_in_flight(
 #warnings("-unused_value")
 fn LunaOnlineTcpOutputFlight::byte_length(
   self : LunaOnlineTcpOutputFlight,
-) -> Int raise LunaOnlineTcpScratchError {
+) -> Int32 raise LunaOnlineTcpScratchError {
   ignore(self.require_in_flight())
   self.length
 }
@@ -153,7 +153,7 @@ fn LunaOnlineTcpOutputFlight::byte_length(
 #warnings("-unused_value")
 fn LunaOnlineTcpOutputFlight::byte_at(
   self : LunaOnlineTcpOutputFlight,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaOnlineTcpScratchError {
   let scratch = self.require_in_flight()
   if index < 0 || index >= self.length {

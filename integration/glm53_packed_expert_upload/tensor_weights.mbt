@@ -1,8 +1,8 @@
 ///|
 fn slice_weight_rows(
   weight : @precision_materialize.PackedCheckpointWeight,
-  start : Int,
-  count : Int,
+  start : Int32,
+  count : Int32,
 ) -> @precision_materialize.PackedCheckpointWeight raise {
   let representation = weight.representation()
   let (_, columns) = representation.shape()
@@ -20,8 +20,8 @@ fn slice_weight_rows(
 ///|
 fn slice_weight_columns(
   weight : @precision_materialize.PackedCheckpointWeight,
-  start : Int,
-  count : Int,
+  start : Int32,
+  count : Int32,
 ) -> @precision_materialize.PackedCheckpointWeight raise {
   let representation = weight.representation()
   let (rows, _) = representation.shape()

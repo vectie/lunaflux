@@ -1,7 +1,7 @@
 ///|
 priv struct FusedPhysicalReader {
   lines : Array[String]
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|
@@ -56,9 +56,9 @@ fn FusedPhysicalReader::require_literal(
 fn FusedPhysicalReader::read_int(
   self : FusedPhysicalReader,
   key : String,
-) -> Int raise FusedPhysicalEvidenceError {
+) -> Int32 raise FusedPhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : Int = @string.parse_int(text) catch {
+  let value : Int32 = @string.parse_int(text) catch {
     _ => raise FusedPhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {
@@ -86,9 +86,9 @@ fn FusedPhysicalReader::read_int64(
 fn FusedPhysicalReader::read_uint(
   self : FusedPhysicalReader,
   key : String,
-) -> UInt raise FusedPhysicalEvidenceError {
+) -> UInt32 raise FusedPhysicalEvidenceError {
   let text = self.read_value(key)
-  let value : UInt = @string.parse_uint(text) catch {
+  let value : UInt32 = @string.parse_uint(text) catch {
     _ => raise FusedPhysicalEvidenceInvalid(CanonicalDocument)
   }
   if value.to_string() != text {
@@ -101,7 +101,7 @@ fn FusedPhysicalReader::read_uint(
 fn FusedPhysicalReader::require_int(
   self : FusedPhysicalReader,
   key : String,
-  expected : Int,
+  expected : Int32,
   rule : FusedPhysicalEvidenceRule,
 ) -> Unit raise FusedPhysicalEvidenceError {
   if self.read_int(key) != expected {
@@ -125,7 +125,7 @@ fn FusedPhysicalReader::require_int64(
 fn FusedPhysicalReader::require_uint(
   self : FusedPhysicalReader,
   key : String,
-  expected : UInt,
+  expected : UInt32,
   rule : FusedPhysicalEvidenceRule,
 ) -> Unit raise FusedPhysicalEvidenceError {
   if self.read_uint(key) != expected {

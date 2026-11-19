@@ -103,10 +103,10 @@ fn projection_operand_text(
 ///|
 fn projection_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  input_width : Int,
-  output_width : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  input_width : Int32,
+  output_width : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -185,8 +185,8 @@ fn projection_recipe(
 /// until offline compilation and independent qualification authenticate it.
 pub fn lower_language_model_head_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

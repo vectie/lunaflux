@@ -22,14 +22,14 @@ pub(all) suberror SafetensorsReaderError {
   InvalidHeaderEnvelope
   InvalidHeaderEncoding
   InvalidHeaderJson
-  DuplicateHeaderKey(depth~ : Int, index~ : Int)
+  DuplicateHeaderKey(depth~ : Int32, index~ : Int32)
   InvalidRoot
   InvalidMetadata
-  InvalidTensor(Int)
-  MissingTensorField(Int, TensorField)
-  UnexpectedTensorField(Int)
-  InvalidTensorField(Int, TensorField)
-  InvalidInteger(Int, TensorField)
+  InvalidTensor(Int32)
+  MissingTensorField(Int32, TensorField)
+  UnexpectedTensorField(Int32)
+  InvalidTensorField(Int32, TensorField)
+  InvalidInteger(Int32, TensorField)
   PayloadSizeMismatch
   Validation(@safetensors.SafetensorsError)
 } derive(Debug, Eq)

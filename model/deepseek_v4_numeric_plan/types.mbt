@@ -53,7 +53,7 @@ pub(all) enum DeepSeekV4NumericTensorRole {
 pub struct DeepSeekV4NumericTensorRun {
   priv role : DeepSeekV4NumericTensorRole
   priv storage : DeepSeekV4LogicalStorage
-  priv tensor_count : Int
+  priv tensor_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -71,15 +71,15 @@ pub fn DeepSeekV4NumericTensorRun::storage(
 }
 
 ///|
-pub fn DeepSeekV4NumericTensorRun::tensor_count(self : Self) -> Int {
+pub fn DeepSeekV4NumericTensorRun::tensor_count(self : Self) -> Int32 {
   self.tensor_count
 }
 
 ///|
 pub(all) enum DeepSeekV4NumericOperationScope {
   Global
-  DecoderLayer(Int)
-  PredictionStage(Int)
+  DecoderLayer(Int32)
+  PredictionStage(Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -139,14 +139,14 @@ pub(all) enum DeepSeekV4OperationExecution {
 
 ///|
 pub struct DeepSeekV4NumericOperationBinding {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv scope : DeepSeekV4NumericOperationScope
   priv kind : DeepSeekV4NumericOperationKind
   priv execution : DeepSeekV4OperationExecution
 } derive(Debug, Eq)
 
 ///|
-pub fn DeepSeekV4NumericOperationBinding::ordinal(self : Self) -> Int {
+pub fn DeepSeekV4NumericOperationBinding::ordinal(self : Self) -> Int32 {
   self.ordinal
 }
 
@@ -187,7 +187,7 @@ pub(all) enum DeepSeekV4PhysicalReadiness {
 pub(all) suberror DeepSeekV4NumericPlanError {
   ProfilePlanMismatch
   WeightManifestIdentityMismatch
-  ManifestCardinalityMismatch(expected~ : Int, actual~ : Int)
+  ManifestCardinalityMismatch(expected~ : Int32, actual~ : Int32)
   LogicalSchemaLimitExceeded
   PhysicalMaterializationUnsupported(
     ReadOnlyArray[@deepseek_v4_weights.DeepSeekV4WeightEncoding]
@@ -203,7 +203,7 @@ pub struct DeepSeekV4NumericPlan {
   priv logical_manifest_digest : @spec.PlanDigest
   priv numeric_schema_digest : @spec.PlanDigest
   priv binding_digest : @spec.PlanDigest
-  priv expected_tensor_count : Int
+  priv expected_tensor_count : Int32
   priv tensor_runs : ReadOnlyArray[DeepSeekV4NumericTensorRun]
   priv operations : ReadOnlyArray[DeepSeekV4NumericOperationBinding]
   priv fp4_codebook : DeepSeekV4Fp4CodebookBinding?

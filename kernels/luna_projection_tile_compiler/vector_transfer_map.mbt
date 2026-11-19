@@ -8,8 +8,8 @@ pub struct ProjectionVectorTransferMap {
 
 ///|
 pub fn ProjectionVectorTransferMap::new(
-  vectors~ : Int,
-  owners~ : Int,
+  vectors~ : Int32,
+  owners~ : Int32,
 ) -> ProjectionVectorTransferMap? {
   @physical_tile_ir.VectorOwnership::new(vectors~, owners~).map(ownership => {
     ownership,
@@ -19,15 +19,21 @@ pub fn ProjectionVectorTransferMap::new(
 ///|
 pub fn ProjectionVectorTransferMap::geometry(
   self : ProjectionVectorTransferMap,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   self.ownership.geometry()
 }
 
 ///|
 pub fn ProjectionVectorTransferMap::vector_at(
   self : ProjectionVectorTransferMap,
-  owner : Int,
-  round : Int,
-) -> Int? {
+  owner : Int32,
+  round : Int32,
+) -> Int32? {
   self.ownership.vector_at(owner, round)
 }
+
+///|
+pub extend ProjectionVectorTransferMap with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionVectorTransferMap with Eq::{not_equal, equal}

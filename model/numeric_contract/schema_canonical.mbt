@@ -1,14 +1,14 @@
 ///|
-const MODEL_NUMERIC_SCHEMA_CANONICAL_BASE : Int = 49
+const MODEL_NUMERIC_SCHEMA_CANONICAL_BASE : Int32 = 49
 
 ///|
-const MODEL_NUMERIC_SCHEMA_TENSOR_BASE : Int = 101
+const MODEL_NUMERIC_SCHEMA_TENSOR_BASE : Int32 = 101
 
 ///|
-const MODEL_NUMERIC_SCHEMA_OPERATION_SIZE : Int = 67
+const MODEL_NUMERIC_SCHEMA_OPERATION_SIZE : Int32 = 67
 
 ///|
-fn optional_metadata_count(tensor : NumericTensorSchema) -> Int {
+fn optional_metadata_count(tensor : NumericTensorSchema) -> Int32 {
   let mut count = 0
   if tensor.scale is Some(_) {
     count += 1
@@ -24,10 +24,10 @@ fn optional_metadata_count(tensor : NumericTensorSchema) -> Int {
 
 ///|
 fn checked_schema_size_add(
-  current : Int,
-  amount : Int,
-  maximum : Int,
-) -> Int raise NumericContractError {
+  current : Int32,
+  amount : Int32,
+  maximum : Int32,
+) -> Int32 raise NumericContractError {
   if amount < 0 || current > maximum - amount {
     raise NumericSchemaLimitExceeded(SchemaCanonicalBytes)
   }
@@ -40,7 +40,7 @@ fn preflight_model_numeric_schema_size(
   tensors : ArrayView[NumericTensorSchema],
   operations : ArrayView[NumericOperationSchema],
   counters : NumericSchemaConstructionCounters?,
-) -> Int raise NumericContractError {
+) -> Int32 raise NumericContractError {
   if tensors.length() > limits.max_tensors {
     raise NumericSchemaLimitExceeded(SchemaTensorCount)
   }
@@ -126,7 +126,7 @@ fn write_model_numeric_schema(
 }
 
 ///|
-fn schema_optional_byte(present : Bool, value : Int, index : Int) -> Byte {
+fn schema_optional_byte(present : Bool, value : Int32, index : Int32) -> Byte {
   let length = if present { 16 } else { 8 }
   if index < 0 || index >= length {
     abort("numeric schema optional byte index out of bounds")
@@ -139,7 +139,7 @@ fn schema_optional_byte(present : Bool, value : Int, index : Int) -> Byte {
 }
 
 ///|
-fn schema_tensor_byte_at(tensor : NumericTensorSchema, index : Int) -> Byte {
+fn schema_tensor_byte_at(tensor : NumericTensorSchema, index : Int32) -> Byte {
   let rank = tensor.shape.rank()
   let dimension_start = 24
   let dimension_end = dimension_start + rank * 8
@@ -217,7 +217,7 @@ fn schema_tensor_byte_at(tensor : NumericTensorSchema, index : Int) -> Byte {
 }
 
 ///|
-fn schema_tensor_canonical_length(tensor : NumericTensorSchema) -> Int {
+fn schema_tensor_canonical_length(tensor : NumericTensorSchema) -> Int32 {
   MODEL_NUMERIC_SCHEMA_TENSOR_BASE +
   tensor.shape.rank() * 8 +
   optional_metadata_count(tensor) * 8
@@ -226,7 +226,7 @@ fn schema_tensor_canonical_length(tensor : NumericTensorSchema) -> Int {
 ///|
 fn schema_operation_byte_at(
   operation : NumericOperationSchema,
-  index : Int,
+  index : Int32,
 ) -> Byte {
   if index < 0 {
     abort("negative numeric schema operation byte index")
@@ -245,8 +245,8 @@ fn schema_operation_byte_at(
 priv struct ModelNumericSchemaCanonicalCursor {
   tensors : ReadOnlyArray[NumericTensorSchema]
   operations : ReadOnlyArray[NumericOperationSchema]
-  mut tensor_index : Int
-  mut tensor_start : Int
+  mut tensor_index : Int32
+  mut tensor_start : Int32
 }
 
 ///|
@@ -260,7 +260,7 @@ fn ModelNumericSchemaCanonicalCursor::new(
 ///|
 fn ModelNumericSchemaCanonicalCursor::byte_at(
   self : ModelNumericSchemaCanonicalCursor,
-  index : Int,
+  index : Int32,
 ) -> Byte {
   let domain = b"lunaflux.model-numeric-schema.v2\x00"
   if index < domain.length() {
@@ -296,7 +296,7 @@ fn ModelNumericSchemaCanonicalCursor::byte_at(
 
 ///|
 fn digest_model_numeric_schema(
-  canonical_length : Int,
+  canonical_length : Int32,
   tensors : ReadOnlyArray[NumericTensorSchema],
   operations : ReadOnlyArray[NumericOperationSchema],
 ) -> ModelNumericSchemaDigest {

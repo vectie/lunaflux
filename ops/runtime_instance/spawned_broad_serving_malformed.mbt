@@ -2,8 +2,8 @@
 fn require_broad_serving_malformed_metrics(
   sample : BroadServingMetricSample,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
-  pooled? : Bool = false,
+  initial_kv_pages_free : Int32,
+  pooled~ : Bool = false,
 ) -> Unit raise RuntimeSpawnedBroadServingValidationError {
   if !broad_serving_malformed_request_metrics_valid(
       sample,
@@ -24,8 +24,8 @@ fn require_broad_serving_malformed_metrics(
 fn require_broad_serving_final_metrics(
   sample : BroadServingMetricSample,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
-  pooled? : Bool = false,
+  initial_kv_pages_free : Int32,
+  pooled~ : Bool = false,
 ) -> Unit raise RuntimeSpawnedBroadServingValidationError {
   if !broad_serving_final_request_metrics_valid(
       sample,
@@ -46,7 +46,7 @@ fn require_broad_serving_final_metrics(
 async fn await_broad_serving_malformed_retirement(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> Unit {
   let pooled = owner.broad_serving_uses_framed_pool()
   for turn in 0..<contract.turn_limit {
@@ -76,7 +76,7 @@ async fn await_broad_serving_malformed_retirement(
 async fn run_broad_serving_post_malformed_recovery(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> RuntimeSpawnedBroadServingValidationResult {
   let pooled = owner.broad_serving_uses_framed_pool()
   let expected_accepts = if pooled { 7UL } else { 5UL }
@@ -227,7 +227,7 @@ async fn run_broad_serving_post_malformed_recovery(
 async fn run_broad_serving_malformed_fail_closed(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> RuntimeSpawnedBroadServingValidationResult {
   let malformed = broad_serving_copy_frame(contract.first_frame)
   malformed[0] = malformed[0] ^ b'\x01'

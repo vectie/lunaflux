@@ -7,7 +7,7 @@
 /// multiply) maps that result to positive zero, even when it is NaN.
 /// BF16 pair packing preserves the two independent round-to-nearest results.
 fn cuda_query_owned_numeric_primitives(
-  law? : @attention_physical_ir.AttentionExponentialLaw = StrictNaturalExponential,
+  law~ : @attention_physical_ir.AttentionExponentialLaw = StrictNaturalExponential,
 ) -> String {
   let value = match law {
     StrictNaturalExponential => "expf(delta)"

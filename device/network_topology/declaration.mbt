@@ -19,13 +19,13 @@ pub(all) suberror NetworkTopologyError {
 pub struct NodeIdentity(String) derive(Debug, Eq)
 
 ///|
-fn valid_label(value : StringView, maximum : Int) -> Bool {
+fn valid_label(value : StringView, maximum : Int32) -> Bool {
   if value.is_empty() || value.length() > maximum {
     return false
   }
   for unit in value {
     match unit {
-      'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' | '.' => ()
+      'a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_' | '-' | '.' => ()
       _ => return false
     }
   }
@@ -51,7 +51,7 @@ pub fn NodeIdentity::label(self : NodeIdentity) -> String {
 /// One declared node-local device and RDMA interface. No handles or endpoints.
 pub struct NetworkRank {
   priv node : NodeIdentity
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv target : @catalog.DeviceTarget
   priv physical_memory_bytes : Int64
   priv rdma_interface : String
@@ -60,7 +60,7 @@ pub struct NetworkRank {
 ///|
 pub fn NetworkRank::new(
   node~ : NodeIdentity,
-  device_ordinal~ : Int,
+  device_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   physical_memory_bytes~ : Int64,
   rdma_interface~ : StringView,
@@ -89,7 +89,7 @@ pub fn NetworkRank::node(self : NetworkRank) -> NodeIdentity {
 }
 
 ///|
-pub fn NetworkRank::device_ordinal(self : NetworkRank) -> Int {
+pub fn NetworkRank::device_ordinal(self : NetworkRank) -> Int32 {
   self.device_ordinal
 }
 
@@ -133,7 +133,7 @@ pub fn TwoNodeTopology::new(
 ///|
 pub fn TwoNodeTopology::rank(
   self : TwoNodeTopology,
-  rank : Int,
+  rank : Int32,
 ) -> NetworkRank? {
   match rank {
     0 => Some(self.rank_zero)

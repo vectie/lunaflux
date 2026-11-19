@@ -1,7 +1,7 @@
 ///|
 /// Version of the catalog-only symmetric-I8 admission record.
 pub struct I8InertKernelCapabilityAdmissionVersion {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -12,7 +12,7 @@ pub fn I8InertKernelCapabilityAdmissionVersion::v1() -> I8InertKernelCapabilityA
 ///|
 pub fn I8InertKernelCapabilityAdmissionVersion::as_int(
   self : I8InertKernelCapabilityAdmissionVersion,
-) -> Int {
+) -> Int32 {
   self.value
 }
 
@@ -33,16 +33,16 @@ pub fn I8InertKernelCapabilityAdmissionDigest::as_hex(
 /// Startup bounds for derived evidence. No request-path value reaches these
 /// limits and no resource is acquired by their construction.
 pub struct I8InertKernelCapabilityAdmissionLimits {
-  priv max_operations : Int
-  priv max_weights : Int
-  priv max_canonical_bytes : Int
+  priv max_operations : Int32
+  priv max_weights : Int32
+  priv max_canonical_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn I8InertKernelCapabilityAdmissionLimits::new(
-  max_operations~ : Int,
-  max_weights~ : Int,
-  max_canonical_bytes~ : Int,
+  max_operations~ : Int32,
+  max_weights~ : Int32,
+  max_canonical_bytes~ : Int32,
 ) -> I8InertKernelCapabilityAdmissionLimits raise I8InertKernelCapabilityAdmissionError {
   if max_operations <= 0 ||
     max_operations > I8_ADMISSION_MAX_OPERATIONS ||
@@ -148,6 +148,6 @@ pub struct I8InertKernelCapabilityAdmission {
 /// inert: no artifact, launch, loader, device, or executor authority is held.
 pub struct I8ProductionPolicyAdmission {
   priv admission : I8InertKernelCapabilityAdmission
-  priv i8_parameter_count : Int
-  priv scale_tensor_count : Int
+  priv i8_parameter_count : Int32
+  priv scale_tensor_count : Int32
 } derive(Debug, Eq)

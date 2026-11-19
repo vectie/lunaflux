@@ -8,7 +8,7 @@ suberror OpenAIResponsesReplayCliError {
 } derive(Debug, Eq)
 
 ///|
-fn capture_name(index : Int) -> String {
+fn capture_name(index : Int32) -> String {
   let digits = index.to_string()
   let prefix = match digits.length() {
     1 => "00"

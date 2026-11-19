@@ -1,5 +1,5 @@
 ///|
-pub fn Glm53NumericTensorBinding::ordinal(self : Self) -> Int {
+pub fn Glm53NumericTensorBinding::ordinal(self : Self) -> Int32 {
   self.ordinal
 }
 
@@ -9,7 +9,7 @@ pub fn Glm53NumericTensorBinding::role(self : Self) -> Glm53LogicalTensorRole {
 }
 
 ///|
-pub fn Glm53NumericOperationBinding::ordinal(self : Self) -> Int {
+pub fn Glm53NumericOperationBinding::ordinal(self : Self) -> Int32 {
   self.ordinal
 }
 
@@ -71,29 +71,29 @@ pub fn Glm53NumericPlan::binding_digest(self : Self) -> @spec.PlanDigest {
 }
 
 ///|
-pub fn Glm53NumericPlan::tensor_count(self : Self) -> Int {
+pub fn Glm53NumericPlan::tensor_count(self : Self) -> Int32 {
   self.tensor_bindings.length()
 }
 
 ///|
-pub fn Glm53NumericPlan::operation_count(self : Self) -> Int {
+pub fn Glm53NumericPlan::operation_count(self : Self) -> Int32 {
   self.operation_bindings.length()
 }
 
 ///|
-pub fn Glm53NumericPlan::bfloat16_tensor_count(self : Self) -> Int {
+pub fn Glm53NumericPlan::bfloat16_tensor_count(self : Self) -> Int32 {
   self.bfloat16_tensor_count
 }
 
 ///|
-pub fn Glm53NumericPlan::float32_tensor_count(self : Self) -> Int {
+pub fn Glm53NumericPlan::float32_tensor_count(self : Self) -> Int32 {
   self.float32_tensor_count
 }
 
 ///|
 pub fn Glm53NumericPlan::tensor(
   self : Self,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Glm53NumericTensorBinding? {
   self.tensor_bindings.get(ordinal)
 }
@@ -101,7 +101,7 @@ pub fn Glm53NumericPlan::tensor(
 ///|
 pub fn Glm53NumericPlan::operation(
   self : Self,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Glm53NumericOperationBinding? {
   self.operation_bindings.get(ordinal)
 }

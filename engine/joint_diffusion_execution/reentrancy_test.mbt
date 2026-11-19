@@ -1,7 +1,7 @@
 ///|
 struct CallbackFrame {
   mut callback : () -> Unit raise
-  mut releases : Int
+  mut releases : Int32
 }
 
 ///|

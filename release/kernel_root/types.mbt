@@ -1,15 +1,15 @@
 ///|
 pub struct LunaKernelRootLimits {
-  priv max_files : Int
-  priv max_inventory_bytes : Int
-  priv max_evidence_bytes : Int
+  priv max_files : Int32
+  priv max_inventory_bytes : Int32
+  priv max_evidence_bytes : Int32
 }
 
 ///|
 pub fn LunaKernelRootLimits::new(
-  max_files~ : Int,
-  max_inventory_bytes~ : Int,
-  max_evidence_bytes~ : Int,
+  max_files~ : Int32,
+  max_inventory_bytes~ : Int32,
+  max_evidence_bytes~ : Int32,
 ) -> LunaKernelRootLimits raise LunaKernelRootError {
   if max_files < 2 || max_inventory_bytes <= 0 || max_evidence_bytes <= 0 {
     raise Invalid(Limits)

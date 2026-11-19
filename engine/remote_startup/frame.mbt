@@ -1,34 +1,34 @@
 ///|
-const FRAME_BYTES : Int = 1112
+const FRAME_BYTES : Int32 = 1112
 
 ///|
-const GROUP_DIGEST_OFFSET : Int = 192
+const GROUP_DIGEST_OFFSET : Int32 = 192
 
 ///|
-const WORKER_OFFSET : Int = 640
+const WORKER_OFFSET : Int32 = 640
 
 ///|
-const WORKER_BYTES : Int = 408
+const WORKER_BYTES : Int32 = 408
 
 ///|
-const LEGACY_CHECKSUM_OFFSET : Int = 1048
+const LEGACY_CHECKSUM_OFFSET : Int32 = 1048
 
 ///|
-fn put_u32(bytes : FixedArray[Byte], offset : Int, value : UInt) -> Unit {
+fn put_u32(bytes : FixedArray[Byte], offset : Int32, value : UInt32) -> Unit {
   for index in 0..<4 {
     bytes[offset + index] = (value >> (index * 8)).to_byte()
   }
 }
 
 ///|
-fn put_u64(bytes : FixedArray[Byte], offset : Int, value : UInt64) -> Unit {
+fn put_u64(bytes : FixedArray[Byte], offset : Int32, value : UInt64) -> Unit {
   for index in 0..<8 {
     bytes[offset + index] = (value >> (index * 8)).to_byte()
   }
 }
 
 ///|
-fn put_text(bytes : FixedArray[Byte], offset : Int, value : String) -> Unit {
+fn put_text(bytes : FixedArray[Byte], offset : Int32, value : String) -> Unit {
   for index, byte in @utf8.encode(value) {
     bytes[offset + index] = byte
   }
@@ -43,7 +43,7 @@ fn encode_rank(
   generation : UInt64,
   rendezvous : @device.TensorCollectiveGroupId,
   lease_millis : UInt64,
-  rank : Int,
+  rank : Int32,
 ) -> FixedArray[Byte] raise RemoteStartupError {
   let bytes = FixedArray::make(FRAME_BYTES, b'\x00')
   guard plan.topology().rank(rank) is Some(node) else { raise Rejected(Count) }
@@ -81,7 +81,7 @@ fn encode_rank(
 }
 
 ///|
-pub fn remote_startup_frame_bytes() -> Int {
+pub fn remote_startup_frame_bytes() -> Int32 {
   FRAME_BYTES
 }
 
@@ -91,7 +91,7 @@ pub fn remote_startup_frame_bytes() -> Int {
 pub fn RemoteRankStartup::copy_to(
   self : RemoteRankStartup,
   destination : FixedArray[Byte],
-) -> Int raise RemoteStartupError {
+) -> Int32 raise RemoteStartupError {
   if destination.length() < FRAME_BYTES {
     raise Rejected(Destination)
   }
@@ -110,7 +110,7 @@ pub fn RemoteRankStartup::copy_to(
 pub fn RemoteRankStartup::verify_configure(
   self : RemoteRankStartup,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise RemoteStartupError {
   if length != FRAME_BYTES || source.length() < FRAME_BYTES {
     raise Rejected(FrameLength)

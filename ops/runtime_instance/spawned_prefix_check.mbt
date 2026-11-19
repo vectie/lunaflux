@@ -1,17 +1,17 @@
 ///|
 priv struct SpawnedPrefixTelemetrySample {
-  queue_depth : Int
-  active_requests : Int
-  kv_pages_used : Int
-  kv_pages_free : Int
+  queue_depth : Int32
+  active_requests : Int32
+  kv_pages_used : Int32
+  kv_pages_free : Int32
   prefix_lookups : UInt64
   prefix_hits : UInt64
   prefix_misses : UInt64
   prefix_publications : UInt64
   prefix_tokens_reused : UInt64
   prefix_tokens_computed : UInt64
-  prefix_entries : Int
-  prefix_pages : Int
+  prefix_entries : Int32
+  prefix_pages : Int32
 }
 
 ///|
@@ -58,9 +58,9 @@ fn spawned_prefix_initial_telemetry_valid(
 ///|
 fn spawned_prefix_after_first_valid(
   sample : SpawnedPrefixTelemetrySample,
-  initial_free : Int,
-  input_tokens : Int,
-  page_count : Int,
+  initial_free : Int32,
+  input_tokens : Int32,
+  page_count : Int32,
 ) -> Bool {
   sample.queue_depth == 0 &&
   sample.active_requests == 0 &&
@@ -79,11 +79,11 @@ fn spawned_prefix_after_first_valid(
 ///|
 fn spawned_prefix_after_second_valid(
   sample : SpawnedPrefixTelemetrySample,
-  initial_free : Int,
-  first_input_tokens : Int,
-  second_input_tokens : Int,
-  reused_tokens : Int,
-  page_count : Int,
+  initial_free : Int32,
+  first_input_tokens : Int32,
+  second_input_tokens : Int32,
+  reused_tokens : Int32,
+  page_count : Int32,
 ) -> Bool {
   let newly_computed = second_input_tokens - reused_tokens
   sample.queue_depth == 0 &&
@@ -133,10 +133,10 @@ fn require_spawned_prefix_accepted(
 fn require_spawned_prefix_token(
   service : @online_session.LunaOnlineFramedService,
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  expected_token : Int,
+  expected_token : Int32,
   previous_plan_sequence : UInt64,
-  exact_plan_tokens : Int,
-) -> (Int, UInt64) raise RuntimeSpawnedPrefixValidationError {
+  exact_plan_tokens : Int32,
+) -> (Int32, UInt64) raise RuntimeSpawnedPrefixValidationError {
   let view = event.view() catch {
     _ => raise spawned_prefix_error(SpawnedPrefixEvent)
   }
@@ -176,8 +176,8 @@ fn require_spawned_prefix_token(
 ///|
 fn require_spawned_prefix_usage(
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
-  cached_input_tokens : Int,
+  input_tokens : Int32,
+  cached_input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedPrefixValidationError {
   let view = event.view() catch {
     _ => raise spawned_prefix_error(SpawnedPrefixEvent)
@@ -206,8 +206,8 @@ fn require_spawned_prefix_usage(
 ///|
 fn require_spawned_prefix_completed(
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
-  cached_input_tokens : Int,
+  input_tokens : Int32,
+  cached_input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedPrefixValidationError {
   let view = event.view() catch {
     _ => raise spawned_prefix_error(SpawnedPrefixEvent)

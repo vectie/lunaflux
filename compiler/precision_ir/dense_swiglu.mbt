@@ -4,9 +4,9 @@
 /// and after down projection. The product is shared by every output column.
 /// Geometry/storage are pure; device scheduling and ownership are downstream.
 pub struct DenseSwiGluPrecision {
-  priv hidden : Int
-  priv intermediate : Int
-  priv rows : Int
+  priv hidden : Int32
+  priv intermediate : Int32
+  priv rows : Int32
   priv weight_bytes : Int64
   priv product_bytes : Int64
   priv publication : ProjectionPublication
@@ -16,11 +16,11 @@ pub struct DenseSwiGluPrecision {
 
 ///|
 pub fn DenseSwiGluPrecision::new(
-  hidden_width~ : Int,
-  intermediate_width~ : Int,
-  maximum_rows~ : Int,
-  publication? : ProjectionPublication = LocalBFloat16,
-  dot_law? : DenseDotLaw = ScalarFloat32,
+  hidden_width~ : Int32,
+  intermediate_width~ : Int32,
+  maximum_rows~ : Int32,
+  publication~ : ProjectionPublication = LocalBFloat16,
+  dot_law~ : DenseDotLaw = ScalarFloat32,
 ) -> Self raise PrecisionPlanError {
   guard hidden_width > 0 && intermediate_width > 0 && maximum_rows > 0 else {
     raise IllegalPlacement
@@ -63,7 +63,7 @@ pub fn DenseSwiGluPrecision::new(
 }
 
 ///|
-pub fn DenseSwiGluPrecision::geometry(self : Self) -> (Int, Int, Int) {
+pub fn DenseSwiGluPrecision::geometry(self : Self) -> (Int32, Int32, Int32) {
   (self.hidden, self.intermediate, self.rows)
 }
 

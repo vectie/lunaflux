@@ -20,7 +20,7 @@ fn finish_context_churn_event(
 fn require_context_churn_accepted(
   event : @online_session.LunaOnlineFramedSemanticEvent,
   contract : RuntimeSpawnedContextChurnContract,
-  context_ceiling : Int,
+  context_ceiling : Int32,
 ) -> Unit raise RuntimeSpawnedContextChurnError {
   let view = require_context_churn_event_view(event)
   let valid = try {
@@ -45,10 +45,10 @@ fn require_context_churn_accepted(
 fn require_context_churn_token(
   service : @online_session.LunaOnlineFramedService,
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  expected_token : Int,
-  expected_position : Int,
+  expected_token : Int32,
+  expected_position : Int32,
   previous_plan_sequence : UInt64,
-  total_kv_pages : Int,
+  total_kv_pages : Int32,
 ) -> UInt64 raise RuntimeSpawnedContextChurnError {
   let view = require_context_churn_event_view(event)
   let observed = try {
@@ -98,7 +98,7 @@ fn require_context_churn_token(
 ///|
 fn require_context_churn_usage(
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedContextChurnError {
   let view = require_context_churn_event_view(event)
   let valid = try {
@@ -123,7 +123,7 @@ fn require_context_churn_usage(
 ///|
 fn require_context_churn_completed(
   event : @online_session.LunaOnlineFramedSemanticEvent,
-  input_tokens : Int,
+  input_tokens : Int32,
 ) -> Unit raise RuntimeSpawnedContextChurnError {
   let view = require_context_churn_event_view(event)
   let valid = try {

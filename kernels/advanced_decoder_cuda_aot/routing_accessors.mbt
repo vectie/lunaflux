@@ -29,7 +29,7 @@ pub fn AdvancedDecoderRoutingCudaCandidate::requirements_digest(
 ///|
 pub fn AdvancedDecoderRoutingCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -55,14 +55,16 @@ pub fn AdvancedDecoderRoutingCudaCandidate::target(
 }
 
 ///|
-pub fn AdvancedDecoderRoutingCudaCandidate::maximum_tokens(self : Self) -> Int {
+pub fn AdvancedDecoderRoutingCudaCandidate::maximum_tokens(
+  self : Self,
+) -> Int32 {
   self.maximum_tokens
 }
 
 ///|
 pub fn AdvancedDecoderRoutingCudaCandidate::routed_expert_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.routed_expert_count
 }
 

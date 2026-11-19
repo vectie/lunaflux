@@ -4,7 +4,7 @@
 /// Reject offline choices which need that unavailable launch capability.
 fn projection_validate_fold_resources(
   compilation : @luna_projection_tile_compiler.PhysicalProjectionTileCompilation,
-  dynamic_bytes : Int,
+  dynamic_bytes : Int32,
 ) -> Unit raise ProjectionAotError {
   for
     (plan, dynamic_bytes) in [

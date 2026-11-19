@@ -1,7 +1,7 @@
 ///|
 fn cuda_lower_test_program_and_schedule(
-  causal? : Bool = true,
-  query_rows? : Int = 128,
+  causal~ : Bool = true,
+  query_rows~ : Int32 = 128,
 ) -> (
   @luna_attention_tile_ir.AttentionTileProgram,
   @luna_attention_tile_optimizer.AttentionTileOptimization,

@@ -106,7 +106,7 @@ test "single-token prefill preserves independent projection and MLP companion gr
   let bound = dispatch.select(
     graph_dispatch_bucket(table, PrefillGraph, 1, 1, 1),
   )
-  let dimensions = fn(grid : Int, threads : Int, shared : Int) raise {
+  let dimensions = fn(grid : Int32, threads : Int32, shared : Int32) raise {
     @launch_contract.AotLaunchDimensions::new(
       grid_x=grid,
       grid_y=1,
@@ -193,7 +193,7 @@ test "single-token prefill adds one bounded startup owner and never duplicates m
     let (maximum, expected) = entry
     let profile = @launch_contract.PagedKernelProfile::new(
       id=@launch_contract.KernelProfileId::from_stable_int(93),
-      max_query_rows=Int::min(32, maximum),
+      max_query_rows=Int32::min(32, maximum),
       max_query_tokens=maximum,
       max_page_table_entries=256,
     )

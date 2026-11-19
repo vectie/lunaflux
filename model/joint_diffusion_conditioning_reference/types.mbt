@@ -21,7 +21,7 @@ pub(all) suberror JointConditioningReferenceError {
   InvalidLimit
   InvalidRequirements
   InvalidRequest
-  UnsupportedRequirement(Int)
+  UnsupportedRequirement(Int32)
   GeometryOverflow
   GeometryBudgetExceeded
   ConditioningSemanticUnavailable(
@@ -44,15 +44,15 @@ pub struct JointConditioningGeometry {
   priv source_identity : @spec.ModelIdentity
   priv requirements_digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest
   priv request_digest : @spec.PlanDigest
-  priv requirement_ordinal : Int
+  priv requirement_ordinal : Int32
   priv operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
   priv workflow : @joint_diffusion_plan.JointDiffusionWorkflow
-  priv keyframe_count : Int
-  priv image_reference_count : Int
-  priv video_reference_count : Int
-  priv audio_reference_count : Int
-  priv visual_latent_channels : Int
-  priv visual_row_width : Int?
+  priv keyframe_count : Int32
+  priv image_reference_count : Int32
+  priv video_reference_count : Int32
+  priv audio_reference_count : Int32
+  priv visual_latent_channels : Int32
+  priv visual_row_width : Int32?
   priv visual_rows_per_condition : Int64?
   priv total_visual_conditioning_rows : Int64?
   priv total_visual_conditioning_elements : Int64?

@@ -1,5 +1,5 @@
 ///|
-fn ingress_i32(values : ArrayView[Int]) -> Bytes {
+fn ingress_i32(values : ArrayView[Int32]) -> Bytes {
   let bytes = FixedArray::make(values.length() * 4, b'\x00')
   for index, value in values {
     for shift in 0..<4 {
@@ -13,7 +13,7 @@ fn ingress_i32(values : ArrayView[Int]) -> Bytes {
 // Dense dyadic fixtures make every product and dot sum exactly representable
 // in FP32. This isolates topology/indexing regressions from allowed rounding
 // changes. It is deliberately not a trained-model accuracy qualification.
-fn ingress_dense(rows : Int, columns : Int, phase : Int) -> Bytes {
+fn ingress_dense(rows : Int32, columns : Int32, phase : Int32) -> Bytes {
   let bytes = FixedArray::make(rows * columns * 2, b'\x00')
   for row in 0..<rows {
     for column in 0..<columns {
@@ -31,8 +31,8 @@ fn ingress_dense(rows : Int, columns : Int, phase : Int) -> Bytes {
 fn ingress_reference_dot(
   input : Bytes,
   weight : Bytes,
-  row : Int,
-  column : Int,
+  row : Int32,
+  column : Int32,
 ) -> Float {
   for inner in 0..<1024; sum = 0.0F {
     continue sum +
@@ -49,7 +49,7 @@ fn ingress_validate(
   reference : ArrayView[Bytes],
   input : Bytes,
   value_weight : Bytes,
-  tokens : Int,
+  tokens : Int32,
 ) -> Unit raise {
   assert_eq(actual.length(), 3)
   // Includes untouched output rows and KV pages initialized to a sentinel.

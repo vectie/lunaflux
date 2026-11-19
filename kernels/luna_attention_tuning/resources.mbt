@@ -1,5 +1,5 @@
 ///|
-fn resource_integer(text : StringView) -> Int raise AttentionTuningError {
+fn resource_integer(text : StringView) -> Int32 raise AttentionTuningError {
   let value = positive(text)
   guard value <= 2147483647L else { raise InvalidTable }
   value.to_int()

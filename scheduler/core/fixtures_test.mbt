@@ -37,8 +37,8 @@ fn inference_limits() -> @inference.InferenceLimits {
 ///|
 fn stop_token_projection(
   limits : @inference.InferenceLimits,
-  token_ids : ArrayView[Int],
-  stop_strings? : ArrayView[Bytes] = [],
+  token_ids : ArrayView[Int32],
+  stop_strings~ : ArrayView[Bytes] = [],
 ) -> @inference.LunaRequestStopTokenView {
   let storage = try! @inference.LunaRequestSemanticStorage::new(
     limits,
@@ -168,9 +168,9 @@ fn tight_resolved_capacity() -> @runtime_resolved.ResolvedRuntimeCapacity {
 ///|
 fn request_with_tokens(
   id : UInt64,
-  tokens : ArrayView[Int],
-  max_new_tokens : Int,
-  context_ceiling : Int,
+  tokens : ArrayView[Int32],
+  max_new_tokens : Int32,
+  context_ceiling : Int32,
 ) -> TokenizedRequest {
   let limits = inference_limits()
   try! TokenizedRequest::new(
@@ -196,10 +196,10 @@ fn request_with_tokens(
 ///|
 fn request(
   id : UInt64,
-  identity? : @spec.ModelIdentity = selected_identity(),
-  deadline? : UInt64 = 100UL,
-  max_new_tokens? : Int = 2,
-  context_ceiling? : Int = 8,
+  identity~ : @spec.ModelIdentity = selected_identity(),
+  deadline~ : UInt64 = 100UL,
+  max_new_tokens~ : Int32 = 2,
+  context_ceiling~ : Int32 = 8,
 ) -> TokenizedRequest {
   let limits = inference_limits()
   let input = try! @inference.TokenBuffer::new([1, 2], limits)

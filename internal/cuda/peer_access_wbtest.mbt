@@ -1,5 +1,5 @@
 ///|
-extern "c" fn raw_test_peer_access_boundary(cycles : Int) -> Int = "lunaflux_cuda_test_peer_access_boundary"
+extern "c" fn raw_test_peer_access_boundary(cycles : Int32) -> Int32 = "lunaflux_cuda_test_peer_access_boundary"
 
 ///|
 test "directed peer access C ABI is exact and payload safe" {

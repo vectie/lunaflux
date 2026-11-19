@@ -145,28 +145,28 @@ pub fn LunaOnlineFramedServicePreparation::has_luna_graph_runtime_telemetry(
 ///|
 pub fn LunaOnlineFramedTelemetry::queue_depth(
   self : LunaOnlineFramedTelemetry,
-) -> Int {
+) -> Int32 {
   self.queue_depth
 }
 
 ///|
 pub fn LunaOnlineFramedTelemetry::active_requests(
   self : LunaOnlineFramedTelemetry,
-) -> Int {
+) -> Int32 {
   self.active_requests
 }
 
 ///|
 pub fn LunaOnlineFramedTelemetry::kv_pages_used(
   self : LunaOnlineFramedTelemetry,
-) -> Int {
+) -> Int32 {
   self.kv_pages_used
 }
 
 ///|
 pub fn LunaOnlineFramedTelemetry::kv_pages_free(
   self : LunaOnlineFramedTelemetry,
-) -> Int {
+) -> Int32 {
   self.kv_pages_free
 }
 
@@ -222,14 +222,14 @@ pub fn LunaOnlineFramedTelemetry::prefix_publications(
 ///|
 pub fn LunaOnlineFramedTelemetry::prefix_entries(
   self : LunaOnlineFramedTelemetry,
-) -> Int {
+) -> Int32 {
   self.prefix_entries
 }
 
 ///|
 pub fn LunaOnlineFramedTelemetry::prefix_pages(
   self : LunaOnlineFramedTelemetry,
-) -> Int {
+) -> Int32 {
   self.prefix_pages
 }
 
@@ -243,13 +243,13 @@ pub fn LunaOnlineFramedPlanTelemetry::last_plan_sequence(
 ///|
 pub fn LunaOnlineFramedPlanTelemetry::last_plan_rows(
   self : LunaOnlineFramedPlanTelemetry,
-) -> Int {
+) -> Int32 {
   self.plan_rows
 }
 
 ///|
 pub fn LunaOnlineFramedPlanTelemetry::last_plan_tokens(
   self : LunaOnlineFramedPlanTelemetry,
-) -> Int {
+) -> Int32 {
   self.plan_tokens
 }

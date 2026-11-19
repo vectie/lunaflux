@@ -6,7 +6,7 @@
 pub fn PlanFrameBuffer::encode_prefix_replay(
   self : Self,
   verified : ValidatedPlanFrame,
-  accepted_rows~ : Int,
+  accepted_rows~ : Int32,
   sequence_value~ : UInt64,
 ) -> ValidatedPlanFrame raise WorkerWireError {
   let source = verified.owner()

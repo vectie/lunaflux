@@ -32,7 +32,7 @@ fn validate_profiles(
 fn operation_index(
   operations : ReadOnlyArray[@plan.PlanOperation],
   operation_id : @plan.OperationId,
-) -> Int? {
+) -> Int32? {
   for index, operation in operations {
     if operation.id() == operation_id {
       return Some(index)
@@ -73,7 +73,7 @@ fn validate_operand_set(
   operation : @plan.PlanOperation,
   binding : @catalog.KernelBinding,
   operands : ReadOnlyArray[AotOperand],
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise LaunchContractError {
   if operands.is_empty() || operands.length() > maximum {
     raise OperandCountExceeded(operation=operation.id(), maximum~)

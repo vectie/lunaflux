@@ -1,8 +1,8 @@
 ///|
 fn broad_serving_wb_pair_sample(
-  accepts? : UInt64 = 1UL,
-  disconnects? : UInt64 = 0UL,
-  backpressure? : UInt64 = 1UL,
+  accepts~ : UInt64 = 1UL,
+  disconnects~ : UInt64 = 0UL,
+  backpressure~ : UInt64 = 1UL,
 ) -> BroadServingMetricSample {
   {
     admissions: 3UL,
@@ -27,9 +27,9 @@ fn broad_serving_wb_pair_sample(
 ///|
 fn broad_serving_wb_cancel_boundary_sample(
   admissions : UInt64,
-  queue_depth? : Int = 2,
-  active_requests? : Int = 0,
-  generated_tokens? : UInt64 = 0UL,
+  queue_depth~ : Int32 = 2,
+  active_requests~ : Int32 = 0,
+  generated_tokens~ : UInt64 = 0UL,
 ) -> BroadServingMetricSample {
   {
     admissions,

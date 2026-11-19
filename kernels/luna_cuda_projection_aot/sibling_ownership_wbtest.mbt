@@ -302,7 +302,10 @@ test "coowned consumer geometry derives smaller workgroup without changing down"
     )
     assert_eq(dimensions.block_x(), 256)
     assert_eq(dimensions.shared_memory_bytes(), 0)
-    assert_eq(dimensions.grid_x(), Int::max(384, 1024 / (row_tiles * 16) * 24))
+    assert_eq(
+      dimensions.grid_x(),
+      Int32::max(384, 1024 / (row_tiles * 16) * 24),
+    )
     let source = @utf8.decode(
       projection_emit_source(
         "coowned_small_workgroup",

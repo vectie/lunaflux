@@ -1,8 +1,8 @@
 ///|
 pub fn separate_gate_up_clamped_swiglu_dense_bf16_source(
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  maximum_rows~ : Int,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  maximum_rows~ : Int32,
   clamp_limit~ : Double,
   function_symbol~ : String,
 ) -> SeparateWeightGatedMlpCudaSource raise GatedMlpCudaSourceError {

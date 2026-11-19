@@ -49,7 +49,7 @@ fn promotion_profile_shape() -> @luna_profile_priority.LunaPagedProfileShape {
 ///|
 fn promotion_profile(
   release : LunaBf16KernelReleaseInput,
-  workload? : Char = 'a',
+  workload~ : Char = 'a',
 ) -> @luna_profile_priority.LunaPagedKernelProfileCapture {
   let plan = try! producer_fixture_plan()
   let shape = promotion_profile_shape()
@@ -109,7 +109,7 @@ fn promotion_candidate_set(
 
 ///|
 fn promotion_release(
-  substituted_driver_operation? : Int = -1,
+  substituted_driver_operation~ : Int32 = -1,
 ) -> LunaBf16KernelReleaseInput {
   let compilations = try! producer_fixture_compilations()
   if substituted_driver_operation >= 0 {
@@ -174,7 +174,7 @@ fn promotion_microbenchmarks(
 
 ///|
 fn promotion_end_to_end(
-  workload? : Char = 'a',
+  workload~ : Char = 'a',
 ) -> Array[LunaBf16EndToEndObservation] {
   let result : Array[LunaBf16EndToEndObservation] = []
   for trial in 0..<3 {

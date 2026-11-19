@@ -67,12 +67,12 @@ pub(all) suberror Glm53WeightsError {
   InvalidLayerIndex
   TensorRoleNotPresent(Glm53TextTensorRole)
   UnsupportedPhysicalEncoding(Glm53WeightEncoding)
-  UnsupportedSafetensorsDType(ordinal~ : Int)
-  TensorCountMismatch(expected~ : Int, actual~ : Int)
-  DuplicateTensor(ordinal~ : Int)
-  TensorNameMismatch(ordinal~ : Int)
-  TensorDTypeMismatch(ordinal~ : Int)
-  TensorShapeMismatch(ordinal~ : Int)
+  UnsupportedSafetensorsDType(ordinal~ : Int32)
+  TensorCountMismatch(expected~ : Int32, actual~ : Int32)
+  DuplicateTensor(ordinal~ : Int32)
+  TensorNameMismatch(ordinal~ : Int32)
+  TensorDTypeMismatch(ordinal~ : Int32)
+  TensorShapeMismatch(ordinal~ : Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -100,7 +100,7 @@ pub fn Glm53WeightSchema::encoding(self : Self) -> Glm53WeightEncoding {
 }
 
 ///|
-pub fn Glm53WeightSchema::fp8_block_rows(self : Self) -> Int? {
+pub fn Glm53WeightSchema::fp8_block_rows(self : Self) -> Int32? {
   match self.encoding {
     BFloat16WithFloat32Routing => None
     Fp8E4M3Block128Dynamic => Some(128)
@@ -108,6 +108,6 @@ pub fn Glm53WeightSchema::fp8_block_rows(self : Self) -> Int? {
 }
 
 ///|
-pub fn Glm53WeightSchema::fp8_block_columns(self : Self) -> Int? {
+pub fn Glm53WeightSchema::fp8_block_columns(self : Self) -> Int32? {
   self.fp8_block_rows()
 }

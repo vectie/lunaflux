@@ -1,11 +1,11 @@
 ///|
-fn cross_id(value : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn cross_id(value : Int32) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(value)
 }
 
 ///|
 fn cross_tensor(
-  id : Int,
+  id : Int32,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
 ) -> @luna_tile_ir.LunaTileTensorView raise {
@@ -21,7 +21,10 @@ fn cross_tensor(
 }
 
 ///|
-fn cross_region(id : Int, swapped : Bool) -> @luna_tile_ir.LunaTileRegion raise {
+fn cross_region(
+  id : Int32,
+  swapped : Bool,
+) -> @luna_tile_ir.LunaTileRegion raise {
   let outer = if swapped { 1 } else { 0 }
   let inner = if swapped { 0 } else { 1 }
   @luna_tile_ir.LunaTileRegion::new(
@@ -45,7 +48,7 @@ fn cross_region(id : Int, swapped : Bool) -> @luna_tile_ir.LunaTileRegion raise 
 }
 
 ///|
-fn cross_static_region(id : Int) -> @luna_tile_ir.LunaTileRegion raise {
+fn cross_static_region(id : Int32) -> @luna_tile_ir.LunaTileRegion raise {
   @luna_tile_ir.LunaTileRegion::new(
     tensor=cross_id(id),
     origins=[

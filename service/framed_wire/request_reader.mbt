@@ -1,14 +1,14 @@
 ///|
-const REQUEST_READER_RECEIVING : Int = 0
+const REQUEST_READER_RECEIVING : Int32 = 0
 
 ///|
-const REQUEST_READER_COMPLETE : Int = 1
+const REQUEST_READER_COMPLETE : Int32 = 1
 
 ///|
-const REQUEST_READER_POISONED : Int = 2
+const REQUEST_READER_POISONED : Int32 = 2
 
 ///|
-const REQUEST_READER_TAKEN : Int = 3
+const REQUEST_READER_TAKEN : Int32 = 3
 
 ///|
 fn request_reader_error(rule : FramedWireRule) -> FramedWireError {
@@ -29,8 +29,8 @@ fn IncrementalRequestReader::poison(
 fn IncrementalRequestReader::virtual_byte(
   self : IncrementalRequestReader,
   source : FixedArray[Byte],
-  source_offset : Int,
-  index : Int,
+  source_offset : Int32,
+  index : Int32,
 ) -> Byte {
   if index < self.length {
     self.frame_buffer.scratch[index]
@@ -43,9 +43,9 @@ fn IncrementalRequestReader::virtual_byte(
 fn IncrementalRequestReader::virtual_u32(
   self : IncrementalRequestReader,
   source : FixedArray[Byte],
-  source_offset : Int,
-  offset : Int,
-) -> UInt {
+  source_offset : Int32,
+  offset : Int32,
+) -> UInt32 {
   self.virtual_byte(source, source_offset, offset).to_uint() |
   (self.virtual_byte(source, source_offset, offset + 1).to_uint() << 8) |
   (self.virtual_byte(source, source_offset, offset + 2).to_uint() << 16) |
@@ -56,9 +56,9 @@ fn IncrementalRequestReader::virtual_u32(
 fn IncrementalRequestReader::preflight_prefix(
   self : IncrementalRequestReader,
   source : FixedArray[Byte],
-  source_offset : Int,
-  next_length : Int,
-) -> Int raise FramedWireError {
+  source_offset : Int32,
+  next_length : Int32,
+) -> Int32 raise FramedWireError {
   if next_length >= 4 &&
     self.virtual_u32(source, source_offset, 0) != request_magic {
     self.poison(request_reader_error(Magic))
@@ -104,7 +104,7 @@ pub fn IncrementalRequestReader::new(
 /// the canonical frame is complete and ready to take.
 pub fn IncrementalRequestReader::next_capacity(
   self : IncrementalRequestReader,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   if self.state == REQUEST_READER_POISONED {
     raise RequestReaderPoisoned
   }
@@ -128,8 +128,8 @@ pub fn IncrementalRequestReader::next_capacity(
 pub fn IncrementalRequestReader::append(
   self : IncrementalRequestReader,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> Unit raise FramedWireError {
   if self.state == REQUEST_READER_POISONED {
     raise RequestReaderPoisoned

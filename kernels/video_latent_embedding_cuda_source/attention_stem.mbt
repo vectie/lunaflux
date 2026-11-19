@@ -3,15 +3,15 @@
 /// are F32. Normalization is F32; projection operands and result are BF16, as
 /// under autocast. Q/K normalization and rotary each retain BF16 boundaries.
 pub fn attention_stem_source(
-  temporal~ : Int,
-  height~ : Int,
-  width~ : Int,
-  heads~ : Int,
-  head_dimension~ : Int,
-  rotary_dimension~ : Int,
-  register_rows~ : Int,
+  temporal~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
+  heads~ : Int32,
+  head_dimension~ : Int32,
+  rotary_dimension~ : Int32,
+  register_rows~ : Int32,
   prefix~ : String,
-  autocast? : @precision.AutocastFloat = Bfloat16,
+  autocast~ : @precision.AutocastFloat = Bfloat16,
 ) -> Bytes raise EmbeddingError {
   guard temporal > 0 &&
     height > 0 &&

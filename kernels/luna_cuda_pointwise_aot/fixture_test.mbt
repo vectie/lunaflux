@@ -9,13 +9,13 @@ fn pointwise_test_profile() -> @launch_contract.PagedKernelProfile raise {
 }
 
 ///|
-fn pointwise_test_entry(id : Int) -> @catalog.AotKernelEntryPointId raise {
+fn pointwise_test_entry(id : Int32) -> @catalog.AotKernelEntryPointId raise {
   @catalog.AotKernelEntryPointId::from_stable_int(id)
 }
 
 ///|
 fn pointwise_test_target(
-  supports_bf16? : Bool = true,
+  supports_bf16~ : Bool = true,
 ) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=9,
@@ -27,7 +27,7 @@ fn pointwise_test_target(
 
 ///|
 fn pointwise_test_compiler(
-  reassociate? : Bool = false,
+  reassociate~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(
@@ -55,7 +55,7 @@ fn pointwise_test_limits() -> @luna_cuda_pointwise_aot.PointwiseAotLimits raise 
 fn pointwise_operand(
   role : @launch_contract.AotOperandRole,
   bytes : Int64,
-  alignment? : Int64 = 256L,
+  alignment~ : Int64 = 256L,
 ) -> @launch_contract.AotOperand raise {
   @launch_contract.AotOperand::new(role~, byte_count=bytes, alignment~)
 }
@@ -93,7 +93,7 @@ fn pointwise_rms_operation() -> @plan.PlanOperation raise {
 
 ///|
 fn pointwise_qk_rms_operation(
-  capability? : @plan.KernelCapabilityId = @plan.KernelCapabilityId::qk_rms_norm(),
+  capability~ : @plan.KernelCapabilityId = @plan.KernelCapabilityId::qk_rms_norm(),
 ) -> @plan.PlanOperation raise {
   @plan.PlanOperation::new_with_runtime_inputs(
     id=@plan.OperationId::new(2),

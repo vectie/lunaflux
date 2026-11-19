@@ -11,8 +11,8 @@ const TP_BF16_BYTES : Int64 = 2L
 fn checked_product(
   left : Int64,
   right : Int64,
-  profile : Int,
-  operation : Int,
+  profile : Int32,
+  operation : Int32,
 ) -> Int64 raise TensorParallelLaunchContractError {
   if left <= 0L || right <= 0L || left > TP_MAX_INT64 / right {
     raise invalid(CapacityOverflow, profile~, operation~)
@@ -24,8 +24,8 @@ fn checked_product(
 fn runtime_bytes(
   role : @plan.OperationRuntimeInput,
   profile : @launch_contract.PagedKernelProfile,
-  profile_index : Int,
-  operation : Int,
+  profile_index : Int32,
+  operation : Int32,
 ) -> Int64 raise TensorParallelLaunchContractError {
   match role {
     StepCounts => TP_STEP_COUNTS_BYTES
@@ -63,9 +63,9 @@ fn runtime_bytes(
 ///|
 fn activation_bytes(
   profile : @launch_contract.PagedKernelProfile,
-  width : Int,
-  profile_index : Int,
-  operation : Int,
+  width : Int32,
+  profile_index : Int32,
+  operation : Int32,
 ) -> Int64 raise TensorParallelLaunchContractError {
   let elements = checked_product(
     Int64::from_int(profile.max_query_tokens()),
@@ -82,8 +82,8 @@ fn push_operand(
   role : TensorParallelOperandRole,
   byte_count : Int64,
   alignment : Int64,
-  profile : Int,
-  operation : Int,
+  profile : Int32,
+  operation : Int32,
 ) -> Unit raise TensorParallelLaunchContractError {
   if byte_count <= 0L ||
     alignment <= 0L ||
@@ -101,9 +101,9 @@ fn build_operands(
   rank_plan : @tensor_parallel_plan.TensorParallelRankPlan,
   layout : @device_layout.DeviceKvLayout,
   profile : @launch_contract.PagedKernelProfile,
-  profile_index : Int,
+  profile_index : Int32,
   geometry : @tensor_parallel_plan.TensorParallelOperationPlan,
-  maximum : Int,
+  maximum : Int32,
 ) -> ReadOnlyArray[TensorParallelOperand] raise TensorParallelLaunchContractError {
   let operation_index = operation.id().as_int()
   let output : Array[TensorParallelOperand] = []

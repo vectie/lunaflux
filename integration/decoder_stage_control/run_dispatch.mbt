@@ -25,7 +25,7 @@ pub async fn DecoderStageClient::dispatch_run(
 // Shared by ordinary exchange polling and the explicit RUN dispatch frontier.
 async fn DecoderStageClient::flush_command(
   self : Self,
-  reply : Int,
+  reply : Int32,
   now : UInt64,
 ) -> Bool {
   if !self.channel.poll_send(now) {

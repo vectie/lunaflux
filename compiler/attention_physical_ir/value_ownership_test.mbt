@@ -1,7 +1,7 @@
 ///|
 test "value ownership is bijective for full and ragged dimensions" {
   for dimensions in [1, 31, 32, 33, 64, 96, 128, 129, 256] {
-    let plan = ValueComponentOwnership::new(
+    let plan = @attention_physical_ir.ValueComponentOwnership::new(
       dimensions~,
       owners=32,
       maximum_fragment=4,
@@ -20,7 +20,7 @@ test "value ownership is bijective for full and ragged dimensions" {
     }
   }
   assert_eq(
-    ValueComponentOwnership::new(dimensions=0, owners=32, maximum_fragment=4),
+    @attention_physical_ir.ValueComponentOwnership::new(dimensions=0, owners=32, maximum_fragment=4),
     None,
   )
 }

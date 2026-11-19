@@ -1,8 +1,8 @@
 ///|
-let event_magic : UInt = 0x5645464c
+let event_magic : UInt32 = 0x5645464c
 
 ///|
-let event_version : UInt = 2
+let event_version : UInt32 = 2
 
 ///|
 fn event_invalid(rule : FramedWireRule) -> FramedWireError {
@@ -10,7 +10,7 @@ fn event_invalid(rule : FramedWireRule) -> FramedWireError {
 }
 
 ///|
-fn event_kind(event : @inference.StreamEvent) -> Int {
+fn event_kind(event : @inference.StreamEvent) -> Int32 {
   match event {
     Accepted(_) => 1
     Token(_) => 2
@@ -32,8 +32,8 @@ fn write_usage(bytes : FixedArray[Byte], usage : @inference.Usage) -> Unit {
 fn encode_event_payload(
   bytes : FixedArray[Byte],
   event : @inference.StreamEvent,
-  maximum : Int,
-) -> Int raise FramedWireError {
+  maximum : Int32,
+) -> Int32 raise FramedWireError {
   clear_header(bytes, EVENT_HEADER_BYTES)
   let payload : Bytes = match event {
     Token(value) =>
@@ -133,8 +133,8 @@ fn parse_usage(
 ///|
 fn require_event_zero(
   bytes : FixedArray[Byte],
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Unit raise FramedWireError {
   for index in start..<end {
     if bytes[index] != b'\x00' {
@@ -146,7 +146,7 @@ fn require_event_zero(
 ///|
 fn parse_event(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   limits : FramedWireLimits,
 ) -> @inference.StreamEvent raise FramedWireError {
   if length < EVENT_HEADER_BYTES ||
@@ -340,7 +340,7 @@ pub fn EventFrameBuffer::encode(
 pub fn EventFrameBuffer::load(
   self : EventFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedEventFrame raise FramedWireError {
   let event = parse_event(source, length, self.limits)
   copy_bytes(source, self.scratch, length)

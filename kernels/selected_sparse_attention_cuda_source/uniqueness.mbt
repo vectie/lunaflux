@@ -1,7 +1,7 @@
 ///|
 fn uniqueness_source(
   schedule : @physical.SelectedSparseSchedule,
-  extent : Int,
+  extent : Int32,
 ) -> (String, String) {
   match schedule.uniqueness(extent).unwrap() {
     Pairwise =>

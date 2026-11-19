@@ -13,27 +13,27 @@ pub fn GroupedRoutingCudaSource::numerical_contract(
 }
 
 ///|
-pub fn GroupedRoutingCudaSource::routed_expert_count(self : Self) -> Int {
+pub fn GroupedRoutingCudaSource::routed_expert_count(self : Self) -> Int32 {
   self.routed_expert_count
 }
 
 ///|
-pub fn GroupedRoutingCudaSource::group_count(self : Self) -> Int {
+pub fn GroupedRoutingCudaSource::group_count(self : Self) -> Int32 {
   self.group_count
 }
 
 ///|
-pub fn GroupedRoutingCudaSource::group_score_topk(self : Self) -> Int {
+pub fn GroupedRoutingCudaSource::group_score_topk(self : Self) -> Int32 {
   self.group_score_topk
 }
 
 ///|
-pub fn GroupedRoutingCudaSource::selected_group_count(self : Self) -> Int {
+pub fn GroupedRoutingCudaSource::selected_group_count(self : Self) -> Int32 {
   self.selected_group_count
 }
 
 ///|
-pub fn GroupedRoutingCudaSource::experts_per_token(self : Self) -> Int {
+pub fn GroupedRoutingCudaSource::experts_per_token(self : Self) -> Int32 {
   self.experts_per_token
 }
 
@@ -48,7 +48,7 @@ pub fn GroupedRoutingCudaSource::scaling(self : Self) -> Double {
 }
 
 ///|
-pub fn GroupedRoutingCudaSource::maximum_rows(self : Self) -> Int {
+pub fn GroupedRoutingCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

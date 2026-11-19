@@ -18,8 +18,8 @@ pub struct DeviceCopyRegion {
 pub fn DeviceCopyRegion::new(
   source : Allocation,
   destination : Allocation,
-  source_offset? : Int64 = 0L,
-  destination_offset? : Int64 = 0L,
+  source_offset~ : Int64 = 0L,
+  destination_offset~ : Int64 = 0L,
   byte_count~ : Int64,
 ) -> Self raise DeviceError {
   guard source_offset >= 0L &&
@@ -59,7 +59,7 @@ pub fn Context::prepare_device_copy(
 ///|
 pub fn DeviceCopyBatch::submit(
   self : Self,
-  reverse? : Bool = false,
+  reverse~ : Bool = false,
 ) -> Unit raise DeviceError {
   self.raw.submit(reverse~) catch {
     error => raise error_from_cuda(error)

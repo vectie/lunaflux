@@ -60,7 +60,7 @@ pub fn BlockTableArena::detach_suffix_for_checkpoint(
   self : BlockTableArena,
   checkpoint : BlockTableAllocationCheckpoint,
   table : BlockTableId,
-  old_page_count : Int,
+  old_page_count : Int32,
 ) -> Unit raise BlockTableError {
   checkpoint.authenticate_owner(self)
   let index = self.checked_index(table)

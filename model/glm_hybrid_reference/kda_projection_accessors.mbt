@@ -1,20 +1,20 @@
 ///|
-pub fn GlmKdaProjectionResult::row_count(self : Self) -> Int {
+pub fn GlmKdaProjectionResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmKdaProjectionResult::projected_width(self : Self) -> Int {
+pub fn GlmKdaProjectionResult::projected_width(self : Self) -> Int32 {
   self.projected_width
 }
 
 ///|
-pub fn GlmKdaProjectionResult::control_rank(self : Self) -> Int {
+pub fn GlmKdaProjectionResult::control_rank(self : Self) -> Int32 {
   self.control_rank
 }
 
 ///|
-pub fn GlmKdaProjectionResult::head_count(self : Self) -> Int {
+pub fn GlmKdaProjectionResult::head_count(self : Self) -> Int32 {
   self.head_count
 }
 

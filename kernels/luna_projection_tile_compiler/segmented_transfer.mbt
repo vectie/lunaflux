@@ -3,11 +3,11 @@
 /// map. A worker owns the same vector before and after segmentation. Operand
 /// selection and the round offset are static, not predicates in the fold.
 pub struct ProjectionTransferSegment {
-  operand : Int
-  round : Int
-  worker_begin : Int
-  worker_end : Int
-  operand_vector_origin : Int
+  operand : Int32
+  round : Int32
+  worker_begin : Int32
+  worker_end : Int32
+  operand_vector_origin : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -17,9 +17,9 @@ pub struct ProjectionTransferSegment {
 /// `max_segments` is a caller-controlled source expansion budget, not a
 /// hardware or operand-count limit. None retains the caller's loop realization.
 pub fn partition_projection_transfer_segments(
-  operand_vectors : ArrayView[Int],
-  workers~ : Int,
-  max_segments? : Int = 4096,
+  operand_vectors : ArrayView[Int32],
+  workers~ : Int32,
+  max_segments~ : Int32 = 4096,
 ) -> Array[ProjectionTransferSegment]? {
   if workers <= 0 ||
     max_segments <= 0 ||
@@ -51,11 +51,17 @@ pub fn partition_projection_transfer_segments(
       result.push({
         operand,
         round,
-        worker_begin: Int::max(0, origin - round_origin),
-        worker_end: Int::min(workers, end - round_origin),
+        worker_begin: Int32::max(0, origin - round_origin),
+        worker_end: Int32::min(workers, end - round_origin),
         operand_vector_origin: round_origin - origin,
       })
     }
   }
   Some(result)
 }
+
+///|
+pub extend ProjectionTransferSegment with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTransferSegment with Eq::{not_equal, equal}

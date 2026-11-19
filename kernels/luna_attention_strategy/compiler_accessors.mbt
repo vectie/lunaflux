@@ -1,21 +1,21 @@
 ///|
 pub fn AttentionMatrixShape::dimensions(
   self : AttentionMatrixShape,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.rows, self.columns, self.reduction)
 }
 
 ///|
 pub fn AttentionCompilerCapabilities::subgroup_width(
   self : AttentionCompilerCapabilities,
-) -> Int {
+) -> Int32 {
   self.subgroup_width
 }
 
 ///|
 pub fn AttentionCompilerCapabilities::limits(
   self : AttentionCompilerCapabilities,
-) -> (Int, Int64, Int) {
+) -> (Int32, Int64, Int32) {
   (
     self.max_threads_per_block,
     self.max_shared_memory_bytes,
@@ -33,7 +33,7 @@ pub fn AttentionCompilerCapabilities::supports_async_copy(
 ///|
 pub fn AttentionCompilerCapabilities::parallel_workgroup_target(
   self : AttentionCompilerCapabilities,
-) -> Int {
+) -> Int32 {
   self.parallel_workgroup_target
 }
 
@@ -68,14 +68,14 @@ pub fn AttentionCompileProblem::numeric_type(
 ///|
 pub fn AttentionCompileProblem::batch_rows(
   self : AttentionCompileProblem,
-) -> Int {
+) -> Int32 {
   self.batch_rows
 }
 
 ///|
 pub fn AttentionCompileProblem::dimensions(
   self : AttentionCompileProblem,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.query_rows, self.context_tokens)
 }
 
@@ -122,7 +122,7 @@ pub fn AttentionCompileProblem::required_fragment_ownership(
 /// Specialize query parallelism without losing numerical or memory semantics.
 pub fn AttentionCompileProblem::with_query_rows(
   self : AttentionCompileProblem,
-  query_rows : Int,
+  query_rows : Int32,
 ) -> AttentionCompileProblem raise AttentionStrategyError {
   if query_rows <= 0 ||
     query_rows > 1048576 ||
@@ -135,12 +135,14 @@ pub fn AttentionCompileProblem::with_query_rows(
 ///|
 pub fn AttentionTileShape::dimensions(
   self : AttentionTileShape,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.query_rows, self.key_value_rows, self.head_columns)
 }
 
 ///|
-pub fn AttentionTileCandidate::stable_id(self : AttentionTileCandidate) -> Int {
+pub fn AttentionTileCandidate::stable_id(
+  self : AttentionTileCandidate,
+) -> Int32 {
   self.stable_id
 }
 
@@ -168,7 +170,7 @@ pub fn AttentionTileCandidate::tile(
 ///|
 pub fn AttentionTileCandidate::execution_geometry(
   self : AttentionTileCandidate,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (self.subgroups_per_block, self.pipeline_stages, self.vector_bytes)
 }
 
@@ -234,7 +236,7 @@ pub fn AttentionAutotuneRecord::median_latency_ns(
 ///|
 pub fn AttentionAutotuneRecord::sample_count(
   self : AttentionAutotuneRecord,
-) -> Int {
+) -> Int32 {
   self.sample_count
 }
 

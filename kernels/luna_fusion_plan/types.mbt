@@ -29,11 +29,11 @@ pub struct QkvQkNormPositionedRopePagedKvWritePlan {
   priv rope_operation : @plan.OperationId
   priv attention_operation : @plan.OperationId
   priv kv_layer : @plan.KvLayerId
-  priv input_width : Int
-  priv output_width : Int
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv head_dimension : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv head_dimension : Int32
   priv norm_epsilon : Double
   priv rope_theta : Double
   priv projected_qkv : @plan.ActivationRef

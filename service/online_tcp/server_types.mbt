@@ -1,20 +1,20 @@
 ///|
-const LUNA_ONLINE_TCP_SERVER_LISTENING : Int = 0
+const LUNA_ONLINE_TCP_SERVER_LISTENING : Int32 = 0
 
 ///|
-const LUNA_ONLINE_TCP_SERVER_ACCEPTING : Int = 1
+const LUNA_ONLINE_TCP_SERVER_ACCEPTING : Int32 = 1
 
 ///|
-const LUNA_ONLINE_TCP_SERVER_CONNECTED : Int = 2
+const LUNA_ONLINE_TCP_SERVER_CONNECTED : Int32 = 2
 
 ///|
-const LUNA_ONLINE_TCP_SERVER_RETIRING : Int = 3
+const LUNA_ONLINE_TCP_SERVER_RETIRING : Int32 = 3
 
 ///|
-const LUNA_ONLINE_TCP_SERVER_DRAINING : Int = 4
+const LUNA_ONLINE_TCP_SERVER_DRAINING : Int32 = 4
 
 ///|
-const LUNA_ONLINE_TCP_SERVER_CLOSED : Int = 5
+const LUNA_ONLINE_TCP_SERVER_CLOSED : Int32 = 5
 
 ///|
 #valtype
@@ -58,13 +58,13 @@ pub struct LunaOnlineTcpServer {
   priv telemetry : LunaServerTelemetryBridge
   priv activity : LunaOnlineTcpActivity
   priv pipeline_mode : Bool
-  priv mut phase : Int
-  priv mut tail_start : Int
-  priv mut tail_length : Int
+  priv mut phase : Int32
+  priv mut tail_start : Int32
+  priv mut tail_length : Int32
   priv mut tail_backpressured : Bool
   priv mut request_receipt_complete : Bool
   priv mut pipeline_receipt_observed : Bool
-  priv mut pipeline_receipts_pending : Int
+  priv mut pipeline_receipts_pending : Int32
   priv mut backpressure_episode_active : Bool
   priv mut terminal_observed : Bool
   priv mut connection_telemetry_active : Bool
@@ -76,5 +76,5 @@ pub struct LunaOnlineTcpServer {
   priv mut service_drain_started : Bool
   priv mut drain_logged : Bool
   priv mut closed_logged : Bool
-  priv mut failure_rule : Int
+  priv mut failure_rule : Int32
 }

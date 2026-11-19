@@ -1,7 +1,7 @@
 ///|
 fn video_vae_destandardization_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       VideoVaeLatentDestandardization(_, _, _) => return ordinal
@@ -14,7 +14,7 @@ fn video_vae_destandardization_ordinal(
 ///|
 fn video_vae_destandardization_parameters(
   plan? : @joint_diffusion_plan.JointDiffusionPlan,
-  means? : Array[Float] = [0.5F, -1.0F],
+  means~ : Array[Float] = [0.5F, -1.0F],
 ) -> @joint_diffusion_vae_reference.JointVaeLatentDestandardization {
   let exact_plan = match plan {
     Some(value) => value

@@ -1,10 +1,10 @@
 ///|
 fn hc_checked_geometry(
-  row_count : Int,
-  stream_count : Int,
-  feature_width : Int,
+  row_count : Int32,
+  stream_count : Int32,
+  feature_width : Int32,
   limits : ReferenceLimits,
-) -> Int raise AdvancedDecoderReferenceError {
+) -> Int32 raise AdvancedDecoderReferenceError {
   if row_count <= 0 ||
     stream_count <= 1 ||
     feature_width <= 0 ||
@@ -31,10 +31,10 @@ fn hc_sigmoid(value : Float) -> Float {
 fn hc_normalized_mixes(
   streams : ArrayView[Float],
   function_weights : ArrayView[Float],
-  row_count : Int,
-  stream_count : Int,
-  feature_width : Int,
-  control_count : Int,
+  row_count : Int32,
+  stream_count : Int32,
+  feature_width : Int32,
+  control_count : Int32,
   normalization_epsilon : Float,
 ) -> Array[Float] {
   let flattened = stream_count * feature_width
@@ -71,12 +71,12 @@ pub fn hyper_connection_block_controls_v1(
   function_weights : ArrayView[Float],
   base : ArrayView[Float],
   scale : ArrayView[Float],
-  row_count~ : Int,
-  stream_count~ : Int,
-  feature_width~ : Int,
+  row_count~ : Int32,
+  stream_count~ : Int32,
+  feature_width~ : Int32,
   normalization_epsilon~ : Float,
   control_epsilon~ : Float,
-  sinkhorn_iterations~ : Int,
+  sinkhorn_iterations~ : Int32,
   limits~ : ReferenceLimits,
 ) -> HyperConnectionBlockControls raise AdvancedDecoderReferenceError {
   let flattened = hc_checked_geometry(
@@ -189,9 +189,9 @@ pub fn hyper_connection_block_controls_v1(
 pub fn hyper_connection_pre_reduce_v1(
   streams : ArrayView[Float],
   pre : ArrayView[Float],
-  row_count~ : Int,
-  stream_count~ : Int,
-  feature_width~ : Int,
+  row_count~ : Int32,
+  stream_count~ : Int32,
+  feature_width~ : Int32,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {
   let flattened = hc_checked_geometry(
@@ -225,9 +225,9 @@ pub fn hyper_connection_post_combine_v1(
   residual : ArrayView[Float],
   post : ArrayView[Float],
   combination : ArrayView[Float],
-  row_count~ : Int,
-  stream_count~ : Int,
-  feature_width~ : Int,
+  row_count~ : Int32,
+  stream_count~ : Int32,
+  feature_width~ : Int32,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {
   let flattened = hc_checked_geometry(
@@ -270,9 +270,9 @@ pub fn hyper_connection_head_reduce_v1(
   function_weights : ArrayView[Float],
   base : ArrayView[Float],
   scale : Float,
-  row_count~ : Int,
-  stream_count~ : Int,
-  feature_width~ : Int,
+  row_count~ : Int32,
+  stream_count~ : Int32,
+  feature_width~ : Int32,
   normalization_epsilon~ : Float,
   control_epsilon~ : Float,
   limits~ : ReferenceLimits,

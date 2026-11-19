@@ -12,11 +12,11 @@ fn complete_partition() -> @fusion_regions.Partition raise {
 ///|
 fn alternative(
   partition : @fusion_regions.Partition,
-  id : Int,
+  id : Int32,
   ns : Int64,
   workspace : Int64,
   local_storage : Int64,
-  continuation? : @fusion_regions.ContinuationClass = Materialized,
+  continuation~ : @fusion_regions.ContinuationClass = Materialized,
 ) -> @fusion_regions.PartitionAlternative raise {
   @fusion_regions.PartitionAlternative::new(
     id~,
@@ -31,7 +31,7 @@ fn alternative(
 ///|
 fn retained_ids(
   frontier : @fusion_regions.PartitionFrontier,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   frontier.alternatives().map(value => value.implementation_id())
 }
 
@@ -171,7 +171,7 @@ test "frontier agrees with exhaustive selection over budgets and continuation cl
     for workspace in 0..<4 {
       for local_storage in 0..<5 {
         // Independent exhaustive oracle: no dominance or frontier logic.
-        let expected = for value in choices; best = (None : (Int64, Int)?) {
+        let expected = for value in choices; best = (None : (Int64, Int32)?) {
           let (scratch, storage) = value.resources()
           if value.continuation_class() != @fusion_regions.Scoped(continuation) ||
             scratch > workspace.to_int64() ||

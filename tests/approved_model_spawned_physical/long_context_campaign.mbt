@@ -9,11 +9,11 @@ suberror LongContextCampaignError {
 ///|
 fn encode_long_context_evidence(
   release : @runtime_instance.RuntimeReleaseAdmission,
-  request_count : Int,
-  event_count : Int,
-  plan_count : Int,
-  input_tokens_processed : Int,
-  kv_pages_free : Int,
+  request_count : Int32,
+  event_count : Int32,
+  plan_count : Int32,
+  input_tokens_processed : Int32,
+  kv_pages_free : Int32,
 ) -> String {
   let evidence = "schema=lunaflux-approved-model-bf16-actual-long-context-qualification.v1\n" +
     "campaign_scope=qualification-only\n" +

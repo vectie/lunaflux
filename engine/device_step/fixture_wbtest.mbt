@@ -55,8 +55,8 @@ fn step_required_capability_array() -> Array[@plan.KernelCapabilityId] {
 
 ///|
 fn step_test_layout(
-  tokens_per_page? : Int = 4,
-  pages? : Int = 64,
+  tokens_per_page~ : Int32 = 4,
+  pages~ : Int32 = 64,
 ) -> @device_layout.DeviceKvLayout raise {
   @device_layout.plan(
     step_test_identity(),
@@ -86,11 +86,11 @@ fn step_protocol_limits() -> @worker_protocol.WorkerProtocolLimits raise {
 
 ///|
 fn step_device_limits(
-  max_rows? : Int = 4,
-  max_tokens? : Int = 8,
-  max_pages? : Int = 8,
-  max_sequence_tokens? : Int = 256,
-  max_token_id? : Int = 4096,
+  max_rows~ : Int32 = 4,
+  max_tokens~ : Int32 = 8,
+  max_pages~ : Int32 = 8,
+  max_sequence_tokens~ : Int32 = 256,
+  max_token_id~ : Int32 = 4096,
 ) -> DeviceStepLimits raise {
   DeviceStepLimits::new(
     max_rows~,
@@ -102,7 +102,9 @@ fn step_device_limits(
 }
 
 ///|
-fn step_allocator(capacity? : Int = 64) -> @page_allocator.PageAllocator raise {
+fn step_allocator(
+  capacity~ : Int32 = 64,
+) -> @page_allocator.PageAllocator raise {
   @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(
       page_capacity=capacity,
@@ -114,7 +116,7 @@ fn step_allocator(capacity? : Int = 64) -> @page_allocator.PageAllocator raise {
 }
 
 ///|
-fn step_slot(value : Int) -> @worker_protocol.CompletionSlot raise {
+fn step_slot(value : Int32) -> @worker_protocol.CompletionSlot raise {
   @worker_protocol.CompletionSlot::new(value, step_protocol_limits())
 }
 
@@ -126,9 +128,9 @@ fn step_request(value : UInt64) -> @inference.RequestId raise {
 ///|
 fn submit_step_buffer(
   buffer : @worker_protocol.SchedulePlanBuffer,
-  sequence? : UInt64 = 1UL,
-  generation? : UInt64 = 1UL,
-  token_budget~ : Int,
+  sequence~ : UInt64 = 1UL,
+  generation~ : UInt64 = 1UL,
+  token_budget~ : Int32,
 ) -> @worker_protocol.SubmittedSchedulePlan raise {
   let sequence_id = @worker_protocol.PlanSequence::from_wire(sequence)
   let generation_id = @worker_protocol.ModelPlanGeneration::from_wire(
@@ -148,7 +150,7 @@ fn submit_step_buffer(
 }
 
 ///|
-fn read_host_i32(buffer : FixedArray[Byte], index : Int) -> Int {
+fn read_host_i32(buffer : FixedArray[Byte], index : Int32) -> Int32 {
   let start = index * INT32_BYTES
   buffer[start].to_int() |
   (buffer[start + 1].to_int() << 8) |

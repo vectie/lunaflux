@@ -126,9 +126,9 @@ test "framed connection pool readiness is fail closed" {
     closed : Bool,
     failed : Bool,
     draining : Bool,
-    listener_count : Int,
-    service_count : Int,
-    stream_count : Int,
+    listener_count : Int32,
+    service_count : Int32,
+    stream_count : Int32,
     stream_live : Bool,
   ) -> Bool {
     !closed &&

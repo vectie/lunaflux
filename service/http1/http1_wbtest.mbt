@@ -17,9 +17,9 @@ fn luna_http1_test_policy() -> @api_auth.LunaApiAuthPolicy {
 
 ///|
 fn luna_http1_test_workspace(
-  budget : Int,
-  max_head_bytes? : Int = 1024,
-  max_body_bytes? : Int = 1024,
+  budget : Int32,
+  max_head_bytes~ : Int32 = 1024,
+  max_body_bytes~ : Int32 = 1024,
 ) -> LunaHttp1Workspace {
   let limits = try! LunaHttp1Limits::new(max_head_bytes~, max_body_bytes~)
   try! LunaHttp1Workspace::new(
@@ -31,8 +31,8 @@ fn luna_http1_test_workspace(
 
 ///|
 fn luna_http1_responses_request(
-  credential? : String = "secret",
-  body? : String = "{}",
+  credential~ : String = "secret",
+  body~ : String = "{}",
 ) -> FixedArray[Byte] {
   luna_http1_test_bytes(
     "POST /v1/responses HTTP/1.1\r\n" +
@@ -67,9 +67,9 @@ fn luna_http1_drive_until_receiving_or_terminal(work : LunaHttp1Work) -> Unit {
 fn luna_http1_offer_request(
   work : LunaHttp1Work,
   source : FixedArray[Byte],
-  offset? : Int = 0,
-  length? : Int = -1,
-) -> Int raise {
+  offset~ : Int32 = 0,
+  length~ : Int32 = -1,
+) -> Int32 raise {
   let target = if length < 0 { source.length() - offset } else { length }
   let mut consumed = 0
   let mut turns = 0

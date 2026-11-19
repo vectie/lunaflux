@@ -3,8 +3,8 @@
 // Document boundaries, Q/K ownership and all other block operations are
 // unchanged. Online storage is numerically distinct from global storage.
 fn probability_fold(
-  inner : Int,
-  dimension : Int,
+  inner : Int32,
+  dimension : Int32,
   scale : Double,
   key_start : String,
   key_end : String,

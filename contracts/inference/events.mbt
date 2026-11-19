@@ -1,14 +1,14 @@
 ///|
 /// Limits made effective by admission for one accepted request.
 pub struct EffectiveLimits {
-  priv max_new_tokens : Int
-  priv context_ceiling : Int
+  priv max_new_tokens : Int32
+  priv context_ceiling : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn EffectiveLimits::new(
-  max_new_tokens~ : Int,
-  context_ceiling~ : Int,
+  max_new_tokens~ : Int32,
+  context_ceiling~ : Int32,
   limits : InferenceLimits,
 ) -> EffectiveLimits raise InferenceContractError {
   if max_new_tokens <= 0 || max_new_tokens > limits.max_new_tokens() {
@@ -24,12 +24,12 @@ pub fn EffectiveLimits::new(
 }
 
 ///|
-pub fn EffectiveLimits::max_new_tokens(self : EffectiveLimits) -> Int {
+pub fn EffectiveLimits::max_new_tokens(self : EffectiveLimits) -> Int32 {
   self.max_new_tokens
 }
 
 ///|
-pub fn EffectiveLimits::context_ceiling(self : EffectiveLimits) -> Int {
+pub fn EffectiveLimits::context_ceiling(self : EffectiveLimits) -> Int32 {
   self.context_ceiling
 }
 
@@ -64,7 +64,7 @@ pub fn AcceptedEvent::effective_limits(self : AcceptedEvent) -> EffectiveLimits 
 /// Optional decoded token delta. It deliberately has no `Debug`.
 pub struct DecodedDelta {
   text : String
-  utf8_bytes : Int
+  utf8_bytes : Int32
 } derive(Eq)
 
 ///|
@@ -90,23 +90,23 @@ pub fn DecodedDelta::text(self : DecodedDelta) -> String {
 }
 
 ///|
-pub fn DecodedDelta::utf8_bytes(self : DecodedDelta) -> Int {
+pub fn DecodedDelta::utf8_bytes(self : DecodedDelta) -> Int32 {
   self.utf8_bytes
 }
 
 ///|
 /// One generated token at its zero-based output position.
 pub struct TokenEvent {
-  token_id : Int
+  token_id : Int32
   decoded_delta : DecodedDelta?
-  position : Int
+  position : Int32
 }
 
 ///|
 pub fn TokenEvent::new(
-  token_id~ : Int,
+  token_id~ : Int32,
   decoded_delta~ : DecodedDelta?,
-  position~ : Int,
+  position~ : Int32,
   limits : InferenceLimits,
 ) -> TokenEvent raise InferenceContractError {
   if token_id < 0 || token_id > limits.max_token_id() {
@@ -124,7 +124,7 @@ pub fn TokenEvent::new(
 }
 
 ///|
-pub fn TokenEvent::token_id(self : TokenEvent) -> Int {
+pub fn TokenEvent::token_id(self : TokenEvent) -> Int32 {
   self.token_id
 }
 
@@ -134,24 +134,24 @@ pub fn TokenEvent::decoded_delta(self : TokenEvent) -> DecodedDelta? {
 }
 
 ///|
-pub fn TokenEvent::position(self : TokenEvent) -> Int {
+pub fn TokenEvent::position(self : TokenEvent) -> Int32 {
   self.position
 }
 
 ///|
 /// Monotonic token accounting snapshot.
 pub struct Usage {
-  input_tokens : Int
-  cached_input_tokens : Int
-  output_tokens : Int
-  total_tokens : Int
+  input_tokens : Int32
+  cached_input_tokens : Int32
+  output_tokens : Int32
+  total_tokens : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Constructs the first usage snapshot before any output token is published.
 pub fn Usage::initial(
-  input_tokens~ : Int,
-  cached_input_tokens~ : Int,
+  input_tokens~ : Int32,
+  cached_input_tokens~ : Int32,
   limits : InferenceLimits,
 ) -> Usage raise InferenceContractError {
   if input_tokens < 0 || input_tokens > limits.max_context_tokens() {
@@ -172,7 +172,7 @@ pub fn Usage::initial(
 /// Advances only the output count; input and cached-input accounting is fixed.
 pub fn Usage::advance(
   self : Usage,
-  output_tokens~ : Int,
+  output_tokens~ : Int32,
   limits : InferenceLimits,
 ) -> Usage raise InferenceContractError {
   if output_tokens < self.output_tokens {
@@ -193,22 +193,22 @@ pub fn Usage::advance(
 }
 
 ///|
-pub fn Usage::input_tokens(self : Usage) -> Int {
+pub fn Usage::input_tokens(self : Usage) -> Int32 {
   self.input_tokens
 }
 
 ///|
-pub fn Usage::cached_input_tokens(self : Usage) -> Int {
+pub fn Usage::cached_input_tokens(self : Usage) -> Int32 {
   self.cached_input_tokens
 }
 
 ///|
-pub fn Usage::output_tokens(self : Usage) -> Int {
+pub fn Usage::output_tokens(self : Usage) -> Int32 {
   self.output_tokens
 }
 
 ///|
-pub fn Usage::total_tokens(self : Usage) -> Int {
+pub fn Usage::total_tokens(self : Usage) -> Int32 {
   self.total_tokens
 }
 
@@ -325,3 +325,33 @@ pub(all) enum StreamEvent {
   Completed(CompletedEvent)
   Failed(FailedEvent)
 }
+
+///|
+pub extend EffectiveLimits with @debug.Debug::{to_repr}
+
+///|
+pub extend EffectiveLimits with Eq::{not_equal, equal}
+
+///|
+pub extend AcceptedEvent with @debug.Debug::{to_repr}
+
+///|
+pub extend AcceptedEvent with Eq::{not_equal, equal}
+
+///|
+pub extend DecodedDelta with Eq::{not_equal, equal}
+
+///|
+pub extend Usage with @debug.Debug::{to_repr}
+
+///|
+pub extend Usage with Eq::{not_equal, equal}
+
+///|
+pub extend FinishReason with @debug.Debug::{to_repr}
+
+///|
+pub extend FinishReason with Eq::{not_equal, equal}
+
+///|
+pub extend CompletedEvent with Eq::{not_equal, equal}

@@ -1,7 +1,7 @@
 ///|
 fn luna_openai_semantic_token_id(
   event : @luna_event.LunaEventView,
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   let token = event.token() catch {
     _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatSemanticEvent)
   }
@@ -13,7 +13,7 @@ fn luna_openai_semantic_token_id(
 ///|
 fn luna_openai_semantic_position(
   event : @luna_event.LunaEventView,
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   let token = event.token() catch {
     _ => raise LunaOpenAICompatInvalid(LunaOpenAICompatSemanticEvent)
   }
@@ -26,7 +26,7 @@ fn luna_openai_semantic_position(
 fn LunaOpenAICompatWorkspace::semantic_payload_length(
   self : LunaOpenAICompatWorkspace,
   event : @luna_event.LunaEventView,
-) -> Int raise LunaOpenAICompatError {
+) -> Int32 raise LunaOpenAICompatError {
   match self.event_kind {
     LUNA_OPENAI_EVENT_TOKEN => {
       let token = event.token() catch {
@@ -59,10 +59,10 @@ fn LunaOpenAICompatWorkspace::semantic_payload_length(
 ///|
 fn luna_openai_valid_usage(
   inference : @inference.InferenceLimits,
-  input : Int,
-  cached : Int,
-  output : Int,
-  total : Int,
+  input : Int32,
+  cached : Int32,
+  output : Int32,
+  total : Int32,
 ) -> Bool {
   input >= 0 &&
   input <= inference.max_context_tokens() &&

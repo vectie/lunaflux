@@ -5,9 +5,9 @@
 /// Each arithmetic operation rounds through BF16, including 1+scale.
 /// Indices must be validated once at startup; no expanded per-token tables.
 pub fn indexed_bf16_modulation_source(
-  rows~ : Int,
-  width~ : Int,
-  parameter_rows~ : Int,
+  rows~ : Int32,
+  width~ : Int32,
+  parameter_rows~ : Int32,
   function_prefix~ : String,
 ) -> Bytes raise AffineModulationCudaSourceError {
   if rows <= 0 || parameter_rows <= 0 {

@@ -3,7 +3,7 @@
 /// A bounded bitmap is reused only after every worker finishes its window.
 pub enum SelectedUniquenessSchedule {
   Pairwise
-  WindowedBitmap(words~ : Int)
+  WindowedBitmap(words~ : Int32)
 } derive(Eq)
 
 ///|
@@ -12,10 +12,10 @@ pub extend SelectedUniquenessSchedule with Eq::{equal, not_equal}
 ///|
 pub fn SelectedSparseSchedule::uniqueness(
   self : Self,
-  extent : Int,
+  extent : Int32,
 ) -> SelectedUniquenessSchedule? {
   guard extent >= 0 && extent <= self.selected_width else { return None }
-  let words = Int::min(
+  let words = Int32::min(
     self.workers,
     ((self.history.to_int64() + 31L) / 32L).to_int(),
   )

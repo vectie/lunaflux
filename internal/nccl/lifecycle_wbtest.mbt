@@ -1,5 +1,5 @@
 ///|
-extern "c" fn raw_test_lifecycle(cycles : Int) -> Int = "lunaflux_nccl_test_lifecycle"
+extern "c" fn raw_test_lifecycle(cycles : Int32) -> Int32 = "lunaflux_nccl_test_lifecycle"
 
 ///|
 test "fake NCCL seam balances generation sequence failure and close" {
@@ -17,7 +17,7 @@ test "fake NCCL seam rejects adversarial cycle bounds" {
 
 ///|
 test "payload-safe status mapping is complete" {
-  let cases : Array[(Int, NcclError)] = [
+  let cases : Array[(Int32, NcclError)] = [
     (-1, Unavailable(RuntimeAdmission)),
     (-2, InvalidArgument(RuntimeAdmission)),
     (-3, Closed(RuntimeAdmission)),

@@ -51,7 +51,10 @@ fn openai_comparison_shared_inputs_equal(
 }
 
 ///|
-fn openai_comparison_expected_position(engine : Int, ordinal : Int) -> Int {
+fn openai_comparison_expected_position(
+  engine : Int32,
+  ordinal : Int32,
+) -> Int32 {
   match ordinal {
     1 => engine
     2 => (engine + 2) % 3
@@ -88,7 +91,7 @@ fn require_openai_measurement_shape(
 ///|
 fn require_openai_engine_identity(
   trials : ArrayView[OpenAIBaselineTrialEvidence],
-  engine_index : Int,
+  engine_index : Int32,
 ) -> OpenAIBaselineIdentity raise OpenAIBaselineAdapterError {
   let canonical = trials[engine_index].source_identity
   for profile_index in 0..<9 {
@@ -172,7 +175,7 @@ pub fn OpenAIComparisonMeasurementSet::require_responses_v1_observation(
 ///|
 pub fn OpenAIComparisonMeasurementSet::trial_count(
   self : OpenAIComparisonMeasurementSet,
-) -> Int {
+) -> Int32 {
   self.trials.length()
 }
 
@@ -186,7 +189,7 @@ pub fn OpenAIComparisonMeasurementSet::environment(
 ///|
 pub fn OpenAIComparisonMeasurementSet::engine_identity(
   self : OpenAIComparisonMeasurementSet,
-  index : Int,
+  index : Int32,
 ) -> @evidence.BenchmarkEngineIdentity raise OpenAIBaselineAdapterError {
   if index < 0 || index >= self.engines.length() {
     raise OpenAIBaselineInvalidInputs
@@ -197,7 +200,7 @@ pub fn OpenAIComparisonMeasurementSet::engine_identity(
 ///|
 pub fn OpenAIComparisonMeasurementSet::workload(
   self : OpenAIComparisonMeasurementSet,
-  index : Int,
+  index : Int32,
 ) -> @evidence.BenchmarkWorkload raise OpenAIBaselineAdapterError {
   if index < 0 || index >= self.workloads.length() {
     raise OpenAIBaselineInvalidInputs
@@ -208,7 +211,7 @@ pub fn OpenAIComparisonMeasurementSet::workload(
 ///|
 pub fn OpenAIComparisonMeasurementSet::measurements(
   self : OpenAIComparisonMeasurementSet,
-  index : Int,
+  index : Int32,
 ) -> @evidence.BenchmarkSummaryEvidence raise OpenAIBaselineAdapterError {
   if index < 0 || index >= self.trials.length() {
     raise OpenAIBaselineInvalidInputs

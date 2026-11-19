@@ -1,8 +1,8 @@
 ///|
 fn dimensions(
-  x : Int,
-  y : Int,
-  threads : Int,
+  x : Int32,
+  y : Int32,
+  threads : Int32,
 ) -> @device.KernelLaunchDimensions raise @device.DeviceError {
   @device.KernelLaunchDimensions::new(
     grid_x=x,
@@ -31,7 +31,7 @@ fn region(
 
 ///|
 /// Pure layer recipe shared by binding and sequence tests.
-fn layer_function_order() -> ReadOnlyArray[Int] {
+fn layer_function_order() -> ReadOnlyArray[Int32] {
   [1, 2, 3, 3, 4, 5, 6, 7, 10, 1, 8, 9, 10]
 }
 
@@ -51,7 +51,7 @@ pub fn TextEncoderSource::bind(
   workspace~ : @device.Allocation,
   cosine~ : @device.Allocation,
   sine~ : @device.Allocation,
-  visual? : (Int, @device.Allocation, @device.Allocation),
+  visual? : (Int32, @device.Allocation, @device.Allocation),
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard functions.length() == 13 && layers.length() == 50 else {
     raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
@@ -83,7 +83,7 @@ pub fn TextEncoderSource::bind(
   let sin = region(sine, 0L, rope_bytes)
   let launches : Array[@device.OrderedKernelLaunch] = []
   fn append(
-    index : Int,
+    index : Int32,
     grid : @device.KernelLaunchDimensions,
     operands : Array[@device.KernelArgument],
   ) -> Unit raise @device.DeviceError {
@@ -96,7 +96,7 @@ pub fn TextEncoderSource::bind(
     )
   }
   fn linear(
-    width : Int,
+    width : Int32,
   ) -> @device.KernelLaunchDimensions raise @device.DeviceError {
     dimensions(
       ((p.rows.to_int64() * width.to_int64() + 255L) / 256L).to_int(),
@@ -115,7 +115,7 @@ pub fn TextEncoderSource::bind(
     region(embedding, 0L, 151936L * 5120L * 2L),
     state,
   ])
-  fn visual_stage(index : Int) -> Unit raise @device.DeviceError {
+  fn visual_stage(index : Int32) -> Unit raise @device.DeviceError {
     if visual is Some((rows, positions, features)) {
       guard rows > 0 && rows <= p.rows else {
         raise @device.DeviceError::InvalidArgument(AotKernelLaunch)

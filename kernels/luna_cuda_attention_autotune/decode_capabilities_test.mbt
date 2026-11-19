@@ -58,7 +58,7 @@ test "decode catalog exposes matrix alternatives only within policy and numeric 
       let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
         problem, capabilities,
       )
-      let matrix_ids : Array[Int] = []
+      let matrix_ids : Array[Int32] = []
       for candidate in candidates {
         assert_true(candidate.shared_memory_bytes() <= 49152L)
         if candidate.compute() == AttentionGroupedQueryMatrixQkPv {

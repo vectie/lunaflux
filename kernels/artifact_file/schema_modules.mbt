@@ -2,8 +2,8 @@
 fn parse_entry_point(
   value : Json,
   digest : @catalog.AotArtifactDigest,
-  index : Int,
-  maximum_symbol_bytes : Int,
+  index : Int32,
+  maximum_symbol_bytes : Int32,
 ) -> @artifact.KernelEntryPointInput raise KernelArtifactFileError {
   guard value is Object(entry) else {
     raise invalid_field(

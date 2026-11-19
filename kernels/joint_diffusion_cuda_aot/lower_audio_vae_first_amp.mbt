@@ -53,7 +53,7 @@ fn first_amp_stage_text(
 pub fn lower_audio_vae_decoder_first_amp_activation_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   parameters~ : @joint_diffusion_vae_reference.JointVaeAudioDecoderFirstAmpActivation,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,

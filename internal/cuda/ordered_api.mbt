@@ -3,14 +3,14 @@ pub fn prepare_ordered_kernel_executor(
   context : Context,
   stream : Stream,
   functions : FixedArray[Function],
-  dimensions : FixedArray[Int],
-  argument_starts : FixedArray[Int],
+  dimensions : FixedArray[Int32],
+  argument_starts : FixedArray[Int32],
   allocations : FixedArray[Allocation],
   offsets : FixedArray[Int64],
   byte_counts : FixedArray[Int64],
   alignments : FixedArray[Int64],
-  policy? : OrderedExecutorPolicy = OrderedExecutorEagerOnly,
-  projections? : FixedArray[Int]? = None,
+  policy~ : OrderedExecutorPolicy = OrderedExecutorEagerOnly,
+  projections~ : FixedArray[Int32]? = None,
 ) -> OrderedKernelExecutor raise CudaError {
   let policy_code = match policy {
     OrderedExecutorEagerOnly => 0
@@ -60,7 +60,7 @@ pub fn OrderedKernelExecutor::execution_mode(
 ///|
 pub fn OrderedKernelExecutor::enqueue(
   self : OrderedKernelExecutor,
-  index : Int,
+  index : Int32,
 ) -> Unit raise CudaError {
   check_status(
     raw_ordered_executor_enqueue(self, index),

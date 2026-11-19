@@ -8,7 +8,7 @@ priv enum SpawnedLongContextOutcome {
 fn offer_long_context_frame(
   stream : @online_session.LunaOnlineFramedStream,
   frame : FixedArray[Byte],
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit raise RuntimeSpawnedLongContextError {
   offer_spawned_validation_frame(stream, frame, turn_limit) catch {
     _ => raise spawned_long_context_error(SpawnedLongContextIngress)
@@ -18,7 +18,7 @@ fn offer_long_context_frame(
 ///|
 fn next_long_context_event(
   stream : @online_session.LunaOnlineFramedStream,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> @online_session.LunaOnlineFramedSemanticEvent raise RuntimeSpawnedLongContextError {
   next_spawned_validation_event(stream, turn_limit) catch {
     _ => raise spawned_long_context_error(SpawnedLongContextEvent)
@@ -30,11 +30,11 @@ fn run_one_long_context_request(
   service : @online_session.LunaOnlineFramedService,
   frame : FixedArray[Byte],
   contract : RuntimeSpawnedLongContextContract,
-  expected_token : Int,
-  input_tokens : Int,
+  expected_token : Int32,
+  input_tokens : Int32,
   previous_plan_sequence : UInt64,
-  total_kv_pages : Int,
-) -> (Int, UInt64) raise RuntimeSpawnedLongContextError {
+  total_kv_pages : Int32,
+) -> (Int32, UInt64) raise RuntimeSpawnedLongContextError {
   let opened = service.open_semantic_stream()
   if opened.kind() != LunaOnlineFramedOpened {
     raise spawned_long_context_error(SpawnedLongContextOwner)

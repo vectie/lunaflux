@@ -1,7 +1,7 @@
 ///|
 priv struct AdvancedPlanCanonicalWriter {
   hasher : @canonical_sha256.CanonicalSha256
-  mut byte_count : Int
+  mut byte_count : Int32
 }
 
 ///|
@@ -12,7 +12,7 @@ fn AdvancedPlanCanonicalWriter::new() -> AdvancedPlanCanonicalWriter {
 ///|
 fn AdvancedPlanCanonicalWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise AdvancedDecoderPlanError {
   if count < 0 || self.byte_count > 65536 - count {
     raise CanonicalPlanTooLarge
@@ -45,7 +45,7 @@ fn AdvancedPlanCanonicalWriter::u64(
 ///|
 fn AdvancedPlanCanonicalWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise AdvancedDecoderPlanError {
   self.u64(Int64::from_int(value).reinterpret_as_uint64())
 }
@@ -145,7 +145,7 @@ fn encode_auxiliary(
 
 ///|
 fn canonical_plan_digest(
-  schema_version : Int,
+  schema_version : Int32,
   profile_identity : String,
   content_digest : @spec.ContentDigest,
   shape : AdvancedDecoderShape,

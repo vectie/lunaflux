@@ -1,7 +1,7 @@
 ///|
 pub fn CudaPagedAttentionTileAbi::shape(
   self : CudaPagedAttentionTileAbi,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (
     self.query_heads,
     self.key_value_heads,
@@ -13,14 +13,14 @@ pub fn CudaPagedAttentionTileAbi::shape(
 ///|
 pub fn CudaPagedAttentionTileAbi::layout(
   self : CudaPagedAttentionTileAbi,
-) -> (Int, Int64, Int64) {
+) -> (Int32, Int64, Int64) {
   (self.input_row_width, self.page_stride_values, self.physical_page_capacity)
 }
 
 ///|
 pub fn CudaPagedAttentionTileAbi::limits(
   self : CudaPagedAttentionTileAbi,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   (
     self.maximum_query_rows,
     self.maximum_query_tokens,
@@ -138,7 +138,7 @@ pub fn CudaPartitionedAttentionTileSource::digest(
 ///|
 pub fn CudaPagedAttentionTileAbi::query_metadata_version(
   self : CudaPagedAttentionTileAbi,
-) -> Int {
+) -> Int32 {
   if self.query_metadata {
     1
   } else {

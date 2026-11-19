@@ -1,47 +1,47 @@
 ///|
-const HARD_MAX_TEXT_BYTES : Int = 1048576
+const HARD_MAX_TEXT_BYTES : Int32 = 1048576
 
 ///|
-const HARD_MAX_INPUT_TOKENS : Int = 262144
+const HARD_MAX_INPUT_TOKENS : Int32 = 262144
 
 ///|
-const HARD_MAX_NEW_TOKENS : Int = 65536
+const HARD_MAX_NEW_TOKENS : Int32 = 65536
 
 ///|
-const HARD_MAX_CONTEXT_TOKENS : Int = 262144
+const HARD_MAX_CONTEXT_TOKENS : Int32 = 262144
 
 ///|
-const HARD_MAX_TOKEN_ID : Int = 16777215
+const HARD_MAX_TOKEN_ID : Int32 = 16777215
 
 ///|
-const HARD_MAX_STOP_TOKEN_IDS : Int = 256
+const HARD_MAX_STOP_TOKEN_IDS : Int32 = 256
 
 ///|
-const HARD_MAX_STOP_STRINGS : Int = 64
+const HARD_MAX_STOP_STRINGS : Int32 = 64
 
 ///|
-const HARD_MAX_STOP_STRING_BYTES : Int = 4096
+const HARD_MAX_STOP_STRING_BYTES : Int32 = 4096
 
 ///|
-const HARD_MAX_TRACE_BYTES : Int = 256
+const HARD_MAX_TRACE_BYTES : Int32 = 256
 
 ///|
-const HARD_MAX_CACHE_SCOPE_BYTES : Int = 256
+const HARD_MAX_CACHE_SCOPE_BYTES : Int32 = 256
 
 ///|
-const HARD_MAX_DECODED_DELTA_BYTES : Int = 16384
+const HARD_MAX_DECODED_DELTA_BYTES : Int32 = 16384
 
 ///|
 const HARD_MAX_DEADLINE_MILLIS : UInt64 = 86400000UL
 
 ///|
-const HARD_MAX_TOP_K : Int = 1048576
+const HARD_MAX_TOP_K : Int32 = 1048576
 
 ///|
 const HARD_MAX_TEMPERATURE : Double = 100.0
 
 ///|
-const PUBLIC_ERROR_CODE_BYTES : Int = 64
+const PUBLIC_ERROR_CODE_BYTES : Int32 = 64
 
 ///|
 /// Immutable resource bounds applied before the contract owns request data.
@@ -50,43 +50,43 @@ const PUBLIC_ERROR_CODE_BYTES : Int = 64
 /// ceilings. Consequently a validated request cannot turn a permissive or
 /// malformed service configuration into an unbounded allocation.
 pub struct InferenceLimits {
-  priv max_text_bytes : Int
-  priv max_input_tokens : Int
-  priv max_new_tokens : Int
-  priv max_context_tokens : Int
-  priv max_token_id : Int
-  priv max_stop_token_ids : Int
-  priv max_stop_strings : Int
-  priv max_stop_string_bytes : Int
-  priv max_trace_bytes : Int
-  priv max_cache_scope_bytes : Int
-  priv max_decoded_delta_bytes : Int
+  priv max_text_bytes : Int32
+  priv max_input_tokens : Int32
+  priv max_new_tokens : Int32
+  priv max_context_tokens : Int32
+  priv max_token_id : Int32
+  priv max_stop_token_ids : Int32
+  priv max_stop_strings : Int32
+  priv max_stop_string_bytes : Int32
+  priv max_trace_bytes : Int32
+  priv max_cache_scope_bytes : Int32
+  priv max_decoded_delta_bytes : Int32
   priv max_deadline_millis : UInt64
-  priv max_top_k : Int
+  priv max_top_k : Int32
   priv max_temperature : Double
 } derive(Debug, Eq)
 
 ///|
-fn positive_bounded(value : Int, maximum : Int) -> Bool {
+fn positive_bounded(value : Int32, maximum : Int32) -> Bool {
   value > 0 && value <= maximum
 }
 
 ///|
 /// Constructs a complete set of v1 inference-request limits.
 pub fn InferenceLimits::new(
-  max_text_bytes~ : Int,
-  max_input_tokens~ : Int,
-  max_new_tokens~ : Int,
-  max_context_tokens~ : Int,
-  max_token_id~ : Int,
-  max_stop_token_ids~ : Int,
-  max_stop_strings~ : Int,
-  max_stop_string_bytes~ : Int,
-  max_trace_bytes~ : Int,
-  max_cache_scope_bytes~ : Int,
-  max_decoded_delta_bytes~ : Int,
+  max_text_bytes~ : Int32,
+  max_input_tokens~ : Int32,
+  max_new_tokens~ : Int32,
+  max_context_tokens~ : Int32,
+  max_token_id~ : Int32,
+  max_stop_token_ids~ : Int32,
+  max_stop_strings~ : Int32,
+  max_stop_string_bytes~ : Int32,
+  max_trace_bytes~ : Int32,
+  max_cache_scope_bytes~ : Int32,
+  max_decoded_delta_bytes~ : Int32,
   max_deadline_millis~ : UInt64,
-  max_top_k~ : Int,
+  max_top_k~ : Int32,
   max_temperature~ : Double,
 ) -> InferenceLimits raise InferenceContractError {
   let limits : InferenceLimits = {
@@ -141,57 +141,59 @@ fn InferenceLimits::validate(
 }
 
 ///|
-pub fn InferenceLimits::max_text_bytes(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_text_bytes(self : InferenceLimits) -> Int32 {
   self.max_text_bytes
 }
 
 ///|
-pub fn InferenceLimits::max_input_tokens(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_input_tokens(self : InferenceLimits) -> Int32 {
   self.max_input_tokens
 }
 
 ///|
-pub fn InferenceLimits::max_new_tokens(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_new_tokens(self : InferenceLimits) -> Int32 {
   self.max_new_tokens
 }
 
 ///|
-pub fn InferenceLimits::max_context_tokens(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_context_tokens(self : InferenceLimits) -> Int32 {
   self.max_context_tokens
 }
 
 ///|
-pub fn InferenceLimits::max_token_id(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_token_id(self : InferenceLimits) -> Int32 {
   self.max_token_id
 }
 
 ///|
-pub fn InferenceLimits::max_stop_token_ids(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_stop_token_ids(self : InferenceLimits) -> Int32 {
   self.max_stop_token_ids
 }
 
 ///|
-pub fn InferenceLimits::max_stop_strings(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_stop_strings(self : InferenceLimits) -> Int32 {
   self.max_stop_strings
 }
 
 ///|
-pub fn InferenceLimits::max_stop_string_bytes(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_stop_string_bytes(self : InferenceLimits) -> Int32 {
   self.max_stop_string_bytes
 }
 
 ///|
-pub fn InferenceLimits::max_trace_bytes(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_trace_bytes(self : InferenceLimits) -> Int32 {
   self.max_trace_bytes
 }
 
 ///|
-pub fn InferenceLimits::max_cache_scope_bytes(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_cache_scope_bytes(self : InferenceLimits) -> Int32 {
   self.max_cache_scope_bytes
 }
 
 ///|
-pub fn InferenceLimits::max_decoded_delta_bytes(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_decoded_delta_bytes(
+  self : InferenceLimits,
+) -> Int32 {
   self.max_decoded_delta_bytes
 }
 
@@ -201,7 +203,7 @@ pub fn InferenceLimits::max_deadline_millis(self : InferenceLimits) -> UInt64 {
 }
 
 ///|
-pub fn InferenceLimits::max_top_k(self : InferenceLimits) -> Int {
+pub fn InferenceLimits::max_top_k(self : InferenceLimits) -> Int32 {
   self.max_top_k
 }
 
@@ -209,3 +211,9 @@ pub fn InferenceLimits::max_top_k(self : InferenceLimits) -> Int {
 pub fn InferenceLimits::max_temperature(self : InferenceLimits) -> Double {
   self.max_temperature
 }
+
+///|
+pub extend InferenceLimits with @debug.Debug::{to_repr}
+
+///|
+pub extend InferenceLimits with Eq::{not_equal, equal}

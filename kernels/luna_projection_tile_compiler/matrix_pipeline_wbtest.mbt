@@ -79,7 +79,7 @@ test "bounded operand lookahead does not widen selected gathers" {
     let selected = compile_projection_tile(
         ProjectionTileCompilerRequest::new(
           dispatch=projection_compiler_dispatch(LanguageModelHead),
-          maximum_rows=Int::min(bound, 32),
+          maximum_rows=Int32::min(bound, 32),
           maximum_tokens=bound,
           demand=QueryRowEnds,
         ),

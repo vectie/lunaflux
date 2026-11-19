@@ -3,7 +3,7 @@ fn fused_residual_rmsnorm_source(
   symbol : String,
   parameters : FusedResidualNormParameters,
   profile : @launch_contract.PagedKernelProfile,
-  canary : UInt,
+  canary : UInt32,
   physical_program : @elementwise_physical_ir.NormalizationProgram,
 ) -> Bytes raise FusedParallelAotError {
   let (width, owners, _) = physical_program.geometry()

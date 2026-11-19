@@ -1,8 +1,8 @@
 ///|
 fn moe_selected_width(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  routed_expert_count : Int,
-) -> Int? {
+  routed_expert_count : Int32,
+) -> Int32? {
   for requirement in requirements.requirements() {
     if requirement.operation()
       is MoeGroupedNoAuxiliaryLossTopK(
@@ -24,8 +24,8 @@ fn moe_selected_width(
 ///|
 fn exact_moe_routed_expert_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  routed_expert_count : Int,
-  intermediate_size : Int,
+  routed_expert_count : Int32,
+  intermediate_size : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   guard moe_selected_width(requirements, routed_expert_count)
@@ -66,8 +66,8 @@ fn exact_moe_routed_expert_abi(
 ///|
 fn exact_moe_shared_expert_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  shared_expert_count : Int,
-  intermediate_size : Int,
+  shared_expert_count : Int32,
+  intermediate_size : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if shared_expert_count != 1 {
@@ -99,7 +99,7 @@ fn exact_moe_shared_expert_abi(
 ///|
 fn exact_moe_routed_shared_combine_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  experts_per_token : Int,
+  experts_per_token : Int32,
   normalize : Bool,
   scaling : Double,
   claim : GlmHybridArtifactClaimInput,

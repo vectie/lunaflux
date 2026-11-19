@@ -1,20 +1,20 @@
 ///|
-fn qwen_fused_postprocess_argument_count() -> Int {
+fn qwen_fused_postprocess_argument_count() -> Int32 {
   12
 }
 
 ///|
-fn qwen_fused_full_ingress_argument_count() -> Int {
+fn qwen_fused_full_ingress_argument_count() -> Int32 {
   15
 }
 
 ///|
 priv struct PreparedQwenFusedAttentionResources {
-  ingress_function : Int
-  rotary_prepare_function : Int?
-  prefill_function : Int
-  wide_prefill_function : Int?
-  decode_function : Int
+  ingress_function : Int32
+  rotary_prepare_function : Int32?
+  prefill_function : Int32
+  wide_prefill_function : Int32?
+  decode_function : Int32
   sidecar : @device.Allocation
 }
 
@@ -168,7 +168,7 @@ fn prepare_qwen_fused_attention_resources(
 ///|
 fn qwen_fused_attention_weights(
   step : PagedKvExecutionStep,
-  expected : Int,
+  expected : Int32,
 ) -> Array[PagedKvOperandBinding] raise DeviceStepError {
   let weights : Array[PagedKvOperandBinding] = []
   for binding in step.operands() {
@@ -200,16 +200,16 @@ fn qwen_fused_sidecar_argument(
 ///|
 fn prepare_qwen_fused_attention_launch(
   operation : @plan.OperationId,
-  function_index : Int,
+  function_index : Int32,
   launch : @launch_contract.AotLaunchDimensions,
   bindings : ArrayView[PagedKvOperandBinding],
-  sidecar_binding_index : Int,
+  sidecar_binding_index : Int32,
   sidecar : @device.Allocation,
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
   kv : @device.Allocation,
-  prefill_only? : Bool = false,
+  prefill_only~ : Bool = false,
   metadata? : @device.KernelArgument,
   rotary_cache? : @device.KernelArgument,
 ) -> PreparedPagedGraphStep raise DeviceStepError {
@@ -249,16 +249,16 @@ fn prepare_qwen_fused_attention_launch(
 fn prepare_qwen_fused_attention_steps(
   blueprint : PagedKvExecutionBlueprint,
   span : ApprovedQwenFusedAttentionSpan,
-  ingress_function : Int,
-  readonly_function : Int,
+  ingress_function : Int32,
+  readonly_function : Int32,
   readonly_launch : @launch_contract.AotLaunchDimensions,
   descriptor : DeviceStepResources,
   weight : @device.Allocation,
   activation : @device.Allocation,
   kv : @device.Allocation,
   sidecar : @device.Allocation,
-  prefill_only? : Bool = false,
-  query_metadata? : Bool = false,
+  prefill_only~ : Bool = false,
+  query_metadata~ : Bool = false,
 ) -> (PreparedPagedGraphStep, PreparedPagedGraphStep) raise DeviceStepError {
   let (qkv_index, qk_norm_index, rope_index, attention_index) = span.operation_indices()
   guard blueprint.steps().get(qkv_index) is Some(qkv_step) &&
@@ -434,7 +434,7 @@ fn qwen_partitioned_prefill_workspace_argument(
 ///|
 fn qwen_partitioned_prefill_step(
   operation : @plan.OperationId,
-  function_index : Int,
+  function_index : Int32,
   launch : @launch_contract.AotLaunchDimensions,
   arguments : ArrayView[@device.KernelArgument],
 ) -> PreparedPagedGraphStep raise DeviceStepError {
@@ -471,7 +471,7 @@ fn prepare_qwen_partitioned_prefill_steps(
   activation : @device.Allocation,
   kv : @device.Allocation,
   resources : PagedGraphResources,
-  deep? : Bool = false,
+  deep~ : Bool = false,
 ) -> ReadOnlyArray[PreparedPagedGraphStep]? raise DeviceStepError {
   guard spans.get(0) is Some(first) else { return None }
   guard qwen_partitioned_prefill_variant(first, deep) is Some(pipeline) else {
@@ -527,7 +527,7 @@ fn prepare_qwen_partitioned_prefill_steps(
     resources,
   )
   let replacements : Array[
-    (Int, PreparedPagedGraphStep, PreparedPagedGraphStep),
+    (Int32, PreparedPagedGraphStep, PreparedPagedGraphStep),
   ] = []
   for span in spans {
     let (_, _, rope_index, attention_index) = span.operation_indices()
@@ -668,8 +668,8 @@ fn prepare_qwen_partitioned_prefill_steps(
 fn qwen_partitioned_prefill_minimum_context_tokens(
   blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-  deep? : Bool = false,
-) -> Int raise DeviceStepError {
+  deep~ : Bool = false,
+) -> Int32 raise DeviceStepError {
   guard spans.get(0) is Some(first) else {
     return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
   }
@@ -692,8 +692,8 @@ fn qwen_partitioned_prefill_minimum_context_tokens(
 fn qwen_partitioned_prefill_query_tile(
   blueprint : PagedKvExecutionBlueprint,
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-  deep? : Bool = false,
-) -> Int raise DeviceStepError {
+  deep~ : Bool = false,
+) -> Int32 raise DeviceStepError {
   guard spans.get(0) is Some(first) &&
     qwen_partitioned_prefill_variant(first, deep) is Some(first_pipeline) else {
     return 1
@@ -717,8 +717,8 @@ fn qwen_partitioned_prefill_query_tile(
 /// metadata and never inspects a CUDA symbol on the token path.
 fn qwen_partitioned_prefill_partition_count(
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-  deep? : Bool = false,
-) -> Int raise DeviceStepError {
+  deep~ : Bool = false,
+) -> Int32 raise DeviceStepError {
   guard spans.get(0) is Some(first) &&
     qwen_partitioned_prefill_variant(first, deep) is Some(first_pipeline) else {
     return 1
@@ -742,7 +742,7 @@ fn qwen_partitioned_prefill_partition_count(
 /// variant; request dispatch then compares one bucket bound without scanning.
 fn qwen_wide_prefill_minimum_query_tokens(
   spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   guard spans.get(0) is Some(first) &&
     first.wide_query_prefill() is Some(first_variant) else {
     return PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD
@@ -771,7 +771,7 @@ fn[Step] replace_qwen_fused_attention_runtime_spans(
     raise InvalidExecutor(ResourceState)
   }
   if spans.all(span => !span.ingress_includes_projection()) {
-    let qkv_indices : Array[Int] = []
+    let qkv_indices : Array[Int32] = []
     for span in spans {
       qkv_indices.push(span.operation_indices().0)
     }
@@ -822,8 +822,8 @@ fn[Step] replace_qwen_fused_attention_runtime_spans(
 ///|
 fn qwen_fused_attention_overlaps_residual(
   qwen_spans : ReadOnlyArray[ApprovedQwenFusedAttentionSpan],
-  residual_index : Int,
-  norm_index : Int,
+  residual_index : Int32,
+  norm_index : Int32,
 ) -> Bool {
   for span in qwen_spans {
     let indices = span.operation_indices()

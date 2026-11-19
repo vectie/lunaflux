@@ -8,9 +8,9 @@ struct ServiceRankEmulator {
   completion : @worker_wire.CompletionFrameBuffer
   bytes : FixedArray[Byte]
   response : FixedArray[Byte]
-  mut response_length : Int
+  mut response_length : Int32
   mut sequence : UInt64
-  mut phase : Int
+  mut phase : Int32
 }
 
 ///|
@@ -46,7 +46,7 @@ fn ServiceRankEmulator::new(
 fn ServiceRankEmulator::progress(
   self : ServiceRankEmulator,
   group : @remote_group.RemoteGroup,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise {
   bridge_remote_mailbox(group.mailbox(rank), self.mailbox, self.bytes)
   if self.phase == 0 && self.control.progress_receive().has_inbound() {

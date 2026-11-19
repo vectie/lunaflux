@@ -1,16 +1,16 @@
 ///|
 pub fn AdvancedDecoderShape::new(
-  vocabulary_size~ : Int,
-  hidden_size~ : Int,
-  decoder_layer_count~ : Int,
-  attention_head_count~ : Int,
-  kv_head_count~ : Int,
-  attention_head_dimension~ : Int,
-  rope_head_dimension~ : Int,
-  query_low_rank~ : Int,
-  output_low_rank~ : Int,
-  output_group_count~ : Int,
-  maximum_position_count~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_size~ : Int32,
+  decoder_layer_count~ : Int32,
+  attention_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  attention_head_dimension~ : Int32,
+  rope_head_dimension~ : Int32,
+  query_low_rank~ : Int32,
+  output_low_rank~ : Int32,
+  output_group_count~ : Int32,
+  maximum_position_count~ : Int32,
 ) -> AdvancedDecoderShape raise AdvancedDecoderPlanError {
   for
     entry in [
@@ -55,9 +55,9 @@ pub fn AdvancedDecoderShape::new(
 
 ///|
 pub fn LowRankAttentionPlan::new(
-  query_rank~ : Int,
-  output_rank~ : Int,
-  output_group_count~ : Int,
+  query_rank~ : Int32,
+  output_rank~ : Int32,
+  output_group_count~ : Int32,
   query_key_norm_epsilon~ : Double,
 ) -> LowRankAttentionPlan raise AdvancedDecoderPlanError {
   if query_rank <= 0 ||
@@ -76,7 +76,7 @@ pub fn LowRankAttentionPlan::new(
 pub fn PositionEncodingPlan::new(
   rope_theta~ : Double,
   compressed_rope_theta~ : Double,
-  original_position_count~ : Int,
+  original_position_count~ : Int32,
   scaling_factor~ : Double,
   beta_fast~ : Double,
   beta_slow~ : Double,
@@ -108,10 +108,10 @@ fn finite_positive(value : Double) -> Bool {
 
 ///|
 pub fn HyperConnectionPlan::new(
-  width~ : Int,
+  width~ : Int32,
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
-  sinkhorn_iterations~ : Int,
+  sinkhorn_iterations~ : Int32,
 ) -> HyperConnectionPlan raise AdvancedDecoderPlanError {
   if width <= 1 ||
     !finite_positive(control_epsilon) ||

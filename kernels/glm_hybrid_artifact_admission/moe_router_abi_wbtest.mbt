@@ -1,13 +1,13 @@
 ///|
 fn moe_router_claim(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  operation? : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = MoeRouterProjection(
+  operation~ : @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation = MoeRouterProjection(
     4096, 288, true,
   ),
-  weight_role? : GlmHybridLaunchOperandRole = MoeRouterBf16Weights,
-  output_bytes? : Int64 = 36864L,
-  input_alignment? : Int64 = 16L,
-  symbol? : String = "lunaflux_glm_hybrid_moe_router_f32_bf16_v1",
+  weight_role~ : GlmHybridLaunchOperandRole = MoeRouterBf16Weights,
+  output_bytes~ : Int64 = 36864L,
+  input_alignment~ : Int64 = 16L,
+  symbol~ : String = "lunaflux_glm_hybrid_moe_router_f32_bf16_v1",
 ) -> GlmHybridArtifactClaimInput {
   let digest = try! @catalog.AotArtifactDigest::from_sha256(
     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

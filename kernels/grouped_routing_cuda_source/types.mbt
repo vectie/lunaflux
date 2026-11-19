@@ -25,14 +25,14 @@ pub(all) suberror GroupedRoutingCudaSourceError {
 pub struct GroupedRoutingCudaSource {
   priv operation : GroupedRoutingCudaOperation
   priv numerical_contract : GroupedRoutingNumericalContract
-  priv routed_expert_count : Int
-  priv group_count : Int
-  priv group_score_topk : Int
-  priv selected_group_count : Int
-  priv experts_per_token : Int
+  priv routed_expert_count : Int32
+  priv group_count : Int32
+  priv group_score_topk : Int32
+  priv selected_group_count : Int32
+  priv experts_per_token : Int32
   priv normalize : Bool
   priv scaling : Double
-  priv maximum_rows : Int
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

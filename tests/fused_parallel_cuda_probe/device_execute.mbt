@@ -2,22 +2,22 @@
 struct FusedProbeObservation {
   maximum_qkv_absolute_error_ppb : Int64
   maximum_qkv_relative_error_ppb : Int64
-  qkv_dispatch_canary : UInt
+  qkv_dispatch_canary : UInt32
   maximum_residual_absolute_error_ppb : Int64
   maximum_residual_relative_error_ppb : Int64
-  residual_dispatch_canary : UInt
-  launches : Int
+  residual_dispatch_canary : UInt32
+  launches : Int32
   device_uuid : String
   device_pci : String
   device_name_sha256 : String
   device_total_memory_bytes : Int64
-  cuda_driver_version : Int
+  cuda_driver_version : Int32
 }
 
 ///|
 fn probe_qkv_comparison(
-  actual : ArrayView[Int],
-  expected : ArrayView[Int],
+  actual : ArrayView[Int32],
+  expected : ArrayView[Int32],
 ) -> (Int64, Int64) raise {
   let summary = @fused_parallel_qualification.compare_qkv_bf16_output(
     actual, expected,
@@ -32,8 +32,8 @@ fn probe_qkv_comparison(
 
 ///|
 fn probe_residual_comparison(
-  actual : ArrayView[Int],
-  expected : ArrayView[Int],
+  actual : ArrayView[Int32],
+  expected : ArrayView[Int32],
 ) -> (Int64, Int64) raise {
   let summary = @fused_parallel_qualification.compare_residual_norm_bf16_output(
     actual, expected,
@@ -157,7 +157,7 @@ fn run_qkv_shape(
   candidate : @luna_cuda_fused_parallel_aot.FusedQkvRopeKvWriteCudaCandidate,
   shape : @fused_parallel_qualification.FusedQualificationShape,
   balance : FusedProbeResourceBalance,
-) -> (Int64, Int64, UInt) raise {
+) -> (Int64, Int64, UInt32) raise {
   let fixture = @fused_parallel_qualification.qkv_qualification_fixture(shape)
   upload_qkv_fixture(arena, fixture)
   probe_launch_synchronous(
@@ -213,7 +213,7 @@ fn run_residual_shape(
   candidate : @luna_cuda_fused_parallel_aot.FusedResidualRmsNormCudaCandidate,
   shape : @fused_parallel_qualification.FusedQualificationShape,
   balance : FusedProbeResourceBalance,
-) -> (Int64, Int64, UInt) raise {
+) -> (Int64, Int64, UInt32) raise {
   let fixture = @fused_parallel_qualification.residual_norm_qualification_fixture(
     shape,
   )
@@ -311,7 +311,7 @@ fn run_fused_device_probe(
   bindings : FusedProbeBindings,
   oracle_modules : FusedProbeOracleModules,
   set : @luna_fused_candidate_export.LunaFusedCandidateQualificationSet,
-  cycles : Int,
+  cycles : Int32,
   balance : FusedProbeResourceBalance,
 ) -> FusedProbeObservation raise {
   let (cuda_driver_version, devices) = match @device.probe() {

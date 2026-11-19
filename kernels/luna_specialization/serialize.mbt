@@ -1,7 +1,7 @@
 ///|
 priv struct LunaSpecializationEncoder {
   bytes : Array[Byte]
-  maximum : Int
+  maximum : Int32
 }
 
 ///|
@@ -28,7 +28,7 @@ fn LunaSpecializationEncoder::append_u64(
 ///|
 fn LunaSpecializationEncoder::append_int(
   self : LunaSpecializationEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit raise LunaSpecializationError {
   self.append_u64(Int64::from_int(value).reinterpret_as_uint64())
 }
@@ -54,7 +54,7 @@ fn LunaSpecializationEncoder::append_string(
 }
 
 ///|
-fn operation_shape_code(shape : @plan.OperationShape) -> Int {
+fn operation_shape_code(shape : @plan.OperationShape) -> Int32 {
   match shape {
     EmbeddingShape(..) => 1
     NormalizationShape(..) => 2
@@ -164,7 +164,7 @@ fn encode_luna_specialization(
   program : @luna_tile_ir.LunaTileProgram,
   cuda_aot : @luna_tile_ir.LunaTileCudaAotInput,
   evidence : LunaSpecializationEvidence,
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaSpecializationError {
   let encoder : LunaSpecializationEncoder = { bytes: [], maximum, }
   encoder.append_string("LUNA-SPECIALIZATION-V1")

@@ -3,8 +3,8 @@
 /// Producers write only the appended partial plane. Consumers read that plane
 /// until their ordered launch retires, never a concurrently published result.
 pub struct PartitionedMaximum {
-  priv partitions : Int
-  priv group_elements : Int
+  priv partitions : Int32
+  priv group_elements : Int32
   priv partial_offset : Int64
   priv allocation_bytes : Int64
 } derive(Eq, Debug)
@@ -16,14 +16,14 @@ pub extend PartitionedMaximum with Eq::{equal, not_equal}
 pub extend PartitionedMaximum with @debug.Debug::{to_repr}
 
 ///|
-pub fn PartitionedMaximum::group_elements(self : Self) -> Int {
+pub fn PartitionedMaximum::group_elements(self : Self) -> Int32 {
   self.group_elements
 }
 
 ///|
 pub fn PartitionedMaximum::new(
-  partitions~ : Int,
-  group_elements~ : Int,
+  partitions~ : Int32,
+  group_elements~ : Int32,
   after_bytes~ : Int64,
 ) -> Self? {
   guard partitions > 0 &&
@@ -43,7 +43,7 @@ pub fn PartitionedMaximum::new(
 }
 
 ///|
-pub fn PartitionedMaximum::partitions(self : Self) -> Int {
+pub fn PartitionedMaximum::partitions(self : Self) -> Int32 {
   self.partitions
 }
 
@@ -59,7 +59,10 @@ pub fn PartitionedMaximum::allocation_bytes(self : Self) -> Int64 {
 
 ///|
 /// Decode uses one producer; every other live row count uses the finite pool.
-pub fn PartitionedMaximum::live_partitions(self : Self, live_rows : Int) -> Int {
+pub fn PartitionedMaximum::live_partitions(
+  self : Self,
+  live_rows : Int32,
+) -> Int32 {
   if live_rows <= 0 {
     0
   } else if live_rows == 1 {
@@ -74,8 +77,8 @@ pub fn PartitionedMaximum::live_partitions(self : Self, live_rows : Int) -> Int 
 pub fn PartitionedMaximum::owner(
   self : Self,
   index : Int64,
-  live_rows : Int,
-) -> Int? {
+  live_rows : Int32,
+) -> Int32? {
   let count = self.live_partitions(live_rows)
   if index < 0L || count == 0 {
     None

@@ -27,7 +27,7 @@ pub(all) enum TensorParallelGroupTransportRule {
 
 ///|
 pub(all) suberror TensorParallelGroupTransportError {
-  Rejected(rule~ : TensorParallelGroupTransportRule, rank~ : Int)
+  Rejected(rule~ : TensorParallelGroupTransportRule, rank~ : Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -52,7 +52,7 @@ pub(all) enum TensorParallelGroupStart {
 pub(all) enum TensorParallelGroupCleanupProgress {
   GroupCleanupAdvanced
   GroupCleanupPending
-  GroupCleanupStuck(rank~ : Int)
+  GroupCleanupStuck(rank~ : Int32)
   GroupReplacementReady
   GroupCloseComplete
 } derive(Debug, Eq)

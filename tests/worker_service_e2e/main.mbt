@@ -106,8 +106,8 @@ fn scheduler_owner() -> @scheduler.Scheduler raise {
 ///|
 fn request(
   id : UInt64,
-  max_new_tokens? : Int = 1,
-  deadline_budget? : UInt64 = 100UL,
+  max_new_tokens~ : Int32 = 1,
+  deadline_budget~ : UInt64 = 100UL,
 ) -> @scheduler.TokenizedRequest raise {
   let limits = inference_limits()
   @scheduler.TokenizedRequest::new(
@@ -134,8 +134,8 @@ fn request(
 fn online_request(
   id : UInt64,
   receipt : UInt64,
-  max_new_tokens? : Int = 1,
-  deadline_budget? : UInt64 = 1000UL,
+  max_new_tokens~ : Int32 = 1,
+  deadline_budget~ : UInt64 = 1000UL,
 ) -> @scheduler.TokenizedRequest raise {
   let limits = inference_limits()
   @scheduler.TokenizedRequest::new(
@@ -160,7 +160,7 @@ fn online_request(
 
 ///|
 fn startup(
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @worker_wire.WorkerStartupContract raise {
   @worker_wire.WorkerStartupContract::new(
     identity=identity(),
@@ -179,7 +179,7 @@ fn startup(
 
 ///|
 fn service_binding(
-  fixture_root? : String = "/private/tmp",
+  fixture_root~ : String = "/private/tmp",
 ) -> @worker_service.WorkerServiceBinding raise {
   @worker_service.WorkerServiceBinding::new(
     bootstrap_digest=@worker_wire.WorkerBootstrapDigest::from_sha256(

@@ -2,7 +2,7 @@
 fn index_claim(
   claims : ArrayView[MiniMaxH3TensorIndexInput],
   name : String,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   let mut count = 0
   let mut shard_index = -1
   for claim in claims {

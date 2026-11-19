@@ -1,17 +1,17 @@
 ///|
-const CYCLE_ORDINARY_PREFILL : Int = 0
+const CYCLE_ORDINARY_PREFILL : Int32 = 0
 
 ///|
-const CYCLE_GREEDY_FINAL_PREFILL : Int = 1
+const CYCLE_GREEDY_FINAL_PREFILL : Int32 = 1
 
 ///|
-const CYCLE_STOCHASTIC_FINAL_PREFILL : Int = 2
+const CYCLE_STOCHASTIC_FINAL_PREFILL : Int32 = 2
 
 ///|
-const CYCLE_GREEDY_DECODE : Int = 3
+const CYCLE_GREEDY_DECODE : Int32 = 3
 
 ///|
-const CYCLE_STOCHASTIC_DECODE : Int = 4
+const CYCLE_STOCHASTIC_DECODE : Int32 = 4
 
 ///|
 struct PreparedCycle {
@@ -31,7 +31,7 @@ fn stochastic_parameters() -> @inference.SamplingParameters raise {
 ///|
 fn prepare_cycle_for_branch(
   sequence : UInt64,
-  branch : Int,
+  branch : Int32,
   model_plan : @plan.ModelPlan,
   page : @page_allocator.PageId,
 ) -> PreparedCycle raise {

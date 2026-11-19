@@ -369,16 +369,16 @@ fn finish_paged_sampling_preparation(
   graph_policy : PagedGraphExecutionPolicy,
   fused_residual_spans : ReadOnlyArray[ApprovedFusedResidualRmsNormSpan],
   diagnostic_policy : PagedExecutionDiagnosticPolicy,
-  measured_attention_candidates? : ReadOnlyArray[Int]? = None,
-  prefill_wide_minimum_query_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  prefill_split_query_tile? : Int = 1,
-  prefill_split_partition_count? : Int = 1,
-  deep_prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  deep_prefill_split_query_tile? : Int = 1,
-  deep_prefill_split_partition_count? : Int = 1,
-  decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  decode_split_maximum_batch_rows? : Int = 2147483647,
+  measured_attention_candidates~ : ReadOnlyArray[Int32]? = None,
+  prefill_wide_minimum_query_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  prefill_split_minimum_context_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  prefill_split_query_tile~ : Int32 = 1,
+  prefill_split_partition_count~ : Int32 = 1,
+  deep_prefill_split_minimum_context_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  deep_prefill_split_query_tile~ : Int32 = 1,
+  deep_prefill_split_partition_count~ : Int32 = 1,
+  decode_split_minimum_context_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  decode_split_maximum_batch_rows~ : Int32 = 2147483647,
 ) -> PagedGraphPreparation raise DeviceStepError {
   let steps = prepare_paged_sampling_execution(
     context, model_plan, blueprint, limits, policy, artifacts, completion, descriptor,
@@ -469,7 +469,7 @@ fn finish_paged_sampling_preparation(
 fn copy_paged_cuda_greedy_results(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
-  row_count : Int,
+  row_count : Int32,
 ) -> Unit raise DeviceStepError {
   let row_count = projected_result_count(descriptor, row_count)
   guard executor.completion.mode is CudaGreedyCompletion(host) else { return }
@@ -500,8 +500,8 @@ fn copy_paged_cuda_greedy_results(
 fn select_paged_cuda_greedy_result(
   executor : PagedGraphExecutor,
   descriptor : DeviceStepOwner,
-  row : Int,
-) -> Int raise DeviceStepError {
+  row : Int32,
+) -> Int32 raise DeviceStepError {
   guard executor.completion.mode is CudaGreedyCompletion(host) &&
     row >= 0 &&
     row < executor.completion.selected_tokens.length() else {

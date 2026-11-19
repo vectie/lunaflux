@@ -3,8 +3,8 @@ pub fn LunaRequestPreparationPool::try_begin_luna_framed_with_receipt(
   self : LunaRequestPreparationPool,
   receipt : LunaRequestReceipt,
   source : FixedArray[Byte],
-  source_offset~ : Int,
-  length~ : Int,
+  source_offset~ : Int32,
+  length~ : Int32,
 ) -> LunaRequestPreparationAdmission raise RequestAdmissionError {
   // Exact receipt authentication precedes pool disposition and source rules.
   let receipt_workspace = receipt.require_workspace()
@@ -91,7 +91,7 @@ pub fn LunaRequestPreparationPool::try_begin_luna_framed_with_receipt(
   lane.claim = None
   lane.last_work_units = 0
   lane.total_work_units = 0UL
-  let offer_result : Result[Int, RequestAdmissionError] = Ok(
+  let offer_result : Result[Int32, RequestAdmissionError] = Ok(
     self.offer_framed_lane(lane, source, source_offset, length, observed),
   ) catch {
     error => Err(error)

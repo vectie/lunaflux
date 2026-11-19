@@ -3,8 +3,8 @@ fn valid_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -12,8 +12,8 @@ fn valid_symbol(symbol : StringView) -> Bool {
 /// `[batch,channel,...]` storage. Multiplication and addition are separately
 /// round-to-nearest; coefficient buffers are ordered by channel.
 pub fn f32_channel_major_destandardization_source(
-  batch_count~ : Int,
-  channels~ : Int,
+  batch_count~ : Int32,
+  channels~ : Int32,
   elements_per_channel~ : Int64,
   function_symbol~ : String,
 ) -> AffineModulationCudaSource raise AffineModulationCudaSourceError {
@@ -66,8 +66,8 @@ pub fn f32_channel_major_destandardization_source(
 /// Weight layout is row-major `[2 * hidden_size,input_width]`; the first half
 /// of outputs is shift and the second half is scale.
 pub fn final_adaln_parameter_row_source(
-  input_width~ : Int,
-  hidden_size~ : Int,
+  input_width~ : Int32,
+  hidden_size~ : Int32,
   function_symbol~ : String,
 ) -> AffineModulationCudaSource raise AffineModulationCudaSourceError {
   if input_width <= 0 || hidden_size <= 0 {
@@ -123,9 +123,9 @@ pub fn final_adaln_parameter_row_source(
 /// Weight layout is shared row-major `[2 * hidden_size,input_width]`; output
 /// tables are row-major `[rows,hidden_size]`.
 pub fn final_adaln_parameter_rows_source(
-  rows~ : Int,
-  input_width~ : Int,
-  hidden_size~ : Int,
+  rows~ : Int32,
+  input_width~ : Int32,
+  hidden_size~ : Int32,
   function_symbol~ : String,
 ) -> AffineModulationCudaSource raise AffineModulationCudaSourceError {
   if rows <= 0 {
@@ -188,10 +188,10 @@ pub fn final_adaln_parameter_rows_source(
 /// Gathers host-validated packed BF16 shift/scale rows into modality-aligned
 /// video and audio buffers. Indices are trusted products of request admission.
 pub fn packed_modality_adaln_gather_source(
-  packed_rows~ : Int,
-  video_rows~ : Int,
-  audio_rows~ : Int,
-  hidden_size~ : Int,
+  packed_rows~ : Int32,
+  video_rows~ : Int32,
+  audio_rows~ : Int32,
+  hidden_size~ : Int32,
   function_symbol~ : String,
 ) -> AffineModulationCudaSource raise AffineModulationCudaSourceError {
   if packed_rows <= 0 || video_rows <= 0 || audio_rows <= 0 {
@@ -252,7 +252,7 @@ pub fn packed_modality_adaln_gather_source(
 /// next operation: `hidden * (1 + scale) + shift`, then widened to F32.
 pub fn bf16_shift_scale_f32_fixed_rows_source(
   rows~ : Int64,
-  width~ : Int,
+  width~ : Int32,
   function_symbol~ : String,
 ) -> AffineModulationCudaSource raise AffineModulationCudaSourceError {
   if rows <= 0L || rows > 2147483647L {

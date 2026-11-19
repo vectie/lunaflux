@@ -13,8 +13,8 @@ pub fn RotaryBindings::qk_norm_launch(
   weight_offset~ : Int64,
   output~ : @device.Allocation,
   output_offset~ : Int64,
-  head_count~ : Int,
-  head_dimension~ : Int,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
 ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
   let (tensor_bytes, vector_bytes, dimensions) = qk_rotary_geometry(
     self.rows,
@@ -49,10 +49,10 @@ pub fn RotaryBindings::qk_norm_launch(
 
 ///|
 fn qk_rotary_geometry(
-  rows : Int,
-  rotary_width : Int,
-  heads : Int,
-  dimension : Int,
+  rows : Int32,
+  rotary_width : Int32,
+  heads : Int32,
+  dimension : Int32,
 ) -> (Int64, Int64, @device.KernelLaunchDimensions) raise @device.DeviceError {
   guard rows > 0 &&
     heads > 0 &&

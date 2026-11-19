@@ -21,7 +21,7 @@ fn complete_descriptor(
 ///|
 fn open_paged_ordered_executor(
   resources : PagedGraphResources,
-  index : Int,
+  index : Int32,
 ) -> @device.OrderedKernelExecutor raise DeviceStepError {
   guard resources.ordered_executors.get(index) is Some(owner) && owner.open else {
     raise InvalidExecutor(ResourceState)
@@ -32,7 +32,7 @@ fn open_paged_ordered_executor(
 ///|
 fn open_paged_ordered_executor_operations(
   resources : PagedGraphResources,
-  index : Int,
+  index : Int32,
 ) -> ReadOnlyArray[@plan.OperationId] raise DeviceStepError {
   guard resources.ordered_executors.get(index) is Some(owner) && owner.open else {
     raise InvalidExecutor(ResourceState)

@@ -1,5 +1,5 @@
 ///|
-fn semantic_int_capacity(cells : UInt64) -> Int raise InferenceContractError {
+fn semantic_int_capacity(cells : UInt64) -> Int32 raise InferenceContractError {
   if cells > 2147483647UL {
     raise invalid(LunaRequestSemantic, OutOfRange, 0)
   }
@@ -9,7 +9,7 @@ fn semantic_int_capacity(cells : UInt64) -> Int raise InferenceContractError {
 ///|
 fn semantic_stop_byte_capacity(
   limits : InferenceLimits,
-) -> Int raise InferenceContractError {
+) -> Int32 raise InferenceContractError {
   semantic_int_capacity(
     semantic_checked_multiply(
       limits.max_stop_strings().to_uint64(),
@@ -111,9 +111,9 @@ fn LunaRequestSemanticStorage::reset_operation(
 ///|
 pub fn LunaRequestSemanticStorage::begin(
   self : LunaRequestSemanticStorage,
-  stop_token_count~ : Int,
-  stop_string_count~ : Int,
-  cache_scope_byte_count~ : Int,
+  stop_token_count~ : Int32,
+  stop_string_count~ : Int32,
+  cache_scope_byte_count~ : Int32,
   cache_permission~ : CachePermission,
 ) -> LunaRequestSemanticWrite raise InferenceContractError {
   if self.phase != LUNA_REQUEST_SEMANTIC_IDLE {

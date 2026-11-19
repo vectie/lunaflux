@@ -32,9 +32,9 @@ priv enum FrameState {
 /// are fixed at startup; staging neither constructs a scheduler plan nor
 /// allocates token arrays. GPU state advances only through complete().
 pub struct SerialDecoderFrame {
-  priv maximum_rows : Int
-  priv maximum_context : Int
-  priv vocabulary : Int
+  priv maximum_rows : Int32
+  priv maximum_context : Int32
+  priv vocabulary : Int32
   priv all_position_outputs : Bool
   priv model_generation : UInt64
   priv inputs : FixedArray[FixedArray[Byte]]
@@ -42,11 +42,11 @@ pub struct SerialDecoderFrame {
   priv mut request_live : Bool
   priv mut request_id : UInt64
   priv mut request_generation : UInt64
-  priv mut processed : Int
+  priv mut processed : Int32
   priv mut pending_id : UInt64
   priv mut pending_generation : UInt64
-  priv mut pending_rows : Int
-  priv mut pending_position : Int
+  priv mut pending_rows : Int32
+  priv mut pending_position : Int32
   priv mut pending_output : Bool
   priv mut pending_prefill : Bool
   priv completion_slot : @wire.FrameCompletionSlot
@@ -58,12 +58,12 @@ pub struct SerialDecoderFrame {
 /// absolute row positions. The optional port is fixed at startup. It is a physical
 /// decoder-frame ABI, not a CUDA or GLM scheduling policy.
 pub fn SerialDecoderFrame::new(
-  maximum_rows~ : Int,
-  maximum_context~ : Int,
-  vocabulary_size~ : Int,
+  maximum_rows~ : Int32,
+  maximum_context~ : Int32,
+  vocabulary_size~ : Int32,
   model_generation~ : UInt64,
-  with_positions? : Bool = false,
-  all_position_outputs? : Bool = false,
+  with_positions~ : Bool = false,
+  all_position_outputs~ : Bool = false,
 ) -> Self raise SerialDecoderError {
   guard maximum_rows > 0 &&
     maximum_rows <= 536870911 &&
@@ -104,13 +104,13 @@ pub fn SerialDecoderFrame::new(
 
 ///|
 /// Startup compatibility facts; inspecting them does not stage a request.
-pub fn SerialDecoderFrame::geometry(self : Self) -> (Int, Int, Int) {
+pub fn SerialDecoderFrame::geometry(self : Self) -> (Int32, Int32, Int32) {
   (self.maximum_rows, self.maximum_context, self.vocabulary)
 }
 
 ///|
 /// Immutable startup ABI size, including the optional absolute-position port.
-pub fn SerialDecoderFrame::input_count(self : Self) -> Int {
+pub fn SerialDecoderFrame::input_count(self : Self) -> Int32 {
   self.inputs.length()
 }
 
@@ -127,7 +127,7 @@ fn SerialDecoderFrame::require_idle(
 }
 
 ///|
-fn store_i32(buffer : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn store_i32(buffer : FixedArray[Byte], index : Int32, value : Int32) -> Unit {
   let bits = value.reinterpret_as_uint()
   for byte in 0..<4 {
     buffer[index * 4 + byte] = ((bits >> (byte * 8)) & 255U).to_byte()
@@ -253,9 +253,9 @@ pub fn SerialDecoderFrame::stage(
 /// the live token prefix is copied; the immutable envelope lengths are fixed.
 pub fn SerialDecoderFrame::copy_input(
   self : Self,
-  port : Int,
+  port : Int32,
   destination : FixedArray[Byte],
-) -> Int raise SerialDecoderError {
+) -> Int32 raise SerialDecoderError {
   guard self.state is Staged else { raise Busy }
   guard port >= 0 && port < self.inputs.length() else { raise InvalidCapacity }
   let source = self.inputs[port]
@@ -276,8 +276,8 @@ pub fn SerialDecoderFrame::copy_input(
 ///|
 pub fn SerialDecoderFrame::input_capacity(
   self : Self,
-  port : Int,
-) -> Int raise SerialDecoderError {
+  port : Int32,
+) -> Int32 raise SerialDecoderError {
   guard port >= 0 && port < self.inputs.length() else { raise InvalidCapacity }
   self.inputs[port].length()
 }
@@ -285,7 +285,7 @@ pub fn SerialDecoderFrame::input_capacity(
 ///|
 pub fn SerialDecoderFrame::live_rows(
   self : Self,
-) -> Int raise SerialDecoderError {
+) -> Int32 raise SerialDecoderError {
   guard self.state is Staged else { raise Busy }
   self.pending_rows
 }
@@ -304,7 +304,7 @@ pub fn SerialDecoderFrame::produces_token(
 /// Any executed failure terminally poisons the retained history owner.
 pub fn SerialDecoderFrame::complete(
   self : Self,
-  sampled_token~ : Int,
+  sampled_token~ : Int32,
   execution_failed~ : Bool,
 ) -> @wire.ValidatedCompletionFrame raise {
   guard self.state is Staged else { raise SerialDecoderError::Busy }
@@ -382,7 +382,7 @@ pub fn SerialDecoderFrame::release_request(
 }
 
 ///|
-pub fn SerialDecoderFrame::processed_tokens(self : Self) -> Int {
+pub fn SerialDecoderFrame::processed_tokens(self : Self) -> Int32 {
   self.processed
 }
 

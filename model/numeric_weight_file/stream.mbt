@@ -1,9 +1,9 @@
 ///|
-const NUMERIC_MAX_HEADER_WITH_PREFIX : Int = 2147483639
+const NUMERIC_MAX_HEADER_WITH_PREFIX : Int32 = 2147483639
 
 ///|
 fn preflight_numeric_weight_scalars(
-  tensor_count : Int,
+  tensor_count : Int32,
   limits : NumericWeightFileLimits,
 ) -> Unit raise NumericWeightFileError {
   if tensor_count < 0 || tensor_count > limits.max_tensor_count() {
@@ -20,7 +20,7 @@ fn[S : Eq] prepare_numeric_weight_file(
   limits : NumericWeightFileLimits,
   alignment_bytes : Int64,
   max_arena_bytes : Int64,
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
   observe_stamp : () -> S raise NumericWeightFileError,
 ) -> PreparedNumericWeightFile[S] raise NumericWeightFileError {
   if file_bytes <= 8L {
@@ -143,10 +143,10 @@ priv enum GenericNumericPreparation[T] {
 ///|
 fn[S : Eq, T] transfer_prepared_numeric_file(
   prepared : PreparedNumericWeightFile[S],
-  read : (FixedArray[Byte], Int, Int64, Int) -> Unit raise NumericWeightFileError,
+  read : (FixedArray[Byte], Int32, Int64, Int32) -> Unit raise NumericWeightFileError,
   observe_stamp : () -> S raise NumericWeightFileError,
   open : (Int64) -> T raise @device.DeviceError,
-  copy : (T, FixedArray[Byte], Int, Int64, Int64) -> Unit raise @device.DeviceError,
+  copy : (T, FixedArray[Byte], Int32, Int64, Int64) -> Unit raise @device.DeviceError,
   close : (T) -> Unit raise @device.DeviceError,
 ) -> GenericNumericPreparation[T] raise NumericWeightFileError {
   let resource = open(prepared.layout.arena_bytes()) catch {

@@ -1,6 +1,6 @@
 ///|
 pub fn LunaIncrementalOutputStepBudget::new(
-  work_units : Int,
+  work_units : Int32,
 ) -> LunaIncrementalOutputStepBudget raise IncrementalOutputError {
   if work_units <= 0 || work_units > LUNA_INCREMENTAL_OUTPUT_MAX_STEP_WORK_UNITS {
     raise invalid(LunaIncrementalOutputWorkspace, Unsupported)
@@ -11,7 +11,7 @@ pub fn LunaIncrementalOutputStepBudget::new(
 ///|
 pub fn LunaIncrementalOutputStepBudget::work_units(
   self : LunaIncrementalOutputStepBudget,
-) -> Int {
+) -> Int32 {
   self.work_units
 }
 
@@ -27,7 +27,7 @@ pub fn LunaIncrementalOutputWorkspace::begin(
 ///|
 fn LunaIncrementalOutputWorkspace::begin_setup(
   self : LunaIncrementalOutputWorkspace,
-  stop_count : Int,
+  stop_count : Int32,
   setup_stops : @inference.StopConditions?,
   special_policy : @tokenizer.DecodeSpecialPolicy,
 ) -> LunaIncrementalOutputWork raise IncrementalOutputError {
@@ -112,7 +112,7 @@ fn LunaIncrementalOutputWorkspace::raise_setup_failure(
 }
 
 ///|
-fn utf8_width(codepoint : Int) -> Int {
+fn utf8_width(codepoint : Int32) -> Int32 {
   if codepoint <= 0x7f {
     1
   } else if codepoint <= 0x7ff {
@@ -125,7 +125,7 @@ fn utf8_width(codepoint : Int) -> Int {
 }
 
 ///|
-fn utf8_byte(codepoint : Int, width : Int, index : Int) -> Byte {
+fn utf8_byte(codepoint : Int32, width : Int32, index : Int32) -> Byte {
   if width == 1 {
     codepoint.to_byte()
   } else if index == 0 {
@@ -304,7 +304,7 @@ pub fn LunaIncrementalOutputWork::progress(
 ///|
 pub fn LunaIncrementalOutputWork::last_work_units(
   self : LunaIncrementalOutputWork,
-) -> Int raise IncrementalOutputError {
+) -> Int32 raise IncrementalOutputError {
   self.require_setup().last_work_units
 }
 

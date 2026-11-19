@@ -1,6 +1,6 @@
 ///|
 test "window-compressed join source fixes ring padding and literal order" {
-  let rendered = deterministic_window_compressed_join_i32_source(
+  let rendered = @decoder_window_compressed_join_cuda_source.deterministic_window_compressed_join_i32_source(
     window_size=128,
     compression_ratio=128,
     maximum_position_count=1048576,
@@ -23,7 +23,7 @@ test "window-compressed join source fixes ring padding and literal order" {
 ///|
 test "window-compressed join source rejects hostile bounds" {
   try
-    deterministic_window_compressed_join_i32_source(
+    @decoder_window_compressed_join_cuda_source.deterministic_window_compressed_join_i32_source(
       window_size=128,
       compression_ratio=1,
       maximum_position_count=1048576,
@@ -37,7 +37,7 @@ test "window-compressed join source rejects hostile bounds" {
     _ => fail("unit compression ratio admitted")
   }
   try
-    deterministic_window_compressed_join_i32_source(
+    @decoder_window_compressed_join_cuda_source.deterministic_window_compressed_join_i32_source(
       window_size=128,
       compression_ratio=128,
       maximum_position_count=1048576,

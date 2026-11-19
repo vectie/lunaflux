@@ -2,16 +2,16 @@
 pub struct TimestepSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  rows : Int
-  input_width : Int
-  hidden_width : Int
-  output_width : Int
+  rows : Int32
+  input_width : Int32
+  hidden_width : Int32
+  output_width : Int32
 }
 
 ///|
 pub fn build_timestep(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  distinct_timesteps~ : Int,
+  distinct_timesteps~ : Int32,
   function_prefix~ : String,
 ) -> TimestepSource raise {
   let shape = model.denoiser()

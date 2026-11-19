@@ -2,15 +2,15 @@
 pub struct AudioFrontendSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  batch : Int
-  time : Int
+  batch : Int32
+  time : Int32
 }
 
 ///|
 /// H3 decode has no encoder pre_block: pointwise dec_in_proj feeds conv_pre.
 pub fn build_audio_frontend(
-  batch~ : Int,
-  time~ : Int,
+  batch~ : Int32,
+  time~ : Int32,
   function_prefix~ : String,
 ) -> AudioFrontendSource raise {
   let symbols = [

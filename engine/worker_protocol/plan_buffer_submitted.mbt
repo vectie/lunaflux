@@ -43,8 +43,8 @@ fn SubmittedSchedulePlan::authenticate_owner(
 ///|
 fn check_table_index(
   table : ProtocolTable,
-  index : Int,
-  length : Int,
+  index : Int32,
+  length : Int32,
 ) -> Unit raise WorkerProtocolError {
   if index < 0 || index >= length {
     raise InvalidView(table~, rule=RangeOutsideTable)
@@ -54,8 +54,8 @@ fn check_table_index(
 ///|
 fn check_row_index(
   kind : WorkerRowKind,
-  index : Int,
-  length : Int,
+  index : Int32,
+  length : Int32,
 ) -> Unit raise WorkerProtocolError {
   if index < 0 || index >= length {
     row_error(kind, index, RangeOutsideTable)
@@ -99,49 +99,49 @@ pub fn SubmittedSchedulePlan::model_plan_generation_wire(
 ///|
 pub fn SubmittedSchedulePlan::token_budget(
   self : SubmittedSchedulePlan,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.authenticate().token_budget
 }
 
 ///|
 pub fn SubmittedSchedulePlan::token_count(
   self : SubmittedSchedulePlan,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.authenticate().token_count
 }
 
 ///|
 pub fn SubmittedSchedulePlan::page_count(
   self : SubmittedSchedulePlan,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.authenticate().page_count
 }
 
 ///|
 pub fn SubmittedSchedulePlan::capability_count(
   self : SubmittedSchedulePlan,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.authenticate().capability_count
 }
 
 ///|
 pub fn SubmittedSchedulePlan::prefill_count(
   self : SubmittedSchedulePlan,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.authenticate().prefill_count
 }
 
 ///|
 pub fn SubmittedSchedulePlan::decode_count(
   self : SubmittedSchedulePlan,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.authenticate().decode_count
 }
 
 ///|
 pub fn SubmittedSchedulePlan::row_count(
   self : SubmittedSchedulePlan,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   let owner = self.authenticate()
   owner.prefill_count + owner.decode_count
 }
@@ -149,8 +149,8 @@ pub fn SubmittedSchedulePlan::row_count(
 ///|
 pub fn SubmittedSchedulePlan::token_at(
   self : SubmittedSchedulePlan,
-  index : Int,
-) -> Int raise WorkerProtocolError {
+  index : Int32,
+) -> Int32 raise WorkerProtocolError {
   let owner = self.authenticate()
   check_table_index(Tokens, index, owner.token_count)
   owner.tokens[index]
@@ -159,7 +159,7 @@ pub fn SubmittedSchedulePlan::token_at(
 ///|
 pub fn SubmittedSchedulePlan::page_at(
   self : SubmittedSchedulePlan,
-  index : Int,
+  index : Int32,
 ) -> @page_allocator.PageId raise WorkerProtocolError {
   let owner = self.authenticate()
   check_table_index(Pages, index, owner.page_count)
@@ -173,7 +173,7 @@ pub fn SubmittedSchedulePlan::page_at(
 ///|
 pub fn SubmittedSchedulePlan::capability_at(
   self : SubmittedSchedulePlan,
-  index : Int,
+  index : Int32,
 ) -> @plan.KernelCapabilityId raise WorkerProtocolError {
   let owner = self.authenticate()
   check_table_index(Capabilities, index, owner.capability_count)
@@ -183,7 +183,7 @@ pub fn SubmittedSchedulePlan::capability_at(
 ///|
 pub fn SubmittedSchedulePlan::prefill_row(
   self : SubmittedSchedulePlan,
-  index : Int,
+  index : Int32,
 ) -> SubmittedPrefillRow raise WorkerProtocolError {
   let owner = self.authenticate()
   check_row_index(Prefill, index, owner.prefill_count)
@@ -193,7 +193,7 @@ pub fn SubmittedSchedulePlan::prefill_row(
 ///|
 pub fn SubmittedSchedulePlan::decode_row(
   self : SubmittedSchedulePlan,
-  index : Int,
+  index : Int32,
 ) -> SubmittedDecodeRow raise WorkerProtocolError {
   let owner = self.authenticate()
   check_row_index(Decode, index, owner.decode_count)
@@ -226,7 +226,7 @@ pub fn SubmittedPrefillRow::request_generation(
 ///|
 pub fn SubmittedPrefillRow::sequence_token_start(
   self : SubmittedPrefillRow,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.owner().prefill_sequence_starts[self.2]
 }
 
@@ -287,7 +287,7 @@ pub fn SubmittedPrefillRow::sampling_seed_value(
 ///|
 pub fn SubmittedPrefillRow::sample_index(
   self : SubmittedPrefillRow,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.owner().prefill_sample_indices[self.2]
 }
 
@@ -324,7 +324,7 @@ pub fn SubmittedDecodeRow::request_generation(
 ///|
 pub fn SubmittedDecodeRow::sequence_token_position(
   self : SubmittedDecodeRow,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.owner().decode_sequence_positions[self.2]
 }
 
@@ -375,7 +375,7 @@ pub fn SubmittedDecodeRow::sampling_seed_value(
 ///|
 pub fn SubmittedDecodeRow::sample_index(
   self : SubmittedDecodeRow,
-) -> Int raise WorkerProtocolError {
+) -> Int32 raise WorkerProtocolError {
   self.owner().decode_sample_indices[self.2]
 }
 

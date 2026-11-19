@@ -42,7 +42,7 @@ fn wb_other_source_digest_hex() -> String {
 
 ///|
 fn wb_service_inference_limits(
-  max_text_bytes? : Int = 64,
+  max_text_bytes~ : Int32 = 64,
 ) -> @inference.InferenceLimits {
   try! @inference.InferenceLimits::new(
     max_text_bytes~,
@@ -64,7 +64,7 @@ fn wb_service_inference_limits(
 
 ///|
 fn wb_service_worker_limits(
-  max_plan_tokens? : Int = 1,
+  max_plan_tokens~ : Int32 = 1,
 ) -> @worker_protocol.WorkerProtocolLimits {
   try! @worker_protocol.WorkerProtocolLimits::new(
     max_prefill_rows=1,
@@ -165,15 +165,15 @@ fn wb_worker_service_identity() -> WorkerServiceIdentity {
 
 ///|
 fn wb_startup_contract(
-  identity? : @spec.ModelIdentity = wb_service_identity(),
-  bootstrap_digest_hex? : String = wb_service_digest_hex(),
-  bootstrap_source_digest_hex? : String = wb_service_source_digest_hex(),
-  device_ordinal? : Int = 0,
-  model_generation_value? : UInt64 = 1UL,
-  worker_limits? : @worker_protocol.WorkerProtocolLimits = wb_service_worker_limits(),
-  inference_limits? : @inference.InferenceLimits = wb_service_inference_limits(),
-  has_predecessor? : Bool = false,
-  predecessor_value? : UInt64 = 0UL,
+  identity~ : @spec.ModelIdentity = wb_service_identity(),
+  bootstrap_digest_hex~ : String = wb_service_digest_hex(),
+  bootstrap_source_digest_hex~ : String = wb_service_source_digest_hex(),
+  device_ordinal~ : Int32 = 0,
+  model_generation_value~ : UInt64 = 1UL,
+  worker_limits~ : @worker_protocol.WorkerProtocolLimits = wb_service_worker_limits(),
+  inference_limits~ : @inference.InferenceLimits = wb_service_inference_limits(),
+  has_predecessor~ : Bool = false,
+  predecessor_value~ : UInt64 = 0UL,
 ) -> @worker_wire.WorkerStartupContract {
   let digest = try! @worker_wire.WorkerBootstrapDigest::from_sha256(
     bootstrap_digest_hex,

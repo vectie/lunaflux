@@ -1,7 +1,7 @@
 ///|
 fn glm_aot_attention_output_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is AttentionOutputProjection(_, _) {
       return ordinal

@@ -45,7 +45,7 @@ pub struct Execution[F] {
   priv frames : Frames[F]
   priv mut closing : Bool
   priv mut releasing : Bool
-  priv mut released : Int
+  priv mut released : Int32
   priv mut drained : Bool
 }
 
@@ -94,7 +94,7 @@ pub fn[F] Execution::progress(
 }
 
 ///|
-pub fn[F] Execution::completed_steps(self : Execution[F]) -> Int {
+pub fn[F] Execution::completed_steps(self : Execution[F]) -> Int32 {
   self.driver.completed_steps()
 }
 

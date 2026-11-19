@@ -33,16 +33,16 @@ pub(all) enum TensorParallelExecutionPlanRule {
 pub(all) suberror TensorParallelExecutionPlanError {
   InvalidTensorParallelExecutionPlan(
     rule~ : TensorParallelExecutionPlanRule,
-    operation~ : Int,
-    operand~ : Int
+    operation~ : Int32,
+    operand~ : Int32
   )
 } derive(Debug, Eq)
 
 ///|
 fn rejected(
   rule : TensorParallelExecutionPlanRule,
-  operation? : Int = -1,
-  operand? : Int = -1,
+  operation~ : Int32 = -1,
+  operand~ : Int32 = -1,
 ) -> TensorParallelExecutionPlanError {
   InvalidTensorParallelExecutionPlan(rule~, operation~, operand~)
 }

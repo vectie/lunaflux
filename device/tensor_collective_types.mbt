@@ -16,11 +16,11 @@ pub struct TensorCollectiveContractDigest {
 ///|
 /// One immutable scalar site copied into device-owned startup storage.
 pub struct TensorCollectiveSite {
-  priv sequence : Int
-  priv operation_id : Int
+  priv sequence : Int32
+  priv operation_id : Int32
   priv kind : TensorCollectiveKind
-  priv full_width : Int
-  priv local_width : Int
+  priv full_width : Int32
+  priv local_width : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -28,14 +28,14 @@ pub struct TensorCollectiveSite {
 /// arrays avoid model-family objects and request-path allocation.
 pub struct TensorCollectiveContract {
   priv digest : TensorCollectiveContractDigest
-  priv rank : Int
-  priv world_size : Int
-  priv max_query_tokens : Int
-  priv sequences : FixedArray[Int]
-  priv operation_ids : FixedArray[Int]
-  priv kinds : FixedArray[Int]
-  priv full_widths : FixedArray[Int]
-  priv local_widths : FixedArray[Int]
+  priv rank : Int32
+  priv world_size : Int32
+  priv max_query_tokens : Int32
+  priv sequences : FixedArray[Int32]
+  priv operation_ids : FixedArray[Int32]
+  priv kinds : FixedArray[Int32]
+  priv full_widths : FixedArray[Int32]
+  priv local_widths : FixedArray[Int32]
 }
 
 ///|
@@ -53,7 +53,7 @@ pub(all) enum TensorCollectiveRuntimeAvailability {
 /// Authority-free collective runtime observation for startup diagnostics.
 pub struct TensorCollectiveRuntimeInventory {
   priv availability : TensorCollectiveRuntimeAvailability
-  priv version_code : Int
+  priv version_code : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -87,8 +87,44 @@ pub struct TensorCollectiveOwner {
   priv mut state : TensorCollectiveOwnerState
   priv mut plan_sequence : UInt64
   priv mut next_global_sequence : UInt64
-  priv mut next_site_index : Int
+  priv mut next_site_index : Int32
   priv mut pending_plan_sequence : UInt64
   priv mut pending_global_sequence : UInt64
-  priv mut pending_site_index : Int
+  priv mut pending_site_index : Int32
 }
+
+///|
+pub extend TensorCollectiveKind with @debug.Debug::{to_repr}
+
+///|
+pub extend TensorCollectiveKind with Eq::{not_equal, equal}
+
+///|
+pub extend TensorCollectiveContractDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend TensorCollectiveContractDigest with Eq::{not_equal, equal}
+
+///|
+pub extend TensorCollectiveSite with @debug.Debug::{to_repr}
+
+///|
+pub extend TensorCollectiveSite with Eq::{not_equal, equal}
+
+///|
+pub extend TensorCollectiveRuntimeAvailability with @debug.Debug::{to_repr}
+
+///|
+pub extend TensorCollectiveRuntimeAvailability with Eq::{not_equal, equal}
+
+///|
+pub extend TensorCollectiveRuntimeInventory with @debug.Debug::{to_repr}
+
+///|
+pub extend TensorCollectiveRuntimeInventory with Eq::{not_equal, equal}
+
+///|
+pub extend TensorCollectiveOwnerState with @debug.Debug::{to_repr}
+
+///|
+pub extend TensorCollectiveOwnerState with Eq::{not_equal, equal}

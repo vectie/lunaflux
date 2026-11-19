@@ -8,7 +8,7 @@ test "selected-row prefetch window preserves the exact ordered fold and bounded 
     let depth = gather.prefetch_fragments()
     assert_true(depth >= 1 && depth <= 8 && depth <= fragments)
     let window = Array::makei(depth, index => Some(index))
-    let consumed : Array[Int] = []
+    let consumed : Array[Int32] = []
     let loads = Array::make(fragments, 0)
     for slot in 0..<depth {
       loads[slot] += 1

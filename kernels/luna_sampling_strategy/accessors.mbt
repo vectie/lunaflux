@@ -1,15 +1,15 @@
 ///|
-pub fn SamplingDevicePlan::maximum_rows(self : SamplingDevicePlan) -> Int {
+pub fn SamplingDevicePlan::maximum_rows(self : SamplingDevicePlan) -> Int32 {
   self.maximum_rows
 }
 
 ///|
-pub fn SamplingDevicePlan::vocabulary_size(self : SamplingDevicePlan) -> Int {
+pub fn SamplingDevicePlan::vocabulary_size(self : SamplingDevicePlan) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
-pub fn SamplingDevicePlan::maximum_top_k(self : SamplingDevicePlan) -> Int {
+pub fn SamplingDevicePlan::maximum_top_k(self : SamplingDevicePlan) -> Int32 {
   self.maximum_top_k
 }
 

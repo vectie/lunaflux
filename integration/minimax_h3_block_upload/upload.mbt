@@ -10,7 +10,7 @@ fn copy_chunks(
   source : Int64,
   destination : Int64,
   length : Int64,
-  chunk_bytes : Int,
+  chunk_bytes : Int32,
   consume : (Bytes, Int64) -> Bool,
 ) -> Bool {
   if chunk_bytes <= 0 ||
@@ -43,7 +43,7 @@ pub fn upload_block(
   packing : @minimax_h3_weights.BlockWeightPacking,
   expected_identity~ : @spec.ModelIdentity,
   destination_offset~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_block_weights(packing, expected_identity~)
@@ -66,7 +66,7 @@ pub fn upload_output(
   packing : @minimax_h3_weights.OutputWeightPacking,
   expected_identity~ : @spec.ModelIdentity,
   destination_offset~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   guard chunk_bytes > 0 else { raise InvalidChunkSize }
   let copies = host.resolve_output_weights(packing, expected_identity~)
@@ -89,7 +89,7 @@ fn upload_resolved(
   copies : ArrayView[@minimax_h3_host_materialization.ResolvedBlockWeightCopy],
   byte_count : Int64,
   destination_offset~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Unit raise {
   context.validate_allocation_region(
     destination,

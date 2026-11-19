@@ -3,7 +3,7 @@
 /// pure startup footprint does not retain a full I64/I32 table on the host.
 pub fn i64_table_host_bytes(
   tables : ArrayView[@materialize.CheckpointI64Table],
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
 ) -> Int64 raise @device.DeviceError {
   guard chunk_bytes > 0 else { raise InvalidArgument(AllocationCreate) }
   let output_bytes = (chunk_bytes.to_int64() + 7L) / 8L * 4L
@@ -39,11 +39,11 @@ pub fn CheckpointDeviceIndexTables::upload(
   checkpoint : @materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   tables : ArrayView[@materialize.CheckpointI64Table],
-  minimum_value~ : Int,
-  exclusive_maximum_value~ : Int,
+  minimum_value~ : Int32,
+  exclusive_maximum_value~ : Int32,
   maximum_device_bytes~ : Int64,
   maximum_host_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.status is Fresh &&

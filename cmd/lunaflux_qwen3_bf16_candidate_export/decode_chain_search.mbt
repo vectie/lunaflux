@@ -188,7 +188,7 @@ async fn publish_decode_chain_search(
   frontier : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier,
   selected : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation?,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
-  operation : Int,
+  operation : Int32,
 ) -> Unit {
   for index, variant in frontier.variants() {
     let compilation = variant.compilation()
@@ -216,7 +216,7 @@ fn decode_chain_recipe(
   frontier : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotFrontier,
   search : DecodeChainSearch,
   set : @luna_bf16_kernel_producer.LunaBf16CandidateSet,
-  operation : Int,
+  operation : Int32,
 ) -> Bytes {
   let recipe = qwen_compiler_partitioned_attention_recipe(
     operation,
@@ -260,7 +260,7 @@ fn decode_chain_latency(
     raise InvalidArguments
   }
   for unit in text; value = 0L {
-    guard unit is ('0'..='9') else { raise InvalidArguments }
+    guard unit is ('0'..<='9') else { raise InvalidArguments }
     let digit = (unit.to_int() - '0'.to_int()).to_int64()
     if value > (9223372036854775807L - digit) / 10L {
       raise InvalidArguments
@@ -277,7 +277,7 @@ fn decode_chain_latency(
 ///|
 fn decode_chain_launch_record(
   compilation : @luna_cuda_attention_tile_aot.CudaPartitionedAttentionTileAotCompilation,
-  rows : Int,
+  rows : Int32,
 ) -> String {
   let lowering = compilation.lowering()
   let (_, groups, threads, shared) = lowering.launch()

@@ -2,7 +2,7 @@
 /// A path-bearing file is represented only by its manifest position.
 pub(all) enum ArtifactFileRef {
   ManifestFile
-  ModuleFile(Int)
+  ModuleFile(Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -110,7 +110,7 @@ pub(all) enum ArtifactFileIoIssue {
 pub(all) suberror KernelArtifactFileError {
   InvalidExpectedManifestDigest
   InvalidLimit(ArtifactFileLimit)
-  SourceCountExceeded(source~ : ArtifactFileSourceCount, maximum~ : Int)
+  SourceCountExceeded(source~ : ArtifactFileSourceCount, maximum~ : Int32)
   InvalidPath(file~ : ArtifactFileRef, issue~ : ArtifactPathIssue)
   FileUnavailable(ArtifactFileRef)
   UnsupportedPathType(ArtifactFileRef)
@@ -126,15 +126,15 @@ pub(all) suberror KernelArtifactFileError {
   DigestMismatch(ArtifactFileRef)
   InvalidUtf8
   MalformedJson
-  JsonDepthExceeded(maximum~ : Int)
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(area~ : ManifestArea, index~ : Int)
+  JsonDepthExceeded(maximum~ : Int32)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(area~ : ManifestArea, index~ : Int32)
   MissingField(area~ : ManifestArea, field~ : ManifestField)
   InvalidField(
     area~ : ManifestArea,
     field~ : ManifestField,
     issue~ : ManifestValueIssue,
-    index~ : Int
+    index~ : Int32
   )
   IdentityMismatch(ManifestIdentityPart)
   ArtifactRejected(@artifact.KernelArtifactError)

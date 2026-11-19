@@ -3,7 +3,7 @@ fn wb_graph_report(
   sequence : UInt64,
   hits : UInt64,
   misses : UInt64,
-  batch_rows~ : Int = 1,
+  batch_rows~ : Int32 = 1,
 ) -> @worker_wire.WorkerGraphTelemetry raise {
   let shape = @worker_wire.WorkerGraphShapeClass::new(
     phase=1,

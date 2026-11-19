@@ -1,7 +1,7 @@
 ///|
 test "indexed modulation uses compact parameter rows and explicit BF16 round trips" {
   let source = @utf8.decode(
-    indexed_bf16_modulation_source(
+    @affine_modulation_cuda_source.indexed_bf16_modulation_source(
       rows=64,
       width=4,
       parameter_rows=6,
@@ -17,7 +17,7 @@ test "indexed modulation uses compact parameter rows and explicit BF16 round tri
   assert_false(source.contains("fmaf"))
   for count in [0, -1] {
     try
-      indexed_bf16_modulation_source(
+      @affine_modulation_cuda_source.indexed_bf16_modulation_source(
         rows=64,
         width=4,
         parameter_rows=count,

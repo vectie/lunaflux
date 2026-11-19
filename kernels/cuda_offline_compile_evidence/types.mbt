@@ -14,8 +14,8 @@ pub(all) enum CudaOfflineCompileEvidenceStatus {
 ///|
 pub struct CudaOfflineCompileEvidenceLimits {
   priv maximum_module_bytes : Int64
-  priv maximum_receipt_bytes : Int
-  priv maximum_symbol_bytes : Int
+  priv maximum_receipt_bytes : Int32
+  priv maximum_symbol_bytes : Int32
 }
 
 ///|
@@ -30,7 +30,7 @@ pub struct CudaOfflineCompileEvidence {
   priv target : @catalog.DeviceTarget
   priv function_symbol : String
   priv module_digest : @catalog.AotArtifactDigest
-  priv module_byte_count : Int
+  priv module_byte_count : Int32
   priv receipt_digest : CudaOfflineCompileEvidenceDigest
 }
 

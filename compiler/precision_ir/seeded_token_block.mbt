@@ -2,20 +2,20 @@
 /// Pure seed-plus-noise token block with absolute positions following the main
 /// input rows. This describes dataflow, not a model family or device schedule.
 pub struct SeededTokenBlockPrecision {
-  priv vocabulary : Int
-  priv rows : Int
-  priv main_rows : Int
-  priv noise : Int
-  priv seed_tokens : Int
+  priv vocabulary : Int32
+  priv rows : Int32
+  priv main_rows : Int32
+  priv noise : Int32
+  priv seed_tokens : Int32
 }
 
 ///|
 pub fn SeededTokenBlockPrecision::new(
-  vocabulary_size~ : Int,
-  block_rows~ : Int,
-  maximum_main_rows~ : Int,
-  noise_token_id~ : Int,
-  maximum_seed_tokens? : Int = 1,
+  vocabulary_size~ : Int32,
+  block_rows~ : Int32,
+  maximum_main_rows~ : Int32,
+  noise_token_id~ : Int32,
+  maximum_seed_tokens~ : Int32 = 1,
 ) -> Self raise PrecisionPlanError {
   guard vocabulary_size > 0 &&
     block_rows > 0 &&
@@ -40,12 +40,14 @@ pub fn SeededTokenBlockPrecision::new(
 ///|
 /// A vector-producing verifier supplies its last live output as the next seed.
 /// Scalar-producing callers retain their existing one-cell seed contract.
-pub fn SeededTokenBlockPrecision::maximum_seed_tokens(self : Self) -> Int {
+pub fn SeededTokenBlockPrecision::maximum_seed_tokens(self : Self) -> Int32 {
   self.seed_tokens
 }
 
 ///|
-pub fn SeededTokenBlockPrecision::geometry(self : Self) -> (Int, Int, Int, Int) {
+pub fn SeededTokenBlockPrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32) {
   (self.vocabulary, self.rows, self.main_rows, self.noise)
 }
 

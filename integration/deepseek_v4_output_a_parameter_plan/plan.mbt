@@ -34,7 +34,7 @@ pub fn DeepSeekV4OutputAParameterEvidenceInput::new(
   source_scale_shape~ : ArrayView[Int64],
   converted_grouped_shape~ : ArrayView[Int64],
   layout_digest_sha256~ : String,
-  operand_ordinal~ : Int,
+  operand_ordinal~ : Int32,
   operand_role~ : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole,
   operand_byte_count~ : Int64,
   operand_alignment~ : Int64,

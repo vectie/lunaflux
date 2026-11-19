@@ -44,20 +44,20 @@ pub(all) enum DocumentValueIssue {
 /// No variant carries source text, field names, paths, hostnames, or digests.
 pub(all) suberror ConfigDocumentError {
   InvalidByteLimit
-  ByteLimitExceeded(limit~ : Int)
+  ByteLimitExceeded(limit~ : Int32)
   InvalidUtf8
   MalformedJson
   NonObjectRoot
   UnsupportedSchemaVersion
-  NestingLimitExceeded(limit~ : Int)
-  DuplicateField(depth~ : Int, index~ : Int)
-  UnknownField(area~ : DocumentArea, index~ : Int)
+  NestingLimitExceeded(limit~ : Int32)
+  DuplicateField(depth~ : Int32, index~ : Int32)
+  UnknownField(area~ : DocumentArea, index~ : Int32)
   MissingField(area~ : DocumentArea, field~ : DocumentField)
   InvalidValue(
     area~ : DocumentArea,
     field~ : DocumentField,
     issue~ : DocumentValueIssue,
-    index~ : Int
+    index~ : Int32
   )
 } derive(Debug, Eq)
 
@@ -100,3 +100,27 @@ pub fn ConfigDocument::resolved_plan(
 ) -> @resolved.ResolvedPlan {
   self.resolved_plan
 }
+
+///|
+pub extend DocumentArea with @debug.Debug::{to_repr}
+
+///|
+pub extend DocumentArea with Eq::{not_equal, equal}
+
+///|
+pub extend DocumentField with @debug.Debug::{to_repr}
+
+///|
+pub extend DocumentField with Eq::{not_equal, equal}
+
+///|
+pub extend DocumentValueIssue with @debug.Debug::{to_repr}
+
+///|
+pub extend DocumentValueIssue with Eq::{not_equal, equal}
+
+///|
+pub extend ConfigDocumentError with @debug.Debug::{to_repr}
+
+///|
+pub extend ConfigDocumentError with Eq::{not_equal, equal}

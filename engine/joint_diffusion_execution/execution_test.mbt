@@ -7,7 +7,7 @@ suberror Injected {
 
 ///|
 struct Frame {
-  index : Int
+  index : Int32
   step : @joint_diffusion_loop.JointStep
   state : FixedArray[Float]
   events : Array[String]
@@ -75,7 +75,7 @@ fn plan() -> @joint_diffusion_loop.PreparedPlan raise {
 ///|
 fn frames(
   plan : @joint_diffusion_loop.PreparedPlan,
-  fail_run? : Int = -1,
+  fail_run~ : Int32 = -1,
 ) -> Array[Frame] {
   let state : FixedArray[Float] = [2.0, 1.0]
   let events : Array[String] = []

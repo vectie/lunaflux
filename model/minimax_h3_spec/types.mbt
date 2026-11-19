@@ -67,25 +67,25 @@ pub(all) suberror MiniMaxH3SpecError {
 pub struct MiniMaxH3TransformerSpec {
   priv variant : MiniMaxH3Variant
   priv checkpoint_format : MiniMaxH3CheckpointFormat
-  priv schema_version : Int
-  priv hidden_size : Int
-  priv layer_count : Int
-  priv refiner_layer_count : Int
-  priv attention_head_count : Int
-  priv attention_head_dimension : Int
-  priv ffn_dimension : Int
-  priv visual_latent_channels : Int
-  priv audio_latent_channels : Int
-  priv patch_temporal : Int
-  priv patch_height : Int
-  priv patch_width : Int
-  priv text_dimension : Int
-  priv frequency_dimension : Int
-  priv time_embedding_hidden_dimension : Int
-  priv time_embedding_dimension : Int
-  priv adaln_output_features : Int
-  priv final_adaln_output_features : Int
-  priv rope_frequency_dimension : Int
+  priv schema_version : Int32
+  priv hidden_size : Int32
+  priv layer_count : Int32
+  priv refiner_layer_count : Int32
+  priv attention_head_count : Int32
+  priv attention_head_dimension : Int32
+  priv ffn_dimension : Int32
+  priv visual_latent_channels : Int32
+  priv audio_latent_channels : Int32
+  priv patch_temporal : Int32
+  priv patch_height : Int32
+  priv patch_width : Int32
+  priv text_dimension : Int32
+  priv frequency_dimension : Int32
+  priv time_embedding_hidden_dimension : Int32
+  priv time_embedding_dimension : Int32
+  priv adaln_output_features : Int32
+  priv final_adaln_output_features : Int32
+  priv rope_frequency_dimension : Int32
   priv rope_theta : Double
   priv norm_epsilon : Double
   priv query_key_norm_epsilon : Double
@@ -113,8 +113,8 @@ pub fn MiniMaxH3CheckpointFormat::architecture(self : Self) -> String {
 
 ///|
 fn require_exact_int(
-  actual : Int,
-  expected : Int,
+  actual : Int32,
+  expected : Int32,
   field : MiniMaxH3ConfigField,
 ) -> Unit raise MiniMaxH3SpecError {
   if actual != expected {
@@ -143,25 +143,25 @@ fn require_exact_double(
 pub fn MiniMaxH3TransformerSpec::new_exact(
   variant~ : MiniMaxH3Variant,
   checkpoint_format~ : MiniMaxH3CheckpointFormat,
-  schema_version~ : Int,
-  hidden_size~ : Int,
-  layer_count~ : Int,
-  refiner_layer_count~ : Int,
-  attention_head_count~ : Int,
-  attention_head_dimension~ : Int,
-  ffn_dimension~ : Int,
-  visual_latent_channels~ : Int,
-  audio_latent_channels~ : Int,
-  patch_temporal~ : Int,
-  patch_height~ : Int,
-  patch_width~ : Int,
-  text_dimension~ : Int,
-  frequency_dimension~ : Int,
-  time_embedding_hidden_dimension~ : Int,
-  time_embedding_dimension~ : Int,
-  adaln_output_features~ : Int,
-  final_adaln_output_features~ : Int,
-  rope_frequency_dimension~ : Int,
+  schema_version~ : Int32,
+  hidden_size~ : Int32,
+  layer_count~ : Int32,
+  refiner_layer_count~ : Int32,
+  attention_head_count~ : Int32,
+  attention_head_dimension~ : Int32,
+  ffn_dimension~ : Int32,
+  visual_latent_channels~ : Int32,
+  audio_latent_channels~ : Int32,
+  patch_temporal~ : Int32,
+  patch_height~ : Int32,
+  patch_width~ : Int32,
+  text_dimension~ : Int32,
+  frequency_dimension~ : Int32,
+  time_embedding_hidden_dimension~ : Int32,
+  time_embedding_dimension~ : Int32,
+  adaln_output_features~ : Int32,
+  final_adaln_output_features~ : Int32,
+  rope_frequency_dimension~ : Int32,
   rope_theta~ : Double,
   norm_epsilon~ : Double,
   query_key_norm_epsilon~ : Double,
@@ -284,96 +284,98 @@ pub fn MiniMaxH3TransformerSpec::checkpoint_format(
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::schema_version(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::hidden_size(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::hidden_size(self : Self) -> Int32 {
   self.hidden_size
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::layer_count(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::layer_count(self : Self) -> Int32 {
   self.layer_count
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::refiner_layer_count(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::refiner_layer_count(self : Self) -> Int32 {
   self.refiner_layer_count
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::attention_head_count(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::attention_head_count(self : Self) -> Int32 {
   self.attention_head_count
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::attention_head_dimension(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::attention_head_dimension(self : Self) -> Int32 {
   self.attention_head_dimension
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::attention_width(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::attention_width(self : Self) -> Int32 {
   self.attention_head_count * self.attention_head_dimension
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::ffn_dimension(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::ffn_dimension(self : Self) -> Int32 {
   self.ffn_dimension
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::visual_latent_channels(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::visual_latent_channels(self : Self) -> Int32 {
   self.visual_latent_channels
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::audio_latent_channels(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::audio_latent_channels(self : Self) -> Int32 {
   self.audio_latent_channels
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::patch_shape(self : Self) -> ReadOnlyArray[Int] {
+pub fn MiniMaxH3TransformerSpec::patch_shape(
+  self : Self,
+) -> ReadOnlyArray[Int32] {
   [self.patch_temporal, self.patch_height, self.patch_width]
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::text_dimension(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::text_dimension(self : Self) -> Int32 {
   self.text_dimension
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::frequency_dimension(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::frequency_dimension(self : Self) -> Int32 {
   self.frequency_dimension
 }
 
 ///|
 pub fn MiniMaxH3TransformerSpec::time_embedding_hidden_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.time_embedding_hidden_dimension
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::time_embedding_dimension(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::time_embedding_dimension(self : Self) -> Int32 {
   self.time_embedding_dimension
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::adaln_output_features(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::adaln_output_features(self : Self) -> Int32 {
   self.adaln_output_features
 }
 
 ///|
 pub fn MiniMaxH3TransformerSpec::final_adaln_output_features(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.final_adaln_output_features
 }
 
 ///|
-pub fn MiniMaxH3TransformerSpec::rope_frequency_dimension(self : Self) -> Int {
+pub fn MiniMaxH3TransformerSpec::rope_frequency_dimension(self : Self) -> Int32 {
   self.rope_frequency_dimension
 }
 
@@ -435,3 +437,45 @@ pub fn MiniMaxH3ModelMetadata::content_digest(
 ) -> @spec.ContentDigest {
   self.content_digest
 }
+
+///|
+pub extend MiniMaxH3Variant with @debug.Debug::{to_repr}
+
+///|
+pub extend MiniMaxH3Variant with Eq::{not_equal, equal}
+
+///|
+pub extend MiniMaxH3CheckpointFormat with @debug.Debug::{to_repr}
+
+///|
+pub extend MiniMaxH3CheckpointFormat with Eq::{not_equal, equal}
+
+///|
+pub extend MiniMaxH3PrecisionProfile with @debug.Debug::{to_repr}
+
+///|
+pub extend MiniMaxH3PrecisionProfile with Eq::{not_equal, equal}
+
+///|
+pub extend MiniMaxH3ConfigField with @debug.Debug::{to_repr}
+
+///|
+pub extend MiniMaxH3ConfigField with Eq::{not_equal, equal}
+
+///|
+pub extend MiniMaxH3SpecError with @debug.Debug::{to_repr}
+
+///|
+pub extend MiniMaxH3SpecError with Eq::{not_equal, equal}
+
+///|
+pub extend MiniMaxH3TransformerSpec with @debug.Debug::{to_repr}
+
+///|
+pub extend MiniMaxH3TransformerSpec with Eq::{not_equal, equal}
+
+///|
+pub extend MiniMaxH3ModelMetadata with @debug.Debug::{to_repr}
+
+///|
+pub extend MiniMaxH3ModelMetadata with Eq::{not_equal, equal}

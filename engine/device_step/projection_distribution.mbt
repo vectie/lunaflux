@@ -3,7 +3,7 @@
 /// Model plans and the compiler strategy retain backend-neutral tile counts.
 fn paged_projection_workgroups(
   dimensions : @launch_contract.AotLaunchDimensions,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   let threads = dimensions.block_x()
   if threads < 32 || threads > 512 || (threads & (threads - 1)) != 0 {
     raise InvalidExecutor(GraphBucket)
@@ -17,7 +17,7 @@ fn prepare_projection_bucket_launches(
   steps : ReadOnlyArray[PreparedPagedGraphStep],
   launches : FixedArray[PagedBucketStepLaunch],
 ) -> Unit raise DeviceStepError {
-  let mlp_occurrences : Array[Int] = []
+  let mlp_occurrences : Array[Int32] = []
   for index, prepared in steps {
     if !blueprint
       .steps()
@@ -81,7 +81,10 @@ fn prepare_projection_bucket_launches(
 }
 
 ///|
-fn paged_ceil_div(value : Int, divisor : Int) -> Int raise DeviceStepError {
+fn paged_ceil_div(
+  value : Int32,
+  divisor : Int32,
+) -> Int32 raise DeviceStepError {
   if value <= 0 || divisor <= 0 || value > 2147483647 - (divisor - 1) {
     raise InvalidExecutor(GraphBucket)
   }
@@ -91,8 +94,8 @@ fn paged_ceil_div(value : Int, divisor : Int) -> Int raise DeviceStepError {
 ///|
 fn paged_projection_bucket_grid_x(
   rule : PagedBucketStepLaunch,
-  query_token_bound : Int,
-) -> Int raise DeviceStepError {
+  query_token_bound : Int32,
+) -> Int32 raise DeviceStepError {
   if query_token_bound <= 0 {
     raise InvalidExecutor(GraphBucket)
   }
@@ -105,9 +108,9 @@ fn paged_projection_bucket_grid_x(
         grid
       }
     QueryTokenCappedGridX(source) =>
-      Int::min(source.grid_x(), query_token_bound)
+      Int32::min(source.grid_x(), query_token_bound)
     QueryTileCappedGridX(source, query_tile) =>
-      Int::min(source.grid_x(), paged_ceil_div(query_token_bound, query_tile))
+      Int32::min(source.grid_x(), paged_ceil_div(query_token_bound, query_tile))
     QueryCellCappedGridX(source, cells_per_token) => {
       if cells_per_token <= 0 || source.block_x() <= 0 {
         raise InvalidExecutor(GraphBucket)
@@ -119,14 +122,14 @@ fn paged_projection_bucket_grid_x(
     }
     QueryMetadataCappedGridX(source, query_tile, maximum_rows) => {
       guard @luna_attention_metadata.AttentionMetadataLayout::new(
-          maximum_rows=Int::min(maximum_rows, query_token_bound),
+          maximum_rows=Int32::min(maximum_rows, query_token_bound),
           maximum_tokens=query_token_bound,
         )
         is Some(layout) &&
         layout.bucket(query_tile) is Some((_, _, tiles)) else {
         raise InvalidExecutor(GraphBucket)
       }
-      Int::min(source.grid_x(), tiles)
+      Int32::min(source.grid_x(), tiles)
     }
     ProjectionTensorCoreGridX(source, output_width) => {
       let groups = paged_projection_workgroups(source)
@@ -136,13 +139,13 @@ fn paged_projection_bucket_grid_x(
         paged_ceil_div(output_width, groups * 16) *
         paged_ceil_div(query_token_bound, 16)
       }
-      Int::min(source.grid_x(), grid)
+      Int32::min(source.grid_x(), grid)
     }
     ProjectionScalarGridX(source, output_width) => {
       if query_token_bound > 2147483647 / output_width {
         raise InvalidExecutor(GraphBucket)
       }
-      Int::min(
+      Int32::min(
         source.grid_x(),
         paged_ceil_div(query_token_bound * output_width, source.block_x()),
       )
@@ -155,7 +158,7 @@ fn paged_projection_bucket_grid_x(
         paged_ceil_div(query_token_bound, 16) *
         paged_ceil_div(intermediate_width, groups * 16)
       }
-      Int::min(source.grid_x(), grid)
+      Int32::min(source.grid_x(), grid)
     }
     ProjectionMlpDownGridX(source, output_width) => {
       let groups = paged_projection_workgroups(source)
@@ -163,9 +166,9 @@ fn paged_projection_bucket_grid_x(
         paged_ceil_div(output_width, groups)
       } else {
         paged_ceil_div(query_token_bound, 16) *
-        paged_ceil_div(output_width, Int::min(4, groups) * 16)
+        paged_ceil_div(output_width, Int32::min(4, groups) * 16)
       }
-      Int::min(source.grid_x(), grid)
+      Int32::min(source.grid_x(), grid)
     }
   }
 }

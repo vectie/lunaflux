@@ -54,7 +54,7 @@ test "partition merge shares statistics without changing ascending sum law" {
 fn dual_score_dot(
   q : ArrayView[Float],
   k : ArrayView[Float],
-  owner : Int,
+  owner : Int32,
 ) -> Float {
   let partials = Array::make(16, 0.0F)
   let groups = (q.length() + 15) / 16

@@ -16,7 +16,7 @@ fn bool_name(value : Bool) -> String {
 }
 
 ///|
-fn hex_nibble(value : Int) -> Char {
+fn hex_nibble(value : Int32) -> Char {
   match value {
     0 => '0'
     1 => '1'

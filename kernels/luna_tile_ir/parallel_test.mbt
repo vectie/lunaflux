@@ -1,11 +1,11 @@
 ///|
-fn parallel_id(id : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn parallel_id(id : Int32) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(id)
 }
 
 ///|
 fn parallel_tensor(
-  id : Int,
+  id : Int32,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
   strides : ArrayView[Int64],
@@ -24,7 +24,7 @@ fn parallel_tensor(
 
 ///|
 fn parallel_region(
-  id : Int,
+  id : Int32,
   global_tile : Bool,
 ) -> @luna_tile_ir.LunaTileRegion raise {
   let first = if global_tile {
@@ -47,7 +47,7 @@ fn parallel_region(
 ///|
 fn parallel_program(
   output_disjoint : Bool,
-  loop_extent? : Int64 = 64L,
+  loop_extent~ : Int64 = 64L,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let stage = @luna_tile_ir.LunaTileStageId::from_stable_int(1)
   @luna_tile_ir.admit_luna_tile_program(
@@ -130,7 +130,7 @@ fn parallel_oracle(
 
 ///|
 fn parallel_policy(
-  tensor_core_policy? : @luna_tile_ir.LunaTileTensorCorePolicy = ObserveEligibilityUseParallelSimt,
+  tensor_core_policy~ : @luna_tile_ir.LunaTileTensorCorePolicy = ObserveEligibilityUseParallelSimt,
 ) -> @luna_tile_ir.LunaTileParallelPolicy raise {
   @luna_tile_ir.LunaTileParallelPolicy::new(
     compute_major=12,

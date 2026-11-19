@@ -16,7 +16,7 @@ pub(all) suberror PlanError {
 ///|
 pub struct Row {
   source : Source
-  index : Int
+  index : Int32
 }
 
 ///|
@@ -24,20 +24,20 @@ pub struct Row {
 /// hidden conditioning. Each supplied source row appears exactly once.
 pub struct Plan {
   priv rows : ReadOnlyArray[Row]
-  priv width : Int
-  priv conditioning_rows : Int
-  priv video_rows : Int
-  priv audio_rows : Int
+  priv width : Int32
+  priv conditioning_rows : Int32
+  priv video_rows : Int32
+  priv audio_rows : Int32
   priv mapping : Bytes
 }
 
 ///|
 pub fn Plan::new(
-  width~ : Int,
-  total_rows~ : Int,
-  conditioning~ : ArrayView[Int],
-  video~ : ArrayView[Int],
-  audio~ : ArrayView[Int],
+  width~ : Int32,
+  total_rows~ : Int32,
+  conditioning~ : ArrayView[Int32],
+  video~ : ArrayView[Int32],
+  audio~ : ArrayView[Int32],
   max_elements~ : Int64,
 ) -> Self raise PlanError {
   guard width > 0 && total_rows > 0 && total_rows <= 268435455 else {
@@ -77,7 +77,7 @@ pub fn Plan::new(
 }
 
 ///|
-pub fn Plan::width(self : Self) -> Int {
+pub fn Plan::width(self : Self) -> Int32 {
   self.width
 }
 
@@ -97,7 +97,7 @@ pub fn Plan::mapping(self : Self) -> Bytes {
 }
 
 ///|
-pub fn Plan::input_rows(self : Self, source : Source) -> Int {
+pub fn Plan::input_rows(self : Self, source : Source) -> Int32 {
   match source {
     Padding => 0
     Conditioning => self.conditioning_rows

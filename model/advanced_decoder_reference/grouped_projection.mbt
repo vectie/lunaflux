@@ -6,10 +6,10 @@
 pub fn grouped_output_a_projection_v1(
   input : ArrayView[Float],
   weights : ArrayView[Float],
-  row_count~ : Int,
-  group_count~ : Int,
-  input_width~ : Int,
-  output_width~ : Int,
+  row_count~ : Int32,
+  group_count~ : Int32,
+  input_width~ : Int32,
+  output_width~ : Int32,
   limits~ : ReferenceLimits,
 ) -> ReadOnlyArray[Float] raise AdvancedDecoderReferenceError {
   if row_count <= 0 ||

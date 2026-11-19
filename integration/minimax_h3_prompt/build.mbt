@@ -7,7 +7,7 @@ pub fn build(
   config : @text_encoder.EncoderConfig,
   prompt~ : String,
   presentation : Presentation,
-  max_tokens~ : Int,
+  max_tokens~ : Int32,
 ) -> Prompt raise {
   guard prompt != "" &&
     max_tokens > 0 &&
@@ -30,8 +30,8 @@ pub fn build(
     )
     guard result.token_ids == [id] else { raise InvalidTokenizer }
   }
-  let ids : Array[Int] = []
-  let tags : Array[Int] = []
+  let ids : Array[Int32] = []
+  let tags : Array[Int32] = []
   let grids : Array[@text_encoder.VisualGrid] = []
   fn text(value : String) -> Unit raise {
     let encoded = tokenizer.encode_text(
@@ -70,7 +70,7 @@ pub fn build(
     ids.push(config.vision_end_token)
     tags.push(0)
   }
-  fn image(grid : @text_encoder.VisualGrid, ordinal : Int) -> Unit raise {
+  fn image(grid : @text_encoder.VisualGrid, ordinal : Int32) -> Unit raise {
     guard grid.kind == Image && grid.time == 1 else { raise InvalidMedia }
     text("<Picture \{ordinal}>: ")
     vision(grid, false)

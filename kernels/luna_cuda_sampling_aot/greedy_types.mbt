@@ -1,15 +1,15 @@
 ///|
 /// Offline and startup bounds for one deterministic greedy-sampling artifact.
 pub struct GreedySamplingAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
   priv max_module_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
 pub fn GreedySamplingAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
   max_module_bytes~ : Int64,
 ) -> GreedySamplingAotLimits raise SamplingBoundaryError {
   if max_source_bytes <= 0 || max_recipe_bytes <= 0 || max_module_bytes <= 0L {
@@ -23,8 +23,8 @@ pub fn GreedySamplingAotLimits::new(
 pub struct GreedySamplingCudaLowering {
   priv physical_program : @elementwise_physical_ir.SelectionProgram
   priv target : @catalog.DeviceTarget
-  priv vocabulary_size : Int
-  priv maximum_rows : Int
+  priv vocabulary_size : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
   priv source_sha256 : String
@@ -109,8 +109,8 @@ pub fn GreedySamplingCompileReceipt::from_offline_builder(
 /// Authenticated, deterministic CUBIN for the startup-selected greedy mode.
 pub struct GreedySamplingCudaArtifact {
   priv target : @catalog.DeviceTarget
-  priv vocabulary_size : Int
-  priv maximum_rows : Int
+  priv vocabulary_size : Int32
+  priv maximum_rows : Int32
   priv result_row_bytes : Int64
   priv function_symbol : String
   priv module_bytes : Bytes
@@ -130,14 +130,14 @@ pub fn GreedySamplingCudaArtifact::target(
 ///|
 pub fn GreedySamplingCudaArtifact::vocabulary_size(
   self : GreedySamplingCudaArtifact,
-) -> Int {
+) -> Int32 {
   self.vocabulary_size
 }
 
 ///|
 pub fn GreedySamplingCudaArtifact::maximum_rows(
   self : GreedySamplingCudaArtifact,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 

@@ -1,8 +1,8 @@
 ///|
 fn luna_framed_event_requirements(
   limits : FramedWireLimits,
-) -> (Int, UInt64, UInt64) raise FramedWireError {
-  let payload = Int::max(
+) -> (Int32, UInt64, UInt64) raise FramedWireError {
+  let payload = Int32::max(
     limits.inference_limits().max_decoded_delta_bytes(),
     64,
   )
@@ -70,7 +70,7 @@ fn LunaFramedEventWorkspace::reset_operation(
 }
 
 ///|
-fn luna_framed_event_kind_wire(kind : @luna_event.LunaEventKind) -> Int {
+fn luna_framed_event_kind_wire(kind : @luna_event.LunaEventKind) -> Int32 {
   match kind {
     LunaAcceptedEventKind => 1
     LunaTokenEventKind => 2
@@ -182,7 +182,7 @@ pub fn LunaFramedEventWork::state(
 ///|
 pub fn LunaFramedEventWork::last_work_units(
   self : LunaFramedEventWork,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.require_workspace().last_work_units
 }
 

@@ -1,10 +1,10 @@
 ///|
-const PAGED_KV_WRITE_PHYSICAL_MAX_BYTES : Int = 131072
+const PAGED_KV_WRITE_PHYSICAL_MAX_BYTES : Int32 = 131072
 
 ///|
 priv struct PagedKvWritePhysicalReader {
   lines : Array[String]
-  mut cursor : Int
+  mut cursor : Int32
 }
 
 ///|

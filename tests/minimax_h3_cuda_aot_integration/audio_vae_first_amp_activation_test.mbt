@@ -1,7 +1,7 @@
 ///|
 fn audio_first_amp_activation_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     match requirement.operation() {
       AudioVaeDecoderFirstAmpActivation(_, _, _, _, _, _) => return ordinal

@@ -5,10 +5,10 @@
 /// semantic (tokens for a dense map, selected rows for a gather), not a model
 /// family, device generation, or launch dimension.
 pub fn projection_bounded_row_extent(
-  maximum_rows~ : Int,
-  matrix_rows~ : Int,
-  preferred_rows~ : Int,
-) -> Int? {
+  maximum_rows~ : Int32,
+  matrix_rows~ : Int32,
+  preferred_rows~ : Int32,
+) -> Int32? {
   if maximum_rows <= 0 ||
     matrix_rows <= 0 ||
     preferred_rows <= 0 ||

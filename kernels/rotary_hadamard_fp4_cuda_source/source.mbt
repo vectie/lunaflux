@@ -81,15 +81,18 @@ pub fn RotaryHadamardFp4CudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn RotaryHadamardFp4CudaSource::symbol(self : Self, stage : Int) -> String {
+pub fn RotaryHadamardFp4CudaSource::symbol(
+  self : Self,
+  stage : Int32,
+) -> String {
   self.symbols[stage]
 }
 
 ///|
 pub fn RotaryHadamardFp4CudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (heads, width, _, rows, _) = self.plan.rotary().geometry()
   if stage == 2 {
     (rows, heads * (width / self.plan.block_width()), self.plan.block_width())

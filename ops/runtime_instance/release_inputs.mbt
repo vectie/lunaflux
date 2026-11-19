@@ -15,7 +15,7 @@ fn close_promotion_verifier(
 fn admit_release_inputs(
   model_argument : StringView,
   limits : RuntimeInstanceFileLimits,
-  luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  luna_verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
 ) -> AdmittedReleaseInputs raise RuntimeInstanceError {
   let launch = @launch_file.load_argument(model_argument, limits.launch) catch {
     _ => {

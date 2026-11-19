@@ -9,26 +9,26 @@ pub struct TensorParallelAotLaunchContractInput {
   priv operation_id : @plan.OperationId
   priv entry_point : @catalog.AotKernelEntryPoint
   priv dimensions : @launch_contract.AotLaunchDimensions
-  priv rank : Int
-  priv world_size : Int
+  priv rank : Int32
+  priv world_size : Int32
   priv device_target : @catalog.DeviceTarget
-  priv max_query_rows : Int
-  priv max_query_tokens : Int
-  priv max_page_table_entries : Int
-  priv input_width : Int
-  priv output_width : Int
-  priv inner_width : Int
-  priv query_head_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
-  priv kv_layout_version : Int
-  priv tokens_per_page : Int
+  priv max_query_rows : Int32
+  priv max_query_tokens : Int32
+  priv max_page_table_entries : Int32
+  priv input_width : Int32
+  priv output_width : Int32
+  priv inner_width : Int32
+  priv query_head_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
+  priv kv_layout_version : Int32
+  priv tokens_per_page : Int32
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum TensorParallelOperandRole {
   RuntimeInput(@plan.OperationRuntimeInput)
-  RankConstants(version~ : Int)
+  RankConstants(version~ : Int32)
   ExternalInput(@plan.ModelInputRef)
   WeightInput(@plan.TensorRef)
   ActivationInput(@plan.ActivationRef)
@@ -47,25 +47,25 @@ pub struct TensorParallelOperand {
 ///|
 /// Exact scalar ABI uploaded once and shared by every admitted rank launch.
 pub struct TensorParallelRankConstants {
-  priv version : Int
+  priv version : Int32
   priv byte_count : Int64
   priv alignment : Int64
-  priv rank : Int
-  priv world_size : Int
-  priv compute_major : Int
-  priv compute_minor : Int
-  priv kv_layout_version : Int
-  priv tokens_per_page : Int
+  priv rank : Int32
+  priv world_size : Int32
+  priv compute_major : Int32
+  priv compute_minor : Int32
+  priv kv_layout_version : Int32
+  priv tokens_per_page : Int32
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum TensorParallelCollectiveAfter {
   NoCollective
-  CollectiveSumAllReduce(sequence~ : Int, width~ : Int)
+  CollectiveSumAllReduce(sequence~ : Int32, width~ : Int32)
   CollectiveLastAxisAllGather(
-    sequence~ : Int,
-    full_width~ : Int,
-    local_width~ : Int
+    sequence~ : Int32,
+    full_width~ : Int32,
+    local_width~ : Int32
   )
 } derive(Debug, Eq)
 
@@ -77,12 +77,12 @@ pub struct TensorParallelAotLaunchContract {
   priv capability : @plan.KernelCapabilityId
   priv entry_point : @catalog.AotKernelEntryPoint
   priv dimensions : @launch_contract.AotLaunchDimensions
-  priv input_width : Int
-  priv output_width : Int
-  priv inner_width : Int
-  priv query_head_count : Int
-  priv kv_head_count : Int
-  priv head_dimension : Int
+  priv input_width : Int32
+  priv output_width : Int32
+  priv inner_width : Int32
+  priv query_head_count : Int32
+  priv kv_head_count : Int32
+  priv head_dimension : Int32
   priv operands : ReadOnlyArray[TensorParallelOperand]
   priv collective_after : TensorParallelCollectiveAfter
 } derive(Debug, Eq)
@@ -90,8 +90,8 @@ pub struct TensorParallelAotLaunchContract {
 ///|
 pub struct TensorParallelAotLaunchContractSet {
   priv model_identity : @spec.ModelIdentity
-  priv rank : Int
-  priv world_size : Int
+  priv rank : Int32
+  priv world_size : Int32
   priv device_target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
   priv device_kv_layout : @device_layout.DeviceKvLayout
@@ -106,20 +106,20 @@ pub fn TensorParallelAotLaunchContractInput::new(
   operation_id~ : @plan.OperationId,
   entry_point~ : @catalog.AotKernelEntryPoint,
   dimensions~ : @launch_contract.AotLaunchDimensions,
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
   device_target~ : @catalog.DeviceTarget,
-  max_query_rows~ : Int,
-  max_query_tokens~ : Int,
-  max_page_table_entries~ : Int,
-  input_width~ : Int,
-  output_width~ : Int,
-  inner_width~ : Int,
-  query_head_count~ : Int,
-  kv_head_count~ : Int,
-  head_dimension~ : Int,
-  kv_layout_version~ : Int,
-  tokens_per_page~ : Int,
+  max_query_rows~ : Int32,
+  max_query_tokens~ : Int32,
+  max_page_table_entries~ : Int32,
+  input_width~ : Int32,
+  output_width~ : Int32,
+  inner_width~ : Int32,
+  query_head_count~ : Int32,
+  kv_head_count~ : Int32,
+  head_dimension~ : Int32,
+  kv_layout_version~ : Int32,
+  tokens_per_page~ : Int32,
 ) -> TensorParallelAotLaunchContractInput {
   {
     profile_id,

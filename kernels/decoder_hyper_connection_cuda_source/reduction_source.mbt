@@ -39,7 +39,7 @@ fn control_square_source(
 fn control_dot_source(
   law : @precision.DotReductionLaw,
   operand : String,
-  width : Int,
+  width : Int32,
 ) -> (String, String, String) raise DecoderHyperConnectionCudaSourceError {
   match law {
     OrderedFloat32 =>

@@ -7,11 +7,11 @@
 fn projection_bounded_work_grid_x(
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   parameters : ProjectionParameters,
-  maximum_tokens : Int,
-  maximum_rows : Int,
+  maximum_tokens : Int32,
+  maximum_rows : Int32,
   dimensions : @launch_contract.AotLaunchDimensions,
-  minimum_grid_x? : Int = 0,
-) -> Int? {
+  minimum_grid_x~ : Int32 = 0,
+) -> Int32? {
   let schedule = compilation.schedule()
   let (pipeline, output_columns) = if schedule.sibling_pipeline() is Some(plan) {
     (Some(plan), parameters.intermediate_width)
@@ -32,5 +32,5 @@ fn projection_bounded_work_grid_x(
     is Some(count) else {
     return None
   }
-  Some(Int::max(minimum_grid_x, Int::min(count, dimensions.grid_x())))
+  Some(Int32::max(minimum_grid_x, Int32::min(count, dimensions.grid_x())))
 }

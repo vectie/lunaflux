@@ -1,8 +1,8 @@
 ///|
 fn wb_scheduler_sample(
   plan_sequence~ : UInt64,
-  plan_rows~ : Int,
-  plan_tokens~ : Int,
+  plan_rows~ : Int32,
+  plan_tokens~ : Int32,
   prefix_lookups~ : UInt64,
   prefix_hits~ : UInt64,
   prefix_misses~ : UInt64,
@@ -10,10 +10,10 @@ fn wb_scheduler_sample(
   prefix_tokens_reused~ : UInt64,
   prefix_tokens_computed~ : UInt64,
   prefix_publications~ : UInt64,
-  kv_pages_used? : Int = 3,
-  kv_pages_free? : Int = 5,
-  prefix_entries? : Int = 2,
-  prefix_pages? : Int = 4,
+  kv_pages_used~ : Int32 = 3,
+  kv_pages_free~ : Int32 = 5,
+  prefix_entries~ : Int32 = 2,
+  prefix_pages~ : Int32 = 4,
 ) -> LunaServerSchedulerSample {
   {
     queue_depth: 1,
@@ -51,9 +51,9 @@ fn wb_histogram_count(
 fn wb_observation_sample(
   kind : @online_session.LunaOnlineFramedObservationKind,
   latency_kind : @online_session.LunaOnlineFramedLatencyKind,
-  latency_millis? : Int = 0,
-  input_tokens? : Int = 0,
-  output_tokens? : Int = 0,
+  latency_millis~ : Int32 = 0,
+  input_tokens~ : Int32 = 0,
+  output_tokens~ : Int32 = 0,
 ) -> LunaServerObservationSample {
   {
     kind: luna_server_observation_kind_code(kind),
@@ -74,8 +74,8 @@ fn wb_assert_prefix_totals(
   reused~ : UInt64,
   computed~ : UInt64,
   publications~ : UInt64,
-  entries~ : Int,
-  pages~ : Int,
+  entries~ : Int32,
+  pages~ : Int32,
 ) -> Unit raise {
   assert_eq(bridge.metrics.counter_value(PrefixLookups), lookups)
   assert_eq(bridge.metrics.counter_value(PrefixHits), hits)
@@ -388,7 +388,7 @@ test "cold-start telemetry commits first valid sample exactly once" {
 fn wb_count_log_event(
   bridge : LunaServerTelemetryBridge,
   event : @instance_log.LunaInstanceLogEvent,
-) -> Int raise {
+) -> Int32 raise {
   let snapshot = bridge.log.snapshot()
   let mut count = 0
   for index in 0..<snapshot.length() {

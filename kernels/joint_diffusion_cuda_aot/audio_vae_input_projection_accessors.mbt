@@ -22,7 +22,7 @@ pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::requirements_d
 ///|
 pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,28 +57,28 @@ pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::request_shape(
 ///|
 pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::decoder_batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
 pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::input_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_channels
 }
 
 ///|
 pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::output_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_channels
 }
 
 ///|
 pub fn JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate::time_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.time_count
 }
 

@@ -10,7 +10,7 @@ pub(all) enum Glm53TensorDType {
 ///|
 /// One canonical tensor slot in the exact official checkpoint namespace.
 pub struct Glm53TensorDescriptor {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv name : String
   priv dtype : Glm53TensorDType
   priv shape : ReadOnlyArray[Int64]
@@ -25,7 +25,7 @@ pub struct Glm53TensorManifest {
   priv execution_identity : @spec.ModelIdentity
   priv layout_digest : @spec.PlanDigest
   priv tensors : ReadOnlyArray[Glm53TensorDescriptor]
-  priv control_token_ids : ReadOnlyArray[Int]
+  priv control_token_ids : ReadOnlyArray[Int32]
 } derive(Debug, Eq)
 
 ///|
@@ -42,7 +42,7 @@ pub struct Glm53ObservedTensor {
 pub struct Glm53WeightBinding {
   priv execution_identity : @spec.ModelIdentity
   priv layout_digest : @spec.PlanDigest
-  priv tensor_count : Int
+  priv tensor_count : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -55,7 +55,7 @@ pub fn Glm53ObservedTensor::new(
 }
 
 ///|
-pub fn Glm53TensorDescriptor::ordinal(self : Self) -> Int {
+pub fn Glm53TensorDescriptor::ordinal(self : Self) -> Int32 {
   self.ordinal
 }
 
@@ -97,14 +97,14 @@ pub fn Glm53TensorManifest::layout_digest(self : Self) -> @spec.PlanDigest {
 }
 
 ///|
-pub fn Glm53TensorManifest::tensor_count(self : Self) -> Int {
+pub fn Glm53TensorManifest::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn Glm53TensorManifest::tensor(
   self : Self,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> Glm53TensorDescriptor? {
   self.tensors.get(ordinal)
 }
@@ -112,7 +112,7 @@ pub fn Glm53TensorManifest::tensor(
 ///|
 pub fn Glm53TensorManifest::control_token_ids(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.control_token_ids
 }
 
@@ -129,6 +129,6 @@ pub fn Glm53WeightBinding::layout_digest(self : Self) -> @spec.PlanDigest {
 }
 
 ///|
-pub fn Glm53WeightBinding::tensor_count(self : Self) -> Int {
+pub fn Glm53WeightBinding::tensor_count(self : Self) -> Int32 {
   self.tensor_count
 }

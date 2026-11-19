@@ -2,15 +2,15 @@
 /// Causal temporal zero-padding and spatial reflect-padding convolution.
 /// Last two tuple fields are output height/width; temporal padding is k-1.
 pub fn conv3d_shape(
-  frames : Int,
-  height : Int,
-  width : Int,
-  kernel : Int,
-  temporal_stride : Int,
-  spatial_stride : Int,
-  spatial_before : Int,
-  spatial_after : Int,
-) -> (Int, Int, Int) raise PlanError {
+  frames : Int32,
+  height : Int32,
+  width : Int32,
+  kernel : Int32,
+  temporal_stride : Int32,
+  spatial_stride : Int32,
+  spatial_before : Int32,
+  spatial_after : Int32,
+) -> (Int32, Int32, Int32) raise PlanError {
   guard frames > 0 &&
     height > 0 &&
     width > 0 &&

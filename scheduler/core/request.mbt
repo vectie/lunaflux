@@ -147,7 +147,7 @@ fn TokenizedRequest::input_tokens(
 ///|
 fn TokenizedRequest::input_maximum_token_status(
   self : TokenizedRequest,
-  maximum_token_id : Int,
+  maximum_token_id : Int32,
 ) -> @inference.LunaTokenBufferBoundStatus {
   self.input_tokens.maximum_token_status(maximum_token_id)
 }
@@ -155,8 +155,8 @@ fn TokenizedRequest::input_maximum_token_status(
 ///|
 fn TokenizedRequest::input_token_at(
   self : TokenizedRequest,
-  index : Int,
-) -> Int raise SchedulerError {
+  index : Int32,
+) -> Int32 raise SchedulerError {
   let status = self.input_tokens.token_status(index)
   if !status.is_ready() {
     raise invalid(Request, Stale)

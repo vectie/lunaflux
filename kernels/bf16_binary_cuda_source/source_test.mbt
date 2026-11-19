@@ -1,6 +1,6 @@
 ///|
 test "BF16 add source rejects output alias and rounds once" {
-  let source = bf16_add_source(
+  let source = @bf16_binary_cuda_source.bf16_add_source(
     width=4096,
     maximum_rows=32,
     function_symbol="add_rows",

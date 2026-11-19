@@ -3,8 +3,8 @@ fn valid_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -25,12 +25,12 @@ fn checked_mul(
 /// zero and stride is one. Bias is the initial F32 accumulator, followed by
 /// input-channel-ascending separately rounded multiply and add operations.
 pub fn f32_pointwise_conv1d_source(
-  batch_count~ : Int,
-  input_channels~ : Int,
-  output_channels~ : Int,
-  time_count~ : Int,
+  batch_count~ : Int32,
+  input_channels~ : Int32,
+  output_channels~ : Int32,
+  time_count~ : Int32,
   function_symbol~ : String,
-  autocast? : @precision.AutocastFloat? = None,
+  autocast~ : @precision.AutocastFloat? = None,
 ) -> ChannelMajorProjectionCudaSource raise ChannelMajorProjectionCudaSourceError {
   if batch_count <= 0 {
     raise InvalidBatchCount

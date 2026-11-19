@@ -21,8 +21,8 @@ fn plan_test_constraints() -> @plan.ShapeConstraints {
 
 ///|
 fn plan_test_kv_geometry(
-  kv_head_count? : Int = 2,
-  head_dimension? : Int = 4,
+  kv_head_count~ : Int32 = 2,
+  head_dimension~ : Int32 = 4,
 ) -> @plan.KvCacheGeometry {
   try! @plan.KvCacheGeometry::new(
     layer_count=1,
@@ -36,7 +36,7 @@ fn plan_test_kv_geometry(
 ///|
 fn plan_test_tensor_shape(
   operation : @plan.PlanOperation,
-  input_index : Int,
+  input_index : Int32,
 ) -> @numeric_contract.NumericShape {
   let dimensions : Array[Int64] = match
     (operation.kind(), operation.shape(), input_index) {

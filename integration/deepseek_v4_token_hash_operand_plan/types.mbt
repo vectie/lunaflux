@@ -16,15 +16,15 @@ pub struct DeepSeekV4TokenHashOperandPlan {
   priv sidecar_source_digest : @segmented_device_materialize.SegmentedHostSourceDigest
   priv source_manifest_digest : String
   priv table_source_label : String
-  priv requirement_ordinal : Int
-  priv layer_index : Int
-  priv routed_expert_count : Int
-  priv operand_ordinal : Int
+  priv requirement_ordinal : Int32
+  priv layer_index : Int32
+  priv routed_expert_count : Int32
+  priv operand_ordinal : Int32
   priv operand_role : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
   priv byte_count : Int64
   priv alignment : Int64
-  priv region_ordinal : Int
-  priv region_tensor_ordinal : Int
+  priv region_ordinal : Int32
+  priv region_tensor_ordinal : Int32
   priv device_offset : Int64
   priv digest : DeepSeekV4TokenHashOperandPlanDigest
 }
@@ -37,11 +37,11 @@ pub(all) suberror DeepSeekV4TokenHashOperandPlanError {
   )
   SourceReleased
   InvalidSourceMetadata
-  InvalidLayer(Int)
+  InvalidLayer(Int32)
   SourceIdentityMismatch
   RequirementsIdentityMismatch
   RequirementsDigestMismatch
-  CandidateRequirementOrdinalMismatch(Int)
+  CandidateRequirementOrdinalMismatch(Int32)
   CandidateOperationMismatch
   CandidateCapabilityMismatch
   CandidateContractMismatch
@@ -50,15 +50,15 @@ pub(all) suberror DeepSeekV4TokenHashOperandPlanError {
   OperandRoleMismatch
   OperandByteCountMismatch
   OperandAlignmentMismatch
-  LayoutRegionMismatch(Int)
+  LayoutRegionMismatch(Int32)
   NoLaunchAuthority
 } derive(Debug, Eq)
 
 ///|
 priv struct TokenHashTableEvidence {
-  layer_index : Int
+  layer_index : Int32
   digest : String
-  byte_count : Int
+  byte_count : Int32
 }
 
 ///|
@@ -73,13 +73,13 @@ priv struct TokenHashSourceEvidence {
 priv struct TokenHashCandidateEvidence {
   source_identity : @spec.ModelIdentity
   requirements_digest : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest
-  requirement_ordinal : Int
+  requirement_ordinal : Int32
   operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
   capability : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability
   family : @advanced_decoder_cuda_aot.AdvancedDecoderRoutingAotFamily
   numerical_contract : @advanced_decoder_cuda_aot.AdvancedDecoderRoutingNumericalContract
-  routed_expert_count : Int
-  operand_count : Int
+  routed_expert_count : Int32
+  operand_count : Int32
   operand_role : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole
   operand_byte_count : Int64
   operand_alignment : Int64

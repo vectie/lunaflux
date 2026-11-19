@@ -1,11 +1,11 @@
 ///|
 fn prepare_prompt_sequence(
   root : @approved_fs.ApprovedRoot,
-  requests : Int,
+  requests : Int32,
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_new_tokens~ : Int,
-  maximum_context~ : Int,
+  maximum_new_tokens~ : Int32,
+  maximum_context~ : Int32,
   maximum_bytes~ : Int64,
 ) -> ReadOnlyArray[@prompt.PreparedSerialPrompt] raise {
   @prompt_file.load_generation_sequence_file(
@@ -28,18 +28,18 @@ async fn execute_ingress_request(
   startup : Startup,
   frame_root : @approved_fs.ApprovedRoot,
   prepared : @prompt.PreparedSerialPrompt?,
-  count : Int,
+  count : Int32,
   pipeline : @pipeline.TwoRankDecoderPipeline,
   client : @control.DecoderStageClient,
   verifier : @verification.TwoRankGreedyVerification?,
   clock : @clock.MonotonicClock,
   generate~ : Bool,
   speculative_enabled~ : Bool,
-  maximum_new_tokens~ : Int,
-  stop~ : Int,
+  maximum_new_tokens~ : Int32,
+  stop~ : Int32,
   output_directory~ : String,
   first_epoch~ : UInt64,
-  cancel_after_steps? : Int = 0,
+  cancel_after_steps~ : Int32 = 0,
 ) -> UInt64 {
   let limits = worker_limits(startup)
   let inference = inference_limits(startup)

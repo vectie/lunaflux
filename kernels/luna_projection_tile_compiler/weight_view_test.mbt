@@ -1,8 +1,8 @@
 ///|
 fn weight_view_request(
   family : @luna_projection_strategy.ProjectionSemanticFamily,
-) -> ProjectionTileCompilerRequest raise {
-  ProjectionTileCompilerRequest::new(
+) -> @luna_projection_tile_compiler.ProjectionTileCompilerRequest raise {
+  @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
     dispatch=@luna_projection_strategy.plan_projection_dispatch(
       @luna_projection_strategy.ProjectionShape::new(
         family,
@@ -23,14 +23,14 @@ fn weight_view_request(
 test "weight partitions survive normalization and distinguish semantic identity" {
   for family in [@luna_projection_strategy.ProjectionSemanticFamily::Dense, Qkv] {
     let request = weight_view_request(family)
-    let unbound = compile_projection_tile(request)
-    let first = compile_projection_tile(
+    let unbound = @luna_projection_tile_compiler.compile_projection_tile(request)
+    let first = @luna_projection_tile_compiler.compile_projection_tile(
       request.with_concatenated_weights([128, 64, 64]),
     )
-    let second = compile_projection_tile(
+    let second = @luna_projection_tile_compiler.compile_projection_tile(
       request.with_concatenated_weights([64, 96, 96]),
     )
-    let four = compile_projection_tile(
+    let four = @luna_projection_tile_compiler.compile_projection_tile(
       request.with_concatenated_weights([64, 64, 64, 64]),
     )
     assert_eq(unbound.program().concatenated_weights().length(), 0)
@@ -40,7 +40,7 @@ test "weight partitions survive normalization and distinguish semantic identity"
     )
     assert_eq(
       first.program().concatenated_weights(),
-      plan_projection_concatenated_rows([128, 64, 64]).unwrap(),
+      @luna_projection_tile_compiler.plan_projection_concatenated_rows([128, 64, 64]).unwrap(),
     )
     assert_true(first.program().digest() != second.program().digest())
     assert_true(first.digest() != second.digest())
@@ -48,7 +48,7 @@ test "weight partitions survive normalization and distinguish semantic identity"
     assert_eq(four.program().concatenated_weights().length(), 4)
     assert_eq(
       first,
-      compile_projection_tile(request.with_concatenated_weights([128, 64, 64])),
+      @luna_projection_tile_compiler.compile_projection_tile(request.with_concatenated_weights([128, 64, 64])),
     )
   }
 }
@@ -56,7 +56,7 @@ test "weight partitions survive normalization and distinguish semantic identity"
 ///|
 test "weight bindings reject invalid partitions without mutating the request" {
   let request = weight_view_request(Dense)
-  let before = compile_projection_tile(request)
+  let before = @luna_projection_tile_compiler.compile_projection_tile(request)
   for
     counts in [[], [0, 256], [-1, 257], [128, 127], [128, 129], [2147483647, 1]] {
     try request.with_concatenated_weights(counts) catch {
@@ -73,7 +73,7 @@ test "weight bindings reject invalid partitions without mutating the request" {
   } noraise {
     _ => fail("multiple MLP weight roles were collapsed")
   }
-  assert_eq(before, compile_projection_tile(request))
+  assert_eq(before, @luna_projection_tile_compiler.compile_projection_tile(request))
 }
 
 ///|
@@ -89,11 +89,11 @@ test "ingress weight views cannot be rebound to different head partitions" {
     32,
     @luna_projection_strategy.ProjectionCapabilities::new(subgroup_width=32),
   )
-  let ingress = ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
+  let ingress = @luna_projection_tile_compiler.ProjectionTileCompilerRequest::with_attention_ingress_epilogue(
     dispatch~,
     maximum_rows=1,
     maximum_tokens=32,
-    epilogue=ProjectionAttentionIngressEpilogue::new(
+    epilogue=@luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
       query_heads=2,
       kv_heads=1,
       head_dimension=64,
@@ -102,8 +102,8 @@ test "ingress weight views cannot be rebound to different head partitions" {
     ),
   )
   assert_eq(
-    compile_projection_tile(ingress).program().concatenated_weights(),
-    compile_projection_tile(request.with_concatenated_weights([128, 64, 64]))
+    @luna_projection_tile_compiler.compile_projection_tile(ingress).program().concatenated_weights(),
+    @luna_projection_tile_compiler.compile_projection_tile(request.with_concatenated_weights([128, 64, 64]))
     .program()
     .concatenated_weights(),
   )

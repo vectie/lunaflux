@@ -24,7 +24,7 @@ fn dense_block_weights(
   gate : Double,
   up : Double,
   down : Double,
-  hyper_mixing? : ArrayView[Double] = [],
+  hyper_mixing~ : ArrayView[Double] = [],
 ) -> @glm_hybrid_reference.GlmTinyHybridBlockWeights {
   @glm_hybrid_reference.GlmTinyHybridBlockWeights::new(
     attention_norm=[attention_norm],
@@ -263,7 +263,7 @@ test "tiny block rejects bounds future duplicate padded-empty NaN and shape atta
   )
   assert_eq(padded.output().length(), 2)
   let invalid : Array[
-    (Array[Int], @glm_hybrid_reference.GlmHybridReferenceError),
+    (Array[Int32], @glm_hybrid_reference.GlmHybridReferenceError),
   ] = [
     ([-1, 1, 0, 1], IndexOutOfBounds),
     ([-1, 0, 0, 0], DuplicateIndex),

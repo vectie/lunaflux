@@ -47,7 +47,7 @@ pub fn CudaOfflineCompileEvidence::module_digest(
 }
 
 ///|
-pub fn CudaOfflineCompileEvidence::module_byte_count(self : Self) -> Int {
+pub fn CudaOfflineCompileEvidence::module_byte_count(self : Self) -> Int32 {
   self.module_byte_count
 }
 

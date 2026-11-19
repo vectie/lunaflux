@@ -18,7 +18,7 @@ pub fn AdvancedDecoderAdmittedEntryPoint::identity(
 }
 
 ///|
-pub fn AdvancedDecoderAdmittedEntryPoint::module_index(self : Self) -> Int {
+pub fn AdvancedDecoderAdmittedEntryPoint::module_index(self : Self) -> Int32 {
   self.module_index
 }
 
@@ -30,7 +30,7 @@ pub fn AdvancedDecoderAdmittedEntryPoint::function_symbol(
 }
 
 ///|
-pub fn AdvancedDecoderAdmittedLaunch::requirement_ordinal(self : Self) -> Int {
+pub fn AdvancedDecoderAdmittedLaunch::requirement_ordinal(self : Self) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -89,7 +89,7 @@ pub fn AdvancedDecoderArtifactAdmissionDigest::as_hex(self : Self) -> String {
 }
 
 ///|
-pub fn AdvancedDecoderArtifactAdmission::schema_version(self : Self) -> Int {
+pub fn AdvancedDecoderArtifactAdmission::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 

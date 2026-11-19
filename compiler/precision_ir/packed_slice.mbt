@@ -4,12 +4,12 @@
 pub struct PackedPlaneSlice {
   priv source_offset : Int64
   priv source_stride : Int64
-  priv rows : Int
+  priv rows : Int32
   priv row_bytes : Int64
 }
 
 ///|
-pub fn PackedPlaneSlice::geometry(self : Self) -> (Int64, Int64, Int, Int64) {
+pub fn PackedPlaneSlice::geometry(self : Self) -> (Int64, Int64, Int32, Int64) {
   (self.source_offset, self.source_stride, self.rows, self.row_bytes)
 }
 
@@ -26,10 +26,10 @@ pub struct PackedMatrixSlice {
 ///|
 pub fn PackedMatrixSlice::new(
   source : @format.Representation,
-  row_start~ : Int,
-  rows~ : Int,
-  column_start~ : Int,
-  columns~ : Int,
+  row_start~ : Int32,
+  rows~ : Int32,
+  column_start~ : Int32,
+  columns~ : Int32,
 ) -> Self raise PrecisionPlanError {
   let (source_rows, source_columns) = source.shape()
   guard row_start >= 0 &&

@@ -1,6 +1,6 @@
 ///|
 test "recurrent projection source preserves explicit BF16 control intermediates" {
-  let rendered = qkv_forget_input_gate_bf16_source(
+  let rendered = @recurrent_attention_projection_cuda_source.qkv_forget_input_gate_bf16_source(
     hidden_width=4096,
     head_count=64,
     head_dimension=128,
@@ -28,7 +28,7 @@ test "recurrent projection source preserves explicit BF16 control intermediates"
 ///|
 test "recurrent projection source rejects invalid shape and symbol" {
   try
-    qkv_forget_input_gate_bf16_source(
+    @recurrent_attention_projection_cuda_source.qkv_forget_input_gate_bf16_source(
       hidden_width=1,
       head_count=1,
       head_dimension=1,
@@ -43,7 +43,7 @@ test "recurrent projection source rejects invalid shape and symbol" {
     _ => fail("zero control rank admitted")
   }
   try
-    qkv_forget_input_gate_bf16_source(
+    @recurrent_attention_projection_cuda_source.qkv_forget_input_gate_bf16_source(
       hidden_width=1,
       head_count=1,
       head_dimension=1,

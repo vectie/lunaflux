@@ -3,13 +3,13 @@ const APPROVED_SELECTED_LOGIT_TOLERANCE : Double = 0.01
 
 ///|
 struct ApprovedCorpusCase {
-  selected_ids : FixedArray[Int]
+  selected_ids : FixedArray[Int32]
   selected_logits : FixedArray[Double]
-  continuation : FixedArray[Int]
+  continuation : FixedArray[Int32]
 }
 
 ///|
-fn approved_json_int(value : Json) -> Int raise ApprovedBf16PhysicalError {
+fn approved_json_int(value : Json) -> Int32 raise ApprovedBf16PhysicalError {
   guard value is Number(number, repr=_) && number.to_int().to_double() == number else {
     raise InvalidInput("reference corpus integer is not exact")
   }
@@ -34,7 +34,7 @@ fn approved_corpus_case(corpus : Json) -> ApprovedCorpusCase raise {
     first["greedy_continuation"] is Array(continuation_values) else {
     raise InvalidInput("reference corpus first model case is malformed")
   }
-  let selected_ids : FixedArray[Int] = [
+  let selected_ids : FixedArray[Int32] = [
     0, 1, 2, 42, 99, 333, 897, 1031, 2049, 2185, 2999,
   ]
   let selected_logits = FixedArray::make(selected_ids.length(), 0.0)

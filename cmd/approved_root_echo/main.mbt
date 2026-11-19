@@ -1,5 +1,5 @@
 ///|
-extern "c" fn raw_fd_closed(fd : Int) -> Bool = "lunaflux_approved_root_probe_fd_closed"
+extern "c" fn raw_fd_closed(fd : Int32) -> Bool = "lunaflux_approved_root_probe_fd_closed"
 
 ///|
 extern "c" fn raw_environment_empty() -> Bool = "lunaflux_approved_root_probe_environment_empty"

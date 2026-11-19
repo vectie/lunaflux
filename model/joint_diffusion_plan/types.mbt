@@ -104,19 +104,19 @@ pub struct JointDiffusionStage {
 pub struct JointDiffusionScheduler {
   priv latent : JointDiffusionLatentKind
   priv kind : JointDiffusionSchedulerKind
-  priv shift_numerator : Int
-  priv shift_denominator : Int
-  priv training_timestep_count : Int
+  priv shift_numerator : Int32
+  priv shift_denominator : Int32
+  priv training_timestep_count : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Bounded request conditioning envelope.
 pub struct JointDiffusionConditioningLimits {
-  priv max_keyframes : Int
-  priv max_image_references : Int
-  priv max_video_references : Int
-  priv max_audio_references : Int
-  priv max_total_references : Int
+  priv max_keyframes : Int32
+  priv max_image_references : Int32
+  priv max_video_references : Int32
+  priv max_audio_references : Int32
+  priv max_total_references : Int32
   priv allow_audio_only_references : Bool
 } derive(Debug, Eq)
 
@@ -124,21 +124,21 @@ pub struct JointDiffusionConditioningLimits {
 /// Architecture-neutral geometry of the transformer that advances the packed
 /// joint latent sequence.
 pub struct JointDiffusionDenoiserShape {
-  priv hidden_size : Int
-  priv layer_count : Int
-  priv refiner_layer_count : Int
-  priv attention_head_count : Int
-  priv attention_head_dimension : Int
-  priv attention_rotary_dimension : Int
-  priv query_key_norm_epsilon_numerator : Int
-  priv query_key_norm_epsilon_denominator : Int
-  priv feed_forward_dimension : Int
-  priv text_conditioning_dimension : Int
-  priv timestep_frequency_dimension : Int
-  priv timestep_embedding_hidden_dimension : Int
-  priv final_adaln_conditioning_dimension : Int
-  priv final_norm_epsilon_numerator : Int
-  priv final_norm_epsilon_denominator : Int
+  priv hidden_size : Int32
+  priv layer_count : Int32
+  priv refiner_layer_count : Int32
+  priv attention_head_count : Int32
+  priv attention_head_dimension : Int32
+  priv attention_rotary_dimension : Int32
+  priv query_key_norm_epsilon_numerator : Int32
+  priv query_key_norm_epsilon_denominator : Int32
+  priv feed_forward_dimension : Int32
+  priv text_conditioning_dimension : Int32
+  priv timestep_frequency_dimension : Int32
+  priv timestep_embedding_hidden_dimension : Int32
+  priv final_adaln_conditioning_dimension : Int32
+  priv final_norm_epsilon_numerator : Int32
+  priv final_norm_epsilon_denominator : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -155,7 +155,7 @@ pub struct JointDiffusionProjectionContract {
 /// LatentStride retains the decoder's complete rounded latent duration.
 pub(all) enum JointAudioOutputLength {
   FrameDuration
-  LatentStride(Int)
+  LatentStride(Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -169,49 +169,49 @@ pub(all) enum JointDiffusionSigmaGrid {
 ///|
 /// Model and runtime geometry needed to resolve one joint audio/video request.
 pub struct JointDiffusionShapeContract {
-  priv frames_per_second : Int
-  priv min_duration_seconds : Int
-  priv max_duration_seconds : Int
-  priv frames_per_chunk : Int
-  priv latents_per_chunk : Int
-  priv canvas_multiple : Int
+  priv frames_per_second : Int32
+  priv min_duration_seconds : Int32
+  priv max_duration_seconds : Int32
+  priv frames_per_chunk : Int32
+  priv latents_per_chunk : Int32
+  priv canvas_multiple : Int32
   priv max_canvas_pixels : Int64
-  priv min_aspect_numerator : Int
-  priv min_aspect_denominator : Int
-  priv max_aspect_numerator : Int
-  priv max_aspect_denominator : Int
-  priv video_latent_channels : Int
-  priv video_spatial_compression : Int
-  priv audio_latent_channels : Int
-  priv audio_latent_streams : Int
-  priv audio_latents_per_second : Int
-  priv audio_sample_rate : Int
-  priv audio_output_channels : Int
+  priv min_aspect_numerator : Int32
+  priv min_aspect_denominator : Int32
+  priv max_aspect_numerator : Int32
+  priv max_aspect_denominator : Int32
+  priv video_latent_channels : Int32
+  priv video_spatial_compression : Int32
+  priv audio_latent_channels : Int32
+  priv audio_latent_streams : Int32
+  priv audio_latents_per_second : Int32
+  priv audio_sample_rate : Int32
+  priv audio_output_channels : Int32
   priv audio_output_length : JointAudioOutputLength
-  priv audio_vae_latent_dimension : Int
-  priv audio_vae_decoder_dimension : Int
-  priv min_inference_steps : Int
-  priv max_inference_steps : Int
+  priv audio_vae_latent_dimension : Int32
+  priv audio_vae_decoder_dimension : Int32
+  priv min_inference_steps : Int32
+  priv max_inference_steps : Int32
   priv sigma_grid : JointDiffusionSigmaGrid
-  priv video_patch_temporal : Int
-  priv video_patch_height : Int
-  priv video_patch_width : Int
+  priv video_patch_temporal : Int32
+  priv video_patch_height : Int32
+  priv video_patch_width : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Fully resolved, allocation-independent shape of one admitted request.
 pub struct JointDiffusionRequestShape {
-  priv height : Int
-  priv width : Int
-  priv frames : Int
-  priv inference_steps : Int
-  priv model_evaluations : Int
+  priv height : Int32
+  priv width : Int32
+  priv frames : Int32
+  priv inference_steps : Int32
+  priv model_evaluations : Int32
   priv sigma_grid : JointDiffusionSigmaGrid
-  priv video_latent_frames : Int
-  priv video_latent_height : Int
-  priv video_latent_width : Int
-  priv audio_latent_frames : Int
-  priv audio_token_rows : Int
+  priv video_latent_frames : Int32
+  priv video_latent_height : Int32
+  priv video_latent_width : Int32
+  priv audio_latent_frames : Int32
+  priv audio_token_rows : Int32
   priv audio_samples : Int64
   priv audio_output_samples : Int64
 } derive(Debug, Eq)
@@ -221,7 +221,7 @@ pub struct JointDiffusionRequestShape {
 /// pipeline. Family-specific specifications build this type but do not leak
 /// through it.
 pub struct JointDiffusionPlan {
-  priv schema_version : Int
+  priv schema_version : Int32
   priv content_digest : @spec.ContentDigest
   priv plan_digest : @spec.PlanDigest
   priv workflows : ReadOnlyArray[JointDiffusionWorkflow]
@@ -237,3 +237,129 @@ pub struct JointDiffusionPlan {
   priv guidance_distilled : Bool
   priv conditioning_draws_precede_output_draws : Bool
 } derive(Debug, Eq)
+
+///|
+pub extend JointDiffusionWorkflow with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionWorkflow with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionStageKind with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionStageKind with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionStagePresence with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionStagePresence with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionComponent with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionComponent with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionSchedulerKind with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionSchedulerKind with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionLatentKind with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionLatentKind with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionProjectionStorage with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionProjectionStorage with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionOutputProjectionStorage with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionOutputProjectionStorage with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionVideoPatchLayout with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionVideoPatchLayout with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionAudioRowLayout with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionAudioRowLayout with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionPlanError with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionPlanError with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionStage with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionStage with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionScheduler with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionScheduler with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionConditioningLimits with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionConditioningLimits with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionDenoiserShape with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionDenoiserShape with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionProjectionContract with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionProjectionContract with Eq::{not_equal, equal}
+
+///|
+pub extend JointAudioOutputLength with @debug.Debug::{to_repr}
+
+///|
+pub extend JointAudioOutputLength with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionSigmaGrid with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionSigmaGrid with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionShapeContract with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionShapeContract with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionRequestShape with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionRequestShape with Eq::{not_equal, equal}
+
+///|
+pub extend JointDiffusionPlan with @debug.Debug::{to_repr}
+
+///|
+pub extend JointDiffusionPlan with Eq::{not_equal, equal}

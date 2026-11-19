@@ -4,8 +4,8 @@ priv struct Startup {
   checkpoint : @materialize.PackedCheckpoint
   limits : @streaming.StreamingSafetensorsLimits
   placement : @placement.DecoderPipelinePlan
-  rows : Int
-  history : Int
+  rows : Int32
+  history : Int32
   budgets : Array[Int64]
   reserve : Int64
   dspark : Bool
@@ -46,7 +46,7 @@ fn read_inventory(
 ///|
 fn stage_plan(
   startup : Startup,
-  ordinal : Int,
+  ordinal : Int32,
 ) -> @deepseek.DeepSeekDecoderStage raise {
   guard startup.placement.stages().get(ordinal) is Some(range) else {
     fail("stage ordinal is outside the planned placement")
@@ -83,11 +83,11 @@ fn inspect_config(
 fn inspect_startup(
   root : @approved_fs.ApprovedRoot,
   inventory_name : String,
-  rows : Int,
-  history : Int,
+  rows : Int32,
+  history : Int32,
   budgets : Array[Int64],
   reserve : Int64,
-  dspark? : Bool = false,
+  dspark~ : Bool = false,
 ) -> Startup raise {
   guard budgets.length() == 2 &&
     rows > 0 &&
@@ -261,7 +261,7 @@ fn inference_limits(startup : Startup) -> @inference.InferenceLimits raise {
 ///|
 fn new_frame(
   startup : Startup,
-  verification? : Bool = false,
+  verification~ : Bool = false,
 ) -> @frame.SerialDecoderFrame raise {
   request_frame(
     startup.rows,
@@ -273,10 +273,10 @@ fn new_frame(
 
 ///|
 fn request_frame(
-  rows : Int,
-  history : Int,
-  vocabulary : Int,
-  all_position_outputs? : Bool = false,
+  rows : Int32,
+  history : Int32,
+  vocabulary : Int32,
+  all_position_outputs~ : Bool = false,
 ) -> @frame.SerialDecoderFrame raise {
   @frame.SerialDecoderFrame::new(
     maximum_rows=rows,

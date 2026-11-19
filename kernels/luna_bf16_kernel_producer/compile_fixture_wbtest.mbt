@@ -2,7 +2,7 @@
 fn producer_fixture_candidate(
   plan : @plan.ModelPlan,
   operation : @plan.PlanOperation,
-  legacy? : Bool = false,
+  legacy~ : Bool = false,
 ) -> LunaBf16KernelCandidate raise {
   let profile = producer_fixture_profile()
   let layout = producer_fixture_layout()
@@ -127,7 +127,7 @@ fn producer_fixture_compilation(
 
 ///|
 fn producer_fixture_compilations(
-  legacy_operation? : Int = -1,
+  legacy_operation~ : Int32 = -1,
 ) -> Array[LunaBf16OfflineCompilation] raise {
   let plan = producer_fixture_plan()
   let result : Array[LunaBf16OfflineCompilation] = []

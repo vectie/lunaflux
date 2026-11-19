@@ -3,7 +3,7 @@
 /// 16x16x16 MMA graph accepted by the first tensor-core candidate boundary.
 pub struct LunaTileBf16Mma16x16x16View {
   priv program_digest : LunaTileProgramDigest
-  priv tile_count : Int
+  priv tile_count : Int32
   priv left_global : LunaTileTensorId
   priv right_global : LunaTileTensorId
   priv accumulator_global : LunaTileTensorId
@@ -20,7 +20,7 @@ pub fn LunaTileBf16Mma16x16x16View::program_digest(
 ///|
 pub fn LunaTileBf16Mma16x16x16View::tile_count(
   self : LunaTileBf16Mma16x16x16View,
-) -> Int {
+) -> Int32 {
   self.tile_count
 }
 

@@ -1,10 +1,10 @@
 ///|
 pub fn compressor_cache_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_input_rows~ : Int,
+  layer~ : Int32,
+  maximum_input_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> @precision.RotaryCachePrecision raise {
   guard layer >= 0 &&
     layer < spec.layer_count() &&
@@ -44,9 +44,9 @@ pub struct DeepSeekAttentionCompressor {
 ///|
 pub fn DeepSeekAttentionCompressor::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
-  maximum_context? : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_context? : Int32,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
@@ -101,7 +101,7 @@ pub fn DeepSeekAttentionCompressor::prepare(
   reset_flag~ : @device.Allocation,
   hidden~ : @device.Allocation,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

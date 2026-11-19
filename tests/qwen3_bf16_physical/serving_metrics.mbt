@@ -2,7 +2,7 @@
 fn qwen3_metrics_exact_int(
   value : Json,
   label : String,
-) -> Int raise Qwen3PhysicalError {
+) -> Int32 raise Qwen3PhysicalError {
   guard value is Number(number, repr=_) else {
     raise CorpusMismatch(label + " is not numeric")
   }
@@ -15,7 +15,7 @@ fn qwen3_metrics_exact_int(
 fn qwen3_metrics_field(
   fields : Map[String, Json],
   name : String,
-) -> Int raise Qwen3PhysicalError {
+) -> Int32 raise Qwen3PhysicalError {
   guard fields.get(name) is Some(value) else {
     raise CorpusMismatch("metrics field is absent: " + name)
   }
@@ -26,9 +26,9 @@ fn qwen3_metrics_field(
 fn qwen3_verify_metrics_fields(
   counters : Map[String, Json],
   gauges : Map[String, Json],
-  input_tokens : Int,
-  output_tokens : Int,
-  kv_pages_free : Int,
+  input_tokens : Int32,
+  output_tokens : Int32,
+  kv_pages_free : Int32,
 ) -> Unit raise Qwen3PhysicalError {
   qwen3_require(counters.length() == 22, "metrics counter vocabulary differs")
   qwen3_require(gauges.length() == 6, "metrics gauge vocabulary differs")
@@ -85,9 +85,9 @@ fn qwen3_verify_metrics_fields(
 ///|
 fn qwen3_verify_serving_metrics(
   bytes : BytesView,
-  input_tokens : Int,
-  output_tokens : Int,
-  kv_pages_free : Int,
+  input_tokens : Int32,
+  output_tokens : Int32,
+  kv_pages_free : Int32,
 ) -> Unit raise Qwen3PhysicalError {
   let parsed = @json.parse(@utf8.decode(bytes)) catch {
     _ => raise CorpusMismatch("serving metrics JSON is malformed")

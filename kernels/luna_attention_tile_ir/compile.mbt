@@ -1,11 +1,11 @@
 ///|
-fn tile_value(id : Int) -> AttentionTileValueId {
+fn tile_value(id : Int32) -> AttentionTileValueId {
   AttentionTileValueId(id)
 }
 
 ///|
 fn tile_binding(
-  id : Int,
+  id : Int32,
   kind : AttentionTileValueKind,
   expression : AttentionTileExpression,
 ) -> AttentionTileBinding {
@@ -30,7 +30,7 @@ fn expression_dependencies(
 ///|
 fn binding_kind_before(
   bindings : ReadOnlyArray[AttentionTileBinding],
-  index : Int,
+  index : Int32,
   id : AttentionTileValueId,
 ) -> AttentionTileValueKind? {
   for candidate_index in 0..<index {
@@ -45,7 +45,7 @@ fn binding_kind_before(
 ///|
 fn expected_expression_kind(
   bindings : ReadOnlyArray[AttentionTileBinding],
-  index : Int,
+  index : Int32,
   expression : AttentionTileExpression,
 ) -> AttentionTileValueKind? {
   match expression {
@@ -119,7 +119,7 @@ fn validate_attention_tile_bindings(
 ///|
 fn attention_phase_code(
   phase : @luna_attention_strategy.AttentionExecutionPhase,
-) -> Int {
+) -> Int32 {
   match phase {
     Prefill => 1
     Decode => 2
@@ -130,7 +130,7 @@ fn attention_phase_code(
 ///|
 fn attention_numeric_code(
   numeric_type : @luna_attention_strategy.AttentionNumericType,
-) -> Int {
+) -> Int32 {
   match numeric_type {
     AttentionBFloat16 => 1
     AttentionFloat16 => 2
@@ -142,7 +142,7 @@ fn attention_numeric_code(
 ///|
 fn attention_compute_code(
   compute : @luna_attention_strategy.AttentionTileCompute,
-) -> Int {
+) -> Int32 {
   match compute {
     AttentionScalarDot => 1
     AttentionSubgroupDot => 2
@@ -163,7 +163,7 @@ fn attention_compute_code(
 ///|
 fn attention_memory_code(
   memory : @luna_attention_strategy.AttentionTileMemory,
-) -> Int {
+) -> Int32 {
   match memory {
     AttentionDirectGlobal => 1
     AttentionStagedShared => 2

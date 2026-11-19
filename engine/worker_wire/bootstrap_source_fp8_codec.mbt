@@ -1,11 +1,11 @@
 ///|
-const FP8_BOOTSTRAP_SOURCE_VERSION_V9 : UInt = 9
+const FP8_BOOTSTRAP_SOURCE_VERSION_V9 : UInt32 = 9
 
 ///|
-const FP8_BOOTSTRAP_SOURCE_RECIPE_V9 : Int = 9
+const FP8_BOOTSTRAP_SOURCE_RECIPE_V9 : Int32 = 9
 
 ///|
-const FP8_BOOTSTRAP_SOURCE_HEADER_BYTES_V9 : Int = 392
+const FP8_BOOTSTRAP_SOURCE_HEADER_BYTES_V9 : Int32 = 392
 
 ///|
 pub fn admit_fp8_reusable_bootstrap_source_v9(
@@ -138,7 +138,7 @@ pub fn admit_fp8_reusable_bootstrap_source_v9(
 ///|
 pub fn decode_fp8_reusable_bootstrap_source_v9(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   if source.length() < FP8_BOOTSTRAP_SOURCE_HEADER_BYTES_V9 ||
     read_u32(source, 4) != FP8_BOOTSTRAP_SOURCE_VERSION_V9 ||

@@ -1,5 +1,5 @@
 ///|
-fn inbound_expect_json_failure(route : Int, body : String) -> Unit raise {
+fn inbound_expect_json_failure(route : Int32, body : String) -> Unit raise {
   let inference = openai_wb_fixture_limits()
   let workspace = inbound_workspace(inference, 1)
   let work = workspace.begin(

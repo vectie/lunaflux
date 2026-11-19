@@ -1,11 +1,11 @@
 ///|
 fn encode_audio_amp_activation(
   writer : RequirementCanonicalWriter,
-  stage : Int,
-  batch : Int,
-  channels : Int,
-  ratio : Int,
-  kernel : Int,
+  stage : Int32,
+  batch : Int32,
+  channels : Int32,
+  ratio : Int32,
+  kernel : Int32,
   storage : JointDiffusionAudioVaeAliasFreeActivationStorage,
   layout : JointDiffusionAudioVaeLatentLayout,
 ) -> Unit raise JointDiffusionKernelRequirementsError {
@@ -30,11 +30,11 @@ fn encode_audio_amp_activation(
 ///|
 fn encode_audio_amp_stage(
   writer : RequirementCanonicalWriter,
-  stage : Int,
-  batch : Int,
-  channels : Int,
-  blocks : Int,
-  pairs : Int,
+  stage : Int32,
+  batch : Int32,
+  channels : Int32,
+  blocks : Int32,
+  pairs : Int32,
   schedule : JointDiffusionAudioVaeAmpSchedule,
   storage : JointDiffusionAudioVaeAmpStageStorage,
   layout : JointDiffusionAudioVaeLatentLayout,

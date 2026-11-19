@@ -1,6 +1,6 @@
 ///|
 test "causal complete-slot source is exact bounded and model-neutral" {
-  let rendered = causal_complete_slots_i32_source(
+  let rendered = @decoder_compressed_index_cuda_source.causal_complete_slots_i32_source(
     compression_ratio=128,
     maximum_position_count=163840,
     maximum_rows=32,
@@ -21,7 +21,7 @@ test "causal complete-slot source is exact bounded and model-neutral" {
   assert_true(text.contains("slot < selected ? offset + slot : -1"))
   assert_eq(
     rendered.source_bytes(),
-    causal_complete_slots_i32_source(
+    @decoder_compressed_index_cuda_source.causal_complete_slots_i32_source(
       compression_ratio=128,
       maximum_position_count=163840,
       maximum_rows=32,
@@ -33,7 +33,7 @@ test "causal complete-slot source is exact bounded and model-neutral" {
 ///|
 test "causal complete-slot source rejects hostile geometry and symbols" {
   try
-    causal_complete_slots_i32_source(
+    @decoder_compressed_index_cuda_source.causal_complete_slots_i32_source(
       compression_ratio=1,
       maximum_position_count=128,
       maximum_rows=1,
@@ -47,7 +47,7 @@ test "causal complete-slot source rejects hostile geometry and symbols" {
   }
   for position_limit in [0, 127] {
     try
-      causal_complete_slots_i32_source(
+      @decoder_compressed_index_cuda_source.causal_complete_slots_i32_source(
         compression_ratio=128,
         maximum_position_count=position_limit,
         maximum_rows=1,
@@ -61,7 +61,7 @@ test "causal complete-slot source rejects hostile geometry and symbols" {
     }
   }
   try
-    causal_complete_slots_i32_source(
+    @decoder_compressed_index_cuda_source.causal_complete_slots_i32_source(
       compression_ratio=128,
       maximum_position_count=128,
       maximum_rows=1048577,
@@ -74,7 +74,7 @@ test "causal complete-slot source rejects hostile geometry and symbols" {
     _ => fail("oversized row envelope was admitted")
   }
   try
-    causal_complete_slots_i32_source(
+    @decoder_compressed_index_cuda_source.causal_complete_slots_i32_source(
       compression_ratio=128,
       maximum_position_count=128,
       maximum_rows=1,

@@ -39,8 +39,8 @@ pub fn PipelineProgram::prepare(
   audio_decode : ArrayView[@device.OrderedKernelLaunch],
   video_update~ : @device.Function,
   audio_update~ : @device.Function,
-  video_block_size~ : Int,
-  audio_block_size~ : Int,
+  video_block_size~ : Int32,
+  audio_block_size~ : Int32,
 ) -> Unit raise {
   guard !self.started &&
     !self.closed &&

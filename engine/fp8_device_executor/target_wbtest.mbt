@@ -1,5 +1,5 @@
 ///|
-fn fp8_executor_target(major : Int, minor : Int) -> @catalog.DeviceTarget {
+fn fp8_executor_target(major : Int32, minor : Int32) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=major,
     compute_minor=minor,

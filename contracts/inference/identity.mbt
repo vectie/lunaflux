@@ -1,7 +1,7 @@
 ///|
 /// Independently versioned native inference protocol identity.
 pub struct ProtocolVersion {
-  priv wire_code : Int
+  priv wire_code : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -13,7 +13,7 @@ pub fn ProtocolVersion::v1() -> ProtocolVersion {
 ///|
 /// Parses the stable integer wire representation, rejecting unknown versions.
 pub fn ProtocolVersion::from_wire(
-  wire_code : Int,
+  wire_code : Int32,
 ) -> ProtocolVersion raise InferenceContractError {
   if wire_code != 1 {
     raise invalid(ProtocolVersion, Unsupported, 0)
@@ -22,7 +22,7 @@ pub fn ProtocolVersion::from_wire(
 }
 
 ///|
-pub fn ProtocolVersion::wire_code(self : ProtocolVersion) -> Int {
+pub fn ProtocolVersion::wire_code(self : ProtocolVersion) -> Int32 {
   self.wire_code
 }
 
@@ -95,7 +95,7 @@ fn is_safe_identifier_byte(byte : Byte) -> Bool {
 }
 
 ///|
-fn checked_utf8_length(value : String) -> Int? {
+fn checked_utf8_length(value : String) -> Int32? {
   let units = value.code_units()
   let mut index = 0
   let mut byte_length = 0
@@ -130,7 +130,7 @@ fn checked_utf8_length(value : String) -> Int? {
 ///|
 fn bounded_identifier(
   value : BytesView,
-  maximum : Int,
+  maximum : Int32,
   field : ContractField,
 ) -> String raise InferenceContractError {
   if value.length() == 0 {
@@ -152,7 +152,7 @@ fn bounded_identifier(
 ///|
 fn validate_bounded_identifier(
   value : String,
-  maximum : Int,
+  maximum : Int32,
   field : ContractField,
 ) -> Unit raise InferenceContractError {
   if value.length() == 0 {
@@ -247,3 +247,21 @@ fn TraceCorrelation::validate(
     TraceCorrelation,
   )
 }
+
+///|
+pub extend ProtocolVersion with @debug.Debug::{to_repr}
+
+///|
+pub extend ProtocolVersion with Eq::{not_equal, equal}
+
+///|
+pub extend RequestId with @debug.Debug::{to_repr}
+
+///|
+pub extend RequestId with Eq::{not_equal, equal}
+
+///|
+pub extend RequestGeneration with @debug.Debug::{to_repr}
+
+///|
+pub extend RequestGeneration with Eq::{not_equal, equal}

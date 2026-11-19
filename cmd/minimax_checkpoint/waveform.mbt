@@ -1,7 +1,7 @@
 ///|
 /// Diagnostic output observation after the entire prepared decoder retires.
 /// Not a numerical oracle and not inserted into any production kernel queue.
-fn waveform_statistics(bytes : Bytes) -> (Int, Float) {
+fn waveform_statistics(bytes : Bytes) -> (Int32, Float) {
   for i in 0..<(bytes.length() / 4); nonfinite = 0, maximum = 0.0F {
     let offset = i * 4
     let bits = bytes[offset].to_uint() |

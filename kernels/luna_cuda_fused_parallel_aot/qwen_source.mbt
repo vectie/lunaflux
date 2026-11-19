@@ -6,8 +6,8 @@ fn qwen_fused_source(
   profile : @launch_contract.PagedKernelProfile,
   tile_compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
   physical : QwenIngressPhysicalProgram,
-  dispatch_canary : UInt?,
-  step_rotary_cache? : Bool = false,
+  dispatch_canary : UInt32?,
+  step_rotary_cache~ : Bool = false,
 ) -> Bytes {
   let (input_width, output_width) = semantic.projection_shape()
   let (query_heads, kv_heads, head_dimension) = semantic.attention_shape()

@@ -1,10 +1,10 @@
 ///|
-fn ordered_script_range(scalar : Int) -> Bool {
-  scalar is (0x4e00..=0x9fa5 | 0x3040..=0x309f | 0x30a0..=0x30ff)
+fn ordered_script_range(scalar : Int32) -> Bool {
+  scalar is (0x4e00..<=0x9fa5 | 0x3040..<=0x309f | 0x30a0..<=0x30ff)
 }
 
 ///|
-fn unicode_is_symbol(scalar : Int) -> Bool {
+fn unicode_is_symbol(scalar : Int32) -> Bool {
   // Inclusive pairs of 24-bit scalars from Unicode's P*/S* categories.
   for low = 0, high = unicode_symbol_ranges.length() / 6; low < high; {
     let middle = low + (high - low) / 2
@@ -23,7 +23,7 @@ fn unicode_is_symbol(scalar : Int) -> Bool {
 }
 
 ///|
-fn ordered_word_scalar(scalar : Int, script_fragment : Bool) -> Bool {
+fn ordered_word_scalar(scalar : Int32, script_fragment : Bool) -> Bool {
   ordered_script_range(scalar) == script_fragment &&
   !qwen3_is_number(scalar) &&
   (qwen3_is_letter(scalar) || qwen35_is_mark(scalar))
@@ -32,10 +32,10 @@ fn ordered_word_scalar(scalar : Int, script_fragment : Bool) -> Bool {
 ///|
 fn ordered_word_end(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
+  length : Int32,
+  offset : Int32,
   script_fragment : Bool,
-) -> Int raise TokenizerError {
+) -> Int32 raise TokenizerError {
   for cursor = offset; cursor < length; {
     let (scalar, width) = qwen3_scalar_at(input, length, cursor)
     if !ordered_word_scalar(scalar, script_fragment) {
@@ -52,19 +52,19 @@ fn ordered_word_end(
 /// -1 means no match, so the caller preserves an unmatched run as one pretoken.
 fn ordered_word_match_end(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
+  length : Int32,
+  offset : Int32,
   script_fragment : Bool,
-) -> Int raise TokenizerError {
+) -> Int32 raise TokenizerError {
   let (first, width) = qwen3_scalar_at(input, length, offset)
   if ordered_script_range(first) != script_fragment || qwen3_is_number(first) {
     return -1
   }
-  if first is (0x21..=0x2f | 0x3a..=0x40 | 0x5b..=0x60 | 0x7b..=0x7e) &&
+  if first is (0x21..<=0x2f | 0x3a..<=0x40 | 0x5b..<=0x60 | 0x7b..<=0x7e) &&
     offset + width < length &&
-    input[offset + width] is (b'A'..=b'Z' | b'a'..=b'z') {
+    input[offset + width] is (b'A'..<=b'Z' | b'a'..<=b'z') {
     for cursor = offset + width; cursor < length &&
-       input[cursor] is (b'A'..=b'Z' | b'a'..=b'z'); {
+       input[cursor] is (b'A'..<=b'Z' | b'a'..<=b'z'); {
       continue cursor + 1
     } nobreak {
       return cursor
@@ -145,9 +145,9 @@ fn ordered_word_match_end(
 /// or full-remainder rescan. Earlier isolated fragments cannot be rejoined by BPE.
 fn ordered_script_pretoken_end(
   input : FixedArray[Byte],
-  length : Int,
-  offset : Int,
-) -> Int raise TokenizerError {
+  length : Int32,
+  offset : Int32,
+) -> Int32 raise TokenizerError {
   let (first, width) = qwen3_scalar_at(input, length, offset)
   if qwen3_is_number(first) {
     for cursor = offset + width, count = 1; cursor < length && count < 3; {

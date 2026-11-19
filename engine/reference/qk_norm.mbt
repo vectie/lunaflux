@@ -2,9 +2,9 @@
 fn normalize_packed_head(
   input : ReadOnlyArray[Float],
   output : Array[Float],
-  row_offset : Int,
-  head_offset : Int,
-  head_dimension : Int,
+  row_offset : Int32,
+  head_offset : Int32,
+  head_dimension : Int32,
   weight : @refkernels.Tensor,
   epsilon : Float,
 ) -> Unit raise @refkernels.ReferenceKernelError {
@@ -34,9 +34,9 @@ fn qk_rms_norm(
   input : @refkernels.Activation,
   query_weight : @refkernels.Tensor,
   key_weight : @refkernels.Tensor,
-  query_heads~ : Int,
-  kv_heads~ : Int,
-  head_dimension~ : Int,
+  query_heads~ : Int32,
+  kv_heads~ : Int32,
+  head_dimension~ : Int32,
   epsilon~ : Float,
   limits~ : @refkernels.ReferenceLimits,
 ) -> @refkernels.Activation raise @refkernels.ReferenceKernelError {

@@ -1,5 +1,5 @@
 ///|
-extern "c" fn streaming_probe(cycles : Int) -> Int = "lunaflux_cuda_test_streaming"
+extern "c" fn streaming_probe(cycles : Int32) -> Int32 = "lunaflux_cuda_test_streaming"
 
 ///|
 test "streaming DMA retains leases through partial failures and retryable close" {

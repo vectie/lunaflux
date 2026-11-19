@@ -55,8 +55,8 @@ fn ServicePlan::source(
 /// The cap is the existing SchedulerConfig waiting-age validation ceiling,
 /// not a device/kernel tuning constant. Page pressure and deadlines are still
 /// handled by the scheduler's existing resource and cancellation rules.
-fn service_waiting_age_steps(context : Int) -> Int {
-  Int::min(context, 1_000_000)
+fn service_waiting_age_steps(context : Int32) -> Int32 {
+  Int32::min(context, 1_000_000)
 }
 
 ///|
@@ -64,11 +64,11 @@ fn service_waiting_age_steps(context : Int) -> Int {
 /// assign resident state. The queue must accept a complete admission burst,
 /// not merely the lanes left after resident slots have already been filled.
 fn service_scheduler_config(
-  rows : Int,
-  slots : Int,
-  admission_lanes : Int,
-  context : Int,
-  decode_reserve : Int,
+  rows : Int32,
+  slots : Int32,
+  admission_lanes : Int32,
+  context : Int32,
+  decode_reserve : Int32,
 ) -> @scheduling.SchedulerConfig raise {
   @scheduling.new(
     step_token_budget=rows,
@@ -177,7 +177,9 @@ fn prepare_service(
     predecessor_value=0UL,
   )
   let framed = @framed.FramedWireLimits::new(inference, max_frame_bytes=2097152)
-  let preparation_storage = plan.preparation_storage(tokenizer, inference, framed)
+  let preparation_storage = plan.preparation_storage(
+    tokenizer, inference, framed,
+  )
   @session.prepare_owned_luna_online_framed_service_approved(
     tokenizer,
     tokenizer.digest(),

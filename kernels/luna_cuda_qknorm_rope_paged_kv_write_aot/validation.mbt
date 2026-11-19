@@ -13,7 +13,7 @@ fn postprocess_checked_mul(
 ///|
 fn postprocess_operation(
   plan : @plan.ModelPlan,
-  index : Int,
+  index : Int32,
 ) -> @plan.PlanOperation raise QkNormRopePagedKvWriteAotError {
   match plan.operations().get(index) {
     Some(operation) => operation

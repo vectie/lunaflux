@@ -2,7 +2,7 @@
 fn graph_memory_metadata(
   capture_safe : Bool,
   bytes : Int64,
-  alignment? : Int64 = 256L,
+  alignment~ : Int64 = 256L,
 ) -> @luna_capability_manifest.LunaGraphCapabilityMetadata raise {
   @luna_capability_manifest.LunaGraphCapabilityMetadata::new(
     shape_class=@luna_capability_manifest.LunaGraphShapeClass::from_execution_shape(

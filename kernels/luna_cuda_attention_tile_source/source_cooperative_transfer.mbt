@@ -1,9 +1,9 @@
 ///|
 fn cuda_cooperative_decode_transfer(
-  tokens_per_page : Int,
+  tokens_per_page : Int32,
   physical_page_capacity : Int64,
   page_stride_values : Int64,
-  key_value_heads : Int,
+  key_value_heads : Int32,
 ) -> String {
   (
     $|    for (int linear = thread;

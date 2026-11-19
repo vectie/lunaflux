@@ -48,12 +48,12 @@ pub fn parallel_control_tiles_source(
 ///|
 fn control_tiles_source(
   precision : @precision.HyperConnectionPrecision,
-  workers : Int,
-  tile : Int,
+  workers : Int32,
+  tile : Int32,
   parallel : Bool,
   fused_norm : Bool,
   symbol_prefix~ : String,
-  fused_sinkhorn? : Bool = false,
+  fused_sinkhorn~ : Bool = false,
 ) -> Bytes raise DecoderHyperConnectionCudaSourceError {
   let (width, hidden, rows) = precision.geometry()
   let subgroup_matrix = fused_sinkhorn &&

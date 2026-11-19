@@ -13,7 +13,7 @@ fn wb_identity() -> @spec.ModelIdentity {
 ///|
 fn wb_stop_token_projection(
   limits : @inference.InferenceLimits,
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
 ) -> @inference.LunaRequestStopTokenView {
   let storage = try! @inference.LunaRequestSemanticStorage::new(
     limits,
@@ -42,8 +42,8 @@ fn wb_stop_token_projection(
 fn wb_request(
   id : UInt64,
   deadline~ : UInt64 = 100UL,
-  input_tokens~ : Array[Int] = [1, 2],
-  max_new_tokens~ : Int = 2,
+  input_tokens~ : Array[Int32] = [1, 2],
+  max_new_tokens~ : Int32 = 2,
 ) -> TokenizedRequest {
   let limits = try! @inference.InferenceLimits::new(
     max_text_bytes=64,
@@ -88,9 +88,9 @@ fn wb_owner() -> Scheduler {
 
 ///|
 fn wb_owner_with_capacity(
-  max_active_requests : Int,
-  max_waiting_requests : Int,
-  waiting_age~ : Int = 2,
+  max_active_requests : Int32,
+  max_waiting_requests : Int32,
+  waiting_age~ : Int32 = 2,
 ) -> Scheduler {
   try! wb_blueprint_with_capacity(
     max_active_requests,
@@ -101,9 +101,9 @@ fn wb_owner_with_capacity(
 
 ///|
 fn wb_blueprint_with_capacity(
-  max_active_requests : Int,
-  max_waiting_requests : Int,
-  waiting_age~ : Int = 2,
+  max_active_requests : Int32,
+  max_waiting_requests : Int32,
+  waiting_age~ : Int32 = 2,
 ) -> SchedulerBlueprint {
   let scheduler = try! @scheduler.new(
     step_token_budget=2,
@@ -325,8 +325,8 @@ test "checkpoint cleanup restores exact identities before a real build" {
 fn make_decode_active(
   owner : Scheduler,
   handle : RequestHandle,
-  output_count : Int,
-  token : Int,
+  output_count : Int32,
+  token : Int32,
 ) -> Unit {
   let slot = handle.slot().index()
   owner.remove_waiting(slot)

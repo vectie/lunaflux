@@ -1,7 +1,7 @@
 ///|
 test "grouped projection directly emits compact field-major tables" {
   let source = @utf8.decode(
-    grouped_parameter_projection_source(
+    @affine_modulation_cuda_source.grouped_parameter_projection_source(
       rows=2,
       input_width=8,
       width=4,
@@ -18,7 +18,7 @@ test "grouped projection directly emits compact field-major tables" {
   assert_true(source.contains("__fadd_rn(sum, __bfloat162float(bias[column]))"))
   assert_false(source.contains("expf"))
   try
-    grouped_parameter_projection_source(
+    @affine_modulation_cuda_source.grouped_parameter_projection_source(
       rows=2147483647,
       input_width=8,
       width=4,

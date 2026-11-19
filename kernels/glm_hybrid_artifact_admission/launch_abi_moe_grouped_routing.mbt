@@ -1,11 +1,11 @@
 ///|
 fn exact_moe_grouped_routing_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  routed_expert_count : Int,
-  group_count : Int,
-  group_score_topk : Int,
-  selected_group_count : Int,
-  experts_per_token : Int,
+  routed_expert_count : Int32,
+  group_count : Int32,
+  group_score_topk : Int32,
+  selected_group_count : Int32,
+  experts_per_token : Int32,
   normalize : Bool,
   scaling : Double,
   claim : GlmHybridArtifactClaimInput,

@@ -1,5 +1,5 @@
 ///|
-const TEST_HEADER_BYTES : Int = 16
+const TEST_HEADER_BYTES : Int32 = 16
 
 ///|
 fn test_model() -> @spec.LlamaModelMetadata raise {

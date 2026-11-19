@@ -1,8 +1,8 @@
 ///|
 /// Constructs a structurally valid entry identity for authenticated lookup.
 pub fn PrefixEntryId::new(
-  index~ : Int,
-  generation~ : Int,
+  index~ : Int32,
+  generation~ : Int32,
 ) -> PrefixEntryId raise PrefixIndexError {
   if index < 0 {
     raise InvalidLimit(EntryCapacity)
@@ -14,19 +14,19 @@ pub fn PrefixEntryId::new(
 }
 
 ///|
-pub fn PrefixEntryId::index(self : PrefixEntryId) -> Int {
+pub fn PrefixEntryId::index(self : PrefixEntryId) -> Int32 {
   self.0
 }
 
 ///|
-pub fn PrefixEntryId::generation(self : PrefixEntryId) -> Int {
+pub fn PrefixEntryId::generation(self : PrefixEntryId) -> Int32 {
   self.1
 }
 
 ///|
 pub fn PrefixLayout::new(
-  version~ : Int,
-  tokens_per_page~ : Int,
+  version~ : Int32,
+  tokens_per_page~ : Int32,
 ) -> PrefixLayout raise PrefixIndexError {
   let layout = { version, tokens_per_page, }
   layout.validate()
@@ -45,12 +45,12 @@ fn PrefixLayout::validate(self : PrefixLayout) -> Unit raise PrefixIndexError {
 }
 
 ///|
-pub fn PrefixLayout::version(self : PrefixLayout) -> Int {
+pub fn PrefixLayout::version(self : PrefixLayout) -> Int32 {
   self.version
 }
 
 ///|
-pub fn PrefixLayout::tokens_per_page(self : PrefixLayout) -> Int {
+pub fn PrefixLayout::tokens_per_page(self : PrefixLayout) -> Int32 {
   self.tokens_per_page
 }
 

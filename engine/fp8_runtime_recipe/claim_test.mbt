@@ -1,7 +1,7 @@
 ///|
 fn claim_region(
   storage : String,
-  offset? : Int64 = 0L,
+  offset~ : Int64 = 0L,
 ) -> @fp8_launch_abi.Fp8LaunchStorageRegion {
   try! @fp8_launch_abi.Fp8LaunchStorageRegion::new(
     storage=@fp8_launch_abi.Fp8LaunchStorageIdentity::from_sha256(storage),

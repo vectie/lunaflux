@@ -25,7 +25,7 @@ priv struct PagedOwnedModule {
 ///|
 priv struct PagedOwnedFunction {
   resource : @device.Function
-  module_index : Int
+  module_index : Int32
   mut open : Bool
 }
 
@@ -33,24 +33,24 @@ priv struct PagedOwnedFunction {
 priv struct PagedOwnedOrderedExecutor {
   resource : @device.OrderedKernelExecutor
   operation_ids : ReadOnlyArray[@plan.OperationId]
-  mut effect_only_owner_index : Int
-  mut mixed_owner_index : Int
-  mut projection_owner_index : Int
+  mut effect_only_owner_index : Int32
+  mut mixed_owner_index : Int32
+  mut projection_owner_index : Int32
   mut open : Bool
 }
 
 ///|
 priv enum PagedBucketStepLaunch {
   FixedBucketLaunch
-  ProjectionBoundedWorkGridX(@launch_contract.AotLaunchDimensions, Int)
+  ProjectionBoundedWorkGridX(@launch_contract.AotLaunchDimensions, Int32)
   QueryTokenCappedGridX(@launch_contract.AotLaunchDimensions)
-  QueryTileCappedGridX(@launch_contract.AotLaunchDimensions, Int)
-  QueryCellCappedGridX(@launch_contract.AotLaunchDimensions, Int)
-  QueryMetadataCappedGridX(@launch_contract.AotLaunchDimensions, Int, Int)
-  ProjectionTensorCoreGridX(@launch_contract.AotLaunchDimensions, Int)
-  ProjectionScalarGridX(@launch_contract.AotLaunchDimensions, Int)
-  ProjectionMlpUpGridX(@launch_contract.AotLaunchDimensions, Int)
-  ProjectionMlpDownGridX(@launch_contract.AotLaunchDimensions, Int)
+  QueryTileCappedGridX(@launch_contract.AotLaunchDimensions, Int32)
+  QueryCellCappedGridX(@launch_contract.AotLaunchDimensions, Int32)
+  QueryMetadataCappedGridX(@launch_contract.AotLaunchDimensions, Int32, Int32)
+  ProjectionTensorCoreGridX(@launch_contract.AotLaunchDimensions, Int32)
+  ProjectionScalarGridX(@launch_contract.AotLaunchDimensions, Int32)
+  ProjectionMlpUpGridX(@launch_contract.AotLaunchDimensions, Int32)
+  ProjectionMlpDownGridX(@launch_contract.AotLaunchDimensions, Int32)
 }
 
 ///|
@@ -70,27 +70,27 @@ priv struct PagedGraphLaunchContract {
 /// mode may use its maximum-envelope capture as that fallback; the policy that
 /// admits eager fallback owns a distinct eager executor instead.
 priv struct PagedOrderedExecutorDispatch {
-  measured_owner_indices : ReadOnlyArray[Int]
-  slot_owner_indices : FixedArray[Int]
-  prefill_wide_slot_owner_indices : FixedArray[Int]
-  prefill_split_slot_owner_indices : FixedArray[Int]
-  decode_split_slot_owner_indices : FixedArray[Int]
-  fallback_owner_index : Int
-  telemetry_owner_index : Int
-  prefill_wide_owner_index : Int
-  prefill_wide_minimum_query_tokens : Int
-  prefill_split_owner_index : Int
-  prefill_split_minimum_context_tokens : Int
-  prefill_split_query_tile : Int
-  prefill_split_partition_count : Int
-  deep_prefill_split_owner_index : Int
-  deep_prefill_split_minimum_context_tokens : Int
-  deep_prefill_split_query_tile : Int
-  deep_prefill_split_partition_count : Int
-  decode_owner_index : Int
-  decode_split_owner_index : Int
-  decode_split_minimum_context_tokens : Int
-  decode_split_maximum_batch_rows : Int
+  measured_owner_indices : ReadOnlyArray[Int32]
+  slot_owner_indices : FixedArray[Int32]
+  prefill_wide_slot_owner_indices : FixedArray[Int32]
+  prefill_split_slot_owner_indices : FixedArray[Int32]
+  decode_split_slot_owner_indices : FixedArray[Int32]
+  fallback_owner_index : Int32
+  telemetry_owner_index : Int32
+  prefill_wide_owner_index : Int32
+  prefill_wide_minimum_query_tokens : Int32
+  prefill_split_owner_index : Int32
+  prefill_split_minimum_context_tokens : Int32
+  prefill_split_query_tile : Int32
+  prefill_split_partition_count : Int32
+  deep_prefill_split_owner_index : Int32
+  deep_prefill_split_minimum_context_tokens : Int32
+  deep_prefill_split_query_tile : Int32
+  deep_prefill_split_partition_count : Int32
+  decode_owner_index : Int32
+  decode_split_owner_index : Int32
+  decode_split_minimum_context_tokens : Int32
+  decode_split_maximum_batch_rows : Int32
 }
 
 ///|
@@ -130,11 +130,11 @@ priv struct PagedGraphResources {
   attention_phase_replacements : Array[PagedAttentionPhaseReplacement]
   attention_partitioned_decode_companions : Array[PreparedPagedDecodeSplit]
   ordered_executors : Array[PagedOwnedOrderedExecutor]
-  mut vendor_projection_exact_rows : Int
+  mut vendor_projection_exact_rows : Int32
   mut vendor_projection_rules : ReadOnlyArray[PagedVendorProjectionRule]
   mut vendor_capture_budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget
-  mut effect_operation_prefix : Int
-  mut effect_preparation_prefix : Int
+  mut effect_operation_prefix : Int32
+  mut effect_preparation_prefix : Int32
   mut effect_capture_budget : @luna_execution_graph_strategy.ExecutionGraphVariantBudget
   mut graph_launch_contract : PagedGraphLaunchContract?
   mut numeric_weights : PagedNumericWeightOwner?
@@ -142,23 +142,23 @@ priv struct PagedGraphResources {
 
 ///|
 priv struct PagedProjectionVariant {
-  base_function_index : Int
-  maximum_token_rows : Int
-  function_index : Int
+  base_function_index : Int32
+  maximum_token_rows : Int32
+  function_index : Int32
   launch : PagedBucketStepLaunch
 }
 
 ///|
 priv struct PagedFunctionBlueprint {
   identity : @catalog.AotKernelEntryPoint
-  module_index : Int
+  module_index : Int32
   symbol : String
 }
 
 ///|
 priv struct PreparedPagedGraphStep {
   operation_id : @plan.OperationId
-  function_index : Int
+  function_index : Int32
   dimensions : @device.KernelLaunchDimensions
   arguments : @device.KernelArguments
 }
@@ -167,12 +167,12 @@ priv struct PreparedPagedGraphStep {
 priv struct PagedCompletionScratch {
   final_output_offset : Int64
   row_bytes : Int64
-  vocabulary_size : Int
+  vocabulary_size : Int32
   limits : @sampling.SamplingLimits
   sampler : @sampling.SamplerScratch
   encoded_logits : FixedArray[Byte]
   logits : FixedArray[Double]
-  selected_tokens : FixedArray[Int]
+  selected_tokens : FixedArray[Int32]
   mut mode : PagedSamplingCompletionMode
 }
 
@@ -197,12 +197,12 @@ pub struct PagedCudaGreedySamplingAdmission {
   priv model_identity : @spec.ModelIdentity
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
-  priv module_index : Int
+  priv module_index : Int32
   priv module_digest : @catalog.AotArtifactDigest
   priv module_bytes : Bytes
   priv function_symbol : String
-  priv vocabulary_size : Int
-  priv maximum_rows : Int
+  priv vocabulary_size : Int32
+  priv maximum_rows : Int32
   priv result_row_bytes : Int64
 } derive(Debug, Eq)
 
@@ -213,7 +213,7 @@ pub struct PagedCudaDeviceSamplingAdmission {
   priv model_identity : @spec.ModelIdentity
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
-  priv module_index : Int
+  priv module_index : Int32
   priv module_digest : @catalog.AotArtifactDigest
   priv module_bytes : Bytes
   priv function_symbol : String
@@ -231,9 +231,9 @@ pub(all) enum PagedSamplingExecutionPolicy {
 priv struct Fp8PagedFrameEnvelopeV3 {
   profile : @launch_contract.PagedKernelProfile
   model_generation_value : UInt64
-  kv_layout_version : Int
-  tokens_per_page : Int
-  total_page_count : Int
+  kv_layout_version : Int32
+  tokens_per_page : Int32
+  total_page_count : Int32
   release_digest : String
 }
 
@@ -244,9 +244,9 @@ priv struct Fp8FrameAdmissionStateV3 {
   mut wire_owner : @worker_wire.PlanFrameOwnerIdentity?
   mut wire_epoch : UInt64
   mut sequence_value : UInt64
-  mut row_count : Int
-  mut token_count : Int
-  mut page_count : Int
+  mut row_count : Int32
+  mut token_count : Int32
+  mut page_count : Int32
 }
 
 ///|
@@ -258,7 +258,7 @@ priv struct Fp8ScaleEvidenceV3 {
 
 ///|
 priv struct FusedDispatchCanaryState {
-  per_token : UInt
+  per_token : UInt32
   host : FixedArray[Byte]
 }
 
@@ -288,7 +288,7 @@ pub struct StagedPagedGraphExecution {
   priv executor : PagedGraphExecutor
   priv epoch : UInt64
   priv graph_bucket : @luna_execution_graph_strategy.ExecutionGraphBucket
-  priv ordered_executor_index : Int
+  priv ordered_executor_index : Int32
 }
 
 ///|
@@ -304,7 +304,7 @@ pub fn StagedPagedGraphExecution::graph_bucket(
 pub struct ExecutedPagedGraphExecution {
   priv executor : PagedGraphExecutor
   priv epoch : UInt64
-  priv ordered_executor_index : Int
+  priv ordered_executor_index : Int32
 }
 
 ///|

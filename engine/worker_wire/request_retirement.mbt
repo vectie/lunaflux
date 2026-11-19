@@ -10,7 +10,7 @@ pub(all) struct RequestRetirement {
 } derive(Eq, Debug)
 
 ///|
-pub fn is_request_retirement(bytes : FixedArray[Byte], length : Int) -> Bool {
+pub fn is_request_retirement(bytes : FixedArray[Byte], length : Int32) -> Bool {
   length >= 4 && bytes.length() >= length && read_u32(bytes, 0) == 0x5252464cU
 }
 
@@ -34,7 +34,7 @@ pub fn RequestRetirement::encode(
 ///|
 pub fn decode_request_retirement(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> RequestRetirement raise WorkerWireError {
   guard length == 40 &&
     is_request_retirement(bytes, length) &&

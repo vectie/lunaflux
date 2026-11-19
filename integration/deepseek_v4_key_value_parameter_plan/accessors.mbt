@@ -13,7 +13,9 @@ pub fn DeepSeekV4KeyValueParameterPlan::source_identity(
 }
 
 ///|
-pub fn DeepSeekV4KeyValueParameterPlan::requirement_ordinal(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueParameterPlan::requirement_ordinal(
+  self : Self,
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -25,22 +27,22 @@ pub fn DeepSeekV4KeyValueParameterPlan::layout_digest_sha256(
 }
 
 ///|
-pub fn DeepSeekV4KeyValueParameterPlan::input_width(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueParameterPlan::input_width(self : Self) -> Int32 {
   self.input_width
 }
 
 ///|
-pub fn DeepSeekV4KeyValueParameterPlan::output_width(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueParameterPlan::output_width(self : Self) -> Int32 {
   self.output_width
 }
 
 ///|
-pub fn DeepSeekV4KeyValueParameterPlan::rope_width(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueParameterPlan::rope_width(self : Self) -> Int32 {
   self.rope_width
 }
 
 ///|
-pub fn DeepSeekV4KeyValueParameterPlan::block_width(self : Self) -> Int {
+pub fn DeepSeekV4KeyValueParameterPlan::block_width(self : Self) -> Int32 {
   self.block_width
 }
 

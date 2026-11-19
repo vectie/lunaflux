@@ -61,7 +61,7 @@ fn capture_joint_prefix(
   video_update : @device.Function,
   audio_update : @device.Function,
   refiners : ArrayView[(@weights.RefinerWeightPacking, @device.Allocation)],
-  blocks~ : Int,
+  blocks~ : Int32,
 ) -> Array[(String, Bytes)] raise {
   guard blocks > 0 && blocks <= 50 else {
     fail("invalid diagnostic block extent")
@@ -292,7 +292,11 @@ fn capture_joint_prefix(
 }
 
 ///|
-fn joint_prediction_tail(total : Int, prefix : Int, head : Int) -> Int raise {
+fn joint_prediction_tail(
+  total : Int32,
+  prefix : Int32,
+  head : Int32,
+) -> Int32 raise {
   guard prefix > 0 && head > 0 && total > prefix + head else {
     fail("complete prediction must include input, blocks and final head")
   }
@@ -313,7 +317,7 @@ test "head capture follows the complete stack and never replays input producers"
 }
 
 ///|
-fn matched_joint_ints(values : ArrayView[Int]) -> Bytes {
+fn matched_joint_ints(values : ArrayView[Int32]) -> Bytes {
   Bytes::from_array(
     Array::makei(values.length() * 4, i => {
       (values[i / 4].reinterpret_as_uint() >> (i % 4 * 8)).to_byte()

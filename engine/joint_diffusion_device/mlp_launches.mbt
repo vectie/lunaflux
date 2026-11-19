@@ -10,9 +10,9 @@ pub struct StagedMlpLayout {
 
 ///|
 pub fn StagedMlpLayout::new(
-  rows~ : Int,
-  hidden_width~ : Int,
-  intermediate_width~ : Int,
+  rows~ : Int32,
+  hidden_width~ : Int32,
+  intermediate_width~ : Int32,
 ) -> Self raise @device.DeviceError {
   guard rows > 0 &&
     hidden_width > 0 &&

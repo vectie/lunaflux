@@ -35,7 +35,7 @@ fn wb_semantic_lease(
 ///|
 fn wb_legacy_output_result(
   strings : Array[Bytes],
-  tokens : Array[Int],
+  tokens : Array[Int32],
   special_policy : @tokenizer.DecodeSpecialPolicy,
 ) -> (Bytes, Bool) raise {
   let output = IncrementalOutput::new(
@@ -77,7 +77,7 @@ fn wb_legacy_output_result(
 ///|
 fn wb_semantic_output_result(
   strings : Array[Bytes],
-  tokens : Array[Int],
+  tokens : Array[Int32],
   special_policy : @tokenizer.DecodeSpecialPolicy,
 ) -> (Bytes, Bool) raise {
   let inference = fixture_inference()
@@ -127,7 +127,9 @@ fn wb_semantic_output_result(
 
 ///|
 test "legacy and semantic setup share the complete output engine" {
-  let cases : Array[(Array[Bytes], Array[Int], @tokenizer.DecodeSpecialPolicy)] = [
+  let cases : Array[
+    (Array[Bytes], Array[Int32], @tokenizer.DecodeSpecialPolicy),
+  ] = [
     ([], [65, 66, 67], Preserve),
     ([b"ABABAC", b"BAB"], [65, 66, 65, 66, 65, 67], Preserve),
     ([b"END", b"xEND"], [259], Preserve),

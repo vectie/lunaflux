@@ -1,14 +1,14 @@
 ///|
 pub struct TileAxis {
-  starts : ReadOnlyArray[Int]
-  extent : Int
-  overlaps : ReadOnlyArray[Int]
+  starts : ReadOnlyArray[Int32]
+  extent : Int32
+  overlaps : ReadOnlyArray[Int32]
 }
 
 ///|
 /// Released complete-tile schedule: 256-pixel tiles, minimum 64 overlap,
 /// remaining overlap distributed in 16-pixel latent-aligned round-robin units.
-pub fn TileAxis::new(pixels : Int) -> Self raise @plan.PlanError {
+pub fn TileAxis::new(pixels : Int32) -> Self raise @plan.PlanError {
   guard pixels >= 32 && pixels % 32 == 0 && pixels <= 65536 else {
     raise @plan.PlanError::InvalidGeometry
   }

@@ -1,7 +1,7 @@
 ///|
 fn glm_aot_dsa_pooling_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is DsaIndexPooling(_, _, _) {
       return ordinal

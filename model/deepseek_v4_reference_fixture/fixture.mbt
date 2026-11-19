@@ -67,7 +67,7 @@ fn validate_flash_0731_plan(
 }
 
 ///|
-fn fixture_logits(expert_count : Int) -> Array[Float] {
+fn fixture_logits(expert_count : Int32) -> Array[Float] {
   let logits = Array::make(expert_count, -10.0F)
   logits[5] = 6.0F
   logits[7] = 5.0F

@@ -1,7 +1,7 @@
 ///|
 fn fp8_v2_bundle_candidate(
   plan : @plan.ModelPlan,
-  operation? : Int = 2,
+  operation~ : Int32 = 2,
 ) -> @luna_cuda_fp8_projection_aot.Fp8ProjectionCudaLoweringV2 {
   try! @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate_v2(
     plan,
@@ -20,7 +20,7 @@ fn fp8_v2_bundle_candidate(
 ///|
 fn fp8_v2_bundle_artifacts(
   plan : @plan.ModelPlan,
-  gated_symbol? : String = "lunaflux_luna_gated_mlp_fp8_e4m3_w8a8_release_v2",
+  gated_symbol~ : String = "lunaflux_luna_gated_mlp_fp8_e4m3_w8a8_release_v2",
 ) -> @artifact.KernelArtifactBundle {
   let entries : Array[@artifact.KernelEntryPointInput] = []
   for index in 0..<5 {

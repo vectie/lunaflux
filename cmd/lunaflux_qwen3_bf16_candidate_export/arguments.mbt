@@ -1,13 +1,13 @@
 ///|
 fn parse_positive_decimal(
   value : String,
-) -> Int raise Qwen3Bf16CandidateExportCliError {
+) -> Int32 raise Qwen3Bf16CandidateExportCliError {
   if value.is_empty() || value.length() > 9 {
     raise InvalidArguments
   }
   let mut result = 0
   for unit in value {
-    guard unit is ('0'..='9') else { raise InvalidArguments }
+    guard unit is ('0'..<='9') else { raise InvalidArguments }
     let digit = unit.to_int() - '0'.to_int()
     if result > (2147483647 - digit) / 10 {
       raise InvalidArguments
@@ -23,13 +23,13 @@ fn parse_positive_decimal(
 ///|
 fn parse_compiler_component(
   value : String,
-) -> UInt raise Qwen3Bf16CandidateExportCliError {
+) -> UInt32 raise Qwen3Bf16CandidateExportCliError {
   if value.is_empty() || value.length() > 6 {
     raise InvalidArguments
   }
   let mut result = 0U
   for unit in value {
-    guard unit is ('0'..='9') else { raise InvalidArguments }
+    guard unit is ('0'..<='9') else { raise InvalidArguments }
     result = result * 10U + (unit.to_int() - '0'.to_int()).reinterpret_as_uint()
   }
   result
@@ -41,7 +41,7 @@ fn is_lower_sha256(value : StringView) -> Bool {
     return false
   }
   for unit in value {
-    if !(unit is ('0'..='9' | 'a'..='f')) {
+    if !(unit is ('0'..<='9' | 'a'..<='f')) {
       return false
     }
   }
@@ -109,8 +109,8 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
-  let mut prefill_candidate : Int? = None
-  let mut wide_prefill_candidate : Int? = None
+  let mut prefill_candidate : Int32? = None
+  let mut wide_prefill_candidate : Int32? = None
   let filtered : Array[String] = []
   for index = 0; index < arguments.length(); {
     if arguments[index] == "--prefill-candidate" ||
@@ -168,7 +168,7 @@ fn parse_qwen3_candidate_export_arguments(
     continue index + 1
   }
   let arguments = filtered
-  let mut decode_candidate : Int? = None
+  let mut decode_candidate : Int32? = None
   let filtered : Array[String] = []
   for index = 0; index < arguments.length(); {
     if arguments[index] == "--decode-candidate" {

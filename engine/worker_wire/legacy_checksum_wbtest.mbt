@@ -4,9 +4,9 @@
 // payload scan back into production encode/decode.
 fn legacy_checksum(
   bytes : FixedArray[Byte],
-  length : Int,
-  checksum_offset : Int,
-) -> UInt {
+  length : Int32,
+  checksum_offset : Int32,
+) -> UInt32 {
   for index = 0, hash = 2166136261U; index < length; {
     let next = if index < checksum_offset || index >= checksum_offset + 4 {
       (hash ^ bytes[index].to_uint()) * 16777619U
@@ -20,12 +20,15 @@ fn legacy_checksum(
 }
 
 ///|
-fn frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
+fn frame_checksum(bytes : FixedArray[Byte], length : Int32) -> UInt32 {
   legacy_checksum(bytes, length, plan_checksum_offset)
 }
 
 ///|
-fn completion_frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
+fn completion_frame_checksum(
+  bytes : FixedArray[Byte],
+  length : Int32,
+) -> UInt32 {
   legacy_checksum(bytes, length, completion_checksum_offset)
 }
 

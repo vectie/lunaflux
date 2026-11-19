@@ -2,19 +2,19 @@
 test "bounded row maps remove only wholly dead matrix microtiles" {
   for bound in [1, 2, 4, 8, 15, 16, 17, 31, 32, 65, 1024] {
     for preferred in [16, 32, 64] {
-      let extent = projection_bounded_row_extent(
+      let extent = @luna_projection_tile_compiler.projection_bounded_row_extent(
         maximum_rows=bound,
         matrix_rows=16,
         preferred_rows=preferred,
       ).unwrap()
       assert_eq(extent % 16, 0)
       assert_true(extent <= preferred)
-      assert_true(extent >= Int::min(bound, preferred))
-      assert_true(extent - 16 < Int::min(bound, preferred))
+      assert_true(extent >= Int32::min(bound, preferred))
+      assert_true(extent - 16 < Int32::min(bound, preferred))
     }
   }
   assert_eq(
-    projection_bounded_row_extent(
+    @luna_projection_tile_compiler.projection_bounded_row_extent(
       maximum_rows=2147483647,
       matrix_rows=16,
       preferred_rows=64,
@@ -25,7 +25,7 @@ test "bounded row maps remove only wholly dead matrix microtiles" {
     invalid in [(0, 16, 32), (-1, 16, 32), (8, 0, 32), (8, 16, 0), (8, 16, 31)] {
     let (maximum_rows, matrix_rows, preferred_rows) = invalid
     assert_eq(
-      projection_bounded_row_extent(
+      @luna_projection_tile_compiler.projection_bounded_row_extent(
         maximum_rows~,
         matrix_rows~,
         preferred_rows~,
@@ -58,8 +58,8 @@ test "dense projection row storage follows token bounds not request slots" {
           ),
         ),
       )
-      let compiled = compile_projection_tile(
-        ProjectionTileCompilerRequest::new(
+      let compiled = @luna_projection_tile_compiler.compile_projection_tile(
+        @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
           dispatch~,
           maximum_rows=1,
           maximum_tokens=bound,

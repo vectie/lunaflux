@@ -178,7 +178,7 @@ fn fused_physical_black_box_fixture() -> FusedPhysicalBlackBoxFixture raise {
 }
 
 ///|
-fn fused_physical_test_join_ints(values : ReadOnlyArray[Int]) -> String {
+fn fused_physical_test_join_ints(values : ReadOnlyArray[Int32]) -> String {
   [ for value in values => value.to_string() ].join("|")
 }
 

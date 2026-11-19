@@ -8,16 +8,16 @@ pub(all) suberror Bf16BinaryCudaSourceError {
 
 ///|
 pub struct Bf16BinaryCudaSource {
-  priv width : Int
-  priv maximum_rows : Int
+  priv width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }
 
 ///|
 pub fn bf16_add_source(
-  width~ : Int,
-  maximum_rows~ : Int,
+  width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> Bf16BinaryCudaSource raise Bf16BinaryCudaSourceError {
   if width <= 0 {
@@ -33,8 +33,8 @@ pub fn bf16_add_source(
   }
   if function_symbol.is_empty() ||
     function_symbol.length() > 128 ||
-    !(function_symbol[0] is ('a'..='z' | 'A'..='Z' | '_')) ||
-    !function_symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) {
+    !(function_symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_')) ||
+    !function_symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) {
     raise InvalidFunctionSymbol
   }
   let source = @utf8.encode(
@@ -52,12 +52,12 @@ pub fn bf16_add_source(
 }
 
 ///|
-pub fn Bf16BinaryCudaSource::width(self : Self) -> Int {
+pub fn Bf16BinaryCudaSource::width(self : Self) -> Int32 {
   self.width
 }
 
 ///|
-pub fn Bf16BinaryCudaSource::maximum_rows(self : Self) -> Int {
+pub fn Bf16BinaryCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

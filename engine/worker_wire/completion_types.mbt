@@ -4,12 +4,12 @@ pub struct CompletionFrameBuffer {
   priv worker_limits : @worker_protocol.WorkerProtocolLimits
   priv inference_limits : @inference.InferenceLimits
   priv storage : FixedArray[Byte]
-  priv slot_to_entry : FixedArray[Int]
+  priv slot_to_entry : FixedArray[Int32]
   priv validation_requests : FixedArray[UInt64]
-  priv validation_slots : FixedArray[Int]
+  priv validation_slots : FixedArray[Int32]
   priv mut epoch : UInt64
-  priv mut length : Int
-  priv mut entry_count : Int
+  priv mut length : Int32
+  priv mut entry_count : Int32
   priv mut writer_open : Bool
 }
 
@@ -21,7 +21,7 @@ pub struct ValidatedCompletionFrame(CompletionFrameBuffer, UInt64)
 ///|
 /// Opaque completion-entry view tied to one exact frame epoch.
 #valtype
-pub struct CompletionFrameEntry(CompletionFrameBuffer, UInt64, Int)
+pub struct CompletionFrameEntry(CompletionFrameBuffer, UInt64, Int32)
 
 ///|
 /// Exclusive worker-side writer bound to one exact received plan-frame epoch.
@@ -33,7 +33,7 @@ pub struct CompletionFrameWriter(
   UInt64,
   PlanFrameBuffer,
   UInt64,
-  Int
+  Int32
 )
 
 ///|
@@ -60,7 +60,7 @@ pub fn CompletionFrameBuffer::new(
 }
 
 ///|
-pub fn CompletionFrameBuffer::capacity(self : CompletionFrameBuffer) -> Int {
+pub fn CompletionFrameBuffer::capacity(self : CompletionFrameBuffer) -> Int32 {
   self.storage.length()
 }
 
@@ -88,7 +88,7 @@ fn ValidatedCompletionFrame::owner(
 ///|
 pub fn ValidatedCompletionFrame::length(
   self : ValidatedCompletionFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   self.owner().length
 }
 
@@ -107,7 +107,7 @@ fn CompletionFrameBuffer::clear_slot_index(
 ///|
 fn CompletionFrameBuffer::rebuild_slot_index(
   self : CompletionFrameBuffer,
-  count : Int,
+  count : Int32,
 ) -> Unit {
   for index in 0..<count {
     let slot = read_i32(self.storage, completion_entry_offset(index))

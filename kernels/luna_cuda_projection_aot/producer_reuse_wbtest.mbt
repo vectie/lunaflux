@@ -80,7 +80,7 @@ test "independent reuse geometry preserves math and hoists only addresses" {
       .unwrap()
     assert_eq(
       refined.grid_x(),
-      Int::max(
+      Int32::max(
         matrix_work,
         512 / candidate.schedule().output_tiles_per_workgroup(),
       ),
@@ -124,7 +124,7 @@ test "independent reuse geometry preserves math and hoists only addresses" {
     for operand in [0, 1] {
       let addresses = pipeline.producer_addresses(operand).unwrap()
       let (vectors, workers, slots) = addresses.geometry()
-      let seen : Array[Int] = []
+      let seen : Array[Int32] = []
       for worker in 0..<workers {
         for slot in 0..<slots {
           if addresses.at(worker, slot) is Some((_, _, offset)) {

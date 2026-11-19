@@ -1,7 +1,7 @@
 ///|
 fn second_amp_activation_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation()
       is AudioVaeDecoderAmpActivation(_, _, _, _, _, _, _) {
@@ -14,7 +14,7 @@ fn second_amp_activation_ordinal(
 ///|
 fn second_amp_stage_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation()
       is AudioVaeDecoderAmpStage(_, _, _, _, _, _, _, _) {

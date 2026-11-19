@@ -1,8 +1,8 @@
 ///|
 fn has_peer_access(
   peers : ReadOnlyArray[LocalPeerAccess],
-  source : Int,
-  destination : Int,
+  source : Int32,
+  destination : Int32,
 ) -> Bool {
   for peer in peers {
     if peer.source_ordinal == source && peer.destination_ordinal == destination {

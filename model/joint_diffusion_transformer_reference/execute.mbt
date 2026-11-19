@@ -12,7 +12,7 @@ fn require_finite(
 fn require_elements(
   count : Int64,
   limits : JointTinyTransformerLimits,
-) -> Int raise JointTinyTransformerReferenceError {
+) -> Int32 raise JointTinyTransformerReferenceError {
   if count < 0L || count > limits.maximum_elements.to_int64() {
     raise ElementBudgetExceeded
   }
@@ -69,7 +69,7 @@ fn project_conditioning(
 ///|
 fn project_flat_rows(
   values : ArrayView[Double],
-  rows : Int,
+  rows : Int32,
   dense : JointTinyDense,
   limits : JointTinyTransformerLimits,
 ) -> Array[Double] raise JointTinyTransformerReferenceError {
@@ -128,9 +128,9 @@ fn validate_conditioning_contract(
 ///|
 fn attention(
   packed : ArrayView[Double],
-  rows : Int,
-  hidden : Int,
-  heads : Int,
+  rows : Int32,
+  hidden : Int32,
+  heads : Int32,
   weights : JointTinyTransformerWeights,
   limits : JointTinyTransformerLimits,
 ) -> Array[Double] raise JointTinyTransformerReferenceError {
@@ -215,9 +215,9 @@ fn mlp_residual(
 ///|
 fn modality_prediction(
   attended : ArrayView[Double],
-  row_start : Int,
-  rows : Int,
-  hidden : Int,
+  row_start : Int32,
+  rows : Int32,
+  hidden : Int32,
   mlp : JointTinyMlp,
   output_projection : JointTinyDense,
   limits : JointTinyTransformerLimits,
@@ -274,7 +274,7 @@ pub fn run_tiny_joint_transformer_step(
   conditioning : JointTinyConditioningInput,
   weights : JointTinyTransformerWeights,
   seed~ : Int64,
-  step_index~ : Int,
+  step_index~ : Int32,
   limits~ : JointTinyTransformerLimits,
 ) -> JointTinyDenoiseStepResult raise JointTinyTransformerReferenceError {
   validate_conditioning_contract(plan, conditioning)

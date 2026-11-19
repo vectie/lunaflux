@@ -5,7 +5,7 @@ pub struct ProcessedPixels {
 }
 
 ///|
-fn nearest_even(value : Double) -> Int {
+fn nearest_even(value : Double) -> Int32 {
   let lower = value.floor().to_int()
   let fraction = value - lower.to_double()
   if fraction > 0.5 || (fraction == 0.5 && lower % 2 != 0) {
@@ -19,28 +19,29 @@ fn nearest_even(value : Double) -> Int {
 /// Qwen smart-resize, factor32, with explicit admitted pixel bounds. Defaults
 /// match the published32B processor; caller may lower max_pixels for a budget.
 pub fn resized_shape(
-  height : Int,
-  width : Int,
-  min_pixels? : Int = 65536,
-  max_pixels? : Int = 16777216,
-) -> (Int, Int) raise VisionError {
+  height : Int32,
+  width : Int32,
+  min_pixels~ : Int32 = 65536,
+  max_pixels~ : Int32 = 16777216,
+) -> (Int32, Int32) raise VisionError {
   guard height > 0 &&
     width > 0 &&
     height <= 2147483615 &&
     width <= 2147483615 &&
     min_pixels >= 1024 &&
     max_pixels >= min_pixels &&
-    Int::max(height, width).to_double() / Int::min(height, width).to_double() <=
+    Int32::max(height, width).to_double() /
+    Int32::min(height, width).to_double() <=
     200.0 else {
     raise InvalidGeometry
   }
-  let h = Int::max(32, nearest_even(height.to_double() / 32.0) * 32)
-  let w = Int::max(32, nearest_even(width.to_double() / 32.0) * 32)
+  let h = Int32::max(32, nearest_even(height.to_double() / 32.0) * 32)
+  let w = Int32::max(32, nearest_even(width.to_double() / 32.0) * 32)
   if h.to_int64() * w.to_int64() > max_pixels.to_int64() {
     let ratio = (height.to_double() * width.to_double() / max_pixels.to_double()).sqrt()
     (
-      Int::max(32, (height.to_double() / ratio / 32.0).floor().to_int() * 32),
-      Int::max(32, (width.to_double() / ratio / 32.0).floor().to_int() * 32),
+      Int32::max(32, (height.to_double() / ratio / 32.0).floor().to_int() * 32),
+      Int32::max(32, (width.to_double() / ratio / 32.0).floor().to_int() * 32),
     )
   } else if h.to_int64() * w.to_int64() < min_pixels.to_int64() {
     let ratio = (min_pixels.to_double() /
@@ -68,15 +69,15 @@ fn cubic(value : Double) -> Double {
 
 ///|
 fn filter_weights(
-  source : Int,
-  target : Int,
-  index : Int,
-) -> (Int, ReadOnlyArray[Double]) {
+  source : Int32,
+  target : Int32,
+  index : Int32,
+) -> (Int32, ReadOnlyArray[Double]) {
   let scale = source.to_double() / target.to_double()
   let support = Double::max(scale, 1.0)
   let center = (index.to_double() + 0.5) * scale
-  let first = Int::max(0, (center - 2.0 * support + 0.5).floor().to_int())
-  let last = Int::min(source, (center + 2.0 * support + 0.5).floor().to_int())
+  let first = Int32::max(0, (center - 2.0 * support + 0.5).floor().to_int())
+  let last = Int32::min(source, (center + 2.0 * support + 0.5).floor().to_int())
   let weights = Array::makei(last - first, i => {
     cubic((first.to_double() + i.to_double() + 0.5 - center) / support)
   })
@@ -85,8 +86,8 @@ fn filter_weights(
 }
 
 ///|
-fn rounded_rgb(value : Double) -> Int {
-  Int::max(0, Int::min(255, (value + 0.5).floor().to_int()))
+fn rounded_rgb(value : Double) -> Int32 {
+  Int32::max(0, Int32::min(255, (value + 0.5).floor().to_int()))
 }
 
 ///|
@@ -98,10 +99,10 @@ fn rounded_rgb(value : Double) -> Int {
 /// mutable patch construction buffer and immutable output conversion.
 pub fn preprocess_rgb(
   frames : ArrayView[Bytes],
-  height~ : Int,
-  width~ : Int,
-  min_pixels? : Int = 65536,
-  max_pixels? : Int = 16777216,
+  height~ : Int32,
+  width~ : Int32,
+  min_pixels~ : Int32 = 65536,
+  max_pixels~ : Int32 = 16777216,
   max_bytes~ : Int64,
 ) -> ProcessedPixels raise VisionError {
   guard !frames.is_empty() &&

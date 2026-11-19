@@ -1,10 +1,10 @@
 ///|
 pub(all) suberror CheckpointInventoryError {
   InvalidLimits
-  InvalidEntry(Int)
+  InvalidEntry(Int32)
   TooManyShards
   EmptyInventory
-  DuplicateLocator(Int)
+  DuplicateLocator(Int32)
 }
 
 ///|
@@ -20,8 +20,8 @@ pub struct CheckpointInventory {
 ///|
 pub fn CheckpointInventory::parse(
   document : StringView,
-  maximum_bytes~ : Int,
-  maximum_shards~ : Int,
+  maximum_bytes~ : Int32,
+  maximum_shards~ : Int32,
 ) -> Self raise {
   guard maximum_bytes > 0 && maximum_shards > 0 else {
     raise CheckpointInventoryError::InvalidLimits

@@ -1,8 +1,8 @@
 ///|
 pub fn CudaOfflineCompileEvidenceLimits::new(
   maximum_module_bytes~ : Int64,
-  maximum_receipt_bytes~ : Int,
-  maximum_symbol_bytes~ : Int,
+  maximum_receipt_bytes~ : Int32,
+  maximum_symbol_bytes~ : Int32,
 ) -> Self raise CudaOfflineCompileEvidenceError {
   if maximum_module_bytes <= 0L ||
     maximum_module_bytes > 2147483647L ||

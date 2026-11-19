@@ -1,11 +1,11 @@
 ///|
-fn tc_id(value : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn tc_id(value : Int32) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(value)
 }
 
 ///|
 fn tc_tensor(
-  id : Int,
+  id : Int32,
   dtype : @luna_tile_ir.LunaTileDType,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
@@ -25,7 +25,7 @@ fn tc_tensor(
 
 ///|
 fn tc_static_region(
-  id : Int,
+  id : Int32,
   extents : ArrayView[Int64],
 ) -> @luna_tile_ir.LunaTileRegion raise {
   @luna_tile_ir.LunaTileRegion::new(
@@ -39,7 +39,7 @@ fn tc_static_region(
 
 ///|
 fn tc_global_tile_region(
-  id : Int,
+  id : Int32,
   extents : ArrayView[Int64],
 ) -> @luna_tile_ir.LunaTileRegion raise {
   let origins = Array::makei(extents.length(), index => {

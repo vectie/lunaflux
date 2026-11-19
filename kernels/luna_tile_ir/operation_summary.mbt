@@ -3,61 +3,61 @@
 /// exposes instruction semantics without asserting a model-family contract or
 /// leaking mutable instruction storage.
 pub struct LunaTileOperationSummary {
-  priv copy_count : Int
-  priv async_copy_count : Int
-  priv barrier_count : Int
-  priv pipeline_stage_count : Int
-  priv mma_count : Int
-  priv reduction_count : Int
-  priv elementwise_count : Int
+  priv copy_count : Int32
+  priv async_copy_count : Int32
+  priv barrier_count : Int32
+  priv pipeline_stage_count : Int32
+  priv mma_count : Int32
+  priv reduction_count : Int32
+  priv elementwise_count : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaTileOperationSummary::copy_count(
   self : LunaTileOperationSummary,
-) -> Int {
+) -> Int32 {
   self.copy_count
 }
 
 ///|
 pub fn LunaTileOperationSummary::async_copy_count(
   self : LunaTileOperationSummary,
-) -> Int {
+) -> Int32 {
   self.async_copy_count
 }
 
 ///|
 pub fn LunaTileOperationSummary::barrier_count(
   self : LunaTileOperationSummary,
-) -> Int {
+) -> Int32 {
   self.barrier_count
 }
 
 ///|
 pub fn LunaTileOperationSummary::pipeline_stage_count(
   self : LunaTileOperationSummary,
-) -> Int {
+) -> Int32 {
   self.pipeline_stage_count
 }
 
 ///|
 pub fn LunaTileOperationSummary::mma_count(
   self : LunaTileOperationSummary,
-) -> Int {
+) -> Int32 {
   self.mma_count
 }
 
 ///|
 pub fn LunaTileOperationSummary::reduction_count(
   self : LunaTileOperationSummary,
-) -> Int {
+) -> Int32 {
   self.reduction_count
 }
 
 ///|
 pub fn LunaTileOperationSummary::elementwise_count(
   self : LunaTileOperationSummary,
-) -> Int {
+) -> Int32 {
   self.elementwise_count
 }
 

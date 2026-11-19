@@ -19,7 +19,7 @@ fn valid_symbol(symbol : String) -> Bool {
     return false
   }
   for i, c in symbol {
-    if !(c is ('a'..='z' | 'A'..='Z' | '_')) && !(i > 0 && c is ('0'..='9')) {
+    if !(c is ('a'..<='z' | 'A'..<='Z' | '_')) && !(i > 0 && c is ('0'..<='9')) {
       return false
     }
   }
@@ -216,7 +216,7 @@ fn scale_index(rep : @format.Representation) -> String {
 fn load_helper(
   rep : @format.Representation,
   symbol : String,
-  checked? : Bool = true,
+  checked~ : Bool = true,
 ) -> String {
   let bits = rep.element().bits()
   let read = if bits == 4 {

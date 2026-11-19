@@ -3,12 +3,12 @@
 /// BF16 input and parameters project in F32; pooling publishes BF16 before
 /// learned F32 RMS normalization. Rotation/cache quantization are later passes.
 pub struct LearnedGatedPoolPrecision {
-  priv input_width : Int
-  priv feature_width : Int
-  priv ratio : Int
+  priv input_width : Int32
+  priv feature_width : Int32
+  priv ratio : Int32
   priv overlap : Bool
-  priv rows : Int
-  priv positions : Int
+  priv rows : Int32
+  priv positions : Int32
   priv epsilon : Double
   priv states : ReadOnlyArray[Int64]
   priv frames : ReadOnlyArray[Int64]
@@ -18,12 +18,12 @@ pub struct LearnedGatedPoolPrecision {
 
 ///|
 pub fn LearnedGatedPoolPrecision::new(
-  input_width~ : Int,
-  feature_width~ : Int,
-  ratio~ : Int,
+  input_width~ : Int32,
+  feature_width~ : Int32,
+  ratio~ : Int32,
   preceding_window_overlap~ : Bool,
-  maximum_rows~ : Int,
-  maximum_positions~ : Int,
+  maximum_rows~ : Int32,
+  maximum_positions~ : Int32,
   norm_epsilon~ : Double,
   maximum_state_bytes~ : Int64,
   maximum_workspace_bytes~ : Int64,
@@ -86,7 +86,7 @@ pub fn LearnedGatedPoolPrecision::new(
 ///|
 pub fn LearnedGatedPoolPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Bool, Int, Int) {
+) -> (Int32, Int32, Int32, Bool, Int32, Int32) {
   (
     self.input_width,
     self.feature_width,
@@ -103,7 +103,7 @@ pub fn LearnedGatedPoolPrecision::norm_epsilon(self : Self) -> Double {
 }
 
 ///|
-pub fn LearnedGatedPoolPrecision::compressed_rows(self : Self) -> Int {
+pub fn LearnedGatedPoolPrecision::compressed_rows(self : Self) -> Int32 {
   (self.rows + self.ratio - 1) / self.ratio
 }
 

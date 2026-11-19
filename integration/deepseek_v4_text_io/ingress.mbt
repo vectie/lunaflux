@@ -4,7 +4,7 @@
 /// vocabulary-head workspace or output weights.
 pub fn text_ingress_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
 ) -> @precision.TextIoPrecision raise {
   @precision.TextIoPrecision::new(
     vocabulary_size=spec.vocabulary_size(),
@@ -46,7 +46,7 @@ pub struct DeepSeekTextIngress {
 ///|
 pub fn DeepSeekTextIngress::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
 ) -> Self raise {
   {
     spec,
@@ -83,7 +83,7 @@ pub fn DeepSeekTextIngress::prepare(
   checkpoint : @materialize.PackedCheckpoint,
   root : @approved_fs.ApprovedRoot,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
   counts~ : @device.Allocation,
   token_ids~ : @device.Allocation,

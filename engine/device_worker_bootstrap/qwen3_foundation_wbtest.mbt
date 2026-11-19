@@ -1,9 +1,9 @@
 ///|
 fn bootstrap_qwen3_test_source(
-  artifact? : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  manifest? : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-  sampling_runtime? : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
-  kernel_label? : String = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  artifact~ : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  manifest~ : String = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  sampling_runtime~ : @worker_wire.WorkerBootstrapSamplingRuntime = HostSamplingRuntime,
+  kernel_label~ : String = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
 ) -> @worker_wire.EncodedBootstrapSource raise {
   @worker_wire.admit_qwen3_bf16_paged_bootstrap_source_v12(
     @worker_wire.WorkerBootstrapRoots::new(

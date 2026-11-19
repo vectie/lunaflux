@@ -71,7 +71,7 @@ pub fn TensorParallelActivationBinding::reference(
 ///|
 pub fn TensorParallelActivationBinding::slot(
   self : TensorParallelActivationBinding,
-) -> Int {
+) -> Int32 {
   self.slot
 }
 
@@ -85,7 +85,7 @@ pub fn TensorParallelActivationBinding::produced_by(
 ///|
 pub fn TensorParallelActivationBinding::live_through_step(
   self : TensorParallelActivationBinding,
-) -> Int {
+) -> Int32 {
   self.live_through_step
 }
 
@@ -169,7 +169,7 @@ pub fn TensorParallelOperationBinding::operands(
 ///|
 pub fn TensorParallelCollectiveBinding::sequence(
   self : TensorParallelCollectiveBinding,
-) -> Int {
+) -> Int32 {
   self.sequence
 }
 
@@ -225,21 +225,21 @@ pub fn TensorParallelExecutionPlan::identity(
 ///|
 pub fn TensorParallelExecutionPlan::rank(
   self : TensorParallelExecutionPlan,
-) -> Int {
+) -> Int32 {
   self.rank
 }
 
 ///|
 pub fn TensorParallelExecutionPlan::world_size(
   self : TensorParallelExecutionPlan,
-) -> Int {
+) -> Int32 {
   self.world_size
 }
 
 ///|
 pub fn TensorParallelExecutionPlan::device_ordinal(
   self : TensorParallelExecutionPlan,
-) -> Int {
+) -> Int32 {
   self.device_ordinal
 }
 
@@ -336,7 +336,7 @@ pub fn TensorParallelExecutionPlan::activation(
 ///|
 pub fn TensorParallelExecutionPlan::activation_count(
   self : TensorParallelExecutionPlan,
-) -> Int {
+) -> Int32 {
   self.activations.length()
 }
 
@@ -371,14 +371,14 @@ pub fn TensorParallelExecutionPlan::operation_exact(
 ///|
 pub fn TensorParallelExecutionPlan::operation_count(
   self : TensorParallelExecutionPlan,
-) -> Int {
+) -> Int32 {
   self.operations.length()
 }
 
 ///|
 pub fn TensorParallelExecutionPlan::collective(
   self : TensorParallelExecutionPlan,
-  index : Int,
+  index : Int32,
 ) -> TensorParallelCollectiveBinding? {
   self.collectives.get(index)
 }
@@ -388,7 +388,7 @@ pub fn TensorParallelExecutionPlan::collective(
 /// optional success capability. Rejection is confined to the hostile path.
 pub fn TensorParallelExecutionPlan::collective_exact(
   self : TensorParallelExecutionPlan,
-  index : Int,
+  index : Int32,
 ) -> TensorParallelCollectiveBinding raise TensorParallelExecutionPlanError {
   guard self.collectives.get(index) is Some(binding) &&
     binding.sequence() == index + 1 else {
@@ -400,6 +400,6 @@ pub fn TensorParallelExecutionPlan::collective_exact(
 ///|
 pub fn TensorParallelExecutionPlan::collective_count(
   self : TensorParallelExecutionPlan,
-) -> Int {
+) -> Int32 {
   self.collectives.length()
 }

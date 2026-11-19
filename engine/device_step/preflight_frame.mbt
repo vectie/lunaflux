@@ -65,9 +65,9 @@ fn write_frame_tokens(
   frame : @worker_wire.ValidatedPlanFrame,
   host : DeviceStepHostBuffers,
   limits : DeviceStepLimits,
-  token_start : Int,
-  token_length : Int,
-  sequence_start : Int,
+  token_start : Int32,
+  token_length : Int32,
+  sequence_start : Int32,
   write : Bool,
 ) -> Unit raise DeviceStepError {
   for local_index in 0..<token_length {
@@ -90,10 +90,10 @@ fn write_frame_tokens(
 fn write_frame_pages(
   frame : @worker_wire.ValidatedPlanFrame,
   host : DeviceStepHostBuffers,
-  page_start : Int,
-  page_length : Int,
-  plan_page_count : Int,
-  physical_page_capacity : Int,
+  page_start : Int32,
+  page_length : Int32,
+  plan_page_count : Int32,
+  physical_page_capacity : Int32,
   write : Bool,
 ) -> Unit raise DeviceStepError {
   if page_start < 0 ||
@@ -125,8 +125,8 @@ fn write_frame_pages(
 ///|
 fn validate_frame_capabilities(
   frame : @worker_wire.ValidatedPlanFrame,
-  start : Int,
-  length : Int,
+  start : Int32,
+  length : Int32,
   required : FixedArray[@plan.KernelCapabilityId],
 ) -> Unit raise DeviceStepError {
   if length != required.length() {
@@ -146,9 +146,9 @@ fn validate_frame_capabilities(
 fn write_frame_prefill(
   frame : @worker_wire.ValidatedPlanFrame,
   host : DeviceStepHostBuffers,
-  row_index : Int,
-  expected_token_start : Int,
-  expected_page_start : Int,
+  row_index : Int32,
+  expected_token_start : Int32,
+  expected_page_start : Int32,
   summary : DeviceStepSummary,
   layout : @device_layout.DeviceKvLayout,
   limits : DeviceStepLimits,
@@ -229,10 +229,10 @@ fn write_frame_prefill(
 fn write_frame_decode(
   frame : @worker_wire.ValidatedPlanFrame,
   host : DeviceStepHostBuffers,
-  decode_index : Int,
-  row_index : Int,
-  expected_token_start : Int,
-  expected_page_start : Int,
+  decode_index : Int32,
+  row_index : Int32,
+  expected_token_start : Int32,
+  expected_page_start : Int32,
   summary : DeviceStepSummary,
   layout : @device_layout.DeviceKvLayout,
   limits : DeviceStepLimits,
@@ -306,7 +306,7 @@ fn preflight_frame_and_write(
   host : DeviceStepHostBuffers,
   required : FixedArray[@plan.KernelCapabilityId],
   write : Bool,
-  greedy_only? : Bool = false,
+  greedy_only~ : Bool = false,
 ) -> DeviceStepSummary raise DeviceStepError {
   let summary = validate_frame_counts(
     frame, expected_generation, layout, limits, expected_identity,

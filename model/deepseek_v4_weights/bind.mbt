@@ -1,5 +1,5 @@
 ///|
-fn parse_index(text : StringView) -> Int? {
+fn parse_index(text : StringView) -> Int32? {
   if text.is_empty() {
     return None
   }
@@ -14,7 +14,7 @@ fn parse_index(text : StringView) -> Int? {
 }
 
 ///|
-fn suffix(parts : Array[StringView], start : Int) -> String {
+fn suffix(parts : Array[StringView], start : Int32) -> String {
   let builder = StringBuilder()
   for index in start..<parts.length() {
     if index > start {
@@ -174,17 +174,17 @@ fn parse_semantic(
 }
 
 ///|
-fn shape2(a : Int, b : Int) -> ReadOnlyArray[Int64] {
+fn shape2(a : Int32, b : Int32) -> ReadOnlyArray[Int64] {
   [a.to_int64(), b.to_int64()]
 }
 
 ///|
-fn shape1(a : Int) -> ReadOnlyArray[Int64] {
+fn shape1(a : Int32) -> ReadOnlyArray[Int64] {
   [a.to_int64()]
 }
 
 ///|
-fn scale2(a : Int, b : Int) -> ReadOnlyArray[Int64] {
+fn scale2(a : Int32, b : Int32) -> ReadOnlyArray[Int64] {
   shape2((a + 127) / 128, (b + 127) / 128)
 }
 
@@ -290,8 +290,8 @@ fn expected_layout(
 ///|
 fn quant_layout(
   part : DeepSeekV4QuantizedPart,
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> (
   DeepSeekV4SafetensorsDType,
   ReadOnlyArray[Int64],
@@ -307,7 +307,7 @@ fn quant_layout(
 fn compression_ratio(
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
   scope : DeepSeekV4TensorScope,
-) -> Int? {
+) -> Int32? {
   match scope {
     DecoderLayer(index) => spec.compression_ratio(index)
     PredictionStage(index) => spec.compression_ratio(spec.layer_count() + index)
@@ -444,7 +444,7 @@ fn valid_scope_role(
 ///|
 pub fn expected_tensor_count(
   spec : @deepseek_v4_spec.DeepSeekV4ModelSpec,
-) -> Int {
+) -> Int32 {
   let experts = 6 * spec.routed_expert_count()
   let mut total = 6
   for layer in 0..<spec.layer_count() {

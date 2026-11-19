@@ -1,12 +1,12 @@
 ///|
 struct LunaTileParallelProbeBalance {
-  mut contexts : Int
-  mut streams : Int
-  mut allocations : Int
-  mut modules : Int
-  mut functions : Int
+  mut contexts : Int32
+  mut streams : Int32
+  mut allocations : Int32
+  mut modules : Int32
+  mut functions : Int32
   mut device_bytes : Int64
-  mut cleanup_failures : Int
+  mut cleanup_failures : Int32
 }
 
 ///|

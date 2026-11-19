@@ -3,16 +3,16 @@
 /// never assumes different queries have identical selected keys. Arithmetic
 /// reassociation must be authorized separately by the numerical program.
 pub struct SelectedMatrixFold {
-  priv columns : Int
-  priv reduction : Int
+  priv columns : Int32
+  priv reduction : Int32
 }
 
 ///|
 pub fn SelectedMatrixFold::new(
-  qk_dimension~ : Int,
-  value_dimension~ : Int,
-  columns~ : Int,
-  reduction~ : Int,
+  qk_dimension~ : Int32,
+  value_dimension~ : Int32,
+  columns~ : Int32,
+  reduction~ : Int32,
 ) -> Self? {
   guard columns > 0 &&
     reduction > 0 &&
@@ -26,12 +26,12 @@ pub fn SelectedMatrixFold::new(
 }
 
 ///|
-pub fn SelectedMatrixFold::geometry(self : Self) -> (Int, Int) {
+pub fn SelectedMatrixFold::geometry(self : Self) -> (Int32, Int32) {
   (self.columns, self.reduction)
 }
 
 ///|
-pub fn SelectedMatrixFold::score_tiles(self : Self, keys : Int) -> Int {
+pub fn SelectedMatrixFold::score_tiles(self : Self, keys : Int32) -> Int32 {
   if keys <= 0 {
     0
   } else {

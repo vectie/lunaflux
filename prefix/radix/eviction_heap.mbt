@@ -1,8 +1,8 @@
 ///|
 fn PrefixIndex::eviction_precedes(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Bool {
   self.entry_priorities[left] < self.entry_priorities[right] ||
   (
@@ -20,8 +20,8 @@ fn PrefixIndex::eviction_precedes(
 ///|
 fn PrefixIndex::eviction_heap_swap(
   self : PrefixIndex,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> Unit {
   let left_entry = self.eviction_heap[left]
   let right_entry = self.eviction_heap[right]
@@ -33,7 +33,10 @@ fn PrefixIndex::eviction_heap_swap(
 }
 
 ///|
-fn PrefixIndex::eviction_heap_sift_up(self : PrefixIndex, start : Int) -> Unit {
+fn PrefixIndex::eviction_heap_sift_up(
+  self : PrefixIndex,
+  start : Int32,
+) -> Unit {
   let mut position = start
   while position > 0 {
     let parent = (position - 1) / 2
@@ -52,7 +55,7 @@ fn PrefixIndex::eviction_heap_sift_up(self : PrefixIndex, start : Int) -> Unit {
 ///|
 fn PrefixIndex::eviction_heap_sift_down(
   self : PrefixIndex,
-  start : Int,
+  start : Int32,
 ) -> Unit {
   let mut position = start
   while position < self.eviction_heap_count / 2 {
@@ -81,7 +84,7 @@ fn PrefixIndex::eviction_heap_sift_down(
 }
 
 ///|
-fn PrefixIndex::eviction_heap_insert(self : PrefixIndex, entry : Int) -> Unit {
+fn PrefixIndex::eviction_heap_insert(self : PrefixIndex, entry : Int32) -> Unit {
   if self.eviction_heap_positions[entry] >= 0 {
     abort("prefix duplicate eviction-heap entry")
   }
@@ -94,7 +97,7 @@ fn PrefixIndex::eviction_heap_insert(self : PrefixIndex, entry : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::eviction_heap_remove(self : PrefixIndex, entry : Int) -> Unit {
+fn PrefixIndex::eviction_heap_remove(self : PrefixIndex, entry : Int32) -> Unit {
   let position = self.eviction_heap_positions[entry]
   if position < 0 {
     abort("prefix absent eviction-heap entry")
@@ -117,7 +120,10 @@ fn PrefixIndex::eviction_heap_remove(self : PrefixIndex, entry : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::eviction_heap_refresh(self : PrefixIndex, entry : Int) -> Unit {
+fn PrefixIndex::eviction_heap_refresh(
+  self : PrefixIndex,
+  entry : Int32,
+) -> Unit {
   let position = self.eviction_heap_positions[entry]
   if position < 0 {
     abort("prefix absent eviction-heap refresh")
@@ -131,7 +137,7 @@ fn PrefixIndex::eviction_heap_refresh(self : PrefixIndex, entry : Int) -> Unit {
 }
 
 ///|
-fn PrefixIndex::eviction_candidate(self : PrefixIndex) -> Int {
+fn PrefixIndex::eviction_candidate(self : PrefixIndex) -> Int32 {
   if self.eviction_heap_count == 0 {
     -1
   } else {

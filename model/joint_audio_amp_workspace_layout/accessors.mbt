@@ -54,11 +54,11 @@ pub fn JointAudioAmpWorkspaceRegion::byte_count(self : Self) -> Int64 {
 }
 
 ///|
-pub fn JointAudioAmpWorkspaceRegion::live_start(self : Self) -> Int {
+pub fn JointAudioAmpWorkspaceRegion::live_start(self : Self) -> Int32 {
   self.live_start
 }
 
 ///|
-pub fn JointAudioAmpWorkspaceRegion::live_end(self : Self) -> Int {
+pub fn JointAudioAmpWorkspaceRegion::live_end(self : Self) -> Int32 {
   self.live_end
 }

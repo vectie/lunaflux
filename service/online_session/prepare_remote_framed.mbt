@@ -4,7 +4,7 @@ pub struct RemoteLunaFramedPreparation {
   priv pool : @request_admission.LunaRequestPreparationPool
   priv outbound : @framed_wire.LunaFramedEventWorkspace
   priv framed_limits : @framed_wire.FramedWireLimits
-  priv event_work_units : Int
+  priv event_work_units : Int32
   priv clock : @monotonic_clock.MonotonicClock
 }
 
@@ -15,7 +15,7 @@ pub fn RemoteLunaOnlinePreparation::framed(
   self : RemoteLunaOnlinePreparation,
   tokenizer : @tokenizer.TokenizerSpec,
   framed_limits : @framed_wire.FramedWireLimits,
-  preparation_lane_count : Int,
+  preparation_lane_count : Int32,
   preparation_step_budget : @request_admission.LunaRequestPreparationStepBudget,
   preparation_work_limit : @request_admission.LunaRequestPreparationWorkLimit,
   preparation_storage_budget : @request_admission.LunaRequestPreparationStorageBudget,

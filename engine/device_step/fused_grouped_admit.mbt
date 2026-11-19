@@ -37,7 +37,7 @@ fn require_fallback_operation(
   expected_kind : @plan.OperationKind,
   target : @catalog.DeviceTarget,
   plan : @plan.ModelPlan,
-) -> Int raise FusedGroupedOperationError {
+) -> Int32 raise FusedGroupedOperationError {
   if fallback.role() != expected_role {
     raise MismatchedFusedGroupedOperation(StandaloneFallback)
   }
@@ -68,7 +68,7 @@ fn require_fallback_operation(
 fn require_blueprint_fallback_module(
   bundle : @luna_kernel_bundle.LunaKernelBundleInput,
   blueprint : PagedKvExecutionBlueprint,
-  index : Int,
+  index : Int32,
 ) -> Unit raise FusedGroupedOperationError {
   guard blueprint.steps().get(index) is Some(step) else {
     raise MismatchedFusedGroupedOperation(OperationOrder)

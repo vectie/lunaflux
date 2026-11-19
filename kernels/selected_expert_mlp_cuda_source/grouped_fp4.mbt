@@ -36,7 +36,7 @@ fn grouped_fp4_source(
       hidden % 256 == 0 &&
       intermediate % 256 == 0 &&
       hidden.to_int64() * intermediate.to_int64() / 2L <= 2147483647L &&
-      jobs.to_int64() * 16L * Int::max(hidden, intermediate).to_int64() / 2L <=
+      jobs.to_int64() * 16L * Int32::max(hidden, intermediate).to_int64() / 2L <=
       2147483647L
     ) else {
     raise @precision_ir.PrecisionPlanError::NoImplementation
@@ -156,9 +156,9 @@ fn grouped_fp4_source(
   })
   let bodies = []
   fn body(
-    stage : Int,
-    k : Int,
-    n : Int,
+    stage : Int32,
+    k : Int32,
+    n : Int32,
     input_scales : Int64,
     weight_scales : Int64,
     paired : Int64?,

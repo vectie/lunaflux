@@ -1,7 +1,7 @@
 ///|
 fn LunaOnlineInstance::reset_multi_lane(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   let lane = self.multi.lanes[lane_index]
   if lane.claims.length() != 0 || lane.worker_requests.length() != 0 {
@@ -25,7 +25,7 @@ fn LunaOnlineInstance::reset_multi_lane(
 ///|
 fn LunaOnlineInstance::release_multi_lane(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Unit {
   let lane = self.multi.lanes[lane_index]
   if lane.claims.length() != 1 || lane.worker_requests.length() != 1 {
@@ -116,7 +116,7 @@ fn LunaOnlineInstance::check_deadline_multi(
 ///|
 fn LunaOnlineInstance::finish_multi_abort_after_event_cut(
   self : LunaOnlineInstance,
-  lane_index : Int,
+  lane_index : Int32,
 ) -> Bool {
   match self.event_kind {
     CompletionUsageEvent | CompletedEvent | FailureUsageEvent | FailedEvent => {

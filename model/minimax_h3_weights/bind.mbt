@@ -13,7 +13,7 @@ fn expected_variant(
 fn validate_rank(
   component : MiniMaxH3WeightComponent,
   role : MiniMaxH3TensorRole,
-  rank : Int,
+  rank : Int32,
 ) -> Bool {
   match (component, role) {
     (Fl2vaDenoiser | Ref2vaDenoiser, DenoiserProjection) =>

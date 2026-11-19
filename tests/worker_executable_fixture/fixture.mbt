@@ -3,7 +3,7 @@ pub(all) suberror WorkerExecutableFixtureError
 
 ///|
 #borrow(path, status)
-extern "c" fn read_fixture(path : Bytes, status : Ref[Int]) -> Bytes = "lunaflux_worker_executable_fixture_read"
+extern "c" fn read_fixture(path : Bytes, status : Ref[Int32]) -> Bytes = "lunaflux_worker_executable_fixture_read"
 
 ///|
 extern "c" fn raw_cat_path() -> Bytes = "lunaflux_worker_executable_fixture_cat_path"

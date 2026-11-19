@@ -2,7 +2,7 @@
 fn luna_profile_operation_index(
   plan : @plan.ModelPlan,
   operation_id : @plan.OperationId,
-) -> Int? {
+) -> Int32? {
   for index, operation in plan.operations() {
     if operation.id() == operation_id {
       return Some(index)

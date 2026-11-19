@@ -50,7 +50,7 @@ fn openai_baseline_usage_int(
 ///|
 fn OpenAIBaselineTrialAdapter::observe_usage(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   usage : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -134,7 +134,7 @@ fn openai_baseline_choice_token_count(
 ///|
 fn OpenAIBaselineTrialAdapter::observe_choice(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   choice : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -196,7 +196,7 @@ fn OpenAIBaselineTrialAdapter::observe_choice(
 ///|
 fn OpenAIBaselineTrialAdapter::observe_json_event(
   self : OpenAIBaselineTrialAdapter,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   document : StringView,
 ) -> Unit raise OpenAIBaselineAdapterError {
   @json_guard.reject_duplicate_object_keys(

@@ -1,6 +1,6 @@
 ///|
 fn pending_test_limits(
-  io_timeout_millis? : Int = 1000,
+  io_timeout_millis~ : Int32 = 1000,
 ) -> ProcessLimits raise ProcessError {
   ProcessLimits::new(
     max_frame_bytes=4096,
@@ -20,7 +20,7 @@ fn finish_pending_write(child : ChildProcess) -> Unit raise {
 }
 
 ///|
-fn finish_pending_read(child : ChildProcess) -> Int raise {
+fn finish_pending_read(child : ChildProcess) -> Int32 raise {
   for _ in 0..<100000 {
     match child.progress_read_frame() {
       Some(byte_count) => return byte_count

@@ -1,19 +1,23 @@
 ///|
-fn Scheduler::history_stride(self : Scheduler) -> Int {
+fn Scheduler::history_stride(self : Scheduler) -> Int32 {
   self.capacity.maximum_generated_tokens_per_request()
 }
 
 ///|
-fn Scheduler::history_index(self : Scheduler, slot : Int, index : Int) -> Int {
+fn Scheduler::history_index(
+  self : Scheduler,
+  slot : Int32,
+  index : Int32,
+) -> Int32 {
   slot * self.history_stride() + index
 }
 
 ///|
 fn Scheduler::store_generated_token(
   self : Scheduler,
-  slot : Int,
-  output_index : Int,
-  token : Int,
+  slot : Int32,
+  output_index : Int32,
+  token : Int32,
 ) -> Unit {
   if output_index < 0 || output_index >= self.history_stride() {
     abort("scheduler recompute history capacity invariant")
@@ -22,13 +26,13 @@ fn Scheduler::store_generated_token(
 }
 
 ///|
-fn Scheduler::recompute_target(self : Scheduler, slot : Int) -> Int {
+fn Scheduler::recompute_target(self : Scheduler, slot : Int32) -> Int32 {
   let request = self.requests[slot].unwrap()
   request.input_tokens().length() + self.output_counts[slot] - 1
 }
 
 ///|
-fn Scheduler::prefill_start(self : Scheduler, slot : Int) -> Int {
+fn Scheduler::prefill_start(self : Scheduler, slot : Int32) -> Int32 {
   if self.recompute_required[slot] {
     self.recompute_processed[slot]
   } else {
@@ -37,7 +41,7 @@ fn Scheduler::prefill_start(self : Scheduler, slot : Int) -> Int {
 }
 
 ///|
-fn Scheduler::prefill_target(self : Scheduler, slot : Int) -> Int {
+fn Scheduler::prefill_target(self : Scheduler, slot : Int32) -> Int32 {
   if self.recompute_required[slot] {
     self.recompute_target(slot)
   } else {
@@ -48,9 +52,9 @@ fn Scheduler::prefill_target(self : Scheduler, slot : Int) -> Int {
 ///|
 fn Scheduler::prefill_token_at(
   self : Scheduler,
-  slot : Int,
-  index : Int,
-) -> Int raise SchedulerError {
+  slot : Int32,
+  index : Int32,
+) -> Int32 raise SchedulerError {
   let request = self.requests[slot].unwrap()
   let input_length = request.input_tokens().length()
   if index < input_length {

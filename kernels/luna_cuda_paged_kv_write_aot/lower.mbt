@@ -33,7 +33,7 @@ pub fn lower_positioned_paged_kv_write_cuda_aot_candidate(
   let symbol = "lunaflux_positioned_paged_kv_write_bf16_op" +
     attention.id().as_int().to_string() +
     "_qualification_v1"
-  let dispatch_canary : UInt = 22321U
+  let dispatch_canary : UInt32 = 22321U
   if profile.max_query_tokens().to_int64() * dispatch_canary.to_int64() >
     4294967295L {
     raise SizeOverflow(Shape)

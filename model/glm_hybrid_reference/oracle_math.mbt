@@ -1,6 +1,6 @@
 ///|
 fn oracle_check_values(
-  count : Int,
+  count : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Unit raise GlmHybridReferenceError {
   if count < 0 || count > limits.maximum_values {
@@ -21,9 +21,9 @@ fn oracle_require_finite(
 fn oracle_linear(
   input : ArrayView[Double],
   weights : ArrayView[Double],
-  rows : Int,
-  input_width : Int,
-  output_width : Int,
+  rows : Int32,
+  input_width : Int32,
+  output_width : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   if rows <= 0 ||
@@ -58,9 +58,9 @@ fn oracle_low_rank_projection(
   input : ArrayView[Double],
   first : ArrayView[Double],
   second : ArrayView[Double],
-  rows : Int,
-  width : Int,
-  rank : Int,
+  rows : Int32,
+  width : Int32,
+  rank : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   let reduced = oracle_linear(input, first, rows, width, rank, limits)
@@ -71,8 +71,8 @@ fn oracle_low_rank_projection(
 fn oracle_rms_norm(
   input : ArrayView[Double],
   scale : ArrayView[Double],
-  rows : Int,
-  width : Int,
+  rows : Int32,
+  width : Int32,
   epsilon : Double,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
@@ -112,9 +112,9 @@ fn oracle_swiglu(
   gate : ArrayView[Double],
   up : ArrayView[Double],
   down : ArrayView[Double],
-  rows : Int,
-  width : Int,
-  intermediate : Int,
+  rows : Int32,
+  width : Int32,
+  intermediate : Int32,
   limits : GlmTinyOracleLimits,
 ) -> Array[Double] raise GlmHybridReferenceError {
   let gate_values = oracle_linear(

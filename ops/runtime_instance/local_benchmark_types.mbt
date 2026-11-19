@@ -23,10 +23,10 @@ fn local_benchmark_error(
 /// Root-free raw measurement evidence for one fixed authenticated local
 /// request. It contains no comparison, manifest, or promotion authority.
 pub struct RuntimeLocalBenchmarkEvidence {
-  priv cold_start_latency_millis : Int
+  priv cold_start_latency_millis : Int32
   priv startup_readiness : RuntimeInstanceReadiness
-  priv first_token : Int
-  priv second_token : Int
+  priv first_token : Int32
+  priv second_token : Int32
   priv raw_events : Bytes
   priv summary : Bytes
   priv canonical : Bytes
@@ -36,7 +36,7 @@ pub struct RuntimeLocalBenchmarkEvidence {
 ///|
 pub fn RuntimeLocalBenchmarkEvidence::cold_start_latency_millis(
   self : RuntimeLocalBenchmarkEvidence,
-) -> Int {
+) -> Int32 {
   self.cold_start_latency_millis
 }
 
@@ -50,14 +50,14 @@ pub fn RuntimeLocalBenchmarkEvidence::startup_readiness(
 ///|
 pub fn RuntimeLocalBenchmarkEvidence::first_token(
   self : RuntimeLocalBenchmarkEvidence,
-) -> Int {
+) -> Int32 {
   self.first_token
 }
 
 ///|
 pub fn RuntimeLocalBenchmarkEvidence::second_token(
   self : RuntimeLocalBenchmarkEvidence,
-) -> Int {
+) -> Int32 {
   self.second_token
 }
 

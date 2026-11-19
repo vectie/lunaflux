@@ -13,40 +13,42 @@ pub fn DecoderWindowCompressedJoinCudaSource::numerical_contract(
 }
 
 ///|
-pub fn DecoderWindowCompressedJoinCudaSource::window_size(self : Self) -> Int {
+pub fn DecoderWindowCompressedJoinCudaSource::window_size(self : Self) -> Int32 {
   self.window_size
 }
 
 ///|
 pub fn DecoderWindowCompressedJoinCudaSource::compression_ratio(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.compression_ratio
 }
 
 ///|
 pub fn DecoderWindowCompressedJoinCudaSource::maximum_position_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_position_count
 }
 
 ///|
 pub fn DecoderWindowCompressedJoinCudaSource::maximum_compressed_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_compressed_width
 }
 
 ///|
 pub fn DecoderWindowCompressedJoinCudaSource::maximum_joined_width(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_joined_width
 }
 
 ///|
-pub fn DecoderWindowCompressedJoinCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderWindowCompressedJoinCudaSource::maximum_rows(
+  self : Self,
+) -> Int32 {
   self.maximum_rows
 }
 

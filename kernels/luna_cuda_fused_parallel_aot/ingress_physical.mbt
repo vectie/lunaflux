@@ -76,11 +76,11 @@ fn qwen_refine_physical(
 /// Multiple accumulator windows publish output while subsequent windows still
 /// read staged operands. A single window retires all operand readers first.
 fn ingress_scratch_plan(
-  rows : Int,
-  columns : Int,
-  transfer : Int,
-  stages : Int,
-  windows : Int,
+  rows : Int32,
+  columns : Int32,
+  transfer : Int32,
+  stages : Int32,
+  windows : Int32,
 ) -> @physical_tile_ir.SequentialScratch {
   @physical_tile_ir.SequentialScratch::new(
     producer_bytes=(rows.to_int64() + columns.to_int64()) *

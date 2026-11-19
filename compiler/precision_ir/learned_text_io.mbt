@@ -7,7 +7,7 @@
 /// No model names or device schedule enter this immutable numerical plan.
 pub struct LearnedTextIoPrecision {
   priv text : TextIoPrecision
-  priv streams : Int
+  priv streams : Int32
   priv control_epsilon : Double
   priv control_normalization_epsilon : Double
   priv input_bytes : Int64
@@ -19,11 +19,11 @@ pub struct LearnedTextIoPrecision {
 
 ///|
 pub fn LearnedTextIoPrecision::new(
-  vocabulary_size~ : Int,
-  hidden_width~ : Int,
-  stream_count~ : Int,
-  maximum_rows~ : Int,
-  maximum_output_rows~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_width~ : Int32,
+  stream_count~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_output_rows~ : Int32,
   normalization_epsilon~ : Double,
   control_epsilon~ : Double,
   control_normalization_epsilon~ : Double,
@@ -86,7 +86,7 @@ pub fn LearnedTextIoPrecision::text(self : Self) -> TextIoPrecision {
 }
 
 ///|
-pub fn LearnedTextIoPrecision::stream_count(self : Self) -> Int {
+pub fn LearnedTextIoPrecision::stream_count(self : Self) -> Int32 {
   self.streams
 }
 

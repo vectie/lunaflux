@@ -73,13 +73,13 @@ pub fn LunaTileTensorView::alignment_bytes(self : LunaTileTensorView) -> Int64 {
 
 ///|
 pub struct LunaTileAffineTerm {
-  priv loop_dimension : Int
+  priv loop_dimension : Int32
   priv coefficient : Int64
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaTileAffineTerm::new(
-  loop_dimension~ : Int,
+  loop_dimension~ : Int32,
   coefficient~ : Int64,
 ) -> LunaTileAffineTerm {
   { loop_dimension, coefficient, }

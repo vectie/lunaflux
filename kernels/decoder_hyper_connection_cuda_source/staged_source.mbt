@@ -4,20 +4,20 @@
 /// projection before normalization. Base/post/matrix controls are F32.
 /// Collapsed output rounds once to BF16 after the ordered stream reduction.
 pub fn staged_function_and_collapse_bf16_f32_source(
-  stream_width~ : Int,
-  hidden_width~ : Int,
-  maximum_rows~ : Int,
+  stream_width~ : Int32,
+  hidden_width~ : Int32,
+  maximum_rows~ : Int32,
   control_epsilon~ : Double,
   normalization_epsilon~ : Double,
   function_symbol~ : String,
-  control_law? : @precision.HyperConnectionControlLaw = NormalizedBf16Projection,
-  control_square_law? : @precision.SquareReductionLaw = OrderedFloat32,
-  control_dot_law? : @precision.DotReductionLaw = OrderedFloat32,
-  control_vector_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  control_sigmoid_law? : @precision.SigmoidEvaluationLaw = StableBranches,
-  control_matrix_affine_law? : @precision.Float32AffineLaw = SeparateMultiplyAdd,
-  matrix_sum_law? : @precision.SumReductionLaw = OrderedFloat32,
-  control_root_law? : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
+  control_law~ : @precision.HyperConnectionControlLaw = NormalizedBf16Projection,
+  control_square_law~ : @precision.SquareReductionLaw = OrderedFloat32,
+  control_dot_law~ : @precision.DotReductionLaw = OrderedFloat32,
+  control_vector_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  control_sigmoid_law~ : @precision.SigmoidEvaluationLaw = StableBranches,
+  control_matrix_affine_law~ : @precision.Float32AffineLaw = SeparateMultiplyAdd,
+  matrix_sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
+  control_root_law~ : @precision.ReciprocalRootLaw = DivideRoundedSqrtFloat32,
 ) -> DecoderHyperConnectionFunctionCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth
@@ -267,12 +267,12 @@ pub fn staged_function_and_collapse_bf16_f32_source(
 /// Emits the second exact staged mHC boundary. It performs the initial column
 /// normalization, followed by `iterations - 1` row/column normalizations.
 pub fn staged_positive_sinkhorn_f32_source(
-  stream_width~ : Int,
-  maximum_rows~ : Int,
-  sinkhorn_iterations~ : Int,
+  stream_width~ : Int32,
+  maximum_rows~ : Int32,
+  sinkhorn_iterations~ : Int32,
   control_epsilon~ : Double,
   function_symbol~ : String,
-  sum_law? : @precision.SumReductionLaw = OrderedFloat32,
+  sum_law~ : @precision.SumReductionLaw = OrderedFloat32,
 ) -> DecoderHyperConnectionSinkhornCudaSource raise DecoderHyperConnectionCudaSourceError {
   if stream_width <= 1 || stream_width > 16 {
     raise InvalidStreamWidth

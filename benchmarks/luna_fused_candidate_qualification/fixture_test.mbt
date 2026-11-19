@@ -84,9 +84,9 @@ fn fused_benchmark_test_digest(
 fn fused_benchmark_test_protocol(
   candidate : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
   shape_set : @luna_cuda_fused_parallel_aot.FusedParallelDigest,
-  warmup_iterations : Int,
-  trials_per_shape : Int,
-  repetitions_per_arm : Int,
+  warmup_iterations : Int32,
+  trials_per_shape : Int32,
+  repetitions_per_arm : Int32,
 ) -> FusedCandidateBenchmarkProtocol raise {
   FusedCandidateBenchmarkProtocol::new(
     candidate~,
@@ -107,7 +107,7 @@ fn fused_benchmark_test_shapes() -> Array[FusedCandidateBenchmarkShape] {
 ///|
 fn fused_benchmark_test_shape_tokens(
   shape : FusedCandidateBenchmarkShape,
-) -> Int {
+) -> Int32 {
   match shape {
     SingleOrigin | SinglePageTail => 1
     CrossPagePair => 2
@@ -117,12 +117,12 @@ fn fused_benchmark_test_shape_tokens(
 
 ///|
 fn fused_benchmark_test_observations(
-  dispatch_canary : UInt,
-  baseline_duration_ns? : Int64 = 1000L,
-  candidate_duration_ns? : Int64 = 900L,
-  corrupt_canary? : Bool = false,
-  unbalanced_resources? : Bool = false,
-  wrong_pair_order? : Bool = false,
+  dispatch_canary : UInt32,
+  baseline_duration_ns~ : Int64 = 1000L,
+  candidate_duration_ns~ : Int64 = 900L,
+  corrupt_canary~ : Bool = false,
+  unbalanced_resources~ : Bool = false,
+  wrong_pair_order~ : Bool = false,
 ) -> Array[FusedCandidateBenchmarkPairedObservation] raise {
   let output : Array[FusedCandidateBenchmarkPairedObservation] = []
   let repetitions = fused_candidate_benchmark_repetitions_per_arm()
@@ -133,7 +133,7 @@ fn fused_benchmark_test_observations(
       repetitions.reinterpret_as_uint() *
       tokens.reinterpret_as_uint()
     for trial in 0..<fused_candidate_benchmark_trials_per_shape() {
-      let canary_corruption : UInt = if corrupt_canary && trial == 0 {
+      let canary_corruption : UInt32 = if corrupt_canary && trial == 0 {
         1
       } else {
         0

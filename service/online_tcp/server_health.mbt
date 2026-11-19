@@ -1,6 +1,6 @@
 ///|
 fn luna_online_tcp_server_health(
-  failure_rule : Int,
+  failure_rule : Int32,
   closed : Bool,
 ) -> LunaOnlineTcpServerHealth {
   if failure_rule == 0 && !closed {

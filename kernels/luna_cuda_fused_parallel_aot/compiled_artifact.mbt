@@ -16,7 +16,7 @@ fn fused_compiled_target_name(target : @catalog.DeviceTarget) -> String {
 ///|
 fn fused_receipt_line_value(
   lines : ArrayView[String],
-  index : Int,
+  index : Int32,
   key : String,
 ) -> String raise FusedParallelAotError {
   if index < 0 || index >= lines.length() {
@@ -34,7 +34,7 @@ fn fused_receipt_line_value(
 fn fused_require_recipe_abi(
   recipe : Bytes,
   abi : FusedParallelKernelAbi,
-  dispatch_canary_per_token : UInt,
+  dispatch_canary_per_token : UInt32,
   qualification_candidate : FusedParallelDigest?,
 ) -> Unit raise FusedParallelAotError {
   let document = @utf8.decode(recipe) catch {
@@ -108,7 +108,7 @@ fn fused_compiled_binding_record(
   dimensions : @launch_contract.AotLaunchDimensions,
   function_symbol : String,
   abi : FusedParallelKernelAbi,
-  dispatch_canary_per_token : UInt,
+  dispatch_canary_per_token : UInt32,
   qualification_candidate : FusedParallelDigest?,
   module_digest : FusedParallelDigest,
   receipt_digest : FusedParallelDigest,
@@ -215,7 +215,7 @@ fn fused_bind_compiled_candidate(
   dimensions : @launch_contract.AotLaunchDimensions,
   function_symbol : String,
   abi : FusedParallelKernelAbi,
-  dispatch_canary_per_token : UInt,
+  dispatch_canary_per_token : UInt32,
   qualification_candidate : FusedParallelDigest?,
   first_module : Bytes,
   second_module : Bytes,

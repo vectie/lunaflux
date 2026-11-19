@@ -1,7 +1,7 @@
 ///|
 fn h3_metadata(
   variant : @minimax_h3_spec.MiniMaxH3Variant,
-  checkpoint_format? : @minimax_h3_spec.MiniMaxH3CheckpointFormat = DiffusersV1,
+  checkpoint_format~ : @minimax_h3_spec.MiniMaxH3CheckpointFormat = DiffusersV1,
 ) -> @minimax_h3_spec.MiniMaxH3ModelMetadata {
   let spec = @minimax_h3_spec.MiniMaxH3TransformerSpec::official(
     variant~,

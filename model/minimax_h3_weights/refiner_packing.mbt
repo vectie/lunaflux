@@ -1,6 +1,6 @@
 ///|
 pub struct RefinerWeightPacking {
-  layer : Int
+  layer : Int32
   attention_offset : Int64
   mlp_offset : Int64
   norm_offset : Int64
@@ -12,7 +12,7 @@ pub struct RefinerWeightPacking {
 ///|
 pub fn refiner_weight_packing(
   model : @joint_diffusion_plan.JointDiffusionPlan,
-  layer~ : Int,
+  layer~ : Int32,
   max_bytes~ : Int64,
 ) -> RefinerWeightPacking raise BlockPackingError {
   guard layer >= 0 && layer < model.denoiser().refiner_layer_count() else {

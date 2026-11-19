@@ -1,10 +1,10 @@
 ///|
-let operand_plan_test_table_bytes : Int = 129280 * 6 * 4
+let operand_plan_test_table_bytes : Int32 = 129280 * 6 * 4
 
 ///|
 fn operand_plan_test_requirements(
-  model_id? : StringView = "deepseek-ai/DeepSeek-V4-Flash",
-  fill? : Char = '1',
+  model_id~ : StringView = "deepseek-ai/DeepSeek-V4-Flash",
+  fill~ : Char = '1',
 ) -> @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements raise {
   let profile = @deepseek_v4_spec.DeepSeekV4ModelSpec::from_official_model_id(
     model_id,
@@ -19,7 +19,7 @@ fn operand_plan_test_requirements(
 ///|
 fn operand_plan_test_hash_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is TokenHashRouting(_, _, _, _) {
       return ordinal
@@ -81,7 +81,7 @@ fn operand_plan_test_candidate(
 ///|
 fn operand_plan_test_source(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  released? : Bool = false,
+  released~ : Bool = false,
 ) -> TokenHashSourceEvidence {
   let entries : Array[TokenHashTableEvidence] = []
   for layer in 0..<3 {
@@ -102,7 +102,7 @@ fn operand_plan_test_source(
 ///|
 fn operand_plan_test_layout(
   identity : @spec.ModelIdentity,
-  source_order? : ArrayView[Int] = [0, 1, 2],
+  source_order~ : ArrayView[Int32] = [0, 1, 2],
 ) -> @segmented_device_materialize.SegmentedDeviceLayout {
   let regions : Array[
     @segmented_device_materialize.SegmentedDeviceTensorRegionInput,

@@ -1,7 +1,7 @@
 ///|
 priv struct BootstrapEncoder {
   bytes : Array[Byte]
-  maximum : Int
+  maximum : Int32
 }
 
 ///|
@@ -28,7 +28,7 @@ fn BootstrapEncoder::append_u64(
 ///|
 fn BootstrapEncoder::append_int(
   self : BootstrapEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit raise DeviceBootstrapError {
   self.append_u64(Int64::from_int(value).reinterpret_as_uint64())
 }
@@ -54,7 +54,7 @@ fn BootstrapEncoder::append_string(
 }
 
 ///|
-fn operation_kind_code(kind : @plan.OperationKind) -> Int {
+fn operation_kind_code(kind : @plan.OperationKind) -> Int32 {
   match kind {
     Embedding => 1
     RmsNorm => 2
@@ -70,7 +70,7 @@ fn operation_kind_code(kind : @plan.OperationKind) -> Int {
 }
 
 ///|
-fn runtime_input_code(input : @plan.OperationRuntimeInput) -> Int {
+fn runtime_input_code(input : @plan.OperationRuntimeInput) -> Int32 {
   match input {
     StepCounts => 1
     QueryPositions => 2
@@ -82,7 +82,7 @@ fn runtime_input_code(input : @plan.OperationRuntimeInput) -> Int {
 }
 
 ///|
-fn step_stage_code(stage : DeviceStepStage) -> Int {
+fn step_stage_code(stage : DeviceStepStage) -> Int32 {
   match stage {
     Counts => 1
     TokenIds => 2

@@ -1,27 +1,27 @@
 ///|
-const QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 : UInt = 12
+const QWEN3_BOOTSTRAP_SOURCE_VERSION_V12 : UInt32 = 12
 
 ///|
-const QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12 : Int = 12
+const QWEN3_BOOTSTRAP_SOURCE_RECIPE_V12 : Int32 = 12
 
 ///|
-const QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12 : Int = 264
+const QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V12 : Int32 = 264
 
 ///|
-const QWEN3_BOOTSTRAP_SOURCE_VERSION_V13 : UInt = 13
+const QWEN3_BOOTSTRAP_SOURCE_VERSION_V13 : UInt32 = 13
 
 ///|
-const QWEN3_BOOTSTRAP_SOURCE_RECIPE_V13 : Int = 13
+const QWEN3_BOOTSTRAP_SOURCE_RECIPE_V13 : Int32 = 13
 
 ///|
-const QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V13 : Int = 296
+const QWEN3_BOOTSTRAP_SOURCE_HEADER_BYTES_V13 : Int32 = 296
 
 ///|
 fn qwen3_source_lengths(
   roots : WorkerBootstrapRoots,
   model : WorkerQwen3BootstrapModelSource,
   kernel : WorkerBootstrapKernelSource,
-) -> Array[Int] {
+) -> Array[Int32] {
   let lengths = [
     @utf8.encode(roots.model_root()).length(),
     @utf8.encode(model.config_locator()).length(),
@@ -96,7 +96,7 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
   }
   write_i32(storage, 40, execution.compute_major())
   write_i32(storage, 44, execution.compute_minor())
-  let flags : UInt = (if execution.supports_bf16() { 1 } else { 0 }) |
+  let flags : UInt32 = (if execution.supports_bf16() { 1 } else { 0 }) |
     (if execution.supports_cublas_lt() { 2 } else { 0 })
   write_u32(storage, 48, flags)
   write_i32(storage, 52, execution.tokens_per_page())
@@ -204,7 +204,7 @@ pub fn admit_qwen3_bf16_paged_bootstrap_source_v12(
 ///|
 fn decode_qwen3_bf16_paged_bootstrap_source_v12(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> EncodedBootstrapSource raise WorkerWireError {
   let extensions = read_u32(source, 4) == QWEN3_BOOTSTRAP_SOURCE_VERSION_V13
   let header = if extensions {

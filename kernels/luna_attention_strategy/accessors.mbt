@@ -1,7 +1,7 @@
 ///|
 pub fn AttentionShape::dimensions(
   self : AttentionShape,
-) -> (Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32) {
   (self.query_heads, self.kv_heads, self.head_dimension, self.tokens_per_page)
 }
 
@@ -27,12 +27,12 @@ pub fn AttentionPhasePlan::reduction(
 }
 
 ///|
-pub fn AttentionPhasePlan::query_tile(self : AttentionPhasePlan) -> Int {
+pub fn AttentionPhasePlan::query_tile(self : AttentionPhasePlan) -> Int32 {
   self.query_tile
 }
 
 ///|
-pub fn AttentionPhasePlan::key_value_splits(self : AttentionPhasePlan) -> Int {
+pub fn AttentionPhasePlan::key_value_splits(self : AttentionPhasePlan) -> Int32 {
   self.key_value_splits
 }
 
@@ -60,35 +60,35 @@ pub fn AttentionDispatchPlan::decode(
 ///|
 pub fn AttentionKeyValuePartition::split_index(
   self : AttentionKeyValuePartition,
-) -> Int {
+) -> Int32 {
   self.split_index
 }
 
 ///|
 pub fn AttentionKeyValuePartition::token_range(
   self : AttentionKeyValuePartition,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.begin_token, self.end_token)
 }
 
 ///|
 pub fn AttentionDecodeWorkspacePlan::maximum_rows(
   self : AttentionDecodeWorkspacePlan,
-) -> Int {
+) -> Int32 {
   self.maximum_rows
 }
 
 ///|
 pub fn AttentionDecodeWorkspacePlan::maximum_context_tokens(
   self : AttentionDecodeWorkspacePlan,
-) -> Int {
+) -> Int32 {
   self.maximum_context_tokens
 }
 
 ///|
 pub fn AttentionDecodeWorkspacePlan::split_count(
   self : AttentionDecodeWorkspacePlan,
-) -> Int {
+) -> Int32 {
   self.split_count
 }
 

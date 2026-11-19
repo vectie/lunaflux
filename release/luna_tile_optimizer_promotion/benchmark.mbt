@@ -21,7 +21,7 @@ pub fn admit_luna_tile_paired_benchmark_win(
   fallback~ : LunaTileOptimizerDigest,
   physical~ : LunaTileOptimizerDigest,
   observations~ : ArrayView[LunaTilePairedBenchmarkObservation],
-  minimum_win_ppm~ : Int,
+  minimum_win_ppm~ : Int32,
 ) -> AdmittedLunaTilePairedBenchmarkWin raise LunaTileOptimizerPromotionError {
   if candidate == fallback ||
     observations.length() < 3 ||
@@ -99,6 +99,6 @@ pub fn AdmittedLunaTilePairedBenchmarkWin::digest(
 ///|
 pub fn AdmittedLunaTilePairedBenchmarkWin::observed_win_ppm(
   self : AdmittedLunaTilePairedBenchmarkWin,
-) -> Int {
+) -> Int32 {
   self.observed_win_ppm
 }

@@ -1,16 +1,16 @@
 ///|
 pub struct AudioEncoder {
   graph : @plan.Graph
-  samples : Int
-  latent_time : Int
-  means_value : Int
-  deviations_value : Int
+  samples : Int32
+  latent_time : Int32
+  means_value : Int32
+  deviations_value : Int32
 }
 
 ///|
 priv struct Builder {
   video : Bool
-  weight_ids : Map[String, Int]
+  weight_ids : Map[String, Int32]
   values : Array[@plan.Value]
   nodes : Array[@plan.Node]
 }
@@ -20,7 +20,7 @@ fn Builder::weight(
   self : Self,
   name : String,
   shape : Array[Int64],
-) -> Int raise @plan.PlanError {
+) -> Int32 raise @plan.PlanError {
   let matches = if self.video {
     @weights.MiniMaxH3VideoVaeSchema::official_v1().matches_tensor(
       name,
@@ -49,8 +49,8 @@ fn Builder::weight(
 fn Builder::emit(
   self : Self,
   operation : @plan.Operation,
-  inputs : Array[Int],
-) -> Int raise @plan.PlanError {
+  inputs : Array[Int32],
+) -> Int32 raise @plan.PlanError {
   let (_, elements) = operation.signature()
   let output = self.values.length()
   self.values.push({ elements, origin: Temporary, })
@@ -65,16 +65,16 @@ fn Builder::emit(
 ///|
 fn Builder::conv(
   self : Self,
-  input : Int,
+  input : Int32,
   name : String,
-  ci : Int,
-  co : Int,
-  time : Int,
-  kernel : Int,
-  dilation : Int,
-  stride : Int,
-  padding : Int,
-) -> (Int, Int) raise @plan.PlanError {
+  ci : Int32,
+  co : Int32,
+  time : Int32,
+  kernel : Int32,
+  dilation : Int32,
+  stride : Int32,
+  padding : Int32,
+) -> (Int32, Int32) raise @plan.PlanError {
   let g = self.weight(name + ".weight_g", [co.to_int64(), 1L, 1L])
   let v = self.weight(name + ".weight_v", [
     co.to_int64(),
@@ -109,11 +109,11 @@ fn Builder::conv(
 ///|
 fn Builder::snake(
   self : Self,
-  input : Int,
+  input : Int32,
   name : String,
-  channels : Int,
-  time : Int,
-) -> Int raise @plan.PlanError {
+  channels : Int32,
+  time : Int32,
+) -> Int32 raise @plan.PlanError {
   self.emit(Snake(batch=2, channels~, time~), [
     input,
     self.weight(name + ".alpha", [1L, channels.to_int64(), 1L]),
@@ -123,11 +123,11 @@ fn Builder::snake(
 ///|
 fn Builder::norm(
   self : Self,
-  input : Int,
+  input : Int32,
   name : String,
-  channels : Int,
-  time : Int,
-) -> Int raise @plan.PlanError {
+  channels : Int32,
+  time : Int32,
+) -> Int32 raise @plan.PlanError {
   self.emit(LayerNorm(batch=2, channels~, time~), [
     input,
     self.weight(name + ".weight", [channels.to_int64()]),
@@ -138,13 +138,13 @@ fn Builder::norm(
 ///|
 fn Builder::dense(
   self : Self,
-  input : Int,
+  input : Int32,
   name : String,
-  ci : Int,
-  co : Int,
-  time : Int,
-  pointwise? : Bool = false,
-) -> Int raise @plan.PlanError {
+  ci : Int32,
+  co : Int32,
+  time : Int32,
+  pointwise~ : Bool = false,
+) -> Int32 raise @plan.PlanError {
   let shape = if pointwise {
     [co.to_int64(), ci.to_int64(), 1L]
   } else {
@@ -162,7 +162,7 @@ fn Builder::dense(
 /// Resampling/media decoding is an ingress responsibility. Unlike video VAE
 /// encoding, audio uses mean_proj, never logs_proj or a random posterior draw.
 pub fn AudioEncoder::new(
-  samples~ : Int,
+  samples~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise @plan.PlanError {
   guard samples > 0 && samples <= 2147482847 else {

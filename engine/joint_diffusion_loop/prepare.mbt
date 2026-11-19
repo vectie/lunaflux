@@ -27,7 +27,7 @@ pub struct PreparedPlan {
 
 ///|
 fn bounded_product(
-  values : ArrayView[Int],
+  values : ArrayView[Int32],
   ceiling : Int64,
 ) -> Int64 raise PreparationError {
   for value in values; product = 1L {

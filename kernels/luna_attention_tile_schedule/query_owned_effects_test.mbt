@@ -3,18 +3,18 @@
 /// invisible until a wait completes it, and completed writes become visible
 /// to consumers only at publication. No device execution is simulated here.
 priv struct QueryEffectMachine {
-  ready : Array[Int]
-  visible : Array[Int]
-  consumed : Array[Int]
-  pending : Array[Array[(Int, Int)]]
-  mut slot : Int
-  stages : Int
+  ready : Array[Int32]
+  visible : Array[Int32]
+  consumed : Array[Int32]
+  pending : Array[Array[(Int32, Int32)]]
+  mut slot : Int32
+  stages : Int32
   asynchronous : Bool
 }
 
 ///|
 fn QueryEffectMachine::new(
-  stages : Int,
+  stages : Int32,
   asynchronous : Bool,
 ) -> QueryEffectMachine {
   {
@@ -31,7 +31,7 @@ fn QueryEffectMachine::new(
 ///|
 fn QueryEffectMachine::issue(
   self : QueryEffectMachine,
-  writes : Array[(Int, Int)],
+  writes : Array[(Int32, Int32)],
 ) -> Unit raise {
   for (index, _) in writes {
     assert_true(
@@ -53,7 +53,7 @@ fn QueryEffectMachine::issue(
 fn QueryEffectMachine::apply(
   self : QueryEffectMachine,
   actions : ArrayView[@luna_attention_tile_schedule.AttentionQueryEffect],
-  epoch : Int,
+  epoch : Int32,
   has_next : Bool,
 ) -> Unit raise {
   let key = self.slot * 2
@@ -91,10 +91,10 @@ fn QueryEffectMachine::apply(
 ///|
 fn exercise_query_effects(
   plan : @luna_attention_tile_schedule.AttentionQueryEffectPlan,
-  stages : Int,
+  stages : Int32,
   asynchronous : Bool,
-  tiles : Int,
-  invalid_epoch : Int?,
+  tiles : Int32,
+  invalid_epoch : Int32?,
 ) -> Unit raise {
   let machine = QueryEffectMachine::new(stages, asynchronous)
   machine.apply(plan.actions(PublishQueryOperands), 0, false)

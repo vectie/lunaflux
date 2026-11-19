@@ -22,8 +22,8 @@ pub(all) suberror SigmoidCorrectionCudaSourceError {
 pub struct SigmoidCorrectionCudaSource {
   priv operation : SigmoidCorrectionCudaOperation
   priv numerical_contract : SigmoidCorrectionNumericalContract
-  priv expert_count : Int
-  priv maximum_rows : Int
+  priv expert_count : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }

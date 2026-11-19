@@ -1,7 +1,11 @@
 ///|
 /// Compatibility names are serialization identities, not selection rules.
 /// New Cartesian points use a disjoint, injective identity range.
-fn query_owned_candidate_id(query : Int, keys : Int, pipeline : Int) -> Int {
+fn query_owned_candidate_id(
+  query : Int32,
+  keys : Int32,
+  pipeline : Int32,
+) -> Int32 {
   match (query, keys, pipeline) {
     (64, 64, 0) => 318
     (32, 32, 0) => 319
@@ -69,7 +73,7 @@ fn approximate_query_owned_attention_specs() -> Array[AttentionCandidateSpec] {
 /// Startup/export admission of stable identities uses the same pure frontier
 /// catalog as candidate generation, including operand-lifetime variants.
 pub fn attention_candidate_requires_approximate_exponential(
-  stable_id : Int,
+  stable_id : Int32,
 ) -> Bool {
   approximate_query_owned_attention_specs().any(spec => {
     stable_id == spec.stable_id ||

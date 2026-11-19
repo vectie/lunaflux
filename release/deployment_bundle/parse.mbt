@@ -1,7 +1,7 @@
 ///|
 fn require_line(
   lines : Array[StringView],
-  index : Int,
+  index : Int32,
   key : StringView,
 ) -> StringView raise DeploymentBundleError {
   let line = lines[index]

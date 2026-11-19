@@ -3,11 +3,11 @@
 /// parser or transfer lifecycle. A batch worker may bind its stable addresses;
 /// serial diagnostic callers use the compatibility preparation method below.
 pub(all) struct GlmDecoderInputs {
-  maximum_rows : Int
-  maximum_history : Int
-  maximum_sequences : Int
-  maximum_outputs : Int
-  vocabulary : Int
+  maximum_rows : Int32
+  maximum_history : Int32
+  maximum_sequences : Int32
+  maximum_outputs : Int32
+  vocabulary : Int32
   counts : @device.Allocation
   token_ids : @device.Allocation
   sequence_offsets : @device.Allocation
@@ -31,17 +31,17 @@ pub fn GlmDecoderStage::prepare(
   root : @approved_fs.ApprovedRoot,
   ports : @serial_worker.SerialDecoderWorker,
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming_safetensors.StreamingSafetensorsLimits,
   collective? : @device.TensorCollectiveOwner,
-  generation? : UInt64 = 1UL,
-  retirement? : @parallel.RetirementPolicy = EachCollective,
-  replay? : @parallel.ReplayPolicy = Eager,
-  replay_budget_bytes? : Int64 = 0L,
-  overlap_experts? : Bool = false,
-  fuse_hyper? : Bool = false,
-  fuse_controls? : Bool = false,
-  defer_hyper? : Bool = false,
+  generation~ : UInt64 = 1UL,
+  retirement~ : @parallel.RetirementPolicy = EachCollective,
+  replay~ : @parallel.ReplayPolicy = Eager,
+  replay_budget_bytes~ : Int64 = 0L,
+  overlap_experts~ : Bool = false,
+  fuse_hyper~ : Bool = false,
+  fuse_controls~ : Bool = false,
+  defer_hyper~ : Bool = false,
 ) -> Unit raise {
   let (rows, history, vocabulary) = ports.geometry()
   self.prepare_inputs(

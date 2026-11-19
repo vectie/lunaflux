@@ -11,8 +11,8 @@ fn candidate_checked_mul(
 
 ///|
 fn candidate_matrix_bytes(
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
 ) -> Int64 raise LunaBf16KernelProducerError {
   candidate_checked_mul(
     candidate_checked_mul(rows.to_int64(), columns.to_int64()),
@@ -60,8 +60,8 @@ fn candidate_runtime_bytes(
 fn candidate_activation_width(
   model_plan : @plan.ModelPlan,
   reference : @plan.ActivationRef,
-) -> Int raise LunaBf16KernelProducerError {
-  let mut width : Int? = None
+) -> Int32 raise LunaBf16KernelProducerError {
+  let mut width : Int32? = None
   for operation in model_plan.operations() {
     for output in operation.outputs() {
       if output == reference {
@@ -94,7 +94,7 @@ fn candidate_activation_width(
 fn candidate_weight_bytes(
   model_plan : @plan.ModelPlan,
   operation : @plan.PlanOperation,
-  weight_index : Int,
+  weight_index : Int32,
 ) -> Int64 raise LunaBf16KernelProducerError {
   match operation.shape() {
     EmbeddingShape(vocabulary_size~, width~) =>

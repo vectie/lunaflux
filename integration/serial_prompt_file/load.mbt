@@ -4,14 +4,14 @@
 /// root; this adapter retains no file descriptor, CUDA state or payload hash.
 pub fn load_generation_prompt(
   root : @approved_fs.ApprovedRoot,
-  count : Int,
+  count : Int32,
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_new_tokens~ : Int,
-  maximum_context~ : Int,
+  maximum_new_tokens~ : Int32,
+  maximum_context~ : Int32,
   maximum_bytes~ : Int64,
   model_generation~ : UInt64,
-  frame_prefix? : String = "",
+  frame_prefix~ : String = "",
 ) -> @prompt.PreparedSerialPrompt raise {
   guard maximum_new_tokens > 0 &&
     maximum_new_tokens < maximum_context &&
@@ -57,11 +57,11 @@ pub fn load_generation_prompt(
 /// every request, including those later in the queue, before any can execute.
 pub fn load_generation_sequence(
   root : @approved_fs.ApprovedRoot,
-  frame_counts : ArrayView[Int],
+  frame_counts : ArrayView[Int32],
   limits : @protocol.WorkerProtocolLimits,
   inference : @inference.InferenceLimits,
-  maximum_new_tokens~ : Int,
-  maximum_context~ : Int,
+  maximum_new_tokens~ : Int32,
+  maximum_context~ : Int32,
   maximum_bytes~ : Int64,
   model_generation~ : UInt64,
 ) -> ReadOnlyArray[@prompt.PreparedSerialPrompt] raise {

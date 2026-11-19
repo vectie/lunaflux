@@ -33,7 +33,7 @@ fn openai_wb_fixture_limits() -> @inference.InferenceLimits raise {
 ///|
 fn openai_wb_workspace(
   limits : @inference.InferenceLimits,
-  budget : Int,
+  budget : Int32,
 ) -> LunaOpenAICompatWorkspace raise {
   let model : FixedArray[Byte] = [b'm', b'o', b'd', b'e', b'l', b'-', b'x']
   let prefix : FixedArray[Byte] = [b'r', b'e', b's', b'p', b'_']
@@ -79,7 +79,7 @@ fn openai_token_event(
 
 ///|
 test "Luna OpenAI compatibility reauthenticates every live phase" {
-  let phases : FixedArray[Int] = [
+  let phases : FixedArray[Int32] = [
     LUNA_OPENAI_COMPAT_SETUP,
     LUNA_OPENAI_COMPAT_CONFIGURE_PART,
     LUNA_OPENAI_COMPAT_LITERAL,

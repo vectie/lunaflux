@@ -1,7 +1,7 @@
 ///|
 /// Allocates bounded inline block-table identity storage during startup.
 pub fn BlockTableIdStorage::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> BlockTableIdStorage raise BlockTableError {
   if capacity <= 0 || capacity > ABSOLUTE_MAX_BLOCK_TABLE_ID_STORAGE_CAPACITY {
     raise InvalidLimit(StorageCapacity)
@@ -13,14 +13,14 @@ pub fn BlockTableIdStorage::new(
 }
 
 ///|
-pub fn BlockTableIdStorage::capacity(self : BlockTableIdStorage) -> Int {
+pub fn BlockTableIdStorage::capacity(self : BlockTableIdStorage) -> Int32 {
   self.tables.length()
 }
 
 ///|
 fn BlockTableIdStorage::check_index(
   self : BlockTableIdStorage,
-  index : Int,
+  index : Int32,
 ) -> Unit raise BlockTableError {
   if index < 0 || index >= self.tables.length() {
     raise StorageIndexOutOfBounds
@@ -30,7 +30,7 @@ fn BlockTableIdStorage::check_index(
 ///|
 pub fn BlockTableIdStorage::is_occupied(
   self : BlockTableIdStorage,
-  index : Int,
+  index : Int32,
 ) -> Bool raise BlockTableError {
   self.check_index(index)
   self.occupied[index]
@@ -43,7 +43,7 @@ pub fn BlockTableIdStorage::is_occupied(
 /// The caller retains that lifecycle and validation duty.
 pub fn BlockTableIdStorage::write(
   self : BlockTableIdStorage,
-  index : Int,
+  index : Int32,
   table : BlockTableId,
 ) -> Unit raise BlockTableError {
   self.check_index(index)
@@ -55,7 +55,7 @@ pub fn BlockTableIdStorage::write(
 /// Returns a copied canonical identity only from an occupied cell.
 pub fn BlockTableIdStorage::read(
   self : BlockTableIdStorage,
-  index : Int,
+  index : Int32,
 ) -> BlockTableId raise BlockTableError {
   self.check_index(index)
   if !self.occupied[index] {
@@ -68,7 +68,7 @@ pub fn BlockTableIdStorage::read(
 /// Clears occupancy without exposing the package-private sentinel.
 pub fn BlockTableIdStorage::clear(
   self : BlockTableIdStorage,
-  index : Int,
+  index : Int32,
 ) -> Unit raise BlockTableError {
   self.check_index(index)
   self.tables[index] = invalid_block_table_id()

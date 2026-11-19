@@ -29,7 +29,7 @@ pub fn BlockTablePositionBuffer::page(
 ///|
 pub fn BlockTablePositionBuffer::logical_page_index(
   self : BlockTablePositionBuffer,
-) -> Int raise BlockTableError {
+) -> Int32 raise BlockTableError {
   if !self.is_set {
     raise PositionUnset
   }
@@ -39,7 +39,7 @@ pub fn BlockTablePositionBuffer::logical_page_index(
 ///|
 pub fn BlockTablePositionBuffer::token_offset(
   self : BlockTablePositionBuffer,
-) -> Int raise BlockTableError {
+) -> Int32 raise BlockTableError {
   if !self.is_set {
     raise PositionUnset
   }
@@ -60,8 +60,8 @@ pub fn BlockTablePositionBuffer::clear(
 fn BlockTablePositionBuffer::replace(
   self : BlockTablePositionBuffer,
   page : @page_allocator.PageId,
-  logical_page_index : Int,
-  token_offset : Int,
+  logical_page_index : Int32,
+  token_offset : Int32,
 ) -> Unit raise BlockTableError {
   page_storage_write(self.page_storage, 0, page)
   self.logical_page_index = logical_page_index

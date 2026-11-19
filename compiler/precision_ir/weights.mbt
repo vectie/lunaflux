@@ -13,7 +13,7 @@ pub extend ScratchLifetime with @debug.Debug::{to_repr}
 
 ///|
 pub struct WeightBinding {
-  priv ordinal : Int
+  priv ordinal : Int32
   priv operand : OperandPlan
   priv offset : Int64
 } derive(Debug, Eq)
@@ -97,7 +97,7 @@ pub fn WeightSchema::new(
 }
 
 ///|
-pub fn WeightBinding::ordinal(self : WeightBinding) -> Int {
+pub fn WeightBinding::ordinal(self : WeightBinding) -> Int32 {
   self.ordinal
 }
 

@@ -52,7 +52,7 @@ test "closing failure blocks execution and retry reaches closed" {
 
 ///|
 priv struct FakePreparationOwner {
-  id : Int
+  id : Int32
   mut open : Bool
 }
 
@@ -104,14 +104,14 @@ test "construction and cleanup failure retains explicit retry authority" {
 
 ///|
 priv struct FakeOptionalResource {
-  id : Int
+  id : Int32
   mut open : Bool
 }
 
 ///|
 test "absent arena does not skip token lease and stream cleanup" {
   let first : Ref[DeviceExecutorError?] = Ref(None)
-  let order : Array[Int] = []
+  let order : Array[Int32] = []
   let token : FakeOptionalResource = { id: 2, open: true, }
   let lease : FakeOptionalResource = { id: 3, open: true, }
   let stream : FakeOptionalResource = { id: 1, open: true, }
@@ -153,13 +153,13 @@ test "absent arena does not skip token lease and stream cleanup" {
 
 ///|
 priv struct FakeChild {
-  parent : Int
+  parent : Int32
   mut open : Bool
 }
 
 ///|
 priv struct FakeParent {
-  id : Int
+  id : Int32
   mut open : Bool
 }
 
@@ -171,7 +171,7 @@ test "failed function blocks only its own module" {
     { id: 0, open: true, },
     { id: 1, open: true, },
   ]
-  let order : Array[Int] = []
+  let order : Array[Int32] = []
   close_unblocked_parents_reverse(
     children,
     parents,

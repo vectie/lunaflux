@@ -1,5 +1,5 @@
 ///|
-pub fn DeepSeekV4QuantizedPayloadContract::schema_version(self : Self) -> Int {
+pub fn DeepSeekV4QuantizedPayloadContract::schema_version(self : Self) -> Int32 {
   self.schema_version
 }
 

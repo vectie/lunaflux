@@ -16,7 +16,7 @@ fn ExecutionDigestEncoder::append_u64(
 ///|
 fn ExecutionDigestEncoder::append_int(
   self : ExecutionDigestEncoder,
-  value : Int,
+  value : Int32,
 ) -> Unit {
   self.append_u64(value.to_int64().reinterpret_as_uint64())
 }
@@ -81,7 +81,7 @@ fn ExecutionDigestEncoder::append_profile(
 }
 
 ///|
-fn operation_kind_code(kind : @plan.OperationKind) -> Int {
+fn operation_kind_code(kind : @plan.OperationKind) -> Int32 {
   match kind {
     Embedding => 1
     RmsNorm => 2
@@ -97,7 +97,7 @@ fn operation_kind_code(kind : @plan.OperationKind) -> Int {
 }
 
 ///|
-fn runtime_input_code(value : @plan.OperationRuntimeInput) -> Int {
+fn runtime_input_code(value : @plan.OperationRuntimeInput) -> Int32 {
   match value {
     StepCounts => 1
     QueryPositions => 2
@@ -109,7 +109,7 @@ fn runtime_input_code(value : @plan.OperationRuntimeInput) -> Int {
 }
 
 ///|
-fn component_code(value : @device_layout.DeviceKvComponent) -> Int {
+fn component_code(value : @device_layout.DeviceKvComponent) -> Int32 {
   match value {
     Key => 1
     Value => 2
@@ -117,7 +117,7 @@ fn component_code(value : @device_layout.DeviceKvComponent) -> Int {
 }
 
 ///|
-fn placement_code(value : @tensor_parallel_plan.TensorPlacement) -> Int {
+fn placement_code(value : @tensor_parallel_plan.TensorPlacement) -> Int32 {
   match value {
     Replicated => 1
     ShardRows => 2
@@ -162,7 +162,7 @@ fn ExecutionDigestEncoder::append_operand_role(
 }
 
 ///|
-fn memory_space_code(value : TensorParallelMemorySpace) -> Int {
+fn memory_space_code(value : TensorParallelMemorySpace) -> Int32 {
   match value {
     DescriptorSpace => 1
     RankConstantsSpace => 2

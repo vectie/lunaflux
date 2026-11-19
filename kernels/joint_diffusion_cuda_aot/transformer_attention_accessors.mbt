@@ -59,7 +59,7 @@ pub fn JointDiffusionTransformerAttentionCudaCandidate::request_digest(
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -80,77 +80,77 @@ pub fn JointDiffusionTransformerAttentionCudaCandidate::capability(
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::layer_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.layer_count
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::refiner_layer_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.refiner_layer_count
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::packed_row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.packed_row_count
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::refiner_row_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.refiner_row_count
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::hidden_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_size
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::head_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_count
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::head_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::inner_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.inner_size
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::rotary_dimension(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.rotary_dimension
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::qk_epsilon_numerator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.qk_epsilon_numerator
 }
 
 ///|
 pub fn JointDiffusionTransformerAttentionCudaCandidate::qk_epsilon_denominator(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.qk_epsilon_denominator
 }
 

@@ -1,13 +1,13 @@
 ///|
 /// Version of the serialized catalog contract.
 pub struct CatalogVersion {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Semantic version of one operation implementation contract.
 pub struct KernelSemanticVersion {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -22,7 +22,7 @@ pub struct AotArtifactDigest {
 /// The integer is scoped by the module digest. It identifies an ABI family,
 /// not a concrete launch shape or CUDA symbol.
 pub struct AotKernelFamilyId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -35,7 +35,7 @@ pub struct AotKernelFamily {
 ///|
 /// Stable identity of one callable entry point within an AOT kernel family.
 pub struct AotKernelEntryPointId {
-  priv value : Int
+  priv value : Int32
 } derive(Debug, Eq, Hash)
 
 ///|
@@ -55,7 +55,7 @@ pub(all) enum KernelImplementationId {
 
 ///|
 pub fn CatalogVersion::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> CatalogVersion raise CatalogError {
   if value <= 0 {
     raise InvalidCatalog(NonPositiveVersion)
@@ -81,13 +81,13 @@ pub fn CatalogVersion::v4() -> CatalogVersion {
 }
 
 ///|
-pub fn CatalogVersion::as_int(self : CatalogVersion) -> Int {
+pub fn CatalogVersion::as_int(self : CatalogVersion) -> Int32 {
   self.value
 }
 
 ///|
 pub fn KernelSemanticVersion::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> KernelSemanticVersion raise CatalogError {
   if value <= 0 {
     raise InvalidCatalog(NonPositiveVersion)
@@ -113,7 +113,7 @@ pub fn KernelSemanticVersion::v4() -> KernelSemanticVersion {
 }
 
 ///|
-pub fn KernelSemanticVersion::as_int(self : KernelSemanticVersion) -> Int {
+pub fn KernelSemanticVersion::as_int(self : KernelSemanticVersion) -> Int32 {
   self.value
 }
 
@@ -123,7 +123,7 @@ fn is_lower_sha256(value : String) -> Bool {
     return false
   }
   for character in value {
-    if !(character is ('0'..='9') || character is ('a'..='f')) {
+    if !(character is ('0'..<='9') || character is ('a'..<='f')) {
       return false
     }
   }
@@ -147,7 +147,7 @@ pub fn AotArtifactDigest::sha256(self : AotArtifactDigest) -> String {
 
 ///|
 pub fn AotKernelFamilyId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> AotKernelFamilyId raise CatalogError {
   if value <= 0 {
     raise InvalidCatalog(InvalidAotFamilyId)
@@ -156,7 +156,7 @@ pub fn AotKernelFamilyId::from_stable_int(
 }
 
 ///|
-pub fn AotKernelFamilyId::as_int(self : AotKernelFamilyId) -> Int {
+pub fn AotKernelFamilyId::as_int(self : AotKernelFamilyId) -> Int32 {
   self.value
 }
 
@@ -182,7 +182,7 @@ pub fn AotKernelFamily::family_id(self : AotKernelFamily) -> AotKernelFamilyId {
 
 ///|
 pub fn AotKernelEntryPointId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> AotKernelEntryPointId raise CatalogError {
   if value <= 0 {
     raise InvalidCatalog(InvalidAotEntryPointId)
@@ -191,7 +191,7 @@ pub fn AotKernelEntryPointId::from_stable_int(
 }
 
 ///|
-pub fn AotKernelEntryPointId::as_int(self : AotKernelEntryPointId) -> Int {
+pub fn AotKernelEntryPointId::as_int(self : AotKernelEntryPointId) -> Int32 {
   self.value
 }
 

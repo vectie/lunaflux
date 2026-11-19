@@ -8,8 +8,8 @@ fn RuntimeInstanceOwner::broad_serving_uses_framed_pool(
 ///|
 async fn await_broad_serving_pool_connections(
   owner : RuntimeInstanceOwner,
-  expected_connections : Int,
-  turn_limit : Int,
+  expected_connections : Int32,
+  turn_limit : Int32,
 ) -> Unit {
   for turn in 0..<turn_limit {
     ignore(owner.progress())
@@ -38,7 +38,7 @@ async fn await_broad_serving_pool_connections(
 async fn progress_broad_serving_pool_pair(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> Unit {
   for turn in 0..<contract.turn_limit {
     ignore(owner.progress())
@@ -136,7 +136,7 @@ async fn await_broad_serving_pool_cancelled_lane(
 async fn await_broad_serving_pool_accept_count(
   owner : RuntimeInstanceOwner,
   expected_accepts : UInt64,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Unit {
   for turn in 0..<turn_limit {
     ignore(owner.progress())
@@ -302,7 +302,7 @@ async fn require_broad_serving_pool_reuse_events(
 async fn run_broad_serving_pool_pair(
   owner : RuntimeInstanceOwner,
   contract : RuntimeSpawnedBroadServingValidationContract,
-  initial_kv_pages_free : Int,
+  initial_kv_pages_free : Int32,
 ) -> Unit {
   let cancelled = connect_broad_serving_client(
     owner,

@@ -1,7 +1,7 @@
 ///|
 fn qwen3_test_root(
-  regex? : String = QWEN3_SPLIT_REGEX,
-  normalizer_extra? : Bool = false,
+  regex~ : String = QWEN3_SPLIT_REGEX,
+  normalizer_extra~ : Bool = false,
 ) -> Map[String, Json] {
   let normalizer : Map[String, Json] = { "type": Json::string("NFC") }
   if normalizer_extra {

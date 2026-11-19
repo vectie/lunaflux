@@ -119,7 +119,7 @@ async test "materialized worker checks metadata and exact target path without ha
 
 ///|
 #borrow(source, destination)
-extern "c" fn raw_test_link(source : Bytes, destination : Bytes) -> Int = "lunaflux_worker_executable_test_link"
+extern "c" fn raw_test_link(source : Bytes, destination : Bytes) -> Int32 = "lunaflux_worker_executable_test_link"
 
 ///|
 async test "pinned executable survives replacement hardlink and descriptor reuse" {

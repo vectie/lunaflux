@@ -2,16 +2,16 @@
 /// A pure bijection from a rectangular operand to compact square microtiles.
 /// It changes storage order only: each inner reduction keeps its logical order.
 pub struct AttentionOperandTileLayout {
-  rows : Int
-  columns : Int
-  side : Int
+  rows : Int32
+  columns : Int32
+  side : Int32
 } derive(Eq, Debug)
 
 ///|
 pub fn attention_operand_tile_layout(
-  rows : Int,
-  columns : Int,
-  side : Int,
+  rows : Int32,
+  columns : Int32,
+  side : Int32,
 ) -> AttentionOperandTileLayout? {
   if rows <= 0 ||
     columns <= 0 ||
@@ -30,16 +30,16 @@ pub fn attention_operand_tile_layout(
 ///|
 pub fn AttentionOperandTileLayout::microtile_side(
   self : AttentionOperandTileLayout,
-) -> Int {
+) -> Int32 {
   self.side
 }
 
 ///|
 pub fn AttentionOperandTileLayout::offset(
   self : AttentionOperandTileLayout,
-  row : Int,
-  column : Int,
-) -> Int? {
+  row : Int32,
+  column : Int32,
+) -> Int32? {
   if row < 0 || row >= self.rows || column < 0 || column >= self.columns {
     None
   } else {

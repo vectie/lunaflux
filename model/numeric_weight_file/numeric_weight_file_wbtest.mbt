@@ -108,13 +108,13 @@ fn fixture_dtype(
 ///|
 fn numeric_fixture_file(
   plan : @plan.ModelPlan,
-  quantized_code? : Byte = b'\x01',
-  scale_bits? : UInt = 0x3f800000U,
-  i8_alias? : Bool = false,
-  fp8_alias? : Bool = false,
-  shift_second_offset? : Bool = false,
-  wrong_plan_metadata? : Bool = false,
-  trailing_payload? : Bool = false,
+  quantized_code~ : Byte = b'\x01',
+  scale_bits~ : UInt32 = 0x3f800000U,
+  i8_alias~ : Bool = false,
+  fp8_alias~ : Bool = false,
+  shift_second_offset~ : Bool = false,
+  wrong_plan_metadata~ : Bool = false,
+  trailing_payload~ : Bool = false,
 ) -> Bytes {
   let tensors = plan.numeric_binding().schema().tensors()
   let header = StringBuilder()
@@ -172,7 +172,7 @@ fn fixture_digest(file : Bytes) -> NumericWeightArtifactDigest {
 }
 
 ///|
-fn fixture_limits(transfer_chunk_bytes? : Int = 7) -> NumericWeightFileLimits {
+fn fixture_limits(transfer_chunk_bytes~ : Int32 = 7) -> NumericWeightFileLimits {
   try! NumericWeightFileLimits::new(
     max_file_bytes=65536L,
     max_header_bytes=32768,
@@ -185,9 +185,9 @@ fn fixture_limits(transfer_chunk_bytes? : Int = 7) -> NumericWeightFileLimits {
 fn prepare_fixture(
   plan : @plan.ModelPlan,
   file : Bytes,
-  final_stamp? : Int = 1,
-  transfer_chunk_bytes? : Int = 7,
-) -> PreparedNumericWeightFile[Int] raise NumericWeightFileError {
+  final_stamp~ : Int32 = 1,
+  transfer_chunk_bytes~ : Int32 = 7,
+) -> PreparedNumericWeightFile[Int32] raise NumericWeightFileError {
   prepare_numeric_weight_file(
     plan,
     fixture_digest(file),

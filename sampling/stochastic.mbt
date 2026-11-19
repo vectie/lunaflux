@@ -13,7 +13,7 @@ pub fn prepare_distribution(
   parameters : @inference.SamplingParameters,
   limits : SamplingLimits,
   scratch : SamplerScratch,
-) -> Int raise SamplingError {
+) -> Int32 raise SamplingError {
   if parameters.mode() != Sample {
     raise InvalidSamplingMode
   }
@@ -40,12 +40,12 @@ fn prepare_distribution_scalars(
   logits : ArrayView[Double],
   temperature : Double,
   has_top_k : Bool,
-  top_k : Int,
+  top_k : Int32,
   has_top_p : Bool,
   top_p : Double,
   limits : SamplingLimits,
   scratch : SamplerScratch,
-) -> Int raise SamplingError {
+) -> Int32 raise SamplingError {
   // Never leave a previous distribution observable after a failed refresh.
   scratch.candidate_count = 0
   scratch.total_weight = 0.0
@@ -130,12 +130,12 @@ pub fn stochastic_sample_at_scalars(
   logits : ArrayView[Double],
   temperature~ : Double,
   has_top_k~ : Bool,
-  top_k~ : Int,
+  top_k~ : Int32,
   has_top_p~ : Bool,
   top_p~ : Double,
   limits : SamplingLimits,
   seed : @inference.SamplingSeed,
-  sample_index : Int,
+  sample_index : Int32,
   scratch : SamplerScratch,
 ) -> Selection raise SamplingError {
   if sample_index < 0 {
@@ -167,7 +167,7 @@ pub fn stochastic_sample(
 ///|
 fn select_prepared(
   logits : ArrayView[Double],
-  count : Int,
+  count : Int32,
   unit : Double,
   scratch : SamplerScratch,
 ) -> Selection {
@@ -194,7 +194,7 @@ pub fn stochastic_sample_at(
   parameters : @inference.SamplingParameters,
   limits : SamplingLimits,
   seed : @inference.SamplingSeed,
-  sample_index : Int,
+  sample_index : Int32,
   scratch : SamplerScratch,
 ) -> Selection raise SamplingError {
   if sample_index < 0 {

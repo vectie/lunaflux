@@ -6,7 +6,7 @@ pub struct StreamingSafetensorsTransferSession {
   priv root : @approved_fs.ApprovedRoot
   priv inspection : StreamingSafetensorsInspection
   priv files : Array[@approved_fs.ApprovedFile?]
-  priv mut opened : Int
+  priv mut opened : Int32
   priv mut closed : Bool
   priv mut failed : Bool
   priv mut busy : Bool
@@ -34,7 +34,7 @@ pub fn StreamingSafetensorsTransferSession::new(
 
 ///|
 /// Number of unique shards opened by this session, not by inspection.
-pub fn StreamingSafetensorsTransferSession::opened_shards(self : Self) -> Int {
+pub fn StreamingSafetensorsTransferSession::opened_shards(self : Self) -> Int32 {
   self.opened
 }
 
@@ -46,7 +46,7 @@ pub fn StreamingSafetensorsTransferSession::transfer_ranges(
   destination_bytes~ : ArrayView[Int64],
   scratch~ : FixedArray[Byte],
   limits~ : StreamingSafetensorsLimits,
-  consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume~ : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise StreamingSafetensorsError {
   guard !self.closed && !self.failed && !self.busy && scratch.length() > 0 else {
     raise InvalidLimit
@@ -112,7 +112,7 @@ pub fn StreamingSafetensorsTransferSession::close(
     return
   }
   self.failed = true
-  let mut first_failure : Int? = None
+  let mut first_failure : Int32? = None
   for ordinal, file in self.files {
     if file is Some(file) {
       try close_file(ordinal, file) catch {

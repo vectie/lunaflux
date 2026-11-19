@@ -2,13 +2,13 @@
 pub struct OutputSource {
   source : Bytes
   symbols : ReadOnlyArray[String]
-  video_start : Int
-  video_rows : Int
-  audio_start : Int
-  audio_rows : Int
+  video_start : Int32
+  video_rows : Int32
+  audio_start : Int32
+  audio_rows : Int32
   model : @joint_diffusion_plan.JointDiffusionPlan
-  packed_rows : Int
-  distinct_timesteps : Int
+  packed_rows : Int32
+  distinct_timesteps : Int32
   packed_mapping : Bytes
 }
 
@@ -19,7 +19,7 @@ pub struct OutputSource {
 pub fn build_output(
   model : @joint_diffusion_plan.JointDiffusionPlan,
   sequence : @minimax_h3_sequence.Sequence,
-  distinct_timesteps~ : Int,
+  distinct_timesteps~ : Int32,
   function_prefix~ : String,
 ) -> OutputSource raise {
   let shape = model.denoiser()

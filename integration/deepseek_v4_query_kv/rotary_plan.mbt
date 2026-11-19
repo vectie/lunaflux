@@ -4,7 +4,7 @@
 /// not a CUDA block size or a persistent FP8-cache representation.
 fn rotary_frequency_policy(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
+  layer~ : Int32,
 ) -> @precision.RotaryFrequency raise {
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
@@ -26,10 +26,10 @@ fn rotary_frequency_policy(
 ///|
 pub fn rotary_kv_plan(
   spec : @spec.DeepSeekV4ModelSpec,
-  layer~ : Int,
-  maximum_rows~ : Int,
+  layer~ : Int32,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
-  rotary_product? : @precision.RotaryProductLaw = SeparateFloat32Products,
+  rotary_product~ : @precision.RotaryProductLaw = SeparateFloat32Products,
 ) -> @precision.RotaryKvPrecision raise {
   let frequency = rotary_frequency_policy(spec, layer~)
   @precision.RotaryKvPrecision::new(

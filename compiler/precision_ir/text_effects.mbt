@@ -79,7 +79,7 @@ pub fn LearnedTextIoPrecision::egress_program(
 fn numeric_effects(
   sizes : ArrayView[Int64],
   initialized : ArrayView[Bool],
-  stages : ArrayView[Array[(Int, @parallel.AccessMode)]],
+  stages : ArrayView[Array[(Int32, @parallel.AccessMode)]],
 ) -> @parallel.Program raise PrecisionPlanError {
   @parallel.compile(
     rank=0,

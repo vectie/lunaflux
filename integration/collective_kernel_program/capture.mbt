@@ -6,12 +6,12 @@
 fn capture_collective_frame(
   queues : ArrayView[PreparedQueue],
   plan : @parallel.OrderedSubmissionPlan,
-  bucket : Int,
+  bucket : Int32,
   stream : @device.Stream,
   boundaries : ArrayView[ReductionBoundary],
   owner : @device.TensorCollectiveOwner,
   generation : UInt64,
-  rows : Int,
+  rows : Int32,
   timeout_millis : UInt64,
 ) -> Unit raise @device.DeviceError {
   for boundary in boundaries {

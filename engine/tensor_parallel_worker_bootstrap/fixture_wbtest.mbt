@@ -11,17 +11,17 @@ fn bootstrap_test_identity() -> @spec.ModelIdentity {
 
 ///|
 fn bootstrap_test_rendezvous(
-  fill? : Byte = b'\x5a',
+  fill~ : Byte = b'\x5a',
 ) -> @device.TensorCollectiveGroupId {
   try! @device.tensor_collective_group_id_from_bytes(Bytes::make(128, fill))
 }
 
 ///|
 fn bootstrap_test_claim(
-  rank : Int,
-  world_size? : Int = 2,
-  kv_hex? : String = "6666666666666666666666666666666666666666666666666666666666666666",
-  execution_hex? : String = "8888888888888888888888888888888888888888888888888888888888888888",
+  rank : Int32,
+  world_size~ : Int32 = 2,
+  kv_hex~ : String = "6666666666666666666666666666666666666666666666666666666666666666",
+  execution_hex~ : String = "8888888888888888888888888888888888888888888888888888888888888888",
 ) -> RankBootstrapClaim {
   bootstrap_test_claim_for(
     bootstrap_test_identity(),
@@ -35,8 +35,8 @@ fn bootstrap_test_claim(
 ///|
 fn bootstrap_test_claim_for(
   identity : @spec.ModelIdentity,
-  rank : Int,
-  world_size : Int,
+  rank : Int32,
+  world_size : Int32,
   kv_hex : String,
   execution_hex : String,
 ) -> RankBootstrapClaim {
@@ -75,11 +75,11 @@ fn bootstrap_test_claim_for(
 
 ///|
 fn bootstrap_test_group(
-  claims? : ArrayView[RankBootstrapClaim] = [
+  claims~ : ArrayView[RankBootstrapClaim] = [
     bootstrap_test_claim(0),
     bootstrap_test_claim(1),
   ],
-  world_size? : Int = 2,
+  world_size~ : Int32 = 2,
 ) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError {
   admit_claims(
     bootstrap_test_identity(),

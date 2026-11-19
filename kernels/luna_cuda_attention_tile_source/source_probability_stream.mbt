@@ -6,8 +6,8 @@
 /// instruction region: accumulator live ranges remain independent.
 fn cuda_streaming_probability_value(
   fragments : @luna_cuda_attention_tile_lowering.CudaPrefillFragmentBinding,
-  value_columns : Int,
-  value_quantum : Int,
+  value_columns : Int32,
+  value_quantum : Int32,
 ) -> String {
   let packing = fragments.probabilities()
   let (words, elements) = packing.geometry()

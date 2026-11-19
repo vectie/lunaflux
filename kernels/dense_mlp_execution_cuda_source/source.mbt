@@ -3,7 +3,7 @@ pub struct DenseMlpCudaSource {
   priv plan : @precision.DenseSwiGluPrecision
   priv prefix : String
   priv source : Bytes
-  priv order : ReadOnlyArray[Int]
+  priv order : ReadOnlyArray[Int32]
 }
 
 ///|
@@ -45,7 +45,7 @@ pub fn dense_mlp_source(
 }
 
 ///|
-pub fn DenseMlpCudaSource::execution_order(self : Self) -> ReadOnlyArray[Int] {
+pub fn DenseMlpCudaSource::execution_order(self : Self) -> ReadOnlyArray[Int32] {
   self.order
 }
 
@@ -62,7 +62,7 @@ pub fn DenseMlpCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn DenseMlpCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String raise @precision.PrecisionPlanError {
   let suffix = match stage {
     0 => "_gate_up"

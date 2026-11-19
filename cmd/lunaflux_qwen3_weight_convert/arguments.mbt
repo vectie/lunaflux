@@ -5,13 +5,13 @@ fn canonical_sha256(value : StringView) -> Bool {
 }
 
 ///|
-fn parse_batch_rows(value : String) -> Int raise Qwen3WeightConvertError {
+fn parse_batch_rows(value : String) -> Int32 raise Qwen3WeightConvertError {
   if value.is_empty() || value.length() > 4 {
     raise InvalidArguments
   }
   let mut result = 0
   for unit in value {
-    guard unit is ('0'..='9') else { raise InvalidArguments }
+    guard unit is ('0'..<='9') else { raise InvalidArguments }
     result = result * 10 + unit.to_int() - '0'.to_int()
   }
   if result <= 0 || result > 4096 {

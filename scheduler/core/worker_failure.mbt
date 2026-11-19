@@ -51,8 +51,8 @@ fn[T] abort_failure_writer(
 fn Scheduler::preflight_exhausted_failure_retirement(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  side : Int,
-) -> Int raise SchedulerError {
+  side : Int32,
+) -> Int32 raise SchedulerError {
   let plan_owner = if side == 0 { self.plan_a } else { self.plan_b }
   plan_owner.validate_submitted(plan) catch {
     error => raise WorkerProtocol(error)
@@ -143,8 +143,8 @@ fn Scheduler::preflight_exhausted_failure_retirement(
 fn Scheduler::commit_exhausted_failure_retirement(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
-  side : Int,
-  row_count : Int,
+  side : Int32,
+  row_count : Int32,
 ) -> Unit {
   let plan_owner = if side == 0 { self.plan_a } else { self.plan_b }
   let completion_owner = if side == 0 {

@@ -55,7 +55,7 @@ pub extend BatchInputPort with @debug.Debug::{to_repr}
 pub extend BatchInputPort with Eq::{equal, not_equal}
 
 ///|
-fn BatchInputPort::index(self : Self) -> Int {
+fn BatchInputPort::index(self : Self) -> Int32 {
   match self {
     Counts => 0
     TokenIds => 1
@@ -80,39 +80,39 @@ fn BatchInputPort::index(self : Self) -> Int {
 /// does not choose schedules, sample tokens, allocate KV, or access the device.
 /// The caller must bind a genuinely slot-addressed executor to these ports.
 pub struct BatchedDecoderFrame {
-  priv rows : Int
-  priv sequences : Int
-  priv slots : Int
-  priv context : Int
-  priv vocabulary : Int
+  priv rows : Int32
+  priv sequences : Int32
+  priv slots : Int32
+  priv context : Int32
+  priv vocabulary : Int32
   priv generation : UInt64
   priv history : @history.PagedHistoryDomain?
   priv inputs : FixedArray[FixedArray[Byte]]
   priv live : FixedArray[Bool]
   priv ids : FixedArray[UInt64]
   priv generations : FixedArray[UInt64]
-  priv processed : FixedArray[Int]
-  priv pending_slots : FixedArray[Int]
+  priv processed : FixedArray[Int32]
+  priv pending_slots : FixedArray[Int32]
   priv pending_ids : FixedArray[UInt64]
   priv pending_generations : FixedArray[UInt64]
-  priv pending_ends : FixedArray[Int]
-  priv output_entries : FixedArray[Int]
-  priv entry_outputs : FixedArray[Int]
+  priv pending_ends : FixedArray[Int32]
+  priv output_entries : FixedArray[Int32]
+  priv entry_outputs : FixedArray[Int32]
   priv completion : @wire.FrameCompletionSlot
-  priv mut active_sequences : Int
-  priv mut active_rows : Int
-  priv mut outputs : Int
-  priv mut active_pages : Int
+  priv mut active_sequences : Int32
+  priv mut active_rows : Int32
+  priv mut outputs : Int32
+  priv mut active_pages : Int32
   priv mut state : State
 }
 
 ///|
 pub fn BatchedDecoderFrame::new(
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
-  maximum_context~ : Int,
-  vocabulary_size~ : Int,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
+  maximum_context~ : Int32,
+  vocabulary_size~ : Int32,
   model_generation~ : UInt64,
   paged_history? : @history.PagedHistoryDomain,
 ) -> Self raise BatchFrameError {
@@ -193,7 +193,7 @@ fn BatchedDecoderFrame::require_staged(
 }
 
 ///|
-fn store_i32(buffer : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn store_i32(buffer : FixedArray[Byte], index : Int32, value : Int32) -> Unit {
   let bits = value.reinterpret_as_uint()
   for byte in 0..<4 {
     buffer[index * 4 + byte] = ((bits >> (byte * 8)) & 255U).to_byte()
@@ -204,13 +204,15 @@ fn store_i32(buffer : FixedArray[Byte], index : Int, value : Int) -> Unit {
 pub fn BatchedDecoderFrame::input_capacity(
   self : Self,
   port : BatchInputPort,
-) -> Int {
+) -> Int32 {
   self.inputs[port.index()].length()
 }
 
 ///|
 /// Startup geometry: rows, active sequences, retained slots, context, vocabulary.
-pub fn BatchedDecoderFrame::geometry(self : Self) -> (Int, Int, Int, Int, Int) {
+pub fn BatchedDecoderFrame::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (self.rows, self.sequences, self.slots, self.context, self.vocabulary)
 }
 
@@ -221,7 +223,7 @@ pub fn BatchedDecoderFrame::copy_input(
   self : Self,
   port : BatchInputPort,
   destination : FixedArray[Byte],
-) -> Int raise BatchFrameError {
+) -> Int32 raise BatchFrameError {
   self.require_staged()
   let bytes = match port {
     Counts => 20
@@ -241,7 +243,9 @@ pub fn BatchedDecoderFrame::copy_input(
 }
 
 ///|
-pub fn BatchedDecoderFrame::live_rows(self : Self) -> Int raise BatchFrameError {
+pub fn BatchedDecoderFrame::live_rows(
+  self : Self,
+) -> Int32 raise BatchFrameError {
   self.require_staged()
   self.active_rows
 }
@@ -249,7 +253,7 @@ pub fn BatchedDecoderFrame::live_rows(self : Self) -> Int raise BatchFrameError 
 ///|
 pub fn BatchedDecoderFrame::output_rows(
   self : Self,
-) -> Int raise BatchFrameError {
+) -> Int32 raise BatchFrameError {
   self.require_staged()
   self.outputs
 }
@@ -269,8 +273,8 @@ pub fn BatchedDecoderFrame::sampling_plan(
 /// prefill chunks have no output row. Use sampling_plan() with this mapping.
 pub fn BatchedDecoderFrame::output_entry(
   self : Self,
-  output : Int,
-) -> Int raise BatchFrameError {
+  output : Int32,
+) -> Int32 raise BatchFrameError {
   self.require_staged()
   guard output >= 0 && output < self.outputs else { raise InvalidCapacity }
   self.output_entries[output]

@@ -23,7 +23,7 @@ pub fn admit_network(
     @tensor_parallel_execution_plan.TensorParallelExecutionPlan,
   ],
   kv : @tensor_parallel_kv_plan.TensorParallelKvPlan,
-  collective_runtime_version_code~ : Int,
+  collective_runtime_version_code~ : Int32,
 ) -> TensorParallelGroupBootstrap raise TensorParallelWorkerBootstrapError {
   if inspections.length() != 2 ||
     devices.length() != 2 ||
@@ -80,7 +80,7 @@ pub fn TensorParallelRankBootstrapEnvelope::authenticate_network(
   execution : @tensor_parallel_execution_plan.TensorParallelExecutionPlan,
   kv : @tensor_parallel_kv_plan.TensorParallelKvPlan,
   expected_group_digest~ : TensorParallelGroupBootstrapDigest,
-  expected_collective_runtime_version_code~ : Int,
+  expected_collective_runtime_version_code~ : Int32,
 ) -> @device.TensorCollectiveContract raise TensorParallelWorkerBootstrapError {
   let claim = network_rank_claim(
     model, compiled, remote, inspection, device_plan, execution, kv,

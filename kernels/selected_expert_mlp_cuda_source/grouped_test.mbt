@@ -3,7 +3,7 @@ fn grouped_fixture(
   format : @format.Format,
   law : @precision_ir.DenseDotLaw,
 ) -> @precision_ir.ExpertMlpPrecision raise {
-  fn operand(n : Int, k : Int) -> @precision_ir.OperandPlan raise {
+  fn operand(n : Int32, k : Int32) -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
       role=Weight,
       representation=@format.Representation::new(format~, rows=n, columns=k),
@@ -33,7 +33,7 @@ test "export full-width grouped expert performance fixture" {
   if @env.get_env_var("LUNA_EXPORT_GROUPED_PERFORMANCE") != Some("1") {
     return
   }
-  fn operand(n : Int, k : Int) -> @precision_ir.OperandPlan raise {
+  fn operand(n : Int32, k : Int32) -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
       role=Weight,
       representation=@format.Representation::new(

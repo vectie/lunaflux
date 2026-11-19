@@ -1,5 +1,5 @@
 ///|
-const STREAMING_SAFETENSORS_PREFIX_BYTES : Int = 8
+const STREAMING_SAFETENSORS_PREFIX_BYTES : Int32 = 8
 
 ///|
 fn decode_header_length(prefix : FixedArray[Byte]) -> UInt64 {
@@ -28,8 +28,8 @@ fn header_has_valid_envelope(header : FixedArray[Byte]) -> Bool {
 ///|
 fn decode_exact_int64(
   value : Json,
-  shard : Int,
-  tensor : Int,
+  shard : Int32,
+  tensor : Int32,
   field : StreamingSafetensorsJsonField,
 ) -> Int64 raise StreamingSafetensorsError {
   guard value is Number(number, repr~) else {
@@ -59,8 +59,8 @@ fn decode_exact_int64(
 fn require_tensor_field(
   fields : Map[String, Json],
   name : String,
-  shard : Int,
-  tensor : Int,
+  shard : Int32,
+  tensor : Int32,
   field : StreamingSafetensorsJsonField,
 ) -> Json raise StreamingSafetensorsError {
   match fields.get(name) {
@@ -85,8 +85,8 @@ fn dtype_for_tag(
 ///|
 fn decode_shape(
   value : Json,
-  shard : Int,
-  tensor : Int,
+  shard : Int32,
+  tensor : Int32,
   limits : StreamingSafetensorsLimits,
 ) -> Array[Int64] raise StreamingSafetensorsError {
   guard value is Array(dimensions) else {
@@ -112,8 +112,8 @@ fn decode_shape(
 fn tensor_byte_count(
   shape : ArrayView[Int64],
   dtype : StreamingSafetensorsDTypeSpec,
-  shard : Int,
-  tensor : Int,
+  shard : Int32,
+  tensor : Int32,
 ) -> Int64 raise StreamingSafetensorsError {
   let mut elements = 1L
   for dimension in shape {
@@ -129,7 +129,7 @@ fn tensor_byte_count(
 }
 
 ///|
-fn valid_tensor_name(name : StringView, maximum : Int) -> Bool {
+fn valid_tensor_name(name : StringView, maximum : Int32) -> Bool {
   !name.is_empty() &&
   name.length() <= maximum &&
   name.all(character => character.is_ascii() && !character.is_ascii_control())
@@ -139,8 +139,8 @@ fn valid_tensor_name(name : StringView, maximum : Int) -> Bool {
 fn decode_tensor(
   name : String,
   value : Json,
-  shard : Int,
-  tensor : Int,
+  shard : Int32,
+  tensor : Int32,
   payload_bytes : Int64,
   specs : ArrayView[StreamingSafetensorsDTypeSpec],
   limits : StreamingSafetensorsLimits,
@@ -197,7 +197,7 @@ fn decode_tensor(
 ///|
 fn validate_document_metadata(
   value : Json,
-  shard : Int,
+  shard : Int32,
 ) -> Unit raise StreamingSafetensorsError {
   guard value is Object(entries) else { raise InvalidDocumentMetadata(shard) }
   for _, metadata_value in entries {
@@ -210,7 +210,7 @@ fn validate_document_metadata(
 ///|
 fn parse_header(
   header : FixedArray[Byte],
-  shard : Int,
+  shard : Int32,
   payload_bytes : Int64,
   specs : ArrayView[StreamingSafetensorsDTypeSpec],
   limits : StreamingSafetensorsLimits,
@@ -260,7 +260,7 @@ fn parse_header(
 ///|
 fn validate_tensor_ranges(
   tensors : Array[StreamingSafetensorsTensorMetadata],
-  shard : Int,
+  shard : Int32,
 ) -> Unit raise StreamingSafetensorsError {
   let ordered = tensors.mapi((ordinal, tensor) => (ordinal, tensor))
   ordered.sort_by((a, b) => {

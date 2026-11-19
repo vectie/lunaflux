@@ -35,12 +35,12 @@ pub fn NumericShape::new(
 }
 
 ///|
-pub fn NumericShape::rank(self : NumericShape) -> Int {
+pub fn NumericShape::rank(self : NumericShape) -> Int32 {
   self.dimensions.length()
 }
 
 ///|
-pub fn NumericShape::dimension(self : NumericShape, index : Int) -> Int64? {
+pub fn NumericShape::dimension(self : NumericShape, index : Int32) -> Int64? {
   self.dimensions.get(index)
 }
 

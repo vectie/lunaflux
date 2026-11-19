@@ -9,10 +9,10 @@ async fn run_joint(
   metadata : @h3.MiniMaxH3ModelMetadata,
   model : @joint.JointDiffusionPlan,
   args : ArrayView[String],
-  cancel_after_frames~ : Int,
+  cancel_after_frames~ : Int32,
   capture_latents~ : Bool,
   capture_prefix~ : Bool,
-  capture_blocks? : Int = 1,
+  capture_blocks~ : Int32 = 1,
   literal_inputs? : (String, String),
 ) -> Unit {
   let layout = joint_layout(root, metadata, model, args)

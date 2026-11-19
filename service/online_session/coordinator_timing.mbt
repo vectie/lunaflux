@@ -1,23 +1,23 @@
 ///|
 priv struct LunaOnlineFramedTimingSlot {
-  mut lane : Int
+  mut lane : Int32
   mut generation : UInt64
   mut accepted_millis : UInt64
   mut last_token_millis : UInt64
   mut token_seen : Bool
-  mut state : Int
+  mut state : Int32
 }
 
 ///|
 #valtype
 priv struct LunaOnlineFramedTimingSample {
-  kind : Int
-  millis : Int
+  kind : Int32
+  millis : Int32
 }
 
 ///|
 fn new_luna_online_framed_timing_slots(
-  lane_count : Int,
+  lane_count : Int32,
 ) -> FixedArray[LunaOnlineFramedTimingSlot] {
   FixedArray::makei(lane_count + 1, _ => {
     lane: -2,
@@ -33,7 +33,7 @@ fn new_luna_online_framed_timing_slots(
 fn LunaOnlineFramedService::timing_slot_index(
   self : LunaOnlineFramedService,
   ticket : LunaOnlineRequestTicket,
-) -> Int {
+) -> Int32 {
   if ticket.epoch == 0UL {
     return -1
   }

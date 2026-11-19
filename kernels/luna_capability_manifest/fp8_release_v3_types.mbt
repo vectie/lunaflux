@@ -6,8 +6,8 @@ pub struct LunaFp8ReusablePagedReleaseManifestV3 {
   priv target : @catalog.DeviceTarget
   priv reusable_recipe_digest_sha256 : String
   priv profile : @launch_contract.PagedKernelProfile
-  priv kv_layout_version : Int
-  priv tokens_per_page : Int
+  priv kv_layout_version : Int32
+  priv tokens_per_page : Int32
   priv operations : ReadOnlyArray[LunaFp8ReleaseOperationV2]
   priv canonical : Bytes
   priv digest : LunaCapabilityManifestDigest
@@ -52,14 +52,14 @@ pub fn LunaFp8ReusablePagedReleaseManifestV3::profile(
 ///|
 pub fn LunaFp8ReusablePagedReleaseManifestV3::kv_layout_version(
   self : LunaFp8ReusablePagedReleaseManifestV3,
-) -> Int {
+) -> Int32 {
   self.kv_layout_version
 }
 
 ///|
 pub fn LunaFp8ReusablePagedReleaseManifestV3::tokens_per_page(
   self : LunaFp8ReusablePagedReleaseManifestV3,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 

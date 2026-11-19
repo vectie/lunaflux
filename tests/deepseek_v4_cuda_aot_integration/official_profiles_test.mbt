@@ -52,7 +52,7 @@ fn official_deepseek_limits() -> @advanced_decoder_cuda_aot.AdvancedDecoderCudaA
 ///|
 fn official_expert_score_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is ExpertScoreTransform(_, _) {
       return ordinal
@@ -64,7 +64,7 @@ fn official_expert_score_ordinal(
 ///|
 fn official_query_key_norm_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is QueryKeyRmsNorm(_, _, _) {
       return ordinal
@@ -76,7 +76,7 @@ fn official_query_key_norm_ordinal(
 ///|
 fn official_scaled_rotary_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is RotaryPositionEncoding(_, _, _, _, _, _) {
       return ordinal
@@ -88,7 +88,7 @@ fn official_scaled_rotary_ordinal(
 ///|
 fn official_token_hash_ordinal(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is TokenHashRouting(_, _, _, _) {
       return ordinal

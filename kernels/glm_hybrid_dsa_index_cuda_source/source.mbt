@@ -3,8 +3,8 @@ fn valid_dsa_index_symbol(symbol : StringView) -> Bool {
   if symbol.is_empty() || symbol.length() > 128 {
     return false
   }
-  symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
@@ -12,13 +12,13 @@ fn valid_dsa_index_symbol(symbol : StringView) -> Bool {
 /// causal candidate filtering, deterministic top-k, pool expansion, and the
 /// optional visible incomplete tail. It is not a throughput kernel.
 pub fn projected_index_score_stable_topk_bf16_source(
-  head_count~ : Int,
-  head_dimension~ : Int,
-  top_k~ : Int,
-  pool_size~ : Int,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  top_k~ : Int32,
+  pool_size~ : Int32,
   append_incomplete_tail~ : Bool,
-  maximum_tokens~ : Int,
-  maximum_queries? : Int = maximum_tokens,
+  maximum_tokens~ : Int32,
+  maximum_queries~ : Int32 = maximum_tokens,
   function_symbol~ : String,
 ) -> GlmHybridDsaIndexCudaSource raise GlmHybridDsaIndexCudaSourceError {
   if head_count <= 0 || head_count > 1024 {
@@ -197,8 +197,8 @@ pub fn projected_index_score_stable_topk_bf16_source(
 
 ///|
 pub fn reuse_selected_indices_i32_source(
-  output_width~ : Int,
-  maximum_tokens~ : Int,
+  output_width~ : Int32,
+  maximum_tokens~ : Int32,
   function_symbol~ : String,
 ) -> GlmHybridDsaIndexCudaSource raise GlmHybridDsaIndexCudaSourceError {
   if output_width <= 0 || output_width > 65536 {

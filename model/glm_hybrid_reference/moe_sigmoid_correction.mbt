@@ -4,8 +4,8 @@
 pub fn moe_sigmoid_and_correction(
   raw_logits : ArrayView[Float],
   correction_bias : ArrayView[Float],
-  row_count~ : Int,
-  expert_count~ : Int,
+  row_count~ : Int32,
+  expert_count~ : Int32,
   limits~ : GlmHybridReferenceLimits,
 ) -> GlmMoeSigmoidCorrectionResult raise GlmHybridReferenceError {
   limits.check_sequence(row_count)
@@ -41,12 +41,12 @@ pub fn moe_sigmoid_and_correction(
 }
 
 ///|
-pub fn GlmMoeSigmoidCorrectionResult::row_count(self : Self) -> Int {
+pub fn GlmMoeSigmoidCorrectionResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmMoeSigmoidCorrectionResult::expert_count(self : Self) -> Int {
+pub fn GlmMoeSigmoidCorrectionResult::expert_count(self : Self) -> Int32 {
   self.expert_count
 }
 

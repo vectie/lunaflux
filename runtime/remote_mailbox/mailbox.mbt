@@ -12,8 +12,8 @@ pub(all) suberror RemoteMailboxError {
 pub struct RemoteMailbox {
   priv input : FixedArray[Byte]
   priv output : FixedArray[Byte]
-  priv mut input_length : Int
-  priv mut output_length : Int
+  priv mut input_length : Int32
+  priv mut output_length : Int32
   priv mut output_held : Bool
   priv mut read_active : Bool
   priv mut write_active : Bool
@@ -22,7 +22,7 @@ pub struct RemoteMailbox {
 
 ///|
 pub fn RemoteMailbox::new(
-  capacity : Int,
+  capacity : Int32,
 ) -> RemoteMailbox raise RemoteMailboxError {
   if capacity < 1 || capacity > 67108864 {
     raise Range
@@ -40,7 +40,7 @@ pub fn RemoteMailbox::new(
 }
 
 ///|
-pub fn RemoteMailbox::capacity(self : RemoteMailbox) -> Int {
+pub fn RemoteMailbox::capacity(self : RemoteMailbox) -> Int32 {
   self.input.length()
 }
 
@@ -75,7 +75,7 @@ pub fn RemoteMailbox::can_deliver(self : RemoteMailbox) -> Bool {
 pub fn RemoteMailbox::deliver(
   self : RemoteMailbox,
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> Unit raise RemoteMailboxError {
   self.require_open()
   if self.input_length != 0 {
@@ -105,7 +105,7 @@ pub fn RemoteMailbox::begin_read(
 pub fn RemoteMailbox::poll_read(
   self : RemoteMailbox,
   destination : FixedArray[Byte],
-) -> Int? raise RemoteMailboxError {
+) -> Int32? raise RemoteMailboxError {
   self.require_open()
   if !self.read_active {
     raise State
@@ -129,8 +129,8 @@ pub fn RemoteMailbox::poll_read(
 pub fn RemoteMailbox::begin_write(
   self : RemoteMailbox,
   bytes : FixedArray[Byte],
-  offset : Int,
-  length : Int,
+  offset : Int32,
+  length : Int32,
 ) -> Unit raise RemoteMailboxError {
   self.require_open()
   if self.write_active {
@@ -156,7 +156,7 @@ pub fn RemoteMailbox::begin_write(
 pub fn RemoteMailbox::outgoing(
   self : RemoteMailbox,
   destination : FixedArray[Byte],
-) -> Int? raise RemoteMailboxError {
+) -> Int32? raise RemoteMailboxError {
   self.require_open()
   if self.output_held {
     raise Busy

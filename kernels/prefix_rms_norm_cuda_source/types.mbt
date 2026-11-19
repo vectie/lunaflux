@@ -27,11 +27,11 @@ pub(all) suberror PrefixRmsNormCudaSourceError {
 pub struct PrefixRmsNormCudaSource {
   priv operation : PrefixRmsNormCudaOperation
   priv numerical_contract : PrefixRmsNormNumericalContract
-  priv prefix_width : Int
-  priv suffix_width : Int
-  priv maximum_rows : Int
+  priv prefix_width : Int32
+  priv suffix_width : Int32
+  priv maximum_rows : Int32
   priv epsilon : Double
   priv function_symbol : String
   priv source : Bytes
-  priv threads : Int
+  priv threads : Int32
 }

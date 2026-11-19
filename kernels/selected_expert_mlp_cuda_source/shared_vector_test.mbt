@@ -4,7 +4,7 @@ test "export selected BF16 shared expert transport fixture" {
     return
   }
   guard name is ("old" | "next") else { fail("diagnostic symbol") }
-  fn operand(n : Int, k : Int) -> @precision_ir.OperandPlan raise {
+  fn operand(n : Int32, k : Int32) -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
       role=Weight,
       representation=@format.Representation::new(format=Bf16, rows=n, columns=k),

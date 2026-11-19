@@ -1,18 +1,18 @@
 ///|
 fn glm_aot_requirements(
-  pooled? : Bool = false,
-  official_index? : Bool = false,
-  official_sparse? : Bool = false,
-  pool_tail? : Bool = true,
-  rms_epsilon? : Double = 0.00001,
-  rope_theta? : Double = 10000.0,
-  kda_head_count? : Int = 0,
-  routed_expert_count? : Int = 16,
-  experts_per_token? : Int = 2,
-  moe_intermediate_size? : Int = 32,
-  moe_router_float32? : Bool = true,
-  moe_activation? : @advanced_decoder_execution_plan.ExpertActivation = SwiGlu,
-  hyper_connection? : Bool = false,
+  pooled~ : Bool = false,
+  official_index~ : Bool = false,
+  official_sparse~ : Bool = false,
+  pool_tail~ : Bool = true,
+  rms_epsilon~ : Double = 0.00001,
+  rope_theta~ : Double = 10000.0,
+  kda_head_count~ : Int32 = 0,
+  routed_expert_count~ : Int32 = 16,
+  experts_per_token~ : Int32 = 2,
+  moe_intermediate_size~ : Int32 = 32,
+  moe_router_float32~ : Bool = true,
+  moe_activation~ : @advanced_decoder_execution_plan.ExpertActivation = SwiGlu,
+  hyper_connection~ : Bool = false,
 ) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements {
   let sparse = try! @glm_hybrid_execution_plan.GlmDynamicSparseAttentionPlan::new(
     query_head_count=if official_sparse {
@@ -169,7 +169,7 @@ fn glm_aot_requirements(
 }
 
 ///|
-fn glm_aot_target(bf16? : Bool = true) -> @catalog.DeviceTarget {
+fn glm_aot_target(bf16~ : Bool = true) -> @catalog.DeviceTarget {
   try! @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=0,
@@ -180,8 +180,8 @@ fn glm_aot_target(bf16? : Bool = true) -> @catalog.DeviceTarget {
 
 ///|
 fn glm_aot_compiler(
-  fused_multiply_add? : Bool = false,
-  reassociate? : Bool = false,
+  fused_multiply_add~ : Bool = false,
+  reassociate~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy {
   let identity = try! @luna_specialization.LunaCompilerIdentity::new(
     toolchain_digest_sha256=String::make(64, 'd'),

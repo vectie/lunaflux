@@ -31,7 +31,7 @@ pub fn LunaRequestPreparationWork::state(
 ///|
 pub fn LunaRequestPreparationWork::last_work_units(
   self : LunaRequestPreparationWork,
-) -> Int raise RequestAdmissionError {
+) -> Int32 raise RequestAdmissionError {
   self.require_lane().last_work_units
 }
 
@@ -125,7 +125,7 @@ pub fn LunaRequestPreparationAdmission::kind(
 ///|
 pub fn LunaRequestPreparationAdmission::consumed_bytes(
   self : LunaRequestPreparationAdmission,
-) -> Int {
+) -> Int32 {
   self.consumed
 }
 

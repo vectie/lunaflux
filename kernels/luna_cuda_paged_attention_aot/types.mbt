@@ -1,13 +1,13 @@
 ///|
 pub struct PagedAttentionAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn PagedAttentionAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
 ) -> PagedAttentionAotLimits raise PagedAttentionAotError {
   if max_source_bytes <= 0 || max_recipe_bytes <= 0 {
     raise Invalid(Limits)
@@ -22,10 +22,10 @@ pub struct PagedAttentionCudaLowering {
   priv operation_id : @plan.OperationId
   priv entry_point_id : @catalog.AotKernelEntryPointId
   priv profile : @launch_contract.PagedKernelProfile
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv head_dimension : Int
-  priv tokens_per_page : Int
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv head_dimension : Int32
+  priv tokens_per_page : Int32
   priv page_stride_bytes : Int64
   priv physical_page_capacity : Int64
   priv operands : ReadOnlyArray[@launch_contract.AotOperand]
@@ -114,28 +114,28 @@ pub fn PagedAttentionCudaLowering::profile(
 ///|
 pub fn PagedAttentionCudaLowering::query_heads(
   self : PagedAttentionCudaLowering,
-) -> Int {
+) -> Int32 {
   self.query_heads
 }
 
 ///|
 pub fn PagedAttentionCudaLowering::kv_heads(
   self : PagedAttentionCudaLowering,
-) -> Int {
+) -> Int32 {
   self.kv_heads
 }
 
 ///|
 pub fn PagedAttentionCudaLowering::head_dimension(
   self : PagedAttentionCudaLowering,
-) -> Int {
+) -> Int32 {
   self.head_dimension
 }
 
 ///|
 pub fn PagedAttentionCudaLowering::tokens_per_page(
   self : PagedAttentionCudaLowering,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 

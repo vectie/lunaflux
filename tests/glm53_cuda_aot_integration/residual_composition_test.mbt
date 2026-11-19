@@ -1,7 +1,7 @@
 ///|
 fn find_residual_composition_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation() is MoeDecoderResidualAdd(_) ||
       requirement.operation() is HyperConnectionMix(_) {

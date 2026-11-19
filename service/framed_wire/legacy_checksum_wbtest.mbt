@@ -1,8 +1,8 @@
 ///|
 // Legacy checksums only exist in tests, so structural mutation tests also
 // cover old peers. No production encoder or decoder scans frames for them.
-fn frame_checksum(bytes : FixedArray[Byte], length : Int) -> UInt {
-  let mut hash : UInt = 2166136261
+fn frame_checksum(bytes : FixedArray[Byte], length : Int32) -> UInt32 {
+  let mut hash : UInt32 = 2166136261
   for index in 0..<length {
     if index < 16 || index >= 20 {
       hash = (hash ^ bytes[index].to_uint()) * 16777619

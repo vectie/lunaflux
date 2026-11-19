@@ -1,9 +1,9 @@
 ///|
 fn better_route_choice(
   value : Float,
-  index : Int,
+  index : Int32,
   best_value : Float,
-  best_index : Int,
+  best_index : Int32,
 ) -> Bool {
   best_index < 0 ||
   value > best_value ||
@@ -16,12 +16,12 @@ fn better_route_choice(
 pub fn moe_grouped_route(
   uncorrected_scores : ArrayView[Float],
   choice_scores : ArrayView[Float],
-  row_count~ : Int,
-  routed_expert_count~ : Int,
-  group_count~ : Int,
-  group_score_topk~ : Int,
-  selected_group_count~ : Int,
-  experts_per_token~ : Int,
+  row_count~ : Int32,
+  routed_expert_count~ : Int32,
+  group_count~ : Int32,
+  group_score_topk~ : Int32,
+  selected_group_count~ : Int32,
+  experts_per_token~ : Int32,
   normalize~ : Bool,
   scaling~ : Float,
   limits~ : GlmHybridReferenceLimits,
@@ -143,7 +143,7 @@ pub fn moe_grouped_route(
 ///|
 pub fn GlmMoeGroupedRoutingResult::selected_indices(
   self : Self,
-) -> ReadOnlyArray[Int] {
+) -> ReadOnlyArray[Int32] {
   self.selected_indices
 }
 
@@ -155,11 +155,11 @@ pub fn GlmMoeGroupedRoutingResult::selected_weights(
 }
 
 ///|
-pub fn GlmMoeGroupedRoutingResult::row_count(self : Self) -> Int {
+pub fn GlmMoeGroupedRoutingResult::row_count(self : Self) -> Int32 {
   self.row_count
 }
 
 ///|
-pub fn GlmMoeGroupedRoutingResult::experts_per_token(self : Self) -> Int {
+pub fn GlmMoeGroupedRoutingResult::experts_per_token(self : Self) -> Int32 {
   self.experts_per_token
 }

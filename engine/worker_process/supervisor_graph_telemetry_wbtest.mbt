@@ -4,7 +4,7 @@ fn encoded_initial_graph_attack(
   hits : UInt64,
   misses : UInt64,
   destination : FixedArray[Byte],
-) -> Int raise {
+) -> Int32 raise {
   @worker_wire.encode_worker_graph_telemetry(
     @worker_wire.WorkerGraphTelemetry::without_shape(
       sequence=1UL,

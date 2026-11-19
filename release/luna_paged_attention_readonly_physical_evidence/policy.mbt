@@ -1,7 +1,7 @@
 ///|
 fn readonly_physical_policy_value(
   lines : Array[String],
-  index : Int,
+  index : Int32,
   key : String,
 ) -> String raise PagedAttentionReadOnlyPhysicalEvidenceError {
   let prefix = key + "="

@@ -2,7 +2,7 @@
 fn validate_path_identifier(
   value : StringView,
   file : ArtifactFileRef,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise KernelArtifactFileError {
   if value.is_empty() {
     raise InvalidPath(file~, issue=EmptyPath)
@@ -24,7 +24,8 @@ fn validate_path_identifier(
       segment_length = 0
       segment_dots = 0
     } else {
-      let valid = unit is ('A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | '.')
+      let valid = unit
+        is ('A'..<='Z' | 'a'..<='z' | '0'..<='9' | '_' | '-' | '.')
       if !valid {
         raise InvalidPath(file~, issue=InvalidPathCharacter)
       }

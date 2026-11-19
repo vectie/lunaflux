@@ -4,7 +4,7 @@
 /// validity are already published and retain their original ordered arithmetic.
 fn stable_selection_source(
   plan : @index_physical.RetainedIndexPlan,
-  pool : Int,
+  pool : Int32,
   limit : String,
   value : String,
 ) -> String {

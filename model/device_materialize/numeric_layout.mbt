@@ -1,5 +1,5 @@
 ///|
-const MAX_NUMERIC_LAYOUT_TENSORS : Int = 65536
+const MAX_NUMERIC_LAYOUT_TENSORS : Int32 = 65536
 
 ///|
 /// Plans one inert contiguous arena from the complete canonical numeric tensor

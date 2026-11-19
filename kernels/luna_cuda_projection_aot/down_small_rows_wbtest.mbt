@@ -19,7 +19,7 @@ test "down small-row lowering keeps only demanded matrix row tiles" {
     let compilation = @luna_projection_tile_compiler.compile_projection_tile(
       @luna_projection_tile_compiler.ProjectionTileCompilerRequest::new(
         dispatch=runtime.dispatch_plan(1024),
-        maximum_rows=Int::min(maximum_tokens, 8),
+        maximum_rows=Int32::min(maximum_tokens, 8),
         maximum_tokens~,
         demand=AllTokenRows,
       ),

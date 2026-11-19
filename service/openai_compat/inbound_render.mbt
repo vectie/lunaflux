@@ -22,8 +22,8 @@ fn LunaOpenAIInboundWorkspace::emit_prompt_byte(
 ///|
 fn LunaOpenAIInboundWorkspace::start_render_source(
   self : Self,
-  start : Int,
-  length : Int,
+  start : Int32,
+  length : Int32,
 ) -> Unit {
   self.render_source_start = start
   self.render_source_length = length

@@ -1,9 +1,9 @@
 ///|
 priv struct Fp8ProjectionParameters {
   family : Fp8ProjectionFamily
-  input_width : Int
-  output_width : Int
-  intermediate_width : Int
+  input_width : Int32
+  output_width : Int32
+  intermediate_width : Int32
 }
 
 ///|
@@ -155,8 +155,8 @@ fn fp8_tensor_bytes(
 
 ///|
 fn fp8_value_bytes(
-  rows : Int,
-  width : Int,
+  rows : Int32,
+  width : Int32,
 ) -> Int64 raise Fp8ProjectionAotError {
   let value = rows.to_int64() * width.to_int64()
   if rows <= 0 || width <= 0 || value > 9223372036854775807L / 2L {

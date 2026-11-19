@@ -1,39 +1,39 @@
 ///|
-const LUNA_TEXT_IDLE : Int = 0
+const LUNA_TEXT_IDLE : Int32 = 0
 
 ///|
-const LUNA_TEXT_WRITING : Int = 1
+const LUNA_TEXT_WRITING : Int32 = 1
 
 ///|
-const LUNA_TEXT_HEADER : Int = 2
+const LUNA_TEXT_HEADER : Int32 = 2
 
 ///|
-const LUNA_TEXT_SCOPE : Int = 3
+const LUNA_TEXT_SCOPE : Int32 = 3
 
 ///|
-const LUNA_TEXT_FINAL : Int = 6
+const LUNA_TEXT_FINAL : Int32 = 6
 
 ///|
-const LUNA_TEXT_READY : Int = 7
+const LUNA_TEXT_READY : Int32 = 7
 
 ///|
-const LUNA_TEXT_VIEW : Int = 8
+const LUNA_TEXT_VIEW : Int32 = 8
 
 ///|
-const LUNA_TEXT_FAILED : Int = 9
+const LUNA_TEXT_FAILED : Int32 = 9
 
 ///|
-const LUNA_TEXT_MAX_WORK : Int = 65536
+const LUNA_TEXT_MAX_WORK : Int32 = 65536
 
 ///|
 #valtype
 pub struct LunaFramedTextRequestStepBudget {
-  priv work_units : Int
+  priv work_units : Int32
 }
 
 ///|
 pub fn LunaFramedTextRequestStepBudget::new(
-  work_units : Int,
+  work_units : Int32,
 ) -> Self raise FramedWireError {
   if work_units <= 0 || work_units > LUNA_TEXT_MAX_WORK {
     raise InvalidLimit(LunaFramedTextRequestWorkUnits)
@@ -42,7 +42,7 @@ pub fn LunaFramedTextRequestStepBudget::new(
 }
 
 ///|
-pub fn LunaFramedTextRequestStepBudget::work_units(self : Self) -> Int {
+pub fn LunaFramedTextRequestStepBudget::work_units(self : Self) -> Int32 {
   self.work_units
 }
 
@@ -69,32 +69,32 @@ pub struct LunaFramedTextRequestWorkspace {
   priv content_digest : FixedArray[Byte]
   priv plan_digest : FixedArray[Byte]
   priv cache_scope : FixedArray[Byte]
-  priv cache_scope_length : Int
+  priv cache_scope_length : Int32
   priv mut epoch : UInt64
-  priv mut phase : Int
-  priv mut input_length : Int
-  priv mut input_cursor : Int
-  priv mut stop_token_count : Int
-  priv mut stop_token_cursor : Int
-  priv mut stop_string_count : Int
-  priv mut stop_string_cursor : Int
-  priv mut stop_string_bytes : Int
-  priv mut stop_string_remaining : Int
-  priv mut payload_cursor : Int
-  priv mut header_cursor : Int
-  priv mut scope_cursor : Int
-  priv mut protocol_version : Int
+  priv mut phase : Int32
+  priv mut input_length : Int32
+  priv mut input_cursor : Int32
+  priv mut stop_token_count : Int32
+  priv mut stop_token_cursor : Int32
+  priv mut stop_string_count : Int32
+  priv mut stop_string_cursor : Int32
+  priv mut stop_string_bytes : Int32
+  priv mut stop_string_remaining : Int32
+  priv mut payload_cursor : Int32
+  priv mut header_cursor : Int32
+  priv mut scope_cursor : Int32
+  priv mut protocol_version : Int32
   priv mut request_id : UInt64
-  priv mut max_new_tokens : Int
-  priv mut context_ceiling : Int
-  priv mut sampling_mode : Int
-  priv mut top_k : Int
+  priv mut max_new_tokens : Int32
+  priv mut context_ceiling : Int32
+  priv mut sampling_mode : Int32
+  priv mut top_k : Int32
   priv mut temperature_bits : UInt64
   priv mut top_p_bits : UInt64
   priv mut sampling_seed : UInt64
   priv mut stream : Bool
   priv mut deadline_millis : UInt64
-  priv mut last_work_units : Int
+  priv mut last_work_units : Int32
   priv mut total_work_units : UInt64
 }
 

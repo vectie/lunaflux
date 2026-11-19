@@ -67,7 +67,7 @@ pub fn LearnedIndexQueriesCudaSource::source_bytes(self : Self) -> Bytes {
 ///|
 pub fn LearnedIndexQueriesCudaSource::symbol(
   self : Self,
-  stage : Int,
+  stage : Int32,
 ) -> String {
   self.symbols[stage]
 }
@@ -82,8 +82,8 @@ pub fn LearnedIndexQueriesCudaSource::transform(
 ///|
 pub fn LearnedIndexQueriesCudaSource::launch(
   self : Self,
-  stage : Int,
-) -> (Int, Int, Int) {
+  stage : Int32,
+) -> (Int32, Int32, Int32) {
   let (_, _, heads, width, rows) = self.plan.geometry()
   if stage == 0 {
     (rows, (heads * width + 255) / 256, 256)

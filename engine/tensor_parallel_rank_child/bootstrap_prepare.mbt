@@ -63,7 +63,7 @@ fn failed_rank_child_worker(
 ///|
 pub fn prepare_configured_rank_child(
   configured : TensorParallelRankChildConfigured,
-  parallel_policy? : @parallel_ir.Policy = Ordered,
+  parallel_policy~ : @parallel_ir.Policy = Ordered,
 ) -> TensorParallelRankChildPreparation raise TensorParallelRankChildError {
   let roots = open_rank_child_roots(configured)
   let mut admission_complete = false

@@ -24,7 +24,7 @@ fn model_error_field(error : @model.ModelConfigError) -> DocumentField {
 }
 
 ///|
-fn model_error_index(error : @model.ModelConfigError) -> Int {
+fn model_error_index(error : @model.ModelConfigError) -> Int32 {
   match error {
     Invalid(field=_, issue=_, index~) => index
   }
@@ -42,7 +42,7 @@ fn device_error_field(error : @device.DeviceConfigError) -> DocumentField {
 }
 
 ///|
-fn device_error_index(error : @device.DeviceConfigError) -> Int {
+fn device_error_index(error : @device.DeviceConfigError) -> Int32 {
   match error {
     Invalid(field=_, issue=_, index~) => index
   }

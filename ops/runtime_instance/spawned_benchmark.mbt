@@ -7,9 +7,9 @@ priv enum SpawnedBenchmarkOutcome {
 ///|
 fn observe_spawned_benchmark_token(
   event : @inference.StreamEvent,
-  expected_position : Int,
-  maximum_token_id : Int,
-) -> Int raise RuntimeSpawnedBenchmarkError {
+  expected_position : Int32,
+  maximum_token_id : Int32,
+) -> Int32 raise RuntimeSpawnedBenchmarkError {
   match event {
     Token(token) if token.position() == expected_position &&
       token.token_id() >= 0 &&

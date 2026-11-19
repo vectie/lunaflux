@@ -29,7 +29,7 @@ pub fn RequestFrameBuffer::inference_limits(
 }
 
 ///|
-pub fn RequestFrameBuffer::capacity(self : RequestFrameBuffer) -> Int {
+pub fn RequestFrameBuffer::capacity(self : RequestFrameBuffer) -> Int32 {
   self.storage.length()
 }
 
@@ -37,7 +37,7 @@ pub fn RequestFrameBuffer::capacity(self : RequestFrameBuffer) -> Int {
 fn RequestFrameBuffer::publish(
   self : RequestFrameBuffer,
   request : @inference.GenerateRequest,
-  length : Int,
+  length : Int32,
 ) -> ValidatedRequestFrame raise FramedWireError {
   if self.epoch == 0xffffffffffffffffUL {
     raise StaleFrame
@@ -64,7 +64,7 @@ fn ValidatedRequestFrame::owner(
 ///|
 pub fn ValidatedRequestFrame::length(
   self : ValidatedRequestFrame,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.owner().length
 }
 
@@ -79,7 +79,7 @@ pub fn ValidatedRequestFrame::request(
 pub fn ValidatedRequestFrame::copy_to(
   self : ValidatedRequestFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise FramedWireError {
   let owner = self.owner()
   if destination_offset < 0 ||
@@ -104,7 +104,7 @@ pub fn EventFrameBuffer::new(limits : FramedWireLimits) -> EventFrameBuffer {
 }
 
 ///|
-pub fn EventFrameBuffer::capacity(self : EventFrameBuffer) -> Int {
+pub fn EventFrameBuffer::capacity(self : EventFrameBuffer) -> Int32 {
   self.storage.length()
 }
 
@@ -112,7 +112,7 @@ pub fn EventFrameBuffer::capacity(self : EventFrameBuffer) -> Int {
 fn EventFrameBuffer::publish(
   self : EventFrameBuffer,
   event : @inference.StreamEvent,
-  length : Int,
+  length : Int32,
 ) -> ValidatedEventFrame raise FramedWireError {
   if self.epoch == 0xffffffffffffffffUL {
     raise StaleFrame
@@ -139,7 +139,7 @@ fn ValidatedEventFrame::owner(
 ///|
 pub fn ValidatedEventFrame::length(
   self : ValidatedEventFrame,
-) -> Int raise FramedWireError {
+) -> Int32 raise FramedWireError {
   self.owner().length
 }
 
@@ -154,7 +154,7 @@ pub fn ValidatedEventFrame::event(
 pub fn ValidatedEventFrame::copy_to(
   self : ValidatedEventFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise FramedWireError {
   let owner = self.owner()
   if destination_offset < 0 ||

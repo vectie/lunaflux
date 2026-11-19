@@ -9,17 +9,17 @@ pub fn SegmentedDeviceLayoutDigest::as_hex(self : Self) -> String {
 }
 
 ///|
-pub fn SegmentedDeviceTensorRegion::tensor_ordinal(self : Self) -> Int {
+pub fn SegmentedDeviceTensorRegion::tensor_ordinal(self : Self) -> Int32 {
   self.tensor_ordinal
 }
 
 ///|
-pub fn SegmentedDeviceTensorRegion::source_arena_ordinal(self : Self) -> Int {
+pub fn SegmentedDeviceTensorRegion::source_arena_ordinal(self : Self) -> Int32 {
   self.source_arena_ordinal
 }
 
 ///|
-pub fn SegmentedDeviceTensorRegion::source_offset(self : Self) -> Int {
+pub fn SegmentedDeviceTensorRegion::source_offset(self : Self) -> Int32 {
   self.source_offset
 }
 
@@ -70,27 +70,27 @@ pub fn SegmentedDeviceLayout::materialized_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn SegmentedDeviceLayout::source_arena_count(self : Self) -> Int {
+pub fn SegmentedDeviceLayout::source_arena_count(self : Self) -> Int32 {
   self.source_arena_lengths.length()
 }
 
 ///|
 pub fn SegmentedDeviceLayout::source_arena_length(
   self : Self,
-  index : Int,
-) -> Int? {
+  index : Int32,
+) -> Int32? {
   self.source_arena_lengths.get(index)
 }
 
 ///|
-pub fn SegmentedDeviceLayout::region_count(self : Self) -> Int {
+pub fn SegmentedDeviceLayout::region_count(self : Self) -> Int32 {
   self.regions.length()
 }
 
 ///|
 pub fn SegmentedDeviceLayout::region(
   self : Self,
-  region_ordinal : Int,
+  region_ordinal : Int32,
 ) -> SegmentedDeviceTensorRegion? {
   self.regions.get(region_ordinal)
 }

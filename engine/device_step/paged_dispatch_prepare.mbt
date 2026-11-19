@@ -5,7 +5,7 @@ fn paged_maximum_profile_query_bound(
   profile : @launch_contract.PagedKernelProfile,
   has_launch_contract : Bool,
   decode : Bool,
-) -> Int? {
+) -> Int32? {
   if !has_launch_contract {
     None
   } else {
@@ -27,21 +27,21 @@ fn prepare_paged_ordered_executors(
   graph_policy : PagedGraphExecutionPolicy,
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   profile : @launch_contract.PagedKernelProfile,
-  measured_attention_candidates? : ReadOnlyArray[Int]? = None,
-  prefill_wide_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
-  prefill_wide_minimum_query_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
-  prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  prefill_split_query_tile? : Int = 1,
-  prefill_split_partition_count? : Int = 1,
-  deep_prefill_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
-  deep_prefill_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  deep_prefill_split_query_tile? : Int = 1,
-  deep_prefill_split_partition_count? : Int = 1,
-  decode_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
-  decode_split_steps? : ReadOnlyArray[PreparedPagedGraphStep]? = None,
-  decode_split_minimum_context_tokens? : Int = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
-  decode_split_maximum_batch_rows? : Int = 2147483647,
+  measured_attention_candidates~ : ReadOnlyArray[Int32]? = None,
+  prefill_wide_steps~ : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  prefill_wide_minimum_query_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  prefill_split_steps~ : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  prefill_split_minimum_context_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  prefill_split_query_tile~ : Int32 = 1,
+  prefill_split_partition_count~ : Int32 = 1,
+  deep_prefill_split_steps~ : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  deep_prefill_split_minimum_context_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  deep_prefill_split_query_tile~ : Int32 = 1,
+  deep_prefill_split_partition_count~ : Int32 = 1,
+  decode_steps~ : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  decode_split_steps~ : ReadOnlyArray[PreparedPagedGraphStep]? = None,
+  decode_split_minimum_context_tokens~ : Int32 = PAGED_DECODE_SPLIT_DISABLED_CONTEXT_THRESHOLD,
+  decode_split_maximum_batch_rows~ : Int32 = 2147483647,
 ) -> PagedOrderedExecutorDispatch raise DeviceStepError {
   let has_measured_mixed_split = measured_attention_candidates is Some(ids) &&
     ids.contains(7)
@@ -91,7 +91,7 @@ fn prepare_paged_ordered_executors(
       ) {
       families.push(wide)
     }
-    let costs : Array[Int] = []
+    let costs : Array[Int32] = []
     for family in families {
       let operations = ReadOnlyArray::from_array(
         family.map(step => step.operation_id),

@@ -1,11 +1,11 @@
 ///|
-const ENTRY_FREE : Int = 0
+const ENTRY_FREE : Int32 = 0
 
 ///|
-const ENTRY_USED : Int = 1
+const ENTRY_USED : Int32 = 1
 
 ///|
-const ENTRY_RETIRED : Int = 2
+const ENTRY_RETIRED : Int32 = 2
 
 ///|
 pub fn PrefixIndex::new(
@@ -168,35 +168,35 @@ pub fn PrefixIndex::limits(self : PrefixIndex) -> PrefixIndexLimits {
 }
 
 ///|
-pub fn PrefixIndex::entry_count(self : PrefixIndex) -> Int {
+pub fn PrefixIndex::entry_count(self : PrefixIndex) -> Int32 {
   self.entry_count
 }
 
 ///|
-pub fn PrefixIndex::retired_entry_count(self : PrefixIndex) -> Int {
+pub fn PrefixIndex::retired_entry_count(self : PrefixIndex) -> Int32 {
   self.retired_entry_count
 }
 
 ///|
-pub fn PrefixIndex::node_count(self : PrefixIndex) -> Int {
+pub fn PrefixIndex::node_count(self : PrefixIndex) -> Int32 {
   self.node_count
 }
 
 ///|
-pub fn PrefixIndex::token_cell_count(self : PrefixIndex) -> Int {
+pub fn PrefixIndex::token_cell_count(self : PrefixIndex) -> Int32 {
   self.token_count
 }
 
 ///|
-pub fn PrefixIndex::page_count(self : PrefixIndex) -> Int {
+pub fn PrefixIndex::page_count(self : PrefixIndex) -> Int32 {
   self.page_count
 }
 
 ///|
 fn PrefixIndex::root_scope_byte(
   self : PrefixIndex,
-  root : Int,
-  index : Int,
+  root : Int32,
+  index : Int32,
 ) -> Byte {
   self.root_scope_bytes[root * self.limits.max_scope_bytes() + index]
 }
@@ -204,7 +204,7 @@ fn PrefixIndex::root_scope_byte(
 ///|
 fn PrefixIndex::request_root_matches(
   self : PrefixIndex,
-  root : Int,
+  root : Int32,
   key : PrefixRequestKey,
 ) -> Bool raise PrefixIndexError {
   if !key.is_live() {
@@ -230,12 +230,12 @@ fn PrefixIndex::request_root_matches(
 }
 
 ///|
-fn PrefixIndex::free_root(self : PrefixIndex) -> Int {
+fn PrefixIndex::free_root(self : PrefixIndex) -> Int32 {
   self.root_free_head
 }
 
 ///|
-fn PrefixIndex::node_first_token(self : PrefixIndex, node : Int) -> Int {
+fn PrefixIndex::node_first_token(self : PrefixIndex, node : Int32) -> Int32 {
   self.token_values[self.node_label_heads[node]]
 }
 
@@ -243,7 +243,7 @@ fn PrefixIndex::node_first_token(self : PrefixIndex, node : Int) -> Int {
 fn PrefixIndex::checked_entry(
   self : PrefixIndex,
   entry : PrefixEntryId,
-) -> Int raise PrefixIndexError {
+) -> Int32 raise PrefixIndexError {
   let index = entry.index()
   if index < 0 ||
     index >= self.entry_states.length() ||

@@ -4,9 +4,9 @@
 /// weight value can be reused across multiple rows. The reduction axis never
 /// participates in this partition and therefore retains its original order.
 pub fn partition_projection_sibling_reuse(
-  row_tiles~ : Int,
-  output_tiles~ : Int,
-  consumer_groups~ : Int,
+  row_tiles~ : Int32,
+  output_tiles~ : Int32,
+  consumer_groups~ : Int32,
 ) -> ProjectionProductFoldDistribution? {
   guard output_tiles > 0 && consumer_groups > 0 && consumer_groups % 2 == 0 else {
     return None

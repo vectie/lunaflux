@@ -1,8 +1,8 @@
 ///|
-const RUNTIME_CONTROL_MAX_HEAD_BYTES : Int = 1024
+const RUNTIME_CONTROL_MAX_HEAD_BYTES : Int32 = 1024
 
 ///|
-const RUNTIME_CONTROL_FAIRNESS_TRANSITIONS : Int = 64
+const RUNTIME_CONTROL_FAIRNESS_TRANSITIONS : Int32 = 64
 
 ///|
 fn runtime_control_limits() -> @http1.LunaHttp1ControlLimits raise RuntimeInstanceError {

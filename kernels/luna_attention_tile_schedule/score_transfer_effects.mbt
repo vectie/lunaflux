@@ -29,12 +29,12 @@ pub(all) enum AttentionScoreTransferEffect {
 ///|
 pub fn AttentionScoreTransferMode::from_schedule(
   memory : @luna_attention_strategy.AttentionTileMemory,
-  stages~ : Int,
+  stages~ : Int32,
   immediate~ : Bool,
 ) -> AttentionScoreTransferMode raise AttentionTileScheduleError {
   match (memory, stages, immediate) {
     (AttentionStagedShared, 1, true) => ImmediateTransfer
-    (AttentionStagedShared, 1..=4, false) => CooperativeTransfer
+    (AttentionStagedShared, 1..<=4, false) => CooperativeTransfer
     (AttentionAsyncStagedShared, 2, false) => LookaheadTransfer
     _ => raise InvalidAttentionTileSchedule(InvalidLoopNest)
   }

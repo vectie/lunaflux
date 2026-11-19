@@ -5,24 +5,27 @@ extern "C" fn alloc_probe_begin() = "lunaflux_device_step_alloc_probe_begin"
 extern "C" fn alloc_probe_end() -> UInt64 = "lunaflux_device_step_alloc_probe_end"
 
 ///|
-extern "C" fn alloc_probe_check(observed : UInt64, expect_zero : Int) -> Int = "lunaflux_device_step_alloc_probe_check"
+extern "C" fn alloc_probe_check(
+  observed : UInt64,
+  expect_zero : Int32,
+) -> Int32 = "lunaflux_device_step_alloc_probe_check"
 
 ///|
 extern "C" fn alloc_probe_abort() = "lunaflux_device_step_alloc_probe_abort"
 
 ///|
-extern "C" fn alloc_probe_seed() -> Int = "lunaflux_device_step_alloc_probe_seed"
+extern "C" fn alloc_probe_seed() -> Int32 = "lunaflux_device_step_alloc_probe_seed"
 
 ///|
 #borrow(value)
-extern "C" fn keep_array_alive(value : FixedArray[Int]) = "lunaflux_device_step_alloc_probe_keep_alive"
+extern "C" fn keep_array_alive(value : FixedArray[Int32]) = "lunaflux_device_step_alloc_probe_keep_alive"
 
 ///|
 extern "C" fn fake_copy_count() -> UInt64 = "lunaflux_device_step_fake_copy_count"
 
 ///|
 struct PositiveControl {
-  value : Int
+  value : Int32
 }
 
 ///|
@@ -144,7 +147,7 @@ fn submitted_plan(
 
 ///|
 fn prepared_plans(
-  count : Int,
+  count : Int32,
   model_plan : @plan.ModelPlan,
 ) -> FixedArray[@worker_protocol.SubmittedSchedulePlan] {
   let page = page_id()

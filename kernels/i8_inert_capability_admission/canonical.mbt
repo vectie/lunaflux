@@ -1,14 +1,14 @@
 ///|
 priv struct I8CanonicalWriter {
   output : Array[Byte]
-  maximum : Int
-  expected : Int
+  maximum : Int32
+  expected : Int32
 }
 
 ///|
 fn I8CanonicalWriter::new(
-  maximum : Int,
-  expected : Int,
+  maximum : Int32,
+  expected : Int32,
 ) -> I8CanonicalWriter raise I8InertKernelCapabilityAdmissionError {
   if expected < 0 || expected > maximum {
     raise I8InertKernelCapabilityRejected(CanonicalBytes)
@@ -19,7 +19,7 @@ fn I8CanonicalWriter::new(
 ///|
 fn I8CanonicalWriter::reserve(
   self : I8CanonicalWriter,
-  additional : Int,
+  additional : Int32,
 ) -> Unit raise I8InertKernelCapabilityAdmissionError {
   let current = self.output.length()
   if additional < 0 ||
@@ -54,7 +54,7 @@ fn I8CanonicalWriter::append_i64(
 ///|
 fn I8CanonicalWriter::append_int(
   self : I8CanonicalWriter,
-  value : Int,
+  value : Int32,
 ) -> Unit raise I8InertKernelCapabilityAdmissionError {
   self.append_i64(Int64::from_int(value))
 }
@@ -65,7 +65,7 @@ fn i8_admission_is_lower_sha256(value : String) -> Bool {
     return false
   }
   for character in value {
-    if !(character is ('0'..='9') || character is ('a'..='f')) {
+    if !(character is ('0'..<='9') || character is ('a'..<='f')) {
       return false
     }
   }
@@ -94,7 +94,7 @@ fn I8CanonicalWriter::append_sha256_text(
 fn I8CanonicalWriter::append_shape(
   self : I8CanonicalWriter,
   shape : @numeric_contract.NumericShape,
-  expected_rank : Int,
+  expected_rank : Int32,
 ) -> Unit raise I8InertKernelCapabilityAdmissionError {
   if shape.rank() != expected_rank {
     raise I8InertKernelCapabilityRejected(CanonicalBytes)
@@ -128,7 +128,7 @@ fn I8CanonicalWriter::finish(
 }
 
 ///|
-fn i8_operation_kind_identity(kind : @plan.OperationKind) -> Int {
+fn i8_operation_kind_identity(kind : @plan.OperationKind) -> Int32 {
   match kind {
     QkvProjection => 1
     OutputProjection => 2
@@ -146,8 +146,8 @@ fn encode_i8_inert_kernel_capability_admission(
   target : @catalog.DeviceTarget,
   catalog_version : @catalog.CatalogVersion,
   operations : ReadOnlyArray[I8InertOperationEvidence],
-  maximum : Int,
-  expected : Int,
+  maximum : Int32,
+  expected : Int32,
 ) -> Bytes raise I8InertKernelCapabilityAdmissionError {
   let mut weight_count = 0
   for operation in operations {

@@ -1,8 +1,8 @@
 ///|
 fn write_fp8_test_u32(
   destination : FixedArray[Byte],
-  offset : Int,
-  bits : UInt,
+  offset : Int32,
+  bits : UInt32,
 ) -> Unit {
   destination[offset] = (bits & 0xffU).to_byte()
   destination[offset + 1] = ((bits >> 8) & 0xffU).to_byte()
@@ -21,7 +21,7 @@ test "scale publication admits every independent finite-positive stage" {
 
 ///|
 test "canonical sentinel and every nonfinite or nonpositive scale reject" {
-  let hostile : Array[UInt] = [
+  let hostile : Array[UInt32] = [
     0x7fc00000U, 0x7f800000U, 0xff800000U, 0x00000000U, 0x80000000U, 0xbf800000U,
   ]
   for bits in hostile {

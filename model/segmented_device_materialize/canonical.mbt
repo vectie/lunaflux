@@ -14,7 +14,7 @@ fn canonical_layout_digest(
   alignment_bytes : Int64,
   device_arena_bytes : Int64,
   materialized_bytes : Int64,
-  source_arena_lengths : ReadOnlyArray[Int],
+  source_arena_lengths : ReadOnlyArray[Int32],
   regions : ReadOnlyArray[SegmentedDeviceTensorRegion],
 ) -> SegmentedDeviceLayoutDigest {
   let hash = @crypto.SHA256::new()

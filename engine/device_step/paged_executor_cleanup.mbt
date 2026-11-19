@@ -10,8 +10,8 @@ fn remember_paged_failure(
 
 ///|
 fn run_reverse_paged_executor_close(
-  count : Int,
-  close_one : (Int) -> Unit,
+  count : Int32,
+  close_one : (Int32) -> Unit,
 ) -> Unit {
   for index = count - 1; index >= 0; index = index - 1 {
     close_one(index)

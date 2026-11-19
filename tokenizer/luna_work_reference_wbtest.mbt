@@ -1,14 +1,14 @@
 ///|
 struct LunaReferenceMerge {
-  rank : Int
-  result_token_id : Int
+  rank : Int32
+  result_token_id : Int32
 }
 
 ///|
 fn reference_merge_for(
   spec : TokenizerSpec,
-  left : Int,
-  right : Int,
+  left : Int32,
+  right : Int32,
 ) -> LunaReferenceMerge? {
   for rank in 0..<spec.merge_count {
     if spec.merge_left_ids[rank] == left && spec.merge_right_ids[rank] == right {
@@ -22,14 +22,14 @@ fn reference_merge_for(
 fn reference_encode_ordinary_range(
   spec : TokenizerSpec,
   input : Bytes,
-  start : Int,
-  end : Int,
-  output : Array[Int],
+  start : Int32,
+  end : Int32,
+  output : Array[Int32],
 ) -> Unit {
   if start == end {
     return
   }
-  let symbols : Array[Int] = Array(capacity=end - start)
+  let symbols : Array[Int32] = Array(capacity=end - start)
   for offset in start..<end {
     symbols.push(spec.byte_token_ids[input[offset].to_int()])
   }
@@ -52,7 +52,7 @@ fn reference_encode_ordinary_range(
       break
     }
     let selected = reference_merge_for(spec, selected_left, selected_right).unwrap()
-    let merged : Array[Int] = Array(capacity=symbols.length())
+    let merged : Array[Int32] = Array(capacity=symbols.length())
     let mut index = 0
     while index < symbols.length() {
       if index + 1 < symbols.length() &&
@@ -72,7 +72,11 @@ fn reference_encode_ordinary_range(
 }
 
 ///|
-fn reference_bytes_match_at(input : Bytes, offset : Int, piece : Bytes) -> Bool {
+fn reference_bytes_match_at(
+  input : Bytes,
+  offset : Int32,
+  piece : Bytes,
+) -> Bool {
   if piece.length() > input.length() - offset {
     return false
   }
@@ -88,7 +92,7 @@ fn reference_bytes_match_at(input : Bytes, offset : Int, piece : Bytes) -> Bool 
 fn reference_special_at(
   spec : TokenizerSpec,
   input : Bytes,
-  offset : Int,
+  offset : Int32,
 ) -> StoredToken? {
   let mut best : StoredToken? = None
   for candidate in spec.special_tokens {
@@ -114,7 +118,7 @@ fn reference_encode_bytes(
   spec : TokenizerSpec,
   input : Bytes,
   special_policy : SpecialTokenPolicy,
-  output_limit : Int,
+  output_limit : Int32,
   truncation : TruncationPolicy,
 ) -> EncodeResult raise TokenizerError {
   if output_limit <= 0 || output_limit > spec.limits.max_output_tokens {
@@ -129,7 +133,7 @@ fn reference_encode_bytes(
       maximum=spec.limits.max_input_bytes,
     )
   }
-  let token_ids : Array[Int] = []
+  let token_ids : Array[Int32] = []
   if special_policy is AsOrdinary || spec.special_tokens.is_empty() {
     reference_encode_ordinary_range(spec, input, 0, input.length(), token_ids)
   } else {
@@ -178,7 +182,7 @@ test "Luna tokenizer work matches frozen reference over deterministic vectors" {
   let alphabet : FixedArray[Byte] = [
     b'a', b'b', b'c', b'd', b'h', b'e', b'l', b'o', b'<', b'>', b's', b'!',
   ]
-  let budgets : FixedArray[Int] = [1, 17, 65536]
+  let budgets : FixedArray[Int32] = [1, 17, 65536]
   let mut state = 23
   for case_index in 0..<96 {
     state = (state * 73 + 41) % 65521

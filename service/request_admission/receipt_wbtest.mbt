@@ -7,8 +7,8 @@ fn receiver_limits() -> @framed_wire.FramedWireLimits raise {
 fn IncrementalRequestReceiver::append_with_clock(
   self : IncrementalRequestReceiver,
   source : FixedArray[Byte],
-  source_offset : Int,
-  length : Int,
+  source_offset : Int32,
+  length : Int32,
   read_clock : () -> UInt64 raise RequestAdmissionError,
 ) -> Unit raise RequestAdmissionError {
   if !self.preflight_append(source, source_offset, length) {
@@ -26,9 +26,9 @@ fn IncrementalRequestReceiver::append_with_clock(
 fn feed_received_range(
   receiver : IncrementalRequestReceiver,
   source : FixedArray[Byte],
-  start : Int,
-  end : Int,
-  reads : Ref[Int],
+  start : Int32,
+  end : Int32,
+  reads : Ref[Int32],
   at_millis : UInt64,
 ) -> Unit raise RequestAdmissionError {
   let mut cursor = start

@@ -4,7 +4,7 @@
 /// BF16 `[rows,hidden_size]`. One 256-thread block owns each row.
 pub fn rms_norm_bf16_fixed_rows_source(
   rows~ : Int64,
-  hidden_size~ : Int,
+  hidden_size~ : Int32,
   epsilon~ : Double,
   function_symbol~ : String,
 ) -> DecoderFoundationCudaSource raise DecoderFoundationCudaSourceError {

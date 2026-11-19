@@ -79,7 +79,7 @@ pub fn DeepSeekActivationEdge::prepare(
 pub fn DeepSeekActivationEdge::begin(
   self : Self,
   epoch~ : UInt64,
-  live_rows~ : Int,
+  live_rows~ : Int32,
   local_now_millis~ : UInt64,
 ) -> Unit raise {
   guard self.prepared &&

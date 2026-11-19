@@ -3,9 +3,9 @@
 /// renders the shared physical map and does not retain this helper.
 fn CudaProjectionTransportLayout::offset(
   self : CudaProjectionTransportLayout,
-  row : Int,
-  column : Int,
-) -> Int {
+  row : Int32,
+  column : Int32,
+) -> Int32 {
   self.plan().offset(row, column).unwrap()
 }
 
@@ -63,7 +63,7 @@ test "transport layout preserves producer vectors and consumer banks" {
 
 ///|
 test "transport result permutation separates packed stores and coalesced reads" {
-  fn result_offset(row : Int, column : Int) -> Int {
+  fn result_offset(row : Int32, column : Int32) -> Int32 {
     let r = row % 8
     let bank = (r * 4) ^ (r % 2 * 8) ^ (column / 2) ^ (column % 2 * 16)
     row / 8 * 128 + (column / 8 + column % 2 * 2) * 32 + bank

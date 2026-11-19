@@ -44,7 +44,7 @@ pub fn inspect_paged_file(
   alignment_bytes~ : Int64,
   max_arena_bytes~ : Int64,
   expected_route_manifest_sha256~ : StringView,
-  batch? : @qwen3.Qwen3PagedBatchEnvelope = @qwen3.Qwen3PagedBatchEnvelope::single_row(),
+  batch~ : @qwen3.Qwen3PagedBatchEnvelope = @qwen3.Qwen3PagedBatchEnvelope::single_row(),
 ) -> Qwen3WeightFileInspection raise Qwen3WeightsError {
   if !metadata.spec().tied_embeddings() {
     raise Mismatch(TiedOutput)

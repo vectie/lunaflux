@@ -46,7 +46,7 @@ fn openai_responses_validate_usage(
 ///|
 fn OpenAIResponsesTrialObserver::observe_created(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   root : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -68,7 +68,7 @@ fn OpenAIResponsesTrialObserver::observe_created(
 ///|
 fn OpenAIResponsesTrialObserver::observe_delta(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   root : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -99,7 +99,7 @@ fn OpenAIResponsesTrialObserver::observe_delta(
 ///|
 fn OpenAIResponsesTrialObserver::observe_usage(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   root : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -121,7 +121,7 @@ fn OpenAIResponsesTrialObserver::observe_usage(
 ///|
 fn OpenAIResponsesTrialObserver::observe_completed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   root : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -160,7 +160,7 @@ fn OpenAIResponsesTrialObserver::observe_completed(
 ///|
 fn OpenAIResponsesTrialObserver::observe_failed(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   root : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -207,7 +207,7 @@ fn OpenAIResponsesTrialObserver::observe_failed(
 ///|
 fn OpenAIResponsesTrialObserver::observe_auxiliary(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   root : Map[String, Json],
 ) -> Unit raise OpenAIBaselineAdapterError {
   let lane = self.lanes[request_ordinal]
@@ -242,7 +242,7 @@ fn OpenAIResponsesTrialObserver::observe_auxiliary(
 ///|
 fn OpenAIResponsesTrialObserver::observe_json_event(
   self : OpenAIResponsesTrialObserver,
-  request_ordinal : Int,
+  request_ordinal : Int32,
   document : StringView,
   declared_event : String?,
 ) -> Unit raise OpenAIBaselineAdapterError {

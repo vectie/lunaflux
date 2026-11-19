@@ -29,7 +29,7 @@ fn LunaOnlineFramedService::route_sequence_for_ticket(
 }
 
 ///|
-fn luna_online_event_kind(kind : @luna_event.LunaEventKind) -> Int {
+fn luna_online_event_kind(kind : @luna_event.LunaEventKind) -> Int32 {
   match kind {
     LunaAcceptedEventKind => 1
     LunaTokenEventKind => 2
@@ -59,7 +59,7 @@ fn LunaOnlineFramedService::begin_stall_deadline(
 ///|
 fn LunaOnlineFramedService::stall_expired(
   self : LunaOnlineFramedService,
-) -> Int {
+) -> Int32 {
   if !self.stall_active {
     return 0
   }
@@ -74,7 +74,7 @@ fn LunaOnlineFramedService::stall_expired(
 ///|
 fn LunaOnlineFramedService::stall_remaining_millis(
   self : LunaOnlineFramedService,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   let maximum = self.inference.max_deadline_millis()
   if maximum == 0UL || maximum > 0x7fffffffUL {
     raise luna_coordinator_error(LunaOnlineFramedClock)
@@ -103,7 +103,7 @@ fn LunaOnlineFramedService::stall_remaining_millis(
 /// receipt or output-stall ownership again. It exposes no absolute timestamp.
 fn LunaOnlineFramedService::stream_transport_wait_remaining_millis(
   self : LunaOnlineFramedService,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   if self.closed {
     return 0
   }
@@ -115,7 +115,7 @@ fn LunaOnlineFramedService::stream_transport_wait_remaining_millis(
         ClockUnavailable => raise luna_coordinator_error(LunaOnlineFramedClock)
         _ => raise luna_coordinator_error(LunaOnlineFramedPreparation)
       }
-    remaining = Int::min(remaining, receipt)
+    remaining = Int32::min(remaining, receipt)
   }
   remaining
 }
@@ -183,7 +183,7 @@ fn LunaOnlineFramedService::begin_output_disconnect(
 ///|
 fn LunaOnlineFramedService::enforce_output_stall(
   self : LunaOnlineFramedService,
-) -> Int {
+) -> Int32 {
   let status = self.stall_expired()
   if status == 0 {
     return 0
@@ -375,7 +375,7 @@ fn LunaOnlineFramedService::progress_outbound_event(
 ///|
 fn LunaOnlineFramedService::stream_framed_event_remaining(
   self : LunaOnlineFramedService,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   if self.stream_mode != 1 {
     raise luna_coordinator_error(LunaOnlineFramedOwnership)
   }
@@ -392,8 +392,8 @@ fn LunaOnlineFramedService::stream_framed_event_remaining(
 fn LunaOnlineFramedService::stream_copy_framed_event_chunk_to(
   self : LunaOnlineFramedService,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-  maximum_length~ : Int,
+  destination_offset~ : Int32,
+  maximum_length~ : Int32,
 ) -> LunaOnlineFramedEventOffer raise LunaOnlineFramedCoordinatorError {
   if self.stream_mode != 1 {
     raise luna_coordinator_error(LunaOnlineFramedOwnership)
@@ -414,8 +414,8 @@ fn LunaOnlineFramedService::stream_copy_framed_event_chunk_to(
     }
     raise luna_coordinator_error(LunaOnlineFramedOwnership)
   }
-  let amount = Int::min(
-    Int::min(maximum_length, self.event_copy_quantum),
+  let amount = Int32::min(
+    Int32::min(maximum_length, self.event_copy_quantum),
     remaining,
   )
   ignore(
@@ -462,7 +462,7 @@ fn LunaOnlineFramedEventOffer::require_owner(
 ///|
 pub fn LunaOnlineFramedEventOffer::length(
   self : LunaOnlineFramedEventOffer,
-) -> Int raise LunaOnlineFramedCoordinatorError {
+) -> Int32 raise LunaOnlineFramedCoordinatorError {
   ignore(self.require_owner())
   self.length
 }
@@ -470,7 +470,7 @@ pub fn LunaOnlineFramedEventOffer::length(
 ///|
 pub fn LunaOnlineFramedEventOffer::confirm(
   self : LunaOnlineFramedEventOffer,
-  length~ : Int,
+  length~ : Int32,
 ) -> LunaOnlineFramedCoordinatorProgress raise LunaOnlineFramedCoordinatorError {
   let owner = self.require_owner()
   if owner.enforce_output_stall() != 0 {

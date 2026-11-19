@@ -1,7 +1,7 @@
 ///|
 fn sparse_attention_ordinal(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, item in requirements.requirements() {
     if item.operation() is DsaSparseAttention(_, _, _, _) {
       return ordinal

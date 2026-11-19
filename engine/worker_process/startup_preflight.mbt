@@ -2,9 +2,9 @@
 fn perform_startup_handshake_status(
   child : @process.ChildProcess,
   source : @worker_wire.EncodedBootstrapSource,
-  startup_io_timeout_millis : Int,
+  startup_io_timeout_millis : Int32,
   prepared : PreparedWorkerProcessStartup,
-) -> Int {
+) -> Int32 {
   let configure_status = child.startup_write_frame_status(
     prepared.startup_outgoing,
     prepared.startup_outgoing_length,

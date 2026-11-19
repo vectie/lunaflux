@@ -4,12 +4,12 @@
 /// compiler's bounded fragment lifetime plan, not a model-specific policy.
 fn projection_fragment_pipeline_source(
   program : @physical_tile_ir.FragmentProgram,
-  products : ReadOnlyArray[(Int, String)],
-  row_origin? : String = "row_begin",
-  row_owner? : String = "consumer_row",
-  row_limit? : String = "pipeline_rows",
-  column_owner? : String = "consumer_column",
-  weight_displacement? : String = "0",
+  products : ReadOnlyArray[(Int32, String)],
+  row_origin~ : String = "row_begin",
+  row_owner~ : String = "consumer_row",
+  row_limit~ : String = "pipeline_rows",
+  column_owner~ : String = "consumer_column",
+  weight_displacement~ : String = "0",
 ) -> String {
   let (rows, columns, width, quantum, stages) = program.geometry()
   guard quantum == 16 && columns == products.length() else {

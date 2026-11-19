@@ -73,7 +73,7 @@ fn logical_parameter_shape(
 ///|
 fn quantized_storage_and_shape(
   weights : DeepSeekV4HostWeights,
-  tensor_index : Int,
+  tensor_index : Int32,
   tensor : DeepSeekV4HostTensor,
 ) -> (
   @deepseek_v4_numeric_plan.DeepSeekV4LogicalStorage,
@@ -140,7 +140,7 @@ fn quantized_storage_and_shape(
 ///|
 pub fn DeepSeekV4HostWeights::quantized_payload_contract(
   self : Self,
-  tensor_index : Int,
+  tensor_index : Int32,
   limits~ : @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadLimits,
 ) -> @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadContract raise DeepSeekV4HostMaterializationError {
   let tensor = self.tensor(tensor_index)

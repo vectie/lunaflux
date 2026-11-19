@@ -3,11 +3,11 @@
 /// law. Each row/inner computes gate/up once into a shared product frame;
 /// down columns consume that frame instead of repeating the gate/up fold.
 pub fn staged_separate_swiglu_bf16_source(
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
-  maximum_rows~ : Int,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
+  maximum_rows~ : Int32,
   function_prefix~ : String,
-  publication? : @precision.ProjectionPublication = LocalBFloat16,
+  publication~ : @precision.ProjectionPublication = LocalBFloat16,
 ) -> Bytes raise GatedMlpCudaSourceError {
   guard hidden_size > 0 && intermediate_size > 0 else { raise InvalidWidth }
   guard maximum_rows > 0 else { raise InvalidRowCount }

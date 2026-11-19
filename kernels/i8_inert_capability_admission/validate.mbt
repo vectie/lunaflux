@@ -104,7 +104,7 @@ fn validate_i8_weight_reference(
 fn count_i8_weight_references(
   plan : @plan.ModelPlan,
   operation : @plan.PlanOperation,
-) -> Int raise I8InertKernelCapabilityAdmissionError {
+) -> Int32 raise I8InertKernelCapabilityAdmissionError {
   let mut count = 0
   for input in operation.inputs() {
     match input {

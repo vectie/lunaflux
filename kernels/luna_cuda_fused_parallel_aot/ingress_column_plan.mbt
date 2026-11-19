@@ -38,12 +38,12 @@ fn qwen_default_ingress_policy(
 
 ///|
 fn qwen_ingress_policy(
-  live : Int,
-  stages : Int,
-  tiles : Int,
-  fragments : Int,
-  rows? : Int = 1,
-  heads? : Int = 1,
+  live : Int32,
+  stages : Int32,
+  tiles : Int32,
+  fragments : Int32,
+  rows~ : Int32 = 1,
+  heads~ : Int32 = 1,
 ) -> @resource_policy.Policy {
   @resource_policy.Policy::new(
     id="ingress-g4-a\{live}-s\{stages}-t\{tiles}-f\{fragments}" +
@@ -64,7 +64,7 @@ fn qwen_ingress_policy(
 /// CUDA kernel's 128-thread ABI; accumulator windows are independently legal.
 pub fn qwen_ingress_policies(
   compilation : @luna_projection_tile_compiler.ScheduledProjectionTileCompilation,
-  maximum_shared_bytes? : Int64 = 49152L,
+  maximum_shared_bytes~ : Int64 = 49152L,
 ) -> ReadOnlyArray[@resource_policy.Policy] {
   guard compilation.schedule().fuses_attention_ingress_epilogue() else {
     return []
@@ -88,7 +88,7 @@ pub fn qwen_ingress_policies(
             continue
           }
           let row_width = rows.to_int64() * pipeline.tile_width().to_int64()
-          for fragments in 1..<=Int::min(2, tiles) {
+          for fragments in 1..<=Int32::min(2, tiles) {
             for live in [1, 2, 4, 8] {
               let rounds = (head.to_int() * heads / pipeline.tile_width() + 3) /
                 4
@@ -200,7 +200,7 @@ pub fn FusedQwenQkvQkNormRopeKvWriteProductionCudaCandidate::resource_candidate(
 /// count. Register/residency limits must be supplied with target observations;
 /// this default imposes neither and does not claim a measured register count.
 pub fn qwen_ingress_resource_budget(
-  maximum_shared_bytes? : Int64 = 49152L,
+  maximum_shared_bytes~ : Int64 = 49152L,
 ) -> @resource_policy.ResourceBudget {
   @resource_policy.ResourceBudget::new(
     max_threads=FUSED_PARALLEL_THREADS,

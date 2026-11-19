@@ -22,7 +22,7 @@ pub fn JointDiffusionFinalAdaLnF32CudaCandidate::requirements_digest(
 ///|
 pub fn JointDiffusionFinalAdaLnF32CudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -64,7 +64,7 @@ pub fn JointDiffusionFinalAdaLnF32CudaCandidate::row_count(
 ///|
 pub fn JointDiffusionFinalAdaLnF32CudaCandidate::hidden_size(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.hidden_size
 }
 

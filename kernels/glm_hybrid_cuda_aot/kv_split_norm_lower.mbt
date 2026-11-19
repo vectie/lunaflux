@@ -1,7 +1,7 @@
 ///|
 fn unique_kv_a_split_geometry(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-) -> (Int, Int)? {
+) -> (Int32, Int32)? {
   let mut found = None
   for item in requirements.requirements() {
     if item.operation() is DsaKeyValueAProjection(_, prefix, suffix) {
@@ -17,10 +17,10 @@ fn unique_kv_a_split_geometry(
 ///|
 fn kv_split_norm_recipe(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  ordinal : Int,
-  prefix_width : Int,
-  suffix_width : Int,
-  maximum_tokens : Int,
+  ordinal : Int32,
+  prefix_width : Int32,
+  suffix_width : Int32,
+  maximum_tokens : Int32,
   source_digest : GlmHybridCudaSourceDigest,
 ) -> Bytes {
   @utf8.encode(
@@ -56,8 +56,8 @@ fn kv_split_norm_recipe(
 ///|
 pub fn lower_dsa_key_value_split_norm_cuda_aot_candidate(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : GlmHybridCudaAotLimits,

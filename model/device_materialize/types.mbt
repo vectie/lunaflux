@@ -108,7 +108,7 @@ pub fn DeviceWeightLayout::materialized_bytes(
 }
 
 ///|
-pub fn DeviceWeightLayout::length(self : DeviceWeightLayout) -> Int {
+pub fn DeviceWeightLayout::length(self : DeviceWeightLayout) -> Int32 {
   self.regions.length()
 }
 

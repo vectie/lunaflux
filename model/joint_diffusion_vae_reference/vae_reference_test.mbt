@@ -5,7 +5,7 @@ fn vae_content(seed : Char) -> @spec.ContentDigest {
 
 ///|
 fn tiny_vae_plan(
-  seed? : Char = '1',
+  seed~ : Char = '1',
 ) -> @joint_diffusion_plan.JointDiffusionPlan {
   try! @joint_diffusion_plan.JointDiffusionPlan::new(
     schema_version=1,
@@ -108,10 +108,10 @@ fn tiny_vae_request(
 
 ///|
 fn vae_limits(
-  maximum_video_latent_elements? : Int64 = 10000000L,
-  maximum_video_output_sites? : Int64 = 1000000000L,
-  maximum_audio_latent_elements? : Int64 = 10000000L,
-  maximum_audio_output_elements? : Int64 = 10000000L,
+  maximum_video_latent_elements~ : Int64 = 10000000L,
+  maximum_video_output_sites~ : Int64 = 1000000000L,
+  maximum_audio_latent_elements~ : Int64 = 10000000L,
+  maximum_audio_output_elements~ : Int64 = 10000000L,
 ) -> JointVaeDecodeReferenceLimits {
   try! JointVaeDecodeReferenceLimits::new(
     maximum_video_latent_elements~,

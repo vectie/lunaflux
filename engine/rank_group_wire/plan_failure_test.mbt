@@ -1,6 +1,6 @@
 ///|
 fn exercise_differential_plan_failure(
-  reporting_rank : Int,
+  reporting_rank : Int32,
   failure : @rank_group_wire.RankGroupWirePlanFailure,
 ) -> Unit raise {
   let rig = ready_differential_rig()

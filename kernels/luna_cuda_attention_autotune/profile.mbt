@@ -3,8 +3,8 @@
 /// toolchain identities remain part of measured resource scopes. In
 /// particular, this namespace never replays a named board's historic timings.
 pub fn cuda_architecture_target(
-  major : Int,
-  minor : Int,
+  major : Int32,
+  minor : Int32,
 ) -> @luna_attention_strategy.AttentionTargetId raise {
   guard major > 0 && minor >= 0 && minor <= 9 else {
     raise Failure("invalid CUDA architecture")
@@ -32,7 +32,7 @@ pub fn cuda_sm120_rtx5060ti_target() -> @luna_attention_strategy.AttentionTarget
 ///|
 fn exact_candidate(
   candidates : ReadOnlyArray[@luna_attention_strategy.AttentionTileCandidate],
-  stable_id : Int,
+  stable_id : Int32,
 ) -> @luna_attention_strategy.AttentionTileCandidate raise {
   guard candidates.filter(candidate => candidate.stable_id() == stable_id)
     is [candidate] else {
@@ -61,7 +61,7 @@ pub fn cuda_sm120_rtx5060ti_prefill_records(
   let candidates = @luna_attention_strategy.generate_attention_tile_candidates(
     problem, capabilities,
   )
-  let measured : Array[(Int, Int64)] = [
+  let measured : Array[(Int32, Int64)] = [
     (290, 56506L),
     (291, 106508L),
     (300, 67645L),

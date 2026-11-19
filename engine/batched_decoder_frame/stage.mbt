@@ -1,5 +1,5 @@
 ///|
-fn BatchedDecoderFrame::find_live(self : Self, id : UInt64) -> Int {
+fn BatchedDecoderFrame::find_live(self : Self, id : UInt64) -> Int32 {
   for slot in 0..<self.slots {
     if self.live[slot] && self.ids[slot] == id {
       return slot
@@ -11,12 +11,12 @@ fn BatchedDecoderFrame::find_live(self : Self, id : UInt64) -> Int {
 ///|
 fn BatchedDecoderFrame::reserve_entry(
   self : Self,
-  entry : Int,
+  entry : Int32,
   id : UInt64,
   generation : UInt64,
-  position : Int,
-  start : Int,
-  rows : Int,
+  position : Int32,
+  start : Int32,
+  rows : Int32,
   prefill : Bool,
   output : Bool,
 ) -> Unit raise BatchFrameError {
@@ -173,10 +173,10 @@ pub fn BatchedDecoderFrame::stage(
 fn BatchedDecoderFrame::stage_pages(
   self : Self,
   frame : @wire.ValidatedPlanFrame,
-  entry : Int,
-  start : Int,
-  length : Int,
-  tokens : Int,
+  entry : Int32,
+  start : Int32,
+  length : Int32,
+  tokens : Int32,
 ) -> Unit raise {
   store_i32(self.inputs[12], entry, self.active_pages)
   if self.history is Some(domain) {

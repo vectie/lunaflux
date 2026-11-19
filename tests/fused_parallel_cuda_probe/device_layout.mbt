@@ -80,7 +80,7 @@ fn probe_upload(
 fn probe_read_bf16(
   arena : @device.Allocation,
   offset : Int64,
-  elements : Int,
-) -> Array[Int] raise {
+  elements : Int32,
+) -> Array[Int32] raise {
   probe_bf16_bits(arena.copy_to_host(offset, (elements * 2).to_int64()))
 }

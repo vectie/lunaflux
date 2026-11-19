@@ -32,7 +32,7 @@ fn identity(
   plan_digit : String,
   tokenizer_digit : String,
   scope : Bytes,
-  page_size? : Int = 2,
+  page_size~ : Int32 = 2,
 ) -> TestRootIdentity raise {
   {
     model: @spec.ModelIdentity::new(
@@ -48,7 +48,7 @@ fn identity(
 ///|
 fn request_key(
   identity : TestRootIdentity,
-  permission? : @inference.CachePermission = ReadWrite,
+  permission~ : @inference.CachePermission = ReadWrite,
 ) -> (@radix.PrefixRequestKey, @inference.LunaRequestSemanticLease) {
   let storage = try! @inference.LunaRequestSemanticStorage::new(
     inference_limits(),
@@ -83,7 +83,7 @@ fn request_key(
 fn publish_prefix(
   index : @radix.PrefixIndex,
   identity : TestRootIdentity,
-  token_values : ArrayView[Int],
+  token_values : ArrayView[Int32],
   page_values : ArrayView[@page_allocator.PageId],
 ) -> @radix.PrefixEntryId raise @radix.PrefixIndexError {
   let tokens = @radix.PrefixTokenBuffer::new(
@@ -130,7 +130,7 @@ fn publish_prefix(
 fn lookup_prefix(
   index : @radix.PrefixIndex,
   identity : TestRootIdentity,
-  token_values : ArrayView[Int],
+  token_values : ArrayView[Int32],
   output : @radix.PrefixLookupBuffer,
 ) -> Unit raise @radix.PrefixIndexError {
   let tokens = @radix.PrefixTokenBuffer::new(
@@ -167,13 +167,13 @@ fn evict_prefix(
 
 ///|
 fn index_limits(
-  entries? : Int = 8,
-  nodes? : Int = 32,
-  tokens? : Int = 16,
-  pages? : Int = 16,
-  active? : Int = 2,
-  generation? : Int = 100,
-  max_scope? : Int = 256,
+  entries~ : Int32 = 8,
+  nodes~ : Int32 = 32,
+  tokens~ : Int32 = 16,
+  pages~ : Int32 = 16,
+  active~ : Int32 = 2,
+  generation~ : Int32 = 100,
+  max_scope~ : Int32 = 256,
 ) -> @radix.PrefixIndexLimits raise {
   @radix.PrefixIndexLimits::new(
     entry_capacity=entries,
@@ -188,7 +188,7 @@ fn index_limits(
 }
 
 ///|
-fn physical_pages(count : Int) -> Array[@page_allocator.PageId] raise {
+fn physical_pages(count : Int32) -> Array[@page_allocator.PageId] raise {
   let allocator = @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(
       page_capacity=count,

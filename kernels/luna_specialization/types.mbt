@@ -1,9 +1,9 @@
 ///|
-pub struct LunaSpecializedEntryPointId(Int) derive(Debug, Eq, Hash)
+pub struct LunaSpecializedEntryPointId(Int32) derive(Debug, Eq, Hash)
 
 ///|
 pub fn LunaSpecializedEntryPointId::from_stable_int(
-  value : Int,
+  value : Int32,
 ) -> LunaSpecializedEntryPointId raise LunaSpecializationError {
   if value <= 0 {
     raise Invalid(EntryPoint)
@@ -14,7 +14,7 @@ pub fn LunaSpecializedEntryPointId::from_stable_int(
 ///|
 pub fn LunaSpecializedEntryPointId::as_int(
   self : LunaSpecializedEntryPointId,
-) -> Int {
+) -> Int32 {
   self.0
 }
 
@@ -28,7 +28,7 @@ pub(all) enum LunaSpecializedRegionSpace {
 ///|
 pub struct LunaSpecializedRegion {
   priv space : LunaSpecializedRegionSpace
-  priv semantic_id : Int
+  priv semantic_id : Int32
   priv offset_bytes : Int64
   priv byte_length : Int64
   priv alignment_bytes : Int64
@@ -42,7 +42,9 @@ pub fn LunaSpecializedRegion::space(
 }
 
 ///|
-pub fn LunaSpecializedRegion::semantic_id(self : LunaSpecializedRegion) -> Int {
+pub fn LunaSpecializedRegion::semantic_id(
+  self : LunaSpecializedRegion,
+) -> Int32 {
   self.semantic_id
 }
 

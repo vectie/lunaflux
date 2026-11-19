@@ -1,8 +1,8 @@
 ///|
 extern "c" fn raw_test_retryable_lifecycle(
-  cycles : Int,
-  failure_kind : Int,
-) -> Int = "lunaflux_cuda_test_retryable_lifecycle"
+  cycles : Int32,
+  failure_kind : Int32,
+) -> Int32 = "lunaflux_cuda_test_retryable_lifecycle"
 
 ///|
 test "native cleanup remains retryable and retains parents" {
@@ -18,7 +18,7 @@ test "native lifecycle probe bounds adversarial inputs" {
 }
 
 ///|
-extern "c" fn raw_test_primary_lifecycle() -> Int = "lunaflux_cuda_test_primary_lifecycle"
+extern "c" fn raw_test_primary_lifecycle() -> Int32 = "lunaflux_cuda_test_primary_lifecycle"
 
 ///|
 test "runtime interoperable context releases a lease without reset or destroy" {

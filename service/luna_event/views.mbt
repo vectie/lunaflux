@@ -17,8 +17,8 @@ fn luna_authenticate_view(
 fn luna_copy_payload(
   owner : LunaEventOwner,
   destination : FixedArray[Byte],
-  destination_offset : Int,
-) -> Int raise LunaEventError {
+  destination_offset : Int32,
+) -> Int32 raise LunaEventError {
   let length = owner.payload_length
   if destination_offset < 0 ||
     destination_offset > destination.length() - length {
@@ -123,7 +123,7 @@ fn luna_digest_byte_at(
   owner : LunaEventOwner,
   epoch : UInt64,
   content : Bool,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaEventError {
   let authenticated = luna_authenticate_view(
     owner,
@@ -148,7 +148,7 @@ fn luna_digest_byte_at(
 ///|
 pub fn LunaAcceptedEventView::content_digest_byte_at(
   self : LunaAcceptedEventView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaEventError {
   luna_digest_byte_at(self.owner, self.epoch, true, index)
 }
@@ -156,7 +156,7 @@ pub fn LunaAcceptedEventView::content_digest_byte_at(
 ///|
 pub fn LunaAcceptedEventView::plan_digest_byte_at(
   self : LunaAcceptedEventView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaEventError {
   luna_digest_byte_at(self.owner, self.epoch, false, index)
 }
@@ -164,28 +164,28 @@ pub fn LunaAcceptedEventView::plan_digest_byte_at(
 ///|
 pub fn LunaTokenEventView::token_id(
   self : LunaTokenEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot).token_id
 }
 
 ///|
 pub fn LunaTokenEventView::position(
   self : LunaTokenEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot).position
 }
 
 ///|
 pub fn LunaTokenEventView::delta_length(
   self : LunaTokenEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot).payload_length
 }
 
 ///|
 pub fn LunaTokenEventView::delta_byte_at(
   self : LunaTokenEventView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaEventError {
   let owner = luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot)
   if index < 0 || index >= owner.payload_length {
@@ -198,8 +198,8 @@ pub fn LunaTokenEventView::delta_byte_at(
 pub fn LunaTokenEventView::copy_delta_to(
   self : LunaTokenEventView,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise LunaEventError {
+  destination_offset~ : Int32,
+) -> Int32 raise LunaEventError {
   luna_copy_payload(
     luna_authenticate_view(self.owner, self.epoch, LunaTokenEventSlot),
     destination,
@@ -210,28 +210,28 @@ pub fn LunaTokenEventView::copy_delta_to(
 ///|
 pub fn LunaUsageEventView::input_tokens(
   self : LunaUsageEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaUsageEventSlot).input_tokens
 }
 
 ///|
 pub fn LunaUsageEventView::cached_input_tokens(
   self : LunaUsageEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaUsageEventSlot).cached_input_tokens
 }
 
 ///|
 pub fn LunaUsageEventView::output_tokens(
   self : LunaUsageEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaUsageEventSlot).output_tokens
 }
 
 ///|
 pub fn LunaUsageEventView::total_tokens(
   self : LunaUsageEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   let owner = luna_authenticate_view(self.owner, self.epoch, LunaUsageEventSlot)
   owner.input_tokens + owner.output_tokens
 }
@@ -246,28 +246,28 @@ pub fn LunaCompletedEventView::finish_reason(
 ///|
 pub fn LunaCompletedEventView::input_tokens(
   self : LunaCompletedEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaCompletedEventSlot).input_tokens
 }
 
 ///|
 pub fn LunaCompletedEventView::cached_input_tokens(
   self : LunaCompletedEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaCompletedEventSlot).cached_input_tokens
 }
 
 ///|
 pub fn LunaCompletedEventView::output_tokens(
   self : LunaCompletedEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaCompletedEventSlot).output_tokens
 }
 
 ///|
 pub fn LunaCompletedEventView::total_tokens(
   self : LunaCompletedEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   let owner = luna_authenticate_view(
     self.owner,
     self.epoch,
@@ -279,14 +279,14 @@ pub fn LunaCompletedEventView::total_tokens(
 ///|
 pub fn LunaCompletedEventView::final_delta_length(
   self : LunaCompletedEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaCompletedEventSlot).payload_length
 }
 
 ///|
 pub fn LunaCompletedEventView::final_delta_byte_at(
   self : LunaCompletedEventView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaEventError {
   let owner = luna_authenticate_view(
     self.owner,
@@ -303,8 +303,8 @@ pub fn LunaCompletedEventView::final_delta_byte_at(
 pub fn LunaCompletedEventView::copy_final_delta_to(
   self : LunaCompletedEventView,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise LunaEventError {
+  destination_offset~ : Int32,
+) -> Int32 raise LunaEventError {
   luna_copy_payload(
     luna_authenticate_view(self.owner, self.epoch, LunaCompletedEventSlot),
     destination,
@@ -322,14 +322,14 @@ pub fn LunaFailedEventView::retryable(
 ///|
 pub fn LunaFailedEventView::code_length(
   self : LunaFailedEventView,
-) -> Int raise LunaEventError {
+) -> Int32 raise LunaEventError {
   luna_authenticate_view(self.owner, self.epoch, LunaFailedEventSlot).payload_length
 }
 
 ///|
 pub fn LunaFailedEventView::code_byte_at(
   self : LunaFailedEventView,
-  index : Int,
+  index : Int32,
 ) -> Byte raise LunaEventError {
   let owner = luna_authenticate_view(
     self.owner,
@@ -346,8 +346,8 @@ pub fn LunaFailedEventView::code_byte_at(
 pub fn LunaFailedEventView::copy_code_to(
   self : LunaFailedEventView,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
-) -> Int raise LunaEventError {
+  destination_offset~ : Int32,
+) -> Int32 raise LunaEventError {
   luna_copy_payload(
     luna_authenticate_view(self.owner, self.epoch, LunaFailedEventSlot),
     destination,

@@ -3,9 +3,9 @@
 /// Query projection uses block-128 E4M3/UE8M0; head projection and scaling
 /// publish BF16. Rotary/Hadamard/E2M1 semantics remain a composed pure plan.
 pub struct LearnedIndexQueriesPrecision {
-  priv hidden : Int
-  priv rank : Int
-  priv heads : Int
+  priv hidden : Int32
+  priv rank : Int32
+  priv heads : Int32
   priv transform : RotaryHadamardFp4Precision
   priv query_weight : @format.Representation
   priv frames : ReadOnlyArray[Int64]
@@ -14,9 +14,9 @@ pub struct LearnedIndexQueriesPrecision {
 
 ///|
 pub fn LearnedIndexQueriesPrecision::new(
-  hidden_width~ : Int,
-  query_rank~ : Int,
-  head_count~ : Int,
+  hidden_width~ : Int32,
+  query_rank~ : Int32,
+  head_count~ : Int32,
   transform : RotaryHadamardFp4Precision,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
@@ -64,7 +64,7 @@ pub fn LearnedIndexQueriesPrecision::new(
 ///|
 pub fn LearnedIndexQueriesPrecision::geometry(
   self : Self,
-) -> (Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32) {
   let (_, width, _, rows, _) = self.transform.rotary().geometry()
   (self.hidden, self.rank, self.heads, width, rows)
 }

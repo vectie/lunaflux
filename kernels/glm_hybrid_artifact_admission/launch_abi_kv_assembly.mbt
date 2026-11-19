@@ -1,10 +1,10 @@
 ///|
 fn exact_dsa_kv_attention_assembly_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  head_count : Int,
-  key_nope_width : Int,
-  rope_width : Int,
-  value_width : Int,
+  head_count : Int32,
+  key_nope_width : Int32,
+  rope_width : Int32,
+  value_width : Int32,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {
   if head_count <= 0 ||

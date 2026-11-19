@@ -7,20 +7,20 @@ pub struct BatchedSampling {
   priv prepare : (@wire.ValidatedPlanFrame) -> Unit raise
   priv begin : () -> Unit raise
   priv poll : () -> Bool raise
-  priv token_at : (Int) -> Int raise
+  priv token_at : (Int32) -> Int32 raise
   priv close : () -> Unit raise
-  priv outputs : Int
-  priv vocabulary : Int
+  priv outputs : Int32
+  priv vocabulary : Int32
 }
 
 ///|
 pub fn BatchedSampling::new(
-  maximum_outputs~ : Int,
-  vocabulary_size~ : Int,
+  maximum_outputs~ : Int32,
+  vocabulary_size~ : Int32,
   prepare~ : (@wire.ValidatedPlanFrame) -> Unit raise,
   begin~ : () -> Unit raise,
   poll~ : () -> Bool raise,
-  token_at~ : (Int) -> Int raise,
+  token_at~ : (Int32) -> Int32 raise,
   close~ : () -> Unit raise,
 ) -> Self raise @frame.BatchFrameError {
   guard maximum_outputs > 0 && vocabulary_size > 0 else {

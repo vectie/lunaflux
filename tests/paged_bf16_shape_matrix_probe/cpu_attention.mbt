@@ -1,17 +1,21 @@
 ///|
-fn matrix_cache_index(page : Int, position : Int, component : Int) -> Int {
+fn matrix_cache_index(
+  page : Int32,
+  position : Int32,
+  component : Int32,
+) -> Int32 {
   page * 128 + position % 2 * 2 + component
 }
 
 ///|
 fn matrix_attention_value(
   case : ShapeMatrixCase,
-  qkv : FixedArray[Int],
-  cache : FixedArray[Int],
-  row : Int,
-  key_position : Int,
-  component : Int,
-  qkv_offset : Int,
+  qkv : FixedArray[Int32],
+  cache : FixedArray[Int32],
+  row : Int32,
+  key_position : Int32,
+  component : Int32,
+  qkv_offset : Int32,
 ) -> Float {
   let row_start = case.row_offsets[row]
   let row_end = case.row_offsets[row + 1]
@@ -33,8 +37,8 @@ fn matrix_attention_value(
 ///|
 fn matrix_attention(
   case : ShapeMatrixCase,
-  qkv : FixedArray[Int],
-) -> (FixedArray[Int], FixedArray[Int], FixedArray[Int]) {
+  qkv : FixedArray[Int32],
+) -> (FixedArray[Int32], FixedArray[Int32], FixedArray[Int32]) {
   let keys = matrix_initial_cache(key=true)
   let values = matrix_initial_cache(key=false)
   for token in 0..<case.live_tokens() {

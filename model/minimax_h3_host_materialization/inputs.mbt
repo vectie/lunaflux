@@ -1,13 +1,13 @@
 ///|
 pub fn MiniMaxH3HostMaterializationLimits::new(
-  maximum_shards~ : Int,
-  maximum_tensors~ : Int,
-  maximum_header_bytes~ : Int,
+  maximum_shards~ : Int32,
+  maximum_tensors~ : Int32,
+  maximum_header_bytes~ : Int32,
   maximum_payload_bytes_per_shard~ : Int64,
   maximum_total_host_bytes~ : Int64,
   maximum_arena_bytes~ : Int64,
-  maximum_arenas~ : Int,
-  maximum_name_bytes~ : Int,
+  maximum_arenas~ : Int32,
+  maximum_name_bytes~ : Int32,
 ) -> Self raise MiniMaxH3HostMaterializationError {
   if maximum_shards <= 0 ||
     maximum_shards > 256 ||
@@ -54,7 +54,7 @@ pub fn MiniMaxH3ShardDeclarationInput::new(
 ///|
 pub fn MiniMaxH3TensorIndexInput::new(
   tensor_name~ : String,
-  shard_index~ : Int,
+  shard_index~ : Int32,
 ) -> Self {
   { tensor_name, shard_index, }
 }

@@ -15,22 +15,22 @@ pub(all) enum DecoderKvAssemblyNumericalContract {
 
 ///|
 pub struct DecoderKvAssemblyCudaSource {
-  priv head_count : Int
-  priv key_nope_width : Int
-  priv shared_key_suffix_width : Int
-  priv value_width : Int
-  priv maximum_rows : Int
+  priv head_count : Int32
+  priv key_nope_width : Int32
+  priv shared_key_suffix_width : Int32
+  priv value_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }
 
 ///|
 pub fn decoder_kv_assembly_bf16_source(
-  head_count~ : Int,
-  key_nope_width~ : Int,
-  shared_key_suffix_width~ : Int,
-  value_width~ : Int,
-  maximum_rows~ : Int,
+  head_count~ : Int32,
+  key_nope_width~ : Int32,
+  shared_key_suffix_width~ : Int32,
+  value_width~ : Int32,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> DecoderKvAssemblyCudaSource raise DecoderKvAssemblyCudaSourceError {
   if head_count <= 0 || head_count > 1024 {
@@ -55,8 +55,8 @@ pub fn decoder_kv_assembly_bf16_source(
   }
   if function_symbol.is_empty() ||
     function_symbol.length() > 128 ||
-    !(function_symbol[0] is ('a'..='z' | 'A'..='Z' | '_')) ||
-    !function_symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) {
+    !(function_symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_')) ||
+    !function_symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) {
     raise InvalidFunctionSymbol
   }
   let signature = if shared_key_suffix_width > 0 {
@@ -127,27 +127,29 @@ pub fn decoder_kv_assembly_bf16_source(
 }
 
 ///|
-pub fn DecoderKvAssemblyCudaSource::head_count(self : Self) -> Int {
+pub fn DecoderKvAssemblyCudaSource::head_count(self : Self) -> Int32 {
   self.head_count
 }
 
 ///|
-pub fn DecoderKvAssemblyCudaSource::key_nope_width(self : Self) -> Int {
+pub fn DecoderKvAssemblyCudaSource::key_nope_width(self : Self) -> Int32 {
   self.key_nope_width
 }
 
 ///|
-pub fn DecoderKvAssemblyCudaSource::shared_key_suffix_width(self : Self) -> Int {
+pub fn DecoderKvAssemblyCudaSource::shared_key_suffix_width(
+  self : Self,
+) -> Int32 {
   self.shared_key_suffix_width
 }
 
 ///|
-pub fn DecoderKvAssemblyCudaSource::value_width(self : Self) -> Int {
+pub fn DecoderKvAssemblyCudaSource::value_width(self : Self) -> Int32 {
   self.value_width
 }
 
 ///|
-pub fn DecoderKvAssemblyCudaSource::maximum_rows(self : Self) -> Int {
+pub fn DecoderKvAssemblyCudaSource::maximum_rows(self : Self) -> Int32 {
   self.maximum_rows
 }
 

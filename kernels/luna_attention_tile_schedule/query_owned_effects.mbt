@@ -25,7 +25,7 @@ pub(all) enum AttentionQueryEffect {
   StageFirstValue
   StageFirstPair
   StageCurrentPair
-  AwaitPendingTransfers(Int)
+  AwaitPendingTransfers(Int32)
   PublishWorkgroup
   StageNextPairInOtherSlot
   StageNextKey
@@ -50,7 +50,7 @@ pub struct AttentionQueryEffectPlan {
 /// wait and buffer-reuse order while emitting device source.
 pub fn AttentionQueryEffectPlan::new(
   memory : @luna_attention_strategy.AttentionTileMemory,
-  stages~ : Int,
+  stages~ : Int32,
   readiness~ : AttentionTransferReadiness,
 ) -> AttentionQueryEffectPlan raise AttentionTileScheduleError {
   let lifetime = match (memory, stages, readiness) {

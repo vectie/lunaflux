@@ -4,8 +4,8 @@ const CANONICAL_SEGMENT_ALIGNMENT_BYTES : Int64 = 256L
 ///|
 /// Constructs the physical-page and byte envelope for layout V1.
 pub fn DeviceKvLimits::new(
-  tokens_per_page~ : Int,
-  total_page_count~ : Int,
+  tokens_per_page~ : Int32,
+  total_page_count~ : Int32,
   max_arena_bytes~ : Int64,
 ) -> DeviceKvLimits raise DeviceKvLayoutError {
   if tokens_per_page <= 0 {

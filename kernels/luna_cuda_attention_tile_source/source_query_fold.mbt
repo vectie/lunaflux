@@ -2,7 +2,7 @@
 /// Realize the portable finite product as named scalar state, not an array
 /// indexed by runtime query/warp_count. This makes address-taking impossible
 /// for the carried state without relying on a backend loop-unroll heuristic.
-fn cuda_query_fold_declaration(offsets : ReadOnlyArray[Int]) -> String {
+fn cuda_query_fold_declaration(offsets : ReadOnlyArray[Int32]) -> String {
   offsets
   .iter()
   .map(offset => {
@@ -16,8 +16,8 @@ fn cuda_query_fold_declaration(offsets : ReadOnlyArray[Int]) -> String {
 
 ///|
 fn cuda_query_fold_update(
-  offsets : ReadOnlyArray[Int],
-  score_offsets : ReadOnlyArray[Int],
+  offsets : ReadOnlyArray[Int32],
+  score_offsets : ReadOnlyArray[Int32],
   probability_store : String,
 ) -> String {
   let maximum = StringBuilder()
@@ -66,7 +66,7 @@ fn cuda_query_fold_update(
 }
 
 ///|
-fn cuda_query_fold_store(offsets : ReadOnlyArray[Int]) -> String {
+fn cuda_query_fold_store(offsets : ReadOnlyArray[Int32]) -> String {
   offsets
   .iter()
   .map(offset => {

@@ -5,8 +5,8 @@
 /// The logical tree only requires a positive power-of-two lane count; device
 /// subgroup limits are checked by the lowering, not encoded in this plan.
 pub struct AttentionIngressNumerics {
-  priv head_dimension : Int
-  priv reduction_lanes : Int
+  priv head_dimension : Int32
+  priv reduction_lanes : Int32
   priv norm_epsilon : Float
   priv inverse_frequencies : ReadOnlyArray[Float]
   priv pair_retention : @elementwise_physical_ir.SplitPairRetention?
@@ -15,7 +15,7 @@ pub struct AttentionIngressNumerics {
 ///|
 pub fn ProjectionAttentionIngressEpilogue::numerics(
   self : ProjectionAttentionIngressEpilogue,
-  reduction_lanes~ : Int,
+  reduction_lanes~ : Int32,
 ) -> AttentionIngressNumerics raise ProjectionTileCompilerError {
   let epsilon = Float::from_double(self.norm_epsilon)
   let theta = Float::from_double(self.rope_theta)
@@ -53,7 +53,7 @@ pub fn ProjectionAttentionIngressEpilogue::numerics(
 ///|
 pub fn AttentionIngressNumerics::shape(
   self : AttentionIngressNumerics,
-) -> (Int, Int) {
+) -> (Int32, Int32) {
   (self.head_dimension, self.reduction_lanes)
 }
 
@@ -82,3 +82,9 @@ pub fn AttentionIngressNumerics::pair_retention(
 ) -> @elementwise_physical_ir.SplitPairRetention? {
   self.pair_retention
 }
+
+///|
+pub extend AttentionIngressNumerics with @debug.Debug::{to_repr}
+
+///|
+pub extend AttentionIngressNumerics with Eq::{not_equal, equal}

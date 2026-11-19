@@ -1,5 +1,5 @@
 ///|
-fn Scheduler::prefix_saturating_add(current : UInt64, amount : Int) -> UInt64 {
+fn Scheduler::prefix_saturating_add(current : UInt64, amount : Int32) -> UInt64 {
   let added = amount.to_uint64()
   if current > 0xffffffffffffffffUL - added {
     0xffffffffffffffffUL
@@ -12,10 +12,10 @@ fn Scheduler::prefix_saturating_add(current : UInt64, amount : Int) -> UInt64 {
 fn Scheduler::copy_prefix_tokens(
   self : Scheduler,
   request : TokenizedRequest,
-) -> Int {
+) -> Int32 {
   let buffer = self.prefix_tokens.unwrap()
   let limit = self.prefix_index.unwrap().limits().max_tokens_per_entry()
-  let count = Int::min(request.input_tokens().length(), limit)
+  let count = Int32::min(request.input_tokens().length(), limit)
   buffer.clear()
   for index in 0..<count {
     try! buffer.push_token(try! request.input_token_at(index))
@@ -49,7 +49,7 @@ fn Scheduler::prefix_hit_preflight(
 }
 
 ///|
-fn Scheduler::clear_prefix_candidate(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::clear_prefix_candidate(self : Scheduler, slot : Int32) -> Unit {
   self.prefix_candidate_entry_indices[slot] = NO_INDEX
   self.prefix_candidate_entry_generations[slot] = 0
   self.prefix_candidate_tokens[slot] = 0
@@ -59,7 +59,7 @@ fn Scheduler::clear_prefix_candidate(self : Scheduler, slot : Int) -> Unit {
 fn Scheduler::discover_prefix_candidate(
   self : Scheduler,
   request : TokenizedRequest,
-  slot : Int,
+  slot : Int32,
 ) -> Unit raise SchedulerError {
   self.prefix_entry_indices[slot] = NO_INDEX
   self.prefix_entry_generations[slot] = 0
@@ -79,7 +79,7 @@ fn Scheduler::discover_prefix_candidate(
     return
   }
   let copied = self.copy_prefix_tokens(request)
-  let maximum = Int::min(copied, request.input_tokens().length() - 1)
+  let maximum = Int32::min(copied, request.input_tokens().length() - 1)
   self.prefix_lookups = Scheduler::prefix_saturating_add(self.prefix_lookups, 1)
   if maximum <= 0 {
     self.prefix_misses = Scheduler::prefix_saturating_add(self.prefix_misses, 1)
@@ -112,7 +112,10 @@ fn Scheduler::discover_prefix_candidate(
 }
 
 ///|
-fn Scheduler::revalidate_waiting_prefix(self : Scheduler, slot : Int) -> Int {
+fn Scheduler::revalidate_waiting_prefix(
+  self : Scheduler,
+  slot : Int32,
+) -> Int32 {
   let candidate = self.prefix_candidate_entry_indices[slot]
   if candidate == NO_INDEX {
     return 0
@@ -120,7 +123,7 @@ fn Scheduler::revalidate_waiting_prefix(self : Scheduler, slot : Int) -> Int {
   let request = self.requests[slot].unwrap()
   let key = try! request.prefix_key(self.capacity.prefix_layout())
   let copied = self.copy_prefix_tokens(request)
-  let maximum = Int::min(copied, request.input_tokens().length() - 1)
+  let maximum = Int32::min(copied, request.input_tokens().length() - 1)
   let lookup = self.prefix_lookup.unwrap()
   try! self.prefix_index
   .unwrap()
@@ -150,9 +153,9 @@ fn Scheduler::revalidate_waiting_prefix(self : Scheduler, slot : Int) -> Int {
 ///|
 fn Scheduler::acquire_revalidated_prefix(
   self : Scheduler,
-  slot : Int,
-  row : Int,
-  matched : Int,
+  slot : Int32,
+  row : Int32,
+  matched : Int32,
 ) -> Unit {
   if matched == 0 {
     self.prefix_selection_offsets[row] = self.prefix_selection_page_count
@@ -194,7 +197,7 @@ fn Scheduler::acquire_revalidated_prefix(
 }
 
 ///|
-fn Scheduler::clear_prefix_selection_row(self : Scheduler, row : Int) -> Unit {
+fn Scheduler::clear_prefix_selection_row(self : Scheduler, row : Int32) -> Unit {
   let offset = self.prefix_selection_offsets[row]
   for index in 0..<self.prefix_selection_counts[row] {
     try! self.prefix_selection_pages.clear(offset + index)
@@ -256,7 +259,7 @@ fn Scheduler::commit_selected_prefixes(self : Scheduler) -> Unit {
 }
 
 ///|
-fn Scheduler::release_prefix_entry(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::release_prefix_entry(self : Scheduler, slot : Int32) -> Unit {
   let index = self.prefix_entry_indices[slot]
   if index != NO_INDEX {
     let entry = try! @radix.PrefixEntryId::new(
@@ -271,7 +274,7 @@ fn Scheduler::release_prefix_entry(self : Scheduler, slot : Int) -> Unit {
 }
 
 ///|
-fn Scheduler::release_waiting_prefix(self : Scheduler, slot : Int) -> Unit {
+fn Scheduler::release_waiting_prefix(self : Scheduler, slot : Int32) -> Unit {
   if (try! self.request_tables.is_occupied(slot)) ||
     self.prefix_entry_indices[slot] != NO_INDEX {
     abort("scheduler waiting prefix authority invariant")

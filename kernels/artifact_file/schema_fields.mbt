@@ -3,7 +3,7 @@ fn invalid_field(
   area : ManifestArea,
   field : ManifestField,
   issue : ManifestValueIssue,
-  index? : Int = 0,
+  index~ : Int32 = 0,
 ) -> KernelArtifactFileError {
   InvalidField(area~, field~, issue~, index~)
 }
@@ -97,8 +97,8 @@ fn parse_nonnegative_int(
   value : Json,
   area : ManifestArea,
   field : ManifestField,
-  index : Int,
-) -> Int raise KernelArtifactFileError {
+  index : Int32,
+) -> Int32 raise KernelArtifactFileError {
   guard value is Number(number, repr~) else {
     raise invalid_field(area, field, ExpectedInteger, index~)
   }
@@ -109,7 +109,7 @@ fn parse_nonnegative_int(
       }
       let mut result = 0
       for unit in text {
-        if !(unit is ('0'..='9')) {
+        if !(unit is ('0'..<='9')) {
           raise invalid_field(area, field, ExpectedInteger, index~)
         }
         let digit = unit.to_int() - '0'
@@ -139,8 +139,8 @@ fn require_nonnegative_int(
   name : String,
   area : ManifestArea,
   field : ManifestField,
-  index? : Int = 0,
-) -> Int raise KernelArtifactFileError {
+  index~ : Int32 = 0,
+) -> Int32 raise KernelArtifactFileError {
   match object.get(name) {
     Some(value) => parse_nonnegative_int(value, area, field, index)
     None => raise MissingField(area~, field~)

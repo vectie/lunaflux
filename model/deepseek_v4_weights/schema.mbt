@@ -13,8 +13,8 @@ pub(all) enum DeepSeekV4SafetensorsDType {
 ///|
 pub(all) enum DeepSeekV4TensorScope {
   Global
-  DecoderLayer(Int)
-  PredictionStage(Int)
+  DecoderLayer(Int32)
+  PredictionStage(Int32)
 } derive(Debug, Eq)
 
 ///|
@@ -83,7 +83,7 @@ pub(all) enum DeepSeekV4TensorRole {
   RouterBias
   TokenExpertHash
   SharedExpert(DeepSeekV4ExpertMatrix, DeepSeekV4QuantizedPart)
-  RoutedExpert(Int, DeepSeekV4ExpertMatrix, DeepSeekV4QuantizedPart)
+  RoutedExpert(Int32, DeepSeekV4ExpertMatrix, DeepSeekV4QuantizedPart)
   FfnNorm
   AttentionHyperConnection(DeepSeekV4HyperConnectionPart)
   FfnHyperConnection(DeepSeekV4HyperConnectionPart)
@@ -129,7 +129,7 @@ pub struct DeepSeekV4SafetensorsTensor {
   priv name : String
   priv dtype : DeepSeekV4SafetensorsDType
   priv shape : ReadOnlyArray[Int64]
-  priv shard : Int
+  priv shard : Int32
   priv data_start : Int64
   priv data_end : Int64
 } derive(Debug, Eq)
@@ -161,10 +161,10 @@ pub(all) suberror DeepSeekV4TensorSchemaError {
   InvalidShard
   InvalidByteRange
   ByteLengthMismatch
-  UnknownTensor(Int)
-  InvalidTensor(Int)
-  DuplicateTensor(Int, Int)
-  IncorrectTensorCount(expected~ : Int, actual~ : Int)
+  UnknownTensor(Int32)
+  InvalidTensor(Int32)
+  DuplicateTensor(Int32, Int32)
+  IncorrectTensorCount(expected~ : Int32, actual~ : Int32)
   IdentityMismatch
 } derive(Debug, Eq)
 
@@ -198,7 +198,7 @@ pub fn DeepSeekV4SafetensorsTensor::new(
   name~ : String,
   dtype~ : StringView,
   shape~ : ArrayView[Int64],
-  shard~ : Int,
+  shard~ : Int32,
   data_start~ : Int64,
   data_end~ : Int64,
 ) -> Self raise DeepSeekV4TensorSchemaError {
@@ -255,7 +255,7 @@ pub fn DeepSeekV4SafetensorsTensor::shape(self : Self) -> ReadOnlyArray[Int64] {
 }
 
 ///|
-pub fn DeepSeekV4SafetensorsTensor::shard(self : Self) -> Int {
+pub fn DeepSeekV4SafetensorsTensor::shard(self : Self) -> Int32 {
   self.shard
 }
 
@@ -303,14 +303,14 @@ pub fn DeepSeekV4WeightBinding::identity(self : Self) -> @spec.ModelIdentity {
 }
 
 ///|
-pub fn DeepSeekV4WeightBinding::tensor_count(self : Self) -> Int {
+pub fn DeepSeekV4WeightBinding::tensor_count(self : Self) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn DeepSeekV4WeightBinding::tensor(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> DeepSeekV4TensorBinding? {
   self.tensors.get(index)
 }

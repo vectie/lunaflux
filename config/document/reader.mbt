@@ -1,12 +1,12 @@
 ///|
-const JSON_NESTING_LIMIT : Int = 32
+const JSON_NESTING_LIMIT : Int32 = 32
 
 ///|
 /// Parses a UTF-8 configuration document after enforcing `max_bytes` before
 /// decoding or JSON allocation.
 pub fn parse_bytes(
   document : BytesView,
-  max_bytes~ : Int,
+  max_bytes~ : Int32,
 ) -> ConfigDocument raise ConfigDocumentError {
   validate_limit(max_bytes)
   if document.length() > max_bytes {
@@ -22,7 +22,7 @@ pub fn parse_bytes(
 /// copy.
 pub fn parse_string(
   document : StringView,
-  max_bytes~ : Int,
+  max_bytes~ : Int32,
 ) -> ConfigDocument raise ConfigDocumentError {
   validate_limit(max_bytes)
   validate_utf8_size(document, max_bytes)
@@ -30,7 +30,7 @@ pub fn parse_string(
 }
 
 ///|
-fn validate_limit(max_bytes : Int) -> Unit raise ConfigDocumentError {
+fn validate_limit(max_bytes : Int32) -> Unit raise ConfigDocumentError {
   if max_bytes <= 0 {
     raise InvalidByteLimit
   }
@@ -39,7 +39,7 @@ fn validate_limit(max_bytes : Int) -> Unit raise ConfigDocumentError {
 ///|
 fn validate_utf8_size(
   input : StringView,
-  max_bytes : Int,
+  max_bytes : Int32,
 ) -> Unit raise ConfigDocumentError {
   let mut index = 0
   let mut byte_count = 0

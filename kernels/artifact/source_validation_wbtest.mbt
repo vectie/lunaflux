@@ -1,7 +1,7 @@
 ///|
 fn source_entry(
-  family : Int,
-  entry : Int,
+  family : Int32,
+  entry : Int32,
   symbol : String,
 ) -> KernelEntryPointInput raise {
   KernelEntryPointInput::new(
@@ -30,7 +30,7 @@ test "row variants reject invalid bounds and symbol aliasing" {
     block_z=1,
     shared_memory_bytes=1024,
   )
-  let variant = fn(bound : Int, symbol : String) {
+  let variant = fn(bound : Int32, symbol : String) {
     KernelRowVariant::new(
       maximum_token_rows=bound,
       function_symbol=symbol,

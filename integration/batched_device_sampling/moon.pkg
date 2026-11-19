@@ -5,4 +5,5 @@ import {
   "vectie/lunaflux/engine/worker_wire" @wire,
   "moonbitlang/core/encoding/utf8",
 }
+
 supported_targets = "native"

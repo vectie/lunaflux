@@ -1,8 +1,8 @@
 ///|
 fn exact_kda_recurrent_update_abi(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
-  head_count : Int,
-  head_dimension : Int,
+  head_count : Int32,
+  head_dimension : Int32,
   gate_lower_bound : Double,
   claim : GlmHybridArtifactClaimInput,
 ) -> Bool {

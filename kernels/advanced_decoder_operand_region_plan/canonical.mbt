@@ -1,19 +1,19 @@
 ///|
 priv struct OperandRegionCanonicalWriter {
   hasher : @canonical_sha256.CanonicalSha256
-  mut byte_count : Int
-  maximum : Int
+  mut byte_count : Int32
+  maximum : Int32
 }
 
 ///|
-fn OperandRegionCanonicalWriter::new(maximum : Int) -> Self {
+fn OperandRegionCanonicalWriter::new(maximum : Int32) -> Self {
   { hasher: @canonical_sha256.CanonicalSha256::new(), byte_count: 0, maximum, }
 }
 
 ///|
 fn OperandRegionCanonicalWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise AdvancedDecoderOperandRegionPlanError {
   if count < 0 || self.byte_count > self.maximum - count {
     raise CanonicalEncodingTooLarge
@@ -33,7 +33,7 @@ fn OperandRegionCanonicalWriter::byte(
 ///|
 fn OperandRegionCanonicalWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise AdvancedDecoderOperandRegionPlanError {
   self.reserve(8)
   ignore(
@@ -148,7 +148,7 @@ fn operand_region_role_tag(
 ///|
 fn canonical_operand_region_plan_digest(
   regions : ArrayView[AdvancedDecoderOperandRegion],
-  maximum : Int,
+  maximum : Int32,
 ) -> AdvancedDecoderOperandRegionPlanDigest raise AdvancedDecoderOperandRegionPlanError {
   let writer = OperandRegionCanonicalWriter::new(maximum)
   writer.text("lunaflux/advanced-decoder-operand-region-plan/v1")

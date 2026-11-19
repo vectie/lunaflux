@@ -43,7 +43,7 @@ fn load_runtime_descriptor(
   descriptor_digest : @descriptor_file.RuntimeDescriptorDigest,
   limits : @descriptor_file.RuntimeDescriptorFileLimits,
   luna_approval : @worker_wire.WorkerBootstrapLunaApproval?,
-  luna_verifier? : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
+  luna_verifier~ : @luna_capability_manifest.LunaStartupExternalApprovalHandoff? = None,
 ) -> AdmittedRuntimeDescriptor raise RuntimeInstanceError {
   route_runtime_recipe(
     launch.runtime_recipe(),

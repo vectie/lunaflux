@@ -2,25 +2,25 @@
 /// A tensor slice destined for an opaque caller-owned storage region. Unlike a
 /// managed-array copy, both its length and final offset can exceed signed Int.
 pub struct StreamingSafetensorsTransfer {
-  priv shard_ordinal : Int
-  priv tensor_ordinal : Int
+  priv shard_ordinal : Int32
+  priv tensor_ordinal : Int32
   priv tensor_byte_offset : Int64
-  priv destination_ordinal : Int
+  priv destination_ordinal : Int32
   priv destination_offset : Int64
   priv byte_count : Int64
-  priv row_count : Int
+  priv row_count : Int32
   priv source_row_stride : Int64
 }
 
 ///|
 pub fn StreamingSafetensorsTransfer::new(
-  shard_ordinal~ : Int,
-  tensor_ordinal~ : Int,
+  shard_ordinal~ : Int32,
+  tensor_ordinal~ : Int32,
   tensor_byte_offset~ : Int64,
-  destination_ordinal~ : Int,
+  destination_ordinal~ : Int32,
   destination_offset~ : Int64,
   byte_count~ : Int64,
-  row_count? : Int = 1,
+  row_count~ : Int32 = 1,
   source_row_stride? : Int64,
 ) -> Self raise StreamingSafetensorsError {
   guard shard_ordinal >= 0 &&
@@ -116,7 +116,7 @@ pub fn transfer_ranges(
   destination_bytes~ : ArrayView[Int64],
   scratch~ : FixedArray[Byte],
   limits~ : StreamingSafetensorsLimits,
-  consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume~ : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise StreamingSafetensorsError {
   guard scratch.length() > 0 else { raise InvalidLimit }
   validate_transfers(inspection, requests, destination_bytes, limits)
@@ -139,12 +139,12 @@ pub fn transfer_ranges(
 
 ///|
 fn transfer_open_file(
-  shard_ordinal : Int,
+  shard_ordinal : Int32,
   shard : InspectedShard,
   file : @approved_fs.ApprovedFile,
   requests : ArrayView[StreamingSafetensorsTransfer],
   scratch : FixedArray[Byte],
-  consume : (Int, Int64, FixedArray[Byte], Int) -> Bool,
+  consume : (Int32, Int64, FixedArray[Byte], Int32) -> Bool,
 ) -> Unit raise StreamingSafetensorsError {
   for request_index, request in requests {
     if request.shard_ordinal != shard_ordinal {

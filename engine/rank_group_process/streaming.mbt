@@ -7,14 +7,14 @@ priv struct StreamingGroup {
   mut transfer : @streaming_ir.GroupTransfer
   mut command : @streaming_ir.Command
   mut exchanging : Bool
-  mut rank : Int
+  mut rank : Int32
 }
 
 ///|
 fn new_streaming_group(
   capability : @streaming_ir.Capability,
   epoch : UInt64,
-  ranks : Int,
+  ranks : Int32,
 ) -> StreamingGroup {
   let command : @streaming_ir.Command = {
     worker: epoch,

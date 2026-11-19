@@ -33,8 +33,8 @@ fn LunaOnlineOpenAIConnectionPool::refresh_pool_metrics(
 ///|
 fn LunaOnlineOpenAIConnectionPool::prepare_slot_embedded_control_response(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
-  route : Int,
+  index : Int32,
+  route : Int32,
 ) -> Bool {
   let slot = self.slots[index]
   let healthy = self.health() == LunaOnlineTcpServerHealthy
@@ -83,7 +83,7 @@ fn LunaOnlineOpenAIConnectionPool::prepare_slot_embedded_control_response(
 ///|
 fn LunaOnlineOpenAIConnectionPool::offer_slot_embedded_control(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.tail_length <= 0 ||
@@ -109,7 +109,7 @@ fn LunaOnlineOpenAIConnectionPool::offer_slot_embedded_control(
 ///|
 async fn LunaOnlineOpenAIConnectionPool::write_slot_embedded_control(
   self : LunaOnlineOpenAIConnectionPool,
-  index : Int,
+  index : Int32,
 ) -> LunaOnlineOpenAIConnectionPoolProgress {
   let slot = self.slots[index]
   if slot.connections.length() != 1 {

@@ -1,17 +1,17 @@
 ///|
 pub struct LunaCudaAotLimits {
-  priv max_source_bytes : Int
-  priv max_recipe_bytes : Int
+  priv max_source_bytes : Int32
+  priv max_recipe_bytes : Int32
   priv max_module_bytes : Int64
-  priv max_evidence_bytes : Int
+  priv max_evidence_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn LunaCudaAotLimits::new(
-  max_source_bytes~ : Int,
-  max_recipe_bytes~ : Int,
+  max_source_bytes~ : Int32,
+  max_recipe_bytes~ : Int32,
   max_module_bytes~ : Int64,
-  max_evidence_bytes~ : Int,
+  max_evidence_bytes~ : Int32,
 ) -> LunaCudaAotLimits raise LunaCudaAotError {
   if max_source_bytes <= 0 ||
     max_recipe_bytes <= 0 ||

@@ -120,7 +120,7 @@ fn RuntimeInstanceOwner::spawned_execution_expectation_matches(
 ///|
 fn close_spawned_validation_owner(
   owner : RuntimeInstanceOwner,
-  turn_limit : Int,
+  turn_limit : Int32,
 ) -> Bool {
   if owner.services.length() != 1 {
     owner.phase = Failed

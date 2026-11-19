@@ -104,12 +104,12 @@ pub fn admit_plan(
   weight_inspection~ : @device_materialize.DeviceWeightFileInspection,
   execution~ : @execution_manifest_file.PagedExecutionAdmission,
   bootstrap_limits~ : @device_step.DeviceBootstrapLimits,
-  sampling_policy? : @device_step.PagedSamplingExecutionPolicy = PagedHostSampling,
-  fused_catalog? : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog? = None,
-  fused_bundle? : @luna_fused_artifact_admission.ApprovedFusedKernelBundle? = None,
-  reusable_fused_residual_runtime? : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime? = None,
-  fused_qkv_readonly_artifacts? : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? = None,
-  fused_qkv_readonly_source? : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime? = None,
+  sampling_policy~ : @device_step.PagedSamplingExecutionPolicy = PagedHostSampling,
+  fused_catalog~ : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog? = None,
+  fused_bundle~ : @luna_fused_artifact_admission.ApprovedFusedKernelBundle? = None,
+  reusable_fused_residual_runtime~ : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime? = None,
+  fused_qkv_readonly_artifacts~ : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? = None,
+  fused_qkv_readonly_source~ : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime? = None,
 ) -> DeviceWorkerPlan raise DeviceWorkerError {
   let blueprint = execution.blueprint()
   validate_authenticated_model_plan(model, startup, execution)
@@ -178,13 +178,13 @@ pub fn admit_numeric_bf16_plan_v1(
   weight_inspection~ : @numeric_weight_file.NumericWeightFileInspection,
   execution~ : @execution_manifest_file.PagedExecutionAdmission,
   bootstrap_limits~ : @device_step.DeviceBootstrapLimits,
-  sampling_policy? : @device_step.PagedSamplingExecutionPolicy = PagedHostSampling,
-  fused_catalog? : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog? = None,
-  fused_bundle? : @luna_fused_artifact_admission.ApprovedFusedKernelBundle? = None,
-  reusable_fused_residual_runtime? : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime? = None,
-  reusable_fused_runtime_bundle? : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle? = None,
-  fused_qkv_readonly_artifacts? : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? = None,
-  fused_qkv_readonly_source? : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime? = None,
+  sampling_policy~ : @device_step.PagedSamplingExecutionPolicy = PagedHostSampling,
+  fused_catalog~ : @luna_fused_artifact_admission.ApprovedFusedKernelCatalog? = None,
+  fused_bundle~ : @luna_fused_artifact_admission.ApprovedFusedKernelBundle? = None,
+  reusable_fused_residual_runtime~ : @luna_fused_artifact_admission.ApprovedReusableFusedResidualRuntime? = None,
+  reusable_fused_runtime_bundle~ : @luna_fused_artifact_admission.ApprovedReusableFusedRuntimeBundle? = None,
+  fused_qkv_readonly_artifacts~ : @luna_paged_composite_artifact_admission.ApprovedFusedQkvReadOnlyProductionArtifacts? = None,
+  fused_qkv_readonly_source~ : @luna_paged_composite_artifact_admission.DigestPinnedFusedProductionRuntime? = None,
 ) -> DeviceWorkerPlan raise DeviceWorkerError {
   if execution.model_plan() != model_plan ||
     startup.identity() != model_plan.identity() ||

@@ -67,10 +67,10 @@ pub(all) suberror LunaInstanceMetricsError {
 /// Startup-owned fixed-capacity telemetry storage for one engine instance.
 pub struct LunaInstanceMetrics {
   priv counters : FixedArray[UInt64]
-  priv gauges : FixedArray[Int]
+  priv gauges : FixedArray[Int32]
   priv histogram_buckets : FixedArray[UInt64]
   priv snapshot_counters : FixedArray[UInt64]
-  priv snapshot_gauges : FixedArray[Int]
+  priv snapshot_gauges : FixedArray[Int32]
   priv snapshot_histogram_buckets : FixedArray[UInt64]
   priv mut snapshot_generation : UInt64
 }

@@ -1,6 +1,6 @@
 ///|
 fn fp8_llama_test_metadata(
-  layer_count? : Int = 2,
+  layer_count~ : Int32 = 2,
 ) -> @spec.LlamaModelMetadata raise {
   @spec.LlamaModelMetadata::from_verified_content(
     @spec.LlamaModelSpec::new(
@@ -22,7 +22,7 @@ fn fp8_llama_test_metadata(
 }
 
 ///|
-fn expected_fp8_parameter(index : Int, layer_count : Int) -> Bool {
+fn expected_fp8_parameter(index : Int32, layer_count : Int32) -> Bool {
   if index == 0 || index == 9 * layer_count + 1 {
     false
   } else if index == 9 * layer_count + 2 {
@@ -40,7 +40,7 @@ fn expected_fp8_parameter(index : Int, layer_count : Int) -> Bool {
 }
 
 ///|
-fn expected_fp8_operation(index : Int, layer_count : Int) -> Bool {
+fn expected_fp8_operation(index : Int32, layer_count : Int32) -> Bool {
   index == 9 * layer_count + 2 ||
   (
     index > 0 &&

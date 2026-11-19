@@ -4,7 +4,7 @@ fn cuda_emit_physical_attention(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
   match (lowering.phase(), cuda_physical_program(lowering)) {
     (Prefill, DirectKeyProgram(_)) if lowering.key_value_partitions() == 1 =>

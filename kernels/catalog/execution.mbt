@@ -18,15 +18,15 @@ pub struct KernelExecutionSemantics {
 /// component spans but must not specialize kernel indexing.
 pub struct PagedKvLayoutContract {
   priv layout : @plan.KvCacheLayout
-  priv stable_version : Int
-  priv tokens_per_page : Int
+  priv stable_version : Int32
+  priv tokens_per_page : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn PagedKvLayoutContract::new(
   layout~ : @plan.KvCacheLayout,
-  stable_version~ : Int,
-  tokens_per_page~ : Int,
+  stable_version~ : Int32,
+  tokens_per_page~ : Int32,
 ) -> PagedKvLayoutContract raise CatalogError {
   if stable_version <= 0 ||
     stable_version != layout.stable_version() ||
@@ -46,14 +46,14 @@ pub fn PagedKvLayoutContract::layout(
 ///|
 pub fn PagedKvLayoutContract::stable_version(
   self : PagedKvLayoutContract,
-) -> Int {
+) -> Int32 {
   self.stable_version
 }
 
 ///|
 pub fn PagedKvLayoutContract::tokens_per_page(
   self : PagedKvLayoutContract,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 

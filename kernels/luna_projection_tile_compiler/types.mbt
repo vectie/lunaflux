@@ -34,9 +34,9 @@ pub(all) enum ProjectionTileWeightRole {
 /// The compiler sees heads and scalar semantics; subgroup and device details
 /// are introduced only by a terminal lowering.
 pub struct ProjectionAttentionIngressEpilogue {
-  priv query_heads : Int
-  priv kv_heads : Int
-  priv head_dimension : Int
+  priv query_heads : Int32
+  priv kv_heads : Int32
+  priv head_dimension : Int32
   priv norm_epsilon : Double
   priv rope_theta : Double
 } derive(Debug, Eq)
@@ -48,7 +48,7 @@ pub(all) enum ProjectionTileEpilogue {
 } derive(Debug, Eq)
 
 ///|
-pub struct ProjectionTileValueId(Int) derive(Debug, Eq, Hash)
+pub struct ProjectionTileValueId(Int32) derive(Debug, Eq, Hash)
 
 ///|
 pub(all) enum ProjectionTileExpression {
@@ -83,8 +83,8 @@ pub struct ProjectionTileProgram {
   priv shape : @luna_projection_strategy.ProjectionShape
   priv demand : ProjectionResultDemand
   priv epilogue : ProjectionTileEpilogue
-  priv maximum_rows : Int
-  priv maximum_tokens : Int
+  priv maximum_rows : Int32
+  priv maximum_tokens : Int32
   priv bindings : ReadOnlyArray[ProjectionTileBinding]
   priv root : ProjectionTileValueId
   priv canonical : Bytes
@@ -151,8 +151,8 @@ pub(all) enum ProjectionRowTailPolicy {
 pub struct ProjectionLoopCombinator {
   priv kind : ProjectionIterationKind
   priv axis : ProjectionIterationAxis
-  priv extent : Int
-  priv tile : Int
+  priv extent : Int32
+  priv tile : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -164,7 +164,7 @@ pub struct ProjectionTileSchedule {
   priv optimization_digest : ProjectionTileOptimizationDigest
   priv demand : ProjectionResultDemand
   priv loops : ReadOnlyArray[ProjectionLoopCombinator]
-  priv output_tiles_per_workgroup : Int
+  priv output_tiles_per_workgroup : Int32
   priv selected_input_row_resident : Bool
   priv row_tail_policy : ProjectionRowTailPolicy
   priv reuse_intermediate_tile : Bool
@@ -181,11 +181,11 @@ pub struct ProjectionTileSchedule {
 
 ///|
 pub struct ProjectionTileCompilerRequest {
-  priv ingress_row_tiles : Int
-  priv ingress_head_tiles : Int
+  priv ingress_row_tiles : Int32
+  priv ingress_head_tiles : Int32
   priv dispatch : @luna_projection_strategy.ProjectionDispatchPlan
-  priv maximum_rows : Int
-  priv maximum_tokens : Int
+  priv maximum_rows : Int32
+  priv maximum_tokens : Int32
   priv demand : ProjectionResultDemand
   priv epilogue : ProjectionTileEpilogue
   priv single_row_numerics : ProjectionSingleRowNumerics
@@ -235,3 +235,195 @@ pub(all) enum ProjectionTileCompilerRule {
 pub(all) suberror ProjectionTileCompilerError {
   InvalidProjectionTileCompilation(ProjectionTileCompilerRule)
 } derive(Debug, Eq)
+
+///|
+pub extend ProjectionResultDemand with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionResultDemand with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileValueKind with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileValueKind with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileValueKind with Hash::{hash, hash_combine}
+
+///|
+pub extend ProjectionTileWeightRole with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileWeightRole with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileWeightRole with Hash::{hash, hash_combine}
+
+///|
+pub extend ProjectionAttentionIngressEpilogue with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionAttentionIngressEpilogue with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileEpilogue with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileEpilogue with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileValueId with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileValueId with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileValueId with Hash::{hash, hash_combine}
+
+///|
+pub extend ProjectionTileExpression with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileExpression with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileExpression with Hash::{hash, hash_combine}
+
+///|
+pub extend ProjectionTileBinding with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileBinding with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileProgramDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileProgramDigest with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileProgramDigest with Hash::{hash, hash_combine}
+
+///|
+pub extend ProjectionTileProgram with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileProgram with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileRewriteRule with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileRewriteRule with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileRewriteStep with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileRewriteStep with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileOptimizationDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileOptimizationDigest with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileOptimizationDigest with Hash::{hash, hash_combine}
+
+///|
+pub extend ProjectionTileOptimization with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileOptimization with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionIterationKind with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionIterationKind with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionIterationAxis with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionIterationAxis with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionRowTailPolicy with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionRowTailPolicy with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionLoopCombinator with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionLoopCombinator with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileScheduleDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileScheduleDigest with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileScheduleDigest with Hash::{hash, hash_combine}
+
+///|
+pub extend ProjectionTileSchedule with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileSchedule with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileCompilerRequest with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileCompilerRequest with Eq::{not_equal, equal}
+
+///|
+pub extend SelectedProjectionTileCompilation with @debug.Debug::{to_repr}
+
+///|
+pub extend SelectedProjectionTileCompilation with Eq::{not_equal, equal}
+
+///|
+pub extend SemanticProjectionTileCompilation with @debug.Debug::{to_repr}
+
+///|
+pub extend SemanticProjectionTileCompilation with Eq::{not_equal, equal}
+
+///|
+pub extend OptimizedProjectionTileCompilation with @debug.Debug::{to_repr}
+
+///|
+pub extend OptimizedProjectionTileCompilation with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileCompilationDigest with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileCompilationDigest with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileCompilationDigest with Hash::{hash, hash_combine}
+
+///|
+pub extend ScheduledProjectionTileCompilation with @debug.Debug::{to_repr}
+
+///|
+pub extend ScheduledProjectionTileCompilation with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileCompilerRule with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileCompilerRule with Eq::{not_equal, equal}
+
+///|
+pub extend ProjectionTileCompilerError with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionTileCompilerError with Eq::{not_equal, equal}

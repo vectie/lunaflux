@@ -2,21 +2,21 @@
 const ABSOLUTE_MAX_MANIFEST_BYTES : Int64 = 67108864L
 
 ///|
-const ABSOLUTE_MAX_JSON_DEPTH : Int = 64
+const ABSOLUTE_MAX_JSON_DEPTH : Int32 = 64
 
 ///|
-const ABSOLUTE_MAX_MODULES : Int = 4096
+const ABSOLUTE_MAX_MODULES : Int32 = 4096
 
 ///|
-const ABSOLUTE_MAX_OPERATIONS : Int = 4096
+const ABSOLUTE_MAX_OPERATIONS : Int32 = 4096
 
 ///|
 /// Exact startup ceilings for manifest parsing and every derived admission.
 pub struct ExecutionManifestFileLimits {
   priv max_manifest_bytes : Int64
-  priv max_json_depth : Int
-  priv max_modules : Int
-  priv max_operations : Int
+  priv max_json_depth : Int32
+  priv max_modules : Int32
+  priv max_operations : Int32
   priv device_memory : @device_memory.DeviceMemoryLimits
   priv launch_contract : @launch_contract.LaunchContractLimits
   priv artifact_file : @artifact_file.KernelArtifactFileLimits
@@ -25,9 +25,9 @@ pub struct ExecutionManifestFileLimits {
 ///|
 pub fn ExecutionManifestFileLimits::new(
   max_manifest_bytes~ : Int64,
-  max_json_depth~ : Int,
-  max_modules~ : Int,
-  max_operations~ : Int,
+  max_json_depth~ : Int32,
+  max_modules~ : Int32,
+  max_operations~ : Int32,
   device_memory~ : @device_memory.DeviceMemoryLimits,
   launch_contract~ : @launch_contract.LaunchContractLimits,
   artifact_file~ : @artifact_file.KernelArtifactFileLimits,
@@ -103,21 +103,21 @@ pub fn ExecutionManifestFileLimits::max_manifest_bytes(
 ///|
 pub fn ExecutionManifestFileLimits::max_json_depth(
   self : ExecutionManifestFileLimits,
-) -> Int {
+) -> Int32 {
   self.max_json_depth
 }
 
 ///|
 pub fn ExecutionManifestFileLimits::max_modules(
   self : ExecutionManifestFileLimits,
-) -> Int {
+) -> Int32 {
   self.max_modules
 }
 
 ///|
 pub fn ExecutionManifestFileLimits::max_operations(
   self : ExecutionManifestFileLimits,
-) -> Int {
+) -> Int32 {
   self.max_operations
 }
 

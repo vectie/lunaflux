@@ -4,7 +4,7 @@
 /// outside this pure plan; the terminal backend maps groups to launch threads.
 fn projection_primary_consumer_groups(
   request : ProjectionTileCompilerRequest,
-) -> Int {
+) -> Int32 {
   for choice in request.fold_choices {
     if (choice.role == SiblingFold || choice.role == MatrixFold) &&
       choice.consumer_groups is Some(groups) {

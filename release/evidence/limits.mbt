@@ -2,15 +2,15 @@
 /// Startup-only bounds for one canonical campaign record and every referenced
 /// evidence artifact.
 pub struct ReleaseCampaignLimits {
-  priv max_canonical_bytes : Int
-  priv max_locator_bytes : Int
+  priv max_canonical_bytes : Int32
+  priv max_locator_bytes : Int32
   priv max_artifact_bytes : Int64
 }
 
 ///|
 pub fn ReleaseCampaignLimits::new(
-  max_canonical_bytes~ : Int,
-  max_locator_bytes~ : Int,
+  max_canonical_bytes~ : Int32,
+  max_locator_bytes~ : Int32,
   max_artifact_bytes~ : Int64,
 ) -> ReleaseCampaignLimits raise ReleaseEvidenceError {
   if max_canonical_bytes < 1024 ||
@@ -26,14 +26,14 @@ pub fn ReleaseCampaignLimits::new(
 ///|
 pub fn ReleaseCampaignLimits::max_canonical_bytes(
   self : ReleaseCampaignLimits,
-) -> Int {
+) -> Int32 {
   self.max_canonical_bytes
 }
 
 ///|
 pub fn ReleaseCampaignLimits::max_locator_bytes(
   self : ReleaseCampaignLimits,
-) -> Int {
+) -> Int32 {
   self.max_locator_bytes
 }
 

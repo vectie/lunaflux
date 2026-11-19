@@ -11,7 +11,7 @@ pub fn build_reference_schedule(
   let mut kda_count = 0
   let mut dense_count = 0
   let mut moe_count = 0
-  let mut last_dsa_compute : Int? = None
+  let mut last_dsa_compute : Int32? = None
   for expected_index, layer in plan.layers() {
     if layer.layer_index() != expected_index {
       raise InvalidLayerOrder

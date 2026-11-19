@@ -2,8 +2,8 @@
 /// Untrusted, authority-free deployment claim carried by a v5 source frame.
 /// Admission against independently probed topology is required before use.
 pub struct TensorParallelRankRuntimeClaim {
-  priv rank : Int
-  priv device_ordinal : Int
+  priv rank : Int32
+  priv device_ordinal : Int32
   priv memory_ceiling_bytes : Int64
   priv weight_reserved_bytes : Int64
   priv activation_workspace_reserved_bytes : Int64
@@ -16,9 +16,9 @@ pub struct TensorParallelRankRuntimeClaim {
 /// claims and grants no device, memory, collective, or filesystem authority.
 pub struct TensorParallelBootstrapPolicy {
   priv ranks : ReadOnlyArray[TensorParallelRankRuntimeClaim]
-  priv minimum_collective_runtime_version_code : Int
-  priv maximum_collective_runtime_version_code : Int
-  priv collective_exchange_timeout_millis : Int
+  priv minimum_collective_runtime_version_code : Int32
+  priv maximum_collective_runtime_version_code : Int32
+  priv collective_exchange_timeout_millis : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -30,8 +30,8 @@ pub fn EncodedBootstrapSource::tensor_parallel_policy(
 
 ///|
 pub fn TensorParallelRankRuntimeClaim::new(
-  rank~ : Int,
-  device_ordinal~ : Int,
+  rank~ : Int32,
+  device_ordinal~ : Int32,
   memory_ceiling_bytes~ : Int64,
   weight_reserved_bytes~ : Int64,
   activation_workspace_reserved_bytes~ : Int64,
@@ -79,9 +79,9 @@ pub fn TensorParallelRankRuntimeClaim::new(
 ///|
 pub fn TensorParallelBootstrapPolicy::new(
   ranks : ArrayView[TensorParallelRankRuntimeClaim],
-  minimum_collective_runtime_version_code~ : Int,
-  maximum_collective_runtime_version_code~ : Int,
-  collective_exchange_timeout_millis~ : Int,
+  minimum_collective_runtime_version_code~ : Int32,
+  maximum_collective_runtime_version_code~ : Int32,
+  collective_exchange_timeout_millis~ : Int32,
 ) -> TensorParallelBootstrapPolicy raise WorkerWireError {
   if ranks.length() < 2 ||
     ranks.length() > 16 ||
@@ -108,14 +108,14 @@ pub fn TensorParallelBootstrapPolicy::new(
 }
 
 ///|
-pub fn TensorParallelBootstrapPolicy::rank_count(self : Self) -> Int {
+pub fn TensorParallelBootstrapPolicy::rank_count(self : Self) -> Int32 {
   self.ranks.length()
 }
 
 ///|
 pub fn TensorParallelBootstrapPolicy::rank(
   self : Self,
-  rank : Int,
+  rank : Int32,
 ) -> TensorParallelRankRuntimeClaim? {
   self.ranks.get(rank)
 }
@@ -123,14 +123,14 @@ pub fn TensorParallelBootstrapPolicy::rank(
 ///|
 pub fn TensorParallelBootstrapPolicy::minimum_collective_runtime_version_code(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.minimum_collective_runtime_version_code
 }
 
 ///|
 pub fn TensorParallelBootstrapPolicy::maximum_collective_runtime_version_code(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.maximum_collective_runtime_version_code
 }
 
@@ -139,17 +139,17 @@ pub fn TensorParallelBootstrapPolicy::maximum_collective_runtime_version_code(
 /// The parent derives the absolute deadline from its owned clock at begin.
 pub fn TensorParallelBootstrapPolicy::collective_exchange_timeout_millis(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.collective_exchange_timeout_millis
 }
 
 ///|
-pub fn TensorParallelRankRuntimeClaim::rank(self : Self) -> Int {
+pub fn TensorParallelRankRuntimeClaim::rank(self : Self) -> Int32 {
   self.rank
 }
 
 ///|
-pub fn TensorParallelRankRuntimeClaim::device_ordinal(self : Self) -> Int {
+pub fn TensorParallelRankRuntimeClaim::device_ordinal(self : Self) -> Int32 {
   self.device_ordinal
 }
 

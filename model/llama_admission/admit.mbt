@@ -8,8 +8,8 @@ pub fn admit(
   config : BytesView,
   safetensors_file : BytesView,
   content_digest : @spec.ContentDigest,
-  config_max_bytes~ : Int,
-  config_max_depth~ : Int,
+  config_max_bytes~ : Int32,
+  config_max_depth~ : Int32,
   header_limits~ : @safetensors.HeaderLimits,
 ) -> LlamaAdmission raise LlamaAdmissionError {
   let metadata = @config_reader.parse_bytes(

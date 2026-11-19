@@ -79,8 +79,8 @@ fn v2_gated_schema(
 
 ///|
 fn v2_gated_plan(
-  compound? : Bool = true,
-  workspace? : Int64 = 8L,
+  compound~ : Bool = true,
+  workspace~ : Int64 = 8L,
 ) -> @plan.ModelPlan {
   let operations = v2_gated_operations(workspace)
   try! @plan.ModelPlan::new_stateless(
@@ -120,8 +120,8 @@ fn v2_gated_plan(
 
 ///|
 fn v2_gated_operands(
-  operation : Int,
-  sequence_tokens : Int,
+  operation : Int32,
+  sequence_tokens : Int32,
   workspace : Int64,
 ) -> Array[@launch_contract.AotOperand] {
   let activation_bytes = sequence_tokens.to_int64() * 32L
@@ -210,8 +210,8 @@ fn v2_gated_launches(
 
 ///|
 fn v2_gated_fixture(
-  compound? : Bool = true,
-  workspace? : Int64 = 8L,
+  compound~ : Bool = true,
+  workspace~ : Int64 = 8L,
 ) -> Fp8AbiFixture {
   let plan = v2_gated_plan(compound~, workspace~)
   let catalog = fixture_catalog(plan)

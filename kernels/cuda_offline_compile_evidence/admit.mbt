@@ -7,7 +7,7 @@ fn valid_compile_sha256(value : StringView) -> Bool {
 }
 
 ///|
-fn valid_compile_symbol(value : StringView, maximum : Int) -> Bool {
+fn valid_compile_symbol(value : StringView, maximum : Int32) -> Bool {
   if value.is_empty() || value.length() > maximum {
     return false
   }

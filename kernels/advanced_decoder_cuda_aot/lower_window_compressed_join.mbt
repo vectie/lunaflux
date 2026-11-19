@@ -32,10 +32,10 @@ fn window_compressed_join_operand_text(
 ///|
 fn window_compressed_join_recipe(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  ordinal : Int,
-  maximum_tokens : Int,
-  window_size : Int,
-  compression_ratio : Int,
+  ordinal : Int32,
+  maximum_tokens : Int32,
+  window_size : Int32,
+  compression_ratio : Int32,
   target : @catalog.DeviceTarget,
   compiler : @luna_specialization.LunaCompilerPolicy,
   dimensions : @launch_contract.AotLaunchDimensions,
@@ -107,8 +107,8 @@ fn window_compressed_join_recipe(
 /// preparation, attention, or execution authority is included.
 pub fn lower_deterministic_window_compressed_join_cuda_aot_candidate(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
-  requirement_ordinal~ : Int,
-  maximum_tokens~ : Int,
+  requirement_ordinal~ : Int32,
+  maximum_tokens~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : AdvancedDecoderCudaAotLimits,

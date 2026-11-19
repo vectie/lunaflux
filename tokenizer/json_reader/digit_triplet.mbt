@@ -59,8 +59,8 @@ fn validate_digit_triplet_pipeline(
 ///|
 fn append_external_added_tokens(
   entries : Array[@tokenizer.VocabularyEntry],
-  raw_ids : Map[String, Int],
-  specials : Map[Int, AddedSpecial],
+  raw_ids : Map[String, Int32],
+  specials : Map[Int32, AddedSpecial],
 ) -> Unit {
   let external : Array[AddedSpecial] = []
   for _, entry in specials {

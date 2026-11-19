@@ -50,10 +50,10 @@ fn luna_online_tcp_pipeline_terminal_observation(
 
 ///|
 fn luna_online_tcp_pipeline_pending_after_record(
-  pending : Int,
+  pending : Int32,
   admission : Bool,
   terminal : Bool,
-) -> Int {
+) -> Int32 {
   if pending < 0 || (admission && terminal) {
     return -1
   }
@@ -129,7 +129,7 @@ fn LunaOnlineTcpServer::record_observation(self : LunaOnlineTcpServer) -> Bool {
 /// interval exactly once. This telemetry-only call does not confer readiness.
 pub fn LunaOnlineTcpServer::record_cold_start_latency_millis(
   self : LunaOnlineTcpServer,
-  duration_millis : Int,
+  duration_millis : Int32,
 ) -> Unit raise LunaOnlineTcpError {
   if self.activity.reactor_active || self.activity.maintenance_active {
     raise luna_online_tcp_error(LunaOnlineTcpOwnership)

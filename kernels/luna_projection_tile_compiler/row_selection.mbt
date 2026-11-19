@@ -3,8 +3,8 @@
 /// current operand extent before evaluating its continuation. Device lowering
 /// chooses syntax, not the decision order or row-coordinate transformation.
 pub enum ProjectionRowSelection {
-  Operand(Int)
-  Skip(width~ : Int, operand~ : Int, ProjectionRowSelection)
+  Operand(Int32)
+  Skip(width~ : Int32, operand~ : Int32, ProjectionRowSelection)
 } derive(Debug, Eq)
 
 ///|
@@ -37,3 +37,9 @@ pub fn plan_projection_row_selection(
     Some(tree)
   }
 }
+
+///|
+pub extend ProjectionRowSelection with @debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionRowSelection with Eq::{not_equal, equal}

@@ -25,7 +25,7 @@ pub struct WeightStartup {
   priv mut used : Int64
   priv mut failed : Bool
   priv mut closed : Bool
-  priv mut leases : Int
+  priv mut leases : Int32
   priv mut identity : @spec.ModelIdentity?
 }
 
@@ -50,14 +50,14 @@ pub fn WeightStartup::reserved_bytes(self : Self) -> Int64 {
 }
 
 ///|
-pub fn WeightStartup::count(self : Self) -> Int {
+pub fn WeightStartup::count(self : Self) -> Int32 {
   self.entries.length()
 }
 
 ///|
 pub fn WeightStartup::component(
   self : Self,
-  index : Int,
+  index : Int32,
 ) -> @weights.MiniMaxH3WeightComponent raise StartupError {
   guard index >= 0 && index < self.entries.length() else { raise InvalidState }
   self.entries[index].component
@@ -89,7 +89,7 @@ pub fn WeightLease::release(self : Self) -> Unit {
 }
 
 ///|
-fn WeightLease::entry(self : Self, index : Int) -> Owner raise StartupError {
+fn WeightLease::entry(self : Self, index : Int32) -> Owner raise StartupError {
   guard !self.released &&
     !self.owner.failed &&
     !self.owner.closed &&
@@ -103,7 +103,7 @@ fn WeightLease::entry(self : Self, index : Int) -> Owner raise StartupError {
 ///|
 pub fn[T] WeightLease::with_allocation(
   self : Self,
-  index : Int,
+  index : Int32,
   consume : (@device.Allocation) -> T raise,
 ) -> T raise {
   guard self.entry(index) is Packed(allocation) else { raise InvalidPacking }
@@ -113,7 +113,7 @@ pub fn[T] WeightLease::with_allocation(
 ///|
 pub fn[T] WeightLease::with_encoder(
   self : Self,
-  index : Int,
+  index : Int32,
   consume : (@text.EncoderWeights) -> T raise,
 ) -> T raise {
   guard self.entry(index) is Encoder(owner) else { raise InvalidPacking }
@@ -123,7 +123,7 @@ pub fn[T] WeightLease::with_encoder(
 ///|
 pub fn[T] WeightLease::with_vision(
   self : Self,
-  index : Int,
+  index : Int32,
   consume : (@vision.VisionWeights) -> T raise,
 ) -> T raise {
   guard self.entry(index) is Visual(owner) else { raise InvalidPacking }
@@ -133,7 +133,7 @@ pub fn[T] WeightLease::with_vision(
 ///|
 pub fn[T] WeightLease::with_reference(
   self : Self,
-  index : Int,
+  index : Int32,
   consume : (@segmented.SegmentedDeviceWeights, @media.WeightManifest) -> T raise,
 ) -> T raise {
   guard self.entry(index) is Segmented(owner, manifest) else {

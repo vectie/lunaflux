@@ -34,7 +34,7 @@ pub fn RowQuantizationSource::plan(self : Self) -> @precision.QuantizationPlan {
 /// The error word is a caller-owned device status, cleared before execution.
 pub fn quantize_bf16_rows_source(
   plan : @precision.QuantizationPlan,
-  row_multiplier~ : Int,
+  row_multiplier~ : Int32,
   symbol~ : String,
 ) -> RowQuantizationSource raise LoweringError {
   if !valid_symbol(symbol) {

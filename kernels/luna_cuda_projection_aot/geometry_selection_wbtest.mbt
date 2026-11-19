@@ -243,6 +243,6 @@ test "source bound output and down reuse records reach executable launch plans" 
 }
 
 ///|
-fn dimensions_of_down_bound(rows : Int) -> Int {
-  Int::max((rows + 127) / 128 * 16, 64)
+fn dimensions_of_down_bound(rows : Int32) -> Int32 {
+  Int32::max((rows + 127) / 128 * 16, 64)
 }

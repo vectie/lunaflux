@@ -7,18 +7,18 @@ pub(all) enum VisualKind {
 ///|
 pub struct VisualGrid {
   kind : VisualKind
-  time : Int
-  height : Int
-  width : Int
+  time : Int32
+  height : Int32
+  width : Int32
 }
 
 ///|
 /// Raw patch-grid dimensions, before the vision encoder's spatial merge by 2.
 pub fn VisualGrid::new(
   kind~ : VisualKind,
-  time~ : Int,
-  height~ : Int,
-  width~ : Int,
+  time~ : Int32,
+  height~ : Int32,
+  width~ : Int32,
 ) -> Self raise EncoderConfigError {
   guard time > 0 &&
     height > 0 &&
@@ -39,7 +39,7 @@ pub fn VisualGrid::new(
 /// Grids must be in textual media order, matching the packed visual outputs.
 pub fn EncoderConfig::placement_from_grids(
   self : Self,
-  ids : ArrayView[Int],
+  ids : ArrayView[Int32],
   grids : ArrayView[VisualGrid],
 ) -> VisualPlacement raise EncoderConfigError {
   guard ids.length() > 0 &&
@@ -48,8 +48,8 @@ pub fn EncoderConfig::placement_from_grids(
     !grids.is_empty() else {
     raise InvalidRequest
   }
-  let positions : Array[(Int, Int, Int)] = []
-  let visual : Array[Int] = []
+  let positions : Array[(Int32, Int32, Int32)] = []
+  let visual : Array[Int32] = []
   let mut cursor = 0
   let mut base = 0
   for grid in grids {
@@ -88,7 +88,7 @@ pub fn EncoderConfig::placement_from_grids(
           }
         }
       }
-      base += Int::max(temporal, Int::max(height, width))
+      base += Int32::max(temporal, Int32::max(height, width))
     }
   }
   while cursor < ids.length() {

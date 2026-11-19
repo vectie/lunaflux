@@ -2,16 +2,16 @@
 fn valid_decay_control_symbol(value : StringView) -> Bool {
   !value.is_empty() &&
   value.length() <= 128 &&
-  value[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-  value.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_'))
+  value[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+  value.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_'))
 }
 
 ///|
 pub fn safe_lower_bound_sigmoid_decay_f32_source(
-  head_count~ : Int,
-  head_dimension~ : Int,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
   lower_bound~ : Double,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   function_symbol~ : String,
 ) -> DecayControlCudaSource raise DecayControlCudaSourceError {
   if head_count <= 0 || head_count > 65536 {

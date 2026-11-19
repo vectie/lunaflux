@@ -1,11 +1,11 @@
 ///|
 fn slice(
-  index : Int,
-  ordinal : Int,
+  index : Int32,
+  ordinal : Int32,
   name : String,
   bytes : Int64,
-) -> IndexedParameterSliceInput {
-  try! IndexedParameterSliceInput::new(
+) -> @indexed_parameter_bank_layout.IndexedParameterSliceInput {
+  try! @indexed_parameter_bank_layout.IndexedParameterSliceInput::new(
     logical_index=index,
     source_ordinal=ordinal,
     source_name=name,
@@ -15,7 +15,7 @@ fn slice(
 
 ///|
 test "indexed bank layout binds exact source order and checked offsets" {
-  let layout = build_indexed_parameter_bank_layout(
+  let layout = @indexed_parameter_bank_layout.build_indexed_parameter_bank_layout(
     [slice(0, 7, "expert.0", 16L), slice(1, 9, "expert.1", 32L)],
     alignment=16L,
     maximum_byte_count=48L,
@@ -36,7 +36,7 @@ test "indexed bank layout rejects duplicate reorder alignment extent and overflo
   ]
   for inputs in cases {
     try
-      build_indexed_parameter_bank_layout(
+      @indexed_parameter_bank_layout.build_indexed_parameter_bank_layout(
         inputs,
         alignment=16L,
         maximum_byte_count=64L,
@@ -52,7 +52,7 @@ test "indexed bank layout rejects duplicate reorder alignment extent and overflo
     }
   }
   try
-    build_indexed_parameter_bank_layout(
+    @indexed_parameter_bank_layout.build_indexed_parameter_bank_layout(
       [slice(0, 7, "a", 32L), slice(1, 8, "b", 32L)],
       alignment=16L,
       maximum_byte_count=63L,
@@ -64,7 +64,7 @@ test "indexed bank layout rejects duplicate reorder alignment extent and overflo
     _ => fail("overflowing indexed layout admitted")
   }
   try
-    build_indexed_parameter_bank_layout(
+    @indexed_parameter_bank_layout.build_indexed_parameter_bank_layout(
       [slice(0, 7, "a", 16L)],
       alignment=3L,
       maximum_byte_count=16L,

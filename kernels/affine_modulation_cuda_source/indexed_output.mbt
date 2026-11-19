@@ -4,9 +4,9 @@
 /// Pass a contiguous selected slice of normalized rows and its index map to
 /// avoid projecting text, conditioning or padding through a media output head.
 pub fn indexed_bf16_shift_scale_f32_source(
-  rows~ : Int,
-  width~ : Int,
-  parameter_rows~ : Int,
+  rows~ : Int32,
+  width~ : Int32,
+  parameter_rows~ : Int32,
   function_symbol~ : String,
 ) -> Bytes raise AffineModulationCudaSourceError {
   if rows <= 0 || parameter_rows <= 0 {

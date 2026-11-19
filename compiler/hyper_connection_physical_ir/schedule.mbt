@@ -13,7 +13,7 @@ pub fn ControlSchedule::fuses_normalization(self : Self) -> Bool {
 }
 
 ///|
-pub fn ControlSchedule::workers(self : Self) -> Int {
+pub fn ControlSchedule::workers(self : Self) -> Int32 {
   match self {
     Ordered(p) => p.workers()
     Tree(p) => p.workers()
@@ -31,8 +31,8 @@ pub fn ControlSchedule::workspace_bytes(self : Self) -> Int64 {
 ///|
 pub fn ControlSchedule::workgroups(
   self : Self,
-  stage : Int,
-) -> Int raise @precision.PrecisionPlanError {
+  stage : Int32,
+) -> Int32 raise @precision.PrecisionPlanError {
   match self {
     Ordered(p) => p.workgroups(stage)
     Tree(p) => p.workgroups(stage)

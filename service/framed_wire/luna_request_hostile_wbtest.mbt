@@ -1,12 +1,12 @@
 ///|
-fn luna_refresh_checksum(source : FixedArray[Byte], length : Int) -> Unit {
+fn luna_refresh_checksum(source : FixedArray[Byte], length : Int32) -> Unit {
   write_u32(source, 16, frame_checksum(source, length))
 }
 
 ///|
 fn luna_assert_frozen_rule(
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   expected : FramedWireRule,
 ) -> Unit raise {
   let mut expected_total = 0UL
@@ -60,7 +60,7 @@ fn luna_assert_frozen_rule(
 }
 
 ///|
-fn luna_equal_stop_source() -> (FixedArray[Byte], Int) raise {
+fn luna_equal_stop_source() -> (FixedArray[Byte], Int32) raise {
   let limits = fixture_inference_limits()
   let request = @inference.GenerateRequest::new(
     protocol_version=@inference.ProtocolVersion::v1(),

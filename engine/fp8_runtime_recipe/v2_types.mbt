@@ -25,16 +25,16 @@ pub(all) suberror Fp8RuntimeRecipeV2Error {
 
 ///|
 pub struct Fp8RuntimeRecipeV2Limits {
-  priv max_launches : Int
+  priv max_launches : Int32
   priv max_workspace_arena_bytes : Int64
-  priv max_canonical_bytes : Int
+  priv max_canonical_bytes : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn Fp8RuntimeRecipeV2Limits::new(
-  max_launches~ : Int,
+  max_launches~ : Int32,
   max_workspace_arena_bytes~ : Int64,
-  max_canonical_bytes~ : Int,
+  max_canonical_bytes~ : Int32,
 ) -> Fp8RuntimeRecipeV2Limits raise Fp8RuntimeRecipeV2Error {
   if max_launches <= 0 ||
     max_launches > 65536 ||

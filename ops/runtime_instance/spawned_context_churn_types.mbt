@@ -36,24 +36,24 @@ pub suberror RuntimeSpawnedContextChurnError {
 /// child. Construction decodes and copies every frame before retaining it.
 pub struct RuntimeSpawnedContextChurnContract {
   priv frames : FixedArray[FixedArray[Byte]]
-  priv context_ceilings : FixedArray[Int]
+  priv context_ceilings : FixedArray[Int32]
   priv expected_model : @spec.ModelIdentity
-  priv expected_first_token : Int
-  priv expected_second_token : Int
-  priv input_tokens : Int
-  priv turn_limit : Int
+  priv expected_first_token : Int32
+  priv expected_second_token : Int32
+  priv input_tokens : Int32
+  priv turn_limit : Int32
 }
 
 ///|
 /// Scalar evidence published only after all streams, the service, child, and
 /// device-owned resources have closed.
 pub struct RuntimeSpawnedContextChurnResult {
-  priv request_count : Int
-  priv event_count : Int
-  priv plan_count : Int
+  priv request_count : Int32
+  priv event_count : Int32
+  priv plan_count : Int32
   priv last_plan_sequence : UInt64
-  priv initial_kv_pages_free : Int
-  priv final_kv_pages_free : Int
+  priv initial_kv_pages_free : Int32
+  priv final_kv_pages_free : Int32
   priv network_accepts : UInt64
   priv network_disconnects : UInt64
   priv network_rejections : UInt64
@@ -73,16 +73,16 @@ fn copy_context_churn_frame(source : FixedArray[Byte]) -> FixedArray[Byte] {
 
 ///|
 fn context_churn_scalar_contract_valid(
-  expected_first_token : Int,
-  expected_second_token : Int,
-  maximum_token_id : Int,
-  input_tokens : Int,
-  tokens_per_page : Int,
-  first_context : Int,
-  second_context : Int,
-  third_context : Int,
-  maximum_context : Int,
-  turn_limit : Int,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  maximum_token_id : Int32,
+  input_tokens : Int32,
+  tokens_per_page : Int32,
+  first_context : Int32,
+  second_context : Int32,
+  third_context : Int32,
+  maximum_context : Int32,
+  turn_limit : Int32,
 ) -> Bool {
   expected_first_token >= 0 &&
   expected_first_token <= maximum_token_id &&
@@ -101,19 +101,19 @@ fn context_churn_scalar_contract_valid(
 ///|
 pub fn RuntimeSpawnedContextChurnContract::new(
   first_frame : FixedArray[Byte],
-  first_context : Int,
+  first_context : Int32,
   second_frame : FixedArray[Byte],
-  second_context : Int,
+  second_context : Int32,
   third_frame : FixedArray[Byte],
-  third_context : Int,
+  third_context : Int32,
   expected_model : @spec.ModelIdentity,
-  expected_first_token : Int,
-  expected_second_token : Int,
-  input_tokens : Int,
-  tokens_per_page : Int,
+  expected_first_token : Int32,
+  expected_second_token : Int32,
+  input_tokens : Int32,
+  tokens_per_page : Int32,
   inference_limits : @inference.InferenceLimits,
-  maximum_frame_bytes : Int,
-  turn_limit : Int,
+  maximum_frame_bytes : Int32,
+  turn_limit : Int32,
 ) -> RuntimeSpawnedContextChurnContract raise RuntimeSpawnedContextChurnError {
   let framed_limits = @framed_wire.FramedWireLimits::new(
     inference_limits,
@@ -136,7 +136,7 @@ pub fn RuntimeSpawnedContextChurnContract::new(
     raise spawned_context_churn_error(SpawnedContextChurnContract)
   }
   let sources = [first_frame, second_frame, third_frame]
-  let contexts : FixedArray[Int] = [
+  let contexts : FixedArray[Int32] = [
     first_context, second_context, third_context,
   ]
   let owned : FixedArray[FixedArray[Byte]] = FixedArray::makei(3, index => {
@@ -173,21 +173,21 @@ pub fn RuntimeSpawnedContextChurnContract::new(
 ///|
 pub fn RuntimeSpawnedContextChurnResult::request_count(
   self : RuntimeSpawnedContextChurnResult,
-) -> Int {
+) -> Int32 {
   self.request_count
 }
 
 ///|
 pub fn RuntimeSpawnedContextChurnResult::event_count(
   self : RuntimeSpawnedContextChurnResult,
-) -> Int {
+) -> Int32 {
   self.event_count
 }
 
 ///|
 pub fn RuntimeSpawnedContextChurnResult::plan_count(
   self : RuntimeSpawnedContextChurnResult,
-) -> Int {
+) -> Int32 {
   self.plan_count
 }
 
@@ -201,14 +201,14 @@ pub fn RuntimeSpawnedContextChurnResult::last_plan_sequence(
 ///|
 pub fn RuntimeSpawnedContextChurnResult::initial_kv_pages_free(
   self : RuntimeSpawnedContextChurnResult,
-) -> Int {
+) -> Int32 {
   self.initial_kv_pages_free
 }
 
 ///|
 pub fn RuntimeSpawnedContextChurnResult::final_kv_pages_free(
   self : RuntimeSpawnedContextChurnResult,
-) -> Int {
+) -> Int32 {
   self.final_kv_pages_free
 }
 

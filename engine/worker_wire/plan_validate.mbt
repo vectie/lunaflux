@@ -1,7 +1,7 @@
 ///|
 fn validate_wire_sampling(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   limits : @inference.InferenceLimits,
 ) -> Unit raise WorkerWireError {
   let mode = read_u32(bytes, offset)
@@ -50,12 +50,12 @@ fn validate_wire_sampling(
 
 ///|
 fn validate_wire_range(
-  start : Int,
-  length : Int,
-  table_length : Int,
-  expected_start : Int,
+  start : Int32,
+  length : Int32,
+  table_length : Int32,
+  expected_start : Int32,
   rule : WorkerWireFrameRule,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   if start != expected_start ||
     length <= 0 ||
     start < 0 ||
@@ -69,12 +69,12 @@ fn validate_wire_range(
 ///|
 fn validate_plan_frame_source(
   bytes : FixedArray[Byte],
-  supplied_length : Int,
+  supplied_length : Int32,
   worker_limits : @worker_protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
-  destination_capacity : Int,
+  destination_capacity : Int32,
   validation_requests : FixedArray[UInt64],
-  validation_slots : FixedArray[Int],
+  validation_slots : FixedArray[Int32],
 ) -> Unit raise WorkerWireError {
   if supplied_length < plan_header_bytes || supplied_length > bytes.length() {
     raise SourceTooSmall
@@ -286,7 +286,7 @@ fn validate_plan_frame_source(
 pub fn PlanFrameBuffer::load(
   self : PlanFrameBuffer,
   source : FixedArray[Byte],
-  length : Int,
+  length : Int32,
 ) -> ValidatedPlanFrame raise WorkerWireError {
   if self.epoch == 0xffffffffffffffffUL {
     raise FrameEpochOverflow
@@ -313,7 +313,7 @@ pub fn PlanFrameBuffer::load(
 pub fn ValidatedPlanFrame::copy_to(
   self : ValidatedPlanFrame,
   destination : FixedArray[Byte],
-  destination_offset~ : Int,
+  destination_offset~ : Int32,
 ) -> Unit raise WorkerWireError {
   let owner = self.owner()
   if destination_offset < 0 ||

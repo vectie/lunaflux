@@ -4,7 +4,7 @@
 pub fn DecoderStageClient::predict(
   self : Self,
   local_now_millis~ : UInt64,
-  committed_seed? : Int,
+  committed_seed? : Int32,
 ) -> Unit raise {
   guard !self.busy &&
     self.state is Idle &&
@@ -32,7 +32,7 @@ pub fn DecoderStageClient::predict(
 }
 
 ///|
-pub fn DecoderStageClient::draft_count(self : Self) -> Int raise {
+pub fn DecoderStageClient::draft_count(self : Self) -> Int32 raise {
   guard self.state is DraftsReady else { raise StageControlError::InvalidState }
   self.draft_rows
 }
@@ -40,7 +40,10 @@ pub fn DecoderStageClient::draft_count(self : Self) -> Int raise {
 ///|
 /// Borrowed receipt storage stays valid until prepare/release/close; no second
 /// exchange, checksum or device readback is performed by these accessors.
-pub fn DecoderStageClient::draft_token_at(self : Self, row : Int) -> Int raise {
+pub fn DecoderStageClient::draft_token_at(
+  self : Self,
+  row : Int32,
+) -> Int32 raise {
   guard self.state is DraftsReady && row >= 0 && row < self.draft_rows else {
     raise StageControlError::InvalidState
   }

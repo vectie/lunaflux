@@ -3,7 +3,7 @@ fn fused_benchmark_qualify(
   identity : FusedBenchmarkCandidateIdentity,
   protocol : FusedCandidateBenchmarkProtocol,
   observations : ArrayView[FusedCandidateBenchmarkPairedObservation],
-  maximum_evidence_bytes : Int,
+  maximum_evidence_bytes : Int32,
 ) -> FusedCandidateBenchmarkQualificationEvidence raise FusedCandidateBenchmarkError {
   if maximum_evidence_bytes <= 0 || maximum_evidence_bytes > 16777216 {
     raise InvalidFusedCandidateBenchmark(EvidenceSize)
@@ -40,7 +40,7 @@ pub fn qualify_fused_qkv_candidate_benchmark(
   candidate : @luna_cuda_fused_parallel_aot.FusedQkvRopeKvWriteCudaCandidate,
   protocol : FusedCandidateBenchmarkProtocol,
   observations : ArrayView[FusedCandidateBenchmarkPairedObservation],
-  maximum_evidence_bytes~ : Int,
+  maximum_evidence_bytes~ : Int32,
 ) -> FusedCandidateBenchmarkQualificationEvidence raise FusedCandidateBenchmarkError {
   fused_benchmark_qualify(
     fused_benchmark_qkv_identity(candidate),
@@ -58,7 +58,7 @@ pub fn qualify_fused_residual_rmsnorm_candidate_benchmark(
   candidate : @luna_cuda_fused_parallel_aot.FusedResidualRmsNormCudaCandidate,
   protocol : FusedCandidateBenchmarkProtocol,
   observations : ArrayView[FusedCandidateBenchmarkPairedObservation],
-  maximum_evidence_bytes~ : Int,
+  maximum_evidence_bytes~ : Int32,
 ) -> FusedCandidateBenchmarkQualificationEvidence raise FusedCandidateBenchmarkError {
   fused_benchmark_qualify(
     fused_benchmark_residual_identity(candidate),

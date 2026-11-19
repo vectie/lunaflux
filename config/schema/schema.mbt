@@ -20,10 +20,10 @@ pub(all) enum Section {
 /// attacker-controlled name. `UnknownField` and `DuplicateField` identify the
 /// position in the bounded top-level field list.
 pub(all) suberror SchemaError {
-  TooManyFields(limit~ : Int)
+  TooManyFields(limit~ : Int32)
   UnsupportedVersion
-  UnknownField(index~ : Int)
-  DuplicateField(index~ : Int, first_index~ : Int)
+  UnknownField(index~ : Int32)
+  DuplicateField(index~ : Int32, first_index~ : Int32)
   MissingSection(Section)
 } derive(Debug, Eq)
 

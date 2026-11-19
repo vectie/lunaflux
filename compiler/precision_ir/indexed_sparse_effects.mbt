@@ -49,7 +49,7 @@ pub fn IndexedSparseAttentionPrecision::program(
     false,
     false,
   ]
-  let stages : Array[Array[(Int, @parallel.AccessMode)]] = [
+  let stages : Array[Array[(Int32, @parallel.AccessMode)]] = [
     [
       (1, Read),
       (0, Read),

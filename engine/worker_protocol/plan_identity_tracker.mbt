@@ -1,5 +1,5 @@
 ///|
-fn request_identity_tracker_capacity(maximum_rows : Int) -> Int {
+fn request_identity_tracker_capacity(maximum_rows : Int32) -> Int32 {
   let required = maximum_rows * 2
   let mut capacity = 1
   while capacity < required {
@@ -9,7 +9,7 @@ fn request_identity_tracker_capacity(maximum_rows : Int) -> Int {
 }
 
 ///|
-fn request_identity_start(value : UInt64, capacity : Int) -> Int {
+fn request_identity_start(value : UInt64, capacity : Int32) -> Int32 {
   let folded = (value ^ (value >> 32)).to_uint()
   (folded & (capacity - 1).reinterpret_as_uint()).reinterpret_as_int()
 }

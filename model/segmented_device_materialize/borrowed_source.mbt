@@ -17,7 +17,7 @@ fn translate_borrow_failure(
 fn provide_borrowed_region(
   layout : SegmentedDeviceLayout,
   region : SegmentedDeviceTensorRegion,
-  provide : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
+  provide : (Int32, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
   consume : (FixedArray[Byte]) -> Unit raise SegmentedDeviceMaterializationError,
 ) -> Unit raise SegmentedDeviceMaterializationError {
   let arena_ordinal = region.source_arena_ordinal
@@ -66,7 +66,7 @@ fn provide_borrowed_region(
 /// copying device memory. This grants no materialization authority.
 pub fn validate_borrowed_source(
   layout : SegmentedDeviceLayout,
-  provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
+  provide~ : (Int32, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
 ) -> Unit raise SegmentedDeviceMaterializationError {
   // The opaque immutable layout was validated during planning. Exercise its
   // live arena borrows, not a second canonical layout hash.
@@ -81,7 +81,7 @@ fn[T] prepare_with_borrowed_resource(
   expected_identity : @spec.ModelIdentity,
   expected_source_digest : SegmentedHostSourceDigest,
   expected_layout_digest : SegmentedDeviceLayoutDigest,
-  provide : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
+  provide : (Int32, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
   allocate : (Int64) -> T raise SegmentedDeviceMaterializationError,
   validate : (T, Int64, Int64, Int64) -> Unit raise SegmentedDeviceMaterializationError,
   copy : (T, FixedArray[Byte], Int64, Int64, Int64) -> Unit raise SegmentedDeviceMaterializationError,
@@ -150,7 +150,7 @@ pub fn materialize_from_borrowed_source(
   expected_identity~ : @spec.ModelIdentity,
   expected_source_digest~ : SegmentedHostSourceDigest,
   expected_layout_digest~ : SegmentedDeviceLayoutDigest,
-  provide~ : (Int, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
+  provide~ : (Int32, @segmented_host_borrow.SegmentedHostArenaConsumer) -> Unit raise @segmented_host_borrow.SegmentedHostBorrowError,
 ) -> SegmentedDevicePreparation raise SegmentedDeviceMaterializationError {
   let prepared = prepare_with_borrowed_resource(
     layout,

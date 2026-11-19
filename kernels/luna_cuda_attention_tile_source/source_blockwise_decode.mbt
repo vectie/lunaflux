@@ -7,7 +7,7 @@ fn emit_cuda_blockwise_decode_source(
   lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
   abi : CudaPagedAttentionTileAbi,
   requested_symbol : String,
-  maximum_source_bytes : Int,
+  maximum_source_bytes : Int32,
   fold : @attention_physical_ir.BlockwiseFold,
   effects : @luna_attention_tile_schedule.AttentionGroupedEffectPlan,
 ) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {

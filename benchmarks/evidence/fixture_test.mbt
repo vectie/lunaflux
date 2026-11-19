@@ -69,7 +69,7 @@ fn test_workloads() -> Array[@evidence.BenchmarkWorkload] raise {
 }
 
 ///|
-fn test_engine_tag(engine : @evidence.BenchmarkEngine) -> Int {
+fn test_engine_tag(engine : @evidence.BenchmarkEngine) -> Int32 {
   match engine {
     LunaFlux => 0
     Vllm => 1
@@ -78,7 +78,7 @@ fn test_engine_tag(engine : @evidence.BenchmarkEngine) -> Int {
 }
 
 ///|
-fn test_position(engine : @evidence.BenchmarkEngine, ordinal : Int) -> Int {
+fn test_position(engine : @evidence.BenchmarkEngine, ordinal : Int32) -> Int32 {
   let tag = test_engine_tag(engine)
   match ordinal {
     1 => tag

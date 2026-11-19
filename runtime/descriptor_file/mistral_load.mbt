@@ -2,7 +2,7 @@
 fn load_mistral_config_snapshot(
   root : @approved_fs.ApprovedRoot,
   claims : MistralRuntimeDescriptorModelClaims,
-  maximum : Int,
+  maximum : Int32,
 ) -> @mistral_spec.MistralModelMetadata raise RuntimeDescriptorFileError {
   if claims.family != "mistral" || claims.sliding_window_tokens < 0 {
     raise AdmissionRejected(ModelConfig)
@@ -61,7 +61,7 @@ fn inspect_mistral_numeric_weights(
   batch : @mistral.MistralPagedBatchEnvelope,
   claims : MistralRuntimeDescriptorModelClaims,
   ceilings : @worker_wire.WorkerBootstrapCeilings,
-  tensor_count : Int,
+  tensor_count : Int32,
 ) -> @mistral_weights.MistralWeightFileInspection raise RuntimeDescriptorFileError {
   let inspection = @mistral_weights.inspect_paged_file(
     root,

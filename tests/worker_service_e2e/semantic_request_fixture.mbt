@@ -1,7 +1,7 @@
 ///|
 priv struct E2ESemanticLeaseOwner {
   slots : FixedArray[@inference.LunaRequestSemanticLease?]
-  mut count : Int
+  mut count : Int32
 }
 
 ///|

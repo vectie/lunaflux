@@ -5,7 +5,7 @@
 pub fn ValidatedCompletionFrame::greedy_token_for(
   self : Self,
   plan : ValidatedPlanFrame,
-) -> Int raise WorkerWireError {
+) -> Int32 raise WorkerWireError {
   guard self.sequence_value() == plan.sequence_value() &&
     self.model_generation_value() == plan.model_generation_value() &&
     self.entry_count() == 1 else {

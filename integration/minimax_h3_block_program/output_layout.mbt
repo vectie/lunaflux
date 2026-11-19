@@ -7,11 +7,11 @@ struct OutputLayout {
 
 ///|
 fn output_layout(
-  rows : Int,
-  width : Int,
-  times : Int,
-  video : Int,
-  audio : Int,
+  rows : Int32,
+  width : Int32,
+  times : Int32,
+  video : Int32,
+  audio : Int32,
   budget : Int64,
 ) -> OutputLayout raise @device.DeviceError {
   guard rows > 0 &&
@@ -33,7 +33,7 @@ fn output_layout(
   // Selected media hidden states have disjoint lifetimes. Video projection
   // finishes before audio modulation overwrites this F32 region.
   let bytes = selected +
-    Int::max(video, audio).to_int64() * width.to_int64() * 4L
+    Int32::max(video, audio).to_int64() * width.to_int64() * 4L
   guard budget > 0L && bytes <= budget else {
     raise @device.DeviceError::InvalidArgument(AllocationCreate)
   }

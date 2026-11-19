@@ -14,7 +14,7 @@ fn transaction_summary() -> DeviceStepSummary {
 fn fake_upload_transaction(
   host : DeviceStepHostBuffers,
   summary : DeviceStepSummary,
-  upload : (DeviceStepStage, FixedArray[Byte], Int) -> Unit raise DeviceStepError,
+  upload : (DeviceStepStage, FixedArray[Byte], Int32) -> Unit raise DeviceStepError,
 ) -> Unit raise DeviceStepError {
   upload(TokenIds, host.token_ids, summary.token_count)
   upload(TokenPositions, host.token_positions, summary.token_count)
@@ -32,7 +32,7 @@ fn fake_publish_or_poison(
   set_lifecycle : (DeviceStepLifecycle) -> Unit,
   host : DeviceStepHostBuffers,
   summary : DeviceStepSummary,
-  upload : (DeviceStepStage, FixedArray[Byte], Int) -> Unit raise DeviceStepError,
+  upload : (DeviceStepStage, FixedArray[Byte], Int32) -> Unit raise DeviceStepError,
 ) -> Unit raise DeviceStepError {
   require_lifecycle(lifecycle, Ready)
   let mut upload_complete = false

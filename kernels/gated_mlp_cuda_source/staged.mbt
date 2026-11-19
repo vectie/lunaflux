@@ -5,11 +5,11 @@
 /// both projections once per output channel while preserving ordered sums and
 /// BF16 rounding points. All operands must be nonoverlapping during each stage.
 pub fn staged_packed_swiglu_bf16_source(
-  rows~ : Int,
-  hidden_size~ : Int,
-  intermediate_size~ : Int,
+  rows~ : Int32,
+  hidden_size~ : Int32,
+  intermediate_size~ : Int32,
   function_prefix~ : String,
-  dot_reduction_law? : @precision.DotReductionLaw = OrderedFloat32,
+  dot_reduction_law~ : @precision.DotReductionLaw = OrderedFloat32,
 ) -> Bytes raise GatedMlpCudaSourceError {
   if rows <= 0 {
     raise InvalidRowCount

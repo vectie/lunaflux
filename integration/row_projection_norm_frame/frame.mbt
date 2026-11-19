@@ -41,7 +41,7 @@ fn region(
   buffer : @device.Allocation,
   bytes : Int64,
   alignment : Int64,
-  offset? : Int64 = 0L,
+  offset~ : Int64 = 0L,
 ) -> @device.KernelArgument raise {
   @device.KernelArgument::device_region(
     buffer,

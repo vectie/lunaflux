@@ -1,5 +1,5 @@
 ///|
-fn comparison_test_position(engine : Int, ordinal : Int) -> Int {
+fn comparison_test_position(engine : Int32, ordinal : Int32) -> Int32 {
   match ordinal {
     1 => engine
     2 => (engine + 2) % 3
@@ -11,9 +11,9 @@ fn comparison_test_position(engine : Int, ordinal : Int) -> Int {
 fn comparison_test_trial(
   engine : @evidence.BenchmarkEngine,
   profile : @evidence.BenchmarkProfile,
-  ordinal : Int,
-  order_position : Int,
-  protocol_unit? : Char = '6',
+  ordinal : Int32,
+  order_position : Int32,
+  protocol_unit~ : Char = '6',
 ) -> OpenAIBaselineTrialEvidence raise {
   let inputs = baseline_test_inputs(profile~, protocol_unit~)
   let adapter = OpenAIBaselineTrialContract::new(
@@ -29,7 +29,7 @@ fn comparison_test_trial(
 
 ///|
 fn comparison_test_matrix(
-  hostile_protocol_index? : Int = -1,
+  hostile_protocol_index~ : Int32 = -1,
 ) -> Array[OpenAIBaselineTrialEvidence] raise {
   let trials : Array[OpenAIBaselineTrialEvidence] = []
   let engines = openai_comparison_engines()

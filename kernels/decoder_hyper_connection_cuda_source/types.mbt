@@ -56,10 +56,10 @@ pub(all) suberror DecoderHyperConnectionCudaSourceError {
 pub struct DecoderHyperConnectionCudaSource {
   priv operation : DecoderHyperConnectionCudaOperation
   priv numerical_contract : DecoderHyperConnectionNumericalContract
-  priv stream_width : Int
-  priv hidden_width : Int
-  priv maximum_rows : Int
-  priv sinkhorn_iterations : Int
+  priv stream_width : Int32
+  priv hidden_width : Int32
+  priv maximum_rows : Int32
+  priv sinkhorn_iterations : Int32
   priv control_epsilon : Double
   priv normalization_epsilon : Double
   priv function_symbol : String
@@ -73,9 +73,9 @@ pub struct DecoderHyperConnectionCudaSource {
 pub struct DecoderHyperConnectionFunctionCudaSource {
   priv operation : DecoderHyperConnectionCudaOperation
   priv numerical_contract : DecoderHyperConnectionNumericalContract
-  priv stream_width : Int
-  priv hidden_width : Int
-  priv maximum_rows : Int
+  priv stream_width : Int32
+  priv hidden_width : Int32
+  priv maximum_rows : Int32
   priv control_epsilon : Double
   priv normalization_epsilon : Double
   priv function_symbol : String
@@ -88,9 +88,9 @@ pub struct DecoderHyperConnectionFunctionCudaSource {
 pub struct DecoderHyperConnectionSinkhornCudaSource {
   priv operation : DecoderHyperConnectionCudaOperation
   priv numerical_contract : DecoderHyperConnectionNumericalContract
-  priv stream_width : Int
-  priv maximum_rows : Int
-  priv sinkhorn_iterations : Int
+  priv stream_width : Int32
+  priv maximum_rows : Int32
+  priv sinkhorn_iterations : Int32
   priv control_epsilon : Double
   priv function_symbol : String
   priv source : Bytes
@@ -102,9 +102,9 @@ pub struct DecoderHyperConnectionSinkhornCudaSource {
 pub struct DecoderHyperConnectionPreReduceCudaSource {
   priv operation : DecoderHyperConnectionCudaOperation
   priv numerical_contract : DecoderHyperConnectionNumericalContract
-  priv stream_width : Int
-  priv hidden_width : Int
-  priv maximum_rows : Int
+  priv stream_width : Int32
+  priv hidden_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }
@@ -115,9 +115,9 @@ pub struct DecoderHyperConnectionPreReduceCudaSource {
 pub struct DecoderHyperConnectionPostCombineCudaSource {
   priv operation : DecoderHyperConnectionCudaOperation
   priv numerical_contract : DecoderHyperConnectionNumericalContract
-  priv stream_width : Int
-  priv hidden_width : Int
-  priv maximum_rows : Int
+  priv stream_width : Int32
+  priv hidden_width : Int32
+  priv maximum_rows : Int32
   priv function_symbol : String
   priv source : Bytes
 }
@@ -128,9 +128,9 @@ pub struct DecoderHyperConnectionPostCombineCudaSource {
 pub struct DecoderHyperConnectionHeadReduceCudaSource {
   priv operation : DecoderHyperConnectionCudaOperation
   priv numerical_contract : DecoderHyperConnectionNumericalContract
-  priv stream_width : Int
-  priv hidden_width : Int
-  priv maximum_rows : Int
+  priv stream_width : Int32
+  priv hidden_width : Int32
+  priv maximum_rows : Int32
   priv control_epsilon : Double
   priv normalization_epsilon : Double
   priv function_symbol : String

@@ -7,7 +7,7 @@ pub struct LearnedTextIoFrame {
   priv text : TextIoFrame
   priv source : Bytes
   priv prefix : String
-  priv order : ReadOnlyArray[Int]
+  priv order : ReadOnlyArray[Int32]
   priv buffers : Array[@device.Allocation]
   priv functions : Array[@device.Function]
   priv after : Array[@device.OrderedKernelLaunch]

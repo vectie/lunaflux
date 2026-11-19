@@ -19,7 +19,7 @@ pub struct DeepSeekPredictionMain {
 ///|
 pub fn DeepSeekPredictionMain::new(
   spec : @spec.DeepSeekV4ModelSpec,
-  maximum_rows~ : Int,
+  maximum_rows~ : Int32,
   maximum_workspace_bytes~ : Int64,
 ) -> Self raise {
   {
@@ -60,9 +60,9 @@ pub fn DeepSeekPredictionMain::prepare(
   root : @approved_fs.ApprovedRoot,
   counts~ : @device.Allocation,
   captured_hidden~ : @device.Allocation,
-  target_layers~ : ArrayView[Int],
+  target_layers~ : ArrayView[Int32],
   maximum_device_bytes~ : Int64,
-  chunk_bytes~ : Int,
+  chunk_bytes~ : Int32,
   limits~ : @streaming.StreamingSafetensorsLimits,
 ) -> Unit raise {
   guard self.state is Fresh &&

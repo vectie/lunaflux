@@ -1,6 +1,6 @@
 ///|
 priv struct ReleaseBlueprintMarker {
-  identity : Int
+  identity : Int32
 }
 
 ///|

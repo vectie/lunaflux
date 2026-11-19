@@ -6,7 +6,7 @@ fn pa_content() -> @spec.ContentDigest raise {
 }
 
 ///|
-fn pa_family(seed : Int) -> @catalog.AotKernelFamily raise {
+fn pa_family(seed : Int32) -> @catalog.AotKernelFamily raise {
   let digit = (seed % 10).to_string()
   @catalog.AotKernelFamily::new(
     module_digest=@catalog.AotArtifactDigest::from_sha256(digit.repeat(64)),
@@ -15,7 +15,7 @@ fn pa_family(seed : Int) -> @catalog.AotKernelFamily raise {
 }
 
 ///|
-fn pa_entry(seed : Int) -> @catalog.AotKernelEntryPoint raise {
+fn pa_entry(seed : Int32) -> @catalog.AotKernelEntryPoint raise {
   @catalog.AotKernelEntryPoint::new(
     family=pa_family(seed),
     entry_point_id=@catalog.AotKernelEntryPointId::from_stable_int(seed),
@@ -185,7 +185,7 @@ fn pa_catalog() -> @catalog.ResolvedKernelCatalog raise {
 }
 
 ///|
-fn pa_target(bf16? : Bool = true) -> @catalog.DeviceTarget raise {
+fn pa_target(bf16~ : Bool = true) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=9,
     compute_minor=0,
@@ -196,7 +196,7 @@ fn pa_target(bf16? : Bool = true) -> @catalog.DeviceTarget raise {
 
 ///|
 fn pa_dimensions(
-  attention? : Bool = true,
+  attention~ : Bool = true,
 ) -> @launch_contract.AotLaunchDimensions raise {
   @launch_contract.AotLaunchDimensions::new(
     grid_x=3,
@@ -257,7 +257,7 @@ fn pa_attention_operands() -> Array[@launch_contract.AotOperand] raise {
 
 ///|
 fn pa_contracts(
-  exact_dimensions? : Bool = true,
+  exact_dimensions~ : Bool = true,
 ) -> @launch_contract.PagedKvLaunchContractSet raise {
   let profile = @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(1),
@@ -308,14 +308,14 @@ fn pa_contracts(
 
 ///|
 fn pa_attention_contract(
-  exact_dimensions? : Bool = true,
+  exact_dimensions~ : Bool = true,
 ) -> @launch_contract.PagedKvAotLaunchContract raise {
   pa_contracts(exact_dimensions~).contracts()[2]
 }
 
 ///|
 fn pa_compiler(
-  reassociate? : Bool = false,
+  reassociate~ : Bool = false,
 ) -> @luna_specialization.LunaCompilerPolicy raise {
   @luna_specialization.LunaCompilerPolicy::new(
     identity=@luna_specialization.LunaCompilerIdentity::new(

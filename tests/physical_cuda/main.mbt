@@ -14,14 +14,14 @@ fn require(
 }
 
 ///|
-fn write_u16_le(bytes : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn write_u16_le(bytes : FixedArray[Byte], index : Int32, value : Int32) -> Unit {
   let offset = index * 2
   bytes[offset] = value.to_byte()
   bytes[offset + 1] = (value >> 8).to_byte()
 }
 
 ///|
-fn write_u32_le(bytes : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn write_u32_le(bytes : FixedArray[Byte], index : Int32, value : Int32) -> Unit {
   let offset = index * 4
   bytes[offset] = value.to_byte()
   bytes[offset + 1] = (value >> 8).to_byte()
@@ -30,7 +30,7 @@ fn write_u32_le(bytes : FixedArray[Byte], index : Int, value : Int) -> Unit {
 }
 
 ///|
-fn read_u32_le(bytes : Bytes, index : Int) -> Int {
+fn read_u32_le(bytes : Bytes, index : Int32) -> Int32 {
   let offset = index * 4
   bytes[offset].to_int() |
   (bytes[offset + 1].to_int() << 8) |
@@ -40,7 +40,7 @@ fn read_u32_le(bytes : Bytes, index : Int) -> Int {
 
 ///|
 fn require_bf16_output(output : Bytes) -> Unit raise PhysicalCudaFailure {
-  let expected : FixedArray[Int] = [0x4268, 0x4280, 0x430b, 0x431a]
+  let expected : FixedArray[Int32] = [0x4268, 0x4280, 0x430b, 0x431a]
   require(output.length() == 8, "BF16 GEMM returned the wrong byte count")
   for index in 0..<expected.length() {
     let offset = index * 2
@@ -53,7 +53,7 @@ fn require_bf16_output(output : Bytes) -> Unit raise PhysicalCudaFailure {
 }
 
 ///|
-fn run_transfer_and_gemm_cycle(ordinal : Int, cycle : Int) -> Unit raise {
+fn run_transfer_and_gemm_cycle(ordinal : Int32, cycle : Int32) -> Unit raise {
   let context = @cuda.open_context(ordinal)
   defer (try! context.close())
   let stream = context.create_stream()
@@ -139,7 +139,7 @@ fn require_residual_add(output : Bytes) -> Unit raise PhysicalCudaFailure {
 }
 
 ///|
-fn run_residual_aot_cycle(ordinal : Int, image : Bytes) -> Unit raise {
+fn run_residual_aot_cycle(ordinal : Int32, image : Bytes) -> Unit raise {
   let context = @cuda.open_context(ordinal)
   defer (try! context.close())
   let stream = context.create_stream()
@@ -157,11 +157,11 @@ fn run_residual_aot_cycle(ordinal : Int, image : Bytes) -> Unit raise {
 
   let left_host = FixedArray::make(32, b'\x00')
   let right_host = FixedArray::make(32, b'\x00')
-  let left_values : FixedArray[Int] = [
+  let left_values : FixedArray[Int32] = [
     0x3f80, 0x4000, 0x4040, 0x4080, 0x40a0, 0x40c0, 0x40e0, 0x4100, 0x4110, 0x4120,
     0x4130, 0x4140, 0x4150, 0x4160, 0x4170, 0x4180,
   ]
-  let right_values : FixedArray[Int] = [
+  let right_values : FixedArray[Int32] = [
     0x4180, 0x4170, 0x4160, 0x4150, 0x4140, 0x4130, 0x4120, 0x4110, 0x4100, 0x40e0,
     0x40c0, 0x40a0, 0x4080, 0x4040, 0x4000, 0x3f80,
   ]
@@ -190,7 +190,7 @@ fn run_residual_aot_cycle(ordinal : Int, image : Bytes) -> Unit raise {
 }
 
 ///|
-fn run_aot_cycle(ordinal : Int, image : Bytes) -> Unit raise {
+fn run_aot_cycle(ordinal : Int32, image : Bytes) -> Unit raise {
   let context = @cuda.open_context(ordinal)
   defer (try! context.close())
   let stream = context.create_stream()

@@ -12,11 +12,11 @@ async fn RuntimeInstanceOwner::bind_openai_qualification(
 
 ///|
 fn openai_qualification_ingress_shape_valid(
-  server_count : Int,
-  framed_pool_count : Int,
-  openai_server_count : Int,
-  openai_pool_count : Int,
-  control_count : Int,
+  server_count : Int32,
+  framed_pool_count : Int32,
+  openai_server_count : Int32,
+  openai_pool_count : Int32,
+  control_count : Int32,
 ) -> Bool {
   server_count == 0 &&
   framed_pool_count == 0 &&
@@ -37,7 +37,7 @@ fn openai_qualification_server_live_state_valid(
 ///|
 fn openai_qualification_pool_live_state_valid(
   state : @online_tcp.LunaOnlineOpenAIConnectionPoolState,
-  active_connections : Int,
+  active_connections : Int32,
   readiness : @online_tcp.LunaOnlineOpenAIConnectionPoolReadiness,
   health : @online_tcp.LunaOnlineTcpServerHealth,
 ) -> Bool {

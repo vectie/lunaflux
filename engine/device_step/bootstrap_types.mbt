@@ -21,12 +21,12 @@ pub(all) suberror DeviceBootstrapError {
 ///|
 /// Bounded startup limits for canonical worker-bootstrap evidence.
 pub struct DeviceBootstrapLimits {
-  priv max_modules : Int
-  priv max_entry_points : Int
-  priv max_steps : Int
-  priv max_operands_per_step : Int
-  priv max_symbol_bytes : Int
-  priv max_canonical_bytes : Int
+  priv max_modules : Int32
+  priv max_entry_points : Int32
+  priv max_steps : Int32
+  priv max_operands_per_step : Int32
+  priv max_symbol_bytes : Int32
+  priv max_canonical_bytes : Int32
 }
 
 ///|
@@ -34,14 +34,14 @@ pub struct DeviceBootstrapLimits {
 pub struct DeviceWorkerBootstrapManifest {
   priv digest : @worker_wire.WorkerBootstrapDigest
   priv identity : @spec.ModelIdentity
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
   priv limits : DeviceStepLimits
   priv graph_memory : PagedGraphMemoryEvidence
-  priv module_count : Int
-  priv entry_point_count : Int
-  priv step_count : Int
+  priv module_count : Int32
+  priv entry_point_count : Int32
+  priv step_count : Int32
 }
 
 ///|
@@ -56,23 +56,23 @@ pub struct I8DeviceWorkerBootstrapManifestV3 {
   priv numeric_schema_digest : @numeric_contract.ModelNumericSchemaDigest
   priv i8_admission_digest : @i8_admission.I8InertKernelCapabilityAdmissionDigest
   priv device_numeric_digest : @device.DeviceNumericCapabilityDigest
-  priv device_ordinal : Int
+  priv device_ordinal : Int32
   priv target : @catalog.DeviceTarget
   priv catalog_version : @catalog.CatalogVersion
   priv limits : DeviceStepLimits
-  priv module_count : Int
-  priv entry_point_count : Int
-  priv step_count : Int
+  priv module_count : Int32
+  priv entry_point_count : Int32
+  priv step_count : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn DeviceBootstrapLimits::new(
-  max_modules~ : Int,
-  max_entry_points~ : Int,
-  max_steps~ : Int,
-  max_operands_per_step~ : Int,
-  max_symbol_bytes~ : Int,
-  max_canonical_bytes~ : Int,
+  max_modules~ : Int32,
+  max_entry_points~ : Int32,
+  max_steps~ : Int32,
+  max_operands_per_step~ : Int32,
+  max_symbol_bytes~ : Int32,
+  max_canonical_bytes~ : Int32,
 ) -> DeviceBootstrapLimits raise DeviceBootstrapError {
   if max_modules <= 0 ||
     max_entry_points <= 0 ||
@@ -117,7 +117,7 @@ pub fn DeviceWorkerBootstrapManifest::identity(
 /// process. This value is not a persistent hardware UUID.
 pub fn DeviceWorkerBootstrapManifest::device_ordinal(
   self : DeviceWorkerBootstrapManifest,
-) -> Int {
+) -> Int32 {
   self.device_ordinal
 }
 
@@ -156,21 +156,21 @@ pub fn DeviceWorkerBootstrapManifest::graph_memory_evidence(
 ///|
 pub fn DeviceWorkerBootstrapManifest::module_count(
   self : DeviceWorkerBootstrapManifest,
-) -> Int {
+) -> Int32 {
   self.module_count
 }
 
 ///|
 pub fn DeviceWorkerBootstrapManifest::entry_point_count(
   self : DeviceWorkerBootstrapManifest,
-) -> Int {
+) -> Int32 {
   self.entry_point_count
 }
 
 ///|
 pub fn DeviceWorkerBootstrapManifest::step_count(
   self : DeviceWorkerBootstrapManifest,
-) -> Int {
+) -> Int32 {
   self.step_count
 }
 
@@ -185,7 +185,7 @@ pub fn DeviceWorkerBootstrapManifest::worker_startup_contract(
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
   streaming? : @streaming_ir.Capability,
-  streaming_epoch? : UInt64 = 1UL,
+  streaming_epoch~ : UInt64 = 1UL,
 ) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError {
   let device = self.limits
   if worker_limits.max_plan_rows() > device.max_rows() ||
@@ -256,7 +256,7 @@ pub fn I8DeviceWorkerBootstrapManifestV3::device_numeric_digest(
 ///|
 pub fn I8DeviceWorkerBootstrapManifestV3::device_ordinal(
   self : I8DeviceWorkerBootstrapManifestV3,
-) -> Int {
+) -> Int32 {
   self.device_ordinal
 }
 
@@ -284,21 +284,21 @@ pub fn I8DeviceWorkerBootstrapManifestV3::device_step_limits(
 ///|
 pub fn I8DeviceWorkerBootstrapManifestV3::module_count(
   self : I8DeviceWorkerBootstrapManifestV3,
-) -> Int {
+) -> Int32 {
   self.module_count
 }
 
 ///|
 pub fn I8DeviceWorkerBootstrapManifestV3::entry_point_count(
   self : I8DeviceWorkerBootstrapManifestV3,
-) -> Int {
+) -> Int32 {
   self.entry_point_count
 }
 
 ///|
 pub fn I8DeviceWorkerBootstrapManifestV3::step_count(
   self : I8DeviceWorkerBootstrapManifestV3,
-) -> Int {
+) -> Int32 {
   self.step_count
 }
 
@@ -315,7 +315,7 @@ pub fn I8DeviceWorkerBootstrapManifestV3::worker_startup_contract(
   has_predecessor~ : Bool,
   predecessor_value~ : UInt64,
   streaming? : @streaming_ir.Capability,
-  streaming_epoch? : UInt64 = 1UL,
+  streaming_epoch~ : UInt64 = 1UL,
 ) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError {
   let device = self.limits
   if worker_limits.max_plan_rows() > device.max_rows() ||

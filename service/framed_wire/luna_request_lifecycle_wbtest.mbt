@@ -1,5 +1,5 @@
 ///|
-fn luna_token_source() -> (FixedArray[Byte], Int) raise {
+fn luna_token_source() -> (FixedArray[Byte], Int32) raise {
   let inference = fixture_inference_limits()
   let request = @inference.GenerateRequest::new(
     protocol_version=@inference.ProtocolVersion::v1(),

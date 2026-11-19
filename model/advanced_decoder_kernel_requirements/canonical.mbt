@@ -1,7 +1,7 @@
 ///|
 priv struct RequirementCanonicalWriter {
   hasher : @canonical_sha256.CanonicalSha256
-  mut byte_count : Int
+  mut byte_count : Int32
 }
 
 ///|
@@ -12,7 +12,7 @@ fn RequirementCanonicalWriter::new() -> Self {
 ///|
 fn RequirementCanonicalWriter::reserve(
   self : Self,
-  count : Int,
+  count : Int32,
 ) -> Unit raise AdvancedDecoderKernelRequirementsError {
   if count < 0 || self.byte_count > 65536 - count {
     raise RequirementsEncodingTooLarge
@@ -34,7 +34,7 @@ fn RequirementCanonicalWriter::byte(
 ///|
 fn RequirementCanonicalWriter::int(
   self : Self,
-  value : Int,
+  value : Int32,
 ) -> Unit raise AdvancedDecoderKernelRequirementsError {
   self.reserve(8)
   if !self.hasher.update_u64_le(Int64::from_int(value).reinterpret_as_uint64()) {

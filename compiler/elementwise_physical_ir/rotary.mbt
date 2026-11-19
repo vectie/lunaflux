@@ -2,11 +2,11 @@
 /// Split-half rotary work owns a frequency pair across all Q/K heads; the
 /// remaining packed value suffix is a disjoint bit-exact copy domain.
 pub struct RotaryProgram {
-  priv pairs : Int
-  priv rotary_heads : Int
-  priv rotary_width : Int
-  priv copy_groups : Int
-  priv owners : Int
+  priv pairs : Int32
+  priv rotary_heads : Int32
+  priv rotary_width : Int32
+  priv copy_groups : Int32
+  priv owners : Int32
 } derive(Eq, Debug)
 
 ///|
@@ -17,11 +17,11 @@ pub extend RotaryProgram with @debug.Debug::{to_repr}
 
 ///|
 pub fn RotaryProgram::new(
-  width~ : Int,
-  query_heads~ : Int,
-  key_heads~ : Int,
-  head_dimension~ : Int,
-  owners~ : Int,
+  width~ : Int32,
+  query_heads~ : Int32,
+  key_heads~ : Int32,
+  head_dimension~ : Int32,
+  owners~ : Int32,
 ) -> RotaryProgram? {
   guard width > 0 &&
     query_heads > 0 &&
@@ -53,7 +53,7 @@ pub fn RotaryProgram::new(
 ///|
 pub fn RotaryProgram::geometry(
   self : RotaryProgram,
-) -> (Int, Int, Int, Int, Int) {
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (
     self.pairs,
     self.rotary_heads,
@@ -64,6 +64,6 @@ pub fn RotaryProgram::geometry(
 }
 
 ///|
-pub fn RotaryProgram::work_per_token(self : RotaryProgram) -> Int {
+pub fn RotaryProgram::work_per_token(self : RotaryProgram) -> Int32 {
   self.pairs + self.copy_groups
 }

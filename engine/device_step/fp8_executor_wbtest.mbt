@@ -8,8 +8,8 @@ priv struct FakeFp8CloseState {
 ///|
 fn run_fake_fp8_close(
   state : FakeFp8CloseState,
-  fail_ordered? : Bool = false,
-  fail_lease? : Bool = false,
+  fail_ordered~ : Bool = false,
+  fail_lease~ : Bool = false,
 ) -> Unit {
   run_paged_ordered_dependency_close(
     () => {

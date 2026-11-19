@@ -45,10 +45,10 @@ fn validate_completion_entry_for_encode(
 ///|
 fn write_completion_header(
   bytes : FixedArray[Byte],
-  length : Int,
+  length : Int32,
   sequence : UInt64,
   generation : UInt64,
-  count : Int,
+  count : Int32,
 ) -> Unit {
   write_u32(bytes, 0, completion_magic)
   write_u32(bytes, 4, wire_version)
@@ -65,7 +65,7 @@ fn write_completion_header(
 ///|
 fn write_completion_entry(
   bytes : FixedArray[Byte],
-  offset : Int,
+  offset : Int32,
   entry : @worker_protocol.SubmittedCompletionEntry,
 ) -> Unit raise WorkerWireError {
   let slot = entry.slot() catch { error => raise Protocol(error) }
@@ -76,7 +76,7 @@ fn write_completion_entry(
   let kind = entry.kind() catch { error => raise Protocol(error) }
   let mut processed = 0
   let mut token = 0
-  let mut failure : UInt = 0
+  let mut failure : UInt32 = 0
   match kind {
     PrefillCompletion | FinalPrefillCompletion =>
       processed = entry.processed_tokens() catch {

@@ -1,6 +1,6 @@
 ///|
 fn fused_export_test_inputs(
-  compute_major? : Int = 12,
+  compute_major~ : Int32 = 12,
 ) -> (
   @plan.ModelPlan,
   @device_layout.DeviceKvLayout,

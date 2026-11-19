@@ -12,9 +12,9 @@ fn close_rank_context(context : @device.Context, role : String) -> Unit raise {
 /// decode/verification submission. The token source is retained host storage.
 async fn write_generated(
   directory : String,
-  count : Int,
+  count : Int32,
   reason : @generation.GenerationFinish,
-  token_at : (Int) -> Int raise,
+  token_at : (Int32) -> Int32 raise,
 ) -> Unit {
   let rendered = StringBuilder()
   for index in 0..<count {

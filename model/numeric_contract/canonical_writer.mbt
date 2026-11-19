@@ -1,26 +1,26 @@
 ///|
 priv struct NumericCanonicalWriter {
   hasher : @canonical_sha256.CanonicalSha256
-  expected : Int
-  mut count : Int
+  expected : Int32
+  mut count : Int32
 }
 
 ///|
 fn NumericCanonicalWriter::new_hashing(
-  expected : Int,
+  expected : Int32,
 ) -> NumericCanonicalWriter {
   { hasher: @canonical_sha256.CanonicalSha256::new(), expected, count: 0, }
 }
 
 ///|
 priv struct NumericCanonicalMaterializationCursor {
-  expected : Int
-  mut next_index : Int
+  expected : Int32
+  mut next_index : Int32
 }
 
 ///|
 fn NumericCanonicalMaterializationCursor::new(
-  expected : Int,
+  expected : Int32,
 ) -> NumericCanonicalMaterializationCursor {
   { expected, next_index: 0, }
 }
@@ -28,8 +28,8 @@ fn NumericCanonicalMaterializationCursor::new(
 ///|
 fn NumericCanonicalMaterializationCursor::next(
   self : NumericCanonicalMaterializationCursor,
-  index : Int,
-  byte_at : (Int) -> Byte,
+  index : Int32,
+  byte_at : (Int32) -> Byte,
 ) -> Byte {
   if index != self.next_index || index < 0 || index >= self.expected {
     abort("non-sequential numeric canonical materialization")
@@ -50,8 +50,8 @@ fn NumericCanonicalMaterializationCursor::check_complete(
 
 ///|
 fn materialize_numeric_canonical(
-  expected : Int,
-  byte_at : (Int) -> Byte,
+  expected : Int32,
+  byte_at : (Int32) -> Byte,
 ) -> Bytes {
   if expected < 0 {
     abort("negative numeric canonical materialization length")
@@ -63,7 +63,7 @@ fn materialize_numeric_canonical(
 }
 
 ///|
-fn numeric_canonical_u64_byte(value : UInt64, offset : Int) -> Byte {
+fn numeric_canonical_u64_byte(value : UInt64, offset : Int32) -> Byte {
   if offset < 0 || offset >= 8 {
     abort("numeric canonical integer byte offset out of bounds")
   }
@@ -71,7 +71,7 @@ fn numeric_canonical_u64_byte(value : UInt64, offset : Int) -> Byte {
 }
 
 ///|
-fn numeric_canonical_int_byte(value : Int, offset : Int) -> Byte {
+fn numeric_canonical_int_byte(value : Int32, offset : Int32) -> Byte {
   numeric_canonical_u64_byte(
     Int64::from_int(value).reinterpret_as_uint64(),
     offset,
@@ -79,14 +79,14 @@ fn numeric_canonical_int_byte(value : Int, offset : Int) -> Byte {
 }
 
 ///|
-fn numeric_canonical_int64_byte(value : Int64, offset : Int) -> Byte {
+fn numeric_canonical_int64_byte(value : Int64, offset : Int32) -> Byte {
   numeric_canonical_u64_byte(value.reinterpret_as_uint64(), offset)
 }
 
 ///|
 fn NumericCanonicalWriter::reserve(
   self : NumericCanonicalWriter,
-  amount : Int,
+  amount : Int32,
 ) -> Unit raise NumericContractError {
   if amount < 0 || self.count > self.expected - amount {
     raise InvalidNumericContract(CanonicalBytes)
@@ -132,7 +132,7 @@ fn NumericCanonicalWriter::write_u64(
 ///|
 fn NumericCanonicalWriter::write_int(
   self : NumericCanonicalWriter,
-  value : Int,
+  value : Int32,
 ) -> Unit raise NumericContractError {
   self.write_u64(Int64::from_int(value).reinterpret_as_uint64())
 }

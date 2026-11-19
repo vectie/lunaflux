@@ -1,8 +1,8 @@
 ///|
 fn fp8_release_require(
   output : Array[Byte],
-  additional : Int,
-  maximum : Int,
+  additional : Int32,
+  maximum : Int32,
 ) -> Unit raise LunaCapabilityManifestError {
   if additional < 0 || output.length() > maximum - additional {
     raise Invalid(CanonicalBytes)
@@ -13,7 +13,7 @@ fn fp8_release_require(
 fn fp8_release_text(
   output : Array[Byte],
   value : String,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise LunaCapabilityManifestError {
   let bytes = @utf8.encode(value)
   fp8_release_require(output, 8, maximum)
@@ -30,7 +30,7 @@ fn fp8_release_text(
 fn fp8_release_role(
   output : Array[Byte],
   role : @launch_contract.AotOperandRole,
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise LunaCapabilityManifestError {
   match role {
     ExternalInput(TokenIds) =>
@@ -88,7 +88,7 @@ fn encode_fp8_release_manifest_v2(
   target : @catalog.DeviceTarget,
   runtime_recipe_digest_sha256 : String,
   operations : ReadOnlyArray[LunaFp8ReleaseOperationV2],
-  maximum : Int,
+  maximum : Int32,
 ) -> Bytes raise LunaCapabilityManifestError {
   let output : Array[Byte] = []
   fp8_release_text(output, "lunaflux.luna-fp8-release-manifest.v2", maximum)
@@ -154,7 +154,7 @@ pub fn LunaFp8ReleaseManifestV2::new(
   target~ : @catalog.DeviceTarget,
   runtime_recipe_digest_sha256~ : String,
   operations~ : ArrayView[LunaFp8ReleaseOperationV2],
-  maximum_canonical_bytes~ : Int,
+  maximum_canonical_bytes~ : Int32,
 ) -> LunaFp8ReleaseManifestV2 raise LunaCapabilityManifestError {
   if !luna_capability_is_sha256(runtime_recipe_digest_sha256) ||
     operations.is_empty() ||

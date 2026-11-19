@@ -1,6 +1,6 @@
 ///|
 fn luna_fixture_limits(
-  max_delta? : Int = 16,
+  max_delta~ : Int32 = 16,
 ) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=64,

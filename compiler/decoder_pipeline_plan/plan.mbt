@@ -2,16 +2,16 @@
 /// A nonempty contiguous interval of a complete decoder. Physical device,
 /// model-family names and transport do not participate in this pure plan.
 pub struct DecoderStageRange {
-  priv layers : Int
-  priv first : Int
-  priv end : Int
+  priv layers : Int32
+  priv first : Int32
+  priv end : Int32
 }
 
 ///|
 pub fn DecoderStageRange::new(
-  layer_count~ : Int,
-  first_layer~ : Int,
-  end_layer~ : Int,
+  layer_count~ : Int32,
+  first_layer~ : Int32,
+  end_layer~ : Int32,
 ) -> Self raise @precision.PrecisionPlanError {
   guard first_layer >= 0 && end_layer > first_layer && end_layer <= layer_count else {
     raise IllegalPlacement
@@ -20,12 +20,12 @@ pub fn DecoderStageRange::new(
 }
 
 ///|
-pub fn DecoderStageRange::layer_count(self : Self) -> Int {
+pub fn DecoderStageRange::layer_count(self : Self) -> Int32 {
   self.layers
 }
 
 ///|
-pub fn DecoderStageRange::layer_range(self : Self) -> (Int, Int) {
+pub fn DecoderStageRange::layer_range(self : Self) -> (Int32, Int32) {
   (self.first, self.end)
 }
 

@@ -10,12 +10,12 @@ fn inverse_rope_finite_positive(value : Double) -> Bool {
 /// final BF16 rounding performed by the CUDA boundary.
 pub fn attention_output_inverse_rotary_v1(
   attention_output : ArrayView[Float],
-  position~ : Int,
-  head_count~ : Int,
-  head_dimension~ : Int,
-  rope_dimension~ : Int,
-  maximum_positions~ : Int,
-  original_positions~ : Int,
+  position~ : Int32,
+  head_count~ : Int32,
+  head_dimension~ : Int32,
+  rope_dimension~ : Int32,
+  maximum_positions~ : Int32,
+  original_positions~ : Int32,
   compressed_theta~ : Double,
   scaling_factor~ : Double,
   beta_fast~ : Double,

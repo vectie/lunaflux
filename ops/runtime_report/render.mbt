@@ -14,7 +14,7 @@ fn append_report_line(
 fn append_report_int(
   output : StringBuilder,
   label : String,
-  value : Int,
+  value : Int32,
 ) -> Unit {
   output.write_string(label)
   output.write_string(": ")

@@ -13,53 +13,59 @@ pub fn JointVaeAudioDecoderUpsampleTransition::request_shape(
 }
 
 ///|
-pub fn JointVaeAudioDecoderUpsampleTransition::stage_index(self : Self) -> Int {
+pub fn JointVaeAudioDecoderUpsampleTransition::stage_index(
+  self : Self,
+) -> Int32 {
   self.stage_index
 }
 
 ///|
 pub fn JointVaeAudioDecoderUpsampleTransition::decoder_batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.decoder_batch_count
 }
 
 ///|
 pub fn JointVaeAudioDecoderUpsampleTransition::input_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.input_channels
 }
 
 ///|
 pub fn JointVaeAudioDecoderUpsampleTransition::output_channels(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.output_channels
 }
 
 ///|
-pub fn JointVaeAudioDecoderUpsampleTransition::input_time(self : Self) -> Int {
+pub fn JointVaeAudioDecoderUpsampleTransition::input_time(self : Self) -> Int32 {
   self.input_time
 }
 
 ///|
-pub fn JointVaeAudioDecoderUpsampleTransition::output_time(self : Self) -> Int {
+pub fn JointVaeAudioDecoderUpsampleTransition::output_time(
+  self : Self,
+) -> Int32 {
   self.output_time
 }
 
 ///|
-pub fn JointVaeAudioDecoderUpsampleTransition::kernel_size(self : Self) -> Int {
+pub fn JointVaeAudioDecoderUpsampleTransition::kernel_size(
+  self : Self,
+) -> Int32 {
   self.kernel_size
 }
 
 ///|
-pub fn JointVaeAudioDecoderUpsampleTransition::stride(self : Self) -> Int {
+pub fn JointVaeAudioDecoderUpsampleTransition::stride(self : Self) -> Int32 {
   self.stride
 }
 
 ///|
-pub fn JointVaeAudioDecoderUpsampleTransition::padding(self : Self) -> Int {
+pub fn JointVaeAudioDecoderUpsampleTransition::padding(self : Self) -> Int32 {
   self.padding
 }
 

@@ -54,8 +54,8 @@ pub fn IndexedSparseHistoryPrecision::new(
 ///|
 pub fn IndexedSparseHistoryPrecision::buffer_owner(
   self : Self,
-  index : Int,
-) -> Int {
+  index : Int32,
+) -> Int32 {
   if index == 3 && self.attention.shares_key_value() {
     2
   } else {

@@ -1,7 +1,7 @@
 ///|
 fn paged_profile_device_layout(
   plan : @plan.ModelPlan,
-  tokens_per_page? : Int = 4,
+  tokens_per_page~ : Int32 = 4,
 ) -> @device_layout.DeviceKvLayout raise {
   @device_layout.plan(
     plan.identity(),
@@ -15,7 +15,7 @@ fn paged_profile_device_layout(
 }
 
 ///|
-fn paged_profile_family(index : Int) -> @catalog.AotKernelFamily raise {
+fn paged_profile_family(index : Int32) -> @catalog.AotKernelFamily raise {
   @catalog.AotKernelFamily::new(
     module_digest=@catalog.AotArtifactDigest::from_sha256(
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -61,7 +61,7 @@ fn paged_profile_same_catalog_semantics(
 }
 
 ///|
-fn paged_profile_family_index(plan : @plan.ModelPlan, index : Int) -> Int {
+fn paged_profile_family_index(plan : @plan.ModelPlan, index : Int32) -> Int32 {
   let operation = plan.operations()[index]
   for earlier in 0..<index {
     if paged_profile_same_catalog_semantics(
@@ -224,7 +224,7 @@ fn paged_profile_launch_inputs(
 fn paged_profile_launches_with(
   plan : @plan.ModelPlan,
   profile : @launch_contract.PagedKernelProfile,
-  tokens_per_page : Int,
+  tokens_per_page : Int32,
 ) -> @launch_contract.PagedKvLaunchContractSet raise {
   let layout = paged_profile_device_layout(plan, tokens_per_page~)
   @launch_contract.admit_paged_kv(

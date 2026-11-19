@@ -1,6 +1,6 @@
 ///|
 fn openai_fixture_limits(
-  max_delta~ : Int = 32,
+  max_delta~ : Int32 = 32,
 ) -> @inference.InferenceLimits raise {
   @inference.InferenceLimits::new(
     max_text_bytes=64,
@@ -35,7 +35,7 @@ fn openai_fixture_identity() -> @spec.ModelIdentity raise {
 ///|
 fn openai_workspace(
   limits : @inference.InferenceLimits,
-  budget : Int,
+  budget : Int32,
   model~ : FixedArray[Byte] = [b'm', b'o', b'd', b'e', b'l', b'-', b'x'],
   buffered~ : Bool = false,
   output_framing? : LunaOpenAIOutputFraming,

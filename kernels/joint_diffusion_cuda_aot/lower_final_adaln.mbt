@@ -2,7 +2,7 @@
 pub fn lower_final_adaln_f32_cuda_aot_candidate(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   request_shape~ : @joint_diffusion_plan.JointDiffusionRequestShape,
-  requirement_ordinal~ : Int,
+  requirement_ordinal~ : Int32,
   target~ : @catalog.DeviceTarget,
   compiler~ : @luna_specialization.LunaCompilerPolicy,
   limits~ : JointDiffusionCudaAotLimits,
@@ -23,7 +23,7 @@ pub fn lower_final_adaln_f32_cuda_aot_candidate(
   let (latent, rows, hidden, normalized_role, output_role, symbol) : (
     @joint_diffusion_plan.JointDiffusionLatentKind,
     Int64,
-    Int,
+    Int32,
     @joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole,
     @joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole,
     String,

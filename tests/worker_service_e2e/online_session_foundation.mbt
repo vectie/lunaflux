@@ -87,14 +87,14 @@ fn string_session_tokenizer(
 ///|
 fn session_received(
   stream : @inference.StreamPreference,
-  request_id? : UInt64 = 901UL,
-  stop_token? : Int = -1,
-  stop_string? : Bytes = b"",
-  max_new_tokens? : Int = 2,
-  deadline_millis? : UInt64 = 1000UL,
+  request_id~ : UInt64 = 901UL,
+  stop_token~ : Int32 = -1,
+  stop_string~ : Bytes = b"",
+  max_new_tokens~ : Int32 = 2,
+  deadline_millis~ : UInt64 = 1000UL,
 ) -> @request_admission.ReceivedRequest raise {
   let limits = inference_limits()
-  let stop_tokens : Array[Int] = []
+  let stop_tokens : Array[Int32] = []
   if stop_token >= 0 {
     stop_tokens.push(stop_token)
   }

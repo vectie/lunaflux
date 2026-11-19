@@ -3,7 +3,7 @@
 /// rotation. Caller declares `pair`; the result declares `frequency` in F32.
 pub fn rotary_frequency_source(
   frequency : @precision.RotaryFrequency,
-  rotary_width : Int,
+  rotary_width : Int32,
 ) -> String raise {
   guard rotary_width > 0 && rotary_width % 2 == 0 else {
     raise @precision.PrecisionPlanError::IllegalPlacement

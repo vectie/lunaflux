@@ -22,7 +22,7 @@ pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::requirements_
 ///|
 pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::requirement_ordinal(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.requirement_ordinal
 }
 
@@ -57,14 +57,14 @@ pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::request_shape
 ///|
 pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::channel_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.channel_count
 }
 
 ///|
 pub fn JointDiffusionVideoVaeLatentDestandardizationCudaCandidate::batch_count(
   self : Self,
-) -> Int {
+) -> Int32 {
   self.batch_count
 }
 

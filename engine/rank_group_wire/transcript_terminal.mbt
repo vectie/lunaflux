@@ -33,7 +33,7 @@ fn RankGroupWireTranscript::accept_abort(
   self : RankGroupWireTranscript,
   sequence : UInt64,
   slot : RankGroupWireSlot?,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupWireError {
   if self.lifecycle != Aborting {
     self.begin_abort()
@@ -52,7 +52,7 @@ fn RankGroupWireTranscript::accept_aborted(
   self : RankGroupWireTranscript,
   sequence : UInt64,
   slot : RankGroupWireSlot?,
-  rank : Int,
+  rank : Int32,
 ) -> Unit raise RankGroupWireError {
   if self.lifecycle != Aborting || self.rank_states[rank] != 11 {
     return self.reject(Lifecycle)
@@ -76,7 +76,7 @@ fn RankGroupWireTranscript::accept_aborted(
 ///|
 fn RankGroupWireTranscript::begin_terminal_phase(
   self : RankGroupWireTranscript,
-  state : Int,
+  state : Int32,
   lifecycle : RankGroupWireLifecycle,
 ) -> Unit {
   let mut target_count = 0

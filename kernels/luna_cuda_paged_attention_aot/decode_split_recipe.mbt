@@ -12,7 +12,7 @@ fn paged_attention_decode_split_recipe(
   merge_dimensions : @launch_contract.AotLaunchDimensions,
   source_digest : PagedAttentionCudaSourceDigest,
   workspace : @luna_attention_strategy.AttentionDecodeWorkspacePlan,
-  compiler_readonly? : Bool = false,
+  compiler_readonly~ : Bool = false,
 ) -> Bytes {
   let identity = compiler.identity()
   let (maximum_offset, denominator_offset, numerator_offset) = workspace.region_offsets_bytes()

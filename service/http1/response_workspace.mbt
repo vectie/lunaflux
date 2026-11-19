@@ -1,6 +1,6 @@
 ///|
 pub fn LunaHttp1ResponseStepBudget::new(
-  work_units : Int,
+  work_units : Int32,
 ) -> LunaHttp1ResponseStepBudget raise LunaHttp1Error {
   if work_units <= 0 || work_units > LUNA_HTTP1_MAX_STEP_WORK_UNITS {
     raise luna_http1_error(LunaHttp1Limits, LunaHttp1OutOfRange)
@@ -11,7 +11,7 @@ pub fn LunaHttp1ResponseStepBudget::new(
 ///|
 pub fn LunaHttp1ResponseStepBudget::work_units(
   self : LunaHttp1ResponseStepBudget,
-) -> Int {
+) -> Int32 {
   self.work_units
 }
 
@@ -43,9 +43,9 @@ pub fn LunaHttp1ResponseWorkspace::new(
 ///|
 fn LunaHttp1ResponseWorkspace::begin_kind(
   self : LunaHttp1ResponseWorkspace,
-  kind : Int,
-  status_code : Int,
-  response_length : Int,
+  kind : Int32,
+  status_code : Int32,
+  response_length : Int32,
 ) -> LunaHttp1ResponseWork raise LunaHttp1Error {
   if self.phase != LUNA_HTTP1_RESPONSE_IDLE {
     raise luna_http1_error(LunaHttp1Lifecycle, LunaHttp1Busy)

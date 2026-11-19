@@ -22,7 +22,7 @@ pub fn RuntimeDescriptorAdmission::target(
 ///|
 pub fn RuntimeDescriptorAdmission::device_ordinal(
   self : RuntimeDescriptorAdmission,
-) -> Int {
+) -> Int32 {
   self.device_ordinal
 }
 
@@ -85,7 +85,7 @@ pub fn I8RuntimeDescriptorAdmission::target(
 }
 
 ///|
-pub fn I8RuntimeDescriptorAdmission::device_ordinal(self : Self) -> Int {
+pub fn I8RuntimeDescriptorAdmission::device_ordinal(self : Self) -> Int32 {
   self.device_ordinal
 }
 

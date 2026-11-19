@@ -7,9 +7,9 @@ fn protocol_error(
 
 ///|
 fn checked_i32(
-  value : Int,
+  value : Int32,
   rule : DeviceStepPlanRule,
-) -> Int raise DeviceStepError {
+) -> Int32 raise DeviceStepError {
   if value < 0 || value > INT32_MAX {
     raise InvalidPlan(rule)
   }
@@ -18,9 +18,9 @@ fn checked_i32(
 
 ///|
 fn expected_pages(
-  sequence_length : Int,
-  tokens_per_page : Int,
-) -> Int raise DeviceStepError {
+  sequence_length : Int32,
+  tokens_per_page : Int32,
+) -> Int32 raise DeviceStepError {
   if sequence_length <= 0 || sequence_length > INT32_MAX {
     raise InvalidPlan(SequenceLength)
   }
@@ -94,9 +94,9 @@ fn write_tokens_and_positions(
   plan : @worker_protocol.SubmittedSchedulePlan,
   host : DeviceStepHostBuffers,
   limits : DeviceStepLimits,
-  token_start : Int,
-  token_length : Int,
-  sequence_start : Int,
+  token_start : Int32,
+  token_length : Int32,
+  sequence_start : Int32,
   write : Bool,
 ) -> Unit raise DeviceStepError {
   for local_index in 0..<token_length {
@@ -119,10 +119,10 @@ fn write_tokens_and_positions(
 fn write_pages(
   plan : @worker_protocol.SubmittedSchedulePlan,
   host : DeviceStepHostBuffers,
-  page_start : Int,
-  page_length : Int,
-  plan_page_count : Int,
-  physical_page_capacity : Int,
+  page_start : Int32,
+  page_length : Int32,
+  plan_page_count : Int32,
+  physical_page_capacity : Int32,
   write : Bool,
 ) -> Unit raise DeviceStepError {
   if page_start < 0 ||
@@ -171,12 +171,12 @@ fn validate_capabilities(
 fn write_prefill_row(
   plan : @worker_protocol.SubmittedSchedulePlan,
   host : DeviceStepHostBuffers,
-  row_index : Int,
-  expected_token_start : Int,
-  expected_page_start : Int,
-  plan_page_count : Int,
-  physical_page_capacity : Int,
-  tokens_per_page : Int,
+  row_index : Int32,
+  expected_token_start : Int32,
+  expected_page_start : Int32,
+  plan_page_count : Int32,
+  physical_page_capacity : Int32,
+  tokens_per_page : Int32,
   limits : DeviceStepLimits,
   required_capabilities : FixedArray[@plan.KernelCapabilityId],
   greedy_only : Bool,
@@ -252,13 +252,13 @@ fn write_prefill_row(
 fn write_decode_row(
   plan : @worker_protocol.SubmittedSchedulePlan,
   host : DeviceStepHostBuffers,
-  decode_index : Int,
-  row_index : Int,
-  expected_token_start : Int,
-  expected_page_start : Int,
-  plan_page_count : Int,
-  physical_page_capacity : Int,
-  tokens_per_page : Int,
+  decode_index : Int32,
+  row_index : Int32,
+  expected_token_start : Int32,
+  expected_page_start : Int32,
+  plan_page_count : Int32,
+  physical_page_capacity : Int32,
+  tokens_per_page : Int32,
   limits : DeviceStepLimits,
   required_capabilities : FixedArray[@plan.KernelCapabilityId],
   greedy_only : Bool,
@@ -323,12 +323,12 @@ fn write_decode_row(
 }
 
 ///|
-fn cursor_token_end(cursor : Int64) -> Int {
+fn cursor_token_end(cursor : Int64) -> Int32 {
   (cursor >> 32).to_int()
 }
 
 ///|
-fn cursor_page_end(cursor : Int64) -> Int {
+fn cursor_page_end(cursor : Int64) -> Int32 {
   (cursor & 0xffffffffL).to_int()
 }
 
@@ -342,7 +342,7 @@ fn preflight_and_write(
   host : DeviceStepHostBuffers,
   required_capabilities : FixedArray[@plan.KernelCapabilityId],
   write : Bool,
-  greedy_only? : Bool = false,
+  greedy_only~ : Bool = false,
 ) -> DeviceStepSummary raise DeviceStepError {
   let summary = validate_identity_and_counts(
     plan, expected_generation, layout, limits, expected_identity,

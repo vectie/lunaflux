@@ -9,11 +9,11 @@ pub(all) suberror FlowTableError {
 /// The RF kernel binds only the first 12 bytes of each 16-byte record.
 pub struct FlowTable {
   priv payload : Bytes
-  priv steps : Int
+  priv steps : Int32
 }
 
 ///|
-fn write_f32(output : FixedArray[Byte], offset : Int, value : Float) -> Unit {
+fn write_f32(output : FixedArray[Byte], offset : Int32, value : Float) -> Unit {
   let bits = value.reinterpret_as_uint()
   for byte in 0..<4 {
     output[offset + byte] = (bits >> (byte * 8)).to_byte()
@@ -54,7 +54,7 @@ pub fn FlowTable::byte_count(self : Self) -> Int64 {
 /// Startup binding offset, never computed by the device kernel.
 pub fn FlowTable::coefficient_offset(
   self : Self,
-  index : Int,
+  index : Int32,
   latent : @joint_diffusion_plan.JointDiffusionLatentKind,
 ) -> Int64 raise FlowTableError {
   guard index >= 0 && index < self.steps else { raise StepOutOfBounds }

@@ -5,8 +5,8 @@
 /// Candidate IDs are an explicit, bounded search domain, not measurements.
 pub fn enumerate_partitioned_attention_tiles(
   request : AttentionTileCompilerRequest,
-  candidate_ids : ArrayView[Int],
-  parallel_workgroup_targets : ArrayView[Int],
+  candidate_ids : ArrayView[Int32],
+  parallel_workgroup_targets : ArrayView[Int32],
 ) -> AttentionPartitionedTileCompilationFrontier raise AttentionTileCompilerError {
   if candidate_ids.is_empty() ||
     candidate_ids.length() > 64 ||

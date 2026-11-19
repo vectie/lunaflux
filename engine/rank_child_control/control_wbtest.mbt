@@ -11,8 +11,8 @@ fn control_test_identity() -> @spec.ModelIdentity {
 
 ///|
 fn control_test_binding(
-  group_generation_value? : UInt64 = 1UL,
-  rank? : Int = 0,
+  group_generation_value~ : UInt64 = 1UL,
+  rank~ : Int32 = 0,
 ) -> @rank_group_wire.RankGroupWireBinding {
   try! @rank_group_wire.RankGroupWireBinding::new(
     identity=control_test_identity(),

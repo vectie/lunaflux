@@ -5,13 +5,13 @@
 /// payload. Construction checks the collection bound before copying.
 pub struct TokenBuffer {
   priv backing : LunaTokenBufferBacking
-  priv token_count : Int
-  priv maximum_token_id : Int
+  priv token_count : Int32
+  priv maximum_token_id : Int32
 }
 
 ///|
 priv enum LunaTokenBufferBacking {
-  LunaOwnedTokenBacking(ReadOnlyArray[Int])
+  LunaOwnedTokenBacking(ReadOnlyArray[Int32])
   LunaLeasedTokenBacking(LunaTokenBufferStorage, UInt64)
 }
 
@@ -20,14 +20,14 @@ priv enum LunaTokenBufferBacking {
 /// `is_stale` distinguishes an invalidated Luna storage generation from an
 /// invalid index.
 #valtype
-pub struct LunaTokenBufferReadStatus(Int, Int)
+pub struct LunaTokenBufferReadStatus(Int32, Int32)
 
 ///|
 /// Allocation-free result of checking a live token buffer against a caller's
 /// token-ID bound. The cached maximum itself is never exposed.
 #valtype
 pub struct LunaTokenBufferBoundStatus {
-  priv state : Int
+  priv state : Int32
 }
 
 ///|
@@ -70,7 +70,7 @@ pub fn LunaTokenBufferReadStatus::is_stale(
 /// contractually nonnegative, so the sentinel cannot be mistaken for data.
 pub fn LunaTokenBufferReadStatus::token_id(
   self : LunaTokenBufferReadStatus,
-) -> Int {
+) -> Int32 {
   if self.0 == 0 {
     self.1
   } else {
@@ -80,7 +80,7 @@ pub fn LunaTokenBufferReadStatus::token_id(
 
 ///|
 pub fn TokenBuffer::new(
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   limits : InferenceLimits,
 ) -> TokenBuffer raise InferenceContractError {
   if token_ids.length() == 0 {
@@ -106,7 +106,7 @@ pub fn TokenBuffer::new(
 }
 
 ///|
-pub fn TokenBuffer::length(self : TokenBuffer) -> Int {
+pub fn TokenBuffer::length(self : TokenBuffer) -> Int32 {
   self.token_count
 }
 
@@ -127,7 +127,7 @@ pub fn TokenBuffer::is_live(self : TokenBuffer) -> Bool {
 /// is out of range for every live, nonempty token buffer.
 pub fn TokenBuffer::maximum_token_status(
   self : TokenBuffer,
-  maximum_token_id : Int,
+  maximum_token_id : Int32,
 ) -> LunaTokenBufferBoundStatus {
   if !self.is_live() {
     return { state: 2, }
@@ -144,7 +144,7 @@ pub fn TokenBuffer::maximum_token_status(
 /// return a non-ready status; released or reused Luna storage returns stale.
 pub fn TokenBuffer::token_status(
   self : TokenBuffer,
-  index : Int,
+  index : Int32,
 ) -> LunaTokenBufferReadStatus {
   match self.backing {
     LunaOwnedTokenBacking(tokens) =>
@@ -170,8 +170,8 @@ pub fn TokenBuffer::token_status(
 /// underlying owned or reusable collection.
 pub fn TokenBuffer::token_at(
   self : TokenBuffer,
-  index : Int,
-) -> Int raise InferenceContractError {
+  index : Int32,
+) -> Int32 raise InferenceContractError {
   let status = self.token_status(index)
   if status.is_ready() {
     return status.token_id()
@@ -212,7 +212,7 @@ pub fn TextInput::text(self : TextInput) -> String {
 }
 
 ///|
-pub fn TextInput::utf8_bytes(self : TextInput) -> Int {
+pub fn TextInput::utf8_bytes(self : TextInput) -> Int32 {
   self.utf8.length()
 }
 
@@ -233,7 +233,7 @@ pub(all) enum Input {
 
 ///|
 pub fn Input::from_token_ids(
-  token_ids : ArrayView[Int],
+  token_ids : ArrayView[Int32],
   limits : InferenceLimits,
 ) -> Input raise InferenceContractError {
   TokenIds(TokenBuffer::new(token_ids, limits))

@@ -1,7 +1,7 @@
 ///|
 fn third_upsample_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation()
       is AudioVaeDecoderUpsampleTransition(2, _, _, _, _, _, _, _, _, _) {
@@ -14,7 +14,7 @@ fn third_upsample_ordinal(
 ///|
 fn third_amp_activation_ordinal(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
-) -> Int {
+) -> Int32 {
   for ordinal, requirement in requirements.requirements() {
     if requirement.operation()
       is AudioVaeDecoderAmpActivation(2, _, _, _, _, _, _) {

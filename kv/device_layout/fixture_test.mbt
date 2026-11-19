@@ -12,9 +12,9 @@ fn layout_identity() -> @spec.ModelIdentity {
 
 ///|
 fn layout_geometry(
-  layers : Int,
-  heads : Int,
-  width : Int,
+  layers : Int32,
+  heads : Int32,
+  width : Int32,
 ) -> @plan.KvCacheGeometry {
   try! @plan.KvCacheGeometry::new(
     layer_count=layers,
@@ -27,8 +27,8 @@ fn layout_geometry(
 
 ///|
 fn layout_limits(
-  tokens : Int,
-  pages : Int,
+  tokens : Int32,
+  pages : Int32,
   maximum : Int64,
 ) -> @device_layout.DeviceKvLimits {
   try! @device_layout.DeviceKvLimits::new(

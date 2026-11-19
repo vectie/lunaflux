@@ -24,9 +24,9 @@ pub(all) suberror GatedRmsNormCudaSourceError {
 pub struct GatedRmsNormCudaSource {
   priv operation : GatedRmsNormCudaOperation
   priv numerical_contract : GatedRmsNormNumericalContract
-  priv head_count : Int
-  priv head_dimension : Int
-  priv maximum_rows : Int
+  priv head_count : Int32
+  priv head_dimension : Int32
+  priv maximum_rows : Int32
   priv epsilon : Double
   priv function_symbol : String
   priv source : Bytes

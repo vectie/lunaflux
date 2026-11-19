@@ -1,11 +1,11 @@
 ///|
-fn luna_tile_probe_id(value : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn luna_tile_probe_id(value : Int32) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(value)
 }
 
 ///|
 fn luna_tile_probe_tensor(
-  id : Int,
+  id : Int32,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
   strides : ArrayView[Int64],
@@ -23,7 +23,7 @@ fn luna_tile_probe_tensor(
 
 ///|
 fn luna_tile_probe_region(
-  id : Int,
+  id : Int32,
   tiled : Bool,
 ) -> @luna_tile_ir.LunaTileRegion raise {
   let row = if tiled {

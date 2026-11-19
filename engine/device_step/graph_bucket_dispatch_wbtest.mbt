@@ -1,6 +1,6 @@
 ///|
 fn graph_dispatch_fixture(
-  fallback_owner_index : Int,
+  fallback_owner_index : Int32,
 ) -> (
   @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   @launch_contract.PagedKernelProfile,
@@ -500,9 +500,9 @@ test "scalar projection bucket keeps only live output work" {
 fn graph_dispatch_bucket(
   table : @luna_execution_graph_strategy.ExecutionGraphBucketTable,
   phase : @luna_execution_graph_strategy.ExecutionGraphPhase,
-  rows : Int,
-  tokens : Int,
-  context : Int,
+  rows : Int32,
+  tokens : Int32,
+  context : Int32,
 ) -> @luna_execution_graph_strategy.ExecutionGraphBucket raise {
   table.select(
     @luna_execution_graph_strategy.ExecutionGraphShape::new(
@@ -568,7 +568,7 @@ test "required max-envelope capture preserves smaller-shape compatibility" {
 test "sparse executor cleanup retries only open owners in reverse order" {
   let open = [true, true, true]
   let fail_middle = Ref(true)
-  let events : Array[Int] = []
+  let events : Array[Int32] = []
   let close_once = () => {
     run_reverse_paged_executor_close(open.length(), index => {
       if open[index] {

@@ -3,8 +3,8 @@
 /// ordinals. This inventory query creates no context and grants no execution
 /// or peer-enable authority.
 pub fn can_access_peer(
-  source_ordinal : Int,
-  destination_ordinal : Int,
+  source_ordinal : Int32,
+  destination_ordinal : Int32,
 ) -> Bool raise DeviceError {
   @cuda.device_can_access_peer(source_ordinal, destination_ordinal) catch {
     error => raise error_from_cuda_for(error, DevicePeerAccess)

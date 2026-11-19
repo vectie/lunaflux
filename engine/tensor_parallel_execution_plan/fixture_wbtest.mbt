@@ -11,8 +11,8 @@ struct ExecutionFixture {
 fn exec_weight_entry(
   name : String,
   shape : String,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> String {
   "\"\{name}\":{\"dtype\":\"BF16\",\"shape\":\{shape},\"data_offsets\":[\{start},\{end}]}"
 }
@@ -97,7 +97,7 @@ fn exec_file_limits() -> @device_materialize.DeviceWeightFileLimits raise {
 }
 
 ///|
-fn exec_target(minor? : Int = 0) -> @catalog.DeviceTarget raise {
+fn exec_target(minor~ : Int32 = 0) -> @catalog.DeviceTarget raise {
   @catalog.DeviceTarget::new(
     compute_major=8,
     compute_minor=minor,
@@ -159,7 +159,7 @@ fn exec_topology(
 }
 
 ///|
-fn exec_family_index(operation : @plan.PlanOperation) -> Int {
+fn exec_family_index(operation : @plan.PlanOperation) -> Int32 {
   match operation.kind() {
     Embedding => 0
     RmsNorm => 1
@@ -199,8 +199,8 @@ fn exec_semantics(
 
 ///|
 fn exec_profile(
-  id : Int,
-  tokens : Int,
+  id : Int32,
+  tokens : Int32,
 ) -> @launch_contract.PagedKernelProfile raise {
   @launch_contract.PagedKernelProfile::new(
     id=@launch_contract.KernelProfileId::from_stable_int(id),

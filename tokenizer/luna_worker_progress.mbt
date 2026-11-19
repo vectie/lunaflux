@@ -1,7 +1,7 @@
 ///|
 fn LunaTokenizerWorker::append_symbol(
   self : LunaTokenizerWorker,
-  token_id : Int,
+  token_id : Int32,
 ) -> Unit {
   let node = self.node_count
   if node >= self.node_capacity {
@@ -65,7 +65,7 @@ fn LunaTokenizerWorker::finish_special_match(
 ///|
 fn LunaTokenizerWorker::sentencepiece_invalid_utf8(
   self : LunaTokenizerWorker,
-) -> Int raise TokenizerError {
+) -> Int32 raise TokenizerError {
   let byte_offset = self.input_offset
   self.clear_request()
   raise InvalidUtf8Input(byte_offset~)
@@ -74,7 +74,7 @@ fn LunaTokenizerWorker::sentencepiece_invalid_utf8(
 ///|
 fn LunaTokenizerWorker::sentencepiece_scalar_width(
   self : LunaTokenizerWorker,
-) -> Int raise TokenizerError {
+) -> Int32 raise TokenizerError {
   let available = self.input_length - self.input_offset
   if available <= 0 {
     ignore(self.sentencepiece_invalid_utf8())
@@ -112,7 +112,7 @@ fn LunaTokenizerWorker::sentencepiece_scalar_width(
 }
 
 ///|
-fn sentencepiece_meta_byte(index : Int) -> Byte {
+fn sentencepiece_meta_byte(index : Int32) -> Byte {
   match index {
     0 => SENTENCEPIECE_META_SPACE_0
     1 => SENTENCEPIECE_META_SPACE_1
@@ -124,11 +124,11 @@ fn sentencepiece_meta_byte(index : Int) -> Byte {
 ///|
 fn LunaTokenizerWorker::compare_sentencepiece_scalar(
   self : LunaTokenizerWorker,
-  token_id : Int,
-  width : Int,
-) -> Int {
+  token_id : Int32,
+  width : Int32,
+) -> Int32 {
   let piece = self.spec.tokens_by_id[token_id].piece
-  let common = Int::min(width, piece.length())
+  let common = Int32::min(width, piece.length())
   for index in 0..<common {
     let comparison = self.input[self.input_offset + index]
       .to_int()
@@ -143,8 +143,8 @@ fn LunaTokenizerWorker::compare_sentencepiece_scalar(
 ///|
 fn LunaTokenizerWorker::find_sentencepiece_scalar(
   self : LunaTokenizerWorker,
-  width : Int,
-) -> Int {
+  width : Int32,
+) -> Int32 {
   let candidates = self.spec.initial_scalar_ids
   for low = 0, high = candidates.length(); low < high; {
     let middle = low + (high - low) / 2
@@ -168,8 +168,8 @@ fn LunaTokenizerWorker::find_sentencepiece_scalar(
 fn LunaTokenizerWorker::start_sentencepiece_scalar(
   self : LunaTokenizerWorker,
   meta : Bool,
-  source_advance : Int,
-  byte_length : Int,
+  source_advance : Int32,
+  byte_length : Int32,
 ) -> Unit {
   self.scalar_is_meta = meta
   self.scalar_direct_token_id = if meta {
@@ -437,7 +437,7 @@ fn LunaTokenizerWorker::finish_compaction(
     self.clear_request()
     raise OutputTooLong(actual~, maximum~)
   }
-  self.output_count = Int::min(self.compact_actual, self.output_limit)
+  self.output_count = Int32::min(self.compact_actual, self.output_limit)
   self.truncated = self.compact_actual > self.output_limit
   self.phase = LUNA_WORKER_READY
 }

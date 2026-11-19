@@ -1,8 +1,8 @@
 ///|
 fn locator_component_is_forbidden(
   value : StringView,
-  start : Int,
-  end : Int,
+  start : Int32,
+  end : Int32,
 ) -> Bool {
   let length = end - start
   length == 0 ||
@@ -24,7 +24,7 @@ fn validate_release_artifact_locator(
   let mut component_start = 0
   for index, unit in value {
     let allowed = unit
-      is ('a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '_' | '-' | '/')
+      is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '.' | '_' | '-' | '/')
     if !allowed {
       raise InvalidArtifact
     }

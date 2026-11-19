@@ -35,11 +35,11 @@ fn inference() -> @inference.InferenceLimits raise {
 
 ///|
 fn seed(
-  id? : UInt64 = 7UL,
-  position? : Int = 0,
-  produces? : Bool = true,
-  sample? : Bool = false,
-  sequence? : UInt64 = 1UL,
+  id~ : UInt64 = 7UL,
+  position~ : Int32 = 0,
+  produces~ : Bool = true,
+  sample~ : Bool = false,
+  sequence~ : UInt64 = 1UL,
 ) -> @wire.ValidatedPlanFrame raise {
   let limits = limits()
   let allocator = @page_allocator.PageAllocator::new(
@@ -102,8 +102,8 @@ fn seed(
 ///|
 fn complete(
   plan : @wire.ValidatedPlanFrame,
-  token : Int,
-  failed? : Bool = false,
+  token : Int32,
+  failed~ : Bool = false,
 ) -> @wire.ValidatedCompletionFrame raise {
   let writer = @wire.CompletionFrameBuffer::new(limits(), inference()).writer_for(
     plan,
@@ -131,10 +131,10 @@ fn complete(
 ///|
 fn generation(
   plan : @wire.ValidatedPlanFrame,
-  token : Int,
-  maximum? : Int = 3,
-  context? : Int = 16,
-  stops? : ArrayView[Int] = [],
+  token : Int32,
+  maximum~ : Int32 = 3,
+  context~ : Int32 = 16,
+  stops~ : ArrayView[Int32] = [],
 ) -> @serial_generation.SerialGreedyGeneration raise {
   @serial_generation.SerialGreedyGeneration::new(
     plan,

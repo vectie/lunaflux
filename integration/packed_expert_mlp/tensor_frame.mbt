@@ -3,14 +3,14 @@
 /// before the returned consumer index. A decoder must splice this boundary
 /// into a collective-aware queue, not enqueue the frame as a local sequence.
 pub struct ExpertTensorBoundary {
-  priv before_kernel : Int
+  priv before_kernel : Int32
   priv partials : @device.Allocation
-  priv width : Int
+  priv width : Int32
   priv kind : @device.TensorCollectiveKind
 }
 
 ///|
-pub fn ExpertTensorBoundary::before_kernel(self : Self) -> Int {
+pub fn ExpertTensorBoundary::before_kernel(self : Self) -> Int32 {
   self.before_kernel
 }
 
@@ -20,7 +20,7 @@ pub fn ExpertTensorBoundary::partials(self : Self) -> @device.Allocation {
 }
 
 ///|
-pub fn ExpertTensorBoundary::width(self : Self) -> Int {
+pub fn ExpertTensorBoundary::width(self : Self) -> Int32 {
   self.width
 }
 

@@ -1,8 +1,8 @@
 ///|
 fn Scheduler::enqueue_generated_token(
   self : Scheduler,
-  slot : Int,
-  token : Int,
+  slot : Int32,
+  token : Int32,
 ) -> Unit raise SchedulerError {
   let request = self.requests[slot].unwrap()
   let sequence = self.allocate_publication_sequence()
@@ -35,13 +35,13 @@ fn Scheduler::terminal_reason_for_token(
 ///|
 fn Scheduler::record_prompt_compute(
   self : Scheduler,
-  slot : Int,
-  start : Int,
-  processed : Int,
+  slot : Int32,
+  start : Int32,
+  processed : Int32,
 ) -> Unit {
   let input_length = self.requests[slot].unwrap().input_tokens().length()
-  let bounded_start = Int::min(start, input_length)
-  let bounded_end = Int::min(start + processed, input_length)
+  let bounded_start = Int32::min(start, input_length)
+  let bounded_end = Int32::min(start + processed, input_length)
   if bounded_end > bounded_start {
     self.prefix_tokens_computed = Scheduler::prefix_saturating_add(
       self.prefix_tokens_computed,
@@ -53,7 +53,7 @@ fn Scheduler::record_prompt_compute(
 ///|
 fn Scheduler::commit_current_completion(
   self : Scheduler,
-  slot : Int,
+  slot : Int32,
   entry : @worker_protocol.SubmittedCompletionEntry,
 ) -> Unit {
   let kind = try! entry.kind()
@@ -153,8 +153,8 @@ fn Scheduler::finish_protocol_retirement(
   self : Scheduler,
   plan : @worker_protocol.SubmittedSchedulePlan,
   completion : @worker_protocol.SubmittedCompletion,
-  side : Int,
-  row_count : Int,
+  side : Int32,
+  row_count : Int32,
   sequence : UInt64,
 ) -> Unit {
   let plan_owner = if side == 0 { self.plan_a } else { self.plan_b }

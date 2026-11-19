@@ -162,7 +162,7 @@ fn paged_v4_compute_byte_width(
 
 ///|
 fn paged_v4_checked_value_bytes(
-  rows : Int,
+  rows : Int32,
   width : Int64,
   element_bytes : Int64,
   operation : @plan.OperationId,
@@ -258,7 +258,7 @@ fn validate_paged_v4_operand_set(
   profile : PagedKernelProfile,
   layout : @device_layout.DeviceKvLayout,
   operands : ReadOnlyArray[AotOperand],
-  maximum : Int,
+  maximum : Int32,
 ) -> Unit raise LaunchContractError {
   if operands.is_empty() || operands.length() > maximum {
     raise OperandCountExceeded(operation=operation.id(), maximum~)

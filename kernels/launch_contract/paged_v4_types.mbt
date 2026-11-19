@@ -23,8 +23,8 @@ pub struct PagedV4AotLaunchContract {
   priv kv_layer : @plan.KvLayerId?
   priv runtime_inputs : ReadOnlyArray[@plan.OperationRuntimeInput]
   priv persistent_state : @plan.PersistentStateAccess
-  priv kv_layout_version : Int
-  priv tokens_per_page : Int
+  priv kv_layout_version : Int32
+  priv tokens_per_page : Int32
   priv entry_point : @catalog.AotKernelEntryPoint
   priv dimensions : AotLaunchDimensions
   priv operands : ReadOnlyArray[AotOperand]
@@ -134,14 +134,14 @@ pub fn PagedV4AotLaunchContract::persistent_state(
 ///|
 pub fn PagedV4AotLaunchContract::kv_layout_version(
   self : PagedV4AotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.kv_layout_version
 }
 
 ///|
 pub fn PagedV4AotLaunchContract::tokens_per_page(
   self : PagedV4AotLaunchContract,
-) -> Int {
+) -> Int32 {
   self.tokens_per_page
 }
 

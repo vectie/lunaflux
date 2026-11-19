@@ -31,7 +31,7 @@ fn phase5_weight_layout() -> @device_materialize.DeviceWeightLayout raise {
 
 ///|
 fn phase5_model_plan(
-  swap_residual_inputs? : Bool = false,
+  swap_residual_inputs~ : Bool = false,
 ) -> @plan.ModelPlan raise {
   let layer = @plan.KvLayerId::new(0)
   let residual_inputs : Array[@plan.ValueRef] = if swap_residual_inputs {

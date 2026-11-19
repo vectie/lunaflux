@@ -45,7 +45,7 @@ test "finite shared score map preserves each lane's masked key order" {
         tile, lanes,
       )
       for lane in 0..<lanes {
-        let original : Array[Int] = []
+        let original : Array[Int32] = []
         for key = lane; key < tile; key = key + lanes {
           original.push(key)
         }
