@@ -1,0 +1,12 @@
+import {
+  "vectie/lunaflux/media/rgb8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/process",
+}
+
+pkgtype(kind: "executable")
+
+supported_targets = "native"

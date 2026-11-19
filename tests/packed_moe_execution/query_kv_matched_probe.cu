@@ -88,6 +88,18 @@ int main(int argc,char **argv) {
 #undef NORM_VARIANT
   check(cudaFree(variant));
 #endif
+#ifdef LUNA_MATCHED_KV_NORM_VARIANTS
+  auto *kv_variant=allocate<__nv_bfloat16>(rows*512);
+  const auto *kv_norm_operand=matched?original[4]:buffers[4];
+#define KV_NORM_VARIANT(P,V) \
+  matched_kv_norm_##P##_##V<<<rows,P>>>(counts,kv_norm_operand,kw,kv_variant); \
+  check(cudaGetLastError());check(cudaDeviceSynchronize()); \
+  save(kv_variant,rows*512,out+"/kv-norm-" #P "-" #V ".bf16")
+  KV_NORM_VARIANT(128,4);KV_NORM_VARIANT(256,2);KV_NORM_VARIANT(256,4);
+  KV_NORM_VARIANT(512,1);KV_NORM_VARIANT(512,2);KV_NORM_VARIANT(512,4);
+#undef KV_NORM_VARIANT
+  check(cudaFree(kv_variant));
+#endif
   for(int i=0;i<6;++i){
     check(cudaFree(buffers[i]));
     if(original[i])check(cudaFree(original[i]));

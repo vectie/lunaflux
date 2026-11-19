@@ -1,0 +1,150 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+fn word(buffer : @buffer.Buffer, value : UInt32) -> Unit {
+  for i in 0..<4 {
+    buffer.write_byte((value >> ((3 - i) * 8)).to_byte())
+  }
+}
+
+///|
+fn chunk(output : @buffer.Buffer, kind : Bytes, data : Bytes) -> Unit {
+  word(output, data.length().reinterpret_as_uint())
+  let all = kind + data
+  output.write_bytes(all)
+  let mut crc = 0xffffffffU
+  for byte in all {
+    crc = crc ^ byte.to_uint()
+    for _ in 0..<8 {
+      crc = if (crc & 1U) == 1U { (crc >> 1) ^ 0xedb88320U } else { crc >> 1 }
+    }
+  }
+  word(output, crc ^ 0xffffffffU)
+}
+
+///|
+fn png(
+  width : Int32,
+  height : Int32,
+  depth : Byte,
+  color : Byte,
+  pixels : Bytes,
+  exif? : Bytes,
+) -> Bytes {
+  let output = @buffer.Buffer()
+  output.write_bytes(b"\x89PNG\r\n\x1a\n")
+  let header = @buffer.Buffer()
+  word(header, width.reinterpret_as_uint())
+  word(header, height.reinterpret_as_uint())
+  header.write_bytes(Bytes::from_array([depth, color, 0, 0, 0]))
+  chunk(output, b"IHDR", header.to_bytes())
+  if exif is Some(metadata) {
+    chunk(output, b"eXIf", metadata)
+  }
+  let scan = @buffer.Buffer()
+  let row = pixels.length() / height
+  for y in 0..<height {
+    scan.write_byte(0)
+    scan.write_bytes(pixels[y * row:(y + 1) * row].to_owned())
+  }
+  let bytes = scan.to_bytes()
+  let zlib = @buffer.Buffer()
+  zlib.write_bytes(b"\x78\x01\x01")
+  let length = bytes.length().reinterpret_as_uint()
+  let inverse = length ^ 65535U
+  zlib.write_bytes(
+    Bytes::from_array([
+      length.to_byte(),
+      (length >> 8).to_byte(),
+      inverse.to_byte(),
+      (inverse >> 8).to_byte(),
+    ]),
+  )
+  zlib.write_bytes(bytes)
+  let mut a = 1U
+  let mut b = 0U
+  for byte in bytes {
+    a = (a + byte.to_uint()) % 65521U
+    b = (b + a) % 65521U
+  }
+  word(zlib, (b << 16) | a)
+  chunk(output, b"IDAT", zlib.to_bytes())
+  chunk(output, b"IEND", b"")
+  output.to_bytes()
+}
+
+///|
+async fn save(path : String, data : Bytes) -> Unit {
+  if @fs.exists(path) {
+    @fs.write_file(path, data)
+  } else {
+    @fs.write_file(path, data, create_mode=CreateNew)
+  }
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, cjpeg] else {
+    fail("usage: make_fixtures.mbtx REPO CJPEG")
+  }
+  let output = repo + "/media/rgb8/fixtures"
+  if !@fs.exists(output) {
+    @fs.mkdir(output, recursive=true)
+  }
+  save(output + "/rgb.png", png(2, 1, 8, 2, b"\xff\x00\x00\x00\xff\x00"))
+  save(
+    output + "/rgba.png",
+    png(2, 1, 8, 6, b"\xff\x00\x00\x00\x00\xff\x00\x80"),
+  )
+  save(output + "/gray.png", png(2, 1, 8, 0, b"\x00\x80"))
+  save(
+    output + "/exif6.png",
+    png(
+      17,
+      11,
+      8,
+      2,
+      Bytes::makei(17 * 11 * 3, i => {
+        ((i * 37 + i / 7 * 23 + 66) % 256).to_byte()
+      }),
+      exif=b"II\x2a\x00\x08\x00\x00\x00\x01\x00\x12\x01\x03\x00\x01\x00\x00\x00\x06\x00\x00\x00\x00\x00\x00\x00",
+    ),
+  )
+  save(
+    output + "/rgb16.png",
+    png(2, 1, 16, 2, b"\xff\xff\x00\x00\x00\x00\x00\x00\xff\xff\x00\x00"),
+  )
+  let ppm = @utf8.encode("P6\n8 8\n255\n") +
+    Bytes::from_array(
+      Array::makei(8 * 8 * 3, i => if i % 3 == 0 { 255 } else { 0 }),
+    )
+  let temp = output + "/red.ppm"
+  save(temp, ppm)
+  defer @fs.remove(temp)
+  for progressive in [false, true] {
+    let args = ["-quality", "100", "-sample", "1x1"] +
+      (if progressive { ["-progressive"] } else { [] }) +
+      [
+        "-outfile",
+        output +
+        (if progressive { "/progressive.jpg" } else { "/baseline.jpg" }),
+        temp,
+      ]
+    guard @process.run(cjpeg, args) == 0 else {
+      fail("JPEG fixture encode failed")
+    }
+  }
+  // The nonuniform progressive regression has an independent Pillow RGB oracle;
+  // retain those original bytes rather than regenerating it with this encoder.
+  println(
+    "Created RGB/RGBA/grayscale/16-bit PNG and baseline/progressive JPEG fixtures",
+  )
+}

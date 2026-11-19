@@ -1,0 +1,18 @@
+import {
+  "vectie/lunaflux/integration/minicpm_v47_bootstrap" @bootstrap,
+  "vectie/lunaflux/integration/minicpm_v47_runtime" @runtime,
+  "vectie/lunaflux/integration/minicpm_v47_weights" @weights,
+  "vectie/lunaflux/integration/minicpm_v47_text" @text,
+  "vectie/lunaflux/integration/minicpm_v47_request" @request,
+  "vectie/lunaflux/integration/minicpm_v47" @prompt,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/device",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+}
+
+pkgtype(kind: "executable")
+
+supported_targets = "native"

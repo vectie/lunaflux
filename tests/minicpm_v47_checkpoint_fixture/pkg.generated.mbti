@@ -1,0 +1,22 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/minicpm_v47_checkpoint_fixture"
+
+import {
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/minicpm_v47",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+pub fn limits() -> @streaming_safetensors.StreamingSafetensorsLimits raise
+
+pub async fn[T] with_checkpoint((@minicpm_v47.Spec, @precision_materialize.PackedCheckpoint, @approved_fs.ApprovedRoot) -> T raise) -> T
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

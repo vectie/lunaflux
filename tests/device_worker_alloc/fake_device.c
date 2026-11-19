@@ -11,7 +11,7 @@ typedef struct {
   int live;
 } fake_lease;
 
-static uint64_t copy_calls, readback_calls;
+static uint64_t copy_calls, readback_calls, copied_bytes;
 static uint64_t resource_create_calls, resource_close_calls;
 static int live_resources;
 uint64_t lunaflux_device_worker_fake_launch_calls;
@@ -106,12 +106,13 @@ void *lunaflux_device_worker_fake_allocation_create(
     *status = -2;
     return value;
   }
-  value->storage = (uint8_t *)libc_malloc((size_t)byte_count);
+  /* Zeroed backing may remain demand-paged for metadata-only large weight
+   * regions in native ABI fixtures. Do not eagerly touch their entire span. */
+  value->storage = (uint8_t *)calloc((size_t)byte_count, 1U);
   if (value->storage == NULL) {
     *status = -6;
     return value;
   }
-  memset(value->storage, 0, (size_t)byte_count);
   value->context = context;
   value->size = (size_t)byte_count;
   value->live = 1;
@@ -254,6 +255,7 @@ static int32_t copy_into(
       to > allocation->size || size > allocation->size - to) return -2;
   memcpy(allocation->storage + to, source + from, size);
   copy_calls += 1U;
+  copied_bytes += (uint64_t)size;
   return 0;
 }
 
@@ -348,6 +350,7 @@ void lunaflux_device_worker_fake_ordered_resource_closed(void) {
 }
 
 uint64_t lunaflux_device_worker_fake_copy_count(void) { return copy_calls; }
+uint64_t lunaflux_device_worker_fake_copied_bytes(void) { return copied_bytes; }
 uint64_t lunaflux_device_worker_fake_launch_count(void) {
   return lunaflux_device_worker_fake_launch_calls;
 }

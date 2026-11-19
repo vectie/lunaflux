@@ -26,6 +26,9 @@ pub(all) suberror BenchmarkEvidenceError {
   BenchmarkEventLimitExceeded
   SummaryIntegerOverflow
 } derive(Eq, @debug.Debug)
+pub fn BenchmarkEvidenceError::equal(Self, Self) -> Bool
+pub fn BenchmarkEvidenceError::not_equal(Self, Self) -> Bool
+pub fn BenchmarkEvidenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct BenchmarkComparison {
@@ -40,13 +43,21 @@ pub struct BenchmarkDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn BenchmarkDigest::as_hex(Self) -> String
+pub fn BenchmarkDigest::equal(Self, Self) -> Bool
 pub fn BenchmarkDigest::from_sha256(String) -> Self raise BenchmarkEvidenceError
+pub fn BenchmarkDigest::hash(Self) -> Int
+pub fn BenchmarkDigest::hash_combine(Self, Hasher) -> Unit
+pub fn BenchmarkDigest::not_equal(Self, Self) -> Bool
+pub fn BenchmarkDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum BenchmarkEngine {
   LunaFlux
   Vllm
   Sglang
 } derive(Eq, @debug.Debug)
+pub fn BenchmarkEngine::equal(Self, Self) -> Bool
+pub fn BenchmarkEngine::not_equal(Self, Self) -> Bool
+pub fn BenchmarkEngine::to_repr(Self) -> @debug.Repr
 
 pub struct BenchmarkEngineIdentity {
   // private fields
@@ -81,6 +92,9 @@ pub(all) enum BenchmarkProfile {
   Churn
   Mixed
 } derive(Eq, @debug.Debug)
+pub fn BenchmarkProfile::equal(Self, Self) -> Bool
+pub fn BenchmarkProfile::not_equal(Self, Self) -> Bool
+pub fn BenchmarkProfile::to_repr(Self) -> @debug.Repr
 
 pub struct BenchmarkRequestEvent {
   // private fields
@@ -96,6 +110,9 @@ pub(all) enum BenchmarkRequestOutcome {
   Cancelled
   Failed
 } derive(Eq, @debug.Debug)
+pub fn BenchmarkRequestOutcome::equal(Self, Self) -> Bool
+pub fn BenchmarkRequestOutcome::not_equal(Self, Self) -> Bool
+pub fn BenchmarkRequestOutcome::to_repr(Self) -> @debug.Repr
 
 pub struct BenchmarkSummaryEvidence {
   // private fields

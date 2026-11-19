@@ -1,0 +1,15 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/integration/minicpm_v47" @adapter,
+  "vectie/lunaflux/integration/minicpm_v47_media" @media,
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/process",
+}
+
+pkgtype(kind: "executable")
+
+supported_targets = "native"

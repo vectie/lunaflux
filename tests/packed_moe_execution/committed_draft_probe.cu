@@ -154,7 +154,7 @@ int main() {
   std::fill(expected_ring.begin(),expected_ring.end(),23.f);
   for(int i=0;i<window*width;++i) ring[i]=__float2bfloat16_rn(23.f);
   int frontier=0;
-  for(int count : {3,2,8,7,5}) {
+  for(int count : {1,2,2,8,7,5}) {
     reset[0]=frontier==0; start[0]=frontier; mc[3]=count;
     for(int row=0;row<count;++row) for(int c=0;c<width;++c) {
       main_kv[row*width+c]=__float2bfloat16_rn(value(frontier+row,c));

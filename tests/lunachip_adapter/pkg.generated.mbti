@@ -1,0 +1,31 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/tests/lunachip_adapter"
+
+import {
+  "vectie/lunaflux/compiler/lunachip_tile",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+  "vectie/lunaflux/model/qwen3_spec",
+}
+
+// Values
+pub fn bindings() -> Array[@lunachip_tile.GlobalBinding] raise
+
+pub fn contract_text() -> String
+
+pub fn export_bf16_fixture(String) -> String raise
+
+pub fn export_fixture(String) -> String raise
+
+pub fn export_transformer_fixture(String) -> String raise
+
+pub fn metadata() -> @qwen3_spec.Qwen3ModelMetadata raise
+
+pub fn program(dtype? : @luna_tile_ir.LunaTileDType, initialized? : Bool, kind? : @luna_tile_ir.LunaTileElementwiseKind, loops? : ArrayView[Int64]) -> @luna_tile_ir.LunaTileProgram raise
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

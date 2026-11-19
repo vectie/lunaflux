@@ -16,7 +16,36 @@ typedef struct {
   fake_module *module;
   int live;
   int emits_logits;
+  int emits_sampled;
 } fake_function;
+
+/* Scripted ingress/egress fixture only; this is not GPU/model arithmetic. */
+static int32_t scripted_sample_token = 0;
+static int32_t scripted_tokens[4096];
+static int32_t scripted_count, scripted_cursor;
+
+MOONBIT_FFI_EXPORT
+void lunaflux_device_worker_fake_set_sample_token(int32_t token) {
+  scripted_sample_token = token;
+  scripted_count = 0;
+  scripted_cursor = 0;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_device_worker_fake_set_sample_script(int32_t *tokens) {
+  int32_t count = Moonbit_array_length(tokens);
+  if (count <= 0 || count > 4096) return 0;
+  memcpy(scripted_tokens, tokens, (size_t)count * sizeof(int32_t));
+  scripted_count = count;
+  scripted_cursor = 0;
+  scripted_sample_token = 248046;
+  return 1;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t lunaflux_device_worker_fake_sample_script_done(void) {
+  return scripted_count > 0 && scripted_cursor == scripted_count;
+}
 
 static void module_finalize(void *raw) {
   fake_module *value = (fake_module *)raw;
@@ -81,6 +110,10 @@ void *lunaflux_device_worker_fake_function_load(
   value->live = 1;
   value->emits_logits =
     Moonbit_array_length(name) == 8 && memcmp(name, "kernel_9", 8U) == 0;
+  static const char sample_symbol[] = "lunaflux_minicpm_v47_text_greedy";
+  value->emits_sampled =
+    Moonbit_array_length(name) == (int)(sizeof(sample_symbol) - 1U) &&
+    memcmp(name, sample_symbol, sizeof(sample_symbol) - 1U) == 0;
   module->children += 1;
   lunaflux_device_worker_fake_resource_opened_internal();
   *status = 0;
@@ -149,6 +182,24 @@ int32_t lunaflux_device_worker_fake_function_launch_counted(
           rank == 2 ? 0x4000U : rank == 3 ? 0x3f80U : 0U;
         base[byte] = (uint8_t)(bits & 0xffU);
         base[byte + 1U] = (uint8_t)(bits >> 8);
+      }
+    }
+  }
+  if (function->emits_sampled != 0) {
+    if (length != 5 || counts[1] < 4L) return -2;
+    fake_allocation *output_count = (fake_allocation *)allocations[1];
+    int32_t rows = 0;
+    memcpy(&rows, output_count->storage + (size_t)offsets[1], sizeof(rows));
+    if (rows < 0 || (int64_t)rows * 4L > counts[4]) return -2;
+    fake_allocation *output = (fake_allocation *)allocations[4];
+    for (int32_t row = 0; row < rows; ++row) {
+      uint32_t token = (uint32_t)scripted_sample_token;
+      if (scripted_cursor < scripted_count) {
+        token = (uint32_t)scripted_tokens[scripted_cursor++];
+      }
+      for (int byte = 0; byte < 4; ++byte) {
+        output->storage[(size_t)offsets[4] + (size_t)row * 4U + (size_t)byte] =
+          (uint8_t)(token >> (byte * 8));
       }
     }
   }

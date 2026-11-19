@@ -48,6 +48,9 @@ pub(all) suberror FusedQualificationError {
   InvalidRefereeInput
   RefereeMismatch(index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn FusedQualificationError::equal(Self, Self) -> Bool
+pub fn FusedQualificationError::not_equal(Self, Self) -> Bool
+pub fn FusedQualificationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FusedQkvQualificationFixture {

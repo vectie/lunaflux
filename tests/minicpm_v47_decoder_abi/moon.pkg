@@ -1,0 +1,55 @@
+import {
+  "vectie/lunaflux/integration/minicpm_v47_decoder" @decoder,
+  "vectie/lunaflux/integration/minicpm_v47_text" @text,
+  "vectie/lunaflux/integration/minicpm_v47" @prompt,
+  "vectie/lunaflux/integration/minicpm_v47_request" @request,
+  "vectie/lunaflux/integration/minicpm_v47_runtime" @runtime,
+  "vectie/lunaflux/integration/minicpm_v47_chat" @chat,
+  "vectie/lunaflux/integration/minicpm_v47_vision" @vision,
+  "vectie/lunaflux/integration/minicpm_v47_multimodal" @multimodal,
+  "vectie/lunaflux/integration/minicpm_v47_image_runtime" @image_runtime,
+  "vectie/lunaflux/integration/minicpm_v47_media" @media,
+  "vectie/lunaflux/media/rgb8",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/minicpm_v47_vision" @vision_layout,
+  "vectie/lunaflux/model/minicpm_v47_processor" @processor,
+  "vectie/lunaflux/tests/minicpm_v47_checkpoint_fixture" @checkpoint_fixture,
+  "vectie/lunaflux/service/api_auth" @auth,
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/integration/minicpm_v47_attention" @attention,
+  "vectie/lunaflux/integration/minicpm_v47_recurrent" @recurrent,
+  "vectie/lunaflux/integration/minicpm_v47_moe" @moe,
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy" @strategy,
+  "vectie/lunaflux/device",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/socket",
+  "moonbitlang/async/http",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/json",
+}
+
+pkgtype(kind: "executable")
+
+options(
+  "native-stub": [
+    "allocation_probe.c",
+    "fake_device.c",
+    "fake_kernel.c",
+    "fake_ordered_device.c",
+  ],
+  "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
+  link: {
+    "native": {
+      "cc-flags": "-O2 -include tests/device_worker_alloc/allocation_redirect.h",
+    },
+  },
+)
+
+supported_targets = "native"

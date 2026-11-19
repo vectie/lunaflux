@@ -1,0 +1,9 @@
+{
+  "format": "lunaflux.minicpm-v47-text-requests.v1",
+  "requests": [
+    { "id": "ready", "system": "You are a helpful assistant.", "user": "Reply with the single word ready.", "maximum_new_tokens": 8 },
+    { "id": "arithmetic", "system": "You are a helpful assistant.", "user": "Context: a robot has two arms and two legs. Its planner proposes skills and a local actor executes them. Question: what is 2 + 2? Answer briefly.", "maximum_new_tokens": 8 },
+    { "id": "count", "system": "You are a helpful assistant.", "user": "Count from one to eight using digits separated by commas. Output only the numbers.", "maximum_new_tokens": 32 },
+    { "id": "skill-json", "system": "You select robot skills. Return one JSON object and no other text. Allowed skill IDs are stand and wave. Format: {\"skill_id\":\"ID\"}. Never invent a skill.", "user": "The robot is standing still. A person asks it to wave. Select the requested skill.", "maximum_new_tokens": 48 }
+  ]
+}

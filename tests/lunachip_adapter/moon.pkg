@@ -1,0 +1,16 @@
+import {
+  "vectie/lunaflux/device/lunachip" @device,
+  "vectie/lunaflux/compiler/lunachip_tile" @compiler,
+  "vectie/lunaflux/kernels/luna_tile_ir" @tile,
+  "vectie/lunaflux/model/qwen3_lunachip" @layout,
+  "vectie/lunaflux/model/qwen3_spec" @qwen,
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/safetensors",
+  "vectie/lunaflux/model/qwen3_weights" @weights,
+  "vectie/lunaflux/integration/lunachip_qwen" @transfer,
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+}
+
+supported_targets = "native"

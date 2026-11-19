@@ -28,6 +28,12 @@ typedef struct {
   int32_t live;
 } fake_ordered_executor;
 
+/* Test-only event delay for asynchronous cancellation/reuse qualification. */
+static int32_t fake_completion_held;
+void lunaflux_device_worker_fake_hold_completion(int32_t held) {
+  fake_completion_held = held;
+}
+
 int32_t lunaflux_device_worker_fake_function_launch_counted(
   void *, void *, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t,
   int32_t, void **, int64_t *, int64_t *, int64_t *, int, int
@@ -203,6 +209,7 @@ int32_t lunaflux_device_worker_fake_ordered_executor_poll(void *raw) {
   if (value == NULL || value->live == 0) return -3;
   if (value->phase == FAKE_ORDERED_COMPLETE) return 1;
   if (value->phase != FAKE_ORDERED_RECORDED) return -2;
+  if (fake_completion_held) return 0;
   lunaflux_device_worker_fake_ordered_synchronize();
   value->phase = FAKE_ORDERED_COMPLETE;
   return 1;
