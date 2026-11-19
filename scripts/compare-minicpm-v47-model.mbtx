@@ -1,0 +1,273 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/float",
+  "moonbitlang/core/double",
+  "moonbitlang/core/string",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+}
+
+///|
+struct Prompt {
+  id : String
+  token_ids : Array[Int32]
+  maximum_new_tokens : Int32
+} derive(FromJson)
+
+///|
+struct Plan {
+  requests : Array[Prompt]
+} derive(FromJson)
+
+///|
+struct NativeResult {
+  id : String
+  token_ids : Array[Int32]
+  finish_reason : String
+  gpu_execution : Bool
+} derive(FromJson)
+
+///|
+struct ReferenceResult {
+  id : String
+  input_token_ids : Array[Int32]
+  emitted_token_ids : Array[Int32]
+  finish_reason : String
+  logits_files : Array[String]
+} derive(FromJson)
+
+///|
+struct LogitRow {
+  id : String
+  logits_files : Array[String]
+} derive(FromJson)
+
+///|
+struct LogitIndex {
+  requests : Array[LogitRow]
+} derive(FromJson)
+
+///|
+fn fp32(bytes : Bytes, index : Int32) -> Double raise {
+  let offset = index * 4
+  let word = bytes[offset].to_uint() |
+    (bytes[offset + 1].to_uint() << 8) |
+    (bytes[offset + 2].to_uint() << 16) |
+    (bytes[offset + 3].to_uint() << 24)
+  guard (word & 0x7f800000U) != 0x7f800000U else {
+    fail("non-finite model logit")
+  }
+  Float::reinterpret_from_uint(word).to_double()
+}
+
+///|
+async fn compare_logits(
+  native_root : String,
+  reference_file : String,
+  native : LogitRow,
+  reference : ReferenceResult,
+  matching_prefix_steps : Int32,
+) -> Json {
+  guard native.id == reference.id &&
+    reference_file.strip_suffix("report.json") is Some(reference_root) else {
+    fail("logit comparison requires matching requests and upstream report.json")
+  }
+  let steps = native.logits_files
+    .length()
+    .min(reference.logits_files.length())
+    .min(matching_prefix_steps)
+  let rows : Array[Json] = []
+  let mut greedy_match = true
+  for step in 0..<steps {
+    let reference_name = reference.logits_files[step]
+      .split("/")
+      .last()
+      .unwrap()
+      .to_owned()
+    let actual = @fs.read_file(native_root + "/" + native.logits_files[step]).binary()
+    let expected = @fs.read_file(reference_root.to_owned() + reference_name).binary()
+    guard actual.length() == 248144 * 4 && expected.length() == actual.length() else {
+      fail("expected complete selected-vocabulary FP32 logit rows")
+    }
+    let words = actual.length() / 4
+    let mut maximum_error = 0.0
+    let mut sum_error = 0.0
+    let mut square_error = 0.0
+    let mut unequal = 0
+    let mut actual_best = -1.7976931348623157e308
+    let mut expected_best = -1.7976931348623157e308
+    let mut actual_token = 0
+    let mut expected_token = 0
+    for index in 0..<words {
+      let left = fp32(actual, index)
+      let right = fp32(expected, index)
+      let difference = (left - right).abs()
+      if difference > maximum_error {
+        maximum_error = difference
+      }
+      sum_error += difference
+      square_error += difference * difference
+      if left != right {
+        unequal += 1
+      }
+      if left > actual_best {
+        actual_best = left
+        actual_token = index
+      }
+      if right > expected_best {
+        expected_best = right
+        expected_token = index
+      }
+    }
+    if actual_token != expected_token {
+      greedy_match = false
+    }
+    rows.push({
+      "step": Json(step),
+      "words": Json(words),
+      "unequal_words": Json(unequal),
+      "maximum_absolute_error": Json(maximum_error),
+      "mean_absolute_error": Json(sum_error / words.to_double()),
+      "root_mean_square_error": Json((square_error / words.to_double()).sqrt()),
+      "native_argmax": Json(actual_token),
+      "upstream_argmax": Json(expected_token),
+    })
+  }
+  {
+    "steps": Json(rows),
+    "greedy_match": Json(greedy_match),
+    "numerical_qualified": false,
+    "scope": "complete vocabulary rows along matching greedy input prefixes; error statistics are measurements, not an equivalence proof or quality acceptance",
+  }
+}
+
+///|
+struct Reference {
+  requests : Array[ReferenceResult]
+  transformers_version : String
+  gpu_execution : Bool
+} derive(FromJson)
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args is [_, native_root, reference_file, output] else {
+    fail(
+      "usage: compare-minicpm-v47-model.mbtx NATIVE_OUTPUT UPSTREAM_REPORT.json NEW_REPORT.json",
+    )
+  }
+  guard !@fs.exists(output) else { fail("comparison report must be new") }
+  let plan : Plan = @json.from_json(
+    @fs.read_file(native_root + "/plan.json").json(),
+  )
+  let reference : Reference = @json.from_json(
+    @fs.read_file(reference_file).json(),
+  )
+  let logits : LogitIndex? = if @fs.exists(native_root + "/logits.json") {
+    Some(@json.from_json(@fs.read_file(native_root + "/logits.json").json()))
+  } else {
+    None
+  }
+  guard reference.gpu_execution &&
+    reference.transformers_version == "5.18.0" &&
+    !plan.requests.is_empty() &&
+    plan.requests.length() == reference.requests.length() else {
+    fail("expected matching selected-model CUDA reference requests")
+  }
+  let rows : Array[Json] = []
+  let mut passed = true
+  let mut tokens = 0
+  for index, prompt in plan.requests {
+    let native : NativeResult = @json.from_json(
+      @fs.read_file(native_root + "/result-\{index}.json").json(),
+    )
+    let original = reference.requests[index]
+    guard native.gpu_execution &&
+      prompt.id == native.id &&
+      prompt.id == original.id &&
+      prompt.token_ids == original.input_token_ids else {
+      fail("native/reference request identity or input token mismatch")
+    }
+    let same = native.token_ids == original.emitted_token_ids &&
+      native.finish_reason == original.finish_reason
+    let mut first_difference : Int32? = None
+    let common = native.token_ids
+      .length()
+      .min(original.emitted_token_ids.length())
+    for position in 0..<common {
+      if native.token_ids[position] != original.emitted_token_ids[position] {
+        first_difference = Some(position)
+        break
+      }
+    }
+    if first_difference is None &&
+      native.token_ids.length() != original.emitted_token_ids.length() {
+      first_difference = Some(common)
+    }
+    if !same {
+      passed = false
+    }
+    let logit_report = match logits {
+      Some(logits) => {
+        guard logits.requests.length() == plan.requests.length() else {
+          fail("native logit request count differs")
+        }
+        if same {
+          let stop_count = if native.finish_reason == "stop" { 1 } else { 0 }
+          let expected_steps = native.token_ids.length() + stop_count
+          guard logits.requests[index].logits_files.length() == expected_steps &&
+            original.logits_files.length() == expected_steps else {
+            fail("missing sampled logit rows for a matching request")
+          }
+        }
+        let prefix_steps = match first_difference {
+          Some(position) => position + 1
+          None => original.logits_files.length()
+        }
+        let report = compare_logits(
+          native_root,
+          reference_file,
+          logits.requests[index],
+          original,
+          prefix_steps,
+        )
+        if report is { "greedy_match": False, .. } {
+          passed = false
+        }
+        report
+      }
+      None => Json::null()
+    }
+    tokens += common
+    rows.push({
+      "id": Json(prompt.id),
+      "input_tokens": Json(prompt.token_ids.length()),
+      "maximum_new_tokens": Json(prompt.maximum_new_tokens),
+      "native_token_ids": Json(native.token_ids),
+      "upstream_token_ids": Json(original.emitted_token_ids),
+      "native_finish_reason": Json(native.finish_reason),
+      "upstream_finish_reason": Json(original.finish_reason),
+      "first_difference": match first_difference {
+        Some(position) => Json(position)
+        None => Json::null()
+      },
+      "passed": Json(same && !(logit_report is { "greedy_match": False, .. })),
+      "logits": logit_report,
+    })
+  }
+  let report : Json = {
+    "format": "lunaflux.minicpm-v47-greedy-comparison.v1",
+    "model": "openbmb/MiniCPM-V-4.7-35B-A3B",
+    "revision": "98e79ba972b586ac6146d3505771ce1467e199ba",
+    "requests": Json(rows),
+    "compared_emitted_tokens": Json(tokens),
+    "passed": Json(passed),
+    "numerical_qualified": false,
+    "scope": "sampled greedy tokens with optional complete vocabulary rows along matching input prefixes; not an equivalence proof, visual quality, serving throughput or robot control",
+  }
+  @fs.write_file(output, report.stringify(indent=2), create_mode=CreateNew)
+  println(report.stringify())
+  guard passed else { fail("native/upstream MiniCPM greedy outputs differ") }
+}

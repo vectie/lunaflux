@@ -1,0 +1,39 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, python_root, python_executable, output] && !@fs.exists(output) else {
+    fail("usage: verify-minicpm-v47-image-load.mbtx REPO CPYTHON312_ROOT PIL_VENV_PYTHON NEW_OUTPUT")
+  }
+  @fs.mkdir(output, recursive=true)
+  let base = "https://raw.githubusercontent.com/huggingface/transformers/v5.18.0/"
+  for (name, path) in [("image_utils.py", "src/transformers/image_utils.py"), ("LICENSE", "LICENSE")] {
+    guard @process.run("curl", ["-fsSL", base + path, "-o", output + "/" + name]) == 0 else {
+      fail("pinned image loader download failed")
+    }
+  }
+  let source = @fs.read_file(output + "/image_utils.py").text()
+  guard source.find("def load_image(\n") is Some(start) &&
+    source[start:].find("\n\n@requires(backends=(\"torchvision\",))") is Some(length) &&
+    source.find("import base64") is Some(imports) else { fail("pinned image loader boundaries changed") }
+  let reference = output + "/image_load_reference.py"
+  @fs.write_file(reference, source[:imports].to_owned() +
+    "from __future__ import annotations\nimport os\nimport base64\nfrom io import BytesIO\nfrom typing import Union\nimport PIL.Image\nimport PIL.ImageOps\n\n" +
+    source[start:start + length].to_owned(), create_mode=CreateNew)
+  let oracle = output + "/image-load-oracle"
+  guard @process.run("c++", ["-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror",
+      "-I" + python_root + "/include/python3.12", repo + "/tests/minicpm_v47_image_load_oracle/oracle.cpp",
+      "-L" + python_root + "/lib", "-Wl,-rpath," + python_root + "/lib", "-lpython3.12", "-o", oracle]) == 0 else {
+    fail("offline image loader adapter build failed")
+  }
+  guard @process.run("moon", ["-C", repo, "run", "tests/minicpm_v47_image_load_oracle", "--release", "--target", "native",
+      "--deny-warn", "--warn-list", "-79-29-25-20", "--", oracle, python_executable, reference, output + "/comparison"]) == 0 else {
+    fail("upstream image loader comparison failed")
+  }
+}

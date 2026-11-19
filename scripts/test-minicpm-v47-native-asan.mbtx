@@ -1,0 +1,119 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+// Generated MoonBit C and all four fake-driver objects are instrumented.
+// The prebuilt MoonBit runtime/support libraries and mimalloc remain unchanged.
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, moon_root, output] && !@fs.exists(output) else {
+    fail("usage: test-minicpm-v47-native-asan.mbtx REPO MOON_ROOT NEW_OUTPUT")
+  }
+  guard @process.run("moon", [
+      "-C", repo, "build", "tests/minicpm_v47_decoder_abi", "--release", "--target",
+      "native", "--deny-warn", "--warn-list", "-79-29-25-20",
+    ]) ==
+    0 else {
+    fail("native ABI build failed")
+  }
+  @fs.mkdir(output, recursive=true)
+  let build = repo + "/_build/native/release/build"
+  let fixture = repo + "/tests/minicpm_v47_decoder_abi/"
+  let include_flags = ["-I" + moon_root + "/include", "-I" + repo]
+  let flags = [
+      "-O1", "-g", "-fsanitize=address", "-fno-omit-frame-pointer", "-fwrapv", "-fno-strict-aliasing",
+    ] +
+    include_flags
+  let objects = []
+  for
+    name in [
+      "allocation_probe", "fake_device", "fake_kernel", "fake_ordered_device",
+    ] {
+    let object = output + "/" + name + ".o"
+    guard @process.run(
+        "cc",
+        flags + ["-std=c11", "-c", fixture + name + ".c", "-o", object],
+      ) ==
+      0 else {
+      fail("ASan driver object build failed")
+    }
+    objects.push(object)
+  }
+  let rgb8 = output + "/rgb8_decode.o"
+  guard @process.run(
+      "cc",
+      flags +
+      [
+        "-std=c11",
+        "-Wno-unused-function",
+        "-c",
+        repo + "/media/rgb8/decode.c",
+        "-o",
+        rgb8,
+      ],
+    ) ==
+    0 else {
+    fail("ASan RGB8 decoder build failed")
+  }
+  objects.push(rgb8)
+  let generated = output + "/generated.o"
+  guard @process.run(
+      "cc",
+      flags +
+      [
+        "-DMOONBIT_ALLOCATOR=MOONBIT_ALLOCATOR_MIMALLOC",
+        "-Wno-unused-value",
+        "-include",
+        repo + "/tests/device_worker_alloc/allocation_redirect.h",
+        "-c",
+        build + "/tests/minicpm_v47_decoder_abi/minicpm_v47_decoder_abi.c",
+        "-o",
+        generated,
+      ],
+    ) ==
+    0 else {
+    fail("ASan generated-C build failed")
+  }
+  let libraries = []
+  for
+    name in [
+      "internal/c_buffer/libc_buffer", "types/libtypes", "internal/env_util/libenv_util",
+      "internal/os_string/libos_string", "os_error/libos_error", "internal/fd_util/libfd_util",
+      "internal/event_loop/libevent_loop", "fs/libfs", "socket/libsocket", "tls/libtls",
+    ] {
+    libraries.push(build + "/.mooncakes/moonbitlang/async/" + name + ".a")
+  }
+  for name in ["cuda", "nccl", "approved_fs"] {
+    libraries.push(build + "/internal/" + name + "/lib" + name + ".a")
+  }
+  libraries.push(build + "/libruntime.a")
+  let binary = output + "/minicpm-v47-native-asan"
+  guard @process.run(
+      "cc",
+      [
+        "-g",
+        "-fsanitize=address",
+        "-o",
+        binary,
+        moon_root + "/lib/libmoonbitrun.o",
+        generated,
+      ] +
+      objects +
+      libraries +
+      ["-lm", moon_root + "/lib/libbacktrace.a"],
+    ) ==
+    0 else {
+    fail("ASan native link failed")
+  }
+  guard @process.run("env", [
+      "ASAN_OPTIONS=detect_leaks=0:abort_on_error=1", binary,
+    ]) ==
+    0 else {
+    fail("ASan native fixture failed")
+  }
+}

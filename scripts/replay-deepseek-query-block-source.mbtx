@@ -185,18 +185,31 @@ async fn main {
         ("q-head", 32768),
         ("kv", 512),
         ("kv-norm", 512),
+        ("kv-norm-128-4", 512),
+        ("kv-norm-256-2", 512),
+        ("kv-norm-256-4", 512),
+        ("kv-norm-512-1", 512),
+        ("kv-norm-512-2", 512),
+        ("kv-norm-512-4", 512),
       ] {
       copy(
         node + ":" + root + "/" + mode + "/" + stage + ".bf16",
         root + "/" + mode + "/" + stage + ".bf16",
       )
+      let original_stage = if stage.has_prefix("kv-norm-") {
+        "kv-norm"
+      } else {
+        stage
+      }
       let reference = if rows == 1 {
-        let all = @fs.read_file(original + "/original/" + stage + ".bf16").binary()
+        let all = @fs.read_file(
+          original + "/original/" + original_stage + ".bf16",
+        ).binary()
         let path = root + "/" + mode + "/reference-" + stage + ".bf16"
         @fs.write_file(path, all[:width * 2].to_owned(), create_mode=CreateNew)
         path
       } else {
-        original + "/original/" + stage + ".bf16"
+        original + "/original/" + original_stage + ".bf16"
       }
       record(
         root,

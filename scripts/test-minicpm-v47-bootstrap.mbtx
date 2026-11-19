@@ -1,0 +1,151 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+// End-to-end inspection only. The generated shard payloads are sparse zero
+// holes, never checkpoint weights. Do not run inference on this fixture root.
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args[1:] is [repo, assets, output] && !@fs.exists(output) else {
+    fail(
+      "usage: test-minicpm-v47-bootstrap.mbtx REPO ACTUAL_ASSETS NEW_FIXTURE_OUTPUT",
+    )
+  }
+  let model = output + "/sparse-software-fixture"
+  @fs.mkdir(model, recursive=true)
+  @fs.write_file(
+    model + "/FIXTURE_ONLY.txt",
+    @utf8.encode(
+      "Sparse zero payloads for metadata inspection only. Never use this root for GPU inference.\n",
+    ),
+    create_mode=CreateNew,
+  )
+  for name in ["config.json", "tokenizer.json"] {
+    @fs.write_file(
+      model + "/" + name,
+      @fs.read_file(assets + "/" + name),
+      create_mode=CreateNew,
+    )
+  }
+  let fixtures = @fs.opendir(repo + "/model/minicpm_v47_weights/fixtures")
+  defer fixtures.close()
+  let names = fixtures.read_all()
+  names.sort()
+  let index : Map[String, Json] = Map([])
+  for filename in names {
+    let name = filename.strip_suffix(".header.json").unwrap().to_owned()
+    let header = @fs.read_file(
+      repo + "/model/minicpm_v47_weights/fixtures/" + filename,
+    ).binary()
+    guard @json.parse(@utf8.decode(header)) is Object(tree) else {
+      fail("header fixture")
+    }
+    let mut end = 0L
+    for tensor, entry in tree {
+      if tensor == "__metadata__" {
+        continue
+      }
+      guard entry is { "data_offsets": [_, Number(last, ..)], .. } else {
+        fail("tensor extent")
+      }
+      end = end.max(last.to_int64())
+      index[tensor] = Json(name)
+    }
+    let prefix = @buffer.Buffer()
+    prefix.write_uint64_le(header.length().to_uint64())
+    prefix.write_bytes(header)
+    let path = model + "/" + name
+    @fs.write_file(path, prefix.to_bytes(), create_mode=CreateNew)
+    let file = @fs.open(path, mode=WriteOnly)
+    defer file.close()
+    file.write_at(
+      b"\x00"[:],
+      position=8L + header.length().to_int64() + end - 1L,
+    )
+  }
+  let manifest : Json = { "weight_map": Json(index) }
+  @fs.write_file(
+    model + "/model.safetensors.index.json",
+    @utf8.encode(manifest.stringify()),
+    create_mode=CreateNew,
+  )
+  let requests : Json = {
+    "format": "lunaflux.minicpm-v47-text-requests.v1",
+    "requests": [
+      {
+        "id": "walk",
+        "system": "Select a robot skill.",
+        "user": "向前走两步。",
+        "maximum_new_tokens": 64,
+      },
+      {
+        "id": "stand",
+        "system": "Select a robot skill.",
+        "user": "Stand still.",
+        "maximum_new_tokens": 32,
+        "context_ceiling": 256,
+      },
+    ],
+  }
+  let queue = output + "/requests.json"
+  let inspection = output + "/inspection"
+  @fs.write_file(
+    queue,
+    @utf8.encode(requests.stringify(indent=2)),
+    create_mode=CreateNew,
+  )
+  let code = @process.run("moon", [
+    "run",
+    repo + "/cmd/minicpm_v47_generate",
+    "--target",
+    "native",
+    "--deny-warn",
+    "--warn-list",
+    "-79-29-25-20",
+    "--",
+    "inspect",
+    model,
+    queue,
+    inspection,
+  ])
+  guard code == 0 else { fail("inspection executable failed") }
+  let plan = @fs.read_file(inspection + "/plan.json").json()
+  guard plan
+    is {
+      "format": "lunaflux.minicpm-v47-text-plan.v1",
+      "model": "openbmb/MiniCPM-V-4.7-35B-A3B",
+      "architecture": "sm_121",
+      "inspected_tensors": 1152,
+      "inspected_shards": 16,
+      "text_allocations": 653,
+      "weight_bytes": "69319779584",
+      "total_allocation_bytes": "69473047868",
+      "weight_payload_read": false,
+      "gpu_execution": false,
+      "device_qualified": false,
+      "requests": [
+        { "id": "walk", "token_ids": Array(walk), .. },
+        { "id": "stand", "token_ids": Array(stand), .. },
+      ],
+      ..
+    } &&
+    !walk.is_empty() &&
+    !stand.is_empty() &&
+    walk[0] == Json(248045) &&
+    stand[0] == Json(248045) else {
+    fail("inspection receipt mismatch")
+  }
+  println(
+    "MiniCPM-V 4.7 executable inspection passed; sparse headers only, no weight upload or GPU access: " +
+    inspection,
+  )
+}

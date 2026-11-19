@@ -1,0 +1,176 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+// Uses the existing explicit fake compiler to test build bookkeeping only.
+// Its dummy artifacts must never be supplied to a real model/runtime.
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, output] && !@fs.exists(output) else {
+    fail("usage: test-minicpm-v47-aot-receipt.mbtx REPO NEW_FIXTURE_OUTPUT")
+  }
+  @fs.mkdir(output, recursive=true)
+  @fs.write_file(
+    output + "/FIXTURE_ONLY.txt",
+    @utf8.encode(
+      "Build-receipt contract test with fake compiler output. Not CUDA compilation or GPU artifacts.\n",
+    ),
+    create_mode=CreateNew,
+  )
+  let base = [
+    "decoder_envelope", "recurrent_branch", "moe", "attention_common", "attention_prefill",
+    "attention_decode", "text_io",
+  ]
+  let results : Array[Json] = []
+  for count in [7, 8, 9] {
+    let prepared = output + "/prepared-\{count}"
+    @fs.mkdir(prepared)
+    let names = base.copy()
+    if count >= 8 {
+      names.push("vision_encoder")
+    }
+    if count == 9 {
+      names.push("image_scatter")
+    }
+    let document : Map[String, Json] = {
+      "format": "lunaflux.minicpm-v47-preparation.v1",
+      "model": "openbmb/MiniCPM-V-4.7-35B-A3B",
+      "revision": "fixture-only",
+      "full_attention": { "compiler_profile": "sm121 receipt test fixture" },
+    }
+    if count >= 8 {
+      document["vision_encoder"] = { "source": "vision_encoder.cu" }
+    }
+    if count == 9 {
+      document["multimodal_prefill"] = { "source": "image_scatter.cu" }
+    }
+    @fs.write_file(
+      prepared + "/preparation.json",
+      @utf8.encode(Json(document).stringify()),
+      create_mode=CreateNew,
+    )
+    for name in names {
+      @fs.write_file(
+        prepared + "/" + name + ".cu",
+        @utf8.encode("// Build-receipt fixture; not model CUDA source.\n"),
+        create_mode=CreateNew,
+      )
+    }
+    let built = output + "/fake-compiled-\{count}"
+    assert_eq(
+      @process.run(
+        "moon",
+        [
+          "run",
+          repo + "/scripts/build-minicpm-v47-aot.mbtx",
+          prepared,
+          built,
+          "--compile",
+          repo + "/scripts/fixtures/luna-cuda-aot/fake-nvcc.sh",
+        ],
+        stdout=@process.redirect_to_file(
+          output + "/compiled-\{count}.stdout.log",
+          create_mode=CreateNew,
+        ),
+        stderr=@process.redirect_to_file(
+          output + "/compiled-\{count}.stderr.log",
+          create_mode=CreateNew,
+        ),
+      ),
+      0,
+    )
+    guard @fs.read_file(built + "/build.json").json()
+      is {
+        "cuda_compiled": True,
+        "modules": Array(modules),
+        "device_qualified": False,
+        "complete_model_execution": False,
+        ..
+      } &&
+      modules.length() == count else {
+      fail("aggregate receipt lost requested module count")
+    }
+    for entry in modules {
+      assert_true(entry is { "compiled": True, "exit_code": 0, .. })
+    }
+    let dry = output + "/dry-\{count}"
+    assert_eq(
+      @process.run(
+        "moon",
+        ["run", repo + "/scripts/build-minicpm-v47-aot.mbtx", prepared, dry],
+        stdout=@process.redirect_to_file(
+          output + "/dry-\{count}.stdout.log",
+          create_mode=CreateNew,
+        ),
+        stderr=@process.redirect_to_file(
+          output + "/dry-\{count}.stderr.log",
+          create_mode=CreateNew,
+        ),
+      ),
+      0,
+    )
+    assert_true(
+      @fs.read_file(dry + "/build.json").json()
+      is { "cuda_compiled": False, "mode": "dry_run", .. },
+    )
+    results.push({
+      "requested_modules": Json(count),
+      "fake_compile_receipt_passed": true,
+      "dry_run_passed": true,
+    })
+  }
+  let failed = output + "/failed"
+  assert_true(
+    @process.run(
+      "moon",
+      [
+        "run",
+        repo + "/scripts/build-minicpm-v47-aot.mbtx",
+        output + "/prepared-9",
+        failed,
+        "--compile",
+        "/usr/bin/false",
+      ],
+      stdout=@process.redirect_to_file(
+        output + "/failed.stdout.log",
+        create_mode=CreateNew,
+      ),
+      stderr=@process.redirect_to_file(
+        output + "/failed.stderr.log",
+        create_mode=CreateNew,
+      ),
+    ) !=
+    0,
+  )
+  assert_true(
+    @fs.read_file(failed + "/build.json").json()
+    is {
+      "cuda_compiled": False,
+      "modules": [{ "compiled": False, "exit_code": 1, .. }],
+      ..
+    },
+  )
+  @fs.write_file(
+    output + "/report.json",
+    @utf8.encode(
+      (
+        {
+          "format": "lunaflux.minicpm-v47-aot-receipt-test.v1",
+          "cases": Json(results),
+          "failed_build_report_passed": true,
+          "actual_cuda_compilation": false,
+          "scope": "bookkeeping regression using an explicit fake compiler; dummy artifacts are not GPU code",
+        } : Json).stringify(indent=2),
+    ),
+    create_mode=CreateNew,
+  )
+  println(
+    "AOT receipt regression passed: seven/eight/nine requested modules, dry runs and failed compiler; fake compiler only",
+  )
+}

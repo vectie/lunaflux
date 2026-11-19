@@ -1,0 +1,100 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+fn put_u32(bytes : FixedArray[Byte], offset : Int32, value : UInt32) -> Unit {
+  for index in 0..<4 {
+    bytes[offset + index] = ((value >> (index * 8)) & 255U).to_byte()
+  }
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [output] && !@fs.exists(output) else {
+    fail("usage: stage-minicpm-v47-vision-fixture.mbtx NEW_OUTPUT")
+  }
+  @fs.mkdir(output, recursive=true)
+  let requests : Array[Json] = []
+  for color in ["red", "blue"] {
+    // Uncompressed BMP is only the fixture construction format. Production
+    // input is lossless RGB PNG, converted by the system image utility.
+    let size = 448
+    let bytes = FixedArray::make(54 + size * size * 3, b'\x00')
+    bytes[0] = b'B'
+    bytes[1] = b'M'
+    put_u32(bytes, 2, bytes.length().reinterpret_as_uint())
+    put_u32(bytes, 10, 54U)
+    put_u32(bytes, 14, 40U)
+    put_u32(bytes, 18, size.reinterpret_as_uint())
+    put_u32(bytes, 22, size.reinterpret_as_uint())
+    bytes[26] = b'\x01'
+    bytes[28] = b'\x18'
+    put_u32(bytes, 34, (size * size * 3).reinterpret_as_uint())
+    for y in 0..<size {
+      for x in 0..<size {
+        let inside = x >= 112 && x < 336 && y >= 112 && y < 336
+        let offset = 54 + (y * size + x) * 3
+        bytes[offset] = if !inside || color == "blue" {
+          b'\xff'
+        } else {
+          b'\x00'
+        }
+        bytes[offset + 1] = if !inside { b'\xff' } else { b'\x00' }
+        bytes[offset + 2] = if !inside || color == "red" {
+          b'\xff'
+        } else {
+          b'\x00'
+        }
+      }
+    }
+    let bitmap = output + "/" + color + "-square.bmp"
+    @fs.write_file(bitmap, Bytes::from_array(bytes[:]), create_mode=CreateNew)
+    guard @process.run("sips", [
+        "-s",
+        "format",
+        "png",
+        bitmap,
+        "--out",
+        output + "/" + color + "-square.png",
+      ]) ==
+      0 else {
+      fail("fixture PNG conversion failed")
+    }
+    requests.push({
+      "id": Json(color + "-square"),
+      "system": "You are a helpful assistant.",
+      "user": [
+        { "type": "image", "path": Json(color + "-square.png") },
+        {
+          "type": "text",
+          "text": "What color is the large square in the center? Answer with one word.",
+        },
+      ],
+      "maximum_new_tokens": 8,
+    })
+  }
+  requests.push({
+    "id": "text-after-images",
+    "system": "You are a helpful assistant.",
+    "user": [{ "type": "text", "text": "Reply with the single word ready." }],
+    "maximum_new_tokens": 8,
+  })
+  let queue : Json = {
+    "format": "lunaflux.minicpm-v47-media-requests.v1",
+    "requests": Json(requests),
+  }
+  @fs.write_file(
+    output + "/requests.json",
+    queue.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(
+    "Synthetic grounding fixture: red/blue squares, then text reuse. No robot observation or task quality claim.",
+  )
+}

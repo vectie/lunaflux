@@ -1,0 +1,140 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+fn section(source : String, first : String, next : String) -> String raise {
+  guard source.find(first) is Some(start) &&
+    source[start:].find(next) is Some(length) else {
+    fail("pinned image reference boundaries changed: " + first)
+  }
+  source[start:start + length].to_owned()
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, python_root, python_executable, output] &&
+    !@fs.exists(output) else {
+    fail(
+      "usage: verify-minicpm-v47-pil-pipeline.mbtx REPO CPYTHON312_ROOT TORCH_NUMPY_PIL_VENV_PYTHON NEW_OUTPUT",
+    )
+  }
+  @fs.mkdir(output, recursive=true)
+  let base = "https://raw.githubusercontent.com/huggingface/transformers/v5.18.0/"
+  for
+    (name, path) in [
+      (
+        "processor", "src/transformers/models/minicpmv4_6/image_processing_pil_minicpmv4_6.py",
+      ),
+      ("backends", "src/transformers/image_processing_backends.py"),
+      ("transforms", "src/transformers/image_transforms.py"),
+      ("utils", "src/transformers/image_utils.py"),
+      ("LICENSE", "LICENSE"),
+    ] {
+    guard @process.run("curl", ["-fsSL", base + path, "-o", output + "/" + name]) ==
+      0 else {
+      fail("pinned image source download failed: " + name)
+    }
+  }
+  let model = @fs.read_file(output + "/processor").text()
+  let backends = @fs.read_file(output + "/backends").text()
+  let transforms = @fs.read_file(output + "/transforms").text()
+  let utils = @fs.read_file(output + "/utils").text()
+  guard utils.find("@dataclass()\nclass SizeDict:") is Some(size_start) &&
+    backends.find("class PilBackend(") is Some(pil_start) &&
+    model.find("    def _preprocess(") is Some(preprocess_start) &&
+    model.find("\n\n__all__") is Some(preprocess_end) else {
+    fail("pinned class boundaries changed")
+  }
+  let reference = output + "/pil_reference.py"
+  // Only import/class/alias shells are supplied here. Every numerical,
+  // geometry, patch-order and preprocessing method below is unchanged upstream.
+  let imports =
+    #|from __future__ import annotations
+    #|from collections.abc import Collection, Iterable
+    #|from dataclasses import dataclass, fields, astuple
+    #|from enum import StrEnum as ExplicitEnum
+    #|from typing import Optional, Union
+    #|import math
+    #|import numpy as np
+    #|import PIL.Image
+    #|import torch
+    #|PILImageResampling = PIL.Image.Resampling
+    #|
+  @fs.write_file(
+    reference,
+    imports +
+    "\n" +
+    section(model, "# Copyright", "\"\"\"PIL Image") +
+    section(utils, "class ChannelDimension(", "class AnnotationFormat(") +
+    utils[size_start:].to_owned() +
+    "\n" +
+    section(
+      utils, "def infer_channel_dimension_format(", "def get_image_size_for_max_height_width(",
+    ) +
+    section(
+      transforms, "def to_channel_dimension_format(", "def get_size_with_aspect_ratio(",
+    ) +
+    section(transforms, "def resize(\n", "def center_crop(\n") +
+    section(
+      transforms, "def divide_to_patches(\n", "def _group_images_by_shape(",
+    ) +
+    "np_resize = resize\nnp_rescale = rescale\nnp_normalize = normalize\nclass PilReference:\n" +
+    section(
+      backends[pil_start:].to_owned(),
+      "    def resize(\n",
+      "    def center_crop(\n",
+    ) +
+    section(
+      model, "def ensure_divide(", "class MiniCPMV4_6ImageProcessorPilKwargs(",
+    ) +
+    "class ProcessorReference(PilReference):\n" +
+    section(
+      model, "    def find_best_resize(\n", "    @auto_docstring\n    def preprocess(",
+    ) +
+    model[preprocess_start:preprocess_end].to_owned(),
+    create_mode=CreateNew,
+  )
+  let oracle = output + "/pil-pipeline-oracle"
+  guard @process.run("c++", [
+      "-std=c++17",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I" + python_root + "/include/python3.12",
+      repo + "/tests/minicpm_v47_pil_pipeline_oracle/oracle.cpp",
+      "-L" + python_root + "/lib",
+      "-Wl,-rpath," + python_root + "/lib",
+      "-lpython3.12",
+      "-o",
+      oracle,
+    ]) ==
+    0 else {
+    fail("offline PIL reference adapter build failed")
+  }
+  guard @process.run("moon", [
+      "-C",
+      repo,
+      "run",
+      "tests/minicpm_v47_pil_pipeline_oracle",
+      "--release",
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20",
+      "--",
+      oracle,
+      python_executable,
+      reference,
+      output + "/comparison",
+    ]) ==
+    0 else {
+    fail("full upstream PIL pipeline comparison failed")
+  }
+}

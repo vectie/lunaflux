@@ -1,0 +1,92 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+async fn main {
+  guard @env.args()[1:]
+    is [repo, assets, python_root, python_executable, output] &&
+    !@fs.exists(output) else {
+    fail(
+      "usage: verify-minicpm-v47-canvas.mbtx REPO ASSETS CPYTHON312_ROOT TORCH_VENV_PYTHON NEW_OUTPUT",
+    )
+  }
+  @fs.mkdir(output, recursive=true)
+  let upstream = output + "/modeling_minicpmv4_7.py"
+  guard @process.run("curl", [
+      "-fsSL", "https://raw.githubusercontent.com/huggingface/transformers/v5.18.0/src/transformers/models/minicpmv4_7/modeling_minicpmv4_7.py",
+      "-o", upstream,
+    ]) ==
+    0 else {
+    fail("pinned model source download failed")
+  }
+  guard @process.run("curl", [
+      "-fsSL",
+      "https://raw.githubusercontent.com/huggingface/transformers/v5.18.0/LICENSE",
+      "-o",
+      output + "/LICENSE",
+    ]) ==
+    0 else {
+    fail("upstream license download failed")
+  }
+  let source = @fs.read_file(upstream).text()
+  guard source.find("import itertools") is Some(header_end) &&
+    source.find("    @staticmethod\n    def _frame_end_idx") is Some(start) &&
+    source.find("    def compute_3d_position_ids") is Some(end) &&
+    start < end else {
+    fail("pinned canvas method boundaries changed")
+  }
+  let reference = output + "/canvas_reference.py"
+  // No first-party Python algorithm or orchestration: retain the original
+  // four methods byte-for-byte, changing only the surrounding import/class shell.
+  @fs.write_file(
+    reference,
+    source[:header_end].to_owned() +
+    "import itertools\nimport torch\nclass CanvasReference:\n" +
+    source[start:end].to_owned(),
+    create_mode=CreateNew,
+  )
+  let oracle = output + "/canvas-oracle"
+  guard @process.run("c++", [
+      "-std=c++17",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-I" + python_root + "/include/python3.12",
+      repo + "/tests/minicpm_v47_canvas_oracle/oracle.cpp",
+      "-L" + python_root + "/lib",
+      "-Wl,-rpath," + python_root + "/lib",
+      "-lpython3.12",
+      "-o",
+      oracle,
+    ]) ==
+    0 else {
+    fail("offline CPython adapter build failed")
+  }
+  guard @process.run("moon", [
+      "-C",
+      repo,
+      "run",
+      "tests/minicpm_v47_canvas_oracle",
+      "--release",
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20",
+      "--",
+      assets,
+      oracle,
+      python_executable,
+      reference,
+      output + "/comparison",
+    ]) ==
+    0 else {
+    fail("upstream canvas comparison failed")
+  }
+}

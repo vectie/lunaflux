@@ -1,0 +1,53 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+// Explicit offline test dependency, never linked into the production engine.
+async fn main {
+  guard @env.args()[1:] is [repo, libtorch, output] && !@fs.exists(output) else {
+    fail(
+      "usage: verify-minicpm-v47-positions.mbtx ABSOLUTE_REPO LIBTORCH_ROOT NEW_OUTPUT",
+    )
+  }
+  @fs.mkdir(output, recursive=true)
+  let oracle = output + "/aten-positions-oracle"
+  guard @process.run("c++", [
+      "-std=c++17",
+      "-O2",
+      "-I" + libtorch + "/include",
+      "-I" + libtorch + "/include/torch/csrc/api/include",
+      repo + "/tests/minicpm_v47_positions_oracle/oracle.cpp",
+      "-L" + libtorch + "/lib",
+      "-Wl,-rpath," + libtorch + "/lib",
+      "-ltorch_cpu",
+      "-lc10",
+      "-o",
+      oracle,
+    ]) ==
+    0 else {
+    fail("offline ATen oracle compilation failed")
+  }
+  guard @process.run("moon", [
+      "-C",
+      repo,
+      "run",
+      "tests/minicpm_v47_positions_oracle",
+      "--release",
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20",
+      "--",
+      oracle,
+      output + "/comparison",
+    ]) ==
+    0 else {
+    fail("ATen canvas comparison failed")
+  }
+}

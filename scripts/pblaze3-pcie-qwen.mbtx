@@ -1,0 +1,124 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+/// Run the bridge on the workstation that owns the XDMA character devices.
+async fn main {
+  guard @env.args()[1:]
+    is [
+      mode,
+      image,
+      bridge,
+      helper,
+      client,
+      contract,
+      model,
+      revision,
+      fixture,
+      dir,
+      prompt,
+      count,
+      port,
+      prefix,
+    ] else {
+    fail(
+      "generate-resident|generate-warm|benchmark-warm IMAGE_DIR BRIDGE_TCL XDMA_HELPER QWEN_CLIENT CONTRACT MODEL_DIR REVISION QUALIFICATION NEW_RUN PROMPT TOKEN_COUNT PORT DEVICE_PREFIX",
+    )
+  }
+  let port_number = @string.parse_int(port)
+  guard ["generate-resident", "generate-warm", "benchmark-warm"].contains(mode) &&
+    !@fs.exists(dir) &&
+    port_number >= 1 && port_number <= 65535 &&
+    @string.parse_int(count) > 0 else {
+    fail("invalid mode, directory, count or port")
+  }
+  for
+    file in [
+      image + "/pblaze3.bit",
+      image + "/BUILD_COMPLETE",
+      image + "/diagnostic-routed.txt",
+      bridge,
+      helper,
+      client,
+      contract,
+      model + "/model.safetensors",
+      fixture,
+    ] {
+    guard @fs.exists(file) else { fail("missing " + file) }
+  }
+  @fs.mkdir(dir)
+  let opts : Map[String, String] = {
+    "PBLAZE3_ALIGN_MATRIX_1K": "1",
+    "PBLAZE3_TOKEN_QUEUE": "1",
+    "PBLAZE3_BF16_INPUT": "1",
+    "PBLAZE3_GREEDY_QUEUE": "1",
+    "PBLAZE3_DISPATCH_PROFILE": "1",
+    "PBLAZE3_CYCLE_PROFILE": "1",
+  }
+  let log = dir + "/bridge.log"
+  let mut bridge_exit : Int32? = None
+  @async.with_task_group(group => {
+    group.spawn_bg(() => {
+      bridge_exit = Some(
+        @shell.Cmd(
+          "tclsh",
+          [
+            bridge,
+            image + "/pblaze3.bit",
+            model + "/model.safetensors",
+            dir + "/transport",
+            port,
+            helper,
+            prefix,
+          ],
+          env=opts,
+          stdout=ToFile(log),
+          stderr=ToFile(dir + "/bridge-errors.log"),
+        ).status(),
+      )
+    })
+    @async.with_timeout(30000, () => {
+      while !@fs.exists(log) ||
+            !@fs.read_file(log)
+            .text()
+            .contains("PBLAZE3_PCIE_INFERENCE_READY port=" + port + " ") {
+        guard bridge_exit is None else {
+          fail(
+            "bridge exited before readiness, see " + dir + "/bridge-errors.log",
+          )
+        }
+        @async.sleep(20)
+      }
+    })
+    @shell.Cmd(
+      client,
+      [
+        mode,
+        contract,
+        model,
+        revision,
+        dir + "/benchmark",
+        prompt,
+        count,
+        "127.0.0.1:" + port,
+        fixture,
+        image + "/diagnostic-routed.txt",
+      ],
+      env=opts,
+      stdout=ToFile(dir + "/client.log"),
+      stderr=ToFile(dir + "/client-errors.log"),
+    ).run()
+    @async.with_timeout(10000, () => {
+      while bridge_exit is None {
+        @async.sleep(20)
+      }
+    })
+    assert_eq(bridge_exit, Some(0))
+  })
+}

@@ -121,11 +121,11 @@ async fn main {
     root.has_prefix("/tmp/lunaflux-deepseek-original-query-") &&
     root.iter().all(c => c is ('a'..='z' | '0'..='9' | '/' | '-')) else {
     fail(
-      "prepare NEW_ROOT EXACT_ORIGINAL_INPUT_BF16 ROWS [LAYER [--one-row]] | run|sanitize|collect|collect-norm ROOT",
+      "prepare|prepare-matrix NEW_ROOT EXACT_ORIGINAL_INPUT_BF16 ROWS [LAYER [--one-row]] | run|sanitize|collect|collect-norm ROOT",
     )
   }
   let tag = root.split("/").last().unwrap().to_owned()
-  if mode == "prepare" {
+  if mode == "prepare" || mode == "prepare-matrix" {
     guard extra is [input, row_text, .. options] else {
       fail("original input and rows required")
     }
@@ -170,6 +170,11 @@ async fn main {
         env={
           "LUNAFLUX_MATCHED_QUERY_SOURCE_OUTPUT": root +
           "/query_matched_kernels.cuh",
+          "LUNAFLUX_MATCHED_QUERY_MATRIX": if mode == "prepare-matrix" {
+            "1"
+          } else {
+            "0"
+          },
         },
       ).output(),
     )
@@ -244,9 +249,9 @@ async fn main {
       remote(
         "systemd-run --user --wait --pipe --unit=" +
         tag +
-        "-original --property=MemoryMax=8G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
+        "-original --property=MemoryMax=2G --property=MemorySwapMax=0 --property=RuntimeMaxSec=900 docker run --name " +
         tag +
-        " --gpus all --network none --user 1000:1000 --memory 8g --memory-swap 8g -e OMP_NUM_THREADS=2 -v " +
+        " --gpus all --network none --user 1000:1000 --memory 2g --memory-swap 2g -e OMP_NUM_THREADS=2 -v " +
         root +
         ":/work -v /tmp/lunaflux-deepseek-real-20261010.ZYa0kMPT/DeepSeek-V4-Flash-DSpark:/model:ro" +
         " -v /tmp/lunaflux-deepseek-upstream-reference-sampler-20261011-v2/spark-inference:/inference:ro" +

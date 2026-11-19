@@ -1,0 +1,168 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/string",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/http",
+}
+
+///|
+async fn post(endpoint : String, body : Json, key : String?) -> (Int32, String) {
+  let bytes = @utf8.encode(body.stringify())
+  let headers : Map[String, String] = {
+    "Content-Type": "application/json",
+    "Content-Length": bytes.length().to_string(),
+  }
+  if key is Some(key) {
+    headers["Authorization"] = "Bearer " + key
+  }
+  let client = @http.Client(endpoint)
+  defer client.close()
+  let response = client.post(
+    "/v1/chat/completions",
+    bytes,
+    extra_headers=headers,
+  )
+  (response.code, client.read_all().text())
+}
+
+///|
+fn streamed_text(body : String) -> String raise {
+  let mut text = ""
+  let mut stop = false
+  let mut done = false
+  for line in body.split("\n") {
+    if line.trim().strip_prefix("data: ") is Some(data) {
+      if data == "[DONE]" {
+        done = true
+        continue
+      }
+      let event = @json.parse(data)
+      if event is { "choices": Array(choices), .. } {
+        for choice in choices {
+          if choice is { "delta": { "content": String(value), .. }, .. } {
+            text += value
+          }
+          if choice is { "finish_reason": "stop", .. } {
+            stop = true
+          }
+        }
+      }
+    }
+  }
+  guard stop && done else { fail("SSE response lacks stop or DONE") }
+  text
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [endpoint, media, output] &&
+    !@fs.exists(output) &&
+    @env.get_env_var("LUNAFLUX_API_KEY") is Some(key) &&
+    !key.is_empty() else {
+    fail(
+      "usage: verify-minicpm-v47-live-http.mbtx ENDPOINT MEDIA_ROOT NEW_OUTPUT; set LUNAFLUX_API_KEY",
+    )
+  }
+  @fs.mkdir(output, recursive=true)
+  let rows : Array[Json] = []
+  for
+    (id, image, stream, expected) in [
+      ("ready", None, false, "ready"),
+      ("red", Some("red-square.png"), false, "red"),
+      ("blue-stream", Some("blue-square.png"), true, "blue"),
+      ("text-after-images", None, false, "ready"),
+    ] {
+    let content : Json = match image {
+      Some(path) => {
+        let data = @fs.read_file(media + "/" + path).binary()
+        [
+          {
+            "type": "image_url",
+            "image_url": {
+              "url": Json("data:image/png;base64," + @base64.encode(data[:])),
+              "detail": "high",
+            },
+          },
+          {
+            "type": "text",
+            "text": "What color is the large square in the center? Answer with one word.",
+          },
+        ]
+      }
+      None => Json("Reply with the single word ready.")
+    }
+    let request : Json = {
+      "model": "MiniCPM-V-4.7-35B-A3B",
+      "temperature": 0,
+      "max_tokens": 8,
+      "stream": Json(stream),
+      "messages": [
+        { "role": "system", "content": "You are a helpful assistant." },
+        { "role": "user", "content": content },
+      ],
+    }
+    if id == "ready" {
+      let (code, _) = post(endpoint, request, None)
+      guard code == 401 else {
+        fail("unauthenticated request was not rejected")
+      }
+      rows.push({
+        "id": "unauthenticated",
+        "status": Json(code),
+        "passed": true,
+      })
+    }
+    let (code, body) = post(endpoint, request, Some(key))
+    @fs.write_file(
+      output + "/" + id + (if stream { ".sse" } else { ".json" }),
+      body,
+      create_mode=CreateNew,
+    )
+    guard code == 200 else { fail("real model HTTP request failed: " + id) }
+    let answer = if stream {
+      streamed_text(body)
+    } else {
+      guard @json.parse(body)
+        is {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "message": { "content": String(answer), .. },
+              ..
+            },
+          ],
+          ..
+        } else {
+        fail("expected one completed chat choice: " + id)
+      }
+      answer
+    }
+    guard answer.trim().to_lower() == expected else {
+      fail("unexpected real-model HTTP answer for " + id + ": " + answer)
+    }
+    rows.push({
+      "id": Json(id),
+      "status": Json(code),
+      "stream": Json(stream),
+      "text": Json(answer),
+      "passed": true,
+    })
+  }
+  let report : Json = {
+    "format": "lunaflux.minicpm-v47-live-http.v1",
+    "requests": Json(rows),
+    "passed": true,
+    "scope": "actual selected model JSON/SSE, auth rejection, two synthetic images and text reuse; not first-token latency, sustained serving or broad visual quality",
+  }
+  @fs.write_file(
+    output + "/report.json",
+    report.stringify(indent=2),
+    create_mode=CreateNew,
+  )
+  println(report.stringify())
+}

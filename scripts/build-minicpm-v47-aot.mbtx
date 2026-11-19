@@ -1,0 +1,135 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+// Offline build helper for the explicitly declared sm121 software profile.
+// Default mode records commands only. Compilation does not qualify execution.
+async fn main {
+  let args = @env.args()
+  let (prepared, output, compile, nvcc) = match args[1:] {
+    [prepared, output] => (prepared, output, false, "nvcc")
+    [prepared, output, "--compile", nvcc] => (prepared, output, true, nvcc)
+    _ =>
+      fail(
+        "usage: build-minicpm-v47-aot.mbtx PREPARATION NEW_OUTPUT [--compile NVCC]",
+      )
+  }
+  guard !@fs.exists(output) else { fail("AOT output must be a new directory") }
+  let document = @fs.read_file(prepared + "/preparation.json").json()
+  guard document
+    is {
+      "format": "lunaflux.minicpm-v47-preparation.v1",
+      "model": "openbmb/MiniCPM-V-4.7-35B-A3B",
+      "revision": String(revision),
+      "full_attention": { "compiler_profile": String(profile), .. },
+      ..
+    } &&
+    profile.has_prefix("sm121 ") else {
+    fail("expected selected-model sm121 preparation")
+  }
+  let names = [
+    "decoder_envelope", "recurrent_branch", "moe", "attention_common", "attention_prefill",
+    "attention_decode", "text_io",
+  ]
+  if document is { "vision_encoder": { "source": "vision_encoder.cu", .. }, .. } {
+    names.push("vision_encoder")
+  }
+  if document
+    is { "multimodal_prefill": { "source": "image_scatter.cu", .. }, .. } {
+    names.push("image_scatter")
+  }
+  for name in names {
+    guard @fs.exists(prepared + "/" + name + ".cu") else {
+      fail("missing prepared source: " + name)
+    }
+  }
+  @fs.mkdir(output, recursive=true)
+  let modules : Array[Json] = []
+  let mut failed = false
+  for name in names {
+    let source = prepared + "/" + name + ".cu"
+    let cubin = output + "/" + name + ".cubin"
+    // Explicit RN operations retain their source semantics; do not enable
+    // fast math or implicit multiply/add contraction during compilation.
+    let flags = [
+      "--cubin", "--std=c++17", "--gpu-architecture=sm_121", "-O3", "--fmad=false",
+      source, "-o", cubin,
+    ]
+    let (compiler_started, exit_code) = if compile {
+      try @process.run(nvcc, flags) catch {
+        _ => (false, None)
+      } noraise {
+        code => (true, Some(code))
+      }
+    } else {
+      (false, None)
+    }
+    let artifact_bytes = if exit_code == Some(0) && @fs.exists(cubin) {
+      try {
+        let file = @fs.open(cubin, mode=ReadOnly)
+        defer file.close()
+        Some(file.size())
+      } catch {
+        _ => None
+      }
+    } else {
+      None
+    }
+    let succeeded = exit_code == Some(0) &&
+      artifact_bytes is Some(bytes) &&
+      bytes > 0L
+    modules.push({
+      "name": Json(name),
+      "source": Json(source),
+      "cubin": Json(cubin),
+      "compiler": Json(nvcc),
+      "arguments": Json(flags),
+      "compiler_started": Json(compiler_started),
+      "exit_code": match exit_code {
+        Some(code) => Json(code)
+        None => Json::null()
+      },
+      "artifact_bytes": match artifact_bytes {
+        Some(bytes) => Json(bytes)
+        None => Json::null()
+      },
+      "compiled": Json(succeeded),
+    })
+    if compile && !succeeded {
+      failed = true
+      break
+    }
+  }
+  let report : Json = {
+    "format": "lunaflux.minicpm-v47-aot-build.v1",
+    "model": "openbmb/MiniCPM-V-4.7-35B-A3B",
+    "revision": Json(revision),
+    "architecture": "sm_121",
+    "mode": Json(if compile { "compile" } else { "dry_run" }),
+    "modules": Json(modules),
+    "cuda_compiled": Json(
+      compile && !failed && modules.length() == names.length(),
+    ),
+    "complete_model_execution": false,
+    "device_qualified": false,
+    "scope": "offline command/build result; no payload hash, GPU execution, numerical or performance claim",
+  }
+  @fs.write_file(
+    output + "/build.json",
+    @utf8.encode(report.stringify(indent=2)),
+    create_mode=CreateNew,
+  )
+  guard !failed else {
+    fail(
+      "CUDA compilation failed; inspect partial build.json and compiler output",
+    )
+  }
+  println(report.stringify())
+}

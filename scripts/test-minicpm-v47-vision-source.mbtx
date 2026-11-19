@@ -1,0 +1,52 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+// Compile generated AOT CUDA spelling under a CPU-only test shim. This tests
+// indexing and scalar/synchronization structure, not NVCC/device behavior.
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, prepared, output] && !@fs.exists(output) else {
+    fail("usage: test-minicpm-v47-vision-source.mbtx REPO PREPARED NEW_OUTPUT")
+  }
+  @fs.mkdir(output, recursive=true)
+  let fixture = repo + "/tests/segmented_vision_source_host"
+  let binary = output + "/vision-source-host"
+  let sources = [prepared + "/vision_encoder.cu"]
+  let flags = []
+  if @fs.exists(prepared + "/image_scatter.cu") {
+    sources.push(prepared + "/image_scatter.cu")
+    flags.push("-DLUNAFLUX_TEST_IMAGE_SCATTER")
+  }
+  guard @process.run(
+      "c++",
+      [
+        "-std=c++17",
+        "-O1",
+        "-g",
+        "-ffp-contract=off",
+        "-pthread",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-I" + fixture,
+        "-include",
+        fixture + "/cuda_bf16.h",
+        "-x",
+        "c++",
+      ] +
+      flags +
+      sources +
+      [fixture + "/probe.cpp", "-o", binary],
+    ) ==
+    0 else {
+    fail("generated vision source host build failed")
+  }
+  guard @process.run(binary, []) == 0 else {
+    fail("vision source host comparison failed")
+  }
+}

@@ -1,0 +1,78 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+// Offline numeric oracle only. No downloaded source enters production builds.
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, output] && !@fs.exists(output) else {
+    fail(
+      "usage: verify-minicpm-v47-processor.mbtx ABSOLUTE_REPO NEW_ABSOLUTE_OUTPUT",
+    )
+  }
+  @fs.mkdir(output, recursive=true)
+  let upstream = "https://raw.githubusercontent.com/python-pillow/Pillow/12.0.0/"
+  for
+    name in [
+      "Resample.c", "Imaging.h", "ImPlatform.h", "ImagingUtils.h", "Mode.h", "Arrow.h",
+    ] {
+    guard @process.run("curl", [
+        "-fsSL",
+        upstream + "src/libImaging/" + name,
+        "-o",
+        output + "/" + name,
+      ]) ==
+      0 else {
+      fail("Pillow source download failed")
+    }
+  }
+  guard @process.run("curl", [
+      "-fsSL",
+      upstream + "LICENSE",
+      "-o",
+      output + "/LICENSE",
+    ]) ==
+    0 else {
+    fail("Pillow license download failed")
+  }
+  let fixture = repo + "/tests/minicpm_v47_processor_oracle"
+  let oracle = output + "/pillow-rgb-oracle"
+  guard @process.run("cc", [
+      "-O2",
+      "-std=c11",
+      "-ffp-contract=off",
+      "-I" + output,
+      "-I" + fixture,
+      fixture + "/oracle.c",
+      output + "/Resample.c",
+      "-lm",
+      "-o",
+      oracle,
+    ]) ==
+    0 else {
+    fail("Pillow C oracle build failed")
+  }
+  guard @process.run("moon", [
+      "-C",
+      repo,
+      "run",
+      "tests/minicpm_v47_processor_oracle",
+      "--release",
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20",
+      "--",
+      oracle,
+      output + "/comparison",
+    ]) ==
+    0 else {
+    fail("Pillow processor comparison failed")
+  }
+}

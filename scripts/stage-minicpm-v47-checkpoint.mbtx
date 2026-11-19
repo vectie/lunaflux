@@ -1,0 +1,197 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+// Deployment-only resumable transport. The model runtime reads actual tensor
+// headers at startup; this receipt establishes transport/size, not numerics.
+// Completed shards in this caller-owned staging root are immutable. A resumed
+// acquisition retains their prior verification instead of scanning them again.
+async fn main {
+  let args = @env.args()
+  let (manifest, root, endpoint) = match args[1:] {
+    [manifest, root, endpoint] => (manifest, root, endpoint)
+    _ =>
+      fail(
+        "usage: stage-minicpm-v47-checkpoint.mbtx SHARDS_JSON OUTPUT_ROOT HTTPS_ENDPOINT",
+      )
+  }
+  let modelscope = endpoint == "https://modelscope.cn"
+  guard endpoint == "https://huggingface.co" ||
+    endpoint == "https://hf-mirror.com" ||
+    modelscope else {
+    fail("expected explicit supported transport endpoint")
+  }
+  let revision = "98e79ba972b586ac6146d3505771ce1467e199ba"
+  guard @fs.read_file(manifest).json() is Array(entries) else {
+    fail("expected pinned upstream file listing")
+  }
+  if !@fs.exists(root) {
+    @fs.mkdir(root, recursive=true)
+  }
+  let verified_before : Map[String, String] = Map([])
+  if modelscope && @fs.exists(root + "/transport.json") {
+    let previous = try Some(@fs.read_file(root + "/transport.json").json()) catch {
+      _ => None
+    }
+    if previous is Some({
+        "format": "lunaflux.minicpm-v47-checkpoint-transport.v1",
+        "model": "openbmb/MiniCPM-V-4.7-35B-A3B",
+        "revision": String(previous_revision),
+        "endpoint": "https://modelscope.cn",
+        "files": Array(rows),
+        ..
+      }) && previous_revision == revision {
+      for row in rows {
+        if row is {
+            "file": String(name),
+            "expected_bytes": String(expected),
+            "actual_bytes": String(actual),
+            "complete": true,
+            "payload_sha256_verified": true,
+            ..
+          } && expected == actual {
+          verified_before[name] = expected
+        }
+      }
+    }
+  }
+  let files : Array[(String, Int64)] = []
+  let hashes : Map[String, String] = Map([])
+  let config = StringBuilder()
+  for entry in entries {
+    if entry
+      is { "type": "file", "path": String(name), "size": Number(size, ..), .. } {
+      // ModelScope master is transport only. Verify its payload hashes against
+      // the pinned HF manifest once at acquisition. Copy pinned metadata
+      // separately; the model runtime never performs this hash scan.
+      if modelscope && !name.has_suffix(".safetensors") {
+        continue
+      }
+      if modelscope {
+        guard entry is { "lfs": { "oid": String(hash), .. }, .. } &&
+          hash.length() == 64 &&
+          hash.iter().all(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) else {
+          fail("missing pinned payload hash")
+        }
+        hashes[name] = hash
+      }
+      guard !name.contains("/") &&
+        !name.contains("\"") &&
+        !name.contains("\n") &&
+        !name.contains("\\") else {
+        fail("unsupported upstream filename")
+      }
+      let expected = size.to_int64()
+      files.push((name, expected))
+      let path = root + "/" + name
+      let complete = if @fs.exists(path) {
+        let file = @fs.open(path, mode=ReadOnly)
+        defer file.close()
+        file.size() == expected
+      } else {
+        false
+      }
+      if !complete {
+        // Config quoting supports absolute deployment paths containing spaces.
+        guard !path.contains("\"") &&
+          !path.contains("\\") &&
+          !path.contains("\n") else {
+          fail("unsupported output path")
+        }
+        if !config.to_string().is_empty() {
+          config.write_string("next\n")
+        }
+        let base = if modelscope {
+          endpoint + "/models/OpenBMB/MiniCPM-V-4.7-35B-A3B/resolve/master"
+        } else {
+          endpoint + "/openbmb/MiniCPM-V-4.7-35B-A3B/resolve/" + revision
+        }
+        config.write_string("url = \"" + base + "/" + name + "\"\n")
+        config.write_string(
+          "output = \"" +
+          path +
+          "\"\nhttp1.1\nlocation\nfail\nsilent\nshow-error\ncontinue-at = \"-\"\nretry = 2\nconnect-timeout = 15\nmax-time = 7200\n",
+        )
+      }
+    }
+  }
+  guard files.filter(pair => pair.0.has_suffix(".safetensors")).length() == 16 else {
+    fail("expected all sixteen selected-model shards")
+  }
+  let config_path = root + "/download.curl"
+  @fs.write_file(
+    config_path,
+    @utf8.encode(config.to_string()),
+    create_mode=CreateOrTruncate,
+  )
+  let code = if config.to_string().is_empty() {
+    0
+  } else {
+    @process.run("curl", [
+      "--parallel", "--parallel-max", "4", "--config", config_path,
+    ])
+  }
+  let rows : Array[Json] = []
+  let mut all_complete = code == 0
+  for (name, expected) in files {
+    let path = root + "/" + name
+    let actual = if @fs.exists(path) {
+      let file = @fs.open(path, mode=ReadOnly)
+      defer file.close()
+      file.size()
+    } else {
+      -1L
+    }
+    let size_complete = actual == expected
+    let reused = modelscope && size_complete &&
+      verified_before.get(name) == Some(expected.to_string())
+    let payload_verified = if reused {
+      true
+    } else if modelscope && size_complete {
+      let (code, result) = @process.collect_stdout("sha256sum", [path])
+      guard code == 0 else { fail("payload hash tool failed") }
+      result.text().has_prefix(hashes[name] + " ")
+    } else {
+      !modelscope
+    }
+    let complete = size_complete && payload_verified
+    if !complete {
+      all_complete = false
+    }
+    rows.push({
+      "file": Json(name),
+      "expected_bytes": Json(expected),
+      "actual_bytes": Json(actual),
+      "complete": Json(complete),
+      "payload_sha256_verified": Json(modelscope && payload_verified),
+      "verification_reused": Json(reused),
+    })
+  }
+  let report : Json = {
+    "format": "lunaflux.minicpm-v47-checkpoint-transport.v1",
+    "model": "openbmb/MiniCPM-V-4.7-35B-A3B",
+    "revision": Json(revision),
+    "endpoint": Json(endpoint),
+    "curl_exit_code": Json(code),
+    "files": Json(rows),
+    "transport_complete": Json(all_complete),
+    "gpu_execution": false,
+    "numerical_qualified": false,
+  }
+  @fs.write_file(
+    root + "/transport.json",
+    @utf8.encode(report.stringify(indent=2)),
+    create_mode=CreateOrTruncate,
+  )
+  guard all_complete else {
+    fail("checkpoint transport incomplete; rerun to resume")
+  }
+  println("selected MiniCPM checkpoint transport complete")
+}

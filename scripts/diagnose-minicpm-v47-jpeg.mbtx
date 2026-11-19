@@ -1,0 +1,60 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, corpus, output] && !@fs.exists(output) else {
+    fail("usage: diagnose-minicpm-v47-jpeg.mbtx REPO IMAGE_LOAD_CORPUS NEW_OUTPUT")
+  }
+  @fs.mkdir(output, recursive=true)
+  for scalar in [false, true] {
+    let mode = if scalar { "scalar" } else { "native" }
+    let executable = output + "/" + mode
+    guard @process.run("cc", ["-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-Wno-unused-function",
+      "-I" + repo + "/media/rgb8", repo + "/tests/minicpm_v47_image_load_oracle/decoder_probe.c", "-o", executable] +
+      (if scalar { ["-DSTBI_NO_SIMD"] } else { [] })) == 0 else { fail("decoder diagnostic build failed") }
+    let mut maximum = 0
+    let mut different = 0L
+    let mut maximum_case = 0
+    let mut maximum_offset = 0
+    let mut progressive_maximum = 0
+    let mut baseline_maximum = 0
+    let mut right_edge_differences = 0L
+    for index in 72..<126 {
+      let prefix = corpus + "/case-\{index}"
+      let rgb = output + "/\{mode}-\{index}.rgb"
+      guard @process.run(executable, [prefix + ".encoded", rgb]) == 0 else { fail("decoder diagnostic failed") }
+      let reference = @fs.read_file(prefix + ".stored.rgb").binary()
+      guard @fs.read_file(prefix + ".json").json() is {
+        "width": Number(width, ..), "height": Number(height, ..), ..
+      } else { fail("corpus geometry missing") }
+      let raw_width = if index % 9 >= 5 { height.to_int() } else { width.to_int() }
+      let actual = @fs.read_file(rgb).binary()
+      guard actual.length() == reference.length() else { fail("decoder size differs") }
+      for i in 0..<reference.length() {
+        let error = (actual[i].to_int() - reference[i].to_int()).abs()
+        if error != 0 { different += 1L }
+        if error != 0 && (i / 3) % raw_width == raw_width - 1 { right_edge_differences += 1L }
+        if (index % 9) % 2 == 0 { progressive_maximum = progressive_maximum.max(error) }
+        else { baseline_maximum = baseline_maximum.max(error) }
+        if error > maximum { maximum = error; maximum_case = index; maximum_offset = i }
+      }
+    }
+    let benchmark_path = output + "/" + mode + "-benchmark.json"
+    guard @process.run(executable, [repo + "/media/rgb8/fixtures/progressive-detail.jpg", output + "/" + mode + "-benchmark.rgb", "10000"],
+      stdout=@process.redirect_to_file(benchmark_path, create_mode=CreateNew)) == 0 else { fail("decoder timing probe failed") }
+    let report : Json = { "mode": mode, "cases": 54, "maximum_absolute_byte_error": maximum,
+      "different_bytes": Json(different), "maximum_case": maximum_case, "maximum_offset": maximum_offset,
+      "baseline_maximum_error": baseline_maximum, "progressive_maximum_error": progressive_maximum,
+      "different_bytes_in_last_column": Json(right_edge_differences),
+      "host_component_benchmark": @fs.read_file(benchmark_path).json(),
+      "scope": "isolated stb decoder versus Pillow; no model/device execution" }
+    @fs.write_file(output + "/" + mode + ".json", report.stringify(indent=2), create_mode=CreateNew)
+    println(report.stringify(indent=2))
+  }
+}

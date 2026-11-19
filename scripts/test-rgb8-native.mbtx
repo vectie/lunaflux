@@ -1,0 +1,41 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, output] && !@fs.exists(output) else {
+    fail("usage: test-rgb8-native.mbtx REPO NEW_OUTPUT")
+  }
+  @fs.mkdir(output, recursive=true)
+  let binary = output + "/rgb8-asan"
+  guard @process.run("cc", [
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fsanitize=address,undefined",
+      "-fno-omit-frame-pointer",
+      "-Wno-unused-function",
+      "-I" + repo + "/tests/rgb8",
+      repo + "/tests/rgb8/probe.c",
+      "-lm",
+      "-o",
+      binary,
+    ]) ==
+    0 else {
+    fail("RGB8 sanitizer build failed")
+  }
+  guard @process.run("env", [
+      "ASAN_OPTIONS=detect_leaks=0:abort_on_error=1",
+      "UBSAN_OPTIONS=halt_on_error=1",
+      binary,
+      repo + "/media/rgb8/fixtures",
+    ]) ==
+    0 else {
+    fail("RGB8 sanitizer probe failed")
+  }
+}

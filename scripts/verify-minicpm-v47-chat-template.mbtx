@@ -1,0 +1,27 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, assets, jinja, output] && !@fs.exists(output) else {
+    fail(
+      "usage: verify-minicpm-v47-chat-template.mbtx ABSOLUTE_REPO PINNED_ASSETS JINJA2_CLI NEW_OUTPUT",
+    )
+  }
+  guard @process.run(jinja, ["--version"]) == 0 else {
+    fail("offline Jinja CLI is unavailable")
+  }
+  guard @process.run("moon", [
+      "-C", repo, "run", "tests/minicpm_v47_chat_template_oracle", "--release", "--target",
+      "native", "--deny-warn", "--warn-list", "-79-29-25-20", "--", assets, jinja,
+      output,
+    ]) ==
+    0 else {
+    fail("checkpoint Jinja comparison failed")
+  }
+}

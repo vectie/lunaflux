@@ -1,0 +1,48 @@
+///|
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/async@0.20.2",
+  "moonbitlang/async@0.20.2/fs",
+  "moonbitlang/async@0.20.2/process",
+}
+
+///|
+async fn main {
+  guard @env.args()[1:] is [repo, assets, output] && !@fs.exists(output) else {
+    fail(
+      "usage: verify-minicpm-v47-tokenizer.mbtx ABSOLUTE_REPO PINNED_ASSETS NEW_OUTPUT",
+    )
+  }
+  let build = repo + "/target/minicpm-v47-tokenizer-rust-build"
+  guard @process.run("cargo", [
+      "build",
+      "--release",
+      "--locked",
+      "--manifest-path",
+      repo + "/tests/minicpm_v47_tokenizer_oracle/reference/Cargo.toml",
+      "--target-dir",
+      build,
+    ]) ==
+    0 else {
+    fail("offline Hugging Face tokenizer oracle build failed")
+  }
+  guard @process.run("moon", [
+      "-C",
+      repo,
+      "run",
+      "tests/minicpm_v47_tokenizer_oracle",
+      "--release",
+      "--target",
+      "native",
+      "--deny-warn",
+      "--warn-list",
+      "-79-29-25-20",
+      "--",
+      assets,
+      build + "/release/minicpm-tokenizer-oracle",
+      output,
+    ]) ==
+    0 else {
+    fail("upstream tokenizer comparison failed")
+  }
+}
