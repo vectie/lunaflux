@@ -1,0 +1,34 @@
+{
+  "format": "lunaflux.source-publication-validation.v1",
+  "recorded_date": "2026-11-19",
+  "validated_source_revision": "0ad00f55cc4ba41392af0c3f8507c54490ad60fa",
+  "native_linux": {
+    "summary": "Total tests: 5544, passed: 5544, failed: 0.",
+    "log_sha256": "471e7be0f0d951d98d5d0908f2eee6bbc657a975b7d6c63a27d4f401f32c6592",
+    "platform": "Linux AArch64",
+    "container_image_sha256": "5b1332bafb8e0bd31065cfd4a7ea2d57b81dd68f96c4cb6b4ebac477bf921b23",
+    "moonc_version": "v0.10.15+943464bfa",
+    "command": "moon test --target native -j 8",
+    "network": "disabled",
+    "explicit_skip_notices": 10,
+    "hardware_or_model_assets_qualified": false
+  },
+  "macos_initial": {
+    "summary": "Total tests: 5554, passed: 5552, failed: 2.",
+    "failure": "Both checkpoint fixture writes exhausted local disk; assertions and fixture sizes remained unchanged.",
+    "log_sha256": "94d42188178ec2be7390e300c8ed9a06600f1a0e1657b406a5160ca92d7d2b49"
+  },
+  "macos_callback_regression": {
+    "summary": "Total tests: 3, passed: 3, failed: 0.",
+    "log_sha256": "be635f63d5e2f672b73300e1621efd64205e0168b59c8131348a2b1416e7ac55"
+  },
+  "warning_denied_native_check": {
+    "passed": false,
+    "observed_diagnostic_errors": 34,
+    "log_sha256": "6e92b2f3f7b665c426d8388d52c75dd9304a980edff885625f139b827fefd466",
+    "reason": "Remaining compiler migration warnings: derived-method promotions, deprecated APIs and package imports. No warnings were disabled."
+  },
+  "interfaces": "moon info passed; additive explicit trait method declarations reviewed and generated interfaces committed.",
+  "formatting": "moon fmt passed",
+  "scope": "Source publication and native software tests. Existing asset/device skips do not qualify CUDA, FPGA, NCCL, complete MiniCPM model numerics or production deployment."
+}
