@@ -1,0 +1,75 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/hybrid_moe"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub suberror GeometryError {
+  InvalidGeometry(String)
+} derive(@debug.Debug)
+pub fn GeometryError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct Experts {
+  routed : Int
+  selected : Int
+  intermediate_width : Int
+  shared_width : Int
+} derive(Eq, @debug.Debug)
+pub fn Experts::equal(Self, Self) -> Bool
+pub fn Experts::not_equal(Self, Self) -> Bool
+pub fn Experts::to_repr(Self) -> @debug.Repr
+
+pub(all) struct FullAttention {
+  query_heads : Int
+  kv_heads : Int
+  head_width : Int
+  output_gate : Bool
+} derive(Eq, @debug.Debug)
+pub fn FullAttention::equal(Self, Self) -> Bool
+pub fn FullAttention::not_equal(Self, Self) -> Bool
+pub fn FullAttention::to_repr(Self) -> @debug.Repr
+
+pub struct Geometry {
+  // private fields
+}
+pub fn Geometry::bf16_kv_bytes(Self, Int, Int) -> Int64 raise GeometryError
+pub fn Geometry::context_length(Self) -> Int
+pub fn Geometry::experts(Self) -> Experts
+pub fn Geometry::fp32_recurrent_matrix_bytes(Self, Int) -> Int64 raise GeometryError
+pub fn Geometry::full_attention(Self) -> FullAttention
+pub fn Geometry::full_layer_count(Self) -> Int
+pub fn Geometry::hidden_width(Self) -> Int
+pub fn Geometry::layer_count(Self) -> Int
+pub fn Geometry::layer_kind(Self, Int) -> LayerKind?
+pub fn Geometry::new(hidden_width~ : Int, vocabulary_size~ : Int, context_length~ : Int, layer_count~ : Int, full_interval~ : Int, full~ : FullAttention, recurrent~ : RecurrentAttention, experts~ : Experts) -> Self raise GeometryError
+pub fn Geometry::recurrent_attention(Self) -> RecurrentAttention
+pub fn Geometry::recurrent_layer_count(Self) -> Int
+pub fn Geometry::vocabulary_size(Self) -> Int
+
+pub(all) enum LayerKind {
+  GatedDeltaLinearAttention
+  FullAttention
+} derive(Eq, @debug.Debug)
+pub fn LayerKind::equal(Self, Self) -> Bool
+pub fn LayerKind::not_equal(Self, Self) -> Bool
+pub fn LayerKind::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RecurrentAttention {
+  key_heads : Int
+  key_width : Int
+  value_heads : Int
+  value_width : Int
+  convolution_width : Int
+} derive(Eq, @debug.Debug)
+pub fn RecurrentAttention::equal(Self, Self) -> Bool
+pub fn RecurrentAttention::not_equal(Self, Self) -> Bool
+pub fn RecurrentAttention::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

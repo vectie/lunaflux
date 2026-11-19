@@ -1,33 +1,35 @@
 ///|
 priv struct AddedSpecial {
-  id : Int
+  id : Int32
   content : String
   piece : Bytes
   special : Bool
-  source_index : Int
+  source_index : Int32
 }
 
 ///|
 priv enum TokenizerJsonProfile {
   ByteLevelJson
-  SentencePieceJson(bos_token_id~ : Int)
+  SentencePieceJson(bos_token_id~ : Int32)
   Qwen3Json
   Qwen35Json
   DigitTripletJson
   OrderedScriptJson
+  MiniCPM5Json
+  NfcSingleDigitJson
 }
 
 ///|
-const QWEN3_FIRST_ADDED_TOKEN_ID : Int = 151643
+const QWEN3_FIRST_ADDED_TOKEN_ID : Int32 = 151643
 
 ///|
-const QWEN3_LAST_ADDED_TOKEN_ID : Int = 151668
+const QWEN3_LAST_ADDED_TOKEN_ID : Int32 = 151668
 
 ///|
-const QWEN35_FIRST_ADDED_TOKEN_ID : Int = 248044
+const QWEN35_FIRST_ADDED_TOKEN_ID : Int32 = 248044
 
 ///|
-const QWEN35_LAST_ADDED_TOKEN_ID : Int = 248069
+const QWEN35_LAST_ADDED_TOKEN_ID : Int32 = 248069
 
 ///|
 const QWEN3_SPLIT_REGEX : String = "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?\\p{L}+|\\p{N}| ?[^\\s\\p{L}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
@@ -36,7 +38,7 @@ const QWEN3_SPLIT_REGEX : String = "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\
 const QWEN35_SPLIT_REGEX : String = "(?i:'s|'t|'re|'ve|'m|'ll|'d)|[^\\r\\n\\p{L}\\p{N}]?[\\p{L}\\p{M}]+|\\p{N}| ?[^\\s\\p{L}\\p{M}\\p{N}]+[\\r\\n]*|\\s*[\\r\\n]+|\\s+(?!\\S)|\\s+"
 
 ///|
-fn qwen_added_token_content(offset : Int) -> String? {
+fn qwen_added_token_content(offset : Int32) -> String? {
   match offset {
     0 => Some("<|endoftext|>")
     1 => Some("<|im_start|>")
@@ -69,7 +71,7 @@ fn qwen_added_token_content(offset : Int) -> String? {
 }
 
 ///|
-fn qwen_profile_first_added(profile : TokenizerJsonProfile) -> Int {
+fn qwen_profile_first_added(profile : TokenizerJsonProfile) -> Int32 {
   match profile {
     Qwen3Json => QWEN3_FIRST_ADDED_TOKEN_ID
     Qwen35Json => QWEN35_FIRST_ADDED_TOKEN_ID
@@ -78,7 +80,7 @@ fn qwen_profile_first_added(profile : TokenizerJsonProfile) -> Int {
 }
 
 ///|
-fn qwen_profile_last_added(profile : TokenizerJsonProfile) -> Int {
+fn qwen_profile_last_added(profile : TokenizerJsonProfile) -> Int32 {
   match profile {
     Qwen3Json => QWEN3_LAST_ADDED_TOKEN_ID
     Qwen35Json => QWEN35_LAST_ADDED_TOKEN_ID
@@ -89,7 +91,7 @@ fn qwen_profile_last_added(profile : TokenizerJsonProfile) -> Int {
 ///|
 fn qwen_profile_added_content(
   profile : TokenizerJsonProfile,
-  id : Int,
+  id : Int32,
 ) -> String? {
   let first = qwen_profile_first_added(profile)
   if first < 0 {
@@ -104,15 +106,15 @@ fn parse_added_tokens(
   root : Map[String, Json],
   limits : @tokenizer.TokenizerLimits,
   profile : TokenizerJsonProfile,
-) -> Map[Int, AddedSpecial] raise TokenizerJsonError {
+) -> Map[Int32, AddedSpecial] raise TokenizerJsonError {
   guard require_field(root, "added_tokens", Root, AddedTokens) is Array(entries) else {
     raise InvalidField(component=Root, field=AddedTokens, index=0)
   }
   if entries.length() > limits.max_special_tokens {
     raise AddedTokenLimitExceeded(limit=limits.max_special_tokens)
   }
-  let by_id : Map[Int, AddedSpecial] = Map([], capacity=entries.length())
-  let content_ids : Map[String, Int] = Map([], capacity=entries.length())
+  let by_id : Map[Int32, AddedSpecial] = Map([], capacity=entries.length())
+  let content_ids : Map[String, Int32] = Map([], capacity=entries.length())
   for index, value in entries {
     guard value is Object(entry) else {
       raise InvalidField(component=AddedToken, field=AddedTokens, index~)
@@ -148,7 +150,8 @@ fn parse_added_tokens(
     // In an identity-normalized pipeline the normalized and raw matching
     // domains are identical. Other profiles must still implement normalization
     // before accepting this flag; stripping and word boundaries are separate.
-    let identity_normalized = profile is OrderedScriptJson
+    let identity_normalized = profile is OrderedScriptJson ||
+      profile is MiniCPM5Json
     if single_word ||
       left_strip ||
       right_strip ||
@@ -174,7 +177,14 @@ fn parse_added_tokens(
           )
         }
       }
-      DigitTripletJson | OrderedScriptJson => ()
+      DigitTripletJson | OrderedScriptJson | MiniCPM5Json => ()
+      NfcSingleDigitJson =>
+        if !content.all(c => c <= '\u007f') {
+          raise UnsupportedSemantics(
+            component=AddedToken,
+            feature=AddedTokenMatching,
+          )
+        }
       _ =>
         if !special {
           raise UnsupportedSemantics(
@@ -213,6 +223,9 @@ fn validate_root_semantics(
     Null => {
       if require_field(root, "pre_tokenizer", Root, PreTokenizerField)
         is { "type": String("Sequence"), .. } {
+        if root["pre_tokenizer"] is { "pretokenizers": Array([_, _, _]), .. } {
+          return validate_minicpm5_pipeline(root)
+        }
         return validate_digit_triplet_pipeline(root)
       }
       validate_pre_tokenizer(

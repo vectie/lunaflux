@@ -1,0 +1,71 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minicpm_v47_operators"
+
+import {
+  "vectie/lunaflux/compiler/grouped_matrix_ir",
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/model/hybrid_moe",
+  "vectie/lunaflux/model/minicpm_v47",
+  "vectie/lunaflux/model/minicpm_v47_weights",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct DecoderOperators {
+  // private fields
+}
+pub fn DecoderOperators::controls(Self) -> @precision_ir.GatedDeltaControlPrecision
+pub fn DecoderOperators::convolution(Self) -> @precision_ir.CausalConvolutionPrecision
+pub fn DecoderOperators::expert_uploads(Self, @minicpm_v47_weights.BoundWeights, layer~ : Int) -> Array[ExpertUpload] raise
+pub fn DecoderOperators::full_output_gate(Self) -> @precision_ir.PointwiseGatePrecision
+pub fn DecoderOperators::full_projection(Self, FullProjection) -> @grouped_matrix_ir.MatrixTilePlan raise
+pub fn DecoderOperators::geometry(Self) -> @hybrid_moe.Geometry
+pub fn DecoderOperators::key_rotary(Self) -> @precision_ir.MultiAxisRotaryPrecision
+pub fn DecoderOperators::linear_projection(Self, LinearProjection) -> @grouped_matrix_ir.MatrixTilePlan raise
+pub fn DecoderOperators::new(@minicpm_v47.Spec, maximum_rows~ : Int, maximum_sequences? : Int, cache_slots? : Int) -> Self raise
+pub fn DecoderOperators::normalization(Self, NormSite) -> @precision_ir.RmsNormPrecision
+pub fn DecoderOperators::query_rotary(Self) -> @precision_ir.MultiAxisRotaryPrecision
+pub fn DecoderOperators::recurrent(Self) -> @precision_ir.RecurrentDeltaPrecision
+pub fn DecoderOperators::routed_experts(Self) -> @precision_ir.ExpertMlpPrecision
+pub fn DecoderOperators::router_projection(Self) -> @grouped_matrix_ir.MatrixTilePlan
+pub fn DecoderOperators::routing(Self) -> @precision_ir.SoftmaxTopKPrecision
+pub fn DecoderOperators::shared_combine(Self) -> @precision_ir.SharedExpertPrecision
+pub fn DecoderOperators::shared_gate_projection(Self) -> @grouped_matrix_ir.MatrixTilePlan
+pub fn DecoderOperators::shared_mlp(Self) -> @precision_ir.DenseSwiGluPrecision
+pub fn DecoderOperators::text_io(Self, maximum_output_rows? : Int, maximum_workspace_bytes~ : Int64) -> @precision_ir.TextIoPrecision raise
+
+pub(all) struct ExpertUpload {
+  shard_index : Int
+  file_offset : Int64
+  bank_offset : Int64
+  byte_length : Int64
+}
+
+pub(all) enum FullProjection {
+  QueryAndGate
+  Key
+  Value
+  Output
+}
+
+pub(all) enum LinearProjection {
+  QueryKeyValue
+  Gate
+  Decay
+  Beta
+  Output
+}
+
+pub(all) enum NormSite {
+  Decoder
+  FullQuery
+  FullKey
+  RecurrentOutput
+}
+
+// Type aliases
+
+// Traits

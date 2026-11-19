@@ -19,6 +19,9 @@ pub(all) enum EngineState {
   Stopped
   Failed
 } derive(Eq, @debug.Debug)
+pub fn EngineState::equal(Self, Self) -> Bool
+pub fn EngineState::not_equal(Self, Self) -> Bool
+pub fn EngineState::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RequestState {
   Admitted
@@ -32,6 +35,9 @@ pub(all) enum RequestState {
   Failed
 } derive(Eq, @debug.Debug)
 pub fn RequestState::can_transition_to(Self, Self) -> Bool
+pub fn RequestState::equal(Self, Self) -> Bool
+pub fn RequestState::not_equal(Self, Self) -> Bool
+pub fn RequestState::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

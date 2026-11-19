@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minicpm_v47_vision"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/model/minicpm_v47",
+  "vectie/lunaflux/model/minicpm_v47_positions",
+}
+
+// Values
+pub fn attention_plan(@minicpm_v47.Spec, maximum_patches~ : Int, maximum_crop_patches~ : Int) -> @precision_ir.SegmentedAttentionPrecision raise
+
+// Errors
+
+// Types and methods
+pub struct Layout {
+  // private fields
+}
+pub fn Layout::build(@minicpm_v47.Spec, ArrayView[@minicpm_v47_positions.Grid], maximum_patches~ : Int, maximum_crop_patches~ : Int) -> Self raise
+pub fn Layout::encoded_spans(Self) -> Spans
+pub fn Layout::grids(Self) -> ReadOnlyArray[@minicpm_v47_positions.Grid]
+pub fn Layout::insert_after(Self) -> Int?
+pub fn Layout::layer_rows(Self, Int) -> Int raise
+pub fn Layout::merger_indices(Self) -> ReadOnlyArray[Int]
+pub fn Layout::output_boundaries(Self) -> ReadOnlyArray[Int]
+pub fn Layout::output_rows(Self) -> Int
+pub fn Layout::position_ids(Self) -> ReadOnlyArray[Int]
+pub fn Layout::raw_spans(Self) -> Spans
+pub fn Layout::window_indices(Self) -> ReadOnlyArray[Int]
+pub fn Layout::window_spans(Self) -> Spans
+
+pub struct Spans {
+  // private fields
+}
+pub fn Spans::boundaries(Self) -> ReadOnlyArray[Int]
+pub fn Spans::ends(Self) -> ReadOnlyArray[Int]
+pub fn Spans::rows(Self) -> Int
+pub fn Spans::starts(Self) -> ReadOnlyArray[Int]
+
+// Type aliases
+
+// Traits

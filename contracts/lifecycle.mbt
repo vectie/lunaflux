@@ -64,3 +64,15 @@ pub fn RequestState::can_transition_to(
     _ => false
   }
 }
+
+///|
+pub extend EngineState with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend EngineState with Eq::{not_equal, equal}
+
+///|
+pub extend RequestState with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend RequestState with Eq::{not_equal, equal}

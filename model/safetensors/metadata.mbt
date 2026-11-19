@@ -12,6 +12,12 @@ pub struct RawTensorMetadata {
 } derive(Debug, Eq)
 
 ///|
+pub extend RawTensorMetadata with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend RawTensorMetadata with Eq::{not_equal, equal}
+
+///|
 /// Fixed-width dtypes safe to expose to typed model materializers.
 pub(all) enum TensorDType {
   BFloat16
@@ -19,11 +25,23 @@ pub(all) enum TensorDType {
 } derive(Debug, Eq)
 
 ///|
+pub extend TensorDType with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TensorDType with Eq::{not_equal, equal}
+
+///|
 /// Validated tensor metadata with a payload-relative half-open byte range.
 pub struct TensorByteRange {
   start : Int64
   end : Int64
 } derive(Debug, Eq)
+
+///|
+pub extend TensorByteRange with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TensorByteRange with Eq::{not_equal, equal}
 
 ///|
 /// Validated tensor metadata with a payload-relative half-open byte range.
@@ -35,13 +53,25 @@ pub struct TensorMetadata {
 } derive(Debug, Eq)
 
 ///|
+pub extend TensorMetadata with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TensorMetadata with Eq::{not_equal, equal}
+
+///|
 /// Validated immutable safetensors header metadata.
 pub struct SafetensorsMetadata {
   tensors : ReadOnlyArray[TensorMetadata]
-  encoded_header_bytes : Int
+  encoded_header_bytes : Int32
   payload_bytes : Int64
   materialized_tensor_bytes : Int64
 } derive(Debug, Eq)
+
+///|
+pub extend SafetensorsMetadata with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend SafetensorsMetadata with Eq::{not_equal, equal}
 
 ///|
 /// Creates one decoded tensor entry while defensively copying its shape.
@@ -62,7 +92,7 @@ pub fn RawTensorMetadata::new(
 }
 
 ///|
-fn valid_tensor_name(name : StringView, max_length : Int) -> Bool {
+fn valid_tensor_name(name : StringView, max_length : Int32) -> Bool {
   !name.is_empty() &&
   name.length() <= max_length &&
   name.all(c => c.is_ascii() && !c.is_ascii_control())
@@ -72,8 +102,8 @@ fn valid_tensor_name(name : StringView, max_length : Int) -> Bool {
 fn checked_tensor_bytes(
   shape : ReadOnlyArray[Int64],
   bytes_per_element : Int64,
-  tensor_index : Int,
-  max_rank : Int,
+  tensor_index : Int32,
+  max_rank : Int32,
 ) -> Int64 raise SafetensorsError {
   if shape.is_empty() || shape.length() > max_rank {
     raise InvalidRank(tensor_index)
@@ -98,7 +128,7 @@ fn checked_tensor_bytes(
 ///|
 fn validate_tensor(
   raw : RawTensorMetadata,
-  tensor_index : Int,
+  tensor_index : Int32,
   payload_bytes : Int64,
   limits : HeaderLimits,
 ) -> TensorMetadata raise SafetensorsError {
@@ -144,7 +174,7 @@ fn ranges_overlap(left : TensorMetadata, right : TensorMetadata) -> Bool {
 /// the tensor payload.
 pub fn validate_metadata(
   entries : ArrayView[RawTensorMetadata],
-  encoded_header_bytes~ : Int,
+  encoded_header_bytes~ : Int32,
   payload_bytes~ : Int64,
   limits~ : HeaderLimits,
 ) -> SafetensorsMetadata raise SafetensorsError {
@@ -236,14 +266,14 @@ pub fn TensorByteRange::byte_length(self : TensorByteRange) -> Int64 {
 }
 
 ///|
-pub fn SafetensorsMetadata::tensor_count(self : SafetensorsMetadata) -> Int {
+pub fn SafetensorsMetadata::tensor_count(self : SafetensorsMetadata) -> Int32 {
   self.tensors.length()
 }
 
 ///|
 pub fn SafetensorsMetadata::tensor(
   self : SafetensorsMetadata,
-  index : Int,
+  index : Int32,
 ) -> TensorMetadata? {
   self.tensors.get(index)
 }
@@ -264,7 +294,7 @@ pub fn SafetensorsMetadata::find_tensor(
 ///|
 pub fn SafetensorsMetadata::encoded_header_bytes(
   self : SafetensorsMetadata,
-) -> Int {
+) -> Int32 {
   self.encoded_header_bytes
 }
 

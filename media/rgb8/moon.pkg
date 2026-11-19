@@ -1,0 +1,12 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/buffer",
+} for "test"
+
+options(
+  "native-stub": [ "decode.c" ],
+  "stub-cc-flags": "-std=c11 -O2 -Wall -Wextra -Werror -Wno-unused-function",
+)
+
+supported_targets = "native"

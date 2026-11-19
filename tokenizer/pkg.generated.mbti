@@ -48,6 +48,9 @@ pub(all) suberror TokenizerError {
   LunaInvalidInputWrite
   LunaTokenizerWorkerEpochExhausted
 } derive(Eq, @debug.Debug)
+pub fn TokenizerError::equal(Self, Self) -> Bool
+pub fn TokenizerError::not_equal(Self, Self) -> Bool
+pub fn TokenizerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DecodePieceStatus(Int, Int)
@@ -58,12 +61,18 @@ pub(all) enum DecodeSpecialPolicy {
   Preserve
   Skip
 } derive(Eq, @debug.Debug)
+pub fn DecodeSpecialPolicy::equal(Self, Self) -> Bool
+pub fn DecodeSpecialPolicy::not_equal(Self, Self) -> Bool
+pub fn DecodeSpecialPolicy::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EncodeResult {
   token_ids : Array[Int]
   input_bytes : Int
   truncated : Bool
 } derive(Eq, @debug.Debug)
+pub fn EncodeResult::equal(Self, Self) -> Bool
+pub fn EncodeResult::not_equal(Self, Self) -> Bool
+pub fn EncodeResult::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LimitField {
   InputBytes
@@ -74,6 +83,9 @@ pub(all) enum LimitField {
   TokenBytes
   SpecialTokens
 } derive(Eq, @debug.Debug)
+pub fn LimitField::equal(Self, Self) -> Bool
+pub fn LimitField::not_equal(Self, Self) -> Bool
+pub fn LimitField::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTokenizerInputWrite {
   // private fields
@@ -86,6 +98,9 @@ pub(all) enum LunaTokenizerProgress {
   LunaTokenizerPending
   LunaTokenizerReady
 } derive(Eq, @debug.Debug)
+pub fn LunaTokenizerProgress::equal(Self, Self) -> Bool
+pub fn LunaTokenizerProgress::not_equal(Self, Self) -> Bool
+pub fn LunaTokenizerProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTokenizerStepBudget {
   // private fields
@@ -122,12 +137,18 @@ pub(all) struct MergeRule {
   right_token_id : Int
   result_token_id : Int
 } derive(Eq, @debug.Debug)
+pub fn MergeRule::equal(Self, Self) -> Bool
+pub fn MergeRule::not_equal(Self, Self) -> Bool
+pub fn MergeRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SpecialTokenPolicy {
   Allow
   Reject
   AsOrdinary
 } derive(Eq, @debug.Debug)
+pub fn SpecialTokenPolicy::equal(Self, Self) -> Bool
+pub fn SpecialTokenPolicy::not_equal(Self, Self) -> Bool
+pub fn SpecialTokenPolicy::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TokenKind {
   Normal
@@ -135,12 +156,18 @@ pub(all) enum TokenKind {
   Added
   Special
 } derive(Eq, @debug.Debug)
+pub fn TokenKind::equal(Self, Self) -> Bool
+pub fn TokenKind::not_equal(Self, Self) -> Bool
+pub fn TokenKind::to_repr(Self) -> @debug.Repr
 
 pub struct TokenizerDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TokenizerDigest::as_string(Self) -> String
+pub fn TokenizerDigest::equal(Self, Self) -> Bool
+pub fn TokenizerDigest::not_equal(Self, Self) -> Bool
 pub fn TokenizerDigest::parse(String) -> Self raise TokenizerError
+pub fn TokenizerDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TokenizerLimits {
   max_input_bytes : Int
@@ -151,6 +178,9 @@ pub(all) struct TokenizerLimits {
   max_token_bytes : Int
   max_special_tokens : Int
 } derive(Eq, @debug.Debug)
+pub fn TokenizerLimits::equal(Self, Self) -> Bool
+pub fn TokenizerLimits::not_equal(Self, Self) -> Bool
+pub fn TokenizerLimits::to_repr(Self) -> @debug.Repr
 
 pub struct TokenizerSpec {
   // private fields
@@ -170,6 +200,7 @@ pub fn TokenizerSpec::maximum_decoded_piece_bytes(Self) -> Int
 pub fn TokenizerSpec::merge_count(Self) -> Int
 pub fn TokenizerSpec::new(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits, ignore_merges? : Bool) -> Self raise TokenizerError
 pub fn TokenizerSpec::new_digit_triplet_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits, ignore_merges? : Bool) -> Self raise TokenizerError
+pub fn TokenizerSpec::new_minicpm5_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits) -> Self raise TokenizerError
 pub fn TokenizerSpec::new_ordered_script_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits, ignore_merges? : Bool) -> Self raise TokenizerError
 pub fn TokenizerSpec::new_qwen35_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits, ignore_merges? : Bool) -> Self raise TokenizerError
 pub fn TokenizerSpec::new_qwen3_bpe(ArrayView[VocabularyEntry], ArrayView[MergeRule], TokenizerDigest, TokenizerLimits, ignore_merges? : Bool) -> Self raise TokenizerError
@@ -180,12 +211,18 @@ pub(all) enum TruncationPolicy {
   RejectOverflow
   Truncate
 } derive(Eq, @debug.Debug)
+pub fn TruncationPolicy::equal(Self, Self) -> Bool
+pub fn TruncationPolicy::not_equal(Self, Self) -> Bool
+pub fn TruncationPolicy::to_repr(Self) -> @debug.Repr
 
 pub(all) struct VocabularyEntry {
   token_id : Int
   piece : Bytes
   kind : TokenKind
 } derive(Eq, @debug.Debug)
+pub fn VocabularyEntry::equal(Self, Self) -> Bool
+pub fn VocabularyEntry::not_equal(Self, Self) -> Bool
+pub fn VocabularyEntry::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

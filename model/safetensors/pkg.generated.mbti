@@ -25,6 +25,9 @@ pub(all) suberror SafetensorsError {
   OverlappingTensors(Int, Int)
   MaterializedSizeExceeded
 } derive(Eq, @debug.Debug)
+pub fn SafetensorsError::equal(Self, Self) -> Bool
+pub fn SafetensorsError::not_equal(Self, Self) -> Bool
+pub fn SafetensorsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct HeaderLimits {
@@ -35,6 +38,7 @@ pub struct HeaderLimits {
   max_payload_bytes : Int64
   max_materialized_tensor_bytes : Int64
 } derive(Eq, @debug.Debug)
+pub fn HeaderLimits::equal(Self, Self) -> Bool
 pub fn HeaderLimits::max_header_bytes(Self) -> Int
 pub fn HeaderLimits::max_materialized_tensor_bytes(Self) -> Int64
 pub fn HeaderLimits::max_name_length(Self) -> Int
@@ -42,6 +46,8 @@ pub fn HeaderLimits::max_payload_bytes(Self) -> Int64
 pub fn HeaderLimits::max_rank(Self) -> Int
 pub fn HeaderLimits::max_tensor_count(Self) -> Int
 pub fn HeaderLimits::new(max_header_bytes~ : Int, max_tensor_count~ : Int, max_rank~ : Int, max_name_length~ : Int, max_payload_bytes~ : Int64, max_materialized_tensor_bytes~ : Int64) -> Self raise SafetensorsError
+pub fn HeaderLimits::not_equal(Self, Self) -> Bool
+pub fn HeaderLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum MetadataLimit {
   HeaderBytes
@@ -51,6 +57,9 @@ pub(all) enum MetadataLimit {
   PayloadBytes
   MaterializedTensorBytes
 } derive(Eq, @debug.Debug)
+pub fn MetadataLimit::equal(Self, Self) -> Bool
+pub fn MetadataLimit::not_equal(Self, Self) -> Bool
+pub fn MetadataLimit::to_repr(Self) -> @debug.Repr
 
 pub struct RawTensorMetadata {
   name : String
@@ -59,7 +68,10 @@ pub struct RawTensorMetadata {
   data_start : Int64
   data_end : Int64
 } derive(Eq, @debug.Debug)
+pub fn RawTensorMetadata::equal(Self, Self) -> Bool
 pub fn RawTensorMetadata::new(name~ : String, dtype~ : String, shape~ : ArrayView[Int64], data_start~ : Int64, data_end~ : Int64) -> Self
+pub fn RawTensorMetadata::not_equal(Self, Self) -> Bool
+pub fn RawTensorMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct SafetensorsMetadata {
   tensors : ReadOnlyArray[TensorMetadata]
@@ -68,11 +80,14 @@ pub struct SafetensorsMetadata {
   materialized_tensor_bytes : Int64
 } derive(Eq, @debug.Debug)
 pub fn SafetensorsMetadata::encoded_header_bytes(Self) -> Int
+pub fn SafetensorsMetadata::equal(Self, Self) -> Bool
 pub fn SafetensorsMetadata::find_tensor(Self, StringView) -> TensorMetadata?
 pub fn SafetensorsMetadata::materialized_tensor_bytes(Self) -> Int64
+pub fn SafetensorsMetadata::not_equal(Self, Self) -> Bool
 pub fn SafetensorsMetadata::payload_bytes(Self) -> Int64
 pub fn SafetensorsMetadata::tensor(Self, Int) -> TensorMetadata?
 pub fn SafetensorsMetadata::tensor_count(Self) -> Int
+pub fn SafetensorsMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct TensorByteRange {
   start : Int64
@@ -80,12 +95,18 @@ pub struct TensorByteRange {
 } derive(Eq, @debug.Debug)
 pub fn TensorByteRange::byte_length(Self) -> Int64
 pub fn TensorByteRange::end(Self) -> Int64
+pub fn TensorByteRange::equal(Self, Self) -> Bool
+pub fn TensorByteRange::not_equal(Self, Self) -> Bool
 pub fn TensorByteRange::start(Self) -> Int64
+pub fn TensorByteRange::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorDType {
   BFloat16
   Float32
 } derive(Eq, @debug.Debug)
+pub fn TensorDType::equal(Self, Self) -> Bool
+pub fn TensorDType::not_equal(Self, Self) -> Bool
+pub fn TensorDType::to_repr(Self) -> @debug.Repr
 
 pub struct TensorMetadata {
   name : String
@@ -98,8 +119,11 @@ pub fn TensorMetadata::byte_range(Self) -> TensorByteRange
 pub fn TensorMetadata::data_end(Self) -> Int64
 pub fn TensorMetadata::data_start(Self) -> Int64
 pub fn TensorMetadata::dtype(Self) -> TensorDType
+pub fn TensorMetadata::equal(Self, Self) -> Bool
 pub fn TensorMetadata::name(Self) -> String
+pub fn TensorMetadata::not_equal(Self, Self) -> Bool
 pub fn TensorMetadata::shape(Self) -> ReadOnlyArray[Int64]
+pub fn TensorMetadata::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

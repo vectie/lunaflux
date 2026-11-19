@@ -1,0 +1,58 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minicpm_v47_processor"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/minicpm_v47",
+  "vectie/lunaflux/model/minicpm_v47_positions",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct Crop {
+  canvas : Size
+  top : Int
+  left : Int
+  size : Size
+}
+
+pub struct Pixels {
+  // private fields
+}
+pub fn Pixels::data(Self) -> Bytes
+pub fn Pixels::plan(Self) -> Plan
+
+pub struct Placeholder {
+  // private fields
+}
+pub fn Placeholder::grids(Self) -> ReadOnlyArray[@minicpm_v47_positions.Grid]
+pub fn Placeholder::modalities(Self) -> ReadOnlyArray[@minicpm_v47_positions.Modality]
+pub fn Placeholder::tokens(Self) -> ReadOnlyArray[Int]
+
+pub struct Plan {
+  // private fields
+}
+pub fn Plan::build(@minicpm_v47.Spec, height~ : Int, width~ : Int, max_slices? : Int) -> Self raise
+pub fn Plan::crops(Self) -> ReadOnlyArray[Crop]
+pub fn Plan::input_size(Self) -> Size
+pub fn Plan::pixel_bytes(Self) -> Int64
+pub fn Plan::pixel_columns(Self) -> Int
+pub fn Plan::placeholder(Self) -> Placeholder
+pub fn Plan::placeholder_text(Self, image_id? : Int) -> String raise
+pub fn Plan::preparation_bytes(Self) -> Int64
+pub fn Plan::prepare_rgb(Self, BytesView, max_bytes~ : Int64) -> Pixels raise
+pub fn Plan::slice_grid(Self) -> (Int, Int)
+pub fn Plan::target_sizes(Self) -> ReadOnlyArray[@minicpm_v47_positions.Grid]
+pub fn Plan::visual_tokens(Self) -> Int
+
+pub(all) struct Size {
+  height : Int
+  width : Int
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

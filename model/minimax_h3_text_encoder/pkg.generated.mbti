@@ -24,6 +24,8 @@ pub(all) suberror EncoderConfigError {
   InvalidRequest
   ByteBudgetExceeded
 } derive(Eq)
+pub fn EncoderConfigError::equal(Self, Self) -> Bool
+pub fn EncoderConfigError::not_equal(Self, Self) -> Bool
 
 pub(all) suberror TextEncoderError {
   InvalidRows
@@ -33,6 +35,8 @@ pub(all) suberror TextEncoderError {
   InvalidToken
   VisualTokensRequireEncoder
 } derive(Eq)
+pub fn TextEncoderError::equal(Self, Self) -> Bool
+pub fn TextEncoderError::not_equal(Self, Self) -> Bool
 
 // Types and methods
 pub struct EncoderConfig {
@@ -89,6 +93,8 @@ pub(all) enum VisualKind {
   Image
   Video
 } derive(Eq)
+pub fn VisualKind::equal(Self, Self) -> Bool
+pub fn VisualKind::not_equal(Self, Self) -> Bool
 
 pub struct VisualPlacement {
   token_positions : ReadOnlyArray[Int]

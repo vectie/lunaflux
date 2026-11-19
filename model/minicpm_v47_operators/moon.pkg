@@ -1,0 +1,16 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/hybrid_moe" @hybrid,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/model/precision_format" @format,
+  "vectie/lunaflux/model/minicpm_v47_weights" @weights,
+  "vectie/lunaflux/compiler/grouped_matrix_ir" @matrix,
+  "moonbitlang/core/math",
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

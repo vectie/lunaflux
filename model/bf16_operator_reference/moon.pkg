@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/compiler/elementwise_physical_ir" @effects,
+  "moonbitlang/core/math",
+}
+
+supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/precision_format" @format,
+} for "test"

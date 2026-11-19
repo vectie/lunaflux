@@ -5,13 +5,13 @@ pub struct EncoderTables {
 }
 
 ///|
-fn bf16(value : Float) -> UInt {
+fn bf16(value : Float) -> UInt32 {
   let bits = value.reinterpret_as_uint()
   (bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16
 }
 
 ///|
-fn store16(bytes : FixedArray[Byte], offset : Int, value : UInt) -> Unit {
+fn store16(bytes : FixedArray[Byte], offset : Int32, value : UInt32) -> Unit {
   bytes[offset] = (value & 255U).to_byte()
   bytes[offset + 1] = ((value >> 8) & 255U).to_byte()
 }
@@ -21,7 +21,7 @@ fn store16(bytes : FixedArray[Byte], offset : Int, value : UInt) -> Unit {
 /// still needs the same physical numerical qualification as other host tables.
 pub fn EncoderConfig::rotary_tables(
   self : Self,
-  positions : ArrayView[(Int, Int, Int)],
+  positions : ArrayView[(Int32, Int32, Int32)],
   max_bytes~ : Int64,
 ) -> EncoderTables raise EncoderConfigError {
   let bytes = positions.length().to_int64() * 128L * 2L
@@ -36,7 +36,9 @@ pub fn EncoderConfig::rotary_tables(
   let sine : FixedArray[Byte] = FixedArray::make(bytes.to_int(), 0)
   let frequencies = Array::make(64, 0.0F)
   for d in 0..<64 {
-    let power = Float::from_double(self.theta.pow((2 * d).to_double() / 128.0))
+    let power = Float::from_double(
+      @math.pow(self.theta, (2 * d).to_double() / 128.0),
+    )
     frequencies[d] = 1.0F / power
   }
   for row, (t, h, w) in positions {
@@ -71,18 +73,19 @@ pub fn EncoderConfig::rotary_tables(
 
 ///|
 pub fn text_positions(
-  rows : Int,
-) -> ReadOnlyArray[(Int, Int, Int)] raise EncoderConfigError {
+  rows : Int32,
+) -> ReadOnlyArray[(Int32, Int32, Int32)] raise EncoderConfigError {
   guard rows > 0 && rows <= 262144 else { raise InvalidRequest }
   ReadOnlyArray::from_array(Array::makei(rows, i => (i, i, i)))
 }
 
 ///|
-pub fn encode_i32(values : ArrayView[Int]) -> Bytes {
+pub fn encode_i32(values : ArrayView[Int32]) -> Bytes {
   let bytes : Array[Byte] = []
   for value in values {
-    for byte in value.to_le_bytes() {
-      bytes.push(byte)
+    let bits = value.reinterpret_as_uint()
+    for shift in 0..<4 {
+      bytes.push((bits >> (shift * 8)).to_byte())
     }
   }
   Bytes::from_array(bytes)

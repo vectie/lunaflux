@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/gated_delta_reference"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/precision_ir",
+  "vectie/lunaflux/model/hybrid_moe",
+}
+
+// Values
+
+// Errors
+pub suberror DeltaError {
+  InvalidDelta(String)
+} derive(@debug.Debug)
+pub fn DeltaError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct Convolution {
+  // private fields
+}
+pub fn Convolution::copy_into(Self, FixedArray[Float]) -> Unit raise DeltaError
+pub fn Convolution::new(Int, Int, projection_boundary? : @precision_ir.ConvolutionProjectionBoundary) -> Self raise DeltaError
+pub fn Convolution::reset(Self) -> Unit
+pub fn Convolution::restore(Self, ArrayView[Float]) -> Unit raise DeltaError
+pub fn Convolution::run_into(Self, ArrayView[Float], ArrayView[Float], FixedArray[Float]) -> Unit raise DeltaError
+
+pub struct State {
+  // private fields
+}
+pub fn State::copy_into(Self, FixedArray[Float]) -> Unit raise DeltaError
+pub fn State::new(@hybrid_moe.RecurrentAttention) -> Self raise DeltaError
+pub fn State::reset(Self) -> Unit
+pub fn State::restore(Self, ArrayView[Float]) -> Unit raise DeltaError
+pub fn State::run_into(Self, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], FixedArray[Float]) -> Unit raise DeltaError
+pub fn State::state_elements(Self) -> Int
+
+// Type aliases
+
+// Traits

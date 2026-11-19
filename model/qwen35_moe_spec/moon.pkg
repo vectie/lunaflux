@@ -1,5 +1,7 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/model/hybrid_moe" @hybrid,
 }
 
 supported_targets = "native"

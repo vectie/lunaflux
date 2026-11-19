@@ -35,6 +35,9 @@ pub(all) suberror SafetensorsReaderError {
   PayloadSizeMismatch
   Validation(@safetensors.SafetensorsError)
 } derive(Eq, @debug.Debug)
+pub fn SafetensorsReaderError::equal(Self, Self) -> Bool
+pub fn SafetensorsReaderError::not_equal(Self, Self) -> Bool
+pub fn SafetensorsReaderError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum TensorField {
@@ -42,6 +45,9 @@ pub(all) enum TensorField {
   Shape
   DataOffsets
 } derive(Eq, @debug.Debug)
+pub fn TensorField::equal(Self, Self) -> Bool
+pub fn TensorField::not_equal(Self, Self) -> Bool
+pub fn TensorField::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -1,0 +1,14 @@
+import {
+  "vectie/lunaflux/model/hybrid_moe" @hybrid,
+  "vectie/lunaflux/internal/json_guard",
+  "moonbitlang/core/json",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

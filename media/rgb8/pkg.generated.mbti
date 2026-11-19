@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/media/rgb8"
+
+// Values
+
+// Errors
+pub suberror ImageError {
+  InvalidDimensions
+  EncodedTooLarge
+  InvalidEncoding
+  UnsupportedPrecision
+}
+
+// Types and methods
+pub struct Image {
+  // private fields
+}
+pub fn Image::data(Self) -> Bytes
+pub fn Image::decode(Bytes, maximum_encoded_bytes~ : Int, maximum_pixels~ : Int) -> Self raise ImageError
+pub fn Image::decode_oriented(Bytes, maximum_encoded_bytes~ : Int, maximum_pixels~ : Int) -> Self raise ImageError
+pub fn Image::from_rgb(Bytes, width~ : Int, height~ : Int, maximum_pixels~ : Int) -> Self raise ImageError
+pub fn Image::height(Self) -> Int
+pub fn Image::width(Self) -> Int
+
+// Type aliases
+
+// Traits

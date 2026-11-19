@@ -4,8 +4,8 @@ pub fn parse_bytes(
   document : BytesView,
   digest~ : @tokenizer.TokenizerDigest,
   limits~ : @tokenizer.TokenizerLimits,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @tokenizer.TokenizerSpec raise TokenizerJsonError {
   validate_reader_limits(max_bytes, max_depth)
   if document.length() > max_bytes {
@@ -21,8 +21,8 @@ pub fn parse_string(
   document : StringView,
   digest~ : @tokenizer.TokenizerDigest,
   limits~ : @tokenizer.TokenizerLimits,
-  max_bytes~ : Int,
-  max_depth~ : Int,
+  max_bytes~ : Int32,
+  max_depth~ : Int32,
 ) -> @tokenizer.TokenizerSpec raise TokenizerJsonError {
   validate_reader_limits(max_bytes, max_depth)
   validate_utf8_size(document, max_bytes)
@@ -34,7 +34,8 @@ fn parse_text(
   document : StringView,
   digest : @tokenizer.TokenizerDigest,
   limits : @tokenizer.TokenizerLimits,
-  max_depth : Int,
+  max_depth : Int32,
+  nfc_single_digit~ : Bool = false,
 ) -> @tokenizer.TokenizerSpec raise TokenizerJsonError {
   @json_guard.reject_duplicate_object_keys(document, max_depth~) catch {
     InvalidDepthLimit => raise InvalidDepthLimit
@@ -44,7 +45,11 @@ fn parse_text(
   }
   let parsed = @json.parse(document) catch { _ => raise MalformedJson }
   guard parsed is Object(root) else { raise NonObjectRoot }
-  let profile = validate_root_semantics(root)
+  let profile = if nfc_single_digit {
+    validate_nfc_single_digit_root(root)
+  } else {
+    validate_root_semantics(root)
+  }
   let specials = parse_added_tokens(root, limits, profile)
   parse_model(
     require_field(root, "model", Root, ModelField),

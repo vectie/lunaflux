@@ -24,6 +24,9 @@ pub(all) suberror JointAudioAmpWorkspaceLayoutError {
   OverlappingLiveRegions(Int, Int)
   SizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpWorkspaceLayoutError::equal(Self, Self) -> Bool
+pub fn JointAudioAmpWorkspaceLayoutError::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpWorkspaceLayoutError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum JointAudioAmpActivationPhase {
@@ -31,11 +34,17 @@ pub(all) enum JointAudioAmpActivationPhase {
   SnakeBeta
   Downsample
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpActivationPhase::equal(Self, Self) -> Bool
+pub fn JointAudioAmpActivationPhase::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpActivationPhase::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointAudioAmpConvolutionPhase {
   Normalize
   Convolve
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpConvolutionPhase::equal(Self, Self) -> Bool
+pub fn JointAudioAmpConvolutionPhase::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpConvolutionPhase::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointAudioAmpExecutionStage {
   Activation(Int, Int, JointAudioAmpActivationPhase)
@@ -43,12 +52,18 @@ pub(all) enum JointAudioAmpExecutionStage {
   Residual(Int, Int)
   ParallelAverage
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpExecutionStage::equal(Self, Self) -> Bool
+pub fn JointAudioAmpExecutionStage::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpExecutionStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointAudioAmpStorageClass {
   ExternalInput
   Workspace
   ExternalOutput
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpStorageClass::equal(Self, Self) -> Bool
+pub fn JointAudioAmpStorageClass::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpStorageClass::to_repr(Self) -> @debug.Repr
 
 pub struct JointAudioAmpWorkspaceLayout {
   // private fields
@@ -62,6 +77,9 @@ pub struct JointAudioAmpWorkspaceLayoutDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointAudioAmpWorkspaceLayoutDigest::as_hex(Self) -> String
+pub fn JointAudioAmpWorkspaceLayoutDigest::equal(Self, Self) -> Bool
+pub fn JointAudioAmpWorkspaceLayoutDigest::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpWorkspaceLayoutDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointAudioAmpWorkspaceRegion {
   // private fields
@@ -86,6 +104,9 @@ pub(all) enum JointAudioAmpWorkspaceRole {
   ParallelBlockOutput(Int)
   FinalOutput
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpWorkspaceRole::equal(Self, Self) -> Bool
+pub fn JointAudioAmpWorkspaceRole::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpWorkspaceRole::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

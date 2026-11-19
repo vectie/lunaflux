@@ -17,6 +17,9 @@ pub(all) suberror IndexedParameterBankLayoutError {
   UnexpectedLogicalIndex(expected~ : Int, actual~ : Int)
   OffsetOverflow
 } derive(Eq, @debug.Debug)
+pub fn IndexedParameterBankLayoutError::equal(Self, Self) -> Bool
+pub fn IndexedParameterBankLayoutError::not_equal(Self, Self) -> Bool
+pub fn IndexedParameterBankLayoutError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct IndexedParameterBankLayout {
@@ -29,6 +32,11 @@ pub fn IndexedParameterBankLayout::slices(Self) -> ReadOnlyArray[IndexedParamete
 
 pub struct IndexedParameterBankLayoutDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn IndexedParameterBankLayoutDigest::as_hex(Self) -> String
+pub fn IndexedParameterBankLayoutDigest::equal(Self, Self) -> Bool
+pub fn IndexedParameterBankLayoutDigest::hash(Self) -> Int
+pub fn IndexedParameterBankLayoutDigest::hash_combine(Self, Hasher) -> Unit
+pub fn IndexedParameterBankLayoutDigest::not_equal(Self, Self) -> Bool
+pub fn IndexedParameterBankLayoutDigest::to_repr(Self) -> @debug.Repr
 
 pub struct IndexedParameterSlice {
   // private fields

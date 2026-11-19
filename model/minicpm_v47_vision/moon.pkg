@@ -1,0 +1,14 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_positions" @positions,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+}
+
+import {
+  "vectie/lunaflux/model/minicpm_v47_processor" @processor,
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

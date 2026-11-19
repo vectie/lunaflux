@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/model/qwen3_spec" @qwen,
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/device/lunachip",
+}
+
+supported_targets = "native"

@@ -68,7 +68,7 @@ fn validate_template_item(
   value : Json,
   field_name : String,
   expected_id : String,
-  expected_type_id : Int,
+  expected_type_id : Int32,
 ) -> Unit raise TokenizerJsonError {
   let wrapper = require_component_object(value, PostProcessor)
   validate_fields(wrapper, PostProcessor, [field_name])
@@ -87,7 +87,8 @@ fn validate_template_item(
 ///|
 fn validate_sentencepiece_post_processor(
   value : Json,
-) -> Int raise TokenizerJsonError {
+  expected_bos~ : Int32 = 1,
+) -> Int32 raise TokenizerJsonError {
   let object = require_component_object(value, PostProcessor)
   validate_fields(object, PostProcessor, [
     "type", "single", "pair", "special_tokens",
@@ -130,7 +131,7 @@ fn validate_sentencepiece_post_processor(
     sentencepiece_unsupported(PostProcessor, PostProcessingBehavior)
   }
   guard require_field(bos, "ids", PostProcessor, Id) is Array([id_value]) &&
-    decode_vocab_id(id_value, 0) == 1 &&
+    decode_vocab_id(id_value, 0) == expected_bos &&
     require_field(bos, "tokens", PostProcessor, Content)
     is Array([String("<s>")]) else {
     raise UnsupportedSemantics(
@@ -138,7 +139,7 @@ fn validate_sentencepiece_post_processor(
       feature=PostProcessingBehavior,
     )
   }
-  1
+  expected_bos
 }
 
 ///|

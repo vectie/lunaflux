@@ -14,18 +14,27 @@ pub(all) suberror FamilyContractError {
   InvalidSchemaVersion
   DuplicateCapability(ModelSemanticCapability)
 } derive(Eq, @debug.Debug)
+pub fn FamilyContractError::equal(Self, Self) -> Bool
+pub fn FamilyContractError::not_equal(Self, Self) -> Bool
+pub fn FamilyContractError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ModelBackendCapabilities {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ModelBackendCapabilities::equal(Self, Self) -> Bool
 pub fn ModelBackendCapabilities::new(ArrayView[ModelSemanticCapability]) -> Self raise FamilyContractError
+pub fn ModelBackendCapabilities::not_equal(Self, Self) -> Bool
 pub fn ModelBackendCapabilities::supports(Self, ModelSemanticCapability) -> Bool
+pub fn ModelBackendCapabilities::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelFamilyAdmission {
   SemanticCapabilitiesAvailable(ModelFamilyRequirements)
   MissingCapabilities(ModelFamilyRequirements, ReadOnlyArray[ModelSemanticCapability])
 } derive(Eq, @debug.Debug)
+pub fn ModelFamilyAdmission::equal(Self, Self) -> Bool
+pub fn ModelFamilyAdmission::not_equal(Self, Self) -> Bool
+pub fn ModelFamilyAdmission::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelFamilyId {
   Llama
@@ -35,6 +44,9 @@ pub(all) enum ModelFamilyId {
   MiniMaxH3
   Glm53
 } derive(Eq, @debug.Debug)
+pub fn ModelFamilyId::equal(Self, Self) -> Bool
+pub fn ModelFamilyId::not_equal(Self, Self) -> Bool
+pub fn ModelFamilyId::to_repr(Self) -> @debug.Repr
 
 pub struct ModelFamilyRequirements {
   // private fields
@@ -42,10 +54,13 @@ pub struct ModelFamilyRequirements {
 pub fn ModelFamilyRequirements::admit(Self, ModelBackendCapabilities) -> ModelFamilyAdmission
 pub fn ModelFamilyRequirements::architecture(Self) -> String
 pub fn ModelFamilyRequirements::capabilities(Self) -> ReadOnlyArray[ModelSemanticCapability]
+pub fn ModelFamilyRequirements::equal(Self, Self) -> Bool
 pub fn ModelFamilyRequirements::family(Self) -> ModelFamilyId
 pub fn ModelFamilyRequirements::model_type(Self) -> String
 pub fn ModelFamilyRequirements::new(family~ : ModelFamilyId, architecture~ : String, model_type~ : String, schema_version~ : Int, workload~ : ModelWorkload, capabilities~ : ArrayView[ModelSemanticCapability]) -> Self raise FamilyContractError
+pub fn ModelFamilyRequirements::not_equal(Self, Self) -> Bool
 pub fn ModelFamilyRequirements::schema_version(Self) -> Int
+pub fn ModelFamilyRequirements::to_repr(Self) -> @debug.Repr
 pub fn ModelFamilyRequirements::workload(Self) -> ModelWorkload
 
 pub(all) enum ModelSemanticCapability {
@@ -66,12 +81,18 @@ pub(all) enum ModelSemanticCapability {
   ReferenceConditioning
   TextConditioningEncoder
 } derive(Eq, @debug.Debug)
+pub fn ModelSemanticCapability::equal(Self, Self) -> Bool
+pub fn ModelSemanticCapability::not_equal(Self, Self) -> Bool
+pub fn ModelSemanticCapability::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelWorkload {
   DecoderOnlyText
   MultimodalConditionalGeneration
   AudioVideoDiffusion
 } derive(Eq, @debug.Debug)
+pub fn ModelWorkload::equal(Self, Self) -> Bool
+pub fn ModelWorkload::not_equal(Self, Self) -> Bool
+pub fn ModelWorkload::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

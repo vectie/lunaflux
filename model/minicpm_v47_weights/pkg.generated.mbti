@@ -1,0 +1,63 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minicpm_v47_weights"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/minicpm_v47",
+  "vectie/lunaflux/model/safetensors",
+}
+
+// Values
+pub fn bind(@minicpm_v47.Spec, ArrayView[@safetensors.SafetensorsMetadata]) -> BoundWeights raise WeightError
+
+pub fn requirements(@minicpm_v47.Spec) -> Array[Requirement]
+
+// Errors
+pub suberror WeightError {
+  InvalidWeights(String)
+} derive(@debug.Debug)
+pub fn WeightError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct Binding {
+  name : String
+  shape : ReadOnlyArray[Int64]
+  component : Component
+  shard_index : Int
+  tensor_index : Int
+  file_offset : Int64
+  byte_length : Int64
+}
+
+pub struct BoundWeights {
+  // private fields
+}
+pub fn BoundWeights::find_tensor(Self, String) -> Binding?
+pub fn BoundWeights::tensor(Self, Int) -> Binding?
+pub fn BoundWeights::tensor_count(Self) -> Int
+pub fn BoundWeights::total_bytes(Self) -> Int64
+
+pub(all) enum Component {
+  Embedding
+  Decoder(Int)
+  FinalNorm
+  LanguageHead
+  VisionEmbedding
+  VisionLayer(Int)
+  VisionFinalNorm
+  EarlyVisionMerger
+  OutputVisionMerger
+} derive(Eq, @debug.Debug)
+pub fn Component::equal(Self, Self) -> Bool
+pub fn Component::not_equal(Self, Self) -> Bool
+pub fn Component::to_repr(Self) -> @debug.Repr
+
+pub struct Requirement {
+  name : String
+  shape : ReadOnlyArray[Int64]
+  component : Component
+}
+
+// Type aliases
+
+// Traits

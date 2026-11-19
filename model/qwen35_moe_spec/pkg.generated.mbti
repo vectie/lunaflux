@@ -3,6 +3,7 @@ package "vectie/lunaflux/model/qwen35_moe_spec"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/model/hybrid_moe",
   "vectie/lunaflux/model/spec",
 }
 
@@ -46,6 +47,7 @@ pub fn Qwen35MoeTextSpec::full_attention_interval(Self) -> Int
 pub fn Qwen35MoeTextSpec::has_learned_shared_expert_gate(Self) -> Bool
 pub fn Qwen35MoeTextSpec::head_dimension(Self) -> Int
 pub fn Qwen35MoeTextSpec::hidden_size(Self) -> Int
+pub fn Qwen35MoeTextSpec::hybrid_geometry(Self) -> @hybrid_moe.Geometry
 pub fn Qwen35MoeTextSpec::inverse_scale_dtype(Self) -> Qwen35AuxiliaryDType
 pub fn Qwen35MoeTextSpec::kv_head_count(Self) -> Int
 pub fn Qwen35MoeTextSpec::layer_count(Self) -> Int

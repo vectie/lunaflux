@@ -1,0 +1,40 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minicpm_v47_positions"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/minicpm_v47",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct Grid {
+  height : Int
+  width : Int
+}
+
+pub(all) enum Modality {
+  Text
+  Image
+  Video
+} derive(Eq, @debug.Debug)
+pub fn Modality::equal(Self, Self) -> Bool
+pub fn Modality::not_equal(Self, Self) -> Bool
+pub fn Modality::to_repr(Self) -> @debug.Repr
+
+pub struct Sequence {
+  // private fields
+}
+pub fn Sequence::build(@minicpm_v47.Spec, ArrayView[Int], ArrayView[Modality], image_grids~ : ArrayView[Grid], video_grids~ : ArrayView[Grid], downsample? : @minicpm_v47.Downsample) -> Self raise
+pub fn Sequence::coordinates(Self) -> ReadOnlyArray[Int]
+pub fn Sequence::prompt_tokens(Self) -> Int
+pub fn Sequence::rope_delta(Self) -> Int
+pub fn Sequence::write_decode_into(Self, causal_start~ : Int, rows~ : Int, FixedArray[Int], FixedArray[Int]) -> Unit raise
+pub fn Sequence::write_prompt_into(Self, start~ : Int, rows~ : Int, FixedArray[Int], FixedArray[Int]) -> Unit raise
+
+// Type aliases
+
+// Traits

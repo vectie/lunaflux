@@ -1,21 +1,27 @@
 ///|
 /// Explicit allocation and payload envelope for one decoded safetensors header.
 pub struct HeaderLimits {
-  max_header_bytes : Int
-  max_tensor_count : Int
-  max_rank : Int
-  max_name_length : Int
+  max_header_bytes : Int32
+  max_tensor_count : Int32
+  max_rank : Int32
+  max_name_length : Int32
   max_payload_bytes : Int64
   max_materialized_tensor_bytes : Int64
 } derive(Debug, Eq)
 
 ///|
+pub extend HeaderLimits with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend HeaderLimits with Eq::{not_equal, equal}
+
+///|
 /// Constructs a bounded validation envelope.
 pub fn HeaderLimits::new(
-  max_header_bytes~ : Int,
-  max_tensor_count~ : Int,
-  max_rank~ : Int,
-  max_name_length~ : Int,
+  max_header_bytes~ : Int32,
+  max_tensor_count~ : Int32,
+  max_rank~ : Int32,
+  max_name_length~ : Int32,
   max_payload_bytes~ : Int64,
   max_materialized_tensor_bytes~ : Int64,
 ) -> HeaderLimits raise SafetensorsError {
@@ -49,22 +55,22 @@ pub fn HeaderLimits::new(
 }
 
 ///|
-pub fn HeaderLimits::max_header_bytes(self : HeaderLimits) -> Int {
+pub fn HeaderLimits::max_header_bytes(self : HeaderLimits) -> Int32 {
   self.max_header_bytes
 }
 
 ///|
-pub fn HeaderLimits::max_tensor_count(self : HeaderLimits) -> Int {
+pub fn HeaderLimits::max_tensor_count(self : HeaderLimits) -> Int32 {
   self.max_tensor_count
 }
 
 ///|
-pub fn HeaderLimits::max_rank(self : HeaderLimits) -> Int {
+pub fn HeaderLimits::max_rank(self : HeaderLimits) -> Int32 {
   self.max_rank
 }
 
 ///|
-pub fn HeaderLimits::max_name_length(self : HeaderLimits) -> Int {
+pub fn HeaderLimits::max_name_length(self : HeaderLimits) -> Int32 {
   self.max_name_length
 }
 

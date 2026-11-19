@@ -1,0 +1,9 @@
+import {
+  "vectie/lunaflux/model/hybrid_moe" @hybrid,
+  "vectie/lunaflux/model/bf16_operator_reference" @bf16,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "moonbitlang/core/math",
+  "moonbitlang/core/debug",
+}
+
+supported_targets = "native"

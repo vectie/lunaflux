@@ -17,7 +17,7 @@ pub(all) enum TokenKind {
 /// `piece` is the BPE model piece for `Normal`, the one decoded byte for
 /// `ByteFallback`, and the literal match bytes for `Special`.
 pub(all) struct VocabularyEntry {
-  token_id : Int
+  token_id : Int32
   piece : Bytes
   kind : TokenKind
 } derive(Debug, Eq)
@@ -26,21 +26,21 @@ pub(all) struct VocabularyEntry {
 /// One ranked BPE merge. Array order supplied to `TokenizerSpec::new` is the
 /// rank: a smaller index has higher priority.
 pub(all) struct MergeRule {
-  left_token_id : Int
-  right_token_id : Int
-  result_token_id : Int
+  left_token_id : Int32
+  right_token_id : Int32
+  result_token_id : Int32
 } derive(Debug, Eq)
 
 ///|
 /// Resource limits enforced while validating and using one tokenizer.
 pub(all) struct TokenizerLimits {
-  max_input_bytes : Int
-  max_output_tokens : Int
-  max_decoded_bytes : Int
-  max_vocab_entries : Int
-  max_merge_rules : Int
-  max_token_bytes : Int
-  max_special_tokens : Int
+  max_input_bytes : Int32
+  max_output_tokens : Int32
+  max_decoded_bytes : Int32
+  max_vocab_entries : Int32
+  max_merge_rules : Int32
+  max_token_bytes : Int32
+  max_special_tokens : Int32
 } derive(Debug, Eq)
 
 ///|
@@ -71,8 +71,8 @@ pub(all) enum DecodeSpecialPolicy {
 ///|
 /// Result of one bounded encode operation.
 pub(all) struct EncodeResult {
-  token_ids : Array[Int]
-  input_bytes : Int
+  token_ids : Array[Int32]
+  input_bytes : Int32
   truncated : Bool
 } derive(Debug, Eq)
 
@@ -94,34 +94,34 @@ pub(all) enum LimitField {
 pub(all) suberror TokenizerError {
   InvalidDigest
   InvalidLimit(field~ : LimitField)
-  VocabularyTooLarge(actual~ : Int, maximum~ : Int)
-  MergeTableTooLarge(actual~ : Int, maximum~ : Int)
-  InvalidTokenId(entry_index~ : Int)
-  DuplicateTokenId(token_id~ : Int)
-  EmptyTokenPiece(entry_index~ : Int)
-  TokenPieceTooLong(entry_index~ : Int, actual~ : Int, maximum~ : Int)
-  DuplicateTokenPiece(first_index~ : Int, duplicate_index~ : Int)
-  TooManySpecialTokens(actual~ : Int, maximum~ : Int)
-  MissingByteToken(byte_value~ : Int)
-  InvalidMergeToken(rule_index~ : Int)
-  SpecialTokenInMerge(rule_index~ : Int)
-  InvalidMergeResult(rule_index~ : Int)
-  DuplicateMergePair(first_rule~ : Int, duplicate_rule~ : Int)
-  InvalidOutputLimit(requested~ : Int, maximum~ : Int)
-  InputTooLong(actual~ : Int, maximum~ : Int)
-  OutputTooLong(actual~ : Int, maximum~ : Int)
-  SpecialTokenRejected(token_id~ : Int)
-  UnknownTokenId(token_id~ : Int)
-  DecodedOutputTooLong(maximum~ : Int)
+  VocabularyTooLarge(actual~ : Int32, maximum~ : Int32)
+  MergeTableTooLarge(actual~ : Int32, maximum~ : Int32)
+  InvalidTokenId(entry_index~ : Int32)
+  DuplicateTokenId(token_id~ : Int32)
+  EmptyTokenPiece(entry_index~ : Int32)
+  TokenPieceTooLong(entry_index~ : Int32, actual~ : Int32, maximum~ : Int32)
+  DuplicateTokenPiece(first_index~ : Int32, duplicate_index~ : Int32)
+  TooManySpecialTokens(actual~ : Int32, maximum~ : Int32)
+  MissingByteToken(byte_value~ : Int32)
+  InvalidMergeToken(rule_index~ : Int32)
+  SpecialTokenInMerge(rule_index~ : Int32)
+  InvalidMergeResult(rule_index~ : Int32)
+  DuplicateMergePair(first_rule~ : Int32, duplicate_rule~ : Int32)
+  InvalidOutputLimit(requested~ : Int32, maximum~ : Int32)
+  InputTooLong(actual~ : Int32, maximum~ : Int32)
+  OutputTooLong(actual~ : Int32, maximum~ : Int32)
+  SpecialTokenRejected(token_id~ : Int32)
+  UnknownTokenId(token_id~ : Int32)
+  DecodedOutputTooLong(maximum~ : Int32)
   InvalidDecodeDestination
-  DecodeDestinationTooSmall(required~ : Int, available~ : Int)
+  DecodeDestinationTooSmall(required~ : Int32, available~ : Int32)
   InvalidUtf8Output
-  InvalidUtf8Input(byte_offset~ : Int)
-  UnsupportedQwen3Unicode(byte_offset~ : Int)
-  InvalidUtf16Input(code_unit_offset~ : Int)
-  InvalidSentencePieceToken(entry_index~ : Int)
-  InvalidSentencePieceUnknownToken(token_id~ : Int)
-  InvalidSentencePieceBosToken(token_id~ : Int)
+  InvalidUtf8Input(byte_offset~ : Int32)
+  UnsupportedQwen3Unicode(byte_offset~ : Int32)
+  InvalidUtf16Input(code_unit_offset~ : Int32)
+  InvalidSentencePieceToken(entry_index~ : Int32)
+  InvalidSentencePieceUnknownToken(token_id~ : Int32)
+  InvalidSentencePieceBosToken(token_id~ : Int32)
   LunaInvalidStepBudget
   LunaInvalidWorkerCapacity
   LunaTokenizerWorkerBusy
@@ -135,7 +135,7 @@ pub(all) suberror TokenizerError {
 ///|
 /// Allocation-free single-piece copy result for owner-resident decode paths.
 #valtype
-pub struct DecodePieceStatus(Int, Int)
+pub struct DecodePieceStatus(Int32, Int32)
 
 ///|
 pub fn DecodePieceStatus::is_ready(self : DecodePieceStatus) -> Bool {
@@ -143,7 +143,7 @@ pub fn DecodePieceStatus::is_ready(self : DecodePieceStatus) -> Bool {
 }
 
 ///|
-pub fn DecodePieceStatus::copied_bytes(self : DecodePieceStatus) -> Int {
+pub fn DecodePieceStatus::copied_bytes(self : DecodePieceStatus) -> Int32 {
   if self.0 != 0 {
     return 0
   }
@@ -177,3 +177,69 @@ pub fn TokenizerDigest::parse(
 pub fn TokenizerDigest::as_string(self : TokenizerDigest) -> String {
   self.value
 }
+
+///|
+pub extend TokenKind with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TokenKind with Eq::{not_equal, equal}
+
+///|
+pub extend VocabularyEntry with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend VocabularyEntry with Eq::{not_equal, equal}
+
+///|
+pub extend MergeRule with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend MergeRule with Eq::{not_equal, equal}
+
+///|
+pub extend TokenizerLimits with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TokenizerLimits with Eq::{not_equal, equal}
+
+///|
+pub extend SpecialTokenPolicy with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend SpecialTokenPolicy with Eq::{not_equal, equal}
+
+///|
+pub extend TruncationPolicy with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TruncationPolicy with Eq::{not_equal, equal}
+
+///|
+pub extend DecodeSpecialPolicy with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend DecodeSpecialPolicy with Eq::{not_equal, equal}
+
+///|
+pub extend EncodeResult with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend EncodeResult with Eq::{not_equal, equal}
+
+///|
+pub extend LimitField with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend LimitField with Eq::{not_equal, equal}
+
+///|
+pub extend TokenizerError with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TokenizerError with Eq::{not_equal, equal}
+
+///|
+pub extend TokenizerDigest with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend TokenizerDigest with Eq::{not_equal, equal}

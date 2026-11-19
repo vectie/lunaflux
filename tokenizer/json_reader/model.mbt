@@ -1,13 +1,13 @@
 ///|
 priv struct ParsedVocabulary {
   entries : Array[@tokenizer.VocabularyEntry]
-  normal_id_by_piece : Map[Bytes, Int]
+  normal_id_by_piece : Map[Bytes, Int32]
 }
 
 ///|
 fn parse_vocabulary(
   value : Json,
-  specials : Map[Int, AddedSpecial],
+  specials : Map[Int32, AddedSpecial],
   limits : @tokenizer.TokenizerLimits,
   profile : TokenizerJsonProfile,
 ) -> ParsedVocabulary raise TokenizerJsonError {
@@ -18,8 +18,8 @@ fn parse_vocabulary(
     raise VocabularyLimitExceeded(limit=limits.max_vocab_entries)
   }
   let entries : Array[@tokenizer.VocabularyEntry] = []
-  let normal_id_by_piece : Map[Bytes, Int] = Map([], capacity=vocab.length())
-  let raw_id_by_token : Map[String, Int] = Map([], capacity=vocab.length())
+  let normal_id_by_piece : Map[Bytes, Int32] = Map([], capacity=vocab.length())
+  let raw_id_by_token : Map[String, Int32] = Map([], capacity=vocab.length())
   for raw_piece, id_value in vocab {
     let id = decode_vocab_id(id_value, entries.length())
     let (piece, kind) = match specials.get(id) {
@@ -42,6 +42,8 @@ fn parse_vocabulary(
           | Qwen3Json
           | Qwen35Json
           | DigitTripletJson
+          | MiniCPM5Json
+          | NfcSingleDigitJson
           | OrderedScriptJson =>
             (decode_bytelevel_piece(raw_piece, entries.length()), Normal)
           SentencePieceJson(..) =>
@@ -59,7 +61,10 @@ fn parse_vocabulary(
   }
   for _, special in specials {
     match profile {
-      DigitTripletJson | OrderedScriptJson =>
+      DigitTripletJson
+      | OrderedScriptJson
+      | MiniCPM5Json
+      | NfcSingleDigitJson =>
         if raw_id_by_token.get(special.content) is Some(id) && id != special.id {
           raise AddedTokenContentMismatch(index=special.source_index)
         }
@@ -74,7 +79,11 @@ fn parse_vocabulary(
         }
     }
   }
-  if profile is (DigitTripletJson | OrderedScriptJson) {
+  if profile
+    is (DigitTripletJson
+    | OrderedScriptJson
+    | MiniCPM5Json
+    | NfcSingleDigitJson) {
     append_external_added_tokens(entries, raw_id_by_token, specials)
   }
   let qwen_first = qwen_profile_first_added(profile)
@@ -105,11 +114,14 @@ fn parse_vocabulary(
 }
 
 ///|
-fn decode_vocab_id(value : Json, index : Int) -> Int raise TokenizerJsonError {
+fn decode_vocab_id(
+  value : Json,
+  index : Int32,
+) -> Int32 raise TokenizerJsonError {
   guard value is Number(number, repr~) else {
     raise InvalidField(component=Model, field=Vocab, index~)
   }
-  let id : Int = match repr {
+  let id : Int32 = match repr {
     Some(encoded) =>
       @string.parse_int(encoded) catch {
         _ => raise InvalidField(component=Model, field=Vocab, index~)
@@ -128,7 +140,7 @@ fn decode_vocab_id(value : Json, index : Int) -> Int raise TokenizerJsonError {
 ///|
 fn split_merge_row(
   row : String,
-  index : Int,
+  index : Int32,
 ) -> (String, String) raise TokenizerJsonError {
   let mut separator = -1
   for offset in 0..<row.length() {
@@ -148,7 +160,7 @@ fn split_merge_row(
 ///|
 fn decode_merge_pair(
   value : Json,
-  index : Int,
+  index : Int32,
 ) -> (String, String) raise TokenizerJsonError {
   match value {
     String(row) => split_merge_row(row, index)
@@ -188,6 +200,8 @@ fn parse_merges(
       | Qwen3Json
       | Qwen35Json
       | DigitTripletJson
+      | MiniCPM5Json
+      | NfcSingleDigitJson
       | OrderedScriptJson => decode_bytelevel_piece(left_raw, index)
       SentencePieceJson(..) => @utf8.encode(left_raw)
     }
@@ -196,6 +210,8 @@ fn parse_merges(
       | Qwen3Json
       | Qwen35Json
       | DigitTripletJson
+      | MiniCPM5Json
+      | NfcSingleDigitJson
       | OrderedScriptJson => decode_bytelevel_piece(right_raw, index)
       SentencePieceJson(..) => @utf8.encode(right_raw)
     }
@@ -224,7 +240,7 @@ fn parse_merges(
 ///|
 fn parse_model(
   value : Json,
-  specials : Map[Int, AddedSpecial],
+  specials : Map[Int32, AddedSpecial],
   digest : @tokenizer.TokenizerDigest,
   limits : @tokenizer.TokenizerLimits,
   profile : TokenizerJsonProfile,
@@ -241,6 +257,21 @@ fn parse_model(
   }
   require_null(model, "dropout", Model, Dropout, MergeDropout)
   match profile {
+    NfcSingleDigitJson =>
+      for
+        (name, field, feature) in [
+          (
+            "continuing_subword_prefix",
+            ContinuingSubwordPrefix,
+            ContinuingSubwords,
+          ),
+          ("end_of_word_suffix", EndOfWordSuffix, WordSuffixes),
+        ] {
+        match require_field(model, name, Model, field) {
+          Null | String("") => ()
+          _ => raise UnsupportedSemantics(component=Model, feature~)
+        }
+      }
     Qwen3Json | Qwen35Json => {
       if require_string(
           model,
@@ -275,10 +306,25 @@ fn parse_model(
     }
   }
   let (unknown_token_id, bos_token_id) = match profile {
+    MiniCPM5Json => {
+      if require_string(model, "unk_token", Model, UnknownToken, 0) != "<unk>" ||
+        require_bool(model, "byte_fallback", Model, ByteFallback, 0) ||
+        require_bool(model, "fuse_unk", Model, FuseUnknown, 0) ||
+        optional_ignore_merges(model) {
+        raise UnsupportedSemantics(
+          component=Model,
+          feature=UnknownTokenFallback,
+        )
+      }
+      // The byte-complete alphabet is checked by TokenizerSpec. Consequently
+      // this declared unknown token cannot be reached by UTF-8 byte encoding.
+      (-1, 0)
+    }
     ByteLevelJson
     | Qwen3Json
     | Qwen35Json
     | DigitTripletJson
+    | NfcSingleDigitJson
     | OrderedScriptJson => {
       require_null(
         model,
@@ -336,6 +382,8 @@ fn parse_model(
     | Qwen3Json
     | Qwen35Json
     | DigitTripletJson
+    | MiniCPM5Json
+    | NfcSingleDigitJson
     | OrderedScriptJson => optional_ignore_merges(model)
     SentencePieceJson(..) => false
   }
@@ -352,6 +400,15 @@ fn parse_model(
     profile,
   )
   match profile {
+    MiniCPM5Json =>
+      @tokenizer.TokenizerSpec::new_minicpm5_bpe(
+        vocabulary.entries,
+        merges,
+        digest,
+        limits,
+      ) catch {
+        error => raise Validation(error)
+      }
     OrderedScriptJson =>
       @tokenizer.TokenizerSpec::new_ordered_script_bpe(
         vocabulary.entries,
@@ -382,7 +439,7 @@ fn parse_model(
       ) catch {
         error => raise Validation(error)
       }
-    Qwen3Json =>
+    Qwen3Json | NfcSingleDigitJson =>
       @tokenizer.TokenizerSpec::new_qwen3_bpe(
         vocabulary.entries,
         merges,
@@ -417,7 +474,7 @@ fn parse_model(
 }
 
 ///|
-fn hex_nibble(code : UInt16) -> Int? {
+fn hex_nibble(code : UInt16) -> Int32? {
   if code >= '0' && code <= '9' {
     Some(code.to_int() - 0x30)
   } else if code >= 'A' && code <= 'F' {

@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/bf16_operator_reference"
+
+import {
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn embedding_scatter_words_into(@elementwise_physical_ir.EmbeddingScatterProgram, ArrayView[Int], ArrayView[Int], ArrayView[UInt], FixedArray[UInt], rows~ : Int, feature_rows~ : Int, prefill~ : Bool) -> Unit raise
+
+pub fn gated_delta_control_into(@precision_ir.GatedDeltaControlPrecision, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], FixedArray[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+pub fn multi_axis_rotary_into(@precision_ir.MultiAxisRotaryPrecision, ArrayView[Float], ArrayView[Float], ArrayView[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+pub fn pack_qkv_words_into(@precision_ir.PackedQkvPrecision, ArrayView[UInt], ArrayView[UInt], ArrayView[UInt], FixedArray[UInt], rows~ : Int) -> Unit raise
+
+pub fn paged_kv_words_into(@elementwise_physical_ir.KvWriteProgram, ArrayView[UInt], ArrayView[Int], ArrayView[Int], ArrayView[Int], ArrayView[Int], FixedArray[UInt], FixedArray[UInt], tokens_per_page~ : Int) -> Unit raise
+
+pub fn pointwise_gate_into(@precision_ir.PointwiseGatePrecision, ArrayView[Float], ArrayView[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+pub fn rms_norm_into(@precision_ir.RmsNormPrecision, ArrayView[Float], ArrayView[Float], FixedArray[Float], rows~ : Int, gate? : ArrayView[Float]) -> Unit raise
+
+pub fn rotary_coefficients_into(@precision_ir.MultiAxisRotaryPrecision, ArrayView[Int], FixedArray[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+pub fn round_bf16(Float) -> Float
+
+pub fn shared_expert_into(@precision_ir.SharedExpertPrecision, ArrayView[Float], ArrayView[Float], ArrayView[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+// Errors
+
+// Types and methods
+pub struct DenseMlp {
+  // private fields
+}
+pub fn DenseMlp::new(@precision_ir.DenseSwiGluPrecision) -> Self raise
+pub fn DenseMlp::run_into(Self, ArrayView[Float], ArrayView[Float], ArrayView[Float], ArrayView[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+pub struct Experts {
+  // private fields
+}
+pub fn Experts::new(@precision_ir.ExpertMlpPrecision) -> Self raise
+pub fn Experts::run_into(Self, ArrayView[Float], ArrayView[Int], ArrayView[Float], ArrayView[Float], ArrayView[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+pub struct Router {
+  // private fields
+}
+pub fn Router::new(@precision_ir.SoftmaxTopKPrecision) -> Self
+pub fn Router::run_into(Self, ArrayView[Float], FixedArray[Int], FixedArray[Float], rows~ : Int) -> Unit raise
+
+pub struct SegmentedAttention {
+  // private fields
+}
+pub fn SegmentedAttention::new(@precision_ir.SegmentedAttentionPrecision) -> Self
+pub fn SegmentedAttention::run_into(Self, ArrayView[Int], ArrayView[Int], ArrayView[Float], ArrayView[Float], ArrayView[Float], FixedArray[Float], rows~ : Int) -> Unit raise
+
+// Type aliases
+
+// Traits

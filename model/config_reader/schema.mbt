@@ -123,7 +123,20 @@ fn validate_inert_fields(
   check_optional_inert_string(object, "_name_or_path")
   check_optional_inert_string(object, "transformers_version")
   check_optional_inert_token_id(object, "bos_token_id")
-  check_optional_inert_token_id(object, "eos_token_id")
+  match object.get("eos_token_id") {
+    Some(Array(tokens)) => {
+      if tokens.is_empty() {
+        raise invalid(InertMetadata, ExpectedInteger)
+      }
+      for token in tokens {
+        let id = exact_int64(token, InertMetadata)
+        if id < 0L || id > 2147483647L {
+          raise invalid(InertMetadata, ExpectedInteger)
+        }
+      }
+    }
+    _ => check_optional_inert_token_id(object, "eos_token_id")
+  }
   check_optional_inert_token_id(object, "pad_token_id")
   match object.get("initializer_range") {
     None | Some(Number(_, repr=_)) => ()
@@ -138,8 +151,8 @@ fn validate_inert_fields(
 ///|
 fn validate_llama_semantics(
   object : Map[String, Json],
-  hidden_size : Int,
-  attention_heads : Int,
+  hidden_size : Int32,
+  attention_heads : Int32,
 ) -> Unit raise ModelConfigReaderError {
   require_single_architecture(object, "LlamaForCausalLM")
   if require_string(object, "model_type", ModelType) != "llama" {
@@ -228,9 +241,9 @@ fn decode_model(
 ///|
 fn validate_mistral_semantics(
   object : Map[String, Json],
-  hidden_size : Int,
-  attention_heads : Int,
-) -> Int? raise ModelConfigReaderError {
+  hidden_size : Int32,
+  attention_heads : Int32,
+) -> Int32? raise ModelConfigReaderError {
   require_single_architecture(object, "MistralForCausalLM")
   if require_string(object, "model_type", ModelType) != "mistral" {
     raise invalid(ModelType, UnsupportedValue)
@@ -322,8 +335,8 @@ fn decode_mistral_model(
 
 ///|
 fn require_pinned_qwen3_int(
-  value : Int,
-  expected : Int,
+  value : Int32,
+  expected : Int32,
   field : ModelConfigField,
 ) -> Unit raise ModelConfigReaderError {
   if value != expected {

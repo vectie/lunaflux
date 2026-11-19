@@ -9,6 +9,8 @@ import {
 // Values
 pub fn parse_bytes(BytesView, digest~ : @tokenizer.TokenizerDigest, limits~ : @tokenizer.TokenizerLimits, max_bytes~ : Int, max_depth~ : Int) -> @tokenizer.TokenizerSpec raise TokenizerJsonError
 
+pub fn parse_nfc_single_digit_bytes(BytesView, digest~ : @tokenizer.TokenizerDigest, limits~ : @tokenizer.TokenizerLimits, max_bytes~ : Int, max_depth~ : Int) -> @tokenizer.TokenizerSpec raise TokenizerJsonError
+
 pub fn parse_string(StringView, digest~ : @tokenizer.TokenizerDigest, limits~ : @tokenizer.TokenizerLimits, max_bytes~ : Int, max_depth~ : Int) -> @tokenizer.TokenizerSpec raise TokenizerJsonError
 
 // Errors

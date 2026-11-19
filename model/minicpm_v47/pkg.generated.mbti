@@ -1,0 +1,69 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/minicpm_v47"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/model/hybrid_moe",
+}
+
+// Values
+
+// Errors
+pub suberror ConfigError {
+  InvalidConfig(String)
+} derive(@debug.Debug)
+pub fn ConfigError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) enum Downsample {
+  FourX
+  SixteenX
+} derive(Eq, @debug.Debug)
+pub fn Downsample::equal(Self, Self) -> Bool
+pub fn Downsample::not_equal(Self, Self) -> Bool
+pub fn Downsample::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Markers {
+  image : Int
+  video : Int
+  image_start : Int
+  image_end : Int
+  slice_start : Int
+  slice_end : Int
+  newline : Int
+}
+
+pub(all) struct Rotary {
+  theta : Double
+  partial_factor : Double
+  temporal_sections : Int
+  height_sections : Int
+  width_sections : Int
+}
+
+pub struct Spec {
+  // private fields
+}
+pub fn Spec::decoder(Self) -> @hybrid_moe.Geometry
+pub fn Spec::downsample(Self) -> Downsample
+pub fn Spec::markers(Self) -> Markers
+pub fn Spec::parse(BytesView) -> Self raise
+pub fn Spec::rotary(Self) -> Rotary
+pub fn Spec::vision(Self) -> VisionGeometry
+
+pub(all) struct VisionGeometry {
+  hidden_width : Int
+  intermediate_width : Int
+  layers : Int
+  heads : Int
+  channels : Int
+  position_grid_side : Int
+  patch_size : Int
+  compression_after_layer : Int
+  window_side : Int
+  merge_rounds : Int
+}
+
+// Type aliases
+
+// Traits

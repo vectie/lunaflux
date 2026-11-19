@@ -16,6 +16,9 @@ pub(all) suberror JointAudioAmpParameterLayoutError {
   DuplicateRegion(Int)
   SizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpParameterLayoutError::equal(Self, Self) -> Bool
+pub fn JointAudioAmpParameterLayoutError::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpParameterLayoutError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct JointAudioAmpParameterLayout {
@@ -30,6 +33,9 @@ pub struct JointAudioAmpParameterLayoutDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointAudioAmpParameterLayoutDigest::as_hex(Self) -> String
+pub fn JointAudioAmpParameterLayoutDigest::equal(Self, Self) -> Bool
+pub fn JointAudioAmpParameterLayoutDigest::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpParameterLayoutDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointAudioAmpParameterRegion {
   // private fields
@@ -37,8 +43,11 @@ pub struct JointAudioAmpParameterRegion {
 pub fn JointAudioAmpParameterRegion::byte_count(Self) -> Int64
 pub fn JointAudioAmpParameterRegion::byte_offset(Self) -> Int64
 pub fn JointAudioAmpParameterRegion::element_count(Self) -> Int64
+pub fn JointAudioAmpParameterRegion::equal(Self, Self) -> Bool
+pub fn JointAudioAmpParameterRegion::not_equal(Self, Self) -> Bool
 pub fn JointAudioAmpParameterRegion::role(Self) -> JointAudioAmpParameterRole
 pub fn JointAudioAmpParameterRegion::tensor_name(Self) -> String
+pub fn JointAudioAmpParameterRegion::to_repr(Self) -> @debug.Repr
 
 pub struct JointAudioAmpParameterRegionInput {
   // private fields
@@ -54,6 +63,9 @@ pub(all) enum JointAudioAmpParameterRole {
   ConvolutionWeightG(Int, Int, Int)
   ConvolutionWeightV(Int, Int, Int)
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpParameterRole::equal(Self, Self) -> Bool
+pub fn JointAudioAmpParameterRole::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpParameterRole::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

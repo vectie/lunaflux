@@ -1,0 +1,46 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/model/qwen3_lunachip"
+
+import {
+  "vectie/lunaflux/device/lunachip",
+  "vectie/lunaflux/model/qwen3_spec",
+  "vectie/lunaflux/model/spec",
+}
+
+// Values
+pub fn prepare(@lunachip.DeviceContract, @qwen3_spec.Qwen3ModelMetadata, context? : Int, align_matrices_1k? : Bool, workspace_bytes? : UInt64, reserve_bytes? : UInt64) -> Layout raise LayoutError
+
+// Errors
+pub(all) suberror LayoutError {
+  UnsupportedModel
+  UnsupportedContext
+  InsufficientMemory
+  InvalidIndex
+}
+
+// Types and methods
+pub struct Layout {
+  // private fields
+}
+pub fn Layout::content_label(Self) -> @spec.ContentDigest
+pub fn Layout::context(Self) -> Int
+pub fn Layout::dimensions(Self, Int) -> ReadOnlyArray[Int64]?
+pub fn Layout::expanded_norm(Self, Int) -> Region?
+pub fn Layout::free_bytes(Self) -> UInt64
+pub fn Layout::kv_bytes(Self) -> UInt64
+pub fn Layout::kv_head(Self, Int, Bool, Int, Int) -> Region raise LayoutError
+pub fn Layout::lm_head(Self) -> Region
+pub fn Layout::reserve(Self) -> Region
+pub fn Layout::weight(Self, Int) -> Region?
+pub fn Layout::weight_bytes(Self) -> UInt64
+pub fn Layout::weight_count(Self) -> Int
+pub fn Layout::workspace(Self) -> Region
+
+pub(all) struct Region {
+  address : UInt64
+  bytes : UInt64
+}
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "moonbitlang/core/debug",
+}
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"
