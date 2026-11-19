@@ -9,7 +9,7 @@ test "retained residual emission preserves tree and exports paired physical real
       owner_tree=true,
     ).unwrap()
     let retained = residual_program_source(program)
-    assert_eq(retained.split("__syncthreads()").length(), 2)
+    assert_eq(retained.split("__syncthreads()").count(), 2)
     assert_false(retained.contains("__bfloat162float(residual_output"))
     assert_true(retained.contains("partial[0] += partial[2]"))
     if @env.get_env_var("LUNA_EXPORT_RETAINED_NORM") == Some("1") {

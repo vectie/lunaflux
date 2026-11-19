@@ -49,10 +49,7 @@ async test "placeholder newline layout feeds the existing canvas position owner"
   let fragment = plan.placeholder()
   assert_eq(fragment.tokens().length(), 331)
   assert_eq(fragment.grids().length(), 5)
-  assert_eq(
-    fragment.modalities().filter(m => m == @positions.Modality::Image).length(),
-    320,
-  )
+  assert_eq(fragment.modalities().filter(m => m == Image).length(), 320)
   assert_eq(
     fragment.tokens().filter(t => t == spec.markers().newline).length(),
     1,
@@ -120,7 +117,7 @@ async test "identity resize retains NaViT channel and intra-patch ordering" {
           x % 14
         let value = input[(y * 448 + x) * 3 + channel].to_int().to_double() *
           (1.0 / 255.0)
-        let normalized = (value.to_float() - 0.5F) / 0.5F
+        let normalized = (Float::from_double(value) - 0.5F) / 0.5F
         let bits = normalized.reinterpret_as_uint()
         let expected = (bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16
         assert_eq(bf16(pixels.data(), index), expected)
@@ -133,23 +130,49 @@ async test "identity resize retains NaViT channel and intra-patch ordering" {
 async test "invalid geometry and numeric payload budget fail before processing" {
   let spec = selected_spec()
   assert_true(
-    (try? @minicpm_v47_processor.Plan::build(spec, height=0, width=224))
-    is Err(_),
+    try @minicpm_v47_processor.Plan::build(spec, height=0, width=224) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @minicpm_v47_processor.Plan::build(
-      spec,
-      height=448,
-      width=448,
-      max_slices=10,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_processor.Plan::build(
+        spec,
+        height=448,
+        width=448,
+        max_slices=10,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   let plan = @minicpm_v47_processor.Plan::build(spec, height=56, width=56)
-  assert_true((try? plan.prepare_rgb(b"", max_bytes=10000000L)) is Err(_))
+  assert_true(
+    try plan.prepare_rgb(b"", max_bytes=10000000L) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   let input = Bytes::from_array(Array::make(56 * 56 * 3, b'\x00'))
-  assert_true((try? plan.prepare_rgb(input[:], max_bytes=1L)) is Err(_))
-  assert_true((try? plan.placeholder_text(image_id=-1)) is Err(_))
+  assert_true(
+    try plan.prepare_rgb(input[:], max_bytes=1L) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
+  assert_true(
+    try plan.placeholder_text(image_id=-1) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
 }
 
 ///|

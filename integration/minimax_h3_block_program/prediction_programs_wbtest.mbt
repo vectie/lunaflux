@@ -28,7 +28,7 @@ fn prediction_program_fixture(
       block_norm_epsilon=spec.norm_epsilon(),
       function_prefix="h3",
       probability_law=if online {
-        @precision_ir.AttentionProbabilityLaw::OnlineBf16(block_tokens=64)
+        OnlineBf16(block_tokens=64)
       } else {
         GlobalF32
       },
@@ -46,7 +46,7 @@ test "timestep buckets cannot silently substitute a different probability partit
       max_workspace_bytes=1073741824L,
     )
   catch {
-    @device.DeviceError::InvalidArgument(OrderedExecutorCreate) => ()
+    InvalidArgument(OrderedExecutorCreate) => ()
     _ => fail("wrong precision join error")
   } noraise {
     _ => fail("variant selection changed mathematical storage semantics")
@@ -69,13 +69,13 @@ test "prediction programs preflight the sum of all actual variant workspaces" {
   try
     PredictionPrograms::new(sources[:], max_workspace_bytes=total - 1L)
   catch {
-    @device.DeviceError::InvalidArgument(AllocationCreate) => ()
+    InvalidArgument(AllocationCreate) => ()
     _ => fail("wrong aggregate budget failure")
   } noraise {
     _ => fail("aggregate budget was treated as a per-variant budget")
   }
   try owner.variants() catch {
-    @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+    InvalidArgument(AotKernelLaunch) => ()
     _ => fail("wrong unprepared variant failure")
   } noraise {
     _ => fail("unprepared programs exposed")
@@ -128,7 +128,7 @@ test "prediction program variants reject duplicate or cross-request geometry bef
       max_workspace_bytes=1073741824L,
     )
   catch {
-    @device.DeviceError::InvalidArgument(OrderedExecutorCreate) => ()
+    InvalidArgument(OrderedExecutorCreate) => ()
     _ => fail("wrong geometry failure")
   } noraise {
     _ => fail("same row capacity with different row mapping accepted")

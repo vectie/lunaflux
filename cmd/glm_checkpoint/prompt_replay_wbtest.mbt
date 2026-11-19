@@ -59,7 +59,7 @@ test "every declared EOS retires on prefill and decode without another step" {
         writer.append_decode_completed(next.decode_row(0), stop)
         owner.accept(writer.submit())
       }
-      assert_eq(owner.finish_reason(), @generation.GenerationFinish::StopToken)
+      assert_eq(owner.finish_reason(), StopToken)
       assert_eq(owner.token_count(), if initial_stop { 1 } else { 2 })
       try owner.next_decode() catch {
         @generation.SerialGenerationError::Finished => ()

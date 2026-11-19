@@ -98,7 +98,7 @@ fn selected_qwen35_config() -> String {
 ///|
 fn parse_selected(
   document : StringView,
-) -> @qwen35_moe_spec.Qwen35MoeTextMetadata raise Qwen35ConfigError {
+) -> @qwen35_moe_spec.Qwen35MoeTextMetadata raise @qwen35_moe_config.Qwen35ConfigError {
   @qwen35_moe_config.parse_string(
     document,
     config_digest(),
@@ -134,7 +134,7 @@ test "real Qwen3.5-MoE nested semantics produce an exact text-only profile" {
 ///|
 test "dense Qwen and semantic drift never fall back into the MoE profile" {
   let source = selected_qwen35_config()
-  let mutations : Array[(String, String, Qwen35ConfigError)] = [
+  let mutations : Array[(String, String, @qwen35_moe_config.Qwen35ConfigError)] = [
     (
       "Qwen3_5MoeForConditionalGeneration",
       "Qwen3ForCausalLM",

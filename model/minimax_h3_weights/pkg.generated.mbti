@@ -61,6 +61,9 @@ pub(all) suberror MiniMaxH3WeightsError {
   IncompleteComponent(expected~ : Int, actual~ : Int)
   MaterializationUnavailable(MiniMaxH3WeightComponent)
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3WeightsError::equal(Self, Self) -> Bool
+pub fn MiniMaxH3WeightsError::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3WeightsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum AudioDecoderWeightGroup {
@@ -68,6 +71,8 @@ pub(all) enum AudioDecoderWeightGroup {
   Upsample(Int)
   WaveformTail
 } derive(Eq)
+pub fn AudioDecoderWeightGroup::equal(Self, Self) -> Bool
+pub fn AudioDecoderWeightGroup::not_equal(Self, Self) -> Bool
 
 pub struct AudioDecoderWeightPacking {
   group : AudioDecoderWeightGroup
@@ -114,12 +119,14 @@ pub struct MiniMaxH3AudioVaeSchema {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3AudioVaeSchema::config_sha256(Self) -> String
+pub fn MiniMaxH3AudioVaeSchema::equal(Self, Self) -> Bool
 pub fn MiniMaxH3AudioVaeSchema::file_bytes(Self) -> Int64
 pub fn MiniMaxH3AudioVaeSchema::file_sha256(Self) -> String
 pub fn MiniMaxH3AudioVaeSchema::filename(Self) -> String
 pub fn MiniMaxH3AudioVaeSchema::header_bytes(Self) -> Int
 pub fn MiniMaxH3AudioVaeSchema::header_sha256(Self) -> String
 pub fn MiniMaxH3AudioVaeSchema::matches_tensor(Self, String, @safetensors.TensorDType, ReadOnlyArray[Int64]) -> Bool
+pub fn MiniMaxH3AudioVaeSchema::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3AudioVaeSchema::official_v1() -> Self
 pub fn MiniMaxH3AudioVaeSchema::source_revision(Self) -> String
 pub fn MiniMaxH3AudioVaeSchema::tensor_bytes(Self) -> Int64
@@ -127,17 +134,21 @@ pub fn MiniMaxH3AudioVaeSchema::tensor_count(Self) -> Int
 pub fn MiniMaxH3AudioVaeSchema::tensor_dtype(Self, Int) -> @safetensors.TensorDType?
 pub fn MiniMaxH3AudioVaeSchema::tensor_name(Self, Int) -> String?
 pub fn MiniMaxH3AudioVaeSchema::tensor_shape(Self, Int) -> ReadOnlyArray[Int64]?
+pub fn MiniMaxH3AudioVaeSchema::to_repr(Self) -> @debug.Repr
 pub fn MiniMaxH3AudioVaeSchema::version(Self) -> Int
 
 pub struct MiniMaxH3CompleteComponentBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3CompleteComponentBinding::component(Self) -> MiniMaxH3WeightComponent
+pub fn MiniMaxH3CompleteComponentBinding::equal(Self, Self) -> Bool
 pub fn MiniMaxH3CompleteComponentBinding::identity(Self) -> @spec.ModelIdentity
+pub fn MiniMaxH3CompleteComponentBinding::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3CompleteComponentBinding::require_materialization(Self) -> Unit raise MiniMaxH3WeightsError
 pub fn MiniMaxH3CompleteComponentBinding::schema_version(Self) -> Int
 pub fn MiniMaxH3CompleteComponentBinding::tensor(Self, Int) -> MiniMaxH3SemanticTensorBinding?
 pub fn MiniMaxH3CompleteComponentBinding::tensor_count(Self) -> Int
+pub fn MiniMaxH3CompleteComponentBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum MiniMaxH3ConditioningUse {
   PromptConditioning
@@ -146,32 +157,44 @@ pub(all) enum MiniMaxH3ConditioningUse {
   Ref2vaVideoConditioning
   Ref2vaAudioConditioning
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3ConditioningUse::equal(Self, Self) -> Bool
+pub fn MiniMaxH3ConditioningUse::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3ConditioningUse::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3OriginalVideoVaeSchema {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3OriginalVideoVaeSchema::equal(Self, Self) -> Bool
 pub fn MiniMaxH3OriginalVideoVaeSchema::matches_tensor(Self, String, @safetensors.TensorDType, ReadOnlyArray[Int64]) -> Bool
+pub fn MiniMaxH3OriginalVideoVaeSchema::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3OriginalVideoVaeSchema::official_v1() -> Self
 pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_count(Self) -> Int
 pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_name(Self, Int) -> String?
 pub fn MiniMaxH3OriginalVideoVaeSchema::tensor_shape(Self, Int) -> ReadOnlyArray[Int64]?
+pub fn MiniMaxH3OriginalVideoVaeSchema::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3PartialShardBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3PartialShardBinding::component(Self) -> MiniMaxH3WeightComponent
+pub fn MiniMaxH3PartialShardBinding::equal(Self, Self) -> Bool
 pub fn MiniMaxH3PartialShardBinding::identity(Self) -> @spec.ModelIdentity
+pub fn MiniMaxH3PartialShardBinding::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3PartialShardBinding::require_materialization(Self) -> Unit raise MiniMaxH3WeightsError
 pub fn MiniMaxH3PartialShardBinding::schema_version(Self) -> Int
 pub fn MiniMaxH3PartialShardBinding::tensor(Self, Int) -> MiniMaxH3SemanticTensorBinding?
 pub fn MiniMaxH3PartialShardBinding::tensor_count(Self) -> Int
+pub fn MiniMaxH3PartialShardBinding::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3SemanticTensorBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3SemanticTensorBinding::equal(Self, Self) -> Bool
+pub fn MiniMaxH3SemanticTensorBinding::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3SemanticTensorBinding::role(Self) -> MiniMaxH3TensorRole
 pub fn MiniMaxH3SemanticTensorBinding::source_index(Self) -> Int
 pub fn MiniMaxH3SemanticTensorBinding::tensor(Self) -> @safetensors.TensorMetadata
+pub fn MiniMaxH3SemanticTensorBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum MiniMaxH3TensorRole {
   DenoiserProjection
@@ -194,13 +217,18 @@ pub(all) enum MiniMaxH3TensorRole {
   AudioDecoder
   AudioLatentProjection
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3TensorRole::equal(Self, Self) -> Bool
+pub fn MiniMaxH3TensorRole::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3TensorRole::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3VideoVaeSchema {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3VideoVaeSchema::config_sha256(Self) -> String
+pub fn MiniMaxH3VideoVaeSchema::equal(Self, Self) -> Bool
 pub fn MiniMaxH3VideoVaeSchema::index_sha256(Self) -> String
 pub fn MiniMaxH3VideoVaeSchema::matches_tensor(Self, String, @safetensors.TensorDType, ReadOnlyArray[Int64]) -> Bool
+pub fn MiniMaxH3VideoVaeSchema::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3VideoVaeSchema::official_v1() -> Self
 pub fn MiniMaxH3VideoVaeSchema::shard_count(Self) -> Int
 pub fn MiniMaxH3VideoVaeSchema::shard_file_bytes(Self, Int) -> Int64?
@@ -214,6 +242,7 @@ pub fn MiniMaxH3VideoVaeSchema::tensor_count(Self) -> Int
 pub fn MiniMaxH3VideoVaeSchema::tensor_dtype(Self, Int) -> @safetensors.TensorDType?
 pub fn MiniMaxH3VideoVaeSchema::tensor_name(Self, Int) -> String?
 pub fn MiniMaxH3VideoVaeSchema::tensor_shape(Self, Int) -> ReadOnlyArray[Int64]?
+pub fn MiniMaxH3VideoVaeSchema::to_repr(Self) -> @debug.Repr
 pub fn MiniMaxH3VideoVaeSchema::version(Self) -> Int
 
 pub(all) enum MiniMaxH3WeightComponent {
@@ -224,7 +253,10 @@ pub(all) enum MiniMaxH3WeightComponent {
   AudioVae
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3WeightComponent::conditioning_uses(Self) -> ReadOnlyArray[MiniMaxH3ConditioningUse]
+pub fn MiniMaxH3WeightComponent::equal(Self, Self) -> Bool
+pub fn MiniMaxH3WeightComponent::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3WeightComponent::required_tensor_count(Self) -> Int
+pub fn MiniMaxH3WeightComponent::to_repr(Self) -> @debug.Repr
 
 pub struct OutputWeightPacking {
   norm_offset : Int64

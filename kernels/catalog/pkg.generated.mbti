@@ -26,41 +26,72 @@ pub(all) suberror CatalogError {
   WorkspaceRequirementMismatch(@plan.OperationId)
   WorkspaceLimitExceeded(@plan.OperationId)
 } derive(Eq, @debug.Debug)
+pub fn CatalogError::equal(Self, Self) -> Bool
+pub fn CatalogError::not_equal(Self, Self) -> Bool
+pub fn CatalogError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AotArtifactDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
+pub fn AotArtifactDigest::equal(Self, Self) -> Bool
 pub fn AotArtifactDigest::from_sha256(String) -> Self raise CatalogError
+pub fn AotArtifactDigest::hash(Self) -> Int
+pub fn AotArtifactDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AotArtifactDigest::not_equal(Self, Self) -> Bool
 pub fn AotArtifactDigest::sha256(Self) -> String
+pub fn AotArtifactDigest::to_repr(Self) -> @debug.Repr
 
 type AotFamilySemantics derive(Eq, @debug.Debug)
+pub fn AotFamilySemantics::equal(Self, Self) -> Bool
+pub fn AotFamilySemantics::not_equal(Self, Self) -> Bool
+pub fn AotFamilySemantics::to_repr(Self) -> @debug.Repr
 
 pub struct AotKernelEntryPoint {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn AotKernelEntryPoint::entry_point_id(Self) -> AotKernelEntryPointId
+pub fn AotKernelEntryPoint::equal(Self, Self) -> Bool
 pub fn AotKernelEntryPoint::family(Self) -> AotKernelFamily
+pub fn AotKernelEntryPoint::hash(Self) -> Int
+pub fn AotKernelEntryPoint::hash_combine(Self, Hasher) -> Unit
 pub fn AotKernelEntryPoint::new(family~ : AotKernelFamily, entry_point_id~ : AotKernelEntryPointId) -> Self
+pub fn AotKernelEntryPoint::not_equal(Self, Self) -> Bool
+pub fn AotKernelEntryPoint::to_repr(Self) -> @debug.Repr
 
 pub struct AotKernelEntryPointId {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn AotKernelEntryPointId::as_int(Self) -> Int
+pub fn AotKernelEntryPointId::equal(Self, Self) -> Bool
 pub fn AotKernelEntryPointId::from_stable_int(Int) -> Self raise CatalogError
+pub fn AotKernelEntryPointId::hash(Self) -> Int
+pub fn AotKernelEntryPointId::hash_combine(Self, Hasher) -> Unit
+pub fn AotKernelEntryPointId::not_equal(Self, Self) -> Bool
+pub fn AotKernelEntryPointId::to_repr(Self) -> @debug.Repr
 
 pub struct AotKernelFamily {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
+pub fn AotKernelFamily::equal(Self, Self) -> Bool
 pub fn AotKernelFamily::family_id(Self) -> AotKernelFamilyId
+pub fn AotKernelFamily::hash(Self) -> Int
+pub fn AotKernelFamily::hash_combine(Self, Hasher) -> Unit
 pub fn AotKernelFamily::module_digest(Self) -> AotArtifactDigest
 pub fn AotKernelFamily::new(module_digest~ : AotArtifactDigest, family_id~ : AotKernelFamilyId) -> Self
+pub fn AotKernelFamily::not_equal(Self, Self) -> Bool
+pub fn AotKernelFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AotKernelFamilyId {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn AotKernelFamilyId::as_int(Self) -> Int
+pub fn AotKernelFamilyId::equal(Self, Self) -> Bool
 pub fn AotKernelFamilyId::from_stable_int(Int) -> Self raise CatalogError
+pub fn AotKernelFamilyId::hash(Self) -> Int
+pub fn AotKernelFamilyId::hash_combine(Self, Hasher) -> Unit
+pub fn AotKernelFamilyId::not_equal(Self, Self) -> Bool
+pub fn AotKernelFamilyId::to_repr(Self) -> @debug.Repr
 
 pub struct CatalogEntry {
   // private fields
@@ -69,15 +100,18 @@ pub fn CatalogEntry::aot_entry_point(Self) -> AotKernelEntryPoint?
 pub fn CatalogEntry::capability(Self) -> @plan.KernelCapabilityId
 pub fn CatalogEntry::compute_major(Self) -> Int
 pub fn CatalogEntry::compute_minor(Self) -> Int
+pub fn CatalogEntry::equal(Self, Self) -> Bool
 pub fn CatalogEntry::execution_semantics(Self) -> KernelExecutionSemantics?
 pub fn CatalogEntry::implementation(Self) -> KernelImplementationId
 pub fn CatalogEntry::new(semantic_version~ : KernelSemanticVersion, operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
 pub fn CatalogEntry::new_paged_v3(operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, execution_semantics~ : KernelExecutionSemantics, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
 pub fn CatalogEntry::new_paged_v4(operation_kind~ : @plan.OperationKind, operation_shape~ : @plan.OperationShape, capability~ : @plan.KernelCapabilityId, execution_semantics~ : KernelExecutionSemantics, operation_execution_digest~ : @numeric_contract.OperationExecutionDigest, aot_entry_point~ : AotKernelEntryPoint, compute_major~ : Int, compute_minor~ : Int, implementation~ : KernelImplementationId, workspace_bytes~ : Int64, workspace_alignment~ : Int64) -> Self raise CatalogError
+pub fn CatalogEntry::not_equal(Self, Self) -> Bool
 pub fn CatalogEntry::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest?
 pub fn CatalogEntry::operation_kind(Self) -> @plan.OperationKind
 pub fn CatalogEntry::operation_shape(Self) -> @plan.OperationShape
 pub fn CatalogEntry::semantic_version(Self) -> KernelSemanticVersion
+pub fn CatalogEntry::to_repr(Self) -> @debug.Repr
 pub fn CatalogEntry::workspace_alignment(Self) -> Int64
 pub fn CatalogEntry::workspace_bytes(Self) -> Int64
 
@@ -101,12 +135,18 @@ pub(all) enum CatalogValidationRule {
   CatalogSemanticVersionMismatch
   InvalidExecutionSemantics
 } derive(Eq, @debug.Debug)
+pub fn CatalogValidationRule::equal(Self, Self) -> Bool
+pub fn CatalogValidationRule::not_equal(Self, Self) -> Bool
+pub fn CatalogValidationRule::to_repr(Self) -> @debug.Repr
 
 pub struct CatalogVersion {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CatalogVersion::as_int(Self) -> Int
+pub fn CatalogVersion::equal(Self, Self) -> Bool
 pub fn CatalogVersion::from_stable_int(Int) -> Self raise CatalogError
+pub fn CatalogVersion::not_equal(Self, Self) -> Bool
+pub fn CatalogVersion::to_repr(Self) -> @debug.Repr
 pub fn CatalogVersion::v1() -> Self
 pub fn CatalogVersion::v3() -> Self
 pub fn CatalogVersion::v4() -> Self
@@ -116,23 +156,29 @@ pub struct DeviceTarget {
 } derive(Eq, @debug.Debug)
 pub fn DeviceTarget::compute_major(Self) -> Int
 pub fn DeviceTarget::compute_minor(Self) -> Int
+pub fn DeviceTarget::equal(Self, Self) -> Bool
 pub fn DeviceTarget::from_capability(@device.DeviceCapability) -> Self raise CatalogError
 pub fn DeviceTarget::matches_capability(Self, @device.DeviceCapability) -> Bool
 pub fn DeviceTarget::matches_numeric_capability(Self, @device.DeviceNumericCapability) -> Bool
 pub fn DeviceTarget::new(compute_major~ : Int, compute_minor~ : Int, supports_bf16~ : Bool, supports_cublas_lt~ : Bool) -> Self raise CatalogError
+pub fn DeviceTarget::not_equal(Self, Self) -> Bool
 pub fn DeviceTarget::supports_bf16(Self) -> Bool
 pub fn DeviceTarget::supports_cublas_lt(Self) -> Bool
+pub fn DeviceTarget::to_repr(Self) -> @debug.Repr
 
 pub struct KernelBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KernelBinding::aot_entry_point(Self) -> AotKernelEntryPoint?
 pub fn KernelBinding::capability(Self) -> @plan.KernelCapabilityId
+pub fn KernelBinding::equal(Self, Self) -> Bool
 pub fn KernelBinding::execution_semantics(Self) -> KernelExecutionSemantics?
 pub fn KernelBinding::implementation(Self) -> KernelImplementationId
+pub fn KernelBinding::not_equal(Self, Self) -> Bool
 pub fn KernelBinding::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest?
 pub fn KernelBinding::operation_id(Self) -> @plan.OperationId
 pub fn KernelBinding::semantic_version(Self) -> KernelSemanticVersion
+pub fn KernelBinding::to_repr(Self) -> @debug.Repr
 pub fn KernelBinding::workspace_alignment(Self) -> Int64
 pub fn KernelBinding::workspace_bytes(Self) -> Int64
 
@@ -140,31 +186,43 @@ pub struct KernelCatalog {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KernelCatalog::entries(Self) -> ReadOnlyArray[CatalogEntry]
+pub fn KernelCatalog::equal(Self, Self) -> Bool
 pub fn KernelCatalog::new(version~ : CatalogVersion, entries~ : ArrayView[CatalogEntry]) -> Self raise CatalogError
+pub fn KernelCatalog::not_equal(Self, Self) -> Bool
 pub fn KernelCatalog::resolve(Self, @plan.ModelPlan, DeviceTarget) -> ResolvedKernelCatalog raise CatalogError
 pub fn KernelCatalog::resolve_paged(Self, @plan.ModelPlan, @device_layout.DeviceKvLayout, DeviceTarget) -> ResolvedKernelCatalog raise CatalogError
 pub fn KernelCatalog::resolve_paged_v4(Self, @plan.ModelPlan, @device_layout.DeviceKvLayout, DeviceTarget) -> ResolvedKernelCatalog raise CatalogError
+pub fn KernelCatalog::to_repr(Self) -> @debug.Repr
 pub fn KernelCatalog::version(Self) -> CatalogVersion
 
 pub struct KernelExecutionSemantics {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn KernelExecutionSemantics::equal(Self, Self) -> Bool
 pub fn KernelExecutionSemantics::kv_layer(Self) -> @plan.KvLayerId?
 pub fn KernelExecutionSemantics::kv_layout(Self) -> PagedKvLayoutContract?
+pub fn KernelExecutionSemantics::not_equal(Self, Self) -> Bool
 pub fn KernelExecutionSemantics::paged_v3(kv_layer~ : @plan.KvLayerId?, runtime_inputs~ : ArrayView[@plan.OperationRuntimeInput], persistent_state~ : @plan.PersistentStateAccess, kv_layout~ : PagedKvLayoutContract?) -> Self raise CatalogError
 pub fn KernelExecutionSemantics::persistent_state(Self) -> @plan.PersistentStateAccess
 pub fn KernelExecutionSemantics::runtime_inputs(Self) -> ReadOnlyArray[@plan.OperationRuntimeInput]
+pub fn KernelExecutionSemantics::to_repr(Self) -> @debug.Repr
 
 pub(all) enum KernelImplementationId {
   VendorBf16GemmImplicitHeuristicV1
   ContentAddressedAot(AotKernelFamily)
 } derive(Eq, @debug.Debug)
+pub fn KernelImplementationId::equal(Self, Self) -> Bool
+pub fn KernelImplementationId::not_equal(Self, Self) -> Bool
+pub fn KernelImplementationId::to_repr(Self) -> @debug.Repr
 
 pub struct KernelSemanticVersion {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KernelSemanticVersion::as_int(Self) -> Int
+pub fn KernelSemanticVersion::equal(Self, Self) -> Bool
 pub fn KernelSemanticVersion::from_stable_int(Int) -> Self raise CatalogError
+pub fn KernelSemanticVersion::not_equal(Self, Self) -> Bool
+pub fn KernelSemanticVersion::to_repr(Self) -> @debug.Repr
 pub fn KernelSemanticVersion::v1() -> Self
 pub fn KernelSemanticVersion::v3() -> Self
 pub fn KernelSemanticVersion::v4() -> Self
@@ -172,9 +230,12 @@ pub fn KernelSemanticVersion::v4() -> Self
 pub struct PagedKvLayoutContract {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedKvLayoutContract::equal(Self, Self) -> Bool
 pub fn PagedKvLayoutContract::layout(Self) -> @plan.KvCacheLayout
 pub fn PagedKvLayoutContract::new(layout~ : @plan.KvCacheLayout, stable_version~ : Int, tokens_per_page~ : Int) -> Self raise CatalogError
+pub fn PagedKvLayoutContract::not_equal(Self, Self) -> Bool
 pub fn PagedKvLayoutContract::stable_version(Self) -> Int
+pub fn PagedKvLayoutContract::to_repr(Self) -> @debug.Repr
 pub fn PagedKvLayoutContract::tokens_per_page(Self) -> Int
 
 pub struct ResolvedKernelCatalog {
@@ -183,9 +244,12 @@ pub struct ResolvedKernelCatalog {
 pub fn ResolvedKernelCatalog::bindings(Self) -> ReadOnlyArray[KernelBinding]
 pub fn ResolvedKernelCatalog::catalog_version(Self) -> CatalogVersion
 pub fn ResolvedKernelCatalog::device_target(Self) -> DeviceTarget
+pub fn ResolvedKernelCatalog::equal(Self, Self) -> Bool
 pub fn ResolvedKernelCatalog::max_workspace_alignment(Self) -> Int64
 pub fn ResolvedKernelCatalog::max_workspace_bytes(Self) -> Int64
 pub fn ResolvedKernelCatalog::model_identity(Self) -> @spec.ModelIdentity
+pub fn ResolvedKernelCatalog::not_equal(Self, Self) -> Bool
+pub fn ResolvedKernelCatalog::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

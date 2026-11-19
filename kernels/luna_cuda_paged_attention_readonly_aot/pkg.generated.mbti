@@ -75,13 +75,21 @@ pub fn PagedAttentionReadOnlyCudaCandidate::target(Self) -> @catalog.DeviceTarge
 
 pub struct PagedAttentionReadOnlyDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionReadOnlyDigest::as_hex(Self) -> String
+pub fn PagedAttentionReadOnlyDigest::equal(Self, Self) -> Bool
 pub fn PagedAttentionReadOnlyDigest::from_sha256(String) -> Self raise PagedAttentionReadOnlyAotError
+pub fn PagedAttentionReadOnlyDigest::hash(Self) -> Int
+pub fn PagedAttentionReadOnlyDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PagedAttentionReadOnlyDigest::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedAttentionReadOnlyKernelAbi {
   RotatedQueryPagedKvReadOnlyRawPointerV1
   RotatedQueryPagedKvReadOnlyProductionRawPointerV2
 } derive(Eq, @debug.Debug)
 pub fn PagedAttentionReadOnlyKernelAbi::canonical_name(Self) -> String
+pub fn PagedAttentionReadOnlyKernelAbi::equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyKernelAbi::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyKernelAbi::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionReadOnlyProductionCudaCandidate {
   // private fields
@@ -116,6 +124,9 @@ pub(all) enum PagedAttentionReadOnlyRule {
   Determinism
   Evidence
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionReadOnlyRule::equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyRule::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

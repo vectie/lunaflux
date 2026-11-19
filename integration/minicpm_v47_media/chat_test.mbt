@@ -178,8 +178,11 @@ async test "normalization rejects duplicate keys invalid data and unsupported me
   ]
   for text in sources {
     assert_true(
-      (try? @minicpm_v47_media.normalize_chat(spec, @utf8.encode(text)))
-      is Err(_),
+      try @minicpm_v47_media.normalize_chat(spec, @utf8.encode(text)) catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
   }
   let png = @fs.read_file("media/rgb8/fixtures/rgb.png").binary()
@@ -201,11 +204,13 @@ async test "normalization rejects duplicate keys invalid data and unsupported me
       ],
     }
     assert_true(
-      (try? @minicpm_v47_media.normalize_chat(
-        spec,
-        @utf8.encode(raw.stringify()),
-      ))
-      is Err(_),
+      try
+        @minicpm_v47_media.normalize_chat(spec, @utf8.encode(raw.stringify()))
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
   }
 }

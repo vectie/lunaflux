@@ -91,5 +91,5 @@ pub fn NoisePlan::chunk(
       @math.cos(2.0 * @math.PI * second)
     write_f32(output, index * 4, Float::from_double(value))
   }
-  Bytes::of(output)
+  Bytes::from_array(output)
 }

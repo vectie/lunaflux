@@ -33,6 +33,9 @@ pub(all) enum TimestepEmbeddingNumericalContract {
   Float32CosSinExpfPeriod10000V1
   OrderedFloat32DenseSiluDenseV1
 } derive(Eq, @debug.Debug)
+pub fn TimestepEmbeddingNumericalContract::equal(Self, Self) -> Bool
+pub fn TimestepEmbeddingNumericalContract::not_equal(Self, Self) -> Bool
+pub fn TimestepEmbeddingNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

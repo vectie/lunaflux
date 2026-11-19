@@ -18,7 +18,7 @@ test "compressed KV prepare lowers exact seven-operand BF16 ABI" {
     deterministic_compression_ratio=128,
   )
   let ordinal = compressed_kv_prepare_test_ordinal(requirements)
-  let candidate = lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_batches=2,
@@ -50,7 +50,7 @@ test "compressed KV prepare lowers exact seven-operand BF16 ABI" {
   assert_true(
     @utf8.decode(candidate.source_bytes()).contains("ordinary_slots + slot"),
   )
-  let replay = lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
+  let replay = @advanced_decoder_cuda_aot.lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_batches=2,
@@ -65,7 +65,7 @@ test "compressed KV prepare lowers exact seven-operand BF16 ABI" {
     maximum_position_count=1024,
     deterministic_compression_ratio=128,
   )
-  let other = lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
+  let other = @advanced_decoder_cuda_aot.lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
     other_requirements,
     requirement_ordinal=compressed_kv_prepare_test_ordinal(other_requirements),
     maximum_batches=2,
@@ -84,7 +84,7 @@ test "compressed KV prepare rejects ordinal compiler target and overflow" {
   let ordinal = compressed_kv_prepare_test_ordinal(requirements)
   for hostile in [ordinal - 1, ordinal + 1] {
     try
-      lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
         requirements,
         requirement_ordinal=hostile,
         maximum_batches=1,
@@ -100,7 +100,7 @@ test "compressed KV prepare rejects ordinal compiler target and overflow" {
     }
   }
   try
-    lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_batches=1,
@@ -115,7 +115,7 @@ test "compressed KV prepare rejects ordinal compiler target and overflow" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_non_overlapping_compressed_kv_prepare_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_batches=1,

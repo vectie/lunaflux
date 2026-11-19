@@ -1,6 +1,6 @@
 ///|
-fn tiny_moe_limits() -> GlmHybridReferenceLimits {
-  try! GlmHybridReferenceLimits::new(
+fn tiny_moe_limits() -> @glm_hybrid_reference.GlmHybridReferenceLimits {
+  try! @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=4,
     maximum_head_count=4,
     maximum_head_dimension=4,
@@ -12,7 +12,7 @@ fn tiny_moe_limits() -> GlmHybridReferenceLimits {
 ///|
 test "modular MoE oracle preserves selected weighting shared add and clamp" {
   let input = [2.0]
-  let routed = moe_routed_expert_feed_forward(
+  let routed = @glm_hybrid_reference.moe_routed_expert_feed_forward(
     input,
     [1, 0],
     [0.25F, 0.75F],
@@ -27,7 +27,7 @@ test "modular MoE oracle preserves selected weighting shared add and clamp" {
     activation=SwiGlu,
     limits=tiny_moe_limits(),
   )
-  let shared = moe_shared_expert_feed_forward(
+  let shared = @glm_hybrid_reference.moe_shared_expert_feed_forward(
     input,
     [20.0],
     [20.0],
@@ -38,7 +38,7 @@ test "modular MoE oracle preserves selected weighting shared add and clamp" {
     activation=ClampedSwiGlu(10.0),
     limits=tiny_moe_limits(),
   )
-  let combined = moe_routed_shared_combine(
+  let combined = @glm_hybrid_reference.moe_routed_shared_combine(
     routed.values(),
     shared.values(),
     row_count=1,
@@ -55,7 +55,7 @@ test "modular MoE oracle preserves selected weighting shared add and clamp" {
 test "modular MoE oracle rejects duplicate and out-of-range selected experts" {
   for indices in [[0, 0], [0, 2]] {
     try
-      moe_routed_expert_feed_forward(
+      @glm_hybrid_reference.moe_routed_expert_feed_forward(
         [1.0],
         indices,
         [0.5F, 0.5F],

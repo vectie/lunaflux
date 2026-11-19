@@ -22,13 +22,13 @@ test "serial transfer double rejects host reads and reuse before second poll" {
   try
     pool.read_host(destination, host_offset=0L, destination_offset=0, bytes=4)
   catch {
-    @device.DeviceError::Busy(_) => ()
+    Busy(_) => ()
     error => raise error
   } noraise {
     _ => fail("read host bytes before transfer completion")
   }
   try pool.reset(0) catch {
-    @device.DeviceError::InvalidArgument(_) => ()
+    InvalidArgument(_) => ()
     error => raise error
   } noraise {
     _ => fail("reused a pending lane")
@@ -144,14 +144,8 @@ test "serial worker publishes sparse append failures and rejects invalid samples
       if worker.progress() {
         let completion = worker.completion()
         completion.validate_for(submitted)
-        assert_eq(
-          completion.entry(0).kind(),
-          @protocol.CompletionEntryKind::FailedCompletion,
-        )
-        assert_eq(
-          completion.entry(0).failure(),
-          @protocol.WorkerFailure::ExecutionFailed,
-        )
+        assert_eq(completion.entry(0).kind(), FailedCompletion)
+        assert_eq(completion.entry(0).failure(), ExecutionFailed)
         break
       }
     }

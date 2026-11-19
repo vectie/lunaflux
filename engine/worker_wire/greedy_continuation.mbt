@@ -33,7 +33,7 @@ pub fn ValidatedCompletionFrame::greedy_token_for(
         row.request_generation_value(),
         row.completion_slot(),
         0,
-        @worker_protocol.CompletionEntryKind::DecodeCompletion,
+        DecodeCompletion,
         row.sampling_mode_value(),
       )
     }

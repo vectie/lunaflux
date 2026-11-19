@@ -18,7 +18,7 @@ test "KDA decay control binds raw BF16 F32 parameters and F32 output" {
     official_sparse=true,
     kda_head_count=64,
   )
-  let candidate = lower_kda_decay_control_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_kda_decay_control_cuda_aot_candidate(
     requirements,
     requirement_ordinal=kda_decay_control_ordinal(requirements),
     maximum_tokens=32,
@@ -49,7 +49,7 @@ test "KDA decay control rejects neighboring ordinal compiler target and shape" {
   )
   let ordinal = kda_decay_control_ordinal(requirements)
   try
-    lower_kda_decay_control_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_decay_control_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal - 1,
       maximum_tokens=32,
@@ -64,7 +64,7 @@ test "KDA decay control rejects neighboring ordinal compiler target and shape" {
     _ => fail("convolution admitted as decay control")
   }
   try
-    lower_kda_decay_control_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_decay_control_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -79,7 +79,7 @@ test "KDA decay control rejects neighboring ordinal compiler target and shape" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_kda_decay_control_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_decay_control_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -100,7 +100,7 @@ test "KDA decay control rejects neighboring ordinal compiler target and shape" {
     kda_head_count=8,
   )
   try
-    lower_kda_decay_control_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_decay_control_cuda_aot_candidate(
       hostile,
       requirement_ordinal=kda_decay_control_ordinal(hostile),
       maximum_tokens=32,

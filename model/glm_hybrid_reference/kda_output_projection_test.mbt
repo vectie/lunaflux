@@ -1,13 +1,13 @@
 ///|
 test "KDA output projection uses row-major output-input weights without bias" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
     maximum_channel_count=16,
     maximum_vision_patch_count=8,
   )
-  let result = kda_output_projection(
+  let result = @glm_hybrid_reference.kda_output_projection(
     [1.0, 2.0, 3.0],
     [1.0, 0.0, -1.0, 0.5, 1.0, 2.0],
     row_count=1,
@@ -23,7 +23,7 @@ test "KDA output projection uses row-major output-input weights without bias" {
 
 ///|
 test "KDA output projection rejects a truncated row-major weight" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
@@ -31,7 +31,7 @@ test "KDA output projection rejects a truncated row-major weight" {
     maximum_vision_patch_count=8,
   )
   try
-    kda_output_projection(
+    @glm_hybrid_reference.kda_output_projection(
       [1.0, 2.0],
       [1.0],
       row_count=1,

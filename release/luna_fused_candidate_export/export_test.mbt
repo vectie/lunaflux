@@ -78,8 +78,12 @@ fn fused_export_test_inputs(
 ///|
 test "qualification set is deterministic sm120 block128 and authority free" {
   let (plan, layout, reference) = fused_export_test_inputs()
-  let first = prepare_qualification_set(plan, layout, reference)
-  let second = prepare_qualification_set(plan, layout, reference)
+  let first = @luna_fused_candidate_export.prepare_qualification_set(
+    plan, layout, reference,
+  )
+  let second = @luna_fused_candidate_export.prepare_qualification_set(
+    plan, layout, reference,
+  )
   assert_eq(first.declaration_bytes(), second.declaration_bytes())
   assert_eq(first.inventory_bytes(), second.inventory_bytes())
   assert_eq(first.declaration_sha256(), second.declaration_sha256())
@@ -102,7 +106,11 @@ test "qualification set is deterministic sm120 block128 and authority free" {
 ///|
 test "qualification set rejects non-sm120 reference candidates" {
   let (plan, layout, reference) = fused_export_test_inputs(compute_major=9)
-  try prepare_qualification_set(plan, layout, reference) catch {
+  try
+    @luna_fused_candidate_export.prepare_qualification_set(
+      plan, layout, reference,
+    )
+  catch {
     FusedCandidateExportFailed(Qualification) => ()
     _ => fail("unexpected non-sm120 qualification rejection")
   } noraise {
@@ -119,9 +127,11 @@ async test "export atomically publishes exact bytes and refuses overwrite" {
       @async.protect_from_cancel(() => @fs.rmdir(parent, recursive=true))
     }
     let (plan, layout, reference) = fused_export_test_inputs()
-    let set = prepare_qualification_set(plan, layout, reference)
+    let set = @luna_fused_candidate_export.prepare_qualification_set(
+      plan, layout, reference,
+    )
     let output = parent + "/candidate-set"
-    let evidence = export_new(set, output)
+    let evidence = @luna_fused_candidate_export.export_new(set, output)
     assert_eq(evidence.declaration_sha256(), set.declaration_sha256())
     assert_eq(evidence.inventory_sha256(), set.inventory_sha256())
     assert_eq(
@@ -146,7 +156,7 @@ async test "export atomically publishes exact bytes and refuses overwrite" {
     assert_true(record.contains("artifact_authority=0\n"))
     assert_true(record.contains("device_opened=0\n"))
     assert_true(record.contains("runtime_authority=0\n"))
-    try export_new(set, output) catch {
+    try @luna_fused_candidate_export.export_new(set, output) catch {
       _ => ()
     } noraise {
       _ => fail("published fused envelope was replaced")

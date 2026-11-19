@@ -28,6 +28,9 @@ pub(all) suberror FusedCandidateBenchmarkError {
   OverflowedFusedCandidateBenchmark(FusedCandidateBenchmarkStage)
   FusedCandidateBenchmarkLimitExceeded(FusedCandidateBenchmarkStage)
 } derive(Eq, @debug.Debug)
+pub fn FusedCandidateBenchmarkError::equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkError::not_equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FusedCandidateBenchmarkArmObservation {
@@ -39,6 +42,9 @@ pub(all) enum FusedCandidateBenchmarkPairOrder {
   BaselineThenCandidate
   CandidateThenBaseline
 } derive(Eq, @debug.Debug)
+pub fn FusedCandidateBenchmarkPairOrder::equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkPairOrder::not_equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkPairOrder::to_repr(Self) -> @debug.Repr
 
 pub struct FusedCandidateBenchmarkPairedObservation {
   // private fields
@@ -68,6 +74,9 @@ pub(all) enum FusedCandidateBenchmarkShape {
   CrossPagePair
   EightTokenPageBoundaries
 } derive(Eq, @debug.Debug)
+pub fn FusedCandidateBenchmarkShape::equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkShape::not_equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkShape::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedCandidateBenchmarkStage {
   Protocol
@@ -81,6 +90,9 @@ pub(all) enum FusedCandidateBenchmarkStage {
   WinPolicy
   EvidenceSize
 } derive(Eq, @debug.Debug)
+pub fn FusedCandidateBenchmarkStage::equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkStage::not_equal(Self, Self) -> Bool
+pub fn FusedCandidateBenchmarkStage::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

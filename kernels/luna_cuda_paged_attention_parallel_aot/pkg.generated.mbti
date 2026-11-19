@@ -24,6 +24,9 @@ pub(all) suberror PagedAttentionParallelAotError {
   PagedAttentionParallelLimitExceeded(PagedAttentionParallelAotRule)
   PagedAttentionParallelOverflow(PagedAttentionParallelAotRule)
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionParallelAotError::equal(Self, Self) -> Bool
+pub fn PagedAttentionParallelAotError::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionParallelAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct PagedAttentionParallelAotLimits {
@@ -51,6 +54,9 @@ pub(all) enum PagedAttentionParallelAotRule {
   EndToEndRegression
   CompiledEntryPoint
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionParallelAotRule::equal(Self, Self) -> Bool
+pub fn PagedAttentionParallelAotRule::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionParallelAotRule::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionParallelCudaCandidate {
   // private fields
@@ -79,7 +85,12 @@ pub fn PagedAttentionParallelCudaCandidate::tokens_per_page(Self) -> Int
 
 pub struct PagedAttentionParallelDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionParallelDigest::as_hex(Self) -> String
+pub fn PagedAttentionParallelDigest::equal(Self, Self) -> Bool
 pub fn PagedAttentionParallelDigest::from_sha256(String) -> Self raise PagedAttentionParallelAotError
+pub fn PagedAttentionParallelDigest::hash(Self) -> Int
+pub fn PagedAttentionParallelDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PagedAttentionParallelDigest::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionParallelDigest::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionParallelEndToEndTrial {
   // private fields

@@ -106,7 +106,7 @@ pub fn TileDecoderProgram::prepare(
     self.ping is None &&
     self.scratch is None &&
     self.pixels is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   self.frontend.prepare(context, aot_module)
   for symbol in self.plan.block.symbols {
@@ -137,7 +137,7 @@ pub fn TileDecoderProgram::bind(
     self.scratch is Some(scratch) &&
     self.pixels is Some(pixels) &&
     blocks.length() == 36 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let launches = self.frontend.bind(input, input_offset~, frontend_weights)
   self.frontend.with_output(hidden => {
@@ -180,7 +180,7 @@ pub fn[T] TileDecoderProgram::with_pixels(
   action : (@device.Allocation) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.ready && self.pixels is Some(pixels) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   action(pixels)
 }

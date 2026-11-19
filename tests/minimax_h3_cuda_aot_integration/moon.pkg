@@ -3,7 +3,6 @@ import {
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/aot_candidate_coverage",
   "vectie/lunaflux/kernels/joint_diffusion_candidate_evidence",
-  "vectie/lunaflux/kernels/joint_diffusion_artifact_admission",
   "vectie/lunaflux/kernels/joint_diffusion_cuda_aot",
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/joint_diffusion_kernel_requirements",

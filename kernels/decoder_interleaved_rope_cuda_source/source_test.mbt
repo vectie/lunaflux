@@ -1,6 +1,6 @@
 ///|
 test "interleaved RoPE emits split-half outputs and bit-exact query prefix copy" {
-  let rendered = interleaved_pair_rope_with_query_prefix_copy_bf16_source(
+  let rendered = @decoder_interleaved_rope_cuda_source.interleaved_pair_rope_with_query_prefix_copy_bf16_source(
     query_head_count=64,
     key_head_count=1,
     query_head_dimension=256,
@@ -26,7 +26,7 @@ test "interleaved RoPE emits split-half outputs and bit-exact query prefix copy"
 ///|
 test "interleaved RoPE rejects invalid geometry and theta" {
   try
-    interleaved_pair_rope_with_query_prefix_copy_bf16_source(
+    @decoder_interleaved_rope_cuda_source.interleaved_pair_rope_with_query_prefix_copy_bf16_source(
       query_head_count=64,
       key_head_count=1,
       query_head_dimension=256,
@@ -43,7 +43,7 @@ test "interleaved RoPE rejects invalid geometry and theta" {
     _ => fail("odd rope admitted")
   }
   try
-    interleaved_pair_rope_with_query_prefix_copy_bf16_source(
+    @decoder_interleaved_rope_cuda_source.interleaved_pair_rope_with_query_prefix_copy_bf16_source(
       query_head_count=64,
       key_head_count=1,
       query_head_dimension=256,

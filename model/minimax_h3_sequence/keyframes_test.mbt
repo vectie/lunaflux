@@ -31,7 +31,7 @@ test "FL2VA anchors preserve order without advancing target origin" {
       max_rows=64,
     )
   catch {
-    @minimax_h3_sequence.SequenceError::InvalidConditioning => ()
+    InvalidConditioning => ()
     _ => fail("unexpected anchor error")
   } noraise {
     _ => fail("duplicate keyframe admitted")

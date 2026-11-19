@@ -188,10 +188,10 @@ test "transport-owned plan frame encodes at its immutable offset" {
   let limits = wire_protocol_limits()
   let offset = 17
   let storage = FixedArray::make(
-    offset + plan_frame_byte_capacity(limits),
+    offset + @worker_wire.plan_frame_byte_capacity(limits),
     b'\x5a',
   )
-  let owner = PlanFrameBuffer::new_transport_owned(
+  let owner = @worker_wire.PlanFrameBuffer::new_transport_owned(
     limits,
     wire_inference_limits(),
     storage,
@@ -204,6 +204,9 @@ test "transport-owned plan frame encodes at its immutable offset" {
   }
   let copied = FixedArray::make(frame.length(), b'\x00')
   frame.copy_to(copied, destination_offset=0)
-  let receiver = PlanFrameBuffer::new(limits, wire_inference_limits())
+  let receiver = @worker_wire.PlanFrameBuffer::new(
+    limits,
+    wire_inference_limits(),
+  )
   assert_eq(receiver.load(copied, copied.length()).sequence_value(), 1UL)
 }

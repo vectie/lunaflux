@@ -17,7 +17,7 @@ test "grouped output-A lowers exact directional BF16 ABI" {
     attention_head_dimension=64,
   )
   let ordinal = output_a_test_ordinal(requirements)
-  let candidate = lower_attention_output_a_projection_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_attention_output_a_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=2,
@@ -56,7 +56,7 @@ test "output-A rejects wrong ordinal target compiler and row limit" {
   )
   let ordinal = output_a_test_ordinal(requirements)
   try
-    lower_attention_output_a_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_attention_output_a_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -71,7 +71,7 @@ test "output-A rejects wrong ordinal target compiler and row limit" {
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_attention_output_a_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_attention_output_a_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -86,13 +86,13 @@ test "output-A rejects wrong ordinal target compiler and row limit" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_attention_output_a_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_attention_output_a_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=3,
       target=aot_test_target(),
       compiler=aot_test_compiler(),
-      limits=try! AdvancedDecoderCudaAotLimits::new(
+      limits=try! @advanced_decoder_cuda_aot.AdvancedDecoderCudaAotLimits::new(
         maximum_tokens=2,
         maximum_source_bytes=65536,
         maximum_recipe_bytes=65536,

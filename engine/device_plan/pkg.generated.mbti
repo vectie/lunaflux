@@ -31,6 +31,9 @@ pub(all) suberror DevicePlanError {
   WorkspaceOverflow(@plan.OperationId)
   WorkspaceSummaryMismatch(WorkspaceRule)
 } derive(Eq, @debug.Debug)
+pub fn DevicePlanError::equal(Self, Self) -> Bool
+pub fn DevicePlanError::not_equal(Self, Self) -> Bool
+pub fn DevicePlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum IdentitySource {
@@ -39,6 +42,9 @@ pub(all) enum IdentitySource {
   WeightNumericSchema
   KernelCatalog
 } derive(Eq, @debug.Debug)
+pub fn IdentitySource::equal(Self, Self) -> Bool
+pub fn IdentitySource::not_equal(Self, Self) -> Bool
+pub fn IdentitySource::to_repr(Self) -> @debug.Repr
 
 pub(all) enum KernelBindingRule {
   SemanticVersion
@@ -46,23 +52,32 @@ pub(all) enum KernelBindingRule {
   AotEntryPoint
   LegacyNumericDigest
 } derive(Eq, @debug.Debug)
+pub fn KernelBindingRule::equal(Self, Self) -> Bool
+pub fn KernelBindingRule::not_equal(Self, Self) -> Bool
+pub fn KernelBindingRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PlanBound {
   OperationCount
   InputsPerOperation
   TotalInputCount
 } derive(Eq, @debug.Debug)
+pub fn PlanBound::equal(Self, Self) -> Bool
+pub fn PlanBound::not_equal(Self, Self) -> Bool
+pub fn PlanBound::to_repr(Self) -> @debug.Repr
 
 pub struct StaticDevicePlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn StaticDevicePlan::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn StaticDevicePlan::equal(Self, Self) -> Bool
 pub fn StaticDevicePlan::final_output(Self) -> @plan.ActivationRef
 pub fn StaticDevicePlan::identity(Self) -> @spec.ModelIdentity
+pub fn StaticDevicePlan::not_equal(Self, Self) -> Bool
 pub fn StaticDevicePlan::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn StaticDevicePlan::operations(Self) -> ReadOnlyArray[StaticOperation]
 pub fn StaticDevicePlan::shape_constraints(Self) -> @plan.ShapeConstraints
 pub fn StaticDevicePlan::target(Self) -> @catalog.DeviceTarget
+pub fn StaticDevicePlan::to_repr(Self) -> @debug.Repr
 pub fn StaticDevicePlan::weight_alignment(Self) -> Int64
 pub fn StaticDevicePlan::weight_arena_bytes(Self) -> Int64
 pub fn StaticDevicePlan::weight_layout(Self) -> @device_materialize.DeviceWeightLayout
@@ -75,17 +90,23 @@ pub(all) enum StaticInput {
   WeightRegion(@device_materialize.DeviceWeightRegion)
   ActivationValue(@plan.ActivationRef)
 } derive(Eq, @debug.Debug)
+pub fn StaticInput::equal(Self, Self) -> Bool
+pub fn StaticInput::not_equal(Self, Self) -> Bool
+pub fn StaticInput::to_repr(Self) -> @debug.Repr
 
 pub struct StaticOperation {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn StaticOperation::binding(Self) -> @catalog.KernelBinding
+pub fn StaticOperation::equal(Self, Self) -> Bool
 pub fn StaticOperation::id(Self) -> @plan.OperationId
 pub fn StaticOperation::inputs(Self) -> ReadOnlyArray[StaticInput]
 pub fn StaticOperation::kind(Self) -> @plan.OperationKind
+pub fn StaticOperation::not_equal(Self, Self) -> Bool
 pub fn StaticOperation::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn StaticOperation::outputs(Self) -> ReadOnlyArray[@plan.ActivationRef]
 pub fn StaticOperation::shape(Self) -> @plan.OperationShape
+pub fn StaticOperation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WeightArenaRule {
   NonPositiveSize
@@ -95,6 +116,9 @@ pub(all) enum WeightArenaRule {
   MaterializedSizeMismatch
   TerminalExtentMismatch
 } derive(Eq, @debug.Debug)
+pub fn WeightArenaRule::equal(Self, Self) -> Bool
+pub fn WeightArenaRule::not_equal(Self, Self) -> Bool
+pub fn WeightArenaRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WeightRegionRule {
   ReferenceMismatch
@@ -107,6 +131,9 @@ pub(all) enum WeightRegionRule {
   OverlappingPrevious
   ByteLengthMismatch
 } derive(Eq, @debug.Debug)
+pub fn WeightRegionRule::equal(Self, Self) -> Bool
+pub fn WeightRegionRule::not_equal(Self, Self) -> Bool
+pub fn WeightRegionRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WorkspaceRule {
   InvalidAlignment
@@ -117,6 +144,9 @@ pub(all) enum WorkspaceRule {
   SummarySize
   SummaryAlignment
 } derive(Eq, @debug.Debug)
+pub fn WorkspaceRule::equal(Self, Self) -> Bool
+pub fn WorkspaceRule::not_equal(Self, Self) -> Bool
+pub fn WorkspaceRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

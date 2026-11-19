@@ -7,7 +7,7 @@ pub fn PredictionVariant::capture_block_stage(
   stage : @joint_diffusion_device.RefinerStage,
 ) -> Bytes raise @device.DeviceError {
   guard self.block.ready && self.block.workspace is Some(workspace) else {
-    raise @device.DeviceError::InvalidArgument(CopyToHost)
+    raise InvalidArgument(CopyToHost)
   }
   workspace.capture_refiner_stage(stage)
 }

@@ -22,10 +22,7 @@ test "stream false and omitted stream select buffered presentation without chang
     assert_eq(work.state(), LunaOpenAIInboundReady)
     let view = work.take_view()
     assert_eq(view.streaming_response(), streaming)
-    assert_eq(
-      view.handoff().stream_preference(),
-      @inference.StreamPreference::Streaming,
-    )
+    assert_eq(view.handoff().stream_preference(), Streaming)
     view.release()
   }
   for value in ["falsee", "False", "0", "\"false\""] {

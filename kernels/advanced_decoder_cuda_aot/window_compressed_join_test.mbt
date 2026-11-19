@@ -17,7 +17,7 @@ test "window-compressed join lowers exact eight-operand I32 ABI" {
     deterministic_compression_ratio=128,
   )
   let ordinal = window_join_test_ordinal(requirements)
-  let candidate = lower_deterministic_window_compressed_join_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_deterministic_window_compressed_join_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=2,
@@ -56,7 +56,7 @@ test "window-compressed join lowers exact eight-operand I32 ABI" {
   assert_false(candidate.manifest_bindable())
   let source = @utf8.decode(candidate.source_bytes())
   assert_true(source.contains("compressed_base_value + slot"))
-  let replay = lower_deterministic_window_compressed_join_cuda_aot_candidate(
+  let replay = @advanced_decoder_cuda_aot.lower_deterministic_window_compressed_join_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=2,
@@ -74,7 +74,7 @@ test "window-compressed join rejects adjacent ordinal compiler and overflow" {
   let ordinal = window_join_test_ordinal(requirements)
   for hostile in [ordinal - 1, ordinal + 1] {
     try
-      lower_deterministic_window_compressed_join_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_deterministic_window_compressed_join_cuda_aot_candidate(
         requirements,
         requirement_ordinal=hostile,
         maximum_tokens=1,
@@ -90,7 +90,7 @@ test "window-compressed join rejects adjacent ordinal compiler and overflow" {
     }
   }
   try
-    lower_deterministic_window_compressed_join_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_deterministic_window_compressed_join_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,

@@ -74,10 +74,7 @@ async fn run_media_queue_fixture(
     }
     assert_true(execution.is_finished())
     assert_eq(execution.emitted_tokens(), [])
-    assert_eq(
-      execution.finish_reason(),
-      Some(@inference.FinishReason::StopSequence),
-    )
+    assert_eq(execution.finish_reason(), Some(StopSequence))
   }
   println(
     "MiniCPM-V 4.7 media ABI: PNG/JPEG -> pinned tokenizer -> multi-image processor/layout -> vision -> decoder/EOS -> text reuse passed; scripted driver only",

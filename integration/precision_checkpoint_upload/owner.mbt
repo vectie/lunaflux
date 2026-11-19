@@ -81,7 +81,7 @@ pub fn CheckpointDeviceWeights::allocation(
   index : Int32,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.status is Ready && self.allocations.get(index) is Some(allocation) else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   allocation
 }

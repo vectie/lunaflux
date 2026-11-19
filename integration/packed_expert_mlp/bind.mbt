@@ -40,7 +40,7 @@ pub fn bind(
   quantization_error? : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard functions.length() == source.symbols().length() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let p = source.plan()
   let (rows, hidden, _, experts, selected) = p.geometry()
@@ -77,7 +77,7 @@ pub fn bind(
     guard quantized_input is Some(qx) &&
       quantized_activation is Some(qa) &&
       quantization_error is Some(error) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     let bytes = source.quantized_workspace_bytes()
     let qx = region(qx, bytes.0, 1L)

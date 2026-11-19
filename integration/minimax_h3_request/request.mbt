@@ -110,7 +110,7 @@ pub fn[T] Request::with_audio(
   consume : (@device.Allocation) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.outputs_ready() && self.audio is Some(audio) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   audio.with_output(consume)
 }
@@ -122,7 +122,7 @@ pub fn Request::waveform_samples(
   self : Self,
 ) -> Int64 raise @device.DeviceError {
   guard self.outputs_ready() && self.audio is Some(audio) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   audio.waveform_samples().to_int64()
 }
@@ -133,7 +133,7 @@ pub fn[T] Request::with_video(
   consume : (@device.Allocation) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.outputs_ready() && self.video is Some(video) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   video.with_output(consume)
 }

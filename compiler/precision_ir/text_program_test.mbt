@@ -42,7 +42,7 @@ test "model heads retain distinct rounding and noninterchangeable collapse" {
     try
       mean.expression(op).exact_replacement(learned.text().expression(op))
     catch {
-      @precision_ir.MissingAccuracyContract => ()
+      MissingAccuracyContract => ()
       e => raise e
     } noraise {
       _ => fail("different rounding authorized as exact")

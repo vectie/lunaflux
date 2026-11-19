@@ -133,9 +133,7 @@ async test "packed checkpoint transfers preserve NVFP4 MXFP4 and BF16 without ex
         consume=(_, _, _, _) => true,
       )
     catch {
-      @precision_materialize.PackedCheckpointError::Streaming(
-        @streaming.StreamingSafetensorsError::InvalidLimit
-      ) => ()
+      Streaming(InvalidLimit) => ()
       e => raise e
     } noraise {
       _ => fail("checkpoint retained live file effects after startup scope")

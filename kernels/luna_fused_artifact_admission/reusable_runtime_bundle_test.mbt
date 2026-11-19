@@ -1,7 +1,7 @@
 ///|
 test "packaging carries supplied module labels without checking payload checksums" {
   let label = "e".repeat(64)
-  let input = ReusableFusedRuntimeModuleInput::new(
+  let input = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=ResidualRmsNormProductionV2,
     first_operation=17,
     operation_count=2,
@@ -19,13 +19,13 @@ test "packaging carries supplied module labels without checking payload checksum
     supports_cublas_lt=false,
   )
   for _ in 0..<2 {
-    let canonical = export_reusable_fused_runtime_bundle(
+    let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
       model_content_sha256="1".repeat(64),
       model_plan_sha256="2".repeat(64),
       target~,
       modules=[input],
     )
-    let bundle = admit_digest_pinned_reusable_fused_runtime_bundle(
+    let bundle = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
       canonical,
       "f".repeat(64),
     )
@@ -57,12 +57,12 @@ fn runtime_bundle_test_launch(
 
 ///|
 fn runtime_bundle_test_input(
-  abi : ReusableFusedRuntimeKernelAbi,
+  abi : @luna_fused_artifact_admission.ReusableFusedRuntimeKernelAbi,
   first_operation : Int32,
   operation_count : Int32,
   suffix : String,
-) -> ReusableFusedRuntimeModuleInput raise FusedArtifactAdmissionError {
-  ReusableFusedRuntimeModuleInput::new(
+) -> @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput raise @luna_fused_artifact_admission.FusedArtifactAdmissionError {
+  @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi~,
     first_operation~,
     operation_count~,
@@ -103,13 +103,13 @@ test "compiler read-only split ABI roundtrips and cannot coexist with legacy KV-
     1,
     "compiler_decode",
   )
-  let bytes = export_reusable_fused_runtime_bundle(
+  let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
     modules=[compiler],
   )
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     bytes,
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
   )
@@ -121,7 +121,7 @@ test "compiler read-only split ABI roundtrips and cannot coexist with legacy KV-
     PagedAttentionReadOnlyCompilerDecodeProductionV7,
   )
   try
-    export_reusable_fused_runtime_bundle(
+    @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
       model_content_sha256="1".repeat(64),
       model_plan_sha256="2".repeat(64),
       target~,
@@ -165,14 +165,14 @@ test "reusable fused runtime bundle admits three typed families once" {
       "qwen_attention",
     ),
   ]
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
     modules=inputs,
   )
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(canonical))
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical, digest,
   )
   assert_eq(admitted.source_digest().as_hex(), digest)
@@ -203,7 +203,7 @@ test "V4 Qwen full ingress owns projection through KV write" {
     supports_bf16=true,
     supports_cublas_lt=false,
   )
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
@@ -222,7 +222,7 @@ test "V4 Qwen full ingress owns projection through KV write" {
       ),
     ],
   )
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
@@ -249,12 +249,12 @@ test "partitioned prefill preserves ordered partial and merge entries" {
   )
   let attention_operation = 5
   let module_bytes = b"partitioned-prefill-cubin"
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
     modules=[
-      ReusableFusedRuntimeModuleInput::new(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitionedPartialProductionV4,
         first_operation=attention_operation,
         operation_count=1,
@@ -262,7 +262,7 @@ test "partitioned prefill preserves ordered partial and merge entries" {
         launch=runtime_bundle_test_launch(256, 16, 31952, grid_z=2),
         module_bytes~,
       ),
-      ReusableFusedRuntimeModuleInput::new(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitionedMergeProductionV4,
         first_operation=attention_operation,
         operation_count=1,
@@ -270,7 +270,7 @@ test "partitioned prefill preserves ordered partial and merge entries" {
         launch=runtime_bundle_test_launch(256, 16, 0),
         module_bytes~,
       ),
-      ReusableFusedRuntimeModuleInput::new(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitioned8PartialProductionV6,
         first_operation=attention_operation,
         operation_count=1,
@@ -278,7 +278,7 @@ test "partitioned prefill preserves ordered partial and merge entries" {
         launch=runtime_bundle_test_launch(256, 16, 31952, grid_z=8),
         module_bytes~,
       ),
-      ReusableFusedRuntimeModuleInput::new(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi=QwenPagedAttentionPrefillPartitioned8MergeProductionV6,
         first_operation=attention_operation,
         operation_count=1,
@@ -294,7 +294,7 @@ test "partitioned prefill preserves ordered partial and merge entries" {
       ),
     ],
   )
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
@@ -329,7 +329,7 @@ test "V3 Qwen attention module retains readonly and decode split authority" {
     supports_bf16=true,
     supports_cublas_lt=false,
   )
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
@@ -348,7 +348,7 @@ test "V3 Qwen attention module retains readonly and decode split authority" {
       ),
     ],
   )
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
@@ -365,7 +365,7 @@ test "V2 compiler prefill and V3 decode may share one attention operation" {
     supports_bf16=true,
     supports_cublas_lt=false,
   )
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
@@ -390,7 +390,7 @@ test "V2 compiler prefill and V3 decode may share one attention operation" {
       ),
     ],
   )
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
@@ -411,7 +411,7 @@ test "prefill frontier roles coexist on one attention operation" {
     supports_bf16=true,
     supports_cublas_lt=false,
   )
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
@@ -436,7 +436,7 @@ test "prefill frontier roles coexist on one attention operation" {
       ),
     ],
   )
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
@@ -464,7 +464,7 @@ test "reusable fused runtime bundle rejects duplicate family input" {
   ]
   try
     ignore(
-      export_reusable_fused_runtime_bundle(
+      @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
         model_content_sha256="1".repeat(64),
         model_plan_sha256="2".repeat(64),
         target~,
@@ -487,7 +487,7 @@ test "reusable bundle rejects unsupported ABI but does not checksum opaque modul
     supports_bf16=true,
     supports_cublas_lt=false,
   )
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
@@ -512,7 +512,7 @@ test "reusable bundle rejects unsupported ABI but does not checksum opaque modul
   )
   try
     ignore(
-      admit_digest_pinned_reusable_fused_runtime_bundle(
+      @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
         hostile_abi, hostile_abi_digest,
       ),
     )
@@ -528,7 +528,7 @@ test "reusable bundle rejects unsupported ABI but does not checksum opaque modul
   let hostile_module_digest = @crypto.bytes_to_hex_string(
     @crypto.sha256(hostile_module),
   )
-  let labelled = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let labelled = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     hostile_module, hostile_module_digest,
   )
   assert_eq(labelled.modules()[0].module_bytes(), b"\x00")
@@ -561,7 +561,7 @@ test "Qwen postprocess entry cannot authorize absent readonly attention" {
     supports_bf16=true,
     supports_cublas_lt=false,
   )
-  let canonical = export_reusable_fused_runtime_bundle(
+  let canonical = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target~,
@@ -574,7 +574,7 @@ test "Qwen postprocess entry cannot authorize absent readonly attention" {
       ),
     ],
   )
-  let admitted = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let admitted = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     canonical,
     @crypto.bytes_to_hex_string(@crypto.sha256(canonical)),
   )
@@ -593,7 +593,7 @@ test "reusable fused runtime bundle rejects overlapping operation authority" {
   )
   try
     ignore(
-      export_reusable_fused_runtime_bundle(
+      @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
         model_content_sha256="1".repeat(64),
         model_plan_sha256="2".repeat(64),
         target~,
@@ -631,7 +631,7 @@ test "Qwen readonly overlap is restricted to the postprocess terminal operation"
   )
   try
     ignore(
-      export_reusable_fused_runtime_bundle(
+      @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
         model_content_sha256="1".repeat(64),
         model_plan_sha256="2".repeat(64),
         target~,

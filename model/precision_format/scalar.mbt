@@ -95,8 +95,8 @@ pub fn decode_scale(
 ) -> Float raise PrecisionError {
   let value = match element {
     Absent => raise InvalidScale
-    F32 => decode_element(Element::F32, code)
-    E4M3 => decode_element(Element::E4M3, code)
+    F32 => decode_element(F32, code)
+    E4M3 => decode_element(E4M3, code)
     Ue8M0 => {
       if code >= 255U {
         raise InvalidScale
@@ -200,7 +200,7 @@ pub fn encode_scale(
     Absent => raise InvalidScale
     F32 => value.reinterpret_as_uint()
     E4M3 => {
-      let code = encode_element(Element::E4M3, value)
+      let code = encode_element(E4M3, value)
       if code == 0U {
         1U
       } else {

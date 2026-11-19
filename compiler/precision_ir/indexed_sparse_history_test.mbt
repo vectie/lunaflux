@@ -27,7 +27,7 @@ test "retained sparse history accounts frame and cache storage independently" {
       maximum_state_bytes=1215L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("request state ceiling ignored")

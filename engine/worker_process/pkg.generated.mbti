@@ -25,6 +25,9 @@ pub(all) suberror RootBoundWorkerProcessError {
   RootBoundCompoundFailure(RootBoundWorkerProcessFailure, RootBoundWorkerProcessFailure)
   RootBoundTripleFailure(RootBoundWorkerProcessFailure, RootBoundWorkerProcessFailure, RootBoundWorkerProcessFailure)
 } derive(Eq, @debug.Debug)
+pub fn RootBoundWorkerProcessError::equal(Self, Self) -> Bool
+pub fn RootBoundWorkerProcessError::not_equal(Self, Self) -> Bool
+pub fn RootBoundWorkerProcessError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror WorkerProcessError {
   Invalid(WorkerProcessRule)
@@ -34,6 +37,9 @@ pub(all) suberror WorkerProcessError {
   Wire(@worker_wire.WorkerWireError)
   Protocol(@worker_protocol.WorkerProtocolError)
 } derive(Eq, @debug.Debug)
+pub fn WorkerProcessError::equal(Self, Self) -> Bool
+pub fn WorkerProcessError::not_equal(Self, Self) -> Bool
+pub fn WorkerProcessError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FailedRootBoundWorkerProcessStartup {
@@ -77,6 +83,9 @@ pub(all) enum RootBoundWorkerProcessFailure {
   ExecutableBusy
   ExecutableCloseFailed
 } derive(Eq, @debug.Debug)
+pub fn RootBoundWorkerProcessFailure::equal(Self, Self) -> Bool
+pub fn RootBoundWorkerProcessFailure::not_equal(Self, Self) -> Bool
+pub fn RootBoundWorkerProcessFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RootBoundWorkerProcessLifecycle {
   RootBoundReady
@@ -87,6 +96,9 @@ pub(all) enum RootBoundWorkerProcessLifecycle {
   RootBoundClosingFailed
   RootBoundClosed
 } derive(Eq, @debug.Debug)
+pub fn RootBoundWorkerProcessLifecycle::equal(Self, Self) -> Bool
+pub fn RootBoundWorkerProcessLifecycle::not_equal(Self, Self) -> Bool
+pub fn RootBoundWorkerProcessLifecycle::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RootBoundWorkerProcessPreparation {
   ReadyRootBoundProcess(RootBoundWorkerProcessSupervisor)
@@ -157,6 +169,9 @@ pub(all) enum WorkerProcessLifecycle {
   ClosingFailed
   Closed
 } derive(Eq, @debug.Debug)
+pub fn WorkerProcessLifecycle::equal(Self, Self) -> Bool
+pub fn WorkerProcessLifecycle::not_equal(Self, Self) -> Bool
+pub fn WorkerProcessLifecycle::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerProcessLimits {
   // private fields
@@ -190,6 +205,9 @@ pub(all) enum WorkerProcessRule {
   Lifecycle
   Recovery
 } derive(Eq, @debug.Debug)
+pub fn WorkerProcessRule::equal(Self, Self) -> Bool
+pub fn WorkerProcessRule::not_equal(Self, Self) -> Bool
+pub fn WorkerProcessRule::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerProcessSupervisor {
   // private fields
@@ -226,6 +244,9 @@ pub(all) enum WorkerTransportFailure {
   OperationFailed
   SpawnFailed
 } derive(Eq, @debug.Debug)
+pub fn WorkerTransportFailure::equal(Self, Self) -> Bool
+pub fn WorkerTransportFailure::not_equal(Self, Self) -> Bool
+pub fn WorkerTransportFailure::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

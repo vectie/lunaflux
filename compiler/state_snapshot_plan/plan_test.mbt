@@ -22,7 +22,7 @@ test "snapshot budget rejects overflow and one byte short before allocation" {
         maximum_backup_bytes=limit,
       )
     catch {
-      @state_snapshot_plan.SnapshotBudgetExceeded => ()
+      SnapshotBudgetExceeded => ()
       _ => fail("wrong snapshot error")
     } noraise {
       _ => fail("expected snapshot budget failure")
@@ -32,7 +32,7 @@ test "snapshot budget rejects overflow and one byte short before allocation" {
     try
       @state_snapshot_plan.plan_state_snapshot(sizes, maximum_backup_bytes=60L)
     catch {
-      @state_snapshot_plan.InvalidStateSize => ()
+      InvalidStateSize => ()
       _ => fail("wrong snapshot error")
     } noraise {
       _ => fail("expected state size failure")

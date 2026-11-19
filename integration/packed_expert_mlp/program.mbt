@@ -59,7 +59,7 @@ pub fn MoeProgram::new(
     guard !coalesce_reductions &&
       routed.plan().down_publication() == ReduceFloat32BeforeRound &&
       shared.plan().down_publication() == ReduceFloat32BeforeRound else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
   }
   guard rows == sr &&
@@ -72,26 +72,24 @@ pub fn MoeProgram::new(
     ) &&
     shared.plan().local_experts()[:] == [0] &&
     combine.plan().geometry() == (rows, hidden) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let symbols : Set[String] = Set([])
   let entries = [routed.symbols(), shared.symbols()]
   if routing is Some(router) {
     guard router.plan().geometry() == (rows, hidden, experts, selected) else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     entries.push(router.symbols())
   }
   for names in entries {
     for name in names {
-      guard !symbols.contains(name) else {
-        raise @device.DeviceError::InvalidArgument(FunctionLoad)
-      }
+      guard !symbols.contains(name) else { raise InvalidArgument(FunctionLoad) }
       symbols.add(name)
     }
   }
   guard !symbols.contains(combine.symbol()) else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let sizes = expert_workspace_sizes(routed)
   for source in [routed, shared] {
@@ -102,14 +100,14 @@ pub fn MoeProgram::new(
   let collective_region = if coalesce_reductions {
     guard shared.plan().down_publication() == ReduceFloat32BeforeRound &&
       routed.plan().down_publication() == ReduceFloat32BeforeRound else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     let region = @parallel.CoalescedSumPlan::new(
       maximum_rows=rows,
       left_width=hidden * selected,
       right_width=hidden,
     ) catch {
-      _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      _ => raise InvalidArgument(OrderedExecutorCreate)
     }
     sizes.push(region.storage_bytes())
     Some(region)
@@ -124,7 +122,7 @@ pub fn MoeProgram::new(
   }
   let workspace_bytes = for size in sizes; total = 0L {
     guard size <= 9223372036854775807L - total else {
-      raise @device.DeviceError::InvalidArgument(AllocationCreate)
+      raise InvalidArgument(AllocationCreate)
     }
     continue total + size
   } nobreak {
@@ -282,7 +280,7 @@ pub fn MoeProgram::submit(
   global_sequence~ : UInt64,
 ) -> Unit raise @device.DeviceError {
   guard !self.closed && self.executor is Some(executor) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   executor.submit(live_rows~, plan_sequence~, global_sequence~)
 }
@@ -290,7 +288,7 @@ pub fn MoeProgram::submit(
 ///|
 pub fn MoeProgram::poll(self : Self) -> Bool raise @device.DeviceError {
   guard !self.closed && self.executor is Some(executor) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   executor.poll()
 }

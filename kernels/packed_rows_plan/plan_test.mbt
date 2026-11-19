@@ -69,7 +69,7 @@ test "row map snapshots input and rejects overlapping or out of range rows" {
         max_elements=16L,
       )
     catch {
-      @packed_rows_plan.PlanError::InvalidRows => ()
+      InvalidRows => ()
       _ => fail("unexpected row error")
     } noraise {
       _ => fail("invalid row map accepted")
@@ -85,7 +85,7 @@ test "row map snapshots input and rejects overlapping or out of range rows" {
       max_elements=15L,
     )
   catch {
-    @packed_rows_plan.PlanError::ElementLimitExceeded => ()
+    ElementLimitExceeded => ()
     _ => fail("unexpected budget error")
   } noraise {
     _ => fail("short budget accepted")

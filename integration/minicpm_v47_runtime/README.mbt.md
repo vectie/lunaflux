@@ -13,10 +13,22 @@ close every borrowing queue/frame before closing the set.
 ///|
 test "unprepared modules expose no bindings and close idempotently" {
   let modules = @minicpm_v47_runtime.ModuleSet::new()
-  assert_true((try? modules.bindings()) is Err(_))
+  assert_true(
+    try modules.bindings() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   modules.close()
   modules.close()
-  assert_true((try? modules.bindings()) is Err(_))
+  assert_true(
+    try modules.bindings() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
 }
 ```
 

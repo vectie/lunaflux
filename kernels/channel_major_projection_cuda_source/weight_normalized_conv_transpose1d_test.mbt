@@ -1,6 +1,6 @@
 ///|
 test "exact first BigVGAN upsampler geometry is rendered" {
-  let source = try! f32_weight_normalized_conv_transpose1d_source(
+  let source = try! @channel_major_projection_cuda_source.f32_weight_normalized_conv_transpose1d_source(
     batch_count=2,
     input_channels=1024,
     output_channels=512,
@@ -32,7 +32,7 @@ test "transposed convolution source rejects geometry overflow and hostile symbol
     ] {
     let (batch, input, output, time, kernel, padding, stride) = hostile
     try
-      f32_weight_normalized_conv_transpose1d_source(
+      @channel_major_projection_cuda_source.f32_weight_normalized_conv_transpose1d_source(
         batch_count=batch,
         input_channels=input,
         output_channels=output,
@@ -51,7 +51,7 @@ test "transposed convolution source rejects geometry overflow and hostile symbol
     }
   }
   try
-    f32_weight_normalized_conv_transpose1d_source(
+    @channel_major_projection_cuda_source.f32_weight_normalized_conv_transpose1d_source(
       batch_count=2,
       input_channels=1024,
       output_channels=512,

@@ -7,14 +7,12 @@ fn projection_fixture_value(index : Int32, seed : Int32) -> Double {
 fn projection_fixture_bytes(count : Int32, seed : Int32) -> Bytes {
   let bytes = FixedArray::make(count * 2, b'\x00')
   for i in 0..<count {
-    let bits = projection_fixture_value(i, seed)
-      .to_float()
-      .reinterpret_as_uint() >>
+    let bits = Float::from_double(projection_fixture_value(i, seed)).reinterpret_as_uint() >>
       16
     bytes[i * 2] = bits.to_byte()
     bytes[i * 2 + 1] = (bits >> 8).to_byte()
   }
-  Bytes::from_fixedarray(bytes)
+  Bytes::from_array(bytes)
 }
 
 ///|
@@ -119,7 +117,7 @@ async test "physical ordered vendor projection matches FP64 and preserves tail" 
             bytes[pos * 2].to_uint() | (bytes[pos * 2 + 1].to_uint() << 8)
           ) <<
           16
-        let actual = bits.reinterpret_as_float().to_double()
+        let actual = Float::reinterpret_from_uint(bits).to_double()
         assert_true((actual - expected).abs() <= 0.004 * expected.abs() + 0.02)
       }
       for pos in (m * n * 2)..<(m * n * 2 + 32) {

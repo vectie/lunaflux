@@ -19,6 +19,9 @@ pub fn select_attention_ingress_cut(ArrayView[@luna_fusion_strategy.FusionAltern
 pub(all) suberror FusionPlanError {
   InvalidFusionPlan(FusionPlanRule)
 } derive(Eq, @debug.Debug)
+pub fn FusionPlanError::equal(Self, Self) -> Bool
+pub fn FusionPlanError::not_equal(Self, Self) -> Bool
+pub fn FusionPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AttentionIngressCutPlan {
@@ -39,10 +42,16 @@ pub(all) enum FusionPlanRule {
   InvalidSelection
   NoFeasibleCut
 } derive(Eq, @debug.Debug)
+pub fn FusionPlanRule::equal(Self, Self) -> Bool
+pub fn FusionPlanRule::not_equal(Self, Self) -> Bool
+pub fn FusionPlanRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusionSemanticFamily {
   QkvQkNormPositionedRopePagedKvWrite
 } derive(Eq, @debug.Debug)
+pub fn FusionSemanticFamily::equal(Self, Self) -> Bool
+pub fn FusionSemanticFamily::not_equal(Self, Self) -> Bool
+pub fn FusionSemanticFamily::to_repr(Self) -> @debug.Repr
 
 pub struct QkvQkNormPositionedRopePagedKvWritePlan {
   // private fields

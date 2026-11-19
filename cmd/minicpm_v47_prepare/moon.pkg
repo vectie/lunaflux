@@ -13,7 +13,6 @@ import {
   "vectie/lunaflux/integration/minicpm_v47_multimodal" @multimodal,
   "vectie/lunaflux/integration/minicpm_v47_bootstrap" @bootstrap,
   "moonbitlang/core/env",
-  "moonbitlang/core/json",
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/async",

@@ -35,6 +35,9 @@ pub(all) suberror FusedArtifactAdmissionError {
   MismatchedFusedArtifact(FusedArtifactAdmissionRule)
   MissingFusedArtifact(FusedArtifactAdmissionRule)
 } derive(Eq, @debug.Debug)
+pub fn FusedArtifactAdmissionError::equal(Self, Self) -> Bool
+pub fn FusedArtifactAdmissionError::not_equal(Self, Self) -> Bool
+pub fn FusedArtifactAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ApprovedFusedKernelBundle {
@@ -148,6 +151,7 @@ pub fn DecodeExecutionDescriptor::not_equal(Self, Self) -> Bool
 pub fn DecodeExecutionDescriptor::numeric_law(Self) -> String
 pub fn DecodeExecutionDescriptor::partition_count(Self) -> Int
 pub fn DecodeExecutionDescriptor::storage_geometry(Self) -> (Int, Int)
+pub fn DecodeExecutionDescriptor::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DecodeNumericLaw {
   OrderedBlockwise
@@ -159,6 +163,7 @@ pub(all) enum DecodeNumericLaw {
 } derive(Eq, @debug.Debug)
 pub fn DecodeNumericLaw::equal(Self, Self) -> Bool
 pub fn DecodeNumericLaw::not_equal(Self, Self) -> Bool
+pub fn DecodeNumericLaw::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedArtifactAdmissionRule {
   Manifest
@@ -175,15 +180,21 @@ pub(all) enum FusedArtifactAdmissionRule {
   Fallback
   Catalog
 } derive(Eq, @debug.Debug)
+pub fn FusedArtifactAdmissionRule::equal(Self, Self) -> Bool
+pub fn FusedArtifactAdmissionRule::not_equal(Self, Self) -> Bool
+pub fn FusedArtifactAdmissionRule::to_repr(Self) -> @debug.Repr
 
 pub struct FusedStandaloneFallbackIdentity {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn FusedStandaloneFallbackIdentity::equal(Self, Self) -> Bool
 pub fn FusedStandaloneFallbackIdentity::new(role~ : FusedStandaloneFallbackRole, operation~ : Int, source~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest, recipe~ : @luna_cuda_fused_parallel_aot.FusedParallelDigest) -> Self raise FusedArtifactAdmissionError
+pub fn FusedStandaloneFallbackIdentity::not_equal(Self, Self) -> Bool
 pub fn FusedStandaloneFallbackIdentity::operation_index(Self) -> Int
 pub fn FusedStandaloneFallbackIdentity::recipe_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
 pub fn FusedStandaloneFallbackIdentity::role(Self) -> FusedStandaloneFallbackRole
 pub fn FusedStandaloneFallbackIdentity::source_digest(Self) -> @luna_cuda_fused_parallel_aot.FusedParallelDigest
+pub fn FusedStandaloneFallbackIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedStandaloneFallbackRole {
   QkvProjectionFallback
@@ -192,13 +203,19 @@ pub(all) enum FusedStandaloneFallbackRole {
   ResidualAddFallback
   RmsNormFallback
 } derive(Eq, @debug.Debug)
+pub fn FusedStandaloneFallbackRole::equal(Self, Self) -> Bool
+pub fn FusedStandaloneFallbackRole::not_equal(Self, Self) -> Bool
+pub fn FusedStandaloneFallbackRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PrefillExponentialLaw {
   StrictNaturalExponential
   ApproximateBaseTwoExponential
   ReferenceBf16ProbabilityBaseTwo
 } derive(Eq, @debug.Debug)
+pub fn PrefillExponentialLaw::equal(Self, Self) -> Bool
+pub fn PrefillExponentialLaw::not_equal(Self, Self) -> Bool
 pub fn PrefillExponentialLaw::numeric_law(Self) -> String
+pub fn PrefillExponentialLaw::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReusableFusedRuntimeKernelAbi {
   ResidualRmsNormProductionV2
@@ -218,7 +235,10 @@ pub(all) enum ReusableFusedRuntimeKernelAbi {
   PagedAttentionReadOnlyDualScoreBlockwiseF32DecodeProductionV10
   PagedAttentionReadOnlyExtendedDecodeProductionV11
 } derive(Eq, @debug.Debug)
+pub fn ReusableFusedRuntimeKernelAbi::equal(Self, Self) -> Bool
 pub fn ReusableFusedRuntimeKernelAbi::is_compiler_blockwise_decode(Self) -> Bool
+pub fn ReusableFusedRuntimeKernelAbi::not_equal(Self, Self) -> Bool
+pub fn ReusableFusedRuntimeKernelAbi::to_repr(Self) -> @debug.Repr
 
 pub struct ReusableFusedRuntimeModuleInput {
   // private fields
@@ -230,11 +250,13 @@ pub fn ReusableFusedRuntimeModuleInput::new(abi~ : ReusableFusedRuntimeKernelAbi
 pub struct ReusableFusedRuntimeRowVariant {
   // private fields
 } derive(Eq)
+pub fn ReusableFusedRuntimeRowVariant::equal(Self, Self) -> Bool
 pub fn ReusableFusedRuntimeRowVariant::function_symbol(Self) -> String
 pub fn ReusableFusedRuntimeRowVariant::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn ReusableFusedRuntimeRowVariant::maximum_token_rows(Self) -> Int
 pub fn ReusableFusedRuntimeRowVariant::module_bytes(Self) -> Bytes
 pub fn ReusableFusedRuntimeRowVariant::new(maximum_token_rows~ : Int, query_tile_rows~ : Int, function_symbol~ : String, launch~ : @launch_contract.AotLaunchDimensions, module_bytes~ : Bytes, module_label_sha256? : String) -> Self raise FusedArtifactAdmissionError
+pub fn ReusableFusedRuntimeRowVariant::not_equal(Self, Self) -> Bool
 pub fn ReusableFusedRuntimeRowVariant::query_tile_rows(Self) -> Int
 
 // Type aliases

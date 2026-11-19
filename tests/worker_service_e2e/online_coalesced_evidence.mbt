@@ -32,7 +32,7 @@ fn run_online_coalesced_evidence(
     assert_true(lease.has_publication())
     // Published output remains a caller cut, not speculative successor work.
     try lease.progress() catch {
-      @worker_service.WorkerServiceError::Invalid(Lifecycle) => ()
+      Invalid(Lifecycle) => ()
       _ => raise Failure("unexpected publication cut error")
     } noraise {
       _ => raise Failure("submitted across unconsumed publication")

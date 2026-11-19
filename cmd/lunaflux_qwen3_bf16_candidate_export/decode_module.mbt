@@ -89,8 +89,8 @@ fn qwen_decode_module_pair(
   let (partial_symbol, merge_symbol) = partition_source.symbols()
   let text = (@utf8.decode(recipe) catch { _ => raise Publication })
     .replace(
-      old="function_symbol=" + compiled.source().symbol().to_string(),
-      new="function_symbol=" + ordinary_source.symbol().to_string(),
+      old="function_symbol=" + compiled.source().symbol().to_owned(),
+      new="function_symbol=" + ordinary_source.symbol().to_owned(),
     )
     .replace(
       old="source_sha256=" + compiled.source().digest().as_hex(),

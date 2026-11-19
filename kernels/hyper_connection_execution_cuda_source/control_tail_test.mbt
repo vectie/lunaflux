@@ -33,7 +33,7 @@ async test "export fused HC control and Sinkhorn tail" {
         control_square_law=VectorizedTreeFloat32(partitions=256, vector_width=1),
         control_dot_law=StripedTreeFloat32(partitions=256),
       )
-      let source = hyper_connection_source(
+      let source = @hyper_connection_execution_cuda_source.hyper_connection_source(
         precision,
         symbol_prefix="tail\{index}",
       )
@@ -70,10 +70,16 @@ test "parallel initial controls are selected only in a legal fused subgroup" {
     )
   }
   let four = @utf8.decode(
-    hyper_connection_source(make(4), symbol_prefix="four").source_bytes(),
+    @hyper_connection_execution_cuda_source.hyper_connection_source(
+      make(4),
+      symbol_prefix="four",
+    ).source_bytes(),
   )
   let large = @utf8.decode(
-    hyper_connection_source(make(16), symbol_prefix="large").source_bytes(),
+    @hyper_connection_execution_cuda_source.hyper_connection_source(
+      make(16),
+      symbol_prefix="large",
+    ).source_bytes(),
   )
   assert_true(four.contains("const bool all_valid=__all_sync"))
   assert_false(large.contains("const bool all_valid=__all_sync"))

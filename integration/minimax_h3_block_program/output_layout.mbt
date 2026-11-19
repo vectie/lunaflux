@@ -23,7 +23,7 @@ fn output_layout(
     audio <= rows - video &&
     rows.to_int64() <= 2147483647L / width.to_int64() &&
     times.to_int64() <= 2147483647L / 2L / width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   fn align(bytes : Int64) -> Int64 {
     bytes + (256L - bytes % 256L) % 256L
@@ -35,7 +35,7 @@ fn output_layout(
   let bytes = selected +
     Int32::max(video, audio).to_int64() * width.to_int64() * 4L
   guard budget > 0L && bytes <= budget else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   { parameters, selected, bytes, }
 }

@@ -87,7 +87,7 @@ pub fn Frame::prepare(
   workspace~ : @device.Allocation,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   context.validate_allocation_region(
     workspace,
@@ -111,7 +111,7 @@ pub fn Frame::prepare(
   guard !caches.key.same_storage(caches.value) ||
     caches.key_offset >= caches.value_offset + bytes ||
     caches.value_offset >= caches.key_offset + bytes else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let borrowed = [
     metadata.counts,
@@ -133,7 +133,7 @@ pub fn Frame::prepare(
     output,
   ]
   guard borrowed.all(buffer => !buffer.same_storage(workspace)) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
   let buffer = fn(slot) {
@@ -225,7 +225,7 @@ pub fn Frame::launches(
   phase : Phase,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   match phase {
     Prefill => self.prefill[:]

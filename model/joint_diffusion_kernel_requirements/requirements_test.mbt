@@ -22,8 +22,8 @@ fn joint_kernel_plan(
 fn joint_kernel_limits(
   maximum_layers~ : Int32 = 64,
   maximum_requirements~ : Int32 = 33,
-) -> JointDiffusionKernelRequirementLimits {
-  try! JointDiffusionKernelRequirementLimits::new(
+) -> @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementLimits {
+  try! @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementLimits::new(
     maximum_transformer_layers=maximum_layers,
     maximum_requirements~,
   )
@@ -32,8 +32,14 @@ fn joint_kernel_limits(
 ///|
 test "requirements are deterministic ordered and source bound" {
   let plan = joint_kernel_plan()
-  let first = try! derive_requirements(plan, limits=joint_kernel_limits())
-  let repeated = try! derive_requirements(plan, limits=joint_kernel_limits())
+  let first = try! @joint_diffusion_kernel_requirements.derive_requirements(
+    plan,
+    limits=joint_kernel_limits(),
+  )
+  let repeated = try! @joint_diffusion_kernel_requirements.derive_requirements(
+    plan,
+    limits=joint_kernel_limits(),
+  )
   assert_eq(first, repeated)
   assert_eq(first.source_identity().content(), plan.content_digest())
   assert_eq(first.source_identity().plan(), plan.plan_digest())
@@ -47,7 +53,7 @@ test "requirements are deterministic ordered and source bound" {
 
 ///|
 test "decoder generic capability projection rejects the first diffusion op" {
-  let requirements = try! derive_requirements(
+  let requirements = try! @joint_diffusion_kernel_requirements.derive_requirements(
     joint_kernel_plan(),
     limits=joint_kernel_limits(),
   )
@@ -65,7 +71,7 @@ test "derivation limits fail before partial requirements escape" {
   for hostile in [(0, 1), (4097, 1), (1, 0), (1, 65)] {
     let (layers, requirements) = hostile
     try
-      JointDiffusionKernelRequirementLimits::new(
+      @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementLimits::new(
         maximum_transformer_layers=layers,
         maximum_requirements=requirements,
       )
@@ -77,7 +83,7 @@ test "derivation limits fail before partial requirements escape" {
     }
   }
   try
-    derive_requirements(
+    @joint_diffusion_kernel_requirements.derive_requirements(
       joint_kernel_plan(),
       limits=joint_kernel_limits(maximum_layers=51),
     )
@@ -88,7 +94,7 @@ test "derivation limits fail before partial requirements escape" {
     _ => fail("transformer layer ceiling was bypassed")
   }
   try
-    derive_requirements(
+    @joint_diffusion_kernel_requirements.derive_requirements(
       joint_kernel_plan(),
       limits=joint_kernel_limits(maximum_requirements=9),
     )

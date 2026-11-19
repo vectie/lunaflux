@@ -11,7 +11,7 @@ fn close_overlap_workers(fixture : WorkerFixture) -> Unit raise {
     worker.begin_drain()
     fail_event_close_once()
     try worker.close() catch {
-      @tensor_parallel_device_worker.Device(ParallelEvent, _) => ()
+      Device(ParallelEvent, _) => ()
       _ => fail("unexpected cleanup failure")
     } noraise {
       _ => fail("event close failure was lost")

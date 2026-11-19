@@ -26,7 +26,7 @@ fn aot_test_finalize_ordinal(
 test "stable biased top-k lowers with exact deterministic index ABI" {
   let requirements = aot_test_requirements()
   let ordinal = aot_test_top_k_ordinal(requirements)
-  let candidate = lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -61,7 +61,7 @@ test "stable biased top-k lowers with exact deterministic index ABI" {
     ),
   )
   assert_false(candidate.manifest_bindable())
-  let repeated = lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -71,7 +71,7 @@ test "stable biased top-k lowers with exact deterministic index ABI" {
   )
   assert_eq(candidate.source_digest(), repeated.source_digest())
   assert_eq(candidate.recipe_digest(), repeated.recipe_digest())
-  let foreign = lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
+  let foreign = @advanced_decoder_cuda_aot.lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
     aot_test_requirements(content_fill='c'),
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -88,7 +88,7 @@ test "stable biased top-k lowers with exact deterministic index ABI" {
 test "selected-weight finalizer lowers exact gather normalize scale ABI" {
   let requirements = aot_test_requirements()
   let ordinal = aot_test_finalize_ordinal(requirements)
-  let candidate = lower_selected_expert_weight_finalize_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_selected_expert_weight_finalize_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -128,7 +128,7 @@ test "routing selection lowerers reject ordinal target compiler and byte overflo
   let top_k_ordinal = aot_test_top_k_ordinal(requirements)
   let finalize_ordinal = aot_test_finalize_ordinal(requirements)
   try
-    lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
       requirements,
       requirement_ordinal=finalize_ordinal,
       maximum_tokens=1,
@@ -143,7 +143,7 @@ test "routing selection lowerers reject ordinal target compiler and byte overflo
     _ => fail("selected-weight finalizer was lowered as top-k")
   }
   try
-    lower_selected_expert_weight_finalize_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_selected_expert_weight_finalize_cuda_aot_candidate(
       requirements,
       requirement_ordinal=top_k_ordinal,
       maximum_tokens=1,
@@ -163,7 +163,7 @@ test "routing selection lowerers reject ordinal target compiler and byte overflo
       aot_test_compiler(fused_multiply_add=true),
     ] {
     try
-      lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
         requirements,
         requirement_ordinal=top_k_ordinal,
         maximum_tokens=1,
@@ -179,7 +179,7 @@ test "routing selection lowerers reject ordinal target compiler and byte overflo
     }
   }
   try
-    lower_selected_expert_weight_finalize_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_selected_expert_weight_finalize_cuda_aot_candidate(
       requirements,
       requirement_ordinal=finalize_ordinal,
       maximum_tokens=1,
@@ -195,7 +195,7 @@ test "routing selection lowerers reject ordinal target compiler and byte overflo
   }
   let oversized = aot_test_requirements(routed_expert_count=600000)
   try
-    lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_no_auxiliary_loss_top_k_cuda_aot_candidate(
       oversized,
       requirement_ordinal=aot_test_top_k_ordinal(oversized),
       maximum_tokens=4096,

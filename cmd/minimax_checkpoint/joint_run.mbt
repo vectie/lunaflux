@@ -394,7 +394,7 @@ async fn run_joint(
     for
       (name, boundary) in [
         ("video-latent.f32", @loop.LatentBoundary::UnpackVideoOutput),
-        ("audio-latent.f32", @loop.LatentBoundary::UnpackAudioOutput),
+        ("audio-latent.f32", UnpackAudioOutput),
       ] {
       let transfer = layout.storage.boundary(boundary)
       let packed = storage.copy_to_host(transfer.input)

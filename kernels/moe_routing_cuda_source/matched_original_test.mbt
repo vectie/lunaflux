@@ -22,7 +22,7 @@ async test "original routing replay exports full literal hash and learned rows" 
         "matched_hash",
         @precision.MoeRoutingSelection::TokenHash(vocabulary_size=129280),
       ),
-      ("matched_learned", @precision.MoeRoutingSelection::GroupedTopK),
+      ("matched_learned", GroupedTopK),
     ] {
     let plan = @precision.MoeRoutingPrecision::new(
       weight~,

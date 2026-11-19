@@ -15,7 +15,7 @@ pub fn PermutationBuffer::allocate(
   max_bytes~ : Int64,
 ) -> Self raise @device.DeviceError {
   guard plan.element_count() <= max_bytes / 4L && max_bytes > 0L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     output: context.allocate(plan.element_count() * 4L),
@@ -36,13 +36,11 @@ pub fn PermutationBuffer::prepare(
   input_offset~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.queue is None && !self.started else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let bytes = self.output.byte_count()
   let blocks = (bytes / 4L + 255L) / 256L
-  guard blocks <= 2147483647L else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard blocks <= 2147483647L else { raise InvalidArgument(AotKernelLaunch) }
   let launch = @device.OrderedKernelLaunch::new(
     function,
     @device.KernelLaunchDimensions::new(
@@ -83,7 +81,7 @@ pub fn PermutationBuffer::execute(
   self : Self,
 ) -> Unit raise @device.DeviceError {
   guard !self.started && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.started = true
   queue.enqueue(0)

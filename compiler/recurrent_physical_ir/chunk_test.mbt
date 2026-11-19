@@ -30,9 +30,9 @@ test "chunk plan accounts for all immutable factors and one cache commit" {
   )
   assert_true(tiled.local_factors())
   assert_eq(tiled.local_storage_bytes(), 19712)
-  assert_eq(plan.state_effect(0), @precision.NumericEffect::StepWrite)
-  assert_eq(plan.state_effect(1), @precision.NumericEffect::StepWrite)
-  assert_eq(plan.state_effect(2), @precision.NumericEffect::CacheCommit)
+  assert_eq(plan.state_effect(0), StepWrite)
+  assert_eq(plan.state_effect(1), StepWrite)
+  assert_eq(plan.state_effect(2), CacheCommit)
   try
     @recurrent_physical_ir.ChunkDeltaPlan::new(
       p,
@@ -40,7 +40,7 @@ test "chunk plan accounts for all immutable factors and one cache commit" {
       maximum_workspace_bytes=4390911L,
     )
   catch {
-    @precision.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("scratch ceiling ignored")

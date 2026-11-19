@@ -133,7 +133,7 @@ test "production preparation matches independent H3 schedules across step counts
             max_bytes=limit,
           )
         catch {
-          @joint_diffusion_loop.StoragePlanError::ByteLimitExceeded => ()
+          ByteLimitExceeded => ()
         } noraise {
           _ => fail("undersized latent arena accepted")
         }
@@ -176,9 +176,8 @@ test "production preparation matches independent H3 schedules across step counts
       ignore(storage.projections(model, max_bytes=projections.byte_count()))
       for budget in [0L, projections.byte_count() - 1L] {
         try storage.projections(model, max_bytes=budget) catch {
-          @joint_diffusion_loop.ProjectionPlanError::ByteLimitExceeded => ()
-          @joint_diffusion_loop.ProjectionPlanError::ModelMismatch =>
-            fail("unexpected model mismatch")
+          ByteLimitExceeded => ()
+          ModelMismatch => fail("unexpected model mismatch")
         } noraise {
           _ => fail("undersized projection arena admitted")
         }
@@ -217,9 +216,8 @@ test "production preparation matches independent H3 schedules across step counts
         }
       }
       try storage.projections(other_model, max_bytes=1000000000L) catch {
-        @joint_diffusion_loop.ProjectionPlanError::ModelMismatch => ()
-        @joint_diffusion_loop.ProjectionPlanError::ByteLimitExceeded =>
-          fail("unexpected projection budget error")
+        ModelMismatch => ()
+        ByteLimitExceeded => fail("unexpected projection budget error")
       } noraise {
         _ => fail("foreign projection model admitted")
       }
@@ -269,9 +267,8 @@ test "production preparation matches independent H3 schedules across step counts
               (size - 1L, 2),
             ] {
             try noise.chunk(latent, start~, count~) catch {
-              @joint_diffusion_loop.NoiseError::InvalidRange => ()
-              @joint_diffusion_loop.NoiseError::InvalidChunkLimit =>
-                fail("unexpected chunk limit error")
+              InvalidRange => ()
+              InvalidChunkLimit => fail("unexpected chunk limit error")
             } noraise {
               _ => fail("invalid noise range accepted")
             }
@@ -280,9 +277,8 @@ test "production preparation matches independent H3 schedules across step counts
       }
       for max_chunk_elements in [0, -1, 536870912] {
         try storage.noise(seed=42L, max_chunk_elements~) catch {
-          @joint_diffusion_loop.NoiseError::InvalidChunkLimit => ()
-          @joint_diffusion_loop.NoiseError::InvalidRange =>
-            fail("unexpected range error")
+          InvalidChunkLimit => ()
+          InvalidRange => fail("unexpected range error")
         } noraise {
           _ => fail("invalid noise chunk ceiling accepted")
         }
@@ -327,7 +323,7 @@ test "production preparation matches independent H3 schedules across step counts
       assert_eq(read_u32_le(payload, (evaluations - 1) * 32 + 8), 0x3f800000U)
       for invalid_index in [-1, evaluations] {
         try table.coefficient_offset(invalid_index, VideoLatent) catch {
-          @joint_diffusion_loop.FlowTableError::StepOutOfBounds => ()
+          StepOutOfBounds => ()
         } noraise {
           _ => fail("out-of-range coefficient record accepted")
         }
@@ -382,7 +378,7 @@ test "production preparation matches independent H3 schedules across step counts
             max_latent_elements=ceiling,
           )
         catch {
-          @joint_diffusion_loop.PreparationError::ElementLimitExceeded => ()
+          ElementLimitExceeded => ()
           _ => fail("wrong capacity error")
         } noraise {
           _ => fail("insufficient capacity admitted")

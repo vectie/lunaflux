@@ -196,7 +196,7 @@ test "wrong frame count transfers no ownership" {
   let plan = plan()
   let frames = frames(plan)
   try @joint_diffusion_execution.Execution::new(plan, frames[:1]) catch {
-    @joint_diffusion_execution.ExecutionError::InvalidFrameCount => ()
+    InvalidFrameCount => ()
     _ => fail("wrong constructor failure")
   } noraise {
     _ => fail("wrong frame count accepted")

@@ -38,14 +38,20 @@ pub(all) suberror JointDiffusionArtifactAdmissionError {
   AdmissionEncodingTooLarge
   NoExecutionAuthority
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionArtifactAdmissionError::equal(Self, Self) -> Bool
+pub fn JointDiffusionArtifactAdmissionError::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionArtifactAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct JointDiffusionAdmittedEntryPoint {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAdmittedEntryPoint::equal(Self, Self) -> Bool
 pub fn JointDiffusionAdmittedEntryPoint::function_symbol(Self) -> String
 pub fn JointDiffusionAdmittedEntryPoint::identity(Self) -> @catalog.AotKernelEntryPoint
 pub fn JointDiffusionAdmittedEntryPoint::module_index(Self) -> Int
+pub fn JointDiffusionAdmittedEntryPoint::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAdmittedEntryPoint::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionAdmittedLaunch {
   // private fields
@@ -53,9 +59,12 @@ pub struct JointDiffusionAdmittedLaunch {
 pub fn JointDiffusionAdmittedLaunch::capability(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionAotCapability
 pub fn JointDiffusionAdmittedLaunch::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn JointDiffusionAdmittedLaunch::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn JointDiffusionAdmittedLaunch::equal(Self, Self) -> Bool
+pub fn JointDiffusionAdmittedLaunch::not_equal(Self, Self) -> Bool
 pub fn JointDiffusionAdmittedLaunch::operands(Self) -> ReadOnlyArray[JointDiffusionLaunchOperand]
 pub fn JointDiffusionAdmittedLaunch::operation(Self) -> @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation
 pub fn JointDiffusionAdmittedLaunch::requirement_ordinal(Self) -> Int
+pub fn JointDiffusionAdmittedLaunch::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionAdmittedModule {
   // private fields
@@ -82,28 +91,43 @@ pub struct JointDiffusionArtifactAdmissionDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointDiffusionArtifactAdmissionDigest::as_hex(Self) -> String
+pub fn JointDiffusionArtifactAdmissionDigest::equal(Self, Self) -> Bool
+pub fn JointDiffusionArtifactAdmissionDigest::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionArtifactAdmissionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionArtifactAdmissionLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionArtifactAdmissionLimits::equal(Self, Self) -> Bool
 pub fn JointDiffusionArtifactAdmissionLimits::new(maximum_requirements~ : Int, maximum_modules~ : Int, maximum_entry_points~ : Int, maximum_module_bytes~ : Int64, maximum_total_module_bytes~ : Int64, maximum_symbol_bytes~ : Int, maximum_operands_per_launch~ : Int) -> Self raise JointDiffusionArtifactAdmissionError
+pub fn JointDiffusionArtifactAdmissionLimits::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionArtifactAdmissionLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionArtifactAdmissionStatus {
   InertUnqualified
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionArtifactAdmissionStatus::equal(Self, Self) -> Bool
+pub fn JointDiffusionArtifactAdmissionStatus::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionArtifactAdmissionStatus::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionLaunchEvidenceInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionLaunchEvidenceInput::equal(Self, Self) -> Bool
 pub fn JointDiffusionLaunchEvidenceInput::new(requirements_digest~ : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest, requirement_ordinal~ : Int, operation~ : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation, capability~ : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability, target~ : @catalog.DeviceTarget, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[JointDiffusionLaunchOperand]) -> Self raise JointDiffusionArtifactAdmissionError
+pub fn JointDiffusionLaunchEvidenceInput::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionLaunchEvidenceInput::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionLaunchOperand {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointDiffusionLaunchOperand::alignment(Self) -> Int64
 pub fn JointDiffusionLaunchOperand::byte_count(Self) -> Int64
+pub fn JointDiffusionLaunchOperand::equal(Self, Self) -> Bool
 pub fn JointDiffusionLaunchOperand::new(role~ : JointDiffusionLaunchOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise JointDiffusionArtifactAdmissionError
+pub fn JointDiffusionLaunchOperand::not_equal(Self, Self) -> Bool
 pub fn JointDiffusionLaunchOperand::role(Self) -> JointDiffusionLaunchOperandRole
+pub fn JointDiffusionLaunchOperand::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionLaunchOperandRole {
   TokenIdsInput
@@ -224,6 +248,9 @@ pub(all) enum JointDiffusionLaunchOperandRole {
   AudioDecoderUpsampleTransition2Output
   AudioDecoderAmpActivation2Output
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionLaunchOperandRole::equal(Self, Self) -> Bool
+pub fn JointDiffusionLaunchOperandRole::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionLaunchOperandRole::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionModuleInput {
   // private fields

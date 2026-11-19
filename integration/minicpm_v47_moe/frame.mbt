@@ -47,7 +47,7 @@ pub fn Frame::prepare(
   workspace~ : @device.Allocation,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   context.validate_allocation_region(
     workspace,
@@ -67,7 +67,7 @@ pub fn Frame::prepare(
     weights.shared_gate_projection,
   ]
   guard borrowed.all(buffer => !buffer.same_storage(workspace)) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
   let allocation = fn(slot) {
@@ -134,7 +134,7 @@ pub fn Frame::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }

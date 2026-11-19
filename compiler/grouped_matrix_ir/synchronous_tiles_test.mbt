@@ -31,7 +31,7 @@ test "synchronous staging windows preserve output ownership and numeric law" {
         staging=SynchronousTiles(inner_tile=invalid),
       )
     catch {
-      @precision.PrecisionPlanError::NoImplementation => ()
+      NoImplementation => ()
       _ => fail("unexpected invalid-window error")
     } noraise {
       _ => fail("unsupported synchronous window")

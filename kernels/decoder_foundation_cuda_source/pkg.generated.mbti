@@ -28,6 +28,9 @@ pub(all) suberror DecoderFoundationCudaSourceError {
   InvalidEpsilon
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn DecoderFoundationCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderFoundationCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderFoundationCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderFoundationCudaOperation {
@@ -35,6 +38,9 @@ pub(all) enum DecoderFoundationCudaOperation {
   RmsNormBf16
   PairedRmsNormBf16
 } derive(Eq, @debug.Debug)
+pub fn DecoderFoundationCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderFoundationCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderFoundationCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderFoundationCudaSource {
   // private fields
@@ -48,6 +54,9 @@ pub(all) enum DecoderFoundationNumericalContract {
   BitExactBf16Copy
   OrderedFloat32ReductionBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderFoundationNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderFoundationNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderFoundationNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

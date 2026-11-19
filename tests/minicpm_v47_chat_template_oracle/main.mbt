@@ -70,7 +70,7 @@ async fn main {
     @fs.write_file(prefix + ".native.txt", native, create_mode=CreateNew)
     guard native == reference else {
       fail(
-        "template differs at case \{index}: native=\{native.to_json().stringify()}, Jinja=\{reference.to_json().stringify()}",
+        "template differs at case \{index}: native=\{Json(native).stringify()}, Jinja=\{Json(reference).stringify()}",
       )
     }
     let body : Json = {

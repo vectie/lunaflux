@@ -34,7 +34,7 @@ fn Builder::weight(
       ReadOnlyArray::from_array(shape),
     )
   }
-  guard matches else { raise @plan.PlanError::InvalidGeometry }
+  guard matches else { raise InvalidGeometry }
   if self.weight_ids.get(name) is Some(id) {
     return id
   }
@@ -165,9 +165,7 @@ pub fn AudioEncoder::new(
   samples~ : Int32,
   max_scratch_bytes~ : Int64,
 ) -> Self raise @plan.PlanError {
-  guard samples > 0 && samples <= 2147482847 else {
-    raise @plan.PlanError::InvalidGeometry
-  }
+  guard samples > 0 && samples <= 2147482847 else { raise InvalidGeometry }
   let padded = (samples + 799) / 800 * 800
   let b : Builder = {
     video: false,

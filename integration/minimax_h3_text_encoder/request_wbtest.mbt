@@ -30,7 +30,7 @@ test "request submission is one shot and completion does not rerun GPU callback"
   ]
   for phase in forbidden {
     try submit_once(phase, () => calls.val += 100) catch {
-      @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue) => ()
+      InvalidArgument(OrderedExecutorEnqueue) => ()
       _ => fail("wrong state error")
     } noraise {
       _ => fail("request replayed")
@@ -42,21 +42,17 @@ test "request submission is one shot and completion does not rerun GPU callback"
 ///|
 test "GPU failure propagates without marking a completed request" {
   try
-    submit_once(Prepared, () => {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-    })
+    submit_once(Prepared, () => raise InvalidArgument(AotKernelLaunch))
   catch {
-    @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+    InvalidArgument(AotKernelLaunch) => ()
     _ => fail("failure lost")
   } noraise {
     _ => fail("failed submit completed")
   }
   try
-    poll_once(Submitted, () => {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
-    })
+    poll_once(Submitted, () => raise InvalidArgument(OrderedExecutorPoll))
   catch {
-    @device.DeviceError::InvalidArgument(OrderedExecutorPoll) => ()
+    InvalidArgument(OrderedExecutorPoll) => ()
     _ => fail("failure lost")
   } noraise {
     _ => fail("failed poll completed")

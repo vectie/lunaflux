@@ -31,7 +31,7 @@ test "scalar lowering keeps explicit roundings scale order and literal bits" {
     "__uint_as_float(2147483648U)",
   )
   try @luna_cuda_precision.scalar_expression(expression, ["x"]) catch {
-    @precision.IllegalPlacement => ()
+    IllegalPlacement => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("incorrect bindings accepted")

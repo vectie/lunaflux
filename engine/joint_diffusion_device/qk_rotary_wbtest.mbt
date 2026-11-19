@@ -12,7 +12,7 @@ test "QK rotary binding geometry preserves head dimensions and bounded tensor ex
       (64, 96, 0, 128),
     ] {
     try qk_rotary_geometry(rows, rotary, heads, width) catch {
-      @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+      InvalidArgument(AotKernelLaunch) => ()
       _ => fail("wrong geometry error")
     } noraise {
       _ => fail("invalid rotary geometry admitted")

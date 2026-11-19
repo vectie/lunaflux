@@ -32,12 +32,18 @@ test "DSpark captured target order survives arbitrary contiguous stage partition
   defer left.close()
   defer right.close()
   defer empty.close()
-  inspect(plain.prediction_capture_bytes(), content="0")
-  inspect(empty.prediction_capture_bytes(), content="0")
-  inspect(complete.prediction_capture_layers(), content="[40, 41, 42]")
-  inspect(left.prediction_capture_layers(), content="[40]")
-  inspect(right.prediction_capture_layers(), content="[41, 42]")
-  inspect(complete.prediction_capture_bytes(), content="73728")
+  assert_eq(plain.prediction_capture_bytes(), 0L)
+  assert_eq(empty.prediction_capture_bytes(), 0L)
+  assert_eq(
+    complete.prediction_capture_layers(),
+    ReadOnlyArray::from_array([40, 41, 42]),
+  )
+  assert_eq(left.prediction_capture_layers(), ReadOnlyArray::from_array([40]))
+  assert_eq(
+    right.prediction_capture_layers(),
+    ReadOnlyArray::from_array([41, 42]),
+  )
+  assert_eq(complete.prediction_capture_bytes(), 73728L)
   assert_eq(
     complete.prediction_capture_bytes(),
     left.prediction_capture_bytes() + right.prediction_capture_bytes(),

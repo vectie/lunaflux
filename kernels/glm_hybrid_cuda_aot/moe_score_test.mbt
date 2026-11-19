@@ -22,7 +22,7 @@ test "MoE score candidates bind official Full and Flash five-operand ABI" {
     pooled=true,
     routed_expert_count=288,
   )
-  let full = lower_moe_sigmoid_correction_cuda_aot_candidate(
+  let full = @glm_hybrid_cuda_aot.lower_moe_sigmoid_correction_cuda_aot_candidate(
     full_requirements,
     requirement_ordinal=moe_score_ordinal(full_requirements),
     maximum_tokens=32,
@@ -30,7 +30,7 @@ test "MoE score candidates bind official Full and Flash five-operand ABI" {
     compiler=glm_aot_compiler(),
     limits=glm_aot_limits(),
   )
-  let flash = lower_moe_sigmoid_correction_cuda_aot_candidate(
+  let flash = @glm_hybrid_cuda_aot.lower_moe_sigmoid_correction_cuda_aot_candidate(
     flash_requirements,
     requirement_ordinal=moe_score_ordinal(flash_requirements),
     maximum_tokens=32,
@@ -75,7 +75,7 @@ test "MoE score candidate rejects ordinal shape compiler and limits" {
   )
   let ordinal = moe_score_ordinal(requirements)
   try
-    lower_moe_sigmoid_correction_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_sigmoid_correction_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal - 1,
       maximum_tokens=32,
@@ -96,7 +96,7 @@ test "MoE score candidate rejects ordinal shape compiler and limits" {
       routed_expert_count=hostile_experts,
     )
     try
-      lower_moe_sigmoid_correction_cuda_aot_candidate(
+      @glm_hybrid_cuda_aot.lower_moe_sigmoid_correction_cuda_aot_candidate(
         hostile,
         requirement_ordinal=moe_score_ordinal(hostile),
         maximum_tokens=32,
@@ -112,7 +112,7 @@ test "MoE score candidate rejects ordinal shape compiler and limits" {
     }
   }
   try
-    lower_moe_sigmoid_correction_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_sigmoid_correction_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -127,7 +127,7 @@ test "MoE score candidate rejects ordinal shape compiler and limits" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_moe_sigmoid_correction_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_sigmoid_correction_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=0,

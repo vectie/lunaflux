@@ -2,7 +2,7 @@
 test "language-model head lowers with exact deterministic BF16 ABI" {
   let requirements = aot_test_requirements()
   let ordinal = requirements.requirements().length() - 1
-  let candidate = lower_language_model_head_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_language_model_head_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -48,7 +48,7 @@ test "language-model head lowers with exact deterministic BF16 ABI" {
       #|2d0bc7c8cf39ad4ead5cb071bc8706dec63c057d2510560443bacabdd428592e
     ),
   )
-  let repeated = lower_language_model_head_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_language_model_head_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -64,7 +64,7 @@ test "language-model head lowers with exact deterministic BF16 ABI" {
 test "language-model head lowering rejects foreign requirements and policy" {
   let requirements = aot_test_requirements()
   try
-    lower_language_model_head_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_language_model_head_cuda_aot_candidate(
       requirements,
       requirement_ordinal=0,
       maximum_tokens=1,
@@ -80,7 +80,7 @@ test "language-model head lowering rejects foreign requirements and policy" {
   }
   let ordinal = requirements.requirements().length() - 1
   try
-    lower_language_model_head_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_language_model_head_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,

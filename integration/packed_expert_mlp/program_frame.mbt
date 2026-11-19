@@ -24,7 +24,7 @@ pub fn MoeProgram::prepare_routed_frame(
   guard self.routed.plan().down_publication() == LocalBFloat16 &&
     self.routed.plan().local_experts().length() ==
     self.routed.plan().geometry().3 else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let (indices, weights, prefix) = self.bind_router(
     context,
@@ -60,7 +60,7 @@ pub fn MoeProgram::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard !self.closed && !self.launches.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }

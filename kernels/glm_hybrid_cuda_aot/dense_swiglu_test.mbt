@@ -18,7 +18,7 @@ test "official Full and Flash dense SwiGLU bind separate weight operands" {
       official_index=true,
       official_sparse=true,
     )
-    let candidate = lower_dense_swiglu_cuda_aot_candidate(
+    let candidate = @glm_hybrid_cuda_aot.lower_dense_swiglu_cuda_aot_candidate(
       requirements,
       requirement_ordinal=dense_swiglu_ordinal(requirements),
       maximum_tokens=32,
@@ -60,7 +60,7 @@ test "official Full and Flash dense SwiGLU bind separate weight operands" {
 test "dense SwiGLU rejects shape ordinal target and compiler mismatches" {
   let ordinary = glm_aot_requirements()
   try
-    lower_dense_swiglu_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dense_swiglu_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=dense_swiglu_ordinal(ordinary),
       maximum_tokens=32,
@@ -77,7 +77,7 @@ test "dense SwiGLU rejects shape ordinal target and compiler mismatches" {
   let exact = glm_aot_requirements(official_index=true, official_sparse=true)
   let ordinal = dense_swiglu_ordinal(exact)
   try
-    lower_dense_swiglu_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dense_swiglu_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -92,7 +92,7 @@ test "dense SwiGLU rejects shape ordinal target and compiler mismatches" {
     _ => fail("neighbor ordinal admitted")
   }
   try
-    lower_dense_swiglu_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dense_swiglu_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -107,7 +107,7 @@ test "dense SwiGLU rejects shape ordinal target and compiler mismatches" {
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_dense_swiglu_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dense_swiglu_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -122,7 +122,7 @@ test "dense SwiGLU rejects shape ordinal target and compiler mismatches" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_dense_swiglu_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dense_swiglu_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -137,7 +137,7 @@ test "dense SwiGLU rejects shape ordinal target and compiler mismatches" {
     _ => fail("FMA-contract compiler admitted")
   }
   try
-    lower_dense_swiglu_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dense_swiglu_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=4097,

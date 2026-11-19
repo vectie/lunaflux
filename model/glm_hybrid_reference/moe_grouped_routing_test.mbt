@@ -1,13 +1,13 @@
 ///|
 test "grouped route chooses with corrected scores and weights with uncorrected scores" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
     maximum_channel_count=16,
     maximum_vision_patch_count=8,
   )
-  let result = moe_grouped_route(
+  let result = @glm_hybrid_reference.moe_grouped_route(
     [0.1F, 0.2F, 0.3F, 0.4F, 0.5F, 0.6F],
     [10.0F, 9.0F, 1.0F, 8.0F, 7.0F, 6.0F],
     row_count=1,
@@ -26,14 +26,14 @@ test "grouped route chooses with corrected scores and weights with uncorrected s
 
 ///|
 test "grouped route breaks corrected-score ties by lower expert id" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
     maximum_channel_count=16,
     maximum_vision_patch_count=8,
   )
-  let result = moe_grouped_route(
+  let result = @glm_hybrid_reference.moe_grouped_route(
     [0.25F, 0.25F, 0.25F, 0.25F],
     [1.0F, 1.0F, 1.0F, 1.0F],
     row_count=1,

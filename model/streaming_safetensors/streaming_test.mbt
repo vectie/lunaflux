@@ -20,8 +20,10 @@ fn streaming_test_file(header : String, payload : BytesView) -> Bytes {
 }
 
 ///|
-fn streaming_test_digest(bytes : Bytes) -> StreamingSafetensorsFileDigest {
-  try! StreamingSafetensorsFileDigest::from_sha256(
+fn streaming_test_digest(
+  bytes : Bytes,
+) -> @streaming_safetensors.StreamingSafetensorsFileDigest {
+  try! @streaming_safetensors.StreamingSafetensorsFileDigest::from_sha256(
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
   )
 }
@@ -30,20 +32,24 @@ fn streaming_test_digest(bytes : Bytes) -> StreamingSafetensorsFileDigest {
 fn streaming_test_input(
   name : StringView,
   bytes : Bytes,
-) -> StreamingSafetensorsShardInput {
-  StreamingSafetensorsShardInput::new(
+) -> @streaming_safetensors.StreamingSafetensorsShardInput {
+  @streaming_safetensors.StreamingSafetensorsShardInput::new(
     locator=try! @approved_fs.ApprovedRelativeLocator::new(name),
     expected_digest=streaming_test_digest(bytes),
   )
 }
 
 ///|
-fn streaming_test_specs() -> Array[StreamingSafetensorsDTypeSpec] {
+fn streaming_test_specs() -> Array[
+  @streaming_safetensors.StreamingSafetensorsDTypeSpec,
+] {
   [
-    StreamingSafetensorsDTypeSpec::bfloat16(),
-    StreamingSafetensorsDTypeSpec::float32(),
-    try! StreamingSafetensorsDTypeSpec::opaque_one_byte("F8_E4M3"),
-    try! StreamingSafetensorsDTypeSpec::opaque_fixed_width(
+    @streaming_safetensors.StreamingSafetensorsDTypeSpec::bfloat16(),
+    @streaming_safetensors.StreamingSafetensorsDTypeSpec::float32(),
+    try! @streaming_safetensors.StreamingSafetensorsDTypeSpec::opaque_one_byte(
+      "F8_E4M3",
+    ),
+    try! @streaming_safetensors.StreamingSafetensorsDTypeSpec::opaque_fixed_width(
       "CUSTOM3",
       bytes_per_element=3L,
     ),
@@ -51,8 +57,8 @@ fn streaming_test_specs() -> Array[StreamingSafetensorsDTypeSpec] {
 }
 
 ///|
-fn streaming_test_limits() -> StreamingSafetensorsLimits {
-  try! StreamingSafetensorsLimits::new(
+fn streaming_test_limits() -> @streaming_safetensors.StreamingSafetensorsLimits {
+  try! @streaming_safetensors.StreamingSafetensorsLimits::new(
     maximum_shards=8,
     maximum_file_bytes=1048576L,
     maximum_header_bytes=65536,
@@ -107,7 +113,7 @@ async test "two shards inspect and copy Int64 ranges into final spans" {
     assert_eq(same_shard.stamp().byte_count(), shard0.length().to_int64())
     same_shard.close()
     let limits = streaming_test_limits()
-    let inspection = inspect_shards(
+    let inspection = @streaming_safetensors.inspect_shards(
       root,
       inputs,
       dtype_specs=streaming_test_specs(),
@@ -125,14 +131,14 @@ async test "two shards inspect and copy Int64 ranges into final spans" {
     assert_eq(opaque_tensor.dtype().bytes_per_element(), 1L)
     let destination = FixedArray::make(9, b'!')
     let requests = [
-      try! StreamingSafetensorsCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=0,
         tensor_byte_offset=0L,
         destination_offset=1,
         byte_count=4,
       ),
-      try! StreamingSafetensorsCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsCopyRequest::new(
         shard_ordinal=1,
         tensor_ordinal=1,
         tensor_byte_offset=3L,
@@ -140,16 +146,20 @@ async test "two shards inspect and copy Int64 ranges into final spans" {
         byte_count=3,
       ),
     ]
-    let visited : Array[StreamingSafetensorsVisitedRange] = []
-    copy_ranges(root, inspection, destination~, requests~, limits~, visit=(
-      tensor,
-      range,
-    ) => {
-      if tensor.name() != "a" && tensor.name() != "d" {
-        raise VisitorRejected(99)
-      }
-      visited.push(range)
-    })
+    let visited : Array[@streaming_safetensors.StreamingSafetensorsVisitedRange] = []
+    @streaming_safetensors.copy_ranges(
+      root,
+      inspection,
+      destination~,
+      requests~,
+      limits~,
+      visit=(tensor, range) => {
+        if tensor.name() != "a" && tensor.name() != "d" {
+          raise VisitorRejected(99)
+        }
+        visited.push(range)
+      },
+    )
     assert_eq(
       destination,
       FixedArray::from_array([
@@ -177,7 +187,7 @@ async test "cross-shard duplicates fail but inventory labels are not payload che
     @fs.write_file(canonical + "/dup", duplicate, create_mode=CreateNew)
     let root = @approved_fs.ApprovedRoot::open_absolute(canonical)
     try
-      inspect_shards(
+      @streaming_safetensors.inspect_shards(
         root,
         [
           streaming_test_input("s0", shard0),
@@ -197,13 +207,13 @@ async test "cross-shard duplicates fail but inventory labels are not payload che
     } noraise {
       _ => fail("duplicate tensor name crossed shard boundary")
     }
-    let wrong_digest = StreamingSafetensorsShardInput::new(
+    let wrong_digest = @streaming_safetensors.StreamingSafetensorsShardInput::new(
       locator=try! @approved_fs.ApprovedRelativeLocator::new("s0"),
-      expected_digest=try! StreamingSafetensorsFileDigest::from_sha256(
+      expected_digest=try! @streaming_safetensors.StreamingSafetensorsFileDigest::from_sha256(
         String::make(64, '0'),
       ),
     )
-    let inspection = inspect_shards(
+    let inspection = @streaming_safetensors.inspect_shards(
       root,
       [wrong_digest],
       dtype_specs=streaming_test_specs(),
@@ -211,12 +221,12 @@ async test "cross-shard duplicates fail but inventory labels are not payload che
     )
     assert_eq(inspection.shard_count(), 1)
     let destination = FixedArray::make(4, b'?')
-    copy_ranges(
+    @streaming_safetensors.copy_ranges(
       root,
       inspection,
       destination~,
       requests=[
-        StreamingSafetensorsCopyRequest::new(
+        @streaming_safetensors.StreamingSafetensorsCopyRequest::new(
           shard_ordinal=0,
           tensor_ordinal=0,
           tensor_byte_offset=0L,
@@ -271,7 +281,7 @@ async test "hostile dtype size overlap and header mutations fail closed" {
     let limits = streaming_test_limits()
     let specs = streaming_test_specs()
     try
-      inspect_shards(
+      @streaming_safetensors.inspect_shards(
         root,
         [streaming_test_input("unknown", unknown)],
         dtype_specs=specs,
@@ -284,7 +294,7 @@ async test "hostile dtype size overlap and header mutations fail closed" {
       _ => fail("unknown dtype was admitted")
     }
     try
-      inspect_shards(
+      @streaming_safetensors.inspect_shards(
         root,
         [streaming_test_input("wrong", wrong_size)],
         dtype_specs=specs,
@@ -297,7 +307,7 @@ async test "hostile dtype size overlap and header mutations fail closed" {
       _ => fail("wrong F32 byte count was admitted")
     }
     try
-      inspect_shards(
+      @streaming_safetensors.inspect_shards(
         root,
         [streaming_test_input("overlap", overlap)],
         dtype_specs=specs,
@@ -325,7 +335,7 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
     @fs.write_file(canonical + "/s0", bytes, create_mode=CreateNew)
     let root = @approved_fs.ApprovedRoot::open_absolute(canonical)
     let limits = streaming_test_limits()
-    let inspection = inspect_shards(
+    let inspection = @streaming_safetensors.inspect_shards(
       root,
       [streaming_test_input("s0", bytes)],
       dtype_specs=streaming_test_specs(),
@@ -333,14 +343,14 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
     )
     let destination = FixedArray::make(8, b'!')
     let overlap = [
-      try! StreamingSafetensorsCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=0,
         tensor_byte_offset=0L,
         destination_offset=0,
         byte_count=4,
       ),
-      try! StreamingSafetensorsCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=1,
         tensor_byte_offset=0L,
@@ -349,10 +359,14 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
       ),
     ]
     try
-      copy_ranges(root, inspection, destination~, requests=overlap, limits~, visit=(
-        _,
-        _,
-      ) => ())
+      @streaming_safetensors.copy_ranges(
+        root,
+        inspection,
+        destination~,
+        requests=overlap,
+        limits~,
+        visit=(_, _) => (),
+      )
     catch {
       OverlappingDestinationRanges(0, 1) => ()
       _ => fail("unexpected destination overlap rejection")
@@ -360,7 +374,7 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
       _ => fail("overlapping final spans were copied")
     }
     let outside = [
-      try! StreamingSafetensorsCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=1,
         tensor_byte_offset=2L,
@@ -369,10 +383,14 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
       ),
     ]
     try
-      copy_ranges(root, inspection, destination~, requests=outside, limits~, visit=(
-        _,
-        _,
-      ) => ())
+      @streaming_safetensors.copy_ranges(
+        root,
+        inspection,
+        destination~,
+        requests=outside,
+        limits~,
+        visit=(_, _) => (),
+      )
     catch {
       CopyRangeOutsideTensor(0) => ()
       _ => fail("unexpected tensor-range rejection")
@@ -380,7 +398,7 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
       _ => fail("copy escaped tensor payload range")
     }
     let exact = [
-      try! StreamingSafetensorsCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=0,
         tensor_byte_offset=0L,
@@ -389,10 +407,14 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
       ),
     ]
     try
-      copy_ranges(root, inspection, destination~, requests=exact, limits~, visit=(
-        _,
-        _,
-      ) => raise VisitorRejected(0))
+      @streaming_safetensors.copy_ranges(
+        root,
+        inspection,
+        destination~,
+        requests=exact,
+        limits~,
+        visit=(_, _) => raise VisitorRejected(0),
+      )
     catch {
       VisitorRejected(0) => ()
       _ => fail("unexpected visitor rejection")
@@ -401,10 +423,14 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
     }
     // A second operation succeeds, proving the failed visitor retained no
     // open-file authority or poisoned lifecycle state.
-    copy_ranges(root, inspection, destination~, requests=exact, limits~, visit=(
-      _,
-      _,
-    ) => ())
+    @streaming_safetensors.copy_ranges(
+      root,
+      inspection,
+      destination~,
+      requests=exact,
+      limits~,
+      visit=(_, _) => (),
+    )
     root.close()
   }
 }
@@ -412,21 +438,25 @@ async test "copy bounds destination overlap and visitor errors fail closed" {
 ///|
 test "dtype digest and startup constructors reject hostile values" {
   for tag in ["", "BF16", "F32", "bad tag"] {
-    try StreamingSafetensorsDTypeSpec::opaque_one_byte(tag) catch {
+    try
+      @streaming_safetensors.StreamingSafetensorsDTypeSpec::opaque_one_byte(tag)
+    catch {
       InvalidDTypeSpec => ()
       _ => fail("unexpected opaque dtype rejection")
     } noraise {
       _ => fail("invalid or built-in opaque dtype was admitted")
     }
   }
-  try StreamingSafetensorsFileDigest::from_sha256("ABC") catch {
+  try
+    @streaming_safetensors.StreamingSafetensorsFileDigest::from_sha256("ABC")
+  catch {
     InvalidDigest => ()
     _ => fail("unexpected digest syntax rejection")
   } noraise {
     _ => fail("non-canonical digest was admitted")
   }
   try
-    StreamingSafetensorsLimits::new(
+    @streaming_safetensors.StreamingSafetensorsLimits::new(
       maximum_shards=0,
       maximum_file_bytes=9L,
       maximum_header_bytes=1,

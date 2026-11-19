@@ -20,21 +20,30 @@ pub(all) suberror LlamaWeightsError {
   ShapeRankMismatch(reference~ : Int)
   ShapeDimensionMismatch(reference~ : Int, axis~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn LlamaWeightsError::equal(Self, Self) -> Bool
+pub fn LlamaWeightsError::not_equal(Self, Self) -> Bool
+pub fn LlamaWeightsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LlamaWeightBindings {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LlamaWeightBindings::binding(Self, @plan.TensorRef) -> TensorBinding?
+pub fn LlamaWeightBindings::equal(Self, Self) -> Bool
 pub fn LlamaWeightBindings::identity(Self) -> @spec.ModelIdentity
 pub fn LlamaWeightBindings::length(Self) -> Int
 pub fn LlamaWeightBindings::materialized_bytes(Self) -> Int64
+pub fn LlamaWeightBindings::not_equal(Self, Self) -> Bool
+pub fn LlamaWeightBindings::to_repr(Self) -> @debug.Repr
 
 pub struct TensorBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorBinding::equal(Self, Self) -> Bool
+pub fn TensorBinding::not_equal(Self, Self) -> Bool
 pub fn TensorBinding::reference(Self) -> @plan.TensorRef
 pub fn TensorBinding::tensor(Self) -> @safetensors.TensorMetadata
+pub fn TensorBinding::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -1,12 +1,12 @@
 ///|
 test "versioned block controls and pre/post reductions follow official shapes" {
-  let limits = try! ReferenceLimits::new(
+  let limits = try! @advanced_decoder_reference.ReferenceLimits::new(
     max_values=4096,
     max_width=64,
     max_iterations=32,
   )
   let streams : Array[Float] = [1.0F, 2.0F, 3.0F, 4.0F]
-  let controls = hyper_connection_block_controls_v1(
+  let controls = @advanced_decoder_reference.hyper_connection_block_controls_v1(
     streams,
     Array::make(12 * 4, 0.0F),
     Array::make(12, 0.0F),
@@ -25,7 +25,7 @@ test "versioned block controls and pre/post reductions follow official shapes" {
   for value in controls.combination() {
     assert_true(value > 0.499F && value < 0.501F)
   }
-  let pre = hyper_connection_pre_reduce_v1(
+  let pre = @advanced_decoder_reference.hyper_connection_pre_reduce_v1(
     streams,
     controls.pre(),
     row_count=1,
@@ -35,7 +35,7 @@ test "versioned block controls and pre/post reductions follow official shapes" {
   )
   assert_true(pre[0] > 2.0F && pre[0] < 2.001F)
   assert_true(pre[1] > 3.0F && pre[1] < 3.001F)
-  let post = hyper_connection_post_combine_v1(
+  let post = @advanced_decoder_reference.hyper_connection_post_combine_v1(
     [10.0F, 20.0F],
     streams,
     controls.post(),
@@ -52,12 +52,12 @@ test "versioned block controls and pre/post reductions follow official shapes" {
 
 ///|
 test "versioned head reduction and hostile tensor shapes fail closed" {
-  let limits = try! ReferenceLimits::new(
+  let limits = try! @advanced_decoder_reference.ReferenceLimits::new(
     max_values=4096,
     max_width=64,
     max_iterations=32,
   )
-  let head = hyper_connection_head_reduce_v1(
+  let head = @advanced_decoder_reference.hyper_connection_head_reduce_v1(
     [1.0F, 2.0F, 3.0F, 4.0F],
     Array::make(2 * 4, 0.0F),
     [0.0F, 0.0F],
@@ -71,7 +71,7 @@ test "versioned head reduction and hostile tensor shapes fail closed" {
   )
   assert_true(head[0] > 2.0F && head[0] < 2.001F)
   try
-    hyper_connection_block_controls_v1(
+    @advanced_decoder_reference.hyper_connection_block_controls_v1(
       [1.0F, 2.0F, 3.0F, 4.0F],
       Array::make(47, 0.0F),
       Array::make(12, 0.0F),
@@ -91,7 +91,7 @@ test "versioned head reduction and hostile tensor shapes fail closed" {
     _ => fail("truncated control function was admitted")
   }
   try
-    hyper_connection_head_reduce_v1(
+    @advanced_decoder_reference.hyper_connection_head_reduce_v1(
       [1.0F, 2.0F, 3.0F, 4.0F],
       Array::make(8, 0.0F),
       [0.0F, 0.0F],

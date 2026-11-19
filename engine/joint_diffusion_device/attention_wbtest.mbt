@@ -18,7 +18,7 @@ test "attention block projection geometry supports unequal hidden and inner widt
       (1, 2147483647, 2, 1),
     ] {
     try attention_projection_geometry(rows, width, heads, dim) catch {
-      @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+      InvalidArgument(AotKernelLaunch) => ()
       _ => fail("wrong projection error")
     } noraise {
       _ => fail("overflowing projection accepted")

@@ -6,7 +6,7 @@ test "prepared rotary ABI is distinct and cannot downgrade to an uncached bundle
     4,
     "lunaflux_fused_qwen_qkv_qknorm_rope_kvwrite_bf16_head128_production_cached_rotary_v3",
   )
-  let bytes = export_reusable_fused_runtime_bundle(
+  let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target=@catalog.DeviceTarget::new(
@@ -21,7 +21,7 @@ test "prepared rotary ABI is distinct and cannot downgrade to an uncached bundle
   assert_true(
     text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v10\n"),
   )
-  let runtime = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let runtime = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     bytes,
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
   )
@@ -31,7 +31,7 @@ test "prepared rotary ABI is distinct and cannot downgrade to an uncached bundle
   )
   let downgraded = @utf8.encode(text.replace(old="bundle.v10", new="bundle.v9"))
   try
-    admit_digest_pinned_reusable_fused_runtime_bundle(
+    @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
       downgraded,
       @crypto.bytes_to_hex_string(@crypto.sha256(downgraded)),
     )

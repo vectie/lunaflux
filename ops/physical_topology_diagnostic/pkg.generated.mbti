@@ -18,6 +18,9 @@ pub fn run_local() -> PhysicalTopologyDiagnosticEvidence
 pub(all) suberror PhysicalTopologyDiagnosticError {
   InvalidObservation
 } derive(Eq, @debug.Debug)
+pub fn PhysicalTopologyDiagnosticError::equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticError::not_equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct PhysicalCollectiveObservation {
@@ -25,7 +28,10 @@ pub struct PhysicalCollectiveObservation {
 } derive(Eq, @debug.Debug)
 pub fn PhysicalCollectiveObservation::admitted_version_code(Self) -> Int
 pub fn PhysicalCollectiveObservation::availability(Self) -> @device.TensorCollectiveRuntimeAvailability
+pub fn PhysicalCollectiveObservation::equal(Self, Self) -> Bool
 pub fn PhysicalCollectiveObservation::new(availability~ : @device.TensorCollectiveRuntimeAvailability, version_code~ : Int, admitted_version_code~ : Int) -> Self raise PhysicalTopologyDiagnosticError
+pub fn PhysicalCollectiveObservation::not_equal(Self, Self) -> Bool
+pub fn PhysicalCollectiveObservation::to_repr(Self) -> @debug.Repr
 pub fn PhysicalCollectiveObservation::version_code(Self) -> Int
 
 pub struct PhysicalPeerObservation {
@@ -33,16 +39,22 @@ pub struct PhysicalPeerObservation {
 } derive(Eq, @debug.Debug)
 pub fn PhysicalPeerObservation::accessible(Self) -> Bool
 pub fn PhysicalPeerObservation::destination_ordinal(Self) -> Int
+pub fn PhysicalPeerObservation::equal(Self, Self) -> Bool
 pub fn PhysicalPeerObservation::new(source_ordinal~ : Int, destination_ordinal~ : Int, accessible~ : Bool) -> Self raise PhysicalTopologyDiagnosticError
+pub fn PhysicalPeerObservation::not_equal(Self, Self) -> Bool
 pub fn PhysicalPeerObservation::source_ordinal(Self) -> Int
+pub fn PhysicalPeerObservation::to_repr(Self) -> @debug.Repr
 
 pub struct PhysicalTopologyDeviceObservation {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PhysicalTopologyDeviceObservation::capability(Self) -> @device.DeviceCapability
+pub fn PhysicalTopologyDeviceObservation::equal(Self, Self) -> Bool
 pub fn PhysicalTopologyDeviceObservation::name(Self) -> String
 pub fn PhysicalTopologyDeviceObservation::new(ordinal~ : Int, name~ : StringView, capability~ : @device.DeviceCapability) -> Self raise PhysicalTopologyDiagnosticError
+pub fn PhysicalTopologyDeviceObservation::not_equal(Self, Self) -> Bool
 pub fn PhysicalTopologyDeviceObservation::ordinal(Self) -> Int
+pub fn PhysicalTopologyDeviceObservation::to_repr(Self) -> @debug.Repr
 
 pub struct PhysicalTopologyDiagnosticEvidence {
   // private fields
@@ -66,6 +78,9 @@ pub(all) enum PhysicalTopologyDiagnosticRejection {
   CollectiveUnavailable(@device.TensorCollectiveRuntimeAvailability)
   CollectiveVersionRejected
 } derive(Eq, @debug.Debug)
+pub fn PhysicalTopologyDiagnosticRejection::equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticRejection::not_equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticRejection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PhysicalTopologyDiagnosticStage {
   DeviceProbe
@@ -75,11 +90,17 @@ pub(all) enum PhysicalTopologyDiagnosticStage {
   TopologyAdmission
   CollectiveRuntime
 } derive(Eq, @debug.Debug)
+pub fn PhysicalTopologyDiagnosticStage::equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticStage::not_equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PhysicalTopologyDiagnosticStatus {
   PhysicalTopologySupported
   PhysicalTopologyRejected
 } derive(Eq, @debug.Debug)
+pub fn PhysicalTopologyDiagnosticStatus::equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticStatus::not_equal(Self, Self) -> Bool
+pub fn PhysicalTopologyDiagnosticStatus::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

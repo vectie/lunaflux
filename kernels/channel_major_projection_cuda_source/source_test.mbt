@@ -1,6 +1,6 @@
 ///|
 test "F32 pointwise Conv1d binds exact channel-major geometry" {
-  let source = try! f32_pointwise_conv1d_source(
+  let source = try! @channel_major_projection_cuda_source.f32_pointwise_conv1d_source(
     batch_count=2,
     input_channels=32,
     output_channels=2048,
@@ -22,7 +22,7 @@ test "F32 pointwise Conv1d binds exact channel-major geometry" {
 ///|
 test "F32 pointwise Conv1d rejects hostile geometry and symbols" {
   try
-    f32_pointwise_conv1d_source(
+    @channel_major_projection_cuda_source.f32_pointwise_conv1d_source(
       batch_count=0,
       input_channels=32,
       output_channels=2048,
@@ -36,7 +36,7 @@ test "F32 pointwise Conv1d rejects hostile geometry and symbols" {
     _ => fail("zero batch admitted")
   }
   try
-    f32_pointwise_conv1d_source(
+    @channel_major_projection_cuda_source.f32_pointwise_conv1d_source(
       batch_count=2,
       input_channels=0,
       output_channels=2048,
@@ -50,7 +50,7 @@ test "F32 pointwise Conv1d rejects hostile geometry and symbols" {
     _ => fail("zero channel admitted")
   }
   try
-    f32_pointwise_conv1d_source(
+    @channel_major_projection_cuda_source.f32_pointwise_conv1d_source(
       batch_count=2,
       input_channels=32,
       output_channels=2048,
@@ -64,7 +64,7 @@ test "F32 pointwise Conv1d rejects hostile geometry and symbols" {
     _ => fail("zero time admitted")
   }
   try
-    f32_pointwise_conv1d_source(
+    @channel_major_projection_cuda_source.f32_pointwise_conv1d_source(
       batch_count=2147483647,
       input_channels=2147483647,
       output_channels=2048,
@@ -78,7 +78,7 @@ test "F32 pointwise Conv1d rejects hostile geometry and symbols" {
     _ => fail("overflow admitted")
   }
   try
-    f32_pointwise_conv1d_source(
+    @channel_major_projection_cuda_source.f32_pointwise_conv1d_source(
       batch_count=2,
       input_channels=32,
       output_channels=2048,

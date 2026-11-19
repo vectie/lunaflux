@@ -104,7 +104,7 @@ pub fn AudioRequest::prepare_resolved(
 ///|
 pub fn AudioRequest::submit(self : Self) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   for i in 0..<queue.kernel_count() {
@@ -120,7 +120,7 @@ pub fn AudioRequest::poll(self : Self) -> Bool raise @device.DeviceError {
     return true
   }
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   let done = queue.poll_completion()
@@ -132,7 +132,7 @@ pub fn AudioRequest::poll(self : Self) -> Bool raise @device.DeviceError {
 pub fn AudioRequest::execute(self : Self) -> Unit raise @device.DeviceError {
   self.submit()
   guard self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   queue.wait_completion()
@@ -149,7 +149,7 @@ pub fn[T] AudioRequest::with_destination(
   guard (self.phase == Prepared || self.phase == Complete) &&
     self.source is Some(source) &&
     self.scratch is Some(scratch) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(
     scratch,
@@ -183,7 +183,7 @@ pub fn[T] AudioRequest::with_rows(
   guard self.phase == Complete &&
     self.source is Some(source) &&
     self.scratch is Some(scratch) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(
     scratch,

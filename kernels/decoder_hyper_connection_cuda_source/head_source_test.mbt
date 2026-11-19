@@ -1,6 +1,6 @@
 ///|
 test "head reduction fixes normalized controls layout and one BF16 round" {
-  let rendered = try! head_reduce_v1_bf16_f32_source(
+  let rendered = try! @decoder_hyper_connection_cuda_source.head_reduce_v1_bf16_f32_source(
     stream_width=4,
     hidden_width=4096,
     maximum_rows=17,
@@ -28,7 +28,7 @@ test "head reduction fixes normalized controls layout and one BF16 round" {
   assert_true(
     source.contains("__fadd_rn(sum, __fmul_rn(controls[stream], value))"),
   )
-  assert_eq(source.split("__float2bfloat16_rn").length(), 3)
+  assert_eq(source.split("__float2bfloat16_rn").count(), 3)
   assert_true(source.contains("= __float2bfloat16_rn(NAN); return;"))
   assert_true(source.contains("__float2bfloat16_rn(isfinite(sum) ? sum : NAN)"))
 }
@@ -58,8 +58,8 @@ fn head_test_render(
   control : Double,
   normalization : Double,
   symbol : String,
-) -> DecoderHyperConnectionHeadReduceCudaSource raise DecoderHyperConnectionCudaSourceError {
-  head_reduce_v1_bf16_f32_source(
+) -> @decoder_hyper_connection_cuda_source.DecoderHyperConnectionHeadReduceCudaSource raise @decoder_hyper_connection_cuda_source.DecoderHyperConnectionCudaSourceError {
+  @decoder_hyper_connection_cuda_source.head_reduce_v1_bf16_f32_source(
     stream_width=width,
     hidden_width=hidden,
     maximum_rows=rows,

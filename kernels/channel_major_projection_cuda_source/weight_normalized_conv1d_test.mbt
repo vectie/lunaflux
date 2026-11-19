@@ -1,6 +1,6 @@
 ///|
 test "weight-normalized Conv1d binds exact staged geometry" {
-  let source = try! f32_weight_normalized_conv1d_source(
+  let source = try! @channel_major_projection_cuda_source.f32_weight_normalized_conv1d_source(
     batch_count=2,
     input_channels=2048,
     output_channels=1024,
@@ -28,7 +28,7 @@ test "weight-normalized Conv1d binds exact staged geometry" {
 ///|
 test "weight-normalized Conv1d rejects hostile geometry and symbols" {
   try
-    f32_weight_normalized_conv1d_source(
+    @channel_major_projection_cuda_source.f32_weight_normalized_conv1d_source(
       batch_count=0,
       input_channels=2,
       output_channels=2,
@@ -46,7 +46,7 @@ test "weight-normalized Conv1d rejects hostile geometry and symbols" {
     _ => fail("zero batch admitted")
   }
   try
-    f32_weight_normalized_conv1d_source(
+    @channel_major_projection_cuda_source.f32_weight_normalized_conv1d_source(
       batch_count=1,
       input_channels=2,
       output_channels=2,
@@ -64,7 +64,7 @@ test "weight-normalized Conv1d rejects hostile geometry and symbols" {
     _ => fail("negative output geometry admitted")
   }
   try
-    f32_weight_normalized_conv1d_source(
+    @channel_major_projection_cuda_source.f32_weight_normalized_conv1d_source(
       batch_count=1,
       input_channels=2147483647,
       output_channels=2147483647,
@@ -82,7 +82,7 @@ test "weight-normalized Conv1d rejects hostile geometry and symbols" {
     _ => fail("overflow admitted")
   }
   try
-    f32_weight_normalized_conv1d_source(
+    @channel_major_projection_cuda_source.f32_weight_normalized_conv1d_source(
       batch_count=1,
       input_channels=2,
       output_channels=2,

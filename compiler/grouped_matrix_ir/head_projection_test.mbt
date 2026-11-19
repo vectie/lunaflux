@@ -29,7 +29,7 @@ test "strided head matrices own complete products and validate bank extents" {
       weight_elements=4096L,
     )
   catch {
-    @precision.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("invalid weight range")

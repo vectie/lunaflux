@@ -24,6 +24,9 @@ pub(all) suberror JointConditioningReferenceError {
   GeometryBudgetExceeded
   ConditioningSemanticUnavailable(@joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation, JointConditioningAotGap)
 } derive(Eq, @debug.Debug)
+pub fn JointConditioningReferenceError::equal(Self, Self) -> Bool
+pub fn JointConditioningReferenceError::not_equal(Self, Self) -> Bool
+pub fn JointConditioningReferenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct JointConditioningAotAssessment {
@@ -48,11 +51,19 @@ pub(all) enum JointConditioningAotGap {
   PerReferenceEncodedLatentGeometry
   ReferenceVideoSoundtrackAssociation
 } derive(Eq, @debug.Debug)
+pub fn JointConditioningAotGap::equal(Self, Self) -> Bool
+pub fn JointConditioningAotGap::not_equal(Self, Self) -> Bool
+pub fn JointConditioningAotGap::to_repr(Self) -> @debug.Repr
 
 pub struct JointConditioningAotGapDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn JointConditioningAotGapDigest::as_hex(Self) -> String
+pub fn JointConditioningAotGapDigest::equal(Self, Self) -> Bool
+pub fn JointConditioningAotGapDigest::hash(Self) -> Int
+pub fn JointConditioningAotGapDigest::hash_combine(Self, Hasher) -> Unit
+pub fn JointConditioningAotGapDigest::not_equal(Self, Self) -> Bool
+pub fn JointConditioningAotGapDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointConditioningGeometry {
   // private fields

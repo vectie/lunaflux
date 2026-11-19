@@ -27,7 +27,7 @@ fn AudioWeightCache::prepare(
     self.queue is None &&
     bytes > 0L &&
     bytes <= budget else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let allocation = context.allocate(bytes)
   self.allocation = Some(allocation)
@@ -60,7 +60,7 @@ fn AudioWeightCache::get(
   guard self.ready &&
     self.source is Some(original) &&
     physical_equal(original, source) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   self.allocation
 }

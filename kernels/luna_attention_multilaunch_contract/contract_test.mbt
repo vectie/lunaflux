@@ -1,6 +1,8 @@
 ///|
-fn ml_limits(workspace~ : Int64 = 4096L) -> AttentionMultiLaunchLimits raise {
-  AttentionMultiLaunchLimits::new(
+fn ml_limits(
+  workspace~ : Int64 = 4096L,
+) -> @luna_attention_multilaunch_contract.AttentionMultiLaunchLimits raise {
+  @luna_attention_multilaunch_contract.AttentionMultiLaunchLimits::new(
     maximum_workspace_bytes=workspace,
     maximum_symbol_bytes=256,
     maximum_operands_per_launch=16,
@@ -59,9 +61,9 @@ fn ml_operand(
 
 ///|
 fn ml_workspace(
-  limits~ : AttentionMultiLaunchLimits = ml_limits(),
-) -> AttentionDecodeWorkspaceContract raise {
-  AttentionDecodeWorkspaceContract::new(
+  limits~ : @luna_attention_multilaunch_contract.AttentionMultiLaunchLimits = ml_limits(),
+) -> @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract raise {
+  @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract::new(
     scalar=F32,
     split_count=2,
     partial_count=8L,
@@ -76,7 +78,7 @@ fn ml_workspace(
 
 ///|
 fn ml_partial_operands(
-  workspace : AttentionDecodeWorkspaceContract,
+  workspace : @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract,
 ) -> Array[@launch_contract.AotOperand] raise {
   let layer = @plan.KvLayerId::new(0)
   [
@@ -99,7 +101,7 @@ fn ml_partial_operands(
 
 ///|
 fn ml_merge_operands(
-  workspace : AttentionDecodeWorkspaceContract,
+  workspace : @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract,
 ) -> Array[@launch_contract.AotOperand] raise {
   [
     ml_operand(RuntimeInput(StepCounts), 8L),
@@ -130,19 +132,19 @@ fn ml_dimensions(z : Int32) -> @launch_contract.AotLaunchDimensions raise {
 test "decode multi-launch admission owns exact ordered module and workspace" {
   let limits = ml_limits()
   let workspace = ml_workspace(limits~)
-  let contract = admit_attention_decode_multilaunch_contract(
+  let contract = @luna_attention_multilaunch_contract.admit_attention_decode_multilaunch_contract(
     operation_id=@plan.OperationId::new(9),
     profile=ml_profile(),
     target=ml_target(),
     workspace~,
-    partial=AttentionOrderedLaunchInput::new(
+    partial=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
       stage=Partial,
       entry_point=ml_entry(41),
       function_symbol="partial",
       dimensions=ml_dimensions(2),
       operands=ml_partial_operands(workspace),
     ),
-    merge=AttentionOrderedLaunchInput::new(
+    merge=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
       stage=Merge,
       entry_point=ml_entry(42),
       function_symbol="merge",
@@ -165,13 +167,13 @@ test "decode multi-launch admission owns exact ordered module and workspace" {
 test "grouped partial and per-head merge have distinct shared-memory geometry" {
   let limits = ml_limits()
   let workspace = ml_workspace(limits~)
-  let contract = admit_attention_decode_multilaunch_contract(
+  let contract = @luna_attention_multilaunch_contract.admit_attention_decode_multilaunch_contract(
     operation_id=@plan.OperationId::new(9),
     profile=ml_profile(),
     target=ml_target(),
     workspace~,
     limits~,
-    partial=AttentionOrderedLaunchInput::new(
+    partial=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
       stage=Partial,
       entry_point=ml_entry(41),
       function_symbol="partial",
@@ -186,7 +188,7 @@ test "grouped partial and per-head merge have distinct shared-memory geometry" {
       ),
       operands=ml_partial_operands(workspace),
     ),
-    merge=AttentionOrderedLaunchInput::new(
+    merge=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
       stage=Merge,
       entry_point=ml_entry(42),
       function_symbol="merge",
@@ -204,7 +206,7 @@ test "grouped partial and per-head merge have distinct shared-memory geometry" {
 test "decode multi-launch rejects foreign module and reordered stages" {
   let limits = ml_limits()
   let workspace = ml_workspace(limits~)
-  let partial = AttentionOrderedLaunchInput::new(
+  let partial = @luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
     stage=Partial,
     entry_point=ml_entry(41),
     function_symbol="partial",
@@ -212,13 +214,13 @@ test "decode multi-launch rejects foreign module and reordered stages" {
     operands=ml_partial_operands(workspace),
   )
   try
-    admit_attention_decode_multilaunch_contract(
+    @luna_attention_multilaunch_contract.admit_attention_decode_multilaunch_contract(
       operation_id=@plan.OperationId::new(9),
       profile=ml_profile(),
       target=ml_target(),
       workspace~,
       partial~,
-      merge=AttentionOrderedLaunchInput::new(
+      merge=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
         stage=Merge,
         entry_point=ml_entry(42, digit='b'),
         function_symbol="merge",
@@ -236,19 +238,19 @@ test "decode multi-launch rejects foreign module and reordered stages" {
     _ => fail("foreign module was admitted")
   }
   try
-    admit_attention_decode_multilaunch_contract(
+    @luna_attention_multilaunch_contract.admit_attention_decode_multilaunch_contract(
       operation_id=@plan.OperationId::new(9),
       profile=ml_profile(),
       target=ml_target(),
       workspace~,
-      partial=AttentionOrderedLaunchInput::new(
+      partial=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
         stage=Merge,
         entry_point=ml_entry(41),
         function_symbol="partial",
         dimensions=ml_dimensions(2),
         operands=ml_partial_operands(workspace),
       ),
-      merge=AttentionOrderedLaunchInput::new(
+      merge=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
         stage=Partial,
         entry_point=ml_entry(42),
         function_symbol="merge",

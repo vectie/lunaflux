@@ -1,6 +1,6 @@
 ///|
 test "fixed-row BF16 RMSNorm source is deterministic and exact" {
-  let source = rms_norm_bf16_fixed_rows_source(
+  let source = @decoder_foundation_cuda_source.rms_norm_bf16_fixed_rows_source(
     rows=207L,
     hidden_size=5376,
     epsilon=0.00001,
@@ -17,7 +17,7 @@ test "fixed-row BF16 RMSNorm source is deterministic and exact" {
   assert_true(text.contains("__fdiv_rn"))
   assert_true(text.contains("__float2bfloat16_rn"))
   assert_false(text.contains("counts"))
-  let repeated = rms_norm_bf16_fixed_rows_source(
+  let repeated = @decoder_foundation_cuda_source.rms_norm_bf16_fixed_rows_source(
     rows=207L,
     hidden_size=5376,
     epsilon=0.00001,
@@ -38,7 +38,7 @@ test "fixed-row BF16 RMSNorm validation fails closed" {
   for index, entry in cases {
     let (rows, hidden_size, epsilon, function_symbol) = entry
     try
-      rms_norm_bf16_fixed_rows_source(
+      @decoder_foundation_cuda_source.rms_norm_bf16_fixed_rows_source(
         rows~,
         hidden_size~,
         epsilon~,

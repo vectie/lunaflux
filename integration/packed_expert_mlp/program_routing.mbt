@@ -67,7 +67,7 @@ fn MoeProgram::bind_router(
   Array[@device.OrderedKernelLaunch],
 ) raise @device.DeviceError {
   guard self.routing is Some(router) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let functions = self.load_functions(aot_module, router.symbols())
   let plan = router.plan()
@@ -113,7 +113,7 @@ fn MoeProgram::bind_router(
   match plan.selection() {
     GroupedTopK => {
       guard correction_bias is Some(bias) else {
-        raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        raise InvalidArgument(OrderedExecutorCreate)
       }
       let choice = region(buffers[2].unwrap(), sizes[2], 4L)
       arguments.append([
@@ -129,7 +129,7 @@ fn MoeProgram::bind_router(
     }
     TokenHash(vocabulary_size~) => {
       guard token_ids is Some(tokens) && token_table is Some(table) else {
-        raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        raise InvalidArgument(OrderedExecutorCreate)
       }
       arguments.append([
         [counts_arg, logits, scores],

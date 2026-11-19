@@ -11,7 +11,7 @@ fn selected_extent(
     count <= rows - start &&
     width > 0 &&
     count.to_int64() <= 2147483647L / width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   count.to_int64() * width.to_int64()
 }
@@ -44,7 +44,7 @@ pub fn ModulationBindings::selected_output_launch(
     normalized_offset <= 9223372036854775807L - skip &&
     parameter_offset >= 0L &&
     parameter_offset <= 9223372036854775807L - table_bytes else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let arguments = @device.KernelArguments::new([
     @device.KernelArgument::device_region(

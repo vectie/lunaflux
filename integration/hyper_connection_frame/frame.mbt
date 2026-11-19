@@ -232,7 +232,7 @@ pub fn HyperConnectionFrame::prefix(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.before[:]
 }
@@ -242,7 +242,7 @@ pub fn HyperConnectionFrame::suffix(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.after[:]
 }
@@ -252,7 +252,7 @@ pub fn HyperConnectionFrame::branch_input(
   self : Self,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.buffers[4]
 }
@@ -262,7 +262,7 @@ pub fn HyperConnectionFrame::branch_output(
   self : Self,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.buffers[5]
 }

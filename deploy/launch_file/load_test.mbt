@@ -10,16 +10,22 @@ async test "launch parsing retains supplied labels without payload authenticatio
     let bytes = @utf8.encode(text)
     let digest = @crypto.bytes_to_hex_string(@crypto.sha256(bytes))
     @fs.write_file("\{root}/lunaflux.launch.json", bytes, create_mode=CreateNew)
-    let admitted = load_argument(
+    let admitted = @launch_file.load_argument(
       "\{root}#sha256=\{digest}",
-      try! LaunchFileLimits::new(maximum_bytes=65536L, maximum_json_depth=8),
+      try! @launch_file.LaunchFileLimits::new(
+        maximum_bytes=65536L,
+        maximum_json_depth=8,
+      ),
     )
     assert_eq(admitted.digest().as_hex(), digest)
     @fs.rename(root, "\{root}.closed")
     @fs.rename("\{root}.closed", root)
-    let supplied = load_argument(
+    let supplied = @launch_file.load_argument(
       "\{root}#sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      try! LaunchFileLimits::new(maximum_bytes=65536L, maximum_json_depth=8),
+      try! @launch_file.LaunchFileLimits::new(
+        maximum_bytes=65536L,
+        maximum_json_depth=8,
+      ),
     )
     assert_eq(
       supplied.digest().as_hex(),

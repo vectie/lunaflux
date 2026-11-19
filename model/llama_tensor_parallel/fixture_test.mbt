@@ -141,8 +141,8 @@ fn tp_plan(
   bindings : @llama_weights.LlamaWeightBindings,
   rank : Int32,
   world_size : Int32,
-) -> @tensor_parallel_plan.TensorParallelRankPlan raise LlamaTensorParallelError {
-  build_rank_plan(
+) -> @tensor_parallel_plan.TensorParallelRankPlan raise @llama_tensor_parallel.LlamaTensorParallelError {
+  @llama_tensor_parallel.build_rank_plan(
     model,
     bindings,
     rank~,

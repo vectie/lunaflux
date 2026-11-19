@@ -72,7 +72,7 @@ test "full service packed transport is serial across layers not shared producers
   let total = positive.fold(init=0L, (a, b) => a + b)
   assert_eq(slice.expert_scratch_plan.bytes(), peak)
   assert_eq(slice.expert_scratch_plan.saved_bytes(), total - peak)
-  inspect(
+  debug_inspect(
     (positive.length(), peak, total - peak),
     content="(42, 19957776, 818268816)",
   )

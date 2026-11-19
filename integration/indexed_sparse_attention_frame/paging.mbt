@@ -42,6 +42,6 @@ fn page_arguments(
         region(ports.generations, pages, 4L),
       ]
     }
-    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    _ => raise InvalidArgument(OrderedExecutorCreate)
   }
 }

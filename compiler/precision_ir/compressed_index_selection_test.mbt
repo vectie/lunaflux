@@ -14,7 +14,7 @@ test "compressed selection plans exact scratch and compressed IDs including zero
   assert_eq(plan.selected_width(), 2)
   assert_eq(plan.frame_bytes()[:].to_owned(), [24L, 24L, 12L])
   assert_eq(plan.workspace_bytes(), 60L)
-  assert_eq(plan.effect(), @precision_ir.NumericEffect::StepWrite)
+  assert_eq(plan.effect(), StepWrite)
   try
     @precision_ir.CompressedIndexSelectionPrecision::new(
       head_count=2,
@@ -26,7 +26,7 @@ test "compressed selection plans exact scratch and compressed IDs including zero
       maximum_workspace_bytes=59L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     error => raise error
   } noraise {
     _ => fail("aggregate scratch budget ignored")
@@ -58,7 +58,7 @@ test "compressed selection rejects impossible context and ABI scratch sizes" {
       maximum_workspace_bytes=1048576L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     error => raise error
   } noraise {
     _ => fail("context smaller than chunk accepted")
@@ -74,7 +74,7 @@ test "compressed selection rejects impossible context and ABI scratch sizes" {
       maximum_workspace_bytes=100000000000L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::ArithmeticOverflow => ()
+    ArithmeticOverflow => ()
     error => raise error
   } noraise {
     _ => fail("overlarge scratch accepted")

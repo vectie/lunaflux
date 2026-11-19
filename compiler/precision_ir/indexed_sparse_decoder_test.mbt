@@ -54,7 +54,7 @@ test "sparse decoder composition accounts for output and residual ownership" {
       maximum_workspace_bytes=exact - 1L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("intermediate budget ignored")
@@ -76,7 +76,7 @@ test "sparse decoder composition accounts for output and residual ownership" {
       maximum_workspace_bytes=100000L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     e => raise e
   } noraise {
     _ => fail("residual width mismatch")

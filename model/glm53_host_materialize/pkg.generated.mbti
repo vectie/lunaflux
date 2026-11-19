@@ -35,6 +35,9 @@ pub(all) suberror Glm53HostMaterializeError {
   TensorOrdinalOutOfRange
   TensorByteOutOfRange
 } derive(Eq, @debug.Debug)
+pub fn Glm53HostMaterializeError::equal(Self, Self) -> Bool
+pub fn Glm53HostMaterializeError::not_equal(Self, Self) -> Bool
+pub fn Glm53HostMaterializeError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Glm53HostDigestKind {
@@ -43,6 +46,9 @@ pub(all) enum Glm53HostDigestKind {
   NumericSchema
   NumericBinding
 } derive(Eq, @debug.Debug)
+pub fn Glm53HostDigestKind::equal(Self, Self) -> Bool
+pub fn Glm53HostDigestKind::not_equal(Self, Self) -> Bool
+pub fn Glm53HostDigestKind::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53HostExpectedDigests {
   // private fields
@@ -58,6 +64,9 @@ pub(all) enum Glm53HostLimit {
   FileBytes
   ArenaBytes
 } derive(Eq, @debug.Debug)
+pub fn Glm53HostLimit::equal(Self, Self) -> Bool
+pub fn Glm53HostLimit::not_equal(Self, Self) -> Bool
+pub fn Glm53HostLimit::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53HostMaterializationLimits {
   // private fields
@@ -73,6 +82,11 @@ pub struct Glm53HostSourceDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn Glm53HostSourceDigest::as_hex(Self) -> String
+pub fn Glm53HostSourceDigest::equal(Self, Self) -> Bool
+pub fn Glm53HostSourceDigest::hash(Self) -> Int
+pub fn Glm53HostSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn Glm53HostSourceDigest::not_equal(Self, Self) -> Bool
+pub fn Glm53HostSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53HostTensorRegion {
   // private fields

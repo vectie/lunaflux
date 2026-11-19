@@ -1,6 +1,6 @@
 ///|
 test "hyper-connection mix source fixes transpose, round, and alias semantics" {
-  let rendered = hyper_connection_mix_bf16_source(
+  let rendered = @hyper_connection_mix_cuda_source.hyper_connection_mix_bf16_source(
     hidden_width=4096,
     stream_count=4,
     maximum_rows=32,
@@ -23,7 +23,7 @@ test "hyper-connection mix source fixes transpose, round, and alias semantics" {
 ///|
 test "hyper-connection mix source rejects unsafe geometry" {
   try
-    hyper_connection_mix_bf16_source(
+    @hyper_connection_mix_cuda_source.hyper_connection_mix_bf16_source(
       hidden_width=4096,
       stream_count=0,
       maximum_rows=32,

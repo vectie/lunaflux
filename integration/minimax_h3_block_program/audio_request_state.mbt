@@ -20,7 +20,7 @@ fn AudioRequestState::submit(
   enqueue : () -> Unit raise @device.DeviceError,
 ) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   enqueue()
@@ -36,7 +36,7 @@ fn AudioRequestState::poll(
     return true
   }
   guard self.phase == Submitted else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   let done = completed()

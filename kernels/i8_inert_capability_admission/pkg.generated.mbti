@@ -21,6 +21,9 @@ pub fn preflight_production_llama_symmetric_i8_weight_only_v1(@plan.ModelPlan) -
 pub(all) suberror I8InertKernelCapabilityAdmissionError {
   I8InertKernelCapabilityRejected(I8InertKernelCapabilityAdmissionRule)
 } derive(Eq, @debug.Debug)
+pub fn I8InertKernelCapabilityAdmissionError::equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionError::not_equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct I8InertKernelCapabilityAdmission {
@@ -30,21 +33,32 @@ pub fn I8InertKernelCapabilityAdmission::canonical_bytes(Self) -> Bytes
 pub fn I8InertKernelCapabilityAdmission::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn I8InertKernelCapabilityAdmission::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
 pub fn I8InertKernelCapabilityAdmission::digest(Self) -> I8InertKernelCapabilityAdmissionDigest
+pub fn I8InertKernelCapabilityAdmission::equal(Self, Self) -> Bool
 pub fn I8InertKernelCapabilityAdmission::model_identity(Self) -> @spec.ModelIdentity
+pub fn I8InertKernelCapabilityAdmission::not_equal(Self, Self) -> Bool
 pub fn I8InertKernelCapabilityAdmission::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn I8InertKernelCapabilityAdmission::operations(Self) -> ReadOnlyArray[I8InertOperationEvidence]
 pub fn I8InertKernelCapabilityAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn I8InertKernelCapabilityAdmission::to_repr(Self) -> @debug.Repr
 pub fn I8InertKernelCapabilityAdmission::version(Self) -> I8InertKernelCapabilityAdmissionVersion
 
 pub struct I8InertKernelCapabilityAdmissionDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn I8InertKernelCapabilityAdmissionDigest::as_hex(Self) -> String
+pub fn I8InertKernelCapabilityAdmissionDigest::equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionDigest::hash(Self) -> Int
+pub fn I8InertKernelCapabilityAdmissionDigest::hash_combine(Self, Hasher) -> Unit
+pub fn I8InertKernelCapabilityAdmissionDigest::not_equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct I8InertKernelCapabilityAdmissionLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn I8InertKernelCapabilityAdmissionLimits::equal(Self, Self) -> Bool
 pub fn I8InertKernelCapabilityAdmissionLimits::new(max_operations~ : Int, max_weights~ : Int, max_canonical_bytes~ : Int) -> Self raise I8InertKernelCapabilityAdmissionError
+pub fn I8InertKernelCapabilityAdmissionLimits::not_equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum I8InertKernelCapabilityAdmissionRule {
   Limit
@@ -71,11 +85,17 @@ pub(all) enum I8InertKernelCapabilityAdmissionRule {
   ProductionGraph
   MixedFp8Execution
 } derive(Eq, @debug.Debug)
+pub fn I8InertKernelCapabilityAdmissionRule::equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionRule::not_equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionRule::to_repr(Self) -> @debug.Repr
 
 pub struct I8InertKernelCapabilityAdmissionVersion {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn I8InertKernelCapabilityAdmissionVersion::as_int(Self) -> Int
+pub fn I8InertKernelCapabilityAdmissionVersion::equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionVersion::not_equal(Self, Self) -> Bool
+pub fn I8InertKernelCapabilityAdmissionVersion::to_repr(Self) -> @debug.Repr
 pub fn I8InertKernelCapabilityAdmissionVersion::v1() -> Self
 
 pub struct I8InertOperationEvidence {
@@ -83,10 +103,13 @@ pub struct I8InertOperationEvidence {
 } derive(Eq, @debug.Debug)
 pub fn I8InertOperationEvidence::capability(Self) -> @plan.KernelCapabilityId
 pub fn I8InertOperationEvidence::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn I8InertOperationEvidence::equal(Self, Self) -> Bool
 pub fn I8InertOperationEvidence::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
+pub fn I8InertOperationEvidence::not_equal(Self, Self) -> Bool
 pub fn I8InertOperationEvidence::operation(Self) -> @plan.OperationId
 pub fn I8InertOperationEvidence::operation_kind(Self) -> @plan.OperationKind
 pub fn I8InertOperationEvidence::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn I8InertOperationEvidence::to_repr(Self) -> @debug.Repr
 pub fn I8InertOperationEvidence::weights(Self) -> ReadOnlyArray[I8InertWeightEvidence]
 pub fn I8InertOperationEvidence::workspace_alignment(Self) -> Int64
 pub fn I8InertOperationEvidence::workspace_bytes(Self) -> Int64
@@ -94,6 +117,8 @@ pub fn I8InertOperationEvidence::workspace_bytes(Self) -> Int64
 pub struct I8InertWeightEvidence {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn I8InertWeightEvidence::equal(Self, Self) -> Bool
+pub fn I8InertWeightEvidence::not_equal(Self, Self) -> Bool
 pub fn I8InertWeightEvidence::output_channel_count(Self) -> Int64
 pub fn I8InertWeightEvidence::scale(Self) -> @plan.ScaleTensorRef
 pub fn I8InertWeightEvidence::scale_shape(Self) -> @numeric_contract.NumericShape
@@ -101,6 +126,7 @@ pub fn I8InertWeightEvidence::scale_storage_digest(Self) -> @numeric_contract.Te
 pub fn I8InertWeightEvidence::shape(Self) -> @numeric_contract.NumericShape
 pub fn I8InertWeightEvidence::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
 pub fn I8InertWeightEvidence::tensor(Self) -> @plan.TensorRef
+pub fn I8InertWeightEvidence::to_repr(Self) -> @debug.Repr
 
 pub struct I8ProductionPolicyAdmission {
   // private fields
@@ -108,10 +134,13 @@ pub struct I8ProductionPolicyAdmission {
 pub fn I8ProductionPolicyAdmission::catalog_admission(Self) -> I8InertKernelCapabilityAdmission
 pub fn I8ProductionPolicyAdmission::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
 pub fn I8ProductionPolicyAdmission::digest(Self) -> I8InertKernelCapabilityAdmissionDigest
+pub fn I8ProductionPolicyAdmission::equal(Self, Self) -> Bool
 pub fn I8ProductionPolicyAdmission::i8_parameter_count(Self) -> Int
 pub fn I8ProductionPolicyAdmission::model_identity(Self) -> @spec.ModelIdentity
+pub fn I8ProductionPolicyAdmission::not_equal(Self, Self) -> Bool
 pub fn I8ProductionPolicyAdmission::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn I8ProductionPolicyAdmission::scale_tensor_count(Self) -> Int
+pub fn I8ProductionPolicyAdmission::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -25,31 +25,46 @@ async test "explicit image tokens retain canvas coordinates and global feature o
   assert_eq(prompt.feature_map()[66], -1)
   assert_true(prompt.prompt().positions().rope_delta() < 0)
   assert_true(
-    (try? @minicpm_v47_multimodal.prepare_image_tokens(
-      spec,
-      ([spec.markers().image] + tokens)[:],
-      [plan],
-      maximum_tokens=4096,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_multimodal.prepare_image_tokens(
+        spec,
+        ([spec.markers().image] + tokens)[:],
+        [plan],
+        maximum_tokens=4096,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @minicpm_v47_multimodal.prepare_image_tokens(
-      spec,
-      tokens[:],
-      [plan],
-      maximum_tokens=65,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_multimodal.prepare_image_tokens(
+        spec,
+        tokens[:],
+        [plan],
+        maximum_tokens=65,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @minicpm_v47_multimodal.prepare_image_tokens(
-      spec,
-      tokens[:],
-      [],
-      maximum_tokens=4096,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_multimodal.prepare_image_tokens(
+        spec,
+        tokens[:],
+        [],
+        maximum_tokens=4096,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }
 
@@ -116,13 +131,18 @@ async test "actual tokenizer matches pinned content-list newlines and local imag
   assert_eq(prepared.feature_map().filter(index => index >= 0).length(), 258)
   assert_eq(prepared.image_plans().length(), 2)
   assert_true(
-    (try? @minicpm_v47_multimodal.prepare_image_prompt(
-      spec,
-      tokenizer,
-      "policy",
-      [Text("<|image_pad|>"), Image(first)],
-      maximum_tokens=4096,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_multimodal.prepare_image_prompt(
+        spec,
+        tokenizer,
+        "policy",
+        [Text("<|image_pad|>"), Image(first)],
+        maximum_tokens=4096,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

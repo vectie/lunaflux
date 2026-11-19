@@ -4,7 +4,7 @@ test "output duration and inference-step ceilings fail closed" {
   for hostile in [(361, 50), (120, 1), (120, 1001)] {
     let (frames, steps) = hostile
     try
-      normalize(
+      @joint_diffusion_io_plan.normalize(
         plan,
         workflow=TextToAudioVideo,
         text=io_text(),
@@ -27,7 +27,7 @@ test "output duration and inference-step ceilings fail closed" {
 ///|
 test "Ref2VA rejects reference media beyond normalized request bounds" {
   let plan = io_minimax_plan(variant=Ref2va)
-  let oversized_video = try! ValidatedVideoInput::new(
+  let oversized_video = try! @joint_diffusion_io_plan.ValidatedVideoInput::new(
     content_digest=io_content('b'),
     height=768,
     width=1344,
@@ -35,7 +35,7 @@ test "Ref2VA rejects reference media beyond normalized request bounds" {
     frames_per_second=24,
   )
   try
-    normalize(
+    @joint_diffusion_io_plan.normalize(
       plan,
       workflow=ReferenceToAudioVideo,
       text=io_text(),
@@ -56,14 +56,14 @@ test "Ref2VA rejects reference media beyond normalized request bounds" {
   } noraise {
     _ => fail("oversized reference video was admitted")
   }
-  let wrong_rate = try! ValidatedAudioInput::new(
+  let wrong_rate = try! @joint_diffusion_io_plan.ValidatedAudioInput::new(
     content_digest=io_content('d'),
     sample_count=96000L,
     sample_rate=48000,
     channel_count=2,
   )
   try
-    normalize(
+    @joint_diffusion_io_plan.normalize(
       plan,
       workflow=ReferenceToAudioVideo,
       text=io_text(),
@@ -86,7 +86,7 @@ test "Ref2VA rejects reference media beyond normalized request bounds" {
 ///|
 test "validated descriptors remain bounded at construction" {
   try
-    ValidatedTextConditioning::new(
+    @joint_diffusion_io_plan.ValidatedTextConditioning::new(
       content_digest=io_content('a'),
       token_count=0,
     )
@@ -97,7 +97,7 @@ test "validated descriptors remain bounded at construction" {
     _ => fail("empty text conditioning was admitted")
   }
   try
-    ValidatedAudioInput::new(
+    @joint_diffusion_io_plan.ValidatedAudioInput::new(
       content_digest=io_content('b'),
       sample_count=2147483648L,
       sample_rate=32000,

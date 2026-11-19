@@ -52,13 +52,13 @@ async test "40-layer decoder partitions state and preserves both residual update
   for index, layer in program.layers() {
     assert_eq(layer.index, index)
     if index % 4 == 3 {
-      assert_eq(layer.kind, @hybrid.LayerKind::FullAttention)
+      assert_eq(layer.kind, FullAttention)
       assert_eq(layer.convolution_offset, None)
       assert_eq(layer.state_offset, key_end)
       key_end += 4194304L
       full_count += 1
     } else {
-      assert_eq(layer.kind, @hybrid.LayerKind::GatedDeltaLinearAttention)
+      assert_eq(layer.kind, GatedDeltaLinearAttention)
       assert_eq(layer.state_offset, recurrent_end)
       assert_eq(layer.convolution_offset, Some(convolution_end))
       recurrent_end += 2097152L

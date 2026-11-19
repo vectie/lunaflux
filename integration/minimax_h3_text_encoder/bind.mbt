@@ -54,12 +54,10 @@ pub fn TextEncoderSource::bind(
   visual? : (Int32, @device.Allocation, @device.Allocation),
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard functions.length() == 13 && layers.length() == 50 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   for i, (layout, _) in layers {
-    guard layout.layer == i else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-    }
+    guard layout.layer == i else { raise InvalidArgument(AotKernelLaunch) }
   }
   let p = self.plan
   let regions = p.workspace_regions()
@@ -118,7 +116,7 @@ pub fn TextEncoderSource::bind(
   fn visual_stage(index : Int32) -> Unit raise @device.DeviceError {
     if visual is Some((rows, positions, features)) {
       guard rows > 0 && rows <= p.rows else {
-        raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+        raise InvalidArgument(AotKernelLaunch)
       }
       let bytes = rows.to_int64() * 5120L * 2L
       append(if index == 0 { 11 } else { 12 }, linear(5120), [

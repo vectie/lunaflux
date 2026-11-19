@@ -32,6 +32,9 @@ pub(all) suberror DeepSeekV4OutputAParameterPlanError {
   NoUploadAuthority
   NoLaunchAuthority
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4OutputAParameterPlanError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputAParameterPlanError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputAParameterPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DeepSeekV4OutputAParameterEvidenceInput {
@@ -69,6 +72,9 @@ pub fn DeepSeekV4OutputAParameterPlan::status(Self) -> DeepSeekV4OutputAParamete
 pub(all) enum DeepSeekV4OutputAParameterPlanStatus {
   InertUnqualified
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4OutputAParameterPlanStatus::equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputAParameterPlanStatus::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputAParameterPlanStatus::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

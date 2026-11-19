@@ -18,9 +18,7 @@ pub fn DeferredPostPreDispatch::new(
   let mut last = 0
   let mut groups = 0
   for (end, width) in buckets {
-    guard end > last && end <= rows else {
-      raise @precision.PrecisionPlanError::IllegalPlacement
-    }
+    guard end > last && end <= rows else { raise IllegalPlacement }
     let plan = DeferredPostPrePlan::new(
       producer,
       consumer,
@@ -30,9 +28,7 @@ pub fn DeferredPostPreDispatch::new(
     groups = Int32::max(groups, plan.workgroups())
     last = end
   }
-  guard last == rows else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
-  }
+  guard last == rows else { raise IllegalPlacement }
   { buckets: ReadOnlyArray::from_array(buckets), workgroups: groups, }
 }
 

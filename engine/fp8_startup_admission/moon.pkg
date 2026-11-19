@@ -1,12 +1,11 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/device",
-  "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/numeric_capability_manifest",
   "vectie/lunaflux/model/plan",
-  "vectie/lunaflux/model/spec",
 }
 
 supported_targets = "native"
@@ -14,4 +13,6 @@ supported_targets = "native"
 import {
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/model/plan_test_fixture",
+  "vectie/lunaflux/kernels/artifact",
+  "vectie/lunaflux/model/spec",
 } for "test"

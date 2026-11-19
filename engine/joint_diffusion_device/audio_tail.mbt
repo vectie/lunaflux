@@ -35,7 +35,7 @@ pub fn AudioTailLayout::new(
     256L
   let scratch_bytes = normalized_offset + convolution.weight_bytes
   guard scratch_bytes <= max_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     activation,
@@ -68,7 +68,7 @@ pub fn AudioTailLayout::launches(
   guard functions.length() == 5 &&
     scratch.byte_count() >= self.scratch_bytes &&
     weights.byte_count() >= self.weight_bytes else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let c = self.activation.parameter_bytes
   let g = c * 2L + 96L

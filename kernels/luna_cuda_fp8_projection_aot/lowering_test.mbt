@@ -70,22 +70,22 @@ fn fp8_aot_lower(
   operation : Int32,
   profile~ : @launch_contract.PagedKernelProfile = fp8_aot_profile(),
   model_plan~ : @plan.ModelPlan = fp8_aot_plan(),
-) -> Fp8ProjectionCudaLowering {
+) -> @luna_cuda_fp8_projection_aot.Fp8ProjectionCudaLowering {
   let plan = model_plan
   let id = try! @plan.OperationId::new(operation)
-  let operands = try! derive_fp8_projection_operands(
+  let operands = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
     plan,
     operation=id,
     profile,
   )
-  try! lower_fp8_projection_cuda_aot_candidate(
+  try! @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate(
     plan,
     operation=id,
     profile,
     fp8_aot_target(),
     fp8_aot_compiler(),
     operands,
-    try! Fp8ProjectionAotLimits::new(
+    try! @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
       max_source_bytes=65536,
       max_recipe_bytes=65536,
     ),
@@ -186,7 +186,11 @@ test "FP8 gated MLP fails closed until a second dynamic-scale ABI exists" {
   let plan = fp8_aot_plan()
   let id = try! @plan.OperationId::new(8)
   try
-    derive_fp8_projection_operands(plan, operation=id, fp8_aot_profile())
+    @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
+      plan,
+      operation=id,
+      fp8_aot_profile(),
+    )
   catch {
     Unsupported(CompoundGatedActivationScale) => ()
     _ => fail("unexpected gated rejection")
@@ -201,20 +205,20 @@ test "FP8 candidate rejects target substitution and operand substitution" {
   let dense = try! @plan.OperationId::new(5)
   let qkv = try! @plan.OperationId::new(2)
   let profile = fp8_aot_profile()
-  let dense_operands = try! derive_fp8_projection_operands(
+  let dense_operands = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
     plan,
     operation=dense,
     profile,
   )
   try
-    lower_fp8_projection_cuda_aot_candidate(
+    @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate(
       plan,
       operation=dense,
       profile,
       fp8_aot_target(major=8, minor=0),
       fp8_aot_compiler(),
       dense_operands,
-      try! Fp8ProjectionAotLimits::new(
+      try! @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
         max_source_bytes=65536,
         max_recipe_bytes=65536,
       ),
@@ -225,20 +229,20 @@ test "FP8 candidate rejects target substitution and operand substitution" {
   } noraise {
     _ => fail("sm80 FP8 candidate was emitted")
   }
-  let qkv_operands = try! derive_fp8_projection_operands(
+  let qkv_operands = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
     plan,
     operation=qkv,
     profile,
   )
   try
-    lower_fp8_projection_cuda_aot_candidate(
+    @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate(
       plan,
       operation=dense,
       profile,
       fp8_aot_target(),
       fp8_aot_compiler(),
       qkv_operands,
-      try! Fp8ProjectionAotLimits::new(
+      try! @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
         max_source_bytes=65536,
         max_recipe_bytes=65536,
       ),

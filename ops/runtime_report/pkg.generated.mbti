@@ -22,6 +22,9 @@ pub(all) suberror RuntimeReportError {
   InconsistentAdmission
   DeviceBytesOverflow
 } derive(Eq, @debug.Debug)
+pub fn RuntimeReportError::equal(Self, Self) -> Bool
+pub fn RuntimeReportError::not_equal(Self, Self) -> Bool
+pub fn RuntimeReportError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct RuntimeInstanceReport {

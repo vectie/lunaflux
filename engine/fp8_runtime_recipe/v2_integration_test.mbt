@@ -1,7 +1,7 @@
 ///|
 struct RuntimeRecipeV2Inputs {
   launches : Array[@fp8_launch_abi.Fp8StagedDynamicLaunchAbi]
-  weights : Array[Fp8LaunchWeightRegionClaimV2]
+  weights : Array[@fp8_runtime_recipe.Fp8LaunchWeightRegionClaimV2]
 }
 
 ///|
@@ -15,7 +15,7 @@ fn runtime_v2_inputs(
   scale_offset_delta~ : Int64 = 0L,
 ) -> RuntimeRecipeV2Inputs raise {
   let launches : Array[@fp8_launch_abi.Fp8StagedDynamicLaunchAbi] = []
-  let claims : Array[Fp8LaunchWeightRegionClaimV2] = []
+  let claims : Array[@fp8_runtime_recipe.Fp8LaunchWeightRegionClaimV2] = []
   let entries = fixture.startup.kernel_artifacts().manifest().entries()
   let profile = try! @launch_contract.KernelProfileId::from_stable_int(1)
   for index, entry in entries {
@@ -68,7 +68,7 @@ fn runtime_v2_inputs(
       ),
     )
     claims.push(
-      try! Fp8LaunchWeightRegionClaimV2::new(
+      try! @fp8_runtime_recipe.Fp8LaunchWeightRegionClaimV2::new(
         profile~,
         operation=entry.operation(),
         regions=operands,
@@ -79,8 +79,10 @@ fn runtime_v2_inputs(
 }
 
 ///|
-fn runtime_v2_limits(canonical~ : Int32 = 65536) -> Fp8RuntimeRecipeV2Limits {
-  try! Fp8RuntimeRecipeV2Limits::new(
+fn runtime_v2_limits(
+  canonical~ : Int32 = 65536,
+) -> @fp8_runtime_recipe.Fp8RuntimeRecipeV2Limits {
+  try! @fp8_runtime_recipe.Fp8RuntimeRecipeV2Limits::new(
     max_launches=8,
     max_workspace_arena_bytes=1024L,
     max_canonical_bytes=canonical,
@@ -89,8 +91,8 @@ fn runtime_v2_limits(canonical~ : Int32 = 65536) -> Fp8RuntimeRecipeV2Limits {
 
 ///|
 fn expect_v2_rule(
-  body : () -> Fp8RuntimeRecipeV2 raise Fp8RuntimeRecipeV2Error,
-  expected : Fp8RuntimeRecipeV2Rule,
+  body : () -> @fp8_runtime_recipe.Fp8RuntimeRecipeV2 raise @fp8_runtime_recipe.Fp8RuntimeRecipeV2Error,
+  expected : @fp8_runtime_recipe.Fp8RuntimeRecipeV2Rule,
 ) -> Unit raise {
   try body() catch {
     InvalidFp8RuntimeRecipeV2(rule) => assert_eq(rule, expected)
@@ -133,7 +135,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
       file,
     )
     let source = runtime_v2_inputs(fixture, inspection)
-    let admitted = admit_v2(
+    let admitted = @fp8_runtime_recipe.admit_v2(
       fixture.startup,
       inspection,
       source.launches,
@@ -189,7 +191,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
       _ => fail("legacy zero-workspace startup replayed as staged v2")
     }
     let repeated_inputs = runtime_v2_inputs(fixture, inspection)
-    let repeated = admit_v2(
+    let repeated = @fp8_runtime_recipe.admit_v2(
       fixture.startup,
       inspection,
       repeated_inputs.launches,
@@ -210,7 +212,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
     )
     expect_v2_rule(
       () => {
-        admit_v2(
+        @fp8_runtime_recipe.admit_v2(
           fixture.startup,
           inspection,
           foreign_arena.launches,
@@ -227,7 +229,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
     )
     expect_v2_rule(
       () => {
-        admit_v2(
+        @fp8_runtime_recipe.admit_v2(
           fixture.startup,
           inspection,
           capacity_drift.launches,
@@ -239,7 +241,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
     )
     expect_v2_rule(
       () => {
-        admit_v2(
+        @fp8_runtime_recipe.admit_v2(
           fixture.startup,
           inspection,
           [
@@ -260,7 +262,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
     )
     expect_v2_rule(
       () => {
-        admit_v2(
+        @fp8_runtime_recipe.admit_v2(
           fixture.startup,
           inspection,
           wrong_weight.launches,
@@ -277,7 +279,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
     )
     expect_v2_rule(
       () => {
-        admit_v2(
+        @fp8_runtime_recipe.admit_v2(
           fixture.startup,
           inspection,
           wrong_scale.launches,
@@ -307,7 +309,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
     )
     expect_v2_rule(
       () => {
-        admit_v2(
+        @fp8_runtime_recipe.admit_v2(
           fixture.startup,
           inspection,
           foreign_launches.launches,
@@ -319,7 +321,7 @@ async test "runtime recipe v2 binds staged launches and one ordered arena" {
     )
     expect_v2_rule(
       () => {
-        admit_v2(
+        @fp8_runtime_recipe.admit_v2(
           fixture.startup,
           inspection,
           repeated_inputs.launches,

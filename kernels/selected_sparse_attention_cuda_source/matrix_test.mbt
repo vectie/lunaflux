@@ -13,15 +13,15 @@ test "matrix schedule requires an explicit numerical alternative" {
       accumulation~,
     )
   }
-  let ordered = @utf8.decode(make(@precision.OrderedFloat32).source_bytes())
-  let matrix = @utf8.decode(make(@precision.TiledFloat32).source_bytes())
+  let ordered = @utf8.decode(make(OrderedFloat32).source_bytes())
+  let matrix = @utf8.decode(make(TiledFloat32).source_bytes())
   assert_false(ordered.contains("mma.sync"))
   assert_true(matrix.contains("mma.sync.aligned.m16n8k16.row.col.f32.bf16"))
   assert_true(matrix.contains("if(g==0)"))
   assert_true(matrix.contains("key > position"))
   assert_true(matrix.contains("if (!row_valid) return"))
   assert_true(matrix.contains("__float2bfloat16_rn"))
-  assert_eq(make(@precision.TiledFloat32).launch(), (32, 256))
+  assert_eq(make(TiledFloat32).launch(), (32, 256))
   try
     @selected_sparse_attention_cuda_source.selected_sparse_source(
       query_heads=1,

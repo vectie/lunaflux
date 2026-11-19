@@ -30,7 +30,7 @@ test "dual score blockwise law handles GQA paged masks and ragged tails" {
               dot / dimensions.to_double().sqrt()
             }
             scores[key] = dual_score_dot(q, k, key % 2) /
-              dimensions.to_float().sqrt()
+              Float::from_int(dimensions).sqrt()
           }
           let maximum = reference_scores.fold(init=-1.0e30, Double::max)
           let weights = reference_scores.map(score => @math.exp(score - maximum))

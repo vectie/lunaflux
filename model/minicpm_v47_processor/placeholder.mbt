@@ -17,13 +17,13 @@ pub fn Plan::placeholder(self : Self) -> Placeholder {
         self.markers.slice_start
       },
     )
-    modalities.push(@positions.Modality::Text)
+    modalities.push(Text)
     let count = crop.size.height /
       (14 * self.merge) *
       (crop.size.width / (14 * self.merge))
     for _ in 0..<count {
       tokens.push(self.markers.image)
-      modalities.push(@positions.Modality::Image)
+      modalities.push(Image)
     }
     tokens.push(
       if index == 0 {
@@ -32,7 +32,7 @@ pub fn Plan::placeholder(self : Self) -> Placeholder {
         self.markers.slice_end
       },
     )
-    modalities.push(@positions.Modality::Text)
+    modalities.push(Text)
   }
   {
     tokens: ReadOnlyArray::from_array(tokens),
@@ -44,7 +44,7 @@ pub fn Plan::placeholder(self : Self) -> Placeholder {
 ///|
 /// Upstream replacement text, including a local image ID when supplied.
 pub fn Plan::placeholder_text(self : Self, image_id? : Int32) -> String raise {
-  let builder = StringBuilder::new()
+  let builder = StringBuilder()
   if image_id is Some(id) {
     guard id >= 0 else { fail("negative local image ID") }
     builder.write_string("<image_id>\{id}</image_id>")

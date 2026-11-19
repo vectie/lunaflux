@@ -13,12 +13,18 @@ pub fn new(StringView, StringView, KernelAdmissionPolicy) -> KernelConfig raise 
 pub(all) suberror KernelConfigError {
   Invalid(field~ : KernelConfigField, issue~ : KernelConfigIssue)
 } derive(Eq, @debug.Debug)
+pub fn KernelConfigError::equal(Self, Self) -> Bool
+pub fn KernelConfigError::not_equal(Self, Self) -> Bool
+pub fn KernelConfigError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum KernelAdmissionPolicy {
   DeploymentApprovedAotOnly
   OfflineInspectionOnly
 } derive(Eq, @debug.Debug)
+pub fn KernelAdmissionPolicy::equal(Self, Self) -> Bool
+pub fn KernelAdmissionPolicy::not_equal(Self, Self) -> Bool
+pub fn KernelAdmissionPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct KernelConfig {
   // private fields
@@ -33,15 +39,26 @@ pub(all) enum KernelConfigField {
   ExpectedManifestDigest
   AdmissionPolicy
 } derive(Eq, @debug.Debug)
+pub fn KernelConfigField::equal(Self, Self) -> Bool
+pub fn KernelConfigField::not_equal(Self, Self) -> Bool
+pub fn KernelConfigField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum KernelConfigIssue {
   InvalidFormat
   Unsupported
 } derive(Eq, @debug.Debug)
+pub fn KernelConfigIssue::equal(Self, Self) -> Bool
+pub fn KernelConfigIssue::not_equal(Self, Self) -> Bool
+pub fn KernelConfigIssue::to_repr(Self) -> @debug.Repr
 
 pub struct KernelManifestDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn KernelManifestDigest::as_hex(Self) -> String
+pub fn KernelManifestDigest::equal(Self, Self) -> Bool
 pub fn KernelManifestDigest::from_sha256(StringView) -> Self raise KernelConfigError
+pub fn KernelManifestDigest::hash(Self) -> Int
+pub fn KernelManifestDigest::hash_combine(Self, Hasher) -> Unit
+pub fn KernelManifestDigest::not_equal(Self, Self) -> Bool
+pub fn KernelManifestDigest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

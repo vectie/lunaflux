@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/async",
   "moonbitlang/async/socket",
   "vectie/lunaflux/benchmarks/evidence" @benchmark_evidence,

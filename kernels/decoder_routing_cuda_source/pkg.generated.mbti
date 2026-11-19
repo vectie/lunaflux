@@ -18,12 +18,18 @@ pub(all) suberror DecoderRoutingCudaSourceError {
   InvalidScaling
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn DecoderRoutingCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderRoutingCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderRoutingCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderRoutingCudaOperation {
   StableBiasedTopKI32
   SelectedExpertWeightFinalizeF32
 } derive(Eq, @debug.Debug)
+pub fn DecoderRoutingCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderRoutingCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderRoutingCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderRoutingCudaSource {
   // private fields
@@ -40,6 +46,9 @@ pub(all) enum DecoderRoutingNumericalContract {
   StableLowerExpertIdTopKV1
   OrderedF32NormalizeScaleV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderRoutingNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderRoutingNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderRoutingNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

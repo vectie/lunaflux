@@ -26,7 +26,7 @@ test "ordered products preserve folds and count all publication storage" {
       product_tile=255,
     )
   catch {
-    @precision.PrecisionPlanError::NoImplementation => ()
+    NoImplementation => ()
     e => raise e
   } noraise {
     _ => fail("partial cooperative tile accepted")

@@ -22,6 +22,9 @@ pub fn resolve_graph_memory(@device_step.PagedKvExecutionBlueprint, Int64?, weig
 pub(all) suberror RuntimeCapacityError {
   Invalid(RuntimeCapacityRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeCapacityError::equal(Self, Self) -> Bool
+pub fn RuntimeCapacityError::not_equal(Self, Self) -> Bool
+pub fn RuntimeCapacityError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ResolvedGraphMemoryCapacity {
@@ -33,6 +36,9 @@ pub fn ResolvedGraphMemoryCapacity::declared_alignment_bytes(Self) -> Int64?
 pub fn ResolvedGraphMemoryCapacity::declared_upper_bound_bytes(Self) -> Int64?
 pub fn ResolvedGraphMemoryCapacity::descriptor_ceiling_bytes(Self) -> Int64?
 pub fn ResolvedGraphMemoryCapacity::device_startup_upper_bound_bytes(Self) -> Int64?
+pub fn ResolvedGraphMemoryCapacity::equal(Self, Self) -> Bool
+pub fn ResolvedGraphMemoryCapacity::not_equal(Self, Self) -> Bool
+pub fn ResolvedGraphMemoryCapacity::to_repr(Self) -> @debug.Repr
 
 pub struct ResolvedRuntimeCapacity {
   // private fields
@@ -42,12 +48,14 @@ pub fn ResolvedRuntimeCapacity::block_table_pages_per_request(Self) -> Int
 pub fn ResolvedRuntimeCapacity::context_pages_per_request(Self) -> Int
 pub fn ResolvedRuntimeCapacity::decisions(Self) -> ReadOnlyArray[RuntimeCapacityDecision]
 pub fn ResolvedRuntimeCapacity::emergency_decode_page_reserve(Self) -> Int
+pub fn ResolvedRuntimeCapacity::equal(Self, Self) -> Bool
 pub fn ResolvedRuntimeCapacity::max_active_requests(Self) -> Int
 pub fn ResolvedRuntimeCapacity::max_rows_per_step(Self) -> Int
 pub fn ResolvedRuntimeCapacity::max_waiting_requests(Self) -> Int
 pub fn ResolvedRuntimeCapacity::maximum_generated_tokens_per_request(Self) -> Int
 pub fn ResolvedRuntimeCapacity::model_max_batch_rows(Self) -> Int
 pub fn ResolvedRuntimeCapacity::model_max_sequence_tokens(Self) -> Int
+pub fn ResolvedRuntimeCapacity::not_equal(Self, Self) -> Bool
 pub fn ResolvedRuntimeCapacity::output_event_capacity(Self) -> Int
 pub fn ResolvedRuntimeCapacity::page_allocator_limits(Self) -> @page_allocator.PageAllocatorLimits
 pub fn ResolvedRuntimeCapacity::plan_buffer_count(Self) -> Int
@@ -58,6 +66,7 @@ pub fn ResolvedRuntimeCapacity::prefix_layout(Self) -> @radix.PrefixLayout
 pub fn ResolvedRuntimeCapacity::required_recompute_history_cells(Self) -> Int
 pub fn ResolvedRuntimeCapacity::required_worker_page_table_cells(Self) -> Int
 pub fn ResolvedRuntimeCapacity::step_token_budget(Self) -> Int
+pub fn ResolvedRuntimeCapacity::to_repr(Self) -> @debug.Repr
 pub fn ResolvedRuntimeCapacity::tokens_per_page(Self) -> Int
 pub fn ResolvedRuntimeCapacity::total_page_count(Self) -> Int
 pub fn ResolvedRuntimeCapacity::total_request_slots(Self) -> Int
@@ -76,8 +85,11 @@ pub struct RuntimeCapacityDecision {
   subject : RuntimeCapacitySubject
   reason : RuntimeCapacityReason
 } derive(Eq, @debug.Debug)
+pub fn RuntimeCapacityDecision::equal(Self, Self) -> Bool
+pub fn RuntimeCapacityDecision::not_equal(Self, Self) -> Bool
 pub fn RuntimeCapacityDecision::reason(Self) -> RuntimeCapacityReason
 pub fn RuntimeCapacityDecision::subject(Self) -> RuntimeCapacitySubject
+pub fn RuntimeCapacityDecision::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeCapacityReason {
   CeilingDivision
@@ -89,6 +101,9 @@ pub(all) enum RuntimeCapacityReason {
   FixedDoubleBuffer
   OwnerMaximumGenerationDefault
 } derive(Eq, @debug.Debug)
+pub fn RuntimeCapacityReason::equal(Self, Self) -> Bool
+pub fn RuntimeCapacityReason::not_equal(Self, Self) -> Bool
+pub fn RuntimeCapacityReason::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeCapacityRule {
   EmergencyReserveWithinPhysicalPages
@@ -112,6 +127,9 @@ pub(all) enum RuntimeCapacityRule {
   GraphMemoryCeiling
   DeviceMemoryUpperBound
 } derive(Eq, @debug.Debug)
+pub fn RuntimeCapacityRule::equal(Self, Self) -> Bool
+pub fn RuntimeCapacityRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeCapacityRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeCapacitySubject {
   ContextPagesPerRequest
@@ -123,12 +141,18 @@ pub(all) enum RuntimeCapacitySubject {
   PageGenerationLimit
   BlockTableGenerationLimit
 } derive(Eq, @debug.Debug)
+pub fn RuntimeCapacitySubject::equal(Self, Self) -> Bool
+pub fn RuntimeCapacitySubject::not_equal(Self, Self) -> Bool
+pub fn RuntimeCapacitySubject::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeGraphMemoryAvailability {
   GraphAccountingAbsent
   GraphAccountingUnsupported
   GraphAccountingBounded
 } derive(Eq, @debug.Debug)
+pub fn RuntimeGraphMemoryAvailability::equal(Self, Self) -> Bool
+pub fn RuntimeGraphMemoryAvailability::not_equal(Self, Self) -> Bool
+pub fn RuntimeGraphMemoryAvailability::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

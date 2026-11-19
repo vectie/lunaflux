@@ -15,7 +15,7 @@ fn GlmDecoderLayer::producer_fork(
         ffn.launches.length() +
         ffn.envelope.prefix().length(),
       ) catch {
-        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        _ => raise InvalidArgument(OrderedExecutorCreate)
       },
     )
   } else {
@@ -138,7 +138,7 @@ pub fn GlmDecoderSlice::tensor_contract(
   vocabulary_shard? : @parallel.VocabularyShard,
 ) -> @device.TensorCollectiveContract raise @device.DeviceError {
   guard self.tensor_group is Some((rank, world_size)) else {
-    raise @device.DeviceError::InvalidArgument(TensorCollectiveContractCreate)
+    raise InvalidArgument(TensorCollectiveContractCreate)
   }
   let sites = []
   for i, layer in self.layers {
@@ -156,7 +156,7 @@ pub fn GlmDecoderSlice::tensor_contract(
   }
   if vocabulary_shard is Some(shard) {
     guard shard.group() == (rank, world_size) else {
-      raise @device.DeviceError::InvalidArgument(TensorCollectiveContractCreate)
+      raise InvalidArgument(TensorCollectiveContractCreate)
     }
     sites.push(
       @device.TensorCollectiveSite::new(

@@ -42,6 +42,9 @@ pub(all) suberror DecoderHyperConnectionCudaSourceError {
   InvalidFunctionSymbol
   InvalidNumericalContract
 } derive(Eq, @debug.Debug)
+pub fn DecoderHyperConnectionCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderHyperConnectionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderHyperConnectionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderHyperConnectionCudaOperation {
@@ -52,6 +55,9 @@ pub(all) enum DecoderHyperConnectionCudaOperation {
   PostCombineV1
   HeadReduceV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderHyperConnectionCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderHyperConnectionCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderHyperConnectionCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderHyperConnectionCudaSource {
   // private fields
@@ -106,6 +112,9 @@ pub(all) enum DecoderHyperConnectionNumericalContract {
   OrderedF32TransposedPostCombineBf16RoundV1
   OrderedF32HeadControlReductionBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderHyperConnectionNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderHyperConnectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderHyperConnectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderHyperConnectionPostCombineCudaSource {
   // private fields

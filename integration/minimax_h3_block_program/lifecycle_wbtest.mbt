@@ -4,12 +4,12 @@ test "partial function acquisition retains all acquired handles" {
   try
     acquire_functions(["q", "k", "v"], handles, name => {
       if name == "v" {
-        raise @device.DeviceError::InvalidArgument(FunctionLoad)
+        raise InvalidArgument(FunctionLoad)
       }
       name
     })
   catch {
-    @device.DeviceError::InvalidArgument(FunctionLoad) => ()
+    InvalidArgument(FunctionLoad) => ()
     _ => fail("unexpected load error")
   } noraise {
     _ => fail("expected missing symbol")
@@ -20,9 +20,7 @@ test "partial function acquisition retains all acquired handles" {
   assert_eq(released[0], "k")
   assert_eq(released[1], "q")
   assert_true(handles.is_empty())
-  release_functions(handles, _ => {
-    raise @device.DeviceError::InvalidArgument(FunctionClose)
-  })
+  release_functions(handles, _ => raise InvalidArgument(FunctionClose))
 }
 
 ///|
@@ -32,12 +30,12 @@ test "failed release retains failing and earlier handles for retry" {
   try
     release_functions(handles, name => {
       if name == "k" {
-        raise @device.DeviceError::InvalidArgument(FunctionClose)
+        raise InvalidArgument(FunctionClose)
       }
       released.push(name)
     })
   catch {
-    @device.DeviceError::InvalidArgument(FunctionClose) => ()
+    InvalidArgument(FunctionClose) => ()
     _ => fail("unexpected close error")
   } noraise {
     _ => fail("expected busy function")

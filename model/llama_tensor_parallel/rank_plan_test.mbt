@@ -128,7 +128,7 @@ test "rank plan rejects topology divisibility arena and recipe hostiles" {
     _ => fail("non-divisible KV heads accepted")
   }
   try
-    build_rank_plan(
+    @llama_tensor_parallel.build_rank_plan(
       model,
       bindings,
       rank=0,
@@ -143,7 +143,7 @@ test "rank plan rejects topology divisibility arena and recipe hostiles" {
     _ => fail("invalid alignment accepted")
   }
   try
-    build_rank_plan(
+    @llama_tensor_parallel.build_rank_plan(
       model,
       bindings,
       rank=0,

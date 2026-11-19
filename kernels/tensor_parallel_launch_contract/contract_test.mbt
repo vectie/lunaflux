@@ -143,7 +143,7 @@ test "declared full-profile artifact input fails before contract publication" {
       ),
     )
   catch {
-    TensorParallelLaunchContractError::InvalidTensorParallelLaunchContract(
+    @tensor_parallel_launch_contract.TensorParallelLaunchContractError::InvalidTensorParallelLaunchContract(
       rule=ArtifactProfile,
       profile=0,
       operation=2
@@ -172,7 +172,7 @@ test "foreign artifact family and reordered launch input fail closed" {
       ),
     )
   catch {
-    TensorParallelLaunchContractError::InvalidTensorParallelLaunchContract(
+    @tensor_parallel_launch_contract.TensorParallelLaunchContractError::InvalidTensorParallelLaunchContract(
       rule=ArtifactFamily,
       profile=0,
       operation=4

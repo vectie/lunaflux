@@ -1,7 +1,7 @@
 ///|
 test "answer framing survives token splits, terminal tails and connection reuse" {
   let limits = openai_fixture_limits()
-  let modes : Array[LunaOpenAICompatMode] = [
+  let modes : Array[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIChatCompletions,
     LunaOpenAIResponses,
   ]
@@ -11,7 +11,9 @@ test "answer framing survives token splits, terminal tails and connection reuse"
         limits,
         1,
         buffered=true,
-        output_framing=LunaOpenAIOutputFraming::answer_after(b"</think>"),
+        output_framing=@openai_compat.LunaOpenAIOutputFraming::answer_after(
+          b"</think>",
+        ),
       )
       for sequence in [1UL, 2UL] {
         let owner = @luna_event.LunaEventOwner::new(limits)
@@ -100,7 +102,7 @@ test "framing handles overlapping markers and absent answer on token exhaustion"
     limits,
     1,
     buffered=true,
-    output_framing=LunaOpenAIOutputFraming::answer_after(b"aab"),
+    output_framing=@openai_compat.LunaOpenAIOutputFraming::answer_after(b"aab"),
   )
   for sequence in [1UL, 2UL] {
     let owner = @luna_event.LunaEventOwner::new(limits)

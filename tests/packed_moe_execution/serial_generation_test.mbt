@@ -26,8 +26,5 @@ test "serial greedy continuation reuses frame and token storage without warm hea
   let allocated = end_allocations()
   assert_eq(allocated, 0UL)
   assert_eq(generation.token_count(), 15)
-  assert_eq(
-    generation.finish_reason(),
-    @serial_generation.GenerationFinish::Length,
-  )
+  assert_eq(generation.finish_reason(), Length)
 }

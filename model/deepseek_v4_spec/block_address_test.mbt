@@ -21,7 +21,7 @@ test "base and prediction blocks keep distinct namespaces and absolute routing l
   ]
   for bad in invalid {
     try bad.checkpoint_prefix(spec) catch {
-      @deepseek_v4_spec.DeepSeekV4SpecError::UnsupportedProfile => ()
+      UnsupportedProfile => ()
     } noraise {
       _ => fail("invalid address widened a base/prediction boundary")
     }
@@ -34,7 +34,7 @@ test "base and prediction blocks keep distinct namespaces and absolute routing l
       base_spec,
     )
   catch {
-    @deepseek_v4_spec.DeepSeekV4SpecError::UnsupportedProfile => ()
+    UnsupportedProfile => ()
   } noraise {
     _ => fail("prediction accepted for base-only model")
   }

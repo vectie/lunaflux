@@ -33,12 +33,18 @@ pub(all) suberror SamplingError {
   InvalidDistribution
   NonFiniteLogit(row~ : Int, token_id~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn SamplingError::equal(Self, Self) -> Bool
+pub fn SamplingError::not_equal(Self, Self) -> Bool
+pub fn SamplingError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum LimitDimension {
   Rows
   TokensPerRow
 } derive(Eq, @debug.Debug)
+pub fn LimitDimension::equal(Self, Self) -> Bool
+pub fn LimitDimension::not_equal(Self, Self) -> Bool
+pub fn LimitDimension::to_repr(Self) -> @debug.Repr
 
 pub struct SamplerScratch {
   // private fields
@@ -53,9 +59,12 @@ pub struct SamplingLimits {
   max_rows : Int
   max_tokens_per_row : Int
 } derive(Eq, @debug.Debug)
+pub fn SamplingLimits::equal(Self, Self) -> Bool
 pub fn SamplingLimits::max_rows(Self) -> Int
 pub fn SamplingLimits::max_tokens_per_row(Self) -> Int
 pub fn SamplingLimits::new(Int, Int) -> Self raise SamplingError
+pub fn SamplingLimits::not_equal(Self, Self) -> Bool
+pub fn SamplingLimits::to_repr(Self) -> @debug.Repr
 
 pub struct SamplingRng {
   // private fields
@@ -68,7 +77,10 @@ pub struct Selection {
   token_id : Int
   logit : Double
 } derive(Eq, @debug.Debug)
+pub fn Selection::equal(Self, Self) -> Bool
 pub fn Selection::logit(Self) -> Double
+pub fn Selection::not_equal(Self, Self) -> Bool
+pub fn Selection::to_repr(Self) -> @debug.Repr
 pub fn Selection::token_id(Self) -> Int
 
 // Type aliases

@@ -63,30 +63,40 @@ async fn run_image_runtime_fixture(
   let admission = @image_runtime.Execution::new(program, vision)
   let before_admission = creates()
   assert_true(
-    (try? admission.prepare(
-      context,
-      images,
-      layers~,
-      text_weights~,
-      vision_weights~,
-      maximum_mutable_bytes=budget.mutable_bytes - 1L,
-    ))
-    is Err(_),
+    try
+      admission.prepare(
+        context,
+        images,
+        layers~,
+        text_weights~,
+        vision_weights~,
+        maximum_mutable_bytes=budget.mutable_bytes - 1L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_eq(creates(), before_admission)
   admission.close()
   let partial = @image_runtime.Execution::new(program, vision)
   let before_partial = live_resources()
   assert_true(
-    (try? partial.prepare(
-      context,
-      images,
-      layers=[],
-      text_weights~,
-      vision_weights~,
-      maximum_mutable_bytes=budget.mutable_bytes,
-    ))
-    is Err(_),
+    try
+      partial.prepare(
+        context,
+        images,
+        layers=[],
+        text_weights~,
+        vision_weights~,
+        maximum_mutable_bytes=budget.mutable_bytes,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(live_resources() > before_partial)
   partial.close()
@@ -128,17 +138,33 @@ async fn run_image_runtime_fixture(
   assert_eq(copies() - before.2, 13UL)
   assert_true(!execution.is_finished())
   assert_true(
-    (try? execution.begin_text(plain, maximum_new_tokens=1, stop_token_ids=[]))
-    is Err(_),
+    try
+      execution.begin_text(plain, maximum_new_tokens=1, stop_token_ids=[])
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
-  assert_true((try? execution.submit_next()) is Err(_))
+  assert_true(
+    try execution.submit_next() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   assert_true(execution.poll())
   assert_eq(copies() - before.2, 15UL)
   assert_eq(reads(), before.1)
   // A completed vision queue does not permit feature reuse while text is pending.
   assert_true(
-    (try? execution.begin_image(prompt, input, maximum_new_tokens=1, stop_token_ids=[]))
-    is Err(_),
+    try
+      execution.begin_image(prompt, input, maximum_new_tokens=1, stop_token_ids=[])
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   measured_image_request_step(execution, produces_token=false)
   measured_image_request_step(execution, produces_token=false)
@@ -158,17 +184,28 @@ async fn run_image_runtime_fixture(
   execution.begin_image(prompt, input, maximum_new_tokens=1, stop_token_ids=[])
   execution.cancel()
   assert_true(execution.is_finished())
-  assert_eq(execution.finish_reason(), Some(@inference.FinishReason::Cancelled))
+  assert_eq(execution.finish_reason(), Some(Cancelled))
   set_fault(1)
   assert_true(
-    (try? execution.begin_image(prompt, input, maximum_new_tokens=1, stop_token_ids=[]))
-    is Err(_),
+    try
+      execution.begin_image(prompt, input, maximum_new_tokens=1, stop_token_ids=[])
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   execution.cancel()
   execution.begin_image(prompt, input, maximum_new_tokens=1, stop_token_ids=[])
   execution.wait()
   set_fault(1)
-  assert_true((try? execution.submit_next()) is Err(_))
+  assert_true(
+    try execution.submit_next() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   execution.cancel()
   execution.begin_text(plain, maximum_new_tokens=1, stop_token_ids=[])
   measured_image_request_step(execution, produces_token=true)

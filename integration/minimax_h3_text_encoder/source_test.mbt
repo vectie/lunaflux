@@ -1,7 +1,7 @@
 ///|
 test "source distinguishes causal encoder from noncausal DiT and omits final norm" {
   let plan = @text_plan.TextEncoderPlan::new(rows=7, epsilon=0.000001)
-  let source = build_source(plan, prefix="h3text")
+  let source = @minimax_h3_text_encoder.build_source(plan, prefix="h3text")
   let text = @utf8.decode(source.source)
   assert_eq(source.symbols.length(), 13)
   assert_true(text.contains("key<=row"))
@@ -24,7 +24,9 @@ test "independent numerical laws propagate through every encoder projection" {
     square_reduction_law=OrderedFloat32,
     dot_reduction_law=CompensatedFloat32,
   )
-  let text = @utf8.decode(build_source(plan, prefix="isolated_dot").source)
+  let text = @utf8.decode(
+    @minimax_h3_text_encoder.build_source(plan, prefix="isolated_dot").source,
+  )
   assert_eq(text.split("float sum=0.0f, correction=0.0f;").count(), 1)
   assert_eq(
     text
@@ -40,10 +42,15 @@ test "independent numerical laws propagate through every encoder projection" {
 ///|
 test "current shared MLP row ceiling is explicit at source construction" {
   let maximum = @text_plan.TextEncoderPlan::new(rows=83886, epsilon=0.000001)
-  let source = build_source(maximum, prefix="largest_encoder")
+  let source = @minimax_h3_text_encoder.build_source(
+    maximum,
+    prefix="largest_encoder",
+  )
   assert_eq(source.plan.rows, 83886)
   let next = @text_plan.TextEncoderPlan::new(rows=83887, epsilon=0.000001)
-  try build_source(next, prefix="too_large_encoder") catch {
+  try
+    @minimax_h3_text_encoder.build_source(next, prefix="too_large_encoder")
+  catch {
     @gated_mlp_cuda_source.GatedMlpCudaSourceError::DimensionOverflow => ()
     _ => fail("wrong row-limit error")
   } noraise {

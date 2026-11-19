@@ -41,6 +41,9 @@ pub(all) suberror Qwen3WeightsError {
   SourceFileChanged
   SourceArtifactDigestMismatch
 } derive(Eq, @debug.Debug)
+pub fn Qwen3WeightsError::equal(Self, Self) -> Bool
+pub fn Qwen3WeightsError::not_equal(Self, Self) -> Bool
+pub fn Qwen3WeightsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Qwen3SourceFileInspection {
@@ -53,13 +56,19 @@ pub fn Qwen3SourceFileInspection::source_manifest_sha256(Self) -> String
 pub struct Qwen3SourceFileLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Qwen3SourceFileLimits::equal(Self, Self) -> Bool
 pub fn Qwen3SourceFileLimits::new(max_file_bytes~ : Int64, compare_chunk_bytes~ : Int, safetensors~ : @safetensors.HeaderLimits) -> Self raise Qwen3WeightsError
+pub fn Qwen3SourceFileLimits::not_equal(Self, Self) -> Bool
+pub fn Qwen3SourceFileLimits::to_repr(Self) -> @debug.Repr
 
 pub struct Qwen3TensorBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Qwen3TensorBinding::equal(Self, Self) -> Bool
+pub fn Qwen3TensorBinding::not_equal(Self, Self) -> Bool
 pub fn Qwen3TensorBinding::reference(Self) -> @plan.TensorRef
 pub fn Qwen3TensorBinding::tensor(Self) -> @safetensors.TensorMetadata
+pub fn Qwen3TensorBinding::to_repr(Self) -> @debug.Repr
 
 pub struct Qwen3WeightBindings {
   // private fields
@@ -67,12 +76,15 @@ pub struct Qwen3WeightBindings {
 pub fn Qwen3WeightBindings::binding(Self, @plan.TensorRef) -> Qwen3TensorBinding?
 pub fn Qwen3WeightBindings::content_digest(Self) -> @spec.ContentDigest
 pub fn Qwen3WeightBindings::embedding_binding(Self) -> Qwen3TensorBinding
+pub fn Qwen3WeightBindings::equal(Self, Self) -> Bool
 pub fn Qwen3WeightBindings::length(Self) -> Int
 pub fn Qwen3WeightBindings::lm_head_binding(Self) -> Qwen3TensorBinding
 pub fn Qwen3WeightBindings::materialized_bytes(Self) -> Int64
+pub fn Qwen3WeightBindings::not_equal(Self, Self) -> Bool
 pub fn Qwen3WeightBindings::redundant_lm_head_tensor(Self) -> @safetensors.TensorMetadata?
 pub fn Qwen3WeightBindings::source_bytes(Self) -> Int64
 pub fn Qwen3WeightBindings::source_tensor_count(Self) -> Int
+pub fn Qwen3WeightBindings::to_repr(Self) -> @debug.Repr
 
 pub struct Qwen3WeightFileInspection {
   // private fields
@@ -95,6 +107,9 @@ pub(all) enum Qwen3WeightRule {
   TiedOutputByteEquality
   RouteManifest
 } derive(Eq, @debug.Debug)
+pub fn Qwen3WeightRule::equal(Self, Self) -> Bool
+pub fn Qwen3WeightRule::not_equal(Self, Self) -> Bool
+pub fn Qwen3WeightRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

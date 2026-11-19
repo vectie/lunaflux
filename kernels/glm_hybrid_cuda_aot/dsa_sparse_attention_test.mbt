@@ -19,7 +19,7 @@ test "Full and Flash sparse attention bind exact selected widths and ABI" {
       official_sparse=true,
     )
     let ordinal = sparse_attention_ordinal(requirements)
-    let candidate = lower_dsa_sparse_attention_cuda_aot_candidate(
+    let candidate = @glm_hybrid_cuda_aot.lower_dsa_sparse_attention_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -64,7 +64,7 @@ test "sparse attention rejects nonofficial shape ordinal and compiler" {
   let ordinary = glm_aot_requirements()
   let ordinal = sparse_attention_ordinal(ordinary)
   try
-    lower_dsa_sparse_attention_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_sparse_attention_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -81,7 +81,7 @@ test "sparse attention rejects nonofficial shape ordinal and compiler" {
   let exact = glm_aot_requirements(official_index=true, official_sparse=true)
   let exact_ordinal = sparse_attention_ordinal(exact)
   try
-    lower_dsa_sparse_attention_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_sparse_attention_cuda_aot_candidate(
       exact,
       requirement_ordinal=exact_ordinal + 1,
       maximum_tokens=32,
@@ -96,7 +96,7 @@ test "sparse attention rejects nonofficial shape ordinal and compiler" {
     _ => fail("neighbor ordinal admitted")
   }
   try
-    lower_dsa_sparse_attention_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_sparse_attention_cuda_aot_candidate(
       exact,
       requirement_ordinal=exact_ordinal,
       maximum_tokens=32,

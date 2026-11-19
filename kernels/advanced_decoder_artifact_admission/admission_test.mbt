@@ -2,7 +2,9 @@
 fn assert_next_artifact_operation_unavailable(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
   target : @catalog.DeviceTarget,
-  launches : ArrayView[AdvancedDecoderLaunchEvidenceInput],
+  launches : ArrayView[
+    @advanced_decoder_artifact_admission.AdvancedDecoderLaunchEvidenceInput,
+  ],
 ) -> Unit raise {
   let mut expected = -1
   for ordinal, requirement in requirements.requirements() {
@@ -44,7 +46,7 @@ test "pre-reduction fixture cannot bypass earlier Query-B projection gap" {
   let operands = artifact_test_operands(
     requirements.requirements()[ordinal].operation(),
   )
-  operands[2] = try! AdvancedDecoderLaunchOperand::new(
+  operands[2] = try! @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand::new(
     role=HyperConnectionPreOutput,
     byte_count=8L,
     alignment=16L,
@@ -76,7 +78,7 @@ test "post-combine fixture cannot bypass earlier Query-B projection gap" {
   let operands = artifact_test_operands(
     requirements.requirements()[ordinal].operation(),
   )
-  operands[4] = try! AdvancedDecoderLaunchOperand::new(
+  operands[4] = try! @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand::new(
     role=HyperConnectionCombinationOutput,
     byte_count=16L,
     alignment=16L,
@@ -99,7 +101,7 @@ test "post-combine fixture cannot bypass earlier Query-B projection gap" {
 test "caller qualification metadata cannot bypass the next unsupported operation" {
   let requirements = artifact_test_requirements()
   let target = artifact_test_target()
-  let qualification = try! AdvancedDecoderDeclaredQualificationDigest::from_sha256(
+  let qualification = try! @advanced_decoder_artifact_admission.AdvancedDecoderDeclaredQualificationDigest::from_sha256(
     String::make(64, 'd'),
   )
   assert_next_artifact_operation_unavailable(
@@ -122,7 +124,7 @@ test "block-control fixture cannot bypass earlier Query-B projection gap" {
   let operands = artifact_test_operands(
     requirements.requirements()[ordinal].operation(),
   )
-  operands[7] = try! AdvancedDecoderLaunchOperand::new(
+  operands[7] = try! @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand::new(
     role=HyperConnectionCombinationOutput,
     byte_count=8L,
     alignment=16L,

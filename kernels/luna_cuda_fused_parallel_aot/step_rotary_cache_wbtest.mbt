@@ -25,7 +25,7 @@ test "step rotary production source binds an explicit prepare-before-borrow ABI"
   assert_true(
     source.contains("_rotary_prepare(const int32_t* __restrict__ step_counts"),
   )
-  assert_eq(source.split("sincosf(").length(), 2)
+  assert_eq(source.split("sincosf(").count(), 2)
   assert_false(source.contains("lf_ingress_prepare_rotary(position, lane)"))
   assert_true(recipe.contains("rotary_cache_bytes=16384\n"))
   assert_true(recipe.contains("rotary_prepare_grid=16,1,1\n"))

@@ -23,6 +23,9 @@ pub(all) suberror LlamaAdmissionError {
   Plan(@plan.PlanValidationError)
   Weights(@llama_weights.LlamaWeightsError)
 } derive(Eq, @debug.Debug)
+pub fn LlamaAdmissionError::equal(Self, Self) -> Bool
+pub fn LlamaAdmissionError::not_equal(Self, Self) -> Bool
+pub fn LlamaAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LlamaAdmission {
@@ -32,9 +35,12 @@ pub struct LlamaAdmission {
   bindings : @llama_weights.LlamaWeightBindings
 } derive(Eq, @debug.Debug)
 pub fn LlamaAdmission::bindings(Self) -> @llama_weights.LlamaWeightBindings
+pub fn LlamaAdmission::equal(Self, Self) -> Bool
 pub fn LlamaAdmission::metadata(Self) -> @spec.LlamaModelMetadata
+pub fn LlamaAdmission::not_equal(Self, Self) -> Bool
 pub fn LlamaAdmission::plan(Self) -> @plan.ModelPlan
 pub fn LlamaAdmission::safetensors(Self) -> @safetensors.SafetensorsMetadata
+pub fn LlamaAdmission::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

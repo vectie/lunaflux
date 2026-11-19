@@ -230,8 +230,8 @@ fn artifact_test_dimensions_for(
 ///|
 fn artifact_test_limits(
   maximum_canonical_bytes~ : Int32 = 262144,
-) -> AdvancedDecoderArtifactAdmissionLimits {
-  try! AdvancedDecoderArtifactAdmissionLimits::new(
+) -> @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionLimits {
+  try! @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionLimits::new(
     maximum_requirements=64,
     maximum_modules=4,
     maximum_entry_points=64,
@@ -272,8 +272,10 @@ fn artifact_test_entry(
 ///|
 fn artifact_test_operands(
   operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation,
-) -> Array[AdvancedDecoderLaunchOperand] {
-  let operands : Array[AdvancedDecoderLaunchOperand] = []
+) -> Array[@advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand] {
+  let operands : Array[
+    @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
+  ] = []
   for index, role in artifact_test_roles(operation) {
     let (byte_count, alignment) = match operation {
       QueryLowRankAProjection(rank) =>
@@ -385,7 +387,11 @@ fn artifact_test_operands(
       _ => (64L, 16L)
     }
     operands.push(
-      try! AdvancedDecoderLaunchOperand::new(role~, byte_count~, alignment~),
+      try! @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand::new(
+        role~,
+        byte_count~,
+        alignment~,
+      ),
     )
   }
   operands
@@ -403,12 +409,14 @@ fn artifact_test_launch(
   entry_point? : @catalog.AotKernelEntryPoint,
   module_digest? : @catalog.AotArtifactDigest,
   dimensions? : @launch_contract.AotLaunchDimensions,
-  operands? : Array[AdvancedDecoderLaunchOperand],
-  qualification? : AdvancedDecoderDeclaredQualificationDigest,
-) -> AdvancedDecoderLaunchEvidenceInput {
+  operands? : Array[
+    @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand,
+  ],
+  qualification? : @advanced_decoder_artifact_admission.AdvancedDecoderDeclaredQualificationDigest,
+) -> @advanced_decoder_artifact_admission.AdvancedDecoderLaunchEvidenceInput {
   let expected = requirements.requirements()[ordinal]
   let exact_operation = operation.unwrap_or(expected.operation())
-  try! AdvancedDecoderLaunchEvidenceInput::new(
+  try! @advanced_decoder_artifact_admission.AdvancedDecoderLaunchEvidenceInput::new(
     requirements_digest=digest.unwrap_or(requirements.digest()),
     source_identity=source_identity.unwrap_or(requirements.source_identity()),
     requirement_ordinal=ordinal,
@@ -429,9 +437,13 @@ fn artifact_test_launch(
 fn artifact_test_launches(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
   target : @catalog.DeviceTarget,
-  qualification? : AdvancedDecoderDeclaredQualificationDigest,
-) -> Array[AdvancedDecoderLaunchEvidenceInput] {
-  let launches : Array[AdvancedDecoderLaunchEvidenceInput] = []
+  qualification? : @advanced_decoder_artifact_admission.AdvancedDecoderDeclaredQualificationDigest,
+) -> Array[
+  @advanced_decoder_artifact_admission.AdvancedDecoderLaunchEvidenceInput,
+] {
+  let launches : Array[
+    @advanced_decoder_artifact_admission.AdvancedDecoderLaunchEvidenceInput,
+  ] = []
   for ordinal, _ in requirements.requirements() {
     launches.push(
       artifact_test_launch(requirements, target, ordinal, qualification?),
@@ -457,9 +469,11 @@ fn artifact_test_entries(
 }
 
 ///|
-fn artifact_test_modules() -> Array[AdvancedDecoderModuleInput] {
+fn artifact_test_modules() -> Array[
+  @advanced_decoder_artifact_admission.AdvancedDecoderModuleInput,
+] {
   [
-    AdvancedDecoderModuleInput::new(
+    @advanced_decoder_artifact_admission.AdvancedDecoderModuleInput::new(
       digest=artifact_test_module_digest(),
       module_bytes=b"advanced-aot",
     ),
@@ -470,9 +484,11 @@ fn artifact_test_modules() -> Array[AdvancedDecoderModuleInput] {
 fn artifact_test_admit(
   requirements : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirements,
   target : @catalog.DeviceTarget,
-  launches : ArrayView[AdvancedDecoderLaunchEvidenceInput],
-) -> AdvancedDecoderArtifactAdmission raise AdvancedDecoderArtifactAdmissionError {
-  admit(
+  launches : ArrayView[
+    @advanced_decoder_artifact_admission.AdvancedDecoderLaunchEvidenceInput,
+  ],
+) -> @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmission raise @advanced_decoder_artifact_admission.AdvancedDecoderArtifactAdmissionError {
+  @advanced_decoder_artifact_admission.admit(
     requirements,
     target~,
     module_inputs=artifact_test_modules(),

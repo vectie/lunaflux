@@ -38,7 +38,7 @@ test "expression-only operands cannot silently discard buffered staging" {
       result="output",
     )
   catch {
-    @precision.PrecisionPlanError::NoImplementation => ()
+    NoImplementation => ()
     _ => fail("unexpected lowering error")
   } noraise {
     _ => fail("address-free operand accepted an unimplemented copy schedule")
@@ -51,7 +51,7 @@ test "expression-only operands cannot silently discard buffered staging" {
       results=("out0", "out1"),
     )
   catch {
-    @precision.PrecisionPlanError::NoImplementation => ()
+    NoImplementation => ()
     _ => fail("unexpected paired lowering error")
   } noraise {
     _ => fail("paired expressions silently ignored copy schedule")

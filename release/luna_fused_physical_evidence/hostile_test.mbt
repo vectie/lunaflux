@@ -240,7 +240,7 @@ test "physical fused evidence rejects independently pinned digest mismatch" {
     canonical, "pending_work_after=0", "pending_work_after=1",
   )
   try
-    admit_fused_physical_evidence(
+    @luna_fused_physical_evidence.admit_fused_physical_evidence(
       fixture.qkv,
       fixture.qkv_compiled,
       fixture.residual,

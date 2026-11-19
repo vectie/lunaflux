@@ -40,14 +40,23 @@ pub fn prepare_remote_luna_online_instance(@tokenizer.TokenizerDigest, @spec.Mod
 pub(all) suberror LunaOnlineFramedCoordinatorError {
   LunaOnlineFramedCoordinatorFailed(LunaOnlineFramedCoordinatorRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedCoordinatorError::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedCoordinatorError::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedCoordinatorError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror LunaOnlineInstanceError {
   LunaOnlineInstanceFailed(LunaOnlineInstanceFailure)
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstanceError::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceError::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror LunaOnlineInstancePreparationError {
   LunaOnlineInstancePreparationFailed(LunaOnlineInstanceFailure)
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstancePreparationError::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstancePreparationError::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstancePreparationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FailedLunaOnlineInstancePreparation {
@@ -101,6 +110,9 @@ pub(all) enum LunaOnlineFramedCoordinatorProgress {
   LunaOnlineFramedCoordinatorDraining
   LunaOnlineFramedCoordinatorClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedCoordinatorProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedCoordinatorProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedCoordinatorProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineFramedCoordinatorRule {
   LunaOnlineFramedLifecycle
@@ -112,6 +124,9 @@ pub(all) enum LunaOnlineFramedCoordinatorRule {
   LunaOnlineFramedMaintenance
   LunaOnlineFramedOwnership
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedCoordinatorRule::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedCoordinatorRule::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedCoordinatorRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineFramedEventOffer {
   // private fields
@@ -132,6 +147,9 @@ pub(all) enum LunaOnlineFramedIngressKind {
   LunaOnlineFramedIngressBackpressured
   LunaOnlineFramedIngressDraining
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedIngressKind::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedIngressKind::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedIngressKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineFramedLatencyKind {
   LunaOnlineFramedNoLatency
@@ -139,6 +157,9 @@ pub(all) enum LunaOnlineFramedLatencyKind {
   LunaOnlineFramedFirstTokenLatency
   LunaOnlineFramedInterTokenLatency
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedLatencyKind::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedLatencyKind::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedLatencyKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineFramedObservation {
   // private fields
@@ -164,6 +185,9 @@ pub(all) enum LunaOnlineFramedObservationKind {
   LunaOnlineFramedWorkerRestartObservation
   LunaOnlineFramedWorkerRequestTerminalObservation
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedObservationKind::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedObservationKind::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedObservationKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineFramedOpen {
   // private fields
@@ -176,6 +200,9 @@ pub(all) enum LunaOnlineFramedOpenKind {
   LunaOnlineFramedOpenDraining
   LunaOnlineFramedOpenClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedOpenKind::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedOpenKind::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedOpenKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineFramedPlanTelemetry {
   // private fields
@@ -201,6 +228,9 @@ pub(all) enum LunaOnlineFramedRejectionRule {
   LunaOnlineFramedRejectedCapacity
   LunaOnlineFramedRejectedService
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedRejectionRule::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedRejectionRule::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedRejectionRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineFramedRequestRoute {
   // private fields
@@ -255,6 +285,9 @@ pub(all) enum LunaOnlineFramedServiceReadiness {
   LunaOnlineFramedServiceDraining
   LunaOnlineFramedServiceClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedServiceReadiness::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedServiceReadiness::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedServiceReadiness::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineFramedStream {
   // private fields
@@ -322,6 +355,9 @@ pub(all) enum LunaOnlineInstanceAdmissionKind {
   LunaOnlineInstanceBusy
   LunaOnlineInstanceDraining
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstanceAdmissionKind::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceAdmissionKind::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceAdmissionKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineInstanceFailure {
   LunaOnlineAdmissionFailure
@@ -333,6 +369,9 @@ pub(all) enum LunaOnlineInstanceFailure {
   LunaOnlineServiceFailure
   LunaOnlineInvalid(LunaOnlineInstanceRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstanceFailure::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceFailure::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceFailure::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineInstancePreparation {
   // private fields
@@ -345,6 +384,9 @@ pub(all) enum LunaOnlineInstancePreparationState {
   LunaOnlineInstanceReady
   LunaOnlineInstanceCleanupRequired
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstancePreparationState::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstancePreparationState::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstancePreparationState::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineInstanceProgress {
   LunaOnlineInstancePending
@@ -353,12 +395,18 @@ pub(all) enum LunaOnlineInstanceProgress {
   LunaOnlineInstanceTerminalizationRequired
   LunaOnlineInstanceRequestRetirementRequired
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstanceProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineInstanceRetirementProgress {
   LunaOnlineInstanceRetirementPending
   LunaOnlineInstanceIdle
   LunaOnlineInstanceClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstanceRetirementProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceRetirementProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceRetirementProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineInstanceRule {
   LunaOnlineLifecycle
@@ -369,15 +417,23 @@ pub(all) enum LunaOnlineInstanceRule {
   LunaOnlineEventCredit
   LunaOnlineRequestEpoch
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstanceRule::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceRule::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineInstanceShutdownProgress {
   LunaOnlineInstanceShutdownPending
   LunaOnlineInstanceShutdownClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineInstanceShutdownProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceShutdownProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineInstanceShutdownProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineRequestTicket {
   // private fields
 } derive(Eq)
+pub fn LunaOnlineRequestTicket::equal(Self, Self) -> Bool
+pub fn LunaOnlineRequestTicket::not_equal(Self, Self) -> Bool
 
 pub struct RemoteLunaFramedPreparation {
   // private fields

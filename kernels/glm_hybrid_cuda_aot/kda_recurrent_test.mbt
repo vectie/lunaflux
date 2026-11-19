@@ -18,7 +18,7 @@ test "KDA recurrent lowerer binds serial exact state transition" {
     official_sparse=true,
     kda_head_count=64,
   )
-  let candidate = lower_kda_recurrent_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_kda_recurrent_cuda_aot_candidate(
     requirements,
     requirement_ordinal=kda_recurrent_ordinal(requirements),
     maximum_tokens=32,
@@ -48,7 +48,7 @@ test "KDA recurrent lowerer rejects wrong shape limits ordinal target compiler" 
     kda_head_count=63,
   )
   try
-    lower_kda_recurrent_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_recurrent_cuda_aot_candidate(
       wrong,
       requirement_ordinal=kda_recurrent_ordinal(wrong),
       maximum_tokens=32,
@@ -72,7 +72,7 @@ test "KDA recurrent lowerer rejects wrong shape limits ordinal target compiler" 
   let ordinal = kda_recurrent_ordinal(exact)
   for sequences in [0, 33] {
     try
-      lower_kda_recurrent_cuda_aot_candidate(
+      @glm_hybrid_cuda_aot.lower_kda_recurrent_cuda_aot_candidate(
         exact,
         requirement_ordinal=ordinal,
         maximum_tokens=32,
@@ -89,7 +89,7 @@ test "KDA recurrent lowerer rejects wrong shape limits ordinal target compiler" 
     }
   }
   try
-    lower_kda_recurrent_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_recurrent_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal - 1,
       maximum_tokens=32,

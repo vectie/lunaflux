@@ -7,7 +7,7 @@ pub fn scalar_expression(
   bindings : ArrayView[String],
 ) -> String raise @precision.PrecisionPlanError {
   guard bindings.length() == program.inputs().length() else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
+    raise IllegalPlacement
   }
   fn render(expr : @precision.NumericExpr) -> String {
     match expr {

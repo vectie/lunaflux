@@ -86,7 +86,7 @@ test "rectangular spatial grid excludes endpoint and temporal cadence resets eve
       max_rows=64,
     )
   catch {
-    @minimax_h3_sequence.SequenceError::InvalidShape => ()
+    InvalidShape => ()
     _ => fail("wrong grid error")
   } noraise {
     _ => fail("odd patch dimension accepted")

@@ -134,8 +134,8 @@ fn aot_test_compiler(
 }
 
 ///|
-fn aot_test_limits() -> AdvancedDecoderCudaAotLimits {
-  try! AdvancedDecoderCudaAotLimits::new(
+fn aot_test_limits() -> @advanced_decoder_cuda_aot.AdvancedDecoderCudaAotLimits {
+  try! @advanced_decoder_cuda_aot.AdvancedDecoderCudaAotLimits::new(
     maximum_tokens=4096,
     maximum_source_bytes=65536,
     maximum_recipe_bytes=65536,
@@ -145,7 +145,7 @@ fn aot_test_limits() -> AdvancedDecoderCudaAotLimits {
 ///|
 test "embedding and final norm lower deterministically with exact ABI" {
   let requirements = aot_test_requirements()
-  let embedding = lower_foundation_cuda_aot_candidate(
+  let embedding = @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=0,
     maximum_tokens=32,
@@ -173,7 +173,7 @@ test "embedding and final norm lower deterministically with exact ABI" {
       #|3a5e30c5e658fcf1865ee10c659f6698705bb1ba004e0aa578f856ab83cc0b7a
     ),
   )
-  let repeated = lower_foundation_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=0,
     maximum_tokens=32,
@@ -184,7 +184,7 @@ test "embedding and final norm lower deterministically with exact ABI" {
   assert_eq(embedding.source_digest(), repeated.source_digest())
   assert_eq(embedding.recipe_digest(), repeated.recipe_digest())
   let final_ordinal = requirements.requirements().length() - 2
-  let norm = lower_foundation_cuda_aot_candidate(
+  let norm = @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=final_ordinal,
     maximum_tokens=32,
@@ -214,7 +214,7 @@ test "unsupported operations targets compilers and token bounds fail closed" {
   let requirements = aot_test_requirements()
   for ordinal in [1, requirements.requirements().length() - 1] {
     try
-      lower_foundation_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=1,
@@ -230,7 +230,7 @@ test "unsupported operations targets compilers and token bounds fail closed" {
     }
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=0,
       maximum_tokens=4097,
@@ -245,7 +245,7 @@ test "unsupported operations targets compilers and token bounds fail closed" {
     _ => fail("oversized token profile was lowered")
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=0,
       maximum_tokens=1,
@@ -260,7 +260,7 @@ test "unsupported operations targets compilers and token bounds fail closed" {
     _ => fail("non-BF16 target was lowered")
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=0,
       maximum_tokens=1,

@@ -73,7 +73,7 @@ pub fn prepare_moe(
     post_reduction_routed_kernels >= 0 &&
     post_reduction_routed_kernels < routed.length() &&
     (post_reduction_routed_kernels == 0 || reduction is Some(_)) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let launches = routed.to_owned()
   launches.append(shared)
@@ -109,11 +109,9 @@ pub fn MoeExecutor::submit(
   plan_sequence~ : UInt64,
   global_sequence~ : UInt64,
 ) -> Unit raise @device.DeviceError {
-  guard self.state == Idle else {
-    raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
-  }
+  guard self.state == Idle else { raise Busy(OrderedExecutorEnqueue) }
   guard live_rows > 0 && live_rows <= self.maximum_rows else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   errdefer {
     self.state = Failed
@@ -153,7 +151,7 @@ pub fn MoeExecutor::submit(
 /// reduction to shared/finalize. Completion rearms the exact startup queue.
 pub fn MoeExecutor::poll(self : Self) -> Bool raise @device.DeviceError {
   guard self.state == AwaitingSubmission || self.state == AwaitingCompletion else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   errdefer {
     self.state = Failed
@@ -182,9 +180,7 @@ pub fn MoeExecutor::close(self : Self) -> Unit raise @device.DeviceError {
   if self.state == Closed {
     return
   }
-  guard self.state == Idle else {
-    raise @device.DeviceError::Busy(OrderedExecutorClose)
-  }
+  guard self.state == Idle else { raise Busy(OrderedExecutorClose) }
   self.queue.close()
   self.state = Closed
 }

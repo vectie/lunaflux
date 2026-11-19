@@ -93,7 +93,7 @@ pub fn CollectiveKernelProgram::new(
     !launches.is_empty() &&
     maximum_rows > 0 &&
     capture_timeout_millis > 0UL else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   owner.validate_site_count(boundaries.length())
   let plan = @parallel.OrderedSubmissionPlan::new(
@@ -102,16 +102,16 @@ pub fn CollectiveKernelProgram::new(
     retirement~,
     replay~,
   ) catch {
-    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    _ => raise InvalidArgument(OrderedExecutorCreate)
   }
   plan.validate_forks(forks) catch {
-    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    _ => raise InvalidArgument(OrderedExecutorCreate)
   }
   for i, boundary in boundaries {
     guard boundary.before_kernel > 0 &&
       boundary.before_kernel < launches.length() &&
       (i == 0 || boundary.before_kernel > boundaries[i - 1].before_kernel) else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     owner.validate_site(
       site_sequence=i + 1,
@@ -146,14 +146,14 @@ pub fn CollectiveKernelProgram::new(
     bytes_per_kernel=16384L,
     bytes_per_interval=65536L,
   ) catch {
-    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    _ => raise InvalidArgument(OrderedExecutorCreate)
   }
   guard reserve + forks.length().to_int64() * 65536L <= replay_budget_bytes else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let queues : Array[PreparedQueue] = []
   let graph_rows = plan.collective_row_buckets(maximum_rows) catch {
-    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    _ => raise InvalidArgument(OrderedExecutorCreate)
   }
   errdefer {
     if !graph_rows.is_empty() {
@@ -178,7 +178,7 @@ pub fn CollectiveKernelProgram::new(
   for bucket, _ in graph_rows {
     for window in 0..<plan.collective_window_count(bucket) {
       let (first, end, _, _) = plan.collective_window(bucket, window) catch {
-        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        _ => raise InvalidArgument(OrderedExecutorCreate)
       }
       queues.push(
         prepare_window_queue(context, stream, launches, forks, first, end),
@@ -257,7 +257,7 @@ fn CollectiveKernelProgram::enqueue_interval(
   let first = self.plan.interval_start(interval)
   let end = self.plan.interval_end(interval)
   guard self.next_kernel == first else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   if self.plan.captures_interval_graphs() {
     let queue = self.queues[self.plan.interval_queue_offset() + interval]
@@ -306,7 +306,7 @@ pub fn CollectiveKernelProgram::submit(
   global_sequence~ : UInt64,
 ) -> Unit raise @device.DeviceError {
   guard self.state == Idle && live_rows > 0 && live_rows <= self.maximum_rows else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.state = Failed
   self.rows = live_rows
@@ -360,7 +360,7 @@ pub fn CollectiveKernelProgram::poll(
   guard self.state == Submission ||
     self.state == Completion ||
     self.state == Tail else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   errdefer {
     self.state = Failed
@@ -427,9 +427,7 @@ pub fn CollectiveKernelProgram::close(
   if self.state == Closed {
     return
   }
-  guard self.state == Idle else {
-    raise @device.DeviceError::Busy(OrderedExecutorClose)
-  }
+  guard self.state == Idle else { raise Busy(OrderedExecutorClose) }
   for queue in self.queues.rev() {
     queue.close()
   }

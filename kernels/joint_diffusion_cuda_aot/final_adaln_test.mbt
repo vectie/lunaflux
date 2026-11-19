@@ -17,7 +17,7 @@ fn final_adaln_ordinal(
 test "final AdaLN closes BF16 modulation to F32 head boundary exactly" {
   let requirements = diffusion_aot_requirements()
   let request = diffusion_aot_request()
-  let video = lower_final_adaln_f32_cuda_aot_candidate(
+  let video = @joint_diffusion_cuda_aot.lower_final_adaln_f32_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=final_adaln_ordinal(requirements, VideoLatent),
@@ -42,7 +42,7 @@ test "final AdaLN closes BF16 modulation to F32 head boundary exactly" {
   assert_true(source.contains("scaled = __float2bfloat16_rn"))
   assert_true(source.contains("modulated = __float2bfloat16_rn"))
   assert_true(source.contains("float *output"))
-  let audio = lower_final_adaln_f32_cuda_aot_candidate(
+  let audio = @joint_diffusion_cuda_aot.lower_final_adaln_f32_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=final_adaln_ordinal(requirements, AudioLatent),
@@ -65,7 +65,7 @@ test "final AdaLN lowering rejects hostile request ordinal target compiler and l
   let request = diffusion_aot_request()
   let ordinal = final_adaln_ordinal(requirements, VideoLatent)
   try
-    lower_final_adaln_f32_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_f32_cuda_aot_candidate(
       requirements,
       request_shape=diffusion_aot_foreign_request(),
       requirement_ordinal=ordinal,
@@ -80,7 +80,7 @@ test "final AdaLN lowering rejects hostile request ordinal target compiler and l
     _ => fail("foreign request accepted")
   }
   try
-    lower_final_adaln_f32_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_f32_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=0,
@@ -95,7 +95,7 @@ test "final AdaLN lowering rejects hostile request ordinal target compiler and l
     _ => fail("wrong ordinal accepted")
   }
   try
-    lower_final_adaln_f32_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_f32_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=ordinal,
@@ -115,7 +115,7 @@ test "final AdaLN lowering rejects hostile request ordinal target compiler and l
       diffusion_aot_compiler(reassociate=true),
     ] {
     try
-      lower_final_adaln_f32_cuda_aot_candidate(
+      @joint_diffusion_cuda_aot.lower_final_adaln_f32_cuda_aot_candidate(
         requirements,
         request_shape=request,
         requirement_ordinal=ordinal,
@@ -131,7 +131,7 @@ test "final AdaLN lowering rejects hostile request ordinal target compiler and l
     }
   }
   try
-    lower_final_adaln_f32_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_f32_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=ordinal,

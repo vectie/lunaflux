@@ -38,13 +38,13 @@ test "rotary coefficients concatenate axes repeat half and preserve padding iden
     assert_eq(tables.sine()[index], 0.0F)
   }
   try sequence.rotary_tables([1.0F, 0.5F], max_elements=1535L) catch {
-    @minimax_h3_sequence.RotaryError::ElementLimitExceeded => ()
+    ElementLimitExceeded => ()
     _ => fail("wrong rotary capacity error")
   } noraise {
     _ => fail("short table capacity accepted")
   }
   try sequence.rotary_tables([0.0F], max_elements=1536L) catch {
-    @minimax_h3_sequence.RotaryError::InvalidFrequency => ()
+    InvalidFrequency => ()
     _ => fail("wrong frequency error")
   } noraise {
     _ => fail("invalid frequency admitted")

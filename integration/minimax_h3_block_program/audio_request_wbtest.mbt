@@ -27,11 +27,7 @@ test "audio request completion is observed once and submission cannot replay" {
 ///|
 test "audio partial submission and poll failures require drain without retry" {
   let state : AudioRequestState = { phase: Prepared, }
-  try
-    state.submit(() => {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
-    })
-  catch {
+  try state.submit(() => raise InvalidArgument(OrderedExecutorEnqueue)) catch {
     _ => ()
   } noraise {
     _ => fail("submit failure lost")
@@ -43,20 +39,14 @@ test "audio partial submission and poll failures require drain without retry" {
   state.cancel(() => drained += 1)
   assert_eq(drained, 1)
   let pending : AudioRequestState = { phase: Submitted, }
-  try
-    pending.poll(() => {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
-    })
-  catch {
+  try pending.poll(() => raise InvalidArgument(OrderedExecutorEnqueue)) catch {
     _ => ()
   } noraise {
     _ => fail("poll failure lost")
   }
   assert_true(pending.phase == Failed)
   try
-    pending.cancel(() => {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
-    })
+    pending.cancel(() => raise InvalidArgument(OrderedExecutorEnqueue))
   catch {
     _ => ()
   } noraise {

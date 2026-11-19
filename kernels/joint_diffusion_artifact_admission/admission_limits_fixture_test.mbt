@@ -1,6 +1,6 @@
 ///|
-fn admission_test_limits() -> JointDiffusionArtifactAdmissionLimits {
-  try! JointDiffusionArtifactAdmissionLimits::new(
+fn admission_test_limits() -> @joint_diffusion_artifact_admission.JointDiffusionArtifactAdmissionLimits {
+  try! @joint_diffusion_artifact_admission.JointDiffusionArtifactAdmissionLimits::new(
     maximum_requirements=34,
     maximum_modules=4,
     maximum_entry_points=35,
@@ -13,9 +13,15 @@ fn admission_test_limits() -> JointDiffusionArtifactAdmissionLimits {
 
 ///|
 fn admission_test_operands(
-  roles : ArrayView[JointDiffusionLaunchOperandRole],
-) -> Array[JointDiffusionLaunchOperand] {
+  roles : ArrayView[
+    @joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole,
+  ],
+) -> Array[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperand] {
   roles.map(role => {
-    try! JointDiffusionLaunchOperand::new(role~, byte_count=64L, alignment=16L)
+    try! @joint_diffusion_artifact_admission.JointDiffusionLaunchOperand::new(
+      role~,
+      byte_count=64L,
+      alignment=16L,
+    )
   })
 }

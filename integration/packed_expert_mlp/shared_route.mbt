@@ -13,12 +13,10 @@ pub fn initialize_shared_route(
     selected == 1 &&
     plan.local_experts().length() == 1 &&
     plan.local_experts()[0] == 0 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let bytes = rows.to_int64() * 4L
-  guard bytes <= 2147483647L else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard bytes <= 2147483647L else { raise InvalidArgument(AotKernelLaunch) }
   let buffer = FixedArray::make(bytes.to_int(), b'\x00')
   context.copy_from_fixed_host(indices, buffer, 0L, 0L, bytes)
   context.copy_from_fixed_host(expert_map, buffer, 0L, 0L, 4L)

@@ -21,7 +21,7 @@ pub fn RefinerProgram::prepare(
   max_workspace_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.functions.is_empty() && self.workspace is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let s = self.source.model.denoiser()
   let layout = @joint_diffusion_device.BlockWorkspaceLayout::new(
@@ -64,7 +64,7 @@ pub fn RefinerProgram::bind(
   state_offset~ : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.ready && self.workspace is Some(_) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   validate_layer_order(
     layers.map(pair => pair.0.layer),
@@ -77,7 +77,7 @@ pub fn RefinerProgram::bind(
   }
   let (last, weights) = layers[layers.length() - 1]
   guard last.final_norm_offset is Some(weight_offset) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   launches.push(
     @joint_diffusion_device.block_rms_norm_launch(
@@ -119,7 +119,7 @@ fn RefinerProgram::bind_layer_stages(
   state_offset~ : Int64,
 ) -> Array[(@joint_diffusion_device.RefinerStage, @device.OrderedKernelLaunch)] raise @device.DeviceError {
   guard self.ready && self.workspace is Some(workspace) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let f = self.functions
   workspace.bind_refiner_stages(

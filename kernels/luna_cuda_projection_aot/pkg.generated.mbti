@@ -43,6 +43,9 @@ pub(all) suberror ProjectionAotError {
   LimitExceeded(ProjectionAotRule)
   SizeOverflow(ProjectionAotRule)
 } derive(Eq, @debug.Debug)
+pub fn ProjectionAotError::equal(Self, Self) -> Bool
+pub fn ProjectionAotError::not_equal(Self, Self) -> Bool
+pub fn ProjectionAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CudaProjectionFoldBody {
@@ -64,11 +67,17 @@ pub(all) enum ProjectionAotFamily {
   GatedMlp
   LanguageModelHead
 } derive(Eq, @debug.Debug)
+pub fn ProjectionAotFamily::equal(Self, Self) -> Bool
+pub fn ProjectionAotFamily::not_equal(Self, Self) -> Bool
+pub fn ProjectionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionAotLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionAotLimits::equal(Self, Self) -> Bool
 pub fn ProjectionAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int) -> Self raise ProjectionAotError
+pub fn ProjectionAotLimits::not_equal(Self, Self) -> Bool
+pub fn ProjectionAotLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionAotRule {
   Limits
@@ -87,6 +96,9 @@ pub(all) enum ProjectionAotRule {
   Recipe
   Digest
 } derive(Eq, @debug.Debug)
+pub fn ProjectionAotRule::equal(Self, Self) -> Bool
+pub fn ProjectionAotRule::not_equal(Self, Self) -> Bool
+pub fn ProjectionAotRule::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionCudaLowering {
   // private fields
@@ -95,11 +107,13 @@ pub fn ProjectionCudaLowering::companion_dimensions(Self) -> @launch_contract.Ao
 pub fn ProjectionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
 pub fn ProjectionCudaLowering::dispatch_plan(Self) -> @luna_projection_strategy.ProjectionDispatchPlan
 pub fn ProjectionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn ProjectionCudaLowering::equal(Self, Self) -> Bool
 pub fn ProjectionCudaLowering::family(Self) -> ProjectionAotFamily
 pub fn ProjectionCudaLowering::function_symbol(Self) -> String
 pub fn ProjectionCudaLowering::input_width(Self) -> Int
 pub fn ProjectionCudaLowering::intermediate_width(Self) -> Int
 pub fn ProjectionCudaLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn ProjectionCudaLowering::not_equal(Self, Self) -> Bool
 pub fn ProjectionCudaLowering::numerical_contract(Self) -> ProjectionNumericalContract
 pub fn ProjectionCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
 pub fn ProjectionCudaLowering::operation_id(Self) -> @plan.OperationId
@@ -113,17 +127,33 @@ pub fn ProjectionCudaLowering::source_bytes(Self) -> Bytes
 pub fn ProjectionCudaLowering::source_digest(Self) -> ProjectionCudaSourceDigest
 pub fn ProjectionCudaLowering::target(Self) -> @catalog.DeviceTarget
 pub fn ProjectionCudaLowering::tile_compilation(Self) -> @luna_projection_tile_compiler.ScheduledProjectionTileCompilation
+pub fn ProjectionCudaLowering::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionCudaManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionCudaManifestBindingDigest::as_hex(Self) -> String
+pub fn ProjectionCudaManifestBindingDigest::equal(Self, Self) -> Bool
+pub fn ProjectionCudaManifestBindingDigest::hash(Self) -> Int
+pub fn ProjectionCudaManifestBindingDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionCudaManifestBindingDigest::not_equal(Self, Self) -> Bool
+pub fn ProjectionCudaManifestBindingDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionCudaRecipeDigest::as_hex(Self) -> String
+pub fn ProjectionCudaRecipeDigest::equal(Self, Self) -> Bool
 pub fn ProjectionCudaRecipeDigest::from_sha256(String) -> Self raise ProjectionAotError
+pub fn ProjectionCudaRecipeDigest::hash(Self) -> Int
+pub fn ProjectionCudaRecipeDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionCudaRecipeDigest::not_equal(Self, Self) -> Bool
+pub fn ProjectionCudaRecipeDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ProjectionCudaSourceDigest::as_hex(Self) -> String
+pub fn ProjectionCudaSourceDigest::equal(Self, Self) -> Bool
 pub fn ProjectionCudaSourceDigest::from_sha256(String) -> Self raise ProjectionAotError
+pub fn ProjectionCudaSourceDigest::hash(Self) -> Int
+pub fn ProjectionCudaSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ProjectionCudaSourceDigest::not_equal(Self, Self) -> Bool
+pub fn ProjectionCudaSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionManifestCudaLowering {
   // private fields
@@ -132,7 +162,10 @@ pub fn ProjectionManifestCudaLowering::binding_digest(Self) -> ProjectionCudaMan
 pub fn ProjectionManifestCudaLowering::binding_record_bytes(Self) -> Bytes
 pub fn ProjectionManifestCudaLowering::candidate(Self) -> ProjectionCudaLowering
 pub fn ProjectionManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn ProjectionManifestCudaLowering::equal(Self, Self) -> Bool
 pub fn ProjectionManifestCudaLowering::manifest_bindable(Self) -> Bool
+pub fn ProjectionManifestCudaLowering::not_equal(Self, Self) -> Bool
+pub fn ProjectionManifestCudaLowering::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionNumericalContract {
   OrderedF32AccumulationBf16RoundV1
@@ -140,6 +173,9 @@ pub(all) enum ProjectionNumericalContract {
   TensorCoreF32AccumulationBf16RoundV1
   TensorCoreF32SiluGatedBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn ProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn ProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn ProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

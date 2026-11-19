@@ -305,17 +305,19 @@ test "one content-only metadata admits distinct BF16 FP8 and I8 plan identities"
   let selected = [@plan.OperationId::new(1)]
   let bf16 = i8_fixture_plan(
     operations,
-    synthetic_bf16_numeric_schema(operations),
+    @plan_test_fixture.synthetic_bf16_numeric_schema(operations),
     content_digest=metadata.content_digest(),
   )
   let fp8 = i8_fixture_plan(
     operations,
-    synthetic_fp8_w8a8_numeric_schema(operations, selected),
+    @plan_test_fixture.synthetic_fp8_w8a8_numeric_schema(operations, selected),
     content_digest=metadata.content_digest(),
   )
   let i8 = i8_fixture_plan(
     operations,
-    synthetic_symmetric_i8_weight_only_numeric_schema_v1(operations, selected),
+    @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+      operations, selected,
+    ),
     content_digest=metadata.content_digest(),
   )
   assert_false(bf16.identity().plan() == fp8.identity().plan())
@@ -328,7 +330,7 @@ test "one content-only metadata admits distinct BF16 FP8 and I8 plan identities"
 ///|
 test "I8 fixture atomically binds every selected matrix and exact scale ref" {
   let operations = i8_fixture_operations()
-  let schema = synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+  let schema = @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
     operations,
     [@plan.OperationId::new(1)],
   )
@@ -399,16 +401,17 @@ test "panic I8 fixture rejects shared BF16 and I8 weight uses" {
   )
   operations[1] = mlp
   ignore(
-    synthetic_symmetric_i8_weight_only_numeric_schema_v1(operations, [
-      @plan.OperationId::new(1),
-    ]),
+    @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+      operations,
+      [@plan.OperationId::new(1)],
+    ),
   )
 }
 
 ///|
 test "panic I8 v1 fixture rejects unknown selected operation IDs" {
   ignore(
-    synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+    @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
       i8_fixture_operations(),
       [@plan.OperationId::new(99)],
     ),
@@ -418,7 +421,7 @@ test "panic I8 v1 fixture rejects unknown selected operation IDs" {
 ///|
 test "panic I8 v1 fixture rejects duplicate requested operation IDs" {
   ignore(
-    synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+    @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
       i8_fixture_operations(),
       [@plan.OperationId::new(1), @plan.OperationId::new(1)],
     ),
@@ -430,9 +433,10 @@ test "panic I8 v1 fixture rejects selected IDs present twice in the graph" {
   let operations = i8_fixture_operations()
   operations.push(operations[1])
   ignore(
-    synthetic_symmetric_i8_weight_only_numeric_schema_v1(operations, [
-      @plan.OperationId::new(1),
-    ]),
+    @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+      operations,
+      [@plan.OperationId::new(1)],
+    ),
   )
 }
 
@@ -452,8 +456,9 @@ test "panic I8 v1 fixture rejects future-shaped unreviewed operation kinds" {
     workspace_bytes=0L,
   )
   ignore(
-    synthetic_symmetric_i8_weight_only_numeric_schema_v1(operations, [
-      @plan.OperationId::new(1),
-    ]),
+    @plan_test_fixture.synthetic_symmetric_i8_weight_only_numeric_schema_v1(
+      operations,
+      [@plan.OperationId::new(1)],
+    ),
   )
 }

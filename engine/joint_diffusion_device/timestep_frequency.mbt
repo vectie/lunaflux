@@ -11,7 +11,7 @@ pub fn TimestepMlpLayout::frequency_launch(
   output_offset~ : Int64,
 ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
   guard self.input_width % 2 == 0 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let elements = self.rows.to_int64() * self.input_width.to_int64()
   @device.OrderedKernelLaunch::new(

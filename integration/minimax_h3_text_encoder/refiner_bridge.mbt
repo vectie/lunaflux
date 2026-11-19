@@ -15,7 +15,7 @@ pub fn EncoderRequest::prepare_refiner(
   max_output_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard refiner.rows() == self.source.plan.rows else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   self.with_output((encoded, encoded_offset) => {
     refiner.prepare(
@@ -49,7 +49,7 @@ pub fn EncoderRequest::prebind_refiner(
   max_output_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard refiner.rows() == self.source.plan.rows else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   self.with_destination((encoded, encoded_offset) => {
     refiner.prepare(

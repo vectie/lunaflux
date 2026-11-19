@@ -21,6 +21,9 @@ pub(all) suberror TensorParallelRankConfigureError {
   Invalid(TensorParallelRankConfigureRule)
   StaleFrame
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRankConfigureError::equal(Self, Self) -> Bool
+pub fn TensorParallelRankConfigureError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankConfigureError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TensorParallelRankConfigureContract {
@@ -37,6 +40,9 @@ pub fn TensorParallelRankConfigureContract::topology(Self) -> @device_topology.L
 
 pub struct TensorParallelRankConfigureDigest(String) derive(Eq, @debug.Debug)
 pub fn TensorParallelRankConfigureDigest::as_sha256(Self) -> String
+pub fn TensorParallelRankConfigureDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelRankConfigureDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankConfigureDigest::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRankConfigureFrameBuffer {
   // private fields
@@ -69,6 +75,9 @@ pub(all) enum TensorParallelRankConfigureRule {
   Destination
   FrameEpoch
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRankConfigureRule::equal(Self, Self) -> Bool
+pub fn TensorParallelRankConfigureRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankConfigureRule::to_repr(Self) -> @debug.Repr
 
 pub struct ValidatedTensorParallelRankConfigureFrame(TensorParallelRankConfigureFrameBuffer, UInt64)
 pub fn ValidatedTensorParallelRankConfigureFrame::contract(Self) -> TensorParallelRankConfigureContract raise TensorParallelRankConfigureError

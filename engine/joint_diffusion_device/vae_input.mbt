@@ -20,11 +20,11 @@ pub fn VaeInputLayout::new(
     max_bytes > 0L &&
     elements_per_channel <=
     max_bytes / 4L / batch.to_int64() / channels.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let elements = batch.to_int64() * channels.to_int64() * elements_per_channel
   guard permutation.element_count() == elements else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   { value_bytes: elements * 4L, parameter_bytes: channels.to_int64() * 4L, }
 }
@@ -76,7 +76,7 @@ pub fn VaeInputLayout::launches(
   ) -> Unit raise @device.DeviceError {
     guard !physical_equal(a, b) ||
       !vae_regions_overlap(a_offset, a_bytes, b_offset, b_bytes) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
   }
   disjoint(

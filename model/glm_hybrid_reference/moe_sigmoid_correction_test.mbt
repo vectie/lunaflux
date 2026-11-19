@@ -1,13 +1,13 @@
 ///|
 test "MoE sigmoid correction oracle preserves uncorrected scores" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
     maximum_channel_count=16,
     maximum_vision_patch_count=8,
   )
-  let result = moe_sigmoid_and_correction(
+  let result = @glm_hybrid_reference.moe_sigmoid_and_correction(
     [0.0F, 0.0F, 0.0F, 0.0F],
     [0.25F, -0.25F],
     row_count=2,
@@ -21,7 +21,7 @@ test "MoE sigmoid correction oracle preserves uncorrected scores" {
 
 ///|
 test "MoE sigmoid correction oracle rejects mismatched bias" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
@@ -29,7 +29,7 @@ test "MoE sigmoid correction oracle rejects mismatched bias" {
     maximum_vision_patch_count=8,
   )
   try
-    moe_sigmoid_and_correction(
+    @glm_hybrid_reference.moe_sigmoid_and_correction(
       [0.0F, 0.0F],
       [0.0F],
       row_count=1,

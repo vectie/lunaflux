@@ -108,13 +108,18 @@ async test "layout rejects incomplete merge grids and capacity overflow" {
   ]
   for grids in cases {
     assert_true(
-      (try? @minicpm_v47_vision.Layout::build(
-        spec,
-        grids[:],
-        maximum_patches=32,
-        maximum_crop_patches=32,
-      ))
-      is Err(_),
+      try
+        @minicpm_v47_vision.Layout::build(
+          spec,
+          grids[:],
+          maximum_patches=32,
+          maximum_crop_patches=32,
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
   }
   let layout = @minicpm_v47_vision.Layout::build(
@@ -123,5 +128,11 @@ async test "layout rejects incomplete merge grids and capacity overflow" {
     maximum_patches=16,
     maximum_crop_patches=16,
   )
-  assert_true((try? layout.layer_rows(27)) is Err(_))
+  assert_true(
+    try layout.layer_rows(27) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
 }

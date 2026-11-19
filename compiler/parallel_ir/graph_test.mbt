@@ -195,7 +195,7 @@ test "invalid rank buffer range and unknown buffer are rejected at compilation" 
       byte_count=1L,
     )
   catch {
-    @parallel_ir.Buffer(_) => ()
+    Buffer(_) => ()
     _ => fail("unexpected error")
   } noraise {
     _ => fail("overflow")
@@ -221,7 +221,7 @@ test "invalid rank buffer range and unknown buffer are rejected at compilation" 
       [compute(0, [])],
     )
   catch {
-    @parallel_ir.Capacity => ()
+    Capacity => ()
     _ => fail("unexpected error")
   } noraise {
     _ => fail("invalid rank")

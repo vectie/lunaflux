@@ -33,11 +33,7 @@ pub fn prefix_rms_norm_bf16_with_optional_suffix_copy_source(
   if !valid_prefix_norm_symbol(function_symbol) {
     raise InvalidFunctionSymbol
   }
-  if square_law !=
-    @precision.SquareReductionLaw::VectorizedTreeFloat32(
-      partitions=256,
-      vector_width=1,
-    ) {
+  if square_law != VectorizedTreeFloat32(partitions=256, vector_width=1) {
     return vector_prefix_norm_source(
       prefix_width~,
       suffix_width~,

@@ -13,6 +13,9 @@ import {
 pub(all) suberror IncrementalOutputError {
   Invalid(rule~ : IncrementalOutputRule, issue~ : IncrementalOutputIssue)
 } derive(Eq, @debug.Debug)
+pub fn IncrementalOutputError::equal(Self, Self) -> Bool
+pub fn IncrementalOutputError::not_equal(Self, Self) -> Bool
+pub fn IncrementalOutputError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct IncrementalOutput {
@@ -37,6 +40,9 @@ pub(all) enum IncrementalOutputIssue {
   Stale
   Exhausted
 } derive(Eq, @debug.Debug)
+pub fn IncrementalOutputIssue::equal(Self, Self) -> Bool
+pub fn IncrementalOutputIssue::not_equal(Self, Self) -> Bool
+pub fn IncrementalOutputIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum IncrementalOutputRule {
   DecodeEnvelope
@@ -47,6 +53,9 @@ pub(all) enum IncrementalOutputRule {
   LunaIncrementalOutputWorkspace
   LunaIncrementalOutputEpoch
 } derive(Eq, @debug.Debug)
+pub fn IncrementalOutputRule::equal(Self, Self) -> Bool
+pub fn IncrementalOutputRule::not_equal(Self, Self) -> Bool
+pub fn IncrementalOutputRule::to_repr(Self) -> @debug.Repr
 
 pub struct IncrementalOutputStatus(Int, Int, Bool)
 pub fn IncrementalOutputStatus::copied_bytes(Self) -> Int
@@ -72,6 +81,9 @@ pub(all) enum LunaIncrementalOutputProgress {
   LunaIncrementalOutputPending
   LunaIncrementalOutputReady
 } derive(Eq, @debug.Debug)
+pub fn LunaIncrementalOutputProgress::equal(Self, Self) -> Bool
+pub fn LunaIncrementalOutputProgress::not_equal(Self, Self) -> Bool
+pub fn LunaIncrementalOutputProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaIncrementalOutputStepBudget {
   // private fields

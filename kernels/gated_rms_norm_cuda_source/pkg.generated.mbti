@@ -17,11 +17,17 @@ pub(all) suberror GatedRmsNormCudaSourceError {
   InvalidFunctionSymbol
   OutputSizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn GatedRmsNormCudaSourceError::equal(Self, Self) -> Bool
+pub fn GatedRmsNormCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn GatedRmsNormCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum GatedRmsNormCudaOperation {
   PerVectorSigmoidGatedRmsNormBf16
 } derive(Eq, @debug.Debug)
+pub fn GatedRmsNormCudaOperation::equal(Self, Self) -> Bool
+pub fn GatedRmsNormCudaOperation::not_equal(Self, Self) -> Bool
+pub fn GatedRmsNormCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct GatedRmsNormCudaSource {
   // private fields
@@ -38,6 +44,9 @@ pub fn GatedRmsNormCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum GatedRmsNormNumericalContract {
   OrderedFloat32RmsNormThenSigmoidGateBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn GatedRmsNormNumericalContract::equal(Self, Self) -> Bool
+pub fn GatedRmsNormNumericalContract::not_equal(Self, Self) -> Bool
+pub fn GatedRmsNormNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

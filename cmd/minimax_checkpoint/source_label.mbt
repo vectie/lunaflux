@@ -28,7 +28,7 @@ fn inventory_label(
   name : String,
 ) -> @spec.ContentDigest? raise {
   let file = root.open_file(@approved_fs.ApprovedRelativeLocator::new(name)) catch {
-    @approved_fs.ApprovedFsError::Unavailable(File) => return None
+    Unavailable(File) => return None
     error => raise error
   }
   defer file.close()

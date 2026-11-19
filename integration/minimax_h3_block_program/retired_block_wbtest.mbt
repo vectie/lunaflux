@@ -30,7 +30,7 @@ test "unprepared block observation cannot read a retired or absent workspace" {
     OutputProgram::new(source.output),
   )
   try variant.capture_block_stage(Attention) catch {
-    @device.DeviceError::InvalidArgument(CopyToHost) => ()
+    InvalidArgument(CopyToHost) => ()
     _ => fail("unexpected observation error")
   } noraise {
     _ => fail("unprepared workspace observed")

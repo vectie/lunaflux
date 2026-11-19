@@ -27,6 +27,9 @@ pub(all) suberror WorkerExecutableFileError {
   DigestMismatch
   UnsupportedPlatform
 } derive(Eq, @debug.Debug)
+pub fn WorkerExecutableFileError::equal(Self, Self) -> Bool
+pub fn WorkerExecutableFileError::not_equal(Self, Self) -> Bool
+pub fn WorkerExecutableFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct MaterializedWorkerExecutableEvidence {
@@ -46,7 +49,10 @@ pub fn WorkerExecutableAdmission::prepare_child(Self, @process.ProcessLimits) ->
 
 pub struct WorkerExecutableDigest(String) derive(Eq, @debug.Debug)
 pub fn WorkerExecutableDigest::as_hex(Self) -> String
+pub fn WorkerExecutableDigest::equal(Self, Self) -> Bool
 pub fn WorkerExecutableDigest::from_sha256(StringView) -> Self raise WorkerExecutableFileError
+pub fn WorkerExecutableDigest::not_equal(Self, Self) -> Bool
+pub fn WorkerExecutableDigest::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerExecutableFileLimits {
   // private fields

@@ -25,8 +25,8 @@ test "recurrent Program persists request slots without step allocations or block
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
   defer (stream.close() catch { _ => () })
-  let module = context.load_module(b"fake\x00")
-  defer (module.close() catch { _ => () })
+  let device_module = context.load_module(b"fake\x00")
+  defer (device_module.close() catch { _ => () })
   let program = recurrent_fixture()
   defer (program.abort() catch { _ => () })
   let sizes = [20L, 12L, 8L, 8L, 64L, 64L, 96L, 128L, 16L, 96L]
@@ -39,7 +39,7 @@ test "recurrent Program persists request slots without step allocations or block
   assert_eq(program.state_bytes(), 768L)
   program.prepare(
     context,
-    module,
+    device_module,
     stream,
     maximum_state_bytes=768L,
     counts=external[0],
@@ -68,7 +68,7 @@ test "recurrent Program persists request slots without step allocations or block
   assert_eq(blocking_syncs(), waits)
   program.submit(live_rows=1)
   try program.close() catch {
-    @device.DeviceError::Busy(_) => ()
+    Busy(_) => ()
     e => raise e
   } noraise {
     _ => fail("active cache released")
@@ -78,7 +78,7 @@ test "recurrent Program persists request slots without step allocations or block
   for allocation in external.rev() {
     allocation.close()
   }
-  module.close()
+  device_module.close()
   stream.close()
   context.close()
   assert_eq(live_resources(), baseline)
@@ -90,8 +90,8 @@ test "partial recurrent binding releases its persistent cache" {
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
   defer (stream.close() catch { _ => () })
-  let module = context.load_module(b"fake\x00")
-  defer (module.close() catch { _ => () })
+  let device_module = context.load_module(b"fake\x00")
+  defer (device_module.close() catch { _ => () })
   let input = context.allocate(20L)
   defer (input.close() catch { _ => () })
   let baseline = live_resources()
@@ -100,7 +100,7 @@ test "partial recurrent binding releases its persistent cache" {
   try
     program.prepare(
       context,
-      module,
+      device_module,
       stream,
       maximum_state_bytes=768L,
       counts=input,
@@ -115,7 +115,7 @@ test "partial recurrent binding releases its persistent cache" {
       output=input,
     )
   catch {
-    @device.DeviceError::InvalidArgument(_) => ()
+    InvalidArgument(_) => ()
     e => raise e
   } noraise {
     _ => fail("undersized buffers bound")

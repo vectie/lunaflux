@@ -216,17 +216,12 @@ test "native stdout flush status rejects every nonzero result" {
 ///|
 test "release preflight failure names the primary and cleanup stages" {
   assert_eq(
-    release_preflight_error_line(
-      @runtime_instance.RuntimeInstanceFailed(KernelRootAdmission),
-    ),
+    release_preflight_error_line(RuntimeInstanceFailed(KernelRootAdmission)),
     "release_preflight_error=kernel_root_admission",
   )
   assert_eq(
     release_preflight_error_line(
-      @runtime_instance.RuntimeInstanceFailedAndCleanup(
-        DescriptorAdmission,
-        Cleanup,
-      ),
+      RuntimeInstanceFailedAndCleanup(DescriptorAdmission, Cleanup),
     ),
     "release_preflight_error=descriptor_admission,cleanup=cleanup",
   )

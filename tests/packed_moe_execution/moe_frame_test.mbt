@@ -96,7 +96,7 @@ test "queue-only composition does not drop missing expert-rank contributions" {
       output=buffer,
     )
   catch {
-    @device.DeviceError::InvalidArgument(_) => ()
+    InvalidArgument(_) => ()
     e => raise e
   } noraise {
     _ => fail("partitioned banks require their collective-aware execution")

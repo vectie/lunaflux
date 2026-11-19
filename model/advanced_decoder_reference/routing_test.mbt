@@ -1,6 +1,10 @@
 ///|
-fn test_limits() -> ReferenceLimits {
-  try! ReferenceLimits::new(max_values=20000, max_width=256, max_iterations=64)
+fn test_limits() -> @advanced_decoder_reference.ReferenceLimits {
+  try! @advanced_decoder_reference.ReferenceLimits::new(
+    max_values=20000,
+    max_width=256,
+    max_iterations=64,
+  )
 }
 
 ///|
@@ -16,7 +20,7 @@ fn assert_float_close(actual : Float, expected : Float) -> Unit raise {
 
 ///|
 test "expert transforms are stable at zero and extreme finite logits" {
-  let sqrt_softplus = transform_expert_scores(
+  let sqrt_softplus = @advanced_decoder_reference.transform_expert_scores(
     [0.0F, 100.0F, -100.0F],
     SqrtSoftplus,
     limits=test_limits(),
@@ -24,7 +28,7 @@ test "expert transforms are stable at zero and extreme finite logits" {
   assert_float_close(sqrt_softplus[0], 0.83255464F)
   assert_float_close(sqrt_softplus[1], 10.0F)
   assert_true(sqrt_softplus[2] >= 0.0F)
-  let sigmoid = transform_expert_scores(
+  let sigmoid = @advanced_decoder_reference.transform_expert_scores(
     [0.0F, 100.0F, -100.0F],
     Sigmoid,
     limits=test_limits(),
@@ -36,7 +40,7 @@ test "expert transforms are stable at zero and extreme finite logits" {
 
 ///|
 test "biased stable top-k keeps unbiased normalized weights" {
-  let route = route_top_k(
+  let route = @advanced_decoder_reference.route_top_k(
     [0.0F, 0.0F, 0.0F],
     [0.0F, 1.0F, 0.0F],
     top_k=2,
@@ -52,7 +56,7 @@ test "biased stable top-k keeps unbiased normalized weights" {
 
 ///|
 test "stable top-k gives exact lower expert id order for complete ties" {
-  let route = route_top_k(
+  let route = @advanced_decoder_reference.route_top_k(
     [0.0F, 0.0F, 0.0F, 0.0F],
     [1.0F, 1.0F, 1.0F, 1.0F],
     top_k=3,
@@ -69,7 +73,7 @@ test "stable top-k gives exact lower expert id order for complete ties" {
 
 ///|
 test "token hash validates the whole table and preserves row order" {
-  let route = route_token_hash(
+  let route = @advanced_decoder_reference.route_token_hash(
     [0.0F, 0.0F, 0.0F],
     [2, 0, 1, 1, 2, 0],
     vocabulary_size=2,
@@ -85,7 +89,7 @@ test "token hash validates the whole table and preserves row order" {
     assert_float_close(weight, 0.5F)
   }
   try
-    route_token_hash(
+    @advanced_decoder_reference.route_token_hash(
       [0.0F, 0.0F, 0.0F],
       [0, 1, 2, 0, 0, 1],
       vocabulary_size=2,
@@ -106,7 +110,7 @@ test "token hash validates the whole table and preserves row order" {
 
 ///|
 test "routed and shared expert results combine in explicit order" {
-  let route = route_top_k(
+  let route = @advanced_decoder_reference.route_top_k(
     [0.0F, 0.0F],
     [],
     top_k=2,
@@ -115,7 +119,7 @@ test "routed and shared expert results combine in explicit order" {
     scaling=2.0F,
     limits=test_limits(),
   )
-  let output = combine_expert_outputs(
+  let output = @advanced_decoder_reference.combine_expert_outputs(
     route,
     [1.0F, 2.0F, 3.0F, 4.0F],
     [10.0F, 20.0F],
@@ -129,7 +133,7 @@ test "routed and shared expert results combine in explicit order" {
 ///|
 test "routing hostile bounds NaN and shape errors fail closed" {
   try
-    transform_expert_scores(
+    @advanced_decoder_reference.transform_expert_scores(
       [@float.not_a_number],
       Sigmoid,
       limits=test_limits(),
@@ -141,7 +145,7 @@ test "routing hostile bounds NaN and shape errors fail closed" {
     _ => fail("NaN expert score was admitted")
   }
   try
-    route_top_k(
+    @advanced_decoder_reference.route_top_k(
       [0.0F],
       [],
       top_k=2,
@@ -157,7 +161,7 @@ test "routing hostile bounds NaN and shape errors fail closed" {
     _ => fail("oversized top-k was admitted")
   }
   try
-    route_top_k(
+    @advanced_decoder_reference.route_top_k(
       [0.0F, 1.0F],
       [0.0F],
       top_k=1,

@@ -22,7 +22,7 @@ pub fn TileAxis::new(
     minimum_overlap % 16 == 0 &&
     minimum_overlap < tile_size &&
     max_tiles > 0 else {
-    raise @video_latent_embedding_cuda_source.EmbeddingError::InvalidGeometry
+    raise InvalidGeometry
   }
   if pixels <= tile_size {
     return {
@@ -39,9 +39,7 @@ pub fn TileAxis::new(
     1L
   ) /
   (tile_size.to_int64() - minimum_overlap.to_int64())).to_int()
-  guard count <= max_tiles else {
-    raise @video_latent_embedding_cuda_source.EmbeddingError::InvalidGeometry
-  }
+  guard count <= max_tiles else { raise InvalidGeometry }
   let remaining = tile_size.to_int64() * count.to_int64() -
     minimum_overlap.to_int64() * (count - 1).to_int64() -
     pixels.to_int64()
@@ -81,22 +79,18 @@ pub fn TemporalTiles::new(
   output_frames~ : Int32,
 ) -> Self raise @video_latent_embedding_cuda_source.EmbeddingError {
   guard latent_frames >= 3 && latent_frames <= 536870900 && output_frames > 0 else {
-    raise @video_latent_embedding_cuda_source.EmbeddingError::InvalidGeometry
+    raise InvalidGeometry
   }
   let pad_tokens = (5 - (latent_frames + 3) % 5) % 5
   let chunks = (latent_frames + 3 + pad_tokens) / 5 - 1
-  guard chunks > 0 else {
-    raise @video_latent_embedding_cuda_source.EmbeddingError::InvalidGeometry
-  }
+  guard chunks > 0 else { raise InvalidGeometry }
   let pad_frames = for k in 0..<pad_tokens; sum = 0 {
     continue sum + (if (latent_frames + k) % 5 == 0 { 1 } else { 4 })
   } nobreak {
     sum
   }
   let available_frames = chunks * 17 + 5 - pad_frames
-  guard output_frames <= available_frames else {
-    raise @video_latent_embedding_cuda_source.EmbeddingError::InvalidGeometry
-  }
+  guard output_frames <= available_frames else { raise InvalidGeometry }
   {
     latent_frames,
     pad_tokens,

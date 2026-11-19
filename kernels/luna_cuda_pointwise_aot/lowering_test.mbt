@@ -212,7 +212,7 @@ test "strict manifest join rejects contract dimension drift" {
       pointwise_manifest_contracts(embedding_grid=2),
     )
   catch {
-    PointwiseAotError::Mismatch(_) => ()
+    @luna_cuda_pointwise_aot.PointwiseAotError::Mismatch(_) => ()
     _ => fail("unexpected manifest rejection")
   } noraise {
     _ => fail("expected dimension mismatch")

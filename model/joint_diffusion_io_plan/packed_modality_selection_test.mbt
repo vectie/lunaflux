@@ -1,7 +1,7 @@
 ///|
 fn modality_fixture() -> (
-  JointDiffusionIoPlan,
-  JointPackedTimestepSelection,
+  @joint_diffusion_io_plan.JointDiffusionIoPlan,
+  @joint_diffusion_io_plan.JointPackedTimestepSelection,
   Array[Int32],
   Array[Int32],
 ) {
@@ -10,7 +10,7 @@ fn modality_fixture() -> (
   let audio_count = 414
   let packed_count = video_count + audio_count + 137
   let timestep_indices = Array::make(packed_count, 0)
-  let timestep = try! JointPackedTimestepSelection::new(
+  let timestep = try! @joint_diffusion_io_plan.JointPackedTimestepSelection::new(
     request,
     evaluation_index=0,
     distinct_timestep_count=3,
@@ -24,7 +24,7 @@ fn modality_fixture() -> (
 ///|
 test "packed modality selection binds exact target rows and ordered identity" {
   let (request, timestep, video, audio) = modality_fixture()
-  let selection = JointPackedModalitySelection::new(
+  let selection = @joint_diffusion_io_plan.JointPackedModalitySelection::new(
     request,
     timestep,
     video_indices=video,
@@ -37,7 +37,7 @@ test "packed modality selection binds exact target rows and ordered identity" {
   assert_eq(selection.audio_indices()[0], 37296)
   assert_eq(selection.packed_row_count(), 37847)
   let (_, _, repeated_video, repeated_audio) = modality_fixture()
-  let repeated = JointPackedModalitySelection::new(
+  let repeated = @joint_diffusion_io_plan.JointPackedModalitySelection::new(
     request,
     timestep,
     video_indices=repeated_video,
@@ -59,7 +59,7 @@ test "packed modality selection rejects wrong counts range and global duplicates
     hostile in [(short_video, audio), (video, out_of_range), (video, duplicate)] {
     let (hostile_video, hostile_audio) = hostile
     try
-      JointPackedModalitySelection::new(
+      @joint_diffusion_io_plan.JointPackedModalitySelection::new(
         request,
         timestep,
         video_indices=hostile_video,

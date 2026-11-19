@@ -26,14 +26,14 @@ pub fn AudioConvolutionLayout::new(
     time > 0 &&
     kernel > 1 &&
     max_weight_bytes > 0L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let c = channels.to_int64()
   let o = output_channels.to_int64()
   guard batch.to_int64() * c <= 2147483647L / time.to_int64() &&
     batch.to_int64() * o <= 2147483647L / time.to_int64() &&
     o <= max_weight_bytes / 4L / c / kernel.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     channels,

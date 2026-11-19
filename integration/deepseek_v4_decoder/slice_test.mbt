@@ -193,8 +193,8 @@ test "contiguous DeepSeek slice preserves layer geometry and compact expert bank
   defer first.close()
   defer next.close()
   defer joined.close()
-  inspect(first.layer_range(), content="(0, 2)")
-  inspect(next.layer_range(), content="(2, 4)")
+  debug_inspect(first.layer_range(), content="(0, 2)")
+  debug_inspect(next.layer_range(), content="(2, 4)")
   assert_eq(
     joined.expert_bank_bytes(),
     first.expert_bank_bytes() + next.expert_bank_bytes(),
@@ -202,8 +202,8 @@ test "contiguous DeepSeek slice preserves layer geometry and compact expert bank
   assert_eq(joined.source_bytes(), first.source_bytes() + next.source_bytes())
   assert_true(joined.expert_bank_bytes() > 0L)
   assert_true(joined.source_bytes().length() > 0)
-  inspect(joined.launch_count(), content="0")
-  inspect(joined.append_descriptors().length(), content="0")
+  debug_inspect(joined.launch_count(), content="0")
+  debug_inspect(joined.append_descriptors().length(), content="0")
   try
     joined.visit_retired_boundaries((_, _, _) => {
       fail("unexpected borrowed port")
@@ -215,14 +215,14 @@ test "contiguous DeepSeek slice preserves layer geometry and compact expert bank
     _ => fail("unprepared slice cannot expose diagnostic boundaries")
   }
   try joined.submit(live_rows=1) catch {
-    @device.DeviceError::Busy(OrderedExecutorEnqueue) => ()
+    Busy(OrderedExecutorEnqueue) => ()
     _ => fail("unexpected submit error")
   } noraise {
     _ => fail("unprepared slice must not execute")
   }
   joined.close()
   try joined.poll() catch {
-    @device.DeviceError::InvalidArgument(OrderedExecutorPoll) => ()
+    InvalidArgument(OrderedExecutorPoll) => ()
     _ => fail("unexpected poll error")
   } noraise {
     _ => fail("closed slice must not poll")

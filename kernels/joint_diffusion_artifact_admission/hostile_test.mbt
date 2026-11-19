@@ -2,9 +2,11 @@
 fn admission_test_admit_launches(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   target : @catalog.DeviceTarget,
-  launches : ArrayView[JointDiffusionLaunchEvidenceInput],
-) -> JointDiffusionArtifactAdmission raise JointDiffusionArtifactAdmissionError {
-  admit(
+  launches : ArrayView[
+    @joint_diffusion_artifact_admission.JointDiffusionLaunchEvidenceInput,
+  ],
+) -> @joint_diffusion_artifact_admission.JointDiffusionArtifactAdmission raise @joint_diffusion_artifact_admission.JointDiffusionArtifactAdmissionError {
+  @joint_diffusion_artifact_admission.admit(
     requirements,
     target~,
     module_inputs=admission_test_modules(),
@@ -118,7 +120,7 @@ test "missing duplicate and unreferenced entry points fail closed" {
   let missing = exact.copy()
   ignore(missing.pop())
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=admission_test_modules(),
@@ -135,7 +137,7 @@ test "missing duplicate and unreferenced entry points fail closed" {
   let duplicate = exact.copy()
   duplicate[1] = duplicate[0]
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=admission_test_modules(),
@@ -158,7 +160,7 @@ test "missing duplicate and unreferenced entry points fail closed" {
     ),
   )
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=admission_test_modules(),
@@ -180,7 +182,7 @@ test "distinct requirements cannot reuse one entry-point identity" {
   let target = admission_test_target()
   let launches = admission_test_launches(requirements, target)
   let second = requirements.requirements()[1]
-  launches[1] = try! JointDiffusionLaunchEvidenceInput::new(
+  launches[1] = try! @joint_diffusion_artifact_admission.JointDiffusionLaunchEvidenceInput::new(
     requirements_digest=requirements.digest(),
     requirement_ordinal=1,
     operation=second.operation(),
@@ -206,7 +208,7 @@ test "module sets remain bounded but supplied labels do not authenticate bytes" 
   let entries = admission_test_entries(requirements)
   let required_digest = admission_test_module_digest()
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=[],
@@ -223,7 +225,7 @@ test "module sets remain bounded but supplied labels do not authenticate bytes" 
   let duplicate = admission_test_modules()
   duplicate.push(duplicate[0])
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=duplicate,
@@ -238,9 +240,12 @@ test "module sets remain bounded but supplied labels do not authenticate bytes" 
     _ => fail("duplicate module was admitted")
   }
   let wrong_bytes = [
-    JointDiffusionModuleInput::new(digest=required_digest, module_bytes=b"abd"),
+    @joint_diffusion_artifact_admission.JointDiffusionModuleInput::new(
+      digest=required_digest,
+      module_bytes=b"abd",
+    ),
   ]
-  let labelled = admit(
+  let labelled = @joint_diffusion_artifact_admission.admit(
     requirements,
     target~,
     module_inputs=wrong_bytes,
@@ -253,10 +258,13 @@ test "module sets remain bounded but supplied labels do not authenticate bytes" 
   let foreign_digest = admission_test_digest(b"def")
   let unreferenced = admission_test_modules()
   unreferenced.push(
-    JointDiffusionModuleInput::new(digest=foreign_digest, module_bytes=b"def"),
+    @joint_diffusion_artifact_admission.JointDiffusionModuleInput::new(
+      digest=foreign_digest,
+      module_bytes=b"def",
+    ),
   )
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=unreferenced,
@@ -282,7 +290,7 @@ test "invalid symbol and constructor limits remain bounded" {
     function_symbol="bad-symbol",
   )
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=admission_test_modules(),
@@ -297,7 +305,7 @@ test "invalid symbol and constructor limits remain bounded" {
     _ => fail("invalid CUDA symbol was admitted")
   }
   try
-    JointDiffusionArtifactAdmissionLimits::new(
+    @joint_diffusion_artifact_admission.JointDiffusionArtifactAdmissionLimits::new(
       maximum_requirements=0,
       maximum_modules=1,
       maximum_entry_points=1,

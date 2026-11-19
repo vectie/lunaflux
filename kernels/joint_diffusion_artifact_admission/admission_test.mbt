@@ -174,7 +174,7 @@ fn admission_test_entry(
 ///|
 fn admission_test_roles(
   operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation,
-) -> Array[JointDiffusionLaunchOperandRole] {
+) -> Array[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole] {
   match operation {
     TokenTextConditioning(_) => [TokenIdsInput, TextConditioningOutput]
     OrderedKeyframeConditioning(_, _) =>
@@ -362,9 +362,11 @@ fn admission_test_launch(
   operation : @joint_diffusion_kernel_requirements.JointDiffusionSemanticOperation,
   capability : @joint_diffusion_kernel_requirements.JointDiffusionAotCapability,
   digest : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirementsDigest,
-  roles : ArrayView[JointDiffusionLaunchOperandRole],
-) -> JointDiffusionLaunchEvidenceInput {
-  try! JointDiffusionLaunchEvidenceInput::new(
+  roles : ArrayView[
+    @joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole,
+  ],
+) -> @joint_diffusion_artifact_admission.JointDiffusionLaunchEvidenceInput {
+  try! @joint_diffusion_artifact_admission.JointDiffusionLaunchEvidenceInput::new(
     requirements_digest=digest,
     requirement_ordinal=ordinal,
     operation~,
@@ -380,8 +382,12 @@ fn admission_test_launch(
 fn admission_test_launches(
   requirements : @joint_diffusion_kernel_requirements.JointDiffusionKernelRequirements,
   target : @catalog.DeviceTarget,
-) -> Array[JointDiffusionLaunchEvidenceInput] {
-  let launches : Array[JointDiffusionLaunchEvidenceInput] = []
+) -> Array[
+  @joint_diffusion_artifact_admission.JointDiffusionLaunchEvidenceInput,
+] {
+  let launches : Array[
+    @joint_diffusion_artifact_admission.JointDiffusionLaunchEvidenceInput,
+  ] = []
   for ordinal, requirement in requirements.requirements() {
     launches.push(
       admission_test_launch(
@@ -414,9 +420,11 @@ fn admission_test_entries(
 }
 
 ///|
-fn admission_test_modules() -> Array[JointDiffusionModuleInput] {
+fn admission_test_modules() -> Array[
+  @joint_diffusion_artifact_admission.JointDiffusionModuleInput,
+] {
   [
-    JointDiffusionModuleInput::new(
+    @joint_diffusion_artifact_admission.JointDiffusionModuleInput::new(
       digest=admission_test_module_digest(),
       module_bytes=b"abc",
     ),
@@ -430,7 +438,7 @@ test "exact evidence is canonical inert and requirement ordered" {
   let modules = admission_test_modules()
   let entries = admission_test_entries(requirements)
   let launches = admission_test_launches(requirements, target)
-  let first = admit(
+  let first = @joint_diffusion_artifact_admission.admit(
     requirements,
     target~,
     module_inputs=modules,
@@ -447,7 +455,7 @@ test "exact evidence is canonical inert and requirement ordered" {
   let saved_entry = reordered_entries[0]
   reordered_entries[0] = reordered_entries[last]
   reordered_entries[last] = saved_entry
-  let repeated = admit(
+  let repeated = @joint_diffusion_artifact_admission.admit(
     requirements,
     target~,
     module_inputs=modules,

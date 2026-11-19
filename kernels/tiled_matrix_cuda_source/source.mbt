@@ -16,9 +16,7 @@ pub fn matrix_tile_body(
 ) -> String raise @precision.PrecisionPlanError {
   // Expression operands have no address/extent contract for asynchronous
   // copies. Never silently discard an explicitly requested staging policy.
-  guard plan.operand_slots() == 1 else {
-    raise @precision.PrecisionPlanError::NoImplementation
-  }
+  guard plan.operand_slots() == 1 else { raise NoImplementation }
   let (_, _, inner) = plan.geometry()
   let (m, n, k) = plan.tile()
   let consumer_count = m / 16 * (n / 16)
@@ -30,7 +28,7 @@ pub fn matrix_tile_body(
     "(warp/\{n/16})*16*\{n}+(warp%\{n/16})*16"
   }
   guard !weight_column_first || (!external_scratch && weight_vector is None) else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   // A transposed bank is read along contiguous output columns, then staged
   // into the consumer's column-major operand. One BF16 WMMA alignment unit
@@ -136,9 +134,7 @@ fn dense_render(
 ) -> String raise @precision.PrecisionPlanError {
   let (rows, columns, inner) = plan.geometry()
   let (m, n, _) = plan.tile()
-  guard (m, n) is ((16, 64) | (32, 32)) else {
-    raise @precision.PrecisionPlanError::NoImplementation
-  }
+  guard (m, n) is ((16, 64) | (32, 32)) else { raise NoImplementation }
   let tile_id = if device_region { "tile_id" } else { "blockIdx.x" }
   let tile_count = if device_region { "tile_count" } else { "gridDim.x" }
   let blocks_n = (columns + n - 1) / n

@@ -1,6 +1,6 @@
 ///|
 fn openai_completed_expected(
-  mode : LunaOpenAICompatMode,
+  mode : @openai_compat.LunaOpenAICompatMode,
   reason : @inference.FinishReason,
 ) -> Bytes {
   match (mode, reason) {
@@ -23,7 +23,7 @@ fn openai_completed_expected(
 test "OpenAI terminal completion maps every finish reason exactly" {
   let limits = openai_fixture_limits()
   let empty : FixedArray[Byte] = []
-  let modes : FixedArray[LunaOpenAICompatMode] = [
+  let modes : FixedArray[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIResponses,
     LunaOpenAIChatCompletions,
   ]
@@ -63,7 +63,7 @@ test "OpenAI failed retryable false maps exactly in both modes" {
   let code : FixedArray[Byte] = [
     b'n', b'o', b't', b'-', b'r', b'e', b't', b'r', b'y',
   ]
-  let modes : FixedArray[LunaOpenAICompatMode] = [
+  let modes : FixedArray[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIResponses,
     LunaOpenAIChatCompletions,
   ]

@@ -29,12 +29,18 @@ pub(all) suberror DeviceExecutorError {
   OutputUnavailable
   Closed
 } derive(Eq, @debug.Debug)
+pub fn DeviceExecutorError::equal(Self, Self) -> Bool
+pub fn DeviceExecutorError::not_equal(Self, Self) -> Bool
+pub fn DeviceExecutorError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DeviceExecutorCleanupCause {
   Device(@device.DeviceError)
   Memory(@device_memory.DeviceMemoryError)
 } derive(Eq, @debug.Debug)
+pub fn DeviceExecutorCleanupCause::equal(Self, Self) -> Bool
+pub fn DeviceExecutorCleanupCause::not_equal(Self, Self) -> Bool
+pub fn DeviceExecutorCleanupCause::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceExecutorOperationRule {
   ProfileMissing
@@ -51,6 +57,9 @@ pub(all) enum DeviceExecutorOperationRule {
   VendorInputs
   SizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn DeviceExecutorOperationRule::equal(Self, Self) -> Bool
+pub fn DeviceExecutorOperationRule::not_equal(Self, Self) -> Bool
+pub fn DeviceExecutorOperationRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceExecutorStage {
   Stream
@@ -67,6 +76,9 @@ pub(all) enum DeviceExecutorStage {
   AotLaunch
   VendorGemmRun
 } derive(Eq, @debug.Debug)
+pub fn DeviceExecutorStage::equal(Self, Self) -> Bool
+pub fn DeviceExecutorStage::not_equal(Self, Self) -> Bool
+pub fn DeviceExecutorStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceExecutorValidationRule {
   Identity
@@ -84,6 +96,9 @@ pub(all) enum DeviceExecutorValidationRule {
   UnsupportedVendorOperation
   LaunchDimensions
 } derive(Eq, @debug.Debug)
+pub fn DeviceExecutorValidationRule::equal(Self, Self) -> Bool
+pub fn DeviceExecutorValidationRule::not_equal(Self, Self) -> Bool
+pub fn DeviceExecutorValidationRule::to_repr(Self) -> @debug.Repr
 
 pub struct FailedDevicePreparation {
   // private fields

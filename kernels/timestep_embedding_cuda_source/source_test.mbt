@@ -1,6 +1,6 @@
 ///|
 test "timestep rows render exact flipped cos sin F32 ABI" {
-  let rendered = cosine_sine_timestep_rows_source(
+  let rendered = @timestep_embedding_cuda_source.cosine_sine_timestep_rows_source(
     rows=3,
     frequency_width=256,
     function_symbol="time_rows_v1",
@@ -16,7 +16,7 @@ test "timestep rows render exact flipped cos sin F32 ABI" {
 ///|
 test "timestep rows reject hostile dimensions and symbols" {
   try
-    cosine_sine_timestep_rows_source(
+    @timestep_embedding_cuda_source.cosine_sine_timestep_rows_source(
       rows=0,
       frequency_width=256,
       function_symbol="ok",
@@ -28,7 +28,7 @@ test "timestep rows reject hostile dimensions and symbols" {
     _ => fail("zero rows admitted")
   }
   try
-    cosine_sine_timestep_rows_source(
+    @timestep_embedding_cuda_source.cosine_sine_timestep_rows_source(
       rows=1,
       frequency_width=255,
       function_symbol="ok",
@@ -40,7 +40,7 @@ test "timestep rows reject hostile dimensions and symbols" {
     _ => fail("odd width admitted")
   }
   try
-    cosine_sine_timestep_rows_source(
+    @timestep_embedding_cuda_source.cosine_sine_timestep_rows_source(
       rows=1,
       frequency_width=256,
       function_symbol="9bad",
@@ -55,7 +55,7 @@ test "timestep rows reject hostile dimensions and symbols" {
 
 ///|
 test "dense SiLU dense rows render the exact six-operand F32 ABI" {
-  let rendered = dense_silu_dense_f32_rows_source(
+  let rendered = @timestep_embedding_cuda_source.dense_silu_dense_f32_rows_source(
     rows=3,
     input_width=256,
     hidden_width=5376,
@@ -83,7 +83,7 @@ test "dense SiLU dense rows reject hostile widths" {
   for widths in [(0, 4, 2), (4, 0, 2), (4, 8, 0)] {
     let (input, hidden, output) = widths
     try
-      dense_silu_dense_f32_rows_source(
+      @timestep_embedding_cuda_source.dense_silu_dense_f32_rows_source(
         rows=1,
         input_width=input,
         hidden_width=hidden,

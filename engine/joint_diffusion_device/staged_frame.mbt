@@ -5,7 +5,7 @@ fn[T] prediction_stages(
   denoiser : ArrayView[T],
 ) -> Array[T] raise @device.DeviceError {
   guard !timestep.is_empty() && !inputs.is_empty() && !denoiser.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let launches = timestep.to_owned()
   launches.append(inputs)

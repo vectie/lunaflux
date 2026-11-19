@@ -9,8 +9,7 @@ test "staged serial MLP rejects an unsupported striped reduction" {
       dot_reduction_law=StripedTreeFloat32(partitions=32),
     )
   catch {
-    @gated_mlp_cuda_source.GatedMlpCudaSourceError::UnsupportedDotReductionLaw =>
-      ()
+    UnsupportedDotReductionLaw => ()
     _ => fail("unexpected unsupported MLP error")
   } noraise {
     _ => fail("serial MLP silently changed the requested law")
@@ -20,7 +19,7 @@ test "staged serial MLP rejects an unsupported striped reduction" {
 ///|
 test "staged packed MLP writes one product per row and intermediate channel" {
   let source = @utf8.decode(
-    staged_packed_swiglu_bf16_source(
+    @gated_mlp_cuda_source.staged_packed_swiglu_bf16_source(
       rows=3,
       hidden_size=4,
       intermediate_size=7,
@@ -35,7 +34,7 @@ test "staged packed MLP writes one product per row and intermediate channel" {
   assert_true(source.contains("weight[(inner + 7ULL) * 4ULL + c]"))
   assert_false(source.contains("down_sum"))
   try
-    staged_packed_swiglu_bf16_source(
+    @gated_mlp_cuda_source.staged_packed_swiglu_bf16_source(
       rows=2147483647,
       hidden_size=1,
       intermediate_size=2,
@@ -52,7 +51,7 @@ test "staged packed MLP writes one product per row and intermediate channel" {
 ///|
 test "compensated MLP retains BF16 activation and product boundaries" {
   let source = @utf8.decode(
-    staged_packed_swiglu_bf16_source(
+    @gated_mlp_cuda_source.staged_packed_swiglu_bf16_source(
       rows=1,
       hidden_size=8,
       intermediate_size=3,

@@ -43,13 +43,13 @@ test "rank group wire stateless Configure decode copies scalars and binding" {
 ///|
 test "embedded payload sealing writes only the header around payload" {
   let limits = fixture_wire_limits()
-  let header = rank_group_wire_header_bytes()
+  let header = @rank_group_wire.rank_group_wire_header_bytes()
   let storage = FixedArray::make(limits.max_frame_bytes(), b'\x00')
   storage[header] = b'p'
   storage[header + 1] = b'l'
   storage[header + 2] = b'a'
   storage[header + 3] = b'n'
-  let length = seal_rank_group_wire_embedded_payload(
+  let length = @rank_group_wire.seal_rank_group_wire_embedded_payload(
     storage,
     limits,
     fixture_wire_binding(0),
@@ -62,7 +62,7 @@ test "embedded payload sealing writes only the header around payload" {
   assert_eq(storage[header], b'p')
   assert_eq(storage[header + 3], b'n')
   assert_eq(
-    decode_rank_group_wire_header(storage, length, limits).payload_length(),
+    @rank_group_wire.decode_rank_group_wire_header(storage, length, limits).payload_length(),
     4,
   )
 }

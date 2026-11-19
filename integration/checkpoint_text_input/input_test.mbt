@@ -32,7 +32,7 @@ test "shared text input preserves literals and produces exact little endian IDs"
     b"a<s>b",
     maximum_tokens=3,
   )
-  debug_inspect(result.token_ids().to_array(), content="[97, 256, 98]")
+  debug_inspect(result.token_ids().to_owned(), content="[97, 256, 98]")
   assert_eq(result.decoded_bytes(), b"a<s>b")
   assert_eq(
     result.i32_le_bytes(),

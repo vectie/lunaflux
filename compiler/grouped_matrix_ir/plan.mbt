@@ -30,17 +30,17 @@ pub fn MatrixTilePlan::new(
     inner > 0 &&
     columns <= 1073741760 &&
     inner <= 1073741760 else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   if staging is FragmentPipeline(row_tile~) {
     guard row_tile is (32 | 64) && inner % 64 == 0 else {
-      raise @precision.PrecisionPlanError::NoImplementation
+      raise NoImplementation
     }
     guard (rows.to_int64() + row_tile.to_int64() - 1L) /
       row_tile.to_int64() *
       ((columns.to_int64() + 63L) / 64L) <=
       2147483647L else {
-      raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+      raise MemoryBudgetExceeded
     }
     return {
       rows,
@@ -64,7 +64,7 @@ pub fn MatrixTilePlan::new(
       tile_rows == 16 ||
       staging is (Synchronous | SynchronousTiles(_) | Buffered(_))
     ) else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   // The supplied envelope selects between two legal physical candidates.
   // Short reductions retain the default ownership/staging, not a padded
@@ -80,7 +80,7 @@ pub fn MatrixTilePlan::new(
       guard maximum_weight_bytes > 0L &&
         maximum_tiles > 0 &&
         inner_tile is (32 | 64 | 128) else {
-        raise @precision.PrecisionPlanError::NoImplementation
+        raise NoImplementation
       }
       let active_tiles = (rows.to_int64() + tile_rows.to_int64() - 1L) /
         tile_rows.to_int64() *
@@ -101,7 +101,7 @@ pub fn MatrixTilePlan::new(
   guard (tile_rows == 16 && tile_columns == 64) ||
     (tile_rows == 32 && tile_columns == 32) ||
     staging is (Synchronous | SynchronousTiles(_)) else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   guard (rows.to_int64() + tile_rows.to_int64() - 1L) /
     tile_rows.to_int64() *
@@ -110,18 +110,15 @@ pub fn MatrixTilePlan::new(
       tile_columns.to_int64()
     ) <=
     2147483647L else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   let tile_inner = match staging {
     Synchronous => 32
     SynchronousTiles(inner_tile~) | Buffered(inner_tile~) => {
-      guard inner_tile is (32 | 64 | 128) else {
-        raise @precision.PrecisionPlanError::NoImplementation
-      }
+      guard inner_tile is (32 | 64 | 128) else { raise NoImplementation }
       inner_tile
     }
-    WorksetBoundedTiles(..) | FragmentPipeline(..) =>
-      raise @precision.PrecisionPlanError::NoImplementation
+    WorksetBoundedTiles(..) | FragmentPipeline(..) => raise NoImplementation
   }
   { rows, columns, inner, tile_rows, tile_columns, tile_inner, law, staging, }
 }
@@ -199,7 +196,7 @@ pub fn ExpertGroupingPlan::new(
     fragment_slots is (1 | 2) &&
     matrix_columns is (16 | 32 | 64) &&
     (matrix_columns == 64 || transport == IndexedRows) else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   let column_tile = match transport {
     PackedBulk(columns~, consumer_teams~, workers~)
@@ -208,7 +205,7 @@ pub fn ExpertGroupingPlan::new(
         consumer_teams is (1 | 2) &&
         workers > 0 &&
         workers <= 1024 else {
-        raise @precision.PrecisionPlanError::NoImplementation
+        raise NoImplementation
       }
       columns
     }
@@ -220,7 +217,7 @@ pub fn ExpertGroupingPlan::new(
     jobs <= 1048576L &&
     column_tile > 0 &&
     column_tile <= 1024 else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   {
     jobs: jobs.to_int(),

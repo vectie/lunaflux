@@ -25,7 +25,7 @@ pub fn AudioDecoder::allocate(
     frontend.layout is Some(front) &&
     tail.layout is Some(back) &&
     chain.stages.length() == 7 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let first = chain.stages[0]
   let last = chain.stages[6]
@@ -35,12 +35,12 @@ pub fn AudioDecoder::allocate(
     tail.source.batch == last.amp.source.batch &&
     tail.source.channels == last.amp.source.channels &&
     tail.source.time == last.amp.source.time else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let tail_offset = (front.convolution.output_bytes + 255L) / 256L * 256L
   guard max_bridge_bytes >= tail_offset &&
     back.activation.value_bytes <= max_bridge_bytes - tail_offset else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let children = [frontend.composition, chain.composition, tail.composition]
   audio_composition_preflight(children)
@@ -78,9 +78,7 @@ pub fn AudioDecoder::bind(
   frontend_weights~ : @device.Allocation,
   tail_weights~ : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
-  guard !self.closed else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard !self.closed else { raise InvalidArgument(AotKernelLaunch) }
   let launches = self.frontend.bind(
     input~,
     input_offset~,

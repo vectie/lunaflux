@@ -14,7 +14,7 @@ fn glm_aot_attention_output_ordinal(
 test "GLM DSA attention output binds exact counts-driven projection ABI" {
   let requirements = glm_aot_requirements()
   let ordinal = glm_aot_attention_output_ordinal(requirements)
-  let candidate = lower_attention_output_projection_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_attention_output_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -56,7 +56,7 @@ test "GLM DSA attention output binds exact counts-driven projection ABI" {
   assert_true(recipe.contains("family=attention-output-projection-bf16"))
   assert_true(recipe.contains("hidden-output@4096/16"))
   assert_false(candidate.manifest_bindable())
-  let repeated = lower_attention_output_projection_cuda_aot_candidate(
+  let repeated = @glm_hybrid_cuda_aot.lower_attention_output_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -73,7 +73,7 @@ test "GLM attention output rejects a neighboring dense operation" {
   let requirements = glm_aot_requirements()
   let head_ordinal = requirements.requirements().length() - 1
   try
-    lower_attention_output_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_attention_output_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=head_ordinal,
       maximum_tokens=32,

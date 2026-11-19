@@ -128,7 +128,7 @@ test "router partial startup ownership can be released" {
       output=buffer,
     )
   catch {
-    @device.DeviceError::InvalidArgument(_) => ()
+    InvalidArgument(_) => ()
     error => raise error
   } noraise {
     _ => abort("undersized input must not bind")

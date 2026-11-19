@@ -60,11 +60,11 @@ fn qk_rotary_geometry(
     rotary_width > 0 &&
     rotary_width % 2 == 0 &&
     rotary_width <= dimension else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let row_heads = rows.to_int64() * heads.to_int64()
   guard row_heads <= 2147483647L / dimension.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   // The current staged renderer assigns one head to one single-thread CTA.
   // This is correctness-path geometry, not a performance-qualified schedule.

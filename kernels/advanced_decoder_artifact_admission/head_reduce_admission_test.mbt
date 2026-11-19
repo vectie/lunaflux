@@ -24,7 +24,7 @@ test "head reduction fixture cannot bypass earlier Query-B projection gap" {
   assert_eq(operands[4].byte_count(), 4L)
   assert_eq(operands[5].role(), HyperConnectionReducedOutput)
   assert_eq(operands[5].byte_count(), 256L)
-  operands[2] = try! AdvancedDecoderLaunchOperand::new(
+  operands[2] = try! @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand::new(
     role=ModelWeights,
     byte_count=2048L,
     alignment=16L,
@@ -52,7 +52,7 @@ test "truncated head fixture cannot bypass earlier Query-B projection gap" {
   let operands = artifact_test_operands(
     requirements.requirements()[ordinal].operation(),
   )
-  operands[5] = try! AdvancedDecoderLaunchOperand::new(
+  operands[5] = try! @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperand::new(
     role=HyperConnectionReducedOutput,
     byte_count=254L,
     alignment=16L,

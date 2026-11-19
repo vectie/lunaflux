@@ -21,7 +21,7 @@ fn reference_prefill_test_args() -> Array[String] {
 test "reference prefill requires explicit numeric law and raw matching phase slots" {
   let args = reference_prefill_test_args()
   let (_, _, law, wide) = prepare_prefill_numerical_choice(args)
-  assert_eq(law, @luna_fused_artifact_admission.ReferenceBf16ProbabilityBaseTwo)
+  assert_eq(law, ReferenceBf16ProbabilityBaseTwo)
   assert_eq(wide, law)
   for
     extra in [
@@ -60,7 +60,7 @@ test "reference KV64 geometry is admitted only with identical writer slots" {
   args[22] = "49152"
   args[29] = "49152"
   let (_, _, law, wide) = prepare_prefill_numerical_choice(args)
-  assert_eq(law, @luna_fused_artifact_admission.ReferenceBf16ProbabilityBaseTwo)
+  assert_eq(law, ReferenceBf16ProbabilityBaseTwo)
   assert_eq(wide, law)
   for shared in ["81920", "32768", "49151"] {
     args[29] = shared
@@ -79,10 +79,7 @@ test "bundle exp2 opt-in is distinct from ingress and decode choices" {
   let (_, _, strict_law, strict_wide_law) = prepare_prefill_numerical_choice(
     strict,
   )
-  assert_eq(
-    strict_wide_law,
-    @luna_fused_artifact_admission.StrictNaturalExponential,
-  )
+  assert_eq(strict_wide_law, StrictNaturalExponential)
   assert_eq(
     prefill_function_symbol(strict_law),
     "lunaflux_attention_prefill_tile_compiler_v1",
@@ -105,12 +102,9 @@ test "bundle exp2 opt-in is distinct from ingress and decode choices" {
   let (_, choice, law, wide_law) = prepare_prefill_numerical_choice(
     experimental,
   )
-  assert_eq(choice, @luna_fusion_strategy.FullyFused)
-  assert_eq(law, @luna_fused_artifact_admission.ApproximateBaseTwoExponential)
-  assert_eq(
-    wide_law,
-    @luna_fused_artifact_admission.ApproximateBaseTwoExponential,
-  )
+  assert_eq(choice, FullyFused)
+  assert_eq(law, ApproximateBaseTwoExponential)
+  assert_eq(wide_law, ApproximateBaseTwoExponential)
   assert_eq(
     prefill_function_symbol(law),
     "lunaflux_attention_prefill_tile_compiler_exp2_v1",
@@ -131,8 +125,8 @@ test "baseline exponential permission does not relabel frozen strict wide artifa
     "--ingress-evaluate", "full", "--prefill-approximate-exp2",
   ])
   let (args, _, law, wide_law) = prepare_prefill_numerical_choice(baseline_only)
-  assert_eq(law, @luna_fused_artifact_admission.ApproximateBaseTwoExponential)
-  assert_eq(wide_law, @luna_fused_artifact_admission.StrictNaturalExponential)
+  assert_eq(law, ApproximateBaseTwoExponential)
+  assert_eq(wide_law, StrictNaturalExponential)
   assert_eq(
     args.attention_prefill_wide_symbol,
     "lunaflux_attention_prefill_tile_compiler_v1_c314",

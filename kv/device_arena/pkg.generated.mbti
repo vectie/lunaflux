@@ -24,6 +24,9 @@ pub(all) suberror DeviceKvArenaError {
   Closed
   DeviceFailed(DeviceKvArenaStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
+pub fn DeviceKvArenaError::equal(Self, Self) -> Bool
+pub fn DeviceKvArenaError::not_equal(Self, Self) -> Bool
+pub fn DeviceKvArenaError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DeviceKvArena {
@@ -70,6 +73,9 @@ pub(all) enum DeviceKvArenaRule {
   LastRegion
   RegionIndex
 } derive(Eq, @debug.Debug)
+pub fn DeviceKvArenaRule::equal(Self, Self) -> Bool
+pub fn DeviceKvArenaRule::not_equal(Self, Self) -> Bool
+pub fn DeviceKvArenaRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceKvArenaStage {
   AllocationCreate
@@ -77,6 +83,9 @@ pub(all) enum DeviceKvArenaStage {
   RegionValidation
   AllocationClose
 } derive(Eq, @debug.Debug)
+pub fn DeviceKvArenaStage::equal(Self, Self) -> Bool
+pub fn DeviceKvArenaStage::not_equal(Self, Self) -> Bool
+pub fn DeviceKvArenaStage::to_repr(Self) -> @debug.Repr
 
 pub struct FailedDeviceKvArenaPreparation {
   // private fields

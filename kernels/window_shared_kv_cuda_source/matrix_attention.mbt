@@ -9,8 +9,7 @@ fn matrix_window_attention_source(
   setup~ : String,
   lookup~ : String,
 ) -> Bytes raise {
-  guard plan.accumulation_law() ==
-    @precision.AttentionAccumulationLaw::TiledFloat32 &&
+  guard plan.accumulation_law() == TiledFloat32 &&
     plan.probability_law() is OnlineBf16(block_tokens~) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }

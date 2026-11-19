@@ -16,7 +16,7 @@ test "H3 timestep staging has bounded reusable F32 storage" {
       output_width=2688,
     )
   catch {
-    @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+    InvalidArgument(AotKernelLaunch) => ()
     _ => fail("unexpected extent error")
   } noraise {
     _ => fail("overflow accepted")

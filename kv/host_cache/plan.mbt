@@ -22,12 +22,12 @@ pub fn Plan::new(
 ) -> Plan raise @residency.ResidencyError {
   let layers = layout.geometry().layer_count()
   if layers <= 0 || layers > 2048 || transfer_lanes > 64 {
-    raise @residency.ResidencyError::InvalidLimits
+    raise InvalidLimits
   }
   let components = layers * 2
   let bytes = layout.page_logical_bytes()
   if bytes > 9223372036854775807L / components.to_int64() {
-    raise @residency.ResidencyError::InvalidLimits
+    raise InvalidLimits
   }
   let limits = @residency.Limits::new(
     slots~,

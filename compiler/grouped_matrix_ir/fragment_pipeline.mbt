@@ -13,9 +13,7 @@ pub fn MatrixFragmentPipeline::new(
   row_tile~ : Int32,
 ) -> Self raise @precision.PrecisionPlanError {
   let (_, _, inner) = matrix.geometry()
-  guard row_tile is (32 | 64) && inner % 64 == 0 else {
-    raise @precision.PrecisionPlanError::NoImplementation
-  }
+  guard row_tile is (32 | 64) && inner % 64 == 0 else { raise NoImplementation }
   { matrix, row_tile, }
 }
 

@@ -55,6 +55,6 @@ test "F32 reduction and gather preserve dtype in immutable sites" {
     0,
     Bf16SumAllReduce,
   )
-  assert_eq(nccl_collective_kind(F32SumAllReduce), @nccl.AllReduce)
-  assert_eq(nccl_collective_kind(F32AllGather), @nccl.AllGather)
+  assert_eq(nccl_collective_kind(F32SumAllReduce), AllReduce)
+  assert_eq(nccl_collective_kind(F32AllGather), AllGather)
 }

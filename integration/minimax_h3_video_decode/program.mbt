@@ -24,7 +24,7 @@ pub fn FrontendProgram::prepare(
   guard self.functions.is_empty() &&
     self.intermediate is None &&
     self.output is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   for symbol in self.frontend.symbols {
     self.functions.push(aot_module.load_function(@utf8.encode(symbol)))
@@ -45,7 +45,7 @@ pub fn FrontendProgram::bind(
     self.intermediate is Some(intermediate) &&
     self.output is Some(output) &&
     self.functions.length() == 2 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let regions = self.frontend.weights.copies
   fn weight(i : Int32) -> @device.KernelArgument raise @device.DeviceError {
@@ -109,7 +109,7 @@ pub fn[T] FrontendProgram::with_output(
   action : (@device.Allocation) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.ready && self.output is Some(output) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   action(output)
 }

@@ -20,11 +20,11 @@ pub fn StagedMlpLayout::new(
     intermediate_width <= 1073741823 &&
     rows.to_int64() <= 2147483647L / hidden_width.to_int64() &&
     rows.to_int64() <= 2147483647L / intermediate_width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let matrix = hidden_width.to_int64() * intermediate_width.to_int64()
   guard matrix <= 9223372036854775807L / 6L else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   {
     input_bytes: rows.to_int64() * hidden_width.to_int64() * 2L,

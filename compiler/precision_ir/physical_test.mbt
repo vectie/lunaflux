@@ -28,7 +28,7 @@ test "precision refinement shares physical producer consumer layout and ordered 
   assert_eq(
     refined.conversions(),
     ReadOnlyArray::from_array([
-      @precision_ir.Conversion::DecodeElement,
+      DecodeElement,
       ApplyLocalScaleF32,
       ApplyGlobalScaleF32,
       RoundBf16,

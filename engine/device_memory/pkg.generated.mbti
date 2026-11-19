@@ -29,25 +29,34 @@ pub(all) suberror DeviceMemoryError {
   DeviceFailed(@device.DeviceError)
   CleanupFailed(DeviceMemoryFailureStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
+pub fn DeviceMemoryError::equal(Self, Self) -> Bool
+pub fn DeviceMemoryError::not_equal(Self, Self) -> Bool
+pub fn DeviceMemoryError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ActivationRegion {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ActivationRegion::end_offset_bytes(Self) -> Int64
+pub fn ActivationRegion::equal(Self, Self) -> Bool
 pub fn ActivationRegion::is_retained_output(Self) -> Bool
 pub fn ActivationRegion::live_through_step(Self) -> Int
 pub fn ActivationRegion::logical_bytes(Self) -> Int64
+pub fn ActivationRegion::not_equal(Self, Self) -> Bool
 pub fn ActivationRegion::offset_bytes(Self) -> Int64
 pub fn ActivationRegion::produced_by(Self) -> @plan.OperationId
 pub fn ActivationRegion::reference(Self) -> @plan.ActivationRef
 pub fn ActivationRegion::reserved_bytes(Self) -> Int64
 pub fn ActivationRegion::slot(Self) -> ActivationSlotId
+pub fn ActivationRegion::to_repr(Self) -> @debug.Repr
 
 pub struct ActivationSlotId {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ActivationSlotId::as_int(Self) -> Int
+pub fn ActivationSlotId::equal(Self, Self) -> Bool
+pub fn ActivationSlotId::not_equal(Self, Self) -> Bool
+pub fn ActivationSlotId::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceMemoryArena {
   // private fields
@@ -61,18 +70,27 @@ pub fn DeviceMemoryArena::target(Self) -> @catalog.DeviceTarget
 pub(all) enum DeviceMemoryFailureStage {
   AllocationValidation
 } derive(Eq, @debug.Debug)
+pub fn DeviceMemoryFailureStage::equal(Self, Self) -> Bool
+pub fn DeviceMemoryFailureStage::not_equal(Self, Self) -> Bool
+pub fn DeviceMemoryFailureStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceMemoryLimitRule {
   ActivationAlignment
   ArenaBytes
 } derive(Eq, @debug.Debug)
+pub fn DeviceMemoryLimitRule::equal(Self, Self) -> Bool
+pub fn DeviceMemoryLimitRule::not_equal(Self, Self) -> Bool
+pub fn DeviceMemoryLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceMemoryLimits {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceMemoryLimits::activation_alignment(Self) -> Int64
+pub fn DeviceMemoryLimits::equal(Self, Self) -> Bool
 pub fn DeviceMemoryLimits::max_arena_bytes(Self) -> Int64
 pub fn DeviceMemoryLimits::new(activation_alignment~ : Int64, max_arena_bytes~ : Int64) -> Self raise DeviceMemoryError
+pub fn DeviceMemoryLimits::not_equal(Self, Self) -> Bool
+pub fn DeviceMemoryLimits::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceMemoryPlan {
   // private fields
@@ -80,14 +98,17 @@ pub struct DeviceMemoryPlan {
 pub fn DeviceMemoryPlan::activation_bytes(Self) -> Int64
 pub fn DeviceMemoryPlan::activation_count(Self) -> Int
 pub fn DeviceMemoryPlan::arena_bytes(Self) -> Int64
+pub fn DeviceMemoryPlan::equal(Self, Self) -> Bool
 pub fn DeviceMemoryPlan::final_output(Self) -> @plan.ActivationRef
 pub fn DeviceMemoryPlan::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceMemoryPlan::limits(Self) -> DeviceMemoryLimits
+pub fn DeviceMemoryPlan::not_equal(Self, Self) -> Bool
 pub fn DeviceMemoryPlan::operation_binding(Self, @plan.OperationId) -> OperationMemoryBinding?
 pub fn DeviceMemoryPlan::operation_count(Self) -> Int
 pub fn DeviceMemoryPlan::region(Self, @plan.ActivationRef) -> ActivationRegion?
 pub fn DeviceMemoryPlan::slot_count(Self) -> Int
 pub fn DeviceMemoryPlan::target(Self) -> @catalog.DeviceTarget
+pub fn DeviceMemoryPlan::to_repr(Self) -> @debug.Repr
 pub fn DeviceMemoryPlan::token_rows(Self) -> Int64
 pub fn DeviceMemoryPlan::workspace(Self) -> WorkspaceRegion
 
@@ -105,21 +126,30 @@ pub(all) enum DeviceMemoryPlanRule {
   ShapeEnvelope
   TargetDtype
 } derive(Eq, @debug.Debug)
+pub fn DeviceMemoryPlanRule::equal(Self, Self) -> Bool
+pub fn DeviceMemoryPlanRule::not_equal(Self, Self) -> Bool
+pub fn DeviceMemoryPlanRule::to_repr(Self) -> @debug.Repr
 
 pub struct OperationMemoryBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn OperationMemoryBinding::activation_inputs(Self) -> ReadOnlyArray[ActivationRegion]
 pub fn OperationMemoryBinding::activation_outputs(Self) -> ReadOnlyArray[ActivationRegion]
+pub fn OperationMemoryBinding::equal(Self, Self) -> Bool
+pub fn OperationMemoryBinding::not_equal(Self, Self) -> Bool
 pub fn OperationMemoryBinding::operation_id(Self) -> @plan.OperationId
+pub fn OperationMemoryBinding::to_repr(Self) -> @debug.Repr
 pub fn OperationMemoryBinding::workspace(Self) -> WorkspaceRegion
 
 pub struct PagedTokenRowEnvelope {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedTokenRowEnvelope::equal(Self, Self) -> Bool
 pub fn PagedTokenRowEnvelope::max_query_rows(Self) -> Int
 pub fn PagedTokenRowEnvelope::max_query_tokens(Self) -> Int
 pub fn PagedTokenRowEnvelope::new(max_query_rows~ : Int, max_query_tokens~ : Int) -> Self raise DeviceMemoryError
+pub fn PagedTokenRowEnvelope::not_equal(Self, Self) -> Bool
+pub fn PagedTokenRowEnvelope::to_repr(Self) -> @debug.Repr
 
 pub struct WorkspaceRegion {
   // private fields
@@ -127,7 +157,10 @@ pub struct WorkspaceRegion {
 pub fn WorkspaceRegion::alignment_bytes(Self) -> Int64
 pub fn WorkspaceRegion::byte_length(Self) -> Int64
 pub fn WorkspaceRegion::end_offset_bytes(Self) -> Int64
+pub fn WorkspaceRegion::equal(Self, Self) -> Bool
+pub fn WorkspaceRegion::not_equal(Self, Self) -> Bool
 pub fn WorkspaceRegion::offset_bytes(Self) -> Int64
+pub fn WorkspaceRegion::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

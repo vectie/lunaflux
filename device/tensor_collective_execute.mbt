@@ -256,7 +256,7 @@ pub fn TensorCollectiveOwner::close(
   }
   self.communicator.close() catch {
     error => {
-      if !(error is @nccl.NcclError::Busy(_)) {
+      if !(error is Busy(_)) {
         self.state = CollectiveOwnerClosed
       }
       raise error_from_nccl_for(error, TensorCollectiveClose)

@@ -32,7 +32,7 @@ pub fn AudioAmpProgram::prepare(
   max_scratch_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.functions.is_empty() && self.scratch is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let layout = @joint_diffusion_device.AudioAmpLayout::new(
     batch=self.source.batch,
@@ -58,13 +58,13 @@ pub fn AudioAmpProgram::bind(
   weights~ : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.layout is Some(layout) && self.scratch is Some(scratch) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let cache = self.cache.get(weights)
   if cache is Some(_) {
     guard self.cached_parameters is Some(original) &&
       audio_amp_same_parameters(original, parameters) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
   }
   layout.launches(

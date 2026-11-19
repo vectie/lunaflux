@@ -176,7 +176,7 @@ pub fn Execution::features(
   self : Self,
 ) -> FeatureView raise @device.DeviceError {
   guard self.is_ready() && self.feature_rows > 0 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   {
     allocation: self.storage.buffers().region(Features).allocation,
@@ -191,7 +191,7 @@ pub fn Execution::feature_buffer(
   self : Self,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.ready && self.state is (Prepared | Failed) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   self.storage.buffers().region(Features).allocation
 }

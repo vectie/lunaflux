@@ -37,6 +37,9 @@ pub(all) suberror Glm53ExpertBankLayoutError {
   ExpertBankSizeOverflow
   IndexedLayout(@indexed_parameter_bank_layout.IndexedParameterBankLayoutError)
 } derive(Eq, @debug.Debug)
+pub fn Glm53ExpertBankLayoutError::equal(Self, Self) -> Bool
+pub fn Glm53ExpertBankLayoutError::not_equal(Self, Self) -> Bool
+pub fn Glm53ExpertBankLayoutError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror Glm53NvFp4ExpertError {
   InvalidMoeLayer(Int)
@@ -60,6 +63,9 @@ pub(all) suberror Glm53WeightsError {
   TensorDTypeMismatch(ordinal~ : Int)
   TensorShapeMismatch(ordinal~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn Glm53WeightsError::equal(Self, Self) -> Bool
+pub fn Glm53WeightsError::not_equal(Self, Self) -> Bool
+pub fn Glm53WeightsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Glm53GlobalTensorRole {
@@ -67,6 +73,9 @@ pub(all) enum Glm53GlobalTensorRole {
   FinalNorm
   LanguageModelHead
 } derive(Eq, @debug.Debug)
+pub fn Glm53GlobalTensorRole::equal(Self, Self) -> Bool
+pub fn Glm53GlobalTensorRole::not_equal(Self, Self) -> Bool
+pub fn Glm53GlobalTensorRole::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53MoeExpertBankLayout {
   // private fields
@@ -88,6 +97,11 @@ pub fn Glm53MoeExpertBankLayout::shared_up(Self) -> @indexed_parameter_bank_layo
 
 pub struct Glm53MoeExpertBankLayoutDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Glm53MoeExpertBankLayoutDigest::as_hex(Self) -> String
+pub fn Glm53MoeExpertBankLayoutDigest::equal(Self, Self) -> Bool
+pub fn Glm53MoeExpertBankLayoutDigest::hash(Self) -> Int
+pub fn Glm53MoeExpertBankLayoutDigest::hash_combine(Self, Hasher) -> Unit
+pub fn Glm53MoeExpertBankLayoutDigest::not_equal(Self, Self) -> Bool
+pub fn Glm53MoeExpertBankLayoutDigest::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53NvFp4ExpertWeight {
   // private fields
@@ -102,7 +116,10 @@ pub fn Glm53NvFp4ExpertWeight::scales_name(Self) -> String
 pub struct Glm53ObservedTensor {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Glm53ObservedTensor::equal(Self, Self) -> Bool
 pub fn Glm53ObservedTensor::new(name~ : String, dtype~ : Glm53TensorDType, shape~ : ArrayView[Int64]) -> Self
+pub fn Glm53ObservedTensor::not_equal(Self, Self) -> Bool
+pub fn Glm53ObservedTensor::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53SharedExpertWeight {
   // private fields
@@ -116,25 +133,34 @@ pub(all) enum Glm53TensorDType {
   Float32
   Fp8E4M3
 } derive(Eq, @debug.Debug)
+pub fn Glm53TensorDType::equal(Self, Self) -> Bool
+pub fn Glm53TensorDType::not_equal(Self, Self) -> Bool
+pub fn Glm53TensorDType::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53TensorDescriptor {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Glm53TensorDescriptor::dtype(Self) -> Glm53TensorDType
+pub fn Glm53TensorDescriptor::equal(Self, Self) -> Bool
 pub fn Glm53TensorDescriptor::name(Self) -> String
+pub fn Glm53TensorDescriptor::not_equal(Self, Self) -> Bool
 pub fn Glm53TensorDescriptor::ordinal(Self) -> Int
 pub fn Glm53TensorDescriptor::shape(Self) -> ReadOnlyArray[Int64]
+pub fn Glm53TensorDescriptor::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53TensorManifest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Glm53TensorManifest::control_token_ids(Self) -> ReadOnlyArray[Int]
 pub fn Glm53TensorManifest::encoding(Self) -> Glm53WeightEncoding
+pub fn Glm53TensorManifest::equal(Self, Self) -> Bool
 pub fn Glm53TensorManifest::execution_identity(Self) -> @spec.ModelIdentity
 pub fn Glm53TensorManifest::layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53TensorManifest::not_equal(Self, Self) -> Bool
 pub fn Glm53TensorManifest::profile(Self) -> @glm53_spec.Glm53ProfileId
 pub fn Glm53TensorManifest::tensor(Self, Int) -> Glm53TensorDescriptor?
 pub fn Glm53TensorManifest::tensor_count(Self) -> Int
+pub fn Glm53TensorManifest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Glm53TextTensorRole {
   InputNorm
@@ -183,29 +209,41 @@ pub(all) enum Glm53TextTensorRole {
   HyperFfnBase
   HyperFfnScale
 } derive(Eq, @debug.Debug)
+pub fn Glm53TextTensorRole::equal(Self, Self) -> Bool
+pub fn Glm53TextTensorRole::not_equal(Self, Self) -> Bool
+pub fn Glm53TextTensorRole::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53WeightBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Glm53WeightBinding::equal(Self, Self) -> Bool
 pub fn Glm53WeightBinding::execution_identity(Self) -> @spec.ModelIdentity
 pub fn Glm53WeightBinding::layout_digest(Self) -> @spec.PlanDigest
+pub fn Glm53WeightBinding::not_equal(Self, Self) -> Bool
 pub fn Glm53WeightBinding::tensor_count(Self) -> Int
+pub fn Glm53WeightBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Glm53WeightEncoding {
   BFloat16WithFloat32Routing
   Fp8E4M3Block128Dynamic
 } derive(Eq, @debug.Debug)
+pub fn Glm53WeightEncoding::equal(Self, Self) -> Bool
+pub fn Glm53WeightEncoding::not_equal(Self, Self) -> Bool
+pub fn Glm53WeightEncoding::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53WeightSchema {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Glm53WeightSchema::content_digest(Self) -> @spec.ContentDigest
 pub fn Glm53WeightSchema::encoding(Self) -> Glm53WeightEncoding
+pub fn Glm53WeightSchema::equal(Self, Self) -> Bool
 pub fn Glm53WeightSchema::fp8_block_columns(Self) -> Int?
 pub fn Glm53WeightSchema::fp8_block_rows(Self) -> Int?
 pub fn Glm53WeightSchema::global_shape(Self, Glm53GlobalTensorRole) -> ReadOnlyArray[Int64]
+pub fn Glm53WeightSchema::not_equal(Self, Self) -> Bool
 pub fn Glm53WeightSchema::profile(Self) -> @glm53_spec.Glm53ProfileId
 pub fn Glm53WeightSchema::text_layer_shape(Self, Int, Glm53TextTensorRole) -> ReadOnlyArray[Int64] raise Glm53WeightsError
+pub fn Glm53WeightSchema::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

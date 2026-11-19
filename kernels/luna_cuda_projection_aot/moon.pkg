@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/compiler/precision_ir" @precision,
   "vectie/lunaflux/kernels/luna_cuda_precision" @precision_cuda,
   "vectie/lunaflux/compiler/physical_tile_ir",

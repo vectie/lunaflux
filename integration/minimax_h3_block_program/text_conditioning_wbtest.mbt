@@ -10,7 +10,7 @@ test "text conditioning storage uses checked exact BF16 extent" {
       (2147483647, 2147483647, 100000L),
     ] {
     try text_conditioning_bytes(rows, width, budget) catch {
-      @device.DeviceError::InvalidArgument(AllocationCreate) => ()
+      InvalidArgument(AllocationCreate) => ()
       _ => fail("wrong extent error")
     } noraise {
       _ => fail("invalid extent accepted")
@@ -27,7 +27,7 @@ test "text conditioning executes only prepared phase and propagates failure" {
   let phases : Array[ConditioningPhase] = [Empty, Complete, Failed]
   for phase in phases {
     try execute_conditioning_once(phase, () => calls.val += 1) catch {
-      @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue) => ()
+      InvalidArgument(OrderedExecutorEnqueue) => ()
       _ => fail("wrong phase error")
     } noraise {
       _ => fail("re-executed conditioning")
@@ -36,10 +36,10 @@ test "text conditioning executes only prepared phase and propagates failure" {
   assert_eq(calls.val, 1)
   try
     execute_conditioning_once(Prepared, () => {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorWait)
+      raise InvalidArgument(OrderedExecutorWait)
     })
   catch {
-    @device.DeviceError::InvalidArgument(OrderedExecutorWait) => ()
+    InvalidArgument(OrderedExecutorWait) => ()
     _ => fail("lost execution error")
   } noraise {
     _ => fail("failed execution completed")

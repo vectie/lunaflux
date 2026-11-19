@@ -160,11 +160,7 @@ async fn Backend::generate_prepared(
     let status = output.finish_into_status(
       self.delta,
       destination_offset=0,
-      boundary=if reason is TokenLimit {
-        @output.OutputTextBoundary::TokenLimit
-      } else {
-        CompleteText
-      },
+      boundary=if reason is TokenLimit { TokenLimit } else { CompleteText },
     )
     guard status.is_ready() else {
       raise @session.SessionChatError::InvalidLifecycle

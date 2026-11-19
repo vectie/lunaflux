@@ -77,7 +77,7 @@ pub fn AttentionStem::launches(
   output : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard functions.length() == 4 && scratch.byte_count() >= self.scratch_bytes else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   fn region(
     buffer : @device.Allocation,

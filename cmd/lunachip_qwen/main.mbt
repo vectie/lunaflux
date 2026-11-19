@@ -251,7 +251,7 @@ async fn main {
     create_mode=CreateNew,
   )
   println(
-    "Prepared \{context} complete positions, \{source.transfers.length()} tensors, prompt tokens \{tokens}",
+    "Prepared \{context} complete positions, \{source.transfers.length()} tensors, prompt tokens \{Repr(tokens)}",
   )
   if mode == "simulate" || mode == "simulate-fast" {
     simulate(source, plans, tokenizer, tokens, generation, output)

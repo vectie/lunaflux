@@ -202,7 +202,7 @@ test "schedule copied at preparation and malformed input rejected" {
   ]
   for schedule in invalid {
     try @joint_diffusion_loop.Loop::new(schedule) catch {
-      @joint_diffusion_loop.LoopError::InvalidSchedule => ()
+      InvalidSchedule => ()
       _ => fail("wrong schedule error")
     } noraise {
       _ => fail("invalid schedule accepted")

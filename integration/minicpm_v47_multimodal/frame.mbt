@@ -168,12 +168,12 @@ pub fn Frame::bind_prompt(
   }
   self.host_map.fill(b'\xff')
   for i in 0..<prompt.feature_map.length() {
-    let word = prompt.feature_map[i].to_uint()
+    let word = prompt.feature_map[i].reinterpret_as_uint()
     for lane in 0..<4 {
       self.host_map[i * 4 + lane] = ((word >> (lane * 8)) & 255U).to_byte()
     }
   }
-  let count = features.rows().to_uint()
+  let count = features.rows().reinterpret_as_uint()
   for lane in 0..<4 {
     self.host_count[lane] = ((count >> (lane * 8)) & 255U).to_byte()
   }

@@ -1,6 +1,6 @@
 ///|
 test "packed documents bound both softmax passes without changing tensor extents" {
-  let kernel = staged_joint_attention_bf16_source(
+  let kernel = @joint_attention_cuda_source.staged_joint_attention_bf16_source(
     rows=64,
     hidden_size=4,
     head_count=1,
@@ -34,7 +34,7 @@ test "packed documents bound both softmax passes without changing tensor extents
 test "invalid or empty packed documents cannot generate attention" {
   for boundaries in [[0], [1, 64], [0, 63], [0, 16, 16, 64], [0, 65, 64]] {
     try
-      staged_joint_attention_bf16_source(
+      @joint_attention_cuda_source.staged_joint_attention_bf16_source(
         rows=64,
         hidden_size=4,
         head_count=1,

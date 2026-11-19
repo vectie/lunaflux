@@ -127,7 +127,7 @@ pub fn DecodeExecutionDescriptor::matches_function_symbol(
   let prefix = "lunaflux_attention_decode_tile_compiler_v1_"
   guard expected.split(prefix).to_array() is ["", suffix] &&
     symbol.split(prefix).to_array() is ["", tail] &&
-    tail.split("_" + suffix.to_string()).to_array() is [tag, ""] &&
+    tail.split("_" + suffix.to_owned()).to_array() is [tag, ""] &&
     tag.has_prefix("c") &&
     tag.length() >= 2 &&
     tag.length() <= 10 else {

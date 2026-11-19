@@ -20,7 +20,7 @@ test "attention output inverse RoPE lowers exact full-head ABI" {
     deterministic_compression_ratio=128,
   )
   let ordinal = inverse_rotary_test_ordinal(requirements)
-  let candidate = lower_attention_output_inverse_rotary_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_attention_output_inverse_rotary_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=2,
@@ -61,7 +61,7 @@ test "inverse RoPE rejects adjacent ordinal target compiler and overflow" {
   let ordinal = inverse_rotary_test_ordinal(requirements)
   for hostile in [ordinal - 1, ordinal + 1] {
     try
-      lower_attention_output_inverse_rotary_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_attention_output_inverse_rotary_cuda_aot_candidate(
         requirements,
         requirement_ordinal=hostile,
         maximum_tokens=1,
@@ -77,7 +77,7 @@ test "inverse RoPE rejects adjacent ordinal target compiler and overflow" {
     }
   }
   try
-    lower_attention_output_inverse_rotary_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_attention_output_inverse_rotary_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -92,7 +92,7 @@ test "inverse RoPE rejects adjacent ordinal target compiler and overflow" {
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_attention_output_inverse_rotary_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_attention_output_inverse_rotary_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,

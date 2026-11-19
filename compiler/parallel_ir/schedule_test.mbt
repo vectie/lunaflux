@@ -44,7 +44,7 @@ test "ordered lowering exactly preserves source dispatch with no events" {
   assert_eq(schedule.completion_steps()[0], 4)
   let replay = program.lower(ComputeCommunicationOverlap)
   let original = program.lower(ComputeCommunicationOverlap)
-  for lane in [@parallel_ir.ComputeLane, @parallel_ir.CommunicationLane] {
+  for lane in [@parallel_ir.ComputeLane, CommunicationLane] {
     for i, command in original.commands(lane) {
       assert_true(command == replay.commands(lane)[i])
     }
@@ -61,7 +61,7 @@ fn explore(
   events : Array[Bool],
   memory : Array[Int32],
 ) -> Int32 raise {
-  let lanes = [@parallel_ir.ComputeLane, @parallel_ir.CommunicationLane]
+  let lanes = [@parallel_ir.ComputeLane, CommunicationLane]
   if positions[0] == schedule.commands(lanes[0]).length() &&
     positions[1] == schedule.commands(lanes[1]).length() {
     assert_eq(memory[0], 7)

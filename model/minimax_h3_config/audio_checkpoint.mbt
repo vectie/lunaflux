@@ -73,7 +73,7 @@ fn validate_audio_source_config(
   validate_utf8_size(source, maximum)
   let values : Map[String, Int32] = Map([])
   let mut header = false
-  for line in source.to_string().split("\n") {
+  for line in source.to_owned().split("\n") {
     let trimmed = line.trim()
     if trimmed.is_empty() || trimmed.has_prefix("#") {
       continue
@@ -88,7 +88,7 @@ fn validate_audio_source_config(
     guard line.has_prefix("  ") && trimmed.split(":").to_array() is [key, raw] else {
       raise InvalidField
     }
-    let name = key.trim().to_string()
+    let name = key.trim().to_owned()
     guard !values.contains(name) else { raise DuplicateField }
     let value = @string.parse_int(raw.trim()) catch { _ => raise InvalidField }
     values[name] = value

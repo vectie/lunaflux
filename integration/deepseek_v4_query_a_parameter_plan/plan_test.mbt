@@ -57,16 +57,18 @@ fn query_a_evidence(
   digest? : String,
   weight_shape? : Array[Int64],
   weight_bytes? : Int64,
-) -> DeepSeekV4QueryAParameterEvidenceInput {
+) -> @deepseek_v4_query_a_parameter_plan.DeepSeekV4QueryAParameterEvidenceInput {
   let layout = @deepseek_v4_weights.query_a_quantized_layout(metadata.spec())
-  try! DeepSeekV4QueryAParameterEvidenceInput::new(
+  try! @deepseek_v4_query_a_parameter_plan.DeepSeekV4QueryAParameterEvidenceInput::new(
     contract=layout.contract(),
     weight_shape=weight_shape.unwrap_or([
       layout.weight_shape()[0],
       layout.weight_shape()[1],
     ]),
     scale_shape=layout.scale_shape(),
-    layout_digest_sha256=digest.unwrap_or(query_a_layout_digest_sha256(layout)),
+    layout_digest_sha256=digest.unwrap_or(
+      @deepseek_v4_query_a_parameter_plan.query_a_layout_digest_sha256(layout),
+    ),
     weight_operand_ordinal=2,
     weight_operand_role=QueryAWeightCodesInput,
     weight_operand_bytes=weight_bytes.unwrap_or(
@@ -89,7 +91,7 @@ test "all five profiles join replicated Query-A checkpoint storage" {
       ("deepseek-ai/DeepSeek-V4-Flash-0731", '5', 4096, 1024),
     ] {
     let (metadata, requirements, candidate) = query_a_fixture(entry.0, entry.1)
-    let plan = plan_query_a_parameter(
+    let plan = @deepseek_v4_query_a_parameter_plan.plan_query_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -120,7 +122,7 @@ test "Query-A join rejects hostile shape digest bytes and identity" {
     "deepseek-ai/DeepSeek-V4-Flash-0731", 'a',
   )
   try
-    plan_query_a_parameter(
+    @deepseek_v4_query_a_parameter_plan.plan_query_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -133,7 +135,7 @@ test "Query-A join rejects hostile shape digest bytes and identity" {
     _ => fail("wrong shape admitted")
   }
   try
-    plan_query_a_parameter(
+    @deepseek_v4_query_a_parameter_plan.plan_query_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -146,7 +148,7 @@ test "Query-A join rejects hostile shape digest bytes and identity" {
     _ => fail("wrong digest admitted")
   }
   try
-    plan_query_a_parameter(
+    @deepseek_v4_query_a_parameter_plan.plan_query_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -164,7 +166,7 @@ test "Query-A join rejects hostile shape digest bytes and identity" {
   }
   let (other, _, _) = query_a_fixture("deepseek-ai/DeepSeek-V4-Flash", 'b')
   try
-    plan_query_a_parameter(
+    @deepseek_v4_query_a_parameter_plan.plan_query_a_parameter(
       other,
       requirements,
       candidate,
@@ -183,7 +185,7 @@ test "Query-A join remains non-authoritative" {
   let (metadata, requirements, candidate) = query_a_fixture(
     "deepseek-ai/DeepSeek-V4-Flash-0731", 'c',
   )
-  let plan = plan_query_a_parameter(
+  let plan = @deepseek_v4_query_a_parameter_plan.plan_query_a_parameter(
     metadata,
     requirements,
     candidate,

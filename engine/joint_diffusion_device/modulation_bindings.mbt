@@ -34,11 +34,11 @@ fn modulation_index_bytes(
   guard indices.length() > 0 &&
     indices.length() <= 536870911 &&
     parameter_rows > 0 else {
-    raise @device.DeviceError::InvalidArgument(CopyToDevice)
+    raise InvalidArgument(CopyToDevice)
   }
   for index in indices {
     guard index >= 0 && index < parameter_rows else {
-      raise @device.DeviceError::InvalidArgument(CopyToDevice)
+      raise InvalidArgument(CopyToDevice)
     }
   }
   let bytes : Array[Byte] = Array::make(indices.length() * 4, 0)
@@ -66,7 +66,7 @@ pub fn ModulationBindings::upload(
     parameter_rows > 0 &&
     indices.length().to_int64() <= 2147483647L / width.to_int64() &&
     parameter_rows.to_int64() <= 2147483647L / width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(CopyToDevice)
+    raise InvalidArgument(CopyToDevice)
   }
   let bytes = modulation_index_bytes(indices, parameter_rows)
   context.validate_allocation_region(

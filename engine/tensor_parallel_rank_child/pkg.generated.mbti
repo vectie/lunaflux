@@ -55,6 +55,9 @@ pub(all) suberror TensorParallelRankChildError {
   Device(@device.DeviceError)
   Wire(@worker_wire.WorkerWireError)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRankChildError::equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FailedTensorParallelRankChildPreparation {
@@ -92,6 +95,9 @@ pub(all) enum TensorParallelRankChildControlProgress {
   ControlAdvanced
   ControlClosed
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRankChildControlProgress::equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildControlProgress::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildControlProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelRankChildPreparation {
   RankChildStarting(TensorParallelRankChildStarting)
@@ -112,6 +118,9 @@ pub(all) enum TensorParallelRankChildReadyProgress {
   ReadySending
   ReadyPublished
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRankChildReadyProgress::equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildReadyProgress::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildReadyProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelRankChildRule {
   ControlBoundary
@@ -125,6 +134,9 @@ pub(all) enum TensorParallelRankChildRule {
   PlanFrame
   Completion
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRankChildRule::equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankChildRule::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRankChildStarting {
   // private fields

@@ -6,7 +6,7 @@ pub fn AudioDecodeRequest::execute(
 ) -> Unit raise @device.DeviceError {
   self.submit()
   guard self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorWait)
+    raise InvalidArgument(OrderedExecutorWait)
   }
   self.state.phase = Failed
   queue.wait_completion()

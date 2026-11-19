@@ -14,6 +14,9 @@ pub(all) suberror LunaBf16CandidateExportError {
   ExportFailed(LunaBf16CandidateExportStage)
   ExportFailedAndCleanup(LunaBf16CandidateExportStage, LunaBf16CandidateExportStage)
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16CandidateExportError::equal(Self, Self) -> Bool
+pub fn LunaBf16CandidateExportError::not_equal(Self, Self) -> Bool
+pub fn LunaBf16CandidateExportError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaBf16CandidateExportEvidence {
@@ -37,6 +40,9 @@ pub(all) enum LunaBf16CandidateExportStage {
   Publish
   Cleanup
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16CandidateExportStage::equal(Self, Self) -> Bool
+pub fn LunaBf16CandidateExportStage::not_equal(Self, Self) -> Bool
+pub fn LunaBf16CandidateExportStage::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

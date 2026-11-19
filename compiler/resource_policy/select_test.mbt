@@ -83,7 +83,7 @@ test "measurement scope includes device toolchain exact shape source and artifac
       preferred_id="a",
     ).unwrap()
     assert_eq(result.policy().id(), "a")
-    assert_eq(result.origin(), @resource_policy.UnmeasuredPreferred)
+    assert_eq(result.origin(), UnmeasuredPreferred)
   }
   let result = @resource_policy.select(
     good,
@@ -93,7 +93,7 @@ test "measurement scope includes device toolchain exact shape source and artifac
     preferred_id="a",
   ).unwrap()
   assert_eq(result.policy().id(), "a")
-  assert_eq(result.origin(), @resource_policy.UnmeasuredPreferred)
+  assert_eq(result.origin(), UnmeasuredPreferred)
 }
 
 ///|
@@ -113,10 +113,7 @@ test "measured winner and ties are stable under input permutation" {
       preferred_id="b",
     ).unwrap()
     assert_eq(result.policy().id(), "a")
-    assert_eq(
-      result.origin(),
-      @resource_policy.Measured(latency_ns=20L, samples=5),
-    )
+    assert_eq(result.origin(), Measured(latency_ns=20L, samples=5))
   }
   let result = @resource_policy.select(
     s,
@@ -149,7 +146,7 @@ test "resource limits reject fast but infeasible candidates without optimistic f
       preferred_id="b",
     ).unwrap()
     assert_eq(result.policy().id(), "a")
-    assert_eq(result.origin(), @resource_policy.UnmeasuredEligible)
+    assert_eq(result.origin(), UnmeasuredEligible)
   }
   assert_true(
     @resource_policy.select(
@@ -189,7 +186,7 @@ test "unknown constrained resources need observations and missing data is labell
     @resource_policy.select(s, unconstrained, [unknown], [], preferred_id="a")
     .unwrap()
     .origin(),
-    @resource_policy.UnmeasuredPreferred,
+    UnmeasuredPreferred,
   )
 }
 

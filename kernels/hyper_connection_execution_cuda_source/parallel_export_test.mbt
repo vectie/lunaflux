@@ -13,12 +13,15 @@ async test "export ordered hyper control tiles paired probe" {
         normalization_epsilon=1.0e-5,
         mix_law=RoundedBf16ControlsAndProducts,
       )
-      let old = hyper_connection_source(
+      let old = @hyper_connection_execution_cuda_source.hyper_connection_source(
         p,
         symbol_prefix="old\{index}",
         parallel_controls=false,
       )
-      let new = hyper_connection_source(p, symbol_prefix="new\{index}")
+      let new = @hyper_connection_execution_cuda_source.hyper_connection_source(
+        p,
+        symbol_prefix="new\{index}",
+      )
       let schedule = new.control_schedule().unwrap()
       assert_eq(
         schedule.workspace_bytes(),

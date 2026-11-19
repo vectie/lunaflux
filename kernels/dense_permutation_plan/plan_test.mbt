@@ -125,9 +125,7 @@ test "malformed axes and overflowing extents reject before tensor allocation" {
     try
       @dense_permutation_plan.Permutation::new(shape, order, max_elements=limit)
     catch {
-      @dense_permutation_plan.PermutationError::InvalidShape
-      | @dense_permutation_plan.PermutationError::InvalidOrder
-      | @dense_permutation_plan.PermutationError::ElementLimitExceeded => ()
+      InvalidShape | InvalidOrder | ElementLimitExceeded => ()
       _ => fail("unexpected permutation error")
     } noraise {
       _ => fail("invalid permutation admitted")
@@ -140,7 +138,7 @@ test "malformed axes and overflowing extents reject before tensor allocation" {
   )
   for index in [-1L, 6L] {
     try plan.source_index(index) catch {
-      @dense_permutation_plan.PermutationError::IndexOutOfBounds => ()
+      IndexOutOfBounds => ()
       _ => fail("wrong bounds error")
     } noraise {
       _ => fail("invalid index admitted")

@@ -56,7 +56,7 @@ pub fn InputProgram::packed_state(
   self : Self,
 ) -> @joint_diffusion_device.PackedHidden raise @device.DeviceError {
   guard self.ready && self.packed is Some(packed) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   packed
 }
@@ -100,7 +100,7 @@ pub fn InputProgram::bind(
   guard self.ready &&
     self.projections is Some(projections) &&
     self.packed is Some(packed) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let video = projections.launch(
     self.functions[0],

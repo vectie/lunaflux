@@ -98,7 +98,7 @@ pub fn bind_recurrent_weights(
     )
   }
   if tensor_group is Some((rank, world_size)) {
-    let (first, local) = @precision_ir.TensorAxisPartition::new(
+    let (first, local_value) = @precision_ir.TensorAxisPartition::new(
       heads,
       rank~,
       world_size~,
@@ -108,19 +108,19 @@ pub fn bind_recurrent_weights(
       weights[index] = slice_weight_rows(
         weights[index],
         first * factor,
-        local * factor,
+        local_value * factor,
       )
     }
     weights[6] = slice_weight_columns(
       weights[6],
       first * dimension,
-      local * dimension,
+      local_value * dimension,
     )
-    weights[7] = slice_weight_columns(weights[7], first, local)
+    weights[7] = slice_weight_columns(weights[7], first, local_value)
     weights[11] = slice_weight_columns(
       weights[11],
       first * dimension,
-      local * dimension,
+      local_value * dimension,
     )
   }
   weights

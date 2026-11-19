@@ -29,12 +29,18 @@ pub(all) suberror Glm53ConfigError {
   MissingField(Glm53ConfigField)
   InvalidValue(Glm53ConfigField)
 } derive(Eq, @debug.Debug)
+pub fn Glm53ConfigError::equal(Self, Self) -> Bool
+pub fn Glm53ConfigError::not_equal(Self, Self) -> Bool
+pub fn Glm53ConfigError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Glm53ConfigAdmission {
   Full(@glm53_spec.Glm53FullMetadata)
   Flash(@glm53_spec.Glm53FlashMetadata)
 } derive(Eq, @debug.Debug)
+pub fn Glm53ConfigAdmission::equal(Self, Self) -> Bool
+pub fn Glm53ConfigAdmission::not_equal(Self, Self) -> Bool
+pub fn Glm53ConfigAdmission::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Glm53ConfigField {
   Profile
@@ -52,6 +58,9 @@ pub(all) enum Glm53ConfigField {
   NumericFormat
   InertMetadata
 } derive(Eq, @debug.Debug)
+pub fn Glm53ConfigField::equal(Self, Self) -> Bool
+pub fn Glm53ConfigField::not_equal(Self, Self) -> Bool
+pub fn Glm53ConfigField::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

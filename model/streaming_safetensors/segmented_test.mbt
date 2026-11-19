@@ -12,7 +12,7 @@ async test "segmented copy authenticates shards once and fills distinct arenas" 
     @fs.write_file(canonical + "/s1", shard1, create_mode=CreateNew)
     let root = @approved_fs.ApprovedRoot::open_absolute(canonical)
     let limits = streaming_test_limits()
-    let inspection = inspect_shards(
+    let inspection = @streaming_safetensors.inspect_shards(
       root,
       [streaming_test_input("s0", shard0), streaming_test_input("s1", shard1)],
       dtype_specs=streaming_test_specs(),
@@ -20,7 +20,7 @@ async test "segmented copy authenticates shards once and fills distinct arenas" 
     )
     let arenas = [FixedArray::make(5, b'!'), FixedArray::make(6, b'?')]
     let requests = [
-      try! StreamingSafetensorsSegmentedCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsSegmentedCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=0,
         tensor_byte_offset=0L,
@@ -28,7 +28,7 @@ async test "segmented copy authenticates shards once and fills distinct arenas" 
         destination_offset=1,
         byte_count=4,
       ),
-      try! StreamingSafetensorsSegmentedCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsSegmentedCopyRequest::new(
         shard_ordinal=1,
         tensor_ordinal=1,
         tensor_byte_offset=2L,
@@ -37,8 +37,10 @@ async test "segmented copy authenticates shards once and fills distinct arenas" 
         byte_count=4,
       ),
     ]
-    let visited : Array[StreamingSafetensorsSegmentedVisitedRange] = []
-    copy_segmented_ranges(
+    let visited : Array[
+      @streaming_safetensors.StreamingSafetensorsSegmentedVisitedRange,
+    ] = []
+    @streaming_safetensors.copy_segmented_ranges(
       root,
       inspection,
       destination_arenas=arenas,
@@ -70,7 +72,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
     @fs.write_file(canonical + "/s0", bytes, create_mode=CreateNew)
     let root = @approved_fs.ApprovedRoot::open_absolute(canonical)
     let limits = streaming_test_limits()
-    let inspection = inspect_shards(
+    let inspection = @streaming_safetensors.inspect_shards(
       root,
       [streaming_test_input("s0", bytes)],
       dtype_specs=streaming_test_specs(),
@@ -78,7 +80,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
     )
     let arenas = [FixedArray::make(4, b'!'), FixedArray::make(4, b'?')]
     let distinct_arenas = [
-      try! StreamingSafetensorsSegmentedCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsSegmentedCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=0,
         tensor_byte_offset=0L,
@@ -86,7 +88,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
         destination_offset=0,
         byte_count=4,
       ),
-      try! StreamingSafetensorsSegmentedCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsSegmentedCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=1,
         tensor_byte_offset=0L,
@@ -95,7 +97,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
         byte_count=3,
       ),
     ]
-    copy_segmented_ranges(
+    @streaming_safetensors.copy_segmented_ranges(
       root,
       inspection,
       destination_arenas=arenas,
@@ -104,7 +106,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
       visit=(_, _) => (),
     )
     let outside = [
-      try! StreamingSafetensorsSegmentedCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsSegmentedCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=0,
         tensor_byte_offset=0L,
@@ -114,7 +116,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
       ),
     ]
     try
-      copy_segmented_ranges(
+      @streaming_safetensors.copy_segmented_ranges(
         root,
         inspection,
         destination_arenas=arenas,
@@ -130,7 +132,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
     }
     let overlap = [
       distinct_arenas[0],
-      try! StreamingSafetensorsSegmentedCopyRequest::new(
+      try! @streaming_safetensors.StreamingSafetensorsSegmentedCopyRequest::new(
         shard_ordinal=0,
         tensor_ordinal=1,
         tensor_byte_offset=0L,
@@ -140,7 +142,7 @@ async test "segmented copy rejects arena bounds and only overlaps within an aren
       ),
     ]
     try
-      copy_segmented_ranges(
+      @streaming_safetensors.copy_segmented_ranges(
         root,
         inspection,
         destination_arenas=arenas,

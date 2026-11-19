@@ -22,38 +22,53 @@ pub fn parallel_group(ArrayView[TensorParallelExecutionPlan]) -> @parallel_ir.Gr
 pub(all) suberror TensorParallelExecutionPlanError {
   InvalidTensorParallelExecutionPlan(rule~ : TensorParallelExecutionPlanRule, operation~ : Int, operand~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelExecutionPlanError::equal(Self, Self) -> Bool
+pub fn TensorParallelExecutionPlanError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelExecutionPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TensorParallelActivationBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelActivationBinding::equal(Self, Self) -> Bool
 pub fn TensorParallelActivationBinding::live_through_step(Self) -> Int
+pub fn TensorParallelActivationBinding::not_equal(Self, Self) -> Bool
 pub fn TensorParallelActivationBinding::produced_by(Self) -> @plan.OperationId
 pub fn TensorParallelActivationBinding::reference(Self) -> @plan.ActivationRef
 pub fn TensorParallelActivationBinding::region(Self) -> TensorParallelScalarRegion
 pub fn TensorParallelActivationBinding::slot(Self) -> Int
+pub fn TensorParallelActivationBinding::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelCollectiveBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelCollectiveBinding::equal(Self, Self) -> Bool
 pub fn TensorParallelCollectiveBinding::kind(Self) -> TensorParallelPhysicalCollectiveKind
 pub fn TensorParallelCollectiveBinding::local_send_bytes(Self) -> Int64
 pub fn TensorParallelCollectiveBinding::local_send_offset_bytes(Self) -> Int64
+pub fn TensorParallelCollectiveBinding::not_equal(Self, Self) -> Bool
 pub fn TensorParallelCollectiveBinding::operation_id(Self) -> @plan.OperationId
 pub fn TensorParallelCollectiveBinding::receive_bytes(Self) -> Int64
 pub fn TensorParallelCollectiveBinding::region(Self) -> TensorParallelScalarRegion
 pub fn TensorParallelCollectiveBinding::sequence(Self) -> Int
+pub fn TensorParallelCollectiveBinding::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelDescriptorBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDescriptorBinding::equal(Self, Self) -> Bool
+pub fn TensorParallelDescriptorBinding::not_equal(Self, Self) -> Bool
 pub fn TensorParallelDescriptorBinding::region(Self) -> TensorParallelScalarRegion
 pub fn TensorParallelDescriptorBinding::role(Self) -> TensorParallelDescriptorRole
+pub fn TensorParallelDescriptorBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelDescriptorRole {
   RuntimeDescriptor(@plan.OperationRuntimeInput)
   ExternalDescriptor(@plan.ModelInputRef)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDescriptorRole::equal(Self, Self) -> Bool
+pub fn TensorParallelDescriptorRole::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDescriptorRole::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelExecutionPlan {
   // private fields
@@ -69,8 +84,10 @@ pub fn TensorParallelExecutionPlan::descriptor_bytes(Self) -> Int64
 pub fn TensorParallelExecutionPlan::descriptors(Self) -> ReadOnlyArray[TensorParallelDescriptorBinding]
 pub fn TensorParallelExecutionPlan::device_ordinal(Self) -> Int
 pub fn TensorParallelExecutionPlan::digest(Self) -> TensorParallelExecutionPlanDigest
+pub fn TensorParallelExecutionPlan::equal(Self, Self) -> Bool
 pub fn TensorParallelExecutionPlan::identity(Self) -> @spec.ModelIdentity
 pub fn TensorParallelExecutionPlan::kv_arena_bytes(Self) -> Int64
+pub fn TensorParallelExecutionPlan::not_equal(Self, Self) -> Bool
 pub fn TensorParallelExecutionPlan::operation(Self, @plan.OperationId) -> TensorParallelOperationBinding?
 pub fn TensorParallelExecutionPlan::operation_count(Self) -> Int
 pub fn TensorParallelExecutionPlan::operation_exact(Self, @plan.OperationId) -> TensorParallelOperationBinding raise TensorParallelExecutionPlanError
@@ -79,6 +96,7 @@ pub fn TensorParallelExecutionPlan::profile(Self) -> @launch_contract.PagedKerne
 pub fn TensorParallelExecutionPlan::rank(Self) -> Int
 pub fn TensorParallelExecutionPlan::rank_constants(Self) -> TensorParallelScalarRegion
 pub fn TensorParallelExecutionPlan::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelExecutionPlan::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelExecutionPlan::weight_arena_bytes(Self) -> Int64
 pub fn TensorParallelExecutionPlan::workspace(Self) -> TensorParallelScalarRegion
 pub fn TensorParallelExecutionPlan::world_size(Self) -> Int
@@ -87,6 +105,9 @@ pub struct TensorParallelExecutionPlanDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelExecutionPlanDigest::as_sha256(Self) -> String
+pub fn TensorParallelExecutionPlanDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelExecutionPlanDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelExecutionPlanDigest::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelExecutionPlanLimits {
   // private fields
@@ -129,6 +150,9 @@ pub(all) enum TensorParallelExecutionPlanRule {
   Alignment
   CapacityOverflow
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelExecutionPlanRule::equal(Self, Self) -> Bool
+pub fn TensorParallelExecutionPlanRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelExecutionPlanRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelMemorySpace {
   DescriptorSpace
@@ -137,6 +161,9 @@ pub(all) enum TensorParallelMemorySpace {
   PersistentKvSpace
   ActivationWorkspaceSpace
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelMemorySpace::equal(Self, Self) -> Bool
+pub fn TensorParallelMemorySpace::not_equal(Self, Self) -> Bool
+pub fn TensorParallelMemorySpace::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelOperationBinding {
   // private fields
@@ -144,22 +171,31 @@ pub struct TensorParallelOperationBinding {
 pub fn TensorParallelOperationBinding::capability(Self) -> @plan.KernelCapabilityId
 pub fn TensorParallelOperationBinding::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn TensorParallelOperationBinding::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn TensorParallelOperationBinding::equal(Self, Self) -> Bool
 pub fn TensorParallelOperationBinding::function_symbol(Self) -> String
 pub fn TensorParallelOperationBinding::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn TensorParallelOperationBinding::not_equal(Self, Self) -> Bool
 pub fn TensorParallelOperationBinding::operands(Self) -> ReadOnlyArray[TensorParallelPhysicalOperand]
 pub fn TensorParallelOperationBinding::operation_id(Self) -> @plan.OperationId
 pub fn TensorParallelOperationBinding::operation_kind(Self) -> @plan.OperationKind
+pub fn TensorParallelOperationBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelPhysicalCollectiveKind {
   InPlaceSumAllReduce
   InPlaceLastAxisAllGather
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelPhysicalCollectiveKind::equal(Self, Self) -> Bool
+pub fn TensorParallelPhysicalCollectiveKind::not_equal(Self, Self) -> Bool
+pub fn TensorParallelPhysicalCollectiveKind::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelPhysicalOperand {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelPhysicalOperand::equal(Self, Self) -> Bool
+pub fn TensorParallelPhysicalOperand::not_equal(Self, Self) -> Bool
 pub fn TensorParallelPhysicalOperand::region(Self) -> TensorParallelScalarRegion
 pub fn TensorParallelPhysicalOperand::role(Self) -> @tensor_parallel_launch_contract.TensorParallelOperandRole
+pub fn TensorParallelPhysicalOperand::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelScalarRegion {
   // private fields
@@ -167,9 +203,12 @@ pub struct TensorParallelScalarRegion {
 pub fn TensorParallelScalarRegion::alignment(Self) -> Int64
 pub fn TensorParallelScalarRegion::byte_count(Self) -> Int64
 pub fn TensorParallelScalarRegion::end_offset_bytes(Self) -> Int64
+pub fn TensorParallelScalarRegion::equal(Self, Self) -> Bool
+pub fn TensorParallelScalarRegion::not_equal(Self, Self) -> Bool
 pub fn TensorParallelScalarRegion::offset_bytes(Self) -> Int64
 pub fn TensorParallelScalarRegion::reserved_bytes(Self) -> Int64
 pub fn TensorParallelScalarRegion::space(Self) -> TensorParallelMemorySpace
+pub fn TensorParallelScalarRegion::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

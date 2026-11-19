@@ -27,21 +27,31 @@ test "segmented attention retains score and normalized probability rounds" {
   )
   assert_true(plan.expression(Publish).root() is Convert(BFloat16, Input(0)))
   assert_true(
-    (try? @precision_ir.SegmentedAttentionPrecision::new(
-      maximum_rows=16,
-      maximum_segment=17,
-      head_count=1,
-      head_width=72,
-    ))
-    is Err(_),
+    try
+      @precision_ir.SegmentedAttentionPrecision::new(
+        maximum_rows=16,
+        maximum_segment=17,
+        head_count=1,
+        head_width=72,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @precision_ir.SegmentedAttentionPrecision::new(
-      maximum_rows=2147483647,
-      maximum_segment=1,
-      head_count=16,
-      head_width=72,
-    ))
-    is Err(_),
+    try
+      @precision_ir.SegmentedAttentionPrecision::new(
+        maximum_rows=2147483647,
+        maximum_segment=1,
+        head_count=16,
+        head_width=72,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

@@ -32,6 +32,9 @@ pub fn admit_tensor_parallel(@descriptor_file.TensorParallelRuntimeDescriptorAdm
 pub suberror RuntimeInstanceAdmissionError {
   Rejected(RuntimeInstanceAdmissionStage)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeInstanceAdmissionError::equal(Self, Self) -> Bool
+pub fn RuntimeInstanceAdmissionError::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstanceAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Fp8RuntimeInstanceAdmission {
@@ -128,6 +131,9 @@ pub enum RuntimeInstanceAdmissionStage {
   SchedulerBlueprint
   WorkerBinding
 } derive(Eq, @debug.Debug)
+pub fn RuntimeInstanceAdmissionStage::equal(Self, Self) -> Bool
+pub fn RuntimeInstanceAdmissionStage::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstanceAdmissionStage::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRuntimeInstanceAdmission {
   // private fields

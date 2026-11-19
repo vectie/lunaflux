@@ -30,7 +30,7 @@ pub fn AudioDecoderMemoryPlan::new(
     frontend.batch == upsample[0].batch &&
     frontend.time == upsample[0].input_time &&
     upsample[0].input_channels == 1024 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let front = @joint_diffusion_device.AudioFrontendLayout::new(
     batch=frontend.batch,
@@ -59,7 +59,7 @@ pub fn AudioDecoderMemoryPlan::new(
           upsample[i].input_time == amp[i - 1].time
         )
       ) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     let stage = audio_stage_layout(upsample[i], amp[i], maximum_bytes)
     let layout = @joint_diffusion_device.AudioAmpLayout::new(
@@ -75,7 +75,7 @@ pub fn AudioDecoderMemoryPlan::new(
   guard tail.batch == amp[6].batch &&
     tail.channels == amp[6].channels &&
     tail.time == amp[6].time else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   caches.push(back.convolution.weight_bytes)
   let cache_bytes = audio_memory_sum(caches[:], maximum_bytes)
@@ -111,12 +111,10 @@ fn audio_memory_sum(
   parts : ArrayView[Int64],
   maximum : Int64,
 ) -> Int64 raise @device.DeviceError {
-  guard maximum > 0L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
-  }
+  guard maximum > 0L else { raise InvalidArgument(AllocationCreate) }
   for part in parts; remaining = maximum {
     guard part > 0L && part <= remaining else {
-      raise @device.DeviceError::InvalidArgument(AllocationCreate)
+      raise InvalidArgument(AllocationCreate)
     }
     continue remaining - part
   } nobreak {

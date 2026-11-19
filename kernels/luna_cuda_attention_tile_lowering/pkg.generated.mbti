@@ -19,6 +19,9 @@ pub fn lower_attention_tile_schedule_to_cuda(@luna_attention_tile_ir.AttentionTi
 pub(all) suberror CudaAttentionTileLoweringError {
   InvalidCudaAttentionTileLowering(CudaAttentionTileLoweringRule)
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileLoweringError::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileLoweringError::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileLoweringError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum CudaAttentionComputePrimitive {
@@ -30,12 +33,18 @@ pub(all) enum CudaAttentionComputePrimitive {
   CudaMatrixMultiplyAccumulate
   CudaMatrixQkPvMultiplyAccumulate
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionComputePrimitive::equal(Self, Self) -> Bool
+pub fn CudaAttentionComputePrimitive::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionComputePrimitive::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CudaAttentionCopyPrimitive {
   CudaDirectGlobalLoad
   CudaCooperativeSharedLoad
   CudaAsynchronousSharedLoad
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionCopyPrimitive::equal(Self, Self) -> Bool
+pub fn CudaAttentionCopyPrimitive::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionCopyPrimitive::to_repr(Self) -> @debug.Repr
 
 pub struct CudaAttentionTileLowering {
   // private fields
@@ -50,12 +59,14 @@ pub fn CudaAttentionTileLowering::decode_copy_retention(Self) -> @attention_phys
 pub fn CudaAttentionTileLowering::decode_partition_merge(Self) -> @attention_physical_ir.PartitionMerge?
 pub fn CudaAttentionTileLowering::decode_score_group_phase(Self) -> Int
 pub fn CudaAttentionTileLowering::digest(Self) -> CudaAttentionTileLoweringDigest
+pub fn CudaAttentionTileLowering::equal(Self, Self) -> Bool
 pub fn CudaAttentionTileLowering::factors_shared_key_query_map(Self) -> Bool
 pub fn CudaAttentionTileLowering::hoists_paged_key_value_page_lookup(Self) -> Bool
 pub fn CudaAttentionTileLowering::key_value_partition_grain(Self) -> Int
 pub fn CudaAttentionTileLowering::key_value_partitions(Self) -> Int
 pub fn CudaAttentionTileLowering::launch(Self) -> (Int, Int, Int, Int64)
 pub fn CudaAttentionTileLowering::matrix_storage_layout(Self) -> @luna_attention_tile_schedule.AttentionTileStorageLayout?
+pub fn CudaAttentionTileLowering::not_equal(Self, Self) -> Bool
 pub fn CudaAttentionTileLowering::optimization_digest(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimizationDigest
 pub fn CudaAttentionTileLowering::phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
 pub fn CudaAttentionTileLowering::physical_program(Self) -> @luna_attention_tile_schedule.AttentionPhysicalProgram raise CudaAttentionTileLoweringError
@@ -69,10 +80,16 @@ pub fn CudaAttentionTileLowering::reuses_online_softmax_tile_storage(Self) -> Bo
 pub fn CudaAttentionTileLowering::schedule_digest(Self) -> @luna_attention_tile_schedule.AttentionTileScheduleDigest
 pub fn CudaAttentionTileLowering::target(Self) -> @catalog.DeviceTarget
 pub fn CudaAttentionTileLowering::tile(Self) -> (Int, Int, Int)
+pub fn CudaAttentionTileLowering::to_repr(Self) -> @debug.Repr
 pub fn CudaAttentionTileLowering::transfer_readiness(Self) -> @luna_attention_tile_schedule.AttentionTransferReadiness
 
 pub struct CudaAttentionTileLoweringDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn CudaAttentionTileLoweringDigest::as_hex(Self) -> String
+pub fn CudaAttentionTileLoweringDigest::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileLoweringDigest::hash(Self) -> Int
+pub fn CudaAttentionTileLoweringDigest::hash_combine(Self, Hasher) -> Unit
+pub fn CudaAttentionTileLoweringDigest::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileLoweringDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CudaAttentionTileLoweringRule {
   UnsupportedTarget
@@ -82,6 +99,9 @@ pub(all) enum CudaAttentionTileLoweringRule {
   InvalidLaunch
   SharedMemory
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileLoweringRule::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileLoweringRule::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileLoweringRule::to_repr(Self) -> @debug.Repr
 
 pub struct CudaPrefillFragmentBinding {
   // private fields

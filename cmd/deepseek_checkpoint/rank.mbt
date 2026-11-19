@@ -280,7 +280,9 @@ async fn run_egress(
         filename="prediction-inputs.bf16",
         create_directory=false,
       )
-      println("retired_prediction_layers=\{stage.prediction_capture_layers()}")
+      println(
+        "retired_prediction_layers=\{Repr(stage.prediction_capture_layers())}",
+      )
     }
   }
 }

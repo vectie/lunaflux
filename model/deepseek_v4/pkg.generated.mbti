@@ -23,6 +23,9 @@ pub(all) enum DeepSeekV4AttentionMode {
   CompressedSparse
   HeavilyCompressed
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4AttentionMode::equal(Self, Self) -> Bool
+pub fn DeepSeekV4AttentionMode::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4AttentionMode::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4SemanticPlan {
   // private fields
@@ -30,9 +33,12 @@ pub struct DeepSeekV4SemanticPlan {
 pub fn DeepSeekV4SemanticPlan::admit_backend(Self, @family_contract.ModelBackendCapabilities) -> @family_contract.ModelFamilyAdmission
 pub fn DeepSeekV4SemanticPlan::attention_mode(Self, Int) -> DeepSeekV4AttentionMode?
 pub fn DeepSeekV4SemanticPlan::content_digest(Self) -> @spec.ContentDigest
+pub fn DeepSeekV4SemanticPlan::equal(Self, Self) -> Bool
 pub fn DeepSeekV4SemanticPlan::execution_plan(Self) -> @advanced_decoder_execution_plan.AdvancedDecoderExecutionPlan
 pub fn DeepSeekV4SemanticPlan::metadata(Self) -> @deepseek_v4_spec.DeepSeekV4ModelMetadata
+pub fn DeepSeekV4SemanticPlan::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4SemanticPlan::requirements(Self) -> @family_contract.ModelFamilyRequirements
+pub fn DeepSeekV4SemanticPlan::to_repr(Self) -> @debug.Repr
 pub fn DeepSeekV4SemanticPlan::workload_execution_plan(Self) -> @workload_execution_plan.WorkloadExecutionPlan
 
 // Type aliases

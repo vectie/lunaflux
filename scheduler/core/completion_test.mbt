@@ -1,7 +1,10 @@
 ///|
-fn request_with_stop_token(id : UInt64, stop_token : Int32) -> TokenizedRequest {
+fn request_with_stop_token(
+  id : UInt64,
+  stop_token : Int32,
+) -> @core.TokenizedRequest {
   let limits = inference_limits()
-  try! TokenizedRequest::new(
+  try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(id),
     model_identity=selected_identity(),
     input_tokens=try! @inference.TokenBuffer::new([1, 2], limits),

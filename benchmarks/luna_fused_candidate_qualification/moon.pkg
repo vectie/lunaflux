@@ -1,11 +1,10 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_cuda_fused_parallel_aot",
-  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
-  "vectie/lunaflux/kernels/luna_cuda_projection_aot",
   "vectie/lunaflux/kernels/luna_specialization",
 }
 

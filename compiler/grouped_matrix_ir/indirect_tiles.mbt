@@ -17,14 +17,12 @@ pub fn IndirectMatrixTraversal::new(
   guard capacity_groups > 0 &&
     column_tiles > 0 &&
     capacity_groups.to_int64() * column_tiles.to_int64() <= 2147483647L else {
-    raise @precision.PrecisionPlanError::ArithmeticOverflow
+    raise ArithmeticOverflow
   }
   // One worker per bounded job, independent of output width. A worker may
   // execute multiple independent tiles; runtime group counts remain on device.
   let workers = workers.unwrap_or(capacity_groups)
-  guard workers > 0 && workers <= 1048576 else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
-  }
+  guard workers > 0 && workers <= 1048576 else { raise IllegalPlacement }
   {
     capacity_groups,
     column_tiles,
@@ -43,7 +41,7 @@ pub fn IndirectMatrixTraversal::tile_count(
   live_groups : Int32,
 ) -> Int32 raise @precision.PrecisionPlanError {
   guard live_groups >= 0 && live_groups <= self.capacity_groups else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
+    raise IllegalPlacement
   }
   live_groups * self.column_tiles
 }

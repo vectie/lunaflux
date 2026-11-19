@@ -24,6 +24,9 @@ pub(all) suberror LlamaFp8WeightInspectionError {
   InvalidModelPlan(@plan.PlanValidationError)
   InvalidNumericWeightFile(@numeric_weight_file.NumericWeightFileError)
 } derive(Eq, @debug.Debug)
+pub fn LlamaFp8WeightInspectionError::equal(Self, Self) -> Bool
+pub fn LlamaFp8WeightInspectionError::not_equal(Self, Self) -> Bool
+pub fn LlamaFp8WeightInspectionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 

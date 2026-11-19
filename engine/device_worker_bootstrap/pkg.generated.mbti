@@ -49,6 +49,9 @@ pub(all) suberror DeviceWorkerBootstrapError {
   CleanupI8Worker(@i8_device_worker.I8DeviceWorkerError)
   CleanupFp8Worker(@fp8_device_worker_v3.Fp8DeviceWorkerV3Error)
 } derive(Eq, @debug.Debug)
+pub fn DeviceWorkerBootstrapError::equal(Self, Self) -> Bool
+pub fn DeviceWorkerBootstrapError::not_equal(Self, Self) -> Bool
+pub fn DeviceWorkerBootstrapError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum BootstrapRootIssue {
@@ -58,11 +61,17 @@ pub(all) enum BootstrapRootIssue {
   Busy
   Failed
 } derive(Eq, @debug.Debug)
+pub fn BootstrapRootIssue::equal(Self, Self) -> Bool
+pub fn BootstrapRootIssue::not_equal(Self, Self) -> Bool
+pub fn BootstrapRootIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum BootstrapRootRole {
   ModelRoot
   KernelRoot
 } derive(Eq, @debug.Debug)
+pub fn BootstrapRootRole::equal(Self, Self) -> Bool
+pub fn BootstrapRootRole::not_equal(Self, Self) -> Bool
+pub fn BootstrapRootRole::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceWorkerBootstrapOwner {
   // private fields
@@ -94,6 +103,9 @@ pub(all) enum DeviceWorkerBootstrapRule {
   NumericWeightArtifact
   ReleaseIdentity
 } derive(Eq, @debug.Debug)
+pub fn DeviceWorkerBootstrapRule::equal(Self, Self) -> Bool
+pub fn DeviceWorkerBootstrapRule::not_equal(Self, Self) -> Bool
+pub fn DeviceWorkerBootstrapRule::to_repr(Self) -> @debug.Repr
 
 pub struct FailedDeviceWorkerBootstrapPreparation {
   // private fields

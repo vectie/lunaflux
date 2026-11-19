@@ -1,13 +1,13 @@
 ///|
 test "KV assembly broadcasts shared suffix and extracts strided values" {
-  let limits = try! GlmHybridReferenceLimits::new(
+  let limits = try! @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=4,
     maximum_head_count=4,
     maximum_head_dimension=8,
     maximum_channel_count=16,
     maximum_vision_patch_count=4,
   )
-  let full = try! dsa_kv_attention_assembly(
+  let full = try! @glm_hybrid_reference.dsa_kv_attention_assembly(
     [1.0, 2.0, 10.0, 3.0, 4.0, 20.0],
     [9.0],
     row_count=1,
@@ -19,7 +19,7 @@ test "KV assembly broadcasts shared suffix and extracts strided values" {
   )
   assert_eq(full.keys(), [1.0, 2.0, 9.0, 3.0, 4.0, 9.0])
   assert_eq(full.values(), [10.0, 20.0])
-  let flash = try! dsa_kv_attention_assembly(
+  let flash = try! @glm_hybrid_reference.dsa_kv_attention_assembly(
     [1.0, 2.0, 10.0, 3.0, 4.0, 20.0],
     [],
     row_count=1,
@@ -35,7 +35,7 @@ test "KV assembly broadcasts shared suffix and extracts strided values" {
 
 ///|
 test "KV assembly rejects nonempty nonexistent suffix" {
-  let limits = try! GlmHybridReferenceLimits::new(
+  let limits = try! @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=4,
     maximum_head_count=4,
     maximum_head_dimension=8,
@@ -43,7 +43,7 @@ test "KV assembly rejects nonempty nonexistent suffix" {
     maximum_vision_patch_count=4,
   )
   try
-    dsa_kv_attention_assembly(
+    @glm_hybrid_reference.dsa_kv_attention_assembly(
       [1.0, 2.0],
       [3.0],
       row_count=1,

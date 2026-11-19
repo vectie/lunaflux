@@ -72,14 +72,14 @@ pub fn CheckpointAudioDecoder::prepare(
 ) -> Unit raise {
   guard !self.started else { fail("AudioVAE bootstrap already started") }
   self.started = true
-  fn module(name : String) -> @device.Module raise {
+  fn device_module(name : String) -> @device.Module raise {
     let value = load(name)
     self.modules.push(value)
     value
   }
   self.frontend.prepare(
     context,
-    module("audio_front"),
+    device_module("audio_front"),
     max_scratch_bytes=self.memory.frontend_bytes,
   )
   for i in 0..<7 {
@@ -90,8 +90,8 @@ pub fn CheckpointAudioDecoder::prepare(
     self.stages.push(stage)
     stage.prepare(
       context,
-      module("audio_up_\{i}"),
-      module("audio_amp_\{i}"),
+      device_module("audio_up_\{i}"),
+      device_module("audio_amp_\{i}"),
       max_workspace_bytes=self.memory.stage_bytes[i],
     )
     self.parameters.push(
@@ -104,7 +104,7 @@ pub fn CheckpointAudioDecoder::prepare(
   }
   self.tail.prepare(
     context,
-    module("audio_tail"),
+    device_module("audio_tail"),
     max_scratch_bytes=self.memory.tail_bytes,
   )
   let chain = @program.AudioDecodeChain::allocate(

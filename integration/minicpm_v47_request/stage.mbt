@@ -96,7 +96,7 @@ pub fn Host::complete_step(
   }
   self.sampled += 1
   if self.stops.contains(token) {
-    self.reason = Some(@inference.FinishReason::StopSequence)
+    self.reason = Some(StopSequence)
     self.state = Finished
     return
   }
@@ -104,7 +104,7 @@ pub fn Host::complete_step(
   self.emitted += 1
   self.previous = token
   if self.sampled >= self.maximum_new || self.cached >= self.ceiling {
-    self.reason = Some(@inference.FinishReason::TokenLimit)
+    self.reason = Some(TokenLimit)
     self.state = Finished
   }
 }

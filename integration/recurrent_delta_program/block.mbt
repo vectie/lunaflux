@@ -29,7 +29,7 @@ pub fn RecurrentDeltaProgram::with_block(
   )
   let extra = block.plan().frame_bytes()
   guard extra <= 9223372036854775807L - base.workspace_bytes() else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   {
     source: block.delta(),
@@ -72,7 +72,7 @@ pub fn RecurrentDeltaProgram::prepare_block(
   suffix~ : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise @device.DeviceError {
   guard self.block is Some(_) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.prepare(
     context,
@@ -196,7 +196,7 @@ fn append_block_projection(
     2L
   }
   let (grid, threads) = source.projection_launch(input_width, output_width) catch {
-    _ => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    _ => raise InvalidArgument(AotKernelLaunch)
   }
   append_block_launch(owner, aot, source, launches, stage, grid, 1, threads, [
     region(counts, 20L, 4L),

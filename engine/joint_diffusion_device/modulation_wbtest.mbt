@@ -7,7 +7,7 @@ test "modulation indices validate every row before upload and preserve Int32 byt
   assert_eq(bytes[9], 1)
   for (indices, count) in [([], 3), ([0], 0), ([-1], 3), ([0, 3], 3)] {
     try modulation_index_bytes(indices, count) catch {
-      @device.DeviceError::InvalidArgument(CopyToDevice) => ()
+      InvalidArgument(CopyToDevice) => ()
       _ => fail("wrong index error")
     } noraise {
       _ => fail("invalid modulation row admitted")

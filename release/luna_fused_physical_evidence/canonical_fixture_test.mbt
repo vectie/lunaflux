@@ -433,8 +433,8 @@ fn fused_physical_test_resource(
 fn fused_physical_test_admit(
   fixture : FusedPhysicalBlackBoxFixture,
   canonical : Bytes,
-) -> AdmittedFusedPhysicalEvidence raise {
-  admit_fused_physical_evidence(
+) -> @luna_fused_physical_evidence.AdmittedFusedPhysicalEvidence raise {
+  @luna_fused_physical_evidence.admit_fused_physical_evidence(
     fixture.qkv,
     fixture.qkv_compiled,
     fixture.residual,

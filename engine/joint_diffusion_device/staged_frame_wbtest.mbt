@@ -11,7 +11,7 @@ test "complete prediction orders timestep input and fifty-layer output work" {
   }
   for (time, input, model) in [([], [1], [2]), ([0], [], [2]), ([0], [1], [])] {
     try prediction_stages(time, input, model) catch {
-      @device.DeviceError::InvalidArgument(OrderedExecutorCreate) => ()
+      InvalidArgument(OrderedExecutorCreate) => ()
       _ => fail("wrong missing-stage error")
     } noraise {
       _ => fail("missing prediction stage accepted")

@@ -48,7 +48,7 @@ pub fn CheckpointAudioDecoder::prepare_joint_request(
   }
   storage.with_region(AudioState, (input, offset, bytes) => {
     guard bytes == self.memory.input_bytes else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     request.prepare(
       context,

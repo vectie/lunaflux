@@ -62,7 +62,7 @@ fn exercise_remote_group(
       break
     }
   }
-  assert_true(group.lifecycle() == @remote_group.Ready)
+  assert_true(group.lifecycle() == Ready)
   let allocator = @page_allocator.PageAllocator::new(
     @page_allocator.PageAllocatorLimits::new(
       page_capacity=2,
@@ -157,17 +157,17 @@ fn exercise_remote_group(
       break
     }
   }
-  assert_true(group.lifecycle() == @remote_group.CompletionReady)
+  assert_true(group.lifecycle() == CompletionReady)
   group.completion_frame(1UL).validate_for(plan)
   group.accept_completion(plan, completion)
   if disconnect_after_accept {
     group.transport_lost()
-    assert_true(group.lifecycle() == @remote_group.Accepted)
+    assert_true(group.lifecycle() == Accepted)
   }
   group.retire_after_scheduler_commit(1UL)
   assert_eq(group.previous_plan_sequence_value(), 1UL)
   if disconnect_after_accept {
-    assert_true(group.lifecycle() == @remote_group.Faulted)
+    assert_true(group.lifecycle() == Faulted)
     assert_eq(group.take_failure().plan_sequence_value(), 0UL)
     return
   }
@@ -202,7 +202,7 @@ fn exercise_remote_group(
       break
     }
   }
-  assert_true(group.lifecycle() == @remote_group.Closed)
+  assert_true(group.lifecycle() == Closed)
   let failed = @remote_group.RemoteGroup::new(
     remote,
     admitted,
@@ -216,7 +216,7 @@ fn exercise_remote_group(
   } noraise {
     _ => fail("lost rank accepted")
   }
-  assert_true(failed.lifecycle() == @remote_group.Faulted)
+  assert_true(failed.lifecycle() == Faulted)
   assert_true(failed.mailbox(0).is_failed())
   assert_false(failed.recovery_cleanup_complete())
   assert_eq(

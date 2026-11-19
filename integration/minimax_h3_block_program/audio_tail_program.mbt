@@ -30,7 +30,7 @@ pub fn AudioTailProgram::prepare(
   max_scratch_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.functions.is_empty() && self.scratch is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let layout = @joint_diffusion_device.AudioTailLayout::new(
     batch=self.source.batch,
@@ -55,7 +55,7 @@ pub fn AudioTailProgram::bind(
   weights~ : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.layout is Some(layout) && self.scratch is Some(scratch) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   layout.launches(
     self.functions,

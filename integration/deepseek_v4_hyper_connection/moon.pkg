@@ -13,9 +13,6 @@ import {
 
 import {
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/async",
-  "moonbitlang/async/fs",
-  "moonbitlang/x/crypto",
 } for "test"
 
 supported_targets = "native"

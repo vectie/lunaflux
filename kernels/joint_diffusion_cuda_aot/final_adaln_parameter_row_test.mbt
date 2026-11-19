@@ -14,7 +14,7 @@ fn parameter_row_ordinal(
 ///|
 test "final AdaLN parameter row authenticates exact one-row ABI" {
   let requirements = diffusion_aot_requirements()
-  let candidate = lower_final_adaln_parameter_row_cuda_aot_candidate(
+  let candidate = @joint_diffusion_cuda_aot.lower_final_adaln_parameter_row_cuda_aot_candidate(
     requirements,
     requirement_ordinal=parameter_row_ordinal(requirements),
     target=diffusion_aot_target(),
@@ -42,7 +42,7 @@ test "parameter row rejects ordinal compiler target and overflow ceilings" {
   let requirements = diffusion_aot_requirements()
   let ordinal = parameter_row_ordinal(requirements)
   try
-    lower_final_adaln_parameter_row_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_parameter_row_cuda_aot_candidate(
       requirements,
       requirement_ordinal=0,
       target=diffusion_aot_target(),
@@ -56,7 +56,7 @@ test "parameter row rejects ordinal compiler target and overflow ceilings" {
     _ => fail("wrong ordinal accepted")
   }
   try
-    lower_final_adaln_parameter_row_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_parameter_row_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       target=diffusion_aot_target(bf16=false),
@@ -70,7 +70,7 @@ test "parameter row rejects ordinal compiler target and overflow ceilings" {
     _ => fail("wrong target accepted")
   }
   try
-    lower_final_adaln_parameter_row_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_parameter_row_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       target=diffusion_aot_target(),
@@ -84,7 +84,7 @@ test "parameter row rejects ordinal compiler target and overflow ceilings" {
     _ => fail("wrong compiler accepted")
   }
   try
-    lower_final_adaln_parameter_row_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_adaln_parameter_row_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       target=diffusion_aot_target(),

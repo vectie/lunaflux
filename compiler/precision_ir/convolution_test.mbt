@@ -12,7 +12,7 @@ test "convolution precision separates frame capacity from request history" {
   assert_eq(plan.capacity(), (32, 16, 32))
   assert_eq(plan.frame_bytes(), 524288L)
   assert_eq(plan.state_bytes(), 1572864L)
-  assert_eq(plan.effect(), @precision_ir.NumericEffect::CacheCommit)
+  assert_eq(plan.effect(), CacheCommit)
   try
     @precision_ir.CausalConvolutionPrecision::new(
       channel_count=8192,
@@ -23,7 +23,7 @@ test "convolution precision separates frame capacity from request history" {
       maximum_state_bytes=1572863L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("history exceeded budget")

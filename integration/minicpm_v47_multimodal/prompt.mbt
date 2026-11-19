@@ -110,7 +110,7 @@ pub fn prepare_image_tokens(
   let mut index = 0
   for row in 0..<tokens.length() {
     if tokens[row] == spec.markers().image {
-      modalities[row] = @positions.Modality::Image
+      modalities[row] = Image
       feature_map[row] = index
       index += 1
     }

@@ -38,7 +38,7 @@ pub fn Loaded::prepare(
   for entry in self.plan.entries {
     self.allocations.push(context.allocate(entry.bytes))
   }
-  let primary : Ref[@device.DeviceError?] = Ref::new(None)
+  let primary : Ref[@device.DeviceError?] = Ref(None)
   self.plan.transfer(root, scratch~, limits~, consume=(
     ordinal,
     offset,
@@ -82,9 +82,7 @@ pub fn Loaded::prepare(
 
 ///|
 pub fn Loaded::weights(self : Self) -> Weights raise @device.DeviceError {
-  guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.state is Prepared else { raise InvalidArgument(AotKernelLaunch) }
   self.weights.unwrap()
 }
 

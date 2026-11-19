@@ -15,6 +15,9 @@ pub(all) suberror DeepSeekV4KernelRequirementsError {
   IdentityMismatch
   RequirementsFailure(@advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsError)
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4KernelRequirementsError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4KernelRequirementsError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4KernelRequirementsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 

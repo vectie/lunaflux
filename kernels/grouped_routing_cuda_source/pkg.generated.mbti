@@ -20,11 +20,17 @@ pub(all) suberror GroupedRoutingCudaSourceError {
   InvalidFunctionSymbol
   DimensionOverflow
 } derive(Eq, @debug.Debug)
+pub fn GroupedRoutingCudaSourceError::equal(Self, Self) -> Bool
+pub fn GroupedRoutingCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn GroupedRoutingCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum GroupedRoutingCudaOperation {
   GroupedChoiceAndSelectedWeightF32
 } derive(Eq, @debug.Debug)
+pub fn GroupedRoutingCudaOperation::equal(Self, Self) -> Bool
+pub fn GroupedRoutingCudaOperation::not_equal(Self, Self) -> Bool
+pub fn GroupedRoutingCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct GroupedRoutingCudaSource {
   // private fields
@@ -47,6 +53,9 @@ pub(all) enum GroupedRoutingNumericalContract {
   SerialF32TopGroupChoiceGatherNormalizeScaleV1
   SerialF32TopGroupChoiceButterflyGatherNormalizeScaleV1
 } derive(Eq, @debug.Debug)
+pub fn GroupedRoutingNumericalContract::equal(Self, Self) -> Bool
+pub fn GroupedRoutingNumericalContract::not_equal(Self, Self) -> Bool
+pub fn GroupedRoutingNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

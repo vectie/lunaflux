@@ -158,7 +158,7 @@ pub fn LunaOpenAIInboundLimits::new(
     max_messages,
     template_response_input,
     required_stop_tokens: ReadOnlyArray::from_array(
-      required_stop_tokens.to_array(),
+      required_stop_tokens.to_owned(),
     ),
   }
 }

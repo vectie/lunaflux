@@ -12,14 +12,14 @@ test "DeepSeek early hash and later corrected top-k share numeric routing IR" {
       accuracy=@precision.Accuracy::new(absolute=0.02, relative=0.02),
     )
     assert_eq(plan.geometry(), (2, 4096, 256, 6))
-    assert_eq(plan.weight().representation().format(), @format.Format::Bf16)
+    assert_eq(plan.weight().representation().format(), Bf16)
     assert_eq(plan.weight().representation().payload_bytes(), 2097152L)
-    assert_eq(plan.score(), @precision.MoeRoutingScore::SqrtSoftplus)
+    assert_eq(plan.score(), SqrtSoftplus)
     assert_eq(plan.scaling(), 1.5)
     assert_eq(
       plan.selection(),
       if layer < 3 {
-        @precision.MoeRoutingSelection::TokenHash(vocabulary_size=129280)
+        TokenHash(vocabulary_size=129280)
       } else {
         GroupedTopK
       },

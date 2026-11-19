@@ -1,7 +1,7 @@
 ///|
 test "runtime bundle round trips semantic tile independently of launch" {
   for tile in [16, 32, 64] {
-    let input = ReusableFusedRuntimeModuleInput::new(
+    let input = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
       abi=QwenPagedAttentionReadOnlyProductionV2,
       first_operation=5,
       operation_count=1,
@@ -18,7 +18,7 @@ test "runtime bundle round trips semantic tile independently of launch" {
       module_bytes=b"module",
       query_tile_rows=tile,
     )
-    let bytes = export_reusable_fused_runtime_bundle(
+    let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
       model_content_sha256="1".repeat(64),
       model_plan_sha256="2".repeat(64),
       target=@catalog.DeviceTarget::new(
@@ -29,7 +29,7 @@ test "runtime bundle round trips semantic tile independently of launch" {
       ),
       modules=[input],
     )
-    let bundle = admit_digest_pinned_reusable_fused_runtime_bundle(
+    let bundle = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
       bytes,
       @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
     )
@@ -43,7 +43,7 @@ test "runtime bundle round trips semantic tile independently of launch" {
       .replace(old="bundle.v4", new="bundle.v3")
       .replace(old="module_0_query_tile_rows=\{tile}\n", new=""),
     )
-    let old_bundle = admit_digest_pinned_reusable_fused_runtime_bundle(
+    let old_bundle = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
       legacy,
       @crypto.bytes_to_hex_string(@crypto.sha256(legacy)),
     )

@@ -58,9 +58,9 @@ fn key_value_evidence(
   weight_shape? : Array[Int64],
   weight_role? : @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole,
   weight_bytes? : Int64,
-) -> DeepSeekV4KeyValueParameterEvidenceInput {
+) -> @deepseek_v4_key_value_parameter_plan.DeepSeekV4KeyValueParameterEvidenceInput {
   let layout = @deepseek_v4_weights.key_value_quantized_layout(metadata.spec())
-  try! DeepSeekV4KeyValueParameterEvidenceInput::new(
+  try! @deepseek_v4_key_value_parameter_plan.DeepSeekV4KeyValueParameterEvidenceInput::new(
     contract=layout.contract(),
     weight_shape=weight_shape.unwrap_or([
       layout.weight_shape()[0],
@@ -68,7 +68,9 @@ fn key_value_evidence(
     ]),
     scale_shape=layout.scale_shape(),
     layout_digest_sha256=digest.unwrap_or(
-      key_value_layout_digest_sha256(layout),
+      @deepseek_v4_key_value_parameter_plan.key_value_layout_digest_sha256(
+        layout,
+      ),
     ),
     weight_operand_ordinal=2,
     weight_operand_role=weight_role.unwrap_or(KeyValueWeightCodesInput),
@@ -95,7 +97,7 @@ test "all five profiles join replicated key/value checkpoint storage" {
       entry.0,
       entry.1,
     )
-    let plan = plan_key_value_parameter(
+    let plan = @deepseek_v4_key_value_parameter_plan.plan_key_value_parameter(
       metadata,
       requirements,
       candidate,
@@ -119,7 +121,7 @@ test "key/value join rejects hostile shape digest role bytes and identity" {
     "deepseek-ai/DeepSeek-V4-Flash-0731", 'a',
   )
   try
-    plan_key_value_parameter(
+    @deepseek_v4_key_value_parameter_plan.plan_key_value_parameter(
       metadata,
       requirements,
       candidate,
@@ -132,7 +134,7 @@ test "key/value join rejects hostile shape digest role bytes and identity" {
     _ => fail("wrong shape admitted")
   }
   try
-    plan_key_value_parameter(
+    @deepseek_v4_key_value_parameter_plan.plan_key_value_parameter(
       metadata,
       requirements,
       candidate,
@@ -145,7 +147,7 @@ test "key/value join rejects hostile shape digest role bytes and identity" {
     _ => fail("wrong digest admitted")
   }
   try
-    plan_key_value_parameter(
+    @deepseek_v4_key_value_parameter_plan.plan_key_value_parameter(
       metadata,
       requirements,
       candidate,
@@ -158,7 +160,7 @@ test "key/value join rejects hostile shape digest role bytes and identity" {
     _ => fail("wrong role admitted")
   }
   try
-    plan_key_value_parameter(
+    @deepseek_v4_key_value_parameter_plan.plan_key_value_parameter(
       metadata,
       requirements,
       candidate,
@@ -176,7 +178,7 @@ test "key/value join rejects hostile shape digest role bytes and identity" {
   }
   let (other, _, _) = key_value_fixture("deepseek-ai/DeepSeek-V4-Flash", 'b')
   try
-    plan_key_value_parameter(
+    @deepseek_v4_key_value_parameter_plan.plan_key_value_parameter(
       other,
       requirements,
       candidate,
@@ -195,7 +197,7 @@ test "key/value join exposes no interpretation or execution authority" {
   let (metadata, requirements, candidate) = key_value_fixture(
     "deepseek-ai/DeepSeek-V4-Flash-0731", 'c',
   )
-  let plan = plan_key_value_parameter(
+  let plan = @deepseek_v4_key_value_parameter_plan.plan_key_value_parameter(
     metadata,
     requirements,
     candidate,

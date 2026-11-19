@@ -3,7 +3,7 @@ fn identity_frame(
   start : Int32,
   sequence : UInt64,
   request : UInt64,
-  final : Bool,
+  final_result : Bool,
 ) -> Bytes raise {
   let (limits, inference) = fixture_limits()
   let pages = @pages.PageAllocator::new(
@@ -21,7 +21,7 @@ fn identity_frame(
   let generation = @inference.RequestGeneration::initial()
   let slot = @protocol.CompletionSlot::new(0, limits)
   let capabilities = [@plan.KernelCapabilityId::paged_causal_attention()]
-  if final {
+  if final_result {
     owner.append_final_prefill(
       request_id=id,
       request_generation=generation,

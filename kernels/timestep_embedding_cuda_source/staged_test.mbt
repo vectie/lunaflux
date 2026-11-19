@@ -1,7 +1,7 @@
 ///|
 test "staged timestep MLP computes first projection once per hidden element" {
   let text = @utf8.decode(
-    staged_dense_silu_dense_f32_rows_source(
+    @timestep_embedding_cuda_source.staged_dense_silu_dense_f32_rows_source(
       rows=3,
       input_width=256,
       hidden_width=5376,

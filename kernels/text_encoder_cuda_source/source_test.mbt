@@ -1,7 +1,7 @@
 ///|
 test "causal GQA source keeps normalized and rotary BF16 stage boundaries" {
   let text = @utf8.decode(
-    attention_source(
+    @text_encoder_cuda_source.attention_source(
       rows=3,
       query_heads=4,
       kv_heads=2,
@@ -15,7 +15,7 @@ test "causal GQA source keeps normalized and rotary BF16 stage boundaries" {
   assert_true(text.contains("__bfloat162float(__float2bfloat16_rn"))
   assert_true(text.contains("d+4"))
   try
-    attention_source(
+    @text_encoder_cuda_source.attention_source(
       rows=3,
       query_heads=3,
       kv_heads=2,
@@ -34,10 +34,15 @@ test "causal GQA source keeps normalized and rotary BF16 stage boundaries" {
 ///|
 test "square summation policy preserves BF16 boundaries and ordered default" {
   let ordered = @utf8.decode(
-    norm_source(rows=2, width=5120, epsilon=0.000001, symbol="ordered"),
+    @text_encoder_cuda_source.norm_source(
+      rows=2,
+      width=5120,
+      epsilon=0.000001,
+      symbol="ordered",
+    ),
   )
   let compensated = @utf8.decode(
-    norm_source(
+    @text_encoder_cuda_source.norm_source(
       rows=2,
       width=5120,
       epsilon=0.000001,
@@ -57,7 +62,7 @@ test "square summation policy preserves BF16 boundaries and ordered default" {
   )
   assert_false(compensated.contains("double"))
   let head = @utf8.decode(
-    attention_source(
+    @text_encoder_cuda_source.attention_source(
       rows=2,
       query_heads=4,
       kv_heads=2,
@@ -82,11 +87,11 @@ test "export bounded actual normalization lowering for independent GPU oracle" {
   for
     (name, law) in [
       ("ordered", @precision.SquareReductionLaw::OrderedFloat32),
-      ("compensated", @precision.SquareReductionLaw::CompensatedFloat32),
+      ("compensated", CompensatedFloat32),
     ] {
     println(
       @utf8.decode(
-        norm_source(
+        @text_encoder_cuda_source.norm_source(
           rows=3,
           width=5120,
           epsilon=0.000001,
@@ -97,7 +102,7 @@ test "export bounded actual normalization lowering for independent GPU oracle" {
     )
     println(
       @utf8.decode(
-        attention_source(
+        @text_encoder_cuda_source.attention_source(
           rows=3,
           query_heads=4,
           kv_heads=2,

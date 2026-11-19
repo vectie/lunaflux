@@ -14,7 +14,7 @@ async test "connected observations do not scan unselected modules or rehash rout
     let (rest, measured) = read_connected_choice(
       [..raw, "--prefill-chain-comparison", path, "f".repeat(64)],
     )
-    assert_eq(rest.to_array(), raw)
+    assert_eq(rest.to_owned(), raw)
     assert_true(measured is Some(_))
     let route_bytes = b"supplied route plan"
     @fs.write_file(routes, route_bytes, create_mode=CreateNew)

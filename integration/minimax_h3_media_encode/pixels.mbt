@@ -16,17 +16,17 @@ pub fn rgb_chunk(
     count > 0 &&
     count <= 536870911 &&
     start_element >= 0 else {
-    raise @plan.PlanError::InvalidGeometry
+    raise InvalidGeometry
   }
   let plane = frames.to_int64() * height.to_int64()
   guard plane <= 2147483647L / width.to_int64() / 3L else {
-    raise @plan.PlanError::InvalidGeometry
+    raise InvalidGeometry
   }
   let plane = (plane * width.to_int64()).to_int()
   guard rgb.length() == plane * 3 &&
     start_element <= rgb.length() &&
     count <= rgb.length() - start_element else {
-    raise @plan.PlanError::InvalidGeometry
+    raise InvalidGeometry
   }
   let mean : Array[Float] = [0.485, 0.456, 0.406]
   let std : Array[Float] = [0.229, 0.224, 0.225]
@@ -34,7 +34,7 @@ pub fn rgb_chunk(
   for i in 0..<count {
     let flat = start_element + i
     let channel = flat / plane
-    let pixel = rgb[flat % plane * 3 + channel].to_int().to_float()
+    let pixel = Float::from_int(rgb[flat % plane * 3 + channel].to_int())
     let normalized = (pixel / 255.0 - mean[channel]) / std[channel]
     let bits = normalized.reinterpret_as_uint()
     for byte in 0..<4 {

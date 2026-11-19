@@ -54,17 +54,10 @@ test "joint attention prepares four allocation-free effects for both read sets" 
       compressed_append=operand,
       read_ports=match (read_set, coordinates) {
         (Learned(top_k=_), OffsetRelative) =>
-          @joint_frame.CompressedReadPorts::Learned(
-            counts=operand,
-            rows=operand,
-            offsets=operand,
-          )
+          Learned(counts=operand, rows=operand, offsets=operand)
         (Learned(top_k=_), CacheRelative) =>
-          @joint_frame.CompressedReadPorts::CacheRelative(
-            counts=operand,
-            rows=operand,
-          )
-        (AllCausal, _) => @joint_frame.CompressedReadPorts::AllCausal
+          CacheRelative(counts=operand, rows=operand)
+        (AllCausal, _) => AllCausal
       },
       maximum_state_bytes=2580L,
     )
@@ -124,9 +117,9 @@ test "joint attention rejects incompatible read ports or short cache before allo
         compressed_counts=operand,
         compressed_append=operand,
         read_ports=if case == 1 {
-          @joint_frame.CompressedReadPorts::AllCausal
+          AllCausal
         } else {
-          @joint_frame.CompressedReadPorts::Learned(
+          Learned(
             counts=operand,
             rows=if case == 2 { short_ids } else { operand },
             offsets=operand,

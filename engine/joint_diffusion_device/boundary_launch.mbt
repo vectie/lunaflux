@@ -32,7 +32,7 @@ fn linear_dimensions(
     elements <= 2147483647L &&
     block_size > 0 &&
     block_size <= 1024 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   @device.KernelLaunchDimensions::new(
     grid_x=((elements - 1L) / block_size.to_int64() + 1L).to_int(),

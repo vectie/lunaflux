@@ -2,7 +2,6 @@ import {
   "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/string",
-  "moonbitlang/core/string",
   "vectie/lunaflux/internal/canonical_sha256",
   "vectie/lunaflux/kernels/luna_tensor_core_candidate",
   "vectie/lunaflux/kernels/luna_tile_ir",

@@ -16,6 +16,8 @@ pub(all) suberror PromptError {
   InvalidTokenizer
   TokenBudgetExceeded
 } derive(Eq)
+pub fn PromptError::equal(Self, Self) -> Bool
+pub fn PromptError::not_equal(Self, Self) -> Bool
 
 // Types and methods
 pub(all) enum Presentation {

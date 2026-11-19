@@ -42,15 +42,9 @@ async test "flagship text uses untied tables centered norm and selected row logi
   assert_eq(program.storage_budget().output_workspace_bytes, 996672L)
   assert_eq(plan.normalized_bytes(), 4096L)
   assert_eq(plan.logits_bytes(), 992576L)
-  assert_eq(
-    plan.normalization_weight_law(),
-    @precision.NormalizationWeightLaw::OnePlusGamma,
-  )
-  assert_eq(
-    plan.normalization_law(),
-    @precision.TextNormalizationLaw::F32NormalizeThenWeight,
-  )
-  assert_eq(plan.logits_law(), @precision.TextLogitsLaw::Bf16Round)
+  assert_eq(plan.normalization_weight_law(), OnePlusGamma)
+  assert_eq(plan.normalization_law(), F32NormalizeThenWeight)
+  assert_eq(plan.logits_law(), Bf16Round)
   assert_eq(program.launch_count(Prefill), 924)
   assert_eq(program.launch_count(Decode), 924)
   assert_eq(text.egress_order(), [0, 1, 2])

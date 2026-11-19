@@ -26,7 +26,7 @@ test "matrix affine and sum laws are explicit without changing resource extents"
       matrix_sum_law=ButterflyFloat32,
     )
   catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     _ => fail("unexpected illegal reduction error")
   } noraise {
     _ => fail("non-power-of-two butterfly accepted")

@@ -15,7 +15,6 @@ import {
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/llama",
-  "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/release/luna_fused_candidate_export",
   "vectie/lunaflux/release/luna_fused_physical_evidence",

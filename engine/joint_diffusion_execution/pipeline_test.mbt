@@ -72,7 +72,7 @@ test "failed drain retains current stage and closes no upstream dependency" {
     _ => fail("closing request advanced")
   }
   p.close()
-  inspect(
+  debug_inspect(
     frames[0].log,
     content="[104, 204, 103, 203, 102, 202, 101, 201, 100, 200]",
   )
@@ -94,7 +94,7 @@ test "full request orders conditioning denoising and both decoders" {
   assert_true(p.advance() == AudioDecode)
   assert_true(p.advance() == Completed)
   assert_eq(p.completed_frames(), 5)
-  inspect(frames[0].log, content="[0, 1, 2, 3, 4]")
+  debug_inspect(frames[0].log, content="[0, 1, 2, 3, 4]")
   try p.advance() catch {
     _ => ()
   } noraise {
@@ -109,7 +109,7 @@ test "full request orders conditioning denoising and both decoders" {
   p.close()
   p.close()
   assert_true(p.stage() == Closed)
-  inspect(
+  debug_inspect(
     frames[0].log,
     content="[0, 1, 2, 3, 4, 104, 204, 103, 203, 102, 202, 101, 201, 100, 200]",
   )

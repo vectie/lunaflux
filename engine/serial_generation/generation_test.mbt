@@ -38,7 +38,7 @@ test "real completion tokens feed successive canonical decodes without altering 
   assert_eq(second.decode_row(0).sequence_token_position(), 6)
   assert_eq(second.sequence_value(), 3UL)
   owner.accept(complete(second, 13))
-  assert_eq(owner.finish_reason(), @serial_generation.GenerationFinish::Length)
+  assert_eq(owner.finish_reason(), Length)
   assert_eq(owner.token_count(), 3)
   for index, expected in [7, 11, 13] {
     assert_eq(owner.token_at(index), expected)
@@ -55,21 +55,15 @@ test "real completion tokens feed successive canonical decodes without altering 
 test "EOS on final prefill or decode stops without an extra submission" {
   let plan = seed()
   let immediate = generation(plan, 7, stops=[7])
-  assert_eq(
-    immediate.finish_reason(),
-    @serial_generation.GenerationFinish::StopToken,
-  )
+  assert_eq(immediate.finish_reason(), StopToken)
   assert_eq(immediate.token_count(), 1)
   let owner = generation(plan, 7, stops=[11])
   let next = owner.next_decode()
   owner.accept(complete(next, 11))
-  assert_eq(
-    owner.finish_reason(),
-    @serial_generation.GenerationFinish::StopToken,
-  )
+  assert_eq(owner.finish_reason(), StopToken)
   assert_eq(owner.token_count(), 2)
   let single = generation(plan, 7, maximum=1)
-  assert_eq(single.finish_reason(), @serial_generation.GenerationFinish::Length)
+  assert_eq(single.finish_reason(), Length)
 }
 
 ///|
@@ -145,10 +139,7 @@ test "foreign or failed completion poisons generation and cannot be retried as s
     } noraise {
       _ => fail("invalid completion accepted")
     }
-    assert_eq(
-      owner.finish_reason(),
-      @serial_generation.GenerationFinish::Failed,
-    )
+    assert_eq(owner.finish_reason(), Failed)
     assert_eq(owner.token_count(), 1)
     try owner.accept(complete(next, 11)) catch {
       @serial_generation.SerialGenerationError::Busy => ()
@@ -166,10 +157,7 @@ test "cancelled inflight generation drains its exact completion without publishi
   owner.cancel()
   owner.cancel()
   owner.accept(complete(pending, 11))
-  assert_eq(
-    owner.finish_reason(),
-    @serial_generation.GenerationFinish::Cancelled,
-  )
+  assert_eq(owner.finish_reason(), Cancelled)
   assert_eq(owner.token_count(), 1)
   try owner.next_decode() catch {
     @serial_generation.SerialGenerationError::Finished => ()

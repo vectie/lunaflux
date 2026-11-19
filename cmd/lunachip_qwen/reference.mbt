@@ -79,7 +79,8 @@ fn reference_heads(
     let normalized = reference_norm(input[head * 128:head * 128 + 128], gamma)
     let rotated = Array::make(128, 0.0F)
     for i in 0..<64 {
-      let angle = position.to_double() * 1000000.0.pow(-i.to_double() / 64.0)
+      let angle = position.to_double() *
+        @math.pow(1000000.0, -i.to_double() / 64.0)
       let cos = Float::from_double(@math.cos(angle))
       let sin = Float::from_double(@math.sin(angle))
       let left = normalized[i] * cos

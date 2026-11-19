@@ -43,7 +43,7 @@ pub fn GlmRecurrentLayer::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.program.launches()
 }
@@ -92,7 +92,7 @@ pub fn GlmSparseLayer::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }

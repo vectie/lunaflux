@@ -18,7 +18,7 @@ test "Full and Flash KV split norm bind optional suffix ABIs" {
       official_index=true,
       official_sparse=true,
     )
-    let candidate = lower_dsa_key_value_split_norm_cuda_aot_candidate(
+    let candidate = @glm_hybrid_cuda_aot.lower_dsa_key_value_split_norm_cuda_aot_candidate(
       requirements,
       requirement_ordinal=kv_split_norm_ordinal(requirements),
       maximum_tokens=32,
@@ -61,7 +61,7 @@ test "Full and Flash KV split norm bind optional suffix ABIs" {
 test "KV split norm rejects shape epsilon target compiler and ordinal mismatches" {
   let ordinary = glm_aot_requirements()
   try
-    lower_dsa_key_value_split_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_value_split_norm_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=kv_split_norm_ordinal(ordinary),
       maximum_tokens=32,
@@ -78,7 +78,7 @@ test "KV split norm rejects shape epsilon target compiler and ordinal mismatches
   let exact = glm_aot_requirements(official_index=true, official_sparse=true)
   let ordinal = kv_split_norm_ordinal(exact)
   try
-    lower_dsa_key_value_split_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_value_split_norm_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -98,7 +98,7 @@ test "KV split norm rejects shape epsilon target compiler and ordinal mismatches
     rms_epsilon=0.000001,
   )
   try
-    lower_dsa_key_value_split_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_value_split_norm_cuda_aot_candidate(
       wrong_epsilon,
       requirement_ordinal=kv_split_norm_ordinal(wrong_epsilon),
       maximum_tokens=32,
@@ -113,7 +113,7 @@ test "KV split norm rejects shape epsilon target compiler and ordinal mismatches
     _ => fail("wrong epsilon admitted")
   }
   try
-    lower_dsa_key_value_split_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_value_split_norm_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -128,7 +128,7 @@ test "KV split norm rejects shape epsilon target compiler and ordinal mismatches
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_dsa_key_value_split_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_value_split_norm_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

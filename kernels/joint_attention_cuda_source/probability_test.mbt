@@ -5,7 +5,7 @@ test "global BF16 probability law preserves the F32 denominator and explicit con
       @precision.AttentionProbabilityLaw::GlobalF32,
       GlobalUnnormalizedBf16,
     ] {
-    let rendered = staged_joint_attention_bf16_source(
+    let rendered = @joint_attention_cuda_source.staged_joint_attention_bf16_source(
       rows=3,
       hidden_size=5376,
       head_count=56,
@@ -46,7 +46,7 @@ test "global BF16 probability law preserves the F32 denominator and explicit con
         ("refiner_f32", @precision.AttentionProbabilityLaw::GlobalF32),
         ("refiner_bf16", GlobalUnnormalizedBf16),
       ] {
-      let source = staged_joint_attention_bf16_source(
+      let source = @joint_attention_cuda_source.staged_joint_attention_bf16_source(
         rows=3,
         hidden_size=5376,
         head_count=56,
@@ -66,7 +66,7 @@ test "global BF16 probability law preserves the F32 denominator and explicit con
 
 ///|
 test "online probability partition is explicit and preserves unrounded mass" {
-  let rendered = staged_joint_attention_bf16_source(
+  let rendered = @joint_attention_cuda_source.staged_joint_attention_bf16_source(
     rows=3,
     hidden_size=4,
     head_count=2,
@@ -98,7 +98,7 @@ test "online probability partition is explicit and preserves unrounded mass" {
 ///|
 test "online renderer rejects an invalid probability partition" {
   try
-    staged_joint_attention_bf16_source(
+    @joint_attention_cuda_source.staged_joint_attention_bf16_source(
       rows=3,
       hidden_size=4,
       head_count=2,

@@ -19,7 +19,7 @@ test "Output-B lowers exact raw E4M3 UE8M0 directional ABI" {
     output_low_rank=128,
   )
   let ordinal = output_b_test_ordinal(requirements)
-  let candidate = lower_attention_output_b_projection_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_attention_output_b_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=2,
@@ -48,7 +48,7 @@ test "Output-B rejects unauthenticated small geometry and compiler semantics" {
   )
   let ordinal = output_b_test_ordinal(requirements)
   try
-    lower_attention_output_b_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_attention_output_b_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -70,7 +70,7 @@ test "Output-B rejects unauthenticated small geometry and compiler semantics" {
   )
   let official_ordinal = output_b_test_ordinal(official_like)
   try
-    lower_attention_output_b_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_attention_output_b_projection_cuda_aot_candidate(
       official_like,
       requirement_ordinal=official_ordinal,
       maximum_tokens=1,

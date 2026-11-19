@@ -38,7 +38,7 @@ fn VideoSource::bind(
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   let g = self.plan.graph
   guard functions.length() == g.nodes.length() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let args : Array[@device.KernelArgument] = []
   for id, value in g.values {
@@ -48,7 +48,7 @@ fn VideoSource::bind(
         Weight(name) =>
           match weights.get(name) {
             Some(arg) => arg
-            None => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+            None => raise InvalidArgument(AotKernelLaunch)
           }
         Input =>
           if id == 0 {
@@ -60,7 +60,7 @@ fn VideoSource::bind(
           } else if id == self.plan.deviations_value {
             region(statistics, 96L, 24L)
           } else {
-            raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+            raise InvalidArgument(AotKernelLaunch)
           }
       },
     )

@@ -23,12 +23,17 @@ test "deferred post pre partitions controls without changing numerical ownership
   }
   for group in [0, 9] {
     assert_true(
-      (try? @hyper_connection_physical_ir.DeferredPostPrePlan::new(
-        plan,
-        plan,
-        controls_per_group=group,
-      ))
-      is Err(_),
+      try
+        @hyper_connection_physical_ir.DeferredPostPrePlan::new(
+          plan,
+          plan,
+          controls_per_group=group,
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
   }
   let dispatch = @hyper_connection_physical_ir.DeferredPostPreDispatch::new(
@@ -40,22 +45,32 @@ test "deferred post pre partitions controls without changing numerical ownership
   assert_eq(dispatch.workgroups(), 128)
   assert_eq(dispatch.buckets().length(), 3)
   assert_true(
-    (try? @hyper_connection_physical_ir.DeferredPostPreDispatch::new(
-      plan,
-      plan,
-      [(1, 1), (32, 2)],
-      workgroup_budget=128,
-    ))
-    is Err(_),
+    try
+      @hyper_connection_physical_ir.DeferredPostPreDispatch::new(
+        plan,
+        plan,
+        [(1, 1), (32, 2)],
+        workgroup_budget=128,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @hyper_connection_physical_ir.DeferredPostPreDispatch::new(
-      plan,
-      plan,
-      [(32, 2), (1, 1), (64, 4)],
-      workgroup_budget=128,
-    ))
-    is Err(_),
+    try
+      @hyper_connection_physical_ir.DeferredPostPreDispatch::new(
+        plan,
+        plan,
+        [(32, 2), (1, 1), (64, 4)],
+        workgroup_budget=128,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   let ordered = @precision.HyperConnectionPrecision::new(
     stream_count=4,
@@ -67,11 +82,16 @@ test "deferred post pre partitions controls without changing numerical ownership
     mix_law=RoundedBf16ControlsAndProducts,
   )
   assert_true(
-    (try? @hyper_connection_physical_ir.DeferredPostPrePlan::new(
-      plan,
-      ordered,
-      controls_per_group=1,
-    ))
-    is Err(_),
+    try
+      @hyper_connection_physical_ir.DeferredPostPrePlan::new(
+        plan,
+        ordered,
+        controls_per_group=1,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

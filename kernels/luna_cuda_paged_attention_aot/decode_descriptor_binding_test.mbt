@@ -16,10 +16,7 @@ test "reusable partition binding consumes typed KV64 storage rather than a candi
       1048576L,
       blockwise_readonly=true,
       blockwise_execution=(
-        @luna_attention_strategy.AttentionGroupedQueryOwnedBlockwiseDot(
-          score_owners=4,
-          contraction=true,
-        ),
+        AttentionGroupedQueryOwnedBlockwiseDot(score_owners=4, contraction=true),
         64,
         2,
       ),

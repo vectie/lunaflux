@@ -19,11 +19,13 @@ test "attention source carries actual head72 and bounded shared scores" {
   assert_true(text.contains("__float2bfloat16_rn"))
   assert_true(!text.contains("causal"))
   assert_true(
-    (try? @segmented_vision_cuda_source.attention_source(
-      plan,
-      symbol="bad-name",
-    ))
-    is Err(_),
+    try
+      @segmented_vision_cuda_source.attention_source(plan, symbol="bad-name")
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   let oversized = @precision.SegmentedAttentionPrecision::new(
     maximum_rows=9000,
@@ -32,11 +34,13 @@ test "attention source carries actual head72 and bounded shared scores" {
     head_width=72,
   )
   assert_true(
-    (try? @segmented_vision_cuda_source.attention_source(
-      oversized,
-      symbol="wide",
-    ))
-    is Err(_),
+    try
+      @segmented_vision_cuda_source.attention_source(oversized, symbol="wide")
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }
 
@@ -77,20 +81,30 @@ test "patch lookup permutation and merger primitives emit bounded dynamic ABIs" 
     0,
   )
   assert_true(
-    (try? @segmented_vision_cuda_source.patch_rows_source(
-      maximum_rows=8192,
-      channels=0,
-      patch_size=14,
-      symbol="invalid",
-    ))
-    is Err(_),
+    try
+      @segmented_vision_cuda_source.patch_rows_source(
+        maximum_rows=8192,
+        channels=0,
+        patch_size=14,
+        symbol="invalid",
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @segmented_vision_cuda_source.merge_residual_source(
-      maximum_rows=7,
-      width=1152,
-      symbol="invalid",
-    ))
-    is Err(_),
+    try
+      @segmented_vision_cuda_source.merge_residual_source(
+        maximum_rows=7,
+        width=1152,
+        symbol="invalid",
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

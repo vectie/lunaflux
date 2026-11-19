@@ -38,12 +38,18 @@ pub(all) suberror OwnedWorkerServicePreparationError {
   OwnedPreparationFailure(OwnedWorkerServiceFailure)
   OwnedPreparationCompoundFailure(OwnedWorkerServiceFailure, OwnedWorkerServiceFailure)
 } derive(Eq, @debug.Debug)
+pub fn OwnedWorkerServicePreparationError::equal(Self, Self) -> Bool
+pub fn OwnedWorkerServicePreparationError::not_equal(Self, Self) -> Bool
+pub fn OwnedWorkerServicePreparationError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror WorkerServiceError {
   Invalid(WorkerServiceRule)
   PhysicalTransport(WorkerPhysicalTransportFailure)
   Scheduler(@core.SchedulerError)
 } derive(Eq, @debug.Debug)
+pub fn WorkerServiceError::equal(Self, Self) -> Bool
+pub fn WorkerServiceError::not_equal(Self, Self) -> Bool
+pub fn WorkerServiceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FailedOwnedWorkerServicePreparation {
@@ -65,6 +71,9 @@ pub(all) enum LunaOnlineWorkerAdmissionKind {
   LunaOnlineWorkerSaturated
   LunaOnlineWorkerDraining
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineWorkerAdmissionKind::equal(Self, Self) -> Bool
+pub fn LunaOnlineWorkerAdmissionKind::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineWorkerAdmissionKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineWorkerRequest {
   // private fields
@@ -90,22 +99,34 @@ pub(all) enum LunaWorkerServiceMaintenanceProgress {
   LunaWorkerServiceRestartReady
   LunaWorkerServiceClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaWorkerServiceMaintenanceProgress::equal(Self, Self) -> Bool
+pub fn LunaWorkerServiceMaintenanceProgress::not_equal(Self, Self) -> Bool
+pub fn LunaWorkerServiceMaintenanceProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineCancelReservationCommit {
   OnlineCancelCommitted
   OnlineCancelReservationAbsent
 } derive(Eq, @debug.Debug)
+pub fn OnlineCancelReservationCommit::equal(Self, Self) -> Bool
+pub fn OnlineCancelReservationCommit::not_equal(Self, Self) -> Bool
+pub fn OnlineCancelReservationCommit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineCancelReservationStart {
   OnlineCancelReserved
   OnlineCancelNaturalTerminal
 } derive(Eq, @debug.Debug)
+pub fn OnlineCancelReservationStart::equal(Self, Self) -> Bool
+pub fn OnlineCancelReservationStart::not_equal(Self, Self) -> Bool
+pub fn OnlineCancelReservationStart::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineExpiry {
   OnlineDeadlinePending
   OnlineDeadlineNaturalTerminal
   OnlineDeadlineCommitted
 } derive(Eq, @debug.Debug)
+pub fn OnlineExpiry::equal(Self, Self) -> Bool
+pub fn OnlineExpiry::not_equal(Self, Self) -> Bool
+pub fn OnlineExpiry::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlinePreparedAdmissionCommit {
   OnlineAdmissionCommitted
@@ -113,17 +134,26 @@ pub(all) enum OnlinePreparedAdmissionCommit {
   OnlineAdmissionExpired
   OnlineAdmissionInvalidated
 } derive(Eq, @debug.Debug)
+pub fn OnlinePreparedAdmissionCommit::equal(Self, Self) -> Bool
+pub fn OnlinePreparedAdmissionCommit::not_equal(Self, Self) -> Bool
+pub fn OnlinePreparedAdmissionCommit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineTerminalRecoveryProgress {
   OnlineTerminalRecoveryPending
   OnlineTerminalRecoveryPublicationReady
 } derive(Eq, @debug.Debug)
+pub fn OnlineTerminalRecoveryProgress::equal(Self, Self) -> Bool
+pub fn OnlineTerminalRecoveryProgress::not_equal(Self, Self) -> Bool
+pub fn OnlineTerminalRecoveryProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineTerminalRecoveryStatus {
   OnlineTerminalRecoveryRetryable
   OnlineTerminalRecoveryStillPending
   OnlineTerminalRecoveryReady
 } derive(Eq, @debug.Debug)
+pub fn OnlineTerminalRecoveryStatus::equal(Self, Self) -> Bool
+pub fn OnlineTerminalRecoveryStatus::not_equal(Self, Self) -> Bool
+pub fn OnlineTerminalRecoveryStatus::to_repr(Self) -> @debug.Repr
 
 pub struct OnlineWorkerLease {
   // private fields
@@ -185,6 +215,9 @@ pub(all) enum OnlineWorkerPublicationKind {
   OnlineSuppressedTokenPublication
   OnlineTerminalPublication
 } derive(Eq, @debug.Debug)
+pub fn OnlineWorkerPublicationKind::equal(Self, Self) -> Bool
+pub fn OnlineWorkerPublicationKind::not_equal(Self, Self) -> Bool
+pub fn OnlineWorkerPublicationKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineWorkerRestartProgress {
   OnlineWorkerRestartWaiting(Int)
@@ -192,6 +225,9 @@ pub(all) enum OnlineWorkerRestartProgress {
   OnlineWorkerRestartCleanupRequired
   OnlineWorkerRestartForbidden
 } derive(Eq, @debug.Debug)
+pub fn OnlineWorkerRestartProgress::equal(Self, Self) -> Bool
+pub fn OnlineWorkerRestartProgress::not_equal(Self, Self) -> Bool
+pub fn OnlineWorkerRestartProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineWorkerStep {
   OnlineWorkerAdvanced
@@ -200,6 +236,9 @@ pub(all) enum OnlineWorkerStep {
   OnlineWorkerOutputInvalid
   OnlineWorkerUnavailable
 } derive(Eq, @debug.Debug)
+pub fn OnlineWorkerStep::equal(Self, Self) -> Bool
+pub fn OnlineWorkerStep::not_equal(Self, Self) -> Bool
+pub fn OnlineWorkerStep::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OnlineWorkerTerminalReason {
   OnlineCancelledByCaller
@@ -208,12 +247,18 @@ pub(all) enum OnlineWorkerTerminalReason {
   OnlineMaximumOutputReached
   OnlineWorkerFailed
 } derive(Eq, @debug.Debug)
+pub fn OnlineWorkerTerminalReason::equal(Self, Self) -> Bool
+pub fn OnlineWorkerTerminalReason::not_equal(Self, Self) -> Bool
+pub fn OnlineWorkerTerminalReason::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OwnedWorkerServiceFailure {
   OwnedSchedulerFailure(@core.SchedulerError)
   OwnedPhysicalTransportFailure(WorkerPhysicalTransportFailure)
   OwnedServiceFailure(WorkerServiceError)
 } derive(Eq, @debug.Debug)
+pub fn OwnedWorkerServiceFailure::equal(Self, Self) -> Bool
+pub fn OwnedWorkerServiceFailure::not_equal(Self, Self) -> Bool
+pub fn OwnedWorkerServiceFailure::to_repr(Self) -> @debug.Repr
 
 pub struct OwnedWorkerServicePreparation {
   // private fields
@@ -228,6 +273,9 @@ pub(all) enum OwnedWorkerServicePreparationState {
   OwnedServiceReady
   OwnedServiceCleanupRequired
 } derive(Eq, @debug.Debug)
+pub fn OwnedWorkerServicePreparationState::equal(Self, Self) -> Bool
+pub fn OwnedWorkerServicePreparationState::not_equal(Self, Self) -> Bool
+pub fn OwnedWorkerServicePreparationState::to_repr(Self) -> @debug.Repr
 
 pub struct RemoteWorkerServiceControl {
   // private fields
@@ -250,11 +298,17 @@ pub(all) enum WorkerPhysicalTransportFailure {
   PhysicalCleanupFailed
   PhysicalLifecycleViolation
 } derive(Eq, @debug.Debug)
+pub fn WorkerPhysicalTransportFailure::equal(Self, Self) -> Bool
+pub fn WorkerPhysicalTransportFailure::not_equal(Self, Self) -> Bool
+pub fn WorkerPhysicalTransportFailure::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerRestartBackoffPolicy {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn WorkerRestartBackoffPolicy::equal(Self, Self) -> Bool
 pub fn WorkerRestartBackoffPolicy::new(initial_delay_millis~ : UInt64, maximum_delay_millis~ : UInt64, stable_success_millis~ : UInt64, maximum_attempts~ : Int) -> Self raise WorkerServiceError
+pub fn WorkerRestartBackoffPolicy::not_equal(Self, Self) -> Bool
+pub fn WorkerRestartBackoffPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerService {
   // private fields
@@ -298,17 +352,23 @@ pub struct WorkerServiceBinding {
 pub fn WorkerServiceBinding::bootstrap_digest(Self) -> @worker_wire.WorkerBootstrapDigest
 pub fn WorkerServiceBinding::bootstrap_source_digest(Self) -> @worker_wire.WorkerBootstrapSourceDigest
 pub fn WorkerServiceBinding::device_ordinal(Self) -> Int
+pub fn WorkerServiceBinding::equal(Self, Self) -> Bool
 pub fn WorkerServiceBinding::inference_limits(Self) -> @inference.InferenceLimits
 pub fn WorkerServiceBinding::new(bootstrap_digest~ : @worker_wire.WorkerBootstrapDigest, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, device_ordinal~ : Int, inference_limits~ : @inference.InferenceLimits, luna_authorization? : @luna_artifact_admission.LunaAotKernelAdmission?, fp8_authorization? : @fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3?) -> Self raise WorkerServiceError
+pub fn WorkerServiceBinding::not_equal(Self, Self) -> Bool
 pub fn WorkerServiceBinding::parent_approval(Self) -> @worker_wire.WorkerParentApprovalSubjects?
+pub fn WorkerServiceBinding::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerServiceIdentity {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkerServiceIdentity::bootstrap_source_digest(Self) -> @worker_wire.WorkerBootstrapSourceDigest
+pub fn WorkerServiceIdentity::equal(Self, Self) -> Bool
 pub fn WorkerServiceIdentity::inference_limits(Self) -> @inference.InferenceLimits
 pub fn WorkerServiceIdentity::model_generation_value(Self) -> UInt64
 pub fn WorkerServiceIdentity::model_identity(Self) -> @spec.ModelIdentity
+pub fn WorkerServiceIdentity::not_equal(Self, Self) -> Bool
+pub fn WorkerServiceIdentity::to_repr(Self) -> @debug.Repr
 pub fn WorkerServiceIdentity::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 
 pub(all) enum WorkerServiceLifecycle {
@@ -322,6 +382,9 @@ pub(all) enum WorkerServiceLifecycle {
   ServiceClosingFailed
   ServiceClosed
 } derive(Eq, @debug.Debug)
+pub fn WorkerServiceLifecycle::equal(Self, Self) -> Bool
+pub fn WorkerServiceLifecycle::not_equal(Self, Self) -> Bool
+pub fn WorkerServiceLifecycle::to_repr(Self) -> @debug.Repr
 
 pub enum WorkerServiceProgress {
   ServiceIdle
@@ -356,6 +419,9 @@ pub(all) enum WorkerServiceRule {
   RestartBackoff
   WorkerOutput
 } derive(Eq, @debug.Debug)
+pub fn WorkerServiceRule::equal(Self, Self) -> Bool
+pub fn WorkerServiceRule::not_equal(Self, Self) -> Bool
+pub fn WorkerServiceRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

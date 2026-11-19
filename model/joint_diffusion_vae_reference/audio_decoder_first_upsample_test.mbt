@@ -2,7 +2,7 @@
 test "first AudioVAE upsampler scalar oracle preserves transposed-convolution order" {
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
-  let contract = try! bind_audio_decoder_first_upsample(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_first_upsample(
     plan,
     request,
     decoder_batch_count=1,
@@ -18,7 +18,7 @@ test "first AudioVAE upsampler scalar oracle preserves transposed-convolution or
   let weight_v = Array::make(18, 0.0F)
   weight_v[2] = 1.0F
   weight_v[9 + 2] = 1.0F
-  let output = try! execute_audio_decoder_first_upsample(
+  let output = try! @joint_diffusion_vae_reference.execute_audio_decoder_first_upsample(
     contract,
     [1.0F, 2.0F, 3.0F, 4.0F],
     [1.0F, 1.0F],
@@ -33,7 +33,7 @@ test "first AudioVAE upsampler rejects ConvPre-axis and hostile values by constr
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
   try
-    bind_audio_decoder_first_upsample(
+    @joint_diffusion_vae_reference.bind_audio_decoder_first_upsample(
       plan,
       request,
       decoder_batch_count=1,
@@ -47,7 +47,7 @@ test "first AudioVAE upsampler rejects ConvPre-axis and hostile values by constr
   } noraise {
     _ => fail("hostile tensor identity admitted")
   }
-  let contract = try! bind_audio_decoder_first_upsample(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_first_upsample(
     plan,
     request,
     decoder_batch_count=1,
@@ -58,7 +58,7 @@ test "first AudioVAE upsampler rejects ConvPre-axis and hostile values by constr
   assert_eq(contract.axes(), PerInputChannelOutputAndKernel)
   assert_true(contract.axes() != PerOutputChannelInputAndKernel)
   try
-    execute_audio_decoder_first_upsample(
+    @joint_diffusion_vae_reference.execute_audio_decoder_first_upsample(
       contract,
       Array::make(4, 1.0F),
       [1.0F, 1.0F],

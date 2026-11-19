@@ -20,7 +20,7 @@ async test "DSpark attention shares compact main/draft KV weights in both prepar
       activation_amax_floor=0.0001,
       maximum_workspace_bytes=4194304L,
     )
-    let matrices = q.weight_representations()[:].to_array()
+    let matrices = q.weight_representations()[:].to_owned()
     matrices.append(
       @prediction_main.prediction_attention_output_plan(
         spec,

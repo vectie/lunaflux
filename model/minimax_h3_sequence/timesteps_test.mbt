@@ -43,7 +43,7 @@ test "timestep candidates sort collapse and preserve text padding semantics" {
         audio_noise=0.0,
       )
     catch {
-      @minimax_h3_sequence.TimestepError::InvalidTime => ()
+      InvalidTime => ()
     } noraise {
       _ => fail("invalid timestep accepted")
     }

@@ -112,8 +112,8 @@ fn vae_limits(
   maximum_video_output_sites~ : Int64 = 1000000000L,
   maximum_audio_latent_elements~ : Int64 = 10000000L,
   maximum_audio_output_elements~ : Int64 = 10000000L,
-) -> JointVaeDecodeReferenceLimits {
-  try! JointVaeDecodeReferenceLimits::new(
+) -> @joint_diffusion_vae_reference.JointVaeDecodeReferenceLimits {
+  try! @joint_diffusion_vae_reference.JointVaeDecodeReferenceLimits::new(
     maximum_video_latent_elements~,
     maximum_video_output_sites~,
     maximum_audio_latent_elements~,
@@ -124,7 +124,7 @@ fn vae_limits(
 ///|
 test "tiny plan proves exact geometry and every unavailable decode semantic" {
   let plan = tiny_vae_plan()
-  let assessment = assess_joint_vae_decode(
+  let assessment = @joint_diffusion_vae_reference.assess_joint_vae_decode(
     plan,
     tiny_vae_request(plan),
     limits=vae_limits(),
@@ -133,7 +133,11 @@ test "tiny plan proves exact geometry and every unavailable decode semantic" {
   assert_eq(geometry.plan_digest(), plan.plan_digest())
   assert_eq(
     assessment.gap_digest(),
-    assess_joint_vae_decode(plan, tiny_vae_request(plan), limits=vae_limits()).gap_digest(),
+    @joint_diffusion_vae_reference.assess_joint_vae_decode(
+      plan,
+      tiny_vae_request(plan),
+      limits=vae_limits(),
+    ).gap_digest(),
   )
   assert_eq(geometry.video_latent_channels(), 2)
   assert_eq(geometry.video_latent_frames(), 3)
@@ -151,7 +155,7 @@ test "tiny plan proves exact geometry and every unavailable decode semantic" {
   assert_eq(geometry.audio_output_samples(), 8L)
   assert_eq(geometry.audio_output_channels(), 1)
   assert_eq(geometry.audio_output_elements(), 8L)
-  let expected_video : Array[JointVaeDecodeGap] = [
+  let expected_video : Array[@joint_diffusion_vae_reference.JointVaeDecodeGap] = [
     VideoOutputChannels,
     VideoDecoderDTypeCast,
     VideoPostQuantConvolution,
@@ -170,7 +174,7 @@ test "tiny plan proves exact geometry and every unavailable decode semantic" {
     VideoResidualPath,
     VideoFinalProjection,
   ]
-  let expected_audio : Array[JointVaeDecodeGap] = [
+  let expected_audio : Array[@joint_diffusion_vae_reference.JointVaeDecodeGap] = [
     AudioTemporalUpsample,
     AudioResidualPath,
     AudioNormalization,
@@ -195,23 +199,32 @@ test "tiny plan proves exact geometry and every unavailable decode semantic" {
 ///|
 test "finite latent admission succeeds but numeric video and audio decode stay typed unavailable" {
   let plan = tiny_vae_plan()
-  let assessment = assess_joint_vae_decode(
+  let assessment = @joint_diffusion_vae_reference.assess_joint_vae_decode(
     plan,
     tiny_vae_request(plan),
     limits=vae_limits(),
   )
-  let video = bind_video_latents(assessment, Array::make(24, 0.25))
-  let audio = bind_audio_latents(assessment, [1.0, 2.0, 3.0, 4.0])
+  let video = @joint_diffusion_vae_reference.bind_video_latents(
+    assessment,
+    Array::make(24, 0.25),
+  )
+  let audio = @joint_diffusion_vae_reference.bind_audio_latents(assessment, [
+    1.0, 2.0, 3.0, 4.0,
+  ])
   assert_eq(video.component(), VideoVae)
   assert_eq(video.plan_digest(), plan.plan_digest())
   assert_eq(audio.values(), [1.0, 2.0, 3.0, 4.0])
-  try decode_one_video_stage(assessment, video) catch {
+  try
+    @joint_diffusion_vae_reference.decode_one_video_stage(assessment, video)
+  catch {
     DecodeSemanticUnavailable(VideoVae, VideoOutputChannels) => ()
     _ => fail("unexpected video decode gap")
   } noraise {
     _ => fail("video decoder execution was fabricated")
   }
-  try decode_one_audio_stage(assessment, audio) catch {
+  try
+    @joint_diffusion_vae_reference.decode_one_audio_stage(assessment, audio)
+  catch {
     DecodeSemanticUnavailable(AudioVae, AudioTemporalUpsample) => ()
     _ => fail("unexpected audio decode gap")
   } noraise {
@@ -237,7 +250,7 @@ test "official MiniMax geometry is plan-bound without importing family code in p
       requested_frames=120,
       inference_steps=5,
     )
-  let geometry = assess_joint_vae_decode(
+  let geometry = @joint_diffusion_vae_reference.assess_joint_vae_decode(
     plan,
     request,
     limits=vae_limits(maximum_audio_output_elements=331200L),
@@ -257,7 +270,7 @@ test "official MiniMax geometry is plan-bound without importing family code in p
   assert_eq(geometry.audio_output_channels(), 2)
   assert_eq(geometry.audio_output_elements(), 331200L)
   try
-    assess_joint_vae_decode(
+    @joint_diffusion_vae_reference.assess_joint_vae_decode(
       plan,
       request,
       limits=vae_limits(maximum_audio_output_elements=331199L),
@@ -273,12 +286,17 @@ test "official MiniMax geometry is plan-bound without importing family code in p
 ///|
 test "foreign identity nonfinite latent shape and geometry budgets fail closed" {
   let plan = tiny_vae_plan()
-  let assessment = assess_joint_vae_decode(
+  let assessment = @joint_diffusion_vae_reference.assess_joint_vae_decode(
     plan,
     tiny_vae_request(plan),
     limits=vae_limits(),
   )
-  try bind_video_latents(assessment, Array::make(23, 0.0)) catch {
+  try
+    @joint_diffusion_vae_reference.bind_video_latents(
+      assessment,
+      Array::make(23, 0.0),
+    )
+  catch {
     InvalidLatentElementCount(VideoVae) => ()
     _ => fail("unexpected video length error")
   } noraise {
@@ -286,28 +304,34 @@ test "foreign identity nonfinite latent shape and geometry budgets fail closed" 
   }
   let hostile = Array::make(24, 0.0)
   hostile[7] = 1.0 / 0.0
-  try bind_video_latents(assessment, hostile) catch {
+  try
+    @joint_diffusion_vae_reference.bind_video_latents(assessment, hostile)
+  catch {
     NonFiniteLatent(VideoVae, 7) => ()
     _ => fail("unexpected nonfinite latent error")
   } noraise {
     _ => fail("nonfinite video latent admitted")
   }
   let foreign_plan = tiny_vae_plan(seed='2')
-  let foreign = assess_joint_vae_decode(
+  let foreign = @joint_diffusion_vae_reference.assess_joint_vae_decode(
     foreign_plan,
     tiny_vae_request(foreign_plan),
     limits=vae_limits(),
   )
   assert_true(foreign.gap_digest() != assessment.gap_digest())
-  let audio = bind_audio_latents(assessment, [0.0, 0.0, 0.0, 0.0])
-  try decode_one_audio_stage(foreign, audio) catch {
+  let audio = @joint_diffusion_vae_reference.bind_audio_latents(assessment, [
+    0.0, 0.0, 0.0, 0.0,
+  ])
+  try
+    @joint_diffusion_vae_reference.decode_one_audio_stage(foreign, audio)
+  catch {
     LatentIdentityMismatch(AudioVae) => ()
     _ => fail("unexpected foreign identity error")
   } noraise {
     _ => fail("foreign plan latent admitted")
   }
   try
-    assess_joint_vae_decode(
+    @joint_diffusion_vae_reference.assess_joint_vae_decode(
       plan,
       tiny_vae_request(plan),
       limits=vae_limits(maximum_video_latent_elements=23L),
@@ -319,7 +343,7 @@ test "foreign identity nonfinite latent shape and geometry budgets fail closed" 
     _ => fail("video geometry budget exceeded")
   }
   try
-    assess_joint_vae_decode(
+    @joint_diffusion_vae_reference.assess_joint_vae_decode(
       plan,
       tiny_vae_request(plan),
       limits=vae_limits(maximum_audio_output_elements=7L),

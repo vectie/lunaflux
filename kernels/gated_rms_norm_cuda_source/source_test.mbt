@@ -1,6 +1,6 @@
 ///|
 test "gated RMSNorm renders exact per-head normalize then sigmoid ordering" {
-  let rendered = sigmoid_gated_rms_norm_bf16_source(
+  let rendered = @gated_rms_norm_cuda_source.sigmoid_gated_rms_norm_bf16_source(
     head_count=64,
     head_dimension=128,
     maximum_rows=32,
@@ -26,7 +26,7 @@ test "gated RMSNorm renders exact per-head normalize then sigmoid ordering" {
 ///|
 test "gated RMSNorm rejects invalid geometry epsilon symbol and overflow" {
   try
-    sigmoid_gated_rms_norm_bf16_source(
+    @gated_rms_norm_cuda_source.sigmoid_gated_rms_norm_bf16_source(
       head_count=0,
       head_dimension=128,
       maximum_rows=1,
@@ -40,7 +40,7 @@ test "gated RMSNorm rejects invalid geometry epsilon symbol and overflow" {
     _ => fail("zero heads admitted")
   }
   try
-    sigmoid_gated_rms_norm_bf16_source(
+    @gated_rms_norm_cuda_source.sigmoid_gated_rms_norm_bf16_source(
       head_count=64,
       head_dimension=128,
       maximum_rows=1,
@@ -54,7 +54,7 @@ test "gated RMSNorm rejects invalid geometry epsilon symbol and overflow" {
     _ => fail("zero epsilon admitted")
   }
   try
-    sigmoid_gated_rms_norm_bf16_source(
+    @gated_rms_norm_cuda_source.sigmoid_gated_rms_norm_bf16_source(
       head_count=64,
       head_dimension=128,
       maximum_rows=1,
@@ -68,7 +68,7 @@ test "gated RMSNorm rejects invalid geometry epsilon symbol and overflow" {
     _ => fail("bad symbol admitted")
   }
   try
-    sigmoid_gated_rms_norm_bf16_source(
+    @gated_rms_norm_cuda_source.sigmoid_gated_rms_norm_bf16_source(
       head_count=65536,
       head_dimension=65536,
       maximum_rows=1,

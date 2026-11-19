@@ -3,8 +3,8 @@ test "locally combined TP borrows BF16 output after both producers and before HC
   let baseline = live_resources()
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
-  let module = context.load_module(b"fake\x00")
-  defer (module.close() catch { _ => () })
+  let device_module = context.load_module(b"fake\x00")
+  defer (device_module.close() catch { _ => () })
   let (program, routed, shared) = routed_program_fixture(
     tensor=true,
     reduction_placement=LocalCombinedBFloat16,
@@ -20,7 +20,7 @@ test "locally combined TP borrows BF16 output after both producers and before HC
   })
   let boundary = program.prepare_routed_tensor_frame(
     context,
-    module,
+    device_module,
     maximum_workspace_bytes=program.workspace_bytes(),
     counts=buffers[0],
     input=buffers[1],
@@ -42,7 +42,7 @@ test "locally combined TP borrows BF16 output after both producers and before HC
   for b in buffers.rev() {
     b.close()
   }
-  module.close()
+  device_module.close()
   context.close()
   assert_eq(live_resources(), baseline)
 }

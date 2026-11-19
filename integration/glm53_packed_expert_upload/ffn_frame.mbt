@@ -70,7 +70,7 @@ fn GlmFfn::owned_bank_bytes(self : Self) -> Int64 {
 ///|
 fn GlmFfn::input(self : Self) -> @device.Allocation raise @device.DeviceError {
   guard self.input is Some(input) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   input
 }

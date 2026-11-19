@@ -15,6 +15,9 @@ pub fn emit_cuda_partitioned_attention_tile_source(@luna_cuda_attention_tile_low
 pub(all) suberror CudaAttentionTileSourceError {
   InvalidCudaAttentionTileSource(CudaAttentionTileSourceRule)
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileSourceError::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileSourceError::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CudaAttentionTileSource {
@@ -23,11 +26,19 @@ pub struct CudaAttentionTileSource {
 pub fn CudaAttentionTileSource::abi(Self) -> CudaPagedAttentionTileAbi
 pub fn CudaAttentionTileSource::bytes(Self) -> Bytes
 pub fn CudaAttentionTileSource::digest(Self) -> CudaAttentionTileSourceDigest
+pub fn CudaAttentionTileSource::equal(Self, Self) -> Bool
 pub fn CudaAttentionTileSource::lowering_digest(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLoweringDigest
+pub fn CudaAttentionTileSource::not_equal(Self, Self) -> Bool
 pub fn CudaAttentionTileSource::symbol(Self) -> StringView
+pub fn CudaAttentionTileSource::to_repr(Self) -> @debug.Repr
 
 pub struct CudaAttentionTileSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn CudaAttentionTileSourceDigest::as_hex(Self) -> String
+pub fn CudaAttentionTileSourceDigest::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileSourceDigest::hash(Self) -> Int
+pub fn CudaAttentionTileSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn CudaAttentionTileSourceDigest::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CudaAttentionTileSourceRule {
   InvalidAbi
@@ -36,15 +47,21 @@ pub(all) enum CudaAttentionTileSourceRule {
   WorkspaceLimit
   SourceLimit
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileSourceRule::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileSourceRule::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileSourceRule::to_repr(Self) -> @debug.Repr
 
 pub struct CudaPagedAttentionTileAbi {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CudaPagedAttentionTileAbi::equal(Self, Self) -> Bool
 pub fn CudaPagedAttentionTileAbi::layout(Self) -> (Int, Int64, Int64)
 pub fn CudaPagedAttentionTileAbi::limits(Self) -> (Int, Int, Int)
 pub fn CudaPagedAttentionTileAbi::new(query_heads~ : Int, key_value_heads~ : Int, head_dimension~ : Int, tokens_per_page~ : Int, input_row_width~ : Int, page_stride_values~ : Int64, physical_page_capacity~ : Int64, maximum_query_rows~ : Int, maximum_query_tokens~ : Int, maximum_page_entries~ : Int, query_metadata? : Bool) -> Self raise CudaAttentionTileSourceError
+pub fn CudaPagedAttentionTileAbi::not_equal(Self, Self) -> Bool
 pub fn CudaPagedAttentionTileAbi::query_metadata_version(Self) -> Int
 pub fn CudaPagedAttentionTileAbi::shape(Self) -> (Int, Int, Int, Int)
+pub fn CudaPagedAttentionTileAbi::to_repr(Self) -> @debug.Repr
 
 pub struct CudaPartitionedAttentionTileSource {
   // private fields
@@ -52,15 +69,21 @@ pub struct CudaPartitionedAttentionTileSource {
 pub fn CudaPartitionedAttentionTileSource::abi(Self) -> CudaPagedAttentionTileAbi
 pub fn CudaPartitionedAttentionTileSource::bytes(Self) -> Bytes
 pub fn CudaPartitionedAttentionTileSource::digest(Self) -> CudaAttentionTileSourceDigest
+pub fn CudaPartitionedAttentionTileSource::equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileSource::lowering_digest(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLoweringDigest
+pub fn CudaPartitionedAttentionTileSource::not_equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileSource::symbols(Self) -> (StringView, StringView)
+pub fn CudaPartitionedAttentionTileSource::to_repr(Self) -> @debug.Repr
 pub fn CudaPartitionedAttentionTileSource::workspace(Self) -> CudaPartitionedAttentionWorkspace
 
 pub struct CudaPartitionedAttentionWorkspace {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CudaPartitionedAttentionWorkspace::equal(Self, Self) -> Bool
+pub fn CudaPartitionedAttentionWorkspace::not_equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionWorkspace::partial_state_count(Self) -> Int64
 pub fn CudaPartitionedAttentionWorkspace::region_offsets_bytes(Self) -> (Int64, Int64, Int64)
+pub fn CudaPartitionedAttentionWorkspace::to_repr(Self) -> @debug.Repr
 pub fn CudaPartitionedAttentionWorkspace::total_bytes(Self) -> Int64
 
 // Type aliases

@@ -47,7 +47,7 @@ test "group joins all ranks and rejects kind element geometry or rank mismatch" 
     }
   }
   try @parallel_ir.Group::new([zero]) catch {
-    @parallel_ir.Group => ()
+    Group => ()
     _ => fail("unexpected error")
   } noraise {
     _ => fail("missing rank")

@@ -202,7 +202,7 @@ fn glm_aot_compiler(
 test "GLM language-model head binds exact dense projection geometry and ABI" {
   let requirements = glm_aot_requirements()
   let ordinal = requirements.requirements().length() - 1
-  let candidate = lower_language_model_head_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_language_model_head_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -241,7 +241,7 @@ test "GLM language-model head binds exact dense projection geometry and ABI" {
     ),
   )
   assert_false(candidate.manifest_bindable())
-  let repeated = lower_language_model_head_cuda_aot_candidate(
+  let repeated = @glm_hybrid_cuda_aot.lower_language_model_head_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -254,8 +254,8 @@ test "GLM language-model head binds exact dense projection geometry and ABI" {
 }
 
 ///|
-fn glm_aot_limits() -> GlmHybridCudaAotLimits {
-  try! GlmHybridCudaAotLimits::new(
+fn glm_aot_limits() -> @glm_hybrid_cuda_aot.GlmHybridCudaAotLimits {
+  try! @glm_hybrid_cuda_aot.GlmHybridCudaAotLimits::new(
     maximum_tokens=4096,
     maximum_source_bytes=65536,
     maximum_recipe_bytes=65536,
@@ -265,7 +265,7 @@ fn glm_aot_limits() -> GlmHybridCudaAotLimits {
 ///|
 test "GLM embedding decoder norm and final norm share deterministic source" {
   let requirements = glm_aot_requirements()
-  let embedding = lower_foundation_cuda_aot_candidate(
+  let embedding = @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=0,
     maximum_tokens=32,
@@ -278,7 +278,7 @@ test "GLM embedding decoder norm and final norm share deterministic source" {
   assert_eq(embedding.operands()[0].role(), StepCountsInput)
   assert_eq(embedding.operands()[1].byte_count(), 128L)
   assert_false(embedding.manifest_bindable())
-  let decoder_norm = lower_foundation_cuda_aot_candidate(
+  let decoder_norm = @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=1,
     maximum_tokens=32,
@@ -289,7 +289,7 @@ test "GLM embedding decoder norm and final norm share deterministic source" {
   assert_eq(decoder_norm.family(), DecoderRmsNormBf16)
   assert_eq(decoder_norm.operation(), DecoderRmsNorm(64, 0.00001))
   let final_ordinal = requirements.requirements().length() - 2
-  let final_norm = lower_foundation_cuda_aot_candidate(
+  let final_norm = @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=final_ordinal,
     maximum_tokens=32,
@@ -338,7 +338,7 @@ test "GLM embedding decoder norm and final norm share deterministic source" {
       #|5ecba04443d5f9e048086104118c6f6b91e527fdffcee6528bc23e74d083c410
     ),
   )
-  let repeated = lower_foundation_cuda_aot_candidate(
+  let repeated = @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=final_ordinal,
     maximum_tokens=32,
@@ -355,7 +355,7 @@ test "GLM lowerer rejects unsupported operations and unsafe policies" {
   let requirements = glm_aot_requirements()
   let lm_head_ordinal = requirements.requirements().length() - 1
   try
-    lower_foundation_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=2,
       maximum_tokens=1,
@@ -370,7 +370,7 @@ test "GLM lowerer rejects unsupported operations and unsafe policies" {
     _ => fail("unsupported GLM operation was lowered")
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=0,
       maximum_tokens=1,
@@ -385,7 +385,7 @@ test "GLM lowerer rejects unsupported operations and unsafe policies" {
     _ => fail("non-BF16 GLM target was lowered")
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=0,
       maximum_tokens=1,
@@ -400,7 +400,7 @@ test "GLM lowerer rejects unsupported operations and unsafe policies" {
     _ => fail("reassociating GLM compiler policy was accepted")
   }
   try
-    lower_language_model_head_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_language_model_head_cuda_aot_candidate(
       requirements,
       requirement_ordinal=lm_head_ordinal,
       maximum_tokens=1,

@@ -18,15 +18,21 @@ pub fn admit_rank_ordered_local_topology(ArrayView[Int], @catalog.DeviceTarget) 
 pub(all) suberror LocalTopologyError {
   InvalidLocalTopology(area~ : LocalTopologyArea, rule~ : LocalTopologyRule, first~ : Int, second~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn LocalTopologyError::equal(Self, Self) -> Bool
+pub fn LocalTopologyError::not_equal(Self, Self) -> Bool
+pub fn LocalTopologyError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdmittedLocalTopology {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AdmittedLocalTopology::driver_version(Self) -> Int
+pub fn AdmittedLocalTopology::equal(Self, Self) -> Bool
 pub fn AdmittedLocalTopology::link_count(Self) -> Int
+pub fn AdmittedLocalTopology::not_equal(Self, Self) -> Bool
 pub fn AdmittedLocalTopology::rank(Self, Int) -> LocalTopologyRank?
 pub fn AdmittedLocalTopology::target(Self) -> @catalog.DeviceTarget
+pub fn AdmittedLocalTopology::to_repr(Self) -> @debug.Repr
 pub fn AdmittedLocalTopology::world_size(Self) -> Int
 
 pub struct AdmittedRankOrderedLocalTopology {
@@ -38,12 +44,18 @@ pub fn AdmittedRankOrderedLocalTopology::topology(Self) -> AdmittedLocalTopology
 pub struct LocalPeerAccess {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LocalPeerAccess::equal(Self, Self) -> Bool
 pub fn LocalPeerAccess::new(source_ordinal~ : Int, destination_ordinal~ : Int) -> Self raise LocalTopologyError
+pub fn LocalPeerAccess::not_equal(Self, Self) -> Bool
+pub fn LocalPeerAccess::to_repr(Self) -> @debug.Repr
 
 pub struct LocalProbeDevice {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LocalProbeDevice::equal(Self, Self) -> Bool
 pub fn LocalProbeDevice::new(ordinal~ : Int, name~ : StringView, total_memory_bytes~ : Int64, target~ : @catalog.DeviceTarget) -> Self raise LocalTopologyError
+pub fn LocalProbeDevice::not_equal(Self, Self) -> Bool
+pub fn LocalProbeDevice::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LocalTopologyArea {
   DeclarationRanks
@@ -53,36 +65,51 @@ pub(all) enum LocalTopologyArea {
   AdmissionRanks
   AdmissionLinks
 } derive(Eq, @debug.Debug)
+pub fn LocalTopologyArea::equal(Self, Self) -> Bool
+pub fn LocalTopologyArea::not_equal(Self, Self) -> Bool
+pub fn LocalTopologyArea::to_repr(Self) -> @debug.Repr
 
 pub struct LocalTopologyDeclaration {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LocalTopologyDeclaration::equal(Self, Self) -> Bool
 pub fn LocalTopologyDeclaration::link_count(Self) -> Int
 pub fn LocalTopologyDeclaration::new(ArrayView[LocalTopologyRank], ArrayView[LocalTopologyLink]) -> Self raise LocalTopologyError
+pub fn LocalTopologyDeclaration::not_equal(Self, Self) -> Bool
 pub fn LocalTopologyDeclaration::rank(Self, Int) -> LocalTopologyRank?
 pub fn LocalTopologyDeclaration::rank_count(Self) -> Int
+pub fn LocalTopologyDeclaration::to_repr(Self) -> @debug.Repr
 
 pub struct LocalTopologyLink {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LocalTopologyLink::direct(lower_rank~ : Int, upper_rank~ : Int) -> Self raise LocalTopologyError
+pub fn LocalTopologyLink::equal(Self, Self) -> Bool
+pub fn LocalTopologyLink::not_equal(Self, Self) -> Bool
+pub fn LocalTopologyLink::to_repr(Self) -> @debug.Repr
 
 pub struct LocalTopologyProbeProjection {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LocalTopologyProbeProjection::device_count(Self) -> Int
+pub fn LocalTopologyProbeProjection::equal(Self, Self) -> Bool
 pub fn LocalTopologyProbeProjection::from_local_inventory() -> Self raise LocalTopologyError
 pub fn LocalTopologyProbeProjection::from_observations(driver_version~ : Int, ArrayView[LocalProbeDevice], ArrayView[LocalPeerAccess]) -> Self raise LocalTopologyError
 pub fn LocalTopologyProbeProjection::from_probe(@device.ProbeResult, ArrayView[LocalPeerAccess]) -> Self raise LocalTopologyError
+pub fn LocalTopologyProbeProjection::not_equal(Self, Self) -> Bool
 pub fn LocalTopologyProbeProjection::peer_access_count(Self) -> Int
+pub fn LocalTopologyProbeProjection::to_repr(Self) -> @debug.Repr
 
 pub struct LocalTopologyRank {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LocalTopologyRank::equal(Self, Self) -> Bool
 pub fn LocalTopologyRank::name(Self) -> String
 pub fn LocalTopologyRank::new(ordinal~ : Int, name~ : StringView, total_memory_bytes~ : Int64, target~ : @catalog.DeviceTarget) -> Self raise LocalTopologyError
+pub fn LocalTopologyRank::not_equal(Self, Self) -> Bool
 pub fn LocalTopologyRank::ordinal(Self) -> Int
 pub fn LocalTopologyRank::target(Self) -> @catalog.DeviceTarget
+pub fn LocalTopologyRank::to_repr(Self) -> @debug.Repr
 pub fn LocalTopologyRank::total_memory_bytes(Self) -> Int64
 
 pub(all) enum LocalTopologyRule {
@@ -101,6 +128,9 @@ pub(all) enum LocalTopologyRule {
   IdentityMismatch
   TargetMismatch
 } derive(Eq, @debug.Debug)
+pub fn LocalTopologyRule::equal(Self, Self) -> Bool
+pub fn LocalTopologyRule::not_equal(Self, Self) -> Bool
+pub fn LocalTopologyRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

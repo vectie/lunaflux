@@ -21,7 +21,7 @@ test "placement distinguishes compact tile decode from startup expansion" {
     memory_ceiling=32768L,
   )
   assert_eq(expand.memory(), (32768L, 0L))
-  assert_eq(expand.effect(), @precision_ir.NumericEffect::StartupWrite)
+  assert_eq(expand.effect(), StartupWrite)
   assert_true(tile.canonical() != expand.canonical())
 }
 
@@ -37,7 +37,7 @@ test "cache quantization is an explicit commit and cannot become weight initiali
     accuracy~,
     memory_ceiling=10000L,
   )
-  assert_eq(kv.effect(), @precision_ir.NumericEffect::CacheCommit)
+  assert_eq(kv.effect(), CacheCommit)
   try
     @precision_ir.plan_operand(
       role=KeyCache,

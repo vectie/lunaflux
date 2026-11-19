@@ -143,7 +143,7 @@ async fn main {
       guard owner.device_bytes() == 48L else { fail("wrong owned footprint") }
       if malformed {
         try owner.allocations() catch {
-          @device.DeviceError::InvalidArgument(_) => ()
+          InvalidArgument(_) => ()
           error => raise error
         } noraise {
           _ => fail("failed upload escaped")

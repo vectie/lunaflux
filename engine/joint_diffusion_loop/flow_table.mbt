@@ -37,7 +37,7 @@ fn build_flow_table(steps : ReadOnlyArray[JointStep]) -> FlowTable {
     write_f32(output, base + 24, audio.complement)
     write_f32(output, base + 28, Float::from_double(step.audio_timestep))
   }
-  { payload: Bytes::of(output), steps: steps.length(), }
+  { payload: Bytes::from_array(output), steps: steps.length(), }
 }
 
 ///|

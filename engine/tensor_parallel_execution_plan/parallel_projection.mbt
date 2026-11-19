@@ -129,7 +129,7 @@ pub fn TensorParallelExecutionPlan::parallel_program(
     }
   }
   if collective_index != self.collectives.length() {
-    raise @parallel_ir.ParallelError::Group
+    raise Group
   }
   @parallel_ir.compile(
     rank=self.rank,
@@ -146,7 +146,7 @@ pub fn parallel_group(
   plans : ArrayView[TensorParallelExecutionPlan],
 ) -> @parallel_ir.Group raise @parallel_ir.ParallelError {
   if plans.is_empty() {
-    raise @parallel_ir.ParallelError::Group
+    raise Group
   }
   let first = plans[0]
   let programs : Array[@parallel_ir.Program] = []
@@ -157,11 +157,11 @@ pub fn parallel_group(
       plan.profile != first.profile ||
       plan.target != first.target ||
       plan.collectives.length() != first.collectives.length() {
-      raise @parallel_ir.ParallelError::Group
+      raise Group
     }
     for index, collective in plan.collectives {
       if collective.operation_id != first.collectives[index].operation_id {
-        raise @parallel_ir.ParallelError::CollectiveOrder(index + 1)
+        raise CollectiveOrder(index + 1)
       }
     }
     programs.push(plan.parallel_program())

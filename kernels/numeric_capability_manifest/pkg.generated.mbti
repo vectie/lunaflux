@@ -23,6 +23,9 @@ pub fn admit_stateless_fp8_e4m3_w8a8(@plan.ModelPlan, @device.DeviceNumericCapab
 pub(all) suberror Fp8KernelManifestError {
   InvalidFp8KernelManifest(Fp8KernelManifestRule)
 } derive(Eq, @debug.Debug)
+pub fn Fp8KernelManifestError::equal(Self, Self) -> Bool
+pub fn Fp8KernelManifestError::not_equal(Self, Self) -> Bool
+pub fn Fp8KernelManifestError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdmittedFp8KernelArtifacts {
@@ -39,48 +42,71 @@ pub fn Fp8KernelCapabilityManifest::catalog_version(Self) -> @catalog.CatalogVer
 pub fn Fp8KernelCapabilityManifest::device_numeric_digest(Self) -> @device.DeviceNumericCapabilityDigest
 pub fn Fp8KernelCapabilityManifest::digest(Self) -> Fp8KernelCapabilityManifestDigest
 pub fn Fp8KernelCapabilityManifest::entries(Self) -> ReadOnlyArray[Fp8KernelManifestEntry]
+pub fn Fp8KernelCapabilityManifest::equal(Self, Self) -> Bool
 pub fn Fp8KernelCapabilityManifest::model_identity(Self) -> @spec.ModelIdentity
+pub fn Fp8KernelCapabilityManifest::not_equal(Self, Self) -> Bool
 pub fn Fp8KernelCapabilityManifest::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn Fp8KernelCapabilityManifest::scope(Self) -> Fp8KernelExecutionScope
 pub fn Fp8KernelCapabilityManifest::target(Self) -> @catalog.DeviceTarget
+pub fn Fp8KernelCapabilityManifest::to_repr(Self) -> @debug.Repr
 pub fn Fp8KernelCapabilityManifest::version(Self) -> Fp8KernelCapabilityManifestVersion
 
 pub struct Fp8KernelCapabilityManifestDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8KernelCapabilityManifestDigest::as_hex(Self) -> String
+pub fn Fp8KernelCapabilityManifestDigest::equal(Self, Self) -> Bool
+pub fn Fp8KernelCapabilityManifestDigest::hash(Self) -> Int
+pub fn Fp8KernelCapabilityManifestDigest::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8KernelCapabilityManifestDigest::not_equal(Self, Self) -> Bool
+pub fn Fp8KernelCapabilityManifestDigest::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8KernelCapabilityManifestVersion(Int) derive(Eq, @debug.Debug)
 pub fn Fp8KernelCapabilityManifestVersion::as_int(Self) -> Int
+pub fn Fp8KernelCapabilityManifestVersion::equal(Self, Self) -> Bool
+pub fn Fp8KernelCapabilityManifestVersion::not_equal(Self, Self) -> Bool
+pub fn Fp8KernelCapabilityManifestVersion::to_repr(Self) -> @debug.Repr
 pub fn Fp8KernelCapabilityManifestVersion::v1() -> Self
 
 pub(all) enum Fp8KernelExecutionScope {
   StatelessFullContextV1
   PagedFullGraphV1
 } derive(Eq, @debug.Debug)
+pub fn Fp8KernelExecutionScope::equal(Self, Self) -> Bool
+pub fn Fp8KernelExecutionScope::not_equal(Self, Self) -> Bool
+pub fn Fp8KernelExecutionScope::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8KernelManifestClaim {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Fp8KernelManifestClaim::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8KernelManifestClaim::equal(Self, Self) -> Bool
 pub fn Fp8KernelManifestClaim::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn Fp8KernelManifestClaim::new(profile~ : @launch_contract.KernelProfileId, operation~ : @plan.OperationId, execution~ : @numeric_contract.OperationExecutionDigest, entry_point~ : @catalog.AotKernelEntryPoint) -> Self
+pub fn Fp8KernelManifestClaim::not_equal(Self, Self) -> Bool
 pub fn Fp8KernelManifestClaim::operation(Self) -> @plan.OperationId
 pub fn Fp8KernelManifestClaim::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8KernelManifestClaim::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8KernelManifestEntry {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Fp8KernelManifestEntry::artifact_module_index(Self) -> Int
 pub fn Fp8KernelManifestEntry::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8KernelManifestEntry::equal(Self, Self) -> Bool
 pub fn Fp8KernelManifestEntry::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn Fp8KernelManifestEntry::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8KernelManifestEntry::not_equal(Self, Self) -> Bool
 pub fn Fp8KernelManifestEntry::operation(Self) -> @plan.OperationId
 pub fn Fp8KernelManifestEntry::profile(Self) -> @launch_contract.KernelProfileId
+pub fn Fp8KernelManifestEntry::to_repr(Self) -> @debug.Repr
 pub fn Fp8KernelManifestEntry::weights(Self) -> ReadOnlyArray[Fp8KernelWeightBinding]
 
 pub struct Fp8KernelManifestLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8KernelManifestLimits::equal(Self, Self) -> Bool
 pub fn Fp8KernelManifestLimits::new(max_entries~ : Int, max_canonical_bytes~ : Int) -> Self raise Fp8KernelManifestError
+pub fn Fp8KernelManifestLimits::not_equal(Self, Self) -> Bool
+pub fn Fp8KernelManifestLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8KernelManifestRule {
   Limit
@@ -100,14 +126,20 @@ pub(all) enum Fp8KernelManifestRule {
   ArtifactBundle
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn Fp8KernelManifestRule::equal(Self, Self) -> Bool
+pub fn Fp8KernelManifestRule::not_equal(Self, Self) -> Bool
+pub fn Fp8KernelManifestRule::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8KernelWeightBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8KernelWeightBinding::equal(Self, Self) -> Bool
+pub fn Fp8KernelWeightBinding::not_equal(Self, Self) -> Bool
 pub fn Fp8KernelWeightBinding::scale(Self) -> @plan.ScaleTensorRef
 pub fn Fp8KernelWeightBinding::scale_storage_digest(Self) -> @numeric_contract.TensorStorageDigest
 pub fn Fp8KernelWeightBinding::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
 pub fn Fp8KernelWeightBinding::tensor(Self) -> @plan.TensorRef
+pub fn Fp8KernelWeightBinding::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

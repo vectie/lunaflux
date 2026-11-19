@@ -14,7 +14,7 @@ test "serial scratch budgets peak not sum and preserves empty phases" {
 test "serial scratch rejects invalid sizes and overflow" {
   for sizes in [[-1L], [9223372036854775807L, 1L]] {
     try @parallel_ir.SerialScratch::new(sizes[:]) catch {
-      @parallel_ir.ParallelError::Capacity => ()
+      Capacity => ()
       _ => fail("unexpected error")
     } noraise {
       _ => fail("invalid storage accepted")

@@ -81,41 +81,56 @@ async test "decoded camera frames share one prompt layout and pixel preparation"
   }
   assert_eq(prompt.feature_rows(), input.feature_rows())
   assert_true(
-    (try? @minicpm_v47_media.prepare(
-      spec,
-      tokenizer,
-      vision,
-      "policy",
-      [Image(red), Image(green)],
-      maximum_tokens=4096,
-      maximum_prepared_pixel_bytes=2408447L,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_media.prepare(
+        spec,
+        tokenizer,
+        vision,
+        "policy",
+        [Image(red), Image(green)],
+        maximum_tokens=4096,
+        maximum_prepared_pixel_bytes=2408447L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @minicpm_v47_media.prepare(
-      spec,
-      tokenizer,
-      vision,
-      "policy",
-      [Image(red), Image(green), Image(red)],
-      maximum_tokens=4096,
-      maximum_prepared_pixel_bytes=10000000L,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_media.prepare(
+        spec,
+        tokenizer,
+        vision,
+        "policy",
+        [Image(red), Image(green), Image(red)],
+        maximum_tokens=4096,
+        maximum_prepared_pixel_bytes=10000000L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @minicpm_v47_media.prepare(
-      spec,
-      tokenizer,
-      vision,
-      "policy",
-      [Image(red)],
-      maximum_tokens=4096,
-      maximum_prepared_pixel_bytes=1204224L,
-      maximum_image_working_bytes=2419455L,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_media.prepare(
+        spec,
+        tokenizer,
+        vision,
+        "policy",
+        [Image(red)],
+        maximum_tokens=4096,
+        maximum_prepared_pixel_bytes=1204224L,
+        maximum_image_working_bytes=2419455L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }
 
@@ -189,15 +204,20 @@ async test "media queue resolves image occurrences in order and admits aggregate
   assert_eq(queue[0].maximum_new_tokens, 1)
   assert_eq(queue[0].context_ceiling, 4096)
   assert_true(
-    (try? @minicpm_v47_media.prepare_requests(
-      spec,
-      tokenizer,
-      vision,
-      document,
-      load_image=_ => image,
-      maximum_prepared_pixel_bytes=2408447L,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_media.prepare_requests(
+        spec,
+        tokenizer,
+        vision,
+        document,
+        load_image=_ => image,
+        maximum_prepared_pixel_bytes=2408447L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   let bad : Array[Json] = [
     Json::null(),
@@ -228,15 +248,20 @@ async test "media queue resolves image occurrences in order and admits aggregate
   ]
   for invalid in bad {
     assert_true(
-      (try? @minicpm_v47_media.prepare_requests(
-        spec,
-        tokenizer,
-        vision,
-        invalid,
-        load_image=_ => image,
-        maximum_prepared_pixel_bytes=2408448L,
-      ))
-      is Err(_),
+      try
+        @minicpm_v47_media.prepare_requests(
+          spec,
+          tokenizer,
+          vision,
+          invalid,
+          load_image=_ => image,
+          maximum_prepared_pixel_bytes=2408448L,
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
   }
 }

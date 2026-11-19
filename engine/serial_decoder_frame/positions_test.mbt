@@ -51,7 +51,7 @@ test "legacy frame retains eight-port ABI and rejects optional position access" 
   let host = host_frame()
   assert_eq(host.input_count(), 8)
   try host.input_capacity(8) catch {
-    @serial_decoder_frame.SerialDecoderError::InvalidCapacity => ()
+    InvalidCapacity => ()
     e => raise e
   } noraise {
     _ => fail("legacy ABI unexpectedly exposed a ninth port")

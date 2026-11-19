@@ -27,7 +27,7 @@ test "greedy partition rejects invalid and overflowing storage domains" {
         segment_width=width,
       )
     catch {
-      @luna_sampling_strategy.InvalidSamplingStrategy(_) => ()
+      InvalidSamplingStrategy(_) => ()
     } noraise {
       _ => fail("invalid greedy partition accepted")
     }

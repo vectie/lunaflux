@@ -288,9 +288,7 @@ pub fn GlmRecurrentLayer::submit(
   self : Self,
   live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
-  guard self.status is Ready else {
-    raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
-  }
+  guard self.status is Ready else { raise Busy(OrderedExecutorEnqueue) }
   errdefer {
     self.status = Failed
   }
@@ -301,7 +299,7 @@ pub fn GlmRecurrentLayer::submit(
 ///|
 pub fn GlmRecurrentLayer::poll(self : Self) -> Bool raise @device.DeviceError {
   guard self.status is Active else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   errdefer {
     self.status = Failed

@@ -40,9 +40,7 @@ pub fn AudioAmpLayout::new(
   let offsets = Array::makei(7, i => start + i.to_int64() * stride)
   let normalized = start + 7L * stride
   let total = normalized + convolutions[2].weight_bytes
-  guard total <= max_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
-  }
+  guard total <= max_bytes else { raise InvalidArgument(AllocationCreate) }
   {
     activation,
     convolutions: ReadOnlyArray::from_array(convolutions),
@@ -71,7 +69,7 @@ pub fn AudioAmpLayout::launches(
   guard functions.length() == 41 &&
     scratch.byte_count() >= self.scratch_bytes &&
     weights.byte_count() >= parameters.total_arena_bytes() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   fn parameter(
     role : @joint_audio_amp_parameter_layout.JointAudioAmpParameterRole,
@@ -80,12 +78,12 @@ pub fn AudioAmpLayout::launches(
     for region in parameters.regions() {
       if region.role() == role {
         guard region.byte_count() == bytes else {
-          raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+          raise InvalidArgument(AotKernelLaunch)
         }
         return region.byte_offset()
       }
     }
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   fn value(
     allocation : @device.Allocation,
@@ -100,7 +98,7 @@ pub fn AudioAmpLayout::launches(
   }
   let launches : Array[@device.OrderedKernelLaunch] = []
   if normalized_cache is Some((_, offsets)) && offsets.length() != 18 {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let offsets = self.value_offsets
   for block in 0..<3 {

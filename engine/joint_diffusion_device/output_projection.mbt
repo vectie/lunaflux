@@ -86,7 +86,7 @@ fn output_projection_bytes(
     latent > 0 &&
     rows <= 2147483647L / hidden.to_int64() &&
     rows <= 2147483647L / latent.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   (
     rows * hidden.to_int64() * 4L,

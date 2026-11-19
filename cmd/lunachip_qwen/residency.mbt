@@ -32,8 +32,8 @@ fn resident_identity(
   for t in source.transfers {
     for
       v in [
-        t.source_offset.to_uint64(),
-        t.source_bytes.to_uint64(),
+        t.source_offset.reinterpret_as_uint64(),
+        t.source_bytes.reinterpret_as_uint64(),
         t.destination.address,
         match t.expanded_norm {
           Some(r) => r.address
@@ -51,16 +51,19 @@ fn resident_identity(
     record_address,
   )
   program.update(
-    words_bytes([workspace.address.to_uint(), plans.length().to_uint()]),
+    words_bytes([
+      workspace.address.to_uint(),
+      plans.length().reinterpret_as_uint(),
+    ]),
   )
   for plan in plans {
-    program.update(words_bytes([plan.program_count().to_uint()]))
+    program.update(words_bytes([plan.program_count().reinterpret_as_uint()]))
     for layer in 0..<plan.program_count() {
       let p = plan.program(layer).unwrap()
-      program.update(words_bytes([p.chunk_count().to_uint()]))
+      program.update(words_bytes([p.chunk_count().reinterpret_as_uint()]))
       for c in 0..<p.chunk_count() {
         let bytes = p.chunk(c).unwrap()
-        program.update(words_bytes([bytes.length().to_uint()]))
+        program.update(words_bytes([bytes.length().reinterpret_as_uint()]))
         program.update(bytes)
       }
     }

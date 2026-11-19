@@ -10,7 +10,7 @@ pub fn ReductionBoundary::fixed_gather(
   receive~ : @device.Allocation,
 ) -> Self raise @device.DeviceError {
   guard local_width > 0 && world > 1 && local_width <= 2147483647 / world else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   {
     before_kernel,

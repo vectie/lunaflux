@@ -19,6 +19,9 @@ pub fn build(@plan.ModelPlan, @tensor_parallel_plan.TensorParallelRankPlan, @dev
 pub(all) suberror TensorParallelDevicePlanError {
   InvalidTensorParallelDevicePlan(rule~ : TensorParallelDevicePlanRule, index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDevicePlanError::equal(Self, Self) -> Bool
+pub fn TensorParallelDevicePlanError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDevicePlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TensorParallelDevicePlan {
@@ -28,14 +31,17 @@ pub fn TensorParallelDevicePlan::arena_bytes(Self) -> Int64
 pub fn TensorParallelDevicePlan::collective(Self, Int) -> @tensor_parallel_plan.TensorCollectiveSite?
 pub fn TensorParallelDevicePlan::collective_count(Self) -> Int
 pub fn TensorParallelDevicePlan::device_ordinal(Self) -> Int
+pub fn TensorParallelDevicePlan::equal(Self, Self) -> Bool
 pub fn TensorParallelDevicePlan::identity(Self) -> @spec.ModelIdentity
 pub fn TensorParallelDevicePlan::materialized_bytes(Self) -> Int64
+pub fn TensorParallelDevicePlan::not_equal(Self, Self) -> Bool
 pub fn TensorParallelDevicePlan::operation(Self, @plan.OperationId) -> @tensor_parallel_plan.TensorParallelOperationPlan?
 pub fn TensorParallelDevicePlan::operation_count(Self) -> Int
 pub fn TensorParallelDevicePlan::rank(Self) -> Int
 pub fn TensorParallelDevicePlan::target(Self) -> @catalog.DeviceTarget
 pub fn TensorParallelDevicePlan::tensor(Self, @plan.TensorRef) -> TensorParallelMatrixView?
 pub fn TensorParallelDevicePlan::tensor_count(Self) -> Int
+pub fn TensorParallelDevicePlan::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelDevicePlan::world_size(Self) -> Int
 
 pub(all) enum TensorParallelDevicePlanRule {
@@ -58,30 +64,39 @@ pub(all) enum TensorParallelDevicePlanRule {
   CollectiveKind
   CollectiveWidth
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDevicePlanRule::equal(Self, Self) -> Bool
+pub fn TensorParallelDevicePlanRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDevicePlanRule::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelMatrixView {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelMatrixView::equal(Self, Self) -> Bool
 pub fn TensorParallelMatrixView::full_columns(Self) -> Int64
 pub fn TensorParallelMatrixView::full_rows(Self) -> Int64
 pub fn TensorParallelMatrixView::local_column_start(Self) -> Int64
 pub fn TensorParallelMatrixView::local_columns(Self) -> Int64
 pub fn TensorParallelMatrixView::local_row_start(Self) -> Int64
 pub fn TensorParallelMatrixView::local_rows(Self) -> Int64
+pub fn TensorParallelMatrixView::not_equal(Self, Self) -> Bool
 pub fn TensorParallelMatrixView::placement(Self) -> @tensor_parallel_plan.TensorPlacement
 pub fn TensorParallelMatrixView::reference(Self) -> @plan.TensorRef
 pub fn TensorParallelMatrixView::region_byte_length(Self) -> Int64
 pub fn TensorParallelMatrixView::region_offset_bytes(Self) -> Int64
+pub fn TensorParallelMatrixView::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRankDevice {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelRankDevice::device_ordinal(Self) -> Int
+pub fn TensorParallelRankDevice::equal(Self, Self) -> Bool
 pub fn TensorParallelRankDevice::from_local_topology(@device_topology.AdmittedLocalTopology, rank~ : Int) -> Self raise TensorParallelDevicePlanError
 pub fn TensorParallelRankDevice::from_network_topology(@network_topology.TwoNodeTopology, rank~ : Int) -> Self raise TensorParallelDevicePlanError
+pub fn TensorParallelRankDevice::not_equal(Self, Self) -> Bool
 pub fn TensorParallelRankDevice::rank(Self) -> Int
 pub fn TensorParallelRankDevice::single(device_ordinal~ : Int, target~ : @catalog.DeviceTarget) -> Self raise TensorParallelDevicePlanError
 pub fn TensorParallelRankDevice::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelRankDevice::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelRankDevice::world_size(Self) -> Int
 
 // Type aliases

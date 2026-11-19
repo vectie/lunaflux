@@ -19,8 +19,8 @@ test "prediction metadata shares indices but never aliases distinct step values"
   )
   let layout = prediction_metadata_layout(schedule, 1060L)
   assert_eq(layout.bytes, 1060L)
-  inspect(layout.times[:].to_owned(), content="[0, 16, 32]")
-  inspect(layout.counts[:].to_owned(), content="[4, 1]")
+  debug_inspect(layout.times[:].to_owned(), content="[0, 16, 32]")
+  debug_inspect(layout.counts[:].to_owned(), content="[4, 1]")
   assert_eq(layout.patterns[0], (36L, 292L))
   assert_eq(layout.patterns[1], (548L, 804L))
   assert_eq(schedule.steps()[0].pattern, schedule.steps()[1].pattern)
@@ -34,7 +34,7 @@ test "prediction metadata shares indices but never aliases distinct step values"
   )
   for budget in [-1L, 0L, 1059L] {
     try prediction_metadata_layout(schedule, budget) catch {
-      @device.DeviceError::InvalidArgument(AllocationCreate) => ()
+      InvalidArgument(AllocationCreate) => ()
       _ => fail("wrong metadata budget error")
     } noraise {
       _ => fail("metadata budget ignored")

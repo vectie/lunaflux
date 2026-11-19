@@ -21,7 +21,7 @@ pub fn PackedExpertRows::new(
     payload_bytes.1 > 0 &&
     scale_bytes.0 > 0 &&
     scale_bytes.1 > 0 else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   let rows = grouping.maximum_groups() * grouping.rows_per_group()
   let first = rows.to_int64() *
@@ -30,7 +30,7 @@ pub fn PackedExpertRows::new(
     (payload_bytes.1.to_int64() + scale_bytes.1.to_int64())
   let bytes = (Int64::max(first, second) + 15L) / 16L * 16L
   guard after_bytes <= 9223372036854775792L - bytes else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   {
     rows,

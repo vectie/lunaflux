@@ -16,7 +16,7 @@ priv enum State {
 /// only after both executions and the remote commit receipt retire.
 pub struct BatchedTensorPipeline {
   priv frame : @frame.BatchedDecoderFrame
-  priv local : @rank.BatchedDecoderRank
+  priv local_value : @rank.BatchedDecoderRank
   priv remote : @control.DecoderStageClient
   priv local_completion : @wire.CompletionFrameBuffer
   priv samples : Array[Int32]
@@ -36,16 +36,16 @@ pub struct BatchedTensorPipeline {
 ///|
 pub fn BatchedTensorPipeline::new(
   frame : @frame.BatchedDecoderFrame,
-  local : @rank.BatchedDecoderRank,
+  local_value : @rank.BatchedDecoderRank,
   remote : @control.DecoderStageClient,
   limits : @protocol.WorkerProtocolLimits,
   inference_limits : @inference.InferenceLimits,
   timeout_millis~ : UInt64 = 300000UL,
 ) -> Self raise {
-  guard !local.outputs_token() &&
+  guard !local_value.outputs_token() &&
     remote.outputs_token() &&
     remote.is_batched() &&
-    frame.geometry() == local.geometry() &&
+    frame.geometry() == local_value.geometry() &&
     remote.output_capacity() >= frame.geometry().1 &&
     timeout_millis > 0UL &&
     timeout_millis <= 300000UL else {
@@ -53,7 +53,7 @@ pub fn BatchedTensorPipeline::new(
   }
   {
     frame,
-    local,
+    local_value,
     remote,
     local_completion: @wire.CompletionFrameBuffer::new(limits, inference_limits),
     samples: Array::make(frame.geometry().1, 0),
@@ -88,7 +88,7 @@ pub fn BatchedTensorPipeline::begin(
   }
   self.frame.stage(plan, writer)
   self.state = Failed
-  self.local.begin(plan, self.local_completion.writer_for(plan))
+  self.local_value.begin(plan, self.local_completion.writer_for(plan))
   self.remote.prepare(plan, epoch~, local_now_millis~)
   self.epoch = epoch
   self.last_tick = local_now_millis
@@ -121,7 +121,7 @@ pub async fn BatchedTensorPipeline::progress(
   match self.state {
     Preparing => {
       if !self.local_ready {
-        self.local_ready = self.local.inputs_ready()
+        self.local_ready = self.local_value.inputs_ready()
       }
       if !self.remote_ready {
         self.remote_ready = self.remote.poll(local_now_millis~)
@@ -134,7 +134,7 @@ pub async fn BatchedTensorPipeline::progress(
         // A long local graph enqueue must not delay the peer's run command.
         // Only the bounded send retires here; neither rank may publish yet.
         if self.remote.dispatch_run(local_now_millis~) {
-          self.local.submit()
+          self.local_value.submit()
           self.state = Executing
         }
       }
@@ -142,20 +142,20 @@ pub async fn BatchedTensorPipeline::progress(
     }
     Dispatching => {
       if self.remote.dispatch_run(local_now_millis~) {
-        self.local.submit()
+        self.local_value.submit()
         self.state = Executing
       }
       false
     }
     Executing => {
       if !self.local_ready {
-        self.local_ready = self.local.progress()
+        self.local_ready = self.local_value.progress()
       }
       if !self.remote_ready {
         self.remote_ready = self.remote.poll(local_now_millis~)
       }
       if self.local_ready && self.remote_ready {
-        self.failed = self.local.execution_failed() ||
+        self.failed = self.local_value.execution_failed() ||
           self.remote.execution_failed()
         if !self.failed {
           guard self.remote.output_rows() == self.frame.output_rows() else {
@@ -174,7 +174,7 @@ pub async fn BatchedTensorPipeline::progress(
       if !self.remote.poll(local_now_millis~) {
         return false
       }
-      self.local.commit(pipeline_failed=self.failed)
+      self.local_value.commit(pipeline_failed=self.failed)
       ignore(
         self.frame.complete(
           self.samples[:self.frame.output_rows()],
@@ -188,7 +188,7 @@ pub async fn BatchedTensorPipeline::progress(
       if !self.remote.poll(local_now_millis~) {
         return false
       }
-      self.local.retire_request(self.release_id, self.release_generation)
+      self.local_value.retire_request(self.release_id, self.release_generation)
       self.frame.retire_request(self.release_id, self.release_generation)
       self.state = Ready
       true
@@ -242,7 +242,7 @@ pub fn BatchedTensorPipeline::close(self : Self) -> Unit raise {
   }
   self.state = Failed
   self.remote.close()
-  self.local.close()
+  self.local_value.close()
   self.frame.close()
   self.state = Closed
 }

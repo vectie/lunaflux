@@ -146,8 +146,8 @@ fn run_cases(
         let x = if iteration == 8 {
           0.0F
         } else {
-          (((token * 17 + row * 13) % 29).to_float() - 14.0F) * 0.03125F +
-          (token % 3).to_float() * 0.00001F
+          (Float::from_int((token * 17 + row * 13) % 29) - 14.0F) * 0.03125F +
+          Float::from_int(token % 3) * 0.00001F
         }
         values[token] = x.to_double()
         let bits = if iteration == 9 && token == v - 1 {

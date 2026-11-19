@@ -18,7 +18,7 @@ pub fn reusable_fused_runtime_attention_route_scope(
 ) -> String raise FusedArtifactAdmissionError {
   let model_content = fused_deployment_digest(model_content_sha256)
   let model_plan = fused_deployment_digest(model_plan_sha256)
-  let ordered = modules.to_array()
+  let ordered = modules.to_owned()
   ordered.sort_by((left, right) => {
     reusable_runtime_abi_rank(left.abi).compare(
       reusable_runtime_abi_rank(right.abi),

@@ -1,7 +1,7 @@
 ///|
 test "Sinkhorn normalization and stream mixing match hand computation" {
   let limits = test_limits()
-  let mixing = sinkhorn_normalize(
+  let mixing = @advanced_decoder_reference.sinkhorn_normalize(
     [0.0F, 0.0F, 0.0F, 0.0F],
     width=2,
     iterations=3,
@@ -9,7 +9,7 @@ test "Sinkhorn normalization and stream mixing match hand computation" {
     limits~,
   )
   assert_eq(mixing, [0.5F, 0.5F, 0.5F, 0.5F])
-  let output = mix_hyper_connections(
+  let output = @advanced_decoder_reference.mix_hyper_connections(
     [1.0F, 2.0F, 3.0F, 4.0F],
     mixing,
     stream_count=2,
@@ -23,7 +23,7 @@ test "Sinkhorn normalization and stream mixing match hand computation" {
 test "Sinkhorn rejects NaN iterations and underflowed rows" {
   let limits = test_limits()
   try
-    sinkhorn_normalize(
+    @advanced_decoder_reference.sinkhorn_normalize(
       [0.0F, @float.not_a_number, 0.0F, 0.0F],
       width=2,
       iterations=2,
@@ -37,7 +37,7 @@ test "Sinkhorn rejects NaN iterations and underflowed rows" {
     _ => fail("Sinkhorn admitted NaN")
   }
   try
-    sinkhorn_normalize(
+    @advanced_decoder_reference.sinkhorn_normalize(
       [0.0F],
       width=1,
       iterations=0,
@@ -51,7 +51,7 @@ test "Sinkhorn rejects NaN iterations and underflowed rows" {
     _ => fail("zero Sinkhorn iterations were admitted")
   }
   try
-    sinkhorn_normalize(
+    @advanced_decoder_reference.sinkhorn_normalize(
       [0.0F, 0.0F, -1000.0F, -1000.0F],
       width=2,
       iterations=1,

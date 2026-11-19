@@ -49,15 +49,20 @@ test "crop attention isolation works at the selected width72" {
     assert_eq(output[i], if i < 288 { 2.0F } else { 15.0F })
   }
   assert_true(
-    (try? attention.run_into(
-      [0, 0, 2, 2],
-      [3, 2, 4, 4],
-      input[:],
-      input[:],
-      values[:],
-      output,
-      rows=4,
-    ))
-    is Err(_),
+    try
+      attention.run_into(
+        [0, 0, 2, 2],
+        [3, 2, 4, 4],
+        input[:],
+        input[:],
+        values[:],
+        output,
+        rows=4,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

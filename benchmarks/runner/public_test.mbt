@@ -1,10 +1,10 @@
 ///|
 test "public collector samples the system monotonic millisecond domain" {
   assert_eq(
-    system_monotonic_millis_measurement_digest().as_hex(),
+    @runner.system_monotonic_millis_measurement_digest().as_hex(),
     "db8b9983e81661e4c955ebaed2edf6c35ba789529fa88b2f02f8b7471ca2dd7b",
   )
-  let collector = try! BenchmarkTrialCollector::new(
+  let collector = try! @runner.BenchmarkTrialCollector::new(
     engine=LunaFlux,
     profile=Latency,
     ordinal=1,

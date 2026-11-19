@@ -23,9 +23,9 @@ fn run_collective_program(
     maximum_rows.to_int64() * (if bfloat16 { 16L } else { 32L }),
   )
   defer (buffer.close() catch { _ => () })
-  let module = context.load_module(b"fake\x00")
-  defer (module.close() catch { _ => () })
-  let function = module.load_function(b"moe\x00")
+  let device_module = context.load_module(b"fake\x00")
+  defer (device_module.close() catch { _ => () })
+  let function = device_module.load_function(b"moe\x00")
   defer (function.close() catch { _ => () })
   let launch = @device.OrderedKernelLaunch::new(
     function,

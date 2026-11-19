@@ -184,7 +184,7 @@ pub fn DenseMlpFrame::tensor_boundary(
   self : Self,
 ) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   if self.tensor_output is Some(buffer) && self.tensor_width() is Some(width) {
     Some((self.launches.length(), buffer, width))
@@ -200,7 +200,7 @@ pub fn DenseMlpFrame::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }

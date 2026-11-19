@@ -17,7 +17,7 @@ fn final_norm_ordinal(
 test "video and audio final RMSNorm candidates preserve exact BF16 row ABI" {
   let requirements = diffusion_aot_requirements()
   let request = diffusion_aot_request()
-  let video = lower_final_rms_norm_cuda_aot_candidate(
+  let video = @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=final_norm_ordinal(requirements, VideoLatent),
@@ -52,7 +52,7 @@ test "video and audio final RMSNorm candidates preserve exact BF16 row ABI" {
   assert_true(source.contains("__fdiv_rn"))
   assert_true(source.contains("rsqrtf"))
   assert_true(source.contains("__float2bfloat16_rn"))
-  let audio = lower_final_rms_norm_cuda_aot_candidate(
+  let audio = @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=final_norm_ordinal(requirements, AudioLatent),
@@ -70,7 +70,7 @@ test "video and audio final RMSNorm candidates preserve exact BF16 row ABI" {
   assert_eq(audio.operands()[2].byte_count(), 16L)
   assert_true(video.source_digest() != audio.source_digest())
   assert_true(video.recipe_digest() != audio.recipe_digest())
-  let repeated = lower_final_rms_norm_cuda_aot_candidate(
+  let repeated = @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=final_norm_ordinal(requirements, VideoLatent),
@@ -88,7 +88,7 @@ test "final RMSNorm lowering rejects foreign operations and unsafe profiles" {
   let request = diffusion_aot_request()
   let video_ordinal = final_norm_ordinal(requirements, VideoLatent)
   try
-    lower_final_rms_norm_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
       requirements,
       request_shape=diffusion_aot_foreign_request(),
       requirement_ordinal=video_ordinal,
@@ -103,7 +103,7 @@ test "final RMSNorm lowering rejects foreign operations and unsafe profiles" {
     _ => fail("foreign row geometry was accepted")
   }
   try
-    lower_final_rms_norm_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=0,
@@ -123,7 +123,7 @@ test "final RMSNorm lowering rejects foreign operations and unsafe profiles" {
       diffusion_aot_compiler(reassociate=true),
     ] {
     try
-      lower_final_rms_norm_cuda_aot_candidate(
+      @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
         requirements,
         request_shape=request,
         requirement_ordinal=video_ordinal,
@@ -139,7 +139,7 @@ test "final RMSNorm lowering rejects foreign operations and unsafe profiles" {
     }
   }
   try
-    lower_final_rms_norm_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=video_ordinal,
@@ -154,7 +154,7 @@ test "final RMSNorm lowering rejects foreign operations and unsafe profiles" {
     _ => fail("non-BF16 target was accepted")
   }
   try
-    lower_final_rms_norm_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_final_rms_norm_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=video_ordinal,

@@ -17,6 +17,9 @@ pub fn admit_v2(@plan.ModelPlan, @device.DeviceNumericCapability, @numeric_capab
 pub(all) suberror Fp8StartupAdmissionError {
   Fp8StartupRejected(Fp8StartupAdmissionRule)
 } derive(Eq, @debug.Debug)
+pub fn Fp8StartupAdmissionError::equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionError::not_equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Fp8StartupAdmission {
@@ -31,11 +34,19 @@ pub fn Fp8StartupAdmission::version(Self) -> Fp8StartupAdmissionVersion
 
 pub struct Fp8StartupAdmissionDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8StartupAdmissionDigest::as_hex(Self) -> String
+pub fn Fp8StartupAdmissionDigest::equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionDigest::hash(Self) -> Int
+pub fn Fp8StartupAdmissionDigest::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8StartupAdmissionDigest::not_equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8StartupAdmissionLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8StartupAdmissionLimits::equal(Self, Self) -> Bool
 pub fn Fp8StartupAdmissionLimits::new(max_canonical_bytes~ : Int) -> Self raise Fp8StartupAdmissionError
+pub fn Fp8StartupAdmissionLimits::not_equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8StartupAdmissionRule {
   Limit
@@ -45,6 +56,9 @@ pub(all) enum Fp8StartupAdmissionRule {
   EntryBinding
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn Fp8StartupAdmissionRule::equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionRule::not_equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionRule::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8StartupAdmissionV2 {
   // private fields
@@ -58,13 +72,24 @@ pub fn Fp8StartupAdmissionV2::version(Self) -> Fp8StartupAdmissionV2Version
 
 pub struct Fp8StartupAdmissionV2Digest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8StartupAdmissionV2Digest::as_hex(Self) -> String
+pub fn Fp8StartupAdmissionV2Digest::equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionV2Digest::hash(Self) -> Int
+pub fn Fp8StartupAdmissionV2Digest::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8StartupAdmissionV2Digest::not_equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionV2Digest::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8StartupAdmissionV2Version(Int) derive(Eq, @debug.Debug)
 pub fn Fp8StartupAdmissionV2Version::as_int(Self) -> Int
+pub fn Fp8StartupAdmissionV2Version::equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionV2Version::not_equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionV2Version::to_repr(Self) -> @debug.Repr
 pub fn Fp8StartupAdmissionV2Version::v2() -> Self
 
 pub struct Fp8StartupAdmissionVersion(Int) derive(Eq, @debug.Debug)
 pub fn Fp8StartupAdmissionVersion::as_int(Self) -> Int
+pub fn Fp8StartupAdmissionVersion::equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionVersion::not_equal(Self, Self) -> Bool
+pub fn Fp8StartupAdmissionVersion::to_repr(Self) -> @debug.Repr
 pub fn Fp8StartupAdmissionVersion::v1() -> Self
 
 // Type aliases

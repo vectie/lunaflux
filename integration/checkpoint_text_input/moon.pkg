@@ -10,5 +10,4 @@ supported_targets = "native"
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
-  "moonbitlang/core/json",
 } for "test"

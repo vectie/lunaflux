@@ -83,7 +83,7 @@ pub fn Block::launches(
   output : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard functions.length() == 9 && scratch.byte_count() >= self.scratch_bytes else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   fn region(
     a : @device.Allocation,

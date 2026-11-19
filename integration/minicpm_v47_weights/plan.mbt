@@ -70,7 +70,7 @@ pub fn Plan::new(
       }
       FullAttention => {
         let a = prefix + "self_attn."
-        BranchIndices::FullAttention({
+        FullAttention({
           query: builder.matrix(
             a + "q_proj.weight",
             full.query_heads * full.head_width * 2,

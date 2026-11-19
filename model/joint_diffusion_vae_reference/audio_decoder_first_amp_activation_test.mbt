@@ -2,7 +2,7 @@
 test "first AMP activation scalar oracle preserves crop padding and stage order" {
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
-  let contract = try! bind_audio_decoder_first_amp_activation(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_first_amp_activation(
     plan,
     request,
     decoder_batch_count=1,
@@ -18,7 +18,7 @@ test "first AMP activation scalar oracle preserves crop padding and stage order"
   let down_filter = Array::make(12, 0.0F)
   up_filter[5] = 1.0F
   down_filter[5] = 1.0F
-  let output = try! execute_audio_decoder_first_amp_activation(
+  let output = try! @joint_diffusion_vae_reference.execute_audio_decoder_first_amp_activation(
     contract,
     [1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F, 9.0F, 10.0F],
     [0.0F],
@@ -44,7 +44,7 @@ test "first AMP activation rejects aliased filters and wrong buffers" {
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
   try
-    bind_audio_decoder_first_amp_activation(
+    @joint_diffusion_vae_reference.bind_audio_decoder_first_amp_activation(
       plan,
       request,
       decoder_batch_count=1,

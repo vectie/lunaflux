@@ -55,6 +55,9 @@ pub(all) suberror KernelArtifactFileError {
   IdentityMismatch(ManifestIdentityPart)
   ArtifactRejected(@artifact.KernelArtifactError)
 } derive(Eq, @debug.Debug)
+pub fn KernelArtifactFileError::equal(Self, Self) -> Bool
+pub fn KernelArtifactFileError::not_equal(Self, Self) -> Bool
+pub fn KernelArtifactFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum ArtifactFileIoIssue {
@@ -62,12 +65,18 @@ pub(all) enum ArtifactFileIoIssue {
   Busy
   Failed
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFileIoIssue::equal(Self, Self) -> Bool
+pub fn ArtifactFileIoIssue::not_equal(Self, Self) -> Bool
+pub fn ArtifactFileIoIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactFileLimit {
   ManifestBytes
   JsonDepth
   PathBytes
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFileLimit::equal(Self, Self) -> Bool
+pub fn ArtifactFileLimit::not_equal(Self, Self) -> Bool
+pub fn ArtifactFileLimit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactFileOperation {
   OpenFile
@@ -75,16 +84,25 @@ pub(all) enum ArtifactFileOperation {
   SnapshotFile
   CloseFile
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFileOperation::equal(Self, Self) -> Bool
+pub fn ArtifactFileOperation::not_equal(Self, Self) -> Bool
+pub fn ArtifactFileOperation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactFileRef {
   ManifestFile
   ModuleFile(Int)
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFileRef::equal(Self, Self) -> Bool
+pub fn ArtifactFileRef::not_equal(Self, Self) -> Bool
+pub fn ArtifactFileRef::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactFileSourceCount {
   SourceModules
   SourceEntryPoints
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFileSourceCount::equal(Self, Self) -> Bool
+pub fn ArtifactFileSourceCount::not_equal(Self, Self) -> Bool
+pub fn ArtifactFileSourceCount::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactPathIssue {
   EmptyPath
@@ -94,6 +112,9 @@ pub(all) enum ArtifactPathIssue {
   InvalidPathCharacter
   DuplicatePath
 } derive(Eq, @debug.Debug)
+pub fn ArtifactPathIssue::equal(Self, Self) -> Bool
+pub fn ArtifactPathIssue::not_equal(Self, Self) -> Bool
+pub fn ArtifactPathIssue::to_repr(Self) -> @debug.Repr
 
 pub struct KernelArtifactFileLimits {
   // private fields
@@ -115,7 +136,10 @@ pub struct KernelManifestDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KernelManifestDigest::as_hex(Self) -> String
+pub fn KernelManifestDigest::equal(Self, Self) -> Bool
 pub fn KernelManifestDigest::from_sha256(String) -> Self raise KernelArtifactFileError
+pub fn KernelManifestDigest::not_equal(Self, Self) -> Bool
+pub fn KernelManifestDigest::to_repr(Self) -> @debug.Repr
 
 pub struct KernelModuleFileInput {
   // private fields
@@ -129,6 +153,9 @@ pub(all) enum ManifestArea {
   ManifestModule
   ManifestEntryPoint
 } derive(Eq, @debug.Debug)
+pub fn ManifestArea::equal(Self, Self) -> Bool
+pub fn ManifestArea::not_equal(Self, Self) -> Bool
+pub fn ManifestArea::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ManifestField {
   SchemaVersionField
@@ -149,6 +176,9 @@ pub(all) enum ManifestField {
   EntryPointIdField
   FunctionSymbolField
 } derive(Eq, @debug.Debug)
+pub fn ManifestField::equal(Self, Self) -> Bool
+pub fn ManifestField::not_equal(Self, Self) -> Bool
+pub fn ManifestField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ManifestIdentityPart {
   ModelContentIdentity
@@ -159,6 +189,9 @@ pub(all) enum ManifestIdentityPart {
   DeviceCublasLtSupport
   KernelCatalogVersion
 } derive(Eq, @debug.Debug)
+pub fn ManifestIdentityPart::equal(Self, Self) -> Bool
+pub fn ManifestIdentityPart::not_equal(Self, Self) -> Bool
+pub fn ManifestIdentityPart::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ManifestValueIssue {
   ExpectedObject
@@ -171,6 +204,9 @@ pub(all) enum ManifestValueIssue {
   CountExceeded
   StringTooLong
 } derive(Eq, @debug.Debug)
+pub fn ManifestValueIssue::equal(Self, Self) -> Bool
+pub fn ManifestValueIssue::not_equal(Self, Self) -> Bool
+pub fn ManifestValueIssue::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

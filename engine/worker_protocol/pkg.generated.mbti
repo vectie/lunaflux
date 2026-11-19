@@ -51,17 +51,26 @@ pub(all) suberror WorkerProtocolError {
   CompletionBufferMismatch
   StaleCompletionBufferEpoch
 } derive(Eq, @debug.Debug)
+pub fn WorkerProtocolError::equal(Self, Self) -> Bool
+pub fn WorkerProtocolError::not_equal(Self, Self) -> Bool
+pub fn WorkerProtocolError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum CapabilityRecipeRule {
   EmptyCapabilityRecipe
 } derive(Eq, @debug.Debug)
+pub fn CapabilityRecipeRule::equal(Self, Self) -> Bool
+pub fn CapabilityRecipeRule::not_equal(Self, Self) -> Bool
+pub fn CapabilityRecipeRule::to_repr(Self) -> @debug.Repr
 
 pub struct CapabilityView(Int, Int) derive(Eq, @debug.Debug)
 pub fn CapabilityView::end(Self) -> Int
+pub fn CapabilityView::equal(Self, Self) -> Bool
 pub fn CapabilityView::length(Self) -> Int
 pub fn CapabilityView::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn CapabilityView::not_equal(Self, Self) -> Bool
 pub fn CapabilityView::start(Self) -> Int
+pub fn CapabilityView::to_repr(Self) -> @debug.Repr
 
 pub struct CompletionBuffer {
   // private fields
@@ -85,6 +94,9 @@ pub(all) enum CompletionBufferState {
   CompletionSubmitted
   Consumed
 } derive(Eq, @debug.Debug)
+pub fn CompletionBufferState::equal(Self, Self) -> Bool
+pub fn CompletionBufferState::not_equal(Self, Self) -> Bool
+pub fn CompletionBufferState::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompletionEntryKind {
   PrefillCompletion
@@ -92,11 +104,19 @@ pub(all) enum CompletionEntryKind {
   DecodeCompletion
   FailedCompletion
 } derive(Eq, @debug.Debug)
+pub fn CompletionEntryKind::equal(Self, Self) -> Bool
+pub fn CompletionEntryKind::not_equal(Self, Self) -> Bool
+pub fn CompletionEntryKind::to_repr(Self) -> @debug.Repr
 
 pub struct CompletionSlot {
   value : Int
 } derive(Eq, Hash, @debug.Debug)
+pub fn CompletionSlot::equal(Self, Self) -> Bool
+pub fn CompletionSlot::hash(Self) -> Int
+pub fn CompletionSlot::hash_combine(Self, Hasher) -> Unit
 pub fn CompletionSlot::new(Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn CompletionSlot::not_equal(Self, Self) -> Bool
+pub fn CompletionSlot::to_repr(Self) -> @debug.Repr
 pub fn CompletionSlot::value(Self) -> Int
 
 pub struct CompletionWriter(CompletionBuffer, UInt64, SchedulePlanBuffer, UInt64)
@@ -113,17 +133,25 @@ pub struct ConsumedCompletion(CompletionBuffer, UInt64)
 pub struct ModelPlanGeneration {
   value : UInt64
 } derive(Eq, Hash, @debug.Debug)
+pub fn ModelPlanGeneration::equal(Self, Self) -> Bool
 pub fn ModelPlanGeneration::first() -> Self
 pub fn ModelPlanGeneration::from_wire(UInt64) -> Self raise WorkerProtocolError
+pub fn ModelPlanGeneration::hash(Self) -> Int
+pub fn ModelPlanGeneration::hash_combine(Self, Hasher) -> Unit
 pub fn ModelPlanGeneration::immediately_follows(Self, Self) -> Bool
 pub fn ModelPlanGeneration::next(Self) -> Self raise WorkerProtocolError
+pub fn ModelPlanGeneration::not_equal(Self, Self) -> Bool
+pub fn ModelPlanGeneration::to_repr(Self) -> @debug.Repr
 pub fn ModelPlanGeneration::value(Self) -> UInt64
 
 pub struct PageTableView(Int, Int) derive(Eq, @debug.Debug)
 pub fn PageTableView::end(Self) -> Int
+pub fn PageTableView::equal(Self, Self) -> Bool
 pub fn PageTableView::length(Self) -> Int
 pub fn PageTableView::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn PageTableView::not_equal(Self, Self) -> Bool
 pub fn PageTableView::start(Self) -> Int
+pub fn PageTableView::to_repr(Self) -> @debug.Repr
 
 pub struct PlanBufferIdentity {
   // private fields
@@ -135,6 +163,9 @@ pub(all) enum PlanBufferState {
   Submitted
   Retired
 } derive(Eq, @debug.Debug)
+pub fn PlanBufferState::equal(Self, Self) -> Bool
+pub fn PlanBufferState::not_equal(Self, Self) -> Bool
+pub fn PlanBufferState::to_repr(Self) -> @debug.Repr
 
 pub struct PlanBuildCheckpoint(SchedulePlanBuffer, UInt64, UInt64)
 
@@ -149,10 +180,15 @@ pub fn PlanRowDraft::rollback(Self) -> Unit raise WorkerProtocolError
 pub struct PlanSequence {
   value : UInt64
 } derive(Eq, Hash, @debug.Debug)
+pub fn PlanSequence::equal(Self, Self) -> Bool
 pub fn PlanSequence::first() -> Self
 pub fn PlanSequence::from_wire(UInt64) -> Self raise WorkerProtocolError
+pub fn PlanSequence::hash(Self) -> Int
+pub fn PlanSequence::hash_combine(Self, Hasher) -> Unit
 pub fn PlanSequence::immediately_follows(Self, Self) -> Bool
 pub fn PlanSequence::next(Self) -> Self raise WorkerProtocolError
+pub fn PlanSequence::not_equal(Self, Self) -> Bool
+pub fn PlanSequence::to_repr(Self) -> @debug.Repr
 pub fn PlanSequence::value(Self) -> UInt64
 
 pub(all) enum ProtocolIdentity {
@@ -163,6 +199,9 @@ pub(all) enum ProtocolIdentity {
   PlanBuildCheckpointEpochIdentity
   CompletionBufferEpochIdentity
 } derive(Eq, @debug.Debug)
+pub fn ProtocolIdentity::equal(Self, Self) -> Bool
+pub fn ProtocolIdentity::not_equal(Self, Self) -> Bool
+pub fn ProtocolIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProtocolLimit {
   PrefillRows
@@ -175,22 +214,30 @@ pub(all) enum ProtocolLimit {
   SequenceTokens
   TokenId
 } derive(Eq, @debug.Debug)
+pub fn ProtocolLimit::equal(Self, Self) -> Bool
+pub fn ProtocolLimit::not_equal(Self, Self) -> Bool
+pub fn ProtocolLimit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProtocolTable {
   Tokens
   Pages
   Capabilities
 } derive(Eq, @debug.Debug)
+pub fn ProtocolTable::equal(Self, Self) -> Bool
+pub fn ProtocolTable::not_equal(Self, Self) -> Bool
+pub fn ProtocolTable::to_repr(Self) -> @debug.Repr
 
 pub struct RetiredSchedulePlan(SchedulePlanBuffer, UInt64)
 
 pub struct RowCapabilityRecipe {
   // private fields
 } derive(Eq)
+pub fn RowCapabilityRecipe::equal(Self, Self) -> Bool
 pub fn RowCapabilityRecipe::identity(Self) -> @spec.ModelIdentity
 pub fn RowCapabilityRecipe::length(Self) -> Int
 pub fn RowCapabilityRecipe::model_plan_generation(Self) -> ModelPlanGeneration
 pub fn RowCapabilityRecipe::new(identity~ : @spec.ModelIdentity, model_plan_generation~ : ModelPlanGeneration, ArrayView[@plan.KernelCapabilityId], WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn RowCapabilityRecipe::not_equal(Self, Self) -> Bool
 pub fn RowCapabilityRecipe::required_cells(Self, Int, WorkerProtocolLimits) -> Int raise WorkerProtocolError
 
 pub(all) enum RowRule {
@@ -205,6 +252,9 @@ pub(all) enum RowRule {
   DuplicateCompletionSlot
   InvalidRowOrder
 } derive(Eq, @debug.Debug)
+pub fn RowRule::equal(Self, Self) -> Bool
+pub fn RowRule::not_equal(Self, Self) -> Bool
+pub fn RowRule::to_repr(Self) -> @debug.Repr
 
 pub struct SchedulePlanBuffer {
   // private fields
@@ -304,15 +354,21 @@ pub fn SubmittedSchedulePlanSlot::retain(Self, SubmittedSchedulePlan) -> Unit ra
 
 pub struct TokenRange(Int, Int) derive(Eq, @debug.Debug)
 pub fn TokenRange::end(Self) -> Int
+pub fn TokenRange::equal(Self, Self) -> Bool
 pub fn TokenRange::length(Self) -> Int
 pub fn TokenRange::new(start~ : Int, length~ : Int, WorkerProtocolLimits) -> Self raise WorkerProtocolError
+pub fn TokenRange::not_equal(Self, Self) -> Bool
 pub fn TokenRange::start(Self) -> Int
+pub fn TokenRange::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WorkerFailure {
   ExecutionFailed
   ResourceUnavailable
   CancelledBeforeExecution
 } derive(Eq, @debug.Debug)
+pub fn WorkerFailure::equal(Self, Self) -> Bool
+pub fn WorkerFailure::not_equal(Self, Self) -> Bool
+pub fn WorkerFailure::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerProtocolLimits {
   max_prefill_rows : Int
@@ -325,6 +381,7 @@ pub struct WorkerProtocolLimits {
   max_sequence_tokens : Int
   max_token_id : Int
 } derive(Eq, @debug.Debug)
+pub fn WorkerProtocolLimits::equal(Self, Self) -> Bool
 pub fn WorkerProtocolLimits::max_capabilities(Self) -> Int
 pub fn WorkerProtocolLimits::max_completion_slots(Self) -> Int
 pub fn WorkerProtocolLimits::max_decode_rows(Self) -> Int
@@ -335,11 +392,16 @@ pub fn WorkerProtocolLimits::max_prefill_rows(Self) -> Int
 pub fn WorkerProtocolLimits::max_sequence_tokens(Self) -> Int
 pub fn WorkerProtocolLimits::max_token_id(Self) -> Int
 pub fn WorkerProtocolLimits::new(max_prefill_rows~ : Int, max_decode_rows~ : Int, max_plan_rows~ : Int, max_plan_tokens~ : Int, max_plan_pages~ : Int, max_capabilities~ : Int, max_completion_slots~ : Int, max_sequence_tokens~ : Int, max_token_id~ : Int) -> Self raise WorkerProtocolError
+pub fn WorkerProtocolLimits::not_equal(Self, Self) -> Bool
+pub fn WorkerProtocolLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WorkerRowKind {
   Prefill
   Decode
 } derive(Eq, @debug.Debug)
+pub fn WorkerRowKind::equal(Self, Self) -> Bool
+pub fn WorkerRowKind::not_equal(Self, Self) -> Bool
+pub fn WorkerRowKind::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

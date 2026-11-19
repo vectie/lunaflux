@@ -22,6 +22,9 @@ pub(all) suberror LunaKernelProfileError {
   LunaKernelProfileMismatch(LunaKernelProfileRule)
   LunaKernelProfileUnsupported(LunaKernelProfileRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaKernelProfileError::equal(Self, Self) -> Bool
+pub fn LunaKernelProfileError::not_equal(Self, Self) -> Bool
+pub fn LunaKernelProfileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaKernelProfileCapture {
@@ -30,32 +33,46 @@ pub struct LunaKernelProfileCapture {
 pub fn LunaKernelProfileCapture::attributed_self_time_ns(Self) -> Int64
 pub fn LunaKernelProfileCapture::canonical_bytes(Self) -> Bytes
 pub fn LunaKernelProfileCapture::digest(Self) -> LunaKernelProfileDigest
+pub fn LunaKernelProfileCapture::equal(Self, Self) -> Bool
 pub fn LunaKernelProfileCapture::identity(Self) -> @spec.ModelIdentity
+pub fn LunaKernelProfileCapture::not_equal(Self, Self) -> Bool
 pub fn LunaKernelProfileCapture::observation_count(Self) -> Int
 pub fn LunaKernelProfileCapture::priority(Self) -> LunaProfiledOperationPriority
 pub fn LunaKernelProfileCapture::profiler_digest(Self) -> LunaKernelProfileDigest
 pub fn LunaKernelProfileCapture::sampled_wall_time_ns(Self) -> Int64
 pub fn LunaKernelProfileCapture::target(Self) -> @catalog.DeviceTarget
+pub fn LunaKernelProfileCapture::to_repr(Self) -> @debug.Repr
 pub fn LunaKernelProfileCapture::workload_digest(Self) -> LunaKernelProfileDigest
 
 pub struct LunaKernelProfileDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaKernelProfileDigest::as_hex(Self) -> String
+pub fn LunaKernelProfileDigest::equal(Self, Self) -> Bool
 pub fn LunaKernelProfileDigest::from_sha256(String) -> Self raise LunaKernelProfileError
+pub fn LunaKernelProfileDigest::hash(Self) -> Int
+pub fn LunaKernelProfileDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaKernelProfileDigest::not_equal(Self, Self) -> Bool
+pub fn LunaKernelProfileDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaKernelProfileLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaKernelProfileLimits::equal(Self, Self) -> Bool
 pub fn LunaKernelProfileLimits::new(maximum_observations~ : Int, maximum_canonical_bytes~ : Int) -> Self raise LunaKernelProfileError
+pub fn LunaKernelProfileLimits::not_equal(Self, Self) -> Bool
+pub fn LunaKernelProfileLimits::to_repr(Self) -> @debug.Repr
 
 pub struct LunaKernelProfileObservation {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaKernelProfileObservation::call_count(Self) -> Int64
+pub fn LunaKernelProfileObservation::equal(Self, Self) -> Bool
 pub fn LunaKernelProfileObservation::inclusive_time_ns(Self) -> Int64
 pub fn LunaKernelProfileObservation::new(operation_id~ : @plan.OperationId, shape~ : @device_profile.ExactExecutionShape, call_count~ : Int64, self_time_ns~ : Int64, inclusive_time_ns~ : Int64) -> Self raise LunaKernelProfileError
+pub fn LunaKernelProfileObservation::not_equal(Self, Self) -> Bool
 pub fn LunaKernelProfileObservation::operation_id(Self) -> @plan.OperationId
 pub fn LunaKernelProfileObservation::self_time_ns(Self) -> Int64
 pub fn LunaKernelProfileObservation::shape(Self) -> @device_profile.ExactExecutionShape
+pub fn LunaKernelProfileObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaKernelProfileRule {
   Digest
@@ -77,6 +94,9 @@ pub(all) enum LunaKernelProfileRule {
   CounterOrder
   LaunchIdentity
 } derive(Eq, @debug.Debug)
+pub fn LunaKernelProfileRule::equal(Self, Self) -> Bool
+pub fn LunaKernelProfileRule::not_equal(Self, Self) -> Bool
+pub fn LunaKernelProfileRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaPagedKernelProfileCapture {
   // private fields
@@ -85,12 +105,15 @@ pub fn LunaPagedKernelProfileCapture::attributed_self_time_ns(Self) -> Int64
 pub fn LunaPagedKernelProfileCapture::canonical_bytes(Self) -> Bytes
 pub fn LunaPagedKernelProfileCapture::contract(Self) -> LunaPagedProfileContract
 pub fn LunaPagedKernelProfileCapture::digest(Self) -> LunaKernelProfileDigest
+pub fn LunaPagedKernelProfileCapture::equal(Self, Self) -> Bool
 pub fn LunaPagedKernelProfileCapture::identity(Self) -> @spec.ModelIdentity
+pub fn LunaPagedKernelProfileCapture::not_equal(Self, Self) -> Bool
 pub fn LunaPagedKernelProfileCapture::observation_count(Self) -> Int
 pub fn LunaPagedKernelProfileCapture::priority(Self) -> LunaProfiledOperationPriority
 pub fn LunaPagedKernelProfileCapture::profiler_digest(Self) -> LunaKernelProfileDigest
 pub fn LunaPagedKernelProfileCapture::sampled_wall_time_ns(Self) -> Int64
 pub fn LunaPagedKernelProfileCapture::target(Self) -> @catalog.DeviceTarget
+pub fn LunaPagedKernelProfileCapture::to_repr(Self) -> @debug.Repr
 pub fn LunaPagedKernelProfileCapture::trace_digest(Self) -> LunaKernelProfileDigest
 pub fn LunaPagedKernelProfileCapture::workload_digest(Self) -> LunaKernelProfileDigest
 
@@ -99,36 +122,50 @@ pub struct LunaPagedKernelProfileObservation {
 } derive(Eq, @debug.Debug)
 pub fn LunaPagedKernelProfileObservation::call_count(Self) -> Int64
 pub fn LunaPagedKernelProfileObservation::counters(Self) -> ReadOnlyArray[LunaPagedProfileCounter]
+pub fn LunaPagedKernelProfileObservation::equal(Self, Self) -> Bool
 pub fn LunaPagedKernelProfileObservation::inclusive_time_ns(Self) -> Int64
 pub fn LunaPagedKernelProfileObservation::new(operation_id~ : @plan.OperationId, shape~ : LunaPagedProfileShape, call_count~ : Int64, self_time_ns~ : Int64, inclusive_time_ns~ : Int64, counters? : ArrayView[LunaPagedProfileCounter]) -> Self raise LunaKernelProfileError
+pub fn LunaPagedKernelProfileObservation::not_equal(Self, Self) -> Bool
 pub fn LunaPagedKernelProfileObservation::operation_id(Self) -> @plan.OperationId
 pub fn LunaPagedKernelProfileObservation::self_time_ns(Self) -> Int64
 pub fn LunaPagedKernelProfileObservation::shape(Self) -> LunaPagedProfileShape
+pub fn LunaPagedKernelProfileObservation::to_repr(Self) -> @debug.Repr
 
 pub struct LunaPagedPageTableTraceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaPagedPageTableTraceDigest::as_hex(Self) -> String
+pub fn LunaPagedPageTableTraceDigest::equal(Self, Self) -> Bool
 pub fn LunaPagedPageTableTraceDigest::from_sha256(String) -> Self raise LunaKernelProfileError
+pub fn LunaPagedPageTableTraceDigest::hash(Self) -> Int
+pub fn LunaPagedPageTableTraceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaPagedPageTableTraceDigest::not_equal(Self, Self) -> Bool
+pub fn LunaPagedPageTableTraceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaPagedProfileContract {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaPagedProfileContract::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn LunaPagedProfileContract::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn LunaPagedProfileContract::equal(Self, Self) -> Bool
 pub fn LunaPagedProfileContract::head_dimension(Self) -> Int
 pub fn LunaPagedProfileContract::kernel_profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn LunaPagedProfileContract::kv_dtype(Self) -> @spec.ModelDType
 pub fn LunaPagedProfileContract::kv_head_count(Self) -> Int
 pub fn LunaPagedProfileContract::launch_identity(Self) -> LunaKernelProfileDigest
 pub fn LunaPagedProfileContract::launches(Self) -> ReadOnlyArray[@launch_contract.PagedKvAotLaunchContract]
+pub fn LunaPagedProfileContract::not_equal(Self, Self) -> Bool
 pub fn LunaPagedProfileContract::scope(Self) -> @launch_contract.PagedContractScope
+pub fn LunaPagedProfileContract::to_repr(Self) -> @debug.Repr
 pub fn LunaPagedProfileContract::tokens_per_page(Self) -> Int
 pub fn LunaPagedProfileContract::total_page_count(Self) -> Int
 
 pub struct LunaPagedProfileCounter {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaPagedProfileCounter::equal(Self, Self) -> Bool
 pub fn LunaPagedProfileCounter::kind(Self) -> LunaPagedProfileCounterKind
 pub fn LunaPagedProfileCounter::new(kind~ : LunaPagedProfileCounterKind, value~ : Int64) -> Self raise LunaKernelProfileError
+pub fn LunaPagedProfileCounter::not_equal(Self, Self) -> Bool
+pub fn LunaPagedProfileCounter::to_repr(Self) -> @debug.Repr
 pub fn LunaPagedProfileCounter::value(Self) -> Int64
 
 pub(all) enum LunaPagedProfileCounterKind {
@@ -138,6 +175,9 @@ pub(all) enum LunaPagedProfileCounterKind {
   L2ReadBytes
   L2WriteBytes
 } derive(Eq, @debug.Debug)
+pub fn LunaPagedProfileCounterKind::equal(Self, Self) -> Bool
+pub fn LunaPagedProfileCounterKind::not_equal(Self, Self) -> Bool
+pub fn LunaPagedProfileCounterKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaPagedProfileRow {
   // private fields
@@ -145,27 +185,36 @@ pub struct LunaPagedProfileRow {
 pub fn LunaPagedProfileRow::block_count(Self) -> Int
 pub fn LunaPagedProfileRow::cache_position(Self) -> Int
 pub fn LunaPagedProfileRow::context_length(Self) -> Int
+pub fn LunaPagedProfileRow::equal(Self, Self) -> Bool
 pub fn LunaPagedProfileRow::new(phase~ : LunaPagedProfileRowPhase, query_length~ : Int, context_length~ : Int, cache_position~ : Int, page_table_start~ : Int, block_count~ : Int) -> Self raise LunaKernelProfileError
+pub fn LunaPagedProfileRow::not_equal(Self, Self) -> Bool
 pub fn LunaPagedProfileRow::page_table_start(Self) -> Int
 pub fn LunaPagedProfileRow::phase(Self) -> LunaPagedProfileRowPhase
 pub fn LunaPagedProfileRow::query_length(Self) -> Int
+pub fn LunaPagedProfileRow::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaPagedProfileRowPhase {
   PagedPrefill
   PagedDecode
 } derive(Eq, @debug.Debug)
+pub fn LunaPagedProfileRowPhase::equal(Self, Self) -> Bool
+pub fn LunaPagedProfileRowPhase::not_equal(Self, Self) -> Bool
+pub fn LunaPagedProfileRowPhase::to_repr(Self) -> @debug.Repr
 
 pub struct LunaPagedProfileShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaPagedProfileShape::decode_row_count(Self) -> Int
 pub fn LunaPagedProfileShape::digest(Self) -> LunaKernelProfileDigest
+pub fn LunaPagedProfileShape::equal(Self, Self) -> Bool
 pub fn LunaPagedProfileShape::new(tokens_per_page~ : Int, prefill_row_count~ : Int, decode_row_count~ : Int, query_token_count~ : Int, page_table_block_count~ : Int, page_table_trace_digest~ : LunaPagedPageTableTraceDigest, ArrayView[LunaPagedProfileRow]) -> Self raise LunaKernelProfileError
+pub fn LunaPagedProfileShape::not_equal(Self, Self) -> Bool
 pub fn LunaPagedProfileShape::page_table_block_count(Self) -> Int
 pub fn LunaPagedProfileShape::page_table_trace_digest(Self) -> LunaPagedPageTableTraceDigest
 pub fn LunaPagedProfileShape::prefill_row_count(Self) -> Int
 pub fn LunaPagedProfileShape::query_token_count(Self) -> Int
 pub fn LunaPagedProfileShape::rows(Self) -> ReadOnlyArray[LunaPagedProfileRow]
+pub fn LunaPagedProfileShape::to_repr(Self) -> @debug.Repr
 pub fn LunaPagedProfileShape::tokens_per_page(Self) -> Int
 
 pub struct LunaProfiledOperationPriority {
@@ -174,8 +223,11 @@ pub struct LunaProfiledOperationPriority {
 pub fn LunaProfiledOperationPriority::attributed_self_time_ns(Self) -> Int64
 pub fn LunaProfiledOperationPriority::attributed_share_ppm(Self) -> Int
 pub fn LunaProfiledOperationPriority::capability(Self) -> @plan.KernelCapabilityId
+pub fn LunaProfiledOperationPriority::equal(Self, Self) -> Bool
+pub fn LunaProfiledOperationPriority::not_equal(Self, Self) -> Bool
 pub fn LunaProfiledOperationPriority::operation_id(Self) -> @plan.OperationId
 pub fn LunaProfiledOperationPriority::operation_kind(Self) -> @plan.OperationKind
+pub fn LunaProfiledOperationPriority::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

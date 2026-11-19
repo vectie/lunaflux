@@ -32,7 +32,7 @@ pub fn TiledDecoderProgram::prepare(
   aot_module : @device.Module,
 ) -> Unit raise @device.DeviceError {
   guard !self.ready && self.functions.is_empty() && self.buffers.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   self.tile.prepare(context, aot_module)
   for name in self.plan.symbols {
@@ -63,7 +63,7 @@ pub fn TiledDecoderProgram::bind(
   head_weights : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.ready && self.buffers.length() == 5 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   fn region(
     a : @device.Allocation,
@@ -157,7 +157,7 @@ pub fn[T] TiledDecoderProgram::with_pixels(
   action : (@device.Allocation) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.ready && self.buffers.length() == 5 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   action(self.buffers[4])
 }

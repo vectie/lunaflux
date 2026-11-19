@@ -21,6 +21,9 @@ pub(all) suberror JointDiffusionKernelRequirementsError {
   RequirementsEncodingTooLarge
   UnsupportedGenericDecoderKernelOperation(Int, JointDiffusionSemanticOperation)
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionKernelRequirementsError::equal(Self, Self) -> Bool
+pub fn JointDiffusionKernelRequirementsError::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionKernelRequirementsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum JointDiffusionAotCapability {
@@ -56,55 +59,91 @@ pub(all) enum JointDiffusionAotCapability {
   AudioVaeDecoderAmpStageAot
   AudioVaeDecoderBodyAot
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAotCapability::equal(Self, Self) -> Bool
+pub fn JointDiffusionAotCapability::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAotCapability::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeAliasFreeActivationStorage {
   Float32InputAlphaBetaUpsampleFilterDownsampleFilterWorkspacesOutput
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeAliasFreeActivationStorage::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeAliasFreeActivationStorage::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeAliasFreeActivationStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeAmpSchedule {
   Kernels3_7_11Dilations1_3_5
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeAmpSchedule::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeAmpSchedule::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeAmpSchedule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeAmpStageStorage {
   Float32OriginalPrecomputedActivationPackedParametersWorkspaceOutput
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeAmpStageStorage::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeAmpStageStorage::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeAmpStageStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeConvPreStorage {
   Float32InputWeightGWeightVBiasWorkspaceOutput
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeConvPreStorage::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeConvPreStorage::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeConvPreStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeConvTransposeStorage {
   Float32InputWeightGWeightVBiasWorkspaceOutput
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeConvTransposeStorage::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeConvTransposeStorage::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeConvTransposeStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeFirstAmpStageStorage {
   Float32OriginalPrecomputedActivationPackedParametersWorkspaceOutput
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeFirstAmpStageStorage::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstAmpStageStorage::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstAmpStageStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeInputProjectionStorage {
   Float32InputWeightBiasOutput
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeInputProjectionStorage::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeInputProjectionStorage::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeInputProjectionStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeLatentLayout {
   BatchChannelTime
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeLatentLayout::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeLatentLayout::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeLatentLayout::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAudioVaeWeightNormAxes {
   PerOutputChannelInputAndKernel
   PerInputChannelOutputAndKernel
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeWeightNormAxes::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeWeightNormAxes::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeWeightNormAxes::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionKernelRequirement {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointDiffusionKernelRequirement::capability(Self) -> JointDiffusionAotCapability
+pub fn JointDiffusionKernelRequirement::equal(Self, Self) -> Bool
+pub fn JointDiffusionKernelRequirement::not_equal(Self, Self) -> Bool
 pub fn JointDiffusionKernelRequirement::operation(Self) -> JointDiffusionSemanticOperation
 pub fn JointDiffusionKernelRequirement::require_current_generic_decoder_capability(Self, ordinal~ : Int) -> @plan.KernelCapabilityId raise JointDiffusionKernelRequirementsError
+pub fn JointDiffusionKernelRequirement::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionKernelRequirementLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionKernelRequirementLimits::equal(Self, Self) -> Bool
 pub fn JointDiffusionKernelRequirementLimits::new(maximum_transformer_layers~ : Int, maximum_requirements~ : Int) -> Self raise JointDiffusionKernelRequirementsError
+pub fn JointDiffusionKernelRequirementLimits::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionKernelRequirementLimits::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionKernelRequirements {
   // private fields
@@ -113,17 +152,23 @@ pub fn JointDiffusionKernelRequirements::capabilities(Self) -> ReadOnlyArray[Joi
 pub fn JointDiffusionKernelRequirements::conditioning_limits(Self) -> @joint_diffusion_plan.JointDiffusionConditioningLimits
 pub fn JointDiffusionKernelRequirements::denoiser_shape(Self) -> @joint_diffusion_plan.JointDiffusionDenoiserShape
 pub fn JointDiffusionKernelRequirements::digest(Self) -> JointDiffusionKernelRequirementsDigest
+pub fn JointDiffusionKernelRequirements::equal(Self, Self) -> Bool
+pub fn JointDiffusionKernelRequirements::not_equal(Self, Self) -> Bool
 pub fn JointDiffusionKernelRequirements::projection_contract(Self) -> @joint_diffusion_plan.JointDiffusionProjectionContract
 pub fn JointDiffusionKernelRequirements::require_current_generic_decoder_capabilities(Self) -> ReadOnlyArray[@plan.KernelCapabilityId] raise JointDiffusionKernelRequirementsError
 pub fn JointDiffusionKernelRequirements::requirements(Self) -> ReadOnlyArray[JointDiffusionKernelRequirement]
 pub fn JointDiffusionKernelRequirements::shape_contract(Self) -> @joint_diffusion_plan.JointDiffusionShapeContract
 pub fn JointDiffusionKernelRequirements::source_identity(Self) -> @spec.ModelIdentity
 pub fn JointDiffusionKernelRequirements::source_schema_version(Self) -> Int
+pub fn JointDiffusionKernelRequirements::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionKernelRequirementsDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointDiffusionKernelRequirementsDigest::as_hex(Self) -> String
+pub fn JointDiffusionKernelRequirementsDigest::equal(Self, Self) -> Bool
+pub fn JointDiffusionKernelRequirementsDigest::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionKernelRequirementsDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionSemanticOperation {
   TokenTextConditioning(Int)
@@ -158,14 +203,23 @@ pub(all) enum JointDiffusionSemanticOperation {
   AudioVaeDecoderAmpStage(Int, Int, Int, Int, Int, JointDiffusionAudioVaeAmpSchedule, JointDiffusionAudioVaeAmpStageStorage, JointDiffusionAudioVaeLatentLayout)
   AudioVaeDecoderBody(Int, Int, Int, Int)
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionSemanticOperation::equal(Self, Self) -> Bool
+pub fn JointDiffusionSemanticOperation::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionSemanticOperation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionVaeLatentDestandardizationStorage {
   Float32InputScaleMeanOutput
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionVaeLatentDestandardizationStorage::equal(Self, Self) -> Bool
+pub fn JointDiffusionVaeLatentDestandardizationStorage::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionVaeLatentDestandardizationStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionVideoVaeLatentLayout {
   BatchChannelFrameHeightWidth
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionVideoVaeLatentLayout::equal(Self, Self) -> Bool
+pub fn JointDiffusionVideoVaeLatentLayout::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionVideoVaeLatentLayout::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

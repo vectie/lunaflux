@@ -25,23 +25,35 @@ pub(all) suberror JointTinyTransformerReferenceError {
   NonFiniteInput
   NonFiniteComputation
 } derive(Eq, @debug.Debug)
+pub fn JointTinyTransformerReferenceError::equal(Self, Self) -> Bool
+pub fn JointTinyTransformerReferenceError::not_equal(Self, Self) -> Bool
+pub fn JointTinyTransformerReferenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct JointTinyConditioningInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointTinyConditioningInput::equal(Self, Self) -> Bool
 pub fn JointTinyConditioningInput::new(text~ : JointTinyConditioningMatrix, keyframe~ : JointTinyConditioningMatrix, reference~ : JointTinyConditioningMatrix) -> Self raise JointTinyTransformerReferenceError
+pub fn JointTinyConditioningInput::not_equal(Self, Self) -> Bool
+pub fn JointTinyConditioningInput::to_repr(Self) -> @debug.Repr
 
 pub struct JointTinyConditioningMatrix {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointTinyConditioningMatrix::equal(Self, Self) -> Bool
 pub fn JointTinyConditioningMatrix::new(source~ : JointTinyConditioningSource, rows~ : Int, width~ : Int, values~ : ArrayView[Double]) -> Self raise JointTinyTransformerReferenceError
+pub fn JointTinyConditioningMatrix::not_equal(Self, Self) -> Bool
+pub fn JointTinyConditioningMatrix::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointTinyConditioningSource {
   TextConditioning
   KeyframeConditioning
   ReferenceConditioning
 } derive(Eq, @debug.Debug)
+pub fn JointTinyConditioningSource::equal(Self, Self) -> Bool
+pub fn JointTinyConditioningSource::not_equal(Self, Self) -> Bool
+pub fn JointTinyConditioningSource::to_repr(Self) -> @debug.Repr
 
 pub struct JointTinyDenoiseStepResult {
   // private fields
@@ -64,12 +76,18 @@ pub fn JointTinyDenoiseStepResult::video_sigma(Self) -> Double
 pub struct JointTinyDense {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointTinyDense::equal(Self, Self) -> Bool
 pub fn JointTinyDense::new(input_width~ : Int, output_width~ : Int, weights~ : ArrayView[Double], bias~ : ArrayView[Double]) -> Self raise JointTinyTransformerReferenceError
+pub fn JointTinyDense::not_equal(Self, Self) -> Bool
+pub fn JointTinyDense::to_repr(Self) -> @debug.Repr
 
 pub struct JointTinyMlp {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointTinyMlp::equal(Self, Self) -> Bool
 pub fn JointTinyMlp::new(up~ : JointTinyDense, down~ : JointTinyDense) -> Self raise JointTinyTransformerReferenceError
+pub fn JointTinyMlp::not_equal(Self, Self) -> Bool
+pub fn JointTinyMlp::to_repr(Self) -> @debug.Repr
 
 pub struct JointTinyTransformerLimits {
   // private fields

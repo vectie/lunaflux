@@ -27,11 +27,11 @@ pub fn MatrixRowReuse::new(
     minimum_inner > 0 &&
     wide_inner >= minimum_inner &&
     wide_tile is (32 | 64) else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   guard fragment_columns > 0 &&
     (fragment_inner is None || fragment_inner.unwrap() > 0) else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   {
     minimum_rows,

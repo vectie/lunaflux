@@ -1,6 +1,6 @@
 ///|
 test "learned index scoring applies ReLU head weighting and stable top-k" {
-  let selected = learned_index_top_k(
+  let selected = @advanced_decoder_reference.learned_index_top_k(
     [1.0F, 0.0F, 0.0F, 1.0F],
     [1.0F, 1.0F, 2.0F, -1.0F, -1.0F, 3.0F],
     [1.0F, 2.0F],
@@ -11,7 +11,7 @@ test "learned index scoring applies ReLU head weighting and stable top-k" {
   )
   assert_eq(selected.indices(), [2, 0])
   assert_eq(selected.scores(), [6.0F, 3.0F])
-  let ties = learned_index_top_k(
+  let ties = @advanced_decoder_reference.learned_index_top_k(
     [0.0F],
     [1.0F, 2.0F, 3.0F],
     [1.0F],
@@ -27,7 +27,7 @@ test "learned index scoring applies ReLU head weighting and stable top-k" {
 test "deterministic compression returns only causal complete slots" {
   let limits = test_limits()
   assert_eq(
-    deterministic_compressed_indices(
+    @advanced_decoder_reference.deterministic_compressed_indices(
       compression_ratio=4,
       query_position=0,
       cache_offset=10,
@@ -36,7 +36,7 @@ test "deterministic compression returns only causal complete slots" {
     [],
   )
   assert_eq(
-    deterministic_compressed_indices(
+    @advanced_decoder_reference.deterministic_compressed_indices(
       compression_ratio=4,
       query_position=3,
       cache_offset=10,
@@ -45,7 +45,7 @@ test "deterministic compression returns only causal complete slots" {
     [10],
   )
   assert_eq(
-    deterministic_compressed_indices(
+    @advanced_decoder_reference.deterministic_compressed_indices(
       compression_ratio=4,
       query_position=8,
       cache_offset=10,
@@ -58,7 +58,7 @@ test "deterministic compression returns only causal complete slots" {
 ///|
 test "index selection rejects hostile dimensions bounds and NaN" {
   try
-    learned_index_top_k(
+    @advanced_decoder_reference.learned_index_top_k(
       [1.0F],
       [1.0F],
       [@float.not_a_number],
@@ -74,7 +74,7 @@ test "index selection rejects hostile dimensions bounds and NaN" {
     _ => fail("learned index admitted NaN weight")
   }
   try
-    deterministic_compressed_indices(
+    @advanced_decoder_reference.deterministic_compressed_indices(
       compression_ratio=1,
       query_position=8,
       cache_offset=0,
@@ -87,7 +87,7 @@ test "index selection rejects hostile dimensions bounds and NaN" {
     _ => fail("ratio-one compression was admitted")
   }
   try
-    deterministic_compressed_indices(
+    @advanced_decoder_reference.deterministic_compressed_indices(
       compression_ratio=4,
       query_position=7,
       cache_offset=2147483647,

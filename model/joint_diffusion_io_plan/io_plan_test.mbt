@@ -20,16 +20,16 @@ fn io_minimax_plan(
 }
 
 ///|
-fn io_text() -> ValidatedTextConditioning {
-  try! ValidatedTextConditioning::new(
+fn io_text() -> @joint_diffusion_io_plan.ValidatedTextConditioning {
+  try! @joint_diffusion_io_plan.ValidatedTextConditioning::new(
     content_digest=io_content('a'),
     token_count=137,
   )
 }
 
 ///|
-fn io_image(seed : Char) -> ValidatedImageInput {
-  try! ValidatedImageInput::new(
+fn io_image(seed : Char) -> @joint_diffusion_io_plan.ValidatedImageInput {
+  try! @joint_diffusion_io_plan.ValidatedImageInput::new(
     content_digest=io_content(seed),
     height=768,
     width=1344,
@@ -37,8 +37,8 @@ fn io_image(seed : Char) -> ValidatedImageInput {
 }
 
 ///|
-fn io_video(seed : Char) -> ValidatedVideoInput {
-  try! ValidatedVideoInput::new(
+fn io_video(seed : Char) -> @joint_diffusion_io_plan.ValidatedVideoInput {
+  try! @joint_diffusion_io_plan.ValidatedVideoInput::new(
     content_digest=io_content(seed),
     height=768,
     width=1344,
@@ -48,8 +48,8 @@ fn io_video(seed : Char) -> ValidatedVideoInput {
 }
 
 ///|
-fn io_audio(seed : Char) -> ValidatedAudioInput {
-  try! ValidatedAudioInput::new(
+fn io_audio(seed : Char) -> @joint_diffusion_io_plan.ValidatedAudioInput {
+  try! @joint_diffusion_io_plan.ValidatedAudioInput::new(
     content_digest=io_content(seed),
     sample_count=96000L,
     sample_rate=32000,
@@ -61,8 +61,8 @@ fn io_audio(seed : Char) -> ValidatedAudioInput {
 fn io_text_request(
   plan : @joint_diffusion_plan.JointDiffusionPlan,
   seed~ : Int64 = 42L,
-) -> JointDiffusionIoPlan {
-  try! normalize(
+) -> @joint_diffusion_io_plan.JointDiffusionIoPlan {
+  try! @joint_diffusion_io_plan.normalize(
     plan,
     workflow=TextToAudioVideo,
     text=io_text(),
@@ -106,15 +106,15 @@ test "MiniMax FL2VA projection binds exact resolved media and latent shape" {
 ///|
 test "FL2VA keyframes canonicalize by semantic position and bind content" {
   let plan = io_minimax_plan()
-  let first = JointKeyframeConditioning::new(
+  let first = @joint_diffusion_io_plan.JointKeyframeConditioning::new(
     position=FirstFrame,
     image=io_image('b'),
   )
-  let last = JointKeyframeConditioning::new(
+  let last = @joint_diffusion_io_plan.JointKeyframeConditioning::new(
     position=LastFrame,
     image=io_image('c'),
   )
-  let reversed = try! normalize(
+  let reversed = try! @joint_diffusion_io_plan.normalize(
     plan,
     workflow=FirstLastFrameToAudioVideo,
     text=io_text(),
@@ -126,7 +126,7 @@ test "FL2VA keyframes canonicalize by semantic position and bind content" {
     guidance_scale=1.0,
     keyframes=[last, first],
   )
-  let canonical = try! normalize(
+  let canonical = try! @joint_diffusion_io_plan.normalize(
     plan,
     workflow=FirstLastFrameToAudioVideo,
     text=io_text(),
@@ -148,10 +148,16 @@ test "FL2VA keyframes canonicalize by semantic position and bind content" {
 ///|
 test "MiniMax Ref2VA preserves reference order in request identity" {
   let plan = io_minimax_plan(variant=Ref2va)
-  let image = JointReferenceConditioning::ImageReference(io_image('b'))
-  let video = JointReferenceConditioning::VideoReference(io_video('c'))
-  let audio = JointReferenceConditioning::AudioReference(io_audio('d'))
-  let first = try! normalize(
+  let image = @joint_diffusion_io_plan.JointReferenceConditioning::ImageReference(
+    io_image('b'),
+  )
+  let video = @joint_diffusion_io_plan.JointReferenceConditioning::VideoReference(
+    io_video('c'),
+  )
+  let audio = @joint_diffusion_io_plan.JointReferenceConditioning::AudioReference(
+    io_audio('d'),
+  )
+  let first = try! @joint_diffusion_io_plan.normalize(
     plan,
     workflow=ReferenceToAudioVideo,
     text=io_text(),
@@ -163,7 +169,7 @@ test "MiniMax Ref2VA preserves reference order in request identity" {
     guidance_scale=1.0,
     references=[image, video, audio],
   )
-  let reordered = try! normalize(
+  let reordered = try! @joint_diffusion_io_plan.normalize(
     plan,
     workflow=ReferenceToAudioVideo,
     text=io_text(),
@@ -197,7 +203,7 @@ test "request identity is deterministic and seed and model sensitive" {
 test "workflow and guidance mismatches fail closed" {
   let plan = io_minimax_plan()
   try
-    normalize(
+    @joint_diffusion_io_plan.normalize(
       plan,
       workflow=ReferenceToAudioVideo,
       text=io_text(),
@@ -217,7 +223,7 @@ test "workflow and guidance mismatches fail closed" {
   }
   for hostile in [0.0, 7.5, @double.not_a_number, @double.infinity] {
     try
-      normalize(
+      @joint_diffusion_io_plan.normalize(
         plan,
         workflow=TextToAudioVideo,
         text=io_text(),
@@ -240,12 +246,12 @@ test "workflow and guidance mismatches fail closed" {
 ///|
 test "duplicate keyframes and non-normalized media fail closed" {
   let plan = io_minimax_plan()
-  let first = JointKeyframeConditioning::new(
+  let first = @joint_diffusion_io_plan.JointKeyframeConditioning::new(
     position=FirstFrame,
     image=io_image('b'),
   )
   try
-    normalize(
+    @joint_diffusion_io_plan.normalize(
       plan,
       workflow=FirstLastFrameToAudioVideo,
       text=io_text(),
@@ -263,13 +269,13 @@ test "duplicate keyframes and non-normalized media fail closed" {
   } noraise {
     _ => fail("duplicate keyframe position was admitted")
   }
-  let wrong_canvas = try! ValidatedImageInput::new(
+  let wrong_canvas = try! @joint_diffusion_io_plan.ValidatedImageInput::new(
     content_digest=io_content('c'),
     height=736,
     width=1344,
   )
   try
-    normalize(
+    @joint_diffusion_io_plan.normalize(
       plan,
       workflow=FirstLastFrameToAudioVideo,
       text=io_text(),
@@ -280,7 +286,10 @@ test "duplicate keyframes and non-normalized media fail closed" {
       seed=0L,
       guidance_scale=1.0,
       keyframes=[
-        JointKeyframeConditioning::new(position=FirstFrame, image=wrong_canvas),
+        @joint_diffusion_io_plan.JointKeyframeConditioning::new(
+          position=FirstFrame,
+          image=wrong_canvas,
+        ),
       ],
     )
   catch {
@@ -295,7 +304,7 @@ test "duplicate keyframes and non-normalized media fail closed" {
 test "Ref2VA count ceilings and audio-only conditioning fail closed" {
   let plan = io_minimax_plan(variant=Ref2va)
   try
-    normalize(
+    @joint_diffusion_io_plan.normalize(
       plan,
       workflow=ReferenceToAudioVideo,
       text=io_text(),
@@ -313,10 +322,12 @@ test "Ref2VA count ceilings and audio-only conditioning fail closed" {
   } noraise {
     _ => fail("audio-only references were admitted")
   }
-  let image = JointReferenceConditioning::ImageReference(io_image('c'))
+  let image = @joint_diffusion_io_plan.JointReferenceConditioning::ImageReference(
+    io_image('c'),
+  )
   let references = Array::make(13, image)
   try
-    normalize(
+    @joint_diffusion_io_plan.normalize(
       plan,
       workflow=ReferenceToAudioVideo,
       text=io_text(),
@@ -339,7 +350,7 @@ test "Ref2VA count ceilings and audio-only conditioning fail closed" {
 ///|
 test "terminal metadata remains request-bound and exact" {
   let request = io_text_request(io_minimax_plan())
-  let success = try! JointDiffusionResultMetadata::succeeded(
+  let success = try! @joint_diffusion_io_plan.JointDiffusionResultMetadata::succeeded(
     request,
     video_frame_count=124,
     audio_sample_count=165600L,
@@ -350,7 +361,7 @@ test "terminal metadata remains request-bound and exact" {
   assert_eq(success.completed_stage_count(), request.stage_count())
   assert_eq(success.video_frame_count(), Some(124))
   assert_eq(success.audio_sample_count(), Some(165600L))
-  let cancelled = try! JointDiffusionResultMetadata::cancelled(
+  let cancelled = try! @joint_diffusion_io_plan.JointDiffusionResultMetadata::cancelled(
     request,
     reason=CallerRequested,
     completed_stage_count=3,
@@ -364,7 +375,7 @@ test "terminal metadata remains request-bound and exact" {
 test "forged output counts and completed cancellation fail closed" {
   let request = io_text_request(io_minimax_plan())
   try
-    JointDiffusionResultMetadata::succeeded(
+    @joint_diffusion_io_plan.JointDiffusionResultMetadata::succeeded(
       request,
       video_frame_count=124,
       audio_sample_count=165333L,
@@ -376,7 +387,7 @@ test "forged output counts and completed cancellation fail closed" {
     _ => fail("nominal duration substituted for actual decoder output")
   }
   try
-    JointDiffusionResultMetadata::succeeded(
+    @joint_diffusion_io_plan.JointDiffusionResultMetadata::succeeded(
       request,
       video_frame_count=120,
       audio_sample_count=165333L,
@@ -388,7 +399,7 @@ test "forged output counts and completed cancellation fail closed" {
     _ => fail("wrong output shape was admitted")
   }
   try
-    JointDiffusionResultMetadata::cancelled(
+    @joint_diffusion_io_plan.JointDiffusionResultMetadata::cancelled(
       request,
       reason=RuntimeShutdown,
       completed_stage_count=request.stage_count(),

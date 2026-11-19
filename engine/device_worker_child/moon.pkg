@@ -1,10 +1,10 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/engine/device_worker_bootstrap",
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/luna_capability_manifest",
-  "vectie/lunaflux/engine/device_profile",
   "vectie/lunaflux/internal/process",
 }
 

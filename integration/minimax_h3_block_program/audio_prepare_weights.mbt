@@ -12,7 +12,7 @@ pub fn AudioAmpProgram::prepare_weights(
   max_cache_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.layout is Some(layout) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let (offsets, bytes) = audio_amp_cache_offsets(layout)
   self.cache.prepare(context, stream, bytes, max_cache_bytes, weights, normalized => {
@@ -25,7 +25,7 @@ pub fn AudioAmpProgram::prepare_weights(
           return region.byte_offset()
         }
       }
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     let launches = []
     for block in 0..<3 {
@@ -66,7 +66,7 @@ pub fn AudioFrontendProgram::prepare_weights(
   max_cache_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.layout is Some(layout) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   self.cache.prepare(
     context,
@@ -98,7 +98,7 @@ pub fn AudioTailProgram::prepare_weights(
   max_cache_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.layout is Some(layout) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let g = layout.activation.parameter_bytes * 2L + 96L
   self.cache.prepare(
@@ -133,16 +133,16 @@ pub fn AudioDecodeStage::prepare_weights(
   max_cache_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.layout is Some(layout) && self.workspace is Some(_) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let u = layout.upsample
   guard self.amp.layout is Some(amp_layout) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let amp_bytes = audio_amp_cache_offsets(amp_layout).1
   guard u.weight_bytes <= max_cache_bytes &&
     amp_bytes <= max_cache_bytes - u.weight_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   self.cache.prepare(
     context,

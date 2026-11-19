@@ -54,8 +54,7 @@ test "present BPE ignore_merges rejects invalid field types" {
         max_depth=16,
       )
     catch {
-      @json_reader.InvalidField(component=Model, field=IgnoreMerges, index=0) =>
-        ()
+      InvalidField(component=Model, field=IgnoreMerges, index=0) => ()
       _ => fail("unexpected optional-field error")
     } noraise {
       _ => fail("invalid ignore_merges type was coerced")

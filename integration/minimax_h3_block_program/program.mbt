@@ -24,7 +24,7 @@ pub fn Program::prepare(
   max_workspace_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard !self.ready && self.functions.is_empty() && self.workspace is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let shape = self.source.shape
   let layout = @joint_diffusion_device.BlockWorkspaceLayout::new(

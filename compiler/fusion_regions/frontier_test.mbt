@@ -95,7 +95,7 @@ test "a slower producer with another continuation contract cannot be pruned" {
     maximum_local_bytes=16L,
   )
   assert_eq(selected.implementation_id(), 2)
-  assert_eq(selected.continuation_class(), @fusion_regions.Scoped(7))
+  assert_eq(selected.continuation_class(), Scoped(7))
   assert_eq(selected.cost().nanoseconds(), 20L)
   assert_eq(selected.resources(), (32L, 16L))
   assert_eq(
@@ -115,7 +115,7 @@ test "a slower producer with another continuation contract cannot be pruned" {
         maximum_local_bytes=0L,
       )
     catch {
-      @fusion_regions.NoFeasiblePartition => ()
+      NoFeasiblePartition => ()
       _ => fail("wrong unavailable continuation error")
     } noraise {
       _ => fail("silently fell back to a different continuation")
@@ -173,7 +173,7 @@ test "frontier agrees with exhaustive selection over budgets and continuation cl
         // Independent exhaustive oracle: no dominance or frontier logic.
         let expected = for value in choices; best = (None : (Int64, Int32)?) {
           let (scratch, storage) = value.resources()
-          if value.continuation_class() != @fusion_regions.Scoped(continuation) ||
+          if value.continuation_class() != Scoped(continuation) ||
             scratch > workspace.to_int64() ||
             storage > local_storage.to_int64() {
             continue best
@@ -195,7 +195,7 @@ test "frontier agrees with exhaustive selection over budgets and continuation cl
             maximum_local_bytes=local_storage.to_int64(),
           )
         catch {
-          @fusion_regions.NoFeasiblePartition => None
+          NoFeasiblePartition => None
           other => raise other
         } noraise {
           value => Some((value.cost().nanoseconds(), value.implementation_id()))
@@ -231,7 +231,7 @@ test "frontier rejects mixed graphs bases duplicate identities and invalid budge
       [valid, alternative(foreign, 3, 1L, 0L, 0L)],
     ] {
     try @fusion_regions.PartitionFrontier::new(choices) catch {
-      @fusion_regions.InvalidComparison => ()
+      InvalidComparison => ()
       _ => fail("wrong comparison rejection")
     } noraise {
       _ => fail("invalid comparison accepted")
@@ -251,7 +251,7 @@ test "frontier rejects mixed graphs bases duplicate identities and invalid budge
         maximum_local_bytes=local_storage,
       )
     catch {
-      @fusion_regions.InvalidComparison => ()
+      InvalidComparison => ()
       _ => fail("wrong budget rejection")
     } noraise {
       _ => fail("invalid budget accepted")

@@ -64,6 +64,9 @@ pub(all) suberror AdvancedDecoderReferenceError {
   InvalidAuxiliaryOrder
   InvalidBlock
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderReferenceError::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderReferenceError::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderReferenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum AuxiliaryReferenceStage {
@@ -75,34 +78,49 @@ pub(all) enum AuxiliaryReferenceStage {
   DsparkMarkovAdjustment
   DsparkConfidence
 } derive(Eq, @debug.Debug)
+pub fn AuxiliaryReferenceStage::equal(Self, Self) -> Bool
+pub fn AuxiliaryReferenceStage::not_equal(Self, Self) -> Bool
+pub fn AuxiliaryReferenceStage::to_repr(Self) -> @debug.Repr
 
 pub struct ExpertRouting {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ExpertRouting::equal(Self, Self) -> Bool
 pub fn ExpertRouting::expert_indices(Self) -> ReadOnlyArray[Int]
+pub fn ExpertRouting::not_equal(Self, Self) -> Bool
 pub fn ExpertRouting::selected_count(Self) -> Int
+pub fn ExpertRouting::to_repr(Self) -> @debug.Repr
 pub fn ExpertRouting::weights(Self) -> ReadOnlyArray[Float]
 
 pub struct HyperConnectionBlockControls {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn HyperConnectionBlockControls::combination(Self) -> ReadOnlyArray[Float]
+pub fn HyperConnectionBlockControls::equal(Self, Self) -> Bool
+pub fn HyperConnectionBlockControls::not_equal(Self, Self) -> Bool
 pub fn HyperConnectionBlockControls::post(Self) -> ReadOnlyArray[Float]
 pub fn HyperConnectionBlockControls::pre(Self) -> ReadOnlyArray[Float]
+pub fn HyperConnectionBlockControls::to_repr(Self) -> @debug.Repr
 
 pub struct ReferenceLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ReferenceLimits::equal(Self, Self) -> Bool
 pub fn ReferenceLimits::max_iterations(Self) -> Int
 pub fn ReferenceLimits::max_values(Self) -> Int
 pub fn ReferenceLimits::max_width(Self) -> Int
 pub fn ReferenceLimits::new(max_values~ : Int, max_width~ : Int, max_iterations~ : Int) -> Self raise AdvancedDecoderReferenceError
+pub fn ReferenceLimits::not_equal(Self, Self) -> Bool
+pub fn ReferenceLimits::to_repr(Self) -> @debug.Repr
 
 pub struct ReferenceTopK {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ReferenceTopK::equal(Self, Self) -> Bool
 pub fn ReferenceTopK::indices(Self) -> ReadOnlyArray[Int]
+pub fn ReferenceTopK::not_equal(Self, Self) -> Bool
 pub fn ReferenceTopK::scores(Self) -> ReadOnlyArray[Float]
+pub fn ReferenceTopK::to_repr(Self) -> @debug.Repr
 
 pub struct TinyAdvancedDecoderBlockInput {
   // private fields
@@ -113,10 +131,13 @@ pub struct TinyAdvancedDecoderBlockOutput {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TinyAdvancedDecoderBlockOutput::attention_weights(Self) -> ReadOnlyArray[Float]
+pub fn TinyAdvancedDecoderBlockOutput::equal(Self, Self) -> Bool
 pub fn TinyAdvancedDecoderBlockOutput::hidden(Self) -> ReadOnlyArray[Float]
 pub fn TinyAdvancedDecoderBlockOutput::mixed_streams(Self) -> ReadOnlyArray[Float]
+pub fn TinyAdvancedDecoderBlockOutput::not_equal(Self, Self) -> Bool
 pub fn TinyAdvancedDecoderBlockOutput::routing(Self) -> ExpertRouting
 pub fn TinyAdvancedDecoderBlockOutput::selected_key_indices(Self) -> ReadOnlyArray[Int]
+pub fn TinyAdvancedDecoderBlockOutput::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

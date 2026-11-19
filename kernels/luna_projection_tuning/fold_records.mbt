@@ -132,7 +132,7 @@ pub fn parse_projection_fold_records(
           }
           sibling_execution = Some(
             match execution {
-              "serial" => @compiler.SerialTransfer
+              "serial" => SerialTransfer
               "prefetch" => CompletedPrefetch
               "overlapped" => OverlappedTransfer
               _ => raise InvalidSnapshot

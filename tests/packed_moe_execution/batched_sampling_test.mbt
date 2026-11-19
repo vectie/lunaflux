@@ -6,7 +6,7 @@ test "sampling binds only after executor ownership and closes exactly once" {
   let rank = batch_rank_fixture()
   defer (rank.close() catch { _ => () })
   rank.prepare_ports(context, maximum_device_bytes=rank.required_device_bytes())
-  let closes = Ref::new(0)
+  let closes = Ref(0)
   let sampler = @batch_worker.BatchedSampling::new(
     maximum_outputs=2,
     vocabulary_size=16,

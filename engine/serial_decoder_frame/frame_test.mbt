@@ -141,7 +141,7 @@ test "samples outside vocabulary and sparse errors publish failure and poison hi
     assert_true(host.is_faulted())
     assert_eq(host.processed_tokens(), 0)
     try host.release_request() catch {
-      @serial_decoder_frame.SerialDecoderError::Faulted => ()
+      Faulted => ()
       error => raise error
     } noraise {
       _ => fail("reused failed GPU history")

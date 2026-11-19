@@ -6,7 +6,7 @@ test "transformer block preserves producer consumer ordering without per-block w
     assert_eq(stage, i)
   }
   try compose_block([0], [2, 3, 4, 5], 6, [7, 8], [9, 10], 11) catch {
-    @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+    InvalidArgument(AotKernelLaunch) => ()
     _ => fail("wrong block composition error")
   } noraise {
     _ => fail("missing normalization/modulation stage accepted")

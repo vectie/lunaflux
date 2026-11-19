@@ -23,13 +23,13 @@ async fn main {
     "run" => {
       let context = @device.open_context(0)
       defer (context.close() catch { _ => () })
-      let module = context.load_module(@fs.read_file(path).binary())
-      defer (module.close() catch { _ => () })
+      let device_module = context.load_module(@fs.read_file(path).binary())
+      defer (device_module.close() catch { _ => () })
       let logits = context.allocate(v.to_int64() * rows.to_int64() * 4L)
       defer (logits.close() catch { _ => () })
       let sampler = @gpu.BatchedDeviceSampler::new(
         context,
-        module,
+        device_module,
         logits,
         program,
         maximum_device_bytes=71303168L,
@@ -40,7 +40,7 @@ async fn main {
       sampler.close()
       sampler.close()
       logits.close()
-      module.close()
+      device_module.close()
       context.close()
       println("full_sampling_actual_owner=pass context_closed=true")
     }

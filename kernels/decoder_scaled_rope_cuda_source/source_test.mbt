@@ -1,6 +1,6 @@
 ///|
 test "scaled YaRN renderer binds adjacent BF16 pair geometry" {
-  let rendered = scaled_yarn_rope_bf16_source(
+  let rendered = @decoder_scaled_rope_cuda_source.scaled_yarn_rope_bf16_source(
     query_head_count=64,
     key_value_head_count=1,
     rope_dimension=64,
@@ -29,7 +29,7 @@ test "scaled YaRN renderer binds adjacent BF16 pair geometry" {
 ///|
 test "scaled YaRN renderer rejects hostile geometry and symbol" {
   try
-    scaled_yarn_rope_bf16_source(
+    @decoder_scaled_rope_cuda_source.scaled_yarn_rope_bf16_source(
       query_head_count=1,
       key_value_head_count=1,
       rope_dimension=63,
@@ -49,7 +49,7 @@ test "scaled YaRN renderer rejects hostile geometry and symbol" {
     _ => fail("odd RoPE width was admitted")
   }
   try
-    scaled_yarn_rope_bf16_source(
+    @decoder_scaled_rope_cuda_source.scaled_yarn_rope_bf16_source(
       query_head_count=1,
       key_value_head_count=1,
       rope_dimension=64,
@@ -69,7 +69,7 @@ test "scaled YaRN renderer rejects hostile geometry and symbol" {
     _ => fail("oversized original positions were admitted")
   }
   try
-    scaled_yarn_rope_bf16_source(
+    @decoder_scaled_rope_cuda_source.scaled_yarn_rope_bf16_source(
       query_head_count=1,
       key_value_head_count=1,
       rope_dimension=64,
@@ -89,7 +89,7 @@ test "scaled YaRN renderer rejects hostile geometry and symbol" {
     _ => fail("zero compressed theta was admitted")
   }
   try
-    scaled_yarn_rope_bf16_source(
+    @decoder_scaled_rope_cuda_source.scaled_yarn_rope_bf16_source(
       query_head_count=1,
       key_value_head_count=1,
       rope_dimension=64,

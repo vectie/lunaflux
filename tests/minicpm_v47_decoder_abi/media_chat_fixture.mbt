@@ -296,10 +296,7 @@ async fn run_media_chat_fixture(
       }
       assert_true(backend.is_ready())
       assert_true(execution.is_finished())
-      assert_eq(
-        execution.finish_reason(),
-        Some(@inference.FinishReason::Cancelled),
-      )
+      assert_eq(execution.finish_reason(), Some(Cancelled))
       println(
         "MiniCPM media HTTP: pending vision timeout/capacity cleanup verified",
       )
@@ -329,10 +326,7 @@ async fn run_media_chat_fixture(
         @async.pause()
       }
       assert_true(backend.is_ready() && execution.is_finished())
-      assert_eq(
-        execution.finish_reason(),
-        Some(@inference.FinishReason::Cancelled),
-      )
+      assert_eq(execution.finish_reason(), Some(Cancelled))
       hold_completion(false)
       assert_eq(media_chat_post(url, bytes).0, 200)
       while !service.is_ready() {

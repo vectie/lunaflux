@@ -64,7 +64,7 @@ pub fn VideoDecodeRequest::prepare(
   standard_deviations~ : @device.Allocation,
 ) -> Unit raise @device.DeviceError {
   guard self.phase == Empty else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.phase = Failed
   self.geometry = Some(bundle.output)
@@ -165,7 +165,7 @@ pub fn VideoDecodeRequest::submit(
   self : Self,
 ) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   for index in 0..<queue.kernel_count() {
@@ -181,7 +181,7 @@ pub fn VideoDecodeRequest::poll(self : Self) -> Bool raise @device.DeviceError {
     return true
   }
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   let done = queue.poll_completion()
@@ -195,7 +195,7 @@ pub fn VideoDecodeRequest::wait(self : Self) -> Unit raise @device.DeviceError {
     return
   }
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorWait)
+    raise InvalidArgument(OrderedExecutorWait)
   }
   self.phase = Failed
   queue.wait_completion()
@@ -207,7 +207,7 @@ pub fn VideoDecodeRequest::geometry(
   self : Self,
 ) -> VideoOutput raise @device.DeviceError {
   guard self.geometry is Some(shape) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   shape
 }
@@ -220,7 +220,7 @@ pub fn[T] VideoDecodeRequest::with_output(
   consume : (@device.Allocation) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Complete && self.output is Some(output) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(output)
 }

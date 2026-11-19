@@ -35,8 +35,8 @@ fn device_sampling_test_compiler() -> @luna_specialization.LunaCompilerPolicy {
 }
 
 ///|
-fn device_sampling_test_limits() -> DeviceSamplingAotLimits {
-  try! DeviceSamplingAotLimits::new(
+fn device_sampling_test_limits() -> @luna_cuda_sampling_aot.DeviceSamplingAotLimits {
+  try! @luna_cuda_sampling_aot.DeviceSamplingAotLimits::new(
     max_source_bytes=32768,
     max_recipe_bytes=4096,
     max_module_bytes=65536L,
@@ -103,7 +103,7 @@ test "stochastic artifact requires deterministic offline builds" {
   )
   let cubin = b"deterministic-device-sampling-cubin"
   let digest = @crypto.bytes_to_hex_string(@crypto.sha256(cubin))
-  let receipt = DeviceSamplingCompileReceipt::from_offline_builder(
+  let receipt = @luna_cuda_sampling_aot.DeviceSamplingCompileReceipt::from_offline_builder(
     source_sha256=lowering.source_sha256(),
     recipe_sha256=lowering.recipe_sha256(),
     toolchain_sha256="a".repeat(64),

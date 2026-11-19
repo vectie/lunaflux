@@ -16,7 +16,7 @@ test "joint window compressed read plans retain causal and learned identity" {
   assert_eq(learned.cache_capacity(), 4)
   assert_eq(learned.selected_width(), 2)
   assert_eq(learned.state_bytes(), window.state_bytes())
-  assert_eq(learned.effect(), @precision_ir.NumericEffect::CacheCommit)
+  assert_eq(learned.effect(), CacheCommit)
   assert_eq(learned.score_scale(), 1.0 / 128.0.sqrt())
   let causal = @precision_ir.WindowCompressedKvPrecision::new(
     window,
@@ -51,7 +51,7 @@ test "joint attention rejects invalid compression and selection limits" {
         read_set=AllCausal,
       )
     catch {
-      @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+      IllegalPlacement => ()
       error => raise error
     } noraise {
       _ => fail("invalid compression accepted")
@@ -65,7 +65,7 @@ test "joint attention rejects invalid compression and selection limits" {
         read_set=Learned(top_k~),
       )
     catch {
-      @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+      IllegalPlacement => ()
       error => raise error
     } noraise {
       _ => fail("invalid selection accepted")

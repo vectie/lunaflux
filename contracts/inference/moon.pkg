@@ -1,8 +1,15 @@
 import {
   "moonbitlang/core/debug",
   "vectie/lunaflux/model/spec",
-  "moonbitlang/core/double",
   "moonbitlang/core/encoding/utf8",
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/core/double",
+} for "test"
+
+import {
+  "moonbitlang/core/double",
+} for "wbtest"

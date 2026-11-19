@@ -9,7 +9,7 @@ test "v4 transfer effects are independent source-bound alternatives" {
       ("prefetch", CompletedPrefetch),
       ("overlapped", OverlappedTransfer),
     ] {
-    let records = parse_projection_fold_records(
+    let records = @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(
         "luna-projection-fold-v4\nscope\ttest\n" +
         baseline +
@@ -29,7 +29,7 @@ test "v4 transfer effects are independent source-bound alternatives" {
       ("v4", "execution:overlapped,execution:serial"),
     ] {
     try
-      parse_projection_fold_records(
+      @luna_projection_tuning.parse_projection_fold_records(
         @utf8.encode(
           "luna-projection-fold-\{version}\nscope\ttest\n" +
           baseline +
@@ -52,7 +52,7 @@ test "v3 row domains compose global and bounded schedules without duplicate doma
   let b = "b".repeat(64)
   let prefix = "luna-projection-fold-v3\nscope\ttest\nrecord\t\{a}\t\{a}\t100\t3\t-\n"
   let choices = "matrix:2:4:1:4:4:1,matrix:2:4:1:1:1:0:1:16"
-  let records = parse_projection_fold_records(
+  let records = @luna_projection_tuning.parse_projection_fold_records(
     @utf8.encode(prefix + "record\t\{a}\t\{b}\t50\t3\t\{choices}\n"),
     scope="test",
   )
@@ -60,7 +60,7 @@ test "v3 row domains compose global and bounded schedules without duplicate doma
   assert_eq(records[1].fold_choices()[0].maximum_token_rows(), None)
   assert_eq(records[1].fold_choices()[1].maximum_token_rows(), Some(16))
   try
-    parse_projection_fold_records(
+    @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(
         prefix +
         "record\t\{a}\t\{b}\t50\t3\t\{choices},matrix:2:2:1:1:1:0:1:16\n",
@@ -91,7 +91,7 @@ test "fold observations require matched baseline unique roles and sample support
       baseline + baseline,
     ] {
     try
-      parse_projection_fold_records(
+      @luna_projection_tuning.parse_projection_fold_records(
         @utf8.encode(prefix + body),
         scope="device\ttool",
       )
@@ -102,7 +102,7 @@ test "fold observations require matched baseline unique roles and sample support
       _ => fail("invalid observation accepted")
     }
   }
-  let records = parse_projection_fold_records(
+  let records = @luna_projection_tuning.parse_projection_fold_records(
     @utf8.encode(
       prefix + baseline + "record\t\{a}\t\{b}\t50\t3\tmatrix:2:1:1\n",
     ),
@@ -112,7 +112,7 @@ test "fold observations require matched baseline unique roles and sample support
   assert_eq(records[1].sample_count(), 3)
   let c = "c".repeat(64)
   let d = "d".repeat(64)
-  let separate = parse_projection_fold_records(
+  let separate = @luna_projection_tuning.parse_projection_fold_records(
     @utf8.encode(
       prefix +
       baseline +
@@ -129,7 +129,7 @@ test "v2 fold records preserve executable geometry and affine address choices" {
   let a = "a".repeat(64)
   let b = "b".repeat(64)
   let prefix = "luna-projection-fold-v2\nscope\ttest\nrecord\t\{a}\t\{a}\t100\t3\t-\n"
-  let records = parse_projection_fold_records(
+  let records = @luna_projection_tuning.parse_projection_fold_records(
     @utf8.encode(prefix + "record\t\{a}\t\{b}\t50\t3\tmatrix:2:2:1:8:8:1\n"),
     scope="test",
   )
@@ -150,7 +150,7 @@ test "v2 fold records preserve executable geometry and affine address choices" {
       "matrix:2:2:1:8:8:2", "matrix:2:2:1:17:8:1", "matrix:2:2:1", "matrix:2:2:1:8:33:1",
     ] {
     try
-      parse_projection_fold_records(
+      @luna_projection_tuning.parse_projection_fold_records(
         @utf8.encode(prefix + "record\t\{a}\t\{b}\t50\t3\t\{choice}\n"),
         scope="test",
       )
@@ -175,7 +175,7 @@ test "ownership-only fold observations are alternatives with a matched baseline"
       ("coowned", CoownedSiblingValues),
     ] {
     let record = "record\t\{a}\t\{b}\t50\t3\tepilogue:\{token}\n"
-    let records = parse_projection_fold_records(
+    let records = @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(prefix + baseline + record),
       scope="test",
     )
@@ -184,7 +184,10 @@ test "ownership-only fold observations are alternatives with a matched baseline"
     assert_true(records[1].fold_choices().is_empty())
     assert_eq(records[1].sibling_ownership(), expected)
     try
-      parse_projection_fold_records(@utf8.encode(prefix + record), scope="test")
+      @luna_projection_tuning.parse_projection_fold_records(
+        @utf8.encode(prefix + record),
+        scope="test",
+      )
     catch {
       InvalidSnapshot => ()
       _ => fail("unexpected error")
@@ -197,7 +200,7 @@ test "ownership-only fold observations are alternatives with a matched baseline"
       "epilogue:unknown", "epilogue:retained,epilogue:coowned", "epilogue:retained,epilogue:retained",
     ] {
     try
-      parse_projection_fold_records(
+      @luna_projection_tuning.parse_projection_fold_records(
         @utf8.encode(
           prefix + baseline + "record\t\{a}\t\{b}\t50\t3\t\{token}\n",
         ),
@@ -211,7 +214,7 @@ test "ownership-only fold observations are alternatives with a matched baseline"
     }
   }
   try
-    parse_projection_fold_records(
+    @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(
         "luna-projection-fold-v1\nscope\ttest\n" +
         baseline +
@@ -232,7 +235,7 @@ test "v2 consumer groups are immutable finite fold choices" {
   let a = "a".repeat(64)
   let b = "b".repeat(64)
   let prefix = "luna-projection-fold-v2\nscope\ttest\nrecord\t\{a}\t\{a}\t100\t3\t-\n"
-  let records = parse_projection_fold_records(
+  let records = @luna_projection_tuning.parse_projection_fold_records(
     @utf8.encode(
       prefix +
       "record\t\{a}\t\{b}\t50\t3\tsibling:2:2:1:4:8:0:8,epilogue:coowned\n",
@@ -258,7 +261,7 @@ test "v2 consumer groups are immutable finite fold choices" {
       "sibling:2:2:1:4:8:0:8:8",
     ] {
     try
-      parse_projection_fold_records(
+      @luna_projection_tuning.parse_projection_fold_records(
         @utf8.encode(prefix + "record\t\{a}\t\{b}\t50\t3\t\{invalid}\n"),
         scope="test",
       )
@@ -282,7 +285,7 @@ test "v2 transport choices require baseline and cannot be duplicated" {
       ("segmented", @compiler.SegmentedSiblingTransport),
       ("independent", IndependentSiblingTransport),
     ] {
-    let records = parse_projection_fold_records(
+    let records = @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(
         prefix + baseline + "record\t\{a}\t\{b}\t50\t3\ttransport:\{token}\n",
       ),
@@ -297,7 +300,7 @@ test "v2 transport choices require baseline and cannot be duplicated" {
       "transport:unknown", "transport:segmented,transport:independent", "transport:segmented,transport:segmented",
     ] {
     try
-      parse_projection_fold_records(
+      @luna_projection_tuning.parse_projection_fold_records(
         @utf8.encode(
           prefix + baseline + "record\t\{a}\t\{b}\t50\t3\t\{token}\n",
         ),
@@ -311,7 +314,7 @@ test "v2 transport choices require baseline and cannot be duplicated" {
     }
   }
   try
-    parse_projection_fold_records(
+    @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(prefix + "record\t\{a}\t\{b}\t50\t3\ttransport:segmented\n"),
       scope="test",
     )
@@ -322,7 +325,7 @@ test "v2 transport choices require baseline and cannot be duplicated" {
     _ => fail("transport alternative became its own baseline")
   }
   try
-    parse_projection_fold_records(
+    @luna_projection_tuning.parse_projection_fold_records(
       @utf8.encode(
         "luna-projection-fold-v1\nscope\ttest\n" +
         baseline +

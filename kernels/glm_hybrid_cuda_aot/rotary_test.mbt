@@ -17,7 +17,7 @@ test "official Full interleaved RoPE binds query and shared-key dataflow" {
     official_sparse=true,
     rope_theta=8000000.0,
   )
-  let candidate = lower_dsa_interleaved_rotary_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_dsa_interleaved_rotary_cuda_aot_candidate(
     requirements,
     requirement_ordinal=glm_rotary_ordinal(requirements),
     maximum_tokens=32,
@@ -60,7 +60,7 @@ test "Full rotary rejects Flash no-op shape theta ordinal target and compiler" {
     official_sparse=true,
   )
   try
-    lower_dsa_interleaved_rotary_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_interleaved_rotary_cuda_aot_candidate(
       flash,
       requirement_ordinal=glm_rotary_ordinal(flash),
       maximum_tokens=32,
@@ -76,7 +76,7 @@ test "Full rotary rejects Flash no-op shape theta ordinal target and compiler" {
   }
   let wrong_shape = glm_aot_requirements(rope_theta=8000000.0)
   try
-    lower_dsa_interleaved_rotary_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_interleaved_rotary_cuda_aot_candidate(
       wrong_shape,
       requirement_ordinal=glm_rotary_ordinal(wrong_shape),
       maximum_tokens=32,
@@ -96,7 +96,7 @@ test "Full rotary rejects Flash no-op shape theta ordinal target and compiler" {
     rope_theta=10000.0,
   )
   try
-    lower_dsa_interleaved_rotary_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_interleaved_rotary_cuda_aot_candidate(
       wrong_theta,
       requirement_ordinal=glm_rotary_ordinal(wrong_theta),
       maximum_tokens=32,
@@ -117,7 +117,7 @@ test "Full rotary rejects Flash no-op shape theta ordinal target and compiler" {
   )
   let ordinal = glm_rotary_ordinal(exact)
   try
-    lower_dsa_interleaved_rotary_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_interleaved_rotary_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -132,7 +132,7 @@ test "Full rotary rejects Flash no-op shape theta ordinal target and compiler" {
     _ => fail("neighbor ordinal admitted")
   }
   try
-    lower_dsa_interleaved_rotary_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_interleaved_rotary_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -147,7 +147,7 @@ test "Full rotary rejects Flash no-op shape theta ordinal target and compiler" {
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_dsa_interleaved_rotary_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_interleaved_rotary_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

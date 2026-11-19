@@ -37,6 +37,9 @@ pub(all) suberror PointwiseAotError {
   LimitExceeded(PointwiseAotRule)
   SizeOverflow(PointwiseAotRule)
 } derive(Eq, @debug.Debug)
+pub fn PointwiseAotError::equal(Self, Self) -> Bool
+pub fn PointwiseAotError::not_equal(Self, Self) -> Bool
+pub fn PointwiseAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum PointwiseAotFamily {
@@ -47,11 +50,17 @@ pub(all) enum PointwiseAotFamily {
   ResidualAdd
   KvCacheWrite
 } derive(Eq, @debug.Debug)
+pub fn PointwiseAotFamily::equal(Self, Self) -> Bool
+pub fn PointwiseAotFamily::not_equal(Self, Self) -> Bool
+pub fn PointwiseAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct PointwiseAotLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PointwiseAotLimits::equal(Self, Self) -> Bool
 pub fn PointwiseAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int) -> Self raise PointwiseAotError
+pub fn PointwiseAotLimits::not_equal(Self, Self) -> Bool
+pub fn PointwiseAotLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PointwiseAotRule {
   Limits
@@ -70,15 +79,20 @@ pub(all) enum PointwiseAotRule {
   Digest
   KvLayout
 } derive(Eq, @debug.Debug)
+pub fn PointwiseAotRule::equal(Self, Self) -> Bool
+pub fn PointwiseAotRule::not_equal(Self, Self) -> Bool
+pub fn PointwiseAotRule::to_repr(Self) -> @debug.Repr
 
 pub struct PointwiseCudaLowering {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PointwiseCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn PointwiseCudaLowering::equal(Self, Self) -> Bool
 pub fn PointwiseCudaLowering::family(Self) -> PointwiseAotFamily
 pub fn PointwiseCudaLowering::function_symbol(Self) -> String
 pub fn PointwiseCudaLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn PointwiseCudaLowering::manifest_bindable(Self) -> Bool
+pub fn PointwiseCudaLowering::not_equal(Self, Self) -> Bool
 pub fn PointwiseCudaLowering::numerical_contract(Self) -> PointwiseNumericalContract
 pub fn PointwiseCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
 pub fn PointwiseCudaLowering::operation_id(Self) -> @plan.OperationId
@@ -88,9 +102,15 @@ pub fn PointwiseCudaLowering::recipe_digest(Self) -> PointwiseRecipeDigest
 pub fn PointwiseCudaLowering::source_bytes(Self) -> Bytes
 pub fn PointwiseCudaLowering::source_digest(Self) -> PointwiseSourceDigest
 pub fn PointwiseCudaLowering::target(Self) -> @catalog.DeviceTarget
+pub fn PointwiseCudaLowering::to_repr(Self) -> @debug.Repr
 
 pub struct PointwiseManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PointwiseManifestBindingDigest::as_hex(Self) -> String
+pub fn PointwiseManifestBindingDigest::equal(Self, Self) -> Bool
+pub fn PointwiseManifestBindingDigest::hash(Self) -> Int
+pub fn PointwiseManifestBindingDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PointwiseManifestBindingDigest::not_equal(Self, Self) -> Bool
+pub fn PointwiseManifestBindingDigest::to_repr(Self) -> @debug.Repr
 
 pub struct PointwiseManifestCudaLowering {
   // private fields
@@ -99,7 +119,10 @@ pub fn PointwiseManifestCudaLowering::binding_digest(Self) -> PointwiseManifestB
 pub fn PointwiseManifestCudaLowering::binding_record_bytes(Self) -> Bytes
 pub fn PointwiseManifestCudaLowering::candidate(Self) -> PointwiseCudaLowering
 pub fn PointwiseManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PointwiseManifestCudaLowering::equal(Self, Self) -> Bool
 pub fn PointwiseManifestCudaLowering::manifest_bindable(Self) -> Bool
+pub fn PointwiseManifestCudaLowering::not_equal(Self, Self) -> Bool
+pub fn PointwiseManifestCudaLowering::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PointwiseNumericalContract {
   BitExactBf16Copy
@@ -107,14 +130,27 @@ pub(all) enum PointwiseNumericalContract {
   Float32ReductionToleranceV1
   Float32TranscendentalToleranceV1
 } derive(Eq, @debug.Debug)
+pub fn PointwiseNumericalContract::equal(Self, Self) -> Bool
+pub fn PointwiseNumericalContract::not_equal(Self, Self) -> Bool
+pub fn PointwiseNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct PointwiseRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PointwiseRecipeDigest::as_hex(Self) -> String
+pub fn PointwiseRecipeDigest::equal(Self, Self) -> Bool
 pub fn PointwiseRecipeDigest::from_sha256(String) -> Self raise PointwiseAotError
+pub fn PointwiseRecipeDigest::hash(Self) -> Int
+pub fn PointwiseRecipeDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PointwiseRecipeDigest::not_equal(Self, Self) -> Bool
+pub fn PointwiseRecipeDigest::to_repr(Self) -> @debug.Repr
 
 pub struct PointwiseSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PointwiseSourceDigest::as_hex(Self) -> String
+pub fn PointwiseSourceDigest::equal(Self, Self) -> Bool
 pub fn PointwiseSourceDigest::from_sha256(String) -> Self raise PointwiseAotError
+pub fn PointwiseSourceDigest::hash(Self) -> Int
+pub fn PointwiseSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PointwiseSourceDigest::not_equal(Self, Self) -> Bool
+pub fn PointwiseSourceDigest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

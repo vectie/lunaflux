@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/engine/remote_startup",
   "vectie/lunaflux/engine/tensor_parallel_worker_bootstrap" @remote_bootstrap,
   "vectie/lunaflux/engine/rank_group_wire" @remote_wire,

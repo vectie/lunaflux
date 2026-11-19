@@ -8,8 +8,8 @@ fn payload_test_limits(
   maximum_elements~ : Int64 = 200000L,
   maximum_payload_bytes~ : Int64 = 200000L,
   maximum_canonical_bytes~ : Int32 = 4096,
-) -> DeepSeekV4QuantizedPayloadLimits {
-  try! DeepSeekV4QuantizedPayloadLimits::new(
+) -> @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadLimits {
+  try! @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadLimits::new(
     maximum_elements~,
     maximum_payload_bytes~,
     maximum_canonical_bytes~,
@@ -19,12 +19,18 @@ fn payload_test_limits(
 ///|
 fn payload_test_block(
   storage : @deepseek_v4_numeric_plan.DeepSeekV4LogicalStorage,
-) -> DeepSeekV4QuantizedBlockShape {
+) -> @deepseek_v4_quantized_payload.DeepSeekV4QuantizedBlockShape {
   match storage {
     Fp8E4M3Block128Parameter | Ue8M0Block128ScaleMetadata =>
-      try! DeepSeekV4QuantizedBlockShape::new(rows=128, columns=128)
+      try! @deepseek_v4_quantized_payload.DeepSeekV4QuantizedBlockShape::new(
+        rows=128,
+        columns=128,
+      )
     PackedFp4E2M1Block32Parameter | Ue8M0Block32ScaleMetadata =>
-      try! DeepSeekV4QuantizedBlockShape::new(rows=1, columns=32)
+      try! @deepseek_v4_quantized_payload.DeepSeekV4QuantizedBlockShape::new(
+        rows=1,
+        columns=32,
+      )
     _ => abort("plain storage has no quantized payload block")
   }
 }
@@ -35,8 +41,8 @@ fn payload_test_admit(
   shape : ArrayView[Int64],
   bytes : Bytes,
   fill~ : Char = 'a',
-) -> DeepSeekV4QuantizedPayloadContract raise DeepSeekV4QuantizedPayloadError {
-  admit(
+) -> @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadContract raise @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadError {
+  @deepseek_v4_quantized_payload.admit(
     storage~,
     block_shape=payload_test_block(storage),
     logical_shape=shape,
@@ -62,10 +68,13 @@ test "independent finite E4M3 bit patterns decode exactly" {
   ]
   for item in cases {
     let (code, expected) = item
-    assert_eq(decode_finite_fp8_e4m3(code), expected)
+    assert_eq(
+      @deepseek_v4_quantized_payload.decode_finite_fp8_e4m3(code),
+      expected,
+    )
   }
   for code in [b'\x7f', b'\xff'] {
-    try decode_finite_fp8_e4m3(code) catch {
+    try @deepseek_v4_quantized_payload.decode_finite_fp8_e4m3(code) catch {
       NonFiniteFp8Code(actual) => assert_eq(actual, code)
       _ => fail("unexpected non-finite E4M3 rejection")
     } noraise {
@@ -205,9 +214,12 @@ test "packed FP4 layout is admitted but codebook and nibble order stay unavailab
 test "hostile shape block byte and pairing mutations fail closed" {
   let limits = payload_test_limits()
   try
-    admit(
+    @deepseek_v4_quantized_payload.admit(
       storage=PlainBFloat16,
-      block_shape=try! DeepSeekV4QuantizedBlockShape::new(rows=128, columns=128),
+      block_shape=try! @deepseek_v4_quantized_payload.DeepSeekV4QuantizedBlockShape::new(
+        rows=128,
+        columns=128,
+      ),
       logical_shape=[1L, 1L],
       model_content_digest=payload_test_content(),
       payload_bytes=b"\x00",
@@ -220,9 +232,12 @@ test "hostile shape block byte and pairing mutations fail closed" {
     _ => fail("plain storage entered the quantized payload boundary")
   }
   try
-    admit(
+    @deepseek_v4_quantized_payload.admit(
       storage=Fp8E4M3Block128Parameter,
-      block_shape=try! DeepSeekV4QuantizedBlockShape::new(rows=1, columns=32),
+      block_shape=try! @deepseek_v4_quantized_payload.DeepSeekV4QuantizedBlockShape::new(
+        rows=1,
+        columns=32,
+      ),
       logical_shape=[1L, 1L],
       model_content_digest=payload_test_content(),
       payload_bytes=b"\x00",
@@ -295,7 +310,7 @@ test "hostile shape block byte and pairing mutations fail closed" {
 ///|
 test "hostile startup bounds and canonical ceiling reject before escape" {
   try
-    DeepSeekV4QuantizedPayloadLimits::new(
+    @deepseek_v4_quantized_payload.DeepSeekV4QuantizedPayloadLimits::new(
       maximum_elements=0L,
       maximum_payload_bytes=1L,
       maximum_canonical_bytes=1,
@@ -307,7 +322,7 @@ test "hostile startup bounds and canonical ceiling reject before escape" {
     _ => fail("zero element bound was admitted")
   }
   try
-    admit(
+    @deepseek_v4_quantized_payload.admit(
       storage=Fp8E4M3Block128Parameter,
       block_shape=payload_test_block(Fp8E4M3Block128Parameter),
       logical_shape=[1L, 1L],

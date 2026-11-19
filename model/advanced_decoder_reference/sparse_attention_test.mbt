@@ -1,11 +1,11 @@
 ///|
 test "selected sparse attention uses denominator-only sink and preserves duplicate multiplicity" {
-  let limits = ReferenceLimits::new(
+  let limits = @advanced_decoder_reference.ReferenceLimits::new(
     max_values=128,
     max_width=8,
     max_iterations=8,
   )
-  let output = selected_sparse_attention(
+  let output = @advanced_decoder_reference.selected_sparse_attention(
     [1.0F, 0.0F],
     [1.0F, 2.0F, 0.0F, 4.0F],
     [0.0F],
@@ -26,27 +26,31 @@ test "selected sparse attention uses denominator-only sink and preserves duplica
 
 ///|
 test "selected sparse attention sink-only row produces a zero vector" {
-  let output = selected_sparse_attention(
+  let output = @advanced_decoder_reference.selected_sparse_attention(
     [2.0F, -1.0F],
     [3.0F, 4.0F],
     [5.0F],
     [-1],
     head_count=1,
     head_dimension=2,
-    limits=ReferenceLimits::new(max_values=32, max_width=4, max_iterations=4),
+    limits=@advanced_decoder_reference.ReferenceLimits::new(
+      max_values=32,
+      max_width=4,
+      max_iterations=4,
+    ),
   )
   assert_eq(output, [0.0F, 0.0F])
 }
 
 ///|
 test "selected sparse attention rejects invalid geometry and indices" {
-  let limits = ReferenceLimits::new(
+  let limits = @advanced_decoder_reference.ReferenceLimits::new(
     max_values=32,
     max_width=4,
     max_iterations=4,
   )
   try
-    selected_sparse_attention(
+    @advanced_decoder_reference.selected_sparse_attention(
       [1.0F, 2.0F],
       [1.0F, 2.0F],
       [0.0F],
@@ -62,7 +66,7 @@ test "selected sparse attention rejects invalid geometry and indices" {
     _ => fail("out-of-range selected index admitted")
   }
   try
-    selected_sparse_attention(
+    @advanced_decoder_reference.selected_sparse_attention(
       [1.0F],
       [1.0F],
       [0.0F, 1.0F],

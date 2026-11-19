@@ -56,7 +56,7 @@ pub fn LatentStorage::copy_from_host(
 ) -> Unit raise @device.DeviceError {
   let region = self.plan.region(buffer)
   guard bytes.length().to_int64() == region.byte_count else {
-    raise @device.DeviceError::InvalidArgument(CopyToDevice)
+    raise InvalidArgument(CopyToDevice)
   }
   self.allocation.copy_from_host(bytes, 0L, region.offset, region.byte_count)
 }

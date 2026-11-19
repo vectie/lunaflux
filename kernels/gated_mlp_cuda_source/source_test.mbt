@@ -1,6 +1,6 @@
 ///|
 test "packed SwiGLU source preserves official halves and BF16 stages" {
-  let rendered = packed_swiglu_dense_bf16_rows_source(
+  let rendered = @gated_mlp_cuda_source.packed_swiglu_dense_bf16_rows_source(
     rows=3,
     hidden_size=4,
     intermediate_size=8,
@@ -31,7 +31,7 @@ test "packed SwiGLU source rejects hostile geometry and symbol" {
   for geometry in [(0, 4, 8), (1, 0, 8), (1, 4, 0)] {
     let (rows, hidden, intermediate) = geometry
     try
-      packed_swiglu_dense_bf16_rows_source(
+      @gated_mlp_cuda_source.packed_swiglu_dense_bf16_rows_source(
         rows~,
         hidden_size=hidden,
         intermediate_size=intermediate,
@@ -45,7 +45,7 @@ test "packed SwiGLU source rejects hostile geometry and symbol" {
     }
   }
   try
-    packed_swiglu_dense_bf16_rows_source(
+    @gated_mlp_cuda_source.packed_swiglu_dense_bf16_rows_source(
       rows=1073741824,
       hidden_size=2,
       intermediate_size=8,
@@ -58,7 +58,7 @@ test "packed SwiGLU source rejects hostile geometry and symbol" {
     _ => fail("overflowing rows admitted")
   }
   try
-    packed_swiglu_dense_bf16_rows_source(
+    @gated_mlp_cuda_source.packed_swiglu_dense_bf16_rows_source(
       rows=1,
       hidden_size=4,
       intermediate_size=8,

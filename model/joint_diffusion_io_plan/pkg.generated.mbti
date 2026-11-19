@@ -25,17 +25,26 @@ pub(all) suberror JointDiffusionIoPlanError {
   InvalidPackedModalitySelection
   InvalidDistinctTimestepValues
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionIoPlanError::equal(Self, Self) -> Bool
+pub fn JointDiffusionIoPlanError::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionIoPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum JointCancellationPolicy {
   StageBoundaryCancellation
 } derive(Eq, @debug.Debug)
+pub fn JointCancellationPolicy::equal(Self, Self) -> Bool
+pub fn JointCancellationPolicy::not_equal(Self, Self) -> Bool
+pub fn JointCancellationPolicy::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointCancellationReason {
   CallerRequested
   DeadlineExceeded
   RuntimeShutdown
 } derive(Eq, @debug.Debug)
+pub fn JointCancellationReason::equal(Self, Self) -> Bool
+pub fn JointCancellationReason::not_equal(Self, Self) -> Bool
+pub fn JointCancellationReason::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionIoPlan {
   // private fields
@@ -44,9 +53,11 @@ pub fn JointDiffusionIoPlan::audio_latent_channels(Self) -> Int
 pub fn JointDiffusionIoPlan::audio_output_channels(Self) -> Int
 pub fn JointDiffusionIoPlan::audio_sample_rate(Self) -> Int
 pub fn JointDiffusionIoPlan::cancellation(Self) -> JointCancellationPolicy
+pub fn JointDiffusionIoPlan::equal(Self, Self) -> Bool
 pub fn JointDiffusionIoPlan::guidance(Self) -> JointGuidancePolicy
 pub fn JointDiffusionIoPlan::identity(Self) -> @spec.ModelIdentity
 pub fn JointDiffusionIoPlan::keyframes(Self) -> ReadOnlyArray[JointKeyframeConditioning]
+pub fn JointDiffusionIoPlan::not_equal(Self, Self) -> Bool
 pub fn JointDiffusionIoPlan::references(Self) -> ReadOnlyArray[JointReferenceConditioning]
 pub fn JointDiffusionIoPlan::request_digest(Self) -> @spec.PlanDigest
 pub fn JointDiffusionIoPlan::schema_version(Self) -> Int
@@ -54,6 +65,7 @@ pub fn JointDiffusionIoPlan::seed(Self) -> Int64
 pub fn JointDiffusionIoPlan::shape(Self) -> @joint_diffusion_plan.JointDiffusionRequestShape
 pub fn JointDiffusionIoPlan::stage_count(Self) -> Int
 pub fn JointDiffusionIoPlan::text(Self) -> ValidatedTextConditioning
+pub fn JointDiffusionIoPlan::to_repr(Self) -> @debug.Repr
 pub fn JointDiffusionIoPlan::video_latent_channels(Self) -> Int
 pub fn JointDiffusionIoPlan::video_patch_height(Self) -> Int
 pub fn JointDiffusionIoPlan::video_patch_temporal(Self) -> Int
@@ -66,16 +78,22 @@ pub struct JointDiffusionResultMetadata {
 pub fn JointDiffusionResultMetadata::audio_sample_count(Self) -> Int64?
 pub fn JointDiffusionResultMetadata::cancelled(JointDiffusionIoPlan, reason~ : JointCancellationReason, completed_stage_count~ : Int) -> Self raise JointDiffusionIoPlanError
 pub fn JointDiffusionResultMetadata::completed_stage_count(Self) -> Int
+pub fn JointDiffusionResultMetadata::equal(Self, Self) -> Bool
 pub fn JointDiffusionResultMetadata::identity(Self) -> @spec.ModelIdentity
+pub fn JointDiffusionResultMetadata::not_equal(Self, Self) -> Bool
 pub fn JointDiffusionResultMetadata::request_digest(Self) -> @spec.PlanDigest
 pub fn JointDiffusionResultMetadata::status(Self) -> JointDiffusionResultStatus
 pub fn JointDiffusionResultMetadata::succeeded(JointDiffusionIoPlan, video_frame_count~ : Int, audio_sample_count~ : Int64) -> Self raise JointDiffusionIoPlanError
+pub fn JointDiffusionResultMetadata::to_repr(Self) -> @debug.Repr
 pub fn JointDiffusionResultMetadata::video_frame_count(Self) -> Int?
 
 pub(all) enum JointDiffusionResultStatus {
   Succeeded
   Cancelled(JointCancellationReason)
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionResultStatus::equal(Self, Self) -> Bool
+pub fn JointDiffusionResultStatus::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionResultStatus::to_repr(Self) -> @debug.Repr
 
 pub struct JointDistinctTimestepValues {
   // private fields
@@ -90,29 +108,41 @@ pub fn JointDistinctTimestepValues::values(Self) -> ReadOnlyArray[Float]
 pub(all) enum JointGuidancePolicy {
   DistilledUnitGuidance
 } derive(Eq, @debug.Debug)
+pub fn JointGuidancePolicy::equal(Self, Self) -> Bool
+pub fn JointGuidancePolicy::not_equal(Self, Self) -> Bool
+pub fn JointGuidancePolicy::to_repr(Self) -> @debug.Repr
 
 pub struct JointKeyframeConditioning {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointKeyframeConditioning::equal(Self, Self) -> Bool
 pub fn JointKeyframeConditioning::image(Self) -> ValidatedImageInput
 pub fn JointKeyframeConditioning::new(position~ : JointKeyframePosition, image~ : ValidatedImageInput) -> Self
+pub fn JointKeyframeConditioning::not_equal(Self, Self) -> Bool
 pub fn JointKeyframeConditioning::position(Self) -> JointKeyframePosition
+pub fn JointKeyframeConditioning::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointKeyframePosition {
   FirstFrame
   LastFrame
 } derive(Eq, @debug.Debug)
+pub fn JointKeyframePosition::equal(Self, Self) -> Bool
+pub fn JointKeyframePosition::not_equal(Self, Self) -> Bool
+pub fn JointKeyframePosition::to_repr(Self) -> @debug.Repr
 
 pub struct JointPackedModalitySelection {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointPackedModalitySelection::audio_indices(Self) -> ReadOnlyArray[Int]
 pub fn JointPackedModalitySelection::digest(Self) -> @spec.PlanDigest
+pub fn JointPackedModalitySelection::equal(Self, Self) -> Bool
 pub fn JointPackedModalitySelection::identity(Self) -> @spec.ModelIdentity
 pub fn JointPackedModalitySelection::new(JointDiffusionIoPlan, JointPackedTimestepSelection, video_indices~ : ArrayView[Int], audio_indices~ : ArrayView[Int]) -> Self raise JointDiffusionIoPlanError
+pub fn JointPackedModalitySelection::not_equal(Self, Self) -> Bool
 pub fn JointPackedModalitySelection::packed_row_count(Self) -> Int
 pub fn JointPackedModalitySelection::packed_timestep_digest(Self) -> @spec.PlanDigest
 pub fn JointPackedModalitySelection::request_digest(Self) -> @spec.PlanDigest
+pub fn JointPackedModalitySelection::to_repr(Self) -> @debug.Repr
 pub fn JointPackedModalitySelection::video_indices(Self) -> ReadOnlyArray[Int]
 
 pub struct JointPackedTimestepSelection {
@@ -120,51 +150,69 @@ pub struct JointPackedTimestepSelection {
 } derive(Eq, @debug.Debug)
 pub fn JointPackedTimestepSelection::digest(Self) -> @spec.PlanDigest
 pub fn JointPackedTimestepSelection::distinct_timestep_count(Self) -> Int
+pub fn JointPackedTimestepSelection::equal(Self, Self) -> Bool
 pub fn JointPackedTimestepSelection::evaluation_index(Self) -> Int
 pub fn JointPackedTimestepSelection::identity(Self) -> @spec.ModelIdentity
 pub fn JointPackedTimestepSelection::indices(Self) -> ReadOnlyArray[Int]
 pub fn JointPackedTimestepSelection::new(JointDiffusionIoPlan, evaluation_index~ : Int, distinct_timestep_count~ : Int, indices~ : ArrayView[Int]) -> Self raise JointDiffusionIoPlanError
+pub fn JointPackedTimestepSelection::not_equal(Self, Self) -> Bool
 pub fn JointPackedTimestepSelection::packed_row_count(Self) -> Int
 pub fn JointPackedTimestepSelection::request_digest(Self) -> @spec.PlanDigest
+pub fn JointPackedTimestepSelection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointReferenceConditioning {
   ImageReference(ValidatedImageInput)
   VideoReference(ValidatedVideoInput)
   AudioReference(ValidatedAudioInput)
 } derive(Eq, @debug.Debug)
+pub fn JointReferenceConditioning::equal(Self, Self) -> Bool
+pub fn JointReferenceConditioning::not_equal(Self, Self) -> Bool
+pub fn JointReferenceConditioning::to_repr(Self) -> @debug.Repr
 
 pub struct ValidatedAudioInput {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ValidatedAudioInput::channel_count(Self) -> Int
 pub fn ValidatedAudioInput::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedAudioInput::equal(Self, Self) -> Bool
 pub fn ValidatedAudioInput::new(content_digest~ : @spec.ContentDigest, sample_count~ : Int64, sample_rate~ : Int, channel_count~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedAudioInput::not_equal(Self, Self) -> Bool
 pub fn ValidatedAudioInput::sample_count(Self) -> Int64
 pub fn ValidatedAudioInput::sample_rate(Self) -> Int
+pub fn ValidatedAudioInput::to_repr(Self) -> @debug.Repr
 
 pub struct ValidatedImageInput {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ValidatedImageInput::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedImageInput::equal(Self, Self) -> Bool
 pub fn ValidatedImageInput::height(Self) -> Int
 pub fn ValidatedImageInput::new(content_digest~ : @spec.ContentDigest, height~ : Int, width~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedImageInput::not_equal(Self, Self) -> Bool
+pub fn ValidatedImageInput::to_repr(Self) -> @debug.Repr
 pub fn ValidatedImageInput::width(Self) -> Int
 
 pub struct ValidatedTextConditioning {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ValidatedTextConditioning::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedTextConditioning::equal(Self, Self) -> Bool
 pub fn ValidatedTextConditioning::new(content_digest~ : @spec.ContentDigest, token_count~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedTextConditioning::not_equal(Self, Self) -> Bool
+pub fn ValidatedTextConditioning::to_repr(Self) -> @debug.Repr
 pub fn ValidatedTextConditioning::token_count(Self) -> Int
 
 pub struct ValidatedVideoInput {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ValidatedVideoInput::content_digest(Self) -> @spec.ContentDigest
+pub fn ValidatedVideoInput::equal(Self, Self) -> Bool
 pub fn ValidatedVideoInput::frame_count(Self) -> Int
 pub fn ValidatedVideoInput::frames_per_second(Self) -> Int
 pub fn ValidatedVideoInput::height(Self) -> Int
 pub fn ValidatedVideoInput::new(content_digest~ : @spec.ContentDigest, height~ : Int, width~ : Int, frame_count~ : Int, frames_per_second~ : Int) -> Self raise JointDiffusionIoPlanError
+pub fn ValidatedVideoInput::not_equal(Self, Self) -> Bool
+pub fn ValidatedVideoInput::to_repr(Self) -> @debug.Repr
 pub fn ValidatedVideoInput::width(Self) -> Int
 
 // Type aliases

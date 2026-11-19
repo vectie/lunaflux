@@ -37,6 +37,9 @@ pub(all) suberror DeepSeekV4DeviceUploadError {
   TokenHashSourceDigestMismatch
   TokenHashLayoutMismatch
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4DeviceUploadError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4DeviceUploadError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4DeviceUploadError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 

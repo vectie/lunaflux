@@ -18,7 +18,6 @@ import {
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/config_reader",
   "vectie/lunaflux/model/numeric_weight_file",
-  "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/qwen3",
   "vectie/lunaflux/model/qwen3_spec",
   "vectie/lunaflux/model/qwen3_weights",

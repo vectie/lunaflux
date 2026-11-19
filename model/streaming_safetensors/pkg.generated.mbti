@@ -62,35 +62,52 @@ pub(all) suberror StreamingSafetensorsError {
   InspectionReplayMismatch(Int)
   VisitorRejected(Int)
 } derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsError::equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsError::not_equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct StreamingSafetensorsCopyRequest {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsCopyRequest::equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsCopyRequest::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_offset~ : Int, byte_count~ : Int) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsCopyRequest::not_equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsCopyRequest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum StreamingSafetensorsDTypeKind {
   BFloat16
   Float32
   OpaqueFixedWidth
 } derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsDTypeKind::equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsDTypeKind::not_equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsDTypeKind::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsDTypeSpec {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn StreamingSafetensorsDTypeSpec::bfloat16() -> Self
 pub fn StreamingSafetensorsDTypeSpec::bytes_per_element(Self) -> Int64
+pub fn StreamingSafetensorsDTypeSpec::equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsDTypeSpec::float32() -> Self
 pub fn StreamingSafetensorsDTypeSpec::kind(Self) -> StreamingSafetensorsDTypeKind
+pub fn StreamingSafetensorsDTypeSpec::not_equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsDTypeSpec::opaque_fixed_width(StringView, bytes_per_element~ : Int64) -> Self raise StreamingSafetensorsError
 pub fn StreamingSafetensorsDTypeSpec::opaque_one_byte(StringView) -> Self raise StreamingSafetensorsError
 pub fn StreamingSafetensorsDTypeSpec::tag(Self) -> String
+pub fn StreamingSafetensorsDTypeSpec::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsFileDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn StreamingSafetensorsFileDigest::as_hex(Self) -> String
+pub fn StreamingSafetensorsFileDigest::equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsFileDigest::from_sha256(String) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsFileDigest::hash(Self) -> Int
+pub fn StreamingSafetensorsFileDigest::hash_combine(Self, Hasher) -> Unit
+pub fn StreamingSafetensorsFileDigest::not_equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsFileDigest::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsInspection {
   // private fields
@@ -104,16 +121,25 @@ pub(all) enum StreamingSafetensorsJsonField {
   Shape
   DataOffsets
 } derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsJsonField::equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsJsonField::not_equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsJsonField::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsLimits::equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsLimits::new(maximum_shards~ : Int, maximum_file_bytes~ : Int64, maximum_header_bytes~ : Int, maximum_tensors_per_shard~ : Int, maximum_total_tensors~ : Int, maximum_rank~ : Int, maximum_name_bytes~ : Int, maximum_dtype_specs~ : Int, maximum_copy_requests~ : Int, maximum_copy_bytes~ : Int64) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsLimits::not_equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsLimits::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsSegmentedCopyRequest {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsSegmentedCopyRequest::equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsSegmentedCopyRequest::new(shard_ordinal~ : Int, tensor_ordinal~ : Int, tensor_byte_offset~ : Int64, destination_arena_ordinal~ : Int, destination_offset~ : Int, byte_count~ : Int) -> Self raise StreamingSafetensorsError
+pub fn StreamingSafetensorsSegmentedCopyRequest::not_equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsSegmentedCopyRequest::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsSegmentedVisitedRange {
   // private fields
@@ -121,9 +147,12 @@ pub struct StreamingSafetensorsSegmentedVisitedRange {
 pub fn StreamingSafetensorsSegmentedVisitedRange::byte_count(Self) -> Int
 pub fn StreamingSafetensorsSegmentedVisitedRange::destination_arena_ordinal(Self) -> Int
 pub fn StreamingSafetensorsSegmentedVisitedRange::destination_offset(Self) -> Int
+pub fn StreamingSafetensorsSegmentedVisitedRange::equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsSegmentedVisitedRange::not_equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsSegmentedVisitedRange::shard_ordinal(Self) -> Int
 pub fn StreamingSafetensorsSegmentedVisitedRange::tensor_byte_offset(Self) -> Int64
 pub fn StreamingSafetensorsSegmentedVisitedRange::tensor_ordinal(Self) -> Int
+pub fn StreamingSafetensorsSegmentedVisitedRange::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsShardInput {
   // private fields
@@ -134,12 +163,15 @@ pub fn StreamingSafetensorsShardInput::new(locator~ : @approved_fs.ApprovedRelat
 pub struct StreamingSafetensorsShardMetadata {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn StreamingSafetensorsShardMetadata::equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsShardMetadata::file_byte_count(Self) -> Int64
 pub fn StreamingSafetensorsShardMetadata::file_digest(Self) -> StreamingSafetensorsFileDigest
+pub fn StreamingSafetensorsShardMetadata::not_equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsShardMetadata::payload_byte_count(Self) -> Int64
 pub fn StreamingSafetensorsShardMetadata::payload_offset(Self) -> Int64
 pub fn StreamingSafetensorsShardMetadata::tensor(Self, Int) -> StreamingSafetensorsTensorMetadata?
 pub fn StreamingSafetensorsShardMetadata::tensor_count(Self) -> Int
+pub fn StreamingSafetensorsShardMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsTensorMetadata {
   // private fields
@@ -148,8 +180,11 @@ pub fn StreamingSafetensorsTensorMetadata::byte_count(Self) -> Int64
 pub fn StreamingSafetensorsTensorMetadata::data_end(Self) -> Int64
 pub fn StreamingSafetensorsTensorMetadata::data_start(Self) -> Int64
 pub fn StreamingSafetensorsTensorMetadata::dtype(Self) -> StreamingSafetensorsDTypeSpec
+pub fn StreamingSafetensorsTensorMetadata::equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsTensorMetadata::name(Self) -> String
+pub fn StreamingSafetensorsTensorMetadata::not_equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsTensorMetadata::shape(Self) -> ReadOnlyArray[Int64]
+pub fn StreamingSafetensorsTensorMetadata::to_repr(Self) -> @debug.Repr
 
 pub struct StreamingSafetensorsTransfer {
   // private fields
@@ -169,9 +204,12 @@ pub struct StreamingSafetensorsVisitedRange {
 } derive(Eq, @debug.Debug)
 pub fn StreamingSafetensorsVisitedRange::byte_count(Self) -> Int
 pub fn StreamingSafetensorsVisitedRange::destination_offset(Self) -> Int
+pub fn StreamingSafetensorsVisitedRange::equal(Self, Self) -> Bool
+pub fn StreamingSafetensorsVisitedRange::not_equal(Self, Self) -> Bool
 pub fn StreamingSafetensorsVisitedRange::shard_ordinal(Self) -> Int
 pub fn StreamingSafetensorsVisitedRange::tensor_byte_offset(Self) -> Int64
 pub fn StreamingSafetensorsVisitedRange::tensor_ordinal(Self) -> Int
+pub fn StreamingSafetensorsVisitedRange::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

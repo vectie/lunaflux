@@ -94,6 +94,9 @@ pub(all) suberror DeviceBootstrapError {
   InvalidBootstrap(DeviceBootstrapRule)
   BootstrapWire(@worker_wire.WorkerWireError)
 } derive(Eq, @debug.Debug)
+pub fn DeviceBootstrapError::equal(Self, Self) -> Bool
+pub fn DeviceBootstrapError::not_equal(Self, Self) -> Bool
+pub fn DeviceBootstrapError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeviceStepError {
   InvalidLimit(DeviceStepLimitRule)
@@ -121,12 +124,18 @@ pub(all) suberror DeviceStepError {
   Wire(@worker_wire.WorkerWireError)
   Device(DeviceStepStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
+pub fn DeviceStepError::equal(Self, Self) -> Bool
+pub fn DeviceStepError::not_equal(Self, Self) -> Bool
+pub fn DeviceStepError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror FusedGroupedOperationError {
   InvalidFusedGroupedOperation(FusedGroupedOperationRule)
   MismatchedFusedGroupedOperation(FusedGroupedOperationRule)
   QkvRequiresReadOnlyAttentionSplit
 } derive(Eq, @debug.Debug)
+pub fn FusedGroupedOperationError::equal(Self, Self) -> Bool
+pub fn FusedGroupedOperationError::not_equal(Self, Self) -> Bool
+pub fn FusedGroupedOperationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ApprovedFusedQkvReadOnlyAttentionSpan {
@@ -166,6 +175,9 @@ pub(all) enum DeviceBootstrapRule {
   RuntimeEnvelope
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn DeviceBootstrapRule::equal(Self, Self) -> Bool
+pub fn DeviceBootstrapRule::not_equal(Self, Self) -> Bool
+pub fn DeviceBootstrapRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceStepLifecycle {
   Ready
@@ -174,6 +186,9 @@ pub(all) enum DeviceStepLifecycle {
   ClosingFailed
   Closed
 } derive(Eq, @debug.Debug)
+pub fn DeviceStepLifecycle::equal(Self, Self) -> Bool
+pub fn DeviceStepLifecycle::not_equal(Self, Self) -> Bool
+pub fn DeviceStepLifecycle::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceStepLimitRule {
   Rows
@@ -183,16 +198,22 @@ pub(all) enum DeviceStepLimitRule {
   TokenId
   ByteCapacity
 } derive(Eq, @debug.Debug)
+pub fn DeviceStepLimitRule::equal(Self, Self) -> Bool
+pub fn DeviceStepLimitRule::not_equal(Self, Self) -> Bool
+pub fn DeviceStepLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceStepLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeviceStepLimits::equal(Self, Self) -> Bool
 pub fn DeviceStepLimits::max_pages(Self) -> Int
 pub fn DeviceStepLimits::max_rows(Self) -> Int
 pub fn DeviceStepLimits::max_sequence_tokens(Self) -> Int
 pub fn DeviceStepLimits::max_token_id(Self) -> Int
 pub fn DeviceStepLimits::max_tokens(Self) -> Int
 pub fn DeviceStepLimits::new(max_rows~ : Int, max_tokens~ : Int, max_pages~ : Int, max_sequence_tokens~ : Int, max_token_id~ : Int) -> Self raise DeviceStepError
+pub fn DeviceStepLimits::not_equal(Self, Self) -> Bool
+pub fn DeviceStepLimits::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceStepOwner {
   // private fields
@@ -219,6 +240,9 @@ pub(all) enum DeviceStepPlanRule {
   PageIdStructure
   CapabilityRecipe
 } derive(Eq, @debug.Debug)
+pub fn DeviceStepPlanRule::equal(Self, Self) -> Bool
+pub fn DeviceStepPlanRule::not_equal(Self, Self) -> Bool
+pub fn DeviceStepPlanRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceStepPreparation {
   Ready(DeviceStepOwner)
@@ -234,6 +258,9 @@ pub(all) enum DeviceStepStage {
   PageOffsets
   PhysicalPageIndices
 } derive(Eq, @debug.Debug)
+pub fn DeviceStepStage::equal(Self, Self) -> Bool
+pub fn DeviceStepStage::not_equal(Self, Self) -> Bool
+pub fn DeviceStepStage::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceWorkerBootstrapManifest {
   // private fields
@@ -321,6 +348,9 @@ pub(all) enum FusedGroupedOperationRule {
   StreamOrder
   DispatchAuthority
 } derive(Eq, @debug.Debug)
+pub fn FusedGroupedOperationRule::equal(Self, Self) -> Bool
+pub fn FusedGroupedOperationRule::not_equal(Self, Self) -> Bool
+pub fn FusedGroupedOperationRule::to_repr(Self) -> @debug.Repr
 
 pub struct FusedQkvReadOnlyAttentionCompositeRequirement {
   // private fields
@@ -348,12 +378,15 @@ pub fn I8DeviceWorkerBootstrapManifestV3::device_ordinal(Self) -> Int
 pub fn I8DeviceWorkerBootstrapManifestV3::device_step_limits(Self) -> DeviceStepLimits
 pub fn I8DeviceWorkerBootstrapManifestV3::digest(Self) -> @worker_wire.WorkerBootstrapDigest
 pub fn I8DeviceWorkerBootstrapManifestV3::entry_point_count(Self) -> Int
+pub fn I8DeviceWorkerBootstrapManifestV3::equal(Self, Self) -> Bool
 pub fn I8DeviceWorkerBootstrapManifestV3::i8_admission_digest(Self) -> @i8_inert_capability_admission.I8InertKernelCapabilityAdmissionDigest
 pub fn I8DeviceWorkerBootstrapManifestV3::identity(Self) -> @spec.ModelIdentity
 pub fn I8DeviceWorkerBootstrapManifestV3::module_count(Self) -> Int
+pub fn I8DeviceWorkerBootstrapManifestV3::not_equal(Self, Self) -> Bool
 pub fn I8DeviceWorkerBootstrapManifestV3::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn I8DeviceWorkerBootstrapManifestV3::step_count(Self) -> Int
 pub fn I8DeviceWorkerBootstrapManifestV3::target(Self) -> @catalog.DeviceTarget
+pub fn I8DeviceWorkerBootstrapManifestV3::to_repr(Self) -> @debug.Repr
 pub fn I8DeviceWorkerBootstrapManifestV3::worker_startup_contract(Self, @worker_protocol.ModelPlanGeneration, bootstrap_source_digest~ : @worker_wire.WorkerBootstrapSourceDigest, @worker_protocol.WorkerProtocolLimits, @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64, streaming? : @streaming_ir.Capability, streaming_epoch? : UInt64) -> @worker_wire.WorkerStartupContract raise DeviceBootstrapError
 
 pub struct I8LoadedExecutionBlueprint {
@@ -387,32 +420,47 @@ pub fn I8PagedExecutionStep::artifact_module_index(Self) -> Int
 pub fn I8PagedExecutionStep::capability(Self) -> @plan.KernelCapabilityId
 pub fn I8PagedExecutionStep::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn I8PagedExecutionStep::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn I8PagedExecutionStep::equal(Self, Self) -> Bool
 pub fn I8PagedExecutionStep::function_symbol(Self) -> String
 pub fn I8PagedExecutionStep::kv_layer(Self) -> @plan.KvLayerId?
+pub fn I8PagedExecutionStep::not_equal(Self, Self) -> Bool
 pub fn I8PagedExecutionStep::operands(Self) -> ReadOnlyArray[PagedKvOperandBinding]
 pub fn I8PagedExecutionStep::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn I8PagedExecutionStep::operation_id(Self) -> @plan.OperationId
 pub fn I8PagedExecutionStep::operation_kind(Self) -> @plan.OperationKind
 pub fn I8PagedExecutionStep::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn I8PagedExecutionStep::to_repr(Self) -> @debug.Repr
 
 pub struct PagedCudaDeviceSamplingAdmission {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedCudaDeviceSamplingAdmission::equal(Self, Self) -> Bool
+pub fn PagedCudaDeviceSamplingAdmission::not_equal(Self, Self) -> Bool
+pub fn PagedCudaDeviceSamplingAdmission::to_repr(Self) -> @debug.Repr
 
 pub struct PagedCudaGreedySamplingAdmission {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedCudaGreedySamplingAdmission::equal(Self, Self) -> Bool
+pub fn PagedCudaGreedySamplingAdmission::not_equal(Self, Self) -> Bool
+pub fn PagedCudaGreedySamplingAdmission::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedExecutionDiagnosticPolicy {
   ProductionFastPath
   QualificationDiagnostics
 } derive(Eq, @debug.Debug)
+pub fn PagedExecutionDiagnosticPolicy::equal(Self, Self) -> Bool
+pub fn PagedExecutionDiagnosticPolicy::not_equal(Self, Self) -> Bool
+pub fn PagedExecutionDiagnosticPolicy::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedGraphExecutionPolicy {
   PagedOrderedEagerOnly
   PagedCapturedRequired
   PagedCapturedWithEagerFallback
 } derive(Eq, @debug.Debug)
+pub fn PagedGraphExecutionPolicy::equal(Self, Self) -> Bool
+pub fn PagedGraphExecutionPolicy::not_equal(Self, Self) -> Bool
+pub fn PagedGraphExecutionPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct PagedGraphExecutor {
   // private fields
@@ -455,6 +503,9 @@ pub(all) enum PagedGraphExecutorRule {
   GraphBucket
   ResourceState
 } derive(Eq, @debug.Debug)
+pub fn PagedGraphExecutorRule::equal(Self, Self) -> Bool
+pub fn PagedGraphExecutorRule::not_equal(Self, Self) -> Bool
+pub fn PagedGraphExecutorRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedGraphLifecycle {
   GraphReady
@@ -465,12 +516,18 @@ pub(all) enum PagedGraphLifecycle {
   GraphClosingFailed
   GraphClosed
 } derive(Eq, @debug.Debug)
+pub fn PagedGraphLifecycle::equal(Self, Self) -> Bool
+pub fn PagedGraphLifecycle::not_equal(Self, Self) -> Bool
+pub fn PagedGraphLifecycle::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedGraphMemoryAvailability {
   GraphMemoryAbsent
   GraphMemoryUnsupported
   GraphMemoryBounded
 } derive(Eq, @debug.Debug)
+pub fn PagedGraphMemoryAvailability::equal(Self, Self) -> Bool
+pub fn PagedGraphMemoryAvailability::not_equal(Self, Self) -> Bool
+pub fn PagedGraphMemoryAvailability::to_repr(Self) -> @debug.Repr
 
 pub struct PagedGraphMemoryEvidence {
   // private fields
@@ -478,6 +535,9 @@ pub struct PagedGraphMemoryEvidence {
 pub fn PagedGraphMemoryEvidence::alignment_bytes(Self) -> Int64?
 pub fn PagedGraphMemoryEvidence::availability(Self) -> PagedGraphMemoryAvailability
 pub fn PagedGraphMemoryEvidence::declared_upper_bound_bytes(Self) -> Int64?
+pub fn PagedGraphMemoryEvidence::equal(Self, Self) -> Bool
+pub fn PagedGraphMemoryEvidence::not_equal(Self, Self) -> Bool
+pub fn PagedGraphMemoryEvidence::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedGraphPreparation {
   PagedReady(PagedGraphExecutor)
@@ -500,6 +560,9 @@ pub(all) enum PagedGraphResource {
   SamplingWorkspace
   DecodeSplitWorkspace
 } derive(Eq, @debug.Debug)
+pub fn PagedGraphResource::equal(Self, Self) -> Bool
+pub fn PagedGraphResource::not_equal(Self, Self) -> Bool
+pub fn PagedGraphResource::to_repr(Self) -> @debug.Repr
 
 pub struct PagedGraphRuntimeTelemetry {
   // private fields
@@ -513,6 +576,9 @@ pub(all) enum PagedGraphSelectedPath {
   PagedGraphCaptured
   PagedGraphOrderedEager
 } derive(Eq, @debug.Debug)
+pub fn PagedGraphSelectedPath::equal(Self, Self) -> Bool
+pub fn PagedGraphSelectedPath::not_equal(Self, Self) -> Bool
+pub fn PagedGraphSelectedPath::to_repr(Self) -> @debug.Repr
 
 pub struct PagedGraphSelectedShapeClass {
   // private fields
@@ -549,20 +615,26 @@ pub(all) enum PagedKvBlueprintRule {
   MixedFp8Execution
   GraphMemory
 } derive(Eq, @debug.Debug)
+pub fn PagedKvBlueprintRule::equal(Self, Self) -> Bool
+pub fn PagedKvBlueprintRule::not_equal(Self, Self) -> Bool
+pub fn PagedKvBlueprintRule::to_repr(Self) -> @debug.Repr
 
 pub struct PagedKvExecutionBlueprint {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PagedKvExecutionBlueprint::activation_workspace_arena_bytes(Self) -> Int64
 pub fn PagedKvExecutionBlueprint::catalog_version(Self) -> @catalog.CatalogVersion
+pub fn PagedKvExecutionBlueprint::equal(Self, Self) -> Bool
 pub fn PagedKvExecutionBlueprint::graph_memory_evidence(Self) -> PagedGraphMemoryEvidence
 pub fn PagedKvExecutionBlueprint::identity(Self) -> @spec.ModelIdentity
 pub fn PagedKvExecutionBlueprint::layout(Self) -> @device_layout.DeviceKvLayout
 pub fn PagedKvExecutionBlueprint::limits(Self) -> DeviceStepLimits
+pub fn PagedKvExecutionBlueprint::not_equal(Self, Self) -> Bool
 pub fn PagedKvExecutionBlueprint::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn PagedKvExecutionBlueprint::scope(Self) -> @launch_contract.PagedContractScope
 pub fn PagedKvExecutionBlueprint::steps(Self) -> ReadOnlyArray[PagedKvExecutionStep]
 pub fn PagedKvExecutionBlueprint::target(Self) -> @catalog.DeviceTarget
+pub fn PagedKvExecutionBlueprint::to_repr(Self) -> @debug.Repr
 pub fn PagedKvExecutionBlueprint::weight_alignment(Self) -> Int64
 pub fn PagedKvExecutionBlueprint::weight_arena_bytes(Self) -> Int64
 
@@ -573,21 +645,27 @@ pub fn PagedKvExecutionStep::artifact_module_index(Self) -> Int
 pub fn PagedKvExecutionStep::capability(Self) -> @plan.KernelCapabilityId
 pub fn PagedKvExecutionStep::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn PagedKvExecutionStep::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedKvExecutionStep::equal(Self, Self) -> Bool
 pub fn PagedKvExecutionStep::function_symbol(Self) -> String
 pub fn PagedKvExecutionStep::kv_layer(Self) -> @plan.KvLayerId?
+pub fn PagedKvExecutionStep::not_equal(Self, Self) -> Bool
 pub fn PagedKvExecutionStep::operands(Self) -> ReadOnlyArray[PagedKvOperandBinding]
 pub fn PagedKvExecutionStep::operation_id(Self) -> @plan.OperationId
 pub fn PagedKvExecutionStep::operation_kind(Self) -> @plan.OperationKind
 pub fn PagedKvExecutionStep::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn PagedKvExecutionStep::to_repr(Self) -> @debug.Repr
 
 pub struct PagedKvOperandBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PagedKvOperandBinding::alignment(Self) -> Int64
 pub fn PagedKvOperandBinding::byte_count(Self) -> Int64
+pub fn PagedKvOperandBinding::equal(Self, Self) -> Bool
+pub fn PagedKvOperandBinding::not_equal(Self, Self) -> Bool
 pub fn PagedKvOperandBinding::offset_bytes(Self) -> Int64
 pub fn PagedKvOperandBinding::role(Self) -> @launch_contract.AotOperandRole
 pub fn PagedKvOperandBinding::space(Self) -> PagedKvOperandSpace
+pub fn PagedKvOperandBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedKvOperandSpace {
   StepDescriptor(DeviceStepStage)
@@ -595,12 +673,18 @@ pub(all) enum PagedKvOperandSpace {
   ActivationWorkspaceArena
   PersistentKvArena
 } derive(Eq, @debug.Debug)
+pub fn PagedKvOperandSpace::equal(Self, Self) -> Bool
+pub fn PagedKvOperandSpace::not_equal(Self, Self) -> Bool
+pub fn PagedKvOperandSpace::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedSamplingExecutionPolicy {
   PagedHostSampling
   PagedCudaGreedySampling(PagedCudaGreedySamplingAdmission)
   PagedCudaRestrictiveTopKV2(PagedCudaDeviceSamplingAdmission)
 } derive(Eq, @debug.Debug)
+pub fn PagedSamplingExecutionPolicy::equal(Self, Self) -> Bool
+pub fn PagedSamplingExecutionPolicy::not_equal(Self, Self) -> Bool
+pub fn PagedSamplingExecutionPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct StagedDeviceStep(DeviceStepOwner, UInt64)
 pub fn StagedDeviceStep::detach_frame_authentication(Self, @worker_wire.ValidatedPlanFrame) -> Unit raise DeviceStepError

@@ -22,6 +22,9 @@ pub(all) suberror RequestAdmissionError {
   Invalid(RequestAdmissionRule)
   ClockUnavailable
 } derive(Eq, @debug.Debug)
+pub fn RequestAdmissionError::equal(Self, Self) -> Bool
+pub fn RequestAdmissionError::not_equal(Self, Self) -> Bool
+pub fn RequestAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct IncrementalRequestReceiver {
@@ -67,6 +70,9 @@ pub(all) enum LunaRequestPreparationAdmissionKind {
   LunaRequestPreparationSaturated
   LunaRequestPreparationDraining
 } derive(Eq, @debug.Debug)
+pub fn LunaRequestPreparationAdmissionKind::equal(Self, Self) -> Bool
+pub fn LunaRequestPreparationAdmissionKind::not_equal(Self, Self) -> Bool
+pub fn LunaRequestPreparationAdmissionKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaRequestPreparationPool {
   // private fields
@@ -87,6 +93,9 @@ pub(all) enum LunaRequestPreparationPoolProgress {
   LunaRequestPreparationPoolAwaitingInput
   LunaRequestPreparationPoolAdvanced
 } derive(Eq, @debug.Debug)
+pub fn LunaRequestPreparationPoolProgress::equal(Self, Self) -> Bool
+pub fn LunaRequestPreparationPoolProgress::not_equal(Self, Self) -> Bool
+pub fn LunaRequestPreparationPoolProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaRequestPreparationStepBudget {
   // private fields
@@ -128,6 +137,9 @@ pub(all) enum LunaRequestPreparationWorkState {
   LunaRequestPreparationFailed
   LunaRequestPreparationCancelRequested
 } derive(Eq, @debug.Debug)
+pub fn LunaRequestPreparationWorkState::equal(Self, Self) -> Bool
+pub fn LunaRequestPreparationWorkState::not_equal(Self, Self) -> Bool
+pub fn LunaRequestPreparationWorkState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaRequestReceipt {
   // private fields
@@ -161,6 +173,9 @@ pub(all) enum RequestAdmissionRule {
   LunaPreparationWork
   LunaPreparationStorage
 } derive(Eq, @debug.Debug)
+pub fn RequestAdmissionRule::equal(Self, Self) -> Bool
+pub fn RequestAdmissionRule::not_equal(Self, Self) -> Bool
+pub fn RequestAdmissionRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

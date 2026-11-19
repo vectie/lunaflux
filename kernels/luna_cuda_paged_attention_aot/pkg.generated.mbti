@@ -42,12 +42,18 @@ pub(all) suberror PagedAttentionAotError {
   LimitExceeded(PagedAttentionAotRule)
   SizeOverflow(PagedAttentionAotRule)
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionAotError::equal(Self, Self) -> Bool
+pub fn PagedAttentionAotError::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct PagedAttentionAotLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionAotLimits::equal(Self, Self) -> Bool
 pub fn PagedAttentionAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int) -> Self raise PagedAttentionAotError
+pub fn PagedAttentionAotLimits::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionAotLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedAttentionAotRule {
   Limits
@@ -67,17 +73,22 @@ pub(all) enum PagedAttentionAotRule {
   Source
   Recipe
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionAotRule::equal(Self, Self) -> Bool
+pub fn PagedAttentionAotRule::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionAotRule::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionCudaLowering {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PagedAttentionCudaLowering::compiler_policy(Self) -> @luna_specialization.LunaCompilerPolicy
 pub fn PagedAttentionCudaLowering::entry_point_id(Self) -> @catalog.AotKernelEntryPointId
+pub fn PagedAttentionCudaLowering::equal(Self, Self) -> Bool
 pub fn PagedAttentionCudaLowering::execution_phase(Self) -> @luna_attention_strategy.AttentionExecutionPhase
 pub fn PagedAttentionCudaLowering::function_symbol(Self) -> String
 pub fn PagedAttentionCudaLowering::head_dimension(Self) -> Int
 pub fn PagedAttentionCudaLowering::kv_heads(Self) -> Int
 pub fn PagedAttentionCudaLowering::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn PagedAttentionCudaLowering::not_equal(Self, Self) -> Bool
 pub fn PagedAttentionCudaLowering::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
 pub fn PagedAttentionCudaLowering::operation_id(Self) -> @plan.OperationId
 pub fn PagedAttentionCudaLowering::page_stride_bytes(Self) -> Int64
@@ -89,15 +100,26 @@ pub fn PagedAttentionCudaLowering::recipe_digest(Self) -> PagedAttentionCudaReci
 pub fn PagedAttentionCudaLowering::source_bytes(Self) -> Bytes
 pub fn PagedAttentionCudaLowering::source_digest(Self) -> PagedAttentionCudaSourceDigest
 pub fn PagedAttentionCudaLowering::target(Self) -> @catalog.DeviceTarget
+pub fn PagedAttentionCudaLowering::to_repr(Self) -> @debug.Repr
 pub fn PagedAttentionCudaLowering::tokens_per_page(Self) -> Int
 
 pub struct PagedAttentionCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionCudaRecipeDigest::as_hex(Self) -> String
+pub fn PagedAttentionCudaRecipeDigest::equal(Self, Self) -> Bool
 pub fn PagedAttentionCudaRecipeDigest::from_sha256(String) -> Self raise PagedAttentionAotError
+pub fn PagedAttentionCudaRecipeDigest::hash(Self) -> Int
+pub fn PagedAttentionCudaRecipeDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PagedAttentionCudaRecipeDigest::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionCudaRecipeDigest::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionCudaSourceDigest::as_hex(Self) -> String
+pub fn PagedAttentionCudaSourceDigest::equal(Self, Self) -> Bool
 pub fn PagedAttentionCudaSourceDigest::from_sha256(String) -> Self raise PagedAttentionAotError
+pub fn PagedAttentionCudaSourceDigest::hash(Self) -> Int
+pub fn PagedAttentionCudaSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PagedAttentionCudaSourceDigest::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionCudaSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionDecodeSplitCudaBundle {
   // private fields
@@ -106,11 +128,13 @@ pub fn PagedAttentionDecodeSplitCudaBundle::compiler_policy(Self) -> @luna_speci
 pub fn PagedAttentionDecodeSplitCudaBundle::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
 pub fn PagedAttentionDecodeSplitCudaBundle::dispatch_plan(Self) -> @luna_attention_strategy.AttentionDispatchPlan
 pub fn PagedAttentionDecodeSplitCudaBundle::entry_point_ids(Self) -> (@catalog.AotKernelEntryPointId, @catalog.AotKernelEntryPointId)
+pub fn PagedAttentionDecodeSplitCudaBundle::equal(Self, Self) -> Bool
 pub fn PagedAttentionDecodeSplitCudaBundle::function_symbols(Self) -> (String, String)
 pub fn PagedAttentionDecodeSplitCudaBundle::head_dimension(Self) -> Int
 pub fn PagedAttentionDecodeSplitCudaBundle::kv_heads(Self) -> Int
 pub fn PagedAttentionDecodeSplitCudaBundle::launch_dimensions(Self) -> (@launch_contract.AotLaunchDimensions, @launch_contract.AotLaunchDimensions)
 pub fn PagedAttentionDecodeSplitCudaBundle::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionDecodeSplitCudaBundle::not_equal(Self, Self) -> Bool
 pub fn PagedAttentionDecodeSplitCudaBundle::operands(Self) -> ReadOnlyArray[@launch_contract.AotOperand]
 pub fn PagedAttentionDecodeSplitCudaBundle::operation_id(Self) -> @plan.OperationId
 pub fn PagedAttentionDecodeSplitCudaBundle::page_stride_bytes(Self) -> Int64
@@ -122,6 +146,7 @@ pub fn PagedAttentionDecodeSplitCudaBundle::recipe_digest(Self) -> PagedAttentio
 pub fn PagedAttentionDecodeSplitCudaBundle::source_bytes(Self) -> Bytes
 pub fn PagedAttentionDecodeSplitCudaBundle::source_digest(Self) -> PagedAttentionCudaSourceDigest
 pub fn PagedAttentionDecodeSplitCudaBundle::target(Self) -> @catalog.DeviceTarget
+pub fn PagedAttentionDecodeSplitCudaBundle::to_repr(Self) -> @debug.Repr
 pub fn PagedAttentionDecodeSplitCudaBundle::tokens_per_page(Self) -> Int
 pub fn PagedAttentionDecodeSplitCudaBundle::workspace_plan(Self) -> @luna_attention_strategy.AttentionDecodeWorkspacePlan
 
@@ -132,25 +157,36 @@ pub fn PagedAttentionDecodeSplitManifestCudaBinding::binding_digest(Self) -> Pag
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::binding_record_bytes(Self) -> Bytes
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::candidate(Self) -> PagedAttentionDecodeSplitCudaBundle
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::contract(Self) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::equal(Self, Self) -> Bool
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::manifest_bindable(Self) -> Bool
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::module_bytes(Self) -> Bytes
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::not_equal(Self, Self) -> Bool
 pub fn PagedAttentionDecodeSplitManifestCudaBinding::runtime_binding(Self) -> PagedAttentionDecodeSplitRuntimeCudaBinding
+pub fn PagedAttentionDecodeSplitManifestCudaBinding::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionDecodeSplitRuntimeCudaBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::contract(Self) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::equal(Self, Self) -> Bool
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::is_blockwise_readonly(Self) -> Bool
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::is_compiler_readonly(Self) -> Bool
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::manifest_bindable(Self) -> Bool
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::module_bytes(Self) -> Bytes
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::not_equal(Self, Self) -> Bool
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::operation_id(Self) -> @plan.OperationId
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::profile(Self) -> @launch_contract.PagedKernelProfile
 pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::target(Self) -> @catalog.DeviceTarget
+pub fn PagedAttentionDecodeSplitRuntimeCudaBinding::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionManifestBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionManifestBindingDigest::as_hex(Self) -> String
+pub fn PagedAttentionManifestBindingDigest::equal(Self, Self) -> Bool
+pub fn PagedAttentionManifestBindingDigest::hash(Self) -> Int
+pub fn PagedAttentionManifestBindingDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PagedAttentionManifestBindingDigest::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionManifestBindingDigest::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionManifestCudaLowering {
   // private fields
@@ -159,14 +195,20 @@ pub fn PagedAttentionManifestCudaLowering::binding_digest(Self) -> PagedAttentio
 pub fn PagedAttentionManifestCudaLowering::binding_record_bytes(Self) -> Bytes
 pub fn PagedAttentionManifestCudaLowering::candidate(Self) -> PagedAttentionCudaLowering
 pub fn PagedAttentionManifestCudaLowering::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedAttentionManifestCudaLowering::equal(Self, Self) -> Bool
 pub fn PagedAttentionManifestCudaLowering::manifest_bindable(Self) -> Bool
+pub fn PagedAttentionManifestCudaLowering::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionManifestCudaLowering::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionPhaseCudaBundle {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn PagedAttentionPhaseCudaBundle::decode(Self) -> PagedAttentionCudaLowering
 pub fn PagedAttentionPhaseCudaBundle::dispatch_plan(Self) -> @luna_attention_strategy.AttentionDispatchPlan
+pub fn PagedAttentionPhaseCudaBundle::equal(Self, Self) -> Bool
+pub fn PagedAttentionPhaseCudaBundle::not_equal(Self, Self) -> Bool
 pub fn PagedAttentionPhaseCudaBundle::prefill(Self) -> PagedAttentionCudaLowering
+pub fn PagedAttentionPhaseCudaBundle::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

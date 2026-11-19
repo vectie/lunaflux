@@ -33,16 +33,25 @@ pub(all) suberror LunaBf16KernelProducerError {
   Mismatch(LunaBf16KernelProducerRule)
   LimitExceeded(LunaBf16KernelProducerRule, maximum~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16KernelProducerError::equal(Self, Self) -> Bool
+pub fn LunaBf16KernelProducerError::not_equal(Self, Self) -> Bool
+pub fn LunaBf16KernelProducerError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror LunaBf16PromotionError {
   LunaBf16PromotionRejected(LunaBf16PromotionRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16PromotionError::equal(Self, Self) -> Bool
+pub fn LunaBf16PromotionError::not_equal(Self, Self) -> Bool
+pub fn LunaBf16PromotionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaBf16BenchmarkShape {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16BenchmarkShape::equal(Self, Self) -> Bool
 pub fn LunaBf16BenchmarkShape::new(prefill_rows~ : Int, decode_rows~ : Int, query_tokens~ : Int, page_table_entries~ : Int, trace~ : LunaBf16PromotionDigest) -> Self raise LunaBf16PromotionError
+pub fn LunaBf16BenchmarkShape::not_equal(Self, Self) -> Bool
+pub fn LunaBf16BenchmarkShape::to_repr(Self) -> @debug.Repr
 
 pub struct LunaBf16CandidateSet {
   // private fields
@@ -77,11 +86,14 @@ pub(all) enum LunaBf16KernelCandidate {
   Projection(@luna_cuda_projection_aot.ProjectionCudaLowering)
   PagedAttention(@luna_cuda_paged_attention_aot.PagedAttentionCudaLowering)
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16KernelCandidate::equal(Self, Self) -> Bool
 pub fn LunaBf16KernelCandidate::family_name(Self) -> String
+pub fn LunaBf16KernelCandidate::not_equal(Self, Self) -> Bool
 pub fn LunaBf16KernelCandidate::operation_id(Self) -> @plan.OperationId
 pub fn LunaBf16KernelCandidate::recipe_sha256(Self) -> String
 pub fn LunaBf16KernelCandidate::source_sha256(Self) -> String
 pub fn LunaBf16KernelCandidate::target(Self) -> @catalog.DeviceTarget
+pub fn LunaBf16KernelCandidate::to_repr(Self) -> @debug.Repr
 
 pub struct LunaBf16KernelProducerLimits {
   // private fields
@@ -108,6 +120,9 @@ pub(all) enum LunaBf16KernelProducerRule {
   CandidateRecipe
   CandidateInventory
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16KernelProducerRule::equal(Self, Self) -> Bool
+pub fn LunaBf16KernelProducerRule::not_equal(Self, Self) -> Bool
+pub fn LunaBf16KernelProducerRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaBf16KernelReleaseInput {
   // private fields
@@ -152,7 +167,12 @@ pub fn LunaBf16ProfilerEvidenceLimits::new(maximum_candidates~ : Int, maximum_sh
 
 pub struct LunaBf16PromotionDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaBf16PromotionDigest::as_hex(Self) -> String
+pub fn LunaBf16PromotionDigest::equal(Self, Self) -> Bool
 pub fn LunaBf16PromotionDigest::from_sha256(String) -> Self raise LunaBf16PromotionError
+pub fn LunaBf16PromotionDigest::hash(Self) -> Int
+pub fn LunaBf16PromotionDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaBf16PromotionDigest::not_equal(Self, Self) -> Bool
+pub fn LunaBf16PromotionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaBf16PromotionLimits {
   // private fields
@@ -178,6 +198,9 @@ pub(all) enum LunaBf16PromotionRule {
   ReleaseAuthority
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn LunaBf16PromotionRule::equal(Self, Self) -> Bool
+pub fn LunaBf16PromotionRule::not_equal(Self, Self) -> Bool
+pub fn LunaBf16PromotionRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

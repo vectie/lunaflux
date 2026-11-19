@@ -54,11 +54,17 @@ pub(all) enum PipelineStage {
   Failed
   Closed
 } derive(Eq, @debug.Debug)
+pub fn PipelineStage::equal(Self, Self) -> Bool
+pub fn PipelineStage::not_equal(Self, Self) -> Bool
+pub fn PipelineStage::to_repr(Self) -> @debug.Repr
 
 pub struct PreparedStage {
   // private fields
 }
+pub fn PreparedStage::drain(Self) -> Unit raise
+pub fn PreparedStage::execute(Self) -> Unit raise
 pub fn[F : PreparedFrame] PreparedStage::own(F) -> Self
+pub fn PreparedStage::release(Self) -> Unit raise
 pub impl PreparedFrame for PreparedStage
 
 // Type aliases

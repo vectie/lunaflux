@@ -38,7 +38,7 @@ fn projection_ordered_dense_bf16(
 test "video and audio projection candidates bind dense ABI and request rows" {
   let requirements = diffusion_aot_requirements()
   let request = diffusion_aot_request()
-  let video = lower_latent_projection_cuda_aot_candidate(
+  let video = @joint_diffusion_cuda_aot.lower_latent_projection_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=projection_ordinal(requirements, VideoLatent),
@@ -74,7 +74,7 @@ test "video and audio projection candidates bind dense ABI and request rows" {
   assert_true(source.contains("__fmul_rn"))
   assert_true(source.contains("__fadd_rn"))
   assert_true(source.contains("float accumulator = bias[column]"))
-  let audio = lower_latent_projection_cuda_aot_candidate(
+  let audio = @joint_diffusion_cuda_aot.lower_latent_projection_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=projection_ordinal(requirements, AudioLatent),
@@ -119,7 +119,7 @@ test "video and audio projection candidates bind dense ABI and request rows" {
       #|463a5f46281633eacec52fc8cb79ec87f725ddf2bc3fe88ac30d5e09f61df75c
     ),
   )
-  let repeated = lower_latent_projection_cuda_aot_candidate(
+  let repeated = @joint_diffusion_cuda_aot.lower_latent_projection_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=projection_ordinal(requirements, VideoLatent),
@@ -142,7 +142,7 @@ test "projection lowering rejects foreign operations and unsafe profiles" {
   let requirements = diffusion_aot_requirements()
   let request = diffusion_aot_request()
   try
-    lower_latent_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_latent_projection_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=5,
@@ -162,7 +162,7 @@ test "projection lowering rejects foreign operations and unsafe profiles" {
       diffusion_aot_compiler(reassociate=true),
     ] {
     try
-      lower_latent_projection_cuda_aot_candidate(
+      @joint_diffusion_cuda_aot.lower_latent_projection_cuda_aot_candidate(
         requirements,
         request_shape=request,
         requirement_ordinal=projection_ordinal(requirements, VideoLatent),
@@ -178,7 +178,7 @@ test "projection lowering rejects foreign operations and unsafe profiles" {
     }
   }
   try
-    lower_latent_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_latent_projection_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=projection_ordinal(requirements, VideoLatent),
@@ -193,7 +193,7 @@ test "projection lowering rejects foreign operations and unsafe profiles" {
     _ => fail("non-BF16 target was accepted")
   }
   try
-    lower_latent_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_latent_projection_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=projection_ordinal(requirements, VideoLatent),

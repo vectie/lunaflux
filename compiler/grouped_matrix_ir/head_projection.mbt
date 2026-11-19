@@ -38,19 +38,17 @@ pub fn HeadProjectionPlan::new(
     }) &&
     offset >= 0L &&
     offset <= 4294967296L else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
+    raise IllegalPlacement
   }
   let end = offset +
     (weight_heads - 1).to_int64() * head_stride +
     (columns - 1).to_int64() * column_stride +
     (inner - 1).to_int64() * inner_stride +
     1L
-  guard end <= weight_elements else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
-  }
+  guard end <= weight_elements else { raise IllegalPlacement }
   let tile = MatrixTilePlan::new(rows~, columns~, inner~, law=MatrixFloat32)
   guard tile.tile_count().to_int64() * heads.to_int64() <= 2147483647L else {
-    raise @precision.PrecisionPlanError::ArithmeticOverflow
+    raise ArithmeticOverflow
   }
   {
     tile,

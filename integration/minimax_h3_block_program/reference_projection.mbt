@@ -12,7 +12,7 @@ fn reference_projection_launch(
   let (weight_offset, bias_offset) = match copy.latent {
     Some(VideoLatent) => (packing.video_offset, packing.video_bias_offset)
     Some(AudioLatent) => (packing.audio_offset, packing.audio_bias_offset)
-    None => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    None => raise InvalidArgument(AotKernelLaunch)
   }
   let elements = copy.byte_count / 2L
   @device.OrderedKernelLaunch::new(

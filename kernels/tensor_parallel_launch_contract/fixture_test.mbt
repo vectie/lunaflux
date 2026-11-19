@@ -296,8 +296,12 @@ fn fixture_inputs(
   changed_index~ : Int32 = -1,
   changed_family~ : Bool = false,
   full_profile~ : Bool = false,
-) -> Array[TensorParallelAotLaunchContractInput] raise {
-  let output : Array[TensorParallelAotLaunchContractInput] = []
+) -> Array[
+  @tensor_parallel_launch_contract.TensorParallelAotLaunchContractInput,
+] raise {
+  let output : Array[
+    @tensor_parallel_launch_contract.TensorParallelAotLaunchContractInput,
+  ] = []
   for index, operation in model.operations() {
     let geometry = rank_plan.operation(operation.id()).unwrap()
     let family_index = fixture_family_index(operation)
@@ -307,7 +311,7 @@ fn fixture_inputs(
       fixture_family(family_index)
     }
     output.push(
-      TensorParallelAotLaunchContractInput::new(
+      @tensor_parallel_launch_contract.TensorParallelAotLaunchContractInput::new(
         profile_id=profile.id(),
         operation_id=operation.id(),
         entry_point=@catalog.AotKernelEntryPoint::new(
@@ -342,8 +346,8 @@ fn fixture_inputs(
 }
 
 ///|
-fn fixture_limits() -> TensorParallelLaunchContractLimits raise TensorParallelLaunchContractError {
-  TensorParallelLaunchContractLimits::new(
+fn fixture_limits() -> @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits raise @tensor_parallel_launch_contract.TensorParallelLaunchContractError {
+  @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits::new(
     max_profiles=4,
     max_contracts=64,
     max_operands_per_contract=16,
@@ -354,13 +358,15 @@ fn fixture_limits() -> TensorParallelLaunchContractLimits raise TensorParallelLa
 fn admit_fixture(
   source : LaunchFixture,
   profile : @launch_contract.PagedKernelProfile,
-  inputs : ArrayView[TensorParallelAotLaunchContractInput],
+  inputs : ArrayView[
+    @tensor_parallel_launch_contract.TensorParallelAotLaunchContractInput,
+  ],
   rank~ : Int32 = 1,
   world~ : Int32 = 2,
   target~ : @catalog.DeviceTarget? = None,
   layout~ : @device_layout.DeviceKvLayout? = None,
-) -> TensorParallelAotLaunchContractSet raise TensorParallelLaunchContractError {
-  admit_paged_rank(
+) -> @tensor_parallel_launch_contract.TensorParallelAotLaunchContractSet raise @tensor_parallel_launch_contract.TensorParallelLaunchContractError {
+  @tensor_parallel_launch_contract.admit_paged_rank(
     source.model,
     source.rank_plan,
     layout.unwrap_or(source.local_layout),

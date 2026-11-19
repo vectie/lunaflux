@@ -48,9 +48,7 @@ pub fn Head::launches(
   scratch : @device.Allocation,
   output : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
-  guard functions.length() == 2 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard functions.length() == 2 else { raise InvalidArgument(AotKernelLaunch) }
   fn region(
     a : @device.Allocation,
     o : Int64,

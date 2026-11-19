@@ -47,10 +47,7 @@ test "AOT kernels distinguish scale stages and reject implicit serving fallback"
       quant,
       symbol="pack_activation",
     )
-    assert_eq(
-      source.stages().last().unwrap(),
-      @luna_cuda_precision.QuantizationStage::Pack,
-    )
+    assert_eq(source.stages().last().unwrap(), Pack)
     assert_eq(source.stages().contains(GlobalScale), format == NvFp4)
     assert_eq(source.stages().length(), source.launches().length())
     for launch in source.launches() {

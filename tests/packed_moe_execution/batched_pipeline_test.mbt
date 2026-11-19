@@ -20,13 +20,13 @@ async test "batched TP publication waits for both ranks and preserves other live
   let baseline = live_resources()
   let context = @device.open_context(0)
   defer (context.close() catch { _ => () })
-  let local = batch_rank_fixture(outputs_token=false)
-  defer (local.close() catch { _ => () })
+  let local_value = batch_rank_fixture(outputs_token=false)
+  defer (local_value.close() catch { _ => () })
   let terminal = batch_rank_fixture()
   defer (terminal.close() catch { _ => () })
-  local.prepare_ports(
+  local_value.prepare_ports(
     context,
-    maximum_device_bytes=local.required_device_bytes(),
+    maximum_device_bytes=local_value.required_device_bytes(),
   )
   terminal.prepare_ports(
     context,
@@ -42,7 +42,7 @@ async test "batched TP publication waits for both ranks and preserves other live
   let retired = Ref(false)
   let remote_at_submit : Ref[@stage_control.DecoderStageClient?] = Ref(None)
   let local_submissions = Ref(0)
-  local.bind_executor(
+  local_value.bind_executor(
     context,
     submit=_ => {
       guard remote_at_submit.val is Some(remote) else {
@@ -109,7 +109,7 @@ async test "batched TP publication waits for both ranks and preserves other live
   defer (host.close() catch { _ => () })
   let pipeline = @batch_pipeline.BatchedTensorPipeline::new(
     host,
-    local,
+    local_value,
     remote,
     limits,
     serial_inference_limits(),

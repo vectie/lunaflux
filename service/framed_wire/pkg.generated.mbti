@@ -35,6 +35,9 @@ pub(all) suberror FramedWireError {
   LunaFramedTextRequestInvalidRange
   StaleFrame
 } derive(Eq, @debug.Debug)
+pub fn FramedWireError::equal(Self, Self) -> Bool
+pub fn FramedWireError::not_equal(Self, Self) -> Bool
+pub fn FramedWireError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct EventFrameBuffer {
@@ -49,6 +52,9 @@ pub(all) enum FramedWireFrameKind {
   RequestFrame
   EventFrame
 } derive(Eq, @debug.Debug)
+pub fn FramedWireFrameKind::equal(Self, Self) -> Bool
+pub fn FramedWireFrameKind::not_equal(Self, Self) -> Bool
+pub fn FramedWireFrameKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FramedWireLimitRule {
   FrameBytes
@@ -56,13 +62,19 @@ pub(all) enum FramedWireLimitRule {
   LunaFramedEventWorkUnits
   LunaFramedTextRequestWorkUnits
 } derive(Eq, @debug.Debug)
+pub fn FramedWireLimitRule::equal(Self, Self) -> Bool
+pub fn FramedWireLimitRule::not_equal(Self, Self) -> Bool
+pub fn FramedWireLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct FramedWireLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn FramedWireLimits::equal(Self, Self) -> Bool
 pub fn FramedWireLimits::inference_limits(Self) -> @inference.InferenceLimits
 pub fn FramedWireLimits::max_frame_bytes(Self) -> Int
 pub fn FramedWireLimits::new(@inference.InferenceLimits, max_frame_bytes~ : Int) -> Self raise FramedWireError
+pub fn FramedWireLimits::not_equal(Self, Self) -> Bool
+pub fn FramedWireLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FramedWireRule {
   Magic
@@ -79,6 +91,9 @@ pub(all) enum FramedWireRule {
   Payload
   CanonicalEncoding
 } derive(Eq, @debug.Debug)
+pub fn FramedWireRule::equal(Self, Self) -> Bool
+pub fn FramedWireRule::not_equal(Self, Self) -> Bool
+pub fn FramedWireRule::to_repr(Self) -> @debug.Repr
 
 pub struct IncrementalRequestReader {
   // private fields
@@ -101,6 +116,9 @@ pub(all) enum LunaFramedEventProgress {
   LunaFramedEventIdle
   LunaFramedEventAdvanced
 } derive(Eq, @debug.Debug)
+pub fn LunaFramedEventProgress::equal(Self, Self) -> Bool
+pub fn LunaFramedEventProgress::not_equal(Self, Self) -> Bool
+pub fn LunaFramedEventProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaFramedEventStepBudget {
   // private fields
@@ -131,6 +149,9 @@ pub(all) enum LunaFramedEventWorkState {
   LunaFramedEventReady
   LunaFramedEventFailed
 } derive(Eq, @debug.Debug)
+pub fn LunaFramedEventWorkState::equal(Self, Self) -> Bool
+pub fn LunaFramedEventWorkState::not_equal(Self, Self) -> Bool
+pub fn LunaFramedEventWorkState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaFramedEventWorkspace {
   // private fields
@@ -144,11 +165,17 @@ pub(all) enum LunaFramedRequestInputKind {
   LunaFramedRequestText
   LunaFramedRequestTokenIds
 } derive(Eq, @debug.Debug)
+pub fn LunaFramedRequestInputKind::equal(Self, Self) -> Bool
+pub fn LunaFramedRequestInputKind::not_equal(Self, Self) -> Bool
+pub fn LunaFramedRequestInputKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaFramedRequestProgress {
   LunaFramedRequestIdle
   LunaFramedRequestAdvanced
 } derive(Eq, @debug.Debug)
+pub fn LunaFramedRequestProgress::equal(Self, Self) -> Bool
+pub fn LunaFramedRequestProgress::not_equal(Self, Self) -> Bool
+pub fn LunaFramedRequestProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaFramedRequestStepBudget {
   // private fields
@@ -211,6 +238,9 @@ pub(all) enum LunaFramedRequestWorkState {
   LunaFramedRequestReady
   LunaFramedRequestFailed
 } derive(Eq, @debug.Debug)
+pub fn LunaFramedRequestWorkState::equal(Self, Self) -> Bool
+pub fn LunaFramedRequestWorkState::not_equal(Self, Self) -> Bool
+pub fn LunaFramedRequestWorkState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaFramedRequestWorkspace {
   // private fields
@@ -224,6 +254,9 @@ pub(all) enum LunaFramedTextRequestProgress {
   LunaFramedTextRequestIdle
   LunaFramedTextRequestAdvanced
 } derive(Eq, @debug.Debug)
+pub fn LunaFramedTextRequestProgress::equal(Self, Self) -> Bool
+pub fn LunaFramedTextRequestProgress::not_equal(Self, Self) -> Bool
+pub fn LunaFramedTextRequestProgress::to_repr(Self) -> @debug.Repr
 
 pub struct LunaFramedTextRequestStepBudget {
   // private fields
@@ -254,6 +287,9 @@ pub(all) enum LunaFramedTextRequestWorkState {
   LunaFramedTextRequestReady
   LunaFramedTextRequestFailed
 } derive(Eq, @debug.Debug)
+pub fn LunaFramedTextRequestWorkState::equal(Self, Self) -> Bool
+pub fn LunaFramedTextRequestWorkState::not_equal(Self, Self) -> Bool
+pub fn LunaFramedTextRequestWorkState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaFramedTextRequestWorkspace {
   // private fields

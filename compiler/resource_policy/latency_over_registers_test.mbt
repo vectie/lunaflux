@@ -24,9 +24,6 @@ test "fewer registers without higher residency cannot outrank faster completion"
       preferred_id=preferred,
     ).unwrap()
     assert_eq(result.policy().id(), "unrolled")
-    assert_eq(
-      result.origin(),
-      @resource_policy.Measured(latency_ns=1450717L, samples=5),
-    )
+    assert_eq(result.origin(), Measured(latency_ns=1450717L, samples=5))
   }
 }

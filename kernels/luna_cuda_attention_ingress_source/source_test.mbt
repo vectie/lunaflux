@@ -7,7 +7,7 @@ test "shared epilogue preserves fold and rounding boundaries across fusion cuts"
     norm_epsilon=0.000001,
     rope_theta=1000000.0,
   )
-  let source = lower_attention_ingress_numerics(
+  let source = @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
     epilogue.numerics(reduction_lanes=32),
   )
   assert_true(source.contains("float first_values[2], second_values[2]"))
@@ -35,7 +35,7 @@ test "shared epilogue preserves fold and rounding boundaries across fusion cuts"
     source.contains("static __device__ const float LF_ROPE_INV_FREQ[64]"),
   )
   assert_false(source.contains("__constant__"))
-  let prepared = lower_prepared_attention_ingress_numerics(
+  let prepared = @luna_cuda_attention_ingress_source.lower_prepared_attention_ingress_numerics(
     epilogue.numerics(reduction_lanes=32),
   )
   assert_true(source.has_prefix(prepared))
@@ -52,5 +52,9 @@ test "panic CUDA ingress rejects unsupported logical reduction width" {
     norm_epsilon=0.000001,
     rope_theta=10000.0,
   ).numerics(reduction_lanes=2048)
-  ignore(lower_attention_ingress_numerics(numerics))
+  ignore(
+    @luna_cuda_attention_ingress_source.lower_attention_ingress_numerics(
+      numerics,
+    ),
+  )
 }

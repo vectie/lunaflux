@@ -23,8 +23,8 @@ fn token_bound_request(
   id : UInt64,
   input_tokens : @inference.TokenBuffer,
   limits : @inference.InferenceLimits,
-) -> TokenizedRequest {
-  try! TokenizedRequest::new(
+) -> @core.TokenizedRequest {
+  try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(id),
     model_identity=selected_identity(),
     input_tokens~,

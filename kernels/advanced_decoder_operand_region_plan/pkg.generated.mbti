@@ -24,6 +24,9 @@ pub(all) suberror AdvancedDecoderOperandRegionPlanError {
   CanonicalEncodingTooLarge
   LaunchAuthorityUnavailable
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderOperandRegionPlanError::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOperandRegionPlanError::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOperandRegionPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdvancedDecoderOperandRegion {
@@ -54,6 +57,11 @@ pub fn AdvancedDecoderOperandRegionPlan::status(Self) -> AdvancedDecoderOperandR
 
 pub struct AdvancedDecoderOperandRegionPlanDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AdvancedDecoderOperandRegionPlanDigest::as_hex(Self) -> String
+pub fn AdvancedDecoderOperandRegionPlanDigest::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOperandRegionPlanDigest::hash(Self) -> Int
+pub fn AdvancedDecoderOperandRegionPlanDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AdvancedDecoderOperandRegionPlanDigest::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOperandRegionPlanDigest::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderOperandRegionPlanLimits {
   // private fields
@@ -63,6 +71,9 @@ pub fn AdvancedDecoderOperandRegionPlanLimits::new(maximum_operands~ : Int, maxi
 pub(all) enum AdvancedDecoderOperandRegionPlanStatus {
   InertUnqualified
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderOperandRegionPlanStatus::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOperandRegionPlanStatus::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOperandRegionPlanStatus::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

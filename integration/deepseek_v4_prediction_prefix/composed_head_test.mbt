@@ -22,7 +22,7 @@ test "base and predictor text heads compose without private helper collisions" {
     name in [
       "deepseek_text_io_stream_reduce", "deepseek_prediction_head_stream_reduce",
     ] {
-    assert_eq(code.split("float " + name + "_sigmoid(float value)").length(), 2)
+    assert_eq(code.split("float " + name + "_sigmoid(float value)").count(), 2)
     assert_true(code.contains("__fadd_rn(" + name + "_sigmoid(logit),"))
   }
   assert_false(code.contains("lf_hc_head_sigmoid"))

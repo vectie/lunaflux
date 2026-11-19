@@ -41,7 +41,7 @@ fn Scheduler::prepare_streaming_restore(
     0L
   } else {
     let remaining = self.deadlines[slot] - owner.last_now
-    (if remaining > 9223372036854UL { 9223372036854UL } else { remaining }).to_int64() *
+    (if remaining > 9223372036854UL { 9223372036854UL } else { remaining }).reinterpret_as_int64() *
     1000000L
   }
   if cold == 0 ||

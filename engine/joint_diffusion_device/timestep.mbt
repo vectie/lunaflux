@@ -26,7 +26,7 @@ pub fn TimestepMlpLayout::new(
     9223372036854775807L / 4L / input_width.to_int64() &&
     hidden_width.to_int64() <=
     9223372036854775807L / 4L / output_width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   {
     rows,

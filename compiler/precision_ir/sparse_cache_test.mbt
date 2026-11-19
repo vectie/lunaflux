@@ -49,7 +49,7 @@ test "latent cache keeps score normalization and has one storage owner" {
       maximum_state_bytes=history.state_bytes() - 1L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     _ => fail("incorrect budget error")
   } noraise {
     _ => fail("budget ignored")

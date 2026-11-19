@@ -18,7 +18,7 @@ pub fn Program::bind(
   guard self.ready &&
     self.workspace is Some(workspace) &&
     modulation.parameter_row_count() == self.source.distinct_timesteps * 3 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let f = self.functions
   let attention = @joint_diffusion_device.AttentionFunctions::new(
@@ -66,9 +66,7 @@ pub fn Program::conditioning_launch(
   output~ : @device.Allocation,
   output_offset~ : Int64,
 ) -> @device.OrderedKernelLaunch raise @device.DeviceError {
-  guard self.ready else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.ready else { raise InvalidArgument(AotKernelLaunch) }
   @joint_diffusion_device.conditioning_activation_launch(
     self.functions[10],
     elements=self.source.distinct_timesteps.to_int64() *

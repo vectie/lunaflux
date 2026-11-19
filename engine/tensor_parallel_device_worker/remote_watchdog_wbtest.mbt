@@ -12,9 +12,9 @@ test "remote watchdog polls repeatedly without consuming the clock capability" {
   }
   for _ in 0..<1000 {
     poll_watchdog(watchdog)
-    assert_eq(watchdog.lease.status(), @remote_lease.Active)
+    assert_eq(watchdog.lease.status(), Active)
   }
   watchdog.lease = watchdog.lease.transport_lost()
   poll_watchdog(watchdog)
-  assert_eq(watchdog.lease.status(), @remote_lease.TransportLost)
+  assert_eq(watchdog.lease.status(), TransportLost)
 }

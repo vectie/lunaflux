@@ -61,7 +61,7 @@ async test "stale or malformed JTAG replies poison ownership without a retry" {
         }
         assert_true(failed)
         try jtag.owner.begin(0U, 1) catch {
-          @device.InvalidState => ()
+          InvalidState => ()
           _ => fail("wrong poison error")
         } noraise {
           _ => fail("uncertain transport owner reused")

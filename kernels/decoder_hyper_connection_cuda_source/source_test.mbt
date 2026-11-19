@@ -1,6 +1,6 @@
 ///|
 test "block control source fixes exact bounded V1 ABI and output order" {
-  let rendered = block_control_v1_bf16_f32_source(
+  let rendered = @decoder_hyper_connection_cuda_source.block_control_v1_bf16_f32_source(
     stream_width=4,
     hidden_width=4096,
     maximum_rows=2,
@@ -35,7 +35,7 @@ test "block control source fixes exact bounded V1 ABI and output order" {
 ///|
 test "block control source rejects unbounded geometry parameters and symbols" {
   try
-    block_control_v1_bf16_f32_source(
+    @decoder_hyper_connection_cuda_source.block_control_v1_bf16_f32_source(
       stream_width=17,
       hidden_width=4096,
       maximum_rows=2,
@@ -51,7 +51,7 @@ test "block control source rejects unbounded geometry parameters and symbols" {
     _ => fail("unbounded stream width was admitted")
   }
   try
-    block_control_v1_bf16_f32_source(
+    @decoder_hyper_connection_cuda_source.block_control_v1_bf16_f32_source(
       stream_width=4,
       hidden_width=65537,
       maximum_rows=2,
@@ -67,7 +67,7 @@ test "block control source rejects unbounded geometry parameters and symbols" {
     _ => fail("unbounded hidden width was admitted")
   }
   try
-    block_control_v1_bf16_f32_source(
+    @decoder_hyper_connection_cuda_source.block_control_v1_bf16_f32_source(
       stream_width=4,
       hidden_width=4096,
       maximum_rows=0,
@@ -83,7 +83,7 @@ test "block control source rejects unbounded geometry parameters and symbols" {
     _ => fail("empty live-row bound was admitted")
   }
   try
-    block_control_v1_bf16_f32_source(
+    @decoder_hyper_connection_cuda_source.block_control_v1_bf16_f32_source(
       stream_width=4,
       hidden_width=4096,
       maximum_rows=2,
@@ -102,7 +102,7 @@ test "block control source rejects unbounded geometry parameters and symbols" {
 
 ///|
 test "pre reduction fixes directional layouts ordered reduction and one BF16 round" {
-  let rendered = pre_reduce_v1_bf16_source(
+  let rendered = @decoder_hyper_connection_cuda_source.pre_reduce_v1_bf16_source(
     stream_width=4,
     hidden_width=4096,
     maximum_rows=2,
@@ -122,9 +122,9 @@ test "pre reduction fixes directional layouts ordered reduction and one BF16 rou
   assert_true(source.contains("stream * 4096ULL"))
   assert_true(source.contains("__fmul_rn"))
   assert_true(source.contains("__fadd_rn"))
-  assert_eq(source.split("__float2bfloat16_rn").length(), 2)
+  assert_eq(source.split("__float2bfloat16_rn").count(), 2)
   try
-    pre_reduce_v1_bf16_source(
+    @decoder_hyper_connection_cuda_source.pre_reduce_v1_bf16_source(
       stream_width=4,
       hidden_width=4096,
       maximum_rows=0,
@@ -140,7 +140,7 @@ test "pre reduction fixes directional layouts ordered reduction and one BF16 rou
 
 ///|
 test "post combination fixes destination-source order and one BF16 round" {
-  let rendered = post_combine_v1_bf16_source(
+  let rendered = @decoder_hyper_connection_cuda_source.post_combine_v1_bf16_source(
     stream_width=4,
     hidden_width=4096,
     maximum_rows=2,
@@ -161,5 +161,5 @@ test "post combination fixes destination-source order and one BF16 round" {
   assert_true(source.contains("source < 4"))
   assert_true(source.contains("__fmul_rn(post_value, branch_value)"))
   assert_true(source.contains("__fadd_rn"))
-  assert_eq(source.split("__float2bfloat16_rn").length(), 2)
+  assert_eq(source.split("__float2bfloat16_rn").count(), 2)
 }

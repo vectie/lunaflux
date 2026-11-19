@@ -2,7 +2,7 @@
 test "audio decoder conv_pre scalar oracle preserves weight norm and B-C-T order" {
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
-  let contract = try! bind_audio_decoder_conv_pre(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_conv_pre(
     plan,
     request,
     decoder_batch_count=1,
@@ -17,7 +17,7 @@ test "audio decoder conv_pre scalar oracle preserves weight norm and B-C-T order
   let weight_v = Array::make(56, 0.0F)
   weight_v[3] = 1.0F
   weight_v[28 + 7 + 3] = 2.0F
-  let output = try! execute_audio_decoder_conv_pre(
+  let output = try! @joint_diffusion_vae_reference.execute_audio_decoder_conv_pre(
     contract,
     [1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F],
     [1.0F, 4.0F],
@@ -32,7 +32,7 @@ test "audio decoder conv_pre rejects hostile identity length and zero norm" {
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
   try
-    bind_audio_decoder_conv_pre(
+    @joint_diffusion_vae_reference.bind_audio_decoder_conv_pre(
       plan,
       request,
       decoder_batch_count=1,
@@ -46,7 +46,7 @@ test "audio decoder conv_pre rejects hostile identity length and zero norm" {
   } noraise {
     _ => fail("hostile tensor name admitted")
   }
-  let contract = try! bind_audio_decoder_conv_pre(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_conv_pre(
     plan,
     request,
     decoder_batch_count=1,
@@ -55,7 +55,7 @@ test "audio decoder conv_pre rejects hostile identity length and zero norm" {
     bias_name="decoder.conv_pre.bias",
   )
   try
-    execute_audio_decoder_conv_pre(
+    @joint_diffusion_vae_reference.execute_audio_decoder_conv_pre(
       contract,
       [1.0F],
       [1.0F, 1.0F],
@@ -69,7 +69,7 @@ test "audio decoder conv_pre rejects hostile identity length and zero norm" {
     _ => fail("short input admitted")
   }
   try
-    execute_audio_decoder_conv_pre(
+    @joint_diffusion_vae_reference.execute_audio_decoder_conv_pre(
       contract,
       Array::make(8, 1.0F),
       [1.0F, 1.0F],

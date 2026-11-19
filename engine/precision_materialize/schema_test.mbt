@@ -59,7 +59,9 @@ test "mixed-format graph weight schema streams every tensor into one BF16 arena"
         Payload => source.payload()
         Scales => source.scales()
       }
-      bytes.sub(start=offset.to_int(), end=offset.to_int() + count).to_owned()
+      bytes
+      .exact_view(start=offset.to_int(), end=offset.to_int() + count)
+      .to_owned()
     },
     (offset, bytes) => {
       for i, b in bytes {

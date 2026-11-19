@@ -14,7 +14,7 @@ fn RankChildChannel::begin_read_frame_or_eof(
     Local(channel) => channel.begin_read_frame_or_eof(destination, staging~)
     Remote(mailbox, retained) => {
       mailbox.begin_read() catch {
-        _ => raise @process.ProcessError::InvalidState(Read)
+        _ => raise InvalidState(Read)
       }
       retained.val = Some(destination)
     }
@@ -28,11 +28,9 @@ fn RankChildChannel::progress_read_frame_or_eof(
   match self {
     Local(channel) => channel.progress_read_frame_or_eof()
     Remote(mailbox, retained) => {
-      guard retained.val is Some(destination) else {
-        raise @process.ProcessError::InvalidState(Read)
-      }
+      guard retained.val is Some(destination) else { raise InvalidState(Read) }
       mailbox.poll_read(destination) catch {
-        _ => raise @process.ProcessError::ChannelClosed(Read)
+        _ => raise ChannelClosed(Read)
       }
     }
   }
@@ -49,7 +47,7 @@ fn RankChildChannel::begin_write_frame(
     Local(channel) => channel.begin_write_frame(bytes, offset~, byte_count~)
     Remote(mailbox, _) =>
       mailbox.begin_write(bytes, offset, byte_count) catch {
-        _ => raise @process.ProcessError::ChannelClosed(Write)
+        _ => raise ChannelClosed(Write)
       }
   }
 }
@@ -62,7 +60,7 @@ fn RankChildChannel::progress_write_frame(
     Local(channel) => channel.progress_write_frame()
     Remote(mailbox, _) =>
       mailbox.poll_write() catch {
-        _ => raise @process.ProcessError::ChannelClosed(Write)
+        _ => raise ChannelClosed(Write)
       }
   }
 }

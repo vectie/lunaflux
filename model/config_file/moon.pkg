@@ -1,14 +1,15 @@
 import {
-  "moonbitlang/async",
-  "moonbitlang/async/fs",
-  "moonbitlang/core/encoding/utf8",
-} for "test"
-
-import {
-  "moonbitlang/x/crypto",
+  "moonbitlang/core/debug",
   "vectie/lunaflux/model/config_reader",
   "vectie/lunaflux/model/spec",
   "vectie/lunaflux/runtime/approved_fs",
 }
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/x/crypto",
+} for "test"
 
 supported_targets = "native"

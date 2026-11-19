@@ -49,6 +49,9 @@ pub fn prepare_luna_online_openai_server(@online_session.LunaOnlineFramedService
 pub(all) suberror LunaOnlineTcpError {
   LunaOnlineTcpFailed(LunaOnlineTcpRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpError::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpError::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaOnlineFramedConnectionPool {
@@ -87,11 +90,17 @@ pub(all) enum LunaOnlineFramedConnectionPoolProgress {
   LunaOnlineFramedConnectionPoolFailedProgress
   LunaOnlineFramedConnectionPoolClosedProgress
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedConnectionPoolProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedConnectionPoolProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedConnectionPoolProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineFramedConnectionPoolReadiness {
   LunaOnlineFramedConnectionPoolNotReady
   LunaOnlineFramedConnectionPoolReady
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedConnectionPoolReadiness::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedConnectionPoolReadiness::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedConnectionPoolReadiness::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineFramedConnectionPoolState {
   LunaOnlineFramedConnectionPoolListening
@@ -100,6 +109,9 @@ pub(all) enum LunaOnlineFramedConnectionPoolState {
   LunaOnlineFramedConnectionPoolFailed
   LunaOnlineFramedConnectionPoolClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineFramedConnectionPoolState::equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedConnectionPoolState::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineFramedConnectionPoolState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineHttpControlPreparation {
   // private fields
@@ -114,11 +126,17 @@ pub(all) enum LunaOnlineHttpControlProgress {
   LunaOnlineHttpControlClosedProgress
   LunaOnlineHttpControlFailedProgress
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineHttpControlProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineHttpControlProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineHttpControlProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineHttpControlReadiness {
   LunaOnlineHttpControlNotReady
   LunaOnlineHttpControlReady
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineHttpControlReadiness::equal(Self, Self) -> Bool
+pub fn LunaOnlineHttpControlReadiness::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineHttpControlReadiness::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineHttpControlServer {
   // private fields
@@ -138,6 +156,9 @@ pub(all) enum LunaOnlineHttpControlState {
   LunaOnlineHttpControlClosed
   LunaOnlineHttpControlFailed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineHttpControlState::equal(Self, Self) -> Bool
+pub fn LunaOnlineHttpControlState::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineHttpControlState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineOpenAIConnectionPool {
   // private fields
@@ -173,11 +194,17 @@ pub(all) enum LunaOnlineOpenAIConnectionPoolProgress {
   LunaOnlineOpenAIConnectionPoolDrainingProgress
   LunaOnlineOpenAIConnectionPoolClosedProgress
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineOpenAIConnectionPoolProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineOpenAIConnectionPoolProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineOpenAIConnectionPoolProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineOpenAIConnectionPoolReadiness {
   LunaOnlineOpenAIConnectionPoolNotReady
   LunaOnlineOpenAIConnectionPoolReady
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineOpenAIConnectionPoolReadiness::equal(Self, Self) -> Bool
+pub fn LunaOnlineOpenAIConnectionPoolReadiness::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineOpenAIConnectionPoolReadiness::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineOpenAIConnectionPoolState {
   LunaOnlineOpenAIConnectionPoolListening
@@ -185,6 +212,9 @@ pub(all) enum LunaOnlineOpenAIConnectionPoolState {
   LunaOnlineOpenAIConnectionPoolDraining
   LunaOnlineOpenAIConnectionPoolClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineOpenAIConnectionPoolState::equal(Self, Self) -> Bool
+pub fn LunaOnlineOpenAIConnectionPoolState::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineOpenAIConnectionPoolState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineOpenAIServer {
   // private fields
@@ -226,6 +256,9 @@ pub(all) enum LunaOnlineTcpEndpointState {
   LunaOnlineTcpCloseRequired
   LunaOnlineTcpClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpEndpointState::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpEndpointState::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpEndpointState::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineTcpLimits {
   // private fields
@@ -246,6 +279,9 @@ pub(all) enum LunaOnlineTcpProgress {
   LunaOnlineTcpCleanupRequired
   LunaOnlineTcpClosedProgress
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineTcpRejectionRule {
   LunaOnlineTcpRejectedFrame
@@ -256,6 +292,9 @@ pub(all) enum LunaOnlineTcpRejectionRule {
   LunaOnlineTcpRejectedCapacity
   LunaOnlineTcpRejectedService
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpRejectionRule::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpRejectionRule::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpRejectionRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineTcpRule {
   LunaOnlineTcpLimits
@@ -271,6 +310,9 @@ pub(all) enum LunaOnlineTcpRule {
   LunaOnlineTcpLifecycle
   LunaOnlineTcpOwnership
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpRule::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpRule::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaOnlineTcpServer {
   // private fields
@@ -290,6 +332,9 @@ pub(all) enum LunaOnlineTcpServerHealth {
   LunaOnlineTcpServerHealthy
   LunaOnlineTcpServerFailed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpServerHealth::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpServerHealth::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpServerHealth::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineTcpServerProgress {
   LunaOnlineTcpServerListeningProgress
@@ -302,6 +347,9 @@ pub(all) enum LunaOnlineTcpServerProgress {
   LunaOnlineTcpServerDrainingProgress
   LunaOnlineTcpServerClosedProgress
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpServerProgress::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpServerProgress::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpServerProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaOnlineTcpServerState {
   LunaOnlineTcpServerListening
@@ -311,6 +359,9 @@ pub(all) enum LunaOnlineTcpServerState {
   LunaOnlineTcpServerDraining
   LunaOnlineTcpServerClosed
 } derive(Eq, @debug.Debug)
+pub fn LunaOnlineTcpServerState::equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpServerState::not_equal(Self, Self) -> Bool
+pub fn LunaOnlineTcpServerState::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

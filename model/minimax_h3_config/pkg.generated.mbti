@@ -40,6 +40,9 @@ pub(all) suberror MiniMaxH3ConfigError {
   UnsupportedExecutableMetadata
   WrongDocument(MiniMaxH3ConfigDocument)
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3ConfigError::equal(Self, Self) -> Bool
+pub fn MiniMaxH3ConfigError::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3ConfigError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct MiniMaxH3AudioVaeConfig {
@@ -52,15 +55,18 @@ pub fn MiniMaxH3AudioVaeConfig::decoder_kernel_sizes(Self) -> ReadOnlyArray[Int]
 pub fn MiniMaxH3AudioVaeConfig::decoder_rates(Self) -> ReadOnlyArray[Int]
 pub fn MiniMaxH3AudioVaeConfig::encoder_dimension(Self) -> Int
 pub fn MiniMaxH3AudioVaeConfig::encoder_rates(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3AudioVaeConfig::equal(Self, Self) -> Bool
 pub fn MiniMaxH3AudioVaeConfig::latent_channels(Self) -> Int
 pub fn MiniMaxH3AudioVaeConfig::latent_dimension(Self) -> Int
 pub fn MiniMaxH3AudioVaeConfig::latent_means(Self) -> ReadOnlyArray[Float]
 pub fn MiniMaxH3AudioVaeConfig::latent_rate(Self) -> Int
 pub fn MiniMaxH3AudioVaeConfig::latent_standard_deviations(Self) -> ReadOnlyArray[Float]
+pub fn MiniMaxH3AudioVaeConfig::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3AudioVaeConfig::output_channels(Self) -> Int
 pub fn MiniMaxH3AudioVaeConfig::resblock_dilation_sizes(Self) -> ReadOnlyArray[ReadOnlyArray[Int]]
 pub fn MiniMaxH3AudioVaeConfig::resblock_kernel_sizes(Self) -> ReadOnlyArray[Int]
 pub fn MiniMaxH3AudioVaeConfig::sampling_rate(Self) -> Int
+pub fn MiniMaxH3AudioVaeConfig::to_repr(Self) -> @debug.Repr
 
 pub(all) enum MiniMaxH3ConfigDocument {
   PipelineIndex
@@ -70,12 +76,18 @@ pub(all) enum MiniMaxH3ConfigDocument {
   VideoScheduler
   AudioScheduler
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3ConfigDocument::equal(Self, Self) -> Bool
+pub fn MiniMaxH3ConfigDocument::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3ConfigDocument::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3PipelineIndex {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3PipelineIndex::audio_shift(Self) -> Double
+pub fn MiniMaxH3PipelineIndex::equal(Self, Self) -> Bool
+pub fn MiniMaxH3PipelineIndex::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3PipelineIndex::schema_version(Self) -> Int
+pub fn MiniMaxH3PipelineIndex::to_repr(Self) -> @debug.Repr
 pub fn MiniMaxH3PipelineIndex::variant(Self) -> @minimax_h3_spec.MiniMaxH3Variant
 pub fn MiniMaxH3PipelineIndex::video_shift(Self) -> Double
 
@@ -83,7 +95,10 @@ pub struct MiniMaxH3SchedulerConfig {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3SchedulerConfig::document(Self) -> MiniMaxH3ConfigDocument
+pub fn MiniMaxH3SchedulerConfig::equal(Self, Self) -> Bool
+pub fn MiniMaxH3SchedulerConfig::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3SchedulerConfig::shift(Self) -> Double
+pub fn MiniMaxH3SchedulerConfig::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3VideoVaeConfig {
   // private fields
@@ -101,6 +116,7 @@ pub fn MiniMaxH3VideoVaeConfig::decoder_norm_epsilon(Self) -> Double
 pub fn MiniMaxH3VideoVaeConfig::decoder_register_token_count(Self) -> Int
 pub fn MiniMaxH3VideoVaeConfig::decoder_rope_dimension_ratio(Self) -> Double
 pub fn MiniMaxH3VideoVaeConfig::decoder_rope_theta(Self) -> Double
+pub fn MiniMaxH3VideoVaeConfig::equal(Self, Self) -> Bool
 pub fn MiniMaxH3VideoVaeConfig::input_channels(Self) -> Int
 pub fn MiniMaxH3VideoVaeConfig::latent_channels(Self) -> Int
 pub fn MiniMaxH3VideoVaeConfig::latent_means(Self) -> ReadOnlyArray[Float]
@@ -108,11 +124,13 @@ pub fn MiniMaxH3VideoVaeConfig::latent_standard_deviations(Self) -> ReadOnlyArra
 pub fn MiniMaxH3VideoVaeConfig::layers_per_block(Self) -> Int
 pub fn MiniMaxH3VideoVaeConfig::norm_epsilon(Self) -> Double
 pub fn MiniMaxH3VideoVaeConfig::norm_group_count(Self) -> Int
+pub fn MiniMaxH3VideoVaeConfig::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3VideoVaeConfig::output_channels(Self) -> Int
 pub fn MiniMaxH3VideoVaeConfig::spatial_compression(Self) -> Int
 pub fn MiniMaxH3VideoVaeConfig::spatial_downsample_factors(Self) -> ReadOnlyArray[Int]
 pub fn MiniMaxH3VideoVaeConfig::temporal_compression(Self) -> Int
 pub fn MiniMaxH3VideoVaeConfig::temporal_downsample_factors(Self) -> ReadOnlyArray[Int]
+pub fn MiniMaxH3VideoVaeConfig::to_repr(Self) -> @debug.Repr
 pub fn MiniMaxH3VideoVaeConfig::token_drop(Self) -> Int
 
 // Type aliases

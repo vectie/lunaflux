@@ -6,7 +6,7 @@ test "buffered response accumulates all visible deltas and terminal tail without
     context_ceiling=16,
     limits,
   )
-  let modes : Array[LunaOpenAICompatMode] = [
+  let modes : Array[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIResponses,
     LunaOpenAIChatCompletions,
   ]
@@ -83,8 +83,10 @@ test "buffered response accumulates all visible deltas and terminal tail without
 ///|
 test "buffered storage is explicit and budget includes text and escaped output" {
   let limits = openai_fixture_limits()
-  let streaming = LunaOpenAICompatWorkspace::required_byte_cells(limits)
-  let buffered = LunaOpenAICompatWorkspace::required_byte_cells(
+  let streaming = @openai_compat.LunaOpenAICompatWorkspace::required_byte_cells(
+    limits,
+  )
+  let buffered = @openai_compat.LunaOpenAICompatWorkspace::required_byte_cells(
     limits,
     buffered=true,
   )

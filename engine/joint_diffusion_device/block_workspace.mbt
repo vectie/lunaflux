@@ -41,7 +41,7 @@ pub fn BlockWorkspaceLayout::new(
   let scratch_offset = hidden_stride * 2L
   let byte_count = scratch_offset + scratch_bytes
   guard max_bytes > 0L && byte_count <= max_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     rows,

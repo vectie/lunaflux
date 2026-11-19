@@ -116,6 +116,6 @@ fn video_body(op : @plan.Operation) -> String raise @plan.PlanError {
         $|const float sampled=__fadd_rn(__fmul_rn(b[ix],expf(__fmul_rn(0.5f,logvar))),mean);
         $|const float latent=__half2float(__float2half_rn(sampled));out[f]=__fdiv_rn(__fsub_rn(latent,c[ch]),d[ch]);
       )
-    _ => raise @plan.PlanError::InvalidGeometry
+    _ => raise InvalidGeometry
   }
 }

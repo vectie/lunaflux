@@ -34,7 +34,7 @@ pub fn Frame::prepare(
   buffers~ : Buffers,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh && layers.length() == self.program.layers.length() else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let budget = self.program.budget
   let mutable_buffers = [
@@ -51,7 +51,7 @@ pub fn Frame::prepare(
   for i in 0..<mutable_buffers.length() {
     for j in 0..<i {
       guard !mutable_buffers[i].same_storage(mutable_buffers[j]) else {
-        raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        raise InvalidArgument(OrderedExecutorCreate)
       }
     }
   }
@@ -80,7 +80,7 @@ pub fn Frame::prepare(
       | (FullAttention, FullAttention(_)) => true
       _ => false
     }) else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
   }
   self.status = Failed
@@ -165,7 +165,7 @@ pub fn Frame::prepare(
           output=buffers.branch_output,
           workspace=buffers.branch_workspace,
         )
-        OwnedBranch::FullAttention(frame)
+        FullAttention(frame)
       }
     }
     let expert = @moe.Frame::new(self.program.moe)

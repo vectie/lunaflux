@@ -49,7 +49,7 @@ pub fn BlockWorkspace::bind_block(
     rotary.width <= plan.dimension &&
     modulation.rows == plan.rows &&
     modulation.width == plan.hidden else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let table_bytes = modulation.parameter_rows.to_int64() *
     plan.hidden.to_int64() *

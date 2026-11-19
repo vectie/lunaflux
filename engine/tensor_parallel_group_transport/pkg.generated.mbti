@@ -28,6 +28,9 @@ pub fn prepare_tensor_parallel_group_transport_approved(@approved_fs.ApprovedRoo
 pub(all) suberror TensorParallelGroupTransportError {
   Rejected(rule~ : TensorParallelGroupTransportRule, rank~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelGroupTransportError::equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTransportError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTransportError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TensorParallelGroupAcceptedCompletion(@rank_group_process.AcceptedRankGroupCompletion)
@@ -39,6 +42,9 @@ pub(all) enum TensorParallelGroupCleanupProgress {
   GroupReplacementReady
   GroupCloseComplete
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelGroupCleanupProgress::equal(Self, Self) -> Bool
+pub fn TensorParallelGroupCleanupProgress::not_equal(Self, Self) -> Bool
+pub fn TensorParallelGroupCleanupProgress::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelGroupPlanningInputs {
   // private fields
@@ -58,11 +64,17 @@ pub(all) enum TensorParallelGroupStart {
   GroupReady
   GroupCleanupRequired
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelGroupStart::equal(Self, Self) -> Bool
+pub fn TensorParallelGroupStart::not_equal(Self, Self) -> Bool
+pub fn TensorParallelGroupStart::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelGroupTemplateDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelGroupTemplateDigest::as_sha256(Self) -> String
+pub fn TensorParallelGroupTemplateDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTemplateDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTemplateDigest::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelGroupTransport {
   // private fields
@@ -111,6 +123,9 @@ pub(all) enum TensorParallelGroupTransportLifecycle {
   Closing
   Closed
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelGroupTransportLifecycle::equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTransportLifecycle::not_equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTransportLifecycle::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelGroupTransportRule {
   Limit
@@ -137,6 +152,9 @@ pub(all) enum TensorParallelGroupTransportRule {
   Completion
   Cleanup
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelGroupTransportRule::equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTransportRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelGroupTransportRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

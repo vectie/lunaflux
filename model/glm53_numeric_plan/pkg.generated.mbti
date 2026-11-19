@@ -27,6 +27,9 @@ pub(all) suberror Glm53NumericPlanError {
   UnexpectedFloat32Tensor(ordinal~ : Int)
   NumericSchemaConstructionFailed
 } derive(Eq, @debug.Debug)
+pub fn Glm53NumericPlanError::equal(Self, Self) -> Bool
+pub fn Glm53NumericPlanError::not_equal(Self, Self) -> Bool
+pub fn Glm53NumericPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Glm53LogicalTensorRole {
@@ -37,6 +40,9 @@ pub(all) enum Glm53LogicalTensorRole {
   Fp8Parameter
   Fp8BlockScaleMetadata
 } derive(Eq, @debug.Debug)
+pub fn Glm53LogicalTensorRole::equal(Self, Self) -> Bool
+pub fn Glm53LogicalTensorRole::not_equal(Self, Self) -> Bool
+pub fn Glm53LogicalTensorRole::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53NumericOperationBinding {
   // private fields
@@ -84,6 +90,9 @@ pub(all) enum Glm53NumericOperationKind {
   KdaGatedRmsNorm
   KdaOutputProjection
 } derive(Eq, @debug.Debug)
+pub fn Glm53NumericOperationKind::equal(Self, Self) -> Bool
+pub fn Glm53NumericOperationKind::not_equal(Self, Self) -> Bool
+pub fn Glm53NumericOperationKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Glm53NumericOperationScope {
   Global
@@ -93,6 +102,9 @@ pub(all) enum Glm53NumericOperationScope {
   VisionLayer(layer_index~ : Int)
   VisionProjector
 } derive(Eq, @debug.Debug)
+pub fn Glm53NumericOperationScope::equal(Self, Self) -> Bool
+pub fn Glm53NumericOperationScope::not_equal(Self, Self) -> Bool
+pub fn Glm53NumericOperationScope::to_repr(Self) -> @debug.Repr
 
 pub struct Glm53NumericPlan {
   // private fields

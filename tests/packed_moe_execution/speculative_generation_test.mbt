@@ -55,10 +55,7 @@ test "speculative generation retains accepted frontier with zero warmed allocati
     owner.record_commit(length, last_targets)
     assert_eq(owner.token_count(), 8)
     assert_eq(owner.token_at(7), 15)
-    assert_eq(
-      owner.finish_reason(),
-      @serial_generation.GenerationFinish::Length,
-    )
+    assert_eq(owner.finish_reason(), Length)
   }
   assert_eq(end_allocations(), 0UL)
 }

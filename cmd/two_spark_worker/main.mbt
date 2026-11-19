@@ -3,7 +3,7 @@ async fn main {
   let (root, digest, parallel_policy) = match @env.args() {
     [_, root, digest] => (root, digest, @parallel_ir.Ordered)
     [_, root, digest, "--overlap"] =>
-      (root, digest, @parallel_ir.ComputeCommunicationOverlap)
+      (root, digest, ComputeCommunicationOverlap)
     _ => {
       @stdio.stderr.write(
         "usage: two_spark_worker ABSOLUTE_DEPLOYMENT_ROOT CONFIG_SHA256 [--overlap]\n",

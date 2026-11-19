@@ -1,7 +1,7 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
-  "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
 }
 

@@ -73,7 +73,7 @@ fn tp_claim(
   activation_workspace_reserved_bytes~ : Int64 = 536870912L,
   kv_reserved_bytes~ : Int64 = 1073741824L,
   collective_reserved_bytes~ : Int64 = 268435456L,
-) -> TensorParallelRankDeclaration raise TensorParallelAdmissionError {
+) -> @tensor_parallel_admission.TensorParallelRankDeclaration raise @tensor_parallel_admission.TensorParallelAdmissionError {
   let ordinal = if process_ordinal < 0 {
     if rank == 0 {
       2
@@ -108,7 +108,9 @@ fn tp_claim(
 }
 
 ///|
-fn tp_default_ranks() -> Array[TensorParallelRankDeclaration] {
+fn tp_default_ranks() -> Array[
+  @tensor_parallel_admission.TensorParallelRankDeclaration,
+] {
   [try! tp_claim(0), try! tp_claim(1)]
 }
 
@@ -116,8 +118,8 @@ fn tp_default_ranks() -> Array[TensorParallelRankDeclaration] {
 fn tp_declaration(
   host_count~ : Int32 = 1,
   pipeline_stage_count~ : Int32 = 1,
-  ranks~ : Array[TensorParallelRankDeclaration] = tp_default_ranks(),
-) -> TensorParallelRuntimeDeclaration raise TensorParallelAdmissionError {
+  ranks~ : Array[@tensor_parallel_admission.TensorParallelRankDeclaration] = tp_default_ranks(),
+) -> @tensor_parallel_admission.TensorParallelRuntimeDeclaration raise @tensor_parallel_admission.TensorParallelAdmissionError {
   @tensor_parallel_admission.TensorParallelRuntimeDeclaration::new(
     host_count~,
     pipeline_stage_count~,
@@ -127,8 +129,8 @@ fn tp_declaration(
 
 ///|
 fn capture_tp_admission_rejection(
-  run : () -> TensorParallelRuntimeAdmission raise TensorParallelAdmissionError,
-) -> TensorParallelAdmissionError? {
+  run : () -> @tensor_parallel_admission.TensorParallelRuntimeAdmission raise @tensor_parallel_admission.TensorParallelAdmissionError,
+) -> @tensor_parallel_admission.TensorParallelAdmissionError? {
   try {
     ignore(run())
     None
@@ -139,8 +141,8 @@ fn capture_tp_admission_rejection(
 
 ///|
 fn capture_tp_declaration_rejection(
-  run : () -> TensorParallelRankDeclaration raise TensorParallelAdmissionError,
-) -> TensorParallelAdmissionError? {
+  run : () -> @tensor_parallel_admission.TensorParallelRankDeclaration raise @tensor_parallel_admission.TensorParallelAdmissionError,
+) -> @tensor_parallel_admission.TensorParallelAdmissionError? {
   try {
     ignore(run())
     None
@@ -208,7 +210,9 @@ test "unsupported host and pipeline layouts fail startup distinctly" {
 ///|
 test "rank scalar substitutions and heterogeneous claims fail closed" {
   let other_target = tp_target(minor=6)
-  let hostile : Array[Array[TensorParallelRankDeclaration]] = [
+  let hostile : Array[
+    Array[@tensor_parallel_admission.TensorParallelRankDeclaration],
+  ] = [
     [try! tp_claim(1), try! tp_claim(0)],
     [try! tp_claim(0, world_size=3), try! tp_claim(1)],
     [try! tp_claim(0, process_ordinal=3), try! tp_claim(1)],

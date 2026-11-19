@@ -7,9 +7,7 @@ struct AudioDecoderLease {
 
 ///|
 fn AudioDecoderLease::acquire(self : Self) -> Unit raise @device.DeviceError {
-  guard !self.held else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
-  }
+  guard !self.held else { raise InvalidArgument(OrderedExecutorCreate) }
   self.held = true
 }
 
@@ -17,7 +15,5 @@ fn AudioDecoderLease::acquire(self : Self) -> Unit raise @device.DeviceError {
 fn AudioDecoderLease::require_idle(
   self : Self,
 ) -> Unit raise @device.DeviceError {
-  guard !self.held else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
-  }
+  guard !self.held else { raise InvalidArgument(AllocationCreate) }
 }

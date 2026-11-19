@@ -162,15 +162,9 @@ test "group construction rejects mismatched generation predecessor ordinal and l
       worker(plan, 1, generation=2UL),
       @remote_startup.RemoteStartupRule::Generation,
     ),
-    (
-      worker(plan, 1, predecessor=7UL),
-      @remote_startup.RemoteStartupRule::Predecessor,
-    ),
-    (worker(plan, 1, ordinal=1), @remote_startup.RemoteStartupRule::Ordinal),
-    (
-      worker(plan, 1, input_tokens=32),
-      @remote_startup.RemoteStartupRule::Limits,
-    ),
+    (worker(plan, 1, predecessor=7UL), Predecessor),
+    (worker(plan, 1, ordinal=1), Ordinal),
+    (worker(plan, 1, input_tokens=32), Limits),
   ]
   for (follower, rule) in cases {
     try

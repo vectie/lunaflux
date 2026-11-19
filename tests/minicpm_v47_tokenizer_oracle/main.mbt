@@ -23,11 +23,7 @@ async fn main {
   )
   let corpus = corpus(model)
   let corpus_path = output + "/corpus.json"
-  @fs.write_file(
-    corpus_path,
-    corpus.to_json().stringify(),
-    create_mode=CreateNew,
-  )
+  @fs.write_file(corpus_path, Json(corpus).stringify(), create_mode=CreateNew)
   let observed = output + "/upstream.jsonl"
   guard @process.run(oracle, [assets + "/tokenizer.json", corpus_path, observed]) ==
     0 else {
@@ -63,7 +59,7 @@ async fn main {
     })
     guard native.token_ids == ids else {
       fail(
-        "token IDs differ at corpus case \{index}: text=\{text}, native=\{native.token_ids.to_json().stringify()}, upstream=\{ids.to_json().stringify()}",
+        "token IDs differ at corpus case \{index}: text=\{text}, native=\{Json(native.token_ids).stringify()}, upstream=\{Json(ids).stringify()}",
       )
     }
     guard spec.decode_text(native.token_ids, special_policy=Preserve) == decoded else {

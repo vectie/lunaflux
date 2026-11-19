@@ -11,13 +11,13 @@ test "physical independent branches replay and retire before storage release" {
   defer context.close()
   let stream = context.create_stream()
   defer stream.close()
-  let module = context.load_module(
+  let device_module = context.load_module(
     file.read_immutable_snapshot(maximum_bytes=1048576L),
   )
-  defer module.close()
-  let branch = module.load_function(b"fork_branch")
+  defer device_module.close()
+  let branch = device_module.load_function(b"fork_branch")
   defer branch.close()
-  let join = module.load_function(b"fork_join")
+  let join = device_module.load_function(b"fork_join")
   defer join.close()
   let buffers = Array::makei(4, _ => context.allocate(128L))
   defer (for buffer in buffers.rev() {

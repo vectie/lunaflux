@@ -21,7 +21,7 @@ test "staged MLP layout sizes scratch and up-gate-down weights independently" {
         intermediate_width=intermediate,
       )
     catch {
-      @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+      InvalidArgument(AotKernelLaunch) => ()
       _ => fail("wrong MLP shape error")
     } noraise {
       _ => fail("invalid MLP shape accepted")

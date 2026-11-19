@@ -32,6 +32,9 @@ pub fn schedule_rewritten_attention_tile_program(@luna_attention_tile_ir.Attenti
 pub(all) suberror AttentionTileScheduleError {
   InvalidAttentionTileSchedule(AttentionTileScheduleRule)
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileScheduleError::equal(Self, Self) -> Bool
+pub fn AttentionTileScheduleError::not_equal(Self, Self) -> Bool
+pub fn AttentionTileScheduleError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum AttentionGroupedEffect {
@@ -51,15 +54,21 @@ pub(all) enum AttentionGroupedEffect {
   RefillKeyStage
   RefillValueStage
 } derive(Eq, @debug.Debug)
+pub fn AttentionGroupedEffect::equal(Self, Self) -> Bool
+pub fn AttentionGroupedEffect::not_equal(Self, Self) -> Bool
+pub fn AttentionGroupedEffect::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionGroupedEffectPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionGroupedEffectPlan::actions(Self, AttentionGroupedEffectPoint) -> ReadOnlyArray[AttentionGroupedEffect]
 pub fn AttentionGroupedEffectPlan::blockwise_steps(Self, @attention_physical_ir.BlockwiseFold) -> ReadOnlyArray[@attention_physical_ir.BlockwiseFoldStep]
+pub fn AttentionGroupedEffectPlan::equal(Self, Self) -> Bool
 pub fn AttentionGroupedEffectPlan::independently_refills(Self) -> Bool
 pub fn AttentionGroupedEffectPlan::is_pipelined(Self) -> Bool
 pub fn AttentionGroupedEffectPlan::new(@luna_attention_strategy.AttentionTileMemory, stages~ : Int, readiness~ : AttentionTransferReadiness, independent? : Bool) -> Self raise AttentionTileScheduleError
+pub fn AttentionGroupedEffectPlan::not_equal(Self, Self) -> Bool
+pub fn AttentionGroupedEffectPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionGroupedEffectPoint {
   InitializeTransfers
@@ -71,6 +80,9 @@ pub(all) enum AttentionGroupedEffectPoint {
   CompleteTileReaders
   PublishFoldPartials
 } derive(Eq, @debug.Debug)
+pub fn AttentionGroupedEffectPoint::equal(Self, Self) -> Bool
+pub fn AttentionGroupedEffectPoint::not_equal(Self, Self) -> Bool
+pub fn AttentionGroupedEffectPoint::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionIterationAxis {
   AttentionQueryRowAxis
@@ -80,6 +92,9 @@ pub(all) enum AttentionIterationAxis {
   AttentionSoftmaxPartitionAxis
   AttentionHeadColumnAxis
 } derive(Eq, @debug.Debug)
+pub fn AttentionIterationAxis::equal(Self, Self) -> Bool
+pub fn AttentionIterationAxis::not_equal(Self, Self) -> Bool
+pub fn AttentionIterationAxis::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionIterationKind {
   AttentionParallelMap
@@ -87,26 +102,38 @@ pub(all) enum AttentionIterationKind {
   AttentionAssociativeFold
   AttentionVectorMap
 } derive(Eq, @debug.Debug)
+pub fn AttentionIterationKind::equal(Self, Self) -> Bool
+pub fn AttentionIterationKind::not_equal(Self, Self) -> Bool
+pub fn AttentionIterationKind::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionLoopCombinator {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionLoopCombinator::axis(Self) -> AttentionIterationAxis
+pub fn AttentionLoopCombinator::equal(Self, Self) -> Bool
 pub fn AttentionLoopCombinator::geometry(Self) -> (Int, Int)
 pub fn AttentionLoopCombinator::kind(Self) -> AttentionIterationKind
+pub fn AttentionLoopCombinator::not_equal(Self, Self) -> Bool
+pub fn AttentionLoopCombinator::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionOperandTileLayout {
   rows : Int
   columns : Int
   side : Int
 } derive(Eq, @debug.Debug)
+pub fn AttentionOperandTileLayout::equal(Self, Self) -> Bool
 pub fn AttentionOperandTileLayout::microtile_side(Self) -> Int
+pub fn AttentionOperandTileLayout::not_equal(Self, Self) -> Bool
 pub fn AttentionOperandTileLayout::offset(Self, Int, Int) -> Int?
+pub fn AttentionOperandTileLayout::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionOutputFoldStorage {
   SharedOutputFold
   SubgroupResidentOutputFold
 } derive(Eq, @debug.Debug)
+pub fn AttentionOutputFoldStorage::equal(Self, Self) -> Bool
+pub fn AttentionOutputFoldStorage::not_equal(Self, Self) -> Bool
+pub fn AttentionOutputFoldStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionPhysicalProgram {
   DirectKeyProgram(@attention_physical_ir.KeyFold)
@@ -133,13 +160,19 @@ pub(all) enum AttentionQueryEffect {
   StageNextValue
   AdvanceTransferSlot
 } derive(Eq, @debug.Debug)
+pub fn AttentionQueryEffect::equal(Self, Self) -> Bool
+pub fn AttentionQueryEffect::not_equal(Self, Self) -> Bool
+pub fn AttentionQueryEffect::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionQueryEffectPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionQueryEffectPlan::actions(Self, AttentionQueryEffectPoint) -> ReadOnlyArray[AttentionQueryEffect]
+pub fn AttentionQueryEffectPlan::equal(Self, Self) -> Bool
 pub fn AttentionQueryEffectPlan::new(@luna_attention_strategy.AttentionTileMemory, stages~ : Int, readiness~ : AttentionTransferReadiness) -> Self raise AttentionTileScheduleError
+pub fn AttentionQueryEffectPlan::not_equal(Self, Self) -> Bool
 pub fn AttentionQueryEffectPlan::split_key_value(Self) -> Bool
+pub fn AttentionQueryEffectPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionQueryEffectPoint {
   PublishQueryOperands
@@ -154,6 +187,9 @@ pub(all) enum AttentionQueryEffectPoint {
   AfterValueRelease
   ReleaseQueryReaders
 } derive(Eq, @debug.Debug)
+pub fn AttentionQueryEffectPoint::equal(Self, Self) -> Bool
+pub fn AttentionQueryEffectPoint::not_equal(Self, Self) -> Bool
+pub fn AttentionQueryEffectPoint::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreBootstrapEffect {
   InitializeScoreOutput
@@ -166,12 +202,18 @@ pub(all) enum AttentionScoreBootstrapEffect {
   RequireValidScoreQueries
   ReleaseScoreValidationReaders
 } derive(Eq, @debug.Debug)
+pub fn AttentionScoreBootstrapEffect::equal(Self, Self) -> Bool
+pub fn AttentionScoreBootstrapEffect::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreBootstrapEffect::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreBootstrapPoint {
   InitializeScoreAccumulators
   InitializeScoreOperands
   ValidateScoreOperands
 } derive(Eq, @debug.Debug)
+pub fn AttentionScoreBootstrapPoint::equal(Self, Self) -> Bool
+pub fn AttentionScoreBootstrapPoint::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreBootstrapPoint::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreFoldStep {
   PublishProducedScores
@@ -181,6 +223,9 @@ pub(all) enum AttentionScoreFoldStep {
   UpdateSharedProbabilitiesAndDenominator
   PublishScoreFold
 } derive(Eq, @debug.Debug)
+pub fn AttentionScoreFoldStep::equal(Self, Self) -> Bool
+pub fn AttentionScoreFoldStep::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreFoldStep::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreTerminalEffect {
   StoreResidentOutput
@@ -188,18 +233,27 @@ pub(all) enum AttentionScoreTerminalEffect {
   PublishTerminalWrites
   ReleaseTerminalReaders
 } derive(Eq, @debug.Debug)
+pub fn AttentionScoreTerminalEffect::equal(Self, Self) -> Bool
+pub fn AttentionScoreTerminalEffect::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreTerminalEffect::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionScoreTerminalPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionScoreTerminalPlan::actions(Self, AttentionScoreTerminalPoint) -> ReadOnlyArray[AttentionScoreTerminalEffect]
+pub fn AttentionScoreTerminalPlan::equal(Self, Self) -> Bool
 pub fn AttentionScoreTerminalPlan::new(resident_output~ : Bool, resident_statistics~ : Bool) -> Self
+pub fn AttentionScoreTerminalPlan::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreTerminalPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreTerminalPoint {
   MaterializeScoreOutput
   MaterializeScoreStatistics
   ReleaseScoreArena
 } derive(Eq, @debug.Debug)
+pub fn AttentionScoreTerminalPoint::equal(Self, Self) -> Bool
+pub fn AttentionScoreTerminalPoint::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreTerminalPoint::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreTransferEffect {
   ResetValidity
@@ -211,6 +265,9 @@ pub(all) enum AttentionScoreTransferEffect {
   StageNextPairInOtherSlot
   StageFirstPair
 } derive(Eq, @debug.Debug)
+pub fn AttentionScoreTransferEffect::equal(Self, Self) -> Bool
+pub fn AttentionScoreTransferEffect::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreTransferEffect::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreTransferMode {
   CooperativeTransfer
@@ -218,13 +275,19 @@ pub(all) enum AttentionScoreTransferMode {
   LookaheadTransfer
 } derive(Eq, @debug.Debug)
 pub fn AttentionScoreTransferMode::actions(Self, AttentionScoreTransferPoint) -> ReadOnlyArray[AttentionScoreTransferEffect]
+pub fn AttentionScoreTransferMode::equal(Self, Self) -> Bool
 pub fn AttentionScoreTransferMode::from_schedule(@luna_attention_strategy.AttentionTileMemory, stages~ : Int, immediate~ : Bool) -> Self raise AttentionTileScheduleError
+pub fn AttentionScoreTransferMode::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreTransferMode::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionScoreTransferPoint {
   PrimeScoreFold
   AcquireScoreTile
   ReleaseScoreTile
 } derive(Eq, @debug.Debug)
+pub fn AttentionScoreTransferPoint::equal(Self, Self) -> Bool
+pub fn AttentionScoreTransferPoint::not_equal(Self, Self) -> Bool
+pub fn AttentionScoreTransferPoint::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionSharedScoreProgram {
   // private fields
@@ -248,6 +311,7 @@ pub struct AttentionTileSchedule {
 pub fn AttentionTileSchedule::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileSchedule::compute(Self) -> @luna_attention_strategy.AttentionTileCompute
 pub fn AttentionTileSchedule::digest(Self) -> AttentionTileScheduleDigest
+pub fn AttentionTileSchedule::equal(Self, Self) -> Bool
 pub fn AttentionTileSchedule::execution_geometry(Self) -> (Int, Int, Int, Int64)
 pub fn AttentionTileSchedule::fragment_ownership(Self) -> @luna_attention_strategy.AttentionFragmentOwnership
 pub fn AttentionTileSchedule::hoists_paged_key_value_page_lookup(Self) -> Bool
@@ -256,14 +320,21 @@ pub fn AttentionTileSchedule::key_value_partitions(Self) -> Int
 pub fn AttentionTileSchedule::loops(Self) -> ReadOnlyArray[AttentionLoopCombinator]
 pub fn AttentionTileSchedule::matrix_storage_layout(Self) -> AttentionTileStorageLayout?
 pub fn AttentionTileSchedule::memory(Self) -> @luna_attention_strategy.AttentionTileMemory
+pub fn AttentionTileSchedule::not_equal(Self, Self) -> Bool
 pub fn AttentionTileSchedule::output_fold_storage(Self) -> AttentionOutputFoldStorage
 pub fn AttentionTileSchedule::physical_program(Self, supports_immediate_copy~ : Bool, fragment_rows~ : Int, factor_shared_key~ : Bool) -> AttentionPhysicalProgram raise AttentionTileScheduleError
 pub fn AttentionTileSchedule::program_digest(Self) -> @luna_attention_tile_ir.AttentionTileProgramDigest
 pub fn AttentionTileSchedule::reuses_online_softmax_tile_storage(Self) -> Bool
+pub fn AttentionTileSchedule::to_repr(Self) -> @debug.Repr
 pub fn AttentionTileSchedule::transfer_readiness(Self) -> AttentionTransferReadiness
 
 pub struct AttentionTileScheduleDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileScheduleDigest::as_hex(Self) -> String
+pub fn AttentionTileScheduleDigest::equal(Self, Self) -> Bool
+pub fn AttentionTileScheduleDigest::hash(Self) -> Int
+pub fn AttentionTileScheduleDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AttentionTileScheduleDigest::not_equal(Self, Self) -> Bool
+pub fn AttentionTileScheduleDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileScheduleRule {
   InvalidProblem
@@ -271,13 +342,19 @@ pub(all) enum AttentionTileScheduleRule {
   InvalidVector
   InvalidLoopNest
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileScheduleRule::equal(Self, Self) -> Bool
+pub fn AttentionTileScheduleRule::not_equal(Self, Self) -> Bool
+pub fn AttentionTileScheduleRule::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileStorageLayout {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileStorageLayout::equal(Self, Self) -> Bool
+pub fn AttentionTileStorageLayout::not_equal(Self, Self) -> Bool
 pub fn AttentionTileStorageLayout::offset(Self, AttentionTileStorageRole) -> Int64
 pub fn AttentionTileStorageLayout::peak_bytes(Self) -> Int64
 pub fn AttentionTileStorageLayout::spans(Self) -> ReadOnlyArray[AttentionTileStorageSpan]
+pub fn AttentionTileStorageLayout::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileStorageRole {
   QueryStorage
@@ -293,18 +370,27 @@ pub(all) enum AttentionTileStorageRole {
   QueryBoundsStorage
   AccumulatorLayoutProbeStorage
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileStorageRole::equal(Self, Self) -> Bool
+pub fn AttentionTileStorageRole::not_equal(Self, Self) -> Bool
+pub fn AttentionTileStorageRole::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileStorageSpan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileStorageSpan::equal(Self, Self) -> Bool
 pub fn AttentionTileStorageSpan::lifetime(Self) -> (Int, Int)
+pub fn AttentionTileStorageSpan::not_equal(Self, Self) -> Bool
 pub fn AttentionTileStorageSpan::range(Self) -> (Int64, Int64)
 pub fn AttentionTileStorageSpan::role(Self) -> AttentionTileStorageRole
+pub fn AttentionTileStorageSpan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTransferReadiness {
   JoinedKeyValueReadiness
   KeyScoreBeforeValueReadiness
 } derive(Eq, @debug.Debug)
+pub fn AttentionTransferReadiness::equal(Self, Self) -> Bool
+pub fn AttentionTransferReadiness::not_equal(Self, Self) -> Bool
+pub fn AttentionTransferReadiness::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 pub using @luna_attention_strategy {type AttentionFragmentOwnership}

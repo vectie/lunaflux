@@ -108,7 +108,7 @@ pub async fn ServerIdentity::accept(
     input: FixedArray::make(32768, b'\x00'),
     output,
     output_alias: @buffer_alias.retain_bytes_as_fixed_array(output),
-    output_lock: @async.Mutex::Mutex(),
+    output_lock: Mutex(),
   }
   errdefer session.close()
   while true {

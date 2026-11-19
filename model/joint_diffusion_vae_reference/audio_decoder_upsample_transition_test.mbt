@@ -2,7 +2,7 @@
 test "generic AudioVAE upsample transition preserves per-input normalization and ConvTranspose order" {
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
-  let contract = try! bind_audio_decoder_upsample_transition(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_upsample_transition(
     plan,
     request,
     stage_index=1,
@@ -23,7 +23,7 @@ test "generic AudioVAE upsample transition preserves per-input normalization and
   assert_eq(contract.weight_g_element_count(), 2L)
   assert_eq(contract.weight_v_element_count(), 6L)
   assert_eq(contract.output_element_count(), 3L)
-  let output = try! execute_audio_decoder_upsample_transition(
+  let output = try! @joint_diffusion_vae_reference.execute_audio_decoder_upsample_transition(
     contract,
     [1.0F, 2.0F, 3.0F, 4.0F],
     [1.0F, 1.0F],
@@ -38,7 +38,7 @@ test "generic AudioVAE upsample transition rejects invalid output formula identi
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
   try
-    bind_audio_decoder_upsample_transition(
+    @joint_diffusion_vae_reference.bind_audio_decoder_upsample_transition(
       plan,
       request,
       stage_index=1,
@@ -60,7 +60,7 @@ test "generic AudioVAE upsample transition rejects invalid output formula identi
   } noraise {
     _ => fail("non-positive output extent admitted")
   }
-  let contract = try! bind_audio_decoder_upsample_transition(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_upsample_transition(
     plan,
     request,
     stage_index=1,
@@ -77,7 +77,7 @@ test "generic AudioVAE upsample transition rejects invalid output formula identi
     bias_name="decoder.ups.1.0.bias",
   )
   try
-    execute_audio_decoder_upsample_transition(
+    @joint_diffusion_vae_reference.execute_audio_decoder_upsample_transition(
       contract,
       Array::make(4, 1.0F),
       [1.0F, 1.0F],

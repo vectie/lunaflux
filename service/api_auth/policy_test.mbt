@@ -91,12 +91,12 @@ test "Luna API authentication enforces startup bounds and precedence" {
   )
   expect_api_auth_error(
     () => ignore(@api_auth.LunaApiAuthPolicy::required_byte_cells(0)),
-    @api_auth.LunaApiAuthPolicy,
+    LunaApiAuthPolicy,
     LunaApiAuthInvalid,
   )
   expect_api_auth_error(
     () => ignore(@api_auth.LunaApiAuthPolicy::required_byte_cells(4097)),
-    @api_auth.LunaApiAuthPolicy,
+    LunaApiAuthPolicy,
     LunaApiAuthTooLong,
   )
 }

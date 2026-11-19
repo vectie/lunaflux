@@ -55,9 +55,7 @@ pub fn EncoderWeights::prepare(
 
 ///|
 pub fn EncoderWeights::close(self : Self) -> Unit raise @device.DeviceError {
-  guard self.leases == 0 else {
-    raise @device.DeviceError::InvalidArgument(AllocationClose)
-  }
+  guard self.leases == 0 else { raise InvalidArgument(AllocationClose) }
   self.ready = false
   while !self.allocations.is_empty() {
     let last = self.allocations.length() - 1

@@ -25,11 +25,13 @@ pub struct AudioRequest {
 }
 pub fn AudioRequest::cancel(Self) -> Unit raise @device.DeviceError
 pub fn AudioRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioRequest::drain(Self) -> Unit raise
 pub fn AudioRequest::execute(Self) -> Unit raise @device.DeviceError
 pub fn AudioRequest::new() -> Self
 pub fn AudioRequest::poll(Self) -> Bool raise @device.DeviceError
 pub fn AudioRequest::prepare(Self, @device.Context, @device.Stream, @device.Module, AudioSource, @minimax_h3_config.MiniMaxH3AudioVaeConfig, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64) -> Unit raise
 pub fn AudioRequest::prepare_resolved(Self, @device.Context, @device.Stream, @device.Module, AudioSource, @minimax_h3_config.MiniMaxH3AudioVaeConfig, WeightManifest, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64) -> Unit raise
+pub fn AudioRequest::release(Self) -> Unit raise
 pub fn AudioRequest::submit(Self) -> Unit raise @device.DeviceError
 pub fn[T] AudioRequest::with_destination(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError
 pub fn[T] AudioRequest::with_rows(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError
@@ -46,11 +48,13 @@ pub struct VideoRequest {
 }
 pub fn VideoRequest::cancel(Self) -> Unit raise @device.DeviceError
 pub fn VideoRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn VideoRequest::drain(Self) -> Unit raise
 pub fn VideoRequest::execute(Self) -> Unit raise @device.DeviceError
 pub fn VideoRequest::new() -> Self
 pub fn VideoRequest::poll(Self) -> Bool raise @device.DeviceError
 pub fn VideoRequest::prepare(Self, @device.Context, @device.Stream, @device.Module, VideoSource, @minimax_h3_config.MiniMaxH3VideoVaeConfig, @minimax_h3_host_materialization.MiniMaxH3HostComponentArena, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64, noise~ : @device.Allocation, noise_offset~ : Int64) -> Unit raise
 pub fn VideoRequest::prepare_resolved(Self, @device.Context, @device.Stream, @device.Module, VideoSource, @minimax_h3_config.MiniMaxH3VideoVaeConfig, WeightManifest, @segmented_device_materialize.SegmentedDeviceWeights, expected_identity~ : @spec.ModelIdentity, input~ : @device.Allocation, input_offset~ : Int64, noise~ : @device.Allocation, noise_offset~ : Int64) -> Unit raise
+pub fn VideoRequest::release(Self) -> Unit raise
 pub fn VideoRequest::submit(Self) -> Unit raise @device.DeviceError
 pub fn[T] VideoRequest::with_destination(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError
 pub fn[T] VideoRequest::with_rows(Self, (@device.Allocation, Int64, Int) -> T raise @device.DeviceError) -> T raise @device.DeviceError

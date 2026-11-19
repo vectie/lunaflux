@@ -25,7 +25,7 @@ pub fn ParallelControlPlan::new(
     hidden <= 65536 &&
     rows.to_int64() * streams.to_int64() * (streams + 2).to_int64() <=
     2147483647L else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   let fused_normalization = match precision.normalization_square_law() {
     VectorizedTreeFloat32(partitions=p, vector_width=1) => p == partitions
@@ -62,7 +62,7 @@ pub fn ParallelControlPlan::workgroups(
   match stage {
     0 | 2 => self.rows
     1 => self.rows * self.controls
-    _ => raise @precision.PrecisionPlanError::IllegalPlacement
+    _ => raise IllegalPlacement
   }
 }
 

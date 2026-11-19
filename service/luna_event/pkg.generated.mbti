@@ -13,6 +13,9 @@ import {
 pub(all) suberror LunaEventError {
   LunaEventInvalid(LunaEventRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaEventError::equal(Self, Self) -> Bool
+pub fn LunaEventError::not_equal(Self, Self) -> Bool
+pub fn LunaEventError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaAcceptedEventView {
@@ -42,6 +45,9 @@ pub(all) enum LunaEventKind {
   LunaCompletedEventKind
   LunaFailedEventKind
 } derive(Eq, @debug.Debug)
+pub fn LunaEventKind::equal(Self, Self) -> Bool
+pub fn LunaEventKind::not_equal(Self, Self) -> Bool
+pub fn LunaEventKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaEventOwner {
   // private fields
@@ -66,6 +72,9 @@ pub(all) enum LunaEventPublishStatus {
   LunaEventPublishEpochExhausted
   LunaEventPublishCreditUnavailable
 } derive(Eq, @debug.Debug)
+pub fn LunaEventPublishStatus::equal(Self, Self) -> Bool
+pub fn LunaEventPublishStatus::not_equal(Self, Self) -> Bool
+pub fn LunaEventPublishStatus::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaEventRule {
   LunaEventLifecycle
@@ -76,6 +85,9 @@ pub(all) enum LunaEventRule {
   LunaEventPayload
   LunaEventDestination
 } derive(Eq, @debug.Debug)
+pub fn LunaEventRule::equal(Self, Self) -> Bool
+pub fn LunaEventRule::not_equal(Self, Self) -> Bool
+pub fn LunaEventRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaEventView {
   // private fields

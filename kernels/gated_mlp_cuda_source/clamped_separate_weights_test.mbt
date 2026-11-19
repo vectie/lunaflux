@@ -1,6 +1,6 @@
 ///|
 test "separate clamped SwiGLU renderer binds clamp rounds and alias guard" {
-  let rendered = separate_gate_up_clamped_swiglu_dense_bf16_source(
+  let rendered = @gated_mlp_cuda_source.separate_gate_up_clamped_swiglu_dense_bf16_source(
     hidden_size=8,
     intermediate_size=16,
     maximum_rows=4,

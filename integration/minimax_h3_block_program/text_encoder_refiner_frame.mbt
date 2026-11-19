@@ -30,7 +30,7 @@ pub fn[T] TextConditioningProgram::with_destination(
   consume : (@device.Allocation, Int64) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Prepared && self.output is Some(output) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(output, 0L)
 }

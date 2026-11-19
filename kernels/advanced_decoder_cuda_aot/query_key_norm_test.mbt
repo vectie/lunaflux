@@ -1,7 +1,7 @@
 ///|
 test "query and key-value RMSNorm lower as exact independent BF16 streams" {
   let requirements = aot_test_requirements()
-  let candidate = lower_foundation_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=3,
     maximum_tokens=32,
@@ -42,7 +42,7 @@ test "query and key-value RMSNorm lower as exact independent BF16 streams" {
   assert_true(source.contains("__fadd_rn"))
   assert_true(source.contains("__fdiv_rn"))
   assert_true(source.contains("__float2bfloat16_rn"))
-  let repeated = lower_foundation_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
     requirements,
     requirement_ordinal=3,
     maximum_tokens=32,
@@ -52,7 +52,7 @@ test "query and key-value RMSNorm lower as exact independent BF16 streams" {
   )
   assert_eq(candidate.source_digest(), repeated.source_digest())
   assert_eq(candidate.recipe_digest(), repeated.recipe_digest())
-  let foreign = lower_foundation_cuda_aot_candidate(
+  let foreign = @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
     aot_test_requirements(content_fill='c'),
     requirement_ordinal=3,
     maximum_tokens=32,
@@ -70,7 +70,7 @@ test "query and key-value RMSNorm rejects adjacent operation and hostile policy"
   let requirements = aot_test_requirements()
   for ordinal in [2, 4] {
     try
-      lower_foundation_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=1,
@@ -86,7 +86,7 @@ test "query and key-value RMSNorm rejects adjacent operation and hostile policy"
     }
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=3,
       maximum_tokens=1,
@@ -101,7 +101,7 @@ test "query and key-value RMSNorm rejects adjacent operation and hostile policy"
     _ => fail("non-BF16 Q/K RMSNorm target was admitted")
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=3,
       maximum_tokens=1,

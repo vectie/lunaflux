@@ -13,7 +13,6 @@ import {
   "vectie/lunaflux/ops/runtime_instance",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/kernels/luna_paged_composite_artifact_admission",
-  "vectie/lunaflux/kernels/luna_fused_artifact_admission",
   "vectie/lunaflux/runtime/descriptor_file",
   "vectie/lunaflux/runtime/instance_policy_file",
   "vectie/lunaflux/service/api_auth",

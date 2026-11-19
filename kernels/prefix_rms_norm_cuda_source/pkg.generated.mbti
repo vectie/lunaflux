@@ -18,11 +18,17 @@ pub(all) suberror PrefixRmsNormCudaSourceError {
   InvalidFunctionSymbol
   UnsupportedSquareReductionLaw
 } derive(Eq, @debug.Debug)
+pub fn PrefixRmsNormCudaSourceError::equal(Self, Self) -> Bool
+pub fn PrefixRmsNormCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn PrefixRmsNormCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum PrefixRmsNormCudaOperation {
   PrefixRmsNormBf16WithOptionalSuffixCopy
 } derive(Eq, @debug.Debug)
+pub fn PrefixRmsNormCudaOperation::equal(Self, Self) -> Bool
+pub fn PrefixRmsNormCudaOperation::not_equal(Self, Self) -> Bool
+pub fn PrefixRmsNormCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct PrefixRmsNormCudaSource {
   // private fields
@@ -41,6 +47,9 @@ pub(all) enum PrefixRmsNormNumericalContract {
   OrderedFloat32PrefixReductionBf16RoundAndBitExactSuffixCopyV1
   VectorizedTreeFloat32PrefixReductionBf16RoundAndBitExactSuffixCopyV1(@precision_ir.SquareReductionLaw)
 } derive(Eq, @debug.Debug)
+pub fn PrefixRmsNormNumericalContract::equal(Self, Self) -> Bool
+pub fn PrefixRmsNormNumericalContract::not_equal(Self, Self) -> Bool
+pub fn PrefixRmsNormNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

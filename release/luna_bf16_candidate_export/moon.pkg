@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/async",
   "moonbitlang/async/fs",
   "moonbitlang/core/encoding/utf8",
@@ -14,6 +15,5 @@ import {
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/llama",
-  "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/spec",
 } for "wbtest"

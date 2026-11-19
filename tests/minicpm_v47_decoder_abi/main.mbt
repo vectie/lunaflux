@@ -244,8 +244,7 @@ async fn run_fixture() -> Unit {
         post_attention_norm: ordinary,
         moe,
         branch: match layer.kind {
-          GatedDeltaLinearAttention =>
-            @decoder.BranchWeights::Recurrent(recurrent)
+          GatedDeltaLinearAttention => Recurrent(recurrent)
           FullAttention => FullAttention(full)
         },
       })
@@ -366,22 +365,19 @@ async fn run_fixture() -> Unit {
     assert_eq(runner.cached_tokens(), 35)
     assert_eq(runner.sampled_tokens(), 3)
     assert_eq(runner.emitted_tokens(), [100, 101])
-    assert_eq(
-      runner.finish_reason(),
-      Some(@inference.FinishReason::StopSequence),
-    )
+    assert_eq(runner.finish_reason(), Some(StopSequence))
     assert_true(!runner.submit_next())
     // Cancel an in-flight prefill, then reuse queues/metadata for a new request.
     runner.begin(prompt, maximum_new_tokens=2, stop_token_ids=[])
     assert_true(runner.submit_next())
     runner.cancel()
-    assert_eq(runner.finish_reason(), Some(@inference.FinishReason::Cancelled))
+    assert_eq(runner.finish_reason(), Some(Cancelled))
     let one = @prompt.prepare_token_prompt(spec, [42], maximum_tokens=4096)
     runner.begin(one, maximum_new_tokens=1, stop_token_ids=[])
     set_sample_token(102)
     measured_request_step(runner, produces_token=true)
     assert_eq(runner.emitted_tokens(), [102])
-    assert_eq(runner.finish_reason(), Some(@inference.FinishReason::TokenLimit))
+    assert_eq(runner.finish_reason(), Some(TokenLimit))
     runner.begin(one, maximum_new_tokens=1, stop_token_ids=[])
     set_sample_token(-1)
     assert_true(runner.submit_next())
@@ -487,10 +483,7 @@ async fn run_fixture() -> Unit {
     )
     set_sample_token(248046)
     measured_request_step(session_runner, produces_token=true)
-    assert_eq(
-      session_runner.finish_reason(),
-      Some(@inference.FinishReason::StopSequence),
-    )
+    assert_eq(session_runner.finish_reason(), Some(StopSequence))
     assert_eq(session_runner.emitted_tokens(), [])
     session_runner.begin(one, maximum_new_tokens=1, stop_token_ids=[])
     set_sample_token(104)
@@ -514,10 +507,7 @@ async fn run_fixture() -> Unit {
     measured_request_step(session_runner, produces_token=true)
     assert_true(sample_script_done())
     assert_eq(session_runner.emitted_tokens(), [105])
-    assert_eq(
-      session_runner.finish_reason(),
-      Some(@inference.FinishReason::StopSequence),
-    )
+    assert_eq(session_runner.finish_reason(), Some(StopSequence))
     set_sample_token(104)
     // Close the complete owner while work is active: queue abort must precede
     // function, buffer, module and stream release, without closing weights.

@@ -5,7 +5,7 @@ fn text_capture_boundaries(
   let boundaries = [("context.bf16", 1)]
   for index, count in counts {
     guard count > 0 && count <= 2147483646 - boundaries.last().unwrap().1 else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     boundaries.push(
       ("refiner-\{index}.bf16", boundaries.last().unwrap().1 + count),
@@ -29,10 +29,10 @@ pub fn TextConditioningProgram::capture_stages(
   guard self.phase == Prepared &&
     self.queue is Some(queue) &&
     self.output is Some(output) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   guard self.refiner.workspace is Some(workspace) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   let descriptions = layers.map(pair => {
     self.refiner
@@ -66,7 +66,7 @@ pub fn TextConditioningProgram::capture_stages(
   }
   boundaries.push(("conditioning.bf16", boundaries.last().unwrap().1 + 1))
   guard boundaries.last().unwrap().1 == queue.kernel_count() else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let snapshots : Array[(String, Bytes)] = []
   let previous = self.phase
@@ -129,7 +129,7 @@ test "conditioning frontiers derive unequal layer extents, not a fixed stride" {
   ])
   for counts in [[0], [-1], [2147483647], [4, 2147483646]] {
     try text_capture_boundaries(counts) catch {
-      @device.DeviceError::InvalidArgument(OrderedExecutorCreate) => ()
+      InvalidArgument(OrderedExecutorCreate) => ()
       _ => fail("wrong frontier error")
     } noraise {
       _ => fail("invalid frontier admitted")

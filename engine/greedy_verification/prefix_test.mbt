@@ -12,10 +12,7 @@ test "first mismatch emits the target correction but does not commit its KV" {
   assert_eq(prefix.emitted_token_count(), 3)
   assert_eq(prefix.next_seed(), 7)
   assert_true(prefix.rollback_required())
-  assert_eq(
-    prefix.finish_reason(),
-    @greedy_verification.GreedyVerificationFinish::Continue,
-  )
+  assert_eq(prefix.finish_reason(), Continue)
 }
 
 ///|
@@ -47,10 +44,7 @@ test "stop and length boundaries force suffix restoration even when drafts match
   assert_eq(stopped.accepted_input_rows(), 2)
   assert_eq(stopped.emitted_token_count(), 2)
   assert_true(stopped.rollback_required())
-  assert_eq(
-    stopped.finish_reason(),
-    @greedy_verification.GreedyVerificationFinish::StopToken,
-  )
+  assert_eq(stopped.finish_reason(), StopToken)
   let limited = @greedy_verification.verify_greedy_prefix(
     inputs,
     outputs,
@@ -60,10 +54,7 @@ test "stop and length boundaries force suffix restoration even when drafts match
   )
   assert_eq(limited.accepted_input_rows(), 2)
   assert_true(limited.rollback_required())
-  assert_eq(
-    limited.finish_reason(),
-    @greedy_verification.GreedyVerificationFinish::Length,
-  )
+  assert_eq(limited.finish_reason(), Length)
   let both = @greedy_verification.verify_greedy_prefix(
     inputs,
     outputs,
@@ -71,10 +62,7 @@ test "stop and length boundaries force suffix restoration even when drafts match
     vocabulary_size=16,
     stop_tokens=[12],
   )
-  assert_eq(
-    both.finish_reason(),
-    @greedy_verification.GreedyVerificationFinish::StopToken,
-  )
+  assert_eq(both.finish_reason(), StopToken)
 }
 
 ///|
@@ -139,7 +127,7 @@ test "malformed or invalid later outputs never expose a partially accepted prefi
         stop_tokens=[],
       )
     catch {
-      @greedy_verification.GreedyVerificationError::InvalidEnvelope => ()
+      InvalidEnvelope => ()
       error => raise error
     } noraise {
       _ => fail("invalid verification envelope accepted")
@@ -160,7 +148,7 @@ test "malformed or invalid later outputs never expose a partially accepted prefi
         stop_tokens=stops,
       )
     catch {
-      @greedy_verification.GreedyVerificationError::InvalidToken => ()
+      InvalidToken => ()
       error => raise error
     } noraise {
       _ => fail("invalid later token ignored after early length stop")

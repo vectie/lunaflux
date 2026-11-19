@@ -44,7 +44,7 @@ pub fn RotaryBindings::upload(
     elements == sine.length().to_int64() &&
     chunk_elements > 0 &&
     chunk_elements <= 536870911 else {
-    raise @device.DeviceError::InvalidArgument(CopyToDevice)
+    raise InvalidArgument(CopyToDevice)
   }
   let table_bytes = elements * 4L
   context.validate_allocation_region(
@@ -58,7 +58,7 @@ pub fn RotaryBindings::upload(
   for values in [cosine, sine] {
     for value in values {
       guard (value.reinterpret_as_uint() & 0x7f800000U) != 0x7f800000U else {
-        raise @device.DeviceError::InvalidArgument(CopyToDevice)
+        raise InvalidArgument(CopyToDevice)
       }
     }
   }

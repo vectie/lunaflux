@@ -140,7 +140,7 @@ pub fn Execution::prepare(
 fn Execution::require_idle(self : Self) -> Unit raise ExecutionError {
   guard self.state is Prepared &&
     (self.work is Idle || (self.work is Text && self.request.is_finished())) else {
-    raise ExecutionError::InvalidLifecycle
+    raise InvalidLifecycle
   }
 }
 

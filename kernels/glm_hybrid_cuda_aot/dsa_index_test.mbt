@@ -25,7 +25,7 @@ fn glm_aot_dsa_reuse_ordinal(
 ///|
 test "Full projected DSA selection and reuse bind exact separate ABIs" {
   let requirements = glm_aot_requirements(official_index=true)
-  let selection = lower_dsa_index_selection_cuda_aot_candidate(
+  let selection = @glm_hybrid_cuda_aot.lower_dsa_index_selection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=glm_aot_dsa_index_ordinal(requirements),
     maximum_tokens=32,
@@ -63,7 +63,7 @@ test "Full projected DSA selection and reuse bind exact separate ABIs" {
     recipe.contains("batch-contract=single-sequence-counts-2-equals-1"),
   )
   assert_false(selection.manifest_bindable())
-  let reuse = lower_dsa_index_reuse_cuda_aot_candidate(
+  let reuse = @glm_hybrid_cuda_aot.lower_dsa_index_reuse_cuda_aot_candidate(
     requirements,
     requirement_ordinal=glm_aot_dsa_reuse_ordinal(requirements),
     maximum_tokens=32,
@@ -87,7 +87,7 @@ test "Full projected DSA selection and reuse bind exact separate ABIs" {
 ///|
 test "Flash projected DSA selection expands pools and appends bounded tail" {
   let requirements = glm_aot_requirements(pooled=true, official_index=true)
-  let selection = lower_dsa_index_selection_cuda_aot_candidate(
+  let selection = @glm_hybrid_cuda_aot.lower_dsa_index_selection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=glm_aot_dsa_index_ordinal(requirements),
     maximum_tokens=32,
@@ -115,7 +115,7 @@ test "Flash projected DSA selection expands pools and appends bounded tail" {
 test "DSA index selection rejects shape policy ordinal and compiler mismatches" {
   let ordinary = glm_aot_requirements()
   try
-    lower_dsa_index_selection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_index_selection_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=glm_aot_dsa_index_ordinal(ordinary),
       maximum_tokens=32,
@@ -135,7 +135,7 @@ test "DSA index selection rejects shape policy ordinal and compiler mismatches" 
     pool_tail=false,
   )
   try
-    lower_dsa_index_selection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_index_selection_cuda_aot_candidate(
       bad_policy,
       requirement_ordinal=glm_aot_dsa_index_ordinal(bad_policy),
       maximum_tokens=32,
@@ -152,7 +152,7 @@ test "DSA index selection rejects shape policy ordinal and compiler mismatches" 
   let exact = glm_aot_requirements(official_index=true)
   let ordinal = glm_aot_dsa_index_ordinal(exact)
   try
-    lower_dsa_index_selection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_index_selection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -167,7 +167,7 @@ test "DSA index selection rejects shape policy ordinal and compiler mismatches" 
     _ => fail("neighboring DSA operation admitted as selection")
   }
   try
-    lower_dsa_index_selection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_index_selection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

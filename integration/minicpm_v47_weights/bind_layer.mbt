@@ -27,7 +27,7 @@ fn bind_layer(
         query_norm: buffers[index.query_norm],
         key_norm: buffers[index.key_norm],
       }
-      @decoder.BranchWeights::FullAttention(weights)
+      FullAttention(weights)
     }
   }
   let index = indices.moe

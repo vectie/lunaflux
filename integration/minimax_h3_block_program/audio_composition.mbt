@@ -9,7 +9,7 @@ fn audio_composition_preflight(
     lease.require_idle()
     for j in 0..<i {
       guard !physical_equal(lease, leases[j]) else {
-        raise @device.DeviceError::InvalidArgument(AllocationCreate)
+        raise InvalidArgument(AllocationCreate)
       }
     }
   }

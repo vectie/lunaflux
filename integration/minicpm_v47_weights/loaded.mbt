@@ -42,7 +42,7 @@ pub fn Loaded::prepare(
   for entry in self.plan.allocations {
     self.buffers.push(context.allocate(entry.bytes))
   }
-  let copy_error : Ref[@device.DeviceError?] = Ref::new(None)
+  let copy_error : Ref[@device.DeviceError?] = Ref(None)
   self.plan.transfer(root, scratch~, limits~, consume=(
     ordinal,
     offset,
@@ -88,9 +88,7 @@ pub fn Loaded::prepare(
 pub fn Loaded::layer_weights(
   self : Self,
 ) -> ArrayView[@decoder.LayerWeights] raise @device.DeviceError {
-  guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.state is Prepared else { raise InvalidArgument(AotKernelLaunch) }
   self.layers[:]
 }
 
@@ -98,9 +96,7 @@ pub fn Loaded::layer_weights(
 pub fn Loaded::text_weights(
   self : Self,
 ) -> @text.Weights raise @device.DeviceError {
-  guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.state is Prepared else { raise InvalidArgument(AotKernelLaunch) }
   self.text.unwrap()
 }
 

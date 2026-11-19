@@ -40,6 +40,9 @@ pub(all) suberror KernelArtifactError {
   MissingEntryPoint(@catalog.AotKernelEntryPoint)
   UnreferencedEntryPoint(@catalog.AotKernelEntryPoint)
 } derive(Eq, @debug.Debug)
+pub fn KernelArtifactError::equal(Self, Self) -> Bool
+pub fn KernelArtifactError::not_equal(Self, Self) -> Bool
+pub fn KernelArtifactError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum FunctionSymbolRule {
@@ -49,6 +52,9 @@ pub(all) enum FunctionSymbolRule {
   InvalidInitial
   InvalidContinuation
 } derive(Eq, @debug.Debug)
+pub fn FunctionSymbolRule::equal(Self, Self) -> Bool
+pub fn FunctionSymbolRule::not_equal(Self, Self) -> Bool
+pub fn FunctionSymbolRule::to_repr(Self) -> @debug.Repr
 
 pub struct KernelArtifactBundle {
   // private fields
@@ -72,6 +78,9 @@ pub(all) enum KernelArtifactLimit {
   TotalModuleBytes
   FunctionSymbolBytes
 } derive(Eq, @debug.Debug)
+pub fn KernelArtifactLimit::equal(Self, Self) -> Bool
+pub fn KernelArtifactLimit::not_equal(Self, Self) -> Bool
+pub fn KernelArtifactLimit::to_repr(Self) -> @debug.Repr
 
 pub struct KernelArtifactLimits {
   // private fields
@@ -119,9 +128,12 @@ pub struct KernelRowVariant {
 pub fn KernelRowVariant::bounded_work_grid_x(Self) -> Int?
 pub fn KernelRowVariant::companion_dimensions(Self) -> @launch_contract.AotLaunchDimensions?
 pub fn KernelRowVariant::dimensions(Self) -> @launch_contract.AotLaunchDimensions
+pub fn KernelRowVariant::equal(Self, Self) -> Bool
 pub fn KernelRowVariant::function_symbol(Self) -> String
 pub fn KernelRowVariant::maximum_token_rows(Self) -> Int
 pub fn KernelRowVariant::new(maximum_token_rows~ : Int, function_symbol~ : String, dimensions~ : @launch_contract.AotLaunchDimensions, companion_dimensions? : @launch_contract.AotLaunchDimensions?, bounded_work_grid_x? : Int?) -> Self
+pub fn KernelRowVariant::not_equal(Self, Self) -> Bool
+pub fn KernelRowVariant::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

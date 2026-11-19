@@ -2,7 +2,7 @@
 test "generic indexed AMP activation binds exact geometry and shared scalar order" {
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
-  let contract = try! bind_audio_decoder_amp_activation(
+  let contract = try! @joint_diffusion_vae_reference.bind_audio_decoder_amp_activation(
     plan,
     request,
     stage_index=1,
@@ -17,7 +17,7 @@ test "generic indexed AMP activation binds exact geometry and shared scalar orde
   assert_eq(contract.stage_index(), 1)
   assert_eq(contract.element_count(), 2L)
   assert_eq(contract.intermediate_element_count(), 4L)
-  let output = try! execute_audio_decoder_amp_activation(
+  let output = try! @joint_diffusion_vae_reference.execute_audio_decoder_amp_activation(
     contract,
     [0.0F, 0.0F],
     [0.0F],
@@ -33,7 +33,7 @@ test "generic indexed AMP activation rejects identity and geometry substitutions
   let plan = tiny_vae_plan()
   let request = tiny_vae_request(plan)
   try
-    bind_audio_decoder_amp_activation(
+    @joint_diffusion_vae_reference.bind_audio_decoder_amp_activation(
       plan,
       request,
       stage_index=-1,

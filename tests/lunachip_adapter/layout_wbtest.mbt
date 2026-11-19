@@ -99,7 +99,7 @@ test "model budget rejects oversized context and overflowing reservations" {
       (-1, 0, 0),
     ] {
     try layout.kv_head(layer, false, position, head) catch {
-      @layout.InvalidIndex => ()
+      InvalidIndex => ()
       _ => fail("wrong KV index error")
     } noraise {
       _ => fail("bad KV index admitted")
@@ -180,7 +180,7 @@ test "existing Qwen binder joins all 310 tensors and streams bounded ranges" {
   @transfer.expand_bf16(b"\x80\x3f\x00\xc0"[:], output)
   assert_eq(Bytes::from_array(output), b"\x00\x00\x80\x3f\x00\x00\x00\xc0")
   try transfers[0].chunk(1L, 1024) catch {
-    @transfer.InvalidChunk => ()
+    InvalidChunk => ()
     _ => fail("wrong chunk error")
   } noraise {
     _ => fail("split BF16 element admitted")

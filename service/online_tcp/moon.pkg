@@ -1,6 +1,7 @@
 supported_targets = "native"
 
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/async",
   "moonbitlang/async/socket",
   "moonbitlang/core/encoding/utf8",
@@ -14,7 +15,6 @@ import {
   "vectie/lunaflux/service/api_auth",
   "vectie/lunaflux/service/framed_wire",
   "vectie/lunaflux/service/http1",
-  "vectie/lunaflux/service/luna_event",
   "vectie/lunaflux/service/openai_compat",
   "vectie/lunaflux/service/request_admission",
   "vectie/lunaflux/service/online_session",

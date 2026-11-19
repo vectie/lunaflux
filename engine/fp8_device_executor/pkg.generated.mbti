@@ -20,6 +20,9 @@ pub(all) suberror Fp8DeviceExecutorError {
   Fp8DeviceFailure(Fp8DeviceExecutorResource, @device.DeviceError)
   Fp8WeightFailure(@numeric_weight_file.NumericWeightFileError)
 } derive(Eq, @debug.Debug)
+pub fn Fp8DeviceExecutorError::equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorError::not_equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ExecutedFp8Operation {
@@ -56,6 +59,9 @@ pub(all) enum Fp8DeviceExecutorLifecycle {
   ExecutorClosingFailed
   ExecutorClosed
 } derive(Eq, @debug.Debug)
+pub fn Fp8DeviceExecutorLifecycle::equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorLifecycle::not_equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorLifecycle::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8DeviceExecutorLimits {
   // private fields
@@ -80,6 +86,9 @@ pub(all) enum Fp8DeviceExecutorResource {
   ScaleReadback
   OutputReadback
 } derive(Eq, @debug.Debug)
+pub fn Fp8DeviceExecutorResource::equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorResource::not_equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorResource::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8DeviceExecutorRule {
   Limit
@@ -103,6 +112,9 @@ pub(all) enum Fp8DeviceExecutorRule {
   Epoch
   ResourceState
 } derive(Eq, @debug.Debug)
+pub fn Fp8DeviceExecutorRule::equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorRule::not_equal(Self, Self) -> Bool
+pub fn Fp8DeviceExecutorRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

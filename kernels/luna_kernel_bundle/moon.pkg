@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/kernels/artifact",
   "vectie/lunaflux/kernels/catalog",
@@ -9,7 +10,6 @@ import {
   "vectie/lunaflux/kernels/luna_cuda_pointwise_aot",
   "vectie/lunaflux/kernels/luna_cuda_projection_aot",
   "vectie/lunaflux/kernels/luna_cuda_fp8_projection_aot",
-  "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/plan",
 }
 
@@ -22,4 +22,5 @@ import {
   "vectie/lunaflux/model/plan_test_fixture",
   "vectie/lunaflux/model/numeric_contract",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/kernels/luna_specialization",
 } for "wbtest"

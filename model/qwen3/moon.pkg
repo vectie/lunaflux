@@ -1,7 +1,11 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/model/qwen3_spec",
-  "vectie/lunaflux/model/spec",
 }
 
 supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/spec",
+} for "test"

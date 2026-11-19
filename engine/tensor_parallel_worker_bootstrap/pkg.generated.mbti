@@ -39,12 +39,18 @@ pub(all) suberror TensorParallelWorkerBootstrapError {
   FrameEpochOverflow
   StaleFrame
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelWorkerBootstrapError::equal(Self, Self) -> Bool
+pub fn TensorParallelWorkerBootstrapError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelWorkerBootstrapError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TensorParallelDevicePlanDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelDevicePlanDigest::as_sha256(Self) -> String
+pub fn TensorParallelDevicePlanDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelDevicePlanDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDevicePlanDigest::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelGroupBootstrap {
   // private fields
@@ -64,11 +70,17 @@ pub struct TensorParallelGroupBootstrapDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelGroupBootstrapDigest::as_sha256(Self) -> String
+pub fn TensorParallelGroupBootstrapDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelGroupBootstrapDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelGroupBootstrapDigest::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelKvBindingDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelKvBindingDigest::as_sha256(Self) -> String
+pub fn TensorParallelKvBindingDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelKvBindingDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelKvBindingDigest::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRankBootstrapEnvelope {
   // private fields
@@ -104,6 +116,9 @@ pub struct TensorParallelTopologyDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelTopologyDigest::as_sha256(Self) -> String
+pub fn TensorParallelTopologyDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelTopologyDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelTopologyDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelWorkerBootstrapRule {
   FrameMagic
@@ -128,11 +143,17 @@ pub(all) enum TensorParallelWorkerBootstrapRule {
   DuplicateRank
   IncompleteRankSet
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelWorkerBootstrapRule::equal(Self, Self) -> Bool
+pub fn TensorParallelWorkerBootstrapRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelWorkerBootstrapRule::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelWorkerContractDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelWorkerContractDigest::as_sha256(Self) -> String
+pub fn TensorParallelWorkerContractDigest::equal(Self, Self) -> Bool
+pub fn TensorParallelWorkerContractDigest::not_equal(Self, Self) -> Bool
+pub fn TensorParallelWorkerContractDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ValidatedTensorParallelRankEnvelopeFrame(TensorParallelRankEnvelopeFrameBuffer, UInt64)
 pub fn ValidatedTensorParallelRankEnvelopeFrame::copy_to(Self, FixedArray[Byte], destination_offset~ : Int) -> Unit raise TensorParallelWorkerBootstrapError

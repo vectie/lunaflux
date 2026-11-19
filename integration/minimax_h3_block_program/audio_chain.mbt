@@ -9,24 +9,22 @@ fn audio_chain_layout(
   shapes : ArrayView[(Int64, Int64)],
   budget : Int64,
 ) -> AudioChainLayout raise @device.DeviceError {
-  guard shapes.length() == 7 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard shapes.length() == 7 else { raise InvalidArgument(AotKernelLaunch) }
   let largest = for i in 0..<7; largest = 0L {
     let (input, output) = shapes[i]
     guard input > 0L && output > 0L && (i == 0 || shapes[i - 1].1 == input) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     continue if i < 6 { Int64::max(largest, output) } else { largest }
   } nobreak {
     largest
   }
   guard largest <= 9223372036854775552L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let stride = (largest + 255L) / 256L * 256L
   guard budget > 0L && stride <= budget / 2L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   { stride, bytes: stride * 2L, }
 }
@@ -54,14 +52,14 @@ pub fn AudioDecodeChain::allocate(
   let shapes = []
   for i, stage in stages {
     guard stage.layout is Some(layout) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     if i > 0 {
       let previous = stages[i - 1]
       guard previous.amp.source.channels == stage.up.input_channels &&
         previous.amp.source.time == stage.up.input_time &&
         previous.up.batch == stage.up.batch else {
-        raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+        raise InvalidArgument(AotKernelLaunch)
       }
     }
     shapes.push((layout.upsample.input_bytes, layout.upsample.output_bytes))
@@ -100,7 +98,7 @@ pub fn AudioDecodeChain::bind(
   output_offset~ : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard !self.closed && parameters.length() == self.stages.length() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let launches : Array[@device.OrderedKernelLaunch] = []
   for i, stage in self.stages {

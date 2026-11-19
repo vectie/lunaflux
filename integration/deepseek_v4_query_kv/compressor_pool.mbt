@@ -13,7 +13,7 @@ pub fn compressor_pool_plan(
   guard layer >= 0 && layer < spec.layer_count() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
-  let positions = maximum_context.or(spec.max_position_embeddings())
+  let positions = maximum_context.unwrap_or(spec.max_position_embeddings())
   guard positions >= maximum_rows && positions <= spec.max_position_embeddings() else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }

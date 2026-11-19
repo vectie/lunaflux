@@ -32,6 +32,9 @@ pub(all) suberror QkNormRopePagedKvWriteAotError {
   LimitExceeded(QkNormRopePagedKvWriteAotRule)
   SizeOverflow(QkNormRopePagedKvWriteAotRule)
 } derive(Eq, @debug.Debug)
+pub fn QkNormRopePagedKvWriteAotError::equal(Self, Self) -> Bool
+pub fn QkNormRopePagedKvWriteAotError::not_equal(Self, Self) -> Bool
+pub fn QkNormRopePagedKvWriteAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct QkNormRopePagedKvWriteAliasContract {
@@ -66,6 +69,9 @@ pub(all) enum QkNormRopePagedKvWriteAotRule {
   Determinism
   Reference
 } derive(Eq, @debug.Debug)
+pub fn QkNormRopePagedKvWriteAotRule::equal(Self, Self) -> Bool
+pub fn QkNormRopePagedKvWriteAotRule::not_equal(Self, Self) -> Bool
+pub fn QkNormRopePagedKvWriteAotRule::to_repr(Self) -> @debug.Repr
 
 pub struct QkNormRopePagedKvWriteCompiledModule {
   // private fields
@@ -114,12 +120,20 @@ pub fn QkNormRopePagedKvWriteCudaCandidate::target(Self) -> @catalog.DeviceTarge
 
 pub struct QkNormRopePagedKvWriteDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn QkNormRopePagedKvWriteDigest::as_hex(Self) -> String
+pub fn QkNormRopePagedKvWriteDigest::equal(Self, Self) -> Bool
 pub fn QkNormRopePagedKvWriteDigest::from_sha256(String) -> Self raise QkNormRopePagedKvWriteAotError
+pub fn QkNormRopePagedKvWriteDigest::hash(Self) -> Int
+pub fn QkNormRopePagedKvWriteDigest::hash_combine(Self, Hasher) -> Unit
+pub fn QkNormRopePagedKvWriteDigest::not_equal(Self, Self) -> Bool
+pub fn QkNormRopePagedKvWriteDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum QkNormRopePagedKvWriteKernelAbi {
   QwenQkNormPositionedRopePagedKvWriteProductionV2
 } derive(Eq, @debug.Debug)
 pub fn QkNormRopePagedKvWriteKernelAbi::canonical_name(Self) -> String
+pub fn QkNormRopePagedKvWriteKernelAbi::equal(Self, Self) -> Bool
+pub fn QkNormRopePagedKvWriteKernelAbi::not_equal(Self, Self) -> Bool
+pub fn QkNormRopePagedKvWriteKernelAbi::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

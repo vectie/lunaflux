@@ -7,9 +7,9 @@ test "stream means have distinct segmented output and stream input shapes" {
     segment_count=3,
     maximum_output_bytes=73728L,
   )
-  inspect(p.geometry(), content="(4, 4096, 3, 3)")
-  inspect(p.input_bytes(), content="98304")
-  inspect(p.output_bytes(), content="73728")
+  debug_inspect(p.geometry(), content="(4, 4096, 3, 3)")
+  debug_inspect(p.input_bytes(), content="98304")
+  debug_inspect(p.output_bytes(), content="73728")
   for
     (streams, hidden, rows, segments) in [
       (0, 1, 1, 1),
@@ -26,7 +26,7 @@ test "stream means have distinct segmented output and stream input shapes" {
         maximum_output_bytes=100L,
       )
     catch {
-      @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+      IllegalPlacement => ()
       _ => fail("unexpected geometry error")
     } noraise {
       _ => fail("empty capture must fail")
@@ -41,7 +41,7 @@ test "stream means have distinct segmented output and stream input shapes" {
       maximum_output_bytes=73727L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     _ => fail("unexpected budget error")
   } noraise {
     _ => fail("capture must obey the exact output budget")

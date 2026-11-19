@@ -47,6 +47,9 @@ pub(all) suberror TensorParallelDeviceWorkerError {
   Kv(@device_arena.DeviceKvArenaError)
   Sampling(@sampling.SamplingError)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDeviceWorkerError::equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ExecutedTensorParallelDeviceExecution(TensorParallelDeviceWorkerOwner, UInt64, @worker_wire.PlanFrameOwnerIdentity, UInt64)
@@ -69,6 +72,9 @@ pub(all) enum TensorParallelDeviceWorkerFailureClass {
   CollectiveFailure
   RankExecutionFailure
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDeviceWorkerFailureClass::equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerFailureClass::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerFailureClass::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelDeviceWorkerLifecycle {
   WorkerStarting
@@ -83,6 +89,9 @@ pub(all) enum TensorParallelDeviceWorkerLifecycle {
   WorkerClosingFailed
   WorkerClosed
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDeviceWorkerLifecycle::equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerLifecycle::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerLifecycle::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelDeviceWorkerOwner {
   // private fields
@@ -132,6 +141,9 @@ pub(all) enum TensorParallelDeviceWorkerResource {
   Context
   CompletionWriter
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDeviceWorkerResource::equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerResource::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerResource::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelDeviceWorkerRule {
   StartupContract
@@ -158,6 +170,9 @@ pub(all) enum TensorParallelDeviceWorkerRule {
   RemoteLease
   NetworkConfiguration
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelDeviceWorkerRule::equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelDeviceWorkerRule::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelFollowerExecutionAck {
   // private fields

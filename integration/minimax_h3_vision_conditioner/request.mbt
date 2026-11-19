@@ -105,7 +105,7 @@ pub fn VisionRequest::prepare(
 ///|
 pub fn VisionRequest::submit(self : Self) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   for i in 0..<queue.kernel_count() {
@@ -121,7 +121,7 @@ pub fn VisionRequest::poll(self : Self) -> Bool raise @device.DeviceError {
     return true
   }
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   self.phase = Failed
   let done = queue.poll_completion()
@@ -137,7 +137,7 @@ pub fn[T] VisionRequest::with_output(
   consume : (@device.Allocation, @vision.VisionPlan) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Complete && self.allocations.length() == 3 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(self.allocations[1], self.source.plan)
 }

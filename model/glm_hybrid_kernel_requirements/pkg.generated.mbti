@@ -22,6 +22,9 @@ pub(all) suberror GlmHybridKernelRequirementsError {
   RequirementsEncodingTooLarge
   UnsupportedGenericKernelOperation(Int, GlmHybridSemanticOperation)
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKernelRequirementsError::equal(Self, Self) -> Bool
+pub fn GlmHybridKernelRequirementsError::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKernelRequirementsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum GlmHybridAotCapability {
@@ -61,6 +64,9 @@ pub(all) enum GlmHybridAotCapability {
   KdaOutputGateProjectionAot
   KdaGatedRmsNormAot
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridAotCapability::equal(Self, Self) -> Bool
+pub fn GlmHybridAotCapability::not_equal(Self, Self) -> Bool
+pub fn GlmHybridAotCapability::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKernelGeometry {
   // private fields
@@ -68,7 +74,10 @@ pub struct GlmHybridKernelGeometry {
 pub fn GlmHybridKernelGeometry::context_length(Self) -> Int
 pub fn GlmHybridKernelGeometry::decoder_layer_count(Self) -> Int
 pub fn GlmHybridKernelGeometry::dense_intermediate_size(Self) -> Int
+pub fn GlmHybridKernelGeometry::equal(Self, Self) -> Bool
 pub fn GlmHybridKernelGeometry::hidden_size(Self) -> Int
+pub fn GlmHybridKernelGeometry::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKernelGeometry::to_repr(Self) -> @debug.Repr
 pub fn GlmHybridKernelGeometry::vocabulary_size(Self) -> Int
 
 pub struct GlmHybridKernelRequirement {
@@ -76,7 +85,10 @@ pub struct GlmHybridKernelRequirement {
 } derive(Eq, @debug.Debug)
 pub fn GlmHybridKernelRequirement::capability(Self) -> GlmHybridAotCapability
 pub fn GlmHybridKernelRequirement::current_generic_capability(Self, ordinal~ : Int) -> @plan.KernelCapabilityId raise GlmHybridKernelRequirementsError
+pub fn GlmHybridKernelRequirement::equal(Self, Self) -> Bool
+pub fn GlmHybridKernelRequirement::not_equal(Self, Self) -> Bool
 pub fn GlmHybridKernelRequirement::operation(Self) -> GlmHybridSemanticOperation
+pub fn GlmHybridKernelRequirement::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKernelRequirementLimits {
   // private fields
@@ -88,16 +100,22 @@ pub struct GlmHybridKernelRequirements {
 } derive(Eq, @debug.Debug)
 pub fn GlmHybridKernelRequirements::capabilities(Self) -> ReadOnlyArray[GlmHybridAotCapability]
 pub fn GlmHybridKernelRequirements::digest(Self) -> GlmHybridKernelRequirementsDigest
+pub fn GlmHybridKernelRequirements::equal(Self, Self) -> Bool
 pub fn GlmHybridKernelRequirements::geometry(Self) -> GlmHybridKernelGeometry
+pub fn GlmHybridKernelRequirements::not_equal(Self, Self) -> Bool
 pub fn GlmHybridKernelRequirements::require_current_generic_capabilities(Self) -> ReadOnlyArray[@plan.KernelCapabilityId] raise GlmHybridKernelRequirementsError
 pub fn GlmHybridKernelRequirements::requirements(Self) -> ReadOnlyArray[GlmHybridKernelRequirement]
 pub fn GlmHybridKernelRequirements::source_identity(Self) -> @spec.ModelIdentity
 pub fn GlmHybridKernelRequirements::source_schema_version(Self) -> Int
+pub fn GlmHybridKernelRequirements::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKernelRequirementsDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn GlmHybridKernelRequirementsDigest::as_hex(Self) -> String
+pub fn GlmHybridKernelRequirementsDigest::equal(Self, Self) -> Bool
+pub fn GlmHybridKernelRequirementsDigest::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKernelRequirementsDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmHybridSemanticOperation {
   TokenEmbedding
@@ -150,6 +168,9 @@ pub(all) enum GlmHybridSemanticOperation {
   KdaOutputGateProjection(Int, Int, Int)
   KdaGatedRmsNorm(Int, Int, Double)
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridSemanticOperation::equal(Self, Self) -> Bool
+pub fn GlmHybridSemanticOperation::not_equal(Self, Self) -> Bool
+pub fn GlmHybridSemanticOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

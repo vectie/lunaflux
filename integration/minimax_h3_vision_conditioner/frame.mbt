@@ -2,7 +2,7 @@
 /// One event wait at the whole-tower boundary; no inter-kernel host barriers.
 pub fn VisionRequest::wait(self : Self) -> Unit raise @device.DeviceError {
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorWait)
+    raise InvalidArgument(OrderedExecutorWait)
   }
   self.phase = Failed
   queue.wait_completion()
@@ -24,7 +24,7 @@ pub fn[T] VisionRequest::with_destination(
   consume : (@device.Allocation, @vision.VisionPlan) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Prepared && self.allocations.length() == 3 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(self.allocations[1], self.source.plan)
 }

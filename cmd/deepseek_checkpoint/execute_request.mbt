@@ -100,7 +100,7 @@ async fn execute_ingress_request(
       create_mode=CreateNew,
     )
     let entry = completion.entry(0)
-    guard entry.kind() != @protocol.CompletionEntryKind::FailedCompletion else {
+    guard entry.kind() != FailedCompletion else {
       fail("model execution returned a failed completion")
     }
     if generate && index == count - 1 {
@@ -130,7 +130,7 @@ async fn execute_ingress_request(
         )
       }
     }
-    if entry.kind() == @protocol.CompletionEntryKind::PrefillCompletion {
+    if entry.kind() == PrefillCompletion {
       println("frame=\{index} processed=\{entry.processed_tokens()}")
     } else {
       println(

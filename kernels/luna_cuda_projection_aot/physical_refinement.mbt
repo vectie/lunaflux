@@ -36,7 +36,7 @@ fn projection_refine_physical(
       let execution = match sibling_execution {
         Some(execution) => Some(execution)
         None if sibling.sibling_transport == SegmentedSiblingTransport =>
-          Some(@luna_projection_tile_compiler.SerialTransfer)
+          Some(SerialTransfer)
         None => None
       }
       match execution {

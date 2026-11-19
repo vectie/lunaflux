@@ -19,7 +19,7 @@ test "selected sparse attention lowers exact shared-KV eight-operand ABI" {
     deterministic_compression_ratio=128,
   )
   let ordinal = sparse_attention_test_ordinal(requirements)
-  let candidate = lower_selected_sparse_attention_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_selected_sparse_attention_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -63,7 +63,7 @@ test "selected sparse attention lowers exact shared-KV eight-operand ABI" {
   let source = @utf8.decode(candidate.source_bytes())
   assert_true(source.contains("float maximum = attention_sink[head]"))
   assert_false(source.contains("inverse_rope"))
-  let repeated = lower_selected_sparse_attention_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_selected_sparse_attention_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -74,7 +74,7 @@ test "selected sparse attention lowers exact shared-KV eight-operand ABI" {
   )
   assert_eq(candidate.source_digest(), repeated.source_digest())
   assert_eq(candidate.recipe_digest(), repeated.recipe_digest())
-  let foreign = lower_selected_sparse_attention_cuda_aot_candidate(
+  let foreign = @advanced_decoder_cuda_aot.lower_selected_sparse_attention_cuda_aot_candidate(
     aot_test_requirements(
       content_fill='c',
       maximum_position_count=1024,
@@ -97,7 +97,7 @@ test "selected sparse attention rejects adjacent ordinal target compiler and bou
   let ordinal = sparse_attention_test_ordinal(requirements)
   for hostile_ordinal in [ordinal - 1, ordinal + 1] {
     try
-      lower_selected_sparse_attention_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_selected_sparse_attention_cuda_aot_candidate(
         requirements,
         requirement_ordinal=hostile_ordinal,
         maximum_tokens=2,
@@ -114,7 +114,7 @@ test "selected sparse attention rejects adjacent ordinal target compiler and bou
     }
   }
   try
-    lower_selected_sparse_attention_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_selected_sparse_attention_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=2,
@@ -130,7 +130,7 @@ test "selected sparse attention rejects adjacent ordinal target compiler and bou
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_selected_sparse_attention_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_selected_sparse_attention_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=2,
@@ -146,7 +146,7 @@ test "selected sparse attention rejects adjacent ordinal target compiler and bou
     _ => fail("FMA compiler admitted")
   }
   try
-    lower_selected_sparse_attention_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_selected_sparse_attention_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=2,

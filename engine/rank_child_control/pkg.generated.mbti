@@ -18,6 +18,9 @@ pub(all) suberror RankChildControlError {
   Invalid(RankChildControlRule)
   Failed(RankChildControlRule)
 } derive(Eq, @debug.Debug)
+pub fn RankChildControlError::equal(Self, Self) -> Bool
+pub fn RankChildControlError::not_equal(Self, Self) -> Bool
+pub fn RankChildControlError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct RankChildControl {
@@ -59,6 +62,9 @@ pub(all) enum RankChildControlRule {
   Wire
   LocalAdmission
 } derive(Eq, @debug.Debug)
+pub fn RankChildControlRule::equal(Self, Self) -> Bool
+pub fn RankChildControlRule::not_equal(Self, Self) -> Bool
+pub fn RankChildControlRule::to_repr(Self) -> @debug.Repr
 
 pub struct RankChildInbound(RankChildControl, UInt64)
 pub fn RankChildInbound::binding(Self) -> @rank_group_wire.RankGroupWireBinding raise RankChildControlError

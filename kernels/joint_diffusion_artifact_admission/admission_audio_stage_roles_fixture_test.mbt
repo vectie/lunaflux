@@ -1,7 +1,7 @@
 ///|
 fn admission_test_upsample_transition_roles(
   stage : Int32,
-) -> Array[JointDiffusionLaunchOperandRole] {
+) -> Array[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole] {
   if stage == 1 {
     [
       AudioDecoderFirstAmpStageOutput,
@@ -26,13 +26,15 @@ fn admission_test_upsample_transition_roles(
 ///|
 fn admission_test_amp_activation_roles(
   stage : Int32,
-) -> Array[JointDiffusionLaunchOperandRole] {
-  let input : JointDiffusionLaunchOperandRole = if stage == 1 {
+) -> Array[@joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole] {
+  let input : @joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole = if stage ==
+    1 {
     AudioDecoderUpsampleTransitionOutput
   } else {
     AudioDecoderUpsampleTransition2Output
   }
-  let output : JointDiffusionLaunchOperandRole = if stage == 1 {
+  let output : @joint_diffusion_artifact_admission.JointDiffusionLaunchOperandRole = if stage ==
+    1 {
     AudioDecoderAmpActivationOutput
   } else {
     AudioDecoderAmpActivation2Output

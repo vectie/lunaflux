@@ -157,12 +157,14 @@ pub struct VideoDecodeRequest {
 }
 pub fn VideoDecodeRequest::cancel(Self) -> Unit raise @device.DeviceError
 pub fn VideoDecodeRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn VideoDecodeRequest::drain(Self) -> Unit raise
 pub fn VideoDecodeRequest::execute(Self) -> Unit raise @device.DeviceError
 pub fn VideoDecodeRequest::geometry(Self) -> VideoOutput raise @device.DeviceError
 pub fn VideoDecodeRequest::matches_input(Self, @joint_diffusion_loop.PreparedPlan, @device.Allocation, Int64, Int64) -> Bool
 pub fn VideoDecodeRequest::new() -> Self
 pub fn VideoDecodeRequest::poll(Self) -> Bool raise @device.DeviceError
 pub fn VideoDecodeRequest::prepare(Self, @device.Context, @device.Stream, VideoDecodeBundle, @device.Module, input~ : @device.Allocation, input_offset~ : Int64, frontend_weights~ : @device.Allocation, ArrayView[@device.Allocation], head_weights~ : @device.Allocation, means~ : @device.Allocation, standard_deviations~ : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn VideoDecodeRequest::release(Self) -> Unit raise
 pub fn VideoDecodeRequest::submit(Self) -> Unit raise @device.DeviceError
 pub fn VideoDecodeRequest::wait(Self) -> Unit raise @device.DeviceError
 pub fn[T] VideoDecodeRequest::with_output(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError

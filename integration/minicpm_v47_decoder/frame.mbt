@@ -93,7 +93,7 @@ pub fn Frame::launches(
   phase : Phase,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   match phase {
     Prefill => self.prefill[:]

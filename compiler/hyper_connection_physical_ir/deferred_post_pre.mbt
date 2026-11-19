@@ -25,7 +25,7 @@ pub fn DeferredPostPrePlan::new(
   guard controls_per_group > 0 &&
     controls_per_group <= 8 &&
     workgroup_budget > 0 else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   { streams, hidden, rows, workers, controls_per_group, workgroup_budget, }
 }

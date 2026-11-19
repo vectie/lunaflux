@@ -20,6 +20,9 @@ pub(all) suberror SelectedExpertMlpCudaSourceError {
   InvalidFunctionSymbol
   DimensionOverflow
 } derive(Eq, @debug.Debug)
+pub fn SelectedExpertMlpCudaSourceError::equal(Self, Self) -> Bool
+pub fn SelectedExpertMlpCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn SelectedExpertMlpCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct PackedExpertMlpCudaSource {
@@ -38,6 +41,9 @@ pub(all) enum SelectedExpertActivation {
   StandardSwiGlu
   BoundedClampedSwiGlu(Double)
 } derive(Eq, @debug.Debug)
+pub fn SelectedExpertActivation::equal(Self, Self) -> Bool
+pub fn SelectedExpertActivation::not_equal(Self, Self) -> Bool
+pub fn SelectedExpertActivation::to_repr(Self) -> @debug.Repr
 
 pub struct SelectedExpertMlpCudaSource {
   // private fields
@@ -55,6 +61,9 @@ pub fn SelectedExpertMlpCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum SelectedExpertMlpNumericalContract {
   ExpertAscendingBf16SwiGluWeightedAccumulateV1
 } derive(Eq, @debug.Debug)
+pub fn SelectedExpertMlpNumericalContract::equal(Self, Self) -> Bool
+pub fn SelectedExpertMlpNumericalContract::not_equal(Self, Self) -> Bool
+pub fn SelectedExpertMlpNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

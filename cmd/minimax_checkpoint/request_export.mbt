@@ -146,11 +146,7 @@ fn request_export_arguments(
     }
     (args[:10], square, dot)
   } else {
-    (
-      args,
-      @precision.SquareReductionLaw::CompensatedFloat32,
-      @precision.DotReductionLaw::OrderedFloat32,
-    )
+    (args, CompensatedFloat32, OrderedFloat32)
   }
   guard geometry
     is [

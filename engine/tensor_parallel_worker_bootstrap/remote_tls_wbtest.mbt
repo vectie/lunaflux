@@ -122,5 +122,5 @@ async fn exercise_remote_tls_group(
       }
     })
   }
-  assert_true(group.lifecycle() == @remote_group.Closed)
+  assert_true(group.lifecycle() == Closed)
 }

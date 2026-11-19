@@ -34,7 +34,7 @@ pub fn MoeProgram::shared_tensor_boundary(
   self : Self,
 ) -> ExpertTensorBoundary? raise @device.DeviceError {
   guard !self.closed && !self.launches.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.shared_tensor_boundary
 }
@@ -67,7 +67,7 @@ pub fn MoeProgram::prepare_routed_tensor_frame(
     self.routed.plan().local_experts().length() == experts &&
     hidden.to_int64() * selected.to_int64() <= 2147483647L &&
     rows > 0 else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let (indices, weights, prefix) = self.bind_router(
     context,

@@ -5,7 +5,7 @@ test "block control lowers with exact eight-operand deterministic ABI" {
     requirements.requirements()[6].operation()
     is HyperConnectionBlockControlV1(2, 4, 0.000001, 0.000001),
   )
-  let candidate = lower_hyper_connection_block_control_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_hyper_connection_block_control_cuda_aot_candidate(
     requirements,
     requirement_ordinal=6,
     maximum_tokens=2,
@@ -45,7 +45,7 @@ test "block control lowers with exact eight-operand deterministic ABI" {
   assert_false(candidate.manifest_bindable())
   assert_eq(candidate.source_digest().as_hex().length(), 64)
   assert_eq(candidate.recipe_digest().as_hex().length(), 64)
-  let repeated = lower_hyper_connection_block_control_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_hyper_connection_block_control_cuda_aot_candidate(
     requirements,
     requirement_ordinal=6,
     maximum_tokens=2,
@@ -61,7 +61,7 @@ test "block control lowers with exact eight-operand deterministic ABI" {
 test "block control rejects adjacent phases target compiler and row bounds" {
   let requirements = aot_test_requirements()
   try
-    lower_hyper_connection_block_control_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_block_control_cuda_aot_candidate(
       requirements,
       requirement_ordinal=7,
       maximum_tokens=2,
@@ -76,7 +76,7 @@ test "block control rejects adjacent phases target compiler and row bounds" {
     _ => fail("pre-reduction was lowered as block control")
   }
   try
-    lower_hyper_connection_block_control_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_block_control_cuda_aot_candidate(
       requirements,
       requirement_ordinal=6,
       maximum_tokens=2,
@@ -91,7 +91,7 @@ test "block control rejects adjacent phases target compiler and row bounds" {
     _ => fail("non-BF16 target was admitted")
   }
   try
-    lower_hyper_connection_block_control_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_block_control_cuda_aot_candidate(
       requirements,
       requirement_ordinal=6,
       maximum_tokens=2,
@@ -106,7 +106,7 @@ test "block control rejects adjacent phases target compiler and row bounds" {
     _ => fail("reassociating compiler was admitted")
   }
   try
-    lower_hyper_connection_block_control_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_block_control_cuda_aot_candidate(
       requirements,
       requirement_ordinal=6,
       maximum_tokens=0,
@@ -125,7 +125,7 @@ test "block control rejects adjacent phases target compiler and row bounds" {
 ///|
 test "pre reduction lowers directional buffers with one BF16 output boundary" {
   let requirements = aot_test_requirements()
-  let candidate = lower_hyper_connection_pre_reduce_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_hyper_connection_pre_reduce_cuda_aot_candidate(
     requirements,
     requirement_ordinal=7,
     maximum_tokens=2,
@@ -156,7 +156,7 @@ test "pre reduction lowers directional buffers with one BF16 output boundary" {
       "ordered-f32-pre-reduction-single-bf16-rne-v1",
     ),
   )
-  let repeated = lower_hyper_connection_pre_reduce_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_hyper_connection_pre_reduce_cuda_aot_candidate(
     requirements,
     requirement_ordinal=7,
     maximum_tokens=2,
@@ -173,7 +173,7 @@ test "pre reduction rejects block-control and post-combine ordinals" {
   let requirements = aot_test_requirements()
   for ordinal in [6, 8] {
     try
-      lower_hyper_connection_pre_reduce_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_hyper_connection_pre_reduce_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=2,
@@ -189,7 +189,7 @@ test "pre reduction rejects block-control and post-combine ordinals" {
     }
   }
   try
-    lower_hyper_connection_pre_reduce_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_pre_reduce_cuda_aot_candidate(
       requirements,
       requirement_ordinal=7,
       maximum_tokens=2,
@@ -204,7 +204,7 @@ test "pre reduction rejects block-control and post-combine ordinals" {
     _ => fail("pre-reduction admitted a non-BF16 target")
   }
   try
-    lower_hyper_connection_pre_reduce_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_pre_reduce_cuda_aot_candidate(
       requirements,
       requirement_ordinal=7,
       maximum_tokens=2,
@@ -223,7 +223,7 @@ test "pre reduction rejects block-control and post-combine ordinals" {
 ///|
 test "post combination lowers directional controls and one BF16 output round" {
   let requirements = aot_test_requirements()
-  let candidate = lower_hyper_connection_post_combine_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_hyper_connection_post_combine_cuda_aot_candidate(
     requirements,
     requirement_ordinal=8,
     maximum_tokens=2,
@@ -261,7 +261,7 @@ test "post combination lowers directional controls and one BF16 output round" {
       "ordered-f32-post-combination-single-bf16-rne-v1",
     ),
   )
-  let repeated = lower_hyper_connection_post_combine_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_hyper_connection_post_combine_cuda_aot_candidate(
     requirements,
     requirement_ordinal=8,
     maximum_tokens=2,
@@ -278,7 +278,7 @@ test "post combination rejects pre-reduction head target and compiler aliases" {
   let requirements = aot_test_requirements()
   for ordinal in [7, 9] {
     try
-      lower_hyper_connection_post_combine_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_hyper_connection_post_combine_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=2,
@@ -294,7 +294,7 @@ test "post combination rejects pre-reduction head target and compiler aliases" {
     }
   }
   try
-    lower_hyper_connection_post_combine_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_post_combine_cuda_aot_candidate(
       requirements,
       requirement_ordinal=8,
       maximum_tokens=2,
@@ -309,7 +309,7 @@ test "post combination rejects pre-reduction head target and compiler aliases" {
     _ => fail("post-combination admitted a non-BF16 target")
   }
   try
-    lower_hyper_connection_post_combine_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_post_combine_cuda_aot_candidate(
       requirements,
       requirement_ordinal=8,
       maximum_tokens=2,

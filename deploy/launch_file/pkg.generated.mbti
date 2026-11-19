@@ -29,6 +29,9 @@ pub(all) suberror LaunchFileError {
   DigestMismatch
   InvalidUtf8
 } derive(Eq, @debug.Debug)
+pub fn LaunchFileError::equal(Self, Self) -> Bool
+pub fn LaunchFileError::not_equal(Self, Self) -> Bool
+pub fn LaunchFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LaunchFileAdmission {
@@ -55,9 +58,15 @@ pub(all) enum LaunchFileArea {
   WorkerExecutable
   LunaApproval
 } derive(Eq, @debug.Debug)
+pub fn LaunchFileArea::equal(Self, Self) -> Bool
+pub fn LaunchFileArea::not_equal(Self, Self) -> Bool
+pub fn LaunchFileArea::to_repr(Self) -> @debug.Repr
 
 pub struct LaunchFileDigest(String) derive(Eq, @debug.Debug)
 pub fn LaunchFileDigest::as_hex(Self) -> String
+pub fn LaunchFileDigest::equal(Self, Self) -> Bool
+pub fn LaunchFileDigest::not_equal(Self, Self) -> Bool
+pub fn LaunchFileDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LaunchFileLimits {
   // private fields
@@ -82,6 +91,9 @@ pub(all) enum LaunchRuntimeRecipe {
   DenseLlamaTensorParallelPagedAotApprovedV8
   DenseLlamaFp8ReusablePagedAotApprovedV9
 } derive(Eq, @debug.Debug)
+pub fn LaunchRuntimeRecipe::equal(Self, Self) -> Bool
+pub fn LaunchRuntimeRecipe::not_equal(Self, Self) -> Bool
+pub fn LaunchRuntimeRecipe::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

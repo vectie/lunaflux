@@ -13,6 +13,9 @@ import {
 pub(all) suberror TensorParallelPlanError {
   InvalidTensorParallelPlan(rule~ : TensorParallelPlanRule, index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelPlanError::equal(Self, Self) -> Bool
+pub fn TensorParallelPlanError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TensorArenaRegion {
@@ -21,40 +24,55 @@ pub struct TensorArenaRegion {
 pub fn TensorArenaRegion::alignment_bytes(Self) -> Int64
 pub fn TensorArenaRegion::byte_length(Self) -> Int64
 pub fn TensorArenaRegion::end_offset_bytes(Self) -> Int64
+pub fn TensorArenaRegion::equal(Self, Self) -> Bool
 pub fn TensorArenaRegion::new(offset_bytes~ : Int64, byte_length~ : Int64, alignment_bytes~ : Int64, max_arena_bytes~ : Int64) -> Self raise TensorParallelPlanError
+pub fn TensorArenaRegion::not_equal(Self, Self) -> Bool
 pub fn TensorArenaRegion::offset_bytes(Self) -> Int64
+pub fn TensorArenaRegion::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorCollectiveKind {
   SumAllReduce
   LastAxisAllGather
 } derive(Eq, @debug.Debug)
+pub fn TensorCollectiveKind::equal(Self, Self) -> Bool
+pub fn TensorCollectiveKind::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveKind::to_repr(Self) -> @debug.Repr
 
 pub struct TensorCollectiveSequenceId(Int) derive(Eq, @debug.Debug)
 pub fn TensorCollectiveSequenceId::as_int(Self) -> Int
+pub fn TensorCollectiveSequenceId::equal(Self, Self) -> Bool
+pub fn TensorCollectiveSequenceId::not_equal(Self, Self) -> Bool
+pub fn TensorCollectiveSequenceId::to_repr(Self) -> @debug.Repr
 
 pub struct TensorCollectiveSite {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorCollectiveSite::equal(Self, Self) -> Bool
 pub fn TensorCollectiveSite::full_width(Self) -> Int
 pub fn TensorCollectiveSite::kind(Self) -> TensorCollectiveKind
 pub fn TensorCollectiveSite::local_width(Self) -> Int
 pub fn TensorCollectiveSite::new(sequence~ : Int, operation~ : @plan.OperationId, kind~ : TensorCollectiveKind, full_width~ : Int, local_width~ : Int, world_size~ : Int) -> Self raise TensorParallelPlanError
+pub fn TensorCollectiveSite::not_equal(Self, Self) -> Bool
 pub fn TensorCollectiveSite::operation(Self) -> @plan.OperationId
 pub fn TensorCollectiveSite::sequence(Self) -> TensorCollectiveSequenceId
+pub fn TensorCollectiveSite::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelOperationPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelOperationPlan::capability(Self) -> @plan.KernelCapabilityId
+pub fn TensorParallelOperationPlan::equal(Self, Self) -> Bool
 pub fn TensorParallelOperationPlan::head_dimension(Self) -> Int
 pub fn TensorParallelOperationPlan::inner_width(Self) -> Int
 pub fn TensorParallelOperationPlan::input_width(Self) -> Int
 pub fn TensorParallelOperationPlan::kind(Self) -> @plan.OperationKind
 pub fn TensorParallelOperationPlan::kv_head_count(Self) -> Int
 pub fn TensorParallelOperationPlan::new(operation~ : @plan.OperationId, kind~ : @plan.OperationKind, capability~ : @plan.KernelCapabilityId, input_width~ : Int, output_width~ : Int, inner_width~ : Int, query_head_count~ : Int, kv_head_count~ : Int, head_dimension~ : Int) -> Self raise TensorParallelPlanError
+pub fn TensorParallelOperationPlan::not_equal(Self, Self) -> Bool
 pub fn TensorParallelOperationPlan::operation(Self) -> @plan.OperationId
 pub fn TensorParallelOperationPlan::output_width(Self) -> Int
 pub fn TensorParallelOperationPlan::query_head_count(Self) -> Int
+pub fn TensorParallelOperationPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelPlanRule {
   Topology
@@ -73,6 +91,9 @@ pub(all) enum TensorParallelPlanRule {
   MaterializedBytes
   ArithmeticOverflow
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelPlanRule::equal(Self, Self) -> Bool
+pub fn TensorParallelPlanRule::not_equal(Self, Self) -> Bool
+pub fn TensorParallelPlanRule::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRankPlan {
   // private fields
@@ -81,20 +102,26 @@ pub fn TensorParallelRankPlan::alignment_bytes(Self) -> Int64
 pub fn TensorParallelRankPlan::arena_bytes(Self) -> Int64
 pub fn TensorParallelRankPlan::collective(Self, Int) -> TensorCollectiveSite?
 pub fn TensorParallelRankPlan::collective_count(Self) -> Int
+pub fn TensorParallelRankPlan::equal(Self, Self) -> Bool
 pub fn TensorParallelRankPlan::identity(Self) -> @spec.ModelIdentity
 pub fn TensorParallelRankPlan::materialized_bytes(Self) -> Int64
 pub fn TensorParallelRankPlan::new(model~ : @plan.ModelPlan, topology~ : TensorParallelTopology, alignment_bytes~ : Int64, arena_bytes~ : Int64, materialized_bytes~ : Int64, tensors~ : ArrayView[TensorRankPlacement], operations~ : ArrayView[TensorParallelOperationPlan], collectives~ : ArrayView[TensorCollectiveSite]) -> Self raise TensorParallelPlanError
+pub fn TensorParallelRankPlan::not_equal(Self, Self) -> Bool
 pub fn TensorParallelRankPlan::operation(Self, @plan.OperationId) -> TensorParallelOperationPlan?
 pub fn TensorParallelRankPlan::operation_count(Self) -> Int
 pub fn TensorParallelRankPlan::tensor(Self, @plan.TensorRef) -> TensorRankPlacement?
 pub fn TensorParallelRankPlan::tensor_count(Self) -> Int
+pub fn TensorParallelRankPlan::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelRankPlan::topology(Self) -> TensorParallelTopology
 
 pub struct TensorParallelTopology {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelTopology::equal(Self, Self) -> Bool
 pub fn TensorParallelTopology::new(rank~ : Int, world_size~ : Int) -> Self raise TensorParallelPlanError
+pub fn TensorParallelTopology::not_equal(Self, Self) -> Bool
 pub fn TensorParallelTopology::rank(Self) -> Int
+pub fn TensorParallelTopology::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelTopology::world_size(Self) -> Int
 
 pub(all) enum TensorPlacement {
@@ -102,15 +129,21 @@ pub(all) enum TensorPlacement {
   ShardRows
   ShardColumns
 } derive(Eq, @debug.Debug)
+pub fn TensorPlacement::equal(Self, Self) -> Bool
+pub fn TensorPlacement::not_equal(Self, Self) -> Bool
+pub fn TensorPlacement::to_repr(Self) -> @debug.Repr
 
 pub struct TensorRankPlacement {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorRankPlacement::equal(Self, Self) -> Bool
 pub fn TensorRankPlacement::extent(Self) -> TensorShardExtent
 pub fn TensorRankPlacement::new(reference~ : @plan.TensorRef, placement~ : TensorPlacement, extent~ : TensorShardExtent, region~ : TensorArenaRegion, transfer_recipe~ : TensorTransferRecipe) -> Self raise TensorParallelPlanError
+pub fn TensorRankPlacement::not_equal(Self, Self) -> Bool
 pub fn TensorRankPlacement::placement(Self) -> TensorPlacement
 pub fn TensorRankPlacement::reference(Self) -> @plan.TensorRef
 pub fn TensorRankPlacement::region(Self) -> TensorArenaRegion
+pub fn TensorRankPlacement::to_repr(Self) -> @debug.Repr
 pub fn TensorRankPlacement::transfer_recipe(Self) -> TensorTransferRecipe
 
 pub struct TensorShardExtent {
@@ -119,28 +152,37 @@ pub struct TensorShardExtent {
 pub fn TensorShardExtent::byte_length(Self) -> Int64
 pub fn TensorShardExtent::column_count(Self) -> Int64
 pub fn TensorShardExtent::column_start(Self) -> Int64
+pub fn TensorShardExtent::equal(Self, Self) -> Bool
 pub fn TensorShardExtent::full_columns(Self) -> Int64
 pub fn TensorShardExtent::full_rows(Self) -> Int64
 pub fn TensorShardExtent::new(full_rows~ : Int64, full_columns~ : Int64, row_start~ : Int64, row_count~ : Int64, column_start~ : Int64, column_count~ : Int64, byte_length~ : Int64) -> Self raise TensorParallelPlanError
+pub fn TensorShardExtent::not_equal(Self, Self) -> Bool
 pub fn TensorShardExtent::row_count(Self) -> Int64
 pub fn TensorShardExtent::row_start(Self) -> Int64
+pub fn TensorShardExtent::to_repr(Self) -> @debug.Repr
 
 pub struct TensorTransferRecipe {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorTransferRecipe::destination_offset_bytes_at(Self, Int64) -> Int64 raise TensorParallelPlanError
+pub fn TensorTransferRecipe::equal(Self, Self) -> Bool
 pub fn TensorTransferRecipe::new(reference~ : @plan.TensorRef, source_base_bytes~ : Int64, source_stride_bytes~ : Int64, destination_base_bytes~ : Int64, destination_stride_bytes~ : Int64, segment_bytes~ : Int64, segment_count~ : Int64, destination_region~ : TensorArenaRegion) -> Self raise TensorParallelPlanError
+pub fn TensorTransferRecipe::not_equal(Self, Self) -> Bool
 pub fn TensorTransferRecipe::segment(Self, Int64) -> TensorTransferSegment raise TensorParallelPlanError
 pub fn TensorTransferRecipe::segment_byte_length(Self) -> Int64
 pub fn TensorTransferRecipe::segment_count(Self) -> Int64
 pub fn TensorTransferRecipe::source_payload_offset_bytes_at(Self, Int64) -> Int64 raise TensorParallelPlanError
+pub fn TensorTransferRecipe::to_repr(Self) -> @debug.Repr
 
 pub struct TensorTransferSegment {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorTransferSegment::byte_length(Self) -> Int64
 pub fn TensorTransferSegment::destination_offset_bytes(Self) -> Int64
+pub fn TensorTransferSegment::equal(Self, Self) -> Bool
+pub fn TensorTransferSegment::not_equal(Self, Self) -> Bool
 pub fn TensorTransferSegment::source_payload_offset_bytes(Self) -> Int64
+pub fn TensorTransferSegment::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

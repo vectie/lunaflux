@@ -33,6 +33,9 @@ pub(all) suberror GlmHybridArtifactAdmissionError {
   AdmissionEncodingTooLarge
   NoExecutionAuthority
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridArtifactAdmissionError::equal(Self, Self) -> Bool
+pub fn GlmHybridArtifactAdmissionError::not_equal(Self, Self) -> Bool
+pub fn GlmHybridArtifactAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct GlmHybridAdmittedArtifact {
@@ -41,29 +44,40 @@ pub struct GlmHybridAdmittedArtifact {
 pub fn GlmHybridAdmittedArtifact::capability(Self) -> @glm_hybrid_kernel_requirements.GlmHybridAotCapability
 pub fn GlmHybridAdmittedArtifact::declared_qualification(Self) -> GlmHybridDeclaredQualificationDigest?
 pub fn GlmHybridAdmittedArtifact::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn GlmHybridAdmittedArtifact::equal(Self, Self) -> Bool
 pub fn GlmHybridAdmittedArtifact::function_symbol(Self) -> String
 pub fn GlmHybridAdmittedArtifact::launch(Self) -> @launch_contract.AotLaunchDimensions
 pub fn GlmHybridAdmittedArtifact::module_byte_length(Self) -> Int
 pub fn GlmHybridAdmittedArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn GlmHybridAdmittedArtifact::not_equal(Self, Self) -> Bool
 pub fn GlmHybridAdmittedArtifact::operands(Self) -> ReadOnlyArray[GlmHybridLaunchOperand]
 pub fn GlmHybridAdmittedArtifact::operation(Self) -> @glm_hybrid_kernel_requirements.GlmHybridSemanticOperation
 pub fn GlmHybridAdmittedArtifact::ordinal(Self) -> Int
+pub fn GlmHybridAdmittedArtifact::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridArtifactAdmission {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn GlmHybridArtifactAdmission::artifacts(Self) -> ReadOnlyArray[GlmHybridAdmittedArtifact]
 pub fn GlmHybridArtifactAdmission::digest(Self) -> GlmHybridArtifactAdmissionDigest
+pub fn GlmHybridArtifactAdmission::equal(Self, Self) -> Bool
+pub fn GlmHybridArtifactAdmission::not_equal(Self, Self) -> Bool
 pub fn GlmHybridArtifactAdmission::require_execution_authority(Self) -> Unit raise GlmHybridArtifactAdmissionError
 pub fn GlmHybridArtifactAdmission::source_digest(Self) -> @glm_hybrid_kernel_requirements.GlmHybridKernelRequirementsDigest
 pub fn GlmHybridArtifactAdmission::source_identity(Self) -> @spec.ModelIdentity
 pub fn GlmHybridArtifactAdmission::status(Self) -> GlmHybridArtifactAdmissionStatus
 pub fn GlmHybridArtifactAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn GlmHybridArtifactAdmission::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridArtifactAdmissionDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn GlmHybridArtifactAdmissionDigest::as_hex(Self) -> String
+pub fn GlmHybridArtifactAdmissionDigest::equal(Self, Self) -> Bool
+pub fn GlmHybridArtifactAdmissionDigest::hash(Self) -> Int
+pub fn GlmHybridArtifactAdmissionDigest::hash_combine(Self, Hasher) -> Unit
+pub fn GlmHybridArtifactAdmissionDigest::not_equal(Self, Self) -> Bool
+pub fn GlmHybridArtifactAdmissionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridArtifactAdmissionLimits {
   // private fields
@@ -74,6 +88,9 @@ pub(all) enum GlmHybridArtifactAdmissionStatus {
   NonRunnableUnqualified
   NonRunnableWithDeclaredQualificationDigests
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridArtifactAdmissionStatus::equal(Self, Self) -> Bool
+pub fn GlmHybridArtifactAdmissionStatus::not_equal(Self, Self) -> Bool
+pub fn GlmHybridArtifactAdmissionStatus::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridArtifactClaimInput {
   // private fields
@@ -84,15 +101,23 @@ pub struct GlmHybridDeclaredQualificationDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn GlmHybridDeclaredQualificationDigest::as_hex(Self) -> String
+pub fn GlmHybridDeclaredQualificationDigest::equal(Self, Self) -> Bool
 pub fn GlmHybridDeclaredQualificationDigest::from_sha256(String) -> Self raise GlmHybridArtifactAdmissionError
+pub fn GlmHybridDeclaredQualificationDigest::hash(Self) -> Int
+pub fn GlmHybridDeclaredQualificationDigest::hash_combine(Self, Hasher) -> Unit
+pub fn GlmHybridDeclaredQualificationDigest::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDeclaredQualificationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridLaunchOperand {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn GlmHybridLaunchOperand::alignment(Self) -> Int64
 pub fn GlmHybridLaunchOperand::byte_count(Self) -> Int64
+pub fn GlmHybridLaunchOperand::equal(Self, Self) -> Bool
 pub fn GlmHybridLaunchOperand::new(role~ : GlmHybridLaunchOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise GlmHybridArtifactAdmissionError
+pub fn GlmHybridLaunchOperand::not_equal(Self, Self) -> Bool
 pub fn GlmHybridLaunchOperand::role(Self) -> GlmHybridLaunchOperandRole
+pub fn GlmHybridLaunchOperand::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmHybridLaunchOperandRole {
   StepCountsInput
@@ -210,6 +235,9 @@ pub(all) enum GlmHybridLaunchOperandRole {
   HyperInitialCombinationOutput
   HyperCollapsedOutput
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridLaunchOperandRole::equal(Self, Self) -> Bool
+pub fn GlmHybridLaunchOperandRole::not_equal(Self, Self) -> Bool
+pub fn GlmHybridLaunchOperandRole::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

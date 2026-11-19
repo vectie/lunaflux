@@ -1,6 +1,6 @@
 ///|
 test "raw block projection owns fixed scratch and arithmetic-selected launch" {
-  let selected = block_fp8_ue8m0_projection_cuda_source(
+  let selected = @block_fp8_ue8m0_projection_cuda_source.block_fp8_ue8m0_projection_cuda_source(
     input_width=65536,
     output_width=128,
     maximum_rows=3,
@@ -17,7 +17,7 @@ test "raw block projection owns fixed scratch and arithmetic-selected launch" {
   assert_true(text.contains("_block_dot<128,65536>"))
   assert_true(text.contains("mma.sync.aligned.m16n8k32"))
   assert_true(text.contains("__fadd_rn(total[i],block[i])"))
-  let baseline = block_fp8_ue8m0_projection_cuda_source(
+  let baseline = @block_fp8_ue8m0_projection_cuda_source.block_fp8_ue8m0_projection_cuda_source(
     input_width=65536,
     output_width=128,
     maximum_rows=3,
@@ -37,7 +37,7 @@ test "raw block projection owns fixed scratch and arithmetic-selected launch" {
       ),
     ] {
     try
-      block_fp8_ue8m0_projection_cuda_source(
+      @block_fp8_ue8m0_projection_cuda_source.block_fp8_ue8m0_projection_cuda_source(
         input_width=256,
         output_width=128,
         maximum_rows=3,

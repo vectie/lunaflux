@@ -45,10 +45,10 @@ pub fn VideoOutput::new(
   let means = [0.485, 0.456, 0.406]
   let stds = [0.229, 0.224, 0.225]
   let inv_means = Array::makei(3, i => {
-    (-means[i] / stds[i]).to_float().to_double().to_string() + "f"
+    Float::from_double(-means[i] / stds[i]).to_double().to_string() + "f"
   })
   let inv_stds = Array::makei(3, i => {
-    (1.0 / stds[i]).to_float().to_double().to_string() + "f"
+    Float::from_double(1.0 / stds[i]).to_double().to_string() + "f"
   })
   let source = @utf8.encode(
     (

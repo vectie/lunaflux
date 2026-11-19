@@ -38,6 +38,9 @@ pub fn specialize_partitioned_attention_tile(AttentionTileCompilerRequest, Int) 
 pub(all) suberror AttentionTileCompilerError {
   InvalidAttentionTileCompilation(AttentionTileCompilerRule)
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileCompilerError::equal(Self, Self) -> Bool
+pub fn AttentionTileCompilerError::not_equal(Self, Self) -> Bool
+pub fn AttentionTileCompilerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AttentionPartitionedTileCompilationFrontier {
@@ -45,42 +48,65 @@ pub struct AttentionPartitionedTileCompilationFrontier {
 } derive(Eq, @debug.Debug)
 pub fn AttentionPartitionedTileCompilationFrontier::canonical_bytes(Self) -> Bytes
 pub fn AttentionPartitionedTileCompilationFrontier::digest(Self) -> AttentionTileCompilationDigest
+pub fn AttentionPartitionedTileCompilationFrontier::equal(Self, Self) -> Bool
+pub fn AttentionPartitionedTileCompilationFrontier::not_equal(Self, Self) -> Bool
+pub fn AttentionPartitionedTileCompilationFrontier::to_repr(Self) -> @debug.Repr
 pub fn AttentionPartitionedTileCompilationFrontier::variants(Self) -> ReadOnlyArray[AttentionPartitionedTileCompilationVariant]
 
 pub struct AttentionPartitionedTileCompilationVariant {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionPartitionedTileCompilationVariant::compilation(Self) -> ScheduledAttentionTileCompilation
+pub fn AttentionPartitionedTileCompilationVariant::equal(Self, Self) -> Bool
+pub fn AttentionPartitionedTileCompilationVariant::not_equal(Self, Self) -> Bool
 pub fn AttentionPartitionedTileCompilationVariant::parallel_workgroup_target(Self) -> Int
+pub fn AttentionPartitionedTileCompilationVariant::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionRegisterObservation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionRegisterObservation::equal(Self, Self) -> Bool
 pub fn AttentionRegisterObservation::new(@luna_attention_tile_schedule.AttentionTileScheduleDigest, registers_per_thread~ : Int) -> Self raise AttentionTileCompilerError
+pub fn AttentionRegisterObservation::not_equal(Self, Self) -> Bool
+pub fn AttentionRegisterObservation::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionResourceBudget {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionResourceBudget::equal(Self, Self) -> Bool
 pub fn AttentionResourceBudget::new(units~ : Int, threads_per_unit~ : Int, registers_per_unit~ : Int, register_allocation_grain~ : Int, register_allocation_threads? : Int, shared_bytes_per_unit~ : Int64, blocks_per_unit~ : Int) -> Self raise AttentionTileCompilerError
+pub fn AttentionResourceBudget::not_equal(Self, Self) -> Bool
+pub fn AttentionResourceBudget::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileCompilationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileCompilationDigest::as_hex(Self) -> String
+pub fn AttentionTileCompilationDigest::equal(Self, Self) -> Bool
+pub fn AttentionTileCompilationDigest::hash(Self) -> Int
+pub fn AttentionTileCompilationDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AttentionTileCompilationDigest::not_equal(Self, Self) -> Bool
+pub fn AttentionTileCompilationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileCompilationFrontier {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionTileCompilationFrontier::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileCompilationFrontier::digest(Self) -> AttentionTileCompilationDigest
+pub fn AttentionTileCompilationFrontier::equal(Self, Self) -> Bool
+pub fn AttentionTileCompilationFrontier::not_equal(Self, Self) -> Bool
 pub fn AttentionTileCompilationFrontier::restrict_to(Self, AttentionTileCompilerRequest, ArrayView[Int]) -> Self raise AttentionTileCompilerError
 pub fn AttentionTileCompilationFrontier::selected(Self) -> ScheduledAttentionTileCompilation
 pub fn AttentionTileCompilationFrontier::specialize(Self, AttentionTileCompilerRequest, Int) -> Self raise AttentionTileCompilerError
+pub fn AttentionTileCompilationFrontier::to_repr(Self) -> @debug.Repr
 pub fn AttentionTileCompilationFrontier::variants(Self) -> ReadOnlyArray[ScheduledAttentionTileCompilation]
 
 pub struct AttentionTileCompilerRequest {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileCompilerRequest::equal(Self, Self) -> Bool
 pub fn AttentionTileCompilerRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> Self
+pub fn AttentionTileCompilerRequest::not_equal(Self, Self) -> Bool
 pub fn AttentionTileCompilerRequest::problem(Self) -> @luna_attention_strategy.AttentionCompileProblem
+pub fn AttentionTileCompilerRequest::to_repr(Self) -> @debug.Repr
 pub fn AttentionTileCompilerRequest::with_resource_feedback(Self, AttentionResourceBudget, ArrayView[AttentionRegisterObservation]) -> Self raise AttentionTileCompilerError
 
 pub(all) enum AttentionTileCompilerRule {
@@ -90,34 +116,49 @@ pub(all) enum AttentionTileCompilerRule {
   ScheduleDerivation
   ResourceFeedback
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileCompilerRule::equal(Self, Self) -> Bool
+pub fn AttentionTileCompilerRule::not_equal(Self, Self) -> Bool
+pub fn AttentionTileCompilerRule::to_repr(Self) -> @debug.Repr
 
 pub struct OptimizedAttentionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn OptimizedAttentionTileCompilation::equal(Self, Self) -> Bool
+pub fn OptimizedAttentionTileCompilation::not_equal(Self, Self) -> Bool
 pub fn OptimizedAttentionTileCompilation::optimization(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimization
 pub fn OptimizedAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
 pub fn OptimizedAttentionTileCompilation::program(Self) -> @luna_attention_tile_ir.AttentionTileProgram
+pub fn OptimizedAttentionTileCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct ScheduledAttentionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ScheduledAttentionTileCompilation::canonical_bytes(Self) -> Bytes
 pub fn ScheduledAttentionTileCompilation::digest(Self) -> AttentionTileCompilationDigest
+pub fn ScheduledAttentionTileCompilation::equal(Self, Self) -> Bool
+pub fn ScheduledAttentionTileCompilation::not_equal(Self, Self) -> Bool
 pub fn ScheduledAttentionTileCompilation::optimization(Self) -> @luna_attention_tile_optimizer.AttentionTileOptimization
 pub fn ScheduledAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
 pub fn ScheduledAttentionTileCompilation::program(Self) -> @luna_attention_tile_ir.AttentionTileProgram
 pub fn ScheduledAttentionTileCompilation::schedule(Self) -> @luna_attention_tile_schedule.AttentionTileSchedule
+pub fn ScheduledAttentionTileCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct SelectedAttentionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn SelectedAttentionTileCompilation::equal(Self, Self) -> Bool
+pub fn SelectedAttentionTileCompilation::not_equal(Self, Self) -> Bool
 pub fn SelectedAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
+pub fn SelectedAttentionTileCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct SemanticAttentionTileCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn SemanticAttentionTileCompilation::equal(Self, Self) -> Bool
+pub fn SemanticAttentionTileCompilation::not_equal(Self, Self) -> Bool
 pub fn SemanticAttentionTileCompilation::plan(Self) -> @luna_attention_strategy.CompiledAttentionTilePlan
 pub fn SemanticAttentionTileCompilation::program(Self) -> @luna_attention_tile_ir.AttentionTileProgram
+pub fn SemanticAttentionTileCompilation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

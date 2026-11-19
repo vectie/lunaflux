@@ -30,13 +30,13 @@ test "finite precision structure rejects reassociation contraction and scale mot
   )
   assert_true(scaled_before.relation_to(scaled_after) == DifferentProgram)
   try separate.exact_replacement(fused) catch {
-    @precision_ir.MissingAccuracyContract => ()
+    MissingAccuracyContract => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("empirical alternative authorized as exact")
   }
   try separate.bounded_replacement(fused, maximum_absolute_error=1.0e30) catch {
-    @precision_ir.MissingAccuracyContract => ()
+    MissingAccuracyContract => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("a large allowance manufactured a missing theorem")
@@ -119,13 +119,13 @@ test "local BF16 bound is analytic domain qualified and never an exact rewrite" 
     a.bounded_replacement(b, maximum_absolute_error=0.063).root() == b.root(),
   )
   try a.bounded_replacement(b, maximum_absolute_error=0.001) catch {
-    @precision_ir.MissingAccuracyContract => ()
+    MissingAccuracyContract => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("insufficient budget accepted")
   }
   try a.exact_replacement(b) catch {
-    @precision_ir.MissingAccuracyContract => ()
+    MissingAccuracyContract => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("bounded rewrite accepted as exact")
@@ -162,7 +162,7 @@ test "input types slots constants and storage roundings are checked" {
     try
       @precision_ir.NumericExpression::new([(BFloat16, AnyFloat)], root)
     catch {
-      @precision_ir.IllegalPlacement => ()
+      IllegalPlacement => ()
       _ => fail("wrong error")
     } noraise {
       _ => fail("invalid typed expression accepted")
@@ -178,7 +178,7 @@ test "input types slots constants and storage roundings are checked" {
       Input(0),
     )
   catch {
-    @precision_ir.IllegalPlacement => ()
+    IllegalPlacement => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("invalid domain")

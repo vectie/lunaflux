@@ -54,7 +54,7 @@ test "matrix ownership uses supplied subgroup capability without changing arithm
       subgroup_width=3,
     )
   catch {
-    @precision.PrecisionPlanError::NoImplementation => ()
+    NoImplementation => ()
     other => raise other
   } noraise {
     _ => fail("invalid capability")

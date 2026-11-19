@@ -14,7 +14,7 @@ test "KV and standalone cache lower the same explicit complex rounding law" {
     maximum_workspace_bytes=9216L,
     product=ComplexFloat32Fma,
   )
-  assert_eq(plan.product_law(), @precision.RotaryProductLaw::ComplexFloat32Fma)
+  assert_eq(plan.product_law(), ComplexFloat32Fma)
   let kv = @rotary_kv_cuda_source.rotary_kv_source(plan, symbol_prefix="pair")
   let cache_plan = @precision.RotaryCachePrecision::new(
     head_count=1,
@@ -68,10 +68,7 @@ test "omitted and explicit separate rounding render identical default source" {
     maximum_workspace_bytes=6144L,
     product=SeparateFloat32Products,
   )
-  assert_eq(
-    omitted.product_law(),
-    @precision.RotaryProductLaw::SeparateFloat32Products,
-  )
+  assert_eq(omitted.product_law(), SeparateFloat32Products)
   assert_eq(
     @rotary_kv_cuda_source.rotary_tensor_source(omitted, symbol="same"),
     @rotary_kv_cuda_source.rotary_tensor_source(explicit, symbol="same"),

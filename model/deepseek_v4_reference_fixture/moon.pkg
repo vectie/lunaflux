@@ -1,9 +1,12 @@
 import {
-  "vectie/lunaflux/model/advanced_decoder_execution_plan",
+  "moonbitlang/core/debug",
   "vectie/lunaflux/model/advanced_decoder_reference",
   "vectie/lunaflux/model/deepseek_v4",
-  "vectie/lunaflux/model/deepseek_v4_spec",
   "vectie/lunaflux/model/spec",
 }
 
 supported_targets = "native"
+
+import {
+  "vectie/lunaflux/model/deepseek_v4_spec",
+} for "test"

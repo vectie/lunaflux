@@ -7,7 +7,9 @@ test "cached helper reads exact per token pairs without repeating trigonometry" 
     norm_epsilon=0.000001,
     rope_theta=1000000.0,
   ).numerics(reduction_lanes=32)
-  let source = lower_cached_attention_ingress_numerics(plan)
+  let source = @luna_cuda_attention_ingress_source.lower_cached_attention_ingress_numerics(
+    plan,
+  )
   assert_true(
     source.contains(
       "lf_ingress_load_rotary(const float2* cache, int token, int lane)",
@@ -23,7 +25,7 @@ test "cached helper reads exact per token pairs without repeating trigonometry" 
 ///|
 test "aligned pair retention retains exact fold order and both BF16 rounds" {
   for dimension in [64, 128] {
-    let source = lower_prepared_attention_ingress_numerics(
+    let source = @luna_cuda_attention_ingress_source.lower_prepared_attention_ingress_numerics(
       @luna_projection_tile_compiler.ProjectionAttentionIngressEpilogue::new(
         query_heads=1,
         kv_heads=1,
@@ -65,7 +67,9 @@ test "cross owner split halves retain explicit scratch publications" {
       rope_theta=10000.0,
     ).numerics(reduction_lanes=32)
     assert_eq(plan.pair_retention(), None)
-    let source = lower_prepared_attention_ingress_numerics(plan)
+    let source = @luna_cuda_attention_ingress_source.lower_prepared_attention_ingress_numerics(
+      plan,
+    )
     assert_true(source.contains("__syncwarp"))
     assert_false(source.contains("first_values["))
   }

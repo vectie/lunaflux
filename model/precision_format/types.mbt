@@ -142,10 +142,9 @@ pub fn Representation::new(
   }
   let (default_grouping, scale_element, global_scale) = match format {
     Bf16 | Fp16 | F32 => (ScaleGrouping::Absent, ScaleElement::Absent, false)
-    NvFp4 => (Block(rows=1, columns=16), ScaleElement::E4M3, true)
-    MxFp4 | MxFp8E4M3 | MxFp8E5M2 =>
-      (Block(rows=1, columns=32), ScaleElement::Ue8M0, false)
-    _ => (ScaleGrouping::Row, ScaleElement::F32, false)
+    NvFp4 => (Block(rows=1, columns=16), E4M3, true)
+    MxFp4 | MxFp8E4M3 | MxFp8E5M2 => (Block(rows=1, columns=32), Ue8M0, false)
+    _ => (Row, F32, false)
   }
   let grouping = grouping.unwrap_or(default_grouping)
   if (

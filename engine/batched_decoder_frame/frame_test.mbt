@@ -73,14 +73,14 @@ test "capacity rejection leaves no committed slot and request release is generat
   assert_eq(port(host, RecurrentResets), [1])
   assert_eq(port(host, SparseResets), [1])
   try host.release_request(20UL, 0UL) catch {
-    @batched_decoder_frame.BatchFrameError::Busy => ()
+    Busy => ()
     e => raise e
   } noraise {
     _ => fail("retired in-flight state")
   }
   ignore(host.complete([], execution_failed=false))
   try host.release_request(20UL, 0UL) catch {
-    @batched_decoder_frame.BatchFrameError::GenerationMismatch => ()
+    GenerationMismatch => ()
     e => raise e
   } noraise {
     _ => fail("late cancellation freed new generation")
@@ -151,7 +151,7 @@ test "execution and invalid sample failures poison every potentially mutated slo
     .validate_for(submitted)
     assert_true(host.is_faulted())
     try host.release_request(10UL, 0UL) catch {
-      @batched_decoder_frame.BatchFrameError::Faulted => ()
+      Faulted => ()
       e => raise e
     } noraise {
       _ => fail("reused potentially mutated state")

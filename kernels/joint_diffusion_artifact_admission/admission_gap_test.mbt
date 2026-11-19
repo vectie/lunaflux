@@ -6,7 +6,7 @@ test "missing and duplicate launches fail closed" {
   let missing = exact.copy()
   ignore(missing.pop())
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=admission_test_modules(),
@@ -23,7 +23,7 @@ test "missing and duplicate launches fail closed" {
   let duplicate = exact.copy()
   duplicate[1] = duplicate[0]
   try
-    admit(
+    @joint_diffusion_artifact_admission.admit(
       requirements,
       target~,
       module_inputs=admission_test_modules(),

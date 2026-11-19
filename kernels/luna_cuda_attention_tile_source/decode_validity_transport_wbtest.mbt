@@ -31,7 +31,7 @@ test "register validity does not weaken readiness or invalid-stage drain" {
     )
     for text in [shared, retained] {
       assert_true(text.contains("cp.async.wait_group 3;"))
-      assert_eq(text.split("__syncthreads();").length(), 3)
+      assert_eq(text.split("__syncthreads();").count(), 3)
       assert_true(
         text.contains(
           "cp.async.wait_group 0;\" ::: \"memory\"); __syncthreads(); return;",

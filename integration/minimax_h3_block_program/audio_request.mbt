@@ -52,7 +52,7 @@ pub fn AudioDecodeRequest::prepare(
   guard self.state.phase == Empty &&
     !decoder.closed &&
     decoder.tail.layout is Some(tail) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   // A full pipeline consumes packed denoiser stereo rows. Raw channel-major
   // standalone decode remains supported, but deliberately has no join receipt.
@@ -68,7 +68,7 @@ pub fn AudioDecodeRequest::prepare(
         decoder.tail.source.time,
         tail.convolution.output_bytes,
       ) else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
   }
   decoder.require_cached_weights()
@@ -77,7 +77,7 @@ pub fn AudioDecodeRequest::prepare(
   self.state.phase = Failed
   let bytes = tail.convolution.output_bytes
   guard bytes > 0L && bytes <= max_output_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let output = context.allocate(bytes)
   self.output = Some(output)
@@ -85,7 +85,7 @@ pub fn AudioDecodeRequest::prepare(
     Some(program) => {
       guard decoder.frontend.layout is Some(front) &&
         program.layout.value_bytes == front.input_bytes else {
-        raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+        raise InvalidArgument(AotKernelLaunch)
       }
       program.lease.acquire()
       self.input_program = Some(program)
@@ -162,7 +162,7 @@ pub fn AudioDecodeRequest::submit(
   self : Self,
 ) -> Unit raise @device.DeviceError {
   guard self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.state.submit(() => {
     for index in 0..<queue.kernel_count() {
@@ -175,7 +175,7 @@ pub fn AudioDecodeRequest::submit(
 ///|
 pub fn AudioDecodeRequest::poll(self : Self) -> Bool raise @device.DeviceError {
   guard self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.state.poll(() => queue.poll_completion())
 }
@@ -188,7 +188,7 @@ pub fn[T] AudioDecodeRequest::with_output(
   consume : (@device.Allocation) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.state.phase == Complete && self.output is Some(output) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(output)
 }

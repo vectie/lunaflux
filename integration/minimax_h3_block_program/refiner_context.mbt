@@ -19,7 +19,7 @@ pub fn RefinerProgram::bind_context(
     self.source.model,
     max_bytes=weights.byte_count(),
   ) catch {
-    _ => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    _ => raise InvalidArgument(AotKernelLaunch)
   }
   let refiner = self.bind(layers, state~, state_offset~)
   let shape = self.source.model.denoiser()

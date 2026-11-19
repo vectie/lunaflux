@@ -26,6 +26,9 @@ pub(all) suberror Qwen35ConfigError {
   MissingField(area~ : Qwen35ConfigArea, field~ : Qwen35ConfigField)
   InvalidValue(area~ : Qwen35ConfigArea, field~ : Qwen35ConfigField, issue~ : Qwen35ConfigValueIssue, index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn Qwen35ConfigError::equal(Self, Self) -> Bool
+pub fn Qwen35ConfigError::not_equal(Self, Self) -> Bool
+pub fn Qwen35ConfigError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Qwen35ConfigArea {
@@ -34,6 +37,9 @@ pub(all) enum Qwen35ConfigArea {
   Rope
   Quantization
 } derive(Eq, @debug.Debug)
+pub fn Qwen35ConfigArea::equal(Self, Self) -> Bool
+pub fn Qwen35ConfigArea::not_equal(Self, Self) -> Bool
+pub fn Qwen35ConfigArea::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Qwen35ConfigField {
   Architectures
@@ -89,6 +95,9 @@ pub(all) enum Qwen35ConfigField {
   ModulesNotConverted
   WeightBlockSize
 } derive(Eq, @debug.Debug)
+pub fn Qwen35ConfigField::equal(Self, Self) -> Bool
+pub fn Qwen35ConfigField::not_equal(Self, Self) -> Bool
+pub fn Qwen35ConfigField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Qwen35ConfigValueIssue {
   ExpectedObject
@@ -102,6 +111,9 @@ pub(all) enum Qwen35ConfigValueIssue {
   MissingRequiredEntry
   UnsupportedValue
 } derive(Eq, @debug.Debug)
+pub fn Qwen35ConfigValueIssue::equal(Self, Self) -> Bool
+pub fn Qwen35ConfigValueIssue::not_equal(Self, Self) -> Bool
+pub fn Qwen35ConfigValueIssue::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

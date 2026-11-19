@@ -22,6 +22,9 @@ pub(all) suberror RankGroupProcessError {
   Backpressured
   Failed(RankGroupProcessFailure)
 } derive(Eq, @debug.Debug)
+pub fn RankGroupProcessError::equal(Self, Self) -> Bool
+pub fn RankGroupProcessError::not_equal(Self, Self) -> Bool
+pub fn RankGroupProcessError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AcceptedRankGroupCompletion(RankGroupProcessSupervisor, UInt64)
@@ -32,6 +35,9 @@ pub fn PreparedRankGroupProcess::spawn_with_approved_root_spawn_authority(Self, 
 pub(all) enum RankGroupProcessCleanupFailure {
   RankChildCleanupFailed(rank~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn RankGroupProcessCleanupFailure::equal(Self, Self) -> Bool
+pub fn RankGroupProcessCleanupFailure::not_equal(Self, Self) -> Bool
+pub fn RankGroupProcessCleanupFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RankGroupProcessCleanupProgress {
   CleanupAdvanced
@@ -39,6 +45,9 @@ pub(all) enum RankGroupProcessCleanupProgress {
   CleanupStuck(rank~ : Int)
   CleanupComplete
 } derive(Eq, @debug.Debug)
+pub fn RankGroupProcessCleanupProgress::equal(Self, Self) -> Bool
+pub fn RankGroupProcessCleanupProgress::not_equal(Self, Self) -> Bool
+pub fn RankGroupProcessCleanupProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RankGroupProcessFailure {
   Spawn(rank~ : Int)
@@ -56,6 +65,9 @@ pub(all) enum RankGroupProcessFailure {
   Clock
   DeadlineExpired
 } derive(Eq, @debug.Debug)
+pub fn RankGroupProcessFailure::equal(Self, Self) -> Bool
+pub fn RankGroupProcessFailure::not_equal(Self, Self) -> Bool
+pub fn RankGroupProcessFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RankGroupProcessLifecycle {
   Prepared
@@ -71,6 +83,9 @@ pub(all) enum RankGroupProcessLifecycle {
   Cleaning
   Closed
 } derive(Eq, @debug.Debug)
+pub fn RankGroupProcessLifecycle::equal(Self, Self) -> Bool
+pub fn RankGroupProcessLifecycle::not_equal(Self, Self) -> Bool
+pub fn RankGroupProcessLifecycle::to_repr(Self) -> @debug.Repr
 
 pub struct RankGroupProcessLimits {
   // private fields
@@ -89,6 +104,9 @@ pub(all) enum RankGroupProcessProgress {
   ProcessPending
   ProcessCompletionReady
 } derive(Eq, @debug.Debug)
+pub fn RankGroupProcessProgress::equal(Self, Self) -> Bool
+pub fn RankGroupProcessProgress::not_equal(Self, Self) -> Bool
+pub fn RankGroupProcessProgress::to_repr(Self) -> @debug.Repr
 
 pub struct RankGroupProcessRankStartup {
   // private fields
@@ -109,6 +127,9 @@ pub(all) enum RankGroupProcessRule {
   SchedulerCommit
   Cleanup
 } derive(Eq, @debug.Debug)
+pub fn RankGroupProcessRule::equal(Self, Self) -> Bool
+pub fn RankGroupProcessRule::not_equal(Self, Self) -> Bool
+pub fn RankGroupProcessRule::to_repr(Self) -> @debug.Repr
 
 pub struct RankGroupProcessSupervisor {
   // private fields

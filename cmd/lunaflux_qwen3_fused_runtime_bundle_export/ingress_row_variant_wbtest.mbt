@@ -6,7 +6,7 @@ test "small row route composes with cached ingress and rejects duplicate or unsa
     "64", "16", "0", "/tmp/small.cubin",
   ])
   let (args, choice) = prepare_ingress_choice(valid)
-  assert_eq(choice, @luna_fusion_strategy.FullyFused)
+  assert_eq(choice, FullyFused)
   guard args.ingress_row_variant is Some(variant) else {
     fail("row alternative missing")
   }

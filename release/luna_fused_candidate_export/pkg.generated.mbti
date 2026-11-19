@@ -21,6 +21,9 @@ pub(all) suberror LunaFusedCandidateExportError {
   FusedCandidateExportFailed(LunaFusedCandidateExportStage)
   FusedCandidateExportFailedAndCleanup(LunaFusedCandidateExportStage, LunaFusedCandidateExportStage)
 } derive(Eq, @debug.Debug)
+pub fn LunaFusedCandidateExportError::equal(Self, Self) -> Bool
+pub fn LunaFusedCandidateExportError::not_equal(Self, Self) -> Bool
+pub fn LunaFusedCandidateExportError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaFusedCandidateExportEvidence {
@@ -38,6 +41,9 @@ pub(all) enum LunaFusedCandidateExportStage {
   Publish
   Cleanup
 } derive(Eq, @debug.Debug)
+pub fn LunaFusedCandidateExportStage::equal(Self, Self) -> Bool
+pub fn LunaFusedCandidateExportStage::not_equal(Self, Self) -> Bool
+pub fn LunaFusedCandidateExportStage::to_repr(Self) -> @debug.Repr
 
 pub struct LunaFusedCandidateQualificationSet {
   // private fields

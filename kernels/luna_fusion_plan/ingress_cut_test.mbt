@@ -28,7 +28,7 @@ test "semantic ingress cuts preserve materializations and KV write ownership" {
         qkv_operation=origin,
       )
     catch {
-      @luna_fusion_plan.InvalidFusionPlan(OperationOrder) => ()
+      InvalidFusionPlan(OperationOrder) => ()
       _ => fail("wrong origin error")
     } noraise {
       _ => fail("invalid span origin accepted")
@@ -88,7 +88,7 @@ test "ingress whole-region comparison shares global deterministic partition sele
       maximum_workspace_bytes=0L,
       maximum_local_bytes=32L,
     ).schedule(),
-    @luna_fusion_strategy.ProducerSeparated,
+    ProducerSeparated,
   )
   assert_eq(
     @luna_fusion_plan.select_attention_ingress_cut(
@@ -97,7 +97,7 @@ test "ingress whole-region comparison shares global deterministic partition sele
       maximum_workspace_bytes=0L,
       maximum_local_bytes=0L,
     ).schedule(),
-    @luna_fusion_strategy.Unfused,
+    Unfused,
   )
 }
 
@@ -124,8 +124,7 @@ test "ingress comparisons reject duplicates mixed cost bases and resource exhaus
         maximum_local_bytes=32L,
       )
     catch {
-      @luna_fusion_plan.InvalidFusionPlan(InvalidSelection | NoFeasibleCut) =>
-        ()
+      InvalidFusionPlan(InvalidSelection | NoFeasibleCut) => ()
       _ => fail("wrong comparison error")
     } noraise {
       _ => fail("invalid comparison accepted")

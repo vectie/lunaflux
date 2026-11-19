@@ -18,7 +18,7 @@ test "KDA projection binds QKV explicit forget intermediates and beta" {
     official_sparse=true,
     kda_head_count=64,
   )
-  let candidate = lower_kda_projection_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_kda_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=kda_projection_ordinal(requirements),
     maximum_tokens=32,
@@ -54,7 +54,7 @@ test "KDA projection rejects wrong geometry ordinal target and compiler" {
     kda_head_count=63,
   )
   try
-    lower_kda_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_projection_cuda_aot_candidate(
       wrong,
       requirement_ordinal=kda_projection_ordinal(wrong),
       maximum_tokens=32,
@@ -76,7 +76,7 @@ test "KDA projection rejects wrong geometry ordinal target and compiler" {
   )
   let ordinal = kda_projection_ordinal(exact)
   try
-    lower_kda_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -91,7 +91,7 @@ test "KDA projection rejects wrong geometry ordinal target and compiler" {
     _ => fail("short convolution admitted as projection")
   }
   try
-    lower_kda_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -106,7 +106,7 @@ test "KDA projection rejects wrong geometry ordinal target and compiler" {
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_kda_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

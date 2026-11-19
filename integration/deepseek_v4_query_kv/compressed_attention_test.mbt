@@ -20,15 +20,11 @@ test "all compressed layers map to the exact learned or all-causal read set" {
       assert_eq(plan.coordinates(), CacheRelative)
       match spec.compression_ratio(layer) {
         Some(4) => {
-          assert_true(
-            plan.read_set() is @precision.CompressedRowReadSet::Learned(top_k=_),
-          )
+          assert_true(plan.read_set() is Learned(top_k=_))
           assert_eq(plan.cache_capacity(), 4)
         }
         Some(128) => {
-          assert_true(
-            plan.read_set() is @precision.CompressedRowReadSet::AllCausal,
-          )
+          assert_true(plan.read_set() is AllCausal)
           assert_eq(plan.cache_capacity(), 0)
         }
         _ => fail("unhandled official compression ratio")

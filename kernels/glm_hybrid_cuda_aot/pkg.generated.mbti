@@ -128,6 +128,9 @@ pub(all) suberror GlmHybridCudaAotError {
   Operand(@glm_hybrid_artifact_admission.GlmHybridArtifactAdmissionError)
   Launch(@launch_contract.LaunchContractError)
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridCudaAotError::equal(Self, Self) -> Bool
+pub fn GlmHybridCudaAotError::not_equal(Self, Self) -> Bool
+pub fn GlmHybridCudaAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum GlmHybridCudaAotInvalidKind {
@@ -138,6 +141,9 @@ pub(all) enum GlmHybridCudaAotInvalidKind {
   Compiler
   Encoding
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridCudaAotInvalidKind::equal(Self, Self) -> Bool
+pub fn GlmHybridCudaAotInvalidKind::not_equal(Self, Self) -> Bool
+pub fn GlmHybridCudaAotInvalidKind::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridCudaAotLimits {
   // private fields
@@ -146,9 +152,19 @@ pub fn GlmHybridCudaAotLimits::new(maximum_tokens~ : Int, maximum_source_bytes~ 
 
 pub struct GlmHybridCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn GlmHybridCudaRecipeDigest::as_hex(Self) -> String
+pub fn GlmHybridCudaRecipeDigest::equal(Self, Self) -> Bool
+pub fn GlmHybridCudaRecipeDigest::hash(Self) -> Int
+pub fn GlmHybridCudaRecipeDigest::hash_combine(Self, Hasher) -> Unit
+pub fn GlmHybridCudaRecipeDigest::not_equal(Self, Self) -> Bool
+pub fn GlmHybridCudaRecipeDigest::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn GlmHybridCudaSourceDigest::as_hex(Self) -> String
+pub fn GlmHybridCudaSourceDigest::equal(Self, Self) -> Bool
+pub fn GlmHybridCudaSourceDigest::hash(Self) -> Int
+pub fn GlmHybridCudaSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn GlmHybridCudaSourceDigest::not_equal(Self, Self) -> Bool
+pub fn GlmHybridCudaSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmHybridDenseProjectionAotFamily {
   AttentionOutputProjectionBf16
@@ -159,6 +175,9 @@ pub(all) enum GlmHybridDenseProjectionAotFamily {
   DsaKeyValueBProjectionBf16
   KdaOutputProjectionBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridDenseProjectionAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridDenseProjectionAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDenseProjectionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridDenseProjectionCudaCandidate {
   // private fields
@@ -187,6 +206,9 @@ pub fn GlmHybridDenseProjectionCudaCandidate::target(Self) -> @catalog.DeviceTar
 pub(all) enum GlmHybridDenseSwiGluAotFamily {
   SeparateGateUpDownWeightsBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridDenseSwiGluAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridDenseSwiGluAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDenseSwiGluAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridDenseSwiGluCudaCandidate {
   // private fields
@@ -217,6 +239,9 @@ pub(all) enum GlmHybridDsaIndexAotFamily {
   PooledScoreStableTopKWithTailBf16
   SelectedIndexReuseI32
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridDsaIndexAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridDsaIndexAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDsaIndexAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridDsaIndexCudaCandidate {
   // private fields
@@ -249,6 +274,9 @@ pub fn GlmHybridDsaIndexCudaCandidate::top_k(Self) -> Int
 pub(all) enum GlmHybridDsaPoolingAotFamily {
   DsaKeyPoolCompressionBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridDsaPoolingAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridDsaPoolingCudaCandidate {
   // private fields
@@ -281,6 +309,9 @@ pub(all) enum GlmHybridFoundationAotFamily {
   FinalRmsNormBf16
   DsaQueryARmsNormBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridFoundationAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridFoundationAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridFoundationAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridFoundationCudaCandidate {
   // private fields
@@ -309,7 +340,10 @@ pub struct GlmHybridFoundationOperand {
 } derive(Eq, @debug.Debug)
 pub fn GlmHybridFoundationOperand::alignment(Self) -> Int64
 pub fn GlmHybridFoundationOperand::byte_count(Self) -> Int64
+pub fn GlmHybridFoundationOperand::equal(Self, Self) -> Bool
+pub fn GlmHybridFoundationOperand::not_equal(Self, Self) -> Bool
 pub fn GlmHybridFoundationOperand::role(Self) -> GlmHybridFoundationOperandRole
+pub fn GlmHybridFoundationOperand::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmHybridFoundationOperandRole {
   StepCountsInput
@@ -320,11 +354,17 @@ pub(all) enum GlmHybridFoundationOperandRole {
   DsaQueryCompressedInput
   DsaQueryNormalizedOutput
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridFoundationOperandRole::equal(Self, Self) -> Bool
+pub fn GlmHybridFoundationOperandRole::not_equal(Self, Self) -> Bool
+pub fn GlmHybridFoundationOperandRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmHybridHyperControlAotFamily {
   FlashFunctionAndCollapse4x4096
   FlashPositiveSinkhorn4x20
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridHyperControlAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridHyperControlAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridHyperControlAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridHyperControlCudaCandidate {
   // private fields
@@ -356,6 +396,9 @@ pub fn GlmHybridHyperControlCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub(all) enum GlmHybridKdaDecayControlAotFamily {
   PointwiseSafeLowerBoundSigmoidF32
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKdaDecayControlAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKdaDecayControlAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKdaDecayControlAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKdaDecayControlCudaCandidate {
   // private fields
@@ -385,6 +428,9 @@ pub fn GlmHybridKdaDecayControlCudaCandidate::target(Self) -> @catalog.DeviceTar
 pub(all) enum GlmHybridKdaGatedNormAotFamily {
   SerialPerHeadSigmoidGatedRmsNormBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKdaGatedNormAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKdaGatedNormAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKdaGatedNormAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKdaGatedNormCudaCandidate {
   // private fields
@@ -414,6 +460,9 @@ pub fn GlmHybridKdaGatedNormCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub(all) enum GlmHybridKdaOutputGateAotFamily {
   SerialBiasFreeTwoStageBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKdaOutputGateAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKdaOutputGateAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKdaOutputGateAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKdaOutputGateCudaCandidate {
   // private fields
@@ -443,6 +492,9 @@ pub fn GlmHybridKdaOutputGateCudaCandidate::target(Self) -> @catalog.DeviceTarge
 pub(all) enum GlmHybridKdaProjectionAotFamily {
   SerialQkvForgetAndInputGateBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKdaProjectionAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKdaProjectionAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKdaProjectionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKdaProjectionCudaCandidate {
   // private fields
@@ -473,6 +525,9 @@ pub fn GlmHybridKdaProjectionCudaCandidate::target(Self) -> @catalog.DeviceTarge
 pub(all) enum GlmHybridKdaRecurrentAotFamily {
   SerialNormalizedRecurrentDeltaBf16F32
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKdaRecurrentAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKdaRecurrentAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKdaRecurrentAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKdaRecurrentCudaCandidate {
   // private fields
@@ -503,6 +558,9 @@ pub fn GlmHybridKdaRecurrentCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub(all) enum GlmHybridKdaShortConvolutionAotFamily {
   ReusableDepthwiseCausalSiluBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKdaShortConvolutionAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKdaShortConvolutionAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKdaShortConvolutionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKdaShortConvolutionCudaCandidate {
   // private fields
@@ -533,6 +591,9 @@ pub(all) enum GlmHybridKvAssemblyAotFamily {
   FullSharedRopeSuffixBroadcast
   FlashNoRopeSplit
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKvAssemblyAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKvAssemblyAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKvAssemblyAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKvAssemblyCudaCandidate {
   // private fields
@@ -559,6 +620,9 @@ pub fn GlmHybridKvAssemblyCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub(all) enum GlmHybridKvSplitNormAotFamily {
   DsaKeyValuePrefixRmsNormBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridKvSplitNormAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridKvSplitNormAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridKvSplitNormAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridKvSplitNormCudaCandidate {
   // private fields
@@ -594,6 +658,9 @@ pub(all) enum GlmHybridMoeFeedForwardAotFamily {
   FullDecoderResidualAdd
   FlashHyperConnectionMix4
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridMoeFeedForwardAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridMoeFeedForwardAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridMoeFeedForwardAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridMoeFeedForwardCudaCandidate {
   // private fields
@@ -624,11 +691,17 @@ pub(all) enum GlmHybridMoeFeedForwardNumericalContract {
   DecoderResidualF32AddBf16Round
   HyperControlBf16OrderedResidualMix
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridMoeFeedForwardNumericalContract::equal(Self, Self) -> Bool
+pub fn GlmHybridMoeFeedForwardNumericalContract::not_equal(Self, Self) -> Bool
+pub fn GlmHybridMoeFeedForwardNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmHybridMoeGroupedRoutingAotFamily {
   FullGroupedRouting256
   FlashGroupedRouting288
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridMoeGroupedRoutingAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridMoeGroupedRoutingAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridMoeGroupedRoutingAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridMoeGroupedRoutingCudaCandidate {
   // private fields
@@ -657,6 +730,9 @@ pub(all) enum GlmHybridMoeRouterAotFamily {
   FullFloat32Router256
   FlashFloat32Router288
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridMoeRouterAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridMoeRouterAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridMoeRouterAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridMoeRouterCudaCandidate {
   // private fields
@@ -686,6 +762,9 @@ pub(all) enum GlmHybridMoeScoreAotFamily {
   FullSigmoidCorrection256
   FlashSigmoidCorrection288
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridMoeScoreAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridMoeScoreAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridMoeScoreAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridMoeScoreCudaCandidate {
   // private fields
@@ -713,6 +792,9 @@ pub fn GlmHybridMoeScoreCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub(all) enum GlmHybridRotaryAotFamily {
   DsaInterleavedQuerySharedKeyRopeBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridRotaryAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridRotaryAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridRotaryAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridRotaryCudaCandidate {
   // private fields
@@ -743,6 +825,9 @@ pub fn GlmHybridRotaryCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub(all) enum GlmHybridSparseAttentionAotFamily {
   SelectedIndexSparseAttentionBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridSparseAttentionAotFamily::equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionAotFamily::not_equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridSparseAttentionCudaCandidate {
   // private fields

@@ -47,7 +47,7 @@ async fn prepare_text_frames(
   }
   @fs.write_file(
     output + "/tokens.txt",
-    ids.to_array().map(id => id.to_string()).join(",") + "\n",
+    ids.to_owned().map(id => id.to_string()).join(",") + "\n",
     create_mode=CreateNew,
   )
   @fs.write_file(

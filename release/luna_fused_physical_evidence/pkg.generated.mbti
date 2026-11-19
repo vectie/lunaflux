@@ -32,11 +32,17 @@ pub(all) suberror FusedPhysicalEvidenceError {
   FusedPhysicalEvidenceMismatch(FusedPhysicalEvidenceRule)
   FusedPhysicalEvidenceLimitExceeded
 } derive(Eq, @debug.Debug)
+pub fn FusedPhysicalEvidenceError::equal(Self, Self) -> Bool
+pub fn FusedPhysicalEvidenceError::not_equal(Self, Self) -> Bool
+pub fn FusedPhysicalEvidenceError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror FusedProductionManifestError {
   InvalidFusedProductionManifest(FusedProductionManifestRule)
   MismatchedFusedProductionManifest(FusedProductionManifestRule)
 } derive(Eq, @debug.Debug)
+pub fn FusedProductionManifestError::equal(Self, Self) -> Bool
+pub fn FusedProductionManifestError::not_equal(Self, Self) -> Bool
+pub fn FusedProductionManifestError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdmittedFusedPhysicalEvidence {
@@ -137,6 +143,9 @@ pub(all) enum FusedPhysicalEvidenceRule {
   ExternalApproval
   Authority
 } derive(Eq, @debug.Debug)
+pub fn FusedPhysicalEvidenceRule::equal(Self, Self) -> Bool
+pub fn FusedPhysicalEvidenceRule::not_equal(Self, Self) -> Bool
+pub fn FusedPhysicalEvidenceRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedProductionManifestRule {
   Authority
@@ -154,6 +163,9 @@ pub(all) enum FusedProductionManifestRule {
   Fallback
   CanonicalDocument
 } derive(Eq, @debug.Debug)
+pub fn FusedProductionManifestRule::equal(Self, Self) -> Bool
+pub fn FusedProductionManifestRule::not_equal(Self, Self) -> Bool
+pub fn FusedProductionManifestRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

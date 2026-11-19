@@ -5,7 +5,7 @@ test "head reduction lowers exact six-operand normalized-control ABI" {
     requirements.requirements()[9].operation()
     is HyperConnectionHeadReduceV1(2, 0.000001, 0.000001),
   )
-  let candidate = lower_hyper_connection_head_reduce_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_hyper_connection_head_reduce_cuda_aot_candidate(
     requirements,
     requirement_ordinal=9,
     maximum_tokens=2,
@@ -48,7 +48,7 @@ test "head reduction lowers exact six-operand normalized-control ABI" {
       "ordered-f32-normalized-sigmoid-control-reduction-single-bf16-rne-v1",
     ),
   )
-  let repeated = lower_hyper_connection_head_reduce_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_hyper_connection_head_reduce_cuda_aot_candidate(
     requirements,
     requirement_ordinal=9,
     maximum_tokens=2,
@@ -65,7 +65,7 @@ test "head reduction rejects adjacent operations target compiler and row bounds"
   let requirements = aot_test_requirements()
   for ordinal in [8, 10] {
     try
-      lower_hyper_connection_head_reduce_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_hyper_connection_head_reduce_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=2,
@@ -81,7 +81,7 @@ test "head reduction rejects adjacent operations target compiler and row bounds"
     }
   }
   try
-    lower_hyper_connection_head_reduce_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_head_reduce_cuda_aot_candidate(
       requirements,
       requirement_ordinal=9,
       maximum_tokens=2,
@@ -96,7 +96,7 @@ test "head reduction rejects adjacent operations target compiler and row bounds"
     _ => fail("head reduction admitted a non-BF16 target")
   }
   try
-    lower_hyper_connection_head_reduce_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_head_reduce_cuda_aot_candidate(
       requirements,
       requirement_ordinal=9,
       maximum_tokens=2,
@@ -111,13 +111,13 @@ test "head reduction rejects adjacent operations target compiler and row bounds"
     _ => fail("head reduction admitted reassociation")
   }
   try
-    lower_hyper_connection_head_reduce_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_hyper_connection_head_reduce_cuda_aot_candidate(
       requirements,
       requirement_ordinal=9,
       maximum_tokens=3,
       target=aot_test_target(),
       compiler=aot_test_compiler(),
-      limits=try! AdvancedDecoderCudaAotLimits::new(
+      limits=try! @advanced_decoder_cuda_aot.AdvancedDecoderCudaAotLimits::new(
         maximum_tokens=2,
         maximum_source_bytes=65536,
         maximum_recipe_bytes=65536,

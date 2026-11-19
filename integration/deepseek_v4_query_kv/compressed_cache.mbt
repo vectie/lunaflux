@@ -92,7 +92,7 @@ pub fn DeepSeekCompressedKvCache::new(
       ),
     )
   } else {
-    CompressorTransform::Attention(
+    Attention(
       @rotary_frame.RotaryCacheFrame::new(
         @rotary_source.rotary_cache_source(
           compressor_cache_plan(

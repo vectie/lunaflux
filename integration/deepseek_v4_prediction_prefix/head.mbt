@@ -149,11 +149,11 @@ pub fn DeepSeekPredictionHead::prepare(
   let indices = FixedArray::make(rows * 4, b'\x00')
   let count = FixedArray::make(4, b'\x00')
   for byte in 0..<4 {
-    count[byte] = (rows.to_uint() >> (byte * 8)).to_byte()
+    count[byte] = (rows.reinterpret_as_uint() >> (byte * 8)).to_byte()
   }
   for row in 0..<rows {
     for byte in 0..<4 {
-      indices[row * 4 + byte] = (row.to_uint() >> (byte * 8)).to_byte()
+      indices[row * 4 + byte] = (row.reinterpret_as_uint() >> (byte * 8)).to_byte()
     }
   }
   self.buffers[0].copy_from_host(Bytes::from_array(count), 0L, 0L, 4L)

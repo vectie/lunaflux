@@ -15,7 +15,7 @@ test "linear geometry handles partial blocks and Int32 extent without overflow" 
       (1L, 1025),
     ] {
     try linear_dimensions(elements, block) catch {
-      @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+      InvalidArgument(AotKernelLaunch) => ()
       _ => fail("unexpected geometry error")
     } noraise {
       _ => fail("invalid geometry accepted")

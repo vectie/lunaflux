@@ -67,6 +67,9 @@ pub(all) suberror JointVaeDecodeReferenceError {
   InvalidProjectionInput
   DecodeSemanticUnavailable(@joint_diffusion_plan.JointDiffusionComponent, JointVaeDecodeGap)
 } derive(Eq, @debug.Debug)
+pub fn JointVaeDecodeReferenceError::equal(Self, Self) -> Bool
+pub fn JointVaeDecodeReferenceError::not_equal(Self, Self) -> Bool
+pub fn JointVaeDecodeReferenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct JointVaeAudioDecoderAmpActivation {
@@ -95,6 +98,9 @@ pub struct JointVaeAudioDecoderAmpActivationDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeAudioDecoderAmpActivationDigest::as_hex(Self) -> String
+pub fn JointVaeAudioDecoderAmpActivationDigest::equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderAmpActivationDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderAmpActivationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeAudioDecoderConvPre {
   // private fields
@@ -124,6 +130,9 @@ pub struct JointVaeAudioDecoderConvPreDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeAudioDecoderConvPreDigest::as_hex(Self) -> String
+pub fn JointVaeAudioDecoderConvPreDigest::equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderConvPreDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderConvPreDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeAudioDecoderFirstAmpActivation {
   // private fields
@@ -150,6 +159,9 @@ pub struct JointVaeAudioDecoderFirstAmpActivationDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeAudioDecoderFirstAmpActivationDigest::as_hex(Self) -> String
+pub fn JointVaeAudioDecoderFirstAmpActivationDigest::equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderFirstAmpActivationDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderFirstAmpActivationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeAudioDecoderFirstUpsample {
   // private fields
@@ -181,6 +193,9 @@ pub struct JointVaeAudioDecoderFirstUpsampleDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeAudioDecoderFirstUpsampleDigest::as_hex(Self) -> String
+pub fn JointVaeAudioDecoderFirstUpsampleDigest::equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderFirstUpsampleDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderFirstUpsampleDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeAudioDecoderInputProjection {
   // private fields
@@ -205,6 +220,9 @@ pub struct JointVaeAudioDecoderInputProjectionDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeAudioDecoderInputProjectionDigest::as_hex(Self) -> String
+pub fn JointVaeAudioDecoderInputProjectionDigest::equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderInputProjectionDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderInputProjectionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeAudioDecoderUpsampleTransition {
   // private fields
@@ -237,6 +255,9 @@ pub struct JointVaeAudioDecoderUpsampleTransitionDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeAudioDecoderUpsampleTransitionDigest::as_hex(Self) -> String
+pub fn JointVaeAudioDecoderUpsampleTransitionDigest::equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderUpsampleTransitionDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeAudioDecoderUpsampleTransitionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeAudioLatentDestandardization {
   // private fields
@@ -290,11 +311,17 @@ pub(all) enum JointVaeDecodeGap {
   AudioResidualPath
   AudioFinalProjection
 } derive(Eq, @debug.Debug)
+pub fn JointVaeDecodeGap::equal(Self, Self) -> Bool
+pub fn JointVaeDecodeGap::not_equal(Self, Self) -> Bool
+pub fn JointVaeDecodeGap::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeDecodeGapDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeDecodeGapDigest::as_hex(Self) -> String
+pub fn JointVaeDecodeGapDigest::equal(Self, Self) -> Bool
+pub fn JointVaeDecodeGapDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeDecodeGapDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointVaeDecodeGeometry {
   // private fields
@@ -326,7 +353,10 @@ pub struct JointVaeLatentBuffer {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeLatentBuffer::component(Self) -> @joint_diffusion_plan.JointDiffusionComponent
+pub fn JointVaeLatentBuffer::equal(Self, Self) -> Bool
+pub fn JointVaeLatentBuffer::not_equal(Self, Self) -> Bool
 pub fn JointVaeLatentBuffer::plan_digest(Self) -> @spec.PlanDigest
+pub fn JointVaeLatentBuffer::to_repr(Self) -> @debug.Repr
 pub fn JointVaeLatentBuffer::values(Self) -> ReadOnlyArray[Double]
 
 pub struct JointVaeLatentDestandardization {
@@ -348,6 +378,9 @@ pub struct JointVaeLatentDestandardizationDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointVaeLatentDestandardizationDigest::as_hex(Self) -> String
+pub fn JointVaeLatentDestandardizationDigest::equal(Self, Self) -> Bool
+pub fn JointVaeLatentDestandardizationDigest::not_equal(Self, Self) -> Bool
+pub fn JointVaeLatentDestandardizationDigest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

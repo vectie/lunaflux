@@ -1,7 +1,11 @@
 ///|
 test "converted H3 MLP is already up-gate and must not be swapped twice" {
   let model = @minimax_h3.build(h3_weight_metadata())
-  let plan = block_weight_packing(model, block=0, max_bytes=2000000000L)
+  let plan = @minimax_h3_weights.block_weight_packing(
+    model,
+    block=0,
+    max_bytes=2000000000L,
+  )
   assert_eq(plan.layer, 0)
   assert_eq(plan.copies.length(), 13)
   assert_eq(plan.copies[11].destination_offset, plan.adaln_offset)
@@ -19,11 +23,19 @@ test "converted H3 MLP is already up-gate and must not be swapped twice" {
     )
   }
   assert_eq(
-    block_weight_packing(model, block=49, max_bytes=plan.byte_count).layer,
+    @minimax_h3_weights.block_weight_packing(
+      model,
+      block=49,
+      max_bytes=plan.byte_count,
+    ).layer,
     49,
   )
   try
-    block_weight_packing(model, block=0, max_bytes=plan.byte_count - 1L)
+    @minimax_h3_weights.block_weight_packing(
+      model,
+      block=0,
+      max_bytes=plan.byte_count - 1L,
+    )
   catch {
     BudgetExceeded => ()
     _ => fail("wrong block budget error")

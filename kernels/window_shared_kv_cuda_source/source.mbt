@@ -64,8 +64,7 @@ pub fn window_shared_kv_source(
       $|}
     ),
   )
-  let attention = if plan.accumulation_law() ==
-    @precision.AttentionAccumulationLaw::TiledFloat32 {
+  let attention = if plan.accumulation_law() == TiledFloat32 {
     matrix_window_attention_source(
       plan,
       symbol_prefix~,
@@ -191,8 +190,7 @@ pub fn WindowSharedKvCudaSource::launch(
   let (heads, _, window, rows, _) = self.plan.geometry()
   match stage {
     1 =>
-      if self.plan.accumulation_law() ==
-        @precision.AttentionAccumulationLaw::TiledFloat32 {
+      if self.plan.accumulation_law() == TiledFloat32 {
         (rows, (heads + 15) / 16, 256)
       } else {
         (rows, heads, 128)

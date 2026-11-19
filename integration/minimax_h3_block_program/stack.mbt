@@ -4,12 +4,10 @@ fn validate_layer_order(
   expected : Int32,
 ) -> Unit raise @device.DeviceError {
   guard expected > 0 && ordinals.length() == expected else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   for index, ordinal in ordinals {
-    guard index == ordinal else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-    }
+    guard index == ordinal else { raise InvalidArgument(AotKernelLaunch) }
   }
 }
 

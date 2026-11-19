@@ -134,7 +134,7 @@ test "partial convolution binding releases all intermediate histories" {
       convolution_weights=FixedArray::from_array([input, tiny, input]),
     )
   catch {
-    @device.DeviceError::InvalidArgument(_) => ()
+    InvalidArgument(_) => ()
     e => raise e
   } noraise {
     _ => fail("undersized second stream weight bound")
@@ -176,7 +176,7 @@ test "composition requires identical request capacity and channel geometry" {
   try
     @recurrent.RecurrentDeltaProgram::with_convolution(source, convolution)
   catch {
-    @precision.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     e => raise e
   } noraise {
     _ => fail("asymmetric streams silently accepted")

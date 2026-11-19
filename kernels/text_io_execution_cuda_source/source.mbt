@@ -19,13 +19,13 @@ pub fn text_io_source(
     symbol_prefix.length() <= 100 &&
     symbol_prefix[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
     symbol_prefix.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
+    raise IllegalPlacement
   }
   let (vocabulary, hidden, _, rows, outputs) = plan.geometry()
   if vocabulary_shard is Some(shard) {
     guard shard.geometry() == (vocabulary, outputs) &&
       plan.head_law() == ShapeAwareFloat32 else {
-      raise @precision.PrecisionPlanError::NoImplementation
+      raise NoImplementation
     }
   }
   let v = vocabulary.to_string()

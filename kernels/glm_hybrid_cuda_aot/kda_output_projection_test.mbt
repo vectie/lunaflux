@@ -18,7 +18,7 @@ test "KDA output projection binds exact BF16 row-major no-bias geometry" {
     official_sparse=true,
     kda_head_count=64,
   )
-  let candidate = lower_kda_output_projection_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_kda_output_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=kda_output_projection_ordinal(requirements),
     maximum_tokens=32,
@@ -48,7 +48,7 @@ test "KDA output projection rejects adjacent ordinal compiler and target" {
   )
   let ordinal = kda_output_projection_ordinal(requirements)
   try
-    lower_kda_output_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_output_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal - 1,
       maximum_tokens=32,
@@ -63,7 +63,7 @@ test "KDA output projection rejects adjacent ordinal compiler and target" {
     _ => fail("gated norm admitted as output projection")
   }
   try
-    lower_kda_output_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_output_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -78,7 +78,7 @@ test "KDA output projection rejects adjacent ordinal compiler and target" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_kda_output_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_output_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -99,7 +99,7 @@ test "KDA output projection rejects adjacent ordinal compiler and target" {
     kda_head_count=8,
   )
   try
-    lower_kda_output_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_output_projection_cuda_aot_candidate(
       hostile_shape,
       requirement_ordinal=kda_output_projection_ordinal(hostile_shape),
       maximum_tokens=32,

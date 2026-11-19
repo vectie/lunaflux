@@ -4,8 +4,8 @@ fn tiny_identity_experts() -> Array[Float] {
 }
 
 ///|
-fn tiny_block_input() -> TinyAdvancedDecoderBlockInput {
-  try! TinyAdvancedDecoderBlockInput::new(
+fn tiny_block_input() -> @advanced_decoder_reference.TinyAdvancedDecoderBlockInput {
+  try! @advanced_decoder_reference.TinyAdvancedDecoderBlockInput::new(
     stream_activations=[1.0F, 1.0F, 3.0F, 3.0F],
     query_weight=[1.0F, 0.0F, 0.0F, 1.0F],
     keys=[1.0F, 0.0F, 0.0F, 1.0F],
@@ -32,7 +32,7 @@ fn tiny_block_input() -> TinyAdvancedDecoderBlockInput {
 
 ///|
 test "tiny block composes sparse attention hyper-connections and MoE order" {
-  let output = run_tiny_advanced_decoder_block(
+  let output = @advanced_decoder_reference.run_tiny_advanced_decoder_block(
     tiny_block_input(),
     limits=test_limits(),
   )
@@ -51,7 +51,7 @@ test "tiny block composes sparse attention hyper-connections and MoE order" {
 ///|
 test "tiny block rejects malformed and non-finite weights" {
   try
-    TinyAdvancedDecoderBlockInput::new(
+    @advanced_decoder_reference.TinyAdvancedDecoderBlockInput::new(
       stream_activations=[1.0F, 1.0F],
       query_weight=[1.0F],
       keys=[1.0F, 1.0F],

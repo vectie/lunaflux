@@ -107,7 +107,7 @@ test "resident BF16 embedding reads one pointer at layer zero" {
     try
       @device.Instruction::load_indirect_bf16(device, 0, args.0, args.1)
     catch {
-      @device.InvalidRange => ()
+      InvalidRange => ()
       _ => fail("unexpected indirect range error")
     } noraise {
       _ => fail("invalid pointer slot or count")
@@ -138,7 +138,7 @@ test "transformer descriptor constructors reject alias and wide-stride hazards" 
       () => @device.Instruction::reduce(Sum, 32768, 0, 1),
     ] {
     try f() catch {
-      @device.InvalidInstruction => ()
+      InvalidInstruction => ()
       _ => fail("wrong error")
     } noraise {
       _ => fail("invalid transformer operand admitted")
@@ -175,11 +175,11 @@ test "full decode covers all layers tied head and cross-launch scratch dependenc
         for p in 0..<(bytes.length() / 64) {
           let row = p * 16
           let op = word(bytes, row)
-          let dst = word(bytes, row + 1).to_int()
-          let a = word(bytes, row + 2).to_int()
-          let b = word(bytes, row + 3).to_int()
-          let n = word(bytes, row + 4).to_int()
-          let k = word(bytes, row + 5).to_int()
+          let dst = word(bytes, row + 1).reinterpret_as_int()
+          let a = word(bytes, row + 2).reinterpret_as_int()
+          let b = word(bytes, row + 3).reinterpret_as_int()
+          let n = word(bytes, row + 4).reinterpret_as_int()
+          let k = word(bytes, row + 5).reinterpret_as_int()
           let addr = word(bytes, row + 8).to_uint64()
           if layer < 28 && op == 14U {
             for value in [false, true] {
@@ -216,8 +216,8 @@ test "full decode covers all layers tied head and cross-launch scratch dependenc
             }
           }
           if op == 5U {
-            let bs = word(bytes, row + 6).to_int()
-            let br = word(bytes, row + 7).to_int()
+            let bs = word(bytes, row + 6).reinterpret_as_int()
+            let br = word(bytes, row + 7).reinterpret_as_int()
             for r in 0..<n {
               for col in 0..<k {
                 require(b + r * br + col * bs, 1)
@@ -240,7 +240,7 @@ test "full decode covers all layers tied head and cross-launch scratch dependenc
                 layout.lm_head().address + logits_rows.to_uint64() * 2048UL,
               )
               assert_eq(k, 1024)
-              logits_rows += n.to_uint()
+              logits_rows += n.reinterpret_as_uint()
             }
           }
           if op == 15U {
@@ -313,7 +313,7 @@ test "full-window decode and RoPE constants obey context and workspace bounds" {
   }
   for p in [-1, 2048] {
     try @transfer.prepare_decode_step(device, layout, p) catch {
-      @transfer.InvalidPosition => ()
+      InvalidPosition => ()
       _ => fail("wrong context error")
     } noraise {
       _ => fail("out-of-window position admitted")

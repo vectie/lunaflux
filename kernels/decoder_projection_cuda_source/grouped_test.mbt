@@ -1,6 +1,6 @@
 ///|
 test "grouped BF16 projection fixes layout and ordered arithmetic" {
-  let rendered = try! grouped_projection_bf16_source(
+  let rendered = try! @decoder_projection_cuda_source.grouped_projection_bf16_source(
     group_count=2,
     input_width=4,
     output_width=3,
@@ -21,7 +21,7 @@ test "grouped BF16 projection fixes layout and ordered arithmetic" {
 ///|
 test "grouped BF16 projection rejects hostile geometry and symbols" {
   try
-    grouped_projection_bf16_source(
+    @decoder_projection_cuda_source.grouped_projection_bf16_source(
       group_count=0,
       input_width=4,
       output_width=3,
@@ -35,7 +35,7 @@ test "grouped BF16 projection rejects hostile geometry and symbols" {
     _ => fail("zero groups admitted")
   }
   try
-    grouped_projection_bf16_source(
+    @decoder_projection_cuda_source.grouped_projection_bf16_source(
       group_count=2,
       input_width=4,
       output_width=3,

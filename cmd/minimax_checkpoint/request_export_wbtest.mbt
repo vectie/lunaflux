@@ -4,13 +4,13 @@ test "offline export independently selects explicit numerical reduction laws" {
     "32", "32", "120", "5", "3", "256", "64", "4096", "8589934592", "/tmp/output",
   ]
   let default = request_export_arguments(geometry)
-  assert_eq(default.square_law, @precision.CompensatedFloat32)
-  assert_eq(default.dot_law, @precision.OrderedFloat32)
+  assert_eq(default.square_law, CompensatedFloat32)
+  assert_eq(default.dot_law, OrderedFloat32)
   let selected = geometry.copy()
   selected.append(["ordered", "compensated"])
   let independent = request_export_arguments(selected)
-  assert_eq(independent.square_law, @precision.OrderedFloat32)
-  assert_eq(independent.dot_law, @precision.CompensatedFloat32)
+  assert_eq(independent.square_law, OrderedFloat32)
+  assert_eq(independent.dot_law, CompensatedFloat32)
   selected[11] = "unknown"
   try request_export_arguments(selected) catch {
     _ => ()
@@ -98,13 +98,13 @@ test "export selects explicit probability law without changing legacy defaults" 
   ]
   assert_eq(
     request_export_arguments(geometry).probability_law,
-    @precision.AttentionProbabilityLaw::OrderedOnlineF32,
+    OrderedOnlineF32,
   )
   let args = geometry.copy()
   args.append(["compensated", "ordered", "bf16-64"])
   assert_eq(
     request_export_arguments(args).probability_law,
-    @precision.AttentionProbabilityLaw::OnlineBf16(block_tokens=64),
+    OnlineBf16(block_tokens=64),
   )
   args[12] = "implicit-tuned"
   try request_export_arguments(args) catch {

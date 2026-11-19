@@ -1,7 +1,7 @@
 ///|
 test "head ownership round trips separately from token ownership" {
   for heads in [1, 2, 4] {
-    let input = ReusableFusedRuntimeModuleInput::new(
+    let input = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
       abi=QwenQkvQkNormPositionedRopePagedKvWriteProductionV4,
       first_operation=2,
       operation_count=4,
@@ -20,7 +20,7 @@ test "head ownership round trips separately from token ownership" {
       heads_per_cta=heads,
     )
     for routes in [None, Some(b"opaque-offline-routes")] {
-      let bytes = export_reusable_fused_runtime_bundle(
+      let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
         model_content_sha256="1".repeat(64),
         model_plan_sha256="2".repeat(64),
         target=@catalog.DeviceTarget::new(
@@ -32,7 +32,7 @@ test "head ownership round trips separately from token ownership" {
         modules=[input],
         attention_bucket_routes?=routes,
       )
-      let runtime = admit_digest_pinned_reusable_fused_runtime_bundle(
+      let runtime = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
         bytes,
         @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
       )
@@ -53,7 +53,7 @@ test "head ownership round trips separately from token ownership" {
             ),
           )
           try
-            admit_digest_pinned_reusable_fused_runtime_bundle(
+            @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
               bad,
               @crypto.bytes_to_hex_string(@crypto.sha256(bad)),
             )
@@ -70,14 +70,20 @@ test "head ownership round trips separately from token ownership" {
 
 ///|
 test "head packing cannot be attached to a different semantic family or missing row metadata" {
-  let cases : Array[(ReusableFusedRuntimeKernelAbi, Int32, Int32?)] = [
+  let cases : Array[
+    (
+      @luna_fused_artifact_admission.ReusableFusedRuntimeKernelAbi,
+      Int32,
+      Int32?,
+    ),
+  ] = [
     (ResidualRmsNormProductionV2, 2, Some(32)),
     (QwenQkNormPositionedRopePagedKvWriteProductionV2, 3, Some(32)),
     (QwenQkvQkNormPositionedRopePagedKvWriteProductionV4, 4, None),
   ]
   for (abi, count, rows) in cases {
     try
-      ReusableFusedRuntimeModuleInput::new(
+      @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
         abi~,
         first_operation=2,
         operation_count=count,

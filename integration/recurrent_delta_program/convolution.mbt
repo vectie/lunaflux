@@ -11,17 +11,17 @@ pub fn RecurrentDeltaProgram::with_convolution(
   guard keys == values &&
     heads.to_int64() * keys.to_int64() == channels.to_int64() &&
     source.plan().capacity() == convolution.plan().capacity() else {
-    raise @precision.PrecisionPlanError::IllegalPlacement
+    raise IllegalPlacement
   }
   let state = convolution.plan().state_bytes()
   let frame = convolution.plan().frame_bytes()
   let delta = source.plan().state_bytes()
   guard state <= (9223372036854775807L - delta) / 3L else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   let cache = delta + 3L * state
   guard frame <= (9223372036854775807L - cache) / 3L else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   let (maximum_rows, _, _) = source.plan().capacity()
   {

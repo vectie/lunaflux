@@ -66,6 +66,9 @@ pub(all) suberror RuntimeDescriptorFileError {
   InvalidField(area~ : RuntimeDescriptorArea, issue~ : RuntimeDescriptorIssue, index~ : Int)
   AdmissionRejected(RuntimeDescriptorAdmissionStage)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeDescriptorFileError::equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorFileError::not_equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Fp8RuntimeDescriptorAdmission {
@@ -134,6 +137,9 @@ pub(all) enum RuntimeDescriptorAdmissionStage {
   TensorParallelSource
   TensorParallelInspection
 } derive(Eq, @debug.Debug)
+pub fn RuntimeDescriptorAdmissionStage::equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorAdmissionStage::not_equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorAdmissionStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeDescriptorArea {
   Root
@@ -146,10 +152,16 @@ pub(all) enum RuntimeDescriptorArea {
   TensorParallel
   TensorParallelRank
 } derive(Eq, @debug.Debug)
+pub fn RuntimeDescriptorArea::equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorArea::not_equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorArea::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeDescriptorDigest(String) derive(Eq, @debug.Debug)
 pub fn RuntimeDescriptorDigest::as_hex(Self) -> String
+pub fn RuntimeDescriptorDigest::equal(Self, Self) -> Bool
 pub fn RuntimeDescriptorDigest::from_sha256(StringView) -> Self raise RuntimeDescriptorFileError
+pub fn RuntimeDescriptorDigest::not_equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorDigest::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeDescriptorFileLimits {
   // private fields
@@ -165,6 +177,9 @@ pub(all) enum RuntimeDescriptorFileOperation {
   BindModelRoot
   BindKernelRoot
 } derive(Eq, @debug.Debug)
+pub fn RuntimeDescriptorFileOperation::equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorFileOperation::not_equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorFileOperation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeDescriptorIssue {
   ExpectedObject
@@ -174,11 +189,17 @@ pub(all) enum RuntimeDescriptorIssue {
   ExpectedBoolean
   UnsupportedValue
 } derive(Eq, @debug.Debug)
+pub fn RuntimeDescriptorIssue::equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorIssue::not_equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeDescriptorLimit {
   DescriptorBytes
   JsonDepth
 } derive(Eq, @debug.Debug)
+pub fn RuntimeDescriptorLimit::equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorLimit::not_equal(Self, Self) -> Bool
+pub fn RuntimeDescriptorLimit::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRuntimeDescriptorAdmission {
   // private fields

@@ -40,7 +40,7 @@ pub fn ConditioningProgram::prepare(
     self.source.copies.length() == references.length() + 1 &&
     self.source.copies[0].rows == text.source.rows &&
     self.source.byte_count <= max_output_bytes else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.phase = Failed
   let latent_packing = match latent_weights {
@@ -50,7 +50,7 @@ pub fn ConditioningProgram::prepare(
           self.source.model,
           max_bytes=weights.byte_count(),
         ) catch {
-          _ => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+          _ => raise InvalidArgument(AotKernelLaunch)
         },
       )
     None => None
@@ -127,7 +127,7 @@ pub fn ConditioningProgram::execute(
   self : Self,
 ) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   self.phase = execute_conditioning_once(Prepared, () => {
@@ -152,7 +152,7 @@ pub fn ConditioningProgram::bind_input(
     self.source.sequence.segments() == input.source.sequence.segments() &&
     self.source.sequence.assembly().mapping() ==
     input.source.sequence.assembly().mapping() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   input.bind(
     packing,

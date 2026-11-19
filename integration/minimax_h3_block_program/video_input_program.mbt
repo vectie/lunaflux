@@ -31,7 +31,7 @@ pub fn VideoInputProgram::allocate(
   )
   guard means.byte_count() >= layout.parameter_bytes &&
     standard_deviations.byte_count() >= layout.parameter_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     source,
@@ -53,9 +53,7 @@ pub fn VideoInputProgram::bind(
   input : @device.Allocation,
   input_offset : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
-  guard !self.closed else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard !self.closed else { raise InvalidArgument(AotKernelLaunch) }
   self.layout.launches(
     self.permutation,
     self.destandardize,
@@ -79,9 +77,7 @@ pub fn[T] VideoInputProgram::with_destination(
   self : Self,
   consume : (@device.Allocation, Int64) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
-  guard !self.closed else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard !self.closed else { raise InvalidArgument(AotKernelLaunch) }
   consume(self.storage, self.layout.value_bytes)
 }
 

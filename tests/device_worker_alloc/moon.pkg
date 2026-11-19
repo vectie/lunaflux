@@ -5,7 +5,6 @@ import {
   "moonbitlang/core/math",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/contracts/inference",
-  "vectie/lunaflux/device",
   "vectie/lunaflux/engine/device_memory",
   "vectie/lunaflux/engine/device_step",
   "vectie/lunaflux/engine/device_worker",

@@ -83,7 +83,7 @@ test "intermediate and final prefills use their exact capability recipes" {
     [@plan.KernelCapabilityId::causal_attention()],
     limits,
   )
-  let owner = try! Scheduler::new(
+  let owner = try! @core.Scheduler::new(
     resolved_capacity(),
     selected_identity(),
     generation,

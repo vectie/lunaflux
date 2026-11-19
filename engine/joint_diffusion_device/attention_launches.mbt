@@ -85,9 +85,7 @@ pub fn AttentionFunctions::launches(
   let tensor_bytes = scratch_bytes / 4L
   let norm_bytes = head_dimension.to_int64() * 2L
   if rotary is Some(binding) {
-    guard binding.rows == rows else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-    }
+    guard binding.rows == rows else { raise InvalidArgument(AotKernelLaunch) }
     ignore(qk_rotary_geometry(rows, binding.width, head_count, head_dimension))
   }
   let norm_dimensions = linear_dimensions(
@@ -186,7 +184,7 @@ fn[T] normalization_arguments(
   rotary : ArrayView[T],
 ) -> Array[T] raise @device.DeviceError {
   guard rotary.length() == 0 || rotary.length() == 2 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let args = [q, k, qw, kw]
   args.append(rotary)
@@ -203,13 +201,13 @@ fn attention_projection_geometry(
   dimension : Int32,
 ) -> (Int64, Int64) raise @device.DeviceError {
   guard rows > 0 && hidden > 0 && heads > 0 && dimension > 0 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let inner = heads.to_int64() * dimension.to_int64()
   guard inner <= 2147483647L &&
     rows.to_int64() <= 2147483647L / hidden.to_int64() &&
     inner <= 2147483647L / hidden.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   (rows.to_int64() * hidden.to_int64() * 2L, inner * hidden.to_int64() * 2L)
 }
@@ -223,11 +221,11 @@ pub fn staged_attention_scratch_bytes(
   head_dimension~ : Int32,
 ) -> Int64 raise @device.DeviceError {
   guard rows > 0 && head_count > 0 && head_dimension > 0 else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let row_heads = rows.to_int64() * head_count.to_int64()
   guard row_heads <= 2147483647L / head_dimension.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   row_heads * head_dimension.to_int64() * 8L
 }

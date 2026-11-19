@@ -31,18 +31,29 @@ fn run_multimodal_fixture(
   let incomplete = @multimodal.Frame::new(bridge_program)
   let before_incomplete = live_resources()
   assert_true(
-    (try? incomplete.prepare(
-      context,
-      aot=unavailable,
-      text_frame~,
-      text_storage~,
-      features=encoder.feature_buffer(),
-      maximum_metadata_bytes=bridge_program.metadata_bytes(),
-    ))
-    is Err(_),
+    try
+      incomplete.prepare(
+        context,
+        aot=unavailable,
+        text_frame~,
+        text_storage~,
+        features=encoder.feature_buffer(),
+        maximum_metadata_bytes=bridge_program.metadata_bytes(),
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_eq(live_resources() - before_incomplete, 2)
-  assert_true((try? incomplete.launches(Prefill)) is Err(_))
+  assert_true(
+    try incomplete.launches(Prefill) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   incomplete.close()
   incomplete.close()
   assert_eq(live_resources(), before_incomplete)
@@ -52,15 +63,20 @@ fn run_multimodal_fixture(
   defer bridge.close()
   let created = creates()
   assert_true(
-    (try? bridge.prepare(
-      context,
-      aot=scatter_module,
-      text_frame~,
-      text_storage~,
-      features=encoder.feature_buffer(),
-      maximum_metadata_bytes=bridge_program.metadata_bytes() - 1L,
-    ))
-    is Err(_),
+    try
+      bridge.prepare(
+        context,
+        aot=scatter_module,
+        text_frame~,
+        text_storage~,
+        features=encoder.feature_buffer(),
+        maximum_metadata_bytes=bridge_program.metadata_bytes() - 1L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_eq(creates(), created)
   bridge.prepare(
@@ -114,14 +130,30 @@ fn run_multimodal_fixture(
     maximum_tokens=4096,
   )
   let before_mapping = (copies(), reads())
-  assert_true((try? bridge.bind_prompt(context, wrong, features)) is Err(_))
+  assert_true(
+    try bridge.bind_prompt(context, wrong, features) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   assert_eq((copies(), reads()), before_mapping)
   let other_context = @device.open_context(0)
   assert_true(
-    (try? bridge.bind_prompt(other_context, prompt, features)) is Err(_),
+    try bridge.bind_prompt(other_context, prompt, features) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   other_context.close()
-  assert_true((try? bridge.launches(Prefill)) is Err(_))
+  assert_true(
+    try bridge.launches(Prefill) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   bridge.bind_prompt(context, prompt, features)
   assert_eq(copies() - before_mapping.0, 2UL)
   assert_eq(reads(), before_mapping.1)

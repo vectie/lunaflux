@@ -68,7 +68,7 @@ async test "chunked prefill selects only final row then decode feeds prior outpu
   for chunk in 0..<5 {
     assert_true(host.stage_next())
     let rows = if chunk == 4 { 1 } else { 4 }
-    assert_eq(host.staged_phase(), @attention.Phase::Prefill)
+    assert_eq(host.staged_phase(), Prefill)
     assert_eq(word(host, Counts), 1)
     assert_eq(word(host, Counts, index=1), 0)
     assert_eq(word(host, Counts, index=2), 1)
@@ -93,7 +93,7 @@ async test "chunked prefill selects only final row then decode feeds prior outpu
   assert_eq(host.cached_tokens(), 17)
   assert_eq(host.emitted_tokens(), [120])
   assert_true(host.stage_next())
-  assert_eq(host.staged_phase(), @attention.Phase::Decode)
+  assert_eq(host.staged_phase(), Decode)
   assert_eq(word(host, Counts), 0)
   assert_eq(word(host, Counts, index=1), 1)
   assert_eq(word(host, TokenIds), 120)
@@ -104,7 +104,7 @@ async test "chunked prefill selects only final row then decode feeds prior outpu
   host.mark_submitted()
   host.complete_step(248046)
   assert_true(host.is_finished())
-  assert_eq(host.finish_reason(), Some(@inference.FinishReason::StopSequence))
+  assert_eq(host.finish_reason(), Some(StopSequence))
   assert_eq(host.sampled_tokens(), 2)
   assert_eq(host.emitted_tokens(), [120])
   assert_true(!host.stage_next())
@@ -136,7 +136,7 @@ async test "context ceiling is exact and final prefill can sample at the ceiling
   host.complete_step(43)
   assert_eq(host.cached_tokens(), 4)
   assert_eq(host.emitted_tokens(), [42, 43])
-  assert_eq(host.finish_reason(), Some(@inference.FinishReason::TokenLimit))
+  assert_eq(host.finish_reason(), Some(TokenLimit))
   host.begin(
     prompt,
     maximum_new_tokens=10,
@@ -148,7 +148,7 @@ async test "context ceiling is exact and final prefill can sample at the ceiling
   host.mark_submitted()
   host.complete_step(44)
   assert_eq(host.emitted_tokens(), [44])
-  assert_eq(host.finish_reason(), Some(@inference.FinishReason::TokenLimit))
+  assert_eq(host.finish_reason(), Some(TokenLimit))
 }
 
 ///|
@@ -165,7 +165,7 @@ async test "requested token limit stops before an extra decode input" {
   assert_eq(host.cached_tokens(), 1)
   assert_eq(host.sampled_tokens(), 1)
   assert_eq(host.emitted_tokens(), [9])
-  assert_eq(host.finish_reason(), Some(@inference.FinishReason::TokenLimit))
+  assert_eq(host.finish_reason(), Some(TokenLimit))
   assert_true(!host.stage_next())
 }
 
@@ -221,7 +221,7 @@ async test "lifecycle invalid sample cancellation and new request reset" {
     },
   )
   host.stop_quiescent(Cancelled)
-  assert_eq(host.finish_reason(), Some(@inference.FinishReason::Cancelled))
+  assert_eq(host.finish_reason(), Some(Cancelled))
   host.begin(prompt, maximum_new_tokens=3, stop_token_ids=[])
   assert_true(host.stage_next())
   assert_eq(word(host, Reset), 1)

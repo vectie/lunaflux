@@ -87,8 +87,8 @@ fn fused_benchmark_test_protocol(
   warmup_iterations : Int32,
   trials_per_shape : Int32,
   repetitions_per_arm : Int32,
-) -> FusedCandidateBenchmarkProtocol raise {
-  FusedCandidateBenchmarkProtocol::new(
+) -> @luna_fused_candidate_qualification.FusedCandidateBenchmarkProtocol raise {
+  @luna_fused_candidate_qualification.FusedCandidateBenchmarkProtocol::new(
     candidate~,
     shape_set~,
     clock=fused_benchmark_test_digest("c"),
@@ -100,13 +100,15 @@ fn fused_benchmark_test_protocol(
 }
 
 ///|
-fn fused_benchmark_test_shapes() -> Array[FusedCandidateBenchmarkShape] {
+fn fused_benchmark_test_shapes() -> Array[
+  @luna_fused_candidate_qualification.FusedCandidateBenchmarkShape,
+] {
   [SingleOrigin, SinglePageTail, CrossPagePair, EightTokenPageBoundaries]
 }
 
 ///|
 fn fused_benchmark_test_shape_tokens(
-  shape : FusedCandidateBenchmarkShape,
+  shape : @luna_fused_candidate_qualification.FusedCandidateBenchmarkShape,
 ) -> Int32 {
   match shape {
     SingleOrigin | SinglePageTail => 1
@@ -123,22 +125,27 @@ fn fused_benchmark_test_observations(
   corrupt_canary~ : Bool = false,
   unbalanced_resources~ : Bool = false,
   wrong_pair_order~ : Bool = false,
-) -> Array[FusedCandidateBenchmarkPairedObservation] raise {
-  let output : Array[FusedCandidateBenchmarkPairedObservation] = []
-  let repetitions = fused_candidate_benchmark_repetitions_per_arm()
+) -> Array[
+  @luna_fused_candidate_qualification.FusedCandidateBenchmarkPairedObservation,
+] raise {
+  let output : Array[
+    @luna_fused_candidate_qualification.FusedCandidateBenchmarkPairedObservation,
+  ] = []
+  let repetitions = @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm()
   for shape in fused_benchmark_test_shapes() {
     let tokens = fused_benchmark_test_shape_tokens(shape)
     let work = Int64::from_int(repetitions * tokens)
     let expected_delta = dispatch_canary *
       repetitions.reinterpret_as_uint() *
       tokens.reinterpret_as_uint()
-    for trial in 0..<fused_candidate_benchmark_trials_per_shape() {
+    for
+      trial in 0..<@luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape() {
       let canary_corruption : UInt32 = if corrupt_canary && trial == 0 {
         1
       } else {
         0
       }
-      let baseline = FusedCandidateBenchmarkArmObservation::new(
+      let baseline = @luna_fused_candidate_qualification.FusedCandidateBenchmarkArmObservation::new(
         duration_ns=baseline_duration_ns + Int64::from_int(trial),
         work_units=work,
         resources_acquired=2L,
@@ -155,7 +162,7 @@ fn fused_benchmark_test_observations(
         dispatch_canary_before=11,
         dispatch_canary_after=11,
       )
-      let candidate = FusedCandidateBenchmarkArmObservation::new(
+      let candidate = @luna_fused_candidate_qualification.FusedCandidateBenchmarkArmObservation::new(
         duration_ns=candidate_duration_ns + Int64::from_int(trial),
         work_units=work,
         resources_acquired=2L,
@@ -169,7 +176,7 @@ fn fused_benchmark_test_observations(
         dispatch_canary_after=17 + expected_delta + canary_corruption,
       )
       output.push(
-        FusedCandidateBenchmarkPairedObservation::new(
+        @luna_fused_candidate_qualification.FusedCandidateBenchmarkPairedObservation::new(
           shape~,
           trial_ordinal=trial,
           repetitions~,

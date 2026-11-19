@@ -2,7 +2,7 @@
 fn artifact_test_moe_routed_expert_abi() -> (
   String,
   @launch_contract.AotLaunchDimensions,
-  Array[GlmHybridLaunchOperand],
+  Array[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand],
 ) {
   (
     "lunaflux_glm_hybrid_moe_routed_experts_bf16_v1",
@@ -24,7 +24,7 @@ fn artifact_test_moe_routed_expert_abi() -> (
 fn artifact_test_moe_shared_expert_abi() -> (
   String,
   @launch_contract.AotLaunchDimensions,
-  Array[GlmHybridLaunchOperand],
+  Array[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand],
 ) {
   (
     "lunaflux_glm_hybrid_moe_shared_expert_bf16_v1",
@@ -44,7 +44,7 @@ fn artifact_test_moe_shared_expert_abi() -> (
 fn artifact_test_moe_combine_abi() -> (
   String,
   @launch_contract.AotLaunchDimensions,
-  Array[GlmHybridLaunchOperand],
+  Array[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand],
 ) {
   (
     "lunaflux_glm_hybrid_moe_routed_shared_add_bf16_v1",

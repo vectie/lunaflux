@@ -89,8 +89,8 @@ test "grouped MoE owns bounded metadata and binds nine reusable launches" {
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
   defer (stream.close() catch { _ => () })
-  let module = context.load_module(b"fake\x00")
-  defer (module.close() catch { _ => () })
+  let device_module = context.load_module(b"fake\x00")
+  defer (device_module.close() catch { _ => () })
   let (program, routed, shared) = program_fixture(dot_law=MatrixFloat32)
   defer (program.close() catch { _ => () })
   assert_eq(program.workspace_bytes(), 1732L)
@@ -104,7 +104,7 @@ test "grouped MoE owns bounded metadata and binds nine reusable launches" {
   })
   program.prepare(
     context,
-    module,
+    device_module,
     stream,
     maximum_workspace_bytes=1732L,
     counts=buffers[0],
@@ -129,7 +129,7 @@ test "grouped MoE owns bounded metadata and binds nine reusable launches" {
   for b in buffers.rev() {
     b.close()
   }
-  module.close()
+  device_module.close()
   stream.close()
   context.close()
   assert_eq(live_resources(), baseline)
@@ -228,7 +228,7 @@ test "MoE Program budget refusal and failed binding release all partial owners" 
         output=buffer,
       )
     catch {
-      @device.DeviceError::InvalidArgument(_) => ()
+      InvalidArgument(_) => ()
       error => raise error
     } noraise {
       _ => abort("undersized operands must not bind")

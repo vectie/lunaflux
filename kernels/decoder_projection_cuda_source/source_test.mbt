@@ -9,8 +9,7 @@ test "dense serial projection rejects an unsupported striped reduction" {
       dot_reduction_law=StripedTreeFloat32(partitions=32),
     )
   catch {
-    @decoder_projection_cuda_source.DecoderProjectionCudaSourceError::UnsupportedDotReductionLaw =>
-      ()
+    UnsupportedDotReductionLaw => ()
     _ => fail("unexpected unsupported projection error")
   } noraise {
     _ => fail("serial projection silently changed the requested law")
@@ -19,7 +18,7 @@ test "dense serial projection rejects an unsupported striped reduction" {
 
 ///|
 test "dense BF16 projection source is deterministic and exact" {
-  let source = dense_projection_bf16_source(
+  let source = @decoder_projection_cuda_source.dense_projection_bf16_source(
     input_width=16,
     output_width=128,
     maximum_rows=32,
@@ -37,7 +36,7 @@ test "dense BF16 projection source is deterministic and exact" {
   assert_true(text.contains("__fadd_rn"))
   assert_true(text.contains("__float2bfloat16_rn"))
   assert_false(text.contains("bias"))
-  let repeated = dense_projection_bf16_source(
+  let repeated = @decoder_projection_cuda_source.dense_projection_bf16_source(
     input_width=16,
     output_width=128,
     maximum_rows=32,
@@ -48,7 +47,7 @@ test "dense BF16 projection source is deterministic and exact" {
 
 ///|
 test "compensated dot policy reaches actual dense source and contract" {
-  let source = dense_projection_bf16_source(
+  let source = @decoder_projection_cuda_source.dense_projection_bf16_source(
     input_width=5120,
     output_width=4,
     maximum_rows=1,
@@ -68,7 +67,7 @@ test "compensated dot policy reaches actual dense source and contract" {
     println(text)
     println(
       @utf8.decode(
-        dense_projection_bf16_source(
+        @decoder_projection_cuda_source.dense_projection_bf16_source(
           input_width=5120,
           output_width=4,
           maximum_rows=1,
@@ -92,7 +91,7 @@ test "dense BF16 projection source validation fails closed" {
   for index, entry in cases {
     let (input_width, output_width, maximum_rows, function_symbol) = entry
     try
-      dense_projection_bf16_source(
+      @decoder_projection_cuda_source.dense_projection_bf16_source(
         input_width~,
         output_width~,
         maximum_rows~,
@@ -112,7 +111,7 @@ test "dense BF16 projection source validation fails closed" {
 
 ///|
 test "fixed-row F32 bias projection source is deterministic and exact" {
-  let source = dense_projection_f32_bias_f32_source(
+  let source = @decoder_projection_cuda_source.dense_projection_f32_bias_f32_source(
     rows=207L,
     input_width=5376,
     output_width=32,
@@ -131,7 +130,7 @@ test "fixed-row F32 bias projection source is deterministic and exact" {
   assert_true(text.contains("__fadd_rn"))
   assert_false(text.contains("cuda_bf16"))
   assert_false(text.contains("counts"))
-  let repeated = dense_projection_f32_bias_f32_source(
+  let repeated = @decoder_projection_cuda_source.dense_projection_f32_bias_f32_source(
     rows=207L,
     input_width=5376,
     output_width=32,
@@ -152,7 +151,7 @@ test "fixed-row F32 bias projection source validation fails closed" {
   for index, entry in cases {
     let (rows, input_width, output_width, function_symbol) = entry
     try
-      dense_projection_f32_bias_f32_source(
+      @decoder_projection_cuda_source.dense_projection_f32_bias_f32_source(
         rows~,
         input_width~,
         output_width~,
@@ -172,7 +171,7 @@ test "fixed-row F32 bias projection source validation fails closed" {
 
 ///|
 test "fixed-row F32 bias to BF16 projection source is exact" {
-  let source = dense_projection_f32_bias_bf16_source(
+  let source = @decoder_projection_cuda_source.dense_projection_f32_bias_bf16_source(
     rows=37296L,
     input_width=96,
     output_width=5376,

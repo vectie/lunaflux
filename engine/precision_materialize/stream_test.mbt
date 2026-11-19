@@ -51,7 +51,9 @@ test "streamed startup supports nibble offsets and scale grids without a tensor-
           Payload => source.payload()
           Scales => source.scales()
         }
-        bytes.sub(start=offset.to_int(), end=offset.to_int() + count).to_owned()
+        bytes
+        .exact_view(start=offset.to_int(), end=offset.to_int() + count)
+        .to_owned()
       },
       (offset, bytes) => {
         for i, b in bytes {

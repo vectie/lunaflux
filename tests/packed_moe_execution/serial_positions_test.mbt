@@ -62,10 +62,7 @@ test "position-enabled worker shifts output ports and retains warmed allocation 
   }
   let completion = worker.completion()
   completion.validate_for(submitted)
-  assert_eq(
-    completion.entry(0).kind(),
-    @protocol.CompletionEntryKind::FailedCompletion,
-  )
+  assert_eq(completion.entry(0).kind(), FailedCompletion)
   worker.close()
   worker.close()
   function.close()

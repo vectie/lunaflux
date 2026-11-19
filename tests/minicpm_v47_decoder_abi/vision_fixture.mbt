@@ -38,13 +38,18 @@ fn vision_frame_probe(
   defer invalid.close()
   let created = creates()
   assert_true(
-    (try? invalid.prepare(
-      context,
-      aot~,
-      weights=alias_weights,
-      buffers=storage.buffers(),
-    ))
-    is Err(_),
+    try
+      invalid.prepare(
+        context,
+        aot~,
+        weights=alias_weights,
+        buffers=storage.buffers(),
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_eq(creates(), created)
 }
@@ -72,13 +77,18 @@ async fn run_vision_fixture() -> Unit {
     let admission = @vision.Execution::new(program)
     let created = creates()
     assert_true(
-      (try? admission.prepare(
-        context,
-        b"fake",
-        weights,
-        maximum_mutable_bytes=program.storage_bytes() - 1L,
-      ))
-      is Err(_),
+      try
+        admission.prepare(
+          context,
+          b"fake",
+          weights,
+          maximum_mutable_bytes=program.storage_bytes() - 1L,
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
     assert_eq(creates(), created)
     admission.close()
@@ -89,13 +99,18 @@ async fn run_vision_fixture() -> Unit {
     closed.close()
     let partial = @vision.Execution::new(program)
     assert_true(
-      (try? partial.prepare(
-        context,
-        b"fake",
-        closed_weights,
-        maximum_mutable_bytes=program.storage_bytes(),
-      ))
-      is Err(_),
+      try
+        partial.prepare(
+          context,
+          b"fake",
+          closed_weights,
+          maximum_mutable_bytes=program.storage_bytes(),
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
     assert_true(live_resources() > live)
     partial.close()
@@ -122,11 +137,23 @@ async fn run_vision_fixture() -> Unit {
       maximum_mutable_bytes=program.storage_bytes(),
     )
     assert_true(execution.is_ready())
-    assert_true((try? execution.features()) is Err(_))
+    assert_true(
+      try execution.features() catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
+    )
     let before = (launches(), creates(), closes(), copies(), reads())
     execution.submit(input)
     assert_true(!execution.is_ready())
-    assert_true((try? execution.submit(input)) is Err(_))
+    assert_true(
+      try execution.submit(input) catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
+    )
     execution.wait()
     assert_eq(execution.features().rows(), 64)
     assert_eq(execution.features().allocation().byte_count(), 64L * 2048L * 2L)
@@ -139,9 +166,21 @@ async fn run_vision_fixture() -> Unit {
     execution.submit(input)
     execution.cancel()
     assert_true(execution.is_ready())
-    assert_true((try? execution.features()) is Err(_))
+    assert_true(
+      try execution.features() catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
+    )
     set_fault(1)
-    assert_true((try? execution.submit(input)) is Err(_))
+    assert_true(
+      try execution.submit(input) catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
+    )
     assert_true(!execution.is_ready())
     execution.cancel()
     execution.submit(input)
@@ -151,7 +190,13 @@ async fn run_vision_fixture() -> Unit {
     execution.close()
     execution.close()
     assert_eq(live_resources(), live)
-    assert_true((try? execution.features()) is Err(_))
+    assert_true(
+      try execution.features() catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
+    )
     let config = @utf8.decode(
       @fs.read_file("model/minicpm_v47/config.fixture.json").binary(),
     )
@@ -205,14 +250,19 @@ async fn run_vision_fixture() -> Unit {
       defer loaded.close()
       let before_budget = creates()
       assert_true(
-        (try? loaded.prepare(
-          context,
-          root,
-          maximum_device_bytes=plan.byte_count() - 1L,
-          scratch=FixedArray::make(3, b'\x00'),
-          limits=@checkpoint_fixture.limits(),
-        ))
-        is Err(_),
+        try
+          loaded.prepare(
+            context,
+            root,
+            maximum_device_bytes=plan.byte_count() - 1L,
+            scratch=FixedArray::make(3, b'\x00'),
+            limits=@checkpoint_fixture.limits(),
+          )
+        catch {
+          _ => true
+        } noraise {
+          _ => false
+        },
       )
       assert_eq(creates(), before_budget)
       let before_upload = copies()
@@ -226,7 +276,10 @@ async fn run_vision_fixture() -> Unit {
       )
       assert_eq(creates() - before_budget, 459UL)
       assert_true(copies() > before_upload)
-      assert_eq(copied_bytes() - before_bytes, plan.byte_count().to_uint64())
+      assert_eq(
+        copied_bytes() - before_bytes,
+        plan.byte_count().reinterpret_as_uint64(),
+      )
       vision_frame_probe(model, program, context, shared, loaded.weights())
       loaded.close()
       assert_eq(live_resources(), live)
@@ -237,17 +290,28 @@ async fn run_vision_fixture() -> Unit {
       // allocations have been tracked. It must release all459 without uploads.
       root.close()
       assert_true(
-        (try? incomplete.prepare(
-          context,
-          root,
-          maximum_device_bytes=plan.byte_count(),
-          scratch=FixedArray::make(3, b'\x00'),
-          limits=@checkpoint_fixture.limits(),
-        ))
-        is Err(_),
+        try
+          incomplete.prepare(
+            context,
+            root,
+            maximum_device_bytes=plan.byte_count(),
+            scratch=FixedArray::make(3, b'\x00'),
+            limits=@checkpoint_fixture.limits(),
+          )
+        catch {
+          _ => true
+        } noraise {
+          _ => false
+        },
       )
       assert_eq(creates() - before_partial, 459UL)
-      assert_true((try? incomplete.weights()) is Err(_))
+      assert_true(
+        try incomplete.weights() catch {
+          _ => true
+        } noraise {
+          _ => false
+        },
+      )
       incomplete.close()
       incomplete.close()
       assert_eq(live_resources(), live)

@@ -28,20 +28,20 @@ pub fn AudioUpsampleLayout::new(
     stride > 0 &&
     padding >= 0 &&
     max_weight_bytes > 0L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let output_time = (input_time.to_int64() - 1L) * stride.to_int64() +
     kernel.to_int64() -
     2L * padding.to_int64()
   guard output_time > 0L && output_time <= 2147483647L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let ci = input_channels.to_int64()
   let co = output_channels.to_int64()
   guard batch.to_int64() * ci <= 2147483647L / input_time.to_int64() &&
     batch.to_int64() * co <= 2147483647L / output_time &&
     ci <= max_weight_bytes / 4L / co / kernel.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     input_channels,

@@ -21,8 +21,8 @@ test "owned score decode alternatives reach exact source and numeric contracts" 
     if fold.contracts_multiply_add() {
       assert_false(text.contains("dot += query_fragment[item] *"))
       assert_false(text.contains("tile_numerator[item] += probability *"))
-      assert_eq(text.split("dot = fmaf(").length(), 3)
-      assert_eq(text.split("tile_numerator[item] = fmaf(").length(), 3)
+      assert_eq(text.split("dot = fmaf(").count(), 3)
+      assert_eq(text.split("tile_numerator[item] = fmaf(").count(), 3)
     }
     assert_false(text.contains("__float2bfloat16_rn(probability)"))
     assert_false(text.contains("__expf("))

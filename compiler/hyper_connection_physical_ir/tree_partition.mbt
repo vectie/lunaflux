@@ -18,7 +18,7 @@ pub fn ReductionTreePartition::new(
     subgroup_width > 0 &&
     subgroup_width <= workers &&
     (subgroup_width & (subgroup_width - 1)) == 0 else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   let shared = []
   let local_levels = []

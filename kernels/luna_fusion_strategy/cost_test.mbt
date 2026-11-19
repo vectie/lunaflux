@@ -6,7 +6,7 @@ test "span cost rejects insufficient measurements and invalid estimates" {
       samples=2,
     )
   catch {
-    @luna_fusion_strategy.InvalidCost => ()
+    InvalidCost => ()
   } noraise {
     _ => fail("insufficient samples")
   }
@@ -20,7 +20,7 @@ test "span cost rejects insufficient measurements and invalid estimates" {
         launch_nanoseconds=0L,
       )
     catch {
-      @luna_fusion_strategy.InvalidCost => ()
+      InvalidCost => ()
     } noraise {
       _ => fail("invalid estimate")
     }

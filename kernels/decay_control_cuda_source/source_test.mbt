@@ -1,6 +1,6 @@
 ///|
 test "decay control renders official bias rate sigmoid lower-bound order" {
-  let rendered = safe_lower_bound_sigmoid_decay_f32_source(
+  let rendered = @decay_control_cuda_source.safe_lower_bound_sigmoid_decay_f32_source(
     head_count=64,
     head_dimension=128,
     lower_bound=-5.0,
@@ -23,7 +23,7 @@ test "decay control renders official bias rate sigmoid lower-bound order" {
 ///|
 test "decay control rejects invalid geometry bound rows and symbol" {
   try
-    safe_lower_bound_sigmoid_decay_f32_source(
+    @decay_control_cuda_source.safe_lower_bound_sigmoid_decay_f32_source(
       head_count=0,
       head_dimension=128,
       lower_bound=-5.0,
@@ -37,7 +37,7 @@ test "decay control rejects invalid geometry bound rows and symbol" {
     _ => fail("zero heads admitted")
   }
   try
-    safe_lower_bound_sigmoid_decay_f32_source(
+    @decay_control_cuda_source.safe_lower_bound_sigmoid_decay_f32_source(
       head_count=64,
       head_dimension=128,
       lower_bound=0.0,
@@ -51,7 +51,7 @@ test "decay control rejects invalid geometry bound rows and symbol" {
     _ => fail("nonnegative bound admitted")
   }
   try
-    safe_lower_bound_sigmoid_decay_f32_source(
+    @decay_control_cuda_source.safe_lower_bound_sigmoid_decay_f32_source(
       head_count=64,
       head_dimension=128,
       lower_bound=-5.0,

@@ -459,7 +459,7 @@ fn prepare_one_paged_ordered_executor(
       let count = resources.ordered_executors[prefix].operation_ids.length()
       prepare_paged_vendor_projection_executor(
         context,
-        ReadOnlyArray::from_array(steps[:count].to_array()),
+        ReadOnlyArray::from_array(steps[:count].to_owned()),
         launches[:count],
         resources,
         prefix,

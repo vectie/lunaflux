@@ -18,7 +18,7 @@ pub fn PostSquareFusion::new(
     consumer.control_square_law()
     is VectorizedTreeFloat32(partitions~, vector_width=1) &&
     consumer.control_law() is NormalizedBf16Projection else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   ignore(ParallelControlPlan::new(consumer))
   let (streams, hidden, rows) = consumer.geometry()

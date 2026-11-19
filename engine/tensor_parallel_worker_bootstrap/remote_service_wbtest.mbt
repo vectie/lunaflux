@@ -276,10 +276,10 @@ fn exercise_remote_service(
       ranks[rank].progress(group, rank)
     }
     ignore(service.progress_maintenance())
-    if service.lifecycle() == @worker_service.ServiceClosed {
+    if service.lifecycle() == ServiceClosed {
       break
     }
   }
-  assert_true(service.lifecycle() == @worker_service.ServiceClosed)
-  assert_true(group.lifecycle() == @remote_group.Closed)
+  assert_true(service.lifecycle() == ServiceClosed)
+  assert_true(group.lifecycle() == Closed)
 }

@@ -18,11 +18,11 @@ fn moe_feed_forward_ordinal(
 fn lower_moe_feed_forward_stage(
   requirements : @glm_hybrid_kernel_requirements.GlmHybridKernelRequirements,
   stage : Int32,
-) -> GlmHybridMoeFeedForwardCudaCandidate raise GlmHybridCudaAotError {
+) -> @glm_hybrid_cuda_aot.GlmHybridMoeFeedForwardCudaCandidate raise @glm_hybrid_cuda_aot.GlmHybridCudaAotError {
   let ordinal = moe_feed_forward_ordinal(requirements, stage)
   match stage {
     0 =>
-      lower_moe_routed_expert_feed_forward_cuda_aot_candidate(
+      @glm_hybrid_cuda_aot.lower_moe_routed_expert_feed_forward_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=32,
@@ -31,7 +31,7 @@ fn lower_moe_feed_forward_stage(
         limits=glm_aot_limits(),
       )
     1 =>
-      lower_moe_shared_expert_feed_forward_cuda_aot_candidate(
+      @glm_hybrid_cuda_aot.lower_moe_shared_expert_feed_forward_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=32,
@@ -40,7 +40,7 @@ fn lower_moe_feed_forward_stage(
         limits=glm_aot_limits(),
       )
     2 =>
-      lower_moe_routed_shared_combine_cuda_aot_candidate(
+      @glm_hybrid_cuda_aot.lower_moe_routed_shared_combine_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=32,
@@ -120,7 +120,7 @@ test "MoE feed-forward lowering rejects activation geometry ordinal and compiler
     moe_activation=ClampedSwiGlu(10.0),
   )
   try
-    lower_moe_routed_expert_feed_forward_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_routed_expert_feed_forward_cuda_aot_candidate(
       flash,
       requirement_ordinal=moe_feed_forward_ordinal(flash, 1),
       maximum_tokens=32,
@@ -161,7 +161,7 @@ test "MoE feed-forward lowering rejects activation geometry ordinal and compiler
     _ => fail("wrong selected width admitted")
   }
   try
-    lower_moe_routed_shared_combine_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_routed_shared_combine_cuda_aot_candidate(
       flash,
       requirement_ordinal=moe_feed_forward_ordinal(flash, 2),
       maximum_tokens=32,

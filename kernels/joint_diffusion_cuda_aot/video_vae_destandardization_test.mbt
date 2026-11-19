@@ -34,7 +34,7 @@ fn video_vae_destandardization_parameters(
 test "video VAE latent destandardization binds exact F32 request ABI" {
   let requirements = diffusion_aot_requirements()
   let parameters = video_vae_destandardization_parameters()
-  let candidate = lower_video_vae_latent_destandardization_cuda_aot_candidate(
+  let candidate = @joint_diffusion_cuda_aot.lower_video_vae_latent_destandardization_cuda_aot_candidate(
     requirements,
     parameters~,
     requirement_ordinal=video_vae_destandardization_ordinal(requirements),
@@ -79,7 +79,7 @@ test "video VAE latent destandardization binds exact F32 request ABI" {
       "|parameters=\{parameters.digest().as_hex()}|",
     ),
   )
-  let shifted = lower_video_vae_latent_destandardization_cuda_aot_candidate(
+  let shifted = @joint_diffusion_cuda_aot.lower_video_vae_latent_destandardization_cuda_aot_candidate(
     requirements,
     parameters=video_vae_destandardization_parameters(means=[0.25F, -1.0F]),
     requirement_ordinal=video_vae_destandardization_ordinal(requirements),
@@ -89,7 +89,7 @@ test "video VAE latent destandardization binds exact F32 request ABI" {
   )
   assert_eq(candidate.source_digest(), shifted.source_digest())
   assert_true(candidate.recipe_digest() != shifted.recipe_digest())
-  let f32_only_target = lower_video_vae_latent_destandardization_cuda_aot_candidate(
+  let f32_only_target = @joint_diffusion_cuda_aot.lower_video_vae_latent_destandardization_cuda_aot_candidate(
     requirements,
     parameters~,
     requirement_ordinal=video_vae_destandardization_ordinal(requirements),
@@ -112,7 +112,7 @@ test "video VAE latent destandardization rejects hostile joins and policy" {
       diffusion_aot_compiler(reassociate=true),
     ] {
     try
-      lower_video_vae_latent_destandardization_cuda_aot_candidate(
+      @joint_diffusion_cuda_aot.lower_video_vae_latent_destandardization_cuda_aot_candidate(
         requirements,
         parameters~,
         requirement_ordinal=ordinal,
@@ -128,7 +128,7 @@ test "video VAE latent destandardization rejects hostile joins and policy" {
     }
   }
   try
-    lower_video_vae_latent_destandardization_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_video_vae_latent_destandardization_cuda_aot_candidate(
       requirements,
       parameters~,
       requirement_ordinal=ordinal + 1,
@@ -143,7 +143,7 @@ test "video VAE latent destandardization rejects hostile joins and policy" {
     _ => fail("decoder body weakened into destandardization")
   }
   try
-    lower_video_vae_latent_destandardization_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_video_vae_latent_destandardization_cuda_aot_candidate(
       requirements,
       parameters=video_vae_destandardization_parameters(
         plan=diffusion_aot_plan(float32_output_heads=false),
@@ -160,7 +160,7 @@ test "video VAE latent destandardization rejects hostile joins and policy" {
     _ => fail("foreign plan coefficient contract admitted")
   }
   try
-    lower_video_vae_latent_destandardization_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_video_vae_latent_destandardization_cuda_aot_candidate(
       requirements,
       parameters~,
       requirement_ordinal=ordinal,

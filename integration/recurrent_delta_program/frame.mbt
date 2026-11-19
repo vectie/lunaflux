@@ -19,7 +19,7 @@ pub fn RecurrentDeltaProgram::prepare_block_frame(
   suffix~ : ArrayView[@device.OrderedKernelLaunch] = [],
 ) -> Unit raise @device.DeviceError {
   guard self.block is Some(_) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.prepare_program(
     context,
@@ -56,7 +56,7 @@ pub fn RecurrentDeltaProgram::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }
@@ -84,7 +84,7 @@ pub fn RecurrentDeltaProgram::tensor_boundary(
   self : Self,
 ) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.tensor_boundary
 }

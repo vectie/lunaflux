@@ -16,7 +16,7 @@ async test "reusable v3 packs one disjoint evidence region per FP8 operation" {
       file,
     )
     let inputs = runtime_v2_inputs(fixture, inspection)
-    let v2 = admit_v2(
+    let v2 = @fp8_runtime_recipe.admit_v2(
       fixture.startup,
       inspection,
       inputs.launches,
@@ -24,11 +24,11 @@ async test "reusable v3 packs one disjoint evidence region per FP8 operation" {
       runtime_v2_limits(),
     )
     let profile = fixture.contracts.profiles()[0]
-    let v3 = admit_reusable_paged_v3(
+    let v3 = @fp8_runtime_recipe.admit_reusable_paged_v3(
       v2,
       profile,
       recipe_v2_layout(fixture.plan),
-      Fp8ReusablePagedRecipeV3Limits::new(
+      @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3Limits::new(
         max_launches=8,
         max_workspace_arena_bytes=64L,
         max_canonical_bytes=65536,
@@ -59,11 +59,11 @@ async test "reusable v3 packs one disjoint evidence region per FP8 operation" {
         current.workspace_offset(),
       )
     }
-    let repeated = admit_reusable_paged_v3(
+    let repeated = @fp8_runtime_recipe.admit_reusable_paged_v3(
       v2,
       profile,
       recipe_v2_layout(fixture.plan),
-      Fp8ReusablePagedRecipeV3Limits::new(
+      @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3Limits::new(
         max_launches=8,
         max_workspace_arena_bytes=64L,
         max_canonical_bytes=65536,
@@ -93,7 +93,7 @@ async test "reusable v3 rejects a packed evidence arena below the exact sum" {
       file,
     )
     let inputs = runtime_v2_inputs(fixture, inspection)
-    let v2 = admit_v2(
+    let v2 = @fp8_runtime_recipe.admit_v2(
       fixture.startup,
       inspection,
       inputs.launches,
@@ -101,11 +101,11 @@ async test "reusable v3 rejects a packed evidence arena below the exact sum" {
       runtime_v2_limits(),
     )
     try
-      admit_reusable_paged_v3(
+      @fp8_runtime_recipe.admit_reusable_paged_v3(
         v2,
         fixture.contracts.profiles()[0],
         recipe_v2_layout(fixture.plan),
-        Fp8ReusablePagedRecipeV3Limits::new(
+        @fp8_runtime_recipe.Fp8ReusablePagedRecipeV3Limits::new(
           max_launches=8,
           max_workspace_arena_bytes=15L,
           max_canonical_bytes=65536,

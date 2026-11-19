@@ -2,12 +2,17 @@
 test "model discovery uses admitted UTF8 alias and context with exact byte length" {
   let name = "模型\"\\one"
   let encoded = @utf8.encode("_" + name + "_")
-  let alias = FixedArray::makei(encoded.length(), i => encoded[i])
-  let bytes = luna_openai_model_response(alias, 1, encoded.length() - 2, 2048)
+  let alias_name = FixedArray::makei(encoded.length(), i => encoded[i])
+  let bytes = luna_openai_model_response(
+    alias_name,
+    1,
+    encoded.length() - 2,
+    2048,
+  )
   let response = @utf8.decode(bytes)
   let pieces = response.split("\r\n\r\n").collect()
   assert_eq(pieces.length(), 2)
-  let body = pieces[1].to_string()
+  let body = pieces[1].to_owned()
   assert_true(
     pieces[0].contains("Content-Length: \{@utf8.encode(body).length()}"),
   )

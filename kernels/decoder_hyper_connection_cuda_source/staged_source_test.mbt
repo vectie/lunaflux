@@ -73,8 +73,7 @@ test "refined control source reports both semantic reduction laws" {
       control_dot_law=StripedTreeFloat32(partitions=512),
     )
   catch {
-    @decoder_hyper_connection_cuda_source.DecoderHyperConnectionCudaSourceError::InvalidNumericalContract =>
-      ()
+    InvalidNumericalContract => ()
     _ => fail("unexpected unsupported reduction error")
   } noraise {
     _ => fail("unsupported partition was silently discarded")
@@ -83,7 +82,7 @@ test "refined control source reports both semantic reduction laws" {
 
 ///|
 test "staged function preserves BF16 checkpoint storage and explicit outputs" {
-  let rendered = staged_function_and_collapse_bf16_f32_source(
+  let rendered = @decoder_hyper_connection_cuda_source.staged_function_and_collapse_bf16_f32_source(
     stream_width=4,
     hidden_width=4096,
     maximum_rows=8,
@@ -108,7 +107,7 @@ test "staged function preserves BF16 checkpoint storage and explicit outputs" {
 
 ///|
 test "F32 controls normalize the projected value rather than individual operands" {
-  let rendered = staged_function_and_collapse_bf16_f32_source(
+  let rendered = @decoder_hyper_connection_cuda_source.staged_function_and_collapse_bf16_f32_source(
     stream_width=4,
     hidden_width=4096,
     maximum_rows=8,
@@ -129,7 +128,7 @@ test "F32 controls normalize the projected value rather than individual operands
 
 ///|
 test "staged Sinkhorn preserves initial-column then nineteen row-column passes" {
-  let rendered = staged_positive_sinkhorn_f32_source(
+  let rendered = @decoder_hyper_connection_cuda_source.staged_positive_sinkhorn_f32_source(
     stream_width=4,
     maximum_rows=8,
     sinkhorn_iterations=20,
@@ -150,7 +149,7 @@ test "staged Sinkhorn preserves initial-column then nineteen row-column passes" 
 ///|
 test "staged sources reject hostile geometry and policy" {
   try
-    staged_function_and_collapse_bf16_f32_source(
+    @decoder_hyper_connection_cuda_source.staged_function_and_collapse_bf16_f32_source(
       stream_width=1,
       hidden_width=4096,
       maximum_rows=8,
@@ -165,7 +164,7 @@ test "staged sources reject hostile geometry and policy" {
     _ => fail("single stream admitted")
   }
   try
-    staged_positive_sinkhorn_f32_source(
+    @decoder_hyper_connection_cuda_source.staged_positive_sinkhorn_f32_source(
       stream_width=4,
       maximum_rows=8,
       sinkhorn_iterations=65,

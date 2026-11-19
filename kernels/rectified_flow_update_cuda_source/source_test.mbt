@@ -24,7 +24,7 @@ test "invalid element or block geometry rejects" {
     try
       @rectified_flow_update_cuda_source.render(elements~, block_size~)
     catch {
-      @rectified_flow_update_cuda_source.SourceError::InvalidGeometry => ()
+      InvalidGeometry => ()
     } noraise {
       _ => fail("invalid geometry admitted")
     }

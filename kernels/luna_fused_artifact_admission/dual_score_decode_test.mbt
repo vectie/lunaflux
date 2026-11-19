@@ -6,7 +6,7 @@ test "dual score numerical ABI survives serialization and cannot downgrade" {
     1,
     "attention_decode_tile_compiler_v1_dual_score_blockwise_f32_v2",
   )
-  let bytes = export_reusable_fused_runtime_bundle(
+  let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target=@catalog.DeviceTarget::new(
@@ -21,7 +21,7 @@ test "dual score numerical ABI survives serialization and cannot downgrade" {
   assert_true(
     text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v9\n"),
   )
-  let runtime = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let runtime = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     bytes,
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
   )
@@ -44,7 +44,7 @@ test "dual score numerical ABI survives serialization and cannot downgrade" {
       ),
     )
     try
-      admit_digest_pinned_reusable_fused_runtime_bundle(
+      @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
         downgraded,
         @crypto.bytes_to_hex_string(@crypto.sha256(downgraded)),
       )

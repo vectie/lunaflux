@@ -30,7 +30,7 @@ test "selected text output rows do not scale logits with prefill length" {
     )
     false
   } catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => true
+    MemoryBudgetExceeded => true
     _ => false
   }
   assert_true(failed)
@@ -52,7 +52,7 @@ test "text ingress egress geometry rejects impossible output capacity" {
     )
     false
   } catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => true
+    IllegalPlacement => true
     _ => false
   }
   assert_true(failed)

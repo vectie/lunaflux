@@ -5,8 +5,8 @@ test "packed expert transport binds ten startup launches with bounded borrowed s
   defer (context.close() catch { _ => () })
   let stream = context.create_stream()
   defer (stream.close() catch { _ => () })
-  let module = context.load_module(b"fake\x00")
-  defer (module.close() catch { _ => () })
+  let device_module = context.load_module(b"fake\x00")
+  defer (device_module.close() catch { _ => () })
   for transport in [@matrix.PackedRows, PackedPipeline] {
     let weight = @precision.plan_operand(
       role=Weight,
@@ -71,7 +71,7 @@ test "packed expert transport binds ten startup launches with bounded borrowed s
     assert_eq(source.launches()[8].1, source.launches()[4].1)
     let functions = source
       .symbols()
-      .map(name => module.load_function(@utf8.encode(name)))
+      .map(name => device_module.load_function(@utf8.encode(name)))
     defer (for f in functions.rev() {
       f.close() catch {
         _ => ()
@@ -136,7 +136,7 @@ test "packed expert transport binds ten startup launches with bounded borrowed s
       f.close()
     }
   }
-  module.close()
+  device_module.close()
   stream.close()
   context.close()
   assert_eq(live_resources(), before)

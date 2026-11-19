@@ -14,7 +14,7 @@ fn rotary_test_requirements(
 ///|
 test "scaled rotary lowering binds exact RoPE-only ABI" {
   let requirements = rotary_test_requirements()
-  let candidate = lower_scaled_rotary_position_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_scaled_rotary_position_cuda_aot_candidate(
     requirements,
     requirement_ordinal=5,
     maximum_tokens=32,
@@ -58,7 +58,7 @@ test "scaled rotary lowering binds exact RoPE-only ABI" {
   assert_true(source.contains("cosf(angle)"))
   assert_true(source.contains("sinf(angle)"))
   assert_true(source.contains("__float2bfloat16_rn"))
-  let foreign = lower_scaled_rotary_position_cuda_aot_candidate(
+  let foreign = @advanced_decoder_cuda_aot.lower_scaled_rotary_position_cuda_aot_candidate(
     rotary_test_requirements(content_fill='d'),
     requirement_ordinal=5,
     maximum_tokens=32,
@@ -75,7 +75,7 @@ test "scaled rotary lowering rejects hostile ordinal target compiler and width" 
   let requirements = rotary_test_requirements()
   for ordinal in [4, 6] {
     try
-      lower_scaled_rotary_position_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_scaled_rotary_position_cuda_aot_candidate(
         requirements,
         requirement_ordinal=ordinal,
         maximum_tokens=1,
@@ -91,7 +91,7 @@ test "scaled rotary lowering rejects hostile ordinal target compiler and width" 
     }
   }
   try
-    lower_scaled_rotary_position_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_scaled_rotary_position_cuda_aot_candidate(
       requirements,
       requirement_ordinal=5,
       maximum_tokens=1,
@@ -106,7 +106,7 @@ test "scaled rotary lowering rejects hostile ordinal target compiler and width" 
     _ => fail("non-BF16 target was admitted")
   }
   try
-    lower_scaled_rotary_position_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_scaled_rotary_position_cuda_aot_candidate(
       requirements,
       requirement_ordinal=5,
       maximum_tokens=1,
@@ -121,7 +121,7 @@ test "scaled rotary lowering rejects hostile ordinal target compiler and width" 
     _ => fail("reassociation was admitted")
   }
   try
-    lower_scaled_rotary_position_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_scaled_rotary_position_cuda_aot_candidate(
       aot_test_requirements(),
       requirement_ordinal=5,
       maximum_tokens=1,
@@ -136,7 +136,7 @@ test "scaled rotary lowering rejects hostile ordinal target compiler and width" 
     _ => fail("non-64 RoPE width was admitted")
   }
   try
-    lower_scaled_rotary_position_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_scaled_rotary_position_cuda_aot_candidate(
       requirements,
       requirement_ordinal=5,
       maximum_tokens=4097,

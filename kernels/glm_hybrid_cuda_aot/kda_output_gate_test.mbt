@@ -18,7 +18,7 @@ test "KDA output gate binds explicit BF16 intermediate" {
     official_sparse=true,
     kda_head_count=64,
   )
-  let candidate = lower_kda_output_gate_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_kda_output_gate_cuda_aot_candidate(
     requirements,
     requirement_ordinal=kda_output_gate_ordinal(requirements),
     maximum_tokens=32,
@@ -46,7 +46,7 @@ test "KDA output gate rejects neighboring norm and hostile compiler" {
   )
   let ordinal = kda_output_gate_ordinal(requirements)
   try
-    lower_kda_output_gate_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_output_gate_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -61,7 +61,7 @@ test "KDA output gate rejects neighboring norm and hostile compiler" {
     _ => fail("gated norm admitted as gate projection")
   }
   try
-    lower_kda_output_gate_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_output_gate_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

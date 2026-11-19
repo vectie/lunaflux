@@ -1,7 +1,9 @@
 ///|
 fn artifact_test_roles(
   operation : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation,
-) -> Array[AdvancedDecoderLaunchOperandRole] {
+) -> Array[
+  @advanced_decoder_artifact_admission.AdvancedDecoderLaunchOperandRole,
+] {
   match operation {
     TokenEmbedding =>
       [StepCountsInput, TokenIdsInput, ModelWeights, HiddenOutput]

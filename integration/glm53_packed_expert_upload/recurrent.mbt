@@ -116,12 +116,12 @@ fn partition_width(width : Int32, group : (Int32, Int32)?) -> Int32 raise {
   match group {
     None => width
     Some((rank, world_size)) => {
-      let (_, local) = @precision_ir.TensorAxisPartition::new(
+      let (_, local_value) = @precision_ir.TensorAxisPartition::new(
         width,
         rank~,
         world_size~,
       ).range()
-      local
+      local_value
     }
   }
 }

@@ -22,7 +22,7 @@ test "audio latent stream count is independent of output channels and bounded" {
       inference_steps=5,
     )
   catch {
-    @joint_diffusion_plan.JointDiffusionPlanError::InvalidFrameCount => ()
+    InvalidFrameCount => ()
     _ => fail("wrong audio row overflow error")
   } noraise {
     _ => fail("overflowed audio rows admitted")

@@ -1,13 +1,13 @@
 ///|
 test "MoE router oracle computes only row-major no-bias logits" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
     maximum_channel_count=16,
     maximum_vision_patch_count=8,
   )
-  let result = moe_router_projection(
+  let result = @glm_hybrid_reference.moe_router_projection(
     [1.0, 2.0, 3.0],
     [1.0, 0.0, -1.0, 0.5, 1.0, 2.0],
     row_count=1,
@@ -21,7 +21,7 @@ test "MoE router oracle computes only row-major no-bias logits" {
 
 ///|
 test "MoE router oracle rejects truncated expert weights" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
@@ -29,7 +29,7 @@ test "MoE router oracle rejects truncated expert weights" {
     maximum_vision_patch_count=8,
   )
   try
-    moe_router_projection(
+    @glm_hybrid_reference.moe_router_projection(
       [1.0, 2.0],
       [1.0],
       row_count=1,

@@ -32,6 +32,9 @@ pub suberror Fp8DeviceWorkerV3Error {
   CompletionAbortFailed(primary~ : Fp8DeviceWorkerV3Error, abort~ : @worker_wire.WorkerWireError)
   InvalidLifecycle(Fp8DeviceWorkerV3Lifecycle)
 } derive(Eq, @debug.Debug)
+pub fn Fp8DeviceWorkerV3Error::equal(Self, Self) -> Bool
+pub fn Fp8DeviceWorkerV3Error::not_equal(Self, Self) -> Bool
+pub fn Fp8DeviceWorkerV3Error::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FailedFp8DeviceWorkerPreparationV3 {
@@ -66,6 +69,9 @@ pub enum Fp8DeviceWorkerV3Lifecycle {
   WorkerClosingFailed
   WorkerClosed
 } derive(Eq, @debug.Debug)
+pub fn Fp8DeviceWorkerV3Lifecycle::equal(Self, Self) -> Bool
+pub fn Fp8DeviceWorkerV3Lifecycle::not_equal(Self, Self) -> Bool
+pub fn Fp8DeviceWorkerV3Lifecycle::to_repr(Self) -> @debug.Repr
 
 pub enum Fp8DeviceWorkerV3Rule {
   StartupContract
@@ -77,6 +83,9 @@ pub enum Fp8DeviceWorkerV3Rule {
   DeviceNumericCapability
   ResourceState
 } derive(Eq, @debug.Debug)
+pub fn Fp8DeviceWorkerV3Rule::equal(Self, Self) -> Bool
+pub fn Fp8DeviceWorkerV3Rule::not_equal(Self, Self) -> Bool
+pub fn Fp8DeviceWorkerV3Rule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

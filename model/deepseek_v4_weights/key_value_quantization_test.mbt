@@ -8,7 +8,7 @@ test "all five profiles bind replicated 512-wide key/value storage" {
       ("deepseek-ai/DeepSeek-V4-Pro-Base", 7168L),
       ("deepseek-ai/DeepSeek-V4-Flash-0731", 4096L),
     ] {
-    let layout = key_value_quantized_layout(
+    let layout = @deepseek_v4_weights.key_value_quantized_layout(
       @deepseek_v4_spec.DeepSeekV4ModelSpec::from_official_model_id(entry.0),
     )
     assert_eq(layout.contract(), Fp8E4M3Ue8M0Block128ReplicatedRowMajorV1)

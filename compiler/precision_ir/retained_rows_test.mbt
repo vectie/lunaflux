@@ -15,7 +15,7 @@ test "retained row budgets include metadata and an unreadable empty-cache sentin
       state_bytes,
     )
     assert_eq(plan.workspace_bytes(), 12L)
-    assert_eq(plan.effect(), @precision_ir.NumericEffect::CacheCommit)
+    assert_eq(plan.effect(), CacheCommit)
     try
       @precision_ir.RetainedRowsPrecision::new(
         word_width=16,
@@ -26,7 +26,7 @@ test "retained row budgets include metadata and an unreadable empty-cache sentin
         maximum_workspace_bytes=12L,
       )
     catch {
-      @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+      MemoryBudgetExceeded => ()
       error => raise error
     } noraise {
       _ => fail("state budget omitted metadata/sentinel")
@@ -49,7 +49,7 @@ test "retained row budgets include metadata and an unreadable empty-cache sentin
         maximum_workspace_bytes=12L,
       )
     catch {
-      @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+      IllegalPlacement => ()
       error => raise error
     } noraise {
       _ => fail("illegal retained geometry")

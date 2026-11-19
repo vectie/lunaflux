@@ -102,7 +102,7 @@ pub fn VideoRequest::prepare_resolved(
 ///|
 pub fn VideoRequest::submit(self : Self) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   for i in 0..<queue.kernel_count() {
@@ -118,7 +118,7 @@ pub fn VideoRequest::poll(self : Self) -> Bool raise @device.DeviceError {
     return true
   }
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   let done = queue.poll_completion()
@@ -130,7 +130,7 @@ pub fn VideoRequest::poll(self : Self) -> Bool raise @device.DeviceError {
 pub fn VideoRequest::execute(self : Self) -> Unit raise @device.DeviceError {
   self.submit()
   guard self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.phase = Failed
   queue.wait_completion()
@@ -147,7 +147,7 @@ pub fn[T] VideoRequest::with_destination(
   guard (self.phase == Prepared || self.phase == Complete) &&
     self.source is Some(s) &&
     self.scratch is Some(scratch) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(
     scratch,
@@ -161,9 +161,7 @@ pub fn[T] VideoRequest::with_rows(
   self : Self,
   consume : (@device.Allocation, Int64, Int32) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
-  guard self.phase == Complete else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.phase == Complete else { raise InvalidArgument(AotKernelLaunch) }
   self.with_destination(consume)
 }
 

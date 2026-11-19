@@ -6,7 +6,7 @@ pub fn Cache::prepare(
   plan : Plan,
 ) -> Cache raise @device.DeviceError {
   if allocation.byte_count() != plan.layout.arena_bytes() {
-    raise @device.DeviceError::InvalidArgument(StreamingTransfer)
+    raise InvalidArgument(StreamingTransfer)
   }
   let transfers = context.prepare_transfer_pool(
     allocation,

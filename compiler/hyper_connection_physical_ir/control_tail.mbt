@@ -20,7 +20,7 @@ pub fn ControlTailFusion::new(
   guard subgroup_width > 0 &&
     subgroup_width <= schedule.workers() &&
     (subgroup_width & (subgroup_width - 1)) == 0 else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   {
     rows,

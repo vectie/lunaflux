@@ -14,7 +14,7 @@ fn glm_aot_dsa_pooling_ordinal(
 test "GLM Flash DSA key pooling binds exact standalone primitive ABI" {
   let requirements = glm_aot_requirements(pooled=true)
   let ordinal = glm_aot_dsa_pooling_ordinal(requirements)
-  let candidate = lower_dsa_key_pooling_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_dsa_key_pooling_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -73,7 +73,7 @@ test "GLM DSA pooling rejects semantic neighbors and hostile compiler policy" {
   let requirements = glm_aot_requirements(pooled=true)
   let ordinal = glm_aot_dsa_pooling_ordinal(requirements)
   try
-    lower_dsa_key_pooling_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_pooling_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal - 1,
       maximum_tokens=32,
@@ -88,7 +88,7 @@ test "GLM DSA pooling rejects semantic neighbors and hostile compiler policy" {
     _ => fail("DSA index compute admitted as key pooling")
   }
   try
-    lower_dsa_key_pooling_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_pooling_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

@@ -3,12 +3,15 @@ test "MTP and DSpark auxiliary stages remain explicitly ordered" {
   let mtp = try! @advanced_decoder_execution_plan.AuxiliaryPredictionPlan::multi_token_prediction(
     2,
   )
-  assert_eq(auxiliary_stage_order(mtp, limits=test_limits()), [
-    MtpInputProjection,
-    AuxiliaryDecoderStage(0),
-    AuxiliaryDecoderStage(1),
-    AuxiliaryOutputHead,
-  ])
+  assert_eq(
+    @advanced_decoder_reference.auxiliary_stage_order(mtp, limits=test_limits()),
+    [
+      MtpInputProjection,
+      AuxiliaryDecoderStage(0),
+      AuxiliaryDecoderStage(1),
+      AuxiliaryOutputHead,
+    ],
+  )
   let dspark = try! @advanced_decoder_execution_plan.DsparkExecutionPlan::new(
     block_size=5,
     noise_token_id=99,
@@ -20,22 +23,33 @@ test "MTP and DSpark auxiliary stages remain explicitly ordered" {
     layer_count=3,
     dspark~,
   )
-  assert_eq(auxiliary_stage_order(plan, limits=test_limits()), [
-    DsparkMainProjection,
-    DsparkNoiseEmbedding,
-    AuxiliaryDecoderStage(0),
-    AuxiliaryDecoderStage(1),
-    AuxiliaryDecoderStage(2),
-    AuxiliaryOutputHead,
-    DsparkMarkovAdjustment,
-    DsparkConfidence,
-  ])
-  let low_stage_limit = try! ReferenceLimits::new(
+  assert_eq(
+    @advanced_decoder_reference.auxiliary_stage_order(
+      plan,
+      limits=test_limits(),
+    ),
+    [
+      DsparkMainProjection,
+      DsparkNoiseEmbedding,
+      AuxiliaryDecoderStage(0),
+      AuxiliaryDecoderStage(1),
+      AuxiliaryDecoderStage(2),
+      AuxiliaryOutputHead,
+      DsparkMarkovAdjustment,
+      DsparkConfidence,
+    ],
+  )
+  let low_stage_limit = try! @advanced_decoder_reference.ReferenceLimits::new(
     max_values=32,
     max_width=8,
     max_iterations=2,
   )
-  try auxiliary_stage_order(plan, limits=low_stage_limit) catch {
+  try
+    @advanced_decoder_reference.auxiliary_stage_order(
+      plan,
+      limits=low_stage_limit,
+    )
+  catch {
     InvalidAuxiliaryOrder => ()
     _ => fail("unexpected auxiliary-order bound error")
   } noraise {

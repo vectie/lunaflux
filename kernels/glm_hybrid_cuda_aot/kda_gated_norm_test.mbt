@@ -18,7 +18,7 @@ test "KDA gated RMSNorm binds exact per-head gate weight and output ABI" {
     official_sparse=true,
     kda_head_count=64,
   )
-  let candidate = lower_kda_gated_rms_norm_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_kda_gated_rms_norm_cuda_aot_candidate(
     requirements,
     requirement_ordinal=kda_gated_norm_ordinal(requirements),
     maximum_tokens=32,
@@ -48,7 +48,7 @@ test "KDA gated RMSNorm rejects adjacent ordinal and hostile compiler" {
   )
   let ordinal = kda_gated_norm_ordinal(requirements)
   try
-    lower_kda_gated_rms_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_gated_rms_norm_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -63,7 +63,7 @@ test "KDA gated RMSNorm rejects adjacent ordinal and hostile compiler" {
     _ => fail("output projection admitted as gated norm")
   }
   try
-    lower_kda_gated_rms_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_gated_rms_norm_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -78,7 +78,7 @@ test "KDA gated RMSNorm rejects adjacent ordinal and hostile compiler" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_kda_gated_rms_norm_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_gated_rms_norm_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

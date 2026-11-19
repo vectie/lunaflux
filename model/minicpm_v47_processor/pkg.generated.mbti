@@ -52,6 +52,9 @@ pub(all) struct Size {
   height : Int
   width : Int
 } derive(Eq, @debug.Debug)
+pub fn Size::equal(Self, Self) -> Bool
+pub fn Size::not_equal(Self, Self) -> Bool
+pub fn Size::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

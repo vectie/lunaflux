@@ -2,7 +2,7 @@
 fn artifact_test_moe_grouped_routing_abi() -> (
   String,
   @launch_contract.AotLaunchDimensions,
-  Array[GlmHybridLaunchOperand],
+  Array[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand],
 ) {
   (
     "lunaflux_glm_hybrid_moe_grouped_routing_f32_v1",

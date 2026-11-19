@@ -21,6 +21,9 @@ pub(all) suberror I8ReleaseWorkerError {
   Prepare(@worker_service.OwnedWorkerServicePreparationError)
   OnlinePrepare(@online_session.LunaOnlineInstancePreparationError)
 } derive(Eq, @debug.Debug)
+pub fn I8ReleaseWorkerError::equal(Self, Self) -> Bool
+pub fn I8ReleaseWorkerError::not_equal(Self, Self) -> Bool
+pub fn I8ReleaseWorkerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum I8ReleaseWorkerRule {
@@ -34,6 +37,9 @@ pub(all) enum I8ReleaseWorkerRule {
   InferenceEnvelope
   NumericWeightEnvelope
 } derive(Eq, @debug.Debug)
+pub fn I8ReleaseWorkerRule::equal(Self, Self) -> Bool
+pub fn I8ReleaseWorkerRule::not_equal(Self, Self) -> Bool
+pub fn I8ReleaseWorkerRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

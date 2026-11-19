@@ -1,6 +1,6 @@
 ///|
 test "row reuse envelope preserves wide staging and numerical law" {
-  let policy = MatrixRowReuse::new(
+  let policy = @grouped_matrix_ir.MatrixRowReuse::new(
     minimum_rows=32,
     minimum_inner=1536,
     wide_inner=8192,
@@ -14,7 +14,7 @@ test "row reuse envelope preserves wide staging and numerical law" {
       (16, 4096, 8192, (16, 64, 32)),
       (64, 1536, 4096, (16, 64, 128)),
     ] {
-    let plan = MatrixTilePlan::new(
+    let plan = @grouped_matrix_ir.MatrixTilePlan::new(
       rows~,
       columns=n,
       inner=k,
@@ -31,7 +31,7 @@ test "row reuse envelope preserves wide staging and numerical law" {
     assert_eq(selected.geometry(), plan.geometry())
   }
   try
-    MatrixRowReuse::new(
+    @grouped_matrix_ir.MatrixRowReuse::new(
       minimum_rows=0,
       minimum_inner=1,
       wide_inner=1,

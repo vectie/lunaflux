@@ -21,7 +21,7 @@ test "heterogeneous stages retain execution order and concrete release owners" {
     ignore(pipeline.advance())
   }
   assert_true(pipeline.stage() == Completed)
-  inspect(frames[0].log, content="[0, 1, 2, 3, 4]")
+  debug_inspect(frames[0].log, content="[0, 1, 2, 3, 4]")
   pipeline.close()
   assert_eq(audio.releases, 1)
 }

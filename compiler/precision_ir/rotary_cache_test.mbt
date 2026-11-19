@@ -14,11 +14,8 @@ test "standalone compact cache transform counts one tensor and exact prefix bloc
   )
   assert_eq(plan.geometry(), (1, 512, 64, 2, 1048576))
   assert_eq(plan.workspace_bytes(), 2048L)
-  assert_eq(
-    plan.simulation(),
-    (64, 0.0001, @precision_ir.SimulatedCacheScale::PowerOfTwo),
-  )
-  assert_eq(plan.effect(), @precision_ir.NumericEffect::StepWrite)
+  assert_eq(plan.simulation(), (64, 0.0001, PowerOfTwo))
+  assert_eq(plan.effect(), StepWrite)
   for
     (width, rotary, block, budget) in [
       (512, 64, 64, 2047L),

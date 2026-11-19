@@ -17,7 +17,7 @@ test "deterministic compressed index lowers with exact five-operand I32 ABI" {
     deterministic_compression_ratio=128,
   )
   let ordinal = compressed_index_test_ordinal(requirements)
-  let candidate = lower_deterministic_compressed_index_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -53,7 +53,7 @@ test "deterministic compressed index lowers with exact five-operand I32 ABI" {
   assert_true(source.contains("selected = (position + 1) / 128"))
   assert_true(source.contains("position < 1024"))
   assert_true(source.contains("slot < 8"))
-  let repeated = lower_deterministic_compressed_index_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -63,7 +63,7 @@ test "deterministic compressed index lowers with exact five-operand I32 ABI" {
   )
   assert_eq(candidate.source_digest(), repeated.source_digest())
   assert_eq(candidate.recipe_digest(), repeated.recipe_digest())
-  let foreign = lower_deterministic_compressed_index_cuda_aot_candidate(
+  let foreign = @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
     aot_test_requirements(
       content_fill='c',
       maximum_position_count=1024,
@@ -78,7 +78,7 @@ test "deterministic compressed index lowers with exact five-operand I32 ABI" {
   assert_eq(candidate.source_digest(), foreign.source_digest())
   assert_true(candidate.recipe_digest() != foreign.recipe_digest())
   assert_true(candidate.source_identity() != foreign.source_identity())
-  let other_target = lower_deterministic_compressed_index_cuda_aot_candidate(
+  let other_target = @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -96,7 +96,7 @@ test "deterministic compressed index rejects ordinal compiler and row bounds" {
   let ordinal = compressed_index_test_ordinal(requirements)
   for hostile_ordinal in [ordinal - 1, ordinal + 1] {
     try
-      lower_deterministic_compressed_index_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
         requirements,
         requirement_ordinal=hostile_ordinal,
         maximum_tokens=1,
@@ -112,7 +112,7 @@ test "deterministic compressed index rejects ordinal compiler and row bounds" {
     }
   }
   try
-    lower_deterministic_compressed_index_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -127,7 +127,7 @@ test "deterministic compressed index rejects ordinal compiler and row bounds" {
     _ => fail("reassociating compiler was admitted")
   }
   try
-    lower_deterministic_compressed_index_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=4097,
@@ -151,7 +151,7 @@ test "deterministic compressed index rejects dense output byte overflow" {
   )
   let ordinal = compressed_index_test_ordinal(requirements)
   try
-    lower_deterministic_compressed_index_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_deterministic_compressed_index_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=33,

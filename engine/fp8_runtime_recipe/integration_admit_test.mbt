@@ -110,7 +110,7 @@ fn inspect_recipe_file(
 ///|
 struct RuntimeRecipeInputs {
   launches : Array[@fp8_launch_abi.Fp8DynamicLaunchAbi]
-  weights : Array[Fp8LaunchWeightRegionClaim]
+  weights : Array[@fp8_runtime_recipe.Fp8LaunchWeightRegionClaim]
 }
 
 ///|
@@ -148,7 +148,7 @@ fn runtime_inputs(
   claim_operation_delta~ : Int32 = 0,
 ) -> RuntimeRecipeInputs {
   let launches : Array[@fp8_launch_abi.Fp8DynamicLaunchAbi] = []
-  let claims : Array[Fp8LaunchWeightRegionClaim] = []
+  let claims : Array[@fp8_runtime_recipe.Fp8LaunchWeightRegionClaim] = []
   let entries = fixture.startup.kernel_artifacts().manifest().entries()
   let profile = try! @launch_contract.KernelProfileId::from_stable_int(1)
   for index, entry in entries {
@@ -200,7 +200,7 @@ fn runtime_inputs(
       ),
     )
     claims.push(
-      try! Fp8LaunchWeightRegionClaim::new(
+      try! @fp8_runtime_recipe.Fp8LaunchWeightRegionClaim::new(
         profile~,
         operation=try! @plan.OperationId::new(
           entry.operation().as_int() + claim_operation_delta,
@@ -213,8 +213,10 @@ fn runtime_inputs(
 }
 
 ///|
-fn recipe_limits(canonical~ : Int32 = 65536) -> Fp8RuntimeRecipeLimits {
-  try! Fp8RuntimeRecipeLimits::new(
+fn recipe_limits(
+  canonical~ : Int32 = 65536,
+) -> @fp8_runtime_recipe.Fp8RuntimeRecipeLimits {
+  try! @fp8_runtime_recipe.Fp8RuntimeRecipeLimits::new(
     max_launches=8,
     max_workspace_bytes=1024L,
     max_canonical_bytes=canonical,
@@ -223,8 +225,8 @@ fn recipe_limits(canonical~ : Int32 = 65536) -> Fp8RuntimeRecipeLimits {
 
 ///|
 fn expect_recipe_rule(
-  body : () -> Fp8RuntimeRecipe raise Fp8RuntimeRecipeError,
-  expected : Fp8RuntimeRecipeRule,
+  body : () -> @fp8_runtime_recipe.Fp8RuntimeRecipe raise @fp8_runtime_recipe.Fp8RuntimeRecipeError,
+  expected : @fp8_runtime_recipe.Fp8RuntimeRecipeRule,
 ) -> Unit raise {
   try body() catch {
     InvalidFp8RuntimeRecipe(rule) => assert_eq(rule, expected)
@@ -318,7 +320,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
       changed,
     )
     let source = runtime_inputs(fixture, inspection)
-    let admitted = admit(
+    let admitted = @fp8_runtime_recipe.admit(
       fixture.startup,
       inspection,
       source.launches,
@@ -326,7 +328,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
       recipe_limits(),
     )
     let repeated_inputs = runtime_inputs(fixture, inspection)
-    let repeated = admit(
+    let repeated = @fp8_runtime_recipe.admit(
       fixture.startup,
       inspection,
       repeated_inputs.launches,
@@ -347,7 +349,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
       inspection,
       workspace="3333333333333333333333333333333333333333333333333333333333333333",
     )
-    let alternate_admitted = admit(
+    let alternate_admitted = @fp8_runtime_recipe.admit(
       fixture.startup,
       inspection,
       alternate.launches,
@@ -361,7 +363,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
       weight_alignment=32L,
       scale_alignment=32L,
     )
-    let wide_admitted = admit(
+    let wide_admitted = @fp8_runtime_recipe.admit(
       fixture.startup,
       wide_inspection,
       wide_inputs.launches,
@@ -377,7 +379,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
     )
     expect_recipe_rule(
       () => {
-        admit(
+        @fp8_runtime_recipe.admit(
           foreign_identity.startup,
           inspection,
           repeated_inputs.launches,
@@ -392,7 +394,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
     )
     expect_recipe_rule(
       () => {
-        admit(
+        @fp8_runtime_recipe.admit(
           foreign_schema.startup,
           inspection,
           repeated_inputs.launches,
@@ -404,7 +406,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
     )
     expect_recipe_rule(
       () => {
-        admit(
+        @fp8_runtime_recipe.admit(
           fixture.startup,
           changed_inspection,
           repeated_inputs.launches,
@@ -421,7 +423,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
     )
     expect_recipe_rule(
       () => {
-        admit(
+        @fp8_runtime_recipe.admit(
           fixture.startup,
           inspection,
           wrong_order.launches,
@@ -431,7 +433,9 @@ async test "public admission joins exact evidence and rejects substitutions" {
       },
       LaunchOrder,
     )
-    let hostile_inputs : Array[(RuntimeRecipeInputs, Fp8RuntimeRecipeRule)] = [
+    let hostile_inputs : Array[
+      (RuntimeRecipeInputs, @fp8_runtime_recipe.Fp8RuntimeRecipeRule),
+    ] = [
       (
         runtime_inputs(fixture, inspection, weight_offset_delta=16L),
         WeightRegion,
@@ -463,7 +467,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
     for hostile in hostile_inputs {
       expect_recipe_rule(
         () => {
-          admit(
+          @fp8_runtime_recipe.admit(
             fixture.startup,
             inspection,
             hostile.0.launches,
@@ -476,7 +480,7 @@ async test "public admission joins exact evidence and rejects substitutions" {
     }
     expect_recipe_rule(
       () => {
-        admit(
+        @fp8_runtime_recipe.admit(
           fixture.startup,
           inspection,
           repeated_inputs.launches,

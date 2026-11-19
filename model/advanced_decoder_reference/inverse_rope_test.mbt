@@ -1,11 +1,11 @@
 ///|
 test "inverse RoPE preserves prefix and conjugates adjacent suffix pairs" {
-  let limits = ReferenceLimits::new(
+  let limits = @advanced_decoder_reference.ReferenceLimits::new(
     max_values=64,
     max_width=8,
     max_iterations=4,
   )
-  let output = attention_output_inverse_rotary_v1(
+  let output = @advanced_decoder_reference.attention_output_inverse_rotary_v1(
     [7.0, 8.0, 1.0, 0.0],
     position=1,
     head_count=1,
@@ -27,13 +27,13 @@ test "inverse RoPE preserves prefix and conjugates adjacent suffix pairs" {
 
 ///|
 test "panic inverse RoPE rejects odd suffix and out-of-range position" {
-  let limits = ReferenceLimits::new(
+  let limits = @advanced_decoder_reference.ReferenceLimits::new(
     max_values=64,
     max_width=8,
     max_iterations=4,
   )
   try
-    attention_output_inverse_rotary_v1(
+    @advanced_decoder_reference.attention_output_inverse_rotary_v1(
       [1.0, 2.0, 3.0, 4.0],
       position=16,
       head_count=1,

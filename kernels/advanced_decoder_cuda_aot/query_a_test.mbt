@@ -1,7 +1,7 @@
 ///|
 test "Query-A lowers exact replicated block-FP8 ABI" {
   let requirements = aot_test_requirements(hidden_size=128, query_low_rank=128)
-  let candidate = lower_query_a_projection_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_query_a_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=1,
     maximum_tokens=2,
@@ -31,7 +31,7 @@ test "Query-A lowers exact replicated block-FP8 ABI" {
 test "Query-A rejects Query-B ordinal unaligned geometry compiler and target" {
   let exact = aot_test_requirements(hidden_size=128, query_low_rank=128)
   try
-    lower_query_a_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_query_a_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=4,
       maximum_tokens=1,
@@ -47,7 +47,7 @@ test "Query-A rejects Query-B ordinal unaligned geometry compiler and target" {
   }
   let unaligned = aot_test_requirements()
   try
-    lower_query_a_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_query_a_projection_cuda_aot_candidate(
       unaligned,
       requirement_ordinal=1,
       maximum_tokens=1,
@@ -62,7 +62,7 @@ test "Query-A rejects Query-B ordinal unaligned geometry compiler and target" {
     _ => fail("unaligned geometry admitted")
   }
   try
-    lower_query_a_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_query_a_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=1,
       maximum_tokens=1,
@@ -77,7 +77,7 @@ test "Query-A rejects Query-B ordinal unaligned geometry compiler and target" {
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_query_a_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_query_a_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=1,
       maximum_tokens=1,

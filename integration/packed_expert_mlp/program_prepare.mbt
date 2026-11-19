@@ -22,7 +22,7 @@ fn MoeProgram::expert_buffers(
   let activation = match activation_scratch {
     Some(buffer) => {
       guard buffer.byte_count() >= sizes[1] else {
-        raise @device.DeviceError::InvalidArgument(AllocationCreate)
+        raise InvalidArgument(AllocationCreate)
       }
       buffer
     }
@@ -114,7 +114,7 @@ pub fn MoeProgram::prepare(
   reduction? : MoeReduction,
 ) -> Unit raise @device.DeviceError {
   guard self.routing is None else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.check_fresh(maximum_workspace_bytes)
   self.prepare_experts(
@@ -143,7 +143,7 @@ fn MoeProgram::check_fresh(
     self.functions.is_empty() &&
     self.allocations.is_empty() &&
     self.workspace_bytes <= maximum_workspace_bytes else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
 }
 
@@ -164,19 +164,19 @@ fn MoeProgram::prepare_experts(
   prefix~ : ArrayView[@device.OrderedKernelLaunch],
 ) -> Unit raise @device.DeviceError {
   guard self.shared.plan().down_publication() == LocalBFloat16 else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let partial = self.routed.plan().down_publication() ==
     ReduceFloat32BeforeRound
   guard !partial || reduction is Some(_) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   if reduction is Some(site) {
     let (rows, hidden, _, _, selected) = self.routed.plan().geometry()
     let width = hidden.to_int64() *
       (if partial { selected.to_int64() } else { 1L })
     guard width <= 2147483647L else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     site.validate_shape(rows, width.to_int())
   }
@@ -303,7 +303,7 @@ fn MoeProgram::bind_experts(
         split=routed_launches.length(),
         join=routed_launches.length() + shared_launches.length(),
       ) catch {
-        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        _ => raise InvalidArgument(OrderedExecutorCreate)
       },
     )
     return (routed_launches, shared_launches, finalize, output)
@@ -342,7 +342,7 @@ fn MoeProgram::bind_experts(
         split=routed_launches.length(),
         join=routed_launches.length() + shared_launches.length(),
       ) catch {
-        _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+        _ => raise InvalidArgument(OrderedExecutorCreate)
       },
     )
     routed_launches.append(shared_launches)

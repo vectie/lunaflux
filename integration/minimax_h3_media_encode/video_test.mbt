@@ -44,8 +44,8 @@ test "RGB conversion is chunk independent and channels first" {
     height=1,
     width=2,
   )
-  assert_eq(full[:12].to_bytes(), left)
-  assert_eq(full[12:].to_bytes(), right)
+  assert_eq(full[:12].to_owned(), left)
+  assert_eq(full[12:].to_owned(), right)
   let expected = ((1.0F - 0.485F) / 0.229F).reinterpret_as_uint()
   for i in 0..<4 {
     assert_eq(full[i], ((expected >> (i * 8)) & 255U).to_byte())

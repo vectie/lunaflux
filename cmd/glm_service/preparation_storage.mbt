@@ -48,7 +48,7 @@ fn ServicePlan::preparation_storage(
   )
   guard native_preparation_backing_bytes(
       storage.cells(),
-      self.reserve.to_uint64(),
+      self.reserve.reinterpret_as_uint64(),
     )
     is Some(bytes) else {
     fail("HTTP preparation backing exceeds service reserve before allocation")
@@ -58,7 +58,7 @@ fn ServicePlan::preparation_storage(
       buffered=true,
     ) *
     (self.admission_lanes + 2).to_uint64()
-  guard response_bytes <= self.reserve.to_uint64() - bytes else {
+  guard response_bytes <= self.reserve.reinterpret_as_uint64() - bytes else {
     fail(
       "preparation and response backing exceed service reserve before allocation",
     )

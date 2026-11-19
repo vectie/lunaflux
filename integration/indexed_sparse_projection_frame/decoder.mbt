@@ -285,7 +285,7 @@ pub fn IndexedSparseDecoderFrame::tensor_boundary(
   self : Self,
 ) -> (Int32, @device.Allocation, Int32)? raise @device.DeviceError {
   guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.tensor_boundary
 }
@@ -295,7 +295,7 @@ pub fn IndexedSparseDecoderFrame::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }

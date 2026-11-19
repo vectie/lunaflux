@@ -24,7 +24,7 @@ test "serial scalar lowering never silently discards a striped tree" {
       accumulator="sum",
     )
   catch {
-    @precision.PrecisionPlanError::NoImplementation => ()
+    NoImplementation => ()
     _ => fail("unexpected unsupported reduction error")
   } noraise {
     _ => fail("serial lowering discarded explicit partitions")

@@ -22,6 +22,9 @@ pub fn parse_attention_tuning_records(Bytes, scope~ : String, backend~ : @luna_a
 pub(all) suberror AttentionTuningError {
   InvalidTable
 } derive(Eq, @debug.Debug)
+pub fn AttentionTuningError::equal(Self, Self) -> Bool
+pub fn AttentionTuningError::not_equal(Self, Self) -> Bool
+pub fn AttentionTuningError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 

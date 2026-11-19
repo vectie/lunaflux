@@ -22,6 +22,9 @@ pub(all) suberror Glm53MoeExpertBankPlanError {
   OperandMismatch
   RecipeMismatch
 } derive(Eq, @debug.Debug)
+pub fn Glm53MoeExpertBankPlanError::equal(Self, Self) -> Bool
+pub fn Glm53MoeExpertBankPlanError::not_equal(Self, Self) -> Bool
+pub fn Glm53MoeExpertBankPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Glm53MoeExpertBankCandidatePlan {
@@ -40,6 +43,11 @@ pub fn Glm53MoeExpertBankCandidatePlan::upload_authority(Self) -> Bool
 
 pub struct Glm53MoeExpertBankCandidatePlanDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Glm53MoeExpertBankCandidatePlanDigest::as_hex(Self) -> String
+pub fn Glm53MoeExpertBankCandidatePlanDigest::equal(Self, Self) -> Bool
+pub fn Glm53MoeExpertBankCandidatePlanDigest::hash(Self) -> Int
+pub fn Glm53MoeExpertBankCandidatePlanDigest::hash_combine(Self, Hasher) -> Unit
+pub fn Glm53MoeExpertBankCandidatePlanDigest::not_equal(Self, Self) -> Bool
+pub fn Glm53MoeExpertBankCandidatePlanDigest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

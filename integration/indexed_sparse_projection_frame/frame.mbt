@@ -155,7 +155,7 @@ pub fn IndexedSparseProjectionFrame::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }
@@ -167,7 +167,7 @@ pub fn IndexedSparseProjectionFrame::projected_outputs(
   self : Self,
 ) -> SparseProjectionOutputs raise @device.DeviceError {
   guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let b = self.buffers
   {

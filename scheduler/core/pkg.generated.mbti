@@ -22,6 +22,9 @@ pub(all) suberror SchedulerError {
   BlockTable(@block_table.BlockTableError)
   WorkerProtocol(@worker_protocol.WorkerProtocolError)
 } derive(Eq, @debug.Debug)
+pub fn SchedulerError::equal(Self, Self) -> Bool
+pub fn SchedulerError::not_equal(Self, Self) -> Bool
+pub fn SchedulerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub enum BuildNextOutcome {
@@ -41,41 +44,64 @@ pub(all) enum CancelReservationCommit {
   CancelCommitted(@inference.RequestGeneration)
   CancelReservationAbsent
 } derive(Eq, @debug.Debug)
+pub fn CancelReservationCommit::equal(Self, Self) -> Bool
+pub fn CancelReservationCommit::not_equal(Self, Self) -> Bool
+pub fn CancelReservationCommit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CancelReservationStart {
   CancelReserved
   CancelNaturalTerminal
 } derive(Eq, @debug.Debug)
+pub fn CancelReservationStart::equal(Self, Self) -> Bool
+pub fn CancelReservationStart::not_equal(Self, Self) -> Bool
+pub fn CancelReservationStart::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompletionCommit {
   CompletionCommitted
   CompletionBackpressured
 } derive(Eq, @debug.Debug)
+pub fn CompletionCommit::equal(Self, Self) -> Bool
+pub fn CompletionCommit::not_equal(Self, Self) -> Bool
+pub fn CompletionCommit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExactDeadlineResult {
   ExactDeadlinePending
   ExactDeadlineExpired(@inference.RequestGeneration)
   ExactDeadlineNaturalTerminal
 } derive(Eq, @debug.Debug)
+pub fn ExactDeadlineResult::equal(Self, Self) -> Bool
+pub fn ExactDeadlineResult::not_equal(Self, Self) -> Bool
+pub fn ExactDeadlineResult::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExactDeviceInvalidation {
   ExactDeviceNoChange
   ExactDeviceInvalidated(Int, @inference.RequestGeneration)
   ExactDeviceAlreadyTerminal(@inference.RequestGeneration)
 } derive(Eq, @debug.Debug)
+pub fn ExactDeviceInvalidation::equal(Self, Self) -> Bool
+pub fn ExactDeviceInvalidation::not_equal(Self, Self) -> Bool
+pub fn ExactDeviceInvalidation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExactInstanceLossDrain {
   ExactLossRemaining(Int, @inference.RequestGeneration)
   ExactLossComplete(@inference.RequestGeneration)
 } derive(Eq, @debug.Debug)
+pub fn ExactInstanceLossDrain::equal(Self, Self) -> Bool
+pub fn ExactInstanceLossDrain::not_equal(Self, Self) -> Bool
+pub fn ExactInstanceLossDrain::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExclusiveAdmissionCommit {
   ExclusiveAdmissionCommitted
   ExclusiveAdmissionExpired
   ExclusiveAdmissionInvalidated
 } derive(Eq, @debug.Debug)
+pub fn ExclusiveAdmissionCommit::equal(Self, Self) -> Bool
+pub fn ExclusiveAdmissionCommit::not_equal(Self, Self) -> Bool
+pub fn ExclusiveAdmissionCommit::to_repr(Self) -> @debug.Repr
 
 pub struct GeneratedTokenNotice(@inference.RequestId, @inference.RequestGeneration, Int, Int, UInt64) derive(Eq)
+pub fn GeneratedTokenNotice::equal(Self, Self) -> Bool
+pub fn GeneratedTokenNotice::not_equal(Self, Self) -> Bool
 pub fn GeneratedTokenNotice::position(Self) -> Int
 pub fn GeneratedTokenNotice::publication_sequence(Self) -> UInt64
 pub fn GeneratedTokenNotice::request_generation(Self) -> @inference.RequestGeneration
@@ -86,6 +112,9 @@ pub(all) enum InstanceLossDrain {
   Remaining(Int)
   Complete
 } derive(Eq, @debug.Debug)
+pub fn InstanceLossDrain::equal(Self, Self) -> Bool
+pub fn InstanceLossDrain::not_equal(Self, Self) -> Bool
+pub fn InstanceLossDrain::to_repr(Self) -> @debug.Repr
 
 pub struct LunaSchedulerPlanTelemetry {
   // private fields
@@ -130,9 +159,12 @@ pub struct RequestHandle {
   request_id : @inference.RequestId
   mut request_generation : @inference.RequestGeneration
 } derive(Eq, @debug.Debug)
+pub fn RequestHandle::equal(Self, Self) -> Bool
+pub fn RequestHandle::not_equal(Self, Self) -> Bool
 pub fn RequestHandle::request_generation(Self) -> @inference.RequestGeneration
 pub fn RequestHandle::request_id(Self) -> @inference.RequestId
 pub fn RequestHandle::slot(Self) -> SchedulerSlotId
+pub fn RequestHandle::to_repr(Self) -> @debug.Repr
 
 pub struct RequestStatus {
   handle : RequestHandle
@@ -146,12 +178,15 @@ pub struct RequestStatus {
 } derive(Eq, @debug.Debug)
 pub fn RequestStatus::cached_input_tokens(Self) -> Int
 pub fn RequestStatus::deadline_at_millis(Self) -> UInt64
+pub fn RequestStatus::equal(Self, Self) -> Bool
 pub fn RequestStatus::handle(Self) -> RequestHandle
 pub fn RequestStatus::in_flight(Self) -> Bool
 pub fn RequestStatus::input_tokens(Self) -> Int
+pub fn RequestStatus::not_equal(Self, Self) -> Bool
 pub fn RequestStatus::output_tokens(Self) -> Int
 pub fn RequestStatus::processed_input_tokens(Self) -> Int
 pub fn RequestStatus::state(Self) -> SchedulerRequestState
+pub fn RequestStatus::to_repr(Self) -> @debug.Repr
 
 pub struct Scheduler {
   // private fields
@@ -245,6 +280,9 @@ pub(all) enum SchedulerField {
   PageCapacity
   Plan
 } derive(Eq, @debug.Debug)
+pub fn SchedulerField::equal(Self, Self) -> Bool
+pub fn SchedulerField::not_equal(Self, Self) -> Bool
+pub fn SchedulerField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SchedulerIssue {
   Duplicate
@@ -261,6 +299,9 @@ pub(all) enum SchedulerIssue {
   NoRunnableWork
   OutOfOrder
 } derive(Eq, @debug.Debug)
+pub fn SchedulerIssue::equal(Self, Self) -> Bool
+pub fn SchedulerIssue::not_equal(Self, Self) -> Bool
+pub fn SchedulerIssue::to_repr(Self) -> @debug.Repr
 
 pub struct SchedulerPlanBufferBinding {
   // private fields
@@ -270,8 +311,10 @@ pub fn SchedulerPlanBufferBinding::plan_a_identity(Self) -> @worker_protocol.Pla
 pub fn SchedulerPlanBufferBinding::plan_b_identity(Self) -> @worker_protocol.PlanBufferIdentity
 
 pub struct SchedulerPublication(UInt64, @inference.RequestId, @inference.RequestGeneration, UInt64, UInt64, UInt64) derive(Eq)
+pub fn SchedulerPublication::equal(Self, Self) -> Bool
 pub fn SchedulerPublication::generated_token_notice(Self) -> GeneratedTokenNotice raise SchedulerError
 pub fn SchedulerPublication::kind(Self) -> SchedulerPublicationKind
+pub fn SchedulerPublication::not_equal(Self, Self) -> Bool
 pub fn SchedulerPublication::publication_sequence(Self) -> UInt64
 pub fn SchedulerPublication::request_generation(Self) -> @inference.RequestGeneration
 pub fn SchedulerPublication::request_id(Self) -> @inference.RequestId
@@ -283,13 +326,18 @@ pub(all) enum SchedulerPublicationKind {
   GeneratedTokenPublication
   TerminalPublication
 } derive(Eq, @debug.Debug)
+pub fn SchedulerPublicationKind::equal(Self, Self) -> Bool
+pub fn SchedulerPublicationKind::not_equal(Self, Self) -> Bool
+pub fn SchedulerPublicationKind::to_repr(Self) -> @debug.Repr
 
 pub struct SchedulerPublicationRoute {
   // private fields
 } derive(Eq)
+pub fn SchedulerPublicationRoute::equal(Self, Self) -> Bool
 pub fn SchedulerPublicationRoute::generation(Self) -> UInt64
 pub fn SchedulerPublicationRoute::lane(Self) -> Int
 pub fn SchedulerPublicationRoute::new(Int, UInt64) -> Self raise SchedulerError
+pub fn SchedulerPublicationRoute::not_equal(Self, Self) -> Bool
 
 pub(all) enum SchedulerRequestState {
   Waiting
@@ -302,17 +350,28 @@ pub(all) enum SchedulerRequestState {
   DeadlineExpired
   Failed
 } derive(Eq, @debug.Debug)
+pub fn SchedulerRequestState::equal(Self, Self) -> Bool
+pub fn SchedulerRequestState::not_equal(Self, Self) -> Bool
+pub fn SchedulerRequestState::to_repr(Self) -> @debug.Repr
 
 pub struct SchedulerSlotId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn SchedulerSlotId::equal(Self, Self) -> Bool
 pub fn SchedulerSlotId::generation(Self) -> Int
+pub fn SchedulerSlotId::hash(Self) -> Int
+pub fn SchedulerSlotId::hash_combine(Self, Hasher) -> Unit
 pub fn SchedulerSlotId::index(Self) -> Int
+pub fn SchedulerSlotId::not_equal(Self, Self) -> Bool
+pub fn SchedulerSlotId::to_repr(Self) -> @debug.Repr
 
 pub struct TerminalNotice(@inference.RequestId, @inference.RequestGeneration, TerminalReason, Int, UInt64) derive(Eq, @debug.Debug)
 pub fn TerminalNotice::cached_input_tokens(Self) -> Int
+pub fn TerminalNotice::equal(Self, Self) -> Bool
+pub fn TerminalNotice::not_equal(Self, Self) -> Bool
 pub fn TerminalNotice::publication_sequence(Self) -> UInt64
 pub fn TerminalNotice::reason(Self) -> TerminalReason
 pub fn TerminalNotice::request_generation(Self) -> @inference.RequestGeneration
 pub fn TerminalNotice::request_id(Self) -> @inference.RequestId
+pub fn TerminalNotice::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TerminalReason {
   CancelledByCaller
@@ -321,6 +380,9 @@ pub(all) enum TerminalReason {
   MaximumOutputReached
   WorkerFailed
 } derive(Eq, @debug.Debug)
+pub fn TerminalReason::equal(Self, Self) -> Bool
+pub fn TerminalReason::not_equal(Self, Self) -> Bool
+pub fn TerminalReason::to_repr(Self) -> @debug.Repr
 
 pub struct TokenizedRequest {
   // private fields

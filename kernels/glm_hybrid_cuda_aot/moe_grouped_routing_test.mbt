@@ -25,7 +25,7 @@ test "grouped routing candidate binds official Full and Flash geometry" {
     routed_expert_count=288,
     experts_per_token=8,
   )
-  let full = lower_moe_grouped_routing_cuda_aot_candidate(
+  let full = @glm_hybrid_cuda_aot.lower_moe_grouped_routing_cuda_aot_candidate(
     full_requirements,
     requirement_ordinal=moe_grouped_routing_ordinal(full_requirements),
     maximum_tokens=32,
@@ -33,7 +33,7 @@ test "grouped routing candidate binds official Full and Flash geometry" {
     compiler=glm_aot_compiler(),
     limits=glm_aot_limits(),
   )
-  let flash = lower_moe_grouped_routing_cuda_aot_candidate(
+  let flash = @glm_hybrid_cuda_aot.lower_moe_grouped_routing_cuda_aot_candidate(
     flash_requirements,
     requirement_ordinal=moe_grouped_routing_ordinal(flash_requirements),
     maximum_tokens=32,
@@ -78,7 +78,7 @@ test "grouped routing rejects ordinal expert compiler and limit mismatches" {
   )
   let ordinal = moe_grouped_routing_ordinal(requirements)
   try
-    lower_moe_grouped_routing_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_grouped_routing_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal - 1,
       maximum_tokens=32,
@@ -99,7 +99,7 @@ test "grouped routing rejects ordinal expert compiler and limit mismatches" {
     experts_per_token=8,
   )
   try
-    lower_moe_grouped_routing_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_grouped_routing_cuda_aot_candidate(
       hostile,
       requirement_ordinal=moe_grouped_routing_ordinal(hostile),
       maximum_tokens=32,
@@ -114,7 +114,7 @@ test "grouped routing rejects ordinal expert compiler and limit mismatches" {
     _ => fail("neighboring expert count admitted")
   }
   try
-    lower_moe_grouped_routing_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_grouped_routing_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -129,7 +129,7 @@ test "grouped routing rejects ordinal expert compiler and limit mismatches" {
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_moe_grouped_routing_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_grouped_routing_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=0,

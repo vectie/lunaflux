@@ -150,7 +150,7 @@ fn RecurrentDeltaProgram::prepare_program(
   suffix~ : ArrayView[@device.OrderedKernelLaunch],
 ) -> Unit raise @device.DeviceError {
   guard stream is None || self.tensor_width() is None else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   guard self.status is Fresh &&
     self.cache is None &&
@@ -158,7 +158,7 @@ fn RecurrentDeltaProgram::prepare_program(
     self.intermediates.is_empty() &&
     self.state_bytes() <= maximum_state_bytes &&
     self.workspace_bytes() <= maximum_workspace_bytes else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let plan = self.source.plan()
   let (heads, keys, values) = plan.geometry()
@@ -169,12 +169,12 @@ fn RecurrentDeltaProgram::prepare_program(
   match (self.convolution, convolution_weights) {
     (None, None) => ()
     (Some(_), Some(weights)) if weights.length() == 3 => ()
-    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    _ => raise InvalidArgument(OrderedExecutorCreate)
   }
   match (self.block, block_weights, hidden) {
     (None, None, None) => ()
     (Some(_), Some(_), Some(_)) => ()
-    _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    _ => raise InvalidArgument(OrderedExecutorCreate)
   }
   let state = context.allocate(plan.state_bytes())
   self.cache = Some(state)
@@ -295,10 +295,10 @@ pub fn RecurrentDeltaProgram::submit(
   live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Ready && self.queue is Some(queue) else {
-    raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
+    raise Busy(OrderedExecutorEnqueue)
   }
   guard live_rows > 0 && live_rows <= self.maximum_rows else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   errdefer {
     self.status = Failed
@@ -315,7 +315,7 @@ pub fn RecurrentDeltaProgram::poll(
   self : Self,
 ) -> Bool raise @device.DeviceError {
   guard self.status is Active && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   errdefer {
     self.status = Failed
@@ -337,7 +337,7 @@ pub fn RecurrentDeltaProgram::close(
     return
   }
   guard self.status is (Fresh | Prepared | Ready) else {
-    raise @device.DeviceError::Busy(OrderedExecutorClose)
+    raise Busy(OrderedExecutorClose)
   }
   if self.queue is Some(queue) {
     queue.close()

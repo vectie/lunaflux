@@ -70,7 +70,7 @@ async fn exercise_checkpoint_index_tables(
     try
       checkpoint.bind_i64_table(payload_name="first", rows=3, columns=2)
     catch {
-      @materialize.PackedCheckpointError::TensorStorageMismatch("first") => ()
+      TensorStorageMismatch("first") => ()
       e => raise e
     } noraise {
       _ => fail("transposed source table accepted")
@@ -161,7 +161,7 @@ async fn exercise_checkpoint_index_tables(
       assert_eq(owner.device_bytes(), 48L)
       if invalid {
         try owner.allocations() catch {
-          @device.DeviceError::InvalidArgument(_) => ()
+          InvalidArgument(_) => ()
           e => raise e
         } noraise {
           _ => fail("failed table upload exposed device storage")

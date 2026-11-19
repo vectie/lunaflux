@@ -1,6 +1,6 @@
 ///|
 test "Luna online TCP limits reject every unbounded envelope" {
-  let valid = LunaOnlineTcpLimits::new(
+  let valid = @online_tcp.LunaOnlineTcpLimits::new(
     read_chunk_bytes=4096,
     write_chunk_bytes=4096,
     accept_timeout_millis=1000,
@@ -14,7 +14,7 @@ test "Luna online TCP limits reject every unbounded envelope" {
   assert_eq(valid.pool_poll_timeout_millis(), 1)
   for capacity in [0, 16777217] {
     try
-      LunaOnlineTcpLimits::new(
+      @online_tcp.LunaOnlineTcpLimits::new(
         read_chunk_bytes=capacity,
         write_chunk_bytes=4096,
         accept_timeout_millis=1000,
@@ -31,7 +31,7 @@ test "Luna online TCP limits reject every unbounded envelope" {
   }
   for timeout in [0, 86400001] {
     try
-      LunaOnlineTcpLimits::new(
+      @online_tcp.LunaOnlineTcpLimits::new(
         read_chunk_bytes=4096,
         write_chunk_bytes=4096,
         accept_timeout_millis=timeout,

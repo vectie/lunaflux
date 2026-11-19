@@ -60,6 +60,9 @@ pub(all) suberror FusedParallelAotError {
   FusedParallelLimitExceeded(FusedParallelAotRule)
   FusedParallelOverflow(FusedParallelAotRule)
 } derive(Eq, @debug.Debug)
+pub fn FusedParallelAotError::equal(Self, Self) -> Bool
+pub fn FusedParallelAotError::not_equal(Self, Self) -> Bool
+pub fn FusedParallelAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FusedParallelAotLimits {
@@ -94,11 +97,17 @@ pub(all) enum FusedParallelAotRule {
   Correctness
   MicrobenchmarkWin
 } derive(Eq, @debug.Debug)
+pub fn FusedParallelAotRule::equal(Self, Self) -> Bool
+pub fn FusedParallelAotRule::not_equal(Self, Self) -> Bool
+pub fn FusedParallelAotRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedParallelArtifactPurpose {
   QualificationDiagnostics
   ProductionFastPath
 } derive(Eq, @debug.Debug)
+pub fn FusedParallelArtifactPurpose::equal(Self, Self) -> Bool
+pub fn FusedParallelArtifactPurpose::not_equal(Self, Self) -> Bool
+pub fn FusedParallelArtifactPurpose::to_repr(Self) -> @debug.Repr
 
 pub struct FusedParallelCompiledArtifactBinding {
   // private fields
@@ -131,12 +140,20 @@ pub fn FusedParallelCompiledArtifactLimits::new(maximum_module_bytes~ : Int64, m
 
 pub struct FusedParallelDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn FusedParallelDigest::as_hex(Self) -> String
+pub fn FusedParallelDigest::equal(Self, Self) -> Bool
 pub fn FusedParallelDigest::from_sha256(String) -> Self raise FusedParallelAotError
+pub fn FusedParallelDigest::hash(Self) -> Int
+pub fn FusedParallelDigest::hash_combine(Self, Hasher) -> Unit
+pub fn FusedParallelDigest::not_equal(Self, Self) -> Bool
+pub fn FusedParallelDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedParallelFamily {
   QkvPositionedRopePagedKvWrite
   ResidualRmsNorm
 } derive(Eq, @debug.Debug)
+pub fn FusedParallelFamily::equal(Self, Self) -> Bool
+pub fn FusedParallelFamily::not_equal(Self, Self) -> Bool
+pub fn FusedParallelFamily::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedParallelKernelAbi {
   QkvPositionedRopePagedKvWriteAbiV1
@@ -147,15 +164,21 @@ pub(all) enum FusedParallelKernelAbi {
   ResidualRmsNormProductionAbiV2
 } derive(Eq, @debug.Debug)
 pub fn FusedParallelKernelAbi::canonical_name(Self) -> String
+pub fn FusedParallelKernelAbi::equal(Self, Self) -> Bool
+pub fn FusedParallelKernelAbi::not_equal(Self, Self) -> Bool
+pub fn FusedParallelKernelAbi::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FusedParallelNumericalPolicy {
   QkvRopeKvWriteOrderedF32TranscendentalToleranceV1
   QkvQkNormRopeKvWriteDeterministicDotTreeToleranceV1
   ResidualRmsNormBlock128F32ReductionToleranceV1
 } derive(Eq, @debug.Debug)
+pub fn FusedParallelNumericalPolicy::equal(Self, Self) -> Bool
 pub fn FusedParallelNumericalPolicy::maximum_absolute_error_ppb(Self) -> Int64
 pub fn FusedParallelNumericalPolicy::maximum_relative_error_ppb(Self) -> Int64
 pub fn FusedParallelNumericalPolicy::name(Self) -> String
+pub fn FusedParallelNumericalPolicy::not_equal(Self, Self) -> Bool
+pub fn FusedParallelNumericalPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct FusedParallelPromotionBinding {
   // private fields

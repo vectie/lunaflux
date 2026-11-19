@@ -1,12 +1,12 @@
 ///|
 test "window-compressed join preserves prefill padding and literal compressed suffix" {
-  let limits = ReferenceLimits::new(
+  let limits = @advanced_decoder_reference.ReferenceLimits::new(
     max_values=64,
     max_width=16,
     max_iterations=4,
   )
   assert_eq(
-    deterministic_window_compressed_index_join_v1(
+    @advanced_decoder_reference.deterministic_window_compressed_index_join_v1(
       window_size=4,
       compression_ratio=2,
       query_position=1,
@@ -22,13 +22,13 @@ test "window-compressed join preserves prefill padding and literal compressed su
 
 ///|
 test "window-compressed join preserves decode ring order" {
-  let limits = ReferenceLimits::new(
+  let limits = @advanced_decoder_reference.ReferenceLimits::new(
     max_values=64,
     max_width=16,
     max_iterations=4,
   )
   assert_eq(
-    deterministic_window_compressed_index_join_v1(
+    @advanced_decoder_reference.deterministic_window_compressed_index_join_v1(
       window_size=4,
       compression_ratio=2,
       query_position=5,
@@ -45,7 +45,7 @@ test "window-compressed join preserves decode ring order" {
 ///|
 test "window-compressed join rejects overlap or reordered compressed indices" {
   try
-    deterministic_window_compressed_index_join_v1(
+    @advanced_decoder_reference.deterministic_window_compressed_index_join_v1(
       window_size=4,
       compression_ratio=2,
       query_position=5,
@@ -53,7 +53,11 @@ test "window-compressed join rejects overlap or reordered compressed indices" {
       decode_mode=true,
       compressed_count=3,
       [4, 6, 5],
-      limits=ReferenceLimits::new(max_values=64, max_width=16, max_iterations=4),
+      limits=@advanced_decoder_reference.ReferenceLimits::new(
+        max_values=64,
+        max_width=16,
+        max_iterations=4,
+      ),
     )
   catch {
     InvalidIndexLayout => ()

@@ -8,7 +8,7 @@ test "official output-A conversion evidence preserves group-major slices" {
     let spec = @deepseek_v4_spec.DeepSeekV4ModelSpec::from_official_model_id(
       model_id,
     )
-    let layout = output_a_converted_layout(spec)
+    let layout = @deepseek_v4_weights.output_a_converted_layout(spec)
     let groups = spec.output_group_count()
     let input = spec.attention_head_count() * 512 / groups
     assert_eq(layout.source_weight_shape(), [

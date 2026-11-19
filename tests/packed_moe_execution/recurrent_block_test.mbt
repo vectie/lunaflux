@@ -143,7 +143,7 @@ test "complete branch has an exact startup workspace budget" {
       output=operand,
     )
   catch {
-    @device.DeviceError::InvalidArgument(_) => ()
+    InvalidArgument(_) => ()
     e => raise e
   } noraise {
     _ => fail("workspace underbudget accepted")

@@ -14,7 +14,7 @@ async fn prepare_attention_sources(
   for
     (name, phase, compilation) in [
       ("prefill", @attention.Phase::Prefill, attention.prefill()),
-      ("decode", @attention.Phase::Decode, attention.decode()),
+      ("decode", Decode, attention.decode()),
     ] {
     let filename = "attention_" + name + ".cu"
     @fs.write_file(

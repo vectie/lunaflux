@@ -50,10 +50,16 @@ pub(all) suberror DeepSeekV4TensorSchemaError {
   IncorrectTensorCount(expected~ : Int, actual~ : Int)
   IdentityMismatch
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorSchemaError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorSchemaError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorSchemaError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeepSeekV4WeightsError {
   DuplicateEncoding(DeepSeekV4WeightEncoding)
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightsError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4WeightsError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4WeightsError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DeepSeekV4AttentionTensor {
@@ -66,6 +72,9 @@ pub(all) enum DeepSeekV4AttentionTensor {
   OutputA(DeepSeekV4QuantizedPart)
   OutputB(DeepSeekV4QuantizedPart)
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4AttentionTensor::equal(Self, Self) -> Bool
+pub fn DeepSeekV4AttentionTensor::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4AttentionTensor::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4CompressorTensor {
   CompressorApe
@@ -73,22 +82,34 @@ pub(all) enum DeepSeekV4CompressorTensor {
   CompressorGate
   CompressorKeyValue
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4CompressorTensor::equal(Self, Self) -> Bool
+pub fn DeepSeekV4CompressorTensor::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4CompressorTensor::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4ExpertMatrix {
   ExpertW1
   ExpertW2
   ExpertW3
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4ExpertMatrix::equal(Self, Self) -> Bool
+pub fn DeepSeekV4ExpertMatrix::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4ExpertMatrix::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4Fp4Codebook {
   E2M1Canonical
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4Fp4Codebook::equal(Self, Self) -> Bool
+pub fn DeepSeekV4Fp4Codebook::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4Fp4Codebook::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4HyperConnectionPart {
   HyperBase
   HyperFunction
   HyperScale
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4HyperConnectionPart::equal(Self, Self) -> Bool
+pub fn DeepSeekV4HyperConnectionPart::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4HyperConnectionPart::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4IndexerTensor {
   IndexCompressorApe
@@ -98,10 +119,16 @@ pub(all) enum DeepSeekV4IndexerTensor {
   IndexWeightsProjection
   IndexQuery(DeepSeekV4QuantizedPart)
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4IndexerTensor::equal(Self, Self) -> Bool
+pub fn DeepSeekV4IndexerTensor::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4IndexerTensor::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4KeyValueQuantizationContract {
   Fp8E4M3Ue8M0Block128ReplicatedRowMajorV1
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4KeyValueQuantizationContract::equal(Self, Self) -> Bool
+pub fn DeepSeekV4KeyValueQuantizationContract::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4KeyValueQuantizationContract::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4KeyValueQuantizedLayout {
   // private fields
@@ -117,10 +144,16 @@ pub fn DeepSeekV4KeyValueQuantizedLayout::weight_shape(Self) -> ReadOnlyArray[In
 pub(all) enum DeepSeekV4MaterializationReadiness {
   UnsupportedByteLayouts(ReadOnlyArray[DeepSeekV4WeightEncoding])
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4MaterializationReadiness::equal(Self, Self) -> Bool
+pub fn DeepSeekV4MaterializationReadiness::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4MaterializationReadiness::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4OutputAConversionContract {
   Fp8E4M3Ue8M0Block128ToBfloat16V1
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4OutputAConversionContract::equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputAConversionContract::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputAConversionContract::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4OutputAConvertedLayout {
   // private fields
@@ -133,6 +166,9 @@ pub fn DeepSeekV4OutputAConvertedLayout::source_weight_shape(Self) -> ReadOnlyAr
 pub(all) enum DeepSeekV4OutputBQuantizationContract {
   Fp8E4M3Ue8M0Block128RowMajorV1
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4OutputBQuantizationContract::equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputBQuantizationContract::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputBQuantizationContract::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4OutputBQuantizedLayout {
   // private fields
@@ -156,10 +192,16 @@ pub(all) enum DeepSeekV4QuantizedPart {
   QuantizedWeight
   QuantizationScale
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4QuantizedPart::equal(Self, Self) -> Bool
+pub fn DeepSeekV4QuantizedPart::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4QuantizedPart::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4QueryAQuantizationContract {
   Fp8E4M3Ue8M0Block128ReplicatedRowMajorV1
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4QueryAQuantizationContract::equal(Self, Self) -> Bool
+pub fn DeepSeekV4QueryAQuantizationContract::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4QueryAQuantizationContract::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4QueryAQuantizedLayout {
   // private fields
@@ -180,6 +222,9 @@ pub(all) enum DeepSeekV4SafetensorsDType {
   F8E4M3
   F8E8M0
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4SafetensorsDType::equal(Self, Self) -> Bool
+pub fn DeepSeekV4SafetensorsDType::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4SafetensorsDType::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4SafetensorsTensor {
   // private fields
@@ -187,17 +232,23 @@ pub struct DeepSeekV4SafetensorsTensor {
 pub fn DeepSeekV4SafetensorsTensor::data_end(Self) -> Int64
 pub fn DeepSeekV4SafetensorsTensor::data_start(Self) -> Int64
 pub fn DeepSeekV4SafetensorsTensor::dtype(Self) -> DeepSeekV4SafetensorsDType
+pub fn DeepSeekV4SafetensorsTensor::equal(Self, Self) -> Bool
 pub fn DeepSeekV4SafetensorsTensor::name(Self) -> String
 pub fn DeepSeekV4SafetensorsTensor::new(name~ : String, dtype~ : StringView, shape~ : ArrayView[Int64], shard~ : Int, data_start~ : Int64, data_end~ : Int64) -> Self raise DeepSeekV4TensorSchemaError
+pub fn DeepSeekV4SafetensorsTensor::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4SafetensorsTensor::shape(Self) -> ReadOnlyArray[Int64]
 pub fn DeepSeekV4SafetensorsTensor::shard(Self) -> Int
+pub fn DeepSeekV4SafetensorsTensor::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4TensorBinding {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeepSeekV4TensorBinding::encoding(Self) -> DeepSeekV4WeightEncoding
+pub fn DeepSeekV4TensorBinding::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorBinding::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4TensorBinding::semantic(Self) -> DeepSeekV4TensorSemantic
 pub fn DeepSeekV4TensorBinding::tensor(Self) -> DeepSeekV4SafetensorsTensor
+pub fn DeepSeekV4TensorBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4TensorRole {
   TokenEmbedding
@@ -229,39 +280,57 @@ pub(all) enum DeepSeekV4TensorRole {
   DsparkMarkovW1
   DsparkMarkovW2
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorRole::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorRole::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4TensorScope {
   Global
   DecoderLayer(Int)
   PredictionStage(Int)
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorScope::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorScope::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorScope::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4TensorSemantic {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorSemantic::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorSemantic::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4TensorSemantic::role(Self) -> DeepSeekV4TensorRole
 pub fn DeepSeekV4TensorSemantic::scope(Self) -> DeepSeekV4TensorScope
+pub fn DeepSeekV4TensorSemantic::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4WeightAdmission {
   StorageContractSatisfied(DeepSeekV4WeightRequirements)
   MissingWeightEncodings(DeepSeekV4WeightRequirements, ReadOnlyArray[DeepSeekV4WeightEncoding])
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightAdmission::equal(Self, Self) -> Bool
+pub fn DeepSeekV4WeightAdmission::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4WeightAdmission::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4WeightBackendCapabilities {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightBackendCapabilities::equal(Self, Self) -> Bool
 pub fn DeepSeekV4WeightBackendCapabilities::new(ArrayView[DeepSeekV4WeightEncoding]) -> Self raise DeepSeekV4WeightsError
+pub fn DeepSeekV4WeightBackendCapabilities::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4WeightBackendCapabilities::supports(Self, DeepSeekV4WeightEncoding) -> Bool
+pub fn DeepSeekV4WeightBackendCapabilities::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4WeightBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightBinding::equal(Self, Self) -> Bool
 pub fn DeepSeekV4WeightBinding::fp4_codebook(Self) -> DeepSeekV4Fp4Codebook?
 pub fn DeepSeekV4WeightBinding::identity(Self) -> @spec.ModelIdentity
 pub fn DeepSeekV4WeightBinding::materialization_readiness(Self) -> DeepSeekV4MaterializationReadiness
+pub fn DeepSeekV4WeightBinding::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4WeightBinding::profile(Self) -> @deepseek_v4_spec.DeepSeekV4Profile
 pub fn DeepSeekV4WeightBinding::tensor(Self, Int) -> DeepSeekV4TensorBinding?
 pub fn DeepSeekV4WeightBinding::tensor_count(Self) -> Int
+pub fn DeepSeekV4WeightBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4WeightEncoding {
   BFloat16
@@ -271,13 +340,19 @@ pub(all) enum DeepSeekV4WeightEncoding {
   Ue8M0Scale
   PackedFp4E2M1Block32
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4WeightEncoding::equal(Self, Self) -> Bool
+pub fn DeepSeekV4WeightEncoding::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4WeightEncoding::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4WeightRequirements {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeepSeekV4WeightRequirements::admit(Self, DeepSeekV4WeightBackendCapabilities) -> DeepSeekV4WeightAdmission
 pub fn DeepSeekV4WeightRequirements::encodings(Self) -> ReadOnlyArray[DeepSeekV4WeightEncoding]
+pub fn DeepSeekV4WeightRequirements::equal(Self, Self) -> Bool
+pub fn DeepSeekV4WeightRequirements::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4WeightRequirements::profile(Self) -> @deepseek_v4_spec.DeepSeekV4Profile
+pub fn DeepSeekV4WeightRequirements::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

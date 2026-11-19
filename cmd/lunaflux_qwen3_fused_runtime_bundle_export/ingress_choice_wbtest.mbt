@@ -3,8 +3,8 @@ test "paired comparison does not require a fabricated unfused measurement" {
   for
     (full, partial, expected) in [
       ("10", "20", @luna_fusion_strategy.FullyFused),
-      ("20", "10", @luna_fusion_strategy.ProducerSeparated),
-      ("10", "10", @luna_fusion_strategy.ProducerSeparated),
+      ("20", "10", ProducerSeparated),
+      ("10", "10", ProducerSeparated),
     ] {
     let args = runtime_bundle_test_arguments("5")
     args.append([
@@ -51,7 +51,7 @@ test "metadata ABI composes with the trailing ingress evaluation" {
   let (selected, choice) = prepare_ingress_choice(args)
   assert_true(selected.query_metadata)
   assert_eq(selected.ingress_selection.canonical_name(), "explicit-evaluation")
-  assert_eq(choice, @luna_fusion_strategy.FusionSchedule::ProducerSeparated)
+  assert_eq(choice, ProducerSeparated)
   assert_eq(selected.ingress.module_path, "/tmp/postprocess.cubin")
   args.push("--query-metadata-v1")
   try prepare_ingress_choice(args) catch {
@@ -92,9 +92,9 @@ test "evaluation builds each alternative without manufacturing measurement recor
     assert_eq(
       choice,
       match name {
-        "full" => @luna_fusion_strategy.FullyFused
-        "partial" => @luna_fusion_strategy.ProducerSeparated
-        _ => @luna_fusion_strategy.Unfused
+        "full" => FullyFused
+        "partial" => ProducerSeparated
+        _ => Unfused
       },
     )
     assert_eq(
@@ -205,7 +205,7 @@ test "unmeasured default bundle preserves original KV writer instead of attachin
   let (args, choice) = prepare_ingress_choice(
     runtime_bundle_test_arguments("5"),
   )
-  assert_eq(choice, @luna_fusion_strategy.Unfused)
+  assert_eq(choice, Unfused)
   assert_eq(args.ingress_selection.canonical_name(), "conservative-unmeasured")
   let cut = selected_ingress_cut(args, choice)
   assert_false(cut.permits_readonly_attention())
@@ -240,14 +240,7 @@ test "full and unfused evaluation need no fabricated partial artifact metadata" 
     let (args, choice) = prepare_ingress_choice(raw)
     assert_true(args.query_metadata)
     assert_eq(args.ingress_selection.canonical_name(), "explicit-evaluation")
-    assert_eq(
-      choice,
-      if name == "full" {
-        @luna_fusion_strategy.FullyFused
-      } else {
-        @luna_fusion_strategy.Unfused
-      },
-    )
+    assert_eq(choice, if name == "full" { FullyFused } else { Unfused })
     assert_eq(args.ingress.module_path, "/tmp/ingress.cubin")
     // The metadata-aware builder performs a second export after compilation.
     // That export must keep the chosen ingress cut and read-only attention,

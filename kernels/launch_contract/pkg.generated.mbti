@@ -46,6 +46,9 @@ pub(all) suberror LaunchContractError {
   CatalogVersionMismatch
   DeviceKvLayoutMismatch
 } derive(Eq, @debug.Debug)
+pub fn LaunchContractError::equal(Self, Self) -> Bool
+pub fn LaunchContractError::not_equal(Self, Self) -> Bool
+pub fn LaunchContractError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AotLaunchContract {
@@ -54,18 +57,24 @@ pub struct AotLaunchContract {
 pub fn AotLaunchContract::capability(Self) -> @plan.KernelCapabilityId
 pub fn AotLaunchContract::dimensions(Self) -> AotLaunchDimensions
 pub fn AotLaunchContract::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn AotLaunchContract::equal(Self, Self) -> Bool
+pub fn AotLaunchContract::not_equal(Self, Self) -> Bool
 pub fn AotLaunchContract::operands(Self) -> ReadOnlyArray[AotOperand]
 pub fn AotLaunchContract::operation_id(Self) -> @plan.OperationId
 pub fn AotLaunchContract::operation_kind(Self) -> @plan.OperationKind
 pub fn AotLaunchContract::operation_shape(Self) -> @plan.OperationShape
 pub fn AotLaunchContract::profile(Self) -> KernelProfile
+pub fn AotLaunchContract::to_repr(Self) -> @debug.Repr
 pub fn AotLaunchContract::workspace_alignment(Self) -> Int64
 pub fn AotLaunchContract::workspace_bytes(Self) -> Int64
 
 pub struct AotLaunchContractInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AotLaunchContractInput::equal(Self, Self) -> Bool
 pub fn AotLaunchContractInput::new(profile_id~ : KernelProfileId, operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : AotLaunchDimensions, operands~ : ArrayView[AotOperand]) -> Self raise LaunchContractError
+pub fn AotLaunchContractInput::not_equal(Self, Self) -> Bool
+pub fn AotLaunchContractInput::to_repr(Self) -> @debug.Repr
 
 pub struct AotLaunchDimensions {
   // private fields
@@ -73,19 +82,25 @@ pub struct AotLaunchDimensions {
 pub fn AotLaunchDimensions::block_x(Self) -> Int
 pub fn AotLaunchDimensions::block_y(Self) -> Int
 pub fn AotLaunchDimensions::block_z(Self) -> Int
+pub fn AotLaunchDimensions::equal(Self, Self) -> Bool
 pub fn AotLaunchDimensions::grid_x(Self) -> Int
 pub fn AotLaunchDimensions::grid_y(Self) -> Int
 pub fn AotLaunchDimensions::grid_z(Self) -> Int
 pub fn AotLaunchDimensions::new(grid_x~ : Int, grid_y~ : Int, grid_z~ : Int, block_x~ : Int, block_y~ : Int, block_z~ : Int, shared_memory_bytes~ : Int) -> Self raise LaunchContractError
+pub fn AotLaunchDimensions::not_equal(Self, Self) -> Bool
 pub fn AotLaunchDimensions::shared_memory_bytes(Self) -> Int
+pub fn AotLaunchDimensions::to_repr(Self) -> @debug.Repr
 
 pub struct AotOperand {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AotOperand::alignment(Self) -> Int64
 pub fn AotOperand::byte_count(Self) -> Int64
+pub fn AotOperand::equal(Self, Self) -> Bool
 pub fn AotOperand::new(role~ : AotOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise LaunchContractError
+pub fn AotOperand::not_equal(Self, Self) -> Bool
 pub fn AotOperand::role(Self) -> AotOperandRole
+pub fn AotOperand::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AotOperandRole {
   ExternalInput(@plan.ModelInputRef)
@@ -97,35 +112,50 @@ pub(all) enum AotOperandRole {
   ActivationOutput(@plan.ActivationRef)
   Workspace
 } derive(Eq, @debug.Debug)
+pub fn AotOperandRole::equal(Self, Self) -> Bool
+pub fn AotOperandRole::not_equal(Self, Self) -> Bool
+pub fn AotOperandRole::to_repr(Self) -> @debug.Repr
 
 pub struct KernelProfile {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KernelProfile::batch_rows(Self) -> Int
+pub fn KernelProfile::equal(Self, Self) -> Bool
 pub fn KernelProfile::full_prefill(id~ : KernelProfileId, batch_rows~ : Int, sequence_tokens~ : Int, token_rows~ : Int64) -> Self raise LaunchContractError
 pub fn KernelProfile::id(Self) -> KernelProfileId
+pub fn KernelProfile::not_equal(Self, Self) -> Bool
 pub fn KernelProfile::sequence_tokens(Self) -> Int
+pub fn KernelProfile::to_repr(Self) -> @debug.Repr
 pub fn KernelProfile::token_rows(Self) -> Int64
 
 pub struct KernelProfileId {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn KernelProfileId::as_int(Self) -> Int
+pub fn KernelProfileId::equal(Self, Self) -> Bool
 pub fn KernelProfileId::from_stable_int(Int) -> Self raise LaunchContractError
+pub fn KernelProfileId::not_equal(Self, Self) -> Bool
+pub fn KernelProfileId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LaunchContractLimit {
   ProfileCount
   ContractCount
   OperandsPerContract
 } derive(Eq, @debug.Debug)
+pub fn LaunchContractLimit::equal(Self, Self) -> Bool
+pub fn LaunchContractLimit::not_equal(Self, Self) -> Bool
+pub fn LaunchContractLimit::to_repr(Self) -> @debug.Repr
 
 pub struct LaunchContractLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LaunchContractLimits::equal(Self, Self) -> Bool
 pub fn LaunchContractLimits::max_contracts(Self) -> Int
 pub fn LaunchContractLimits::max_operands_per_contract(Self) -> Int
 pub fn LaunchContractLimits::max_profiles(Self) -> Int
 pub fn LaunchContractLimits::new(max_profiles~ : Int, max_contracts~ : Int, max_operands_per_contract~ : Int) -> Self raise LaunchContractError
+pub fn LaunchContractLimits::not_equal(Self, Self) -> Bool
+pub fn LaunchContractLimits::to_repr(Self) -> @debug.Repr
 
 pub struct LaunchContractSet {
   // private fields
@@ -134,8 +164,11 @@ pub fn LaunchContractSet::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn LaunchContractSet::contract(Self, KernelProfileId, @plan.OperationId) -> AotLaunchContract?
 pub fn LaunchContractSet::contracts(Self) -> ReadOnlyArray[AotLaunchContract]
 pub fn LaunchContractSet::device_target(Self) -> @catalog.DeviceTarget
+pub fn LaunchContractSet::equal(Self, Self) -> Bool
 pub fn LaunchContractSet::model_identity(Self) -> @spec.ModelIdentity
+pub fn LaunchContractSet::not_equal(Self, Self) -> Bool
 pub fn LaunchContractSet::profiles(Self) -> ReadOnlyArray[KernelProfile]
+pub fn LaunchContractSet::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LaunchDimensionRule {
   InvalidGrid
@@ -143,6 +176,9 @@ pub(all) enum LaunchDimensionRule {
   TooManyThreads
   InvalidSharedMemory
 } derive(Eq, @debug.Debug)
+pub fn LaunchDimensionRule::equal(Self, Self) -> Bool
+pub fn LaunchDimensionRule::not_equal(Self, Self) -> Bool
+pub fn LaunchDimensionRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OperandRule {
   InvalidAlignment
@@ -158,20 +194,29 @@ pub(all) enum OperandRule {
   NumericByteCountMismatch
   UnsupportedNumericMetadata
 } derive(Eq, @debug.Debug)
+pub fn OperandRule::equal(Self, Self) -> Bool
+pub fn OperandRule::not_equal(Self, Self) -> Bool
+pub fn OperandRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PagedContractScope {
   KvSubsequence
   FullGraph
 } derive(Eq, @debug.Debug)
+pub fn PagedContractScope::equal(Self, Self) -> Bool
+pub fn PagedContractScope::not_equal(Self, Self) -> Bool
+pub fn PagedContractScope::to_repr(Self) -> @debug.Repr
 
 pub struct PagedKernelProfile {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedKernelProfile::equal(Self, Self) -> Bool
 pub fn PagedKernelProfile::id(Self) -> KernelProfileId
 pub fn PagedKernelProfile::max_page_table_entries(Self) -> Int
 pub fn PagedKernelProfile::max_query_rows(Self) -> Int
 pub fn PagedKernelProfile::max_query_tokens(Self) -> Int
 pub fn PagedKernelProfile::new(id~ : KernelProfileId, max_query_rows~ : Int, max_query_tokens~ : Int, max_page_table_entries~ : Int) -> Self raise LaunchContractError
+pub fn PagedKernelProfile::not_equal(Self, Self) -> Bool
+pub fn PagedKernelProfile::to_repr(Self) -> @debug.Repr
 
 pub struct PagedKvAotLaunchContract {
   // private fields
@@ -179,8 +224,10 @@ pub struct PagedKvAotLaunchContract {
 pub fn PagedKvAotLaunchContract::capability(Self) -> @plan.KernelCapabilityId
 pub fn PagedKvAotLaunchContract::dimensions(Self) -> AotLaunchDimensions
 pub fn PagedKvAotLaunchContract::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedKvAotLaunchContract::equal(Self, Self) -> Bool
 pub fn PagedKvAotLaunchContract::kv_layer(Self) -> @plan.KvLayerId?
 pub fn PagedKvAotLaunchContract::kv_layout_version(Self) -> Int
+pub fn PagedKvAotLaunchContract::not_equal(Self, Self) -> Bool
 pub fn PagedKvAotLaunchContract::operands(Self) -> ReadOnlyArray[AotOperand]
 pub fn PagedKvAotLaunchContract::operation_id(Self) -> @plan.OperationId
 pub fn PagedKvAotLaunchContract::operation_kind(Self) -> @plan.OperationKind
@@ -189,6 +236,7 @@ pub fn PagedKvAotLaunchContract::persistent_state(Self) -> @plan.PersistentState
 pub fn PagedKvAotLaunchContract::profile(Self) -> PagedKernelProfile
 pub fn PagedKvAotLaunchContract::runtime_inputs(Self) -> ReadOnlyArray[@plan.OperationRuntimeInput]
 pub fn PagedKvAotLaunchContract::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn PagedKvAotLaunchContract::to_repr(Self) -> @debug.Repr
 pub fn PagedKvAotLaunchContract::tokens_per_page(Self) -> Int
 pub fn PagedKvAotLaunchContract::workspace_alignment(Self) -> Int64
 pub fn PagedKvAotLaunchContract::workspace_bytes(Self) -> Int64
@@ -196,7 +244,10 @@ pub fn PagedKvAotLaunchContract::workspace_bytes(Self) -> Int64
 pub struct PagedKvAotLaunchContractInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedKvAotLaunchContractInput::equal(Self, Self) -> Bool
 pub fn PagedKvAotLaunchContractInput::new(profile_id~ : KernelProfileId, operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : AotLaunchDimensions, operands~ : ArrayView[AotOperand]) -> Self raise LaunchContractError
+pub fn PagedKvAotLaunchContractInput::not_equal(Self, Self) -> Bool
+pub fn PagedKvAotLaunchContractInput::to_repr(Self) -> @debug.Repr
 
 pub struct PagedKvLaunchContractSet {
   // private fields
@@ -205,9 +256,12 @@ pub fn PagedKvLaunchContractSet::catalog_version(Self) -> @catalog.CatalogVersio
 pub fn PagedKvLaunchContractSet::contracts(Self) -> ReadOnlyArray[PagedKvAotLaunchContract]
 pub fn PagedKvLaunchContractSet::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
 pub fn PagedKvLaunchContractSet::device_target(Self) -> @catalog.DeviceTarget
+pub fn PagedKvLaunchContractSet::equal(Self, Self) -> Bool
 pub fn PagedKvLaunchContractSet::model_identity(Self) -> @spec.ModelIdentity
+pub fn PagedKvLaunchContractSet::not_equal(Self, Self) -> Bool
 pub fn PagedKvLaunchContractSet::profiles(Self) -> ReadOnlyArray[PagedKernelProfile]
 pub fn PagedKvLaunchContractSet::scope(Self) -> PagedContractScope
+pub fn PagedKvLaunchContractSet::to_repr(Self) -> @debug.Repr
 
 pub struct PagedV4AotLaunchContract {
   // private fields
@@ -215,8 +269,10 @@ pub struct PagedV4AotLaunchContract {
 pub fn PagedV4AotLaunchContract::capability(Self) -> @plan.KernelCapabilityId
 pub fn PagedV4AotLaunchContract::dimensions(Self) -> AotLaunchDimensions
 pub fn PagedV4AotLaunchContract::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn PagedV4AotLaunchContract::equal(Self, Self) -> Bool
 pub fn PagedV4AotLaunchContract::kv_layer(Self) -> @plan.KvLayerId?
 pub fn PagedV4AotLaunchContract::kv_layout_version(Self) -> Int
+pub fn PagedV4AotLaunchContract::not_equal(Self, Self) -> Bool
 pub fn PagedV4AotLaunchContract::operands(Self) -> ReadOnlyArray[AotOperand]
 pub fn PagedV4AotLaunchContract::operation_execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn PagedV4AotLaunchContract::operation_id(Self) -> @plan.OperationId
@@ -226,6 +282,7 @@ pub fn PagedV4AotLaunchContract::persistent_state(Self) -> @plan.PersistentState
 pub fn PagedV4AotLaunchContract::profile(Self) -> PagedKernelProfile
 pub fn PagedV4AotLaunchContract::runtime_inputs(Self) -> ReadOnlyArray[@plan.OperationRuntimeInput]
 pub fn PagedV4AotLaunchContract::semantic_version(Self) -> @catalog.KernelSemanticVersion
+pub fn PagedV4AotLaunchContract::to_repr(Self) -> @debug.Repr
 pub fn PagedV4AotLaunchContract::tokens_per_page(Self) -> Int
 pub fn PagedV4AotLaunchContract::workspace_alignment(Self) -> Int64
 pub fn PagedV4AotLaunchContract::workspace_bytes(Self) -> Int64
@@ -233,7 +290,10 @@ pub fn PagedV4AotLaunchContract::workspace_bytes(Self) -> Int64
 pub struct PagedV4AotLaunchContractInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PagedV4AotLaunchContractInput::equal(Self, Self) -> Bool
 pub fn PagedV4AotLaunchContractInput::new(profile_id~ : KernelProfileId, operation_id~ : @plan.OperationId, entry_point~ : @catalog.AotKernelEntryPoint, dimensions~ : AotLaunchDimensions, operands~ : ArrayView[AotOperand]) -> Self raise LaunchContractError
+pub fn PagedV4AotLaunchContractInput::not_equal(Self, Self) -> Bool
+pub fn PagedV4AotLaunchContractInput::to_repr(Self) -> @debug.Repr
 
 pub struct PagedV4LaunchContractSet {
   // private fields
@@ -243,9 +303,12 @@ pub fn PagedV4LaunchContractSet::contract(Self, KernelProfileId, @plan.Operation
 pub fn PagedV4LaunchContractSet::contracts(Self) -> ReadOnlyArray[PagedV4AotLaunchContract]
 pub fn PagedV4LaunchContractSet::device_kv_layout(Self) -> @device_layout.DeviceKvLayout
 pub fn PagedV4LaunchContractSet::device_target(Self) -> @catalog.DeviceTarget
+pub fn PagedV4LaunchContractSet::equal(Self, Self) -> Bool
 pub fn PagedV4LaunchContractSet::model_identity(Self) -> @spec.ModelIdentity
+pub fn PagedV4LaunchContractSet::not_equal(Self, Self) -> Bool
 pub fn PagedV4LaunchContractSet::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn PagedV4LaunchContractSet::profiles(Self) -> ReadOnlyArray[PagedKernelProfile]
+pub fn PagedV4LaunchContractSet::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProfileRule {
   NonPositiveId
@@ -254,6 +317,9 @@ pub(all) enum ProfileRule {
   TokenRowMismatch
   OutsideModelEnvelope
 } derive(Eq, @debug.Debug)
+pub fn ProfileRule::equal(Self, Self) -> Bool
+pub fn ProfileRule::not_equal(Self, Self) -> Bool
+pub fn ProfileRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

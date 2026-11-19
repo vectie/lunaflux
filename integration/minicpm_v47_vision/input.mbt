@@ -19,7 +19,7 @@ pub struct Input {
 fn i32_bytes(values : ArrayView[Int32]) -> Bytes {
   let bytes = FixedArray::make(values.length() * 4, b'\x00')
   for i in 0..<values.length() {
-    let word = values[i].to_uint()
+    let word = values[i].reinterpret_as_uint()
     for lane in 0..<4 {
       bytes[i * 4 + lane] = ((word >> (lane * 8)) & 255U).to_byte()
     }

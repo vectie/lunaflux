@@ -32,6 +32,9 @@ pub(all) suberror ReadOnlyProductionError {
   InvalidReadOnlyProduction(ReadOnlyProductionRule)
   MismatchedReadOnlyProduction(ReadOnlyProductionRule)
 } derive(Eq, @debug.Debug)
+pub fn ReadOnlyProductionError::equal(Self, Self) -> Bool
+pub fn ReadOnlyProductionError::not_equal(Self, Self) -> Bool
+pub fn ReadOnlyProductionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ApprovedPagedAttentionReadOnlyArtifacts {
@@ -108,7 +111,12 @@ pub struct PagedAttentionReadOnlyRuntimeDeviceRecord {
 
 pub struct ReadOnlyProductionDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn ReadOnlyProductionDigest::as_hex(Self) -> String
+pub fn ReadOnlyProductionDigest::equal(Self, Self) -> Bool
 pub fn ReadOnlyProductionDigest::from_sha256(String) -> Self raise ReadOnlyProductionError
+pub fn ReadOnlyProductionDigest::hash(Self) -> Int
+pub fn ReadOnlyProductionDigest::hash_combine(Self, Hasher) -> Unit
+pub fn ReadOnlyProductionDigest::not_equal(Self, Self) -> Bool
+pub fn ReadOnlyProductionDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReadOnlyProductionRule {
   Qualification
@@ -128,6 +136,9 @@ pub(all) enum ReadOnlyProductionRule {
   Canary
   Catalog
 } derive(Eq, @debug.Debug)
+pub fn ReadOnlyProductionRule::equal(Self, Self) -> Bool
+pub fn ReadOnlyProductionRule::not_equal(Self, Self) -> Bool
+pub fn ReadOnlyProductionRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -29,22 +29,32 @@ async test "combined payload includes both weight owners and all mutable allocat
   assert_eq(budget.mutable_bytes, 582463600L)
   assert_eq(budget.total_allocation_bytes, 71008215248L)
   assert_true(
-    (try? @minicpm_v47_image_runtime.Budget::new(
-      program,
-      vision,
-      text_weight_bytes=0L,
-      vision_weight_bytes=-1L,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_image_runtime.Budget::new(
+        program,
+        vision,
+        text_weight_bytes=0L,
+        vision_weight_bytes=-1L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @minicpm_v47_image_runtime.Budget::new(
-      program,
-      vision,
-      text_weight_bytes=0L,
-      vision_weight_bytes=9223372036854775807L,
-    ))
-    is Err(_),
+    try
+      @minicpm_v47_image_runtime.Budget::new(
+        program,
+        vision,
+        text_weight_bytes=0L,
+        vision_weight_bytes=9223372036854775807L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }
 
@@ -52,13 +62,43 @@ async test "combined payload includes both weight owners and all mutable allocat
 async test "fresh and closed owners cannot drive work" {
   let (program, vision) = programs()
   let execution = @minicpm_v47_image_runtime.Execution::new(program, vision)
-  assert_true((try? execution.submit_next()) is Err(_))
-  assert_true((try? execution.poll()) is Err(_))
-  assert_true((try? execution.wait()) is Err(_))
-  assert_true((try? execution.cancel()) is Err(_))
+  assert_true(
+    try execution.submit_next() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
+  assert_true(
+    try execution.poll() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
+  assert_true(
+    try execution.wait() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
+  assert_true(
+    try execution.cancel() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
   execution.close()
   execution.close()
-  assert_true((try? execution.submit_next()) is Err(_))
+  assert_true(
+    try execution.submit_next() catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
 }
 
 ///|
@@ -81,10 +121,22 @@ async test "resident plans both complete weight sets without allocating device m
       @vision.WeightPlan::new(spec, vision, checkpoint),
     )
     assert_eq(resident.budget().total_allocation_bytes, 71008215248L)
-    assert_true((try? resident.execution()) is Err(_))
+    assert_true(
+      try resident.execution() catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
+    )
     resident.close()
     resident.close()
-    assert_true((try? resident.execution()) is Err(_))
+    assert_true(
+      try resident.execution() catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
+    )
   })
 }
 
@@ -116,19 +168,29 @@ async test "nine bounded AOT files are read without retaining file handles" {
     assert_eq(images.image_scatter, b"fixture")
     assert_eq(images.text.envelope, b"fixture")
     assert_true(
-      (try? @minicpm_v47_image_runtime.ModuleImages::read(
-        root,
-        maximum_module_bytes=3L,
-      ))
-      is Err(_),
+      try
+        @minicpm_v47_image_runtime.ModuleImages::read(
+          root,
+          maximum_module_bytes=3L,
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
     @fs.write_file(directory + "/image_scatter.cubin", b"")
     assert_true(
-      (try? @minicpm_v47_image_runtime.ModuleImages::read(
-        root,
-        maximum_module_bytes=32L,
-      ))
-      is Err(_),
+      try
+        @minicpm_v47_image_runtime.ModuleImages::read(
+          root,
+          maximum_module_bytes=32L,
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
     root.close()
   }

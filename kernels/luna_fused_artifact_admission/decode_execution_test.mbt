@@ -1,7 +1,7 @@
 ///|
 test "closed decode descriptors retain numeric permissions and storage geometry" {
   assert_eq(
-    DecodeExecutionDescriptor::new(
+    @luna_fused_artifact_admission.DecodeExecutionDescriptor::new(
       law=OrderedBlockwise,
       key_value_tile_rows=32,
       pipeline_stages=1,
@@ -16,7 +16,7 @@ test "closed decode descriptors retain numeric permissions and storage geometry"
   ]
   for law in laws {
     for rows in [32, 64] {
-      let descriptor = DecodeExecutionDescriptor::from_numeric_law(
+      let descriptor = @luna_fused_artifact_admission.DecodeExecutionDescriptor::from_numeric_law(
         law,
         key_value_tile_rows=rows,
         pipeline_stages=2,
@@ -31,7 +31,7 @@ test "closed decode descriptors retain numeric permissions and storage geometry"
     }
   }
   assert_eq(
-    DecodeExecutionDescriptor::from_numeric_law(
+    @luna_fused_artifact_admission.DecodeExecutionDescriptor::from_numeric_law(
       "owned4-blockwise-fma-f32-probability-v4",
       key_value_tile_rows=64,
       pipeline_stages=2,
@@ -39,7 +39,7 @@ test "closed decode descriptors retain numeric permissions and storage geometry"
     "lunaflux_attention_decode_tile_compiler_v1_owned4_blockwise_fma_f32_v4",
   )
   assert_eq(
-    DecodeExecutionDescriptor::new(
+    @luna_fused_artifact_admission.DecodeExecutionDescriptor::new(
       law=MatrixBf16,
       key_value_tile_rows=64,
       pipeline_stages=1,
@@ -50,12 +50,12 @@ test "closed decode descriptors retain numeric permissions and storage geometry"
 
 ///|
 test "extended decode bundle authenticates exact numerical and KV stage identity" {
-  let descriptor = DecodeExecutionDescriptor::new(
+  let descriptor = @luna_fused_artifact_admission.DecodeExecutionDescriptor::new(
     law=OwnedContracting(4),
     key_value_tile_rows=64,
     pipeline_stages=2,
   )
-  let input = ReusableFusedRuntimeModuleInput::new(
+  let input = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
     abi=PagedAttentionReadOnlyExtendedDecodeProductionV11,
     first_operation=7,
     operation_count=1,
@@ -72,7 +72,7 @@ test "extended decode bundle authenticates exact numerical and KV stage identity
     module_bytes=b"decode-cubin",
     decode_execution=descriptor,
   )
-  let bytes = export_reusable_fused_runtime_bundle(
+  let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
     model_content_sha256="1".repeat(64),
     model_plan_sha256="2".repeat(64),
     target=@catalog.DeviceTarget::new(
@@ -88,7 +88,7 @@ test "extended decode bundle authenticates exact numerical and KV stage identity
     text.has_prefix("schema=lunaflux-reusable-fused-runtime-bundle.v11\n"),
   )
   assert_true(text.contains("decode_key_value_tile_rows=64\n"))
-  let runtime = admit_digest_pinned_reusable_fused_runtime_bundle(
+  let runtime = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
     bytes,
     @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
   )
@@ -100,7 +100,7 @@ test "extended decode bundle authenticates exact numerical and KV stage identity
 
 ///|
 test "unsupported owner or storage geometry is rejected" {
-  let dual = DecodeExecutionDescriptor::new(
+  let dual = @luna_fused_artifact_admission.DecodeExecutionDescriptor::new(
     law=DualScoreBlockwise,
     key_value_tile_rows=64,
     pipeline_stages=2,
@@ -120,13 +120,13 @@ test "unsupported owner or storage geometry is rejected" {
       "lunaflux_attention_decode_tile_compiler_v1_c460_owned4_blockwise_f32_v4",
     ),
   )
-  let invalid_laws : Array[DecodeNumericLaw] = [
+  let invalid_laws : Array[@luna_fused_artifact_admission.DecodeNumericLaw] = [
     OwnedSeparate(2),
     OwnedContracting(3),
   ]
   for law in invalid_laws {
     try
-      DecodeExecutionDescriptor::new(
+      @luna_fused_artifact_admission.DecodeExecutionDescriptor::new(
         law~,
         key_value_tile_rows=32,
         pipeline_stages=2,
@@ -139,7 +139,7 @@ test "unsupported owner or storage geometry is rejected" {
     }
   }
   try
-    DecodeExecutionDescriptor::new(
+    @luna_fused_artifact_admission.DecodeExecutionDescriptor::new(
       law=DualScoreBlockwise,
       key_value_tile_rows=64,
       pipeline_stages=1,
@@ -155,13 +155,13 @@ test "unsupported owner or storage geometry is rejected" {
 ///|
 test "partition count is immutable bundle identity with legacy eight preserved" {
   for count in [2, 4, 8, 64] {
-    let descriptor = DecodeExecutionDescriptor::new(
+    let descriptor = @luna_fused_artifact_admission.DecodeExecutionDescriptor::new(
       law=OwnedSeparate(8),
       key_value_tile_rows=64,
       pipeline_stages=2,
       partition_count=count,
     )
-    let input = ReusableFusedRuntimeModuleInput::new(
+    let input = @luna_fused_artifact_admission.ReusableFusedRuntimeModuleInput::new(
       abi=PagedAttentionReadOnlyExtendedDecodeProductionV11,
       first_operation=7,
       operation_count=1,
@@ -178,7 +178,7 @@ test "partition count is immutable bundle identity with legacy eight preserved" 
       module_bytes=b"decode-cubin",
       decode_execution=descriptor,
     )
-    let bytes = export_reusable_fused_runtime_bundle(
+    let bytes = @luna_fused_artifact_admission.export_reusable_fused_runtime_bundle(
       model_content_sha256="1".repeat(64),
       model_plan_sha256="2".repeat(64),
       target=@catalog.DeviceTarget::new(
@@ -196,7 +196,7 @@ test "partition count is immutable bundle identity with legacy eight preserved" 
         "schema=lunaflux-reusable-fused-runtime-bundle.v\{version}\n",
       ),
     )
-    let runtime = admit_digest_pinned_reusable_fused_runtime_bundle(
+    let runtime = @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
       bytes,
       @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
     )
@@ -213,7 +213,7 @@ test "partition count is immutable bundle identity with legacy eight preserved" 
           ),
         )
         try
-          admit_digest_pinned_reusable_fused_runtime_bundle(
+          @luna_fused_artifact_admission.admit_digest_pinned_reusable_fused_runtime_bundle(
             bad,
             @crypto.bytes_to_hex_string(@crypto.sha256(bad)),
           )

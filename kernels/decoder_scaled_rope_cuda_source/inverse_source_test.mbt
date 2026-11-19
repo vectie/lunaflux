@@ -1,6 +1,6 @@
 ///|
 test "inverse scaled RoPE source copies prefix and conjugates suffix" {
-  let rendered = inverse_scaled_yarn_attention_output_bf16_source(
+  let rendered = @decoder_scaled_rope_cuda_source.inverse_scaled_yarn_attention_output_bf16_source(
     head_count=2,
     head_dimension=8,
     rope_dimension=4,
@@ -25,7 +25,7 @@ test "inverse scaled RoPE source copies prefix and conjugates suffix" {
 ///|
 test "panic inverse scaled RoPE rejects incompatible dimensions" {
   try
-    inverse_scaled_yarn_attention_output_bf16_source(
+    @decoder_scaled_rope_cuda_source.inverse_scaled_yarn_attention_output_bf16_source(
       head_count=1,
       head_dimension=7,
       rope_dimension=4,

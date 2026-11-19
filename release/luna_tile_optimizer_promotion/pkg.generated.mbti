@@ -28,6 +28,9 @@ pub(all) suberror LunaTileOptimizerPromotionError {
   LunaTileOptimizerPromotionMismatch(LunaTileOptimizerPromotionRule)
   LunaTileOptimizerPromotionUnsupported(LunaTileOptimizerPromotionRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaTileOptimizerPromotionError::equal(Self, Self) -> Bool
+pub fn LunaTileOptimizerPromotionError::not_equal(Self, Self) -> Bool
+pub fn LunaTileOptimizerPromotionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdmittedLunaTilePairedBenchmarkWin {
@@ -74,12 +77,20 @@ pub fn ApprovedLunaTileOptimizerCatalogEntry::startup_selectable(Self) -> Bool
 
 pub struct LunaTileOptimizerDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileOptimizerDigest::as_hex(Self) -> String
+pub fn LunaTileOptimizerDigest::equal(Self, Self) -> Bool
 pub fn LunaTileOptimizerDigest::from_sha256(String) -> Self raise LunaTileOptimizerPromotionError
+pub fn LunaTileOptimizerDigest::hash(Self) -> Int
+pub fn LunaTileOptimizerDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileOptimizerDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileOptimizerDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileOptimizerPath {
   LunaTileParallelSimtV1
   LunaTileTensorCoreBf16Mma16x16x16V1
 } derive(Eq, @debug.Debug)
+pub fn LunaTileOptimizerPath::equal(Self, Self) -> Bool
+pub fn LunaTileOptimizerPath::not_equal(Self, Self) -> Bool
+pub fn LunaTileOptimizerPath::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileOptimizerPromotionRule {
   Digest
@@ -95,11 +106,17 @@ pub(all) enum LunaTileOptimizerPromotionRule {
   Replay
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn LunaTileOptimizerPromotionRule::equal(Self, Self) -> Bool
+pub fn LunaTileOptimizerPromotionRule::not_equal(Self, Self) -> Bool
+pub fn LunaTileOptimizerPromotionRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTilePairedBenchmarkObservation {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTilePairedBenchmarkObservation::equal(Self, Self) -> Bool
 pub fn LunaTilePairedBenchmarkObservation::new(candidate_time_ns~ : Int64, fallback_time_ns~ : Int64) -> Self raise LunaTileOptimizerPromotionError
+pub fn LunaTilePairedBenchmarkObservation::not_equal(Self, Self) -> Bool
+pub fn LunaTilePairedBenchmarkObservation::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTilePromotionApprovalRecord {
   // private fields
@@ -121,7 +138,10 @@ pub fn LunaTilePromotionArtifactInput::new(module_digest~ : LunaTileOptimizerDig
 
 pub struct LunaTilePromotionDeploymentIdentity(LunaTileOptimizerDigest) derive(Eq, @debug.Debug)
 pub fn LunaTilePromotionDeploymentIdentity::as_hex(Self) -> String
+pub fn LunaTilePromotionDeploymentIdentity::equal(Self, Self) -> Bool
 pub fn LunaTilePromotionDeploymentIdentity::from_sha256(String) -> Self raise LunaTileOptimizerPromotionError
+pub fn LunaTilePromotionDeploymentIdentity::not_equal(Self, Self) -> Bool
+pub fn LunaTilePromotionDeploymentIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileStartupSelection {
   LunaTileBaselineSelected

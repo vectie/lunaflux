@@ -82,7 +82,7 @@ test "official Full and Flash A projections bind exact dense shapes" {
         },
       ),
     )
-    let query = lower_dsa_query_a_projection_cuda_aot_candidate(
+    let query = @glm_hybrid_cuda_aot.lower_dsa_query_a_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=query_a_ordinal(requirements),
       maximum_tokens=32,
@@ -90,7 +90,7 @@ test "official Full and Flash A projections bind exact dense shapes" {
       compiler=glm_aot_compiler(),
       limits=glm_aot_limits(),
     )
-    let kv = lower_dsa_key_value_a_projection_cuda_aot_candidate(
+    let kv = @glm_hybrid_cuda_aot.lower_dsa_key_value_a_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=kv_a_ordinal(requirements),
       maximum_tokens=32,
@@ -98,7 +98,7 @@ test "official Full and Flash A projections bind exact dense shapes" {
       compiler=glm_aot_compiler(),
       limits=glm_aot_limits(),
     )
-    let query_norm = lower_foundation_cuda_aot_candidate(
+    let query_norm = @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
       requirements,
       requirement_ordinal=query_a_norm_ordinal(requirements),
       maximum_tokens=32,
@@ -106,7 +106,7 @@ test "official Full and Flash A projections bind exact dense shapes" {
       compiler=glm_aot_compiler(),
       limits=glm_aot_limits(),
     )
-    let query_b = lower_dsa_query_b_projection_cuda_aot_candidate(
+    let query_b = @glm_hybrid_cuda_aot.lower_dsa_query_b_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=query_b_ordinal(requirements),
       maximum_tokens=32,
@@ -114,7 +114,7 @@ test "official Full and Flash A projections bind exact dense shapes" {
       compiler=glm_aot_compiler(),
       limits=glm_aot_limits(),
     )
-    let kv_b = lower_dsa_key_value_b_projection_cuda_aot_candidate(
+    let kv_b = @glm_hybrid_cuda_aot.lower_dsa_key_value_b_projection_cuda_aot_candidate(
       requirements,
       requirement_ordinal=key_value_b_ordinal(requirements),
       maximum_tokens=32,
@@ -188,7 +188,7 @@ test "official Full and Flash A projections bind exact dense shapes" {
 test "A projections reject shape ordinal target compiler and overflow mismatches" {
   let ordinary = glm_aot_requirements()
   try
-    lower_dsa_query_a_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_query_a_projection_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=query_a_ordinal(ordinary),
       maximum_tokens=32,
@@ -203,7 +203,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
     _ => fail("nonofficial q-a shape admitted")
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=query_a_norm_ordinal(ordinary),
       maximum_tokens=32,
@@ -218,7 +218,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
     _ => fail("nonofficial q-a RMSNorm admitted")
   }
   try
-    lower_dsa_query_b_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_query_b_projection_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=query_b_ordinal(ordinary),
       maximum_tokens=32,
@@ -233,7 +233,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
     _ => fail("nonofficial q-b projection admitted")
   }
   try
-    lower_dsa_key_value_b_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_key_value_b_projection_cuda_aot_candidate(
       ordinary,
       requirement_ordinal=key_value_b_ordinal(ordinary),
       maximum_tokens=32,
@@ -250,7 +250,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
   let exact = glm_aot_requirements(official_index=true, official_sparse=true)
   let ordinal = query_a_ordinal(exact)
   try
-    lower_dsa_query_a_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_query_a_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal + 1,
       maximum_tokens=32,
@@ -265,7 +265,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
     _ => fail("neighbor ordinal admitted")
   }
   try
-    lower_dsa_query_a_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_query_a_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -280,7 +280,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_dsa_query_a_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_query_a_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -295,7 +295,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
     _ => fail("reassociating compiler admitted")
   }
   try
-    lower_foundation_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_foundation_cuda_aot_candidate(
       exact,
       requirement_ordinal=query_a_norm_ordinal(exact),
       maximum_tokens=32,
@@ -310,7 +310,7 @@ test "A projections reject shape ordinal target compiler and overflow mismatches
     _ => fail("reassociating q-a RMSNorm admitted")
   }
   try
-    lower_dsa_query_a_projection_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_query_a_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=4097,

@@ -11,8 +11,8 @@ fn coverage_limits(
   maximum_requirements~ : Int32 = 16,
   maximum_candidates~ : Int32 = 16,
   maximum_encoding_bytes~ : Int32 = 4096,
-) -> AotCandidateCoverageLimits {
-  try! AotCandidateCoverageLimits::new(
+) -> @aot_candidate_coverage.AotCandidateCoverageLimits {
+  try! @aot_candidate_coverage.AotCandidateCoverageLimits::new(
     maximum_requirements~,
     maximum_candidates~,
     maximum_encoding_bytes~,
@@ -25,7 +25,7 @@ fn coverage_candidate(
   ordinal : Int32,
   bindable : Bool,
   recipe_fill? : Char,
-) -> AotCandidateEvidenceInput {
+) -> @aot_candidate_coverage.AotCandidateEvidenceInput {
   let recipe_character = match recipe_fill {
     Some(value) => value
     None =>
@@ -34,7 +34,7 @@ fn coverage_candidate(
         None => abort("valid hexadecimal candidate digest fill")
       }
   }
-  try! AotCandidateEvidenceInput::new(
+  try! @aot_candidate_coverage.AotCandidateEvidenceInput::new(
     source_identity=identity,
     requirements_digest_sha256=String::make(64, 'a'),
     requirement_ordinal=ordinal,
@@ -47,7 +47,7 @@ fn coverage_candidate(
 ///|
 test "coverage canonicalizes input order and reports exact gaps" {
   let identity = coverage_identity('1')
-  let first = audit(
+  let first = @aot_candidate_coverage.audit(
     source_identity=identity,
     requirements_digest_sha256=String::make(64, 'a'),
     requirement_count=4,
@@ -57,7 +57,7 @@ test "coverage canonicalizes input order and reports exact gaps" {
     ],
     limits=coverage_limits(),
   )
-  let reordered = audit(
+  let reordered = @aot_candidate_coverage.audit(
     source_identity=identity,
     requirements_digest_sha256=String::make(64, 'a'),
     requirement_count=4,
@@ -85,7 +85,7 @@ test "coverage canonicalizes input order and reports exact gaps" {
 ///|
 test "complete inert and claimed-bindable states remain distinct" {
   let identity = coverage_identity('2')
-  let inert = audit(
+  let inert = @aot_candidate_coverage.audit(
     source_identity=identity,
     requirements_digest_sha256=String::make(64, 'a'),
     requirement_count=2,
@@ -103,7 +103,7 @@ test "complete inert and claimed-bindable states remain distinct" {
   } noraise {
     _ => fail("non-bindable candidate claims were promoted")
   }
-  let claimed = audit(
+  let claimed = @aot_candidate_coverage.audit(
     source_identity=identity,
     requirements_digest_sha256=String::make(64, 'a'),
     requirement_count=2,
@@ -122,12 +122,15 @@ test "coverage rejects hostile identity digest ordinal and duplicate evidence" {
   let identity = coverage_identity('3')
   let other = coverage_identity('4')
   let cases : Array[
-    (Array[AotCandidateEvidenceInput], AotCandidateCoverageError),
+    (
+      Array[@aot_candidate_coverage.AotCandidateEvidenceInput],
+      @aot_candidate_coverage.AotCandidateCoverageError,
+    ),
   ] = [
     ([coverage_candidate(other, 0, false)], CandidateIdentityMismatch(0)),
     (
       [
-        try! AotCandidateEvidenceInput::new(
+        try! @aot_candidate_coverage.AotCandidateEvidenceInput::new(
           source_identity=identity,
           requirements_digest_sha256=String::make(64, 'e'),
           requirement_ordinal=0,
@@ -164,7 +167,7 @@ test "coverage rejects hostile identity digest ordinal and duplicate evidence" {
   for entry in cases {
     let (candidates, expected) = entry
     try
-      audit(
+      @aot_candidate_coverage.audit(
         source_identity=identity,
         requirements_digest_sha256=String::make(64, 'a'),
         requirement_count=2,
@@ -185,7 +188,7 @@ test "coverage rejects malformed digests limits and encoding exhaustion" {
   for hostile in [(0, 1, 256), (1, 0, 256), (1, 1, 255), (4097, 1, 256)] {
     let (requirements, candidates, encoding) = hostile
     try
-      AotCandidateCoverageLimits::new(
+      @aot_candidate_coverage.AotCandidateCoverageLimits::new(
         maximum_requirements=requirements,
         maximum_candidates=candidates,
         maximum_encoding_bytes=encoding,
@@ -198,7 +201,7 @@ test "coverage rejects malformed digests limits and encoding exhaustion" {
     }
   }
   try
-    AotCandidateEvidenceInput::new(
+    @aot_candidate_coverage.AotCandidateEvidenceInput::new(
       source_identity=identity,
       requirements_digest_sha256=String::make(64, 'A'),
       requirement_ordinal=0,
@@ -212,13 +215,13 @@ test "coverage rejects malformed digests limits and encoding exhaustion" {
   } noraise {
     _ => fail("uppercase digest was admitted")
   }
-  let malformed_fields : Array[AotCandidateDigestField] = [
+  let malformed_fields : Array[@aot_candidate_coverage.AotCandidateDigestField] = [
     SourceDigest,
     RecipeDigest,
   ]
   for field in malformed_fields {
     try
-      AotCandidateEvidenceInput::new(
+      @aot_candidate_coverage.AotCandidateEvidenceInput::new(
         source_identity=identity,
         requirements_digest_sha256=String::make(64, 'a'),
         requirement_ordinal=0,
@@ -242,7 +245,7 @@ test "coverage rejects malformed digests limits and encoding exhaustion" {
     }
   }
   try
-    audit(
+    @aot_candidate_coverage.audit(
       source_identity=identity,
       requirements_digest_sha256=String::make(64, 'a'),
       requirement_count=0,
@@ -256,7 +259,7 @@ test "coverage rejects malformed digests limits and encoding exhaustion" {
     _ => fail("invalid requirement count was admitted")
   }
   try
-    audit(
+    @aot_candidate_coverage.audit(
       source_identity=identity,
       requirements_digest_sha256=String::make(64, 'a'),
       requirement_count=2,
@@ -273,7 +276,7 @@ test "coverage rejects malformed digests limits and encoding exhaustion" {
     _ => fail("candidate ceiling was bypassed")
   }
   try
-    audit(
+    @aot_candidate_coverage.audit(
       source_identity=identity,
       requirements_digest_sha256=String::make(64, 'a'),
       requirement_count=2,

@@ -21,18 +21,15 @@ pub fn window_compressed_kv_source(
   let slots = plan.selected_width()
   // CUDA's default static shared limit is 48 KiB. This implementation keeps
   // scores and a denominator there; the pure read-set plan has no such cap.
-  guard plan.window().accumulation_law() ==
-    @precision.AttentionAccumulationLaw::TiledFloat32 ||
+  guard plan.window().accumulation_law() == TiledFloat32 ||
     (window.to_int64() + slots.to_int64()) * 4L + 4L <= 49152L else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
-  if plan.window().accumulation_law() ==
-    @precision.AttentionAccumulationLaw::TiledFloat32 &&
+  if plan.window().accumulation_law() == TiledFloat32 &&
     !(plan.window().probability_law() is OnlineBf16(block_tokens=_)) {
     raise @precision.PrecisionPlanError::NoImplementation
   }
-  let learned = plan.read_set()
-    is @precision.CompressedRowReadSet::Learned(top_k=_)
+  let learned = plan.read_set() is Learned(top_k=_)
   let selected_length = if learned {
     "selected_counts[row]"
   } else {
@@ -202,8 +199,7 @@ pub fn WindowCompressedKvCudaSource::launch(
   let (heads, _, window, rows, _) = self.plan.window().geometry()
   match stage {
     1 =>
-      if self.plan.window().accumulation_law() ==
-        @precision.AttentionAccumulationLaw::TiledFloat32 {
+      if self.plan.window().accumulation_law() == TiledFloat32 {
         (rows, (heads + 15) / 16, 256)
       } else {
         (rows, heads, 128)

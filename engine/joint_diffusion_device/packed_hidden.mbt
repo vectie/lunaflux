@@ -14,7 +14,7 @@ pub fn PackedHidden::allocate(
   plan : @packed_rows_plan.Plan,
 ) -> Self raise @device.DeviceError {
   guard plan.element_count() <= 2147483647L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let output_bytes = plan.element_count() * 2L
   let mapping_offset = output_bytes + (256L - output_bytes % 256L) % 256L
@@ -88,7 +88,7 @@ pub fn PackedHidden::launch(
     let shape = projections.plan.shape(latent)
     guard shape.rows == self.plan.input_rows(source).to_int64() &&
       shape.output_width == self.plan.width() else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
   }
   let condition_rows = self.plan.input_rows(Conditioning)
@@ -97,7 +97,7 @@ pub fn PackedHidden::launch(
     self.output_argument()
   } else {
     guard conditioning is Some(allocation) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     @device.KernelArgument::device_region(
       allocation,

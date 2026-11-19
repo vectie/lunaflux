@@ -121,8 +121,8 @@ fn sampling_test_compiler(
 }
 
 ///|
-fn sampling_test_limits() -> GreedySamplingAotLimits {
-  try! GreedySamplingAotLimits::new(
+fn sampling_test_limits() -> @luna_cuda_sampling_aot.GreedySamplingAotLimits {
+  try! @luna_cuda_sampling_aot.GreedySamplingAotLimits::new(
     max_source_bytes=16384,
     max_recipe_bytes=4096,
     max_module_bytes=65536L,
@@ -134,14 +134,14 @@ test "greedy AOT lowering is closed, bounded, and deterministic" {
   let boundary = @luna_cuda_sampling_aot.admit_host_sampling_boundary(
     fixture_plan(true),
   )
-  let first = lower_greedy_sampling_cuda_aot(
+  let first = @luna_cuda_sampling_aot.lower_greedy_sampling_cuda_aot(
     boundary,
     sampling_test_target(),
     sampling_test_compiler(),
     2,
     sampling_test_limits(),
   )
-  let second = lower_greedy_sampling_cuda_aot(
+  let second = @luna_cuda_sampling_aot.lower_greedy_sampling_cuda_aot(
     boundary,
     sampling_test_target(),
     sampling_test_compiler(),
@@ -166,7 +166,7 @@ test "greedy AOT rejects reassociation and nondeterministic output" {
     fixture_plan(true),
   )
   try
-    lower_greedy_sampling_cuda_aot(
+    @luna_cuda_sampling_aot.lower_greedy_sampling_cuda_aot(
       boundary,
       sampling_test_target(),
       sampling_test_compiler(reassociate=true),
@@ -179,7 +179,7 @@ test "greedy AOT rejects reassociation and nondeterministic output" {
   } noraise {
     _ => fail("reassociating compiler policy was admitted")
   }
-  let lowering = lower_greedy_sampling_cuda_aot(
+  let lowering = @luna_cuda_sampling_aot.lower_greedy_sampling_cuda_aot(
     boundary,
     sampling_test_target(),
     sampling_test_compiler(),
@@ -188,7 +188,7 @@ test "greedy AOT rejects reassociation and nondeterministic output" {
   )
   let first = b"first-cubin"
   let second = b"second-cubin"
-  let receipt = GreedySamplingCompileReceipt::from_offline_builder(
+  let receipt = @luna_cuda_sampling_aot.GreedySamplingCompileReceipt::from_offline_builder(
     source_sha256=lowering.source_sha256(),
     recipe_sha256=lowering.recipe_sha256(),
     toolchain_sha256="2".repeat(64),
@@ -197,7 +197,7 @@ test "greedy AOT rejects reassociation and nondeterministic output" {
     second_module_sha256=@crypto.bytes_to_hex_string(@crypto.sha256(second)),
   )
   try
-    admit_greedy_sampling_cuda_artifact(
+    @luna_cuda_sampling_aot.admit_greedy_sampling_cuda_artifact(
       lowering,
       first,
       second,

@@ -123,14 +123,14 @@ test "Full and Flash expert-bank plans bind manifest layouts to exact candidates
     flash_manifest,
     layer_index=3,
   )
-  let full = join_moe_expert_bank_candidates(
+  let full = @glm53_moe_expert_bank_plan.join_moe_expert_bank_candidates(
     full_manifest,
     full_layout,
     full_routed,
     full_shared,
     expected_layer_index=3,
   )
-  let flash = join_moe_expert_bank_candidates(
+  let flash = @glm53_moe_expert_bank_plan.join_moe_expert_bank_candidates(
     flash_manifest,
     flash_layout,
     flash_routed,
@@ -171,7 +171,7 @@ test "expert-bank join rejects wrong layer manifest identity-digest and profile"
     layer_index=3,
   )
   try
-    join_moe_expert_bank_candidates(
+    @glm53_moe_expert_bank_plan.join_moe_expert_bank_candidates(
       manifest,
       layout,
       routed,
@@ -191,7 +191,7 @@ test "expert-bank join rejects wrong layer manifest identity-digest and profile"
     BFloat16WithFloat32Routing,
   )
   try
-    join_moe_expert_bank_candidates(
+    @glm53_moe_expert_bank_plan.join_moe_expert_bank_candidates(
       foreign_manifest,
       layout,
       routed,
@@ -210,7 +210,7 @@ test "expert-bank join rejects wrong layer manifest identity-digest and profile"
     BFloat16WithFloat32Routing,
   )
   try
-    join_moe_expert_bank_candidates(
+    @glm53_moe_expert_bank_plan.join_moe_expert_bank_candidates(
       flash_manifest,
       layout,
       routed,

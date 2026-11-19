@@ -6,7 +6,7 @@ fn diagnostic_device(
   minor : Int32,
   memory : Int64,
   bf16 : Bool,
-) -> PhysicalTopologyDeviceObservation raise {
+) -> @physical_topology_diagnostic.PhysicalTopologyDeviceObservation raise {
   @physical_topology_diagnostic.PhysicalTopologyDeviceObservation::new(
     ordinal~,
     name~,
@@ -25,7 +25,7 @@ fn diagnostic_collective(
   availability : @device.TensorCollectiveRuntimeAvailability,
   version : Int32,
   admitted : Int32,
-) -> PhysicalCollectiveObservation raise {
+) -> @physical_topology_diagnostic.PhysicalCollectiveObservation raise {
   @physical_topology_diagnostic.PhysicalCollectiveObservation::new(
     availability~,
     version_code=version,
@@ -39,7 +39,7 @@ fn diagnostic_peers(
   right : Int32,
   forward : Bool,
   reverse : Bool,
-) -> Array[PhysicalPeerObservation] raise {
+) -> Array[@physical_topology_diagnostic.PhysicalPeerObservation] raise {
   [
     @physical_topology_diagnostic.PhysicalPeerObservation::new(
       source_ordinal=left,

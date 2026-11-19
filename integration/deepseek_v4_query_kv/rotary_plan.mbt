@@ -10,9 +10,9 @@ fn rotary_frequency_policy(
     raise @precision.PrecisionPlanError::IllegalPlacement
   }
   match spec.compression_ratio(layer) {
-    Some(0) => @precision.RotaryFrequency::Base(theta=spec.rope_theta())
+    Some(0) => Base(theta=spec.rope_theta())
     Some(_) =>
-      @precision.RotaryFrequency::Yarn(
+      Yarn(
         theta=spec.compressed_rope_theta(),
         original_positions=spec.original_position_embeddings(),
         factor=spec.rope_scaling_factor(),

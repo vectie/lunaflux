@@ -27,7 +27,7 @@ pub fn ChunkDeltaPlan::new(
     values <= 256 &&
     maximum_workspace_bytes > 0L &&
     maximum_local_storage_bytes >= 0 else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   // Six normalized/decayed operand planes; causal L, QK, inverse;
   // transformed values and incoming-state output projection.
@@ -38,7 +38,7 @@ pub fn ChunkDeltaPlan::new(
   guard heads.to_int64() <= 9223372036854775807L / sequences.to_int64() &&
     heads.to_int64() * sequences.to_int64() <=
     maximum_workspace_bytes / (per_head * 4L) else {
-    raise @precision.PrecisionPlanError::MemoryBudgetExceeded
+    raise MemoryBudgetExceeded
   }
   let local_bytes = 8 * keys * (rows + 1) + 8 * rows * (rows + 1) + 8 * rows
   {

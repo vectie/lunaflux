@@ -7,7 +7,7 @@ priv struct Builder {
 
 ///|
 fn Builder::new() -> Self {
-  { source: StringBuilder::new(), entries: [], stages: [], }
+  { source: StringBuilder(), entries: [], stages: [], }
 }
 
 ///|

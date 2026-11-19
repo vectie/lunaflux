@@ -1,6 +1,6 @@
 ///|
 test "block FP8 UE8M0 source fixes official block geometry and arithmetic" {
-  let rendered = block_fp8_ue8m0_projection_cuda_source(
+  let rendered = @block_fp8_ue8m0_projection_cuda_source.block_fp8_ue8m0_projection_cuda_source(
     input_width=256,
     output_width=128,
     maximum_rows=3,
@@ -10,7 +10,7 @@ test "block FP8 UE8M0 source fixes official block geometry and arithmetic" {
   let source = @utf8.decode(rendered.source_bytes())
   // CUDA_VERSION belongs to the driver header, not cuda_runtime.h. The
   // generated source must compile standalone or in a runtime-only consumer.
-  assert_true(source.starts_with("#include <cuda.h>\n"))
+  assert_true(source.has_prefix("#include <cuda.h>\n"))
   assert_true(source.contains("CUDA_VERSION < 12080"))
   assert_true(source.contains("__nv_fp8_e8m0"))
   assert_true(source.contains("maximum = 0.0001f"))
@@ -25,7 +25,7 @@ test "block FP8 UE8M0 source fixes official block geometry and arithmetic" {
 ///|
 test "block FP8 UE8M0 source rejects hostile geometry and symbol" {
   try
-    block_fp8_ue8m0_projection_cuda_source(
+    @block_fp8_ue8m0_projection_cuda_source.block_fp8_ue8m0_projection_cuda_source(
       input_width=129,
       output_width=128,
       maximum_rows=1,
@@ -38,7 +38,7 @@ test "block FP8 UE8M0 source rejects hostile geometry and symbol" {
     _ => fail("unaligned input width admitted")
   }
   try
-    block_fp8_ue8m0_projection_cuda_source(
+    @block_fp8_ue8m0_projection_cuda_source.block_fp8_ue8m0_projection_cuda_source(
       input_width=128,
       output_width=128,
       maximum_rows=1,

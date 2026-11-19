@@ -9,7 +9,7 @@ test "resource observation parser enforces scope bounds identity and valid measu
   let prefix = "luna-projection-resources-v1\nscope\tgpu-a\ttool-v1\tbf16:rows32:head128\tingress-v1\nbudget\t128\t49152\t128\t1\n"
   let digest = "a".repeat(64)
   let record = "record\tcompact\t\{digest}\t100\t5\t64\t2\n"
-  let records = parse_projection_resource_records(
+  let records = @luna_projection_tuning.parse_projection_resource_records(
     @utf8.encode(prefix + record),
     scope~,
   )
@@ -24,7 +24,7 @@ test "resource observation parser enforces scope bounds identity and valid measu
       "record\tcompact\tbad\t100\t5\t64\t2\n",
     ] {
     try
-      parse_projection_resource_records(
+      @luna_projection_tuning.parse_projection_resource_records(
         @utf8.encode(prefix + malformed),
         scope~,
       )
@@ -42,7 +42,7 @@ test "resource observation parser enforces scope bounds identity and valid measu
     program="ingress-v1",
   ).unwrap()
   try
-    parse_projection_resource_records(
+    @luna_projection_tuning.parse_projection_resource_records(
       @utf8.encode(prefix + record),
       scope=wrong,
     )
@@ -69,8 +69,11 @@ test "machine feedback v3 is consumed by resource selection not just retained" {
     prefix +
     "record\tfast-spilling\t\{a}\t80\t5\t64\t2\t900\t16\t20\nrecord\tclean\t\{b}\t100\t5\t64\t2\t1000\t0\t100\n",
   )
-  let observations = parse_projection_resource_records(bytes, scope~)
-  let budget = parse_projection_resource_budget(bytes)
+  let observations = @luna_projection_tuning.parse_projection_resource_records(
+    bytes,
+    scope~,
+  )
+  let budget = @luna_projection_tuning.parse_projection_resource_budget(bytes)
   let candidates = [
     @resource_policy.Candidate::new(
       @resource_policy.Policy::new(
@@ -104,7 +107,7 @@ test "machine feedback v3 is consumed by resource selection not just retained" {
     ).unwrap(),
   ]
   let chosen = @resource_policy.select(
-    projection_resource_selection_scope(bytes, scope~),
+    @luna_projection_tuning.projection_resource_selection_scope(bytes, scope~),
     budget,
     candidates,
     observations[:],
@@ -114,7 +117,7 @@ test "machine feedback v3 is consumed by resource selection not just retained" {
   // Removing feedback must not permit an optimistic, unmeasured bypass.
   assert_eq(
     @resource_policy.select(
-      projection_resource_selection_scope(bytes, scope~),
+      @luna_projection_tuning.projection_resource_selection_scope(bytes, scope~),
       budget,
       candidates,
       [],
@@ -138,18 +141,27 @@ test "workload v2 separates provenance from class and rejects mixed objectives" 
   let a = @utf8.encode(prefix + workload + "provenance\tGPU-a\n" + record)
   let b = @utf8.encode(prefix + workload + "provenance\tGPU-b\n" + record)
   assert_eq(
-    parse_projection_resource_records(a, scope~),
-    parse_projection_resource_records(b, scope~),
+    @luna_projection_tuning.parse_projection_resource_records(a, scope~),
+    @luna_projection_tuning.parse_projection_resource_records(b, scope~),
   )
-  let selected = projection_resource_selection_scope(a, scope~)
+  let selected = @luna_projection_tuning.projection_resource_selection_scope(
+    a,
+    scope~,
+  )
   assert_true(selected != scope)
-  assert_eq(selected, projection_resource_selection_scope(b, scope~))
+  assert_eq(
+    selected,
+    @luna_projection_tuning.projection_resource_selection_scope(b, scope~),
+  )
   let other = @utf8.encode(
     prefix +
     "workload\tprefill\t128\t1\t0\t2048\t32\nprovenance\tGPU-a\n" +
     record,
   )
-  assert_true(selected != projection_resource_selection_scope(other, scope~))
+  assert_true(
+    selected !=
+    @luna_projection_tuning.projection_resource_selection_scope(other, scope~),
+  )
   for
     invalid in [
       prefix + workload + "provenance\tGPU-a\n" + workload + record,
@@ -157,7 +169,12 @@ test "workload v2 separates provenance from class and rejects mixed objectives" 
       "workload\tdecode\t128\t1\t0\t128\t32\nprovenance\tGPU-a\n" +
       record,
     ] {
-    try parse_projection_resource_records(@utf8.encode(invalid), scope~) catch {
+    try
+      @luna_projection_tuning.parse_projection_resource_records(
+        @utf8.encode(invalid),
+        scope~,
+      )
+    catch {
       InvalidSnapshot => ()
       _ => fail("wrong error")
     } noraise {

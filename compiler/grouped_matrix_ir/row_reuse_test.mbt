@@ -19,7 +19,7 @@ test "row reuse covers tails and shares only compatible scratch" {
       law=MatrixFloat32,
     )
     try @grouped_matrix_ir.SegmentedMatrixPlan::new([p, old]) catch {
-      @precision.PrecisionPlanError::IllegalPlacement => ()
+      IllegalPlacement => ()
       _ => fail("wrong scratch mismatch error")
     } noraise {
       _ => fail("mixed ownership admitted")
@@ -48,7 +48,7 @@ test "unsupported ownership and copy combinations reject" {
         staging~,
       )
     catch {
-      @precision.PrecisionPlanError::NoImplementation => ()
+      NoImplementation => ()
       _ => fail("wrong unsupported schedule error")
     } noraise {
       _ => fail("unsupported schedule accepted")

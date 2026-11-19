@@ -54,8 +54,16 @@ test "FP8 v1 and v2 full-token head fixtures own complete output storage" {
   }
   for
     operands in [
-      derive_fp8_projection_operands(v1_plan, operation=head, profile),
-      derive_fp8_projection_operands_v2(v2_plan, operation=head, profile),
+      @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
+        v1_plan,
+        operation=head,
+        profile,
+      ),
+      @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(
+        v2_plan,
+        operation=head,
+        profile,
+      ),
     ] {
     assert_eq(operands.length(), 6)
     assert_eq(operands[0].role(), RuntimeInput(StepCounts))
@@ -73,7 +81,7 @@ test "FP8 v1 and v2 full-token head fixtures own complete output storage" {
 test "current selected-row FP8 heads reject rather than shift full-token operands" {
   let head = @plan.OperationId::new(11)
   let profile = fp8_aot_profile()
-  let limits = Fp8ProjectionAotLimits::new(
+  let limits = @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
     max_source_bytes=65536,
     max_recipe_bytes=65536,
   )
@@ -89,30 +97,42 @@ test "current selected-row FP8 heads reject rather than shift full-token operand
       fp8_full_token_head_fixture(plan).identity().plan(),
     )
   }
-  try derive_fp8_projection_operands(v1, operation=head, profile) catch {
+  try
+    @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
+      v1,
+      operation=head,
+      profile,
+    )
+  catch {
     Mismatch(Operation) => ()
     _ => fail("unexpected v1 selected-row rejection")
   } noraise {
     _ => fail("v1 selected-row head was silently admitted")
   }
-  try derive_fp8_projection_operands_v2(v2, operation=head, profile) catch {
+  try
+    @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(
+      v2,
+      operation=head,
+      profile,
+    )
+  catch {
     Mismatch(Operation) => ()
     _ => fail("unexpected v2 selected-row rejection")
   } noraise {
     _ => fail("v2 selected-row head was silently admitted")
   }
-  let v1_operands = derive_fp8_projection_operands(
+  let v1_operands = @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
     fp8_full_token_head_fixture(v1),
     operation=head,
     profile,
   )
-  let v2_operands = derive_fp8_projection_operands_v2(
+  let v2_operands = @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(
     fp8_full_token_head_fixture(v2),
     operation=head,
     profile,
   )
   try
-    lower_fp8_projection_cuda_aot_candidate(
+    @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate(
       v1,
       operation=head,
       profile,
@@ -128,7 +148,7 @@ test "current selected-row FP8 heads reject rather than shift full-token operand
     _ => fail("v1 shifted head ABI was emitted")
   }
   try
-    lower_fp8_projection_cuda_aot_candidate_v2(
+    @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate_v2(
       v2,
       operation=head,
       profile,

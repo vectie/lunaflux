@@ -22,27 +22,36 @@ pub(all) suberror DeviceProfileError {
   SizeOverflow(@plan.OperationId)
   TokenSizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn DeviceProfileError::equal(Self, Self) -> Bool
+pub fn DeviceProfileError::not_equal(Self, Self) -> Bool
+pub fn DeviceProfileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ActivationValueView {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ActivationValueView::equal(Self, Self) -> Bool
+pub fn ActivationValueView::not_equal(Self, Self) -> Bool
 pub fn ActivationValueView::reference(Self) -> @plan.ActivationRef
 pub fn ActivationValueView::region(Self) -> ExecutionRegionView
+pub fn ActivationValueView::to_repr(Self) -> @debug.Repr
 pub fn ActivationValueView::token_rows(Self) -> Int64
 pub fn ActivationValueView::width(Self) -> Int64
 
 pub struct DeviceExecutionProfile {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeviceExecutionProfile::equal(Self, Self) -> Bool
 pub fn DeviceExecutionProfile::final_output(Self) -> FinalOutputView
 pub fn DeviceExecutionProfile::identity(Self) -> @spec.ModelIdentity
+pub fn DeviceExecutionProfile::not_equal(Self, Self) -> Bool
 pub fn DeviceExecutionProfile::operation(Self, @plan.OperationId) -> OperationExecutionProfile?
 pub fn DeviceExecutionProfile::operation_count(Self) -> Int
 pub fn DeviceExecutionProfile::region(Self, ProfileRegionId) -> ExecutionRegionView?
 pub fn DeviceExecutionProfile::region_count(Self) -> Int
 pub fn DeviceExecutionProfile::shape(Self) -> ExactExecutionShape
 pub fn DeviceExecutionProfile::target(Self) -> @catalog.DeviceTarget
+pub fn DeviceExecutionProfile::to_repr(Self) -> @debug.Repr
 pub fn DeviceExecutionProfile::token_staging(Self) -> ExecutionRegionView
 pub fn DeviceExecutionProfile::token_staging_capacity_bytes(Self) -> Int64
 
@@ -51,18 +60,24 @@ pub struct ExactExecutionShape {
 } derive(Eq, @debug.Debug)
 pub fn ExactExecutionShape::batch_rows(Self) -> Int
 pub fn ExactExecutionShape::context_tokens(Self) -> Int
+pub fn ExactExecutionShape::equal(Self, Self) -> Bool
 pub fn ExactExecutionShape::full_prefill(batch_rows~ : Int, sequence_tokens~ : Int) -> Self raise DeviceProfileError
 pub fn ExactExecutionShape::full_recompute(batch_rows~ : Int, sequence_tokens~ : Int) -> Self raise DeviceProfileError
 pub fn ExactExecutionShape::kernel_shape(Self) -> ExactKernelShape
+pub fn ExactExecutionShape::not_equal(Self, Self) -> Bool
 pub fn ExactExecutionShape::phase(Self) -> ExecutionPhase
 pub fn ExactExecutionShape::query_tokens_per_row(Self) -> Int
+pub fn ExactExecutionShape::to_repr(Self) -> @debug.Repr
 pub fn ExactExecutionShape::token_rows(Self) -> Int64
 
 pub struct ExactKernelShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ExactKernelShape::batch_rows(Self) -> Int
+pub fn ExactKernelShape::equal(Self, Self) -> Bool
+pub fn ExactKernelShape::not_equal(Self, Self) -> Bool
 pub fn ExactKernelShape::sequence_tokens(Self) -> Int
+pub fn ExactKernelShape::to_repr(Self) -> @debug.Repr
 pub fn ExactKernelShape::token_rows(Self) -> Int64
 
 pub(all) enum ExecutionBufferSpace {
@@ -70,35 +85,50 @@ pub(all) enum ExecutionBufferSpace {
   WeightArena
   ActivationWorkspaceArena
 } derive(Eq, @debug.Debug)
+pub fn ExecutionBufferSpace::equal(Self, Self) -> Bool
+pub fn ExecutionBufferSpace::not_equal(Self, Self) -> Bool
+pub fn ExecutionBufferSpace::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutionPhase {
   FullPrefill
   FullRecompute
 } derive(Eq, @debug.Debug)
 pub fn ExecutionPhase::as_stable_int(Self) -> Int
+pub fn ExecutionPhase::equal(Self, Self) -> Bool
+pub fn ExecutionPhase::not_equal(Self, Self) -> Bool
+pub fn ExecutionPhase::to_repr(Self) -> @debug.Repr
 
 pub struct ExecutionRegionView {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ExecutionRegionView::alignment_bytes(Self) -> Int64
 pub fn ExecutionRegionView::end_offset_bytes(Self) -> Int64
+pub fn ExecutionRegionView::equal(Self, Self) -> Bool
 pub fn ExecutionRegionView::id(Self) -> ProfileRegionId
 pub fn ExecutionRegionView::logical_bytes(Self) -> Int64
+pub fn ExecutionRegionView::not_equal(Self, Self) -> Bool
 pub fn ExecutionRegionView::offset_bytes(Self) -> Int64
 pub fn ExecutionRegionView::reserved_bytes(Self) -> Int64
 pub fn ExecutionRegionView::space(Self) -> ExecutionBufferSpace
+pub fn ExecutionRegionView::to_repr(Self) -> @debug.Repr
 
 pub(all) enum FinalOutputSemantics {
   LanguageModelLogits
   ActivationOutput
 } derive(Eq, @debug.Debug)
+pub fn FinalOutputSemantics::equal(Self, Self) -> Bool
+pub fn FinalOutputSemantics::not_equal(Self, Self) -> Bool
+pub fn FinalOutputSemantics::to_repr(Self) -> @debug.Repr
 
 pub struct FinalOutputView {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn FinalOutputView::equal(Self, Self) -> Bool
+pub fn FinalOutputView::not_equal(Self, Self) -> Bool
 pub fn FinalOutputView::row_bytes(Self) -> Int64
 pub fn FinalOutputView::selected_rows(Self) -> ReadOnlyArray[FinalRowView]
 pub fn FinalOutputView::semantics(Self) -> FinalOutputSemantics
+pub fn FinalOutputView::to_repr(Self) -> @debug.Repr
 pub fn FinalOutputView::value(Self) -> ActivationValueView
 
 pub struct FinalRowView {
@@ -109,15 +139,21 @@ pub fn FinalRowView::backing_region(Self) -> ProfileRegionId
 pub fn FinalRowView::batch_index(Self) -> Int
 pub fn FinalRowView::byte_length(Self) -> Int64
 pub fn FinalRowView::end_offset_bytes(Self) -> Int64
+pub fn FinalRowView::equal(Self, Self) -> Bool
+pub fn FinalRowView::not_equal(Self, Self) -> Bool
 pub fn FinalRowView::offset_bytes(Self) -> Int64
+pub fn FinalRowView::to_repr(Self) -> @debug.Repr
 
 pub struct OperationExecutionProfile {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn OperationExecutionProfile::equal(Self, Self) -> Bool
 pub fn OperationExecutionProfile::inputs(Self) -> ReadOnlyArray[OperationInputView]
 pub fn OperationExecutionProfile::kernel_shape(Self) -> ExactKernelShape
+pub fn OperationExecutionProfile::not_equal(Self, Self) -> Bool
 pub fn OperationExecutionProfile::operation_id(Self) -> @plan.OperationId
 pub fn OperationExecutionProfile::outputs(Self) -> ReadOnlyArray[ActivationValueView]
+pub fn OperationExecutionProfile::to_repr(Self) -> @debug.Repr
 pub fn OperationExecutionProfile::workspace(Self) -> ExecutionRegionView
 
 pub(all) enum OperationInputView {
@@ -125,6 +161,9 @@ pub(all) enum OperationInputView {
   Weight(@plan.TensorRef, ExecutionRegionView)
   Activation(ActivationValueView)
 } derive(Eq, @debug.Debug)
+pub fn OperationInputView::equal(Self, Self) -> Bool
+pub fn OperationInputView::not_equal(Self, Self) -> Bool
+pub fn OperationInputView::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProfileOperationRule {
   OutputArity
@@ -137,6 +176,9 @@ pub(all) enum ProfileOperationRule {
   MemoryBinding
   Workspace
 } derive(Eq, @debug.Debug)
+pub fn ProfileOperationRule::equal(Self, Self) -> Bool
+pub fn ProfileOperationRule::not_equal(Self, Self) -> Bool
+pub fn ProfileOperationRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProfilePlanRule {
   Identity
@@ -150,12 +192,18 @@ pub(all) enum ProfilePlanRule {
   FinalOutput
   Workspace
 } derive(Eq, @debug.Debug)
+pub fn ProfilePlanRule::equal(Self, Self) -> Bool
+pub fn ProfilePlanRule::not_equal(Self, Self) -> Bool
+pub fn ProfilePlanRule::to_repr(Self) -> @debug.Repr
 
 pub struct ProfileRegionId {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProfileRegionId::as_int(Self) -> Int
+pub fn ProfileRegionId::equal(Self, Self) -> Bool
 pub fn ProfileRegionId::from_stable_int(Int) -> Self raise DeviceProfileError
+pub fn ProfileRegionId::not_equal(Self, Self) -> Bool
+pub fn ProfileRegionId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProfileRegionRule {
   Missing
@@ -168,6 +216,9 @@ pub(all) enum ProfileRegionRule {
   OutsideArena
   IdentifierOverflow
 } derive(Eq, @debug.Debug)
+pub fn ProfileRegionRule::equal(Self, Self) -> Bool
+pub fn ProfileRegionRule::not_equal(Self, Self) -> Bool
+pub fn ProfileRegionRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProfileShapeRule {
   NonPositiveBatchRows
@@ -176,6 +227,9 @@ pub(all) enum ProfileShapeRule {
   QueryExceedsEnvelope
   TokenRowOverflow
 } derive(Eq, @debug.Debug)
+pub fn ProfileShapeRule::equal(Self, Self) -> Bool
+pub fn ProfileShapeRule::not_equal(Self, Self) -> Bool
+pub fn ProfileShapeRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

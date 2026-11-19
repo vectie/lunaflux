@@ -37,7 +37,7 @@ pub fn EncoderRequest::new(
 ) -> Self raise @device.DeviceError {
   guard source.plan.epsilon == config.epsilon &&
     source.plan.rows <= config.max_positions else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   {
     source,
@@ -185,7 +185,7 @@ fn EncoderRequest::prepare_execution(
 ///|
 pub fn EncoderRequest::submit(self : Self) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   let phase = self.phase
   self.phase = Failed
@@ -203,7 +203,7 @@ pub fn EncoderRequest::poll(self : Self) -> Bool raise @device.DeviceError {
     return true
   }
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   let previous = self.phase
   self.phase = Failed
@@ -218,7 +218,7 @@ pub fn EncoderRequest::wait(self : Self) -> Unit raise @device.DeviceError {
     return
   }
   guard self.phase == Submitted && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorWait)
+    raise InvalidArgument(OrderedExecutorWait)
   }
   self.phase = Failed
   queue.wait_completion()
@@ -246,7 +246,7 @@ pub fn[T] EncoderRequest::with_output(
   consume : (@device.Allocation, Int64) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Complete && !self.allocations.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(self.allocations[0], 0L)
 }
@@ -259,7 +259,7 @@ pub fn[T] EncoderRequest::with_destination(
   consume : (@device.Allocation, Int64) -> T raise @device.DeviceError,
 ) -> T raise @device.DeviceError {
   guard self.phase == Prepared && !self.allocations.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   consume(self.allocations[0], 0L)
 }

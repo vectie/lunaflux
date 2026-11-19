@@ -14,7 +14,7 @@ fn expert_score_ordinal(
 test "sqrt-softplus expert scores lower with exact deterministic F32 ABI" {
   let requirements = aot_test_requirements(score_function=SqrtSoftplus)
   let ordinal = expert_score_ordinal(requirements)
-  let candidate = lower_expert_score_transform_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_expert_score_transform_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -60,7 +60,7 @@ test "sqrt-softplus expert scores lower with exact deterministic F32 ABI" {
       #|1ca890c6b54cc9e22fefe96056746d5072bbc0f46004bd3746dfcc533ff84be1
     ),
   )
-  let repeated = lower_expert_score_transform_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_expert_score_transform_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -77,7 +77,7 @@ test "expert-score lowering rejects adjacent semantics and hostile policies" {
   let sqrt_requirements = aot_test_requirements(score_function=SqrtSoftplus)
   let ordinal = expert_score_ordinal(sqrt_requirements)
   try
-    lower_expert_score_transform_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_expert_score_transform_cuda_aot_candidate(
       sqrt_requirements,
       requirement_ordinal=0,
       maximum_tokens=1,
@@ -93,7 +93,7 @@ test "expert-score lowering rejects adjacent semantics and hostile policies" {
   }
   let sigmoid_requirements = aot_test_requirements()
   try
-    lower_expert_score_transform_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_expert_score_transform_cuda_aot_candidate(
       sigmoid_requirements,
       requirement_ordinal=expert_score_ordinal(sigmoid_requirements),
       maximum_tokens=1,
@@ -108,7 +108,7 @@ test "expert-score lowering rejects adjacent semantics and hostile policies" {
     _ => fail("unsupported sigmoid score transform was weakened")
   }
   try
-    lower_expert_score_transform_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_expert_score_transform_cuda_aot_candidate(
       sqrt_requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -123,7 +123,7 @@ test "expert-score lowering rejects adjacent semantics and hostile policies" {
     _ => fail("non-BF16 advanced-decoder target was admitted")
   }
   try
-    lower_expert_score_transform_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_expert_score_transform_cuda_aot_candidate(
       sqrt_requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -138,7 +138,7 @@ test "expert-score lowering rejects adjacent semantics and hostile policies" {
     _ => fail("reassociating compiler policy was admitted")
   }
   try
-    lower_expert_score_transform_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_expert_score_transform_cuda_aot_candidate(
       sqrt_requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=4097,

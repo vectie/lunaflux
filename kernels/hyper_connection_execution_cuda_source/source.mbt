@@ -223,7 +223,7 @@ pub fn HyperConnectionCudaSource::symbol(
     6 if self.post_square => "post_square"
     7 if self.control_schedule is Some(Tree(_)) => "tail_function_tree_tiles_v1"
     8 if self.deferred => "deferred_post_pre"
-    _ => raise @precision.PrecisionPlanError::IllegalPlacement
+    _ => raise IllegalPlacement
   }
   self.prefix + "_" + suffix
 }

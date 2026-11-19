@@ -11,8 +11,7 @@ pub fn online_window_attention_source(
   setup~ : String,
   lookup~ : String,
 ) -> Bytes raise {
-  if plan.accumulation_law() ==
-    @precision.AttentionAccumulationLaw::TiledFloat32 {
+  if plan.accumulation_law() == TiledFloat32 {
     return matrix_window_attention_source(
       plan,
       symbol_prefix~,

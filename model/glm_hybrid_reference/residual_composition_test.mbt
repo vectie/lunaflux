@@ -1,13 +1,13 @@
 ///|
 test "outer residual composition preserves plain and transposed hyper ordering" {
-  let limits = try! GlmHybridReferenceLimits::new(
+  let limits = try! @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=4,
     maximum_head_count=4,
     maximum_head_dimension=4,
     maximum_channel_count=8,
     maximum_vision_patch_count=4,
   )
-  let plain = try! moe_decoder_residual_add(
+  let plain = try! @glm_hybrid_reference.moe_decoder_residual_add(
     [1.0, 2.0],
     [3.0, 4.0],
     row_count=1,
@@ -15,7 +15,7 @@ test "outer residual composition preserves plain and transposed hyper ordering" 
     limits~,
   )
   assert_eq(plain.values(), [4.0, 6.0])
-  let mixed = try! hyper_connection_residual_mix(
+  let mixed = try! @glm_hybrid_reference.hyper_connection_residual_mix(
     [2.0, 4.0],
     [1.0, 2.0, 3.0, 4.0],
     [10.0, 20.0],
@@ -30,7 +30,7 @@ test "outer residual composition preserves plain and transposed hyper ordering" 
 
 ///|
 test "hyper composition rejects mismatched controls" {
-  let limits = try! GlmHybridReferenceLimits::new(
+  let limits = try! @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=4,
     maximum_head_count=4,
     maximum_head_dimension=4,
@@ -38,7 +38,7 @@ test "hyper composition rejects mismatched controls" {
     maximum_vision_patch_count=4,
   )
   try
-    hyper_connection_residual_mix(
+    @glm_hybrid_reference.hyper_connection_residual_mix(
       [1.0],
       [1.0],
       [1.0, 2.0],

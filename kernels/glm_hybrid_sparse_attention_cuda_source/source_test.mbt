@@ -1,6 +1,6 @@
 ///|
 test "selected-index sparse attention source fixes gather and numeric semantics" {
-  let source = selected_index_sparse_attention_bf16_source(
+  let source = @glm_hybrid_sparse_attention_cuda_source.selected_index_sparse_attention_bf16_source(
     query_head_count=64,
     key_value_head_count=64,
     query_key_dimension=256,
@@ -25,7 +25,7 @@ test "selected-index sparse attention source fixes gather and numeric semantics"
 ///|
 test "sparse attention renderer rejects invalid GQA and size overflow" {
   try
-    selected_index_sparse_attention_bf16_source(
+    @glm_hybrid_sparse_attention_cuda_source.selected_index_sparse_attention_bf16_source(
       query_head_count=63,
       key_value_head_count=32,
       query_key_dimension=256,
@@ -41,7 +41,7 @@ test "sparse attention renderer rejects invalid GQA and size overflow" {
     _ => fail("nondivisible GQA admitted")
   }
   try
-    selected_index_sparse_attention_bf16_source(
+    @glm_hybrid_sparse_attention_cuda_source.selected_index_sparse_attention_bf16_source(
       query_head_count=1024,
       key_value_head_count=1,
       query_key_dimension=65536,

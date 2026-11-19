@@ -12,8 +12,7 @@ pub fn dot_accumulator_source(
     [accumulator, "product"],
   )
   match law {
-    StripedTreeFloat32(_) | GroupedVectorFloat32(..) =>
-      raise @precision.PrecisionPlanError::NoImplementation
+    StripedTreeFloat32(_) | GroupedVectorFloat32(..) => raise NoImplementation
     OrderedFloat32 =>
       ("float \{accumulator} = 0.0f;", "\{accumulator} = \{add};", "")
     CompensatedFloat32 =>

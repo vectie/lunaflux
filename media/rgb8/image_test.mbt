@@ -38,41 +38,54 @@ async test "baseline and progressive JPEG decode to bounded RGB8" {
 async test "decode rejects invalid encoding precision and size ceilings" {
   let valid = @fs.read_file("media/rgb8/fixtures/rgb.png").binary()
   assert_true(
-    (try? @rgb8.Image::decode(
-      valid,
-      maximum_encoded_bytes=4096,
-      maximum_pixels=1,
-    ))
-    is Err(_),
+    try
+      @rgb8.Image::decode(valid, maximum_encoded_bytes=4096, maximum_pixels=1)
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @rgb8.Image::decode(valid, maximum_encoded_bytes=1, maximum_pixels=2))
-    is Err(_),
+    try
+      @rgb8.Image::decode(valid, maximum_encoded_bytes=1, maximum_pixels=2)
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @rgb8.Image::decode(
-      valid,
-      maximum_encoded_bytes=4096,
-      maximum_pixels=0,
-    ))
-    is Err(_),
+    try
+      @rgb8.Image::decode(valid, maximum_encoded_bytes=4096, maximum_pixels=0)
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @rgb8.Image::decode(
-      @fs.read_file("media/rgb8/fixtures/rgb16.png").binary(),
-      maximum_encoded_bytes=4096,
-      maximum_pixels=2,
-    ))
-    is Err(_),
+    try
+      @rgb8.Image::decode(
+        @fs.read_file("media/rgb8/fixtures/rgb16.png").binary(),
+        maximum_encoded_bytes=4096,
+        maximum_pixels=2,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   for bytes in [b"", b"not an image", valid[:30].to_owned()] {
     assert_true(
-      (try? @rgb8.Image::decode(
-        bytes,
-        maximum_encoded_bytes=4096,
-        maximum_pixels=2,
-      ))
-      is Err(_),
+      try
+        @rgb8.Image::decode(bytes, maximum_encoded_bytes=4096, maximum_pixels=2)
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
   }
 }
@@ -94,16 +107,24 @@ async test "progressive JPEG retains entropy buffered before the next marker" {
 ///|
 test "RGB frame constructor rejects extent mismatches" {
   assert_true(
-    (try? @rgb8.Image::from_rgb(b"", width=1, height=1, maximum_pixels=1))
-    is Err(_),
+    try @rgb8.Image::from_rgb(b"", width=1, height=1, maximum_pixels=1) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   assert_true(
-    (try? @rgb8.Image::from_rgb(
-      b"\x00\x00\x00",
-      width=-1,
-      height=1,
-      maximum_pixels=1,
-    ))
-    is Err(_),
+    try
+      @rgb8.Image::from_rgb(
+        b"\x00\x00\x00",
+        width=-1,
+        height=1,
+        maximum_pixels=1,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

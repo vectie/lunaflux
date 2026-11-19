@@ -19,7 +19,7 @@ fn capture_collective_frame(
       boundary.local_width.to_int64() *
       boundary.element_bytes()
     guard bytes <= 2147483647L else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     boundary.buffer.copy_from_host(
       Bytes::make(bytes.to_int(), 0),
@@ -32,7 +32,7 @@ fn capture_collective_frame(
     let (first, end, first_site, end_site) = plan.collective_window(
       bucket, window,
     ) catch {
-      _ => raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      _ => raise InvalidArgument(OrderedExecutorCreate)
     }
     queue.begin_effect_capture()
     errdefer (queue.discard_effect_graph() catch { _ => () })
@@ -66,12 +66,12 @@ fn capture_collective_frame(
       let clock = @clock.MonotonicClock::system()
       let stamp = Ref(0UL)
       guard clock.read_into(stamp) else {
-        raise @device.DeviceError::DriverFailure(TensorCollectiveExecute)
+        raise DriverFailure(TensorCollectiveExecute)
       }
       let started = stamp.val
       while !owner.defer_submitted() {
         guard clock.read_into(stamp) && stamp.val - started < timeout_millis else {
-          raise @device.DeviceError::Busy(TensorCollectiveExecute)
+          raise Busy(TensorCollectiveExecute)
         }
       }
     }

@@ -1,6 +1,6 @@
 ///|
 test "paired RMSNorm source fixes independent widths and ordered F32 arithmetic" {
-  let source = paired_rms_norm_bf16_source(
+  let source = @decoder_foundation_cuda_source.paired_rms_norm_bf16_source(
     first_width=1024,
     second_width=512,
     maximum_rows=32,
@@ -19,7 +19,7 @@ test "paired RMSNorm source fixes independent widths and ordered F32 arithmetic"
   assert_true(text.contains("__fadd_rn"))
   assert_true(text.contains("__fdiv_rn"))
   assert_true(text.contains("__float2bfloat16_rn"))
-  let repeated = paired_rms_norm_bf16_source(
+  let repeated = @decoder_foundation_cuda_source.paired_rms_norm_bf16_source(
     first_width=1024,
     second_width=512,
     maximum_rows=32,
@@ -32,7 +32,7 @@ test "paired RMSNorm source fixes independent widths and ordered F32 arithmetic"
 ///|
 test "paired RMSNorm source rejects hostile geometry and symbol" {
   try
-    paired_rms_norm_bf16_source(
+    @decoder_foundation_cuda_source.paired_rms_norm_bf16_source(
       first_width=0,
       second_width=512,
       maximum_rows=1,
@@ -46,7 +46,7 @@ test "paired RMSNorm source rejects hostile geometry and symbol" {
     _ => fail("zero paired RMSNorm width was admitted")
   }
   try
-    paired_rms_norm_bf16_source(
+    @decoder_foundation_cuda_source.paired_rms_norm_bf16_source(
       first_width=1024,
       second_width=512,
       maximum_rows=1048577,
@@ -60,7 +60,7 @@ test "paired RMSNorm source rejects hostile geometry and symbol" {
     _ => fail("oversized paired RMSNorm row envelope was admitted")
   }
   try
-    paired_rms_norm_bf16_source(
+    @decoder_foundation_cuda_source.paired_rms_norm_bf16_source(
       first_width=1024,
       second_width=512,
       maximum_rows=1,

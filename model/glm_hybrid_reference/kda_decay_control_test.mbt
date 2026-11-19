@@ -1,13 +1,13 @@
 ///|
 test "KDA decay control applies per-head exp rate and safe-bound sigmoid" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
     maximum_channel_count=64,
     maximum_vision_patch_count=8,
   )
-  let result = kda_safe_decay_control(
+  let result = @glm_hybrid_reference.kda_safe_decay_control(
     [0.0, 1.0, 0.0, 1.0],
     [0.0, 0.0, 1.0, 0.0],
     [0.0, 0.0],
@@ -24,7 +24,7 @@ test "KDA decay control applies per-head exp rate and safe-bound sigmoid" {
 
 ///|
 test "KDA decay control rejects mismatched per-head A_log" {
-  let limits = GlmHybridReferenceLimits::new(
+  let limits = @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=8,
     maximum_head_count=8,
     maximum_head_dimension=8,
@@ -32,7 +32,7 @@ test "KDA decay control rejects mismatched per-head A_log" {
     maximum_vision_patch_count=8,
   )
   try
-    kda_safe_decay_control(
+    @glm_hybrid_reference.kda_safe_decay_control(
       [0.0, 0.0],
       [0.0, 0.0],
       [],

@@ -14,7 +14,7 @@ fn kv_assembly_ordinal(
 test "KV assembly lowerer binds exact Full and Flash layouts" {
   let full = glm_aot_requirements(official_sparse=true, rope_theta=8000000.0)
   let flash = glm_aot_requirements(official_sparse=true, pooled=true)
-  let full_candidate = lower_dsa_kv_attention_assembly_cuda_aot_candidate(
+  let full_candidate = @glm_hybrid_cuda_aot.lower_dsa_kv_attention_assembly_cuda_aot_candidate(
     full,
     requirement_ordinal=kv_assembly_ordinal(full),
     maximum_tokens=32,
@@ -22,7 +22,7 @@ test "KV assembly lowerer binds exact Full and Flash layouts" {
     compiler=glm_aot_compiler(),
     limits=glm_aot_limits(),
   )
-  let flash_candidate = lower_dsa_kv_attention_assembly_cuda_aot_candidate(
+  let flash_candidate = @glm_hybrid_cuda_aot.lower_dsa_kv_attention_assembly_cuda_aot_candidate(
     flash,
     requirement_ordinal=kv_assembly_ordinal(flash),
     maximum_tokens=32,
@@ -54,7 +54,7 @@ test "KV assembly lowerer binds exact Full and Flash layouts" {
 test "KV assembly lowering rejects neighboring operation and unsafe compiler" {
   let full = glm_aot_requirements(official_sparse=true, rope_theta=8000000.0)
   try
-    lower_dsa_kv_attention_assembly_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_kv_attention_assembly_cuda_aot_candidate(
       full,
       requirement_ordinal=kv_assembly_ordinal(full) - 1,
       maximum_tokens=32,
@@ -69,7 +69,7 @@ test "KV assembly lowering rejects neighboring operation and unsafe compiler" {
     _ => fail("neighboring operation admitted")
   }
   try
-    lower_dsa_kv_attention_assembly_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_dsa_kv_attention_assembly_cuda_aot_candidate(
       full,
       requirement_ordinal=kv_assembly_ordinal(full),
       maximum_tokens=32,

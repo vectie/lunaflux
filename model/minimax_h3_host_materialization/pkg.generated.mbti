@@ -58,6 +58,9 @@ pub(all) suberror MiniMaxH3HostMaterializationError {
   TensorIndexOutsideArena(Int)
   TensorByteOutsideArena(Int)
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3HostMaterializationError::equal(Self, Self) -> Bool
+pub fn MiniMaxH3HostMaterializationError::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3HostMaterializationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct MiniMaxH3HostComponentArena {
@@ -106,6 +109,9 @@ pub struct MiniMaxH3HostManifestDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MiniMaxH3HostManifestDigest::as_hex(Self) -> String
+pub fn MiniMaxH3HostManifestDigest::equal(Self, Self) -> Bool
+pub fn MiniMaxH3HostManifestDigest::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3HostManifestDigest::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3HostMaterializationLimits {
   // private fields
@@ -118,14 +124,20 @@ pub struct MiniMaxH3HostTensor {
 pub fn MiniMaxH3HostTensor::arena_index(Self) -> Int
 pub fn MiniMaxH3HostTensor::arena_offset(Self) -> Int64
 pub fn MiniMaxH3HostTensor::byte_length(Self) -> Int64
+pub fn MiniMaxH3HostTensor::equal(Self, Self) -> Bool
 pub fn MiniMaxH3HostTensor::name(Self) -> String
+pub fn MiniMaxH3HostTensor::not_equal(Self, Self) -> Bool
 pub fn MiniMaxH3HostTensor::role(Self) -> @minimax_h3_weights.MiniMaxH3TensorRole
 pub fn MiniMaxH3HostTensor::shape(Self) -> ReadOnlyArray[Int64]
+pub fn MiniMaxH3HostTensor::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3ShardDeclarationInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3ShardDeclarationInput::equal(Self, Self) -> Bool
 pub fn MiniMaxH3ShardDeclarationInput::new(file_digest~ : @spec.ContentDigest, payload_bytes~ : Int64) -> Self raise MiniMaxH3HostMaterializationError
+pub fn MiniMaxH3ShardDeclarationInput::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3ShardDeclarationInput::to_repr(Self) -> @debug.Repr
 
 pub struct MiniMaxH3ShardSource {
   // private fields
@@ -143,7 +155,10 @@ pub fn MiniMaxH3StreamingComponent::transfers(Self, ArrayView[@minimax_h3_weight
 pub struct MiniMaxH3TensorIndexInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3TensorIndexInput::equal(Self, Self) -> Bool
 pub fn MiniMaxH3TensorIndexInput::new(tensor_name~ : String, shard_index~ : Int) -> Self
+pub fn MiniMaxH3TensorIndexInput::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3TensorIndexInput::to_repr(Self) -> @debug.Repr
 
 pub struct ResolvedBlockWeightCopy {
   arena_index : Int

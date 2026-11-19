@@ -2,7 +2,7 @@
 /// Restart may bind after the previous connection closed into TIME_WAIT.
 /// This never enables multiple live owners or load-balanced port sharing.
 async fn bind_rank_listener(address : @socket.Addr) -> @socket.TcpServer {
-  @socket.TcpServer::TcpServer(address, reuse_addr=true)
+  TcpServer(address, reuse_addr=true)
 }
 
 ///|

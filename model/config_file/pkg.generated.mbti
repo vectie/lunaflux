@@ -24,24 +24,36 @@ pub(all) suberror ModelConfigFileError {
   DigestMismatch
   InvalidConfiguration(@config_reader.ModelConfigReaderError)
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigFileError::equal(Self, Self) -> Bool
+pub fn ModelConfigFileError::not_equal(Self, Self) -> Bool
+pub fn ModelConfigFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ModelConfigDigest {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ModelConfigDigest::as_hex(Self) -> String
+pub fn ModelConfigDigest::equal(Self, Self) -> Bool
 pub fn ModelConfigDigest::from_sha256(String) -> Self raise ModelConfigFileError
+pub fn ModelConfigDigest::not_equal(Self, Self) -> Bool
+pub fn ModelConfigDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelConfigFileIoIssue {
   AuthorityClosed
   Busy
   Failed
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigFileIoIssue::equal(Self, Self) -> Bool
+pub fn ModelConfigFileIoIssue::not_equal(Self, Self) -> Bool
+pub fn ModelConfigFileIoIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelConfigFileLimit {
   ConfigBytes
   JsonDepth
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigFileLimit::equal(Self, Self) -> Bool
+pub fn ModelConfigFileLimit::not_equal(Self, Self) -> Bool
+pub fn ModelConfigFileLimit::to_repr(Self) -> @debug.Repr
 
 pub struct ModelConfigFileLimits {
   // private fields
@@ -55,6 +67,9 @@ pub(all) enum ModelConfigFileOperation {
   SnapshotFile
   CloseFile
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigFileOperation::equal(Self, Self) -> Bool
+pub fn ModelConfigFileOperation::not_equal(Self, Self) -> Bool
+pub fn ModelConfigFileOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

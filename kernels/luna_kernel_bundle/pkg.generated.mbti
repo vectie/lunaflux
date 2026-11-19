@@ -39,13 +39,19 @@ pub(all) suberror LunaKernelBundleError {
   Mismatch(rule~ : LunaKernelBundleRule, operation_index~ : Int)
   LimitExceeded(rule~ : LunaKernelBundleRule, maximum~ : Int64)
 } derive(Eq, @debug.Debug)
+pub fn LunaKernelBundleError::equal(Self, Self) -> Bool
+pub fn LunaKernelBundleError::not_equal(Self, Self) -> Bool
+pub fn LunaKernelBundleError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct LunaDeterministicCompileReceipt {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaDeterministicCompileReceipt::artifact_label(Self) -> String
+pub fn LunaDeterministicCompileReceipt::equal(Self, Self) -> Bool
 pub fn LunaDeterministicCompileReceipt::from_offline_builder(source_digest_sha256~ : String, recipe_digest_sha256~ : String, toolchain_digest_sha256~ : String, driver_identity_sha256~ : String, first_artifact_digest_sha256~ : String, second_artifact_digest_sha256~ : String) -> Self raise LunaKernelBundleError
+pub fn LunaDeterministicCompileReceipt::not_equal(Self, Self) -> Bool
+pub fn LunaDeterministicCompileReceipt::to_repr(Self) -> @debug.Repr
 
 pub struct LunaKernelBundleInput {
   // private fields
@@ -91,6 +97,9 @@ pub(all) enum LunaKernelBundleRule {
   TotalModuleBytes
   Manifest
 } derive(Eq, @debug.Debug)
+pub fn LunaKernelBundleRule::equal(Self, Self) -> Bool
+pub fn LunaKernelBundleRule::not_equal(Self, Self) -> Bool
+pub fn LunaKernelBundleRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaKernelCompiledOperation {
   // private fields

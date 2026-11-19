@@ -3,7 +3,7 @@ test "projection rounding reaches all non-MoE families without changing expert a
   for rank in 0..<2 {
     let plans = [
       @precision_ir.ProjectionPublication::ReduceFloat32BeforeRound,
-      @precision_ir.ReduceBFloat16AfterRound,
+      ReduceBFloat16AfterRound,
     ].map(publication => {
       @glm53_packed_expert_upload.GlmDecoderSlice::new(
         @glm53_spec.Glm53FlashSpec::official(),

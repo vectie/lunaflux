@@ -24,14 +24,23 @@ pub fn admit_v2(@fp8_startup_admission.Fp8StartupAdmissionV2, @numeric_weight_fi
 pub(all) suberror Fp8ReusablePagedRecipeV3Error {
   InvalidFp8ReusablePagedRecipeV3(Fp8ReusablePagedRecipeV3Rule)
 } derive(Eq, @debug.Debug)
+pub fn Fp8ReusablePagedRecipeV3Error::equal(Self, Self) -> Bool
+pub fn Fp8ReusablePagedRecipeV3Error::not_equal(Self, Self) -> Bool
+pub fn Fp8ReusablePagedRecipeV3Error::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror Fp8RuntimeRecipeError {
   InvalidFp8RuntimeRecipe(Fp8RuntimeRecipeRule)
 } derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeError::equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeError::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror Fp8RuntimeRecipeV2Error {
   InvalidFp8RuntimeRecipeV2(Fp8RuntimeRecipeV2Rule)
 } derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeV2Error::equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeV2Error::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeV2Error::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Fp8LaunchWeightBinding {
@@ -91,6 +100,11 @@ pub fn Fp8ReusablePagedRecipeV3::workspace_capacity_bytes(Self) -> Int64
 
 pub struct Fp8ReusablePagedRecipeV3Digest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8ReusablePagedRecipeV3Digest::as_hex(Self) -> String
+pub fn Fp8ReusablePagedRecipeV3Digest::equal(Self, Self) -> Bool
+pub fn Fp8ReusablePagedRecipeV3Digest::hash(Self) -> Int
+pub fn Fp8ReusablePagedRecipeV3Digest::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8ReusablePagedRecipeV3Digest::not_equal(Self, Self) -> Bool
+pub fn Fp8ReusablePagedRecipeV3Digest::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8ReusablePagedRecipeV3Limits {
   // private fields
@@ -107,6 +121,9 @@ pub(all) enum Fp8ReusablePagedRecipeV3Rule {
   Workspace
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn Fp8ReusablePagedRecipeV3Rule::equal(Self, Self) -> Bool
+pub fn Fp8ReusablePagedRecipeV3Rule::not_equal(Self, Self) -> Bool
+pub fn Fp8ReusablePagedRecipeV3Rule::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8RuntimeRecipe {
   // private fields
@@ -123,11 +140,19 @@ pub fn Fp8RuntimeRecipe::workspace_storage(Self) -> @fp8_launch_abi.Fp8LaunchSto
 
 pub struct Fp8RuntimeRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8RuntimeRecipeDigest::as_hex(Self) -> String
+pub fn Fp8RuntimeRecipeDigest::equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeDigest::hash(Self) -> Int
+pub fn Fp8RuntimeRecipeDigest::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8RuntimeRecipeDigest::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeDigest::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8RuntimeRecipeLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeLimits::equal(Self, Self) -> Bool
 pub fn Fp8RuntimeRecipeLimits::new(max_launches~ : Int, max_workspace_bytes~ : Int64, max_canonical_bytes~ : Int) -> Self raise Fp8RuntimeRecipeError
+pub fn Fp8RuntimeRecipeLimits::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8RuntimeRecipeRule {
   Limit
@@ -143,6 +168,9 @@ pub(all) enum Fp8RuntimeRecipeRule {
   WorkspaceCapacity
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeRule::equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeRule::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeRule::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8RuntimeRecipeV2 {
   // private fields
@@ -160,11 +188,19 @@ pub fn Fp8RuntimeRecipeV2::workspaces(Self) -> ReadOnlyArray[Fp8WorkspaceBinding
 
 pub struct Fp8RuntimeRecipeV2Digest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8RuntimeRecipeV2Digest::as_hex(Self) -> String
+pub fn Fp8RuntimeRecipeV2Digest::equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeV2Digest::hash(Self) -> Int
+pub fn Fp8RuntimeRecipeV2Digest::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8RuntimeRecipeV2Digest::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeV2Digest::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8RuntimeRecipeV2Limits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeV2Limits::equal(Self, Self) -> Bool
 pub fn Fp8RuntimeRecipeV2Limits::new(max_launches~ : Int, max_workspace_arena_bytes~ : Int64, max_canonical_bytes~ : Int) -> Self raise Fp8RuntimeRecipeV2Error
+pub fn Fp8RuntimeRecipeV2Limits::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeV2Limits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8RuntimeRecipeV2Rule {
   Limit
@@ -184,13 +220,19 @@ pub(all) enum Fp8RuntimeRecipeV2Rule {
   StageBinding
   CanonicalBytes
 } derive(Eq, @debug.Debug)
+pub fn Fp8RuntimeRecipeV2Rule::equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeV2Rule::not_equal(Self, Self) -> Bool
+pub fn Fp8RuntimeRecipeV2Rule::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8WeightOperandStorageRegion {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8WeightOperandStorageRegion::equal(Self, Self) -> Bool
+pub fn Fp8WeightOperandStorageRegion::not_equal(Self, Self) -> Bool
 pub fn Fp8WeightOperandStorageRegion::region(Self) -> @fp8_launch_abi.Fp8LaunchStorageRegion
 pub fn Fp8WeightOperandStorageRegion::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
 pub fn Fp8WeightOperandStorageRegion::tensor(Self) -> @plan.TensorRef
+pub fn Fp8WeightOperandStorageRegion::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8WorkspaceBindingV2 {
   // private fields

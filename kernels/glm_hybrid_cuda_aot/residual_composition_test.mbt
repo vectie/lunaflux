@@ -23,7 +23,7 @@ test "Full residual add and Flash hyper mix bind distinct exact ABIs" {
     moe_intermediate_size=2048,
     moe_activation=ClampedSwiGlu(10.0),
   )
-  let full_candidate = lower_moe_decoder_residual_add_cuda_aot_candidate(
+  let full_candidate = @glm_hybrid_cuda_aot.lower_moe_decoder_residual_add_cuda_aot_candidate(
     full,
     requirement_ordinal=residual_requirement_ordinal(full),
     maximum_tokens=32,
@@ -31,7 +31,7 @@ test "Full residual add and Flash hyper mix bind distinct exact ABIs" {
     compiler=glm_aot_compiler(),
     limits=glm_aot_limits(),
   )
-  let flash_candidate = lower_hyper_connection_mix_cuda_aot_candidate(
+  let flash_candidate = @glm_hybrid_cuda_aot.lower_hyper_connection_mix_cuda_aot_candidate(
     flash,
     requirement_ordinal=residual_requirement_ordinal(flash),
     maximum_tokens=32,
@@ -65,7 +65,7 @@ test "residual composition lowerers reject wrong stage and compiler" {
   let full = glm_aot_requirements(official_sparse=true)
   let ordinal = residual_requirement_ordinal(full)
   try
-    lower_hyper_connection_mix_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_hyper_connection_mix_cuda_aot_candidate(
       full,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -80,7 +80,7 @@ test "residual composition lowerers reject wrong stage and compiler" {
     _ => fail("plain residual admitted as hyper mix")
   }
   try
-    lower_moe_decoder_residual_add_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_moe_decoder_residual_add_cuda_aot_candidate(
       full,
       requirement_ordinal=ordinal,
       maximum_tokens=32,

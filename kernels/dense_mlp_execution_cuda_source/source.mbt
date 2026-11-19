@@ -68,7 +68,7 @@ pub fn DenseMlpCudaSource::symbol(
     0 => "_gate_up"
     1 => "_down"
     2 if self.plan.publication() == ReduceFloat32BeforeRound => "_publish"
-    _ => raise @precision.PrecisionPlanError::IllegalPlacement
+    _ => raise IllegalPlacement
   }
   self.prefix + suffix
 }

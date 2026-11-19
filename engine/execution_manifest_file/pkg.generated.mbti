@@ -66,6 +66,9 @@ pub(all) suberror ExecutionManifestFileError {
   UnsupportedModelEnvelope
   AdmissionRejected(ExecutionManifestAdmissionStage)
 } derive(Eq, @debug.Debug)
+pub fn ExecutionManifestFileError::equal(Self, Self) -> Bool
+pub fn ExecutionManifestFileError::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum ExecutionManifestAdmissionStage {
@@ -92,6 +95,9 @@ pub(all) enum ExecutionManifestAdmissionStage {
   Fp8RuntimeRecipeV2
   Fp8ReusableRecipeV3
 } derive(Eq, @debug.Debug)
+pub fn ExecutionManifestAdmissionStage::equal(Self, Self) -> Bool
+pub fn ExecutionManifestAdmissionStage::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestAdmissionStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutionManifestArea {
   Root
@@ -104,10 +110,16 @@ pub(all) enum ExecutionManifestArea {
   LunaAuthorization
   NumericAuthorization
 } derive(Eq, @debug.Debug)
+pub fn ExecutionManifestArea::equal(Self, Self) -> Bool
+pub fn ExecutionManifestArea::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestArea::to_repr(Self) -> @debug.Repr
 
 pub struct ExecutionManifestDigest(String) derive(Eq, @debug.Debug)
 pub fn ExecutionManifestDigest::as_hex(Self) -> String
+pub fn ExecutionManifestDigest::equal(Self, Self) -> Bool
 pub fn ExecutionManifestDigest::from_sha256(String) -> Self raise ExecutionManifestFileError
+pub fn ExecutionManifestDigest::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestDigest::to_repr(Self) -> @debug.Repr
 
 pub struct ExecutionManifestFileLimits {
   // private fields
@@ -137,6 +149,9 @@ pub(all) enum ExecutionManifestIdentityPart {
   Fp8RuntimeRecipeDigest
   Fp8ReusableRecipeDigest
 } derive(Eq, @debug.Debug)
+pub fn ExecutionManifestIdentityPart::equal(Self, Self) -> Bool
+pub fn ExecutionManifestIdentityPart::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestIdentityPart::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutionManifestIssue {
   ExpectedObject
@@ -150,6 +165,9 @@ pub(all) enum ExecutionManifestIssue {
   InvalidOrder
   DuplicateValue
 } derive(Eq, @debug.Debug)
+pub fn ExecutionManifestIssue::equal(Self, Self) -> Bool
+pub fn ExecutionManifestIssue::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutionManifestLimit {
   ManifestBytes
@@ -160,12 +178,18 @@ pub(all) enum ExecutionManifestLimit {
   LaunchContract
   ArtifactFile
 } derive(Eq, @debug.Debug)
+pub fn ExecutionManifestLimit::equal(Self, Self) -> Bool
+pub fn ExecutionManifestLimit::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestLimit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutionManifestOperation {
   Open
   Snapshot
   Close
 } derive(Eq, @debug.Debug)
+pub fn ExecutionManifestOperation::equal(Self, Self) -> Bool
+pub fn ExecutionManifestOperation::not_equal(Self, Self) -> Bool
+pub fn ExecutionManifestOperation::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8PagedExecutionAdmissionV5 {
   // private fields

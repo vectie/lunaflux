@@ -56,6 +56,9 @@ pub(all) suberror DeviceWeightError {
   DeviceFailed(@device.DeviceError)
   CleanupFailed(stage~ : DeviceWeightFailureStage, @device.DeviceError)
 } derive(Eq, @debug.Debug)
+pub fn DeviceWeightError::equal(Self, Self) -> Bool
+pub fn DeviceWeightError::not_equal(Self, Self) -> Bool
+pub fn DeviceWeightError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DeviceShardedWeightFileInspection {
@@ -83,6 +86,9 @@ pub(all) enum DeviceWeightFailureStage {
   SourceRevalidation
   SourceClose
 } derive(Eq, @debug.Debug)
+pub fn DeviceWeightFailureStage::equal(Self, Self) -> Bool
+pub fn DeviceWeightFailureStage::not_equal(Self, Self) -> Bool
+pub fn DeviceWeightFailureStage::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceWeightFileInspection {
   // private fields
@@ -94,13 +100,19 @@ pub(all) enum DeviceWeightFileLimit {
   FileBytes
   TransferChunkBytes
 } derive(Eq, @debug.Debug)
+pub fn DeviceWeightFileLimit::equal(Self, Self) -> Bool
+pub fn DeviceWeightFileLimit::not_equal(Self, Self) -> Bool
+pub fn DeviceWeightFileLimit::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceWeightFileLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeviceWeightFileLimits::equal(Self, Self) -> Bool
 pub fn DeviceWeightFileLimits::max_file_bytes(Self) -> Int64
 pub fn DeviceWeightFileLimits::new(max_file_bytes~ : Int64, transfer_chunk_bytes~ : Int, safetensors~ : @safetensors.HeaderLimits) -> Self raise DeviceWeightError
+pub fn DeviceWeightFileLimits::not_equal(Self, Self) -> Bool
 pub fn DeviceWeightFileLimits::safetensors(Self) -> @safetensors.HeaderLimits
+pub fn DeviceWeightFileLimits::to_repr(Self) -> @debug.Repr
 pub fn DeviceWeightFileLimits::transfer_chunk_bytes(Self) -> Int
 
 pub struct DeviceWeightLayout {
@@ -108,11 +120,14 @@ pub struct DeviceWeightLayout {
 } derive(Eq, @debug.Debug)
 pub fn DeviceWeightLayout::alignment_bytes(Self) -> Int64
 pub fn DeviceWeightLayout::arena_bytes(Self) -> Int64
+pub fn DeviceWeightLayout::equal(Self, Self) -> Bool
 pub fn DeviceWeightLayout::identity(Self) -> @spec.ModelIdentity
 pub fn DeviceWeightLayout::length(Self) -> Int
 pub fn DeviceWeightLayout::materialized_bytes(Self) -> Int64
+pub fn DeviceWeightLayout::not_equal(Self, Self) -> Bool
 pub fn DeviceWeightLayout::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest?
 pub fn DeviceWeightLayout::region(Self, @plan.TensorRef) -> DeviceWeightRegion?
+pub fn DeviceWeightLayout::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceWeightPreparation {
   WeightsReady(DeviceWeights)
@@ -124,8 +139,11 @@ pub struct DeviceWeightRegion {
 } derive(Eq, @debug.Debug)
 pub fn DeviceWeightRegion::byte_length(Self) -> Int64
 pub fn DeviceWeightRegion::end_offset_bytes(Self) -> Int64
+pub fn DeviceWeightRegion::equal(Self, Self) -> Bool
+pub fn DeviceWeightRegion::not_equal(Self, Self) -> Bool
 pub fn DeviceWeightRegion::offset_bytes(Self) -> Int64
 pub fn DeviceWeightRegion::reference(Self) -> @plan.TensorRef
+pub fn DeviceWeightRegion::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceWeights {
   // private fields

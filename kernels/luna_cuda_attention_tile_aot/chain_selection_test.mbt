@@ -152,8 +152,7 @@ test "whole chain selection retains scratch tradeoffs and returns exact AOT arti
         maximum_shared_memory_bytes=49152L,
       )
     catch {
-      @luna_cuda_attention_tile_aot.InvalidCudaAttentionTileAot(InvalidRequest) =>
-        ()
+      InvalidCudaAttentionTileAot(InvalidRequest) => ()
       _ => fail("unexpected failure")
     } noraise {
       _ => fail("unmeasured or infeasible fallback")
@@ -203,8 +202,7 @@ test "whole chain selection rejects stale scope duplicate records and weak sampl
         maximum_shared_memory_bytes=49152L,
       )
     catch {
-      @luna_cuda_attention_tile_aot.InvalidCudaAttentionTileAot(InvalidRequest) =>
-        ()
+      InvalidCudaAttentionTileAot(InvalidRequest) => ()
       _ => fail("unexpected failure")
     } noraise {
       _ => fail("invalid chain comparison accepted")
@@ -219,8 +217,7 @@ test "whole chain selection rejects stale scope duplicate records and weak sampl
       samples=2,
     )
   catch {
-    @luna_cuda_attention_tile_aot.InvalidCudaAttentionTileAot(InvalidRequest) =>
-      ()
+    InvalidCudaAttentionTileAot(InvalidRequest) => ()
     _ => fail("unexpected failure")
   } noraise {
     _ => fail("insufficient samples accepted")

@@ -10,7 +10,7 @@ pub struct TileAxis {
 /// remaining overlap distributed in 16-pixel latent-aligned round-robin units.
 pub fn TileAxis::new(pixels : Int32) -> Self raise @plan.PlanError {
   guard pixels >= 32 && pixels % 32 == 0 && pixels <= 65536 else {
-    raise @plan.PlanError::InvalidGeometry
+    raise InvalidGeometry
   }
   if pixels <= 256 {
     return { starts: [0], extent: pixels, overlaps: [], }

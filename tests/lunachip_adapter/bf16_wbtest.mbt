@@ -100,7 +100,7 @@ test "raw LunaTile views require dtype rank stride alignment and unique ownershi
     try
       @compiler.OrderedBf16Gemv::new(weights=weight, activation=input, output~)
     catch {
-      @compiler.UnsupportedTensor => ()
+      UnsupportedTensor => ()
       _ => fail("wrong tensor error")
     } noraise {
       _ => fail("invalid weight view accepted")

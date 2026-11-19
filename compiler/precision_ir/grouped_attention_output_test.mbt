@@ -50,7 +50,7 @@ test "grouped attention output bounds all intermediates and distinct numeric sta
       maximum_workspace_bytes=512L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     error => raise error
   } noraise {
     _ => fail("odd rotary suffix accepted")

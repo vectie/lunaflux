@@ -43,7 +43,7 @@ test "speculative continuation follows accepted inputs and publishes only commit
     stop_tokens=[],
   )
   owner.record_commit(length, [13, 15])
-  assert_eq(owner.finish_reason(), @serial_generation.GenerationFinish::Length)
+  assert_eq(owner.finish_reason(), Length)
   for i, token in [4, 5, 9, 10, 11, 12, 13, 15] {
     assert_eq(owner.token_at(i), token)
   }
@@ -82,10 +82,7 @@ test "speculative cancellation and invalid seed do not publish another proposal"
   )
   owner.record_commit(prefix, [5, 6])
   assert_eq(owner.token_count(), 1)
-  assert_eq(
-    owner.finish_reason(),
-    @serial_generation.GenerationFinish::Cancelled,
-  )
+  assert_eq(owner.finish_reason(), Cancelled)
 }
 
 ///|
@@ -128,7 +125,7 @@ test "exact context limit clips the last speculative block before submission" {
   }
   assert_eq(owner.token_count(), 14)
   assert_eq(owner.remaining_new_tokens(), 0)
-  assert_eq(owner.finish_reason(), @serial_generation.GenerationFinish::Length)
+  assert_eq(owner.finish_reason(), Length)
   // The final emitted token is not another KV input. Input plus output is 16,
   // while the last committed input ends at 15; no speculative row is padded
   // past this physical frontier and no extra continuation may be submitted.

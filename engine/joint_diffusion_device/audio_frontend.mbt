@@ -28,7 +28,7 @@ pub fn AudioFrontendLayout::new(
     time > 0 &&
     batch.to_int64() * input_channels.to_int64() <=
     2147483647L / time.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let convolution = AudioConvolutionLayout::new(
     batch~,
@@ -39,7 +39,7 @@ pub fn AudioFrontendLayout::new(
     max_weight_bytes=max_bytes,
   )
   guard input_channels.to_int64() <= max_bytes / 4L / hidden_channels.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let projection_weight_bytes = input_channels.to_int64() *
     hidden_channels.to_int64() *
@@ -52,7 +52,7 @@ pub fn AudioFrontendLayout::new(
   let normalized_offset = (convolution.value_bytes + 255L) / 256L * 256L
   let scratch_bytes = normalized_offset + convolution.weight_bytes
   guard scratch_bytes <= max_bytes && weight_bytes <= max_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     convolution,
@@ -87,7 +87,7 @@ pub fn AudioFrontendLayout::launches(
   guard functions.length() == 3 &&
     scratch.byte_count() >= self.scratch_bytes &&
     weights.byte_count() >= self.weight_bytes else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let project = @device.OrderedKernelLaunch::new(
     functions[0],

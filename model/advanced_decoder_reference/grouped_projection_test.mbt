@@ -1,13 +1,13 @@
 ///|
 test "grouped output-A reference never crosses group-local slices" {
-  let output = try! grouped_output_a_projection_v1(
+  let output = try! @advanced_decoder_reference.grouped_output_a_projection_v1(
     [1.0F, 2.0F, 10.0F, 20.0F],
     [1.0F, 0.0F, 0.0F, 1.0F, 2.0F, 0.0F, 0.0F, 3.0F],
     row_count=1,
     group_count=2,
     input_width=2,
     output_width=2,
-    limits=try! ReferenceLimits::new(
+    limits=try! @advanced_decoder_reference.ReferenceLimits::new(
       max_values=64,
       max_width=8,
       max_iterations=1,
@@ -19,14 +19,14 @@ test "grouped output-A reference never crosses group-local slices" {
 ///|
 test "grouped output-A reference rejects transposed or truncated weights" {
   try
-    grouped_output_a_projection_v1(
+    @advanced_decoder_reference.grouped_output_a_projection_v1(
       [1.0F, 2.0F],
       [1.0F],
       row_count=1,
       group_count=1,
       input_width=2,
       output_width=1,
-      limits=try! ReferenceLimits::new(
+      limits=try! @advanced_decoder_reference.ReferenceLimits::new(
         max_values=8,
         max_width=4,
         max_iterations=1,

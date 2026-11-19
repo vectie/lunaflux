@@ -228,10 +228,7 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
         },
       )
     } else {
-      assert_eq(
-        completion.entry(0).kind(),
-        @protocol.CompletionEntryKind::PrefillCompletion,
-      )
+      assert_eq(completion.entry(0).kind(), PrefillCompletion)
     }
     if step == 2 {
       generation.val = Some(
@@ -257,7 +254,7 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
     assert_eq(actual, original)
   }
   guard generation.val is Some(owner) else { fail("missing generation") }
-  assert_eq(owner.finish_reason(), @serial_generation.GenerationFinish::Length)
+  assert_eq(owner.finish_reason(), Length)
   for index, expected in [7, 9, 11] {
     assert_eq(owner.token_at(index), expected)
   }
@@ -439,10 +436,7 @@ async test "two-rank coordinator waits for DMA execution and remote commit befor
   assert_true(failed)
   let completion = pipeline.completion()
   completion.validate_for(submitted)
-  assert_eq(
-    completion.entry(0).kind(),
-    @protocol.CompletionEntryKind::FailedCompletion,
-  )
+  assert_eq(completion.entry(0).kind(), FailedCompletion)
   assert_true(local_host.is_faulted() && remote_host.is_faulted())
   pipeline.close()
   pipeline.close()

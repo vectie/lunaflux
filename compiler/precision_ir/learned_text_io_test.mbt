@@ -45,10 +45,8 @@ test "learned text plan rejects invalid semantics and includes collapse in budge
         maximum_workspace_bytes=budget,
       )
     catch {
-      @precision_ir.PrecisionPlanError::IllegalPlacement =>
-        assert_false(expected_budget)
-      @precision_ir.PrecisionPlanError::MemoryBudgetExceeded =>
-        assert_true(expected_budget)
+      IllegalPlacement => assert_false(expected_budget)
+      MemoryBudgetExceeded => assert_true(expected_budget)
       e => raise e
     } noraise {
       _ => fail("invalid learned text plan accepted")

@@ -91,7 +91,7 @@ async fn resident_trial(
       guard token_id < 151936U else {
         fail("incomplete or invalid FPGA argmax")
       }
-      token_id.to_int()
+      token_id.reinterpret_as_int()
     } else {
       let values = Array::makei(151936, i => {
         Float::reinterpret_from_uint(decode_word(logits, i))
@@ -332,7 +332,7 @@ async fn benchmark(
       "weights_reused": reuse_weights,
       "programs_reused": reuse_programs,
       "weight_bytes_uploaded": uploaded,
-      "weight_bytes_read_back": (if verify_weights { uploaded } else { 0L }).to_json(),
+      "weight_bytes_read_back": Json(if verify_weights { uploaded } else { 0L }),
       "weight_upload_us": upload_us,
     }
     @fs.write_file(
@@ -570,11 +570,13 @@ async fn benchmark(
     "queued_token_setup": chain &&
     fast &&
     @env.get_env_var("PBLAZE3_TOKEN_QUEUE") == Some("1"),
-    "weight_bytes_uploaded_and_readback_verified": (if verify_weights {
-      uploaded
-    } else {
-      0L
-    }).to_json(),
+    "weight_bytes_uploaded_and_readback_verified": Json(
+      if verify_weights {
+        uploaded
+      } else {
+        0L
+      },
+    ),
     "weight_bytes_uploaded": uploaded,
     "weight_upload_us": upload_us,
     "weights_resident": true,

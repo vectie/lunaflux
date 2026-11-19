@@ -71,7 +71,7 @@ async test "startup transfer session opens a referenced shard once and closes ex
         consume=(_, _, _, _) => true,
       )
     catch {
-      @streaming_safetensors.StreamingSafetensorsError::InvalidLimit => ()
+      InvalidLimit => ()
       e => raise e
     } noraise {
       _ => fail("closed startup transfer session reused")
@@ -125,7 +125,7 @@ async test "startup session retires after a rejected upload chunk" {
         },
       )
     catch {
-      @streaming_safetensors.StreamingSafetensorsError::VisitorRejected(0) => ()
+      VisitorRejected(0) => ()
       e => raise e
     } noraise {
       _ => fail("rejected upload chunk continued")

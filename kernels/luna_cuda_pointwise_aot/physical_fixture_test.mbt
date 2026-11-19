@@ -53,7 +53,7 @@ test "physical sm120 pointwise fixtures bind exact lowering digests" {
   ]
   for index, case in cases {
     let (name, operation, operands) = case
-    let lowering = lower_pointwise_cuda_aot_candidate(
+    let lowering = @luna_cuda_pointwise_aot.lower_pointwise_cuda_aot_candidate(
       operation,
       profile,
       pointwise_test_entry(index + 1),

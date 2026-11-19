@@ -41,7 +41,7 @@ fn text_conditioning_bytes(
     width > 0 &&
     budget > 0L &&
     rows.to_int64() <= budget / 2L / width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   rows.to_int64() * width.to_int64() * 2L
 }
@@ -64,7 +64,7 @@ pub fn TextConditioningProgram::prepare(
   max_output_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.phase == Empty else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.phase = Failed
   let bytes = text_conditioning_bytes(
@@ -98,9 +98,7 @@ fn execute_conditioning_once(
   phase : ConditioningPhase,
   run : () -> Unit raise @device.DeviceError,
 ) -> ConditioningPhase raise @device.DeviceError {
-  guard phase == Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
-  }
+  guard phase == Prepared else { raise InvalidArgument(OrderedExecutorEnqueue) }
   run()
   Complete
 }
@@ -112,7 +110,7 @@ pub fn TextConditioningProgram::execute(
   self : Self,
 ) -> Unit raise @device.DeviceError {
   guard self.phase == Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   let previous = self.phase
   self.phase = Failed
@@ -136,13 +134,13 @@ pub fn TextConditioningProgram::bind_input(
   weights~ : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.phase == Complete && self.output is Some(output) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   guard input.source.model == self.source.model &&
     input.source.sequence.segments()[0].count == self.source.rows &&
     input.source.sequence.assembly().input_rows(Conditioning) ==
     self.source.rows else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   input.bind(
     packing,

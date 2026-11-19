@@ -28,6 +28,9 @@ pub(all) suberror PagedCompositeArtifactError {
   InvalidPagedCompositeArtifact(PagedCompositeArtifactRule)
   MismatchedPagedCompositeArtifact(PagedCompositeArtifactRule)
 } derive(Eq, @debug.Debug)
+pub fn PagedCompositeArtifactError::equal(Self, Self) -> Bool
+pub fn PagedCompositeArtifactError::not_equal(Self, Self) -> Bool
+pub fn PagedCompositeArtifactError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ApprovedFusedQkvReadOnlyProductionArtifacts {
@@ -90,6 +93,9 @@ pub(all) enum PagedCompositeArtifactRule {
   RuntimeDevice
   Fallback
 } derive(Eq, @debug.Debug)
+pub fn PagedCompositeArtifactRule::equal(Self, Self) -> Bool
+pub fn PagedCompositeArtifactRule::not_equal(Self, Self) -> Bool
+pub fn PagedCompositeArtifactRule::to_repr(Self) -> @debug.Repr
 
 pub struct QualifiedPagedKvWriteFallbackIdentity {
   // private fields

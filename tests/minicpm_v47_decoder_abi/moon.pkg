@@ -16,7 +16,6 @@ import {
   "vectie/lunaflux/tests/minicpm_v47_checkpoint_fixture" @checkpoint_fixture,
   "vectie/lunaflux/service/api_auth" @auth,
   "vectie/lunaflux/tokenizer",
-  "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/integration/minicpm_v47_attention" @attention,
   "vectie/lunaflux/integration/minicpm_v47_recurrent" @recurrent,
   "vectie/lunaflux/integration/minicpm_v47_moe" @moe,

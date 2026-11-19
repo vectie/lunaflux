@@ -44,10 +44,7 @@ test "official DSpark main prefix uses complete ordered captured width" {
     maximum_positions=256,
     maximum_workspace_bytes=4194304L,
   )
-  assert_eq(
-    output.rotary().frequency(),
-    @precision.RotaryFrequency::Base(theta=spec.rope_theta()),
-  )
+  assert_eq(output.rotary().frequency(), Base(theta=spec.rope_theta()))
   assert_eq(
     output.geometry(),
     (

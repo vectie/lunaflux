@@ -22,6 +22,9 @@ pub(all) suberror LunaAotAdmissionError {
   Unsupported(LunaAotAdmissionRule)
   Ambiguous(LunaAotAdmissionRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaAotAdmissionError::equal(Self, Self) -> Bool
+pub fn LunaAotAdmissionError::not_equal(Self, Self) -> Bool
+pub fn LunaAotAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum LunaAotAdmissionRule {
@@ -43,6 +46,9 @@ pub(all) enum LunaAotAdmissionRule {
   Artifact
   GraphFallback
 } derive(Eq, @debug.Debug)
+pub fn LunaAotAdmissionRule::equal(Self, Self) -> Bool
+pub fn LunaAotAdmissionRule::not_equal(Self, Self) -> Bool
+pub fn LunaAotAdmissionRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaAotKernelAdmission {
   // private fields
@@ -54,17 +60,20 @@ pub fn LunaAotKernelAdmission::capability(Self) -> @plan.KernelCapabilityId
 pub fn LunaAotKernelAdmission::catalog_version(Self) -> @catalog.CatalogVersion
 pub fn LunaAotKernelAdmission::detached_signature_digest(Self) -> @luna_capability_manifest.LunaDetachedSignatureDigest
 pub fn LunaAotKernelAdmission::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn LunaAotKernelAdmission::equal(Self, Self) -> Bool
 pub fn LunaAotKernelAdmission::execution_disposition(Self) -> @luna_capability_manifest.LunaGraphExecutionDisposition
 pub fn LunaAotKernelAdmission::graph_metadata(Self) -> @luna_capability_manifest.LunaGraphCapabilityMetadata
 pub fn LunaAotKernelAdmission::identity(Self) -> @spec.ModelIdentity
 pub fn LunaAotKernelAdmission::manifest_digest(Self) -> @luna_capability_manifest.LunaCapabilityManifestDigest
 pub fn LunaAotKernelAdmission::minimum_alignment_bytes(Self) -> Int64
 pub fn LunaAotKernelAdmission::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn LunaAotKernelAdmission::not_equal(Self, Self) -> Bool
 pub fn LunaAotKernelAdmission::operation_id(Self) -> @plan.OperationId
 pub fn LunaAotKernelAdmission::operation_kind(Self) -> @plan.OperationKind
 pub fn LunaAotKernelAdmission::operation_shape(Self) -> @plan.OperationShape
 pub fn LunaAotKernelAdmission::specialization_digest(Self) -> @luna_specialization.LunaSpecializationDigest
 pub fn LunaAotKernelAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn LunaAotKernelAdmission::to_repr(Self) -> @debug.Repr
 pub fn LunaAotKernelAdmission::workspace_alignment(Self) -> Int64
 pub fn LunaAotKernelAdmission::workspace_bytes(Self) -> Int64
 

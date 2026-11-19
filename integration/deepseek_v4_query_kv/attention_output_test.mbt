@@ -10,10 +10,7 @@ test "all base layers bind the correct output frequency without claiming compres
     maximum_workspace_bytes=1000000L,
   )
   assert_eq(plain.geometry(), (8, 4096, 1024, 1))
-  assert_eq(
-    plain.rotary().frequency(),
-    @precision.RotaryFrequency::Base(theta=10000.0),
-  )
+  assert_eq(plain.rotary().frequency(), Base(theta=10000.0))
   let compressed = @deepseek_v4_query_kv.attention_output_plan(
     spec,
     layer=2,

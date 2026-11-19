@@ -49,9 +49,7 @@ pub fn attention_source(
   let eps = @luna_cuda_pointwise_aot.canonical_cuda_float_literal(epsilon)
   let (initialization, update) = square_reduction(square_reduction_law)
   let group = query_heads / kv_heads
-  guard probability_law != @precision.AttentionProbabilityLaw::GlobalF32 else {
-    raise InvalidProbabilityLaw
-  }
+  guard probability_law != GlobalF32 else { raise InvalidProbabilityLaw }
   probability_law.validate() catch {
     _ => raise InvalidProbabilityLaw
   }

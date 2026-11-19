@@ -19,6 +19,9 @@ pub(all) suberror FullGraphManifestError {
   Mismatch(rule~ : FullGraphManifestRule, operation_index~ : Int)
   LimitExceeded(rule~ : FullGraphManifestRule, maximum~ : Int64)
 } derive(Eq, @debug.Debug)
+pub fn FullGraphManifestError::equal(Self, Self) -> Bool
+pub fn FullGraphManifestError::not_equal(Self, Self) -> Bool
+pub fn FullGraphManifestError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct FullGraphAotOperationArtifact {
@@ -68,6 +71,9 @@ pub(all) enum FullGraphManifestRule {
   ModuleOrdering
   ManifestBytes
 } derive(Eq, @debug.Debug)
+pub fn FullGraphManifestRule::equal(Self, Self) -> Bool
+pub fn FullGraphManifestRule::not_equal(Self, Self) -> Bool
+pub fn FullGraphManifestRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

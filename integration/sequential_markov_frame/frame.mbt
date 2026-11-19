@@ -116,7 +116,7 @@ pub fn SequentialMarkovFrame::prepare(
   let indices = FixedArray::make(rows * 4, b'\x00')
   for row in 0..<rows {
     for byte in 0..<4 {
-      indices[row * 4 + byte] = (row.to_uint() >> (byte * 8)).to_byte()
+      indices[row * 4 + byte] = (row.reinterpret_as_uint() >> (byte * 8)).to_byte()
     }
   }
   self.buffers[1].copy_from_host(

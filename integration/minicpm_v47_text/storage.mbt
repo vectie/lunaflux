@@ -41,7 +41,7 @@ pub fn Storage::prepare(
 ) -> Unit raise @device.DeviceError {
   guard self.state is Fresh &&
     self.program.storage_budget().owned_bytes <= maximum_device_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   self.state = Failed
   let allocate : (Int64) -> @device.Allocation raise @device.DeviceError = fn(
@@ -98,9 +98,7 @@ pub fn Storage::prepare(
 
 ///|
 fn Storage::borrow(self : Self) -> StorageObjects raise @device.DeviceError {
-  guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.state is Prepared else { raise InvalidArgument(AotKernelLaunch) }
   self.objects.unwrap()
 }
 

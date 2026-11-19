@@ -18,7 +18,7 @@ fn output_projection_ordinal(
 test "video and audio output projections bind exact F32 selected-row ABI" {
   let requirements = diffusion_aot_requirements()
   let request = diffusion_aot_request()
-  let video = lower_output_projection_cuda_aot_candidate(
+  let video = @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=output_projection_ordinal(requirements, VideoLatent),
@@ -57,7 +57,7 @@ test "video and audio output projections bind exact F32 selected-row ABI" {
   assert_true(source.contains("__fmul_rn"))
   assert_true(source.contains("__fadd_rn"))
   assert_false(source.contains("__nv_bfloat16"))
-  let audio = lower_output_projection_cuda_aot_candidate(
+  let audio = @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=output_projection_ordinal(requirements, AudioLatent),
@@ -81,7 +81,7 @@ test "video and audio output projections bind exact F32 selected-row ABI" {
   assert_eq(audio.operands()[3].byte_count(), 16L)
   assert_true(video.source_digest() != audio.source_digest())
   assert_true(video.recipe_digest() != audio.recipe_digest())
-  let repeated = lower_output_projection_cuda_aot_candidate(
+  let repeated = @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=output_projection_ordinal(requirements, VideoLatent),
@@ -99,7 +99,7 @@ test "output projection lowering rejects foreign and unsafe contracts" {
   let request = diffusion_aot_request()
   let wrong_storage = diffusion_aot_requirements(float32_output_heads=false)
   try
-    lower_output_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
       wrong_storage,
       request_shape=request,
       requirement_ordinal=output_projection_ordinal(wrong_storage, VideoLatent),
@@ -114,7 +114,7 @@ test "output projection lowering rejects foreign and unsafe contracts" {
     _ => fail("BF16 output-head storage was weakened into the F32 candidate")
   }
   try
-    lower_output_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
       requirements,
       request_shape=diffusion_aot_foreign_request(),
       requirement_ordinal=output_projection_ordinal(requirements, VideoLatent),
@@ -129,7 +129,7 @@ test "output projection lowering rejects foreign and unsafe contracts" {
     _ => fail("foreign request geometry was accepted")
   }
   try
-    lower_output_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=3,
@@ -149,7 +149,7 @@ test "output projection lowering rejects foreign and unsafe contracts" {
       diffusion_aot_compiler(reassociate=true),
     ] {
     try
-      lower_output_projection_cuda_aot_candidate(
+      @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
         requirements,
         request_shape=request,
         requirement_ordinal=output_projection_ordinal(requirements, VideoLatent),
@@ -165,7 +165,7 @@ test "output projection lowering rejects foreign and unsafe contracts" {
     }
   }
   try
-    lower_output_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=output_projection_ordinal(requirements, VideoLatent),
@@ -180,7 +180,7 @@ test "output projection lowering rejects foreign and unsafe contracts" {
     _ => fail("a target unable to execute the BF16 denoiser was accepted")
   }
   try
-    lower_output_projection_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_output_projection_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=output_projection_ordinal(requirements, VideoLatent),

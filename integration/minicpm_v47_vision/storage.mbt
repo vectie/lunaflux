@@ -26,7 +26,7 @@ pub fn Buffers::region(
       return region
     }
   }
-  raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+  raise InvalidArgument(OrderedExecutorCreate)
 }
 
 ///|
@@ -88,7 +88,7 @@ pub fn Storage::prepare(
 ) -> Unit raise @device.DeviceError {
   guard self.state is Fresh &&
     maximum_device_bytes >= self.program.storage_bytes() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   self.state = Failed
   let regions : Array[(Plane, BufferRegion)] = []
@@ -131,9 +131,7 @@ pub fn Storage::prepare(
 
 ///|
 pub fn Storage::buffers(self : Self) -> Buffers raise @device.DeviceError {
-  guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.state is Prepared else { raise InvalidArgument(AotKernelLaunch) }
   self.bindings.unwrap()
 }
 

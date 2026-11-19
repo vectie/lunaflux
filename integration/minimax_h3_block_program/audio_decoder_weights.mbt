@@ -23,12 +23,12 @@ pub fn AudioDecoder::prepare_weights(
     parameters.length() == 7 &&
     self.frontend.layout is Some(front) &&
     self.tail.layout is Some(tail) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let budgets : Array[Int64] = [front.convolution.weight_bytes]
   for stage in self.chain.stages {
     guard stage.layout is Some(up) && stage.amp.layout is Some(amp) else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     budgets.push(up.upsample.weight_bytes + audio_amp_cache_offsets(amp).1)
   }
@@ -64,12 +64,10 @@ fn audio_cache_budget(
   parts : ArrayView[Int64],
   maximum : Int64,
 ) -> Unit raise @device.DeviceError {
-  guard maximum > 0L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
-  }
+  guard maximum > 0L else { raise InvalidArgument(AllocationCreate) }
   for bytes in parts; remaining = maximum {
     guard bytes > 0L && bytes <= remaining else {
-      raise @device.DeviceError::InvalidArgument(AllocationCreate)
+      raise InvalidArgument(AllocationCreate)
     }
     continue remaining - bytes
   } nobreak {
@@ -82,11 +80,11 @@ fn AudioDecoder::require_cached_weights(
   self : Self,
 ) -> Unit raise @device.DeviceError {
   guard self.frontend.cache.ready && self.tail.cache.ready else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   for stage in self.chain.stages {
     guard stage.cache.ready && stage.amp.cache.ready else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
   }
 }

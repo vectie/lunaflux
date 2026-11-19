@@ -30,7 +30,7 @@ fn prediction_workspace(
     t.input_width == b.shape.timestep_frequency_dimension() &&
     t.hidden_width == b.shape.timestep_embedding_hidden_dimension() &&
     t.output_width == b.shape.final_adaln_conditioning_dimension() else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let block = @joint_diffusion_device.BlockWorkspaceLayout::new(
       rows=b.rows,
@@ -64,7 +64,7 @@ fn prediction_workspaces(
   maximum : Int64,
 ) -> (Array[PredictionWorkspace], Int64) raise @device.DeviceError {
   guard maximum > 0L && !sources.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let layouts : Array[PredictionWorkspace] = []
   let counts : Map[Int32, Unit] = Map([])
@@ -77,13 +77,13 @@ fn prediction_workspaces(
       b.probability_law == first.probability_law &&
       b.rows == first.rows &&
       b.packed_mapping == first.packed_mapping else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     counts[b.distinct_timesteps] = ()
     let layout = prediction_workspace(source, maximum)
     for bytes in [layout.block, layout.timestep, layout.output] {
       guard bytes > 0L && bytes <= remaining else {
-        raise @device.DeviceError::InvalidArgument(AllocationCreate)
+        raise InvalidArgument(AllocationCreate)
       }
       remaining -= bytes
     }
@@ -138,7 +138,7 @@ pub fn PredictionPrograms::prepare(
   modules : ArrayView[(@device.Module, @device.Module, @device.Module)],
 ) -> Unit raise @device.DeviceError {
   guard !self.started && modules.length() == self.sources.length() else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   self.started = true
   for i, source in self.sources {
@@ -149,14 +149,22 @@ pub fn PredictionPrograms::prepare(
     }
     self.programs.push(owned)
     let budget = self.layouts[i]
-    let module = modules[i]
-    owned.block.prepare(context, module.0, max_workspace_bytes=budget.block)
+    let device_module = modules[i]
+    owned.block.prepare(
+      context,
+      device_module.0,
+      max_workspace_bytes=budget.block,
+    )
     owned.timestep.prepare(
       context,
-      module.1,
+      device_module.1,
       max_workspace_bytes=budget.timestep,
     )
-    owned.output.prepare(context, module.2, max_workspace_bytes=budget.output)
+    owned.output.prepare(
+      context,
+      device_module.2,
+      max_workspace_bytes=budget.output,
+    )
   }
   self.ready = true
 }
@@ -165,9 +173,7 @@ pub fn PredictionPrograms::prepare(
 pub fn PredictionPrograms::variants(
   self : Self,
 ) -> ReadOnlyArray[PredictionVariant] raise @device.DeviceError {
-  guard self.ready else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard self.ready else { raise InvalidArgument(AotKernelLaunch) }
   ReadOnlyArray::from_array(
     self.programs.map(p => PredictionVariant::new(p.block, p.timestep, p.output)),
   )

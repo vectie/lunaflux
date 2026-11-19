@@ -66,7 +66,7 @@ test "rotary precision refuses malformed geometry and frequency policy" {
         maximum_workspace_bytes=2304L,
       )
     catch {
-      @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+      IllegalPlacement => ()
       error => raise error
     } noraise {
       _ => fail("malformed rotary simulation accepted")

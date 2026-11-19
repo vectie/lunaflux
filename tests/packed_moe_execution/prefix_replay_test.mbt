@@ -112,7 +112,7 @@ test "accepted-prefix replay preserves real plan bindings with zero warmed alloc
         sequence_value=3UL,
       )
     catch {
-      @wire.WorkerWireError::InvalidFrame(_) => ()
+      InvalidFrame(_) => ()
       error => raise error
     } noraise {
       _ => fail("invalid replay length admitted")
@@ -127,7 +127,7 @@ test "accepted-prefix replay preserves real plan bindings with zero warmed alloc
       sequence_value=1UL,
     )
   catch {
-    @wire.WorkerWireError::InvalidFrame(_) => ()
+    InvalidFrame(_) => ()
     error => raise error
   } noraise {
     _ => fail("non-increasing replay sequence admitted")

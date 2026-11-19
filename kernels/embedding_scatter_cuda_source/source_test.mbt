@@ -19,10 +19,15 @@ test "scatter source preserves BF16 words and skips decode and text rows" {
   assert_true(text.contains("uint16_t* residual"))
   assert_true(!text.contains("__float2bfloat16"))
   assert_true(
-    (try? @embedding_scatter_cuda_source.embedding_scatter_source(
-      plan,
-      symbol="bad-symbol",
-    ))
-    is Err(_),
+    try
+      @embedding_scatter_cuda_source.embedding_scatter_source(
+        plan,
+        symbol="bad-symbol",
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

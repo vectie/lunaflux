@@ -40,11 +40,13 @@ pub struct AudioDecodeRequest {
 }
 pub fn AudioDecodeRequest::cancel(Self) -> Unit raise @device.DeviceError
 pub fn AudioDecodeRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn AudioDecodeRequest::drain(Self) -> Unit raise
 pub fn AudioDecodeRequest::execute(Self) -> Unit raise @device.DeviceError
 pub fn AudioDecodeRequest::matches_input(Self, @joint_diffusion_loop.PreparedPlan, @device.Allocation, Int64, Int64) -> Bool
 pub fn AudioDecodeRequest::new() -> Self
 pub fn AudioDecodeRequest::poll(Self) -> Bool raise @device.DeviceError
 pub fn AudioDecodeRequest::prepare(Self, @device.Context, @device.Stream, AudioDecoder, ArrayView[(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayout, @device.Allocation, @device.Allocation)], input~ : @device.Allocation, input_offset~ : Int64, frontend_weights~ : @device.Allocation, tail_weights~ : @device.Allocation, max_output_bytes~ : Int64, input_program? : AudioInputProgram, prepared_plan? : @joint_diffusion_loop.PreparedPlan) -> Unit raise @device.DeviceError
+pub fn AudioDecodeRequest::release(Self) -> Unit raise
 pub fn AudioDecodeRequest::submit(Self) -> Unit raise @device.DeviceError
 pub fn AudioDecodeRequest::waveform_samples(Self) -> Int raise @device.DeviceError
 pub fn[T] AudioDecodeRequest::with_output(Self, (@device.Allocation) -> T raise @device.DeviceError) -> T raise @device.DeviceError
@@ -115,9 +117,11 @@ pub struct ConditioningProgram {
 }
 pub fn ConditioningProgram::bind_input(Self, InputProgram, @minimax_h3_weights.InputWeightPacking, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn ConditioningProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn ConditioningProgram::drain(Self) -> Unit raise
 pub fn ConditioningProgram::execute(Self) -> Unit raise @device.DeviceError
 pub fn ConditioningProgram::new(@minimax_h3_block_source.ConditioningSource) -> Self
 pub fn ConditioningProgram::prepare(Self, @device.Context, @device.Stream, @device.Module, TextConditioningProgram, ArrayView[(@device.Allocation, Int64)], max_output_bytes~ : Int64, latent_weights? : @device.Allocation) -> Unit raise @device.DeviceError
+pub fn ConditioningProgram::release(Self) -> Unit raise
 pub fn[T] ConditioningProgram::with_destination(Self, (@device.Allocation, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
 pub impl @joint_diffusion_execution.PreparedFrame for ConditioningProgram
 
@@ -209,9 +213,11 @@ pub struct TextConditioningProgram {
 pub fn TextConditioningProgram::bind_input(Self, InputProgram, @minimax_h3_weights.InputWeightPacking, weights~ : @device.Allocation) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError
 pub fn TextConditioningProgram::capture_stages(Self, @device.Stream, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)]) -> Array[(String, Bytes)] raise @device.DeviceError
 pub fn TextConditioningProgram::close(Self) -> Unit raise @device.DeviceError
+pub fn TextConditioningProgram::drain(Self) -> Unit raise
 pub fn TextConditioningProgram::execute(Self) -> Unit raise @device.DeviceError
 pub fn TextConditioningProgram::new(@minimax_h3_block_source.RefinerSource) -> Self
 pub fn TextConditioningProgram::prepare(Self, @device.Context, @device.Stream, @device.Module, ArrayView[(@minimax_h3_weights.RefinerWeightPacking, @device.Allocation)], encoded~ : @device.Allocation, encoded_offset~ : Int64, weights~ : @device.Allocation, max_workspace_bytes~ : Int64, max_output_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn TextConditioningProgram::release(Self) -> Unit raise
 pub fn TextConditioningProgram::rows(Self) -> Int
 pub fn[T] TextConditioningProgram::with_destination(Self, (@device.Allocation, Int64) -> T raise @device.DeviceError) -> T raise @device.DeviceError
 pub impl @joint_diffusion_execution.PreparedFrame for TextConditioningProgram

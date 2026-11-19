@@ -1,10 +1,10 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_cuda_paged_attention_aot",
-  "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/plan",
 }
 
@@ -12,6 +12,7 @@ import {
   "moonbitlang/core/math",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/kernels/luna_specialization",
 } for "test"
 
 supported_targets = "native"

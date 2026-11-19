@@ -38,6 +38,9 @@ pub(all) suberror ModelConfigReaderError {
   Validation(@spec.ModelSpecError)
   Qwen3Validation(@qwen3_spec.Qwen3ModelSpecError)
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigReaderError::equal(Self, Self) -> Bool
+pub fn ModelConfigReaderError::not_equal(Self, Self) -> Bool
+pub fn ModelConfigReaderError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum ExecutableField {
@@ -45,6 +48,9 @@ pub(all) enum ExecutableField {
   TrustRemoteCode
   CustomPipelines
 } derive(Eq, @debug.Debug)
+pub fn ExecutableField::equal(Self, Self) -> Bool
+pub fn ExecutableField::not_equal(Self, Self) -> Bool
+pub fn ExecutableField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelConfigField {
   Architectures
@@ -72,6 +78,9 @@ pub(all) enum ModelConfigField {
   UseSlidingWindow
   InertMetadata
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigField::equal(Self, Self) -> Bool
+pub fn ModelConfigField::not_equal(Self, Self) -> Bool
+pub fn ModelConfigField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModelConfigValueIssue {
   ExpectedString
@@ -83,6 +92,9 @@ pub(all) enum ModelConfigValueIssue {
   InvalidArrayElement
   UnsupportedValue
 } derive(Eq, @debug.Debug)
+pub fn ModelConfigValueIssue::equal(Self, Self) -> Bool
+pub fn ModelConfigValueIssue::not_equal(Self, Self) -> Bool
+pub fn ModelConfigValueIssue::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

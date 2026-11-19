@@ -1,28 +1,28 @@
 ///|
 test "both fused candidates produce deterministic inert benchmark qualification" {
   assert_eq(
-    fused_candidate_benchmark_shape_set_identity().as_hex(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_shape_set_identity().as_hex(),
     "a75940a0836789fa780a994ac55ccbcd1cba4835d6c1101f53b28a3f847a0aa5",
   )
   let set = fused_benchmark_test_set()
   let qkv = set.qkv_candidate()
   let qkv_protocol = fused_benchmark_test_protocol(
     qkv.candidate_digest(),
-    fused_candidate_benchmark_shape_set_identity(),
-    fused_candidate_benchmark_warmup_iterations(),
-    fused_candidate_benchmark_trials_per_shape(),
-    fused_candidate_benchmark_repetitions_per_arm(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_shape_set_identity(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
   )
   let qkv_observations = fused_benchmark_test_observations(
     qkv.dispatch_canary(),
   )
-  let qkv_first = qualify_fused_qkv_candidate_benchmark(
+  let qkv_first = @luna_fused_candidate_qualification.qualify_fused_qkv_candidate_benchmark(
     qkv,
     qkv_protocol,
     qkv_observations,
     maximum_evidence_bytes=1048576,
   )
-  let qkv_second = qualify_fused_qkv_candidate_benchmark(
+  let qkv_second = @luna_fused_candidate_qualification.qualify_fused_qkv_candidate_benchmark(
     qkv,
     qkv_protocol,
     qkv_observations,
@@ -32,7 +32,7 @@ test "both fused candidates produce deterministic inert benchmark qualification"
   assert_eq(qkv_first.candidate_digest(), qkv.candidate_digest())
   assert_eq(
     qkv_first.shape_set_identity(),
-    fused_candidate_benchmark_shape_set_identity(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_shape_set_identity(),
   )
   assert_eq(qkv_first.observation_count(), 32)
   assert_eq(qkv_first.canonical_bytes(), qkv_second.canonical_bytes())
@@ -72,12 +72,12 @@ test "both fused candidates produce deterministic inert benchmark qualification"
   let residual = set.residual_norm_candidate()
   let residual_protocol = fused_benchmark_test_protocol(
     residual.candidate_digest(),
-    fused_candidate_benchmark_shape_set_identity(),
-    fused_candidate_benchmark_warmup_iterations(),
-    fused_candidate_benchmark_trials_per_shape(),
-    fused_candidate_benchmark_repetitions_per_arm(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_shape_set_identity(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
   )
-  let residual_evidence = qualify_fused_residual_rmsnorm_candidate_benchmark(
+  let residual_evidence = @luna_fused_candidate_qualification.qualify_fused_residual_rmsnorm_candidate_benchmark(
     residual,
     residual_protocol,
     fused_benchmark_test_observations(residual.dispatch_canary()),

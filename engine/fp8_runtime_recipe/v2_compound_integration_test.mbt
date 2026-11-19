@@ -62,7 +62,7 @@ async test "runtime recipe v2 authenticates compound GatedMlp stage cells" {
       file,
     )
     let inputs = runtime_v2_inputs(fixture, inspection)
-    let admitted = admit_v2(
+    let admitted = @fp8_runtime_recipe.admit_v2(
       fixture.startup,
       inspection,
       inputs.launches,

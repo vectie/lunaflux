@@ -23,7 +23,7 @@ test "canonical v2 operation ceiling is exact" {
     max_operands_per_contract=1,
   )
   ignore(
-    ExecutionManifestFileLimits::new(
+    @execution_manifest_file.ExecutionManifestFileLimits::new(
       max_manifest_bytes=1L,
       max_json_depth=1,
       max_modules=1,
@@ -34,7 +34,7 @@ test "canonical v2 operation ceiling is exact" {
     ),
   )
   try
-    ExecutionManifestFileLimits::new(
+    @execution_manifest_file.ExecutionManifestFileLimits::new(
       max_manifest_bytes=1L,
       max_json_depth=1,
       max_modules=1,
@@ -75,7 +75,7 @@ test "nested ceilings are canonically reconstructed" {
     max_path_bytes=1,
     artifact~,
   )
-  let admitted = ExecutionManifestFileLimits::new(
+  let admitted = @execution_manifest_file.ExecutionManifestFileLimits::new(
     max_manifest_bytes=1L,
     max_json_depth=1,
     max_modules=1,

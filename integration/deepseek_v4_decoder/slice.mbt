@@ -344,10 +344,10 @@ pub fn DeepSeekDecoderSlice::submit(
   live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   guard self.state is Prepared && self.queue is Some(queue) else {
-    raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
+    raise Busy(OrderedExecutorEnqueue)
   }
   guard live_rows > 0 && live_rows <= self.maximum_rows else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.state = Failed
   for stage in 0..<self.launch_count {
@@ -362,7 +362,7 @@ pub fn DeepSeekDecoderSlice::poll(
   self : Self,
 ) -> Bool raise @device.DeviceError {
   guard self.state is Active && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   self.state = Failed
   if queue.poll_completion() {

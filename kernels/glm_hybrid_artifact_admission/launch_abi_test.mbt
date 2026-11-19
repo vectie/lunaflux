@@ -29,11 +29,15 @@ fn artifact_test_serial_launch() -> @launch_contract.AotLaunchDimensions {
 
 ///|
 fn artifact_test_operand(
-  role : GlmHybridLaunchOperandRole,
+  role : @glm_hybrid_artifact_admission.GlmHybridLaunchOperandRole,
   bytes : Int64,
   alignment : Int64,
-) -> GlmHybridLaunchOperand {
-  try! GlmHybridLaunchOperand::new(role~, byte_count=bytes, alignment~)
+) -> @glm_hybrid_artifact_admission.GlmHybridLaunchOperand {
+  try! @glm_hybrid_artifact_admission.GlmHybridLaunchOperand::new(
+    role~,
+    byte_count=bytes,
+    alignment~,
+  )
 }
 
 ///|
@@ -43,7 +47,7 @@ fn artifact_test_abi(
 ) -> (
   String,
   @launch_contract.AotLaunchDimensions,
-  Array[GlmHybridLaunchOperand],
+  Array[@glm_hybrid_artifact_admission.GlmHybridLaunchOperand],
 ) {
   match operation {
     TokenEmbedding =>
@@ -310,7 +314,14 @@ test "function symbol and exact executable operand ABI fail closed" {
     qualified=true,
     wrong_function_symbol=true,
   )
-  try admit(requirements, target, wrong_symbol, artifact_test_limits()) catch {
+  try
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_symbol,
+      artifact_test_limits(),
+    )
+  catch {
     InvalidFunctionSymbol(ordinal=0) => ()
     _ => fail("unexpected function-symbol error")
   } noraise {
@@ -323,7 +334,12 @@ test "function symbol and exact executable operand ABI fail closed" {
     wrong_launch_operands=true,
   )
   try
-    admit(requirements, target, wrong_operands, artifact_test_limits())
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_operands,
+      artifact_test_limits(),
+    )
   catch {
     InvalidLaunchOperands(ordinal=0) => ()
     _ => fail("unexpected launch-operand error")
@@ -337,7 +353,12 @@ test "function symbol and exact executable operand ABI fail closed" {
     wrong_dsa_projection_operands=true,
   )
   try
-    admit(requirements, target, wrong_projection, artifact_test_limits())
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_projection,
+      artifact_test_limits(),
+    )
   catch {
     InvalidLaunchOperands(ordinal=2) => ()
     _ => fail("unexpected DSA input-projection operand error")
@@ -351,7 +372,12 @@ test "function symbol and exact executable operand ABI fail closed" {
     wrong_query_a_norm_operands=true,
   )
   try
-    admit(requirements, target, wrong_query_norm, artifact_test_limits())
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_query_norm,
+      artifact_test_limits(),
+    )
   catch {
     InvalidLaunchOperands(ordinal=3) => ()
     _ => fail("unexpected q-a RMSNorm operand error")
@@ -364,7 +390,14 @@ test "function symbol and exact executable operand ABI fail closed" {
     qualified=true,
     wrong_query_b_operands=true,
   )
-  try admit(requirements, target, wrong_query_b, artifact_test_limits()) catch {
+  try
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_query_b,
+      artifact_test_limits(),
+    )
+  catch {
     InvalidLaunchOperands(ordinal=4) => ()
     _ => fail("unexpected q-b projection operand error")
   } noraise {
@@ -376,7 +409,14 @@ test "function symbol and exact executable operand ABI fail closed" {
     qualified=true,
     wrong_key_value_b_operands=true,
   )
-  try admit(requirements, target, wrong_kv_b, artifact_test_limits()) catch {
+  try
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_kv_b,
+      artifact_test_limits(),
+    )
+  catch {
     InvalidLaunchOperands(ordinal=7) => ()
     _ => fail("unexpected kv-b projection operand error")
   } noraise {
@@ -388,7 +428,14 @@ test "function symbol and exact executable operand ABI fail closed" {
     qualified=true,
     wrong_kv_split_norm_operands=true,
   )
-  try admit(requirements, target, wrong_kv_norm, artifact_test_limits()) catch {
+  try
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_kv_norm,
+      artifact_test_limits(),
+    )
+  catch {
     InvalidLaunchOperands(ordinal=8) => ()
     _ => fail("unexpected KV split-norm operand error")
   } noraise {
@@ -400,7 +447,14 @@ test "function symbol and exact executable operand ABI fail closed" {
     qualified=true,
     wrong_rotary_operands=true,
   )
-  try admit(requirements, target, wrong_rotary, artifact_test_limits()) catch {
+  try
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_rotary,
+      artifact_test_limits(),
+    )
+  catch {
     InvalidLaunchOperands(ordinal=9) => ()
     _ => fail("unexpected rotary operand error")
   } noraise {
@@ -419,7 +473,12 @@ test "function symbol and exact executable operand ABI fail closed" {
     }
   }
   try
-    admit(requirements, target, wrong_dense_swiglu, artifact_test_limits())
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_dense_swiglu,
+      artifact_test_limits(),
+    )
   catch {
     InvalidLaunchOperands(ordinal~) => assert_eq(ordinal, dense_ordinal)
     _ => fail("unexpected dense SwiGLU operand error")

@@ -52,7 +52,7 @@ pub fn prepare_token_prompt(
   prepare_positioned_prompt(
     model,
     tokens,
-    Array::make(tokens.length(), @positions.Modality::Text),
+    Array::make(tokens.length(), Text),
     image_grids=[],
     video_grids=[],
     maximum_tokens~,

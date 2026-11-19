@@ -153,7 +153,7 @@ fn[T] describe_refiner(
   residual2 : T,
 ) -> Array[(RefinerStage, T)] raise @device.DeviceError {
   guard attention.length() == 4 && mlp.length() == 2 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   [
     (Norm1, norm1),
@@ -198,8 +198,7 @@ fn BlockWorkspaceLayout::refiner_capture_region(
     Projection | Down => (p.branch_offset, p.hidden_bytes)
     GateUp =>
       (p.scratch_offset, p.rows.to_int64() * p.intermediate.to_int64() * 2L)
-    AttentionResidual | MlpResidual =>
-      raise @device.DeviceError::InvalidArgument(CopyToHost)
+    AttentionResidual | MlpResidual => raise InvalidArgument(CopyToHost)
   }
   (offset, count)
 }

@@ -1,13 +1,13 @@
 ///|
 test "hyper function keeps post initial matrix and collapse as separate outputs" {
-  let limits = try! GlmHybridReferenceLimits::new(
+  let limits = try! @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=2,
     maximum_head_count=4,
     maximum_head_dimension=4,
     maximum_channel_count=16,
     maximum_vision_patch_count=2,
   )
-  let function = try! hyper_connection_function_and_collapse(
+  let function = try! @glm_hybrid_reference.hyper_connection_function_and_collapse(
     [1.0, 2.0, 3.0, 4.0],
     Array::make(24 * 4, 0.0),
     Array::make(24, 0.0),
@@ -22,7 +22,7 @@ test "hyper function keeps post initial matrix and collapse as separate outputs"
   assert_eq(function.post(), [1.0, 1.0, 1.0, 1.0])
   assert_true((function.collapsed()[0] - 5.00001).abs() < 0.000001)
   assert_true((function.initial_combination()[0] - 0.250001).abs() < 0.000001)
-  let sinkhorn = try! hyper_connection_positive_sinkhorn(
+  let sinkhorn = try! @glm_hybrid_reference.hyper_connection_positive_sinkhorn(
     function.initial_combination(),
     row_count=1,
     stream_count=4,
@@ -35,7 +35,7 @@ test "hyper function keeps post initial matrix and collapse as separate outputs"
 
 ///|
 test "hyper Sinkhorn rejects zero and mismatched matrices" {
-  let limits = try! GlmHybridReferenceLimits::new(
+  let limits = try! @glm_hybrid_reference.GlmHybridReferenceLimits::new(
     maximum_sequence_length=2,
     maximum_head_count=4,
     maximum_head_dimension=4,
@@ -43,7 +43,7 @@ test "hyper Sinkhorn rejects zero and mismatched matrices" {
     maximum_vision_patch_count=2,
   )
   try
-    hyper_connection_positive_sinkhorn(
+    @glm_hybrid_reference.hyper_connection_positive_sinkhorn(
       Array::make(16, 0.0),
       row_count=1,
       stream_count=4,

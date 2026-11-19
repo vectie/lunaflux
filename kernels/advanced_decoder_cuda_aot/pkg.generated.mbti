@@ -82,11 +82,17 @@ pub(all) suberror AdvancedDecoderCudaAotError {
   BlockFp8Ue8M0Source(@block_fp8_ue8m0_projection_cuda_source.BlockFp8Ue8M0ProjectionCudaSourceError)
   Launch(@launch_contract.LaunchContractError)
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderCudaAotError::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaAotError::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum AdvancedDecoderCompressedIndexAotFamily {
   CausalCompleteSlotsI32
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderCompressedIndexAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedIndexAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedIndexAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderCompressedIndexCudaCandidate {
   // private fields
@@ -116,10 +122,16 @@ pub fn AdvancedDecoderCompressedIndexCudaCandidate::target(Self) -> @catalog.Dev
 pub(all) enum AdvancedDecoderCompressedIndexNumericalContract {
   BitExactCausalCompleteSlotsI32V1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderCompressedIndexNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedIndexNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedIndexNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderCompressedKvPrepareAotFamily {
   NonOverlappingSharedKeyValuePrepareBf16V1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderCompressedKvPrepareAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedKvPrepareAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedKvPrepareAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderCompressedKvPrepareCudaCandidate {
   // private fields
@@ -152,6 +164,9 @@ pub fn AdvancedDecoderCompressedKvPrepareCudaCandidate::window_size(Self) -> Int
 pub(all) enum AdvancedDecoderCompressedKvPrepareNumericalContract {
   BitExactBf16SegmentCopyV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderCompressedKvPrepareNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedKvPrepareNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCompressedKvPrepareNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderCudaAotInvalidKind {
   Limit
@@ -161,6 +176,9 @@ pub(all) enum AdvancedDecoderCudaAotInvalidKind {
   Compiler
   Encoding
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderCudaAotInvalidKind::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaAotInvalidKind::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaAotInvalidKind::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderCudaAotLimits {
   // private fields
@@ -169,15 +187,28 @@ pub fn AdvancedDecoderCudaAotLimits::new(maximum_tokens~ : Int, maximum_source_b
 
 pub struct AdvancedDecoderCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AdvancedDecoderCudaRecipeDigest::as_hex(Self) -> String
+pub fn AdvancedDecoderCudaRecipeDigest::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaRecipeDigest::hash(Self) -> Int
+pub fn AdvancedDecoderCudaRecipeDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AdvancedDecoderCudaRecipeDigest::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaRecipeDigest::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AdvancedDecoderCudaSourceDigest::as_hex(Self) -> String
+pub fn AdvancedDecoderCudaSourceDigest::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaSourceDigest::hash(Self) -> Int
+pub fn AdvancedDecoderCudaSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AdvancedDecoderCudaSourceDigest::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderCudaSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderFoundationAotFamily {
   TokenEmbeddingBf16
   QueryKeyRmsNormBf16
   FinalRmsNormBf16
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderFoundationAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderFoundationAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderFoundationAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderFoundationCudaCandidate {
   // private fields
@@ -205,6 +236,9 @@ pub(all) enum AdvancedDecoderFoundationNumericalContract {
   BitExactBf16Copy
   OrderedFloat32ReductionBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderFoundationNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderFoundationNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderFoundationNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderHyperConnectionAotFamily {
   BlockControlBf16F32V1
@@ -212,6 +246,9 @@ pub(all) enum AdvancedDecoderHyperConnectionAotFamily {
   PostCombineBf16V1
   HeadReduceBf16F32V1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderHyperConnectionAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderHyperConnectionCudaCandidate {
   // private fields
@@ -272,6 +309,9 @@ pub(all) enum AdvancedDecoderHyperConnectionNumericalContract {
   OrderedF32PostCombinationBf16RoundV1
   OrderedF32HeadControlReductionBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderHyperConnectionNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderHyperConnectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderHyperConnectionPostCombineCudaCandidate {
   // private fields
@@ -324,6 +364,9 @@ pub fn AdvancedDecoderHyperConnectionPreReduceCudaCandidate::target(Self) -> @ca
 pub(all) enum AdvancedDecoderInverseRotaryAotFamily {
   AttentionOutputInverseScaledYarnBf16V1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderInverseRotaryAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderInverseRotaryAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderInverseRotaryAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderInverseRotaryCudaCandidate {
   // private fields
@@ -354,6 +397,9 @@ pub fn AdvancedDecoderInverseRotaryCudaCandidate::target(Self) -> @catalog.Devic
 pub(all) enum AdvancedDecoderInverseRotaryNumericalContract {
   PrefixBitExactAdjacentPairInverseF32YarnBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderInverseRotaryNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderInverseRotaryNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderInverseRotaryNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderKeyValueProjectionCudaCandidate {
   // private fields
@@ -385,10 +431,16 @@ pub fn AdvancedDecoderKeyValueProjectionCudaCandidate::tensor_parallel_replicate
 pub(all) enum AdvancedDecoderKeyValueProjectionFamily {
   ReplicatedKeyValueBlockFp8E4M3Ue8M0ProjectionV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderKeyValueProjectionFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderKeyValueProjectionFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderKeyValueProjectionFamily::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderKeyValueProjectionNumericalContract {
   KeyValuePerRowBlock128Ue8M0OrderedF32Bf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderKeyValueProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderKeyValueProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderKeyValueProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderOutputAProjectionCudaCandidate {
   // private fields
@@ -418,10 +470,16 @@ pub fn AdvancedDecoderOutputAProjectionCudaCandidate::target(Self) -> @catalog.D
 pub(all) enum AdvancedDecoderOutputAProjectionFamily {
   GroupedOutputAProjectionBf16V1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderOutputAProjectionFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputAProjectionFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputAProjectionFamily::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderOutputAProjectionNumericalContract {
   ConvertedGroupedWeightOrderedF32Bf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderOutputAProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputAProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputAProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderOutputBProjectionCudaCandidate {
   // private fields
@@ -453,14 +511,23 @@ pub fn AdvancedDecoderOutputBProjectionCudaCandidate::tensor_parallel_world_size
 pub(all) enum AdvancedDecoderOutputBProjectionFamily {
   BlockFp8E4M3Ue8M0ProjectionV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderOutputBProjectionFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputBProjectionFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputBProjectionFamily::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderOutputBProjectionNumericalContract {
   PerRowBlock128Ue8M0OrderedF32Bf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderOutputBProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputBProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderOutputBProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderProjectionAotFamily {
   LanguageModelHeadBf16
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderProjectionAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderProjectionAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderProjectionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderProjectionCudaCandidate {
   // private fields
@@ -489,6 +556,9 @@ pub fn AdvancedDecoderProjectionCudaCandidate::target(Self) -> @catalog.DeviceTa
 pub(all) enum AdvancedDecoderProjectionNumericalContract {
   OrderedF32AccumulationBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderQueryAProjectionCudaCandidate {
   // private fields
@@ -519,14 +589,23 @@ pub fn AdvancedDecoderQueryAProjectionCudaCandidate::tensor_parallel_replicated(
 pub(all) enum AdvancedDecoderQueryAProjectionFamily {
   ReplicatedBlockFp8E4M3Ue8M0ProjectionV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderQueryAProjectionFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderQueryAProjectionFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderQueryAProjectionFamily::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderQueryAProjectionNumericalContract {
   PerRowBlock128Ue8M0OrderedF32Bf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderQueryAProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderQueryAProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderQueryAProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderRotaryAotFamily {
   CompressedScaledYarnRopeBf16
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderRotaryAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRotaryAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRotaryAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderRotaryCudaCandidate {
   // private fields
@@ -557,6 +636,9 @@ pub fn AdvancedDecoderRotaryCudaCandidate::target(Self) -> @catalog.DeviceTarget
 pub(all) enum AdvancedDecoderRotaryNumericalContract {
   AdjacentPairF32YarnBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderRotaryNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRotaryNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRotaryNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderRoutingAotFamily {
   ExpertScoreTransformF32
@@ -564,6 +646,9 @@ pub(all) enum AdvancedDecoderRoutingAotFamily {
   NoAuxiliaryLossTopKI32
   SelectedExpertWeightFinalizeF32
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderRoutingAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRoutingAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRoutingAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderRoutingCudaCandidate {
   // private fields
@@ -594,10 +679,16 @@ pub(all) enum AdvancedDecoderRoutingNumericalContract {
   StableLowerExpertIdTopKV1
   OrderedF32NormalizeScaleV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderRoutingNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRoutingNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderRoutingNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderSparseAttentionAotFamily {
   SharedKeyValueSelectedAttentionBf16
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderSparseAttentionAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderSparseAttentionAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderSparseAttentionAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderSparseAttentionCudaCandidate {
   // private fields
@@ -631,10 +722,16 @@ pub fn AdvancedDecoderSparseAttentionCudaCandidate::window_size(Self) -> Int
 pub(all) enum AdvancedDecoderSparseAttentionNumericalContract {
   SerialOrderedF32SinkDenominatorBf16OutputV1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderSparseAttentionNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderSparseAttentionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderSparseAttentionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderWindowCompressedJoinAotFamily {
   DeterministicWindowCompressedJoinI32V1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderWindowCompressedJoinAotFamily::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderWindowCompressedJoinAotFamily::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderWindowCompressedJoinAotFamily::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderWindowCompressedJoinCudaCandidate {
   // private fields
@@ -666,6 +763,9 @@ pub fn AdvancedDecoderWindowCompressedJoinCudaCandidate::window_size(Self) -> In
 pub(all) enum AdvancedDecoderWindowCompressedJoinNumericalContract {
   BitExactOfficialWindowThenCompressedI32V1
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderWindowCompressedJoinNumericalContract::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderWindowCompressedJoinNumericalContract::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderWindowCompressedJoinNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

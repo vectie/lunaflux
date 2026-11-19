@@ -28,7 +28,7 @@ pub fn OrderedControlPlan::new(
     streams <= 16 &&
     rows.to_int64() * streams.to_int64() * (streams.to_int64() + 2L) <=
     2147483647L else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   let controls = streams * (streams + 2)
   {
@@ -63,7 +63,7 @@ pub fn OrderedControlPlan::workgroups(
   match stage {
     0 | 2 => self.rows
     1 => self.rows * self.controls
-    _ => raise @precision.PrecisionPlanError::IllegalPlacement
+    _ => raise IllegalPlacement
   }
 }
 

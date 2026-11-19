@@ -84,6 +84,9 @@ pub(all) suberror GlmHybridReferenceError {
   InvalidVisionGeometry
   SharedPrimitiveFailure
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridReferenceError::equal(Self, Self) -> Bool
+pub fn GlmHybridReferenceError::not_equal(Self, Self) -> Bool
+pub fn GlmHybridReferenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct GlmDsaKvAssemblyResult {
@@ -245,11 +248,17 @@ pub(all) enum GlmReferenceAttentionStep {
   DsaReuse(source_layer~ : Int)
   Kda
 } derive(Eq, @debug.Debug)
+pub fn GlmReferenceAttentionStep::equal(Self, Self) -> Bool
+pub fn GlmReferenceAttentionStep::not_equal(Self, Self) -> Bool
+pub fn GlmReferenceAttentionStep::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmReferenceFeedForwardStep {
   Dense
   Moe
 } derive(Eq, @debug.Debug)
+pub fn GlmReferenceFeedForwardStep::equal(Self, Self) -> Bool
+pub fn GlmReferenceFeedForwardStep::not_equal(Self, Self) -> Bool
+pub fn GlmReferenceFeedForwardStep::to_repr(Self) -> @debug.Repr
 
 pub struct GlmReferenceLayerStep {
   // private fields
@@ -277,11 +286,17 @@ pub(all) enum GlmTinyCompositionPlan {
   Residual
   MultiStreamHyperConnection(stream_count~ : Int, branch_stream~ : Int, output_stream~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn GlmTinyCompositionPlan::equal(Self, Self) -> Bool
+pub fn GlmTinyCompositionPlan::not_equal(Self, Self) -> Bool
+pub fn GlmTinyCompositionPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum GlmTinyFeedForwardPlan {
   Dense
   Moe(expert_count~ : Int, experts_per_token~ : Int, score_function~ : @advanced_decoder_execution_plan.ExpertScoreFunction, normalize_selected~ : Bool, route_scale~ : Float)
 } derive(Eq, @debug.Debug)
+pub fn GlmTinyFeedForwardPlan::equal(Self, Self) -> Bool
+pub fn GlmTinyFeedForwardPlan::not_equal(Self, Self) -> Bool
+pub fn GlmTinyFeedForwardPlan::to_repr(Self) -> @debug.Repr
 
 pub struct GlmTinyFeedForwardWeights {
   // private fields

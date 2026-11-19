@@ -9,12 +9,18 @@ fn config_fixture() -> Bytes {
 
 ///|
 test "checkpoint config selects text epsilon and theta, not denoiser defaults" {
-  let c = parse_config(config_fixture(), max_bytes=4096)
+  let c = @minimax_h3_text_encoder.parse_config(
+    config_fixture(),
+    max_bytes=4096,
+  )
   assert_eq(c.theta, 5000000.0)
   assert_eq(c.epsilon, 0.000001)
   assert_eq(c.vocabulary_size, 151936)
   assert_eq(c.plan([1, 2, 3]).rows, 3)
-  let t = c.rotary_tables(text_positions(2)[:], max_bytes=1024L)
+  let t = c.rotary_tables(
+    @minimax_h3_text_encoder.text_positions(2)[:],
+    max_bytes=1024L,
+  )
   assert_eq(t.cosine.length(), 512)
   assert_eq(t.sine.length(), 512)
   for i in 0..<128 {
@@ -26,7 +32,12 @@ test "checkpoint config selects text epsilon and theta, not denoiser defaults" {
   for i in 0..<128 {
     assert_eq(t.cosine[256 + i], t.cosine[384 + i])
   }
-  try c.rotary_tables(text_positions(2)[:], max_bytes=1023L) catch {
+  try
+    c.rotary_tables(
+      @minimax_h3_text_encoder.text_positions(2)[:],
+      max_bytes=1023L,
+    )
+  catch {
     ByteBudgetExceeded => ()
     _ => fail("wrong budget error")
   } noraise {
@@ -36,7 +47,10 @@ test "checkpoint config selects text epsilon and theta, not denoiser defaults" {
 
 ///|
 test "visual placement requires every placeholder exactly once" {
-  let c = parse_config(config_fixture(), max_bytes=4096)
+  let c = @minimax_h3_text_encoder.parse_config(
+    config_fixture(),
+    max_bytes=4096,
+  )
   let p = c.visual_placement([7, 151655, 151655, 9], [1, 2], [
     (0, 0, 0),
     (1, 1, 1),
@@ -65,7 +79,10 @@ test "visual placement requires every placeholder exactly once" {
 
 ///|
 test "interleaved rotary takes H W every third lane and temporal remainder" {
-  let c = parse_config(config_fixture(), max_bytes=4096)
+  let c = @minimax_h3_text_encoder.parse_config(
+    config_fixture(),
+    max_bytes=4096,
+  )
   let t = c.rotary_tables([(0, 7, 11)], max_bytes=512L)
   assert_eq(t.sine[0], 0)
   assert_eq(t.sine[1], 0)
@@ -88,7 +105,9 @@ test "configuration rejects unsupported scaling and duplicate fields" {
         new="\"hidden_size\":5120,\"hidden_size\":5120",
       ),
     ] {
-    try parse_config(@utf8.encode(text), max_bytes=4096) catch {
+    try
+      @minimax_h3_text_encoder.parse_config(@utf8.encode(text), max_bytes=4096)
+    catch {
       UnsupportedRotary | InvalidDocument => ()
       _ => fail("wrong config error")
     } noraise {

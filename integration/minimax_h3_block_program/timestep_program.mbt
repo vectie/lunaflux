@@ -27,7 +27,7 @@ fn timestep_workspace(
   let output_offset = hidden_offset + align(mlp.scratch_bytes)
   let bytes = output_offset + mlp.output_bytes
   guard budget > 0L && bytes <= budget else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   { mlp, hidden: hidden_offset, output: output_offset, bytes, }
 }
@@ -58,7 +58,7 @@ pub fn TimestepProgram::prepare(
   max_workspace_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.functions.is_empty() && self.workspace is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let s = self.source
   let layout = timestep_workspace(
@@ -98,7 +98,7 @@ pub fn TimestepProgram::bind(
   conditioning_offset~ : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.layout is Some(layout) && self.workspace is Some(workspace) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let f = self.functions
   let launches = [

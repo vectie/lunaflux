@@ -20,7 +20,7 @@ async test "export deferred HC post pre alternatives" {
         control_square_law=VectorizedTreeFloat32(partitions=256, vector_width=1),
         control_dot_law=StripedTreeFloat32(partitions=256),
       )
-      let source = hyper_connection_source(
+      let source = @hyper_connection_execution_cuda_source.hyper_connection_source(
         precision,
         symbol_prefix="hc\{index}",
       )

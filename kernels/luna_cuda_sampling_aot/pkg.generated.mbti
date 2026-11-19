@@ -46,50 +46,68 @@ pub(all) suberror SamplingBoundaryError {
   Mismatch(SamplingBoundaryRule)
   LimitExceeded(SamplingBoundaryRule)
 } derive(Eq, @debug.Debug)
+pub fn SamplingBoundaryError::equal(Self, Self) -> Bool
+pub fn SamplingBoundaryError::not_equal(Self, Self) -> Bool
+pub fn SamplingBoundaryError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DeviceSamplingAotLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeviceSamplingAotLimits::equal(Self, Self) -> Bool
 pub fn DeviceSamplingAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_module_bytes~ : Int64) -> Self raise SamplingBoundaryError
+pub fn DeviceSamplingAotLimits::not_equal(Self, Self) -> Bool
+pub fn DeviceSamplingAotLimits::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceSamplingCompileReceipt {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCompileReceipt::equal(Self, Self) -> Bool
 pub fn DeviceSamplingCompileReceipt::from_offline_builder(source_sha256~ : String, recipe_sha256~ : String, toolchain_sha256~ : String, driver_sha256~ : String, first_module_sha256~ : String, second_module_sha256~ : String) -> Self raise SamplingBoundaryError
+pub fn DeviceSamplingCompileReceipt::not_equal(Self, Self) -> Bool
+pub fn DeviceSamplingCompileReceipt::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceSamplingCudaAbiV2 {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn DeviceSamplingCudaAbiV2::block_x(Self) -> Int
+pub fn DeviceSamplingCudaAbiV2::equal(Self, Self) -> Bool
 pub fn DeviceSamplingCudaAbiV2::function_symbol(Self) -> String
 pub fn DeviceSamplingCudaAbiV2::grid_x(Self) -> Int
 pub fn DeviceSamplingCudaAbiV2::manifest_bindable(Self) -> Bool
+pub fn DeviceSamplingCudaAbiV2::not_equal(Self, Self) -> Bool
 pub fn DeviceSamplingCudaAbiV2::operands(Self) -> ReadOnlyArray[DeviceSamplingCudaOperandV2]
 pub fn DeviceSamplingCudaAbiV2::parameter_bytes(Self) -> Int64
 pub fn DeviceSamplingCudaAbiV2::result_bytes(Self) -> Int64
+pub fn DeviceSamplingCudaAbiV2::to_repr(Self) -> @debug.Repr
 pub fn DeviceSamplingCudaAbiV2::workspace_bytes(Self) -> Int64
 
 pub struct DeviceSamplingCudaArtifact {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCudaArtifact::equal(Self, Self) -> Bool
 pub fn DeviceSamplingCudaArtifact::function_symbol(Self) -> String
 pub fn DeviceSamplingCudaArtifact::manifest_bindable(Self) -> Bool
 pub fn DeviceSamplingCudaArtifact::module_bytes(Self) -> Bytes
 pub fn DeviceSamplingCudaArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn DeviceSamplingCudaArtifact::not_equal(Self, Self) -> Bool
 pub fn DeviceSamplingCudaArtifact::plan(Self) -> @luna_sampling_strategy.SamplingDevicePlan
 pub fn DeviceSamplingCudaArtifact::target(Self) -> @catalog.DeviceTarget
+pub fn DeviceSamplingCudaArtifact::to_repr(Self) -> @debug.Repr
 
 pub struct DeviceSamplingCudaLowering {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCudaLowering::equal(Self, Self) -> Bool
 pub fn DeviceSamplingCudaLowering::function_symbol(Self) -> String
+pub fn DeviceSamplingCudaLowering::not_equal(Self, Self) -> Bool
 pub fn DeviceSamplingCudaLowering::plan(Self) -> @luna_sampling_strategy.SamplingDevicePlan
 pub fn DeviceSamplingCudaLowering::recipe_bytes(Self) -> Bytes
 pub fn DeviceSamplingCudaLowering::recipe_sha256(Self) -> String
 pub fn DeviceSamplingCudaLowering::source_bytes(Self) -> Bytes
 pub fn DeviceSamplingCudaLowering::source_sha256(Self) -> String
 pub fn DeviceSamplingCudaLowering::target(Self) -> @catalog.DeviceTarget
+pub fn DeviceSamplingCudaLowering::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeviceSamplingCudaOperandV2 {
   SamplingCounts
@@ -99,45 +117,63 @@ pub(all) enum DeviceSamplingCudaOperandV2 {
   SamplingWorkspace
   SamplingResults
 } derive(Eq, @debug.Debug)
+pub fn DeviceSamplingCudaOperandV2::equal(Self, Self) -> Bool
+pub fn DeviceSamplingCudaOperandV2::not_equal(Self, Self) -> Bool
+pub fn DeviceSamplingCudaOperandV2::to_repr(Self) -> @debug.Repr
 
 pub struct GreedySamplingAotLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn GreedySamplingAotLimits::equal(Self, Self) -> Bool
 pub fn GreedySamplingAotLimits::new(max_source_bytes~ : Int, max_recipe_bytes~ : Int, max_module_bytes~ : Int64) -> Self raise SamplingBoundaryError
+pub fn GreedySamplingAotLimits::not_equal(Self, Self) -> Bool
+pub fn GreedySamplingAotLimits::to_repr(Self) -> @debug.Repr
 
 pub struct GreedySamplingCompileReceipt {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn GreedySamplingCompileReceipt::equal(Self, Self) -> Bool
 pub fn GreedySamplingCompileReceipt::from_offline_builder(source_sha256~ : String, recipe_sha256~ : String, toolchain_sha256~ : String, driver_sha256~ : String, first_module_sha256~ : String, second_module_sha256~ : String) -> Self raise SamplingBoundaryError
+pub fn GreedySamplingCompileReceipt::not_equal(Self, Self) -> Bool
+pub fn GreedySamplingCompileReceipt::to_repr(Self) -> @debug.Repr
 
 pub struct GreedySamplingCudaArtifact {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn GreedySamplingCudaArtifact::equal(Self, Self) -> Bool
 pub fn GreedySamplingCudaArtifact::function_symbol(Self) -> String
 pub fn GreedySamplingCudaArtifact::maximum_rows(Self) -> Int
 pub fn GreedySamplingCudaArtifact::module_bytes(Self) -> Bytes
 pub fn GreedySamplingCudaArtifact::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn GreedySamplingCudaArtifact::not_equal(Self, Self) -> Bool
 pub fn GreedySamplingCudaArtifact::result_row_bytes(Self) -> Int64
 pub fn GreedySamplingCudaArtifact::target(Self) -> @catalog.DeviceTarget
+pub fn GreedySamplingCudaArtifact::to_repr(Self) -> @debug.Repr
 pub fn GreedySamplingCudaArtifact::vocabulary_size(Self) -> Int
 
 pub struct GreedySamplingCudaLowering {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn GreedySamplingCudaLowering::equal(Self, Self) -> Bool
 pub fn GreedySamplingCudaLowering::function_symbol(Self) -> String
+pub fn GreedySamplingCudaLowering::not_equal(Self, Self) -> Bool
 pub fn GreedySamplingCudaLowering::recipe_bytes(Self) -> Bytes
 pub fn GreedySamplingCudaLowering::recipe_sha256(Self) -> String
 pub fn GreedySamplingCudaLowering::source_bytes(Self) -> Bytes
 pub fn GreedySamplingCudaLowering::source_sha256(Self) -> String
+pub fn GreedySamplingCudaLowering::to_repr(Self) -> @debug.Repr
 
 pub struct HostSamplingBoundary {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn HostSamplingBoundary::equal(Self, Self) -> Bool
 pub fn HostSamplingBoundary::final_output(Self) -> @plan.ActivationRef
 pub fn HostSamplingBoundary::logits_row_bytes(Self) -> Int64
+pub fn HostSamplingBoundary::not_equal(Self, Self) -> Bool
 pub fn HostSamplingBoundary::owner(Self) -> SamplingExecutionOwner
 pub fn HostSamplingBoundary::producer(Self) -> @plan.OperationId
 pub fn HostSamplingBoundary::requires_cuda_artifact(Self) -> Bool
+pub fn HostSamplingBoundary::to_repr(Self) -> @debug.Repr
 pub fn HostSamplingBoundary::vocabulary_size(Self) -> Int
 
 pub(all) enum SamplingBoundaryRule {
@@ -158,10 +194,16 @@ pub(all) enum SamplingBoundaryRule {
   DeviceSamplingPlan
   DeviceSamplingParameters
 } derive(Eq, @debug.Debug)
+pub fn SamplingBoundaryRule::equal(Self, Self) -> Bool
+pub fn SamplingBoundaryRule::not_equal(Self, Self) -> Bool
+pub fn SamplingBoundaryRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SamplingExecutionOwner {
   HostCompletionOwner
 } derive(Eq, @debug.Debug)
+pub fn SamplingExecutionOwner::equal(Self, Self) -> Bool
+pub fn SamplingExecutionOwner::not_equal(Self, Self) -> Bool
+pub fn SamplingExecutionOwner::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

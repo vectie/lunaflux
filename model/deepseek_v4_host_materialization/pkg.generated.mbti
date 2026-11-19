@@ -44,6 +44,9 @@ pub(all) suberror DeepSeekV4HostMaterializationError {
   QuantizedPayloadFailure(Int)
   ExecutableWeightsUnavailable(ReadOnlyArray[DeepSeekV4HostExecutionLimitation])
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4HostMaterializationError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostMaterializationError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostMaterializationError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeepSeekV4TokenHashMaterializationError {
   TokenHashInvalidLimit
@@ -57,21 +60,30 @@ pub(all) suberror DeepSeekV4TokenHashMaterializationError {
   TokenHashTableIndexOutOfBounds(Int)
   TokenHashNarrowingFailure(layer~ : Int, @checked_integer_narrow.CheckedIntegerNarrowError)
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashMaterializationError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashMaterializationError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashMaterializationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DeepSeekV4HostExecutionLimitation {
   Fp4ScalarInterpretationUnproven
   NoDeviceOrKernelMaterialization
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4HostExecutionLimitation::equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostExecutionLimitation::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostExecutionLimitation::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4HostExpectedDigests {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4HostExpectedDigests::equal(Self, Self) -> Bool
 pub fn DeepSeekV4HostExpectedDigests::identity(Self) -> @spec.ModelIdentity
 pub fn DeepSeekV4HostExpectedDigests::logical_manifest_digest(Self) -> @spec.PlanDigest
 pub fn DeepSeekV4HostExpectedDigests::new(identity~ : @spec.ModelIdentity, logical_manifest_digest~ : @spec.PlanDigest, numeric_schema_digest~ : @spec.PlanDigest, numeric_binding_digest~ : @spec.PlanDigest) -> Self
+pub fn DeepSeekV4HostExpectedDigests::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4HostExpectedDigests::numeric_binding_digest(Self) -> @spec.PlanDigest
 pub fn DeepSeekV4HostExpectedDigests::numeric_schema_digest(Self) -> @spec.PlanDigest
+pub fn DeepSeekV4HostExpectedDigests::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4HostManifest {
   // private fields
@@ -89,6 +101,11 @@ pub struct DeepSeekV4HostManifestDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn DeepSeekV4HostManifestDigest::as_hex(Self) -> String
+pub fn DeepSeekV4HostManifestDigest::equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostManifestDigest::hash(Self) -> Int
+pub fn DeepSeekV4HostManifestDigest::hash_combine(Self, Hasher) -> Unit
+pub fn DeepSeekV4HostManifestDigest::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostManifestDigest::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4HostMaterializationLimits {
   // private fields
@@ -98,6 +115,9 @@ pub fn DeepSeekV4HostMaterializationLimits::new(maximum_total_host_bytes~ : Int6
 pub(all) enum DeepSeekV4HostMaterializationReadiness {
   AuthenticatedRawHostPayloadsOnly(ReadOnlyArray[DeepSeekV4HostExecutionLimitation])
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4HostMaterializationReadiness::equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostMaterializationReadiness::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostMaterializationReadiness::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4HostTensor {
   // private fields
@@ -106,7 +126,10 @@ pub fn DeepSeekV4HostTensor::arena_offset(Self) -> Int
 pub fn DeepSeekV4HostTensor::arena_ordinal(Self) -> Int
 pub fn DeepSeekV4HostTensor::binding(Self) -> @deepseek_v4_weights.DeepSeekV4TensorBinding
 pub fn DeepSeekV4HostTensor::byte_count(Self) -> Int
+pub fn DeepSeekV4HostTensor::equal(Self, Self) -> Bool
+pub fn DeepSeekV4HostTensor::not_equal(Self, Self) -> Bool
 pub fn DeepSeekV4HostTensor::quantized_parameter_index(Self) -> Int?
+pub fn DeepSeekV4HostTensor::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4HostWeights {
   // private fields
@@ -132,7 +155,10 @@ pub fn DeepSeekV4HostWeights::total_tensor_bytes(Self) -> Int64
 pub struct DeepSeekV4TensorIndexInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TensorIndexInput::equal(Self, Self) -> Bool
 pub fn DeepSeekV4TensorIndexInput::new(tensor_name~ : String, shard_ordinal~ : Int) -> Self
+pub fn DeepSeekV4TensorIndexInput::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TensorIndexInput::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4TokenHashMaterializationLimits {
   // private fields

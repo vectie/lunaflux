@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/contracts/inference",
   "vectie/lunaflux/config/cache",
   "vectie/lunaflux/config/runtime_resolved",
@@ -10,7 +11,6 @@ import {
   "vectie/lunaflux/engine/worker_service",
   "vectie/lunaflux/engine/worker_wire",
   "vectie/lunaflux/logging/instance",
-  "vectie/lunaflux/engine/execution_manifest_file",
   "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/runtime/descriptor_file",

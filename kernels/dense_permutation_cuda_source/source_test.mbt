@@ -35,7 +35,7 @@ test "identity elides index arithmetic and launch geometry is bounded" {
   assert_false(source.contains("src +="))
   for block_size in [0, -1, 1025] {
     try @dense_permutation_cuda_source.render(plan, block_size~) catch {
-      @dense_permutation_cuda_source.SourceError::InvalidBlockSize => ()
+      InvalidBlockSize => ()
     } noraise {
       _ => fail("invalid block size admitted")
     }

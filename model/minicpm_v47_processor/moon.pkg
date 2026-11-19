@@ -1,8 +1,8 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/model/minicpm_v47" @model,
   "vectie/lunaflux/model/minicpm_v47_positions" @positions,
   "moonbitlang/core/math",
-  "moonbitlang/core/float",
 }
 
 import {

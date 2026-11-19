@@ -209,7 +209,7 @@ pub fn lower_transformer_attention_cuda_aot_candidate(
   let boundaries = if document_boundaries.is_empty() {
     [0, packed_rows]
   } else {
-    document_boundaries.to_array()
+    document_boundaries.to_owned()
   }
   let refiner_rows = request.text().token_count()
   let packed_elements = checked_mul(packed_rows.to_int64(), inner)

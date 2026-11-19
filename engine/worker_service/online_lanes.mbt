@@ -204,7 +204,7 @@ pub fn OnlineWorkerLease::try_admit_request(
     }
   }
   service.scheduler.commit_admission(prepared, now) catch {
-    @core.Invalid(field=WaitingCapacity | RequestCapacity, issue=Exhausted) => {
+    Invalid(field=WaitingCapacity | RequestCapacity, issue=Exhausted) => {
       self.release_lane_retention(lane)
       // A free publication lane does not imply a free scheduler waiting slot.
       // Saturation retains neither semantic ownership nor a worker lane.

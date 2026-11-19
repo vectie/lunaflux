@@ -111,7 +111,7 @@ fn AudioSource::bind(
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   let graph = self.plan.graph
   guard functions.length() == graph.nodes.length() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let values : Array[@device.KernelArgument] = []
   for i, value in graph.values {
@@ -121,7 +121,7 @@ fn AudioSource::bind(
         Weight(name) =>
           match weight_arguments.get(name) {
             Some(arg) => arg
-            None => raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+            None => raise InvalidArgument(AotKernelLaunch)
           }
         Input =>
           if i == 0 {
@@ -131,7 +131,7 @@ fn AudioSource::bind(
           } else if i == self.plan.deviations_value {
             region(statistics, 128L, 32L)
           } else {
-            raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+            raise InvalidArgument(AotKernelLaunch)
           }
       },
     )

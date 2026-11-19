@@ -382,7 +382,7 @@ pub fn admit_with_template(
   )
   {
     ..admitted,
-    worker_contracts: ReadOnlyArray::from_array(startups.to_array()),
+    worker_contracts: ReadOnlyArray::from_array(startups.to_owned()),
   }
 }
 

@@ -1,6 +1,6 @@
 ///|
 test "Flash Output-B keeps raw block-FP8 row-major checkpoint layout" {
-  let layout = output_b_quantized_layout(
+  let layout = @deepseek_v4_weights.output_b_quantized_layout(
     @deepseek_v4_spec.DeepSeekV4ModelSpec::from_official_model_id(
       "deepseek-ai/DeepSeek-V4-Flash-0731",
     ),
@@ -16,7 +16,7 @@ test "Flash Output-B keeps raw block-FP8 row-major checkpoint layout" {
 
 ///|
 test "Pro Output-B derives its distinct official dimensions" {
-  let layout = output_b_quantized_layout(
+  let layout = @deepseek_v4_weights.output_b_quantized_layout(
     @deepseek_v4_spec.DeepSeekV4ModelSpec::from_official_model_id(
       "deepseek-ai/DeepSeek-V4-Pro",
     ),

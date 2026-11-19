@@ -6,7 +6,7 @@ pub fn MoeProgram::borrow_retired_frontiers(
   self : Self,
 ) -> ArrayView[(String, @device.Allocation)] raise @device.DeviceError {
   guard !self.closed && !self.frontiers.is_empty() else {
-    raise @device.DeviceError::InvalidArgument(StreamingTransfer)
+    raise InvalidArgument(StreamingTransfer)
   }
   self.frontiers[:]
 }

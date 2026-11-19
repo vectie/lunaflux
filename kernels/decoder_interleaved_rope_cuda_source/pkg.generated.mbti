@@ -18,11 +18,17 @@ pub(all) suberror DecoderInterleavedRopeCudaSourceError {
   InvalidTheta
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn DecoderInterleavedRopeCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderInterleavedRopeCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderInterleavedRopeCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderInterleavedRopeCudaOperation {
   InterleavedPairRopeWithQueryPrefixCopyBf16
 } derive(Eq, @debug.Debug)
+pub fn DecoderInterleavedRopeCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderInterleavedRopeCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderInterleavedRopeCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderInterleavedRopeCudaSource {
   // private fields
@@ -42,6 +48,9 @@ pub fn DecoderInterleavedRopeCudaSource::theta(Self) -> Double
 pub(all) enum DecoderInterleavedRopeNumericalContract {
   Float32DefaultFrequencyTrigRoundedBf16PairArithmeticV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderInterleavedRopeNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderInterleavedRopeNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderInterleavedRopeNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

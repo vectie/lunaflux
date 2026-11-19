@@ -63,10 +63,10 @@ fn parameter_evidence(
   digest? : String,
   converted_shape? : Array[Int64],
   bytes? : Int64,
-) -> DeepSeekV4OutputAParameterEvidenceInput {
+) -> @deepseek_v4_output_a_parameter_plan.DeepSeekV4OutputAParameterEvidenceInput {
   let layout = @deepseek_v4_weights.output_a_converted_layout(metadata.spec())
   let grouped = layout.converted_grouped_shape()
-  try! DeepSeekV4OutputAParameterEvidenceInput::new(
+  try! @deepseek_v4_output_a_parameter_plan.DeepSeekV4OutputAParameterEvidenceInput::new(
     contract=layout.contract(),
     source_weight_shape=layout.source_weight_shape(),
     source_scale_shape=layout.source_scale_shape(),
@@ -75,7 +75,9 @@ fn parameter_evidence(
       grouped[1],
       grouped[2],
     ]),
-    layout_digest_sha256=digest.unwrap_or(output_a_layout_digest_sha256(layout)),
+    layout_digest_sha256=digest.unwrap_or(
+      @deepseek_v4_output_a_parameter_plan.output_a_layout_digest_sha256(layout),
+    ),
     operand_ordinal=2,
     operand_role=AttentionOutputAWeightsInput,
     operand_byte_count=bytes.unwrap_or(candidate.operands()[2].byte_count()),
@@ -97,7 +99,7 @@ test "all profiles join converted layout to exact candidate operand 2" {
       entry.0,
       entry.1,
     )
-    let plan = try! plan_output_a_parameter(
+    let plan = try! @deepseek_v4_output_a_parameter_plan.plan_output_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -125,7 +127,7 @@ test "parameter join rejects identity shape digest bytes and Output-B" {
     "deepseek-ai/DeepSeek-V4-Pro", 'b',
   )
   try
-    plan_output_a_parameter(
+    @deepseek_v4_output_a_parameter_plan.plan_output_a_parameter(
       metadata,
       foreign_requirements,
       candidate,
@@ -141,7 +143,7 @@ test "parameter join rejects identity shape digest bytes and Output-B" {
     "deepseek-ai/DeepSeek-V4-Pro", 'a',
   )
   try
-    plan_output_a_parameter(
+    @deepseek_v4_output_a_parameter_plan.plan_output_a_parameter(
       metadata,
       wrong_profile_requirements,
       candidate,
@@ -154,7 +156,7 @@ test "parameter join rejects identity shape digest bytes and Output-B" {
     _ => fail("wrong profile requirements admitted")
   }
   try
-    plan_output_a_parameter(
+    @deepseek_v4_output_a_parameter_plan.plan_output_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -167,7 +169,7 @@ test "parameter join rejects identity shape digest bytes and Output-B" {
     _ => fail("wrong shape admitted")
   }
   try
-    plan_output_a_parameter(
+    @deepseek_v4_output_a_parameter_plan.plan_output_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -180,7 +182,7 @@ test "parameter join rejects identity shape digest bytes and Output-B" {
     _ => fail("wrong digest admitted")
   }
   try
-    plan_output_a_parameter(
+    @deepseek_v4_output_a_parameter_plan.plan_output_a_parameter(
       metadata,
       requirements,
       candidate,
@@ -226,7 +228,7 @@ test "parameter plan exposes no execution authority" {
   let (metadata, requirements, candidate) = parameter_fixture(
     "deepseek-ai/DeepSeek-V4-Flash-0731", 'd',
   )
-  let plan = try! plan_output_a_parameter(
+  let plan = try! @deepseek_v4_output_a_parameter_plan.plan_output_a_parameter(
     metadata,
     requirements,
     candidate,

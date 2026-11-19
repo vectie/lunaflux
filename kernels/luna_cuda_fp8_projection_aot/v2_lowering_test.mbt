@@ -28,22 +28,22 @@ fn fp8_aot_lower_v2(
   operation : Int32,
   profile~ : @launch_contract.PagedKernelProfile = fp8_aot_profile(),
   model_plan~ : @plan.ModelPlan = fp8_aot_plan_v2(),
-) -> Fp8ProjectionCudaLoweringV2 {
+) -> @luna_cuda_fp8_projection_aot.Fp8ProjectionCudaLoweringV2 {
   let plan = model_plan
   let id = try! @plan.OperationId::new(operation)
-  let operands = try! derive_fp8_projection_operands_v2(
+  let operands = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(
     plan,
     operation=id,
     profile,
   )
-  try! lower_fp8_projection_cuda_aot_candidate_v2(
+  try! @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate_v2(
     plan,
     operation=id,
     profile,
     fp8_aot_target(),
     fp8_aot_compiler(),
     operands,
-    try! Fp8ProjectionAotLimits::new(
+    try! @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
       max_source_bytes=65536,
       max_recipe_bytes=65536,
     ),
@@ -135,7 +135,7 @@ test "FP8 v2 simple source retains one-cell ABI and cannot replay as gated" {
   assert_true(simple.source_digest() != fp8_aot_lower(2).source_digest())
   let legacy = fp8_aot_plan()
   try
-    derive_fp8_projection_operands_v2(
+    @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(
       legacy,
       operation=try! @plan.OperationId::new(8),
       fp8_aot_profile(),
@@ -153,7 +153,7 @@ test "FP8 v2 rejects raw operand substitution and binds profile identity" {
   let plan = fp8_aot_plan_v2()
   let operation = try! @plan.OperationId::new(8)
   let profile = fp8_aot_profile()
-  let admitted = try! derive_fp8_projection_operands_v2(
+  let admitted = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(
     plan,
     operation~,
     profile,
@@ -166,14 +166,14 @@ test "FP8 v2 rejects raw operand substitution and binds profile identity" {
   substituted[3] = substituted[4]
   substituted[4] = temporary
   try
-    lower_fp8_projection_cuda_aot_candidate_v2(
+    @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate_v2(
       plan,
       operation~,
       profile,
       fp8_aot_target(),
       fp8_aot_compiler(),
       substituted,
-      try! Fp8ProjectionAotLimits::new(
+      try! @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
         max_source_bytes=65536,
         max_recipe_bytes=65536,
       ),
@@ -195,19 +195,19 @@ test "FP8 v2 admits exact sm120 without broadening v1" {
   let plan = fp8_aot_plan_v2()
   let operation = try! @plan.OperationId::new(2)
   let profile = fp8_aot_profile()
-  let operands = try! derive_fp8_projection_operands_v2(
+  let operands = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands_v2(
     plan,
     operation~,
     profile,
   )
-  let lowered = try! lower_fp8_projection_cuda_aot_candidate_v2(
+  let lowered = try! @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate_v2(
     plan,
     operation~,
     profile,
     fp8_aot_target(major=12, minor=0),
     fp8_aot_compiler(),
     operands,
-    try! Fp8ProjectionAotLimits::new(
+    try! @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
       max_source_bytes=65536,
       max_recipe_bytes=65536,
     ),
@@ -215,20 +215,20 @@ test "FP8 v2 admits exact sm120 without broadening v1" {
   let source = try! @utf8.decode(lowered.source_bytes())
   assert_true(source.contains("__CUDA_ARCH__ != 1200"))
   let v1_plan = fp8_aot_plan()
-  let v1_operands = try! derive_fp8_projection_operands(
+  let v1_operands = try! @luna_cuda_fp8_projection_aot.derive_fp8_projection_operands(
     v1_plan,
     operation~,
     profile,
   )
   try
-    lower_fp8_projection_cuda_aot_candidate(
+    @luna_cuda_fp8_projection_aot.lower_fp8_projection_cuda_aot_candidate(
       v1_plan,
       operation~,
       profile,
       fp8_aot_target(major=12, minor=0),
       fp8_aot_compiler(),
       v1_operands,
-      try! Fp8ProjectionAotLimits::new(
+      try! @luna_cuda_fp8_projection_aot.Fp8ProjectionAotLimits::new(
         max_source_bytes=65536,
         max_recipe_bytes=65536,
       ),

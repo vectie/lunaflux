@@ -19,7 +19,7 @@ test "packing source uses unsigned cells mapping and explicit padding" {
   assert_true(!source.contains("float"))
   for block_size in [0, 1025] {
     try @packed_rows_cuda_source.render(plan, block_size~) catch {
-      @packed_rows_cuda_source.SourceError::InvalidBlockSize => ()
+      InvalidBlockSize => ()
     } noraise {
       _ => fail("invalid block admitted")
     }

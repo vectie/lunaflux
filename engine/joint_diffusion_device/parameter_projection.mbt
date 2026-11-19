@@ -15,15 +15,15 @@ pub fn ParameterProjectionLayout::new(
   fields~ : Int32,
 ) -> Self raise @device.DeviceError {
   guard rows > 0 && input_width > 0 && width > 0 && groups > 0 && fields > 0 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let group_fields = groups.to_int64() * fields.to_int64()
   guard group_fields <= 2147483647L / width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let outputs = group_fields * width.to_int64()
   guard rows.to_int64() <= 2147483647L / outputs else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   {
     input_bytes: rows.to_int64() * input_width.to_int64() * 2L,

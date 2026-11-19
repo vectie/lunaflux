@@ -1,6 +1,6 @@
 ///|
 test "grouped routing source keeps choice and weight score streams distinct" {
-  let rendered = grouped_choice_and_selected_weight_f32_source(
+  let rendered = @grouped_routing_cuda_source.grouped_choice_and_selected_weight_f32_source(
     routed_expert_count=288,
     group_count=1,
     group_score_topk=2,
@@ -28,7 +28,7 @@ test "grouped routing source keeps choice and weight score streams distinct" {
 ///|
 test "grouped routing source rejects hostile geometry" {
   try
-    grouped_choice_and_selected_weight_f32_source(
+    @grouped_routing_cuda_source.grouped_choice_and_selected_weight_f32_source(
       routed_expert_count=288,
       group_count=5,
       group_score_topk=2,
@@ -46,7 +46,7 @@ test "grouped routing source rejects hostile geometry" {
     _ => fail("non-divisible grouping admitted")
   }
   try
-    grouped_choice_and_selected_weight_f32_source(
+    @grouped_routing_cuda_source.grouped_choice_and_selected_weight_f32_source(
       routed_expert_count=8,
       group_count=4,
       group_score_topk=2,

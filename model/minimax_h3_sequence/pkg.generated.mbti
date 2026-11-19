@@ -89,6 +89,8 @@ pub struct Segment {
   start : Int
   count : Int
 } derive(Eq)
+pub fn Segment::equal(Self, Self) -> Bool
+pub fn Segment::not_equal(Self, Self) -> Bool
 
 pub(all) enum SegmentKind {
   Text
@@ -97,6 +99,8 @@ pub(all) enum SegmentKind {
   TargetAudio
   TargetVideo
 } derive(Eq)
+pub fn SegmentKind::equal(Self, Self) -> Bool
+pub fn SegmentKind::not_equal(Self, Self) -> Bool
 
 pub struct Sequence {
   // private fields

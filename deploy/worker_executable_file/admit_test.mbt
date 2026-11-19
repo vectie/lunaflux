@@ -10,11 +10,15 @@ async test "worker executable retains caller label and descriptor without scanni
     let bytes = b"worker fixture"
     @fs.write_file(path, bytes, create_mode=CreateNew)
     @fs.chmod(path, 0o500)
-    let digest = WorkerExecutableDigest::from_sha256("1".repeat(64))
-    let admission = verify(
+    let digest = @worker_executable_file.WorkerExecutableDigest::from_sha256(
+      "1".repeat(64),
+    )
+    let admission = @worker_executable_file.verify(
       path,
       digest,
-      try! WorkerExecutableFileLimits::new(maximum_bytes=4096L),
+      try! @worker_executable_file.WorkerExecutableFileLimits::new(
+        maximum_bytes=4096L,
+      ),
     )
     assert_eq(admission.digest(), digest)
     assert_eq(@utf8.decode(admission.activation_path()), path)
@@ -34,15 +38,17 @@ async test "worker executable rejects directories and bad paths" {
       @async.protect_from_cancel(() => @fs.rmdir(root, recursive=true))
     }
     @fs.mkdir("\{root}/directory")
-    let digest = try! WorkerExecutableDigest::from_sha256(
+    let digest = try! @worker_executable_file.WorkerExecutableDigest::from_sha256(
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     )
     for path in ["relative", "\{root}/../worker", "\{root}/directory"] {
       try
-        verify(
+        @worker_executable_file.verify(
           path,
           digest,
-          try! WorkerExecutableFileLimits::new(maximum_bytes=4096L),
+          try! @worker_executable_file.WorkerExecutableFileLimits::new(
+            maximum_bytes=4096L,
+          ),
         )
       catch {
         InvalidPath | UnsupportedFileType | FileUnavailable => ()
@@ -68,17 +74,21 @@ async test "materialized worker checks metadata and exact target path without ha
       bytes,
       create_mode=CreateNew,
     )
-    let digest = WorkerExecutableDigest::from_sha256("2".repeat(64))
+    let digest = @worker_executable_file.WorkerExecutableDigest::from_sha256(
+      "2".repeat(64),
+    )
     let source_root = @approved_fs.ApprovedRoot::open_absolute(source_label)
     let source = source_root.materialization_view(
       source_label, "/opt/lunaflux/bin",
     )
-    let admission = verify_materialized(
+    let admission = @worker_executable_file.verify_materialized(
       source,
       "lunaflux-device-worker",
       "/opt/lunaflux/bin/lunaflux-device-worker",
       digest,
-      try! WorkerExecutableFileLimits::new(maximum_bytes=4096L),
+      try! @worker_executable_file.WorkerExecutableFileLimits::new(
+        maximum_bytes=4096L,
+      ),
     )
     assert_eq(admission.digest(), digest)
     assert_eq(
@@ -86,12 +96,14 @@ async test "materialized worker checks metadata and exact target path without ha
       "/opt/lunaflux/bin/lunaflux-device-worker",
     )
     try
-      verify_materialized(
+      @worker_executable_file.verify_materialized(
         source,
         "lunaflux-device-worker",
         "/opt/lunaflux/bin/lunaflux-device-worker",
         digest,
-        WorkerExecutableFileLimits::new(maximum_bytes=2L),
+        @worker_executable_file.WorkerExecutableFileLimits::new(
+          maximum_bytes=2L,
+        ),
       )
     catch {
       FileTooLarge => ()
@@ -100,12 +112,14 @@ async test "materialized worker checks metadata and exact target path without ha
       _ => fail("size ceiling ignored")
     }
     try
-      verify_materialized(
+      @worker_executable_file.verify_materialized(
         source,
         "lunaflux-device-worker",
         "/usr/bin/lunaflux-device-worker",
         digest,
-        try! WorkerExecutableFileLimits::new(maximum_bytes=4096L),
+        try! @worker_executable_file.WorkerExecutableFileLimits::new(
+          maximum_bytes=4096L,
+        ),
       )
     catch {
       InvalidPath => ()
@@ -136,11 +150,13 @@ async test "pinned executable survives replacement hardlink and descriptor reuse
     let retained_link = "\{root_label}/authenticated-hardlink"
     @fs.write_file(path, cat_bytes, create_mode=CreateNew)
     @fs.chmod(path, 0o500)
-    let digest = WorkerExecutableDigest::from_sha256(
+    let digest = @worker_executable_file.WorkerExecutableDigest::from_sha256(
       @crypto.bytes_to_hex_string(@crypto.sha256(cat_bytes)),
     )
-    let limits = WorkerExecutableFileLimits::new(maximum_bytes=2097152L)
-    let admission = verify(path, digest, limits)
+    let limits = @worker_executable_file.WorkerExecutableFileLimits::new(
+      maximum_bytes=2097152L,
+    )
+    let admission = @worker_executable_file.verify(path, digest, limits)
     assert_eq(raw_test_link(@utf8.encode(path), @utf8.encode(retained_link)), 0)
     @fs.rename(path, "\{root_label}/renamed-original")
     @fs.write_file(path, false_bytes, create_mode=CreateNew)
@@ -181,9 +197,9 @@ async test "pinned executable survives replacement hardlink and descriptor reuse
     admission.close()
     assert_false(admission.is_activation_live())
     for _ in 0..<16 {
-      let replacement = verify(
+      let replacement = @worker_executable_file.verify(
         path,
-        WorkerExecutableDigest::from_sha256(
+        @worker_executable_file.WorkerExecutableDigest::from_sha256(
           @crypto.bytes_to_hex_string(@crypto.sha256(false_bytes)),
         ),
         limits,
@@ -214,13 +230,15 @@ async test "executable admission rejects final and intermediate symlinks" {
     @fs.symlink(target=real_path, "\{root_label}/worker-link")
     @fs.mkdir("\{root_label}/real-parent")
     @fs.symlink(target="\{root_label}/real-parent", "\{root_label}/parent-link")
-    let digest = WorkerExecutableDigest::from_sha256(
+    let digest = @worker_executable_file.WorkerExecutableDigest::from_sha256(
       @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
     )
-    let limits = WorkerExecutableFileLimits::new(maximum_bytes=2097152L)
+    let limits = @worker_executable_file.WorkerExecutableFileLimits::new(
+      maximum_bytes=2097152L,
+    )
     for
       path in ["\{root_label}/worker-link", "\{root_label}/parent-link/worker"] {
-      try verify(path, digest, limits) catch {
+      try @worker_executable_file.verify(path, digest, limits) catch {
         UnsupportedFileType | FileUnavailable => ()
         _ => fail("symlink failed at the wrong executable boundary")
       } noraise {

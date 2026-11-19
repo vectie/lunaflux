@@ -16,7 +16,7 @@ pub fn block_rms_norm_launch(
   guard rows > 0 &&
     width > 0 &&
     rows.to_int64() <= 2147483647L / width.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let bytes = rows.to_int64() * width.to_int64() * 2L
   let dimensions = @device.KernelLaunchDimensions::new(
@@ -64,9 +64,9 @@ fn[T] compose_block(
     attention.length() == 4 &&
     mlp_prefix.length() == 2 &&
     mlp.length() == 2 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
-  let result = attention_prefix.to_array()
+  let result = attention_prefix.to_owned()
   result.append(attention)
   result.push(attention_residual)
   result.append(mlp_prefix)

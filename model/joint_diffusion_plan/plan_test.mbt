@@ -129,7 +129,7 @@ test "distinct output length laws cannot alias the same model plan" {
       shapes=test_shapes(audio_output_length=policy),
       conditioning=no_conditioning(),
       denoiser=test_denoiser(),
-      projection=JointDiffusionProjectionContract::mixed_precision_float32_heads(),
+      projection=@joint_diffusion_plan.JointDiffusionProjectionContract::mixed_precision_float32_heads(),
     )
   }
   assert_true(
@@ -267,7 +267,7 @@ test "plan rejects reordered stages and crossed schedulers" {
       shapes=test_shapes(),
       conditioning=no_conditioning(),
       denoiser=test_denoiser(),
-      projection=JointDiffusionProjectionContract::mixed_precision_float32_heads(),
+      projection=@joint_diffusion_plan.JointDiffusionProjectionContract::mixed_precision_float32_heads(),
     )
   catch {
     InvalidStageSequence => ()
@@ -316,7 +316,7 @@ test "plan rejects reordered stages and crossed schedulers" {
       shapes=test_shapes(),
       conditioning=no_conditioning(),
       denoiser=test_denoiser(),
-      projection=JointDiffusionProjectionContract::mixed_precision_float32_heads(),
+      projection=@joint_diffusion_plan.JointDiffusionProjectionContract::mixed_precision_float32_heads(),
     )
   catch {
     InvalidScheduler => ()

@@ -87,7 +87,7 @@ test "transport copies only live prefixes and capacity is not tied to context" {
     assert_eq(copied[index], b'\xff')
   }
   try host.copy_input(TokenIds, FixedArray::make(15, b'\x00')) catch {
-    @batched_decoder_frame.BatchFrameError::InvalidCapacity => ()
+    InvalidCapacity => ()
     e => raise e
   } noraise {
     _ => fail("short DMA payload")

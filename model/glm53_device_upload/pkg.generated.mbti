@@ -22,6 +22,9 @@ pub(all) suberror Glm53DeviceUploadError {
   Borrow(@segmented_host_borrow.SegmentedHostBorrowError)
   Device(@segmented_device_materialize.SegmentedDeviceMaterializationError)
 } derive(Eq, @debug.Debug)
+pub fn Glm53DeviceUploadError::equal(Self, Self) -> Bool
+pub fn Glm53DeviceUploadError::not_equal(Self, Self) -> Bool
+pub fn Glm53DeviceUploadError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 

@@ -20,6 +20,9 @@ pub(all) suberror PagedAttentionReadOnlyPhysicalEvidenceError {
   PagedAttentionReadOnlyPhysicalEvidenceMismatch(PagedAttentionReadOnlyPhysicalEvidenceRule)
   PagedAttentionReadOnlyPhysicalEvidenceLimitExceeded
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionReadOnlyPhysicalEvidenceError::equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyPhysicalEvidenceError::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyPhysicalEvidenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdmittedPagedAttentionReadOnlyPhysicalEvidence {
@@ -49,7 +52,12 @@ pub fn ApprovedPagedAttentionReadOnlyPhysicalPolicy::digest(Self) -> PagedAttent
 
 pub struct PagedAttentionReadOnlyPhysicalEvidenceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn PagedAttentionReadOnlyPhysicalEvidenceDigest::as_hex(Self) -> String
+pub fn PagedAttentionReadOnlyPhysicalEvidenceDigest::equal(Self, Self) -> Bool
 pub fn PagedAttentionReadOnlyPhysicalEvidenceDigest::from_sha256(String) -> Self raise PagedAttentionReadOnlyPhysicalEvidenceError
+pub fn PagedAttentionReadOnlyPhysicalEvidenceDigest::hash(Self) -> Int
+pub fn PagedAttentionReadOnlyPhysicalEvidenceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn PagedAttentionReadOnlyPhysicalEvidenceDigest::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyPhysicalEvidenceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct PagedAttentionReadOnlyPhysicalEvidenceLimits {
   // private fields
@@ -74,6 +82,9 @@ pub(all) enum PagedAttentionReadOnlyPhysicalEvidenceRule {
   Seal
   Authority
 } derive(Eq, @debug.Debug)
+pub fn PagedAttentionReadOnlyPhysicalEvidenceRule::equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyPhysicalEvidenceRule::not_equal(Self, Self) -> Bool
+pub fn PagedAttentionReadOnlyPhysicalEvidenceRule::to_repr(Self) -> @debug.Repr
 
 pub struct QualifiedPagedAttentionReadOnlyArtifact {
   // private fields

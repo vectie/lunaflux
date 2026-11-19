@@ -1,6 +1,6 @@
 ///|
 test "DSA pooling renderer fixes standalone semantic and ABI boundaries" {
-  let rendered = dsa_key_pool_compression_bf16_source(
+  let rendered = @glm_hybrid_dsa_pooling_cuda_source.dsa_key_pool_compression_bf16_source(
     head_dimension=128,
     pool_size=4,
     maximum_tokens=32,
@@ -21,7 +21,7 @@ test "DSA pooling renderer fixes standalone semantic and ABI boundaries" {
 ///|
 test "DSA pooling renderer rejects non-poolable envelopes" {
   try
-    dsa_key_pool_compression_bf16_source(
+    @glm_hybrid_dsa_pooling_cuda_source.dsa_key_pool_compression_bf16_source(
       head_dimension=128,
       pool_size=4,
       maximum_tokens=3,

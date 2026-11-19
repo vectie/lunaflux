@@ -32,7 +32,7 @@ fn parse_vocabulary(
           if special.special {
             @tokenizer.TokenKind::Special
           } else {
-            @tokenizer.TokenKind::Added
+            Added
           },
         )
       }

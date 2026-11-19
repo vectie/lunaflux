@@ -54,6 +54,9 @@ pub(all) suberror DeepSeekV4TokenHashArtifactBindingError {
   LaunchAuthorityUnavailable
   PhysicalQualificationUnavailable
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashArtifactBindingError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashArtifactBindingError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashArtifactBindingError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeepSeekV4TokenHashCompileEvidenceBindingError {
   CandidateIdentityMismatch
@@ -78,6 +81,9 @@ pub(all) suberror DeepSeekV4TokenHashCompileEvidenceBindingError {
   LaunchAuthorityUnavailable
   PhysicalQualificationUnavailable
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeepSeekV4TokenHashLaunchBindingError {
   ArtifactBinding(DeepSeekV4TokenHashArtifactBindingError)
@@ -91,6 +97,9 @@ pub(all) suberror DeepSeekV4TokenHashLaunchBindingError {
   LaunchAuthorityUnavailable
   PhysicalQualificationUnavailable
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashLaunchBindingError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashLaunchBindingError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashLaunchBindingError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror DeepSeekV4TokenHashOperandPlanError {
   Sidecar(@deepseek_v4_device_upload.DeepSeekV4DeviceUploadError)
@@ -113,6 +122,9 @@ pub(all) suberror DeepSeekV4TokenHashOperandPlanError {
   LayoutRegionMismatch(Int)
   NoLaunchAuthority
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashOperandPlanError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashOperandPlanError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashOperandPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DeepSeekV4TokenHashArtifactBinding {
@@ -142,10 +154,18 @@ pub fn DeepSeekV4TokenHashArtifactBinding::token_hash_operand_ordinal(Self) -> I
 
 pub struct DeepSeekV4TokenHashArtifactBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn DeepSeekV4TokenHashArtifactBindingDigest::as_hex(Self) -> String
+pub fn DeepSeekV4TokenHashArtifactBindingDigest::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashArtifactBindingDigest::hash(Self) -> Int
+pub fn DeepSeekV4TokenHashArtifactBindingDigest::hash_combine(Self, Hasher) -> Unit
+pub fn DeepSeekV4TokenHashArtifactBindingDigest::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashArtifactBindingDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4TokenHashArtifactBindingStatus {
   InertUnqualified
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashArtifactBindingStatus::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashArtifactBindingStatus::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashArtifactBindingStatus::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4TokenHashCompileEvidenceBinding {
   // private fields
@@ -172,10 +192,18 @@ pub fn DeepSeekV4TokenHashCompileEvidenceBinding::target(Self) -> @catalog.Devic
 
 pub struct DeepSeekV4TokenHashCompileEvidenceBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn DeepSeekV4TokenHashCompileEvidenceBindingDigest::as_hex(Self) -> String
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingDigest::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingDigest::hash(Self) -> Int
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingDigest::hash_combine(Self, Hasher) -> Unit
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingDigest::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4TokenHashCompileEvidenceBindingStatus {
   InertSelfConsistentUnqualified
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingStatus::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingStatus::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashCompileEvidenceBindingStatus::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4TokenHashLaunchBinding {
   // private fields
@@ -209,10 +237,18 @@ pub fn DeepSeekV4TokenHashLaunchBinding::target(Self) -> @catalog.DeviceTarget
 
 pub struct DeepSeekV4TokenHashLaunchBindingDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn DeepSeekV4TokenHashLaunchBindingDigest::as_hex(Self) -> String
+pub fn DeepSeekV4TokenHashLaunchBindingDigest::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashLaunchBindingDigest::hash(Self) -> Int
+pub fn DeepSeekV4TokenHashLaunchBindingDigest::hash_combine(Self, Hasher) -> Unit
+pub fn DeepSeekV4TokenHashLaunchBindingDigest::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashLaunchBindingDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4TokenHashLaunchBindingStatus {
   InertCompleteUnqualified
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashLaunchBindingStatus::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashLaunchBindingStatus::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashLaunchBindingStatus::to_repr(Self) -> @debug.Repr
 
 pub struct DeepSeekV4TokenHashOperandPlan {
   // private fields
@@ -236,10 +272,18 @@ pub fn DeepSeekV4TokenHashOperandPlan::status(Self) -> DeepSeekV4TokenHashOperan
 
 pub struct DeepSeekV4TokenHashOperandPlanDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn DeepSeekV4TokenHashOperandPlanDigest::as_hex(Self) -> String
+pub fn DeepSeekV4TokenHashOperandPlanDigest::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashOperandPlanDigest::hash(Self) -> Int
+pub fn DeepSeekV4TokenHashOperandPlanDigest::hash_combine(Self, Hasher) -> Unit
+pub fn DeepSeekV4TokenHashOperandPlanDigest::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashOperandPlanDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum DeepSeekV4TokenHashOperandPlanStatus {
   InertUnqualified
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4TokenHashOperandPlanStatus::equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashOperandPlanStatus::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4TokenHashOperandPlanStatus::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

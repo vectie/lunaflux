@@ -73,7 +73,7 @@ test "host capacity and shared-memory rejection happen before effects" {
       separate_host_memory=true,
     )
   catch {
-    @residency.InvalidLimits => ()
+    InvalidLimits => ()
   } noraise {
     _ => fail("budget")
   }
@@ -86,7 +86,7 @@ test "host capacity and shared-memory rejection happen before effects" {
       separate_host_memory=false,
     )
   catch {
-    @residency.InvalidLimits => ()
+    InvalidLimits => ()
   } noraise {
     _ => fail("shared memory capacity")
   }

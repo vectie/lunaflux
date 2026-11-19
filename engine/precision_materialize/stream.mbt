@@ -41,7 +41,7 @@ fn stream_parameters(
     global_scale.is_inf() ||
     global_scale <= 0.0F ||
     (!rep.has_global_scale() && global_scale != 1.0F) {
-    raise Conversion(@format.PrecisionError::InvalidScale)
+    raise Conversion(InvalidScale)
   }
   let chunk = chunk_elements.min(columns)
   let bits = rep.element().bits()
@@ -92,13 +92,13 @@ pub fn stream_bf16_weight(
         (end - begin).to_int(),
       )
       if payload.length().to_int64() != end - begin {
-        raise Conversion(@format.PrecisionError::PayloadMismatch)
+        raise Conversion(PayloadMismatch)
       }
       if bits == 4 &&
         first + count == columns &&
         columns % 2 != 0 &&
         (payload[payload.length() - 1].to_uint() & 0xf0U) != 0U {
-        raise Conversion(@format.PrecisionError::InvalidPadding)
+        raise Conversion(InvalidPadding)
       }
       let (base_scale, scales) = if scale_width == 0 {
         (0L, b"")
@@ -117,7 +117,7 @@ pub fn stream_bf16_weight(
           byte_count.to_int(),
         )
         if scales.length().to_int64() != byte_count {
-          raise Conversion(@format.PrecisionError::PayloadMismatch)
+          raise Conversion(PayloadMismatch)
         }
         (a, scales)
       }

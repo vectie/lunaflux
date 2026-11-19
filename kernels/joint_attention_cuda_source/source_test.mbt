@@ -1,6 +1,6 @@
 ///|
 test "staged attention distinguishes packed rotary and refiner scopes" {
-  let packed = staged_joint_attention_bf16_source(
+  let packed = @joint_attention_cuda_source.staged_joint_attention_bf16_source(
     rows=3,
     hidden_size=4,
     head_count=2,
@@ -11,7 +11,7 @@ test "staged attention distinguishes packed rotary and refiner scopes" {
     apply_rotary=true,
     function_prefix="packed_attention",
   )
-  let refiner = staged_joint_attention_bf16_source(
+  let refiner = @joint_attention_cuda_source.staged_joint_attention_bf16_source(
     rows=2,
     hidden_size=4,
     head_count=2,
@@ -42,7 +42,7 @@ test "staged attention distinguishes packed rotary and refiner scopes" {
 test "staged attention rejects hostile geometry epsilon and symbol" {
   for rows in [0, -1] {
     try
-      staged_joint_attention_bf16_source(
+      @joint_attention_cuda_source.staged_joint_attention_bf16_source(
         rows~,
         hidden_size=4,
         head_count=2,
@@ -61,7 +61,7 @@ test "staged attention rejects hostile geometry epsilon and symbol" {
     }
   }
   try
-    staged_joint_attention_bf16_source(
+    @joint_attention_cuda_source.staged_joint_attention_bf16_source(
       rows=1,
       hidden_size=4,
       head_count=2,
@@ -79,7 +79,7 @@ test "staged attention rejects hostile geometry epsilon and symbol" {
     _ => fail("zero epsilon admitted")
   }
   try
-    staged_joint_attention_bf16_source(
+    @joint_attention_cuda_source.staged_joint_attention_bf16_source(
       rows=1,
       hidden_size=4,
       head_count=2,
@@ -97,7 +97,7 @@ test "staged attention rejects hostile geometry epsilon and symbol" {
     _ => fail("refiner rotary geometry admitted")
   }
   try
-    staged_joint_attention_bf16_source(
+    @joint_attention_cuda_source.staged_joint_attention_bf16_source(
       rows=1,
       hidden_size=4,
       head_count=2,
@@ -115,7 +115,7 @@ test "staged attention rejects hostile geometry epsilon and symbol" {
     _ => fail("leading-digit attention symbol admitted")
   }
   try
-    staged_joint_attention_bf16_source(
+    @joint_attention_cuda_source.staged_joint_attention_bf16_source(
       rows=1,
       hidden_size=4,
       head_count=2147483647,

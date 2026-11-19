@@ -40,16 +40,21 @@ test "image insertion uses absolute causal positions and copies raw BF16 words" 
   assert_true(residual[:].all(word => word == 0xbeefU))
   feature_map[5] = 2
   assert_true(
-    (try? @bf16_operator_reference.embedding_scatter_words_into(
-      plan,
-      [5, 0, 7],
-      feature_map[:],
-      features[:],
-      residual,
-      rows=3,
-      feature_rows=2,
-      prefill=true,
-    ))
-    is Err(_),
+    try
+      @bf16_operator_reference.embedding_scatter_words_into(
+        plan,
+        [5, 0, 7],
+        feature_map[:],
+        features[:],
+        residual,
+        rows=3,
+        feature_rows=2,
+        prefill=true,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

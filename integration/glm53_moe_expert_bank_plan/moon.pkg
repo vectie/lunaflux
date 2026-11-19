@@ -1,10 +1,10 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/x/crypto",
   "vectie/lunaflux/kernels/glm_hybrid_artifact_admission",
   "vectie/lunaflux/kernels/glm_hybrid_cuda_aot",
   "vectie/lunaflux/model/glm53_weights",
-  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
   "vectie/lunaflux/model/spec",
 }
 
@@ -15,4 +15,5 @@ import {
   "vectie/lunaflux/kernels/luna_specialization",
   "vectie/lunaflux/model/glm53_kernel_requirements",
   "vectie/lunaflux/model/glm53_spec",
+  "vectie/lunaflux/model/glm_hybrid_kernel_requirements",
 } for "test"

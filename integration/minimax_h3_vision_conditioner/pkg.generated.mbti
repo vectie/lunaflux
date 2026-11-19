@@ -20,10 +20,12 @@ pub struct VisionRequest {
 }
 pub fn VisionRequest::cancel(Self) -> Unit raise @device.DeviceError
 pub fn VisionRequest::close(Self) -> Unit raise @device.DeviceError
+pub fn VisionRequest::drain(Self) -> Unit raise
 pub fn VisionRequest::execute(Self) -> Unit raise @device.DeviceError
 pub fn VisionRequest::new(VisionSource) -> Self
 pub fn VisionRequest::poll(Self) -> Bool raise @device.DeviceError
 pub fn VisionRequest::prepare(Self, @device.Context, @device.Stream, @device.Module, VisionWeights, ArrayView[@vectie/lunaflux/model/minimax_h3_vision_conditioner.ProcessedPixels], max_device_bytes~ : Int64) -> Unit raise
+pub fn VisionRequest::release(Self) -> Unit raise
 pub fn VisionRequest::submit(Self) -> Unit raise @device.DeviceError
 pub fn VisionRequest::wait(Self) -> Unit raise @device.DeviceError
 pub fn[T] VisionRequest::with_destination(Self, (@device.Allocation, @vectie/lunaflux/model/minimax_h3_vision_conditioner.VisionPlan) -> T raise @device.DeviceError) -> T raise @device.DeviceError

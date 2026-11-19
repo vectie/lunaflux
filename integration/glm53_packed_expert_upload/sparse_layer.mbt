@@ -276,10 +276,10 @@ pub fn GlmSparseLayer::submit(
   live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Ready && self.queue is Some(queue) else {
-    raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
+    raise Busy(OrderedExecutorEnqueue)
   }
   guard live_rows > 0 && live_rows <= self.maximum_rows else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.status = Failed
   for index in 0..<self.launch_count {
@@ -292,7 +292,7 @@ pub fn GlmSparseLayer::submit(
 ///|
 pub fn GlmSparseLayer::poll(self : Self) -> Bool raise @device.DeviceError {
   guard self.status is Active && self.queue is Some(queue) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   self.status = Failed
   if queue.poll_completion() {

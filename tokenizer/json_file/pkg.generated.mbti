@@ -25,6 +25,9 @@ pub(all) suberror TokenizerFileError {
   DigestMismatch
   InvalidTokenizer
 } derive(Eq, @debug.Debug)
+pub fn TokenizerFileError::equal(Self, Self) -> Bool
+pub fn TokenizerFileError::not_equal(Self, Self) -> Bool
+pub fn TokenizerFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TokenizerFileAdmission {
@@ -38,6 +41,9 @@ pub(all) enum TokenizerFileLimit {
   FileBytes
   JsonDepth
 } derive(Eq, @debug.Debug)
+pub fn TokenizerFileLimit::equal(Self, Self) -> Bool
+pub fn TokenizerFileLimit::not_equal(Self, Self) -> Bool
+pub fn TokenizerFileLimit::to_repr(Self) -> @debug.Repr
 
 pub struct TokenizerFileLimits {
   // private fields
@@ -53,6 +59,9 @@ pub(all) enum TokenizerFileOperation {
   Snapshot
   Close
 } derive(Eq, @debug.Debug)
+pub fn TokenizerFileOperation::equal(Self, Self) -> Bool
+pub fn TokenizerFileOperation::not_equal(Self, Self) -> Bool
+pub fn TokenizerFileOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

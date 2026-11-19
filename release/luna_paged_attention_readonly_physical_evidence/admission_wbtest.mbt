@@ -322,7 +322,7 @@ test "exact sealed read-only physical evidence admits and remains inert" {
   let candidate = readonly_evidence_candidate()
   let compiled = readonly_evidence_compiled(candidate)
   let bundle = readonly_evidence_bundle(candidate, compiled)
-  assert_eq(@utf8.decode(bundle.result).split("\n").length(), 99)
+  assert_eq(@utf8.decode(bundle.result).split("\n").count(), 99)
   let evidence = readonly_evidence_admit(candidate, compiled, bundle)
   assert_eq(evidence.candidate_digest(), candidate.candidate_digest().as_hex())
   assert_eq(

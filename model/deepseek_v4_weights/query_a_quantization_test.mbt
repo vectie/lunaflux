@@ -11,7 +11,7 @@ test "Query-A is replicated raw block-FP8 for all profile geometries" {
     let spec = @deepseek_v4_spec.DeepSeekV4ModelSpec::from_official_model_id(
       entry.0,
     )
-    let layout = query_a_quantized_layout(spec)
+    let layout = @deepseek_v4_weights.query_a_quantized_layout(spec)
     assert_eq(layout.contract(), Fp8E4M3Ue8M0Block128ReplicatedRowMajorV1)
     assert_eq(layout.weight_shape(), ReadOnlyArray::from_array(entry.1))
     assert_eq(layout.scale_shape(), ReadOnlyArray::from_array(entry.2))

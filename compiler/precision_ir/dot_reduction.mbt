@@ -42,7 +42,7 @@ fn DotReductionLaw::validate(
         partitions <= width &&
         (partitions & (partitions - 1)) == 0 &&
         width % partitions == 0 else {
-        raise PrecisionPlanError::IllegalPlacement
+        raise IllegalPlacement
       }
     }
     GroupedVectorFloat32(
@@ -62,7 +62,7 @@ fn DotReductionLaw::validate(
         publication_partitions <= groups &&
         groups.to_int64() * partitions.to_int64() <=
         2147483647L / vector_width.to_int64() else {
-        raise PrecisionPlanError::IllegalPlacement
+        raise IllegalPlacement
       }
     }
   }

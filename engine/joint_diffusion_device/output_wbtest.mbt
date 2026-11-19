@@ -4,7 +4,7 @@ test "selected output bounds exclude other packed rows" {
   assert_eq(selected_extent(2433, 37296, 39744, 5376), 37296L * 5376L)
   for (start, count) in [(-1, 2), (3, 0), (39743, 2)] {
     try selected_extent(start, count, 39744, 5376) catch {
-      @device.DeviceError::InvalidArgument(AotKernelLaunch) => ()
+      InvalidArgument(AotKernelLaunch) => ()
       _ => fail("unexpected range error")
     } noraise {
       _ => fail("accepted invalid media slice")

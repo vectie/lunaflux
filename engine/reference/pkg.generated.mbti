@@ -23,6 +23,9 @@ pub(all) suberror ReferenceExecutionError {
   Kernel(@vectie/lunaflux/kernels/reference.ReferenceKernelError)
   Sampling(@sampling.SamplingError)
 } derive(Eq, @debug.Debug)
+pub fn ReferenceExecutionError::equal(Self, Self) -> Bool
+pub fn ReferenceExecutionError::not_equal(Self, Self) -> Bool
+pub fn ReferenceExecutionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum ExecutionGraphFailure {
@@ -38,12 +41,18 @@ pub(all) enum ExecutionGraphFailure {
   ShapeMismatch
   FinalOutputMismatch
 } derive(Eq, @debug.Debug)
+pub fn ExecutionGraphFailure::equal(Self, Self) -> Bool
+pub fn ExecutionGraphFailure::not_equal(Self, Self) -> Bool
+pub fn ExecutionGraphFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutionLimitField {
   Operations
   Tensors
   InputTokens
 } derive(Eq, @debug.Debug)
+pub fn ExecutionLimitField::equal(Self, Self) -> Bool
+pub fn ExecutionLimitField::not_equal(Self, Self) -> Bool
+pub fn ExecutionLimitField::to_repr(Self) -> @debug.Repr
 
 pub struct ExecutionLimits {
   kernels : @vectie/lunaflux/kernels/reference.ReferenceLimits
@@ -52,12 +61,15 @@ pub struct ExecutionLimits {
   max_tensors : Int
   max_input_tokens : Int
 } derive(Eq, @debug.Debug)
+pub fn ExecutionLimits::equal(Self, Self) -> Bool
 pub fn ExecutionLimits::kernels(Self) -> @vectie/lunaflux/kernels/reference.ReferenceLimits
 pub fn ExecutionLimits::max_input_tokens(Self) -> Int
 pub fn ExecutionLimits::max_operations(Self) -> Int
 pub fn ExecutionLimits::max_tensors(Self) -> Int
 pub fn ExecutionLimits::new(kernels~ : @vectie/lunaflux/kernels/reference.ReferenceLimits, sampling~ : @sampling.SamplingLimits, max_operations~ : Int, max_tensors~ : Int, max_input_tokens~ : Int) -> Self raise ReferenceExecutionError
+pub fn ExecutionLimits::not_equal(Self, Self) -> Bool
 pub fn ExecutionLimits::sampling(Self) -> @sampling.SamplingLimits
+pub fn ExecutionLimits::to_repr(Self) -> @debug.Repr
 
 pub struct ExecutionResult {
   identity : @spec.ModelIdentity
@@ -65,26 +77,35 @@ pub struct ExecutionResult {
   selection : @sampling.Selection
   operation_count : Int
 } derive(Eq, @debug.Debug)
+pub fn ExecutionResult::equal(Self, Self) -> Bool
 pub fn ExecutionResult::identity(Self) -> @spec.ModelIdentity
 pub fn ExecutionResult::logits(Self) -> @vectie/lunaflux/kernels/reference.Activation
+pub fn ExecutionResult::not_equal(Self, Self) -> Bool
 pub fn ExecutionResult::operation_count(Self) -> Int
 pub fn ExecutionResult::selection(Self) -> @sampling.Selection
+pub fn ExecutionResult::to_repr(Self) -> @debug.Repr
 
 pub struct GenerationResult {
   identity : @spec.ModelIdentity
   input_tokens : Int
   generated_tokens : ReadOnlyArray[Int]
 } derive(Eq, @debug.Debug)
+pub fn GenerationResult::equal(Self, Self) -> Bool
 pub fn GenerationResult::generated_tokens(Self) -> ReadOnlyArray[Int]
 pub fn GenerationResult::identity(Self) -> @spec.ModelIdentity
 pub fn GenerationResult::input_tokens(Self) -> Int
+pub fn GenerationResult::not_equal(Self, Self) -> Bool
+pub fn GenerationResult::to_repr(Self) -> @debug.Repr
 
 pub struct PreparedModel {
   identity : @spec.ModelIdentity
   tensors : ReadOnlyArray[@vectie/lunaflux/kernels/reference.Tensor]
 } derive(Eq, @debug.Debug)
+pub fn PreparedModel::equal(Self, Self) -> Bool
 pub fn PreparedModel::identity(Self) -> @spec.ModelIdentity
+pub fn PreparedModel::not_equal(Self, Self) -> Bool
 pub fn PreparedModel::tensor_count(Self) -> Int
+pub fn PreparedModel::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

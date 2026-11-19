@@ -140,7 +140,10 @@ pub struct KernelFrame {
 }
 pub fn KernelFrame::denoise(@device.Context, @device.Stream, LatentStorage, ArrayView[@device.OrderedKernelLaunch], step~ : Int, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int, policy? : @device.OrderedKernelExecutionPolicy) -> Self raise
 pub fn KernelFrame::denoise_staged(@device.Context, @device.Stream, LatentStorage, ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], ArrayView[@device.OrderedKernelLaunch], step~ : Int, video_update~ : @device.Function, audio_update~ : @device.Function, video_block_size~ : Int, audio_block_size~ : Int, policy? : @device.OrderedKernelExecutionPolicy) -> Self raise
+pub fn KernelFrame::drain(Self) -> Unit raise
+pub fn KernelFrame::execute(Self) -> Unit raise
 pub fn KernelFrame::new(@device.Context, @device.Stream, ArrayView[@device.OrderedKernelLaunch], policy? : @device.OrderedKernelExecutionPolicy) -> Self raise @device.DeviceError
+pub fn KernelFrame::release(Self) -> Unit raise
 pub impl @joint_diffusion_execution.PreparedFrame for KernelFrame
 
 pub struct LatentProjections {

@@ -194,7 +194,7 @@ pub fn VideoEncoder::new(
   max_scratch_bytes~ : Int64,
 ) -> Self raise @plan.PlanError {
   guard frames > 0 && frames <= 65536 && (!image || frames == 1) else {
-    raise @plan.PlanError::InvalidGeometry
+    raise InvalidGeometry
   }
   let ys = TileAxis::new(height)
   let xs = TileAxis::new(width)
@@ -202,7 +202,7 @@ pub fn VideoEncoder::new(
   guard max_tiles > 0 &&
     slices <= max_tiles / ys.starts.length() / xs.starts.length() &&
     3L * frames.to_int64() * height.to_int64() * width.to_int64() <= 2147483647L else {
-    raise @plan.PlanError::BudgetExceeded
+    raise BudgetExceeded
   }
   let chunk_frames = if image { 1 } else { 17 }
   let chunk_latent = if image { 1 } else { 5 }

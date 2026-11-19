@@ -163,37 +163,37 @@ fn projection_finish_candidate(
       embed_greedy_sampling,
     ) +
     (if sibling_ownership == SplitSiblingPlanes {
-      ""
+      b""
     } else {
-      "sibling_epilogue_ownership=" +
+      b"sibling_epilogue_ownership=" +
       (match sibling_ownership {
-        SplitSiblingPlanes => "split_planes"
-        RetainSiblingProducer => "retained_producer"
-        CoownedSiblingValues => "coowned_values"
+        SplitSiblingPlanes => b"split_planes"
+        RetainSiblingProducer => b"retained_producer"
+        CoownedSiblingValues => b"coowned_values"
       }) +
-      "\n"
+      b"\n"
     }) +
     (if sibling_transport == BaselineSiblingTransport {
-      ""
+      b""
     } else {
-      "sibling_operand_transport=" +
+      b"sibling_operand_transport=" +
       (match sibling_transport {
-        BaselineSiblingTransport => "baseline"
-        SegmentedSiblingTransport => "segmented"
-        IndependentSiblingTransport => "independent"
+        BaselineSiblingTransport => b"baseline"
+        SegmentedSiblingTransport => b"segmented"
+        IndependentSiblingTransport => b"independent"
       }) +
-      "\n"
+      b"\n"
     }) +
     (match sibling_execution {
-      None => ""
+      None => b""
       Some(execution) =>
-        "sibling_transfer_execution=" +
+        b"sibling_transfer_execution=" +
         (match execution {
-          SerialTransfer => "serial"
-          CompletedPrefetch => "prefetch"
-          OverlappedTransfer => "overlapped"
+          SerialTransfer => b"serial"
+          CompletedPrefetch => b"prefetch"
+          OverlappedTransfer => b"overlapped"
         }) +
-        "\n"
+        b"\n"
     })
   if recipe.length() > limits.max_recipe_bytes {
     raise LimitExceeded(Recipe)

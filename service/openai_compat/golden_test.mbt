@@ -38,12 +38,12 @@ fn openai_workspace(
   budget : Int32,
   model~ : FixedArray[Byte] = [b'm', b'o', b'd', b'e', b'l', b'-', b'x'],
   buffered~ : Bool = false,
-  output_framing? : LunaOpenAIOutputFraming,
-) -> LunaOpenAICompatWorkspace raise {
+  output_framing? : @openai_compat.LunaOpenAIOutputFraming,
+) -> @openai_compat.LunaOpenAICompatWorkspace raise {
   let prefix : FixedArray[Byte] = [b'r', b'e', b's', b'p', b'_']
-  LunaOpenAICompatWorkspace::new(
+  @openai_compat.LunaOpenAICompatWorkspace::new(
     limits,
-    LunaOpenAICompatStepBudget::new(budget),
+    @openai_compat.LunaOpenAICompatStepBudget::new(budget),
     model,
     model_alias_offset=0,
     model_alias_length=model.length(),
@@ -57,9 +57,9 @@ fn openai_workspace(
 
 ///|
 fn openai_encode(
-  workspace : LunaOpenAICompatWorkspace,
+  workspace : @openai_compat.LunaOpenAICompatWorkspace,
   event : @luna_event.LunaEventView,
-  mode : LunaOpenAICompatMode,
+  mode : @openai_compat.LunaOpenAICompatMode,
   sequence : UInt64,
   streaming~ : Bool = true,
 ) -> (FixedArray[Byte], UInt64) raise {
@@ -114,7 +114,7 @@ test "OpenAI Responses and Chat Accepted goldens are canonical SSE" {
     context_ceiling=16,
     limits,
   )
-  let modes : FixedArray[LunaOpenAICompatMode] = [
+  let modes : FixedArray[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIResponses,
     LunaOpenAIChatCompletions,
   ]
@@ -146,7 +146,7 @@ test "OpenAI Responses and Chat Token escaping goldens are canonical SSE" {
     b'x', b'"', b'\\', b'\x08', b'\x09', b'\x0a', b'\x0c', b'\x0d', b'\x01', 0xe4,
     0xb8, 0xad, 0xf0, 0x9f, 0x98, 0x80,
   ]
-  let modes : FixedArray[LunaOpenAICompatMode] = [
+  let modes : FixedArray[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIResponses,
     LunaOpenAIChatCompletions,
   ]
@@ -183,7 +183,7 @@ test "OpenAI Responses and Chat Token escaping goldens are canonical SSE" {
 ///|
 test "OpenAI Responses and Chat Usage goldens are canonical SSE" {
   let limits = openai_fixture_limits()
-  let modes : FixedArray[LunaOpenAICompatMode] = [
+  let modes : FixedArray[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIResponses,
     LunaOpenAIChatCompletions,
   ]
@@ -215,7 +215,7 @@ test "OpenAI terminal Completed and Failed goldens append DONE exactly once" {
   let code : FixedArray[Byte] = [
     b'c', b'a', b'p', b'a', b'c', b'i', b't', b'y', b'-', b'f', b'u', b'l', b'l',
   ]
-  let modes : FixedArray[LunaOpenAICompatMode] = [
+  let modes : FixedArray[@openai_compat.LunaOpenAICompatMode] = [
     LunaOpenAIResponses,
     LunaOpenAIChatCompletions,
   ]

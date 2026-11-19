@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/model/advanced_decoder_kernel_requirements",
   "vectie/lunaflux/model/deepseek_v4",
 }

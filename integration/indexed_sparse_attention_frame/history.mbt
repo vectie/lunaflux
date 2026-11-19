@@ -72,13 +72,13 @@ pub fn IndexedSparseHistory::prepare(
   page_ports? : SparseHistoryPagePorts,
 ) -> Unit raise @device.DeviceError {
   guard self.status is Fresh && self.state_bytes() <= maximum_state_bytes else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.status = Failed
   let paging = page_arguments(self.source.plan().attention(), page_ports)
   guard (self.source.plan().attention().paged_history() is Some(_)) ==
     (input_positions is Some(_)) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   let sizes = self.source.plan().buffer_bytes()
   for i, size in sizes {
@@ -157,7 +157,7 @@ pub fn IndexedSparseHistory::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }
@@ -169,7 +169,7 @@ pub fn IndexedSparseHistory::append_descriptor(
   self : Self,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.buffers[6]
 }
@@ -182,7 +182,7 @@ pub fn IndexedSparseHistory::query_positions(
   self : Self,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.buffers[7]
 }

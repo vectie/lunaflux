@@ -1,10 +1,12 @@
 ///|
 fn fused_benchmark_test_qkv_qualify(
   candidate : @luna_cuda_fused_parallel_aot.FusedQkvRopeKvWriteCudaCandidate,
-  protocol : FusedCandidateBenchmarkProtocol,
-  observations : ArrayView[FusedCandidateBenchmarkPairedObservation],
-) -> FusedCandidateBenchmarkQualificationEvidence raise FusedCandidateBenchmarkError {
-  qualify_fused_qkv_candidate_benchmark(
+  protocol : @luna_fused_candidate_qualification.FusedCandidateBenchmarkProtocol,
+  observations : ArrayView[
+    @luna_fused_candidate_qualification.FusedCandidateBenchmarkPairedObservation,
+  ],
+) -> @luna_fused_candidate_qualification.FusedCandidateBenchmarkQualificationEvidence raise @luna_fused_candidate_qualification.FusedCandidateBenchmarkError {
+  @luna_fused_candidate_qualification.qualify_fused_qkv_candidate_benchmark(
     candidate,
     protocol,
     observations,
@@ -18,16 +20,16 @@ test "protocol rejects mismatched candidate widened shape set and count drift" {
   let observations = fused_benchmark_test_observations(
     candidate.dispatch_canary(),
   )
-  let exact_shape_set = fused_candidate_benchmark_shape_set_identity()
+  let exact_shape_set = @luna_fused_candidate_qualification.fused_candidate_benchmark_shape_set_identity()
   try
     fused_benchmark_test_qkv_qualify(
       candidate,
       fused_benchmark_test_protocol(
         fused_benchmark_test_digest("e"),
         exact_shape_set,
-        fused_candidate_benchmark_warmup_iterations(),
-        fused_candidate_benchmark_trials_per_shape(),
-        fused_candidate_benchmark_repetitions_per_arm(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
       ),
       observations,
     )
@@ -45,9 +47,9 @@ test "protocol rejects mismatched candidate widened shape set and count drift" {
       fused_benchmark_test_protocol(
         candidate.candidate_digest(),
         fused_benchmark_test_digest("e"),
-        fused_candidate_benchmark_warmup_iterations(),
-        fused_candidate_benchmark_trials_per_shape(),
-        fused_candidate_benchmark_repetitions_per_arm(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
       ),
       observations,
     )
@@ -65,9 +67,10 @@ test "protocol rejects mismatched candidate widened shape set and count drift" {
       fused_benchmark_test_protocol(
         candidate.candidate_digest(),
         exact_shape_set,
-        fused_candidate_benchmark_warmup_iterations() - 1,
-        fused_candidate_benchmark_trials_per_shape(),
-        fused_candidate_benchmark_repetitions_per_arm(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations() -
+        1,
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
       ),
       observations,
     )
@@ -85,9 +88,10 @@ test "protocol rejects mismatched candidate widened shape set and count drift" {
       fused_benchmark_test_protocol(
         candidate.candidate_digest(),
         exact_shape_set,
-        fused_candidate_benchmark_warmup_iterations(),
-        fused_candidate_benchmark_trials_per_shape() + 1,
-        fused_candidate_benchmark_repetitions_per_arm(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape() +
+        1,
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
       ),
       observations,
     )
@@ -105,9 +109,10 @@ test "protocol rejects mismatched candidate widened shape set and count drift" {
       fused_benchmark_test_protocol(
         candidate.candidate_digest(),
         exact_shape_set,
-        fused_candidate_benchmark_warmup_iterations(),
-        fused_candidate_benchmark_trials_per_shape(),
-        fused_candidate_benchmark_repetitions_per_arm() + 1,
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+        @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm() +
+        1,
       ),
       observations,
     )
@@ -126,10 +131,10 @@ test "complete canonical trial order rejects reordering duplication and omission
   let candidate = fused_benchmark_test_set().qkv_candidate()
   let protocol = fused_benchmark_test_protocol(
     candidate.candidate_digest(),
-    fused_candidate_benchmark_shape_set_identity(),
-    fused_candidate_benchmark_warmup_iterations(),
-    fused_candidate_benchmark_trials_per_shape(),
-    fused_candidate_benchmark_repetitions_per_arm(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_shape_set_identity(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
   )
   let reordered = fused_benchmark_test_observations(candidate.dispatch_canary())
   let first = reordered[0]
@@ -181,7 +186,7 @@ test "complete canonical trial order rejects reordering duplication and omission
 ///|
 test "zero work overflow canary imbalance and regressions fail closed" {
   try
-    FusedCandidateBenchmarkArmObservation::new(
+    @luna_fused_candidate_qualification.FusedCandidateBenchmarkArmObservation::new(
       duration_ns=1L,
       work_units=0L,
       resources_acquired=0L,
@@ -203,10 +208,10 @@ test "zero work overflow canary imbalance and regressions fail closed" {
   let candidate = fused_benchmark_test_set().qkv_candidate()
   let protocol = fused_benchmark_test_protocol(
     candidate.candidate_digest(),
-    fused_candidate_benchmark_shape_set_identity(),
-    fused_candidate_benchmark_warmup_iterations(),
-    fused_candidate_benchmark_trials_per_shape(),
-    fused_candidate_benchmark_repetitions_per_arm(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_shape_set_identity(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_warmup_iterations(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_trials_per_shape(),
+    @luna_fused_candidate_qualification.fused_candidate_benchmark_repetitions_per_arm(),
   )
   try
     fused_benchmark_test_qkv_qualify(

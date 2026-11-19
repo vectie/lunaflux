@@ -6,7 +6,7 @@ test "key/value projection lowers exact replicated block-FP8 ABI" {
     attention_head_dimension=512,
     rope_head_dimension=64,
   )
-  let candidate = lower_key_value_projection_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_key_value_projection_cuda_aot_candidate(
     requirements,
     requirement_ordinal=2,
     maximum_tokens=2,
@@ -42,7 +42,7 @@ test "key/value projection rejects wrong ordinal shape compiler and target" {
     rope_head_dimension=64,
   )
   try
-    lower_key_value_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_key_value_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=1,
       maximum_tokens=1,
@@ -57,7 +57,7 @@ test "key/value projection rejects wrong ordinal shape compiler and target" {
     _ => fail("Query-A ordinal admitted")
   }
   try
-    lower_key_value_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_key_value_projection_cuda_aot_candidate(
       aot_test_requirements(),
       requirement_ordinal=2,
       maximum_tokens=1,
@@ -72,7 +72,7 @@ test "key/value projection rejects wrong ordinal shape compiler and target" {
     _ => fail("unaligned geometry admitted")
   }
   try
-    lower_key_value_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_key_value_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=2,
       maximum_tokens=1,
@@ -87,7 +87,7 @@ test "key/value projection rejects wrong ordinal shape compiler and target" {
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_key_value_projection_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_key_value_projection_cuda_aot_candidate(
       exact,
       requirement_ordinal=2,
       maximum_tokens=1,

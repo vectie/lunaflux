@@ -125,7 +125,7 @@ test "elided activation must have exactly one consumer and not be final output" 
     observed_projection
     .select_cut(costs, maximum_workspace_bytes=0L, maximum_local_bytes=0L)
     .schedule(),
-    @luna_fusion_strategy.ProducerSeparated,
+    ProducerSeparated,
   )
   assert_true(
     observed_projection.cut(ProducerSeparated).permits_readonly_attention(),
@@ -141,7 +141,7 @@ test "elided activation must have exactly one consumer and not be final output" 
     observed_norm
     .select_cut(costs, maximum_workspace_bytes=0L, maximum_local_bytes=0L)
     .schedule(),
-    @luna_fusion_strategy.Unfused,
+    Unfused,
   )
   assert_false(observed_norm.cut(Unfused).permits_readonly_attention())
   for schedule in [@luna_fusion_strategy.FullyFused, ProducerSeparated] {

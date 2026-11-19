@@ -21,14 +21,20 @@ pub fn admit_staged_dynamic_activation_scale_launch_v2(@plan.ModelPlan, @numeric
 pub(all) suberror Fp8LaunchAbiError {
   InvalidFp8LaunchAbi(Fp8LaunchAbiRule)
 } derive(Eq, @debug.Debug)
+pub fn Fp8LaunchAbiError::equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiError::not_equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Fp8ActivationScaleStageRegion {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8ActivationScaleStageRegion::equal(Self, Self) -> Bool
+pub fn Fp8ActivationScaleStageRegion::not_equal(Self, Self) -> Bool
 pub fn Fp8ActivationScaleStageRegion::ordinal(Self) -> Int
 pub fn Fp8ActivationScaleStageRegion::region(Self) -> Fp8LaunchStorageRegion
 pub fn Fp8ActivationScaleStageRegion::stage(Self) -> @numeric_contract.ActivationScaleStage
+pub fn Fp8ActivationScaleStageRegion::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8DynamicLaunchAbi {
   // private fields
@@ -36,11 +42,13 @@ pub struct Fp8DynamicLaunchAbi {
 pub fn Fp8DynamicLaunchAbi::activation_scale_workspace(Self) -> Fp8LaunchStorageRegion
 pub fn Fp8DynamicLaunchAbi::digest(Self) -> Fp8LaunchAbiDigest
 pub fn Fp8DynamicLaunchAbi::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8DynamicLaunchAbi::equal(Self, Self) -> Bool
 pub fn Fp8DynamicLaunchAbi::exact_shape(Self) -> Fp8ExactExecutionShape
 pub fn Fp8DynamicLaunchAbi::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn Fp8DynamicLaunchAbi::kernel_workspace(Self) -> Fp8LaunchStorageRegion?
 pub fn Fp8DynamicLaunchAbi::manifest_digest(Self) -> @numeric_capability_manifest.Fp8KernelCapabilityManifestDigest
 pub fn Fp8DynamicLaunchAbi::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8DynamicLaunchAbi::not_equal(Self, Self) -> Bool
 pub fn Fp8DynamicLaunchAbi::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn Fp8DynamicLaunchAbi::operation(Self) -> @plan.OperationId
 pub fn Fp8DynamicLaunchAbi::plan_identity(Self) -> @spec.ModelIdentity
@@ -50,6 +58,7 @@ pub fn Fp8DynamicLaunchAbi::scale_kind(Self) -> Fp8DynamicScaleKind
 pub fn Fp8DynamicLaunchAbi::scale_tensor_regions(Self) -> ReadOnlyArray[Fp8ScaleTensorStorageRegion]
 pub fn Fp8DynamicLaunchAbi::scope(Self) -> Fp8LaunchScope
 pub fn Fp8DynamicLaunchAbi::target(Self) -> @catalog.DeviceTarget
+pub fn Fp8DynamicLaunchAbi::to_repr(Self) -> @debug.Repr
 pub fn Fp8DynamicLaunchAbi::version(Self) -> Fp8LaunchAbiVersion
 pub fn Fp8DynamicLaunchAbi::weight_scales(Self) -> ReadOnlyArray[@numeric_capability_manifest.Fp8KernelWeightBinding]
 pub fn Fp8DynamicLaunchAbi::workspace_alignment(Self) -> Int64
@@ -74,20 +83,31 @@ pub fn Fp8DynamicLaunchOwner::state(Self) -> Fp8LaunchOwnerState
 pub(all) enum Fp8DynamicScaleKind {
   FiniteE4M3DynamicF32V1
 } derive(Eq, @debug.Debug)
+pub fn Fp8DynamicScaleKind::equal(Self, Self) -> Bool
+pub fn Fp8DynamicScaleKind::not_equal(Self, Self) -> Bool
+pub fn Fp8DynamicScaleKind::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8ExactExecutionShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Fp8ExactExecutionShape::batch_rows(Self) -> Int
+pub fn Fp8ExactExecutionShape::equal(Self, Self) -> Bool
+pub fn Fp8ExactExecutionShape::not_equal(Self, Self) -> Bool
 pub fn Fp8ExactExecutionShape::paged_full_graph(profile~ : @launch_contract.KernelProfileId, rows~ : ArrayView[Fp8PagedRowShape]) -> Self raise Fp8LaunchAbiError
 pub fn Fp8ExactExecutionShape::paged_rows(Self) -> ReadOnlyArray[Fp8PagedRowShape]?
 pub fn Fp8ExactExecutionShape::profile(Self) -> @launch_contract.KernelProfileId?
 pub fn Fp8ExactExecutionShape::query_tokens(Self) -> Int64
 pub fn Fp8ExactExecutionShape::scope(Self) -> Fp8LaunchScope
 pub fn Fp8ExactExecutionShape::stateless_full_prefill(profile~ : @launch_contract.KernelProfileId, @device_profile.ExactExecutionShape) -> Self raise Fp8LaunchAbiError
+pub fn Fp8ExactExecutionShape::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8LaunchAbiDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8LaunchAbiDigest::as_sha256(Self) -> String
+pub fn Fp8LaunchAbiDigest::equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiDigest::hash(Self) -> Int
+pub fn Fp8LaunchAbiDigest::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8LaunchAbiDigest::not_equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8LaunchAbiRule {
   InvalidShape
@@ -116,9 +136,15 @@ pub(all) enum Fp8LaunchAbiRule {
   EpochExhausted
   InvalidTransition
 } derive(Eq, @debug.Debug)
+pub fn Fp8LaunchAbiRule::equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiRule::not_equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiRule::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8LaunchAbiVersion(Int) derive(Eq, @debug.Debug)
 pub fn Fp8LaunchAbiVersion::as_int(Self) -> Int
+pub fn Fp8LaunchAbiVersion::equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiVersion::not_equal(Self, Self) -> Bool
+pub fn Fp8LaunchAbiVersion::to_repr(Self) -> @debug.Repr
 pub fn Fp8LaunchAbiVersion::v1() -> Self
 pub fn Fp8LaunchAbiVersion::v2() -> Self
 
@@ -134,40 +160,60 @@ pub(all) enum Fp8LaunchOwnerState {
   InUse
   Closed
 } derive(Eq, @debug.Debug)
+pub fn Fp8LaunchOwnerState::equal(Self, Self) -> Bool
+pub fn Fp8LaunchOwnerState::not_equal(Self, Self) -> Bool
+pub fn Fp8LaunchOwnerState::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8LaunchScope {
   StatelessFullPrefillV1
   PagedFullGraphV1
 } derive(Eq, @debug.Debug)
+pub fn Fp8LaunchScope::equal(Self, Self) -> Bool
+pub fn Fp8LaunchScope::not_equal(Self, Self) -> Bool
+pub fn Fp8LaunchScope::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8LaunchStorageIdentity(String) derive(Eq, Hash, @debug.Debug)
 pub fn Fp8LaunchStorageIdentity::as_sha256(Self) -> String
+pub fn Fp8LaunchStorageIdentity::equal(Self, Self) -> Bool
 pub fn Fp8LaunchStorageIdentity::from_sha256(String) -> Self raise Fp8LaunchAbiError
+pub fn Fp8LaunchStorageIdentity::hash(Self) -> Int
+pub fn Fp8LaunchStorageIdentity::hash_combine(Self, Hasher) -> Unit
+pub fn Fp8LaunchStorageIdentity::not_equal(Self, Self) -> Bool
+pub fn Fp8LaunchStorageIdentity::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8LaunchStorageRegion {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Fp8LaunchStorageRegion::alignment(Self) -> Int64
 pub fn Fp8LaunchStorageRegion::byte_length(Self) -> Int64
+pub fn Fp8LaunchStorageRegion::equal(Self, Self) -> Bool
 pub fn Fp8LaunchStorageRegion::new(storage~ : Fp8LaunchStorageIdentity, storage_bytes~ : Int64, offset~ : Int64, byte_length~ : Int64, alignment~ : Int64) -> Self raise Fp8LaunchAbiError
+pub fn Fp8LaunchStorageRegion::not_equal(Self, Self) -> Bool
 pub fn Fp8LaunchStorageRegion::offset(Self) -> Int64
 pub fn Fp8LaunchStorageRegion::storage(Self) -> Fp8LaunchStorageIdentity
 pub fn Fp8LaunchStorageRegion::storage_bytes(Self) -> Int64
+pub fn Fp8LaunchStorageRegion::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8PagedRowShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn Fp8PagedRowShape::context_tokens(Self) -> Int
+pub fn Fp8PagedRowShape::equal(Self, Self) -> Bool
 pub fn Fp8PagedRowShape::new(query_tokens~ : Int, context_tokens~ : Int, page_table_entries~ : Int) -> Self raise Fp8LaunchAbiError
+pub fn Fp8PagedRowShape::not_equal(Self, Self) -> Bool
 pub fn Fp8PagedRowShape::page_table_entries(Self) -> Int
 pub fn Fp8PagedRowShape::query_tokens(Self) -> Int
+pub fn Fp8PagedRowShape::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8ScaleTensorStorageRegion {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn Fp8ScaleTensorStorageRegion::equal(Self, Self) -> Bool
+pub fn Fp8ScaleTensorStorageRegion::not_equal(Self, Self) -> Bool
 pub fn Fp8ScaleTensorStorageRegion::region(Self) -> Fp8LaunchStorageRegion
 pub fn Fp8ScaleTensorStorageRegion::storage_digest(Self) -> @numeric_contract.TensorStorageDigest
 pub fn Fp8ScaleTensorStorageRegion::tensor(Self) -> @plan.ScaleTensorRef
+pub fn Fp8ScaleTensorStorageRegion::to_repr(Self) -> @debug.Repr
 
 pub struct Fp8StagedDynamicLaunchAbi {
   // private fields
@@ -175,12 +221,14 @@ pub struct Fp8StagedDynamicLaunchAbi {
 pub fn Fp8StagedDynamicLaunchAbi::activation_scale_policy(Self) -> @numeric_contract.ActivationScalePolicy
 pub fn Fp8StagedDynamicLaunchAbi::digest(Self) -> Fp8LaunchAbiDigest
 pub fn Fp8StagedDynamicLaunchAbi::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn Fp8StagedDynamicLaunchAbi::equal(Self, Self) -> Bool
 pub fn Fp8StagedDynamicLaunchAbi::exact_shape(Self) -> Fp8ExactExecutionShape
 pub fn Fp8StagedDynamicLaunchAbi::execution_digest(Self) -> @numeric_contract.OperationExecutionDigest
 pub fn Fp8StagedDynamicLaunchAbi::launch_dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn Fp8StagedDynamicLaunchAbi::launch_source_version(Self) -> Fp8V2LaunchContractSourceVersion
 pub fn Fp8StagedDynamicLaunchAbi::manifest_digest(Self) -> @numeric_capability_manifest.Fp8KernelCapabilityManifestDigest
 pub fn Fp8StagedDynamicLaunchAbi::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn Fp8StagedDynamicLaunchAbi::not_equal(Self, Self) -> Bool
 pub fn Fp8StagedDynamicLaunchAbi::numeric_schema_digest(Self) -> @numeric_contract.ModelNumericSchemaDigest
 pub fn Fp8StagedDynamicLaunchAbi::operation(Self) -> @plan.OperationId
 pub fn Fp8StagedDynamicLaunchAbi::operation_kind(Self) -> @plan.OperationKind
@@ -192,6 +240,7 @@ pub fn Fp8StagedDynamicLaunchAbi::scale_tensor_regions(Self) -> ReadOnlyArray[Fp
 pub fn Fp8StagedDynamicLaunchAbi::scope(Self) -> Fp8LaunchScope
 pub fn Fp8StagedDynamicLaunchAbi::stages(Self) -> ReadOnlyArray[Fp8ActivationScaleStageRegion]
 pub fn Fp8StagedDynamicLaunchAbi::target(Self) -> @catalog.DeviceTarget
+pub fn Fp8StagedDynamicLaunchAbi::to_repr(Self) -> @debug.Repr
 pub fn Fp8StagedDynamicLaunchAbi::version(Self) -> Fp8LaunchAbiVersion
 pub fn Fp8StagedDynamicLaunchAbi::weight_scales(Self) -> ReadOnlyArray[@numeric_capability_manifest.Fp8KernelWeightBinding]
 pub fn Fp8StagedDynamicLaunchAbi::workspace(Self) -> Fp8LaunchStorageRegion
@@ -200,10 +249,16 @@ pub(all) enum Fp8StagedDynamicScaleKind {
   SimpleExternalFiniteE4M3F32V2
   GatedExternalAndPostSiluFiniteE4M3F32V2
 } derive(Eq, @debug.Debug)
+pub fn Fp8StagedDynamicScaleKind::equal(Self, Self) -> Bool
+pub fn Fp8StagedDynamicScaleKind::not_equal(Self, Self) -> Bool
+pub fn Fp8StagedDynamicScaleKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Fp8V2LaunchContractSourceVersion {
   PagedNumericV4
 } derive(Eq, @debug.Debug)
+pub fn Fp8V2LaunchContractSourceVersion::equal(Self, Self) -> Bool
+pub fn Fp8V2LaunchContractSourceVersion::not_equal(Self, Self) -> Bool
+pub fn Fp8V2LaunchContractSourceVersion::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

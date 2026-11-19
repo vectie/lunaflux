@@ -76,8 +76,7 @@ async fn exercise_remote_recovery(
   group.transport_lost()
   service.begin_recovery_maintenance(ExecutionFailed)
   assert_true(
-    service.progress_maintenance() ==
-    @worker_service.LunaWorkerServiceMaintenanceCleanupStuck,
+    service.progress_maintenance() == LunaWorkerServiceMaintenanceCleanupStuck,
   )
   let old_receipt = remote_test_release(initial.rank(0).unwrap())
   control.confirm_release(0, old_receipt)
@@ -85,11 +84,11 @@ async fn exercise_remote_recovery(
   control.confirm_release(1, remote_test_release(initial.rank(1).unwrap()))
   for _ in 0..<10 {
     ignore(service.progress_maintenance())
-    if service.lifecycle() == @worker_service.ServiceRestartReady {
+    if service.lifecycle() == ServiceRestartReady {
       break
     }
   }
-  assert_true(service.lifecycle() == @worker_service.ServiceRestartReady)
+  assert_true(service.lifecycle() == ServiceRestartReady)
   let failed = control.prepare_replacement(replacement, replacement_admitted)
   failed.mailbox(1).fail()
   try failed.poll_startup() catch {
@@ -97,7 +96,7 @@ async fn exercise_remote_recovery(
   } noraise {
     _ => fail("failed replacement became ready")
   }
-  assert_true(service.restart() is @worker_service.RestartCleanupRequired)
+  assert_true(service.restart() is RestartCleanupRequired)
   service.begin_restart_cleanup_maintenance()
   try control.confirm_replacement_release(0, old_receipt) catch {
     _ => ()
@@ -105,8 +104,7 @@ async fn exercise_remote_recovery(
     _ => fail("old receipt released a replacement")
   }
   assert_true(
-    service.progress_maintenance() ==
-    @worker_service.LunaWorkerServiceMaintenanceCleanupStuck,
+    service.progress_maintenance() == LunaWorkerServiceMaintenanceCleanupStuck,
   )
   for rank in 0..<2 {
     control.confirm_replacement_release(
@@ -115,7 +113,7 @@ async fn exercise_remote_recovery(
     )
   }
   ignore(service.progress_maintenance())
-  assert_true(service.lifecycle() == @worker_service.ServiceRestartReady)
+  assert_true(service.lifecycle() == ServiceRestartReady)
   try control.prepare_replacement(replacement, replacement_admitted) catch {
     _ => ()
   } noraise {
@@ -133,16 +131,16 @@ async fn exercise_remote_recovery(
       break
     }
   }
-  assert_true(service.restart() is @worker_service.Restarted)
+  assert_true(service.restart() is Restarted)
   service.begin_shutdown_maintenance()
   for _ in 0..<100 {
     for rank in 0..<2 {
       next_ranks[rank].progress(next, rank)
     }
     ignore(service.progress_maintenance())
-    if service.lifecycle() == @worker_service.ServiceClosed {
+    if service.lifecycle() == ServiceClosed {
       break
     }
   }
-  assert_true(service.lifecycle() == @worker_service.ServiceClosed)
+  assert_true(service.lifecycle() == ServiceClosed)
 }

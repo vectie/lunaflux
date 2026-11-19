@@ -31,9 +31,7 @@ pub fn TextEncoderPlan::new(
   guard epsilon > 0.0 && epsilon <= 1.0 && !epsilon.is_nan() else {
     raise InvalidEpsilon
   }
-  guard probability_law != @precision.AttentionProbabilityLaw::GlobalF32 else {
-    raise InvalidProbabilityLaw
-  }
+  guard probability_law != GlobalF32 else { raise InvalidProbabilityLaw }
   probability_law.validate() catch {
     _ => raise InvalidProbabilityLaw
   }

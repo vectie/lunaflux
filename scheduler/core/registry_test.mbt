@@ -51,7 +51,7 @@ test "scheduler constructor binds recipe identity and loaded generation" {
     limits,
   )
   try
-    Scheduler::new(
+    @core.Scheduler::new(
       resolved_capacity(),
       selected_identity(),
       generation,
@@ -99,7 +99,7 @@ test "admission rejects token IDs outside the loaded worker vocabulary" {
     max_top_k=32,
     max_temperature=4.0,
   )
-  let candidate = try! TokenizedRequest::new(
+  let candidate = try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(35UL),
     model_identity=selected_identity(),
     input_tokens=try! @inference.TokenBuffer::new([40], broad),
@@ -246,7 +246,7 @@ test "tokenized boundary rejects context that cannot hold prompt plus output" {
   let limits = inference_limits()
   let input = try! @inference.TokenBuffer::new([1, 2, 3], limits)
   try
-    TokenizedRequest::new(
+    @core.TokenizedRequest::new(
       request_id=try! @inference.RequestId::new(99UL),
       model_identity=selected_identity(),
       input_tokens=input,
@@ -274,7 +274,7 @@ test "tokenized boundary rejects context that cannot hold prompt plus output" {
 ///|
 test "tokenized scheduler boundary cannot observe semantic stop strings" {
   let limits = inference_limits()
-  let candidate = try! TokenizedRequest::new(
+  let candidate = try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(100UL),
     model_identity=selected_identity(),
     input_tokens=try! @inference.TokenBuffer::new([1], limits),

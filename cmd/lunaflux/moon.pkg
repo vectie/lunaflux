@@ -23,11 +23,8 @@ import {
   "vectie/lunaflux/runtime/inherited_drain",
   "vectie/lunaflux/runtime/inference_credential",
   "vectie/lunaflux/sampling",
-  "vectie/lunaflux/tokenizer",
-  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/env",
-  "moonbitlang/core/json",
   "moonbitlang/core/string",
 }
 
@@ -40,3 +37,7 @@ options(
   "stub-cc-flags": "-std=c11 -Wall -Wextra -Werror",
   link: { "native": { "cc-link-flags": "-pthread" } },
 )
+
+import {
+  "moonbitlang/core/json",
+} for "wbtest"

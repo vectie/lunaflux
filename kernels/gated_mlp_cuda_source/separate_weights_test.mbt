@@ -1,6 +1,6 @@
 ///|
 test "separate gate up down renderer authenticates order and live rows" {
-  let rendered = separate_gate_up_swiglu_dense_bf16_source(
+  let rendered = @gated_mlp_cuda_source.separate_gate_up_swiglu_dense_bf16_source(
     hidden_size=6144,
     intermediate_size=12288,
     maximum_rows=32,
@@ -22,7 +22,7 @@ test "separate gate up down renderer authenticates order and live rows" {
 ///|
 test "separate gate up down renderer rejects row and width mismatches" {
   try
-    separate_gate_up_swiglu_dense_bf16_source(
+    @gated_mlp_cuda_source.separate_gate_up_swiglu_dense_bf16_source(
       hidden_size=0,
       intermediate_size=12288,
       maximum_rows=32,
@@ -35,7 +35,7 @@ test "separate gate up down renderer rejects row and width mismatches" {
     _ => fail("zero hidden width admitted")
   }
   try
-    separate_gate_up_swiglu_dense_bf16_source(
+    @gated_mlp_cuda_source.separate_gate_up_swiglu_dense_bf16_source(
       hidden_size=4096,
       intermediate_size=12288,
       maximum_rows=0,

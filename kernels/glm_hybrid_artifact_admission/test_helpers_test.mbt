@@ -1,6 +1,6 @@
 ///|
-fn artifact_test_qualification() -> GlmHybridDeclaredQualificationDigest {
-  try! GlmHybridDeclaredQualificationDigest::from_sha256(
+fn artifact_test_qualification() -> @glm_hybrid_artifact_admission.GlmHybridDeclaredQualificationDigest {
+  try! @glm_hybrid_artifact_admission.GlmHybridDeclaredQualificationDigest::from_sha256(
     "1111111111111111111111111111111111111111111111111111111111111111",
   )
 }
@@ -43,8 +43,8 @@ fn artifact_test_launch() -> @launch_contract.AotLaunchDimensions {
 }
 
 ///|
-fn artifact_test_limits() -> GlmHybridArtifactAdmissionLimits {
-  try! GlmHybridArtifactAdmissionLimits::new(
+fn artifact_test_limits() -> @glm_hybrid_artifact_admission.GlmHybridArtifactAdmissionLimits {
+  try! @glm_hybrid_artifact_admission.GlmHybridArtifactAdmissionLimits::new(
     maximum_claims=64,
     maximum_module_bytes=1024,
     maximum_total_module_bytes=65536L,

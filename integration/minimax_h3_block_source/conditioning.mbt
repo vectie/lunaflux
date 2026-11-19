@@ -48,8 +48,7 @@ pub fn build_conditioning(
         let latent = match segment.kind {
           ConditionAudio =>
             Some(@joint_diffusion_plan.JointDiffusionLatentKind::AudioLatent)
-          ConditionVideo =>
-            Some(@joint_diffusion_plan.JointDiffusionLatentKind::VideoLatent)
+          ConditionVideo => Some(VideoLatent)
           _ => None
         }
         let input_width = match latent {

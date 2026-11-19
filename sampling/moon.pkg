@@ -1,7 +1,11 @@
 import {
-  "moonbitlang/core/double",
+  "moonbitlang/core/debug",
   "moonbitlang/core/math",
   "vectie/lunaflux/contracts/inference",
 }
 
 supported_targets = "native"
+
+import {
+  "moonbitlang/core/double",
+} for "test"

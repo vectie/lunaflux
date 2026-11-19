@@ -16,7 +16,7 @@ fn topology_rank(
   name : String,
   memory : Int64,
   target : @catalog.DeviceTarget,
-) -> LocalTopologyRank raise LocalTopologyError {
+) -> @device_topology.LocalTopologyRank raise @device_topology.LocalTopologyError {
   @device_topology.LocalTopologyRank::new(
     ordinal~,
     name~,
@@ -31,7 +31,7 @@ fn topology_device(
   name : String,
   memory : Int64,
   minor~ : Int32 = 0,
-) -> LocalProbeDevice raise LocalTopologyError {
+) -> @device_topology.LocalProbeDevice raise @device_topology.LocalTopologyError {
   @device_topology.LocalProbeDevice::new(
     ordinal~,
     name~,
@@ -43,7 +43,7 @@ fn topology_device(
 ///|
 fn two_rank_declaration(
   target : @catalog.DeviceTarget,
-) -> LocalTopologyDeclaration raise LocalTopologyError {
+) -> @device_topology.LocalTopologyDeclaration raise @device_topology.LocalTopologyError {
   @device_topology.LocalTopologyDeclaration::new(
     [
       topology_rank(2, "rank-two", 17179869184L, target),
@@ -58,7 +58,7 @@ fn two_rank_projection(
   second_name~ : String = "rank-five",
   second_minor~ : Int32 = 0,
   reverse_peer~ : Bool = true,
-) -> LocalTopologyProbeProjection raise LocalTopologyError {
+) -> @device_topology.LocalTopologyProbeProjection raise @device_topology.LocalTopologyError {
   let peers = [
     @device_topology.LocalPeerAccess::new(
       source_ordinal=2,
@@ -146,7 +146,7 @@ test "rank and projection bounds fail before topology publication" {
   } noraise {
     _ => fail("single-rank multi-device topology was admitted")
   }
-  let ranks : Array[LocalTopologyRank] = []
+  let ranks : Array[@device_topology.LocalTopologyRank] = []
   for ordinal in 0..<17 {
     ranks.push(topology_rank(ordinal, "rank", 1L, target))
   }

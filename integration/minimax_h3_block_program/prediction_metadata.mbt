@@ -20,7 +20,7 @@ fn prediction_metadata_layout(
   let mut bytes = 0L
   fn reserve(size : Int64) -> Int64 raise @device.DeviceError {
     guard size > 0L && bytes <= budget && size <= budget - bytes else {
-      raise @device.DeviceError::InvalidArgument(AllocationCreate)
+      raise InvalidArgument(AllocationCreate)
     }
     let offset = bytes
     bytes += size
@@ -29,10 +29,10 @@ fn prediction_metadata_layout(
   for step in schedule.steps() {
     let n = step.values.length()
     guard n > 0 && n <= 4 && step.pattern >= 0 && step.pattern < counts.length() else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     guard counts[step.pattern] == 0 || counts[step.pattern] == n else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     counts[step.pattern] = n
     times.push(reserve(n.to_int64() * 4L))
@@ -40,7 +40,7 @@ fn prediction_metadata_layout(
   for index, pattern in schedule.patterns() {
     guard counts[index] > 0 &&
       pattern.indices.length() == pattern.combined_adaln.length() else {
-      raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+      raise InvalidArgument(AotKernelLaunch)
     }
     let size = pattern.indices.length().to_int64() * 4L
     let block_offset = reserve(size)

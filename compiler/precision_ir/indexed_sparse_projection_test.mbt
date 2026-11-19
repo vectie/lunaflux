@@ -39,7 +39,7 @@ test "rope-free sparse projections account for all intermediates and affine weig
       maximum_workspace_bytes=1183L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("budget ignored")

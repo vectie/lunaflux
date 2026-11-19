@@ -25,7 +25,7 @@ test "stream capture lowers mean not weighted normalization or a vocabulary head
         symbol=name,
       )
     catch {
-      @precision.PrecisionPlanError::IllegalPlacement => ()
+      IllegalPlacement => ()
       _ => fail("unexpected symbol error")
     } noraise {
       _ => fail("invalid source symbol")

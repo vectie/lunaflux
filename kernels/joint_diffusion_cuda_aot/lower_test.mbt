@@ -191,8 +191,8 @@ fn diffusion_aot_limits(
   maximum_elements~ : Int64 = 4096L,
   maximum_source_bytes~ : Int32 = 65536,
   maximum_recipe_bytes~ : Int32 = 65536,
-) -> JointDiffusionCudaAotLimits {
-  try! JointDiffusionCudaAotLimits::new(
+) -> @joint_diffusion_cuda_aot.JointDiffusionCudaAotLimits {
+  try! @joint_diffusion_cuda_aot.JointDiffusionCudaAotLimits::new(
     maximum_elements~,
     maximum_source_bytes~,
     maximum_recipe_bytes~,
@@ -203,7 +203,7 @@ fn diffusion_aot_limits(
 test "video and audio shifted-flow candidates bind exact request geometry" {
   let requirements = diffusion_aot_requirements()
   let request = diffusion_aot_request()
-  let video = lower_shifted_flow_cuda_aot_candidate(
+  let video = @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=16,
@@ -228,7 +228,7 @@ test "video and audio shifted-flow candidates bind exact request geometry" {
   assert_eq(video.numerical_contract(), OrderedFloat32RfVelocityEtaZeroV1)
   assert_true(video_source.contains("__fmul_rn"))
   assert_true(video_source.contains("__fadd_rn"))
-  let audio = lower_shifted_flow_cuda_aot_candidate(
+  let audio = @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=17,
@@ -269,7 +269,7 @@ test "video and audio shifted-flow candidates bind exact request geometry" {
       #|0445848fb5505d9bb506c46f17353417691b1d6f80cddd28f094126c1ab857b9
     ),
   )
-  let repeated = lower_shifted_flow_cuda_aot_candidate(
+  let repeated = @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=16,
@@ -286,7 +286,7 @@ test "shifted-flow lowering rejects unsupported and unsafe profiles" {
   let requirements = diffusion_aot_requirements()
   let request = diffusion_aot_request()
   try
-    lower_shifted_flow_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
       requirements,
       request_shape=diffusion_aot_foreign_request(),
       requirement_ordinal=16,
@@ -301,7 +301,7 @@ test "shifted-flow lowering rejects unsupported and unsafe profiles" {
     _ => fail("request geometry from another shape contract was accepted")
   }
   try
-    lower_shifted_flow_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=0,
@@ -321,7 +321,7 @@ test "shifted-flow lowering rejects unsupported and unsafe profiles" {
       diffusion_aot_compiler(reassociate=true),
     ] {
     try
-      lower_shifted_flow_cuda_aot_candidate(
+      @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
         requirements,
         request_shape=request,
         requirement_ordinal=16,
@@ -336,7 +336,7 @@ test "shifted-flow lowering rejects unsupported and unsafe profiles" {
       _ => fail("unsafe compiler policy was accepted")
     }
   }
-  let f32_only = lower_shifted_flow_cuda_aot_candidate(
+  let f32_only = @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
     requirements,
     request_shape=request,
     requirement_ordinal=16,
@@ -346,7 +346,7 @@ test "shifted-flow lowering rejects unsupported and unsafe profiles" {
   )
   assert_eq(f32_only.operands()[0].byte_count(), 96L)
   try
-    lower_shifted_flow_cuda_aot_candidate(
+    @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
       requirements,
       request_shape=request,
       requirement_ordinal=16,
@@ -366,7 +366,7 @@ test "shifted-flow lowering rejects unsupported and unsafe profiles" {
       diffusion_aot_limits(maximum_recipe_bytes=1),
     ] {
     try
-      lower_shifted_flow_cuda_aot_candidate(
+      @joint_diffusion_cuda_aot.lower_shifted_flow_cuda_aot_candidate(
         requirements,
         request_shape=request,
         requirement_ordinal=16,

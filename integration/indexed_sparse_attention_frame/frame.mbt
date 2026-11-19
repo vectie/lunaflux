@@ -207,7 +207,7 @@ pub fn IndexedSparseAttentionFrame::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.status is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }
@@ -219,7 +219,7 @@ pub fn IndexedSparseAttentionFrame::selected_indices(
   self : Self,
 ) -> @device.Allocation raise @device.DeviceError {
   guard self.status is Prepared && self.selection is Some(selection) else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   selection
 }

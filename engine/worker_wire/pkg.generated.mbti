@@ -80,6 +80,9 @@ pub(all) suberror WorkerWireError {
   CompletionFrameWriterOrderMismatch
   Protocol(@worker_protocol.WorkerProtocolError)
 } derive(Eq, @debug.Debug)
+pub fn WorkerWireError::equal(Self, Self) -> Bool
+pub fn WorkerWireError::not_equal(Self, Self) -> Bool
+pub fn WorkerWireError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CompletionFrameBuffer {
@@ -208,6 +211,9 @@ pub(all) struct RequestRetirement {
   acknowledged : Bool
 } derive(Eq, @debug.Debug)
 pub fn RequestRetirement::encode(Self, FixedArray[Byte]) -> Unit raise WorkerWireError
+pub fn RequestRetirement::equal(Self, Self) -> Bool
+pub fn RequestRetirement::not_equal(Self, Self) -> Bool
+pub fn RequestRetirement::to_repr(Self) -> @debug.Repr
 
 pub struct StartupFrameBuffer {
   // private fields
@@ -221,16 +227,22 @@ pub(all) enum StartupFrameKind {
   Configure
   Ready
 } derive(Eq, @debug.Debug)
+pub fn StartupFrameKind::equal(Self, Self) -> Bool
+pub fn StartupFrameKind::not_equal(Self, Self) -> Bool
+pub fn StartupFrameKind::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelBootstrapPolicy {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelBootstrapPolicy::collective_exchange_timeout_millis(Self) -> Int
+pub fn TensorParallelBootstrapPolicy::equal(Self, Self) -> Bool
 pub fn TensorParallelBootstrapPolicy::maximum_collective_runtime_version_code(Self) -> Int
 pub fn TensorParallelBootstrapPolicy::minimum_collective_runtime_version_code(Self) -> Int
 pub fn TensorParallelBootstrapPolicy::new(ArrayView[TensorParallelRankRuntimeClaim], minimum_collective_runtime_version_code~ : Int, maximum_collective_runtime_version_code~ : Int, collective_exchange_timeout_millis~ : Int) -> Self raise WorkerWireError
+pub fn TensorParallelBootstrapPolicy::not_equal(Self, Self) -> Bool
 pub fn TensorParallelBootstrapPolicy::rank(Self, Int) -> TensorParallelRankRuntimeClaim?
 pub fn TensorParallelBootstrapPolicy::rank_count(Self) -> Int
+pub fn TensorParallelBootstrapPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRankRuntimeClaim {
   // private fields
@@ -238,10 +250,13 @@ pub struct TensorParallelRankRuntimeClaim {
 pub fn TensorParallelRankRuntimeClaim::activation_workspace_reserved_bytes(Self) -> Int64
 pub fn TensorParallelRankRuntimeClaim::collective_reserved_bytes(Self) -> Int64
 pub fn TensorParallelRankRuntimeClaim::device_ordinal(Self) -> Int
+pub fn TensorParallelRankRuntimeClaim::equal(Self, Self) -> Bool
 pub fn TensorParallelRankRuntimeClaim::kv_reserved_bytes(Self) -> Int64
 pub fn TensorParallelRankRuntimeClaim::memory_ceiling_bytes(Self) -> Int64
 pub fn TensorParallelRankRuntimeClaim::new(rank~ : Int, device_ordinal~ : Int, memory_ceiling_bytes~ : Int64, weight_reserved_bytes~ : Int64, activation_workspace_reserved_bytes~ : Int64, kv_reserved_bytes~ : Int64, collective_reserved_bytes~ : Int64) -> Self raise WorkerWireError
+pub fn TensorParallelRankRuntimeClaim::not_equal(Self, Self) -> Bool
 pub fn TensorParallelRankRuntimeClaim::rank(Self) -> Int
+pub fn TensorParallelRankRuntimeClaim::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelRankRuntimeClaim::weight_reserved_bytes(Self) -> Int64
 
 pub struct ValidatedCompletionFrame(CompletionFrameBuffer, UInt64)
@@ -286,6 +301,7 @@ pub fn ValidatedStartupFrame::length(Self) -> Int raise WorkerWireError
 pub struct WorkerBootstrapCeilings {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapCeilings::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapCeilings::max_activation_arena_bytes(Self) -> Int64
 pub fn WorkerBootstrapCeilings::max_execution_manifest_bytes(Self) -> Int64
 pub fn WorkerBootstrapCeilings::max_kv_arena_bytes(Self) -> Int64
@@ -295,19 +311,27 @@ pub fn WorkerBootstrapCeilings::max_total_module_bytes(Self) -> Int64
 pub fn WorkerBootstrapCeilings::max_weight_arena_bytes(Self) -> Int64
 pub fn WorkerBootstrapCeilings::max_weight_file_bytes(Self) -> Int64
 pub fn WorkerBootstrapCeilings::new(max_model_config_bytes~ : Int, max_weight_file_bytes~ : Int64, max_weight_arena_bytes~ : Int64, max_activation_arena_bytes~ : Int64, max_kv_arena_bytes~ : Int64, max_execution_manifest_bytes~ : Int64, max_module_bytes~ : Int64, max_total_module_bytes~ : Int64) -> Self raise WorkerWireError
+pub fn WorkerBootstrapCeilings::not_equal(Self, Self) -> Bool
+pub fn WorkerBootstrapCeilings::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerBootstrapDigest(String) derive(Eq, @debug.Debug)
 pub fn WorkerBootstrapDigest::as_hex(Self) -> String
+pub fn WorkerBootstrapDigest::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapDigest::from_sha256(String) -> Self raise WorkerWireError
+pub fn WorkerBootstrapDigest::not_equal(Self, Self) -> Bool
+pub fn WorkerBootstrapDigest::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerBootstrapExecution {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkerBootstrapExecution::compute_major(Self) -> Int
 pub fn WorkerBootstrapExecution::compute_minor(Self) -> Int
+pub fn WorkerBootstrapExecution::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapExecution::new(compute_major~ : Int, compute_minor~ : Int, supports_bf16~ : Bool, supports_cublas_lt~ : Bool, tokens_per_page~ : Int, total_page_count~ : Int) -> Self raise WorkerWireError
+pub fn WorkerBootstrapExecution::not_equal(Self, Self) -> Bool
 pub fn WorkerBootstrapExecution::supports_bf16(Self) -> Bool
 pub fn WorkerBootstrapExecution::supports_cublas_lt(Self) -> Bool
+pub fn WorkerBootstrapExecution::to_repr(Self) -> @debug.Repr
 pub fn WorkerBootstrapExecution::tokens_per_page(Self) -> Int
 pub fn WorkerBootstrapExecution::total_page_count(Self) -> Int
 
@@ -315,34 +339,44 @@ pub struct WorkerBootstrapFusedRuntimeSource {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkerBootstrapFusedRuntimeSource::digest_sha256(Self) -> String
+pub fn WorkerBootstrapFusedRuntimeSource::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapFusedRuntimeSource::locator(Self) -> String
 pub fn WorkerBootstrapFusedRuntimeSource::new(locator~ : StringView, digest_sha256~ : StringView) -> Self raise WorkerWireError
+pub fn WorkerBootstrapFusedRuntimeSource::not_equal(Self, Self) -> Bool
+pub fn WorkerBootstrapFusedRuntimeSource::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerBootstrapKernelSource {
   // private fields
 } derive(Eq)
+pub fn WorkerBootstrapKernelSource::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapKernelSource::fused_runtime_source(Self) -> WorkerBootstrapFusedRuntimeSource?
 pub fn WorkerBootstrapKernelSource::luna_approval(Self) -> WorkerBootstrapLunaApproval?
 pub fn WorkerBootstrapKernelSource::manifest_digest(Self) -> String
 pub fn WorkerBootstrapKernelSource::manifest_locator(Self) -> String
 pub fn WorkerBootstrapKernelSource::new(manifest_locator~ : StringView, manifest_digest_sha256~ : StringView, luna_approval? : WorkerBootstrapLunaApproval?, fused_runtime? : WorkerBootstrapFusedRuntimeSource?, sampling_runtime? : WorkerBootstrapSamplingRuntime) -> Self raise WorkerWireError
+pub fn WorkerBootstrapKernelSource::not_equal(Self, Self) -> Bool
 pub fn WorkerBootstrapKernelSource::sampling_runtime(Self) -> WorkerBootstrapSamplingRuntime
 
 pub struct WorkerBootstrapLunaApproval {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn WorkerBootstrapLunaApproval::approved_source(Self) -> String
+pub fn WorkerBootstrapLunaApproval::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapLunaApproval::from_untrusted_wire_claim(manifest_digest_sha256~ : StringView, key_identity_sha256~ : StringView, signature_digest_sha256~ : StringView, approved_source_sha256~ : StringView) -> Self raise WorkerWireError
 pub fn WorkerBootstrapLunaApproval::key_identity(Self) -> String
 pub fn WorkerBootstrapLunaApproval::manifest_digest(Self) -> String
+pub fn WorkerBootstrapLunaApproval::not_equal(Self, Self) -> Bool
 pub fn WorkerBootstrapLunaApproval::signature_digest(Self) -> String
+pub fn WorkerBootstrapLunaApproval::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerBootstrapModelSource {
   // private fields
 } derive(Eq)
 pub fn WorkerBootstrapModelSource::config_digest(Self) -> String
 pub fn WorkerBootstrapModelSource::config_locator(Self) -> String
+pub fn WorkerBootstrapModelSource::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapModelSource::new(config_locator~ : StringView, weights_locator~ : StringView, config_digest_sha256~ : StringView) -> Self raise WorkerWireError
+pub fn WorkerBootstrapModelSource::not_equal(Self, Self) -> Bool
 pub fn WorkerBootstrapModelSource::weights_locator(Self) -> String
 
 pub(all) enum WorkerBootstrapRecipe {
@@ -359,23 +393,34 @@ pub(all) enum WorkerBootstrapRecipe {
   DenseQwen3Bf16PagedAotExtensionsV13
   PackedGlmBatchedTensorV14
 } derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapRecipe::equal(Self, Self) -> Bool
+pub fn WorkerBootstrapRecipe::not_equal(Self, Self) -> Bool
+pub fn WorkerBootstrapRecipe::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerBootstrapRoots {
   // private fields
 } derive(Eq)
+pub fn WorkerBootstrapRoots::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapRoots::kernel_root(Self) -> String
 pub fn WorkerBootstrapRoots::model_root(Self) -> String
 pub fn WorkerBootstrapRoots::new(model_root~ : StringView, kernel_root~ : StringView) -> Self raise WorkerWireError
+pub fn WorkerBootstrapRoots::not_equal(Self, Self) -> Bool
 
 pub(all) enum WorkerBootstrapSamplingRuntime {
   HostSamplingRuntime
   EmbeddedCudaGreedyV1
   DeviceFullF32SamplingV1
 } derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapSamplingRuntime::equal(Self, Self) -> Bool
+pub fn WorkerBootstrapSamplingRuntime::not_equal(Self, Self) -> Bool
+pub fn WorkerBootstrapSamplingRuntime::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerBootstrapSourceDigest(String) derive(Eq, @debug.Debug)
 pub fn WorkerBootstrapSourceDigest::as_hex(Self) -> String
+pub fn WorkerBootstrapSourceDigest::equal(Self, Self) -> Bool
 pub fn WorkerBootstrapSourceDigest::from_sha256(String) -> Self raise WorkerWireError
+pub fn WorkerBootstrapSourceDigest::not_equal(Self, Self) -> Bool
+pub fn WorkerBootstrapSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WorkerBootstrapSourceRule {
   Magic
@@ -394,6 +439,9 @@ pub(all) enum WorkerBootstrapSourceRule {
   Integrity
   CanonicalEncoding
 } derive(Eq, @debug.Debug)
+pub fn WorkerBootstrapSourceRule::equal(Self, Self) -> Bool
+pub fn WorkerBootstrapSourceRule::not_equal(Self, Self) -> Bool
+pub fn WorkerBootstrapSourceRule::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerFp8BootstrapExecution {
   // private fields
@@ -421,6 +469,9 @@ pub(all) enum WorkerGraphExecutionPath {
   WorkerGraphCaptured
   WorkerGraphOrderedEager
 } derive(Eq, @debug.Debug)
+pub fn WorkerGraphExecutionPath::equal(Self, Self) -> Bool
+pub fn WorkerGraphExecutionPath::not_equal(Self, Self) -> Bool
+pub fn WorkerGraphExecutionPath::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerGraphShapeClass {
   // private fields
@@ -459,9 +510,12 @@ pub struct WorkerI8BootstrapExecution {
 } derive(Eq, @debug.Debug)
 pub fn WorkerI8BootstrapExecution::compute_major(Self) -> Int
 pub fn WorkerI8BootstrapExecution::compute_minor(Self) -> Int
+pub fn WorkerI8BootstrapExecution::equal(Self, Self) -> Bool
 pub fn WorkerI8BootstrapExecution::new(compute_major~ : Int, compute_minor~ : Int, total_memory_bytes~ : Int64, supports_bf16~ : Bool, supports_cublas_lt~ : Bool, tokens_per_page~ : Int, total_page_count~ : Int) -> Self raise WorkerWireError
+pub fn WorkerI8BootstrapExecution::not_equal(Self, Self) -> Bool
 pub fn WorkerI8BootstrapExecution::supports_bf16(Self) -> Bool
 pub fn WorkerI8BootstrapExecution::supports_cublas_lt(Self) -> Bool
+pub fn WorkerI8BootstrapExecution::to_repr(Self) -> @debug.Repr
 pub fn WorkerI8BootstrapExecution::tokens_per_page(Self) -> Int
 pub fn WorkerI8BootstrapExecution::total_memory_bytes(Self) -> Int64
 pub fn WorkerI8BootstrapExecution::total_page_count(Self) -> Int
@@ -489,8 +543,11 @@ pub fn WorkerMistralBootstrapModelSource::weight_manifest_digest(Self) -> String
 pub struct WorkerParentApprovalSubjects {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn WorkerParentApprovalSubjects::equal(Self, Self) -> Bool
 pub fn WorkerParentApprovalSubjects::from_fp8_authorization(@fp8_release_authority.Fp8ReusablePagedEnvelopeAuthorityV3) -> Self
 pub fn WorkerParentApprovalSubjects::from_luna_authorization(@luna_artifact_admission.LunaAotKernelAdmission) -> Self
+pub fn WorkerParentApprovalSubjects::not_equal(Self, Self) -> Bool
+pub fn WorkerParentApprovalSubjects::to_repr(Self) -> @debug.Repr
 
 pub struct WorkerQwen3BootstrapModelSource {
   // private fields
@@ -509,14 +566,17 @@ pub struct WorkerStartupContract {
 pub fn WorkerStartupContract::bootstrap_digest(Self) -> WorkerBootstrapDigest
 pub fn WorkerStartupContract::bootstrap_source_digest(Self) -> WorkerBootstrapSourceDigest
 pub fn WorkerStartupContract::device_ordinal(Self) -> Int
+pub fn WorkerStartupContract::equal(Self, Self) -> Bool
 pub fn WorkerStartupContract::has_predecessor(Self) -> Bool
 pub fn WorkerStartupContract::identity(Self) -> @spec.ModelIdentity
 pub fn WorkerStartupContract::inference_limits(Self) -> @inference.InferenceLimits
 pub fn WorkerStartupContract::model_generation_value(Self) -> UInt64
 pub fn WorkerStartupContract::new(identity~ : @spec.ModelIdentity, bootstrap_digest~ : WorkerBootstrapDigest, bootstrap_source_digest~ : WorkerBootstrapSourceDigest, device_ordinal~ : Int, model_generation_value~ : UInt64, worker_limits~ : @worker_protocol.WorkerProtocolLimits, inference_limits~ : @inference.InferenceLimits, has_predecessor~ : Bool, predecessor_value~ : UInt64, streaming? : @streaming_ir.Capability, streaming_epoch? : UInt64) -> Self raise WorkerWireError
+pub fn WorkerStartupContract::not_equal(Self, Self) -> Bool
 pub fn WorkerStartupContract::predecessor_value(Self) -> UInt64
 pub fn WorkerStartupContract::streaming(Self) -> @streaming_ir.Capability?
 pub fn WorkerStartupContract::streaming_epoch(Self) -> UInt64
+pub fn WorkerStartupContract::to_repr(Self) -> @debug.Repr
 pub fn WorkerStartupContract::with_streaming(Self, @streaming_ir.Capability) -> Self
 pub fn WorkerStartupContract::worker_limits(Self) -> @worker_protocol.WorkerProtocolLimits
 
@@ -539,6 +599,9 @@ pub(all) enum WorkerWireFrameRule {
   StartupIdentity
   Reserved
 } derive(Eq, @debug.Debug)
+pub fn WorkerWireFrameRule::equal(Self, Self) -> Bool
+pub fn WorkerWireFrameRule::not_equal(Self, Self) -> Bool
+pub fn WorkerWireFrameRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WorkerWireLimitRule {
   PlanFrameBytes
@@ -546,6 +609,9 @@ pub(all) enum WorkerWireLimitRule {
   StartupFrameBytes
   BootstrapSourceBytes
 } derive(Eq, @debug.Debug)
+pub fn WorkerWireLimitRule::equal(Self, Self) -> Bool
+pub fn WorkerWireLimitRule::not_equal(Self, Self) -> Bool
+pub fn WorkerWireLimitRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

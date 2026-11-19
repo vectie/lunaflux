@@ -30,7 +30,7 @@ test "partial stage retirement commits position without publishing model complet
   frame.retire_stage(execution_failed=true)
   assert_true(frame.is_faulted())
   try frame.release_request() catch {
-    @serial_decoder_frame.SerialDecoderError::Faulted => ()
+    Faulted => ()
     error => raise error
   } noraise {
     _ => fail("reused peer-failed retained history")

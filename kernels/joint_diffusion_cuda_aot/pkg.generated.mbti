@@ -90,6 +90,9 @@ pub(all) suberror JointDiffusionCudaAotError {
   AmpParameterLayout(@joint_audio_amp_parameter_layout.JointAudioAmpParameterLayoutError)
   AmpWorkspaceLayout(@joint_audio_amp_workspace_layout.JointAudioAmpWorkspaceLayoutError)
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionCudaAotError::equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaAotError::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct JointDiffusionAttentionCudaStage {
@@ -104,6 +107,9 @@ pub(all) enum JointDiffusionAttentionRowScope {
   PackedRows
   RefinerRows
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAttentionRowScope::equal(Self, Self) -> Bool
+pub fn JointDiffusionAttentionRowScope::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAttentionRowScope::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointDiffusionAttentionStageKind {
   QkvProjection
@@ -112,6 +118,9 @@ pub(all) enum JointDiffusionAttentionStageKind {
   FullAttention
   OutputProjection
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAttentionStageKind::equal(Self, Self) -> Bool
+pub fn JointDiffusionAttentionStageKind::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAttentionStageKind::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionAudioVaeAmpActivationCudaCandidate {
   // private fields
@@ -213,6 +222,9 @@ pub(all) enum JointDiffusionAudioVaeConvPreStageKind {
   NormalizeWeight
   Convolve
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeConvPreStageKind::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeConvPreStageKind::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeConvPreStageKind::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionAudioVaeDecoderInputProjectionCudaCandidate {
   // private fields
@@ -319,6 +331,9 @@ pub(all) enum JointDiffusionAudioVaeFirstAmpStageKind {
   SnakeBeta
   Downsample
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeFirstAmpStageKind::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstAmpStageKind::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstAmpStageKind::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionAudioVaeFirstUpsampleCudaCandidate {
   // private fields
@@ -366,6 +381,9 @@ pub(all) enum JointDiffusionAudioVaeFirstUpsampleStageKind {
   NormalizeWeight
   ConvolveTranspose
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionAudioVaeFirstUpsampleStageKind::equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstUpsampleStageKind::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionAudioVaeFirstUpsampleStageKind::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionAudioVaeLatentDestandardizationCudaCandidate {
   // private fields
@@ -436,6 +454,9 @@ pub(all) enum JointDiffusionCudaAotInvalidKind {
   Compiler
   Encoding
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionCudaAotInvalidKind::equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaAotInvalidKind::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaAotInvalidKind::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionCudaAotLimits {
   // private fields
@@ -461,12 +482,25 @@ pub(all) enum JointDiffusionCudaNumericalContract {
   OrderedF32AliasFreeSnakeBetaV1
   OrderedF32AmpParallelResidualAverageV1
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionCudaNumericalContract::equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaNumericalContract::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionCudaRecipeDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn JointDiffusionCudaRecipeDigest::as_hex(Self) -> String
+pub fn JointDiffusionCudaRecipeDigest::equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaRecipeDigest::hash(Self) -> Int
+pub fn JointDiffusionCudaRecipeDigest::hash_combine(Self, Hasher) -> Unit
+pub fn JointDiffusionCudaRecipeDigest::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaRecipeDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn JointDiffusionCudaSourceDigest::as_hex(Self) -> String
+pub fn JointDiffusionCudaSourceDigest::equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaSourceDigest::hash(Self) -> Int
+pub fn JointDiffusionCudaSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn JointDiffusionCudaSourceDigest::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionCudaSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionDistinctTimestepAdaLnCudaCandidate {
   // private fields

@@ -23,7 +23,7 @@ test "committed draft read set retains all future draft rows and physical ring o
   assert_eq(p.visible_main_slots(128), 128)
   assert_eq(p.visible_main_slots(1048575), 128)
   try p.visible_main_slots(0) catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     e => raise e
   } noraise {
     _ => fail("initial prefill is not draft attention")
@@ -39,7 +39,7 @@ test "committed draft read set retains all future draft rows and physical ring o
       maximum_state_bytes=458775L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("budget accepted")

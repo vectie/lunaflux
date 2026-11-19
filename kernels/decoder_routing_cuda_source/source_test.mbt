@@ -1,6 +1,6 @@
 ///|
 test "stable biased top-k fixes lower expert id ties" {
-  let source = stable_biased_top_k_i32_source(
+  let source = @decoder_routing_cuda_source.stable_biased_top_k_i32_source(
     routed_expert_count=256,
     experts_per_token=6,
     maximum_rows=32,
@@ -14,7 +14,7 @@ test "stable biased top-k fixes lower expert id ties" {
   assert_true(text.contains("selected_indices"))
   assert_eq(
     source.source_bytes(),
-    stable_biased_top_k_i32_source(
+    @decoder_routing_cuda_source.stable_biased_top_k_i32_source(
       routed_expert_count=256,
       experts_per_token=6,
       maximum_rows=32,
@@ -25,7 +25,7 @@ test "stable biased top-k fixes lower expert id ties" {
 
 ///|
 test "selected weights fix ordered normalization and scaling" {
-  let source = selected_expert_weight_finalize_f32_source(
+  let source = @decoder_routing_cuda_source.selected_expert_weight_finalize_f32_source(
     routed_expert_count=384,
     experts_per_token=6,
     maximum_rows=32,
@@ -45,7 +45,7 @@ test "selected weights fix ordered normalization and scaling" {
 ///|
 test "routing source rejects hostile geometry scale and symbol" {
   try
-    stable_biased_top_k_i32_source(
+    @decoder_routing_cuda_source.stable_biased_top_k_i32_source(
       routed_expert_count=5,
       experts_per_token=6,
       maximum_rows=1,
@@ -58,7 +58,7 @@ test "routing source rejects hostile geometry scale and symbol" {
     _ => fail("top-k wider than routed experts was admitted")
   }
   try
-    selected_expert_weight_finalize_f32_source(
+    @decoder_routing_cuda_source.selected_expert_weight_finalize_f32_source(
       routed_expert_count=8,
       experts_per_token=2,
       maximum_rows=1,
@@ -73,7 +73,7 @@ test "routing source rejects hostile geometry scale and symbol" {
     _ => fail("zero routing scale was admitted")
   }
   try
-    stable_biased_top_k_i32_source(
+    @decoder_routing_cuda_source.stable_biased_top_k_i32_source(
       routed_expert_count=8,
       experts_per_token=2,
       maximum_rows=1048577,
@@ -86,7 +86,7 @@ test "routing source rejects hostile geometry scale and symbol" {
     _ => fail("oversized routing row envelope was admitted")
   }
   try
-    stable_biased_top_k_i32_source(
+    @decoder_routing_cuda_source.stable_biased_top_k_i32_source(
       routed_expert_count=8,
       experts_per_token=2,
       maximum_rows=1,

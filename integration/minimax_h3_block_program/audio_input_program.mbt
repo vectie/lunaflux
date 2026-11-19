@@ -60,9 +60,7 @@ fn AudioInputProgram::bind(
   input : @device.Allocation,
   input_offset : Int64,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
-  guard !self.closed else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
-  }
+  guard !self.closed else { raise InvalidArgument(AotKernelLaunch) }
   self.layout.launches(
     self.permutation,
     self.destandardize,

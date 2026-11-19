@@ -15,6 +15,9 @@ pub fn load_materialized(@approved_fs.ApprovedRootMaterializationView, @approved
 pub(all) suberror ExternalProtocolPolicyError {
   InvalidExternalProtocolPolicy
 } derive(Eq, @debug.Debug)
+pub fn ExternalProtocolPolicyError::equal(Self, Self) -> Bool
+pub fn ExternalProtocolPolicyError::not_equal(Self, Self) -> Bool
+pub fn ExternalProtocolPolicyError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror InstancePolicyFileError {
   InvalidExpectedDigest
@@ -35,12 +38,16 @@ pub(all) suberror InstancePolicyFileError {
   MissingField(area~ : InstancePolicyArea, index~ : Int)
   InvalidField(area~ : InstancePolicyArea, issue~ : InstancePolicyIssue, index~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn InstancePolicyFileError::equal(Self, Self) -> Bool
+pub fn InstancePolicyFileError::not_equal(Self, Self) -> Bool
+pub fn InstancePolicyFileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CachePolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CachePolicyClaims::block_table_pages_per_request(Self) -> Int
+pub fn CachePolicyClaims::equal(Self, Self) -> Bool
 pub fn CachePolicyClaims::layout_version(Self) -> Int
 pub fn CachePolicyClaims::max_active_references_per_page(Self) -> Int
 pub fn CachePolicyClaims::max_cached_references_per_page(Self) -> Int
@@ -49,18 +56,26 @@ pub fn CachePolicyClaims::max_prefix_nodes(Self) -> Int
 pub fn CachePolicyClaims::max_prefix_pages(Self) -> Int
 pub fn CachePolicyClaims::max_prefix_scope_bytes(Self) -> Int
 pub fn CachePolicyClaims::max_prefix_tokens_per_entry(Self) -> Int
+pub fn CachePolicyClaims::not_equal(Self, Self) -> Bool
 pub fn CachePolicyClaims::prefix_enabled(Self) -> Bool
+pub fn CachePolicyClaims::to_repr(Self) -> @debug.Repr
 pub fn CachePolicyClaims::tokens_per_page(Self) -> Int
 pub fn CachePolicyClaims::total_page_count(Self) -> Int
 
 pub(all) enum ExternalControlAuthentication {
   DeploymentBearer
 } derive(Eq, @debug.Debug)
+pub fn ExternalControlAuthentication::equal(Self, Self) -> Bool
+pub fn ExternalControlAuthentication::not_equal(Self, Self) -> Bool
+pub fn ExternalControlAuthentication::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExternalProtocolMode {
   NativeFramedV1
   OpenAiResponsesV1
 } derive(Eq, @debug.Debug)
+pub fn ExternalProtocolMode::equal(Self, Self) -> Bool
+pub fn ExternalProtocolMode::not_equal(Self, Self) -> Bool
+pub fn ExternalProtocolMode::to_repr(Self) -> @debug.Repr
 
 pub struct ExternalProtocolPolicyClaims {
   // private fields
@@ -80,6 +95,9 @@ pub(all) enum ExternalTransportSecurity {
   PrivateNetworkPlaintext
   DeploymentTls
 } derive(Eq, @debug.Debug)
+pub fn ExternalTransportSecurity::equal(Self, Self) -> Bool
+pub fn ExternalTransportSecurity::not_equal(Self, Self) -> Bool
+pub fn ExternalTransportSecurity::to_repr(Self) -> @debug.Repr
 
 pub struct InstancePolicyAdmission {
   // private fields
@@ -112,10 +130,16 @@ pub(all) enum InstancePolicyArea {
   Preparation
   Telemetry
 } derive(Eq, @debug.Debug)
+pub fn InstancePolicyArea::equal(Self, Self) -> Bool
+pub fn InstancePolicyArea::not_equal(Self, Self) -> Bool
+pub fn InstancePolicyArea::to_repr(Self) -> @debug.Repr
 
 pub struct InstancePolicyDigest(String) derive(Eq, @debug.Debug)
 pub fn InstancePolicyDigest::as_hex(Self) -> String
+pub fn InstancePolicyDigest::equal(Self, Self) -> Bool
 pub fn InstancePolicyDigest::from_sha256(StringView) -> Self raise InstancePolicyFileError
+pub fn InstancePolicyDigest::not_equal(Self, Self) -> Bool
+pub fn InstancePolicyDigest::to_repr(Self) -> @debug.Repr
 
 pub struct InstancePolicyFileLimits {
   // private fields
@@ -130,6 +154,9 @@ pub(all) enum InstancePolicyFileOperation {
   Snapshot
   Close
 } derive(Eq, @debug.Debug)
+pub fn InstancePolicyFileOperation::equal(Self, Self) -> Bool
+pub fn InstancePolicyFileOperation::not_equal(Self, Self) -> Bool
+pub fn InstancePolicyFileOperation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum InstancePolicyIssue {
   ExpectedObject
@@ -138,11 +165,17 @@ pub(all) enum InstancePolicyIssue {
   ExpectedBoolean
   UnsupportedValue
 } derive(Eq, @debug.Debug)
+pub fn InstancePolicyIssue::equal(Self, Self) -> Bool
+pub fn InstancePolicyIssue::not_equal(Self, Self) -> Bool
+pub fn InstancePolicyIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum InstancePolicyLimit {
   PolicyBytes
   JsonDepth
 } derive(Eq, @debug.Debug)
+pub fn InstancePolicyLimit::equal(Self, Self) -> Bool
+pub fn InstancePolicyLimit::not_equal(Self, Self) -> Bool
+pub fn InstancePolicyLimit::to_repr(Self) -> @debug.Repr
 
 pub struct OpenAiServicePolicyClaims {
   // private fields
@@ -174,51 +207,67 @@ pub fn OpenAiServicePolicyClaims::user_suffix(Self) -> String
 pub struct PreparationPolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn PreparationPolicyClaims::equal(Self, Self) -> Bool
 pub fn PreparationPolicyClaims::event_work_units(Self) -> Int
 pub fn PreparationPolicyClaims::framed_max_frame_bytes(Self) -> Int
 pub fn PreparationPolicyClaims::lane_count(Self) -> Int
+pub fn PreparationPolicyClaims::not_equal(Self, Self) -> Bool
 pub fn PreparationPolicyClaims::step_work_units(Self) -> Int
 pub fn PreparationPolicyClaims::storage_byte_cells(Self) -> UInt64
 pub fn PreparationPolicyClaims::storage_int_cells(Self) -> UInt64
 pub fn PreparationPolicyClaims::storage_reference_cells(Self) -> UInt64
+pub fn PreparationPolicyClaims::to_repr(Self) -> @debug.Repr
 pub fn PreparationPolicyClaims::total_work_units(Self) -> UInt64
 
 pub struct RestartPolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn RestartPolicyClaims::equal(Self, Self) -> Bool
 pub fn RestartPolicyClaims::initial_backoff_millis(Self) -> UInt64
 pub fn RestartPolicyClaims::maximum_attempts(Self) -> Int
 pub fn RestartPolicyClaims::maximum_backoff_millis(Self) -> UInt64
+pub fn RestartPolicyClaims::not_equal(Self, Self) -> Bool
 pub fn RestartPolicyClaims::stable_after_millis(Self) -> UInt64
+pub fn RestartPolicyClaims::to_repr(Self) -> @debug.Repr
 
 pub struct SchedulerPolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn SchedulerPolicyClaims::emergency_decode_page_reserve(Self) -> Int
+pub fn SchedulerPolicyClaims::equal(Self, Self) -> Bool
 pub fn SchedulerPolicyClaims::max_active_requests(Self) -> Int
 pub fn SchedulerPolicyClaims::max_waiting_requests(Self) -> Int
+pub fn SchedulerPolicyClaims::not_equal(Self, Self) -> Bool
 pub fn SchedulerPolicyClaims::output_event_capacity(Self) -> Int
 pub fn SchedulerPolicyClaims::prefill_chunk_tokens(Self) -> Int
 pub fn SchedulerPolicyClaims::step_token_budget(Self) -> Int
+pub fn SchedulerPolicyClaims::to_repr(Self) -> @debug.Repr
 pub fn SchedulerPolicyClaims::waiting_age_threshold_steps(Self) -> Int
 
 pub struct ServicePolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ServicePolicyClaims::diagnostic_mode(Self) -> String
+pub fn ServicePolicyClaims::equal(Self, Self) -> Bool
 pub fn ServicePolicyClaims::graceful_drain_milliseconds(Self) -> Int
 pub fn ServicePolicyClaims::listen_host(Self) -> String
 pub fn ServicePolicyClaims::listen_port(Self) -> Int
 pub fn ServicePolicyClaims::max_request_bytes(Self) -> Int
+pub fn ServicePolicyClaims::not_equal(Self, Self) -> Bool
+pub fn ServicePolicyClaims::to_repr(Self) -> @debug.Repr
 
 pub struct TelemetryPolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TelemetryPolicyClaims::equal(Self, Self) -> Bool
 pub fn TelemetryPolicyClaims::instance_log_capacity(Self) -> Int
+pub fn TelemetryPolicyClaims::not_equal(Self, Self) -> Bool
+pub fn TelemetryPolicyClaims::to_repr(Self) -> @debug.Repr
 
 pub struct TokenizerPolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TokenizerPolicyClaims::equal(Self, Self) -> Bool
 pub fn TokenizerPolicyClaims::locator(Self) -> String
 pub fn TokenizerPolicyClaims::max_decoded_bytes(Self) -> Int
 pub fn TokenizerPolicyClaims::max_file_bytes(Self) -> Int
@@ -229,25 +278,33 @@ pub fn TokenizerPolicyClaims::max_output_tokens(Self) -> Int
 pub fn TokenizerPolicyClaims::max_special_tokens(Self) -> Int
 pub fn TokenizerPolicyClaims::max_token_bytes(Self) -> Int
 pub fn TokenizerPolicyClaims::max_vocab_entries(Self) -> Int
+pub fn TokenizerPolicyClaims::not_equal(Self, Self) -> Bool
 pub fn TokenizerPolicyClaims::sha256(Self) -> String
+pub fn TokenizerPolicyClaims::to_repr(Self) -> @debug.Repr
 
 pub struct TransportPolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TransportPolicyClaims::accept_timeout_millis(Self) -> Int
+pub fn TransportPolicyClaims::equal(Self, Self) -> Bool
 pub fn TransportPolicyClaims::input_idle_timeout_millis(Self) -> Int
+pub fn TransportPolicyClaims::not_equal(Self, Self) -> Bool
 pub fn TransportPolicyClaims::reactor_transition_budget(Self) -> Int
 pub fn TransportPolicyClaims::read_chunk_bytes(Self) -> Int
+pub fn TransportPolicyClaims::to_repr(Self) -> @debug.Repr
 pub fn TransportPolicyClaims::write_chunk_bytes(Self) -> Int
 pub fn TransportPolicyClaims::write_timeout_millis(Self) -> Int
 
 pub struct WorkerProcessPolicyClaims {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn WorkerProcessPolicyClaims::equal(Self, Self) -> Bool
 pub fn WorkerProcessPolicyClaims::io_timeout_millis(Self) -> Int
 pub fn WorkerProcessPolicyClaims::max_frame_bytes(Self) -> Int
+pub fn WorkerProcessPolicyClaims::not_equal(Self, Self) -> Bool
 pub fn WorkerProcessPolicyClaims::shutdown_timeout_millis(Self) -> Int
 pub fn WorkerProcessPolicyClaims::startup_io_timeout_millis(Self) -> Int
+pub fn WorkerProcessPolicyClaims::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

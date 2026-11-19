@@ -34,7 +34,7 @@ test "block arena separates live hidden tensors and shares attention MLP scratch
       max_bytes=1111L,
     )
   catch {
-    @device.DeviceError::InvalidArgument(AllocationCreate) => ()
+    InvalidArgument(AllocationCreate) => ()
     _ => fail("wrong workspace budget error")
   } noraise {
     _ => fail("over-budget workspace admitted")

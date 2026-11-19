@@ -52,7 +52,7 @@ fn assert_lowered_dependencies(schedule : @parallel_ir.Schedule) -> Unit raise {
   let reachable = Array::makei(steps.length(), _ => {
     Array::make(steps.length(), false)
   })
-  for lane in [@parallel_ir.ComputeLane, @parallel_ir.CommunicationLane] {
+  for lane in [@parallel_ir.ComputeLane, CommunicationLane] {
     let mut previous = -1
     let mut waited = -1
     for command in schedule.commands(lane) {

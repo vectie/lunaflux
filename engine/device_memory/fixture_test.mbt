@@ -298,7 +298,9 @@ fn memory_static_plan(
 }
 
 ///|
-fn memory_limits(max_arena_bytes~ : Int64 = 4096L) -> DeviceMemoryLimits raise {
+fn memory_limits(
+  max_arena_bytes~ : Int64 = 4096L,
+) -> @device_memory.DeviceMemoryLimits raise {
   @device_memory.DeviceMemoryLimits::new(
     activation_alignment=64L,
     max_arena_bytes~,

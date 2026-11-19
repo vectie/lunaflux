@@ -25,6 +25,9 @@ pub(all) suberror GatedMlpCudaSourceError {
   DimensionOverflow
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn GatedMlpCudaSourceError::equal(Self, Self) -> Bool
+pub fn GatedMlpCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn GatedMlpCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct GatedMlpCudaSource {
@@ -41,6 +44,9 @@ pub(all) enum GatedMlpNumericalContract {
   OrderedF32AccumulationBf16SwiGluDownBf16V1
   OrderedF32AccumulationClampedBf16SwiGluDownBf16V1
 } derive(Eq, @debug.Debug)
+pub fn GatedMlpNumericalContract::equal(Self, Self) -> Bool
+pub fn GatedMlpNumericalContract::not_equal(Self, Self) -> Bool
+pub fn GatedMlpNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct SeparateWeightGatedMlpCudaSource {
   // private fields

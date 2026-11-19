@@ -66,7 +66,7 @@ fn conditioning_rows(
   modalities : Int32,
 ) -> Int32 raise @device.DeviceError {
   guard modalities > 0 && parameter_rows > 0 && parameter_rows % modalities == 0 else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   parameter_rows / modalities
 }

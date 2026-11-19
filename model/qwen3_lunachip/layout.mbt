@@ -153,7 +153,7 @@ pub fn Layout::dimensions(
 
 ///|
 pub fn Layout::expanded_norm(self : Self, ordinal : Int32) -> Region? {
-  self.norms.get(ordinal).flatten()
+  self.norms.get(ordinal).bind(value => value)
 }
 
 ///|

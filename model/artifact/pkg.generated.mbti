@@ -34,25 +34,37 @@ pub(all) suberror ArtifactError {
   InvalidTokenizer(@json_reader.TokenizerJsonError)
   InvalidSafetensors(@safetensors_reader.SafetensorsReaderError)
 } derive(Eq, @debug.Debug)
+pub fn ArtifactError::equal(Self, Self) -> Bool
+pub fn ArtifactError::not_equal(Self, Self) -> Bool
+pub fn ArtifactError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ArtifactDigest {
   hex : String
 } derive(Eq, @debug.Debug)
 pub fn ArtifactDigest::as_hex(Self) -> String
+pub fn ArtifactDigest::equal(Self, Self) -> Bool
+pub fn ArtifactDigest::not_equal(Self, Self) -> Bool
 pub fn ArtifactDigest::parse(String) -> Self raise ArtifactError
+pub fn ArtifactDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactFile {
   ModelConfig
   Tokenizer
   Weights
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFile::equal(Self, Self) -> Bool
+pub fn ArtifactFile::not_equal(Self, Self) -> Bool
+pub fn ArtifactFile::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactFileIoIssue {
   AuthorityClosed
   Busy
   Failed
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFileIoIssue::equal(Self, Self) -> Bool
+pub fn ArtifactFileIoIssue::not_equal(Self, Self) -> Bool
+pub fn ArtifactFileIoIssue::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ArtifactFileOperation {
   OpenFile
@@ -60,14 +72,20 @@ pub(all) enum ArtifactFileOperation {
   SnapshotFile
   CloseFile
 } derive(Eq, @debug.Debug)
+pub fn ArtifactFileOperation::equal(Self, Self) -> Bool
+pub fn ArtifactFileOperation::not_equal(Self, Self) -> Bool
+pub fn ArtifactFileOperation::to_repr(Self) -> @debug.Repr
 
 pub struct ArtifactIdentity {
   model_config : ArtifactDigest
   tokenizer : @tokenizer.TokenizerDigest
   model_content : @spec.ContentDigest
 } derive(Eq, @debug.Debug)
+pub fn ArtifactIdentity::equal(Self, Self) -> Bool
 pub fn ArtifactIdentity::model_config(Self) -> ArtifactDigest
 pub fn ArtifactIdentity::model_content(Self) -> @spec.ContentDigest
+pub fn ArtifactIdentity::not_equal(Self, Self) -> Bool
+pub fn ArtifactIdentity::to_repr(Self) -> @debug.Repr
 pub fn ArtifactIdentity::tokenizer(Self) -> @tokenizer.TokenizerDigest
 
 pub(all) enum ArtifactLimit {
@@ -78,6 +96,9 @@ pub(all) enum ArtifactLimit {
   ModelConfigDepth
   TokenizerDepth
 } derive(Eq, @debug.Debug)
+pub fn ArtifactLimit::equal(Self, Self) -> Bool
+pub fn ArtifactLimit::not_equal(Self, Self) -> Bool
+pub fn ArtifactLimit::to_repr(Self) -> @debug.Repr
 
 pub struct ArtifactLimits {
   max_model_config_bytes : Int64
@@ -89,7 +110,10 @@ pub struct ArtifactLimits {
   tokenizer_limits : @tokenizer.TokenizerLimits
   safetensors_limits : @safetensors.HeaderLimits
 } derive(Eq, @debug.Debug)
+pub fn ArtifactLimits::equal(Self, Self) -> Bool
 pub fn ArtifactLimits::new(max_model_config_bytes~ : Int64, max_tokenizer_bytes~ : Int64, max_weights_bytes~ : Int64, max_total_bytes~ : Int64, max_model_config_depth~ : Int, max_tokenizer_depth~ : Int, tokenizer_limits~ : @tokenizer.TokenizerLimits, safetensors_limits~ : @safetensors.HeaderLimits) -> Self raise ArtifactError
+pub fn ArtifactLimits::not_equal(Self, Self) -> Bool
+pub fn ArtifactLimits::to_repr(Self) -> @debug.Repr
 
 pub struct ArtifactSource {
   // private fields
@@ -101,8 +125,11 @@ pub struct ExpectedDigests {
   tokenizer : ArtifactDigest
   weights : ArtifactDigest
 } derive(Eq, @debug.Debug)
+pub fn ExpectedDigests::equal(Self, Self) -> Bool
 pub fn ExpectedDigests::model_config(Self) -> ArtifactDigest
 pub fn ExpectedDigests::new(model_config~ : ArtifactDigest, tokenizer~ : ArtifactDigest, weights~ : ArtifactDigest) -> Self
+pub fn ExpectedDigests::not_equal(Self, Self) -> Bool
+pub fn ExpectedDigests::to_repr(Self) -> @debug.Repr
 pub fn ExpectedDigests::tokenizer(Self) -> ArtifactDigest
 pub fn ExpectedDigests::weights(Self) -> ArtifactDigest
 

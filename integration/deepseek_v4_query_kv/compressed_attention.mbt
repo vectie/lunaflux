@@ -48,8 +48,7 @@ pub fn DeepSeekCompressedAttention::new(
   let (cache_state, cache_workspace) = compressed_cache_sizes(
     spec, layer, maximum_rows, maximum_context, false, maximum_state_bytes, maximum_workspace_bytes,
   )
-  let (index_state, index_workspace) = if plan.read_set()
-    is @precision.CompressedRowReadSet::Learned(top_k=_) {
+  let (index_state, index_workspace) = if plan.read_set() is Learned(top_k=_) {
     let (state, workspace) = compressed_cache_sizes(
       spec, layer, maximum_rows, maximum_context, true, maximum_state_bytes, maximum_workspace_bytes,
     )
@@ -216,7 +215,7 @@ pub fn DeepSeekCompressedAttention::prepare(
         rows=selection.row_ids,
       )
     }
-    _ => @compressed_window_frame.CompressedReadPorts::AllCausal
+    _ => AllCausal
   }
   let sink = bind_attention_sink(checkpoint, self.spec, layer=self.layer)
   self.sink.upload(

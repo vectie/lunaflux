@@ -28,7 +28,7 @@ test "Flash hyper function and Sinkhorn candidates expose staged exact ABIs" {
   let (function_ordinal, sinkhorn_ordinal) = hyper_control_ordinals(
     requirements,
   )
-  let function = lower_hyper_connection_function_cuda_aot_candidate(
+  let function = @glm_hybrid_cuda_aot.lower_hyper_connection_function_cuda_aot_candidate(
     requirements,
     requirement_ordinal=function_ordinal,
     maximum_tokens=32,
@@ -36,7 +36,7 @@ test "Flash hyper function and Sinkhorn candidates expose staged exact ABIs" {
     compiler=glm_aot_compiler(),
     limits=glm_aot_limits(),
   )
-  let sinkhorn = lower_hyper_connection_sinkhorn_cuda_aot_candidate(
+  let sinkhorn = @glm_hybrid_cuda_aot.lower_hyper_connection_sinkhorn_cuda_aot_candidate(
     requirements,
     requirement_ordinal=sinkhorn_ordinal,
     maximum_tokens=32,
@@ -93,7 +93,7 @@ test "hyper control lowerers reject neighboring ordinals shape target and compil
     requirements,
   )
   try
-    lower_hyper_connection_function_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_hyper_connection_function_cuda_aot_candidate(
       requirements,
       requirement_ordinal=sinkhorn_ordinal,
       maximum_tokens=32,
@@ -108,7 +108,7 @@ test "hyper control lowerers reject neighboring ordinals shape target and compil
     _ => fail("Sinkhorn ordinal admitted as function")
   }
   try
-    lower_hyper_connection_sinkhorn_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_hyper_connection_sinkhorn_cuda_aot_candidate(
       requirements,
       requirement_ordinal=sinkhorn_ordinal,
       maximum_tokens=32,
@@ -123,7 +123,7 @@ test "hyper control lowerers reject neighboring ordinals shape target and compil
     _ => fail("non-BF16 target admitted")
   }
   try
-    lower_hyper_connection_function_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_hyper_connection_function_cuda_aot_candidate(
       requirements,
       requirement_ordinal=function_ordinal,
       maximum_tokens=32,
@@ -140,7 +140,7 @@ test "hyper control lowerers reject neighboring ordinals shape target and compil
   let wrong_shape = glm_aot_requirements(hyper_connection=true)
   let (wrong_function, _) = hyper_control_ordinals(wrong_shape)
   try
-    lower_hyper_connection_function_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_hyper_connection_function_cuda_aot_candidate(
       wrong_shape,
       requirement_ordinal=wrong_function,
       maximum_tokens=32,

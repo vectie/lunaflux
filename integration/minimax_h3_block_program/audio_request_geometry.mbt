@@ -21,7 +21,7 @@ pub fn AudioDecodeRequest::waveform_samples(
   self : Self,
 ) -> Int32 raise @device.DeviceError {
   guard self.decoder is Some(decoder) && self.output is Some(_) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   decoder.tail.source.time
 }

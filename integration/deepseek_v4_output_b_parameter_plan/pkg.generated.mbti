@@ -33,6 +33,9 @@ pub(all) suberror DeepSeekV4OutputBParameterPlanError {
   NoCollectiveAuthority
   NoLaunchAuthority
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4OutputBParameterPlanError::equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputBParameterPlanError::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputBParameterPlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DeepSeekV4OutputBParameterEvidenceInput {
@@ -64,6 +67,9 @@ pub fn DeepSeekV4OutputBParameterPlan::weight_shape(Self) -> ReadOnlyArray[Int64
 pub(all) enum DeepSeekV4OutputBParameterPlanStatus {
   InertUnqualified
 } derive(Eq, @debug.Debug)
+pub fn DeepSeekV4OutputBParameterPlanStatus::equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputBParameterPlanStatus::not_equal(Self, Self) -> Bool
+pub fn DeepSeekV4OutputBParameterPlanStatus::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

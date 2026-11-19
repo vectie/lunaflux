@@ -51,7 +51,7 @@ test "physical fused evidence rejects cross-family compiled artifact replay" {
   let fixture = fused_physical_black_box_fixture()
   let canonical = fused_physical_test_canonical(fixture)
   try
-    admit_fused_physical_evidence(
+    @luna_fused_physical_evidence.admit_fused_physical_evidence(
       fixture.qkv,
       fixture.residual_compiled,
       fixture.residual,

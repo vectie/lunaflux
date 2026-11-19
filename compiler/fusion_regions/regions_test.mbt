@@ -38,7 +38,7 @@ test "arbitrary DAG fanout and observable values survive every region boundary" 
   ])
   for exports in [[3], [0, 3], [1, 3]] {
     try @fusion_regions.Region::new(graph, start=0, count=4, exports) catch {
-      @fusion_regions.MissingExport => ()
+      MissingExport => ()
       _ => fail("wrong missing output rejection")
     } noraise {
       _ => fail("shared or observable value was hidden")
@@ -48,7 +48,7 @@ test "arbitrary DAG fanout and observable values survive every region boundary" 
   assert_eq(first.exports(), [0, 1, 3])
   assert_eq(first.effect_order(), [3])
   try @fusion_regions.Region::new(graph, start=4, count=2, [5]) catch {
-    @fusion_regions.EffectBoundary => ()
+    EffectBoundary => ()
     _ => fail("wrong effect error")
   } noraise {
     _ => fail("externally ordered boundary was fused")
@@ -80,7 +80,7 @@ test "global region choice beats greedy largest fusion and preserves effects" {
     )
     assert_eq(selected.implementation_ids(), [1, 2])
     assert_eq(selected.cost().nanoseconds(), 4L)
-    assert_eq(selected.cost().basis(), @fusion_regions.Estimated)
+    assert_eq(selected.cost().basis(), Estimated)
     assert_eq(selected.partition().regions()[1].effect_order(), [2, 3])
   }
 }
@@ -126,7 +126,7 @@ test "resource filtering applies before cost ranking with no implicit slow fallb
       maximum_local_bytes=32L,
     )
   catch {
-    @fusion_regions.NoFeasiblePartition => ()
+    NoFeasiblePartition => ()
     _ => fail("wrong resource error")
   } noraise {
     _ => fail("oversized implementation accepted")
@@ -146,7 +146,7 @@ test "malformed graph exports partitions and mismatched comparison bases are rej
         @fusion_regions.Node::new(inputs, observable=true, effect=Pure),
       ])
     catch {
-      @fusion_regions.InvalidGraph => ()
+      InvalidGraph => ()
       _ => fail("wrong graph error")
     } noraise {
       _ => fail("cycle or invalid SSA edge accepted")
@@ -155,7 +155,7 @@ test "malformed graph exports partitions and mismatched comparison bases are rej
   let graph = chain()
   for exports in [[3, 3], [4], [-1], [3, 0]] {
     try @fusion_regions.Region::new(graph, start=0, count=4, exports) catch {
-      @fusion_regions.InvalidRegion => ()
+      InvalidRegion => ()
       _ => fail("wrong export error")
     } noraise {
       _ => fail("malformed exports accepted")
@@ -163,7 +163,7 @@ test "malformed graph exports partitions and mismatched comparison bases are rej
   }
   let first = @fusion_regions.Region::new(graph, start=0, count=2, [1])
   try @fusion_regions.Partition::new(graph, [first, first]) catch {
-    @fusion_regions.InvalidPartition => ()
+    InvalidPartition => ()
     _ => fail("wrong partition error")
   } noraise {
     _ => fail("overlapping or missing effects accepted")
@@ -186,7 +186,7 @@ test "malformed graph exports partitions and mismatched comparison bases are rej
         maximum_local_bytes=0L,
       )
     catch {
-      @fusion_regions.InvalidComparison => ()
+      InvalidComparison => ()
       _ => fail("wrong comparison error")
     } noraise {
       _ => fail("invalid comparison accepted")
@@ -241,13 +241,13 @@ test "whole-chain measurements are not conflated with region timing sums" {
 ///|
 test "zero under-sampled and overflowing composed costs cannot win" {
   try @fusion_regions.Cost::measured(nanoseconds=1L, samples=2) catch {
-    @fusion_regions.InvalidCost => ()
+    InvalidCost => ()
     _ => fail("wrong cost error")
   } noraise {
     _ => fail("under-sampled cost")
   }
   try @fusion_regions.Cost::estimated(nanoseconds=0L) catch {
-    @fusion_regions.InvalidCost => ()
+    InvalidCost => ()
     _ => fail("wrong cost error")
   } noraise {
     _ => fail("zero cost")

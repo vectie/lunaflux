@@ -14,25 +14,30 @@ async test "all vision operands bind actual headers and use one bounded transfer
       plan.entries()[0].name(),
       "model.vision_tower.embeddings.patch_embedding.weight",
     )
-    let seen = Ref::new(0)
-    let valid = Ref::new(false)
+    let seen = Ref(0)
+    let valid = Ref(false)
     assert_true(
-      (try? plan.transfer(
-        root,
-        scratch=FixedArray::make(3, b'\xff'),
-        limits=@fixture.limits(),
-        consume=(ordinal, offset, bytes, count) => {
-          valid.val = ordinal == 0 &&
-            offset == 0L &&
-            count == 3 &&
-            bytes[0] == b'\x00' &&
-            bytes[1] == b'\x00' &&
-            bytes[2] == b'\x00'
-          seen.val += 1
-          false
-        },
-      ))
-      is Err(_),
+      try
+        plan.transfer(
+          root,
+          scratch=FixedArray::make(3, b'\xff'),
+          limits=@fixture.limits(),
+          consume=(ordinal, offset, bytes, count) => {
+            valid.val = ordinal == 0 &&
+              offset == 0L &&
+              count == 3 &&
+              bytes[0] == b'\x00' &&
+              bytes[1] == b'\x00' &&
+              bytes[2] == b'\x00'
+            seen.val += 1
+            false
+          },
+        )
+      catch {
+        _ => true
+      } noraise {
+        _ => false
+      },
     )
     assert_eq(seen.val, 1)
     assert_true(valid.val)
@@ -67,7 +72,11 @@ async test "input preparation joins pixels and model layout before native work" 
     maximum_crop_patches=512,
   )
   assert_true(
-    (try? @minicpm_v47_vision.Input::new(too_small, layout, pixels)) is Err(_),
+    try @minicpm_v47_vision.Input::new(too_small, layout, pixels) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
   let short_segment = @minicpm_v47_vision.Program::new(
     spec,
@@ -75,7 +84,10 @@ async test "input preparation joins pixels and model layout before native work" 
     maximum_crop_patches=512,
   )
   assert_true(
-    (try? @minicpm_v47_vision.Input::new(short_segment, layout, pixels))
-    is Err(_),
+    try @minicpm_v47_vision.Input::new(short_segment, layout, pixels) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }

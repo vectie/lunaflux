@@ -25,7 +25,7 @@ test "ingress needs no output workspace while egress retains its exact ceiling" 
       boundary=Egress,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("egress ignored its workspace ceiling")

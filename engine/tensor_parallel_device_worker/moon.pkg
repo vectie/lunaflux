@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/engine/streaming_ir",
   "vectie/lunaflux/kv/host_cache",
   "vectie/lunaflux/compiler/parallel_ir",
@@ -24,7 +25,6 @@ import {
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/tensor_parallel_launch_contract",
   "vectie/lunaflux/kv/device_arena",
-  "vectie/lunaflux/kv/device_layout",
   "vectie/lunaflux/model/device_materialize",
   "vectie/lunaflux/model/plan",
   "vectie/lunaflux/runtime/approved_fs",

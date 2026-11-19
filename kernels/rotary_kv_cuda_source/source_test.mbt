@@ -70,21 +70,17 @@ test "offline rotary simulation exporter" {
           "rotary_fixture",
         ),
         (
-          @precision.RotaryFrequency::Yarn(
+          Yarn(
             theta=160000.0,
             original_positions=65536,
             factor=16.0,
             beta_fast=32.0,
             beta_slow=1.0,
           ),
-          @precision.SimulatedCacheScale::PowerOfTwo,
+          PowerOfTwo,
           "yarn_fixture",
         ),
-        (
-          @precision.RotaryFrequency::Base(theta=10000.0),
-          @precision.SimulatedCacheScale::LinearF32,
-          "linear_fixture",
-        ),
+        (Base(theta=10000.0), LinearF32, "linear_fixture"),
       ] {
       println(
         @utf8.decode(

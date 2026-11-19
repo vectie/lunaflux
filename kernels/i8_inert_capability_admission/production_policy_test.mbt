@@ -69,7 +69,9 @@ fn production_i8_eligible(
 test "production policy preflight admits only exact full Llama I8 coverage" {
   let base = try! @llama.build_paged(production_i8_metadata())
   let plan = rebuild_production_numeric_plan(base, production_i8_eligible(base))
-  preflight_production_llama_symmetric_i8_weight_only_v1(plan)
+  @i8_inert_capability_admission.preflight_production_llama_symmetric_i8_weight_only_v1(
+    plan,
+  )
 }
 
 ///|
@@ -80,7 +82,11 @@ test "production policy rejects partial reviewed-operation coverage" {
     base,
     production_i8_eligible(base, omit=Some(omitted)),
   )
-  try preflight_production_llama_symmetric_i8_weight_only_v1(plan) catch {
+  try
+    @i8_inert_capability_admission.preflight_production_llama_symmetric_i8_weight_only_v1(
+      plan,
+    )
+  catch {
     I8InertKernelCapabilityRejected(ProductionExecution) => ()
     _ => fail("unexpected partial production-I8 rejection")
   } noraise {
@@ -96,7 +102,11 @@ test "production policy rejects mixed FP8 execution before catalog work" {
     production_i8_eligible(base),
     fp8=true,
   )
-  try preflight_production_llama_symmetric_i8_weight_only_v1(fp8) catch {
+  try
+    @i8_inert_capability_admission.preflight_production_llama_symmetric_i8_weight_only_v1(
+      fp8,
+    )
+  catch {
     I8InertKernelCapabilityRejected(MixedFp8Execution) => ()
     _ => fail("unexpected mixed-FP8 production rejection")
   } noraise {
@@ -107,7 +117,11 @@ test "production policy rejects mixed FP8 execution before catalog work" {
 ///|
 test "production policy rejects an arbitrary paged graph" {
   let plan = i8_admission_plan(1)
-  try preflight_production_llama_symmetric_i8_weight_only_v1(plan) catch {
+  try
+    @i8_inert_capability_admission.preflight_production_llama_symmetric_i8_weight_only_v1(
+      plan,
+    )
+  catch {
     I8InertKernelCapabilityRejected(ProductionGraph) => ()
     _ => fail("unexpected non-Llama graph rejection")
   } noraise {

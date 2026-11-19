@@ -40,7 +40,7 @@ test "parallel HC requires an explicitly declared matching numerical tree" {
     try
       @hyper_connection_physical_ir.ParallelControlPlan::new(make(square, dot))
     catch {
-      @precision.PrecisionPlanError::NoImplementation => ()
+      NoImplementation => ()
       other => raise other
     } noraise {
       _ => fail("undeclared tree accepted")

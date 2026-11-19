@@ -32,6 +32,9 @@ pub(all) suberror OpenAIBaselineAdapterError {
   OpenAIBaselineCollectorRejected
   OpenAIBaselineIncompleteTrial
 } derive(Eq, @debug.Debug)
+pub fn OpenAIBaselineAdapterError::equal(Self, Self) -> Bool
+pub fn OpenAIBaselineAdapterError::not_equal(Self, Self) -> Bool
+pub fn OpenAIBaselineAdapterError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct OpenAIBaselineIdentity {
@@ -48,6 +51,9 @@ pub(all) enum OpenAIBaselineObservedProtocol {
   ChatCompletionsSseV1
   ResponsesSseV1
 } derive(Eq, @debug.Debug)
+pub fn OpenAIBaselineObservedProtocol::equal(Self, Self) -> Bool
+pub fn OpenAIBaselineObservedProtocol::not_equal(Self, Self) -> Bool
+pub fn OpenAIBaselineObservedProtocol::to_repr(Self) -> @debug.Repr
 
 pub struct OpenAIBaselineTrialAdapter {
   // private fields

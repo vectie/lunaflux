@@ -26,7 +26,7 @@ fn kda_short_convolution_requirements(
 test "GLM Flash KDA short convolution binds explicit sequence and state ABI" {
   let requirements = kda_short_convolution_requirements()
   let ordinal = kda_short_convolution_ordinal(requirements)
-  let candidate = lower_kda_short_convolution_cuda_aot_candidate(
+  let candidate = @glm_hybrid_cuda_aot.lower_kda_short_convolution_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -91,7 +91,7 @@ test "GLM Flash KDA short convolution binds explicit sequence and state ABI" {
 test "KDA short convolution rejects profile shape limit target compiler and ordinal" {
   let wrong_shape = kda_short_convolution_requirements(head_count=63)
   try
-    lower_kda_short_convolution_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_short_convolution_cuda_aot_candidate(
       wrong_shape,
       requirement_ordinal=kda_short_convolution_ordinal(wrong_shape),
       maximum_tokens=32,
@@ -110,7 +110,7 @@ test "KDA short convolution rejects profile shape limit target compiler and ordi
   let ordinal = kda_short_convolution_ordinal(exact)
   for rejected_sequences in [0, 33] {
     try
-      lower_kda_short_convolution_cuda_aot_candidate(
+      @glm_hybrid_cuda_aot.lower_kda_short_convolution_cuda_aot_candidate(
         exact,
         requirement_ordinal=ordinal,
         maximum_tokens=32,
@@ -127,7 +127,7 @@ test "KDA short convolution rejects profile shape limit target compiler and ordi
     }
   }
   try
-    lower_kda_short_convolution_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_short_convolution_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal - 1,
       maximum_tokens=32,
@@ -143,7 +143,7 @@ test "KDA short convolution rejects profile shape limit target compiler and ordi
     _ => fail("neighboring KDA operation admitted")
   }
   try
-    lower_kda_short_convolution_cuda_aot_candidate(
+    @glm_hybrid_cuda_aot.lower_kda_short_convolution_cuda_aot_candidate(
       exact,
       requirement_ordinal=ordinal,
       maximum_tokens=32,
@@ -164,7 +164,7 @@ test "KDA short convolution rejects profile shape limit target compiler and ordi
       glm_aot_compiler(fused_multiply_add=true),
     ] {
     try
-      lower_kda_short_convolution_cuda_aot_candidate(
+      @glm_hybrid_cuda_aot.lower_kda_short_convolution_cuda_aot_candidate(
         exact,
         requirement_ordinal=ordinal,
         maximum_tokens=32,

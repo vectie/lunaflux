@@ -72,9 +72,10 @@ fn Source::matrix(self : Self, address : UInt64, count : Int32) -> Bytes raise {
     let next = address + written.to_uint64()
     if next >= t.destination.address &&
       next - t.destination.address < t.destination.bytes {
-      let offset = (next - t.destination.address).to_int64()
+      let offset = (next - t.destination.address).reinterpret_as_int64()
       let available = t.source_bytes - offset
-      guard available > 0L && t.destination.bytes == t.source_bytes.to_uint64() else {
+      guard available > 0L &&
+        t.destination.bytes == t.source_bytes.reinterpret_as_uint64() else {
         fail("invalid matrix source extent")
       }
       let n = available.min((count - written).to_int64()).to_int()

@@ -9,7 +9,7 @@ test "attention-related executable operand ABIs fail closed" {
     wrong_attention_operands=true,
   )
   try
-    admit(
+    @glm_hybrid_artifact_admission.admit(
       requirements,
       target,
       wrong_attention_operands,
@@ -28,7 +28,12 @@ test "attention-related executable operand ABIs fail closed" {
     wrong_head_operands=true,
   )
   try
-    admit(requirements, target, wrong_head_operands, artifact_test_limits())
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_head_operands,
+      artifact_test_limits(),
+    )
   catch {
     InvalidLaunchOperands(ordinal~) => assert_eq(ordinal, 28)
     _ => fail("unexpected language-model-head operand error")
@@ -42,7 +47,12 @@ test "attention-related executable operand ABIs fail closed" {
     wrong_pooling_operands=true,
   )
   try
-    admit(requirements, target, wrong_pooling_operands, artifact_test_limits())
+    @glm_hybrid_artifact_admission.admit(
+      requirements,
+      target,
+      wrong_pooling_operands,
+      artifact_test_limits(),
+    )
   catch {
     InvalidLaunchOperands(ordinal~) => assert_eq(ordinal, 12)
     _ => fail("unexpected DSA pooling operand error")
@@ -56,7 +66,7 @@ test "attention-related executable operand ABIs fail closed" {
     wrong_dsa_index_operands=true,
   )
   try
-    admit(
+    @glm_hybrid_artifact_admission.admit(
       requirements,
       target,
       wrong_dsa_index_operands,
@@ -81,7 +91,7 @@ test "attention-related executable operand ABIs fail closed" {
     }
   }
   try
-    admit(
+    @glm_hybrid_artifact_admission.admit(
       requirements,
       target,
       wrong_sparse_attention_operands,

@@ -46,6 +46,9 @@ pub(all) suberror MiniMaxH3VaeReferenceError {
   InvalidAudioVaeConfig
   Reference(@joint_diffusion_vae_reference.JointVaeDecodeReferenceError)
 } derive(Eq, @debug.Debug)
+pub fn MiniMaxH3VaeReferenceError::equal(Self, Self) -> Bool
+pub fn MiniMaxH3VaeReferenceError::not_equal(Self, Self) -> Bool
+pub fn MiniMaxH3VaeReferenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 

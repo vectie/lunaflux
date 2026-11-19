@@ -30,7 +30,7 @@ pub fn Frame::prepare(
   buffers~ : Buffers,
 ) -> Unit raise @device.DeviceError {
   guard self.state is Fresh && buffers.rows == self.program.rows else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   for (_, region) in buffers.regions {
     context.validate_allocation_region(
@@ -42,7 +42,7 @@ pub fn Frame::prepare(
   }
   for name in self.program.weight_names() {
     guard weights.regions.get(name) is Some(region) else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
     context.validate_allocation_region(
       region.allocation,
@@ -53,7 +53,7 @@ pub fn Frame::prepare(
     guard buffers.allocations.all(allocation => {
       !allocation.same_storage(region.allocation)
     }) else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+      raise InvalidArgument(OrderedExecutorCreate)
     }
   }
   self.state = Failed
@@ -109,7 +109,7 @@ pub fn Frame::launches(
   self : Self,
 ) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.state is Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorCreate)
+    raise InvalidArgument(OrderedExecutorCreate)
   }
   self.launches[:]
 }

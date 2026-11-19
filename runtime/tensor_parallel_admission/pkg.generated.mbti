@@ -14,6 +14,9 @@ pub fn admit(@device_topology.AdmittedLocalTopology, TensorParallelRuntimeDeclar
 pub(all) suberror TensorParallelAdmissionError {
   Rejected(area~ : TensorParallelAdmissionArea, reason~ : TensorParallelAdmissionReason, rank~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelAdmissionError::equal(Self, Self) -> Bool
+pub fn TensorParallelAdmissionError::not_equal(Self, Self) -> Bool
+pub fn TensorParallelAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum TensorParallelAdmissionArea {
@@ -24,6 +27,9 @@ pub(all) enum TensorParallelAdmissionArea {
   RankMemory
   Aggregate
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelAdmissionArea::equal(Self, Self) -> Bool
+pub fn TensorParallelAdmissionArea::not_equal(Self, Self) -> Bool
+pub fn TensorParallelAdmissionArea::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TensorParallelAdmissionReason {
   InvalidCount
@@ -46,6 +52,9 @@ pub(all) enum TensorParallelAdmissionReason {
   ReservationExceedsCeiling
   Overflow
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelAdmissionReason::equal(Self, Self) -> Bool
+pub fn TensorParallelAdmissionReason::not_equal(Self, Self) -> Bool
+pub fn TensorParallelAdmissionReason::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelAggregateCapacity {
   // private fields
@@ -53,11 +62,14 @@ pub struct TensorParallelAggregateCapacity {
 pub fn TensorParallelAggregateCapacity::activation_workspace_reserved_bytes(Self) -> Int64
 pub fn TensorParallelAggregateCapacity::available_bytes(Self) -> Int64
 pub fn TensorParallelAggregateCapacity::collective_reserved_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::equal(Self, Self) -> Bool
 pub fn TensorParallelAggregateCapacity::kv_reserved_bytes(Self) -> Int64
 pub fn TensorParallelAggregateCapacity::memory_ceiling_bytes(Self) -> Int64
 pub fn TensorParallelAggregateCapacity::minimum_rank_available_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::not_equal(Self, Self) -> Bool
 pub fn TensorParallelAggregateCapacity::physical_bytes(Self) -> Int64
 pub fn TensorParallelAggregateCapacity::reserved_total_bytes(Self) -> Int64
+pub fn TensorParallelAggregateCapacity::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelAggregateCapacity::weight_reserved_bytes(Self) -> Int64
 
 pub struct TensorParallelRankCapacity {
@@ -67,37 +79,49 @@ pub fn TensorParallelRankCapacity::activation_workspace_reserved_bytes(Self) -> 
 pub fn TensorParallelRankCapacity::available_bytes(Self) -> Int64
 pub fn TensorParallelRankCapacity::collective_reserved_bytes(Self) -> Int64
 pub fn TensorParallelRankCapacity::device_name(Self) -> String
+pub fn TensorParallelRankCapacity::equal(Self, Self) -> Bool
 pub fn TensorParallelRankCapacity::kv_reserved_bytes(Self) -> Int64
 pub fn TensorParallelRankCapacity::memory_ceiling_bytes(Self) -> Int64
+pub fn TensorParallelRankCapacity::not_equal(Self, Self) -> Bool
 pub fn TensorParallelRankCapacity::peer_rank_count(Self) -> Int
 pub fn TensorParallelRankCapacity::physical_bytes(Self) -> Int64
 pub fn TensorParallelRankCapacity::process_ordinal(Self) -> Int
 pub fn TensorParallelRankCapacity::rank(Self) -> Int
 pub fn TensorParallelRankCapacity::reserved_total_bytes(Self) -> Int64
 pub fn TensorParallelRankCapacity::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelRankCapacity::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelRankCapacity::weight_reserved_bytes(Self) -> Int64
 pub fn TensorParallelRankCapacity::world_size(Self) -> Int
 
 pub struct TensorParallelRankDeclaration {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRankDeclaration::equal(Self, Self) -> Bool
 pub fn TensorParallelRankDeclaration::new(rank~ : Int, world_size~ : Int, process_ordinal~ : Int, device_name~ : StringView, target~ : @catalog.DeviceTarget, peer_rank_count~ : Int, memory_ceiling_bytes~ : Int64, weight_reserved_bytes~ : Int64, activation_workspace_reserved_bytes~ : Int64, kv_reserved_bytes~ : Int64, collective_reserved_bytes~ : Int64) -> Self raise TensorParallelAdmissionError
+pub fn TensorParallelRankDeclaration::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRankDeclaration::to_repr(Self) -> @debug.Repr
 
 pub struct TensorParallelRuntimeAdmission {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn TensorParallelRuntimeAdmission::aggregate_capacity(Self) -> TensorParallelAggregateCapacity
 pub fn TensorParallelRuntimeAdmission::driver_version(Self) -> Int
+pub fn TensorParallelRuntimeAdmission::equal(Self, Self) -> Bool
+pub fn TensorParallelRuntimeAdmission::not_equal(Self, Self) -> Bool
 pub fn TensorParallelRuntimeAdmission::peer_link_count(Self) -> Int
 pub fn TensorParallelRuntimeAdmission::rank_capacities(Self) -> ReadOnlyArray[TensorParallelRankCapacity]
 pub fn TensorParallelRuntimeAdmission::rank_capacity(Self, Int) -> TensorParallelRankCapacity?
 pub fn TensorParallelRuntimeAdmission::target(Self) -> @catalog.DeviceTarget
+pub fn TensorParallelRuntimeAdmission::to_repr(Self) -> @debug.Repr
 pub fn TensorParallelRuntimeAdmission::world_size(Self) -> Int
 
 pub struct TensorParallelRuntimeDeclaration {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn TensorParallelRuntimeDeclaration::equal(Self, Self) -> Bool
 pub fn TensorParallelRuntimeDeclaration::new(host_count~ : Int, pipeline_stage_count~ : Int, ArrayView[TensorParallelRankDeclaration]) -> Self raise TensorParallelAdmissionError
+pub fn TensorParallelRuntimeDeclaration::not_equal(Self, Self) -> Bool
+pub fn TensorParallelRuntimeDeclaration::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

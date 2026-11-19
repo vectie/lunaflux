@@ -21,17 +21,17 @@ pub fn AliasFreeActivationLayout::new(
     time > 0 &&
     time <= 1073741823 &&
     max_scratch_bytes > 0L else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let outer = batch.to_int64() * channels.to_int64()
   guard outer <= 2147483647L / time.to_int64() else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let value = outer * time.to_int64() * 4L
   let intermediate = value * 2L
   let activated = (intermediate + 255L) / 256L * 256L
   guard activated + intermediate <= max_scratch_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   {
     value_bytes: value,
@@ -66,7 +66,7 @@ pub fn AliasFreeActivationLayout::launches(
   guard scratch_offset >= 0L &&
     scratch_offset <= scratch.byte_count() &&
     self.scratch_bytes <= scratch.byte_count() - scratch_offset else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   fn region(
     allocation : @device.Allocation,

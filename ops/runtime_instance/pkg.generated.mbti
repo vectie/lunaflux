@@ -38,49 +38,82 @@ pub(all) suberror RuntimeInstanceError {
   RuntimeInstanceFailed(RuntimeInstanceStage)
   RuntimeInstanceFailedAndCleanup(RuntimeInstanceStage, RuntimeInstanceStage)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeInstanceError::equal(Self, Self) -> Bool
+pub fn RuntimeInstanceError::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstanceError::to_repr(Self) -> @debug.Repr
 
 pub(all) suberror RuntimeLocalBenchmarkError {
   RuntimeLocalBenchmarkFailed(RuntimeLocalBenchmarkRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeLocalBenchmarkError::equal(Self, Self) -> Bool
+pub fn RuntimeLocalBenchmarkError::not_equal(Self, Self) -> Bool
+pub fn RuntimeLocalBenchmarkError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeOpenAiQualificationValidationError {
   RuntimeOpenAiQualificationValidationFailed(RuntimeOpenAiQualificationValidationRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeOpenAiQualificationValidationError::equal(Self, Self) -> Bool
+pub fn RuntimeOpenAiQualificationValidationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeOpenAiQualificationValidationError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeSpawnedBenchmarkError {
   RuntimeSpawnedBenchmarkFailed(RuntimeSpawnedBenchmarkRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedBenchmarkError::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBenchmarkError::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBenchmarkError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeSpawnedBroadServingValidationError {
   RuntimeSpawnedBroadServingValidationFailed(RuntimeSpawnedBroadServingValidationRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedBroadServingValidationError::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBroadServingValidationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBroadServingValidationError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeSpawnedContextChurnError {
   RuntimeSpawnedContextChurnFailed(RuntimeSpawnedContextChurnRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedContextChurnError::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedContextChurnError::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedContextChurnError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeSpawnedLongContextError {
   RuntimeSpawnedLongContextFailed(RuntimeSpawnedLongContextRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedLongContextError::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedLongContextError::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedLongContextError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeSpawnedPrefixValidationError {
   RuntimeSpawnedPrefixValidationFailed(RuntimeSpawnedPrefixValidationRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedPrefixValidationError::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedPrefixValidationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedPrefixValidationError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeSpawnedServingValidationError {
   RuntimeSpawnedServingValidationFailed(RuntimeSpawnedServingValidationRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedServingValidationError::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedServingValidationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedServingValidationError::to_repr(Self) -> @debug.Repr
 
 pub suberror RuntimeSpawnedValidationError {
   RuntimeSpawnedValidationFailed(RuntimeSpawnedValidationRule)
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedValidationError::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedValidationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedValidationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct RuntimeBoundEndpoint {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn RuntimeBoundEndpoint::equal(Self, Self) -> Bool
+pub fn RuntimeBoundEndpoint::not_equal(Self, Self) -> Bool
 pub fn RuntimeBoundEndpoint::origin(Self) -> String
 pub fn RuntimeBoundEndpoint::protocol(Self) -> RuntimeServiceProtocol
+pub fn RuntimeBoundEndpoint::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeInstanceFileLimits {
   // private fields
@@ -93,6 +126,9 @@ pub(all) enum RuntimeInstanceHealth {
   RuntimeUnhealthy
   RuntimeClosed
 } derive(Eq, @debug.Debug)
+pub fn RuntimeInstanceHealth::equal(Self, Self) -> Bool
+pub fn RuntimeInstanceHealth::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstanceHealth::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeInstanceOwner {
   // private fields
@@ -130,6 +166,9 @@ pub(all) enum RuntimeInstancePhase {
   Closed
   Failed
 } derive(Eq, @debug.Debug)
+pub fn RuntimeInstancePhase::equal(Self, Self) -> Bool
+pub fn RuntimeInstancePhase::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstancePhase::to_repr(Self) -> @debug.Repr
 
 pub enum RuntimeInstanceProgress {
   RuntimeStartingProgress
@@ -139,11 +178,17 @@ pub enum RuntimeInstanceProgress {
   RuntimeClosedProgress
   RuntimeFailedProgress
 } derive(Eq, @debug.Debug)
+pub fn RuntimeInstanceProgress::equal(Self, Self) -> Bool
+pub fn RuntimeInstanceProgress::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstanceProgress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeInstanceReadiness {
   RuntimeNotReady
   RuntimeReady
 } derive(Eq, @debug.Debug)
+pub fn RuntimeInstanceReadiness::equal(Self, Self) -> Bool
+pub fn RuntimeInstanceReadiness::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstanceReadiness::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeInstanceStage {
   DeploymentBundleAdmission
@@ -172,6 +217,9 @@ pub(all) enum RuntimeInstanceStage {
   Clock
 } derive(Eq, @debug.Debug)
 pub fn RuntimeInstanceStage::code(Self) -> String
+pub fn RuntimeInstanceStage::equal(Self, Self) -> Bool
+pub fn RuntimeInstanceStage::not_equal(Self, Self) -> Bool
+pub fn RuntimeInstanceStage::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeLocalBenchmarkEvidence {
   // private fields
@@ -194,6 +242,9 @@ pub(all) enum RuntimeLocalBenchmarkRule {
   LocalBenchmarkEvidence
   LocalBenchmarkCleanup
 } derive(Eq, @debug.Debug)
+pub fn RuntimeLocalBenchmarkRule::equal(Self, Self) -> Bool
+pub fn RuntimeLocalBenchmarkRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeLocalBenchmarkRule::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeOpenAiLoopbackIngressApproval {
   // private fields
@@ -214,6 +265,9 @@ pub(all) enum RuntimeOpenAiQualificationReadiness {
   OpenAiQualificationNotReady
   OpenAiQualificationListenerReady
 } derive(Eq, @debug.Debug)
+pub fn RuntimeOpenAiQualificationReadiness::equal(Self, Self) -> Bool
+pub fn RuntimeOpenAiQualificationReadiness::not_equal(Self, Self) -> Bool
+pub fn RuntimeOpenAiQualificationReadiness::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeOpenAiQualificationValidationContract {
   // private fields
@@ -244,6 +298,9 @@ pub enum RuntimeOpenAiQualificationValidationRule {
   OpenAiQualificationCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeOpenAiQualificationValidationRule::code(Self) -> String
+pub fn RuntimeOpenAiQualificationValidationRule::equal(Self, Self) -> Bool
+pub fn RuntimeOpenAiQualificationValidationRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeOpenAiQualificationValidationRule::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeReleaseAdmission {
   // private fields
@@ -260,6 +317,9 @@ pub enum RuntimeServiceProtocol {
   RuntimeNativeFramedV1
   RuntimeOpenAiResponsesV1
 } derive(Eq, @debug.Debug)
+pub fn RuntimeServiceProtocol::equal(Self, Self) -> Bool
+pub fn RuntimeServiceProtocol::not_equal(Self, Self) -> Bool
+pub fn RuntimeServiceProtocol::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeSpawnedBenchmarkContract {
   // private fields
@@ -280,12 +340,18 @@ pub enum RuntimeSpawnedBenchmarkRule {
   SpawnedBenchmarkCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedBenchmarkRule::code(Self) -> String
+pub fn RuntimeSpawnedBenchmarkRule::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBenchmarkRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBenchmarkRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeSpawnedBroadServingIngressOwner {
   BroadServingSingletonServer
   BroadServingFramedConnectionPool
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedBroadServingIngressOwner::code(Self) -> String
+pub fn RuntimeSpawnedBroadServingIngressOwner::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBroadServingIngressOwner::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBroadServingIngressOwner::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeSpawnedBroadServingValidationContract {
   // private fields
@@ -351,6 +417,9 @@ pub enum RuntimeSpawnedBroadServingValidationRule {
   BroadServingCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedBroadServingValidationRule::code(Self) -> String
+pub fn RuntimeSpawnedBroadServingValidationRule::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBroadServingValidationRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedBroadServingValidationRule::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeSpawnedContextChurnContract {
   // private fields
@@ -380,6 +449,9 @@ pub enum RuntimeSpawnedContextChurnRule {
   SpawnedContextChurnCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedContextChurnRule::code(Self) -> String
+pub fn RuntimeSpawnedContextChurnRule::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedContextChurnRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedContextChurnRule::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeSpawnedLongContextContract {
   // private fields
@@ -410,6 +482,9 @@ pub enum RuntimeSpawnedLongContextRule {
   SpawnedLongContextCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedLongContextRule::code(Self) -> String
+pub fn RuntimeSpawnedLongContextRule::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedLongContextRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedLongContextRule::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeSpawnedPrefixValidationContract {
   // private fields
@@ -444,12 +519,18 @@ pub enum RuntimeSpawnedPrefixValidationRule {
   SpawnedPrefixCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedPrefixValidationRule::code(Self) -> String
+pub fn RuntimeSpawnedPrefixValidationRule::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedPrefixValidationRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedPrefixValidationRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RuntimeSpawnedSamplingExpectation {
   AnySpawnedSamplingRuntime
   HostSamplingRuntimeExpected
   EmbeddedCudaGreedyExpected
 } derive(Eq, @debug.Debug)
+pub fn RuntimeSpawnedSamplingExpectation::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedSamplingExpectation::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedSamplingExpectation::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeSpawnedServingValidationContract {
   // private fields
@@ -483,6 +564,9 @@ pub enum RuntimeSpawnedServingValidationRule {
   SpawnedServingCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedServingValidationRule::code(Self) -> String
+pub fn RuntimeSpawnedServingValidationRule::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedServingValidationRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedServingValidationRule::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeSpawnedValidationContract {
   // private fields
@@ -516,6 +600,9 @@ pub enum RuntimeSpawnedValidationRule {
   SpawnedValidationCleanup
 } derive(Eq, @debug.Debug)
 pub fn RuntimeSpawnedValidationRule::code(Self) -> String
+pub fn RuntimeSpawnedValidationRule::equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedValidationRule::not_equal(Self, Self) -> Bool
+pub fn RuntimeSpawnedValidationRule::to_repr(Self) -> @debug.Repr
 
 pub struct RuntimeStartupMeasurement {
   // private fields

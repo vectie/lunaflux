@@ -67,7 +67,7 @@ test "connected choice retains both executable identities and uses whole-chain c
       maximum_local_bytes=Some(16L),
     )
   catch {
-    @fusion_regions.NoFeasiblePartition => ()
+    NoFeasiblePartition => ()
     e => raise e
   } noraise {
     _ => fail("ignored consumer scratch")
@@ -108,7 +108,7 @@ test "connected plan rejects missing conversion, non-cover and mixed measurement
         maximum_local_bytes=Some(100L),
       )
     catch {
-      @fusion_regions.InvalidComparison => ()
+      InvalidComparison => ()
       e => raise e
     } noraise {
       _ => fail("unmeasured connection accepted")
@@ -140,7 +140,7 @@ test "unknown consumer residency is never certified as zero local memory" {
       maximum_local_bytes=Some(1000000L),
     )
   catch {
-    @fusion_regions.NoFeasiblePartition => ()
+    NoFeasiblePartition => ()
     e => raise e
   } noraise {
     _ => fail("opaque resource certified")

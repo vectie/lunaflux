@@ -34,7 +34,7 @@ test "decode query capacity is independent of long projected history" {
       maximum_workspace_bytes=1L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("workspace ceiling ignored")

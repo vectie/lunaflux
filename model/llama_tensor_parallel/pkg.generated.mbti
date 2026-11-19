@@ -23,6 +23,9 @@ pub(all) suberror LlamaTensorParallelError {
   ArenaTooLarge
   InvalidPhysicalPlan(@tensor_parallel_plan.TensorParallelPlanError)
 } derive(Eq, @debug.Debug)
+pub fn LlamaTensorParallelError::equal(Self, Self) -> Bool
+pub fn LlamaTensorParallelError::not_equal(Self, Self) -> Bool
+pub fn LlamaTensorParallelError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum LlamaTensorParallelDimension {
@@ -32,6 +35,9 @@ pub(all) enum LlamaTensorParallelDimension {
   AttentionHeads
   KeyValueHeads
 } derive(Eq, @debug.Debug)
+pub fn LlamaTensorParallelDimension::equal(Self, Self) -> Bool
+pub fn LlamaTensorParallelDimension::not_equal(Self, Self) -> Bool
+pub fn LlamaTensorParallelDimension::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

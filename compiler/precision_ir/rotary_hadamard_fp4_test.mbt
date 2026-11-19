@@ -16,7 +16,7 @@ test "rotary Hadamard FP4 plan has exact two-stage BF16 frames without device na
   assert_eq(plan.frame_bytes()[1], 1536L)
   assert_eq(plan.workspace_bytes(), 3072L)
   assert_eq(plan.block_width(), 32)
-  assert_eq(plan.effect(), @precision_ir.NumericEffect::StepWrite)
+  assert_eq(plan.effect(), StepWrite)
   for
     (width, block, budget) in [
       (96, 32, 3072L),
@@ -35,10 +35,8 @@ test "rotary Hadamard FP4 plan has exact two-stage BF16 frames without device na
         maximum_workspace_bytes=budget,
       )
     catch {
-      @precision_ir.PrecisionPlanError::IllegalPlacement if width != 128 ||
-        block != 32 => ()
-      @precision_ir.PrecisionPlanError::MemoryBudgetExceeded if budget == 3071L =>
-        ()
+      IllegalPlacement if width != 128 || block != 32 => ()
+      MemoryBudgetExceeded if budget == 3071L => ()
       error => raise error
     } noraise {
       _ => fail("illegal geometry or short aggregate budget accepted")

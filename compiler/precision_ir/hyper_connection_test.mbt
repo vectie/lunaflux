@@ -50,7 +50,7 @@ test "refined control laws retain frame and parameter budgets" {
       control_dot_law=StripedTreeFloat32(partitions=3),
     )
   catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     error => raise error
   } noraise {
     _ => fail("invalid control partition accepted")

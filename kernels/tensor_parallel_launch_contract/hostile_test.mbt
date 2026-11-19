@@ -1,10 +1,10 @@
 ///|
 fn expect_rule(
   body : () -> Unit raise,
-  expected : TensorParallelLaunchContractRule,
+  expected : @tensor_parallel_launch_contract.TensorParallelLaunchContractRule,
 ) -> Unit raise {
   try body() catch {
-    TensorParallelLaunchContractError::InvalidTensorParallelLaunchContract(
+    @tensor_parallel_launch_contract.TensorParallelLaunchContractError::InvalidTensorParallelLaunchContract(
       rule~,
       ..
     ) if rule == expected => ()
@@ -79,7 +79,7 @@ test "limits and contract multiplication are bounded" {
   expect_rule(
     () => {
       ignore(
-        TensorParallelLaunchContractLimits::new(
+        @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits::new(
           max_profiles=257,
           max_contracts=64,
           max_operands_per_contract=16,
@@ -90,7 +90,7 @@ test "limits and contract multiplication are bounded" {
   )
   let source = fixture()
   let profile = fixture_profile()
-  let tiny = TensorParallelLaunchContractLimits::new(
+  let tiny = @tensor_parallel_launch_contract.TensorParallelLaunchContractLimits::new(
     max_profiles=1,
     max_contracts=11,
     max_operands_per_contract=16,
@@ -98,7 +98,7 @@ test "limits and contract multiplication are bounded" {
   expect_rule(
     () => {
       ignore(
-        admit_paged_rank(
+        @tensor_parallel_launch_contract.admit_paged_rank(
           source.model,
           source.rank_plan,
           source.local_layout,

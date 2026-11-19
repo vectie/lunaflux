@@ -20,12 +20,15 @@ async test "export parallel hyper tree and rounded fusion probe" {
         control_square_law=VectorizedTreeFloat32(partitions=256, vector_width=1),
         control_dot_law=StripedTreeFloat32(partitions=256),
       )
-      let old = hyper_connection_source(
+      let old = @hyper_connection_execution_cuda_source.hyper_connection_source(
         p,
         symbol_prefix="old\{index}",
         parallel_controls=false,
       )
-      let new = hyper_connection_source(p, symbol_prefix="new\{index}")
+      let new = @hyper_connection_execution_cuda_source.hyper_connection_source(
+        p,
+        symbol_prefix="new\{index}",
+      )
       assert_true(new.fuses_normalization())
       text.write_string(@utf8.decode(old.source_bytes()))
       text.write_string(@utf8.decode(new.source_bytes()))
@@ -51,7 +54,10 @@ test "tree fusion is permitted only for identical norm ownership" {
     control_square_law=VectorizedTreeFloat32(partitions=128, vector_width=1),
     control_dot_law=StripedTreeFloat32(partitions=128),
   )
-  let source = hyper_connection_source(p, symbol_prefix="tree128")
+  let source = @hyper_connection_execution_cuda_source.hyper_connection_source(
+    p,
+    symbol_prefix="tree128",
+  )
   assert_false(source.fuses_normalization())
   assert_eq(source.control_schedule().unwrap().workers(), 128)
   assert_eq(source.symbol(5), "tree128_project_tree_tiles_v1")

@@ -15,7 +15,7 @@ test "conditional programs are typed and no empirical equivalence is inferred" {
       ),
     )
   catch {
-    @precision_ir.IllegalPlacement => ()
+    IllegalPlacement => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("mixed arm types accepted")
@@ -76,7 +76,7 @@ test "estimated divide cannot pass the exact rewrite gate" {
   )
   assert_true(rn.relation_to(estimate) == DifferentProgram)
   try rn.exact_replacement(estimate) catch {
-    @precision_ir.MissingAccuracyContract => ()
+    MissingAccuracyContract => ()
     _ => fail("wrong error")
   } noraise {
     _ => fail("estimate silently substituted for rounded division")

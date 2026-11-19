@@ -23,7 +23,7 @@ pub fn OutputProgram::prepare(
   max_workspace_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.functions.is_empty() && self.workspace is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let s = self.source
   let layout = output_layout(

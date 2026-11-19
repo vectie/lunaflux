@@ -15,14 +15,14 @@ test "request cancellation is an explicit immutable submission plan not a pollin
         after_submitted_steps=steps,
       )
     catch {
-      @serial_generation.SerialGenerationError::InvalidLimit => ()
+      InvalidLimit => ()
       error => raise error
     } noraise {
       _ => fail("invalid cancellation plan accepted")
     }
   }
   try plan.validate_request_count(1) catch {
-    @serial_generation.SerialGenerationError::InvalidLimit => ()
+    InvalidLimit => ()
     error => raise error
   } noraise {
     _ => fail("cancelled a request outside the prepared queue")

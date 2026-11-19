@@ -23,6 +23,9 @@ pub(all) suberror DecoderScaledRopeCudaSourceError {
   InvalidBeta
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn DecoderScaledRopeCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderScaledRopeCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderScaledRopeCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct DecoderInverseRopeCudaSource {
@@ -53,6 +56,9 @@ pub(all) enum DecoderScaledRopeNumericalContract {
   AdjacentPairF32YarnBf16RoundV1
   AdjacentPairInverseF32YarnBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderScaledRopeNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderScaledRopeNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderScaledRopeNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

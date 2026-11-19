@@ -24,6 +24,9 @@ pub(all) suberror OpenAIResponsesCampaignError {
   CampaignInvalidHex
   CampaignAdapterRejected
 } derive(Eq, @debug.Debug)
+pub fn OpenAIResponsesCampaignError::equal(Self, Self) -> Bool
+pub fn OpenAIResponsesCampaignError::not_equal(Self, Self) -> Bool
+pub fn OpenAIResponsesCampaignError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct OpenAIResponsesCampaignDeclaration {

@@ -171,9 +171,9 @@ fn request_with_tokens(
   tokens : ArrayView[Int32],
   max_new_tokens : Int32,
   context_ceiling : Int32,
-) -> TokenizedRequest {
+) -> @core.TokenizedRequest {
   let limits = inference_limits()
-  try! TokenizedRequest::new(
+  try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(id),
     model_identity=selected_identity(),
     input_tokens=try! @inference.TokenBuffer::new(tokens, limits),
@@ -200,10 +200,10 @@ fn request(
   deadline~ : UInt64 = 100UL,
   max_new_tokens~ : Int32 = 2,
   context_ceiling~ : Int32 = 8,
-) -> TokenizedRequest {
+) -> @core.TokenizedRequest {
   let limits = inference_limits()
   let input = try! @inference.TokenBuffer::new([1, 2], limits)
-  try! TokenizedRequest::new(
+  try! @core.TokenizedRequest::new(
     request_id=try! @inference.RequestId::new(id),
     model_identity=identity,
     input_tokens=input,
@@ -224,7 +224,7 @@ fn request(
 }
 
 ///|
-fn scheduler() -> Scheduler {
+fn scheduler() -> @core.Scheduler {
   let limits = worker_limits()
   let generation = @worker_protocol.ModelPlanGeneration::first()
   let recipe = try! @worker_protocol.RowCapabilityRecipe::new(
@@ -233,7 +233,7 @@ fn scheduler() -> Scheduler {
     [@plan.KernelCapabilityId::embedding_lookup()],
     limits,
   )
-  try! Scheduler::new(
+  try! @core.Scheduler::new(
     resolved_capacity(),
     selected_identity(),
     generation,
@@ -259,7 +259,7 @@ fn worker_limits() -> @worker_protocol.WorkerProtocolLimits {
 }
 
 ///|
-fn tight_scheduler() -> Scheduler {
+fn tight_scheduler() -> @core.Scheduler {
   let limits = worker_limits()
   let generation = @worker_protocol.ModelPlanGeneration::first()
   let recipe = try! @worker_protocol.RowCapabilityRecipe::new(
@@ -268,7 +268,7 @@ fn tight_scheduler() -> Scheduler {
     [@plan.KernelCapabilityId::embedding_lookup()],
     limits,
   )
-  try! Scheduler::new(
+  try! @core.Scheduler::new(
     tight_resolved_capacity(),
     selected_identity(),
     generation,
@@ -279,6 +279,6 @@ fn tight_scheduler() -> Scheduler {
 }
 
 ///|
-fn next_plan(owner : Scheduler) -> @worker_protocol.SubmittedSchedulePlan {
+fn next_plan(owner : @core.Scheduler) -> @worker_protocol.SubmittedSchedulePlan {
   try! owner.submitted_plan(try! owner.build_next())
 }

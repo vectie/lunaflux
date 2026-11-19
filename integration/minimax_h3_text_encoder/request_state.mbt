@@ -3,9 +3,7 @@ fn submit_once(
   phase : Phase,
   run : () -> Unit raise @device.DeviceError,
 ) -> Phase raise @device.DeviceError {
-  guard phase == Prepared else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
-  }
+  guard phase == Prepared else { raise InvalidArgument(OrderedExecutorEnqueue) }
   run()
   Submitted
 }
@@ -18,9 +16,7 @@ fn poll_once(
   if phase == Complete {
     return (Complete, true)
   }
-  guard phase == Submitted else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
-  }
+  guard phase == Submitted else { raise InvalidArgument(OrderedExecutorPoll) }
   let done = run()
   (if done { Complete } else { Submitted }, done)
 }

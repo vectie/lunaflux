@@ -100,7 +100,7 @@ async test "historical Mistral corpus differs only by full-token head contract" 
   try
     @mistral_weights.bind(metadata, plan, mistral_fixture_safetensors())
   catch {
-    @mistral_weights.MistralWeightsError::Mismatch(_) => ()
+    Mismatch(_) => ()
     _ => fail("unexpected historical plan rejection")
   } noraise {
     _ => fail("historical full-token plan silently admitted as current")

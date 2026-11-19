@@ -1,6 +1,6 @@
 ///|
 fn word(value : Byte) -> UInt32 {
-  let scaled = (value.to_int().to_double() * (1.0 / 255.0)).to_float()
+  let scaled = Float::from_double(value.to_int().to_double() * (1.0 / 255.0))
   let normalized = (scaled - 0.5F) / 0.5F
   let bits = normalized.reinterpret_as_uint()
   (bits + 0x7fffU + ((bits >> 16) & 1U)) >> 16

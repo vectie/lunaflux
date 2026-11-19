@@ -14,7 +14,7 @@ test "recurrent request slots have an explicit bounded persistent effect" {
   assert_eq(plan.geometry(), (64, 128, 128))
   assert_eq(plan.capacity(), (32, 16, 32))
   assert_eq(plan.state_bytes(), 134217728L)
-  assert_eq(plan.effect(), @precision_ir.NumericEffect::CacheCommit)
+  assert_eq(plan.effect(), CacheCommit)
   try
     @precision_ir.RecurrentDeltaPrecision::new(
       head_count=64,
@@ -28,7 +28,7 @@ test "recurrent request slots have an explicit bounded persistent effect" {
       maximum_state_bytes=134217727L,
     )
   catch {
-    @precision_ir.PrecisionPlanError::MemoryBudgetExceeded => ()
+    MemoryBudgetExceeded => ()
     e => raise e
   } noraise {
     _ => fail("persistent state budget ignored")

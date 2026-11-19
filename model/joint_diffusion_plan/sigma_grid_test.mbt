@@ -17,7 +17,7 @@ test "inclusive zero grid preserves original CPU F32 rounding and cardinality" {
   assert_true(scheduler.sigma_at(TrainingFloorFloat64, 2, 1) > 0.0)
   for (count, index) in [(1, 0), (2, -1), (2, 2)] {
     try scheduler.sigma_at(InclusiveZeroFloat32, count, index) catch {
-      @joint_diffusion_plan.JointDiffusionPlanError::InvalidScheduler => ()
+      InvalidScheduler => ()
       _ => fail("wrong sigma domain failure")
     } noraise {
       _ => fail("invalid sigma index accepted")

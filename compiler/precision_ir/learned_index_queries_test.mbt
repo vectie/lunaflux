@@ -22,7 +22,7 @@ test "learned index query precision composes exact scratch and immutable scale" 
   assert_eq(plan.workspace_bytes(), 4632L)
   assert_eq(plan.weight_bytes()[:].to_owned(), [32768L, 2L, 512L])
   assert_eq(plan.head_scale(), 1.0 / 128.0.sqrt() * (1.0 / 2.0.sqrt()))
-  assert_eq(plan.effect(), @precision_ir.NumericEffect::StepWrite)
+  assert_eq(plan.effect(), StepWrite)
   try
     @precision_ir.LearnedIndexQueriesPrecision::new(
       hidden_width=128,

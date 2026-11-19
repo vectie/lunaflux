@@ -2,18 +2,18 @@
 /// Construct once from the admitted deployment envelope, never from model
 /// payloads or a device query. HTTP comparison/observation stays out of IR.
 fn luna_openai_model_response(
-  alias : FixedArray[Byte],
+  alias_name : FixedArray[Byte],
   offset : Int32,
   length : Int32,
   context : Int32,
 ) -> Bytes raise LunaOnlineTcpError {
   if offset < 0 ||
     length <= 0 ||
-    offset > alias.length() - length ||
+    offset > alias_name.length() - length ||
     context <= 0 {
     raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }
-  let encoded = Bytes::makei(length, i => alias[offset + i])
+  let encoded = Bytes::makei(length, i => alias_name[offset + i])
   let name = @utf8.decode(encoded) catch {
     _ => raise luna_online_tcp_error(LunaOnlineTcpPreparation)
   }

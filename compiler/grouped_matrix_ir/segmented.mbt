@@ -13,7 +13,7 @@ pub fn SegmentedMatrixPlan::new(
   segments : ArrayView[MatrixTilePlan],
 ) -> Self raise @precision.PrecisionPlanError {
   guard segments.length() > 1 && segments.length() <= 32 else {
-    raise @precision.PrecisionPlanError::NoImplementation
+    raise NoImplementation
   }
   let (rows, _, inner) = segments[0].geometry()
   let offsets = []
@@ -25,13 +25,11 @@ pub fn SegmentedMatrixPlan::new(
       segment.law() == segments[0].law() &&
       segment.tile() == segments[0].tile() &&
       segment.staging() == segments[0].staging() else {
-      raise @precision.PrecisionPlanError::IllegalPlacement
+      raise IllegalPlacement
     }
     offsets.push(tiles.to_int())
     tiles += segment.tile_count().to_int64()
-    guard tiles <= 2147483647L else {
-      raise @precision.PrecisionPlanError::MemoryBudgetExceeded
-    }
+    guard tiles <= 2147483647L else { raise MemoryBudgetExceeded }
   }
   {
     segments: ReadOnlyArray::from_array(segments.to_owned()),

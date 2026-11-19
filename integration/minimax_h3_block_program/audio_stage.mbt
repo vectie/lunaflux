@@ -25,7 +25,7 @@ fn audio_stage_layout(
   guard amp.batch == up.batch &&
     amp.channels == up.output_channels &&
     amp.time == u.output_time else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let a = @joint_diffusion_device.AudioAmpLayout::new(
     batch=amp.batch,
@@ -36,11 +36,11 @@ fn audio_stage_layout(
   let normalized_offset = (u.output_bytes + 255L) / 256L * 256L
   guard normalized_offset <= budget &&
     u.weight_bytes <= budget - normalized_offset else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   let local_bytes = normalized_offset + u.weight_bytes
   guard a.scratch_bytes <= budget - local_bytes else {
-    raise @device.DeviceError::InvalidArgument(AllocationCreate)
+    raise InvalidArgument(AllocationCreate)
   }
   { upsample: u, normalized_offset, local_bytes, amp_bytes: a.scratch_bytes, }
 }
@@ -83,7 +83,7 @@ pub fn AudioDecodeStage::prepare(
   max_workspace_bytes~ : Int64,
 ) -> Unit raise @device.DeviceError {
   guard self.functions.is_empty() && self.workspace is None else {
-    raise @device.DeviceError::InvalidArgument(FunctionLoad)
+    raise InvalidArgument(FunctionLoad)
   }
   let layout = audio_stage_layout(self.up, self.amp.source, max_workspace_bytes)
   acquire_functions(self.up.symbols[:], self.functions, symbol => {
@@ -108,7 +108,7 @@ pub fn AudioDecodeStage::bind(
   amp_weights~ : @device.Allocation,
 ) -> Array[@device.OrderedKernelLaunch] raise @device.DeviceError {
   guard self.layout is Some(layout) && self.workspace is Some(workspace) else {
-    raise @device.DeviceError::InvalidArgument(AotKernelLaunch)
+    raise InvalidArgument(AotKernelLaunch)
   }
   let u = layout.upsample
   let cache = self.cache.get(up_weights)

@@ -36,12 +36,20 @@ pub(all) suberror PrefixIndexError {
   ReferenceUnderflow(PrefixEntryId)
   InvariantViolation(PrefixInvariantRule)
 } derive(Eq, @debug.Debug)
+pub fn PrefixIndexError::equal(Self, Self) -> Bool
+pub fn PrefixIndexError::not_equal(Self, Self) -> Bool
+pub fn PrefixIndexError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct PrefixEntryId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn PrefixEntryId::equal(Self, Self) -> Bool
 pub fn PrefixEntryId::generation(Self) -> Int
+pub fn PrefixEntryId::hash(Self) -> Int
+pub fn PrefixEntryId::hash_combine(Self, Hasher) -> Unit
 pub fn PrefixEntryId::index(Self) -> Int
 pub fn PrefixEntryId::new(index~ : Int, generation~ : Int) -> Self raise PrefixIndexError
+pub fn PrefixEntryId::not_equal(Self, Self) -> Bool
+pub fn PrefixEntryId::to_repr(Self) -> @debug.Repr
 
 pub struct PrefixEntrySnapshot {
   id : PrefixEntryId
@@ -51,9 +59,12 @@ pub struct PrefixEntrySnapshot {
   recency : UInt64
 } derive(Eq, @debug.Debug)
 pub fn PrefixEntrySnapshot::active_reference_count(Self) -> Int
+pub fn PrefixEntrySnapshot::equal(Self, Self) -> Bool
 pub fn PrefixEntrySnapshot::id(Self) -> PrefixEntryId
+pub fn PrefixEntrySnapshot::not_equal(Self, Self) -> Bool
 pub fn PrefixEntrySnapshot::page_count(Self) -> Int
 pub fn PrefixEntrySnapshot::recency(Self) -> UInt64
+pub fn PrefixEntrySnapshot::to_repr(Self) -> @debug.Repr
 pub fn PrefixEntrySnapshot::token_count(Self) -> Int
 
 pub struct PrefixEvictionBuffer {
@@ -123,13 +134,16 @@ pub struct PrefixIndexLimits {
   max_generation : Int
 } derive(Eq, @debug.Debug)
 pub fn PrefixIndexLimits::entry_capacity(Self) -> Int
+pub fn PrefixIndexLimits::equal(Self, Self) -> Bool
 pub fn PrefixIndexLimits::max_active_references_per_entry(Self) -> Int
 pub fn PrefixIndexLimits::max_generation(Self) -> Int
 pub fn PrefixIndexLimits::max_scope_bytes(Self) -> Int
 pub fn PrefixIndexLimits::max_tokens_per_entry(Self) -> Int
 pub fn PrefixIndexLimits::new(entry_capacity~ : Int, node_capacity~ : Int, max_tokens_per_entry~ : Int, page_capacity~ : Int, max_active_references_per_entry~ : Int, token_capacity? : Int, max_scope_bytes? : Int, max_generation? : Int) -> Self raise PrefixIndexError
 pub fn PrefixIndexLimits::node_capacity(Self) -> Int
+pub fn PrefixIndexLimits::not_equal(Self, Self) -> Bool
 pub fn PrefixIndexLimits::page_capacity(Self) -> Int
+pub fn PrefixIndexLimits::to_repr(Self) -> @debug.Repr
 pub fn PrefixIndexLimits::token_capacity(Self) -> Int
 
 pub struct PrefixIndexSnapshot {
@@ -141,10 +155,13 @@ pub struct PrefixIndexSnapshot {
 } derive(Eq, @debug.Debug)
 pub fn PrefixIndexSnapshot::entry_at(Self, Int) -> PrefixEntrySnapshot raise PrefixIndexError
 pub fn PrefixIndexSnapshot::entry_count(Self) -> Int
+pub fn PrefixIndexSnapshot::equal(Self, Self) -> Bool
 pub fn PrefixIndexSnapshot::node_count(Self) -> Int
+pub fn PrefixIndexSnapshot::not_equal(Self, Self) -> Bool
 pub fn PrefixIndexSnapshot::page_count(Self) -> Int
 pub fn PrefixIndexSnapshot::retired_entry_count(Self) -> Int
 pub fn PrefixIndexSnapshot::snapshot_count(Self) -> Int
+pub fn PrefixIndexSnapshot::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PrefixInvariantRule {
   CountPartition
@@ -157,12 +174,18 @@ pub(all) enum PrefixInvariantRule {
   EntryShape
   GenerationRange
 } derive(Eq, @debug.Debug)
+pub fn PrefixInvariantRule::equal(Self, Self) -> Bool
+pub fn PrefixInvariantRule::not_equal(Self, Self) -> Bool
+pub fn PrefixInvariantRule::to_repr(Self) -> @debug.Repr
 
 pub struct PrefixLayout {
   version : Int
   tokens_per_page : Int
 } derive(Eq, @debug.Debug)
+pub fn PrefixLayout::equal(Self, Self) -> Bool
 pub fn PrefixLayout::new(version~ : Int, tokens_per_page~ : Int) -> Self raise PrefixIndexError
+pub fn PrefixLayout::not_equal(Self, Self) -> Bool
+pub fn PrefixLayout::to_repr(Self) -> @debug.Repr
 pub fn PrefixLayout::tokens_per_page(Self) -> Int
 pub fn PrefixLayout::version(Self) -> Int
 
@@ -179,6 +202,9 @@ pub(all) enum PrefixLimitRule {
   Generation
   LayoutVersion
 } derive(Eq, @debug.Debug)
+pub fn PrefixLimitRule::equal(Self, Self) -> Bool
+pub fn PrefixLimitRule::not_equal(Self, Self) -> Bool
+pub fn PrefixLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct PrefixLookupBuffer {
   // private fields

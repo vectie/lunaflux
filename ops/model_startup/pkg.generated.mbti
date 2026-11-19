@@ -19,6 +19,9 @@ pub(all) suberror LunaModelStartupError {
   FailedAndClose(primary~ : LunaModelStartupStage, cleanup~ : LunaModelStartupCleanup)
   CloseFailed(LunaModelStartupCleanup)
 } derive(Eq, @debug.Debug)
+pub fn LunaModelStartupError::equal(Self, Self) -> Bool
+pub fn LunaModelStartupError::not_equal(Self, Self) -> Bool
+pub fn LunaModelStartupError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum LunaModelPhysicalGate {
@@ -31,22 +34,34 @@ pub(all) enum LunaModelPhysicalGate {
   AssignedDeviceMissing
   DeviceTargetMismatch
 } derive(Eq, @debug.Debug)
+pub fn LunaModelPhysicalGate::equal(Self, Self) -> Bool
+pub fn LunaModelPhysicalGate::not_equal(Self, Self) -> Bool
+pub fn LunaModelPhysicalGate::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaModelPreparationOutcome {
   LunaModelPreflightComplete
   LunaModelNotPrepared(LunaModelPreparationPrerequisite)
   LunaModelPhysicalGate(LunaModelPhysicalGate)
 } derive(Eq, @debug.Debug)
+pub fn LunaModelPreparationOutcome::equal(Self, Self) -> Bool
+pub fn LunaModelPreparationOutcome::not_equal(Self, Self) -> Bool
+pub fn LunaModelPreparationOutcome::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaModelPreparationPrerequisite {
   DigestPinnedRuntimeDescriptorAdmission
 } derive(Eq, @debug.Debug)
+pub fn LunaModelPreparationPrerequisite::equal(Self, Self) -> Bool
+pub fn LunaModelPreparationPrerequisite::not_equal(Self, Self) -> Bool
+pub fn LunaModelPreparationPrerequisite::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaModelStartupCleanup {
   ModelRoot
   KernelRoot
   BothRoots
 } derive(Eq, @debug.Debug)
+pub fn LunaModelStartupCleanup::equal(Self, Self) -> Bool
+pub fn LunaModelStartupCleanup::not_equal(Self, Self) -> Bool
+pub fn LunaModelStartupCleanup::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaModelStartupStage {
   ModelRootAdmission
@@ -58,6 +73,9 @@ pub(all) enum LunaModelStartupStage {
   ModelRootClose
   KernelRootClose
 } derive(Eq, @debug.Debug)
+pub fn LunaModelStartupStage::equal(Self, Self) -> Bool
+pub fn LunaModelStartupStage::not_equal(Self, Self) -> Bool
+pub fn LunaModelStartupStage::to_repr(Self) -> @debug.Repr
 
 pub struct LunaPinnedModelPreflight {
   // private fields

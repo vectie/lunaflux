@@ -64,7 +64,7 @@ pub fn DecodeStep::constants(self : Self) -> Bytes {
   for kind in 0..<3 {
     for i in 0..<64 {
       let angle = self.position.to_double() /
-        1000000.0.pow(i.to_double() / 64.0)
+        @math.pow(1000000.0, i.to_double() / 64.0)
       let value = if kind == 0 { @math.cos(angle) } else { @math.sin(angle) }
       words.push(Float::from_double(if kind == 2 { -value } else { value }))
     }

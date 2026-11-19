@@ -65,7 +65,7 @@ fn exercise(
   let elapsed = clock.now_millis() - start
   let restored = allocation.copy_to_host(0L, layout.arena_bytes())
   for layer in 0..<2 {
-    for component in [@device_layout.Key, @device_layout.Value] {
+    for component in [@device_layout.Key, Value] {
       let src = layout.region(layer, component, 0)
       let dst = layout.region(layer, component, 3)
       for i in 0..<src.logical_bytes().to_int() {

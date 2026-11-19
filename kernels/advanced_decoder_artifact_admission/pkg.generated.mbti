@@ -42,14 +42,20 @@ pub(all) suberror AdvancedDecoderArtifactAdmissionError {
   AdmissionEncodingTooLarge
   NoExecutionAuthority
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderArtifactAdmissionError::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderArtifactAdmissionError::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderArtifactAdmissionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AdvancedDecoderAdmittedEntryPoint {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderAdmittedEntryPoint::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderAdmittedEntryPoint::function_symbol(Self) -> String
 pub fn AdvancedDecoderAdmittedEntryPoint::identity(Self) -> @catalog.AotKernelEntryPoint
 pub fn AdvancedDecoderAdmittedEntryPoint::module_index(Self) -> Int
+pub fn AdvancedDecoderAdmittedEntryPoint::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderAdmittedEntryPoint::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderAdmittedLaunch {
   // private fields
@@ -58,10 +64,13 @@ pub fn AdvancedDecoderAdmittedLaunch::capability(Self) -> @advanced_decoder_kern
 pub fn AdvancedDecoderAdmittedLaunch::declared_qualification(Self) -> AdvancedDecoderDeclaredQualificationDigest?
 pub fn AdvancedDecoderAdmittedLaunch::dimensions(Self) -> @launch_contract.AotLaunchDimensions
 pub fn AdvancedDecoderAdmittedLaunch::entry_point(Self) -> @catalog.AotKernelEntryPoint
+pub fn AdvancedDecoderAdmittedLaunch::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderAdmittedLaunch::module_digest(Self) -> @catalog.AotArtifactDigest
+pub fn AdvancedDecoderAdmittedLaunch::not_equal(Self, Self) -> Bool
 pub fn AdvancedDecoderAdmittedLaunch::operands(Self) -> ReadOnlyArray[AdvancedDecoderLaunchOperand]
 pub fn AdvancedDecoderAdmittedLaunch::operation(Self) -> @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation
 pub fn AdvancedDecoderAdmittedLaunch::requirement_ordinal(Self) -> Int
+pub fn AdvancedDecoderAdmittedLaunch::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderAdmittedModule {
   // private fields
@@ -88,34 +97,56 @@ pub struct AdvancedDecoderArtifactAdmissionDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn AdvancedDecoderArtifactAdmissionDigest::as_hex(Self) -> String
+pub fn AdvancedDecoderArtifactAdmissionDigest::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderArtifactAdmissionDigest::hash(Self) -> Int
+pub fn AdvancedDecoderArtifactAdmissionDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AdvancedDecoderArtifactAdmissionDigest::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderArtifactAdmissionDigest::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderArtifactAdmissionLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderArtifactAdmissionLimits::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderArtifactAdmissionLimits::new(maximum_requirements~ : Int, maximum_modules~ : Int, maximum_entry_points~ : Int, maximum_module_bytes~ : Int64, maximum_total_module_bytes~ : Int64, maximum_symbol_bytes~ : Int, maximum_operands_per_launch~ : Int, maximum_canonical_bytes~ : Int) -> Self raise AdvancedDecoderArtifactAdmissionError
+pub fn AdvancedDecoderArtifactAdmissionLimits::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderArtifactAdmissionLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderArtifactAdmissionStatus {
   InertUnqualified
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderArtifactAdmissionStatus::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderArtifactAdmissionStatus::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderArtifactAdmissionStatus::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderDeclaredQualificationDigest {
   // private fields
 } derive(Eq, Hash, @debug.Debug)
 pub fn AdvancedDecoderDeclaredQualificationDigest::as_hex(Self) -> String
+pub fn AdvancedDecoderDeclaredQualificationDigest::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderDeclaredQualificationDigest::from_sha256(String) -> Self raise AdvancedDecoderArtifactAdmissionError
+pub fn AdvancedDecoderDeclaredQualificationDigest::hash(Self) -> Int
+pub fn AdvancedDecoderDeclaredQualificationDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AdvancedDecoderDeclaredQualificationDigest::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderDeclaredQualificationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderLaunchEvidenceInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderLaunchEvidenceInput::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderLaunchEvidenceInput::new(requirements_digest~ : @advanced_decoder_kernel_requirements.AdvancedDecoderKernelRequirementsDigest, source_identity~ : @spec.ModelIdentity, requirement_ordinal~ : Int, operation~ : @advanced_decoder_kernel_requirements.AdvancedDecoderSemanticOperation, capability~ : @advanced_decoder_kernel_requirements.AdvancedDecoderAotCapability, target~ : @catalog.DeviceTarget, entry_point~ : @catalog.AotKernelEntryPoint, module_digest~ : @catalog.AotArtifactDigest, dimensions~ : @launch_contract.AotLaunchDimensions, operands~ : ArrayView[AdvancedDecoderLaunchOperand], declared_qualification? : AdvancedDecoderDeclaredQualificationDigest) -> Self raise AdvancedDecoderArtifactAdmissionError
+pub fn AdvancedDecoderLaunchEvidenceInput::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderLaunchEvidenceInput::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderLaunchOperand {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AdvancedDecoderLaunchOperand::alignment(Self) -> Int64
 pub fn AdvancedDecoderLaunchOperand::byte_count(Self) -> Int64
+pub fn AdvancedDecoderLaunchOperand::equal(Self, Self) -> Bool
 pub fn AdvancedDecoderLaunchOperand::new(role~ : AdvancedDecoderLaunchOperandRole, byte_count~ : Int64, alignment~ : Int64) -> Self raise AdvancedDecoderArtifactAdmissionError
+pub fn AdvancedDecoderLaunchOperand::not_equal(Self, Self) -> Bool
 pub fn AdvancedDecoderLaunchOperand::role(Self) -> AdvancedDecoderLaunchOperandRole
+pub fn AdvancedDecoderLaunchOperand::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AdvancedDecoderLaunchOperandRole {
   StepCountsInput
@@ -195,6 +226,9 @@ pub(all) enum AdvancedDecoderLaunchOperandRole {
   LogitsOutput
   Workspace
 } derive(Eq, @debug.Debug)
+pub fn AdvancedDecoderLaunchOperandRole::equal(Self, Self) -> Bool
+pub fn AdvancedDecoderLaunchOperandRole::not_equal(Self, Self) -> Bool
+pub fn AdvancedDecoderLaunchOperandRole::to_repr(Self) -> @debug.Repr
 
 pub struct AdvancedDecoderModuleInput {
   // private fields

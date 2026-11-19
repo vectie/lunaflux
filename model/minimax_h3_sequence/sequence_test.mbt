@@ -95,7 +95,7 @@ test "row ceiling includes padding and invalid conditioning is rejected" {
       max_rows=63,
     )
   catch {
-    @minimax_h3_sequence.SequenceError::RowLimitExceeded => ()
+    RowLimitExceeded => ()
     _ => fail("wrong row ceiling error")
   } noraise {
     _ => fail("padding exceeded budget")
@@ -116,7 +116,7 @@ test "row ceiling includes padding and invalid conditioning is rejected" {
         max_rows=64,
       )
     catch {
-      @minimax_h3_sequence.SequenceError::InvalidConditioning => ()
+      InvalidConditioning => ()
       _ => fail("wrong conditioning error")
     } noraise {
       _ => fail("invalid conditioning accepted")

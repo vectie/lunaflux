@@ -27,6 +27,9 @@ pub fn specialize_cuda_partitioned_attention_tile_aot(CudaPartitionedAttentionTi
 pub(all) suberror CudaAttentionTileAotError {
   InvalidCudaAttentionTileAot(CudaAttentionTileAotRule)
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileAotError::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileAotError::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileAotError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CudaAttentionTileAotCompilation {
@@ -34,27 +37,41 @@ pub struct CudaAttentionTileAotCompilation {
 } derive(Eq, @debug.Debug)
 pub fn CudaAttentionTileAotCompilation::canonical_bytes(Self) -> Bytes
 pub fn CudaAttentionTileAotCompilation::digest(Self) -> CudaAttentionTileAotDigest
+pub fn CudaAttentionTileAotCompilation::equal(Self, Self) -> Bool
 pub fn CudaAttentionTileAotCompilation::functional(Self) -> @luna_attention_tile_compiler.ScheduledAttentionTileCompilation
 pub fn CudaAttentionTileAotCompilation::lowering(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering
+pub fn CudaAttentionTileAotCompilation::not_equal(Self, Self) -> Bool
 pub fn CudaAttentionTileAotCompilation::source(Self) -> @luna_cuda_attention_tile_source.CudaAttentionTileSource
+pub fn CudaAttentionTileAotCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct CudaAttentionTileAotDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn CudaAttentionTileAotDigest::as_hex(Self) -> String
+pub fn CudaAttentionTileAotDigest::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileAotDigest::hash(Self) -> Int
+pub fn CudaAttentionTileAotDigest::hash_combine(Self, Hasher) -> Unit
+pub fn CudaAttentionTileAotDigest::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileAotDigest::to_repr(Self) -> @debug.Repr
 
 pub struct CudaAttentionTileAotFrontier {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaAttentionTileAotFrontier::canonical_bytes(Self) -> Bytes
 pub fn CudaAttentionTileAotFrontier::digest(Self) -> CudaAttentionTileAotDigest
+pub fn CudaAttentionTileAotFrontier::equal(Self, Self) -> Bool
 pub fn CudaAttentionTileAotFrontier::functional(Self) -> @luna_attention_tile_compiler.AttentionTileCompilationFrontier
+pub fn CudaAttentionTileAotFrontier::not_equal(Self, Self) -> Bool
 pub fn CudaAttentionTileAotFrontier::rejected_candidates(Self) -> ReadOnlyArray[(Int, CudaAttentionTileAotRule)]
 pub fn CudaAttentionTileAotFrontier::selected(Self) -> CudaAttentionTileAotCompilation
+pub fn CudaAttentionTileAotFrontier::to_repr(Self) -> @debug.Repr
 pub fn CudaAttentionTileAotFrontier::variants(Self) -> ReadOnlyArray[CudaAttentionTileAotCompilation]
 
 pub struct CudaAttentionTileAotRequest {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileAotRequest::equal(Self, Self) -> Bool
 pub fn CudaAttentionTileAotRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target_id~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, device_target~ : @catalog.DeviceTarget, maximum_shared_memory_bytes~ : Int64, abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi, symbol~ : String, maximum_source_bytes~ : Int) -> Self raise CudaAttentionTileAotError
+pub fn CudaAttentionTileAotRequest::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileAotRequest::to_repr(Self) -> @debug.Repr
 pub fn CudaAttentionTileAotRequest::with_resource_feedback(Self, @luna_attention_tile_compiler.AttentionResourceBudget, ArrayView[@luna_attention_tile_compiler.AttentionRegisterObservation]) -> Self raise CudaAttentionTileAotError
 
 pub(all) enum CudaAttentionTileAotRule {
@@ -63,36 +80,51 @@ pub(all) enum CudaAttentionTileAotRule {
   DeviceLowering
   SourceEmission
 } derive(Eq, @debug.Debug)
+pub fn CudaAttentionTileAotRule::equal(Self, Self) -> Bool
+pub fn CudaAttentionTileAotRule::not_equal(Self, Self) -> Bool
+pub fn CudaAttentionTileAotRule::to_repr(Self) -> @debug.Repr
 
 pub struct CudaPartitionedAttentionTileAotCompilation {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaPartitionedAttentionTileAotCompilation::canonical_bytes(Self) -> Bytes
 pub fn CudaPartitionedAttentionTileAotCompilation::digest(Self) -> CudaAttentionTileAotDigest
+pub fn CudaPartitionedAttentionTileAotCompilation::equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileAotCompilation::functional(Self) -> @luna_attention_tile_compiler.ScheduledAttentionTileCompilation
 pub fn CudaPartitionedAttentionTileAotCompilation::lowering(Self) -> @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering
+pub fn CudaPartitionedAttentionTileAotCompilation::not_equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileAotCompilation::source(Self) -> @luna_cuda_attention_tile_source.CudaPartitionedAttentionTileSource
+pub fn CudaPartitionedAttentionTileAotCompilation::to_repr(Self) -> @debug.Repr
 
 pub struct CudaPartitionedAttentionTileAotFrontier {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaPartitionedAttentionTileAotFrontier::canonical_bytes(Self) -> Bytes
 pub fn CudaPartitionedAttentionTileAotFrontier::digest(Self) -> CudaAttentionTileAotDigest
+pub fn CudaPartitionedAttentionTileAotFrontier::equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileAotFrontier::functional(Self) -> @luna_attention_tile_compiler.AttentionPartitionedTileCompilationFrontier
+pub fn CudaPartitionedAttentionTileAotFrontier::not_equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileAotFrontier::select_measured_chain(Self, scope~ : String, ArrayView[PartitionedAttentionChainObservation], maximum_workspace_bytes~ : Int64, maximum_shared_memory_bytes~ : Int64) -> CudaPartitionedAttentionTileAotCompilation raise CudaAttentionTileAotError
+pub fn CudaPartitionedAttentionTileAotFrontier::to_repr(Self) -> @debug.Repr
 pub fn CudaPartitionedAttentionTileAotFrontier::variants(Self) -> ReadOnlyArray[CudaPartitionedAttentionTileAotVariant]
 
 pub struct CudaPartitionedAttentionTileAotRequest {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CudaPartitionedAttentionTileAotRequest::equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileAotRequest::new(backend~ : @luna_attention_strategy.AttentionBackendId, target_id~ : @luna_attention_strategy.AttentionTargetId, problem~ : @luna_attention_strategy.AttentionCompileProblem, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, device_target~ : @catalog.DeviceTarget, maximum_shared_memory_bytes~ : Int64, abi~ : @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi, partial_symbol~ : String, merge_symbol~ : String, maximum_workspace_bytes~ : Int64, maximum_source_bytes~ : Int) -> Self raise CudaAttentionTileAotError
+pub fn CudaPartitionedAttentionTileAotRequest::not_equal(Self, Self) -> Bool
+pub fn CudaPartitionedAttentionTileAotRequest::to_repr(Self) -> @debug.Repr
 pub fn CudaPartitionedAttentionTileAotRequest::with_resource_feedback(Self, @luna_attention_tile_compiler.AttentionResourceBudget, ArrayView[@luna_attention_tile_compiler.AttentionRegisterObservation]) -> Self raise CudaAttentionTileAotError
 
 pub struct CudaPartitionedAttentionTileAotVariant {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CudaPartitionedAttentionTileAotVariant::compilation(Self) -> CudaPartitionedAttentionTileAotCompilation
+pub fn CudaPartitionedAttentionTileAotVariant::equal(Self, Self) -> Bool
+pub fn CudaPartitionedAttentionTileAotVariant::not_equal(Self, Self) -> Bool
 pub fn CudaPartitionedAttentionTileAotVariant::parallel_workgroup_target(Self) -> Int
+pub fn CudaPartitionedAttentionTileAotVariant::to_repr(Self) -> @debug.Repr
 
 pub struct PartitionedAttentionChainObservation {
   // private fields

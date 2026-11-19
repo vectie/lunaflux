@@ -2,7 +2,6 @@ supported_targets = "native"
 
 import {
   "vectie/lunaflux/runtime/inference_credential" @credential,
-  "vectie/lunaflux/service/api_auth",
 } for "wbtest"
 
 options(

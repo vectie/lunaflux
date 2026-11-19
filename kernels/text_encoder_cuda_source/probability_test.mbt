@@ -2,7 +2,7 @@
 test "explicit online BF16 publishes probabilities but not the denominator" {
   for block in [64, 128] {
     let source = @utf8.decode(
-      attention_source(
+      @text_encoder_cuda_source.attention_source(
         rows=140,
         query_heads=4,
         kv_heads=2,
@@ -25,7 +25,7 @@ test "explicit online BF16 publishes probabilities but not the denominator" {
       OnlineBf16(block_tokens=63),
     ] {
     try
-      attention_source(
+      @text_encoder_cuda_source.attention_source(
         rows=3,
         query_heads=4,
         kv_heads=2,
@@ -45,7 +45,7 @@ test "explicit online BF16 publishes probabilities but not the denominator" {
 
 ///|
 test "explicit ordered online and omitted law preserve identical default source" {
-  let default = attention_source(
+  let default = @text_encoder_cuda_source.attention_source(
     rows=3,
     query_heads=4,
     kv_heads=2,
@@ -53,7 +53,7 @@ test "explicit ordered online and omitted law preserve identical default source"
     epsilon=0.000001,
     prefix="same",
   )
-  let explicit = attention_source(
+  let explicit = @text_encoder_cuda_source.attention_source(
     rows=3,
     query_heads=4,
     kv_heads=2,
@@ -74,7 +74,7 @@ test "export actual probability kernels for independent physical component test"
   for block in [64, 128] {
     println(
       @utf8.decode(
-        attention_source(
+        @text_encoder_cuda_source.attention_source(
           rows=140,
           query_heads=4,
           kv_heads=2,

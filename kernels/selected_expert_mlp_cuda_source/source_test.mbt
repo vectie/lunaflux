@@ -1,6 +1,6 @@
 ///|
 test "selected expert source binds distinct score/index and weight banks" {
-  let source = selected_expert_swiglu_bf16_source(
+  let source = @selected_expert_mlp_cuda_source.selected_expert_swiglu_bf16_source(
     hidden_size=4096,
     intermediate_size=2048,
     routed_expert_count=288,
@@ -23,7 +23,7 @@ test "selected expert source binds distinct score/index and weight banks" {
 ///|
 test "selected expert source rejects invalid capacity and activation" {
   try
-    selected_expert_swiglu_bf16_source(
+    @selected_expert_mlp_cuda_source.selected_expert_swiglu_bf16_source(
       hidden_size=8,
       intermediate_size=4,
       routed_expert_count=2,

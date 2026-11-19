@@ -15,7 +15,7 @@ test "dense SwiGLU owns one shared product frame and preserves separate weights"
       maximum_rows=1,
     )
   catch {
-    @precision_ir.PrecisionPlanError::IllegalPlacement => ()
+    IllegalPlacement => ()
     e => raise e
   } noraise {
     _ => fail("zero width accepted")

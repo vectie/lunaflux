@@ -14,7 +14,7 @@ fn aot_test_token_hash_ordinal(
 test "token-hash routing lowers with exact deterministic I32 ABI" {
   let requirements = aot_test_requirements(hash_layer_count=1)
   let ordinal = aot_test_token_hash_ordinal(requirements)
-  let candidate = lower_token_hash_routing_cuda_aot_candidate(
+  let candidate = @advanced_decoder_cuda_aot.lower_token_hash_routing_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -50,7 +50,7 @@ test "token-hash routing lowers with exact deterministic I32 ABI" {
   assert_true(source.contains("slot >= 2"))
   assert_true(source.contains("expert < 8"))
   assert_true(source.contains("expert_indices[output_index] = -1"))
-  let repeated = lower_token_hash_routing_cuda_aot_candidate(
+  let repeated = @advanced_decoder_cuda_aot.lower_token_hash_routing_cuda_aot_candidate(
     requirements,
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -60,7 +60,7 @@ test "token-hash routing lowers with exact deterministic I32 ABI" {
   )
   assert_eq(candidate.source_digest(), repeated.source_digest())
   assert_eq(candidate.recipe_digest(), repeated.recipe_digest())
-  let foreign = lower_token_hash_routing_cuda_aot_candidate(
+  let foreign = @advanced_decoder_cuda_aot.lower_token_hash_routing_cuda_aot_candidate(
     aot_test_requirements(content_fill='c', hash_layer_count=1),
     requirement_ordinal=ordinal,
     maximum_tokens=32,
@@ -79,7 +79,7 @@ test "token-hash routing rejects adjacent ordinal target and compiler" {
   let ordinal = aot_test_token_hash_ordinal(requirements)
   for hostile_ordinal in [ordinal - 1, ordinal + 1] {
     try
-      lower_token_hash_routing_cuda_aot_candidate(
+      @advanced_decoder_cuda_aot.lower_token_hash_routing_cuda_aot_candidate(
         requirements,
         requirement_ordinal=hostile_ordinal,
         maximum_tokens=1,
@@ -95,7 +95,7 @@ test "token-hash routing rejects adjacent ordinal target and compiler" {
     }
   }
   try
-    lower_token_hash_routing_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_token_hash_routing_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,
@@ -110,7 +110,7 @@ test "token-hash routing rejects adjacent ordinal target and compiler" {
     _ => fail("non-BF16 decoder target was admitted")
   }
   try
-    lower_token_hash_routing_cuda_aot_candidate(
+    @advanced_decoder_cuda_aot.lower_token_hash_routing_cuda_aot_candidate(
       requirements,
       requirement_ordinal=ordinal,
       maximum_tokens=1,

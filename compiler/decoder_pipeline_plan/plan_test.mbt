@@ -58,7 +58,7 @@ test "memory rejection does not conceal an oversized layer or overflow" {
         egress_bytes=0L,
       )
     catch {
-      @precision.PrecisionPlanError::MemoryBudgetExceeded => ()
+      MemoryBudgetExceeded => ()
       e => raise e
     } noraise {
       _ => fail("invalid footprint accepted")

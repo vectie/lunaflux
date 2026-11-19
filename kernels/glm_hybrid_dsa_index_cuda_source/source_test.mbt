@@ -1,6 +1,6 @@
 ///|
 test "projected DSA index source keeps stable selection and tail explicit" {
-  let full = projected_index_score_stable_topk_bf16_source(
+  let full = @glm_hybrid_dsa_index_cuda_source.projected_index_score_stable_topk_bf16_source(
     head_count=32,
     head_dimension=128,
     top_k=2048,
@@ -9,7 +9,7 @@ test "projected DSA index source keeps stable selection and tail explicit" {
     maximum_tokens=4096,
     function_symbol="lunaflux_glm_hybrid_dsa_index_select_bf16_v1",
   )
-  let flash = projected_index_score_stable_topk_bf16_source(
+  let flash = @glm_hybrid_dsa_index_cuda_source.projected_index_score_stable_topk_bf16_source(
     head_count=32,
     head_dimension=128,
     top_k=2048,
@@ -34,7 +34,7 @@ test "projected DSA index source keeps stable selection and tail explicit" {
 
 ///|
 test "index reuse source is a counts-bounded bit copy" {
-  let source = reuse_selected_indices_i32_source(
+  let source = @glm_hybrid_dsa_index_cuda_source.reuse_selected_indices_i32_source(
     output_width=2048,
     maximum_tokens=4096,
     function_symbol="lunaflux_glm_hybrid_dsa_index_reuse_i32_v1",

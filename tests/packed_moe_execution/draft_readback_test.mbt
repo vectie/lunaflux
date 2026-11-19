@@ -32,7 +32,7 @@ test "prepared draft readback retires real live tokens without hot allocations o
     _ => fail("draft readback returned a padded/outside token")
   }
   try source.close() catch {
-    @device.DeviceError::Busy(_) => ()
+    Busy(_) => ()
     error => raise error
   } noraise {
     _ => fail("readback source lease was not retained")

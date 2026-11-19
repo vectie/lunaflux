@@ -23,8 +23,8 @@ pub fn Sequence::build(
   }
   let markers = spec.markers()
   let groups = visual_groups(tokens, modalities, markers)
-  let image_index = Ref::new(0)
-  let video_index = Ref::new(0)
+  let image_index = Ref(0)
+  let video_index = Ref(0)
   let next_grid = fn(modality) raise {
     let (grids, index) = match modality {
       Image => (image_grids, image_index)

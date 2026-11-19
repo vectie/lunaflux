@@ -174,7 +174,7 @@ fn BatchedLogitSampler::poll(self : Self) -> Bool raise {
         (self.bytes[offset + 1].to_uint() << 8) |
         (self.bytes[offset + 2].to_uint() << 16) |
         (self.bytes[offset + 3].to_uint() << 24)
-      self.logits[word] = bits.reinterpret_as_float().to_double()
+      self.logits[word] = Float::reinterpret_from_uint(bits).to_double()
     }
     self.tokens[row] = try {
       if self.modes[row] == 0 {

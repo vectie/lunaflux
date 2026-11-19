@@ -3,18 +3,16 @@ pub fn GlmDecoderSlice::submit(
   self : Self,
   live_rows~ : Int32,
 ) -> Unit raise @device.DeviceError {
-  guard self.status is Ready else {
-    raise @device.DeviceError::Busy(OrderedExecutorEnqueue)
-  }
+  guard self.status is Ready else { raise Busy(OrderedExecutorEnqueue) }
   guard live_rows > 0 && live_rows <= self.maximum_rows else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.status = Failed
   if self.collective_queue is Some(queue) {
     guard self.plan_sequence < 0xffffffffffffffffUL &&
       self.global_sequence <=
       0xffffffffffffffffUL - self.collective_count.to_uint64() else {
-      raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+      raise InvalidArgument(OrderedExecutorEnqueue)
     }
     queue.submit(
       live_rows~,
@@ -27,7 +25,7 @@ pub fn GlmDecoderSlice::submit(
     }
     queue.record_completion()
   } else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorEnqueue)
+    raise InvalidArgument(OrderedExecutorEnqueue)
   }
   self.status = Active
 }
@@ -35,7 +33,7 @@ pub fn GlmDecoderSlice::submit(
 ///|
 pub fn GlmDecoderSlice::poll(self : Self) -> Bool raise @device.DeviceError {
   guard self.status is Active else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   self.status = Failed
   let complete = if self.collective_queue is Some(queue) {
@@ -48,7 +46,7 @@ pub fn GlmDecoderSlice::poll(self : Self) -> Bool raise @device.DeviceError {
       false
     }
   } else {
-    raise @device.DeviceError::InvalidArgument(OrderedExecutorPoll)
+    raise InvalidArgument(OrderedExecutorPoll)
   }
   if complete {
     if self.collective_queue is Some(_) {

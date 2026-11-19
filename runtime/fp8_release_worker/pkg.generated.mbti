@@ -19,6 +19,9 @@ pub(all) suberror Fp8ReleaseWorkerError {
   Prepare(@worker_service.OwnedWorkerServicePreparationError)
   OnlinePrepare(@online_session.LunaOnlineInstancePreparationError)
 } derive(Eq, @debug.Debug)
+pub fn Fp8ReleaseWorkerError::equal(Self, Self) -> Bool
+pub fn Fp8ReleaseWorkerError::not_equal(Self, Self) -> Bool
+pub fn Fp8ReleaseWorkerError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum Fp8ReleaseWorkerRule {
@@ -33,6 +36,9 @@ pub(all) enum Fp8ReleaseWorkerRule {
   ReusableRecipeIdentity
   ReleaseAuthorityIdentity
 } derive(Eq, @debug.Debug)
+pub fn Fp8ReleaseWorkerRule::equal(Self, Self) -> Bool
+pub fn Fp8ReleaseWorkerRule::not_equal(Self, Self) -> Bool
+pub fn Fp8ReleaseWorkerRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -28,7 +28,7 @@ test "routing precision owns exact compact memory and portable score policy" {
     )
     assert_eq(plan.geometry(), (3, 32, 8, 2))
     assert_eq(plan.grouping(), (2, 2, 1))
-    assert_eq(plan.score(), @precision_ir.MoeRoutingScore::SqrtSoftplus)
+    assert_eq(plan.score(), SqrtSoftplus)
     assert_eq(plan.buffer_bytes()[:], [96L, 96L, 96L, 24L, 24L][:])
     assert_eq(plan.workspace_bytes(), 336L)
     try
@@ -76,10 +76,7 @@ test "hash selection preserves table order without a choice-score workspace" {
     scaling=1.5,
     maximum_workspace_bytes=128L,
   )
-  assert_eq(
-    plan.selection(),
-    @precision_ir.MoeRoutingSelection::TokenHash(vocabulary_size=3),
-  )
+  assert_eq(plan.selection(), TokenHash(vocabulary_size=3))
   assert_eq(plan.buffer_bytes()[:], [32L, 32L, 0L, 32L, 32L][:])
   try
     @precision_ir.MoeRoutingPrecision::new(

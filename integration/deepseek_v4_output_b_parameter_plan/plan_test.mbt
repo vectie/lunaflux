@@ -64,16 +64,18 @@ fn output_b_evidence(
   digest? : String,
   weight_shape? : Array[Int64],
   weight_bytes? : Int64,
-) -> DeepSeekV4OutputBParameterEvidenceInput {
+) -> @deepseek_v4_output_b_parameter_plan.DeepSeekV4OutputBParameterEvidenceInput {
   let layout = @deepseek_v4_weights.output_b_quantized_layout(metadata.spec())
-  try! DeepSeekV4OutputBParameterEvidenceInput::new(
+  try! @deepseek_v4_output_b_parameter_plan.DeepSeekV4OutputBParameterEvidenceInput::new(
     contract=contract.unwrap_or(layout.contract()),
     weight_shape=weight_shape.unwrap_or([
       layout.weight_shape()[0],
       layout.weight_shape()[1],
     ]),
     scale_shape=layout.scale_shape(),
-    layout_digest_sha256=digest.unwrap_or(output_b_layout_digest_sha256(layout)),
+    layout_digest_sha256=digest.unwrap_or(
+      @deepseek_v4_output_b_parameter_plan.output_b_layout_digest_sha256(layout),
+    ),
     weight_operand_ordinal=2,
     weight_operand_role=AttentionOutputBWeightCodesInput,
     weight_operand_bytes=weight_bytes.unwrap_or(
@@ -96,7 +98,7 @@ test "all five profiles bind dense Output-B FP8 independently of expert storage"
       ("deepseek-ai/DeepSeek-V4-Flash-0731", '5'),
     ] {
     let (metadata, requirements, candidate) = output_b_fixture(entry.0, entry.1)
-    let plan = plan_output_b_parameter(
+    let plan = @deepseek_v4_output_b_parameter_plan.plan_output_b_parameter(
       metadata,
       requirements,
       candidate,
@@ -116,7 +118,7 @@ test "Output-B parameter join rejects shape digest bytes and cross-model identit
     "deepseek-ai/DeepSeek-V4-Flash-0731", 'a',
   )
   try
-    plan_output_b_parameter(
+    @deepseek_v4_output_b_parameter_plan.plan_output_b_parameter(
       metadata,
       requirements,
       candidate,
@@ -129,7 +131,7 @@ test "Output-B parameter join rejects shape digest bytes and cross-model identit
     _ => fail("wrong shape admitted")
   }
   try
-    plan_output_b_parameter(
+    @deepseek_v4_output_b_parameter_plan.plan_output_b_parameter(
       metadata,
       requirements,
       candidate,
@@ -142,7 +144,7 @@ test "Output-B parameter join rejects shape digest bytes and cross-model identit
     _ => fail("wrong digest admitted")
   }
   try
-    plan_output_b_parameter(
+    @deepseek_v4_output_b_parameter_plan.plan_output_b_parameter(
       metadata,
       requirements,
       candidate,
@@ -162,7 +164,7 @@ test "Output-B parameter join rejects shape digest bytes and cross-model identit
     "deepseek-ai/DeepSeek-V4-Flash", 'b',
   )
   try
-    plan_output_b_parameter(
+    @deepseek_v4_output_b_parameter_plan.plan_output_b_parameter(
       other_metadata,
       requirements,
       candidate,
@@ -181,7 +183,7 @@ test "Output-B join exposes no downstream authority" {
   let (metadata, requirements, candidate) = output_b_fixture(
     "deepseek-ai/DeepSeek-V4-Flash-0731", 'c',
   )
-  let plan = plan_output_b_parameter(
+  let plan = @deepseek_v4_output_b_parameter_plan.plan_output_b_parameter(
     metadata,
     requirements,
     candidate,

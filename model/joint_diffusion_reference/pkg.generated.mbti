@@ -31,15 +31,21 @@ pub(all) suberror JointDiffusionReferenceError {
   StageMachineCancelled
   CompletedMachineCannotBeCancelled
 } derive(Eq, @debug.Debug)
+pub fn JointDiffusionReferenceError::equal(Self, Self) -> Bool
+pub fn JointDiffusionReferenceError::not_equal(Self, Self) -> Bool
+pub fn JointDiffusionReferenceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CounterBasedJointLatentRng {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CounterBasedJointLatentRng::draw_limit(Self, JointLatentRandomStream) -> Int64
+pub fn CounterBasedJointLatentRng::equal(Self, Self) -> Bool
 pub fn CounterBasedJointLatentRng::new(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, seed~ : Int64, conditioning_draw_limit~ : Int64) -> Self raise JointDiffusionReferenceError
 pub fn CounterBasedJointLatentRng::normal(Self, JointLatentRandomStream, Int64) -> Double raise JointDiffusionReferenceError
+pub fn CounterBasedJointLatentRng::not_equal(Self, Self) -> Bool
 pub fn CounterBasedJointLatentRng::plan_digest(Self) -> @spec.PlanDigest
+pub fn CounterBasedJointLatentRng::to_repr(Self) -> @debug.Repr
 
 pub struct JointDiffusionStageMachine {
   // private fields
@@ -47,18 +53,24 @@ pub struct JointDiffusionStageMachine {
 pub fn JointDiffusionStageMachine::advance(Self, @joint_diffusion_plan.JointDiffusionStageKind) -> Self raise JointDiffusionReferenceError
 pub fn JointDiffusionStageMachine::cancel(Self) -> Self raise JointDiffusionReferenceError
 pub fn JointDiffusionStageMachine::completed_stage_count(Self) -> Int
+pub fn JointDiffusionStageMachine::equal(Self, Self) -> Bool
 pub fn JointDiffusionStageMachine::is_cancelled(Self) -> Bool
 pub fn JointDiffusionStageMachine::is_complete(Self) -> Bool
 pub fn JointDiffusionStageMachine::next_stage(Self) -> @joint_diffusion_plan.JointDiffusionStage?
+pub fn JointDiffusionStageMachine::not_equal(Self, Self) -> Bool
 pub fn JointDiffusionStageMachine::plan_digest(Self) -> @spec.PlanDigest
 pub fn JointDiffusionStageMachine::skip_optional(Self) -> Self raise JointDiffusionReferenceError
 pub fn JointDiffusionStageMachine::start(@joint_diffusion_plan.JointDiffusionPlan) -> Self raise JointDiffusionReferenceError
+pub fn JointDiffusionStageMachine::to_repr(Self) -> @debug.Repr
 
 pub(all) enum JointLatentRandomStream {
   ConditioningStream
   VideoLatentStream
   AudioLatentStream
 } derive(Eq, @debug.Debug)
+pub fn JointLatentRandomStream::equal(Self, Self) -> Bool
+pub fn JointLatentRandomStream::not_equal(Self, Self) -> Bool
+pub fn JointLatentRandomStream::to_repr(Self) -> @debug.Repr
 
 pub struct JointPackedRowLayout {
   // private fields
@@ -66,11 +78,14 @@ pub struct JointPackedRowLayout {
 pub fn JointPackedRowLayout::audio_input_width(Self) -> Int
 pub fn JointPackedRowLayout::audio_rows(Self) -> Int
 pub fn JointPackedRowLayout::conditioning_rows(Self) -> Int
+pub fn JointPackedRowLayout::equal(Self, Self) -> Bool
 pub fn JointPackedRowLayout::hidden_width(Self) -> Int
 pub fn JointPackedRowLayout::new(@joint_diffusion_plan.JointDiffusionPlan, @joint_diffusion_plan.JointDiffusionRequestShape, conditioning_rows~ : Int) -> Self raise JointDiffusionReferenceError
+pub fn JointPackedRowLayout::not_equal(Self, Self) -> Bool
 pub fn JointPackedRowLayout::plan_digest(Self) -> @spec.PlanDigest
 pub fn JointPackedRowLayout::row_count(Self, JointPackedRowSegment) -> Int
 pub fn JointPackedRowLayout::row_start(Self, JointPackedRowSegment) -> Int
+pub fn JointPackedRowLayout::to_repr(Self) -> @debug.Repr
 pub fn JointPackedRowLayout::total_rows(Self) -> Int
 pub fn JointPackedRowLayout::video_input_width(Self) -> Int
 pub fn JointPackedRowLayout::video_rows(Self) -> Int
@@ -80,29 +95,41 @@ pub(all) enum JointPackedRowSegment {
   VideoRows
   AudioRows
 } derive(Eq, @debug.Debug)
+pub fn JointPackedRowSegment::equal(Self, Self) -> Bool
+pub fn JointPackedRowSegment::not_equal(Self, Self) -> Bool
+pub fn JointPackedRowSegment::to_repr(Self) -> @debug.Repr
 
 pub struct JointProjectedRowSplit {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn JointProjectedRowSplit::audio(Self) -> ReadOnlyArray[Double]
 pub fn JointProjectedRowSplit::conditioning(Self) -> ReadOnlyArray[Double]
+pub fn JointProjectedRowSplit::equal(Self, Self) -> Bool
+pub fn JointProjectedRowSplit::not_equal(Self, Self) -> Bool
+pub fn JointProjectedRowSplit::to_repr(Self) -> @debug.Repr
 pub fn JointProjectedRowSplit::video(Self) -> ReadOnlyArray[Double]
 
 pub struct JointProjectedRows {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn JointProjectedRows::equal(Self, Self) -> Bool
 pub fn JointProjectedRows::layout(Self) -> JointPackedRowLayout
+pub fn JointProjectedRows::not_equal(Self, Self) -> Bool
+pub fn JointProjectedRows::to_repr(Self) -> @debug.Repr
 pub fn JointProjectedRows::values(Self) -> ReadOnlyArray[Double]
 
 pub struct ShiftedRectifiedFlowSchedule {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ShiftedRectifiedFlowSchedule::equal(Self, Self) -> Bool
 pub fn ShiftedRectifiedFlowSchedule::evaluation_count(Self) -> Int
 pub fn ShiftedRectifiedFlowSchedule::latent(Self) -> @joint_diffusion_plan.JointDiffusionLatentKind
+pub fn ShiftedRectifiedFlowSchedule::not_equal(Self, Self) -> Bool
 pub fn ShiftedRectifiedFlowSchedule::plan_digest(Self) -> @spec.PlanDigest
 pub fn ShiftedRectifiedFlowSchedule::point_count(Self) -> Int
 pub fn ShiftedRectifiedFlowSchedule::sigma(Self, Int) -> Double?
 pub fn ShiftedRectifiedFlowSchedule::timestep(Self, Int) -> Double?
+pub fn ShiftedRectifiedFlowSchedule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -1,7 +1,7 @@
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "vectie/lunaflux/internal/canonical_sha256",
-  "vectie/lunaflux/model/advanced_decoder_execution_plan",
   "vectie/lunaflux/model/glm53",
   "vectie/lunaflux/model/glm53_spec",
   "vectie/lunaflux/model/glm53_weights",
