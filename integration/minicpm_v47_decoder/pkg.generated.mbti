@@ -1,0 +1,113 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_decoder"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minicpm_v47_attention",
+  "vectie/lunaflux/integration/minicpm_v47_moe",
+  "vectie/lunaflux/integration/minicpm_v47_recurrent",
+  "vectie/lunaflux/model/hybrid_moe",
+  "vectie/lunaflux/model/minicpm_v47_operators",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum BranchWeights {
+  Recurrent(@minicpm_v47_recurrent.Weights)
+  FullAttention(@minicpm_v47_attention.Weights)
+}
+
+pub(all) struct BufferBudget {
+  activation_bytes : Int64
+  branch_workspace_bytes : Int64
+  moe_workspace_bytes : Int64
+  convolution_state_bytes : Int64
+  recurrent_state_bytes : Int64
+  key_cache_bytes : Int64
+  value_cache_bytes : Int64
+}
+
+pub(all) struct Buffers {
+  hidden : @device.Allocation
+  normalized : @device.Allocation
+  branch_output : @device.Allocation
+  branch_workspace : @device.Allocation
+  moe_workspace : @device.Allocation
+}
+
+pub struct Frame {
+  // private fields
+}
+pub fn Frame::close(Self) -> Unit raise @device.DeviceError
+pub fn Frame::launches(Self, @minicpm_v47_attention.Phase) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn Frame::new(Program) -> Self
+pub fn Frame::prepare(Self, @device.Context, modules~ : Modules, metadata~ : Metadata, layers~ : ArrayView[LayerWeights], states~ : StateArenas, buffers~ : Buffers) -> Unit raise @device.DeviceError
+
+pub(all) struct LayerPlan {
+  index : Int
+  kind : @hybrid_moe.LayerKind
+  state_offset : Int64
+  convolution_offset : Int64?
+}
+
+pub(all) struct LayerWeights {
+  input_norm : @device.Allocation
+  post_attention_norm : @device.Allocation
+  branch : BranchWeights
+  moe : @minicpm_v47_moe.Weights
+}
+
+pub(all) struct Metadata {
+  attention : @minicpm_v47_attention.Metadata
+  request_slots : @device.Allocation
+  reset : @device.Allocation
+}
+
+pub(all) struct Modules {
+  envelope : @device.Module
+  attention : @minicpm_v47_attention.Modules
+  recurrent : @device.Module
+  moe : @device.Module
+}
+
+pub(all) enum Operation {
+  NormalizeInput
+  Branch
+  AddBranchResidual
+  NormalizeMoe
+  Moe
+  AddMoeResidual
+} derive(Eq, @debug.Debug)
+pub fn Operation::equal(Self, Self) -> Bool
+pub fn Operation::name(Self) -> String
+pub fn Operation::not_equal(Self, Self) -> Bool
+pub fn Operation::to_repr(Self) -> @debug.Repr
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::attention_program(Self) -> @minicpm_v47_attention.Program
+pub fn Program::budget(Self) -> BufferBudget
+pub fn Program::launch_count(Self, @minicpm_v47_attention.Phase) -> Int
+pub fn Program::layers(Self) -> ReadOnlyArray[LayerPlan]
+pub fn Program::moe_program(Self) -> @minicpm_v47_moe.Program
+pub fn Program::new(@minicpm_v47_operators.DecoderOperators, @minicpm_v47_attention.Compilation) -> Self raise
+pub fn Program::operations(Self) -> ReadOnlyArray[Operation]
+pub fn Program::recurrent_program(Self) -> @minicpm_v47_recurrent.Program
+pub fn Program::source_bytes(Self) -> Bytes
+
+pub(all) struct StateArenas {
+  convolution : @device.Allocation
+  recurrent : @device.Allocation
+  key_cache : @device.Allocation
+  value_cache : @device.Allocation
+}
+
+// Type aliases
+pub using @minicpm_v47_attention {type Phase}
+
+// Traits

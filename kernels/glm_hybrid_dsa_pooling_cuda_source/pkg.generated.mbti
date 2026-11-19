@@ -15,11 +15,17 @@ pub(all) suberror GlmHybridDsaPoolingCudaSourceError {
   InvalidMaximumTokens
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridDsaPoolingCudaSourceError::equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum GlmHybridDsaPoolingCudaOperation {
   DsaKeyPoolCompressionBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridDsaPoolingCudaOperation::equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingCudaOperation::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridDsaPoolingCudaSource {
   // private fields
@@ -36,6 +42,9 @@ pub fn GlmHybridDsaPoolingCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum GlmHybridDsaPoolingNumericalContract {
   StableFloat32SoftmaxBf16ProbabilityOrderedFloat32AccumulationV1
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridDsaPoolingNumericalContract::equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingNumericalContract::not_equal(Self, Self) -> Bool
+pub fn GlmHybridDsaPoolingNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

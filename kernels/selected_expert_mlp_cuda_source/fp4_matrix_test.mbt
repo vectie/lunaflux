@@ -1,6 +1,10 @@
 ///|
 test "native low-bit matrix fragment export" {
-  let rows = if @env.get_env_var("LUNA_FP4_CAPACITY") == Some("64") { 64 } else { 17 }
+  let rows = if @env.get_env_var("LUNA_FP4_CAPACITY") == Some("64") {
+    64
+  } else {
+    17
+  }
   let source = @luna_cuda_precision.e2m1_scaled_matrix_helper(
     symbol="native_fp4",
   )

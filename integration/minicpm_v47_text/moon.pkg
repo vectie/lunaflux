@@ -1,0 +1,20 @@
+import {
+  "vectie/lunaflux/integration/minicpm_v47_decoder" @decoder,
+  "vectie/lunaflux/integration/text_io_frame" @text_frame,
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/kernels/text_io_execution_cuda_source" @text_source,
+  "vectie/lunaflux/integration/minicpm_v47_attention" @attention,
+  "vectie/lunaflux/device",
+}
+
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy" @strategy,
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

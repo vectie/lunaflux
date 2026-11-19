@@ -28,6 +28,9 @@ pub fn plan_decode_attention_workspace(AttentionShape, AttentionPhasePlan, Int, 
 pub(all) suberror AttentionStrategyError {
   InvalidAttentionStrategy(AttentionStrategyRule)
 } derive(Eq, @debug.Debug)
+pub fn AttentionStrategyError::equal(Self, Self) -> Bool
+pub fn AttentionStrategyError::not_equal(Self, Self) -> Bool
+pub fn AttentionStrategyError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AttentionAutotuneKey {
@@ -35,28 +38,40 @@ pub struct AttentionAutotuneKey {
 } derive(Eq, @debug.Debug)
 pub fn AttentionAutotuneKey::backend(Self) -> AttentionBackendId
 pub fn AttentionAutotuneKey::candidate(Self) -> AttentionTileCandidate
+pub fn AttentionAutotuneKey::equal(Self, Self) -> Bool
 pub fn AttentionAutotuneKey::new(backend~ : AttentionBackendId, target~ : AttentionTargetId, problem~ : AttentionCompileProblem, candidate~ : AttentionTileCandidate) -> Self
+pub fn AttentionAutotuneKey::not_equal(Self, Self) -> Bool
 pub fn AttentionAutotuneKey::problem(Self) -> AttentionCompileProblem
 pub fn AttentionAutotuneKey::target(Self) -> AttentionTargetId
+pub fn AttentionAutotuneKey::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionAutotuneRecord {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionAutotuneRecord::equal(Self, Self) -> Bool
 pub fn AttentionAutotuneRecord::key(Self) -> AttentionAutotuneKey
 pub fn AttentionAutotuneRecord::median_latency_ns(Self) -> Int64
 pub fn AttentionAutotuneRecord::new(key~ : AttentionAutotuneKey, median_latency_ns~ : Int64, sample_count~ : Int) -> Self raise AttentionStrategyError
+pub fn AttentionAutotuneRecord::not_equal(Self, Self) -> Bool
 pub fn AttentionAutotuneRecord::sample_count(Self) -> Int
+pub fn AttentionAutotuneRecord::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionBackendId {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionBackendId::equal(Self, Self) -> Bool
 pub fn AttentionBackendId::new(String) -> Self raise AttentionStrategyError
+pub fn AttentionBackendId::not_equal(Self, Self) -> Bool
 pub fn AttentionBackendId::stable_name(Self) -> StringView
+pub fn AttentionBackendId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionCandidateSource {
   AttentionOfflineAutotune
   AttentionStaticCostModel
 } derive(Eq, @debug.Debug)
+pub fn AttentionCandidateSource::equal(Self, Self) -> Bool
+pub fn AttentionCandidateSource::not_equal(Self, Self) -> Bool
+pub fn AttentionCandidateSource::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionCompileProblem {
   // private fields
@@ -65,24 +80,30 @@ pub fn AttentionCompileProblem::allows_alternative_softmax_reduction(Self) -> Bo
 pub fn AttentionCompileProblem::allows_approximate_exponential(Self) -> Bool
 pub fn AttentionCompileProblem::batch_rows(Self) -> Int
 pub fn AttentionCompileProblem::dimensions(Self) -> (Int, Int)
+pub fn AttentionCompileProblem::equal(Self, Self) -> Bool
 pub fn AttentionCompileProblem::is_causal(Self) -> Bool
 pub fn AttentionCompileProblem::key_value_read_view(Self) -> AttentionKeyValueReadView
 pub fn AttentionCompileProblem::new(shape~ : AttentionShape, phase~ : AttentionExecutionPhase, numeric_type~ : AttentionNumericType, batch_rows? : Int, query_rows~ : Int, context_tokens~ : Int, causal~ : Bool, allow_alternative_softmax_reduction? : Bool, allow_approximate_exponential? : Bool, key_value_read_view? : AttentionKeyValueReadView, required_fragment_ownership? : AttentionFragmentOwnership?) -> Self raise AttentionStrategyError
+pub fn AttentionCompileProblem::not_equal(Self, Self) -> Bool
 pub fn AttentionCompileProblem::numeric_type(Self) -> AttentionNumericType
 pub fn AttentionCompileProblem::phase(Self) -> AttentionExecutionPhase
 pub fn AttentionCompileProblem::required_fragment_ownership(Self) -> AttentionFragmentOwnership?
 pub fn AttentionCompileProblem::shape(Self) -> AttentionShape
+pub fn AttentionCompileProblem::to_repr(Self) -> @debug.Repr
 pub fn AttentionCompileProblem::with_query_rows(Self, Int) -> Self raise AttentionStrategyError
 
 pub struct AttentionCompilerCapabilities {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionCompilerCapabilities::equal(Self, Self) -> Bool
 pub fn AttentionCompilerCapabilities::limits(Self) -> (Int, Int64, Int)
 pub fn AttentionCompilerCapabilities::matrix_shape(Self) -> AttentionMatrixShape?
 pub fn AttentionCompilerCapabilities::new(subgroup_width~ : Int, max_threads_per_block~ : Int, max_shared_memory_bytes~ : Int64, max_pipeline_stages~ : Int, supports_async_copy~ : Bool, parallel_workgroup_target? : Int, matrix_shape? : AttentionMatrixShape?) -> Self raise AttentionStrategyError
+pub fn AttentionCompilerCapabilities::not_equal(Self, Self) -> Bool
 pub fn AttentionCompilerCapabilities::parallel_workgroup_target(Self) -> Int
 pub fn AttentionCompilerCapabilities::subgroup_width(Self) -> Int
 pub fn AttentionCompilerCapabilities::supports_async_copy(Self) -> Bool
+pub fn AttentionCompilerCapabilities::to_repr(Self) -> @debug.Repr
 pub fn AttentionCompilerCapabilities::with_parallel_workgroup_target(Self, Int) -> Self raise AttentionStrategyError
 
 pub struct AttentionCostBreakdown {
@@ -93,63 +114,93 @@ pub struct AttentionCostBreakdown {
   transfer : Int64
   total : Int64
 } derive(Eq, @debug.Debug)
+pub fn AttentionCostBreakdown::equal(Self, Self) -> Bool
+pub fn AttentionCostBreakdown::not_equal(Self, Self) -> Bool
+pub fn AttentionCostBreakdown::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionDecodeWorkspacePlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionDecodeWorkspacePlan::equal(Self, Self) -> Bool
 pub fn AttentionDecodeWorkspacePlan::maximum_context_tokens(Self) -> Int
 pub fn AttentionDecodeWorkspacePlan::maximum_rows(Self) -> Int
+pub fn AttentionDecodeWorkspacePlan::not_equal(Self, Self) -> Bool
 pub fn AttentionDecodeWorkspacePlan::partial_count(Self) -> Int64
 pub fn AttentionDecodeWorkspacePlan::partitions(Self) -> ReadOnlyArray[AttentionKeyValuePartition]
 pub fn AttentionDecodeWorkspacePlan::region_offsets_bytes(Self) -> (Int64, Int64, Int64)
 pub fn AttentionDecodeWorkspacePlan::split_count(Self) -> Int
+pub fn AttentionDecodeWorkspacePlan::to_repr(Self) -> @debug.Repr
 pub fn AttentionDecodeWorkspacePlan::total_bytes(Self) -> Int64
 
 pub struct AttentionDispatchPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionDispatchPlan::decode(Self) -> AttentionPhasePlan
+pub fn AttentionDispatchPlan::equal(Self, Self) -> Bool
+pub fn AttentionDispatchPlan::not_equal(Self, Self) -> Bool
 pub fn AttentionDispatchPlan::prefill(Self) -> AttentionPhasePlan
 pub fn AttentionDispatchPlan::shape(Self) -> AttentionShape
+pub fn AttentionDispatchPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionExecutionPhase {
   MixedCompatibility
   Prefill
   Decode
 } derive(Eq, @debug.Debug)
+pub fn AttentionExecutionPhase::equal(Self, Self) -> Bool
+pub fn AttentionExecutionPhase::not_equal(Self, Self) -> Bool
+pub fn AttentionExecutionPhase::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionFragmentOwnership {
   ExchangedScoreTiles
   QueryOwnedFragments
 } derive(Eq, @debug.Debug)
+pub fn AttentionFragmentOwnership::equal(Self, Self) -> Bool
+pub fn AttentionFragmentOwnership::not_equal(Self, Self) -> Bool
+pub fn AttentionFragmentOwnership::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionKeyValuePartition {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionKeyValuePartition::equal(Self, Self) -> Bool
+pub fn AttentionKeyValuePartition::not_equal(Self, Self) -> Bool
 pub fn AttentionKeyValuePartition::split_index(Self) -> Int
+pub fn AttentionKeyValuePartition::to_repr(Self) -> @debug.Repr
 pub fn AttentionKeyValuePartition::token_range(Self) -> (Int, Int)
 
 pub(all) enum AttentionKeyValueReadAddress {
   CurrentRow(Int)
   HistoricalPosition(Int)
 } derive(Eq, @debug.Debug)
+pub fn AttentionKeyValueReadAddress::equal(Self, Self) -> Bool
+pub fn AttentionKeyValueReadAddress::not_equal(Self, Self) -> Bool
+pub fn AttentionKeyValueReadAddress::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionKeyValueReadView {
   PagedCacheOnly
   DenseCurrentAndPagedHistory
   AffineDenseCurrentAndPagedHistory
 } derive(Eq, @debug.Debug)
+pub fn AttentionKeyValueReadView::equal(Self, Self) -> Bool
+pub fn AttentionKeyValueReadView::not_equal(Self, Self) -> Bool
+pub fn AttentionKeyValueReadView::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionMatrixShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionMatrixShape::dimensions(Self) -> (Int, Int, Int)
+pub fn AttentionMatrixShape::equal(Self, Self) -> Bool
 pub fn AttentionMatrixShape::new(rows~ : Int, columns~ : Int, reduction~ : Int) -> Self raise AttentionStrategyError
+pub fn AttentionMatrixShape::not_equal(Self, Self) -> Bool
+pub fn AttentionMatrixShape::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionMixedRowCoverage {
   PrefillRowsOnly
   AllActiveRows
 } derive(Eq, @debug.Debug)
+pub fn AttentionMixedRowCoverage::equal(Self, Self) -> Bool
+pub fn AttentionMixedRowCoverage::not_equal(Self, Self) -> Bool
+pub fn AttentionMixedRowCoverage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionNumericType {
   AttentionBFloat16
@@ -157,26 +208,38 @@ pub(all) enum AttentionNumericType {
   AttentionFloat32
   AttentionFloat8
 } derive(Eq, @debug.Debug)
+pub fn AttentionNumericType::equal(Self, Self) -> Bool
+pub fn AttentionNumericType::not_equal(Self, Self) -> Bool
+pub fn AttentionNumericType::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionPhasePlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionPhasePlan::equal(Self, Self) -> Bool
 pub fn AttentionPhasePlan::key_value_splits(Self) -> Int
+pub fn AttentionPhasePlan::not_equal(Self, Self) -> Bool
 pub fn AttentionPhasePlan::phase(Self) -> AttentionExecutionPhase
 pub fn AttentionPhasePlan::query_tile(Self) -> Int
 pub fn AttentionPhasePlan::reduction(Self) -> AttentionReduction
+pub fn AttentionPhasePlan::to_repr(Self) -> @debug.Repr
 pub fn AttentionPhasePlan::traversal(Self) -> AttentionTraversal
 
 pub(all) enum AttentionReduction {
   OnlineSoftmax
   SplitOnlineSoftmaxMerge
 } derive(Eq, @debug.Debug)
+pub fn AttentionReduction::equal(Self, Self) -> Bool
+pub fn AttentionReduction::not_equal(Self, Self) -> Bool
+pub fn AttentionReduction::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionShape::dimensions(Self) -> (Int, Int, Int, Int)
+pub fn AttentionShape::equal(Self, Self) -> Bool
 pub fn AttentionShape::new(query_heads~ : Int, kv_heads~ : Int, head_dimension~ : Int, tokens_per_page~ : Int) -> Self raise AttentionStrategyError
+pub fn AttentionShape::not_equal(Self, Self) -> Bool
+pub fn AttentionShape::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionStrategyRule {
   Shape
@@ -194,25 +257,34 @@ pub(all) enum AttentionStrategyRule {
   Duplicate
   Conflict
 } derive(Eq, @debug.Debug)
+pub fn AttentionStrategyRule::equal(Self, Self) -> Bool
+pub fn AttentionStrategyRule::not_equal(Self, Self) -> Bool
+pub fn AttentionStrategyRule::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTargetId {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionTargetId::equal(Self, Self) -> Bool
 pub fn AttentionTargetId::new(String) -> Self raise AttentionStrategyError
+pub fn AttentionTargetId::not_equal(Self, Self) -> Bool
 pub fn AttentionTargetId::stable_name(Self) -> StringView
+pub fn AttentionTargetId::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileCandidate {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionTileCandidate::compute(Self) -> AttentionTileCompute
+pub fn AttentionTileCandidate::equal(Self, Self) -> Bool
 pub fn AttentionTileCandidate::execution_geometry(Self) -> (Int, Int, Int)
 pub fn AttentionTileCandidate::joint_query_consumers(Self) -> Bool
 pub fn AttentionTileCandidate::memory(Self) -> AttentionTileMemory
+pub fn AttentionTileCandidate::not_equal(Self, Self) -> Bool
 pub fn AttentionTileCandidate::retained_query_dimensions(Self) -> Int
 pub fn AttentionTileCandidate::right_operand_read_slots(Self) -> Int
 pub fn AttentionTileCandidate::shared_memory_bytes(Self) -> Int64
 pub fn AttentionTileCandidate::stable_id(Self) -> Int
 pub fn AttentionTileCandidate::tile(Self) -> AttentionTileShape
+pub fn AttentionTileCandidate::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileCompute {
   AttentionScalarDot
@@ -228,31 +300,46 @@ pub(all) enum AttentionTileCompute {
   AttentionMatrixQkPv
   AttentionMatrixQkPvApproxExp
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileCompute::equal(Self, Self) -> Bool
+pub fn AttentionTileCompute::not_equal(Self, Self) -> Bool
+pub fn AttentionTileCompute::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileMemory {
   AttentionDirectGlobal
   AttentionStagedShared
   AttentionAsyncStagedShared
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileMemory::equal(Self, Self) -> Bool
+pub fn AttentionTileMemory::not_equal(Self, Self) -> Bool
+pub fn AttentionTileMemory::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn AttentionTileShape::dimensions(Self) -> (Int, Int, Int)
+pub fn AttentionTileShape::equal(Self, Self) -> Bool
+pub fn AttentionTileShape::not_equal(Self, Self) -> Bool
+pub fn AttentionTileShape::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTraversal {
   QueryTile
   KeyValueSplit
 } derive(Eq, @debug.Debug)
+pub fn AttentionTraversal::equal(Self, Self) -> Bool
+pub fn AttentionTraversal::not_equal(Self, Self) -> Bool
+pub fn AttentionTraversal::to_repr(Self) -> @debug.Repr
 
 pub struct CompiledAttentionTilePlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CompiledAttentionTilePlan::candidate(Self) -> AttentionTileCandidate
+pub fn CompiledAttentionTilePlan::equal(Self, Self) -> Bool
 pub fn CompiledAttentionTilePlan::estimated_cost_breakdown(Self) -> AttentionCostBreakdown raise AttentionStrategyError
+pub fn CompiledAttentionTilePlan::not_equal(Self, Self) -> Bool
 pub fn CompiledAttentionTilePlan::problem(Self) -> AttentionCompileProblem
 pub fn CompiledAttentionTilePlan::source(Self) -> AttentionCandidateSource
 pub fn CompiledAttentionTilePlan::static_cost(Self) -> Int64
+pub fn CompiledAttentionTilePlan::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -1,5 +1,5 @@
 ///|
-fn availability_from_code(code : Int) -> DriverAvailability {
+fn availability_from_code(code : Int32) -> DriverAvailability {
   match code {
     0 => Available
     1 => UnsupportedPlatform
@@ -13,7 +13,7 @@ fn availability_from_code(code : Int) -> DriverAvailability {
 
 ///|
 fn check_status(
-  status : Int,
+  status : Int32,
   operation : CudaOperation,
 ) -> Unit raise CudaError {
   match status {
@@ -48,13 +48,13 @@ fn decode_device_identity(buffer : FixedArray[Byte]) -> String raise CudaError {
   while length < buffer.length() && buffer[length] != b'\x00' {
     length += 1
   }
-  @utf8.decode(Bytes::from_array(buffer.view(end=length))) catch {
+  @utf8.decode(Bytes::from_array(buffer.exact_view(end=length))) catch {
     _ => raise InvalidOutput(DeviceInventory)
   }
 }
 
 ///|
-pub fn device_info(ordinal : Int) -> RawDeviceInfo raise CudaError {
+pub fn device_info(ordinal : Int32) -> RawDeviceInfo raise CudaError {
   let numeric = FixedArray::make(5, 0L)
   let name = FixedArray::make(96, b'\x00')
   let uuid = FixedArray::make(41, b'\x00')
@@ -73,7 +73,7 @@ pub fn device_info(ordinal : Int) -> RawDeviceInfo raise CudaError {
     compute_minor: numeric[2].to_int(),
     supports_bf16: numeric[3] != 0L,
     cublas_lt_available: numeric[4] != 0L,
-    name: @utf8.decode(Bytes::from_array(name.view(end=name_length))) catch {
+    name: @utf8.decode(Bytes::from_array(name.exact_view(end=name_length))) catch {
       _ => raise InvalidOutput(DeviceInventory)
     },
     uuid: decode_device_identity(uuid),
@@ -83,8 +83,8 @@ pub fn device_info(ordinal : Int) -> RawDeviceInfo raise CudaError {
 
 ///|
 pub fn device_can_access_peer(
-  source_ordinal : Int,
-  destination_ordinal : Int,
+  source_ordinal : Int32,
+  destination_ordinal : Int32,
 ) -> Bool raise CudaError {
   let output = Ref(0)
   check_status(
@@ -99,7 +99,7 @@ pub fn device_can_access_peer(
 }
 
 ///|
-pub fn open_context(ordinal : Int) -> Context raise CudaError {
+pub fn open_context(ordinal : Int32) -> Context raise CudaError {
   let status = Ref(0)
   let context = raw_context_create(ordinal, status)
   check_status(status.val, ContextCreate)
@@ -146,7 +146,7 @@ pub fn Event::close(self : Event) -> Unit raise CudaError {
 pub fn Context::create_dependency_event(
   self : Context,
 ) -> Event raise CudaError {
-  let status = Ref::new(0)
+  let status = Ref(0)
   let event = raw_dependency_event_create(self, status)
   check_status(status.val, EventCreate)
   event
@@ -354,13 +354,13 @@ pub fn Function::close(self : Function) -> Unit raise CudaError {
 pub fn Function::launch_synchronous(
   self : Function,
   stream : Stream,
-  grid_x : Int,
-  grid_y : Int,
-  grid_z : Int,
-  block_x : Int,
-  block_y : Int,
-  block_z : Int,
-  shared_memory_bytes : Int,
+  grid_x : Int32,
+  grid_y : Int32,
+  grid_z : Int32,
+  block_x : Int32,
+  block_y : Int32,
+  block_z : Int32,
+  shared_memory_bytes : Int32,
   allocations : FixedArray[Allocation],
   offsets : FixedArray[Int64],
   byte_counts : FixedArray[Int64],

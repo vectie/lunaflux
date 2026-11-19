@@ -13,14 +13,20 @@ pub fn compile_attention_tile_ir(@luna_attention_strategy.CompiledAttentionTileP
 pub(all) suberror AttentionTileIrError {
   InvalidAttentionTileIr(AttentionTileIrRule)
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileIrError::equal(Self, Self) -> Bool
+pub fn AttentionTileIrError::not_equal(Self, Self) -> Bool
+pub fn AttentionTileIrError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct AttentionTileBinding {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileBinding::equal(Self, Self) -> Bool
 pub fn AttentionTileBinding::expression(Self) -> AttentionTileExpression
 pub fn AttentionTileBinding::id(Self) -> AttentionTileValueId
 pub fn AttentionTileBinding::kind(Self) -> AttentionTileValueKind
+pub fn AttentionTileBinding::not_equal(Self, Self) -> Bool
+pub fn AttentionTileBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileExpression {
   AttentionTileInput(AttentionTileInputRole)
@@ -31,12 +37,18 @@ pub(all) enum AttentionTileExpression {
   AttentionTileFoldKeyValueStream(AttentionTileValueId)
   AttentionTileNormalize(AttentionTileValueId)
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileExpression::equal(Self, Self) -> Bool
+pub fn AttentionTileExpression::not_equal(Self, Self) -> Bool
+pub fn AttentionTileExpression::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileInputRole {
   QueryTileStream
   PagedKeyTileStream
   PagedValueTileStream
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileInputRole::equal(Self, Self) -> Bool
+pub fn AttentionTileInputRole::not_equal(Self, Self) -> Bool
+pub fn AttentionTileInputRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileIrRule {
   InvalidValueId
@@ -44,6 +56,9 @@ pub(all) enum AttentionTileIrRule {
   InvalidValueKind
   InvalidRoot
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileIrRule::equal(Self, Self) -> Bool
+pub fn AttentionTileIrRule::not_equal(Self, Self) -> Bool
+pub fn AttentionTileIrRule::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileProgram {
   // private fields
@@ -52,15 +67,28 @@ pub fn AttentionTileProgram::bindings(Self) -> ReadOnlyArray[AttentionTileBindin
 pub fn AttentionTileProgram::candidate(Self) -> @luna_attention_strategy.AttentionTileCandidate
 pub fn AttentionTileProgram::canonical_bytes(Self) -> Bytes
 pub fn AttentionTileProgram::digest(Self) -> AttentionTileProgramDigest
+pub fn AttentionTileProgram::equal(Self, Self) -> Bool
+pub fn AttentionTileProgram::not_equal(Self, Self) -> Bool
 pub fn AttentionTileProgram::problem(Self) -> @luna_attention_strategy.AttentionCompileProblem
 pub fn AttentionTileProgram::root(Self) -> AttentionTileValueId
+pub fn AttentionTileProgram::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileProgramDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileProgramDigest::as_hex(Self) -> String
+pub fn AttentionTileProgramDigest::equal(Self, Self) -> Bool
+pub fn AttentionTileProgramDigest::hash(Self) -> Int
+pub fn AttentionTileProgramDigest::hash_combine(Self, Hasher) -> Unit
+pub fn AttentionTileProgramDigest::not_equal(Self, Self) -> Bool
+pub fn AttentionTileProgramDigest::to_repr(Self) -> @debug.Repr
 
 pub struct AttentionTileValueId(Int) derive(Eq, Hash, @debug.Debug)
 pub fn AttentionTileValueId::as_int(Self) -> Int
+pub fn AttentionTileValueId::equal(Self, Self) -> Bool
 pub fn AttentionTileValueId::from_stable_int(Int) -> Self raise AttentionTileIrError
+pub fn AttentionTileValueId::hash(Self) -> Int
+pub fn AttentionTileValueId::hash_combine(Self, Hasher) -> Unit
+pub fn AttentionTileValueId::not_equal(Self, Self) -> Bool
+pub fn AttentionTileValueId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum AttentionTileValueKind {
   QueryTileValue
@@ -70,6 +98,9 @@ pub(all) enum AttentionTileValueKind {
   OnlineSoftmaxStateValue
   OutputTileValue
 } derive(Eq, @debug.Debug)
+pub fn AttentionTileValueKind::equal(Self, Self) -> Bool
+pub fn AttentionTileValueKind::not_equal(Self, Self) -> Bool
+pub fn AttentionTileValueKind::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

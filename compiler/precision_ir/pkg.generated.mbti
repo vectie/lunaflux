@@ -82,6 +82,12 @@ pub fn AutocastFloat::equal(Self, Self) -> Bool
 pub fn AutocastFloat::not_equal(Self, Self) -> Bool
 pub fn AutocastFloat::to_repr(Self) -> @debug.Repr
 
+pub(all) enum Bf16GateExpression {
+  Sigmoid
+  Product
+}
+pub fn Bf16GateExpression::program(Self) -> NumericExpression raise PrecisionPlanError
+
 pub struct CausalConvolutionPrecision {
   // private fields
 }
@@ -90,7 +96,8 @@ pub fn CausalConvolutionPrecision::capacity(Self) -> (Int, Int, Int)
 pub fn CausalConvolutionPrecision::effect(Self) -> NumericEffect
 pub fn CausalConvolutionPrecision::frame_bytes(Self) -> Int64
 pub fn CausalConvolutionPrecision::geometry(Self) -> (Int, Int)
-pub fn CausalConvolutionPrecision::new(channel_count~ : Int, kernel_size~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64) -> Self raise PrecisionPlanError
+pub fn CausalConvolutionPrecision::new(channel_count~ : Int, kernel_size~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, maximum_state_bytes~ : Int64, projection_boundary? : ConvolutionProjectionBoundary) -> Self raise PrecisionPlanError
+pub fn CausalConvolutionPrecision::projection_boundary(Self) -> ConvolutionProjectionBoundary
 pub fn CausalConvolutionPrecision::projection_fold(Self) -> OrderedNumericFold raise PrecisionPlanError
 pub fn CausalConvolutionPrecision::state_bytes(Self) -> Int64
 
@@ -158,6 +165,19 @@ pub fn Conversion::equal(Self, Self) -> Bool
 pub fn Conversion::not_equal(Self, Self) -> Bool
 pub fn Conversion::to_repr(Self) -> @debug.Repr
 
+pub(all) enum ConvolutionProjectionBoundary {
+  Float32BeforeSilu
+  Bf16BeforeSilu
+}
+
+pub(all) enum DeltaDecayLayout {
+  PerKeyComponent
+  PerValueHead
+} derive(Eq, @debug.Debug)
+pub fn DeltaDecayLayout::equal(Self, Self) -> Bool
+pub fn DeltaDecayLayout::not_equal(Self, Self) -> Bool
+pub fn DeltaDecayLayout::to_repr(Self) -> @debug.Repr
+
 pub(all) enum DenseDotLaw {
   ScalarFloat32
   MatrixFloat32
@@ -206,6 +226,14 @@ pub fn ExpertActivationRounding::equal(Self, Self) -> Bool
 pub fn ExpertActivationRounding::not_equal(Self, Self) -> Bool
 pub fn ExpertActivationRounding::to_repr(Self) -> @debug.Repr
 
+pub(all) enum ExpertCombineRounding {
+  Float32Combine
+  Bf16EachAdd
+} derive(Eq, @debug.Debug)
+pub fn ExpertCombineRounding::equal(Self, Self) -> Bool
+pub fn ExpertCombineRounding::not_equal(Self, Self) -> Bool
+pub fn ExpertCombineRounding::to_repr(Self) -> @debug.Repr
+
 pub(all) enum ExpertDownPublication {
   LocalBFloat16
   ReduceFloat32BeforeRound
@@ -231,6 +259,7 @@ pub fn ExpertMlpPrecision::activation_quantization(Self) -> (QuantizationPlan, Q
 pub fn ExpertMlpPrecision::activation_rounding(Self) -> ExpertActivationRounding
 pub fn ExpertMlpPrecision::bank_bytes(Self) -> Int64
 pub fn ExpertMlpPrecision::clamp(Self) -> Double?
+pub fn ExpertMlpPrecision::combine_rounding(Self) -> ExpertCombineRounding
 pub fn ExpertMlpPrecision::dot_law(Self) -> DenseDotLaw
 pub fn ExpertMlpPrecision::down_publication(Self) -> ExpertDownPublication
 pub fn ExpertMlpPrecision::expert_map(Self) -> ReadOnlyArray[Int]
@@ -238,7 +267,7 @@ pub fn ExpertMlpPrecision::expert_stride(Self) -> Int64
 pub fn ExpertMlpPrecision::expression(Self, ExpertExpression) -> NumericExpression raise PrecisionPlanError
 pub fn ExpertMlpPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn ExpertMlpPrecision::local_experts(Self) -> ReadOnlyArray[Int]
-pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, activation_rounding? : ExpertActivationRounding, routing_placement? : ExpertRoutingPlacement, activation_quantization? : (QuantizationPlan, QuantizationPlan), scaled_dot_law? : ScaledDotReductionLaw, dot_law? : DenseDotLaw, down_publication? : ExpertDownPublication, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
+pub fn ExpertMlpPrecision::new(gate~ : OperandPlan, up~ : OperandPlan, down~ : OperandPlan, expert_count~ : Int, local_experts~ : ArrayView[Int], selected_experts~ : Int, maximum_rows~ : Int, clamp? : Double, activation_rounding? : ExpertActivationRounding, routing_placement? : ExpertRoutingPlacement, activation_quantization? : (QuantizationPlan, QuantizationPlan), scaled_dot_law? : ScaledDotReductionLaw, dot_law? : DenseDotLaw, down_publication? : ExpertDownPublication, combine_rounding? : ExpertCombineRounding, memory_ceiling~ : Int64) -> Self raise PrecisionPlanError
 pub fn ExpertMlpPrecision::quantized_workspace_bytes(Self) -> (Int64, Int64)
 pub fn ExpertMlpPrecision::routing_placement(Self) -> ExpertRoutingPlacement
 pub fn ExpertMlpPrecision::scaled_dot_law(Self) -> ScaledDotReductionLaw
@@ -274,6 +303,18 @@ pub fn Float32AffineLaw::equal(Self, Self) -> Bool
 pub fn Float32AffineLaw::expression(Self) -> NumericExpression raise PrecisionPlanError
 pub fn Float32AffineLaw::not_equal(Self, Self) -> Bool
 pub fn Float32AffineLaw::to_repr(Self) -> @debug.Repr
+
+pub(all) enum GatedDeltaControlExpression {
+  Beta
+  LogDecay
+}
+
+pub struct GatedDeltaControlPrecision {
+  // private fields
+}
+pub fn GatedDeltaControlPrecision::expression(Self, GatedDeltaControlExpression) -> NumericExpression raise PrecisionPlanError
+pub fn GatedDeltaControlPrecision::geometry(Self) -> (Int, Int)
+pub fn GatedDeltaControlPrecision::new(head_count~ : Int, maximum_rows~ : Int) -> Self raise PrecisionPlanError
 
 pub(all) enum GatedPoolExpression {
   ProjectionUpdate
@@ -567,6 +608,33 @@ pub fn MoeRoutingSelection::equal(Self, Self) -> Bool
 pub fn MoeRoutingSelection::not_equal(Self, Self) -> Bool
 pub fn MoeRoutingSelection::to_repr(Self) -> @debug.Repr
 
+pub(all) enum MultiAxisRotaryExpression {
+  Angle
+  Cosine
+  Sine
+  Real
+  Imaginary
+}
+
+pub struct MultiAxisRotaryPrecision {
+  // private fields
+}
+pub fn MultiAxisRotaryPrecision::axes(Self) -> ReadOnlyArray[Int]
+pub fn MultiAxisRotaryPrecision::coefficient_bytes(Self) -> Int64
+pub fn MultiAxisRotaryPrecision::expression(Self, MultiAxisRotaryExpression) -> NumericExpression raise PrecisionPlanError
+pub fn MultiAxisRotaryPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
+pub fn MultiAxisRotaryPrecision::inverse_frequencies(Self) -> ReadOnlyArray[Float]
+pub fn MultiAxisRotaryPrecision::new(head_count~ : Int, head_width~ : Int, rotary_width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, axis_for_pair~ : ArrayView[Int], inverse_frequencies~ : ArrayView[Float]) -> Self raise PrecisionPlanError
+pub fn MultiAxisRotaryPrecision::tensor_bytes(Self) -> Int64
+
+pub(all) enum NormalizationWeightLaw {
+  DirectGamma
+  OnePlusGamma
+} derive(Eq, @debug.Debug)
+pub fn NormalizationWeightLaw::equal(Self, Self) -> Bool
+pub fn NormalizationWeightLaw::not_equal(Self, Self) -> Bool
+pub fn NormalizationWeightLaw::to_repr(Self) -> @debug.Repr
+
 pub(all) enum NumericBinary {
   AddRN
   SubtractRN
@@ -663,6 +731,8 @@ pub(all) enum NumericUnary {
   NaturalLogOnePlus
   ReciprocalSqrt
   SquareRoot
+  Sine
+  Cosine
   Negate
 } derive(Eq)
 pub fn NumericUnary::equal(Self, Self) -> Bool
@@ -723,6 +793,13 @@ pub struct PackedPlaneSlice {
 }
 pub fn PackedPlaneSlice::geometry(Self) -> (Int64, Int64, Int, Int64)
 
+pub struct PackedQkvPrecision {
+  // private fields
+}
+pub fn PackedQkvPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn PackedQkvPrecision::new(query_width~ : Int, kv_width~ : Int, maximum_rows~ : Int) -> Self raise PrecisionPlanError
+pub fn PackedQkvPrecision::output_bytes(Self) -> Int64
+
 pub struct PhysicalOperand {
   // private fields
 } derive(Eq, @debug.Debug)
@@ -744,6 +821,14 @@ pub(all) enum Placement {
 pub fn Placement::equal(Self, Self) -> Bool
 pub fn Placement::not_equal(Self, Self) -> Bool
 pub fn Placement::to_repr(Self) -> @debug.Repr
+
+pub struct PointwiseGatePrecision {
+  // private fields
+}
+pub fn PointwiseGatePrecision::gate_layout(Self) -> (Int, Int64, Int)
+pub fn PointwiseGatePrecision::geometry(Self) -> (Int, Int, Int)
+pub fn PointwiseGatePrecision::new(vector_width~ : Int, vectors_per_row~ : Int, maximum_rows~ : Int, gate_vector_stride? : Int, gate_row_stride? : Int64, gate_element_offset? : Int) -> Self raise PrecisionPlanError
+pub fn PointwiseGatePrecision::output_bytes(Self) -> Int64
 
 pub(all) enum ProjectionExpression {
   Product
@@ -863,15 +948,19 @@ pub struct RecurrentDeltaPrecision {
   // private fields
 }
 pub fn RecurrentDeltaPrecision::capacity(Self) -> (Int, Int, Int)
+pub fn RecurrentDeltaPrecision::decay_layout(Self) -> DeltaDecayLayout
 pub fn RecurrentDeltaPrecision::effect(Self) -> NumericEffect
 pub fn RecurrentDeltaPrecision::evaluation(Self) -> RecurrentEvaluationLaw
 pub fn RecurrentDeltaPrecision::expression(Self, RecurrentDeltaExpression) -> NumericExpression raise PrecisionPlanError
 pub fn RecurrentDeltaPrecision::fold(Self, RecurrentDeltaExpression) -> OrderedNumericFold raise PrecisionPlanError
 pub fn RecurrentDeltaPrecision::geometry(Self) -> (Int, Int, Int)
 pub fn RecurrentDeltaPrecision::log_decay_lower_bound(Self) -> Double
-pub fn RecurrentDeltaPrecision::new(head_count~ : Int, key_dimension~ : Int, value_dimension~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, normalization_epsilon~ : Double, log_decay_lower_bound~ : Double, maximum_state_bytes~ : Int64, evaluation? : RecurrentEvaluationLaw) -> Self raise PrecisionPlanError
+pub fn RecurrentDeltaPrecision::new(head_count~ : Int, key_dimension~ : Int, value_dimension~ : Int, maximum_rows~ : Int, maximum_sequences~ : Int, cache_slots~ : Int, normalization_epsilon~ : Double, maximum_state_bytes~ : Int64, log_decay_lower_bound? : Double, query_key_heads? : Int, decay_layout? : DeltaDecayLayout, query_key_row_stride? : Int64, value_row_stride? : Int64, evaluation? : RecurrentEvaluationLaw) -> Self raise PrecisionPlanError
 pub fn RecurrentDeltaPrecision::normalization_epsilon(Self) -> Double
+pub fn RecurrentDeltaPrecision::query_key_head_count(Self) -> Int
+pub fn RecurrentDeltaPrecision::query_key_row_stride(Self) -> Int64
 pub fn RecurrentDeltaPrecision::state_bytes(Self) -> Int64
+pub fn RecurrentDeltaPrecision::value_row_stride(Self) -> Int64
 
 pub(all) enum RecurrentEvaluationLaw {
   OrderedTokenFloat32
@@ -903,6 +992,35 @@ pub(all) enum RmsExpression {
   WeightedPublish
 }
 pub fn RmsExpression::program(Self) -> NumericExpression raise PrecisionPlanError
+
+pub(all) enum RmsNormExpression {
+  SquareUpdate
+  Inverse
+  Normalize
+  Weight
+  Gate
+  Publish
+}
+
+pub(all) enum RmsNormMode {
+  Weighted(NormalizationWeightLaw)
+  Bf16NormBf16WeightSiluGate
+} derive(Eq, @debug.Debug)
+pub fn RmsNormMode::equal(Self, Self) -> Bool
+pub fn RmsNormMode::not_equal(Self, Self) -> Bool
+pub fn RmsNormMode::to_repr(Self) -> @debug.Repr
+
+pub struct RmsNormPrecision {
+  // private fields
+}
+pub fn RmsNormPrecision::epsilon(Self) -> Double
+pub fn RmsNormPrecision::expression(Self, RmsNormExpression) -> NumericExpression raise PrecisionPlanError
+pub fn RmsNormPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn RmsNormPrecision::input_layout(Self) -> (Int, Int64)
+pub fn RmsNormPrecision::mode(Self) -> RmsNormMode
+pub fn RmsNormPrecision::new(vector_width~ : Int, vectors_per_row~ : Int, maximum_rows~ : Int, epsilon~ : Double, mode~ : RmsNormMode, input_vector_stride? : Int, input_row_stride? : Int64) -> Self raise PrecisionPlanError
+pub fn RmsNormPrecision::output_bytes(Self) -> Int64
+pub fn RmsNormPrecision::square_fold(Self) -> OrderedNumericFold raise PrecisionPlanError
 
 pub struct RotaryCachePrecision {
   // private fields
@@ -974,6 +1092,11 @@ pub(all) enum RoutingWeightExpression {
 }
 pub fn RoutingWeightExpression::program(Self) -> NumericExpression raise PrecisionPlanError
 
+pub(all) enum RoutingWeightStorage {
+  Bf16Weights
+  Float32CarryingBf16
+}
+
 pub struct RowProjectionNormPrecision {
   // private fields
 }
@@ -1012,6 +1135,21 @@ pub fn SeededTokenBlockPrecision::maximum_seed_tokens(Self) -> Int
 pub fn SeededTokenBlockPrecision::new(vocabulary_size~ : Int, block_rows~ : Int, maximum_main_rows~ : Int, noise_token_id~ : Int, maximum_seed_tokens? : Int) -> Self raise PrecisionPlanError
 pub fn SeededTokenBlockPrecision::workspace_bytes(Self) -> Int64
 
+pub(all) enum SegmentedAttentionExpression {
+  DotUpdate
+  ScaledScore
+  ProbabilityStorage
+  ValueUpdate
+  Publish
+}
+
+pub struct SegmentedAttentionPrecision {
+  // private fields
+}
+pub fn SegmentedAttentionPrecision::expression(Self, SegmentedAttentionExpression) -> NumericExpression raise PrecisionPlanError
+pub fn SegmentedAttentionPrecision::geometry(Self) -> (Int, Int, Int, Int)
+pub fn SegmentedAttentionPrecision::new(maximum_rows~ : Int, maximum_segment~ : Int, head_count~ : Int, head_width~ : Int) -> Self raise PrecisionPlanError
+
 pub struct SequentialMarkovPrecision {
   // private fields
 }
@@ -1023,6 +1161,19 @@ pub fn SequentialMarkovPrecision::new(vocabulary_size~ : Int, hidden_width~ : In
 pub fn SequentialMarkovPrecision::temperature(Self) -> Double
 pub fn SequentialMarkovPrecision::weight_bytes(Self) -> (Int64, Int64, Int64)
 pub fn SequentialMarkovPrecision::workspace_bytes(Self) -> Int64
+
+pub(all) enum SharedExpertExpression {
+  Sigmoid
+  Weight
+  Combine
+}
+
+pub struct SharedExpertPrecision {
+  // private fields
+}
+pub fn SharedExpertPrecision::expression(Self, SharedExpertExpression) -> NumericExpression raise PrecisionPlanError
+pub fn SharedExpertPrecision::geometry(Self) -> (Int, Int)
+pub fn SharedExpertPrecision::new(hidden_width~ : Int, maximum_rows~ : Int) -> Self raise PrecisionPlanError
 
 pub(all) enum SigmoidEvaluationLaw {
   StableBranches
@@ -1040,6 +1191,23 @@ pub(all) enum SimulatedCacheScale {
 pub fn SimulatedCacheScale::equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::not_equal(Self, Self) -> Bool
 pub fn SimulatedCacheScale::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SoftmaxTopKExpression {
+  ShiftedExponential
+  Sum
+  Probability
+  SelectedWeight
+}
+
+pub struct SoftmaxTopKPrecision {
+  // private fields
+}
+pub fn SoftmaxTopKPrecision::expression(Self, SoftmaxTopKExpression) -> NumericExpression raise PrecisionPlanError
+pub fn SoftmaxTopKPrecision::geometry(Self) -> (Int, Int, Int)
+pub fn SoftmaxTopKPrecision::index_bytes(Self) -> Int64
+pub fn SoftmaxTopKPrecision::new(expert_count~ : Int, experts_per_token~ : Int, maximum_rows~ : Int, weight_storage? : RoutingWeightStorage) -> Self raise PrecisionPlanError
+pub fn SoftmaxTopKPrecision::weight_bytes(Self) -> Int64
+pub fn SoftmaxTopKPrecision::weight_storage(Self) -> RoutingWeightStorage
 
 pub(all) enum SoftplusEvaluationLaw {
   StableFloat32
@@ -1127,16 +1295,17 @@ pub struct TextIoPrecision {
   // private fields
 }
 pub fn TextIoPrecision::boundary_workspace_bytes(Self, TextBoundary) -> Int64
-pub fn TextIoPrecision::egress_program(Self) -> @parallel_ir.Program raise PrecisionPlanError
+pub fn TextIoPrecision::egress_program(Self, vocabulary_shard? : @parallel_ir.VocabularyShard) -> @parallel_ir.Program raise PrecisionPlanError
 pub fn TextIoPrecision::expression(Self, TextExpression) -> NumericExpression raise PrecisionPlanError
 pub fn TextIoPrecision::fold(Self, TextExpression) -> OrderedNumericFold raise PrecisionPlanError
 pub fn TextIoPrecision::geometry(Self) -> (Int, Int, Int, Int, Int)
 pub fn TextIoPrecision::head_law(Self) -> DenseDotLaw
 pub fn TextIoPrecision::logits_bytes(Self) -> Int64
 pub fn TextIoPrecision::logits_law(Self) -> TextLogitsLaw
-pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64, boundary? : TextBoundary, normalization_law? : TextNormalizationLaw, logits_law? : TextLogitsLaw, head_law? : DenseDotLaw) -> Self raise PrecisionPlanError
+pub fn TextIoPrecision::new(vocabulary_size~ : Int, hidden_width~ : Int, stream_count~ : Int, maximum_rows~ : Int, maximum_output_rows~ : Int, normalization_epsilon~ : Double, maximum_workspace_bytes~ : Int64, boundary? : TextBoundary, normalization_law? : TextNormalizationLaw, normalization_weight_law? : NormalizationWeightLaw, logits_law? : TextLogitsLaw, head_law? : DenseDotLaw) -> Self raise PrecisionPlanError
 pub fn TextIoPrecision::normalization_epsilon(Self) -> Double
 pub fn TextIoPrecision::normalization_law(Self) -> TextNormalizationLaw
+pub fn TextIoPrecision::normalization_weight_law(Self) -> NormalizationWeightLaw
 pub fn TextIoPrecision::normalized_bytes(Self) -> Int64
 pub fn TextIoPrecision::replay_boundaries(Self) -> ReadOnlyArray[NumericBoundary]
 pub fn TextIoPrecision::residual_bytes(Self) -> Int64

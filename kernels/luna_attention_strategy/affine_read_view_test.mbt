@@ -1,12 +1,12 @@
 ///|
 test "affine substitution retains interval and overflow boundaries" {
-  let views : Array[AttentionKeyValueReadView] = [
+  let views : Array[@luna_attention_strategy.AttentionKeyValueReadView] = [
     DenseCurrentAndPagedHistory,
     AffineDenseCurrentAndPagedHistory,
   ]
   for view in views {
     assert_eq(
-      attention_key_value_read_address(
+      @luna_attention_strategy.attention_key_value_read_address(
         view,
         position=11,
         current_begin=10,
@@ -15,7 +15,7 @@ test "affine substitution retains interval and overflow boundaries" {
       Some(CurrentRow(1)),
     )
     assert_eq(
-      attention_key_value_read_address(
+      @luna_attention_strategy.attention_key_value_read_address(
         view,
         position=9,
         current_begin=10,
@@ -24,7 +24,7 @@ test "affine substitution retains interval and overflow boundaries" {
       Some(HistoricalPosition(9)),
     )
     assert_eq(
-      attention_key_value_read_address(
+      @luna_attention_strategy.attention_key_value_read_address(
         view,
         position=12,
         current_begin=10,
@@ -33,7 +33,7 @@ test "affine substitution retains interval and overflow boundaries" {
       Some(HistoricalPosition(12)),
     )
     assert_eq(
-      attention_key_value_read_address(
+      @luna_attention_strategy.attention_key_value_read_address(
         view,
         position=10,
         current_begin=10,
@@ -42,7 +42,7 @@ test "affine substitution retains interval and overflow boundaries" {
       Some(HistoricalPosition(10)),
     )
     assert_eq(
-      attention_key_value_read_address(
+      @luna_attention_strategy.attention_key_value_read_address(
         view,
         position=0,
         current_begin=2147483647,
@@ -52,7 +52,7 @@ test "affine substitution retains interval and overflow boundaries" {
     )
   }
   assert_eq(
-    attention_key_value_read_address(
+    @luna_attention_strategy.attention_key_value_read_address(
       PagedCacheOnly,
       position=11,
       current_begin=10,

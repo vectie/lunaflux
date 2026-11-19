@@ -16,11 +16,17 @@ pub(all) suberror RouterProjectionCudaSourceError {
   InvalidFunctionSymbol
   DimensionOverflow
 } derive(Eq, @debug.Debug)
+pub fn RouterProjectionCudaSourceError::equal(Self, Self) -> Bool
+pub fn RouterProjectionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn RouterProjectionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum RouterProjectionCudaOperation {
   Float32InputBf16WeightFloat32OutputProjection
 } derive(Eq, @debug.Debug)
+pub fn RouterProjectionCudaOperation::equal(Self, Self) -> Bool
+pub fn RouterProjectionCudaOperation::not_equal(Self, Self) -> Bool
+pub fn RouterProjectionCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct RouterProjectionCudaSource {
   // private fields
@@ -36,6 +42,9 @@ pub fn RouterProjectionCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum RouterProjectionNumericalContract {
   OrderedFloat32AccumulationNoBiasV1
 } derive(Eq, @debug.Debug)
+pub fn RouterProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn RouterProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn RouterProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

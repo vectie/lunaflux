@@ -11,6 +11,15 @@ The request cache is accessed before and after the frame, not published after
 every token. Lane-private state can spill; it is not a guarantee of register-only
 execution.
 
+The typed plan also supports grouped Q/K heads, scalar decay per value head and
+explicit BF16 input row strides. These let MiniCPM-V 4.7 take Q/K/V views directly
+from packed convolution output; output remains packed independently. The ordered
+route handles these layouts. Triangular/chunk lowering rejects them until it has
+matching support. Original equal-head, per-key, contiguous defaults retain the
+same generated source. New MiniCPM layouts have source tests only; previous GLM
+physical evidence does not qualify them. Negative-infinite lower-domain metadata
+means unbounded non-positive decay and never requests value clipping.
+
 The launch uses CSR sequence offsets and explicit persistent slot/reset arrays.
 Slots are unique within a frame by scheduler construction. Normal batch reordering
 does not move cache contents; a reset starts a new request in that slot. Idle and

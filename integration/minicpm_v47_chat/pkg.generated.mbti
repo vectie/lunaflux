@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_chat"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/integration/minicpm_v47_image_runtime",
+  "vectie/lunaflux/integration/minicpm_v47_request",
+  "vectie/lunaflux/integration/minicpm_v47_vision",
+  "vectie/lunaflux/model/minicpm_v47",
+  "vectie/lunaflux/service/api_auth",
+  "vectie/lunaflux/service/luna_event",
+  "vectie/lunaflux/service/session_chat",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn inference_limits() -> @inference.InferenceLimits raise
+
+// Errors
+
+// Types and methods
+pub struct Backend {
+  // private fields
+}
+pub async fn Backend::generate(Self, @inference.LunaTextRequestHandoffLease, @luna_event.LunaEventOwner, async (@luna_event.LunaEventView) -> Unit) -> Unit
+pub fn Backend::is_ready(Self) -> Bool
+pub fn Backend::new(@minicpm_v47.Spec, @tokenizer.TokenizerSpec, @minicpm_v47_request.Runner) -> Self raise
+pub fn Backend::service(Self, @api_auth.LunaApiAuthPolicy, model_alias? : String, timeout_ms? : Int) -> @session_chat.Service raise
+pub fn Backend::with_images(@minicpm_v47.Spec, @tokenizer.TokenizerSpec, @minicpm_v47_vision.Program, @minicpm_v47_image_runtime.Execution) -> Self raise
+
+// Type aliases
+
+// Traits

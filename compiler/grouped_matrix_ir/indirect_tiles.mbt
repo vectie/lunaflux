@@ -3,16 +3,16 @@
 /// Each worker visits tile w, w+workers, ... below the device-published live
 /// tile count. This is a partition of the domain, not a matrix reduction.
 pub struct IndirectMatrixTraversal {
-  priv capacity_groups : Int
-  priv column_tiles : Int
-  priv workers : Int
+  priv capacity_groups : Int32
+  priv column_tiles : Int32
+  priv workers : Int32
 }
 
 ///|
 pub fn IndirectMatrixTraversal::new(
-  capacity_groups~ : Int,
-  column_tiles~ : Int,
-  workers? : Int,
+  capacity_groups~ : Int32,
+  column_tiles~ : Int32,
+  workers? : Int32,
 ) -> Self raise @precision.PrecisionPlanError {
   guard capacity_groups > 0 &&
     column_tiles > 0 &&
@@ -33,15 +33,15 @@ pub fn IndirectMatrixTraversal::new(
 }
 
 ///|
-pub fn IndirectMatrixTraversal::workers(self : Self) -> Int {
+pub fn IndirectMatrixTraversal::workers(self : Self) -> Int32 {
   self.workers
 }
 
 ///|
 pub fn IndirectMatrixTraversal::tile_count(
   self : Self,
-  live_groups : Int,
-) -> Int raise @precision.PrecisionPlanError {
+  live_groups : Int32,
+) -> Int32 raise @precision.PrecisionPlanError {
   guard live_groups >= 0 && live_groups <= self.capacity_groups else {
     raise @precision.PrecisionPlanError::IllegalPlacement
   }

@@ -2,8 +2,8 @@
 /// Pure compilation in topological source order. Physical aliases introduce
 /// RAW/WAR/WAW edges; all analysis and allocation are confined to this call.
 pub fn compile(
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
   arenas : ArrayView[Arena],
   buffers : ArrayView[Buffer],
   source : ArrayView[Step],
@@ -33,11 +33,11 @@ pub fn compile(
       }
     }
   }
-  let users : Array[Array[Int]] = Array::makei(buffers.length(), _ => [])
+  let users : Array[Array[Int32]] = Array::makei(buffers.length(), _ => [])
   let steps : Array[Step] = []
-  let collectives : Array[Int] = []
+  let collectives : Array[Int32] = []
   for index, step in source {
-    let dependencies : Map[Int, Unit] = Map([])
+    let dependencies : Map[Int32, Unit] = Map([])
     for previous in step.dependencies {
       if previous < 0 || previous >= index {
         raise Dependency(index)

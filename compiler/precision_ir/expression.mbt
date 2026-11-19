@@ -44,6 +44,8 @@ pub(all) enum NumericUnary {
   NaturalLogOnePlus
   ReciprocalSqrt
   SquareRoot
+  Sine
+  Cosine
   Negate
 } derive(Eq)
 
@@ -65,8 +67,8 @@ pub extend NumericComparison with Eq::{equal, not_equal}
 /// Pure expressions; memory reads are bound by the containing effect plan.
 /// Constants retain their literal F32 bits, including signed zero and NaNs.
 pub(all) enum NumericExpr {
-  Input(Int)
-  Float32Bits(UInt)
+  Input(Int32)
+  Float32Bits(UInt32)
   Binary(NumericBinary, NumericExpr, NumericExpr)
   Unary(NumericUnary, NumericExpr)
   FusedMultiplyAdd(NumericExpr, NumericExpr, NumericExpr)

@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/multi_axis_rotary_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn coefficients_source(@precision_ir.MultiAxisRotaryPrecision, symbol~ : String) -> MultiAxisRotaryCudaSource raise
+
+pub fn rotary_source(@precision_ir.MultiAxisRotaryPrecision, symbol~ : String) -> MultiAxisRotaryCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct MultiAxisRotaryCudaSource {
+  // private fields
+}
+pub fn MultiAxisRotaryCudaSource::launch(Self) -> (Int, Int, Int)
+pub fn MultiAxisRotaryCudaSource::parameter_count(Self) -> Int
+pub fn MultiAxisRotaryCudaSource::plan(Self) -> @precision_ir.MultiAxisRotaryPrecision
+pub fn MultiAxisRotaryCudaSource::source_bytes(Self) -> Bytes
+pub fn MultiAxisRotaryCudaSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

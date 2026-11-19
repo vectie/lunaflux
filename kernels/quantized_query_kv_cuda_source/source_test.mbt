@@ -119,7 +119,7 @@ async test "original DeepSeek query replay exports full-width numerical stages" 
   }
   if @env.get_env_var("LUNAFLUX_MATCHED_QUERY_SOURCE_OUTPUT") is Some(path) {
     let mut bytes = source.source_bytes() +
-      b"\n#define LUNA_MATCHED_QUERY_NORM_VARIANTS 1\n"
+      b"\n#define LUNA_MATCHED_QUERY_NORM_VARIANTS 1\n#define LUNA_MATCHED_KV_NORM_VARIANTS 1\n"
     for stage in 0..<6 {
       let (_, y, threads) = source.launch(stage)
       bytes += @utf8.encode(
@@ -145,6 +145,16 @@ async test "original DeepSeek query replay exports full-width numerical stages" 
       )
       assert_eq(norm.launch_threads(), partitions)
       bytes += norm.source_bytes() + b"\n"
+      let kv_norm = @norm.prefix_rms_norm_bf16_with_optional_suffix_copy_source(
+        prefix_width=512,
+        suffix_width=0,
+        maximum_rows=144,
+        epsilon=1.0e-6,
+        function_symbol="matched_kv_norm_\{partitions}_\{vector}",
+        square_law=VectorizedTreeFloat32(partitions~, vector_width=vector),
+      )
+      assert_eq(kv_norm.launch_threads(), partitions)
+      bytes += kv_norm.source_bytes() + b"\n"
     }
     @fs.write_file(path, bytes, create_mode=CreateNew)
   }

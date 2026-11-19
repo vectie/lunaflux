@@ -25,6 +25,9 @@ pub(all) suberror LunaTileError {
   InvalidInstruction(index~ : Int, rule~ : LunaTileValidationRule)
   SizeOverflow(LunaTileValidationRule)
 } derive(Eq, @debug.Debug)
+pub fn LunaTileError::equal(Self, Self) -> Bool
+pub fn LunaTileError::not_equal(Self, Self) -> Bool
+pub fn LunaTileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum LunaTileAddressSpace {
@@ -32,28 +35,43 @@ pub(all) enum LunaTileAddressSpace {
   Shared
   Register
 } derive(Eq, @debug.Debug)
+pub fn LunaTileAddressSpace::equal(Self, Self) -> Bool
+pub fn LunaTileAddressSpace::not_equal(Self, Self) -> Bool
+pub fn LunaTileAddressSpace::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileAffineExpr {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaTileAffineExpr::constant(Self) -> Int64
+pub fn LunaTileAffineExpr::equal(Self, Self) -> Bool
 pub fn LunaTileAffineExpr::new(constant~ : Int64, terms~ : ArrayView[LunaTileAffineTerm]) -> Self
+pub fn LunaTileAffineExpr::not_equal(Self, Self) -> Bool
 pub fn LunaTileAffineExpr::terms(Self) -> ReadOnlyArray[LunaTileAffineTerm]
+pub fn LunaTileAffineExpr::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileAffineTerm {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileAffineTerm::equal(Self, Self) -> Bool
 pub fn LunaTileAffineTerm::new(loop_dimension~ : Int, coefficient~ : Int64) -> Self
+pub fn LunaTileAffineTerm::not_equal(Self, Self) -> Bool
+pub fn LunaTileAffineTerm::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileAotPlanningPolicy {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileAotPlanningPolicy::equal(Self, Self) -> Bool
 pub fn LunaTileAotPlanningPolicy::new(vector_bytes~ : Int, warp_width~ : Int, pipeline_stages~ : Int, max_shared_memory_bytes~ : Int64) -> Self raise LunaTileError
+pub fn LunaTileAotPlanningPolicy::not_equal(Self, Self) -> Bool
+pub fn LunaTileAotPlanningPolicy::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileBarrierScope {
   Warp
   Block
 } derive(Eq, @debug.Debug)
+pub fn LunaTileBarrierScope::equal(Self, Self) -> Bool
+pub fn LunaTileBarrierScope::not_equal(Self, Self) -> Bool
+pub fn LunaTileBarrierScope::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileBf16Mma16x16x16View {
   // private fields
@@ -70,22 +88,38 @@ pub(all) enum LunaTileConstraint {
   LunaTileDimensionMultipleOf(LunaTileConstraintId, LunaTileTensorId, Int, Int64)
   LunaTileAlignmentAtLeast(LunaTileConstraintId, LunaTileTensorId, Int64)
 } derive(Eq, @debug.Debug)
+pub fn LunaTileConstraint::equal(Self, Self) -> Bool
+pub fn LunaTileConstraint::not_equal(Self, Self) -> Bool
+pub fn LunaTileConstraint::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileConstraintId(Int) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileConstraintId::as_int(Self) -> Int
+pub fn LunaTileConstraintId::equal(Self, Self) -> Bool
 pub fn LunaTileConstraintId::from_stable_int(Int) -> Self raise LunaTileError
+pub fn LunaTileConstraintId::hash(Self) -> Int
+pub fn LunaTileConstraintId::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileConstraintId::not_equal(Self, Self) -> Bool
+pub fn LunaTileConstraintId::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileCudaAotDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileCudaAotDigest::as_hex(Self) -> String
+pub fn LunaTileCudaAotDigest::equal(Self, Self) -> Bool
 pub fn LunaTileCudaAotDigest::from_sha256(String) -> Self raise LunaTileError
+pub fn LunaTileCudaAotDigest::hash(Self) -> Int
+pub fn LunaTileCudaAotDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileCudaAotDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileCudaAotDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileCudaAotInput {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaTileCudaAotInput::canonical_bytes(Self) -> Bytes
 pub fn LunaTileCudaAotInput::digest(Self) -> LunaTileCudaAotDigest
+pub fn LunaTileCudaAotInput::equal(Self, Self) -> Bool
 pub fn LunaTileCudaAotInput::memory_plan(Self) -> LunaTileMemoryPlan
+pub fn LunaTileCudaAotInput::not_equal(Self, Self) -> Bool
 pub fn LunaTileCudaAotInput::program_digest(Self) -> LunaTileProgramDigest
+pub fn LunaTileCudaAotInput::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileCudaLoweringLimits {
   // private fields
@@ -94,11 +128,21 @@ pub fn LunaTileCudaLoweringLimits::new(max_source_bytes~ : Int) -> Self raise Lu
 
 pub struct LunaTileCudaSourceDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileCudaSourceDigest::as_hex(Self) -> String
+pub fn LunaTileCudaSourceDigest::equal(Self, Self) -> Bool
 pub fn LunaTileCudaSourceDigest::from_sha256(String) -> Self raise LunaTileError
+pub fn LunaTileCudaSourceDigest::hash(Self) -> Int
+pub fn LunaTileCudaSourceDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileCudaSourceDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileCudaSourceDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileCudaTranslationDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileCudaTranslationDigest::as_hex(Self) -> String
+pub fn LunaTileCudaTranslationDigest::equal(Self, Self) -> Bool
 pub fn LunaTileCudaTranslationDigest::from_sha256(String) -> Self raise LunaTileError
+pub fn LunaTileCudaTranslationDigest::hash(Self) -> Int
+pub fn LunaTileCudaTranslationDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileCudaTranslationDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileCudaTranslationDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileCudaTranslationUnit {
   // private fields
@@ -107,11 +151,14 @@ pub fn LunaTileCudaTranslationUnit::canonical_bytes(Self) -> Bytes
 pub fn LunaTileCudaTranslationUnit::digest(Self) -> LunaTileCudaTranslationDigest
 pub fn LunaTileCudaTranslationUnit::entry_point(Self) -> String
 pub fn LunaTileCudaTranslationUnit::entry_point_id(Self) -> LunaTileEntryPointId
+pub fn LunaTileCudaTranslationUnit::equal(Self, Self) -> Bool
 pub fn LunaTileCudaTranslationUnit::memory_plan(Self) -> LunaTileMemoryPlan
+pub fn LunaTileCudaTranslationUnit::not_equal(Self, Self) -> Bool
 pub fn LunaTileCudaTranslationUnit::planning_digest(Self) -> LunaTileCudaAotDigest
 pub fn LunaTileCudaTranslationUnit::program_digest(Self) -> LunaTileProgramDigest
 pub fn LunaTileCudaTranslationUnit::source_bytes(Self) -> Bytes
 pub fn LunaTileCudaTranslationUnit::source_digest(Self) -> LunaTileCudaSourceDigest
+pub fn LunaTileCudaTranslationUnit::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileDType {
   BFloat16
@@ -120,6 +167,9 @@ pub(all) enum LunaTileDType {
   Int8
   Int32
 } derive(Eq, @debug.Debug)
+pub fn LunaTileDType::equal(Self, Self) -> Bool
+pub fn LunaTileDType::not_equal(Self, Self) -> Bool
+pub fn LunaTileDType::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileElementwiseKind {
   Add
@@ -127,10 +177,18 @@ pub(all) enum LunaTileElementwiseKind {
   Maximum
   Silu
 } derive(Eq, @debug.Debug)
+pub fn LunaTileElementwiseKind::equal(Self, Self) -> Bool
+pub fn LunaTileElementwiseKind::not_equal(Self, Self) -> Bool
+pub fn LunaTileElementwiseKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileEntryPointId(Int) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileEntryPointId::as_int(Self) -> Int
+pub fn LunaTileEntryPointId::equal(Self, Self) -> Bool
 pub fn LunaTileEntryPointId::from_stable_int(Int) -> Self raise LunaTileError
+pub fn LunaTileEntryPointId::hash(Self) -> Int
+pub fn LunaTileEntryPointId::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileEntryPointId::not_equal(Self, Self) -> Bool
+pub fn LunaTileEntryPointId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileInstruction {
   LunaTileCopy(LunaTileRegion, LunaTileRegion)
@@ -142,6 +200,9 @@ pub(all) enum LunaTileInstruction {
   LunaTileElementwise(LunaTileElementwiseKind, destination~ : LunaTileTensorId, inputs~ : ReadOnlyArray[LunaTileTensorId])
 } derive(Eq, @debug.Debug)
 pub fn LunaTileInstruction::elementwise(LunaTileElementwiseKind, LunaTileTensorId, ArrayView[LunaTileTensorId]) -> Self
+pub fn LunaTileInstruction::equal(Self, Self) -> Bool
+pub fn LunaTileInstruction::not_equal(Self, Self) -> Bool
+pub fn LunaTileInstruction::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileLimitRule {
   TensorCount
@@ -152,19 +213,28 @@ pub(all) enum LunaTileLimitRule {
   CanonicalBytes
   SharedMemoryBytes
 } derive(Eq, @debug.Debug)
+pub fn LunaTileLimitRule::equal(Self, Self) -> Bool
+pub fn LunaTileLimitRule::not_equal(Self, Self) -> Bool
+pub fn LunaTileLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileLimits {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileLimits::equal(Self, Self) -> Bool
 pub fn LunaTileLimits::max_shared_memory_bytes(Self) -> Int64
 pub fn LunaTileLimits::new(max_tensors~ : Int, max_instructions~ : Int, max_rank~ : Int, max_loop_rank~ : Int, max_constraints~ : Int, max_canonical_bytes~ : Int, max_shared_memory_bytes~ : Int64) -> Self raise LunaTileError
+pub fn LunaTileLimits::not_equal(Self, Self) -> Bool
+pub fn LunaTileLimits::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileMemoryPlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileMemoryPlan::equal(Self, Self) -> Bool
+pub fn LunaTileMemoryPlan::not_equal(Self, Self) -> Bool
 pub fn LunaTileMemoryPlan::pipeline_stages(Self) -> Int
 pub fn LunaTileMemoryPlan::shared_memory_bytes(Self) -> Int64
 pub fn LunaTileMemoryPlan::shared_tensor_count(Self) -> Int
+pub fn LunaTileMemoryPlan::to_repr(Self) -> @debug.Repr
 pub fn LunaTileMemoryPlan::vector_bytes(Self) -> Int
 
 pub struct LunaTileOperationSummary {
@@ -174,9 +244,12 @@ pub fn LunaTileOperationSummary::async_copy_count(Self) -> Int
 pub fn LunaTileOperationSummary::barrier_count(Self) -> Int
 pub fn LunaTileOperationSummary::copy_count(Self) -> Int
 pub fn LunaTileOperationSummary::elementwise_count(Self) -> Int
+pub fn LunaTileOperationSummary::equal(Self, Self) -> Bool
 pub fn LunaTileOperationSummary::mma_count(Self) -> Int
+pub fn LunaTileOperationSummary::not_equal(Self, Self) -> Bool
 pub fn LunaTileOperationSummary::pipeline_stage_count(Self) -> Int
 pub fn LunaTileOperationSummary::reduction_count(Self) -> Int
+pub fn LunaTileOperationSummary::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileParallelCandidate {
   // private fields
@@ -185,8 +258,10 @@ pub fn LunaTileParallelCandidate::canonical_bytes(Self) -> Bytes
 pub fn LunaTileParallelCandidate::compute_capability(Self) -> (Int, Int)
 pub fn LunaTileParallelCandidate::digest(Self) -> LunaTileParallelDigest
 pub fn LunaTileParallelCandidate::entry_point(Self) -> String
+pub fn LunaTileParallelCandidate::equal(Self, Self) -> Bool
 pub fn LunaTileParallelCandidate::execution_path(Self) -> LunaTileParallelExecutionPath
 pub fn LunaTileParallelCandidate::mapping(Self) -> LunaTileParallelMapping
+pub fn LunaTileParallelCandidate::not_equal(Self, Self) -> Bool
 pub fn LunaTileParallelCandidate::planning_digest(Self) -> LunaTileCudaAotDigest
 pub fn LunaTileParallelCandidate::program_digest(Self) -> LunaTileProgramDigest
 pub fn LunaTileParallelCandidate::serial_oracle_digest(Self) -> LunaTileCudaTranslationDigest
@@ -194,37 +269,55 @@ pub fn LunaTileParallelCandidate::shared_plan(Self) -> LunaTileParallelSharedPla
 pub fn LunaTileParallelCandidate::source_bytes(Self) -> Bytes
 pub fn LunaTileParallelCandidate::source_digest(Self) -> LunaTileCudaSourceDigest
 pub fn LunaTileParallelCandidate::tensor_core_eligibility(Self) -> LunaTileTensorCoreEligibility
+pub fn LunaTileParallelCandidate::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileParallelDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileParallelDigest::as_hex(Self) -> String
+pub fn LunaTileParallelDigest::equal(Self, Self) -> Bool
 pub fn LunaTileParallelDigest::from_sha256(String) -> Self raise LunaTileError
+pub fn LunaTileParallelDigest::hash(Self) -> Int
+pub fn LunaTileParallelDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileParallelDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileParallelDigest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileParallelExecutionPath {
   ParallelSimtCandidate
 } derive(Eq, @debug.Debug)
+pub fn LunaTileParallelExecutionPath::equal(Self, Self) -> Bool
+pub fn LunaTileParallelExecutionPath::not_equal(Self, Self) -> Bool
+pub fn LunaTileParallelExecutionPath::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileParallelMapping {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaTileParallelMapping::block_count(Self) -> Int
 pub fn LunaTileParallelMapping::block_threads(Self) -> Int
+pub fn LunaTileParallelMapping::equal(Self, Self) -> Bool
+pub fn LunaTileParallelMapping::not_equal(Self, Self) -> Bool
 pub fn LunaTileParallelMapping::rounds_per_worker(Self) -> Int64
 pub fn LunaTileParallelMapping::tile_count(Self) -> Int64
 pub fn LunaTileParallelMapping::tile_shape(Self) -> (Int, Int, Int)
+pub fn LunaTileParallelMapping::to_repr(Self) -> @debug.Repr
 pub fn LunaTileParallelMapping::warps_per_block(Self) -> Int
 
 pub struct LunaTileParallelPolicy {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileParallelPolicy::equal(Self, Self) -> Bool
 pub fn LunaTileParallelPolicy::new(compute_major~ : Int, compute_minor~ : Int, block_threads~ : Int, block_count~ : Int, tile_m~ : Int, tile_n~ : Int, tile_k~ : Int, pipeline_stages~ : Int, vector_bytes~ : Int, max_shared_memory_bytes~ : Int64, tensor_core_policy~ : LunaTileTensorCorePolicy) -> Self raise LunaTileError
+pub fn LunaTileParallelPolicy::not_equal(Self, Self) -> Bool
+pub fn LunaTileParallelPolicy::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileParallelSharedPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn LunaTileParallelSharedPlan::arena_bytes(Self) -> Int64
+pub fn LunaTileParallelSharedPlan::equal(Self, Self) -> Bool
+pub fn LunaTileParallelSharedPlan::not_equal(Self, Self) -> Bool
 pub fn LunaTileParallelSharedPlan::placement_at(Self, Int) -> LunaTileSharedPlacement?
 pub fn LunaTileParallelSharedPlan::placement_count(Self) -> Int
 pub fn LunaTileParallelSharedPlan::reuse_count(Self) -> Int
+pub fn LunaTileParallelSharedPlan::to_repr(Self) -> @debug.Repr
 pub fn LunaTileParallelSharedPlan::total_shared_memory_bytes(Self) -> Int64
 
 pub struct LunaTileProgram {
@@ -232,52 +325,85 @@ pub struct LunaTileProgram {
 } derive(Eq, @debug.Debug)
 pub fn LunaTileProgram::canonical_bytes(Self) -> Bytes
 pub fn LunaTileProgram::digest(Self) -> LunaTileProgramDigest
+pub fn LunaTileProgram::equal(Self, Self) -> Bool
 pub fn LunaTileProgram::instruction_count(Self) -> Int
+pub fn LunaTileProgram::instructions(Self) -> ReadOnlyArray[LunaTileInstruction]
+pub fn LunaTileProgram::loop_extents(Self) -> ReadOnlyArray[Int64]
 pub fn LunaTileProgram::loop_rank(Self) -> Int
+pub fn LunaTileProgram::not_equal(Self, Self) -> Bool
 pub fn LunaTileProgram::operation_summary(Self) -> LunaTileOperationSummary
 pub fn LunaTileProgram::residual_add_semantics(Self) -> LunaTileResidualAddSemantics?
 pub fn LunaTileProgram::tensor_count(Self) -> Int
+pub fn LunaTileProgram::tensors(Self) -> ReadOnlyArray[LunaTileTensorView]
+pub fn LunaTileProgram::to_repr(Self) -> @debug.Repr
 pub fn LunaTileProgram::uses_dtype(Self, LunaTileDType) -> Bool
 
 pub struct LunaTileProgramDigest(String) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileProgramDigest::as_hex(Self) -> String
+pub fn LunaTileProgramDigest::equal(Self, Self) -> Bool
 pub fn LunaTileProgramDigest::from_sha256(String) -> Self raise LunaTileError
+pub fn LunaTileProgramDigest::hash(Self) -> Int
+pub fn LunaTileProgramDigest::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileProgramDigest::not_equal(Self, Self) -> Bool
+pub fn LunaTileProgramDigest::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileProgramInput {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileProgramInput::equal(Self, Self) -> Bool
 pub fn LunaTileProgramInput::new(loop_extents~ : ArrayView[Int64], tensors~ : ArrayView[LunaTileTensorView], instructions~ : ArrayView[LunaTileInstruction], constraints~ : ArrayView[LunaTileConstraint]) -> Self
+pub fn LunaTileProgramInput::not_equal(Self, Self) -> Bool
 pub fn LunaTileProgramInput::residual_add(left~ : LunaTileTensorId, right~ : LunaTileTensorId, output~ : LunaTileTensorId, width~ : Int64, loop_extents~ : ArrayView[Int64], tensors~ : ArrayView[LunaTileTensorView], instructions~ : ArrayView[LunaTileInstruction], constraints~ : ArrayView[LunaTileConstraint]) -> Self
+pub fn LunaTileProgramInput::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileReductionKind {
   Sum
   Maximum
 } derive(Eq, @debug.Debug)
+pub fn LunaTileReductionKind::equal(Self, Self) -> Bool
+pub fn LunaTileReductionKind::not_equal(Self, Self) -> Bool
+pub fn LunaTileReductionKind::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileRegion {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileRegion::equal(Self, Self) -> Bool
+pub fn LunaTileRegion::extents(Self) -> ReadOnlyArray[Int64]
 pub fn LunaTileRegion::new(tensor~ : LunaTileTensorId, origins~ : ArrayView[LunaTileAffineExpr], extents~ : ArrayView[Int64]) -> Self
+pub fn LunaTileRegion::not_equal(Self, Self) -> Bool
+pub fn LunaTileRegion::origins(Self) -> ReadOnlyArray[LunaTileAffineExpr]
 pub fn LunaTileRegion::tensor(Self) -> LunaTileTensorId
+pub fn LunaTileRegion::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileResidualAddSemantics {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileResidualAddSemantics::equal(Self, Self) -> Bool
+pub fn LunaTileResidualAddSemantics::not_equal(Self, Self) -> Bool
+pub fn LunaTileResidualAddSemantics::to_repr(Self) -> @debug.Repr
 pub fn LunaTileResidualAddSemantics::width(Self) -> Int64
 
 pub struct LunaTileSharedPlacement {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn LunaTileSharedPlacement::equal(Self, Self) -> Bool
 pub fn LunaTileSharedPlacement::first_instruction(Self) -> Int
 pub fn LunaTileSharedPlacement::last_instruction(Self) -> Int
+pub fn LunaTileSharedPlacement::not_equal(Self, Self) -> Bool
 pub fn LunaTileSharedPlacement::offset_bytes(Self) -> Int64
 pub fn LunaTileSharedPlacement::reused_slot(Self) -> Bool
 pub fn LunaTileSharedPlacement::size_bytes(Self) -> Int64
 pub fn LunaTileSharedPlacement::tensor(Self) -> LunaTileTensorId
+pub fn LunaTileSharedPlacement::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileStageId(Int) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileStageId::as_int(Self) -> Int
+pub fn LunaTileStageId::equal(Self, Self) -> Bool
 pub fn LunaTileStageId::from_stable_int(Int) -> Self raise LunaTileError
+pub fn LunaTileStageId::hash(Self) -> Int
+pub fn LunaTileStageId::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileStageId::not_equal(Self, Self) -> Bool
+pub fn LunaTileStageId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileTensorCoreEligibility {
   TensorCoreEligibleUnqualified
@@ -285,15 +411,26 @@ pub(all) enum LunaTileTensorCoreEligibility {
   TensorCoreIneligibleShape
   TensorCoreNoMma
 } derive(Eq, @debug.Debug)
+pub fn LunaTileTensorCoreEligibility::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreEligibility::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCoreEligibility::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileTensorCorePolicy {
   ObserveEligibilityUseParallelSimt
   RequireExternallyQualifiedTensorCore
 } derive(Eq, @debug.Debug)
+pub fn LunaTileTensorCorePolicy::equal(Self, Self) -> Bool
+pub fn LunaTileTensorCorePolicy::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorCorePolicy::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileTensorId(Int) derive(Eq, Hash, @debug.Debug)
 pub fn LunaTileTensorId::as_int(Self) -> Int
+pub fn LunaTileTensorId::equal(Self, Self) -> Bool
 pub fn LunaTileTensorId::from_stable_int(Int) -> Self raise LunaTileError
+pub fn LunaTileTensorId::hash(Self) -> Int
+pub fn LunaTileTensorId::hash_combine(Self, Hasher) -> Unit
+pub fn LunaTileTensorId::not_equal(Self, Self) -> Bool
+pub fn LunaTileTensorId::to_repr(Self) -> @debug.Repr
 
 pub struct LunaTileTensorView {
   // private fields
@@ -301,11 +438,14 @@ pub struct LunaTileTensorView {
 pub fn LunaTileTensorView::address_space(Self) -> LunaTileAddressSpace
 pub fn LunaTileTensorView::alignment_bytes(Self) -> Int64
 pub fn LunaTileTensorView::dtype(Self) -> LunaTileDType
+pub fn LunaTileTensorView::equal(Self, Self) -> Bool
 pub fn LunaTileTensorView::id(Self) -> LunaTileTensorId
 pub fn LunaTileTensorView::new(id~ : LunaTileTensorId, dtype~ : LunaTileDType, address_space~ : LunaTileAddressSpace, shape~ : ArrayView[Int64], strides_bytes~ : ArrayView[Int64], offset_bytes~ : Int64, alignment_bytes~ : Int64) -> Self
+pub fn LunaTileTensorView::not_equal(Self, Self) -> Bool
 pub fn LunaTileTensorView::offset_bytes(Self) -> Int64
 pub fn LunaTileTensorView::shape(Self) -> ReadOnlyArray[Int64]
 pub fn LunaTileTensorView::strides_bytes(Self) -> ReadOnlyArray[Int64]
+pub fn LunaTileTensorView::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LunaTileValidationRule {
   Identifier
@@ -340,6 +480,9 @@ pub(all) enum LunaTileValidationRule {
   ParallelPipeline
   TensorCoreQualification
 } derive(Eq, @debug.Debug)
+pub fn LunaTileValidationRule::equal(Self, Self) -> Bool
+pub fn LunaTileValidationRule::not_equal(Self, Self) -> Bool
+pub fn LunaTileValidationRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

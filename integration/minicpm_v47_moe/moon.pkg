@@ -1,0 +1,26 @@
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/model/precision_format" @format,
+  "vectie/lunaflux/engine/precision_materialize" @checkpoint,
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/kernels/selected_expert_mlp_cuda_source" @expert,
+  "vectie/lunaflux/kernels/dense_mlp_execution_cuda_source" @dense,
+  "vectie/lunaflux/kernels/softmax_topk_execution_cuda_source" @router,
+  "vectie/lunaflux/kernels/shared_expert_execution_cuda_source" @shared,
+  "vectie/lunaflux/kernels/tiled_matrix_cuda_source" @matrix,
+  "vectie/lunaflux/device",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "moonbitlang/core/buffer",
+  "moonbitlang/x/crypto",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

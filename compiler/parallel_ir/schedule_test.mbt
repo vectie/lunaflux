@@ -57,10 +57,10 @@ test "ordered lowering exactly preserves source dispatch with no events" {
 // explored. This detects both lost dependencies and deadlocking event plans.
 fn explore(
   schedule : @parallel_ir.Schedule,
-  positions : Array[Int],
+  positions : Array[Int32],
   events : Array[Bool],
-  memory : Array[Int],
-) -> Int raise {
+  memory : Array[Int32],
+) -> Int32 raise {
   let lanes = [@parallel_ir.ComputeLane, @parallel_ir.CommunicationLane]
   if positions[0] == schedule.commands(lanes[0]).length() &&
     positions[1] == schedule.commands(lanes[1]).length() {

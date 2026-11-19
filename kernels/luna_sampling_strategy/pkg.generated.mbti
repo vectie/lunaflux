@@ -16,13 +16,19 @@ pub fn select_sampling_route(SamplingDevicePlan, mode~ : Int, temperature~ : Dou
 pub(all) suberror SamplingStrategyError {
   InvalidSamplingStrategy(SamplingStrategyRule)
 } derive(Eq, @debug.Debug)
+pub fn SamplingStrategyError::equal(Self, Self) -> Bool
+pub fn SamplingStrategyError::not_equal(Self, Self) -> Bool
+pub fn SamplingStrategyError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct GreedySegmentPlan {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn GreedySegmentPlan::equal(Self, Self) -> Bool
+pub fn GreedySegmentPlan::not_equal(Self, Self) -> Bool
 pub fn GreedySegmentPlan::partition(Self) -> (Int, Int)
 pub fn GreedySegmentPlan::shape(Self) -> (Int, Int)
+pub fn GreedySegmentPlan::to_repr(Self) -> @debug.Repr
 pub fn GreedySegmentPlan::workspace_bytes(Self) -> Int64
 
 pub struct SamplingDevicePlan {
@@ -30,10 +36,13 @@ pub struct SamplingDevicePlan {
 } derive(Eq, @debug.Debug)
 pub fn SamplingDevicePlan::candidate_token_offset_bytes(Self) -> Int64
 pub fn SamplingDevicePlan::candidate_weight_offset_bytes(Self) -> Int64
+pub fn SamplingDevicePlan::equal(Self, Self) -> Bool
 pub fn SamplingDevicePlan::maximum_rows(Self) -> Int
 pub fn SamplingDevicePlan::maximum_top_k(Self) -> Int
+pub fn SamplingDevicePlan::not_equal(Self, Self) -> Bool
 pub fn SamplingDevicePlan::parameter_row_bytes(Self) -> Int64
 pub fn SamplingDevicePlan::result_row_bytes(Self) -> Int64
+pub fn SamplingDevicePlan::to_repr(Self) -> @debug.Repr
 pub fn SamplingDevicePlan::vocabulary_size(Self) -> Int
 pub fn SamplingDevicePlan::workspace_bytes(Self) -> Int64
 
@@ -46,12 +55,18 @@ pub(all) enum SamplingParameterField {
   SampleIndex
   Flags
 } derive(Eq, @debug.Debug)
+pub fn SamplingParameterField::equal(Self, Self) -> Bool
+pub fn SamplingParameterField::not_equal(Self, Self) -> Bool
+pub fn SamplingParameterField::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SamplingRoute {
   DeviceGreedy
   DeviceRestrictiveTopK
   HostCanonical
 } derive(Eq, @debug.Debug)
+pub fn SamplingRoute::equal(Self, Self) -> Bool
+pub fn SamplingRoute::not_equal(Self, Self) -> Bool
+pub fn SamplingRoute::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SamplingStrategyRule {
   Shape
@@ -59,6 +74,9 @@ pub(all) enum SamplingStrategyRule {
   Workspace
   Parameters
 } derive(Eq, @debug.Debug)
+pub fn SamplingStrategyRule::equal(Self, Self) -> Bool
+pub fn SamplingStrategyRule::not_equal(Self, Self) -> Bool
+pub fn SamplingStrategyRule::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

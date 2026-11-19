@@ -16,63 +16,90 @@ pub fn projection_row_bucket(Int) -> Int raise ProjectionStrategyError
 pub(all) suberror ProjectionStrategyError {
   InvalidProjectionStrategy(ProjectionStrategyRule)
 } derive(Eq, @debug.Debug)
+pub fn ProjectionStrategyError::equal(Self, Self) -> Bool
+pub fn ProjectionStrategyError::not_equal(Self, Self) -> Bool
+pub fn ProjectionStrategyError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ProjectionAutotuneKey {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionAutotuneKey::backend(Self) -> ProjectionBackendId
+pub fn ProjectionAutotuneKey::equal(Self, Self) -> Bool
 pub fn ProjectionAutotuneKey::new(backend~ : ProjectionBackendId, target~ : ProjectionTargetId, numeric_type~ : ProjectionNumericType, shape~ : ProjectionShape, strategy~ : ProjectionStrategy) -> Self
+pub fn ProjectionAutotuneKey::not_equal(Self, Self) -> Bool
 pub fn ProjectionAutotuneKey::numeric_type(Self) -> ProjectionNumericType
 pub fn ProjectionAutotuneKey::shape(Self) -> ProjectionShape
 pub fn ProjectionAutotuneKey::strategy(Self) -> ProjectionStrategy
 pub fn ProjectionAutotuneKey::target(Self) -> ProjectionTargetId
+pub fn ProjectionAutotuneKey::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionAutotuneRecord {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionAutotuneRecord::equal(Self, Self) -> Bool
 pub fn ProjectionAutotuneRecord::key(Self) -> ProjectionAutotuneKey
 pub fn ProjectionAutotuneRecord::median_latency_ns(Self) -> Int64
 pub fn ProjectionAutotuneRecord::new(key~ : ProjectionAutotuneKey, median_latency_ns~ : Int64, sample_count~ : Int) -> Self raise ProjectionStrategyError
+pub fn ProjectionAutotuneRecord::not_equal(Self, Self) -> Bool
 pub fn ProjectionAutotuneRecord::sample_count(Self) -> Int
 pub fn ProjectionAutotuneRecord::strategy(Self) -> ProjectionStrategy
+pub fn ProjectionAutotuneRecord::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionBackendId {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionBackendId::equal(Self, Self) -> Bool
 pub fn ProjectionBackendId::new(String) -> Self raise ProjectionStrategyError
+pub fn ProjectionBackendId::not_equal(Self, Self) -> Bool
 pub fn ProjectionBackendId::stable_name(Self) -> StringView
+pub fn ProjectionBackendId::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionCapabilities {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionCapabilities::equal(Self, Self) -> Bool
 pub fn ProjectionCapabilities::matrix_tile(Self) -> ProjectionTile?
 pub fn ProjectionCapabilities::new(subgroup_width~ : Int, matrix_tile? : ProjectionTile?) -> Self raise ProjectionStrategyError
+pub fn ProjectionCapabilities::not_equal(Self, Self) -> Bool
 pub fn ProjectionCapabilities::subgroup_width(Self) -> Int
+pub fn ProjectionCapabilities::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionDispatchPlan {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionDispatchPlan::decode(Self) -> ProjectionStrategy
+pub fn ProjectionDispatchPlan::equal(Self, Self) -> Bool
+pub fn ProjectionDispatchPlan::not_equal(Self, Self) -> Bool
 pub fn ProjectionDispatchPlan::prefill(Self) -> ProjectionStrategy
 pub fn ProjectionDispatchPlan::shape(Self) -> ProjectionShape
+pub fn ProjectionDispatchPlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionInputResidency {
   ReductionTileResidency
   SelectedRowTileResidency
 } derive(Eq, @debug.Debug)
+pub fn ProjectionInputResidency::equal(Self, Self) -> Bool
+pub fn ProjectionInputResidency::not_equal(Self, Self) -> Bool
+pub fn ProjectionInputResidency::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionKernelClass {
   ScalarTile
   SubgroupGemv
   MatrixTile
 } derive(Eq, @debug.Debug)
+pub fn ProjectionKernelClass::equal(Self, Self) -> Bool
+pub fn ProjectionKernelClass::not_equal(Self, Self) -> Bool
+pub fn ProjectionKernelClass::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionLocalStorage {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionLocalStorage::accumulator_elements(Self) -> Int64
+pub fn ProjectionLocalStorage::equal(Self, Self) -> Bool
+pub fn ProjectionLocalStorage::not_equal(Self, Self) -> Bool
 pub fn ProjectionLocalStorage::selected_input_elements(Self) -> Int64
+pub fn ProjectionLocalStorage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionNumericType {
   ProjectionBFloat16
@@ -81,11 +108,17 @@ pub(all) enum ProjectionNumericType {
   ProjectionSignedInt8
   ProjectionFloat8
 } derive(Eq, @debug.Debug)
+pub fn ProjectionNumericType::equal(Self, Self) -> Bool
+pub fn ProjectionNumericType::not_equal(Self, Self) -> Bool
+pub fn ProjectionNumericType::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionPhase {
   Decode
   Prefill
 } derive(Eq, @debug.Debug)
+pub fn ProjectionPhase::equal(Self, Self) -> Bool
+pub fn ProjectionPhase::not_equal(Self, Self) -> Bool
+pub fn ProjectionPhase::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionRuntimeDispatch {
   // private fields
@@ -108,6 +141,9 @@ pub(all) enum ProjectionSelectionSource {
   OfflineAutotune
   StaticFallback
 } derive(Eq, @debug.Debug)
+pub fn ProjectionSelectionSource::equal(Self, Self) -> Bool
+pub fn ProjectionSelectionSource::not_equal(Self, Self) -> Bool
+pub fn ProjectionSelectionSource::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionSemanticFamily {
   Qkv
@@ -115,21 +151,29 @@ pub(all) enum ProjectionSemanticFamily {
   GatedMlp
   LanguageModelHead
 } derive(Eq, @debug.Debug)
+pub fn ProjectionSemanticFamily::equal(Self, Self) -> Bool
+pub fn ProjectionSemanticFamily::not_equal(Self, Self) -> Bool
+pub fn ProjectionSemanticFamily::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionShape {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionShape::dimensions(Self) -> (Int, Int, Int)
+pub fn ProjectionShape::equal(Self, Self) -> Bool
 pub fn ProjectionShape::family(Self) -> ProjectionSemanticFamily
 pub fn ProjectionShape::new(ProjectionSemanticFamily, input_width~ : Int, output_width~ : Int, intermediate_width? : Int) -> Self raise ProjectionStrategyError
+pub fn ProjectionShape::not_equal(Self, Self) -> Bool
+pub fn ProjectionShape::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionStrategy {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionStrategy::equal(Self, Self) -> Bool
 pub fn ProjectionStrategy::input_residency(Self) -> ProjectionInputResidency
 pub fn ProjectionStrategy::kernel_class(Self) -> ProjectionKernelClass
 pub fn ProjectionStrategy::local_storage(Self, ProjectionShape) -> ProjectionLocalStorage raise ProjectionStrategyError
 pub fn ProjectionStrategy::new(stable_id~ : Int, phase~ : ProjectionPhase, strategy_class? : ProjectionStrategyClass?, kernel_class~ : ProjectionKernelClass, row_bucket~ : Int, tile~ : ProjectionTile, output_tiles_per_workgroup? : Int, input_residency? : ProjectionInputResidency) -> Self raise ProjectionStrategyError
+pub fn ProjectionStrategy::not_equal(Self, Self) -> Bool
 pub fn ProjectionStrategy::output_distribution_candidates(Self) -> ReadOnlyArray[Self] raise ProjectionStrategyError
 pub fn ProjectionStrategy::output_tiles_per_workgroup(Self) -> Int
 pub fn ProjectionStrategy::phase(Self) -> ProjectionPhase
@@ -137,6 +181,7 @@ pub fn ProjectionStrategy::row_bucket(Self) -> Int
 pub fn ProjectionStrategy::stable_id(Self) -> Int
 pub fn ProjectionStrategy::strategy_class(Self) -> ProjectionStrategyClass
 pub fn ProjectionStrategy::tile(Self) -> ProjectionTile
+pub fn ProjectionStrategy::to_repr(Self) -> @debug.Repr
 pub fn ProjectionStrategy::with_selected_row_residency(Self, stable_id~ : Int) -> Self raise ProjectionStrategyError
 
 pub(all) enum ProjectionStrategyClass {
@@ -144,6 +189,9 @@ pub(all) enum ProjectionStrategyClass {
   SmallRowTiledGemm
   LargeRowTiledGemm
 } derive(Eq, @debug.Debug)
+pub fn ProjectionStrategyClass::equal(Self, Self) -> Bool
+pub fn ProjectionStrategyClass::not_equal(Self, Self) -> Bool
+pub fn ProjectionStrategyClass::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ProjectionStrategyRule {
   Shape
@@ -156,18 +204,27 @@ pub(all) enum ProjectionStrategyRule {
   Duplicate
   Conflict
 } derive(Eq, @debug.Debug)
+pub fn ProjectionStrategyRule::equal(Self, Self) -> Bool
+pub fn ProjectionStrategyRule::not_equal(Self, Self) -> Bool
+pub fn ProjectionStrategyRule::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTargetId {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ProjectionTargetId::equal(Self, Self) -> Bool
 pub fn ProjectionTargetId::new(String) -> Self raise ProjectionStrategyError
+pub fn ProjectionTargetId::not_equal(Self, Self) -> Bool
 pub fn ProjectionTargetId::stable_name(Self) -> StringView
+pub fn ProjectionTargetId::to_repr(Self) -> @debug.Repr
 
 pub struct ProjectionTile {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ProjectionTile::dimensions(Self) -> (Int, Int, Int)
+pub fn ProjectionTile::equal(Self, Self) -> Bool
 pub fn ProjectionTile::new(rows~ : Int, columns~ : Int, reduction~ : Int) -> Self raise ProjectionStrategyError
+pub fn ProjectionTile::not_equal(Self, Self) -> Bool
+pub fn ProjectionTile::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

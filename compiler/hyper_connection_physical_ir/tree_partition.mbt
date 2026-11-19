@@ -3,14 +3,14 @@
 /// Workgroup levels precede a single subgroup-owned suffix. The device
 /// supplies its subgroup width; numerical IR continues to own the leaves.
 pub struct ReductionTreePartition {
-  priv shared_levels : ReadOnlyArray[Int]
-  priv local_levels : ReadOnlyArray[Int]
+  priv shared_levels : ReadOnlyArray[Int32]
+  priv local_levels : ReadOnlyArray[Int32]
 }
 
 ///|
 pub fn ReductionTreePartition::new(
-  workers : Int,
-  subgroup_width : Int,
+  workers : Int32,
+  subgroup_width : Int32,
 ) -> Self raise @precision.PrecisionPlanError {
   guard workers > 0 &&
     workers <= 1024 &&
@@ -21,25 +21,25 @@ pub fn ReductionTreePartition::new(
     raise @precision.PrecisionPlanError::NoImplementation
   }
   let shared = []
-  let local = []
+  let local_levels = []
   let mut stride = workers / 2
   while stride > 0 {
     if stride >= subgroup_width {
       shared.push(stride)
     } else {
-      local.push(stride)
+      local_levels.push(stride)
     }
     stride = stride / 2
   }
   {
     shared_levels: ReadOnlyArray::from_array(shared),
-    local_levels: ReadOnlyArray::from_array(local),
+    local_levels: ReadOnlyArray::from_array(local_levels),
   }
 }
 
 ///|
 pub fn ReductionTreePartition::levels(
   self : Self,
-) -> (ReadOnlyArray[Int], ReadOnlyArray[Int]) {
+) -> (ReadOnlyArray[Int32], ReadOnlyArray[Int32]) {
   (self.shared_levels, self.local_levels)
 }

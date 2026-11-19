@@ -3,6 +3,8 @@ package "vectie/lunaflux/kernels/luna_cuda_pointwise_aot"
 
 import {
   "moonbitlang/core/debug",
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
+  "vectie/lunaflux/compiler/physical_tile_ir",
   "vectie/lunaflux/kernels/catalog",
   "vectie/lunaflux/kernels/launch_contract",
   "vectie/lunaflux/kernels/luna_specialization",
@@ -11,6 +13,8 @@ import {
 }
 
 // Values
+pub fn bf16_residual_source(@physical_tile_ir.VectorOwnership, symbol~ : String) -> Bytes raise PointwiseAotError
+
 pub fn bind_manifest_pointwise_cuda_aot(PointwiseCudaLowering, @plan.PlanOperation, @launch_contract.PagedKvLaunchContractSet) -> PointwiseManifestCudaLowering raise PointwiseAotError
 
 pub fn canonical_cuda_float_literal(Double) -> String
@@ -22,6 +26,8 @@ pub fn lower_auxiliary_kv_cache_write_cuda_aot(@plan.PlanOperation, @launch_cont
 pub fn lower_pointwise_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.AotKernelEntryPointId, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PointwiseAotLimits) -> PointwiseCudaLowering raise PointwiseAotError
 
 pub fn lower_reusable_pointwise_cuda_aot_candidate(@plan.PlanOperation, @launch_contract.PagedKernelProfile, @catalog.DeviceTarget, @luna_specialization.LunaCompilerPolicy, ArrayView[@launch_contract.AotOperand], PointwiseAotLimits) -> PointwiseCudaLowering raise PointwiseAotError
+
+pub fn paged_kv_write_source(@elementwise_physical_ir.KvWriteProgram, symbol~ : String, tokens_per_page~ : Int, physical_page_capacity~ : Int) -> Bytes raise PointwiseAotError
 
 // Errors
 pub(all) suberror PointwiseAotError {

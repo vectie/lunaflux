@@ -1,6 +1,6 @@
 ///|
 fn access(
-  buffer : Int,
+  buffer : Int32,
   mode : @parallel_ir.AccessMode,
 ) -> @parallel_ir.Access raise {
   @parallel_ir.Access::new(buffer~, mode~)
@@ -13,9 +13,9 @@ fn view(offset : Int64, bytes : Int64) -> @parallel_ir.Buffer raise {
 
 ///|
 fn compute(
-  id : Int,
+  id : Int32,
   accesses : ArrayView[@parallel_ir.Access],
-  dependencies? : ArrayView[Int] = [],
+  dependencies~ : ArrayView[Int32] = [],
 ) -> @parallel_ir.Step {
   @parallel_ir.Step::new(Compute(id), accesses, dependencies~)
 }
@@ -24,7 +24,7 @@ fn compute(
 fn compile(
   steps : ArrayView[@parallel_ir.Step],
   buffers : ArrayView[@parallel_ir.Buffer],
-  initialized? : Bool = false,
+  initialized~ : Bool = false,
 ) -> @parallel_ir.Program raise {
   @parallel_ir.compile(
     rank=0,
@@ -37,7 +37,7 @@ fn compile(
 
 ///|
 fn collective(
-  sequence : Int,
+  sequence : Int32,
   accesses : ArrayView[@parallel_ir.Access],
 ) -> @parallel_ir.Step raise {
   @parallel_ir.Step::new(

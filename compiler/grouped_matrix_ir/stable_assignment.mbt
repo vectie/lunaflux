@@ -2,8 +2,8 @@
 /// First-occurrence grouping is factored into independent ranks and one
 /// ordered integer prefix. This changes work distribution, never job order.
 pub struct StableAssignmentPlan {
-  priv capacity : Int
-  priv rows_per_group : Int
+  priv capacity : Int32
+  priv rows_per_group : Int32
 }
 
 ///|
@@ -14,17 +14,17 @@ pub fn ExpertGroupingPlan::stable_assignment(
 }
 
 ///|
-pub fn StableAssignmentPlan::capacity(self : Self) -> Int {
+pub fn StableAssignmentPlan::capacity(self : Self) -> Int32 {
   self.capacity
 }
 
 ///|
-pub fn StableAssignmentPlan::rows_per_group(self : Self) -> Int {
+pub fn StableAssignmentPlan::rows_per_group(self : Self) -> Int32 {
   self.rows_per_group
 }
 
 ///|
 /// Three integer arrays: first occurrence, within-expert rank, prefix offsets.
-pub fn StableAssignmentPlan::scratch_elements(self : Self) -> Int {
+pub fn StableAssignmentPlan::scratch_elements(self : Self) -> Int32 {
   self.capacity * 3
 }

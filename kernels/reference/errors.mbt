@@ -50,3 +50,27 @@ pub(all) suberror ReferenceKernelError {
   ArithmeticOverflow
   NonFinite(ReferenceValueRole)
 } derive(Debug, Eq)
+
+///|
+pub extend ReferenceLimitField with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ReferenceLimitField with Eq::{not_equal, equal}
+
+///|
+pub extend ReferenceShapeRule with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ReferenceShapeRule with Eq::{not_equal, equal}
+
+///|
+pub extend ReferenceValueRole with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ReferenceValueRole with Eq::{not_equal, equal}
+
+///|
+pub extend ReferenceKernelError with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ReferenceKernelError with Eq::{not_equal, equal}

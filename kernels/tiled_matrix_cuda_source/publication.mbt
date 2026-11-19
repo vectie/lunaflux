@@ -1,9 +1,9 @@
 ///|
 /// Terminal lowering for an ordered F32 partial, not a complete projection.
 pub fn scalar_partial_source(
-  rows~ : Int,
-  columns~ : Int,
-  inner~ : Int,
+  rows~ : Int32,
+  columns~ : Int32,
+  inner~ : Int32,
   symbol~ : String,
 ) -> Bytes {
   let text =
@@ -20,7 +20,11 @@ pub fn scalar_partial_source(
 
 ///|
 /// Must execute after the caller-owned reduction; no collective is hidden here.
-pub fn publication_source(rows~ : Int, width~ : Int, symbol~ : String) -> Bytes {
+pub fn publication_source(
+  rows~ : Int32,
+  width~ : Int32,
+  symbol~ : String,
+) -> Bytes {
   let text =
     $|#include <cuda_bf16.h>
     $|extern "C" __global__ void \{symbol}(const int *counts,const float *partial,__nv_bfloat16 *output) {

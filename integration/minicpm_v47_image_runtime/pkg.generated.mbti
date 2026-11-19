@@ -1,0 +1,73 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_image_runtime"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minicpm_v47",
+  "vectie/lunaflux/integration/minicpm_v47_decoder",
+  "vectie/lunaflux/integration/minicpm_v47_multimodal",
+  "vectie/lunaflux/integration/minicpm_v47_runtime",
+  "vectie/lunaflux/integration/minicpm_v47_text",
+  "vectie/lunaflux/integration/minicpm_v47_vision",
+  "vectie/lunaflux/integration/minicpm_v47_weights",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+
+// Errors
+pub suberror ExecutionError {
+  InvalidLifecycle
+  InvalidRequest
+}
+
+// Types and methods
+pub(all) struct Budget {
+  text : @minicpm_v47_runtime.Budget
+  vision_weight_bytes : Int64
+  vision_storage_bytes : Int64
+  image_metadata_bytes : Int64
+  mutable_bytes : Int64
+  total_allocation_bytes : Int64
+}
+pub fn Budget::new(@minicpm_v47_multimodal.Program, @minicpm_v47_vision.Program, text_weight_bytes~ : Int64, vision_weight_bytes~ : Int64) -> Self raise
+
+pub struct Execution {
+  // private fields
+}
+pub fn Execution::begin_image(Self, @minicpm_v47_multimodal.ImagePrompt, @minicpm_v47_vision.Input, maximum_new_tokens~ : Int, stop_token_ids~ : ReadOnlyArray[Int], context_ceiling? : Int) -> Unit raise
+pub fn Execution::begin_text(Self, @minicpm_v47.PreparedTextPrompt, maximum_new_tokens~ : Int, stop_token_ids~ : ReadOnlyArray[Int], context_ceiling? : Int) -> Unit raise
+pub fn Execution::cached_tokens(Self) -> Int
+pub fn Execution::cancel(Self) -> Unit raise
+pub fn Execution::close(Self) -> Unit raise
+pub fn Execution::emitted_tokens(Self) -> ArrayView[Int]
+pub fn Execution::finish_reason(Self) -> @inference.FinishReason?
+pub fn Execution::is_finished(Self) -> Bool
+pub fn Execution::new(@minicpm_v47_multimodal.Program, @minicpm_v47_vision.Program) -> Self raise
+pub fn Execution::poll(Self) -> Bool raise
+pub fn Execution::prepare(Self, @device.Context, ModuleImages, layers~ : ArrayView[@minicpm_v47_decoder.LayerWeights], text_weights~ : @minicpm_v47_text.Weights, vision_weights~ : @minicpm_v47_vision.Weights, maximum_mutable_bytes~ : Int64, policy? : @device.OrderedKernelExecutionPolicy) -> Unit raise
+pub fn Execution::sampled_tokens(Self) -> Int
+pub fn Execution::submit_next(Self) -> Bool raise
+pub fn Execution::wait(Self) -> Unit raise
+
+pub(all) struct ModuleImages {
+  text : @minicpm_v47_runtime.ModuleImages
+  vision : Bytes
+  image_scatter : Bytes
+}
+pub fn ModuleImages::read(@approved_fs.ApprovedRoot, maximum_module_bytes~ : Int64) -> Self raise
+
+pub struct Resident {
+  // private fields
+}
+pub fn Resident::budget(Self) -> Budget
+pub fn Resident::close(Self) -> Unit raise
+pub fn Resident::execution(Self) -> Execution raise
+pub fn Resident::new(@minicpm_v47_multimodal.Program, @minicpm_v47_vision.Program, @minicpm_v47_weights.Plan, @minicpm_v47_vision.WeightPlan) -> Self raise
+pub fn Resident::prepare(Self, @device.Context, @approved_fs.ApprovedRoot, ModuleImages, maximum_device_bytes~ : Int64, scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, policy? : @device.OrderedKernelExecutionPolicy) -> Unit raise
+
+// Type aliases
+
+// Traits

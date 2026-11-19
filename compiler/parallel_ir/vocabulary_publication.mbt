@@ -21,12 +21,12 @@ pub fn VocabularyShard::publication(self : Self) -> VocabularyPublication {
 ///|
 /// Collective slots are equal width even for an uneven vocabulary partition.
 /// Padding is transport-only, never a token or an input to a sampler.
-pub fn VocabularyShard::padded_columns(self : Self) -> Int {
+pub fn VocabularyShard::padded_columns(self : Self) -> Int32 {
   (self.vocabulary - 1) / self.world + 1
 }
 
 ///|
-pub fn VocabularyShard::transfer_width(self : Self) -> Int {
+pub fn VocabularyShard::transfer_width(self : Self) -> Int32 {
   match self.publication {
     GreedyCandidates => self.candidate_width()
     FullLogits => self.outputs * self.padded_columns()

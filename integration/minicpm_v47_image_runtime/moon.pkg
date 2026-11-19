@@ -1,0 +1,25 @@
+import {
+  "vectie/lunaflux/integration/minicpm_v47_runtime" @runtime,
+  "vectie/lunaflux/integration/minicpm_v47_multimodal" @multimodal,
+  "vectie/lunaflux/integration/minicpm_v47_vision" @vision,
+  "vectie/lunaflux/integration/minicpm_v47_text" @text,
+  "vectie/lunaflux/integration/minicpm_v47_decoder" @decoder,
+  "vectie/lunaflux/integration/minicpm_v47_request" @request,
+  "vectie/lunaflux/integration/minicpm_v47_weights" @weights,
+  "vectie/lunaflux/integration/minicpm_v47" @prompt,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/device",
+}
+
+import {
+  "vectie/lunaflux/integration/minicpm_v47_bootstrap" @bootstrap,
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/tests/minicpm_v47_checkpoint_fixture" @fixture,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

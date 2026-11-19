@@ -1,0 +1,95 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_weights"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/integration/minicpm_v47_decoder",
+  "vectie/lunaflux/integration/minicpm_v47_text",
+  "vectie/lunaflux/model/minicpm_v47_operators",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct AllocationPlan {
+  // private fields
+}
+pub fn AllocationPlan::byte_count(Self) -> Int64
+pub fn AllocationPlan::label(Self) -> String
+pub fn AllocationPlan::sources(Self) -> ReadOnlyArray[String]
+
+pub(all) struct AttentionIndices {
+  query : Int
+  key : Int
+  value : Int
+  output : Int
+  query_norm : Int
+  key_norm : Int
+}
+
+pub(all) enum BranchIndices {
+  Recurrent(RecurrentIndices)
+  FullAttention(AttentionIndices)
+}
+
+pub(all) struct LayerIndices {
+  input_norm : Int
+  post_attention_norm : Int
+  branch : BranchIndices
+  moe : MoeIndices
+}
+
+pub struct Loaded {
+  // private fields
+}
+pub fn Loaded::close(Self) -> Unit raise @device.DeviceError
+pub fn Loaded::layer_weights(Self) -> ArrayView[@minicpm_v47_decoder.LayerWeights] raise @device.DeviceError
+pub fn Loaded::new(Plan) -> Self
+pub fn Loaded::prepare(Self, @device.Context, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn Loaded::text_weights(Self) -> @minicpm_v47_text.Weights raise @device.DeviceError
+
+pub(all) struct MoeIndices {
+  router : Int
+  routed_bank : Int
+  shared_gate : Int
+  shared_up : Int
+  shared_down : Int
+  shared_gate_projection : Int
+}
+
+pub struct Plan {
+  // private fields
+}
+pub fn Plan::allocations(Self) -> ReadOnlyArray[AllocationPlan]
+pub fn Plan::byte_count(Self) -> Int64
+pub fn Plan::layers(Self) -> ReadOnlyArray[LayerIndices]
+pub fn Plan::new(@minicpm_v47_operators.DecoderOperators, @precision_materialize.PackedCheckpoint) -> Self raise
+pub fn Plan::text(Self) -> TextIndices
+pub fn Plan::transfer(Self, @approved_fs.ApprovedRoot, scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise
+
+pub(all) struct RecurrentIndices {
+  qkv : Int
+  gate : Int
+  decay : Int
+  beta : Int
+  output : Int
+  convolution : Int
+  norm : Int
+  a_log : Int
+  dt_bias : Int
+}
+
+pub(all) struct TextIndices {
+  embedding : Int
+  final_norm : Int
+  language_head : Int
+}
+
+// Type aliases
+
+// Traits

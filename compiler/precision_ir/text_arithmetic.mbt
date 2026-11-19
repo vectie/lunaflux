@@ -46,11 +46,14 @@ pub fn TextIoPrecision::expression(
         },
       )
     }
-    Weight =>
-      (
-        [Float32, BFloat16],
-        Convert(BFloat16, Binary(MultiplyRN, x, Convert(Float32, y))),
-      )
+    Weight => {
+      let gamma = match self.normalization_weight_law {
+        DirectGamma => Convert(Float32, y)
+        OnePlusGamma =>
+          Binary(AddRN, Float32Bits(0x3f800000U), Convert(Float32, y))
+      }
+      ([Float32, BFloat16], Convert(BFloat16, Binary(MultiplyRN, x, gamma)))
+    }
     HeadUpdate =>
       (
         [Float32, BFloat16, BFloat16],

@@ -1,0 +1,54 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_media"
+
+import {
+  "vectie/lunaflux/integration/minicpm_v47_multimodal",
+  "vectie/lunaflux/integration/minicpm_v47_vision",
+  "vectie/lunaflux/media/rgb8",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn normalize_chat(@vectie/lunaflux/model/minicpm_v47.Spec, Bytes, allow_images? : Bool) -> NormalizedChat raise
+
+pub fn prepare(@vectie/lunaflux/model/minicpm_v47.Spec, @tokenizer.TokenizerSpec, @minicpm_v47_vision.Program, String, ArrayView[Content], maximum_tokens~ : Int, maximum_prepared_pixel_bytes~ : Int64, maximum_image_working_bytes? : Int64, system_present? : Bool) -> Prepared raise
+
+pub fn prepare_requests(@vectie/lunaflux/model/minicpm_v47.Spec, @tokenizer.TokenizerSpec, @minicpm_v47_vision.Program, Json, load_image~ : (String) -> @rgb8.Image raise, maximum_prepared_pixel_bytes~ : Int64, maximum_image_working_bytes? : Int64) -> ReadOnlyArray[PreparedRequest] raise
+
+// Errors
+
+// Types and methods
+pub(all) enum Content {
+  Text(String)
+  Image(@rgb8.Image)
+}
+
+pub struct NormalizedChat {
+  // private fields
+}
+pub fn NormalizedChat::body(Self) -> Bytes
+pub fn NormalizedChat::content(Self) -> ReadOnlyArray[Content]
+pub fn NormalizedChat::system(Self) -> String
+pub fn NormalizedChat::system_present(Self) -> Bool
+
+pub enum Prepared {
+  Text(@vectie/lunaflux/integration/minicpm_v47.PreparedTextPrompt)
+  Image(@minicpm_v47_multimodal.ImagePrompt, @minicpm_v47_vision.Input, images~ : Int, pixel_bytes~ : Int64)
+}
+pub fn Prepared::feature_rows(Self) -> Int
+pub fn Prepared::image_count(Self) -> Int
+pub fn Prepared::patch_rows(Self) -> Int
+pub fn Prepared::pixel_bytes(Self) -> Int64
+pub fn Prepared::prompt(Self) -> @vectie/lunaflux/integration/minicpm_v47.PreparedTextPrompt
+pub fn Prepared::vision_input(Self) -> (@minicpm_v47_multimodal.ImagePrompt, @minicpm_v47_vision.Input)?
+
+pub(all) struct PreparedRequest {
+  id : String
+  input : Prepared
+  maximum_new_tokens : Int
+  context_ceiling : Int
+}
+
+// Type aliases
+
+// Traits

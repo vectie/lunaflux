@@ -3,14 +3,20 @@
 /// share one step lifetime. Records are [row, token_begin, row_begin, row_end,
 /// sequence_length, page_begin, page_end, exclusive_key_end].
 pub struct AttentionMetadataLayout {
-  priv maximum_rows : Int
-  priv maximum_tokens : Int
+  priv maximum_rows : Int32
+  priv maximum_tokens : Int32
 } derive(Eq, Debug)
 
 ///|
+pub extend AttentionMetadataLayout with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend AttentionMetadataLayout with Eq::{not_equal, equal}
+
+///|
 pub fn AttentionMetadataLayout::new(
-  maximum_rows~ : Int,
-  maximum_tokens~ : Int,
+  maximum_rows~ : Int32,
+  maximum_tokens~ : Int32,
 ) -> AttentionMetadataLayout? {
   if maximum_rows <= 0 ||
     maximum_tokens < maximum_rows ||
@@ -24,8 +30,8 @@ pub fn AttentionMetadataLayout::new(
 ///|
 pub fn AttentionMetadataLayout::bucket(
   self : AttentionMetadataLayout,
-  query_tile : Int,
-) -> (Int, Int, Int)? {
+  query_tile : Int32,
+) -> (Int32, Int32, Int32)? {
   let mut offset = 4
   for bucket in 0..<4 {
     let width = 16 << bucket
@@ -42,7 +48,7 @@ pub fn AttentionMetadataLayout::bucket(
 ///|
 pub fn AttentionMetadataLayout::cell_count(
   self : AttentionMetadataLayout,
-) -> Int {
+) -> Int32 {
   let mut cells = 4
   for bucket in 0..<4 {
     cells += (
@@ -57,8 +63,8 @@ pub fn AttentionMetadataLayout::cell_count(
 ///|
 pub fn AttentionMetadataLayout::bucket_offset(
   self : AttentionMetadataLayout,
-  ordinal : Int,
-) -> Int {
+  ordinal : Int32,
+) -> Int32 {
   let mut offset = 4
   for bucket in 0..<ordinal {
     offset += (

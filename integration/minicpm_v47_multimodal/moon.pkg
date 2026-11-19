@@ -1,0 +1,23 @@
+import {
+  "vectie/lunaflux/integration/minicpm_v47" @prompt,
+  "vectie/lunaflux/integration/minicpm_v47_text" @text,
+  "vectie/lunaflux/integration/minicpm_v47_vision" @vision,
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_positions" @positions,
+  "vectie/lunaflux/model/minicpm_v47_processor" @processor,
+  "vectie/lunaflux/compiler/elementwise_physical_ir" @effects,
+  "vectie/lunaflux/kernels/embedding_scatter_cuda_source" @scatter,
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/device",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "vectie/lunaflux/integration/minicpm_v47_bootstrap" @bootstrap,
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "moonbitlang/core/env",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

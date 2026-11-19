@@ -6,7 +6,7 @@ fn lower_luna_tile_cuda_mma(
   left : LunaTileTensorId,
   right : LunaTileTensorId,
   accumulator : LunaTileTensorId,
-  instruction_index : Int,
+  instruction_index : Int32,
 ) -> Unit raise LunaTileError {
   let destination_tensor = require_luna_tile_tensor(
     program.tensors,
@@ -74,8 +74,8 @@ fn lower_luna_tile_cuda_reduce(
   kind : LunaTileReductionKind,
   destination : LunaTileTensorId,
   source : LunaTileTensorId,
-  axis : Int,
-  instruction_index : Int,
+  axis : Int32,
+  instruction_index : Int32,
 ) -> Unit raise LunaTileError {
   let destination_tensor = require_luna_tile_tensor(
     program.tensors,
@@ -93,7 +93,7 @@ fn lower_luna_tile_cuda_reduce(
   let accumulator = prefix + "_acc"
   let initial = match kind {
     Sum => "0.0F"
-    Maximum => "-3.402823466e+38F"
+    Maximum => "-INFINITY"
   }
   output.write_string("      float " + accumulator + " = " + initial + ";\n")
   output.write_string("      for (long long " + reduction + " = 0; ")
@@ -144,7 +144,7 @@ fn lower_luna_tile_cuda_elementwise(
   kind : LunaTileElementwiseKind,
   destination : LunaTileTensorId,
   inputs : ReadOnlyArray[LunaTileTensorId],
-  instruction_index : Int,
+  instruction_index : Int32,
 ) -> Unit raise LunaTileError {
   let destination_tensor = require_luna_tile_tensor(
     program.tensors,

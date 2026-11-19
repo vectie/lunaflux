@@ -1,0 +1,65 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_runtime"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minicpm_v47_decoder",
+  "vectie/lunaflux/integration/minicpm_v47_request",
+  "vectie/lunaflux/integration/minicpm_v47_text",
+  "vectie/lunaflux/integration/minicpm_v47_weights",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct Budget {
+  weight_bytes : Int64
+  storage_bytes : Int64
+  output_bytes : Int64
+  total_allocation_bytes : Int64
+}
+pub fn Budget::for_text(@minicpm_v47_text.Program, weight_bytes~ : Int64) -> Self raise
+
+pub struct Execution {
+  // private fields
+}
+pub fn Execution::close(Self) -> Unit raise
+pub fn Execution::new(@minicpm_v47_text.Program) -> Self raise
+pub fn Execution::prepare(Self, @device.Context, ModuleImages, layers~ : ArrayView[@minicpm_v47_decoder.LayerWeights], weights~ : @minicpm_v47_text.Weights, maximum_mutable_bytes~ : Int64, policy? : @device.OrderedKernelExecutionPolicy) -> Unit raise
+pub fn Execution::runner(Self) -> @minicpm_v47_request.Runner raise
+
+pub(all) struct ModuleImages {
+  envelope : Bytes
+  recurrent : Bytes
+  moe : Bytes
+  attention_common : Bytes
+  attention_prefill : Bytes
+  attention_decode : Bytes
+  text : Bytes
+}
+pub fn ModuleImages::read(@approved_fs.ApprovedRoot, maximum_module_bytes~ : Int64) -> Self raise
+
+pub struct ModuleSet {
+  // private fields
+}
+pub fn ModuleSet::bindings(Self) -> @minicpm_v47_text.Modules raise
+pub fn ModuleSet::close(Self) -> Unit raise
+pub fn ModuleSet::new() -> Self
+pub fn ModuleSet::prepare(Self, @device.Context, ModuleImages) -> Unit raise
+
+pub struct Resident {
+  // private fields
+}
+pub fn Resident::budget(Self) -> Budget
+pub fn Resident::close(Self) -> Unit raise
+pub fn Resident::new(@minicpm_v47_text.Program, @minicpm_v47_weights.Plan) -> Self raise
+pub fn Resident::prepare(Self, @device.Context, @approved_fs.ApprovedRoot, ModuleImages, maximum_device_bytes~ : Int64, scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, policy? : @device.OrderedKernelExecutionPolicy) -> Unit raise
+pub fn Resident::runner(Self) -> @minicpm_v47_request.Runner raise
+
+// Type aliases
+
+// Traits

@@ -14,6 +14,9 @@ pub(all) suberror PlanError {
   InvalidGraph
   BudgetExceeded
 } derive(Eq, @debug.Debug)
+pub fn PlanError::equal(Self, Self) -> Bool
+pub fn PlanError::not_equal(Self, Self) -> Bool
+pub fn PlanError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Graph {
@@ -30,6 +33,9 @@ pub(all) struct Node {
   inputs : ReadOnlyArray[Int]
   output : Int
 } derive(Eq, @debug.Debug)
+pub fn Node::equal(Self, Self) -> Bool
+pub fn Node::not_equal(Self, Self) -> Bool
+pub fn Node::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Operation {
   Pad(batch~ : Int, input_time~ : Int, output_time~ : Int)
@@ -52,18 +58,27 @@ pub(all) enum Operation {
   InsertTime(channels~ : Int, frames~ : Int, height~ : Int, width~ : Int, tile_frames~ : Int, start~ : Int, count~ : Int)
   GaussianPatch(channels~ : Int, frames~ : Int, height~ : Int, width~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn Operation::equal(Self, Self) -> Bool
+pub fn Operation::not_equal(Self, Self) -> Bool
 pub fn Operation::signature(Self) -> (ReadOnlyArray[Int64], Int64) raise PlanError
+pub fn Operation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Origin {
   Input
   Weight(String)
   Temporary
 } derive(Eq, @debug.Debug)
+pub fn Origin::equal(Self, Self) -> Bool
+pub fn Origin::not_equal(Self, Self) -> Bool
+pub fn Origin::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Value {
   elements : Int64
   origin : Origin
 } derive(Eq, @debug.Debug)
+pub fn Value::equal(Self, Self) -> Bool
+pub fn Value::not_equal(Self, Self) -> Bool
+pub fn Value::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

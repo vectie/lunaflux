@@ -1,0 +1,139 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_attention"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_aot",
+  "vectie/lunaflux/kernels/luna_cuda_attention_tile_source",
+  "vectie/lunaflux/model/minicpm_v47_operators",
+}
+
+// Values
+pub fn compile(@minicpm_v47_operators.DecoderOperators, device_target~ : @catalog.DeviceTarget, target_id~ : @luna_attention_strategy.AttentionTargetId, capabilities~ : @luna_attention_strategy.AttentionCompilerCapabilities, maximum_context_tokens? : Int, maximum_sequences? : Int, tokens_per_page? : Int, autotune_records? : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord]) -> Compilation raise
+
+// Errors
+
+// Types and methods
+pub struct Caches {
+  // private fields
+}
+pub fn Caches::new(@device.Allocation, @device.Allocation, key_offset? : Int64, value_offset? : Int64) -> Self
+
+pub struct Compilation {
+  // private fields
+}
+pub fn Compilation::abi(Self) -> @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi
+pub fn Compilation::cache_bytes(Self) -> Int64
+pub fn Compilation::context_tokens(Self) -> Int
+pub fn Compilation::decode(Self) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
+pub fn Compilation::prefill(Self) -> @luna_cuda_attention_tile_aot.CudaAttentionTileAotCompilation
+
+pub struct Frame {
+  // private fields
+}
+pub fn Frame::close(Self) -> Unit raise @device.DeviceError
+pub fn Frame::launches(Self, Phase) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn Frame::new(Program) -> Self
+pub fn Frame::prepare(Self, @device.Context, modules~ : Modules, metadata~ : Metadata, weights~ : Weights, caches~ : Caches, input~ : @device.Allocation, output~ : @device.Allocation, workspace~ : @device.Allocation) -> Unit raise @device.DeviceError
+
+pub(all) struct Metadata {
+  counts : @device.Allocation
+  canvas_positions : @device.Allocation
+  causal_positions : @device.Allocation
+  row_offsets : @device.Allocation
+  sequence_lengths : @device.Allocation
+  page_offsets : @device.Allocation
+  physical_pages : @device.Allocation
+}
+
+pub(all) struct Modules {
+  common : @device.Module
+  prefill : @device.Module
+  decode : @device.Module
+}
+
+pub(all) enum Phase {
+  Prefill
+  Decode
+} derive(Eq, @debug.Debug)
+pub fn Phase::equal(Self, Self) -> Bool
+pub fn Phase::not_equal(Self, Self) -> Bool
+pub fn Phase::to_repr(Self) -> @debug.Repr
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::abi(Self) -> @luna_cuda_attention_tile_source.CudaPagedAttentionTileAbi
+pub fn Program::attention_source_bytes(Self, Phase) -> Bytes
+pub fn Program::common_source_bytes(Self) -> Bytes
+pub fn Program::context_tokens(Self) -> Int
+pub fn Program::new(@minicpm_v47_operators.DecoderOperators, Compilation) -> Self raise
+pub fn Program::region(Self, Slot) -> Region
+pub fn Program::regions(Self) -> ReadOnlyArray[Region]
+pub fn Program::stages(Self, Phase) -> ReadOnlyArray[Stage]
+pub fn Program::workspace_bytes(Self) -> Int64
+
+pub(all) struct Region {
+  slot : Slot
+  workspace_offset : Int64?
+  byte_count : Int64
+  alignment : Int64
+}
+
+pub(all) enum Slot {
+  Counts
+  CanvasPositions
+  CausalPositions
+  RowOffsets
+  SequenceLengths
+  PageOffsets
+  PhysicalPages
+  Input
+  Output
+  QueryWeight
+  KeyWeight
+  ValueWeight
+  OutputWeight
+  QueryNormWeight
+  KeyNormWeight
+  KeyCache
+  ValueCache
+  RawQuery
+  RawKey
+  RawValue
+  Query
+  Key
+  Cosine
+  Sine
+  PackedQkv
+  Context
+  GatedContext
+} derive(Eq, @debug.Debug)
+pub fn Slot::equal(Self, Self) -> Bool
+pub fn Slot::name(Self) -> String
+pub fn Slot::not_equal(Self, Self) -> Bool
+pub fn Slot::to_repr(Self) -> @debug.Repr
+
+pub struct Stage {
+  // private fields
+}
+pub fn Stage::arguments(Self) -> ReadOnlyArray[Slot]
+pub fn Stage::is_attention(Self) -> Bool
+pub fn Stage::launch(Self) -> (Int, Int, Int, Int64)
+pub fn Stage::symbol(Self) -> String
+
+pub(all) struct Weights {
+  query : @device.Allocation
+  key : @device.Allocation
+  value : @device.Allocation
+  output : @device.Allocation
+  query_norm : @device.Allocation
+  key_norm : @device.Allocation
+}
+
+// Type aliases
+
+// Traits

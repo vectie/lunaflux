@@ -1,0 +1,22 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/integration/minicpm_v47" @prompt,
+  "vectie/lunaflux/integration/minicpm_v47_request" @request,
+  "vectie/lunaflux/integration/minicpm_v47_image_runtime" @image_runtime,
+  "vectie/lunaflux/integration/minicpm_v47_multimodal" @multimodal,
+  "vectie/lunaflux/integration/minicpm_v47_media" @media,
+  "vectie/lunaflux/integration/minicpm_v47_vision" @vision,
+  "vectie/lunaflux/service/http1",
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/spec",
+  "vectie/lunaflux/service/session_chat" @session,
+  "vectie/lunaflux/service/openai_compat" @compat,
+  "vectie/lunaflux/service/api_auth" @auth,
+  "vectie/lunaflux/service/luna_event" @event,
+  "vectie/lunaflux/service/incremental_output" @output,
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+}
+
+supported_targets = "native"

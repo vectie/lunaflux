@@ -1,0 +1,34 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/segmented_vision_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn attention_source(@precision_ir.SegmentedAttentionPrecision, symbol~ : String) -> AttentionSource raise
+
+pub fn gather_source(maximum_rows~ : Int, width~ : Int, symbol~ : String) -> Bytes raise
+
+pub fn merge_residual_source(maximum_rows~ : Int, width~ : Int, symbol~ : String) -> Bytes raise
+
+pub fn patch_rows_source(maximum_rows~ : Int, channels~ : Int, patch_size~ : Int, symbol~ : String) -> Bytes raise
+
+pub fn position_add_source(maximum_rows~ : Int, width~ : Int, symbol~ : String) -> Bytes raise
+
+// Errors
+
+// Types and methods
+pub struct AttentionSource {
+  // private fields
+}
+pub fn AttentionSource::launch(Self) -> (Int, Int, Int)
+pub fn AttentionSource::parameter_count(Self) -> Int
+pub fn AttentionSource::plan(Self) -> @precision_ir.SegmentedAttentionPrecision
+pub fn AttentionSource::shared_bytes(Self) -> Int
+pub fn AttentionSource::source_bytes(Self) -> Bytes
+pub fn AttentionSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

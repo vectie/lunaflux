@@ -3,8 +3,8 @@
 /// horizon is a resource choice, not a model name or a vendor tuning constant.
 pub fn OrderedSubmissionPlan::collective_window_count(
   self : Self,
-  bucket : Int,
-) -> Int {
+  bucket : Int32,
+) -> Int32 {
   match self.replay {
     CaptureWindowedCollectives(_, sites) if bucket == 1 =>
       if self.interval_count() == 1 {
@@ -21,9 +21,9 @@ pub fn OrderedSubmissionPlan::collective_window_count(
 /// joined communication boundaries; they neither pad rows nor change sums.
 pub fn OrderedSubmissionPlan::collective_window(
   self : Self,
-  bucket : Int,
-  window : Int,
-) -> (Int, Int, Int, Int) raise ParallelError {
+  bucket : Int32,
+  window : Int32,
+) -> (Int32, Int32, Int32, Int32) raise ParallelError {
   guard bucket >= 0 &&
     bucket <= 1 &&
     window >= 0 &&
@@ -57,8 +57,8 @@ pub fn OrderedSubmissionPlan::collective_window(
 ///|
 pub fn OrderedSubmissionPlan::collective_queue_first(
   self : Self,
-  live : Int,
-) -> Int {
+  live : Int32,
+) -> Int32 {
   // The one-row bucket is always a single graph, even with bounded prefill.
   self.collective_bucket(live)
 }
@@ -82,20 +82,31 @@ test "bounded prefill preserves exact sites, tail, decode and fallback" {
   assert_true(p.replay_collectives(1))
   assert_true(p.replay_collectives(64))
   assert_false(p.replay_collectives(63))
-  assert_true((try? p.collective_window(1, 3)) is Err(_))
+  assert_true(
+    try {
+      let _ = p.collective_window(1, 3)
+      false
+    } catch {
+      _ => true
+    },
+  )
 }
 
 ///|
 test "window horizons reject zero and preserve one-window limits" {
   for sites in [0, -1] {
     assert_true(
-      (try? OrderedSubmissionPlan::new(
-        kernel_count=8,
-        [2, 5],
-        retirement=WholeFrame,
-        replay=CaptureWindowedCollectives(64, sites),
-      ))
-      is Err(_),
+      try {
+        let _ = OrderedSubmissionPlan::new(
+          kernel_count=8,
+          [2, 5],
+          retirement=WholeFrame,
+          replay=CaptureWindowedCollectives(64, sites),
+        )
+        false
+      } catch {
+        _ => true
+      },
     )
   }
   let p = OrderedSubmissionPlan::new(
@@ -106,10 +117,17 @@ test "window horizons reject zero and preserve one-window limits" {
   )
   assert_eq(p.collective_window_count(1), 1)
   assert_eq(p.collective_window(1, 0), (0, 8, 0, 2))
-  assert_true((try? OrderedSubmissionPlan::new(
-    kernel_count=8,
-    [],
-    retirement=WholeFrame,
-    replay=CaptureWindowedCollectives(64, 1),
-  )) is Err(_))
+  assert_true(
+    try {
+      let _ = OrderedSubmissionPlan::new(
+        kernel_count=8,
+        [],
+        retirement=WholeFrame,
+        replay=CaptureWindowedCollectives(64, 1),
+      )
+      false
+    } catch {
+      _ => true
+    },
+  )
 }

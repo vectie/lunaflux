@@ -1,21 +1,21 @@
 ///|
 pub fn CudaPagedAttentionTileAbi::new(
-  query_heads~ : Int,
-  key_value_heads~ : Int,
-  head_dimension~ : Int,
-  tokens_per_page~ : Int,
-  input_row_width~ : Int,
+  query_heads~ : Int32,
+  key_value_heads~ : Int32,
+  head_dimension~ : Int32,
+  tokens_per_page~ : Int32,
+  input_row_width~ : Int32,
   page_stride_values~ : Int64,
   physical_page_capacity~ : Int64,
-  maximum_query_rows~ : Int,
-  maximum_query_tokens~ : Int,
-  maximum_page_entries~ : Int,
-  query_metadata? : Bool = false,
+  maximum_query_rows~ : Int32,
+  maximum_query_tokens~ : Int32,
+  maximum_page_entries~ : Int32,
+  query_metadata~ : Bool = false,
 ) -> CudaPagedAttentionTileAbi raise CudaAttentionTileSourceError {
   if query_heads <= 0 ||
     key_value_heads <= 0 ||
     query_heads % key_value_heads != 0 ||
-    !(head_dimension == 64 || head_dimension == 128) ||
+    !(head_dimension == 64 || head_dimension == 128 || head_dimension == 256) ||
     tokens_per_page <= 0 ||
     (tokens_per_page & (tokens_per_page - 1)) != 0 ||
     input_row_width < (query_heads + 2 * key_value_heads) * head_dimension ||
@@ -49,8 +49,8 @@ fn valid_cuda_symbol(symbol : StringView) -> Bool {
   }
   for index, unit in symbol {
     if !(unit == '_' ||
-      unit is ('a'..='z' | 'A'..='Z') ||
-      (index > 0 && unit is ('0'..='9'))) {
+      unit is ('a'..<='z' | 'A'..<='Z') ||
+      (index > 0 && unit is ('0'..<='9'))) {
       return false
     }
   }

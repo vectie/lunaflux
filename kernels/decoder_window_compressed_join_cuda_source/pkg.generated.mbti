@@ -17,11 +17,17 @@ pub(all) suberror DecoderWindowCompressedJoinCudaSourceError {
   InvalidFunctionSymbol
   SizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn DecoderWindowCompressedJoinCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderWindowCompressedJoinCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderWindowCompressedJoinCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderWindowCompressedJoinCudaOperation {
   DeterministicWindowCompressedJoinI32V1
 } derive(Eq, @debug.Debug)
+pub fn DecoderWindowCompressedJoinCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderWindowCompressedJoinCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderWindowCompressedJoinCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderWindowCompressedJoinCudaSource {
   // private fields
@@ -40,6 +46,9 @@ pub fn DecoderWindowCompressedJoinCudaSource::window_size(Self) -> Int
 pub(all) enum DecoderWindowCompressedJoinNumericalContract {
   BitExactOfficialWindowThenCompressedI32V1
 } derive(Eq, @debug.Debug)
+pub fn DecoderWindowCompressedJoinNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderWindowCompressedJoinNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderWindowCompressedJoinNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

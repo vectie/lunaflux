@@ -1,0 +1,32 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/model/precision_format" @format,
+  "vectie/lunaflux/engine/precision_materialize" @checkpoint,
+  "vectie/lunaflux/integration/minicpm_v47_moe" @moe,
+  "vectie/lunaflux/integration/minicpm_v47_decoder" @decoder,
+  "vectie/lunaflux/integration/minicpm_v47_recurrent" @recurrent,
+  "vectie/lunaflux/integration/minicpm_v47_attention" @attention,
+  "vectie/lunaflux/integration/minicpm_v47_text" @text,
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/device",
+}
+
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/json",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "moonbitlang/core/buffer",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "wbtest"
+
+supported_targets = "native"

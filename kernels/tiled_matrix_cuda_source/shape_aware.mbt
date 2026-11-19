@@ -2,15 +2,15 @@
 /// Reuse the existing shape classifier and pure scalar fold, without producing
 /// cache identities or importing external measurements into numerical legality.
 pub fn shape_decode_body(
-  inner~ : Int,
-  columns~ : Int,
-  maximum_rows~ : Int,
+  inner~ : Int32,
+  columns~ : Int32,
+  maximum_rows~ : Int32,
   left~ : String,
   right~ : String,
   publish~ : String,
-  prepare? : String = "",
-  tile_id? : String = "blockIdx.x",
-  tile_count? : String = "gridDim.x",
+  prepare~ : String = "",
+  tile_id~ : String = "blockIdx.x",
+  tile_count~ : String = "gridDim.x",
 ) -> String {
   let dispatch = try! @strategy.plan_projection_dispatch(
     @strategy.ProjectionShape::new(

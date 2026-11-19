@@ -37,6 +37,9 @@ pub(all) suberror ReferenceKernelError {
   ArithmeticOverflow
   NonFinite(ReferenceValueRole)
 } derive(Eq, @debug.Debug)
+pub fn ReferenceKernelError::equal(Self, Self) -> Bool
+pub fn ReferenceKernelError::not_equal(Self, Self) -> Bool
+pub fn ReferenceKernelError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Activation {
@@ -46,8 +49,11 @@ pub struct Activation {
 } derive(Eq, @debug.Debug)
 pub fn Activation::at(Self, row~ : Int, column~ : Int) -> Float raise ReferenceKernelError
 pub fn Activation::columns(Self) -> Int
+pub fn Activation::equal(Self, Self) -> Bool
 pub fn Activation::new(rows~ : Int, columns~ : Int, values~ : ArrayView[Float], limits~ : ReferenceLimits) -> Self raise ReferenceKernelError
+pub fn Activation::not_equal(Self, Self) -> Bool
 pub fn Activation::rows(Self) -> Int
+pub fn Activation::to_repr(Self) -> @debug.Repr
 pub fn Activation::values(Self) -> ReadOnlyArray[Float]
 
 pub(all) enum ReferenceLimitField {
@@ -55,16 +61,22 @@ pub(all) enum ReferenceLimitField {
   MaxColumns
   MaxElements
 } derive(Eq, @debug.Debug)
+pub fn ReferenceLimitField::equal(Self, Self) -> Bool
+pub fn ReferenceLimitField::not_equal(Self, Self) -> Bool
+pub fn ReferenceLimitField::to_repr(Self) -> @debug.Repr
 
 pub struct ReferenceLimits {
   max_rows : Int
   max_columns : Int
   max_elements : Int
 } derive(Eq, @debug.Debug)
+pub fn ReferenceLimits::equal(Self, Self) -> Bool
 pub fn ReferenceLimits::max_columns(Self) -> Int
 pub fn ReferenceLimits::max_elements(Self) -> Int
 pub fn ReferenceLimits::max_rows(Self) -> Int
 pub fn ReferenceLimits::new(max_rows~ : Int, max_columns~ : Int, max_elements~ : Int) -> Self raise ReferenceKernelError
+pub fn ReferenceLimits::not_equal(Self, Self) -> Bool
+pub fn ReferenceLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReferenceShapeRule {
   PositiveDimensions
@@ -84,6 +96,9 @@ pub(all) enum ReferenceShapeRule {
   MlpDownWeight
   Bfloat16ByteCount
 } derive(Eq, @debug.Debug)
+pub fn ReferenceShapeRule::equal(Self, Self) -> Bool
+pub fn ReferenceShapeRule::not_equal(Self, Self) -> Bool
+pub fn ReferenceShapeRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ReferenceValueRole {
   ActivationValue
@@ -93,6 +108,9 @@ pub(all) enum ReferenceValueRole {
   RopeTheta
   ComputedValue
 } derive(Eq, @debug.Debug)
+pub fn ReferenceValueRole::equal(Self, Self) -> Bool
+pub fn ReferenceValueRole::not_equal(Self, Self) -> Bool
+pub fn ReferenceValueRole::to_repr(Self) -> @debug.Repr
 
 pub struct Tensor {
   rows : Int
@@ -101,8 +119,11 @@ pub struct Tensor {
 } derive(Eq, @debug.Debug)
 pub fn Tensor::at(Self, row~ : Int, column~ : Int) -> Float raise ReferenceKernelError
 pub fn Tensor::columns(Self) -> Int
+pub fn Tensor::equal(Self, Self) -> Bool
 pub fn Tensor::new(rows~ : Int, columns~ : Int, values~ : ArrayView[Float], limits~ : ReferenceLimits) -> Self raise ReferenceKernelError
+pub fn Tensor::not_equal(Self, Self) -> Bool
 pub fn Tensor::rows(Self) -> Int
+pub fn Tensor::to_repr(Self) -> @debug.Repr
 pub fn Tensor::values(Self) -> ReadOnlyArray[Float]
 
 // Type aliases

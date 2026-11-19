@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/softmax_topk_execution_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn softmax_topk_source(@precision_ir.SoftmaxTopKPrecision, symbol~ : String) -> SoftmaxTopKCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct SoftmaxTopKCudaSource {
+  // private fields
+}
+pub fn SoftmaxTopKCudaSource::launch(Self) -> (Int, Int, Int)
+pub fn SoftmaxTopKCudaSource::parameter_count(Self) -> Int
+pub fn SoftmaxTopKCudaSource::plan(Self) -> @precision_ir.SoftmaxTopKPrecision
+pub fn SoftmaxTopKCudaSource::source_bytes(Self) -> Bytes
+pub fn SoftmaxTopKCudaSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

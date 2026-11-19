@@ -24,6 +24,9 @@ pub(all) suberror ProcessError {
   ChannelClosed(ProcessOperation)
   OperationFailed(ProcessOperation)
 } derive(Eq, @debug.Debug)
+pub fn ProcessError::equal(Self, Self) -> Bool
+pub fn ProcessError::not_equal(Self, Self) -> Bool
+pub fn ProcessError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ChildExit {
@@ -108,6 +111,9 @@ pub(all) enum ProcessLimitRule {
   IoTimeoutMillis
   ShutdownTimeoutMillis
 } derive(Eq, @debug.Debug)
+pub fn ProcessLimitRule::equal(Self, Self) -> Bool
+pub fn ProcessLimitRule::not_equal(Self, Self) -> Bool
+pub fn ProcessLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct ProcessLimits {
   // private fields
@@ -125,6 +131,9 @@ pub(all) enum ProcessOperation {
   Terminate
   Close
 } derive(Eq, @debug.Debug)
+pub fn ProcessOperation::equal(Self, Self) -> Bool
+pub fn ProcessOperation::not_equal(Self, Self) -> Bool
+pub fn ProcessOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -3,7 +3,7 @@ pub struct RecurrentDeltaCudaSource {
   priv plan : @precision.RecurrentDeltaPrecision
   priv symbol : String
   priv source : Bytes
-  priv block : Int
+  priv block : Int32
   priv chunk : @physical.ChunkDeltaPlan?
 }
 
@@ -22,8 +22,8 @@ pub fn recurrent_delta_source(
     heads <= 65535 &&
     !symbol.is_empty() &&
     symbol.length() <= 128 &&
-    symbol[0] is ('a'..='z' | 'A'..='Z' | '_') &&
-    symbol.all(c => c is ('a'..='z' | 'A'..='Z' | '0'..='9' | '_')) else {
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
     raise @precision.PrecisionPlanError::NoImplementation
   }
   if plan.evaluation() is ChunkTriangularFloat32 {
@@ -40,7 +40,45 @@ pub fn recurrent_delta_source(
     @arithmetic.scalar_expression(plan.expression(operation), bindings)
   }
   let scale = scalar(QueryScale, ["\{keys}.0f"])
-  let decay = scalar(Decay, ["log_decay[qbase+lane]"])
+  let decay_input = match plan.decay_layout() {
+    PerKeyComponent => "log_decay[qbase+lane]"
+    PerValueHead => "log_decay[(unsigned long long)row*\{heads}ULL+head]"
+  }
+  // Per-key decay follows value heads even when Q/K heads are grouped.
+  let decay_input = if plan.decay_layout() is PerKeyComponent &&
+    (
+      plan.query_key_head_count() != heads ||
+      plan.query_key_row_stride() != heads.to_int64() * keys.to_int64()
+    ) {
+    "log_decay[((unsigned long long)row*\{heads}ULL+head)*\{keys}ULL+lane]"
+  } else {
+    decay_input
+  }
+  let decay = scalar(Decay, [decay_input])
+  let query_heads = plan.query_key_head_count()
+  let query_head = if query_heads == heads {
+    "head"
+  } else {
+    "(head/\{heads / query_heads})"
+  }
+  let query_base = if plan.query_key_row_stride() ==
+    query_heads.to_int64() * keys.to_int64() {
+    "((unsigned long long)row*\{query_heads}ULL+\{query_head})*\{keys}ULL"
+  } else {
+    "(unsigned long long)row*\{plan.query_key_row_stride()}ULL+\{query_head}*\{keys}ULL"
+  }
+  let value_base = if plan.value_row_stride() ==
+    heads.to_int64() * values.to_int64() {
+    "((unsigned long long)row*\{heads}ULL+head)*\{values}ULL"
+  } else {
+    "(unsigned long long)row*\{plan.value_row_stride()}ULL+head*\{values}ULL"
+  }
+  let output_index = if plan.value_row_stride() ==
+    heads.to_int64() * values.to_int64() {
+    "vbase+lane"
+  } else {
+    "((unsigned long long)row*\{heads}ULL+head)*\{values}ULL+lane"
+  }
   let square = plan.fold(SquareUpdate)
   let qs = @arithmetic.scalar_expression(square.update, ["qs", "q[k]"])
   let ks = @arithmetic.scalar_expression(square.update, ["ks", "kn[k]"])
@@ -73,8 +111,8 @@ pub fn recurrent_delta_source(
     $|  __shared__ float q[\{keys}], kn[\{keys}], decay[\{keys}], qinv, kinv, b;
     $|  const float qscale=\{scale};
     $|  for(int row=begin;row<end;++row) {
-    $|    const unsigned long long qbase=((unsigned long long)row*\{heads}ULL+head)*\{keys}ULL;
-    $|    const unsigned long long vbase=((unsigned long long)row*\{heads}ULL+head)*\{values}ULL;
+    $|    const unsigned long long qbase=\{query_base};
+    $|    const unsigned long long vbase=\{value_base};
     $|    if(lane<\{keys}) { q[lane]=__bfloat162float(query[qbase+lane]); kn[lane]=__bfloat162float(key[qbase+lane]); decay[lane]=\{decay}; }
     $|    __syncthreads();
     $|    if(lane==0) {
@@ -92,7 +130,7 @@ pub fn recurrent_delta_source(
     $|      const float delta=\{delta};
     $|      float result=0.0f;
     $|      for(int k=0;k<\{keys};++k) { memory_state[k]=\{update}; result=\{result}; }
-    $|      output[vbase+lane]=\{publish};
+    $|      output[\{output_index}]=\{publish};
     $|    }
     $|    __syncthreads();
     $|  }
@@ -119,7 +157,7 @@ pub fn RecurrentDeltaCudaSource::source_bytes(self : Self) -> Bytes {
 }
 
 ///|
-pub fn RecurrentDeltaCudaSource::launch(self : Self) -> (Int, Int, Int) {
+pub fn RecurrentDeltaCudaSource::launch(self : Self) -> (Int32, Int32, Int32) {
   let (_, sequences, _) = self.plan.capacity()
   let (heads, _, _) = self.plan.geometry()
   (sequences, heads, self.block)

@@ -37,18 +37,31 @@ pub extend ExpertDownPublication with Eq::{equal, not_equal}
 pub extend ExpertDownPublication with @debug.Debug::{to_repr}
 
 ///|
+pub(all) enum ExpertCombineRounding {
+  Float32Combine
+  Bf16EachAdd
+} derive(Debug, Eq)
+
+///|
+pub extend ExpertCombineRounding with Eq::{equal, not_equal}
+
+///|
+pub extend ExpertCombineRounding with @debug.Debug::{to_repr}
+
+///|
 /// Immutable selected-expert compute plan. All weight operands are decoded at
 /// consumption; BF16 activation/product rounding is explicit. Rank-local
-/// contributions are combined in F32 so the same plan can feed an all-reduce.
+/// contributions default to F32 combination for all-reduce. An explicit BF16
+/// each-add mode requires all experts and local down publication.
 pub struct ExpertMlpPrecision {
   priv weights : ReadOnlyArray[OperandPlan]
-  priv local_experts : ReadOnlyArray[Int]
-  priv expert_map : ReadOnlyArray[Int]
-  priv expert_count : Int
-  priv selected_experts : Int
-  priv maximum_rows : Int
-  priv hidden : Int
-  priv intermediate : Int
+  priv local_experts : ReadOnlyArray[Int32]
+  priv expert_map : ReadOnlyArray[Int32]
+  priv expert_count : Int32
+  priv selected_experts : Int32
+  priv maximum_rows : Int32
+  priv hidden : Int32
+  priv intermediate : Int32
   priv clamp : Double?
   priv activation_rounding : ExpertActivationRounding
   priv routing_placement : ExpertRoutingPlacement
@@ -56,6 +69,7 @@ pub struct ExpertMlpPrecision {
   priv scaled_dot_law : ScaledDotReductionLaw
   priv dot_law : DenseDotLaw
   priv down_publication : ExpertDownPublication
+  priv combine_rounding : ExpertCombineRounding
   priv quantized_bytes : (Int64, Int64)
   priv offsets : ReadOnlyArray[Int64]
   priv stride : Int64
@@ -78,17 +92,18 @@ pub fn ExpertMlpPrecision::new(
   gate~ : OperandPlan,
   up~ : OperandPlan,
   down~ : OperandPlan,
-  expert_count~ : Int,
-  local_experts~ : ArrayView[Int],
-  selected_experts~ : Int,
-  maximum_rows~ : Int,
+  expert_count~ : Int32,
+  local_experts~ : ArrayView[Int32],
+  selected_experts~ : Int32,
+  maximum_rows~ : Int32,
   clamp? : Double,
-  activation_rounding? : ExpertActivationRounding = Bf16Stages,
-  routing_placement? : ExpertRoutingPlacement = AfterDownOutputRound,
+  activation_rounding~ : ExpertActivationRounding = Bf16Stages,
+  routing_placement~ : ExpertRoutingPlacement = AfterDownOutputRound,
   activation_quantization? : (QuantizationPlan, QuantizationPlan),
-  scaled_dot_law? : ScaledDotReductionLaw = DecodeOperandsFloat32,
-  dot_law? : DenseDotLaw = ScalarFloat32,
-  down_publication? : ExpertDownPublication = LocalBFloat16,
+  scaled_dot_law~ : ScaledDotReductionLaw = DecodeOperandsFloat32,
+  dot_law~ : DenseDotLaw = ScalarFloat32,
+  down_publication~ : ExpertDownPublication = LocalBFloat16,
+  combine_rounding~ : ExpertCombineRounding = Float32Combine,
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
   if memory_ceiling < 0L ||
@@ -104,6 +119,13 @@ pub fn ExpertMlpPrecision::new(
     raise MissingAccuracyContract
   }
   let weights = [gate, up, down]
+  if combine_rounding == Bf16EachAdd &&
+    (
+      local_experts.length() != expert_count ||
+      down_publication != LocalBFloat16
+    ) {
+    raise NoImplementation
+  }
   let packed_matrix = scaled_dot_law
     is BlockScaledMatrixFloat32(block_columns=16)
   if scaled_dot_law is BlockScaledMatrixFloat32(..) && !packed_matrix {
@@ -262,6 +284,7 @@ pub fn ExpertMlpPrecision::new(
     scaled_dot_law,
     dot_law,
     down_publication,
+    combine_rounding,
     quantized_bytes,
     offsets: ReadOnlyArray::from_array(offsets),
     stride,
@@ -270,6 +293,13 @@ pub fn ExpertMlpPrecision::new(
     weighted_bytes,
     total_bytes,
   }
+}
+
+///|
+pub fn ExpertMlpPrecision::combine_rounding(
+  self : Self,
+) -> ExpertCombineRounding {
+  self.combine_rounding
 }
 
 ///|
@@ -283,17 +313,19 @@ pub fn ExpertMlpPrecision::weights(self : Self) -> ReadOnlyArray[OperandPlan] {
 }
 
 ///|
-pub fn ExpertMlpPrecision::local_experts(self : Self) -> ReadOnlyArray[Int] {
+pub fn ExpertMlpPrecision::local_experts(self : Self) -> ReadOnlyArray[Int32] {
   self.local_experts
 }
 
 ///|
-pub fn ExpertMlpPrecision::expert_map(self : Self) -> ReadOnlyArray[Int] {
+pub fn ExpertMlpPrecision::expert_map(self : Self) -> ReadOnlyArray[Int32] {
   self.expert_map
 }
 
 ///|
-pub fn ExpertMlpPrecision::geometry(self : Self) -> (Int, Int, Int, Int, Int) {
+pub fn ExpertMlpPrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (
     self.maximum_rows,
     self.hidden,

@@ -42,6 +42,33 @@ fn residual_source(
   parameters : PointwiseParameters,
   ownership : @physical_tile_ir.VectorOwnership,
 ) -> Bytes {
+  render_residual_source(symbol, parameters.width, ownership)
+}
+
+///|
+/// Standalone adapter for the existing BF16 residual emitter. Output may alias
+/// either input exactly; caller-owned StepCounts bounds the live token rows.
+/// Source emission does not constitute artifact admission or device qualification.
+pub fn bf16_residual_source(
+  ownership : @physical_tile_ir.VectorOwnership,
+  symbol~ : String,
+) -> Bytes raise PointwiseAotError {
+  guard !symbol.is_empty() &&
+    symbol.length() <= 128 &&
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
+    raise Invalid(Shape)
+  }
+  let (width, _, _) = ownership.geometry()
+  render_residual_source(symbol, width, ownership)
+}
+
+///|
+fn render_residual_source(
+  symbol : String,
+  width : Int32,
+  ownership : @physical_tile_ir.VectorOwnership,
+) -> Bytes {
   let (_, owners, _) = ownership.geometry()
   @utf8.encode(
     cuda_prelude() +
@@ -51,7 +78,7 @@ fn residual_source(
     "const __nv_bfloat16 *right, __nv_bfloat16 *output) {\n" +
     "  const int live_tokens = counts[3];\n  if (live_tokens <= 0) return;\n" +
     "  const unsigned long long live = (unsigned long long)live_tokens * " +
-    parameters.width.to_string() +
+    width.to_string() +
     "ULL;\n" +
     "  for (unsigned long long i = (unsigned long long)blockIdx.x * \{owners}ULL + threadIdx.x; i < live; i += (unsigned long long)gridDim.x * \{owners}ULL) {\n" +
     "    const float sum = __bfloat162float(left[i]) + __bfloat162float(right[i]);\n" +

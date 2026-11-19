@@ -10,10 +10,10 @@ pub fn ExpertMlpPrecision::down_publication(
 /// ownership does not change (this is TP, not EP). Each rank computes all
 /// routed jobs over disjoint intermediate channels.
 pub struct ExpertTensorPartition {
-  priv rank : Int
-  priv world_size : Int
-  priv intermediate_start : Int
-  priv collective_width : Int
+  priv rank : Int32
+  priv world_size : Int32
+  priv intermediate_start : Int32
+  priv collective_width : Int32
   priv slices : ReadOnlyArray[PackedMatrixSlice]
   priv rank_plan : ExpertMlpPrecision
 }
@@ -21,8 +21,8 @@ pub struct ExpertTensorPartition {
 ///|
 pub fn ExpertTensorPartition::new(
   original : ExpertMlpPrecision,
-  rank~ : Int,
-  world_size~ : Int,
+  rank~ : Int32,
+  world_size~ : Int32,
   memory_ceiling~ : Int64,
 ) -> Self raise PrecisionPlanError {
   let (rows, hidden, intermediate, experts, selected) = original.geometry()
@@ -31,6 +31,7 @@ pub fn ExpertTensorPartition::new(
     rank < world_size &&
     intermediate % world_size == 0 &&
     original.down_publication() == LocalBFloat16 &&
+    original.combine_rounding() == Float32Combine &&
     original.local_experts().length() == experts &&
     (
       (
@@ -119,17 +120,17 @@ pub fn ExpertTensorPartition::new(
 }
 
 ///|
-pub fn ExpertTensorPartition::rank(self : Self) -> Int {
+pub fn ExpertTensorPartition::rank(self : Self) -> Int32 {
   self.rank
 }
 
 ///|
-pub fn ExpertTensorPartition::world_size(self : Self) -> Int {
+pub fn ExpertTensorPartition::world_size(self : Self) -> Int32 {
   self.world_size
 }
 
 ///|
-pub fn ExpertTensorPartition::intermediate_start(self : Self) -> Int {
+pub fn ExpertTensorPartition::intermediate_start(self : Self) -> Int32 {
   self.intermediate_start
 }
 
@@ -148,6 +149,6 @@ pub fn ExpertTensorPartition::rank_plan(self : Self) -> ExpertMlpPrecision {
 ///|
 /// F32 all-reduce width per live token, before down publication. Routing order
 /// must be replicated across ranks; no rounded/shared output enters this sum.
-pub fn ExpertTensorPartition::collective_width(self : Self) -> Int {
+pub fn ExpertTensorPartition::collective_width(self : Self) -> Int32 {
   self.collective_width
 }

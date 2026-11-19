@@ -19,6 +19,9 @@ pub(all) suberror JointAttentionCudaSourceError {
   InvalidFunctionSymbol
   InvalidProbabilityLaw
 } derive(Eq, @debug.Debug)
+pub fn JointAttentionCudaSourceError::equal(Self, Self) -> Bool
+pub fn JointAttentionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn JointAttentionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct JointAttentionCudaSource {
@@ -39,6 +42,9 @@ pub(all) enum JointAttentionNumericalContract {
   GlobalBf16ProbabilityF32DenominatorStagedAttentionV1
   OnlineBf16ProbabilityF32DenominatorStagedAttentionV1(block_tokens~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn JointAttentionNumericalContract::equal(Self, Self) -> Bool
+pub fn JointAttentionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn JointAttentionNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

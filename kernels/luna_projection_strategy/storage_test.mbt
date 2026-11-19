@@ -1,15 +1,23 @@
 ///|
 test "selected row materialization has an explicit storage cost" {
-  let shape = ProjectionShape::new(
+  let shape = @luna_projection_strategy.ProjectionShape::new(
     LanguageModelHead,
     input_width=1024,
     output_width=151936,
   )
-  let caps = ProjectionCapabilities::new(
+  let caps = @luna_projection_strategy.ProjectionCapabilities::new(
     subgroup_width=32,
-    matrix_tile=Some(ProjectionTile::new(rows=16, columns=16, reduction=16)),
+    matrix_tile=Some(
+      @luna_projection_strategy.ProjectionTile::new(
+        rows=16,
+        columns=16,
+        reduction=16,
+      ),
+    ),
   )
-  let streamed = plan_projection_dispatch(shape, 256, caps).prefill()
+  let streamed = @luna_projection_strategy.plan_projection_dispatch(
+    shape, 256, caps,
+  ).prefill()
   let resident = streamed.with_selected_row_residency(stable_id=3008)
   assert_eq(streamed.local_storage(shape).accumulator_elements(), 2048L)
   assert_eq(streamed.local_storage(shape).selected_input_elements(), 256L)
@@ -20,16 +28,24 @@ test "selected row materialization has an explicit storage cost" {
 
 ///|
 test "independent output partitions retain residency and adjust local cost" {
-  let shape = ProjectionShape::new(
+  let shape = @luna_projection_strategy.ProjectionShape::new(
     LanguageModelHead,
     input_width=2048,
     output_width=32768,
   )
-  let caps = ProjectionCapabilities::new(
+  let caps = @luna_projection_strategy.ProjectionCapabilities::new(
     subgroup_width=32,
-    matrix_tile=Some(ProjectionTile::new(rows=16, columns=16, reduction=16)),
+    matrix_tile=Some(
+      @luna_projection_strategy.ProjectionTile::new(
+        rows=16,
+        columns=16,
+        reduction=16,
+      ),
+    ),
   )
-  let resident = plan_projection_dispatch(shape, 32, caps)
+  let resident = @luna_projection_strategy.plan_projection_dispatch(
+      shape, 32, caps,
+    )
     .prefill()
     .with_selected_row_residency(stable_id=3008)
   for candidate in resident.output_distribution_candidates() {

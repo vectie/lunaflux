@@ -20,6 +20,9 @@ pub(all) suberror RecurrentDeltaCudaSourceError {
   DimensionOverflow
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn RecurrentDeltaCudaSourceError::equal(Self, Self) -> Bool
+pub fn RecurrentDeltaCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn RecurrentDeltaCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct RecurrentDeltaCudaSource {
@@ -40,10 +43,16 @@ pub fn RecurrentDeltaCudaSource::value_dimension(Self) -> Int
 pub(all) enum RecurrentDeltaNumericalContract {
   OrderedFloat32NormalizedDeltaBf16OutputV1
 } derive(Eq, @debug.Debug)
+pub fn RecurrentDeltaNumericalContract::equal(Self, Self) -> Bool
+pub fn RecurrentDeltaNumericalContract::not_equal(Self, Self) -> Bool
+pub fn RecurrentDeltaNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RecurrentDeltaOperation {
   CausalNormalizedRecurrentDeltaBf16F32
 } derive(Eq, @debug.Debug)
+pub fn RecurrentDeltaOperation::equal(Self, Self) -> Bool
+pub fn RecurrentDeltaOperation::not_equal(Self, Self) -> Bool
+pub fn RecurrentDeltaOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

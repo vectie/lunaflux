@@ -66,7 +66,12 @@ pub fn compile_cuda_attention_tile_aot(
       request.symbol,
       functional.plan().candidate().compute(),
     ),
-  )
+  ) catch {
+    InvalidCudaAttentionTileAot(SourceEmission) if functional.plan().source() ==
+      AttentionStaticCostModel =>
+      compile_cuda_attention_tile_aot_frontier(request, autotune_records).selected()
+    error => raise error
+  }
 }
 
 ///|
@@ -78,7 +83,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
   request : CudaAttentionTileAotRequest,
   autotune_records : ArrayView[@luna_attention_strategy.AttentionAutotuneRecord],
   previous? : CudaAttentionTileAotFrontier,
-  explicit_candidate? : Int,
+  explicit_candidate? : Int32,
 ) -> CudaAttentionTileAotFrontier raise CudaAttentionTileAotError {
   // Measured selection may collapse the ordinary frontier to one schedule.
   // Explicit offline evaluation retains the legal alternatives instead; it
@@ -101,7 +106,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
   } catch {
     _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
   }
-  let functional = match explicit_candidate {
+  let mut functional = match explicit_candidate {
     Some(id) =>
       functional.specialize(input, id) catch {
         _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
@@ -109,7 +114,7 @@ pub fn compile_cuda_attention_tile_aot_frontier(
     None => functional
   }
   let variants : Array[CudaAttentionTileAotCompilation] = []
-  let rejected : Array[(Int, CudaAttentionTileAotRule)] = []
+  let rejected : Array[(Int32, CudaAttentionTileAotRule)] = []
   for compilation in functional.variants() {
     let stable_id = compilation.plan().candidate().stable_id()
     // Preserve the long-lived production ABI symbol for the selected variant.
@@ -137,9 +142,39 @@ pub fn compile_cuda_attention_tile_aot_frontier(
   if variants.length() == 0 {
     raise InvalidCudaAttentionTileAot(SourceEmission)
   }
-  guard variants.filter(variant => variant.functional() == functional.selected())
-    is [selected] else {
-    raise InvalidCudaAttentionTileAot(FunctionalCompilation)
+  let selected = match
+    variants.filter(variant => variant.functional() == functional.selected()) {
+    [selected] => selected
+    _ => {
+      // Static functional cost cannot predict backend implementation coverage.
+      // Filter through actual emission before choosing among equally permitted
+      // schedules. Never override an explicit or measured selection.
+      guard explicit_candidate is None &&
+        functional.selected().plan().source() == AttentionStaticCostModel else {
+        raise InvalidCudaAttentionTileAot(FunctionalCompilation)
+      }
+      let available = variants.map(variant => {
+        variant.functional().plan().candidate().stable_id()
+      })
+      functional = functional.restrict_to(input, available[:]) catch {
+        _ => raise InvalidCudaAttentionTileAot(FunctionalCompilation)
+      }
+      let id = functional.selected().plan().candidate().stable_id()
+      let selected = lower_cuda_attention_tile_aot_variant(
+        request,
+        functional.selected(),
+        cuda_attention_numerical_symbol(
+          request.symbol,
+          functional.selected().plan().candidate().compute(),
+        ),
+      )
+      for i, variant in variants {
+        if variant.functional().plan().candidate().stable_id() == id {
+          variants[i] = selected
+        }
+      }
+      selected
+    }
   }
   let builder = StringBuilder()
   builder <+ "luna-cuda-attention-tile-aot-frontier-v1\n"

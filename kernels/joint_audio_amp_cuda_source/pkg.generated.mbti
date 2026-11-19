@@ -18,11 +18,17 @@ pub(all) suberror JointAudioAmpCudaSourceError {
   InvalidFunctionSymbol
   InvalidReferenceShape
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpCudaSourceError::equal(Self, Self) -> Bool
+pub fn JointAudioAmpCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum JointAudioAmpCudaNumericalContract {
   OrderedF32ResidualAndThreeWayAverageV1
 } derive(Eq, @debug.Debug)
+pub fn JointAudioAmpCudaNumericalContract::equal(Self, Self) -> Bool
+pub fn JointAudioAmpCudaNumericalContract::not_equal(Self, Self) -> Bool
+pub fn JointAudioAmpCudaNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct JointAudioAmpCudaSource {
   // private fields

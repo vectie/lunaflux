@@ -1,0 +1,74 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_text"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minicpm_v47_attention",
+  "vectie/lunaflux/integration/minicpm_v47_decoder",
+  "vectie/lunaflux/kernels/text_io_execution_cuda_source",
+  "vectie/lunaflux/model/minicpm_v47_operators",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Frame {
+  // private fields
+}
+pub fn Frame::close(Self) -> Unit raise
+pub fn Frame::launches(Self, @minicpm_v47_attention.Phase) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn Frame::logits(Self) -> @device.Allocation raise
+pub fn Frame::new(Program) -> Self
+pub fn Frame::prepare(Self, @device.Context, modules~ : Modules, metadata~ : Metadata, layers~ : ArrayView[@minicpm_v47_decoder.LayerWeights], weights~ : Weights, states~ : @minicpm_v47_decoder.StateArenas, buffers~ : @minicpm_v47_decoder.Buffers, sampled_tokens~ : @device.Allocation) -> Unit raise
+
+pub(all) struct Metadata {
+  decoder : @minicpm_v47_decoder.Metadata
+  token_ids : @device.Allocation
+  output_count : @device.Allocation
+  selected_rows : @device.Allocation
+}
+
+pub(all) struct Modules {
+  decoder : @minicpm_v47_decoder.Modules
+  text : @device.Module
+}
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::decoder_program(Self) -> @minicpm_v47_decoder.Program
+pub fn Program::launch_count(Self, @minicpm_v47_attention.Phase) -> Int
+pub fn Program::new(@minicpm_v47_operators.DecoderOperators, @minicpm_v47_decoder.Program, maximum_output_rows? : Int, maximum_workspace_bytes~ : Int64) -> Self raise
+pub fn Program::source_bytes(Self) -> Bytes
+pub fn Program::storage_budget(Self) -> StorageBudget
+pub fn Program::text_source(Self) -> @text_io_execution_cuda_source.TextIoCudaSource
+pub fn Program::workspace_bytes(Self) -> Int64
+
+pub struct Storage {
+  // private fields
+}
+pub fn Storage::buffers(Self) -> @minicpm_v47_decoder.Buffers raise @device.DeviceError
+pub fn Storage::close(Self) -> Unit raise @device.DeviceError
+pub fn Storage::metadata(Self) -> Metadata raise @device.DeviceError
+pub fn Storage::new(Program) -> Self
+pub fn Storage::prepare(Self, @device.Context, maximum_device_bytes~ : Int64) -> Unit raise @device.DeviceError
+pub fn Storage::sampled_tokens(Self) -> @device.Allocation raise @device.DeviceError
+pub fn Storage::states(Self) -> @minicpm_v47_decoder.StateArenas raise @device.DeviceError
+
+pub(all) struct StorageBudget {
+  owned_bytes : Int64
+  output_workspace_bytes : Int64
+}
+
+pub(all) struct Weights {
+  embedding : @device.Allocation
+  final_norm : @device.Allocation
+  language_head : @device.Allocation
+}
+
+// Type aliases
+pub using @minicpm_v47_attention {type Phase}
+
+// Traits

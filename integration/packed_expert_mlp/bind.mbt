@@ -19,7 +19,9 @@ fn region(
 ///
 /// Counts[3] is the live row count. Routing supplies distinct expert IDs per
 /// row and F32 weights; expert_map is plan.expert_map. The output is rank-local
-/// F32 (not a finalized global BF16 result), suitable for a subsequent reduce.
+/// F32, suitable for a subsequent reduce in Float32Combine mode. Bf16EachAdd
+/// instead carries exact BF16 values from a complete local bank; it is not a
+/// rank-partial collective result.
 /// Input, activation, weighted and output must be separate allocations.
 pub fn bind(
   source : @source.PackedExpertMlpCudaSource,

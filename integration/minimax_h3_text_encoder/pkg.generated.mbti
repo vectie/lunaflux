@@ -23,7 +23,7 @@ pub struct EncoderRequest {
 pub fn EncoderRequest::cancel(Self) -> Unit raise @device.DeviceError
 pub fn EncoderRequest::close(Self) -> Unit raise @device.DeviceError
 pub fn EncoderRequest::execute(Self) -> Unit raise @device.DeviceError
-pub fn EncoderRequest::execute_observed(Self, on_hidden_state~ : (Int, Bytes) -> Unit raise) -> Unit raise
+pub fn EncoderRequest::execute_observed(Self, on_hidden_state~ : (Int, Bytes) -> Unit raise, original_hidden_state? : (Int) -> Bytes raise) -> Unit raise
 pub fn EncoderRequest::execute_operator_observed(Self, on_tensor~ : (String, Bytes) -> Unit raise) -> Unit raise
 pub fn EncoderRequest::new(TextEncoderSource, @vectie/lunaflux/model/minimax_h3_text_encoder.EncoderConfig) -> Self raise @device.DeviceError
 pub fn EncoderRequest::poll(Self) -> Bool raise @device.DeviceError

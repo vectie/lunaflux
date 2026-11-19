@@ -15,6 +15,9 @@ pub(all) suberror Bf16BinaryCudaSourceError {
   InvalidFunctionSymbol
   DimensionOverflow
 } derive(Eq, @debug.Debug)
+pub fn Bf16BinaryCudaSourceError::equal(Self, Self) -> Bool
+pub fn Bf16BinaryCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn Bf16BinaryCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct Bf16BinaryCudaSource {

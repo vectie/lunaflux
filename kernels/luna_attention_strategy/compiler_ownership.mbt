@@ -5,14 +5,22 @@ pub(all) enum AttentionFragmentOwnership {
 } derive(Debug, Eq)
 
 ///|
+pub extend AttentionFragmentOwnership with @moonbitlang/core/debug.Debug::{
+  to_repr,
+}
+
+///|
+pub extend AttentionFragmentOwnership with Eq::{not_equal, equal}
+
+///|
 /// A complete query microtile stays with one subgroup across the ordered
 /// QK/softmax/PV fold. This is a portable ownership choice, not a CUDA opcode.
 pub fn attention_fragment_ownership(
   compute : AttentionTileCompute,
-  query_rows~ : Int,
-  key_rows~ : Int,
-  head_columns~ : Int,
-  subgroups~ : Int,
+  query_rows~ : Int32,
+  key_rows~ : Int32,
+  head_columns~ : Int32,
+  subgroups~ : Int32,
 ) -> AttentionFragmentOwnership {
   if (compute == AttentionMatrixQkPv || compute == AttentionMatrixQkPvApproxExp) &&
     (query_rows == 32 || query_rows == 64) &&

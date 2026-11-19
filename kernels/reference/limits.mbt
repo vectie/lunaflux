@@ -5,16 +5,16 @@
 /// before allocation. These limits are deliberately caller-owned; this package
 /// has no global execution policy.
 pub struct ReferenceLimits {
-  max_rows : Int
-  max_columns : Int
-  max_elements : Int
+  max_rows : Int32
+  max_columns : Int32
+  max_elements : Int32
 } derive(Debug, Eq)
 
 ///|
 pub fn ReferenceLimits::new(
-  max_rows~ : Int,
-  max_columns~ : Int,
-  max_elements~ : Int,
+  max_rows~ : Int32,
+  max_columns~ : Int32,
+  max_elements~ : Int32,
 ) -> ReferenceLimits raise ReferenceKernelError {
   if max_rows <= 0 {
     raise InvalidLimit(MaxRows)
@@ -29,26 +29,26 @@ pub fn ReferenceLimits::new(
 }
 
 ///|
-pub fn ReferenceLimits::max_rows(self : ReferenceLimits) -> Int {
+pub fn ReferenceLimits::max_rows(self : ReferenceLimits) -> Int32 {
   self.max_rows
 }
 
 ///|
-pub fn ReferenceLimits::max_columns(self : ReferenceLimits) -> Int {
+pub fn ReferenceLimits::max_columns(self : ReferenceLimits) -> Int32 {
   self.max_columns
 }
 
 ///|
-pub fn ReferenceLimits::max_elements(self : ReferenceLimits) -> Int {
+pub fn ReferenceLimits::max_elements(self : ReferenceLimits) -> Int32 {
   self.max_elements
 }
 
 ///|
 fn checked_element_count(
-  rows : Int,
-  columns : Int,
+  rows : Int32,
+  columns : Int32,
   limits : ReferenceLimits,
-) -> Int raise ReferenceKernelError {
+) -> Int32 raise ReferenceKernelError {
   if rows <= 0 || columns <= 0 {
     raise InvalidShape(PositiveDimensions)
   }
@@ -74,7 +74,7 @@ fn checked_element_count(
 }
 
 ///|
-fn checked_sum(left : Int, right : Int) -> Int raise ReferenceKernelError {
+fn checked_sum(left : Int32, right : Int32) -> Int32 raise ReferenceKernelError {
   if left < 0 || right < 0 || left > 2147483647 - right {
     raise ArithmeticOverflow
   }
@@ -82,9 +82,18 @@ fn checked_sum(left : Int, right : Int) -> Int raise ReferenceKernelError {
 }
 
 ///|
-fn checked_product(left : Int, right : Int) -> Int raise ReferenceKernelError {
+fn checked_product(
+  left : Int32,
+  right : Int32,
+) -> Int32 raise ReferenceKernelError {
   if left < 0 || right < 0 || (right != 0 && left > 2147483647 / right) {
     raise ArithmeticOverflow
   }
   left * right
 }
+
+///|
+pub extend ReferenceLimits with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ReferenceLimits with Eq::{not_equal, equal}

@@ -1,0 +1,59 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_bootstrap"
+
+import {
+  "vectie/lunaflux/integration/minicpm_v47_attention",
+  "vectie/lunaflux/integration/minicpm_v47_text",
+  "vectie/lunaflux/integration/minicpm_v47_vision",
+  "vectie/lunaflux/integration/minicpm_v47_weights",
+  "vectie/lunaflux/model/minicpm_v47_operators",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn compile_spark_attention(@minicpm_v47_operators.DecoderOperators) -> @minicpm_v47_attention.Compilation raise
+
+pub fn inspect_checkpoint(@approved_fs.ApprovedRoot, Json) -> @streaming_safetensors.StreamingSafetensorsInspection raise
+
+pub fn prepare(@approved_fs.ApprovedRoot) -> PreparedModel raise
+
+pub fn prepare_images(@approved_fs.ApprovedRoot, maximum_patches~ : Int, maximum_crop_patches~ : Int) -> PreparedImageModel raise
+
+pub fn prepare_requests(@vectie/lunaflux/model/minicpm_v47.Spec, @tokenizer.TokenizerSpec, Json) -> ReadOnlyArray[PreparedRequest] raise
+
+pub fn read_asset(@approved_fs.ApprovedRoot, String, maximum_bytes~ : Int64) -> Bytes raise
+
+pub fn streaming_limits() -> @streaming_safetensors.StreamingSafetensorsLimits raise
+
+pub fn text_program(@minicpm_v47_operators.DecoderOperators, @minicpm_v47_attention.Compilation) -> @minicpm_v47_text.Program raise
+
+// Errors
+
+// Types and methods
+pub(all) struct PreparedImageModel {
+  text : PreparedModel
+  vision : @minicpm_v47_vision.Program
+  vision_weights : @minicpm_v47_vision.WeightPlan
+}
+
+pub(all) struct PreparedModel {
+  model : @vectie/lunaflux/model/minicpm_v47.Spec
+  tokenizer : @tokenizer.TokenizerSpec
+  program : @minicpm_v47_text.Program
+  weights : @minicpm_v47_weights.Plan
+  inspected_tensors : Int
+  inspected_shards : Int
+}
+
+pub(all) struct PreparedRequest {
+  id : String
+  prompt : @vectie/lunaflux/integration/minicpm_v47.PreparedTextPrompt
+  maximum_new_tokens : Int
+  context_ceiling : Int
+}
+
+// Type aliases
+
+// Traits

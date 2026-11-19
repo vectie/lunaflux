@@ -17,6 +17,9 @@ pub(all) suberror TwoStageProjectionCudaSourceError {
   DimensionOverflow
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn TwoStageProjectionCudaSourceError::equal(Self, Self) -> Bool
+pub fn TwoStageProjectionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn TwoStageProjectionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct TwoStageProjectionCudaSource {
@@ -34,10 +37,16 @@ pub fn TwoStageProjectionCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum TwoStageProjectionNumericalContract {
   OrderedFloat32AccumulationBf16IntermediateAndOutputV1
 } derive(Eq, @debug.Debug)
+pub fn TwoStageProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn TwoStageProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn TwoStageProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TwoStageProjectionOperation {
   BiasFreeBf16LowRankProjection
 } derive(Eq, @debug.Debug)
+pub fn TwoStageProjectionOperation::equal(Self, Self) -> Bool
+pub fn TwoStageProjectionOperation::not_equal(Self, Self) -> Bool
+pub fn TwoStageProjectionOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

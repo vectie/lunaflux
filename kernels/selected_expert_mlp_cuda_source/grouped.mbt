@@ -216,9 +216,11 @@ fn grouped_expert_source(
   let combine_symbol = symbol + "_combine"
   let n_gate = (intermediate + columns - 1) / columns
   let n_down = (hidden + columns - 1) / columns
-  guard plan.dot_law()!=ShapeAwareFloat32 ||
-    (selected.to_int64()*intermediate.to_int64()<=2147483644L &&
-     selected.to_int64()*hidden.to_int64()<=2147483644L) else {
+  guard plan.dot_law() != ShapeAwareFloat32 ||
+    (
+      selected.to_int64() * intermediate.to_int64() <= 2147483644L &&
+      selected.to_int64() * hidden.to_int64() <= 2147483644L
+    ) else {
     raise @precision_ir.PrecisionPlanError::ArithmeticOverflow
   }
   let (decode_gate, decode_down) = if plan.dot_law() == ShapeAwareFloat32 {

@@ -14,6 +14,12 @@ weight, and canonical expert-order F32 combination. Compact weights are decoded 
 consumption using the shared precision lowering; no whole-bank BF16 copy is
 required. The backend owns 32-lane reductions and launch geometry.
 
+`ExpertCombineRounding::Bf16EachAdd` preserves a BF16 round after every
+expert-ordered contribution; the output F32 buffer then carries an exact BF16
+value. It requires a complete local expert bank and local down publication.
+Tensor partitioning rejects this mode rather than silently inheriting the F32
+collective contract. Existing plans retain F32 combination by default.
+
 The integration/packed_expert_mlp binder prepares these stages for the existing
 ordered executor. The GLM adapter supplies checkpoint names, shapes and clamp;
 the compute path has no model-family switch. Current coverage is BF16 activation

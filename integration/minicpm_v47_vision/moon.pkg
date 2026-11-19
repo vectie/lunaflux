@@ -1,0 +1,28 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_vision" @vision,
+  "vectie/lunaflux/model/minicpm_v47_processor" @processor,
+  "vectie/lunaflux/model/minicpm_v47_weights" @weights,
+  "vectie/lunaflux/model/precision_format" @format,
+  "vectie/lunaflux/model/streaming_safetensors" @streaming,
+  "vectie/lunaflux/engine/precision_materialize" @checkpoint,
+  "vectie/lunaflux/runtime/approved_fs",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/compiler/precision_ir" @precision,
+  "vectie/lunaflux/kernels/segmented_vision_cuda_source" @segmented,
+  "vectie/lunaflux/kernels/vision_conditioner_cuda_source" @common,
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "vectie/lunaflux/tests/minicpm_v47_checkpoint_fixture" @fixture,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "wbtest"
+
+supported_targets = "native"

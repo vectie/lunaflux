@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/shared_expert_execution_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn shared_expert_source(@precision_ir.SharedExpertPrecision, symbol~ : String) -> SharedExpertCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct SharedExpertCudaSource {
+  // private fields
+}
+pub fn SharedExpertCudaSource::launch(Self) -> (Int, Int, Int)
+pub fn SharedExpertCudaSource::parameter_count(Self) -> Int
+pub fn SharedExpertCudaSource::plan(Self) -> @precision_ir.SharedExpertPrecision
+pub fn SharedExpertCudaSource::source_bytes(Self) -> Bytes
+pub fn SharedExpertCudaSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

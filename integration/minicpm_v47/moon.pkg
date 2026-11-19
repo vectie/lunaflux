@@ -1,0 +1,18 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_positions" @positions,
+  "vectie/lunaflux/tokenizer",
+  "vectie/lunaflux/tokenizer/json_reader",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/service/openai_compat",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "vectie/lunaflux/model/minicpm_v47_processor" @processor,
+  "moonbitlang/core/env",
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

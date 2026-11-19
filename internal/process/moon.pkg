@@ -1,6 +1,7 @@
 supported_targets = "native"
 
 import {
+  "moonbitlang/core/debug",
   "vectie/lunaflux/internal/approved_fs_capability" @executable_capability,
   "vectie/lunaflux/runtime/approved_fs_inheritance" @inheritance,
 }

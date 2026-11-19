@@ -1,9 +1,9 @@
 ///|
 fn rank_program(
-  rank : Int,
-  kind? : @parallel_ir.CollectiveKind = SumAllReduce,
-  element? : @parallel_ir.ElementType = BFloat16,
-  receive_bytes? : Int64 = 4L,
+  rank : Int32,
+  kind~ : @parallel_ir.CollectiveKind = SumAllReduce,
+  element~ : @parallel_ir.ElementType = BFloat16,
+  receive_bytes~ : Int64 = 4L,
 ) -> @parallel_ir.Program raise {
   @parallel_ir.compile(
     rank~,

@@ -6,3 +6,11 @@ pub(all) enum AttentionMixedRowCoverage {
   PrefillRowsOnly
   AllActiveRows
 } derive(Debug, Eq)
+
+///|
+pub extend AttentionMixedRowCoverage with @moonbitlang/core/debug.Debug::{
+  to_repr,
+}
+
+///|
+pub extend AttentionMixedRowCoverage with Eq::{not_equal, equal}

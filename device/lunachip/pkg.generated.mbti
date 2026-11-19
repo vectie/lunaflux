@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/device/lunachip"
+
+// Values
+pub fn parse_contract(String) -> DeviceContract raise AdapterError
+
+// Errors
+pub(all) suberror AdapterError {
+  ContractMismatch
+  InvalidRange
+  InvalidInstruction
+  InvalidProgram
+  InvalidState
+  DeviceFault
+  LaunchMismatch
+}
+
+// Types and methods
+pub(all) enum BinaryOperation {
+  Add
+  Multiply
+}
+
+pub struct DeviceContract {
+  // private fields
+}
+pub fn DeviceContract::capacity_bytes(Self) -> UInt64
+pub fn DeviceContract::check_range(Self, UInt64, UInt64) -> Unit raise AdapterError
+
+pub struct Instruction {
+  // private fields
+}
+pub fn Instruction::bf16_gemv(DeviceContract, Int, Int, UInt64, Int, Int) -> Self raise AdapterError
+pub fn Instruction::binary(BinaryOperation, Int, Int, Int, Int) -> Self raise AdapterError
+pub fn Instruction::copy(Int, Int, Int) -> Self raise AdapterError
+pub fn Instruction::halt() -> Self
+pub fn Instruction::load(DeviceContract, Int, UInt64, Int) -> Self raise AdapterError
+pub fn Instruction::load_indirect_bf16(DeviceContract, Int, UInt64, Int) -> Self raise AdapterError
+pub fn Instruction::reduce(ReductionOperation, Int, Int, Int) -> Self raise AdapterError
+pub fn Instruction::scalar(BinaryOperation, Int, Int, ScalarOperand, Int) -> Self raise AdapterError
+pub fn Instruction::scratch_gemv(Int, Int, Int, Int, Int, Int, Int) -> Self raise AdapterError
+pub fn Instruction::silu_numerator(Int, Int, Int, Int) -> Self raise AdapterError
+pub fn Instruction::store(DeviceContract, Int, UInt64, Int) -> Self raise AdapterError
+pub fn Instruction::unary(UnaryOperation, Int, Int, Int) -> Self raise AdapterError
+pub fn Instruction::words(Self) -> ReadOnlyArray[UInt]
+
+pub struct LaunchOwner {
+  // private fields
+}
+pub fn LaunchOwner::begin(Self, UInt, Int, chain? : Bool) -> UInt raise AdapterError
+pub fn LaunchOwner::invalidate(Self) -> Unit
+pub fn LaunchOwner::new() -> Self
+pub fn LaunchOwner::observe(Self, UInt, UInt, UInt, UInt, UInt) -> Bool raise AdapterError
+
+pub struct PreparedProgram {
+  // private fields
+}
+pub fn PreparedProgram::chunk(Self, Int) -> Bytes?
+pub fn PreparedProgram::chunk_count(Self) -> Int
+pub fn PreparedProgram::concatenate(ArrayView[Self]) -> Self raise AdapterError
+pub fn PreparedProgram::new(ArrayView[Instruction]) -> Self raise AdapterError
+
+pub(all) enum ReductionOperation {
+  Sum
+  SumSquares
+  Maximum
+}
+
+pub(all) enum ScalarOperand {
+  Broadcast(Int)
+  Immediate(Float)
+}
+
+pub(all) enum UnaryOperation {
+  Reciprocal
+  ReciprocalSqrt
+  Exp
+  NegativeAbs
+}
+
+// Type aliases
+
+// Traits

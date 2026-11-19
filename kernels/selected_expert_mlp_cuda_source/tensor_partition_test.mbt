@@ -1,6 +1,6 @@
 ///|
 test "tensor parallel source delays expert rounding until after reduction" {
-  fn operand(n : Int, k : Int) -> @precision_ir.OperandPlan raise {
+  fn operand(n : Int32, k : Int32) -> @precision_ir.OperandPlan raise {
     @precision_ir.plan_operand(
       role=Weight,
       representation=@format.Representation::new(
@@ -50,13 +50,13 @@ test "tensor parallel source delays expert rounding until after reduction" {
     if law == MatrixFloat32 &&
       @env.get_env_var("LUNA_EXPORT_EXPERT_TP") == Some("1") {
       for (plan, name) in [(full, "whole"), (partition.rank_plan(), "shard")] {
-        let export = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+        let source_export = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
           plan,
           symbol=name,
         )
         println("LUNA_SOURCE_BEGIN")
-        println(@utf8.decode(export.source_bytes()))
-        for i, launch in export.launches() {
+        println(@utf8.decode(source_export.source_bytes()))
+        for i, launch in source_export.launches() {
           println(
             "static constexpr int \{name}_grid\{i}=\{launch.0},\{name}_block\{i}=\{launch.1};",
           )
@@ -66,7 +66,7 @@ test "tensor parallel source delays expert rounding until after reduction" {
           "static constexpr size_t \{name}_offsets[3]={\{offsets[0]}ULL,\{offsets[1]}ULL,\{offsets[2]}ULL};",
         )
         println(
-          "static constexpr size_t \{name}_stride=\{plan.expert_stride()}ULL,\{name}_activation=\{export.activation_bytes()}ULL;",
+          "static constexpr size_t \{name}_stride=\{plan.expert_stride()}ULL,\{name}_activation=\{source_export.activation_bytes()}ULL;",
         )
         println("LUNA_SOURCE_END")
       }

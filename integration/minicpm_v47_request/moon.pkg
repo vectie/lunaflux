@@ -1,0 +1,20 @@
+import {
+  "vectie/lunaflux/integration/minicpm_v47" @prompt,
+  "vectie/lunaflux/integration/minicpm_v47_text" @text,
+  "vectie/lunaflux/integration/minicpm_v47_attention" @attention,
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/device",
+  "moonbitlang/core/debug",
+}
+
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/integration/minicpm_v47_decoder" @decoder,
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy" @strategy,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

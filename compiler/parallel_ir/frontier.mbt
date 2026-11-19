@@ -2,7 +2,7 @@
 priv struct Use {
   start : Int64
   end : Int64
-  step : Int
+  step : Int32
   mode : AccessMode
 }
 
@@ -38,7 +38,7 @@ fn update_frontier(
   frontier : Array[Use],
   buffer : Buffer,
   mode : AccessMode,
-  step : Int,
+  step : Int32,
 ) -> Array[Use] {
   let next : Array[Use] = []
   for previous in frontier {

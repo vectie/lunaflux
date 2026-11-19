@@ -1,0 +1,170 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_vision"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/engine/precision_materialize",
+  "vectie/lunaflux/model/minicpm_v47",
+  "vectie/lunaflux/model/minicpm_v47_processor",
+  "vectie/lunaflux/model/streaming_safetensors",
+  "vectie/lunaflux/runtime/approved_fs",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum Argument {
+  Buffer(Plane)
+  Weight(String)
+}
+
+pub(all) struct BufferRegion {
+  allocation : @device.Allocation
+  offset : Int64
+  byte_count : Int64
+  alignment : Int64
+}
+
+pub struct Buffers {
+  // private fields
+}
+pub fn Buffers::region(Self, Plane) -> BufferRegion raise @device.DeviceError
+
+pub struct Entry {
+  // private fields
+}
+pub fn Entry::launch(Self) -> (Int, Int, Int)
+pub fn Entry::parameters(Self) -> Int
+pub fn Entry::shared_bytes(Self) -> Int
+pub fn Entry::symbol(Self) -> String
+
+pub struct Execution {
+  // private fields
+}
+pub fn Execution::cancel(Self) -> Unit raise
+pub fn Execution::close(Self) -> Unit raise
+pub fn Execution::feature_buffer(Self) -> @device.Allocation raise @device.DeviceError
+pub fn Execution::features(Self) -> FeatureView raise @device.DeviceError
+pub fn Execution::is_ready(Self) -> Bool
+pub fn Execution::new(Program) -> Self
+pub fn Execution::poll(Self) -> Bool raise
+pub fn Execution::prepare(Self, @device.Context, Bytes, Weights, maximum_mutable_bytes~ : Int64, policy? : @device.OrderedKernelExecutionPolicy) -> Unit raise
+pub fn Execution::submit(Self, Input) -> Unit raise
+pub fn Execution::wait(Self) -> Unit raise
+
+pub struct FeatureView {
+  allocation : @device.Allocation
+  rows : Int
+}
+pub fn FeatureView::allocation(Self) -> @device.Allocation
+pub fn FeatureView::rows(Self) -> Int
+
+pub struct Frame {
+  // private fields
+}
+pub fn Frame::close(Self) -> Unit raise @device.DeviceError
+pub fn Frame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn Frame::new(Program) -> Self
+pub fn Frame::prepare(Self, @device.Context, aot~ : @device.Module, weights~ : Weights, buffers~ : Buffers) -> Unit raise @device.DeviceError
+
+pub struct Input {
+  // private fields
+}
+pub fn Input::feature_rows(Self) -> Int
+pub fn Input::from_images(Program, @vectie/lunaflux/model/minicpm_v47_vision.Layout, ArrayView[@minicpm_v47_processor.Pixels]) -> Self raise
+pub fn Input::new(Program, @vectie/lunaflux/model/minicpm_v47_vision.Layout, @minicpm_v47_processor.Pixels) -> Self raise
+pub fn Input::patch_rows(Self) -> Int
+
+pub struct Loaded {
+  // private fields
+}
+pub fn Loaded::close(Self) -> Unit raise @device.DeviceError
+pub fn Loaded::new(WeightPlan) -> Self
+pub fn Loaded::prepare(Self, @device.Context, @approved_fs.ApprovedRoot, maximum_device_bytes~ : Int64, scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits) -> Unit raise
+pub fn Loaded::weights(Self) -> Weights raise @device.DeviceError
+
+pub(all) enum Plane {
+  RawCounts
+  EncodedCounts
+  OutputCounts
+  Pixels
+  PositionIds
+  RawStarts
+  RawEnds
+  EncodedStarts
+  EncodedEnds
+  WindowStarts
+  WindowEnds
+  WindowIndices
+  MergerIndices
+  State
+  Normalized
+  Query
+  Key
+  Value
+  Attention
+  Branch
+  Intermediate
+  Features
+} derive(Eq)
+pub fn Plane::equal(Self, Self) -> Bool
+pub fn Plane::not_equal(Self, Self) -> Bool
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::entries(Self) -> ReadOnlyArray[Entry]
+pub fn Program::maximum_crop_patches(Self) -> Int
+pub fn Program::new(@minicpm_v47.Spec, maximum_patches~ : Int, maximum_crop_patches~ : Int) -> Self raise
+pub fn Program::regions(Self) -> ReadOnlyArray[Region]
+pub fn Program::row_capacities(Self) -> (Int, Int, Int)
+pub fn Program::source_bytes(Self) -> Bytes
+pub fn Program::stages(Self) -> ReadOnlyArray[Stage]
+pub fn Program::storage_bytes(Self) -> Int64
+pub fn Program::weight_names(Self) -> ReadOnlyArray[String]
+pub fn Program::workspace_bytes(Self) -> Int64
+
+pub(all) struct Region {
+  plane : Plane
+  offset : Int64
+  bytes : Int64
+}
+
+pub struct Stage {
+  // private fields
+}
+pub fn Stage::arguments(Self) -> ReadOnlyArray[Argument]
+pub fn Stage::entry(Self) -> Int
+
+pub struct Storage {
+  // private fields
+}
+pub fn Storage::buffers(Self) -> Buffers raise @device.DeviceError
+pub fn Storage::close(Self) -> Unit raise @device.DeviceError
+pub fn Storage::new(Program) -> Self
+pub fn Storage::prepare(Self, @device.Context, maximum_device_bytes~ : Int64) -> Unit raise @device.DeviceError
+
+pub struct WeightEntry {
+  // private fields
+}
+pub fn WeightEntry::byte_count(Self) -> Int64
+pub fn WeightEntry::name(Self) -> String
+
+pub struct WeightPlan {
+  // private fields
+}
+pub fn WeightPlan::byte_count(Self) -> Int64
+pub fn WeightPlan::entries(Self) -> ReadOnlyArray[WeightEntry]
+pub fn WeightPlan::new(@minicpm_v47.Spec, Program, @precision_materialize.PackedCheckpoint) -> Self raise
+pub fn WeightPlan::transfer(Self, @approved_fs.ApprovedRoot, scratch~ : FixedArray[Byte], limits~ : @streaming_safetensors.StreamingSafetensorsLimits, consume~ : (Int, Int64, FixedArray[Byte], Int) -> Bool) -> Unit raise
+
+pub struct Weights {
+  // private fields
+}
+pub fn Weights::borrow(@minicpm_v47.Spec, Program, @device.Context, (String) -> @device.Allocation raise) -> Self raise
+
+// Type aliases
+
+// Traits

@@ -5,30 +5,30 @@
 /// This is an inert schedule, not an alias proof: the binding owner must retain
 /// disjoint writable branch storage and shared read-only inputs until the join.
 pub struct ForkJoinSpan {
-  priv first : Int
-  priv split : Int
-  priv join : Int
+  priv first : Int32
+  priv split : Int32
+  priv join : Int32
 }
 
 ///|
 pub fn ForkJoinSpan::new(
-  first~ : Int,
-  split~ : Int,
-  join~ : Int,
+  first~ : Int32,
+  split~ : Int32,
+  join~ : Int32,
 ) -> Self raise ParallelError {
   guard first >= 0 && first < split && split < join else { raise Capacity }
   { first, split, join, }
 }
 
 ///|
-pub fn ForkJoinSpan::range(self : Self) -> (Int, Int, Int) {
+pub fn ForkJoinSpan::range(self : Self) -> (Int32, Int32, Int32) {
   (self.first, self.split, self.join)
 }
 
 ///|
 pub fn ForkJoinSpan::shift(
   self : Self,
-  offset : Int,
+  offset : Int32,
 ) -> Self raise ParallelError {
   guard offset >= -self.first && offset <= 2147483647 - self.join else {
     raise Capacity

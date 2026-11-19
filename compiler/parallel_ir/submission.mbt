@@ -21,10 +21,10 @@ pub(all) enum ReplayPolicy {
   CaptureDecodeCollectives
   // Exact one-row and selected-row effect frames; all other row counts retain
   // ordinary-count interval replay. Never round a partial chunk up to a bucket.
-  CaptureExactCollectives(Int)
+  CaptureExactCollectives(Int32)
   // Exact-row replay with a finite collective horizon per ordered graph.
   // Decode retains one graph; unmatched row counts retain interval replay.
-  CaptureWindowedCollectives(Int, Int)
+  CaptureWindowedCollectives(Int32, Int32)
 } derive(Eq)
 
 ///|
@@ -34,17 +34,17 @@ pub extend ReplayPolicy with Eq::{equal, not_equal}
 /// Immutable compute intervals separated by communication effects. A frame
 /// owns every interval and collective until its terminal completion fence.
 pub struct OrderedSubmissionPlan {
-  priv ends : ReadOnlyArray[Int]
+  priv ends : ReadOnlyArray[Int32]
   priv retirement : RetirementPolicy
   priv replay : ReplayPolicy
 }
 
 ///|
 pub fn OrderedSubmissionPlan::new(
-  kernel_count~ : Int,
-  collective_cuts : ArrayView[Int],
+  kernel_count~ : Int32,
+  collective_cuts : ArrayView[Int32],
   retirement~ : RetirementPolicy,
-  replay? : ReplayPolicy = Eager,
+  replay~ : ReplayPolicy = Eager,
 ) -> Self raise ParallelError {
   guard kernel_count > 0 && !collective_cuts.is_empty() else { raise Capacity }
   guard !(replay
@@ -75,15 +75,15 @@ pub fn OrderedSubmissionPlan::new(
 }
 
 ///|
-pub fn OrderedSubmissionPlan::interval_count(self : Self) -> Int {
+pub fn OrderedSubmissionPlan::interval_count(self : Self) -> Int32 {
   self.ends.length()
 }
 
 ///|
 pub fn OrderedSubmissionPlan::interval(
   self : Self,
-  index : Int,
-) -> (Int, Int) {
+  index : Int32,
+) -> (Int32, Int32) {
   (if index == 0 { 0 } else { self.ends[index - 1] }, self.ends[index])
 }
 
@@ -91,8 +91,8 @@ pub fn OrderedSubmissionPlan::interval(
 /// Scalar accessors avoid boxing a tuple in native submission loops.
 pub fn OrderedSubmissionPlan::interval_start(
   self : Self,
-  index : Int,
-) -> Int {
+  index : Int32,
+) -> Int32 {
   if index == 0 {
     0
   } else {
@@ -101,7 +101,7 @@ pub fn OrderedSubmissionPlan::interval_start(
 }
 
 ///|
-pub fn OrderedSubmissionPlan::interval_end(self : Self, index : Int) -> Int {
+pub fn OrderedSubmissionPlan::interval_end(self : Self, index : Int32) -> Int32 {
   self.ends[index]
 }
 
@@ -120,8 +120,8 @@ pub fn OrderedSubmissionPlan::replay_policy(self : Self) -> ReplayPolicy {
 ///|
 pub fn OrderedSubmissionPlan::collective_row_buckets(
   self : Self,
-  capacity : Int,
-) -> Array[Int] raise ParallelError {
+  capacity : Int32,
+) -> Array[Int32] raise ParallelError {
   guard capacity > 0 else { raise Capacity }
   match self.replay {
     CaptureDecodeCollectives => [1]
@@ -162,7 +162,7 @@ pub fn OrderedSubmissionPlan::captures_interval_graphs(self : Self) -> Bool {
 ///|
 pub fn OrderedSubmissionPlan::replay_collectives(
   self : Self,
-  live : Int,
+  live : Int32,
 ) -> Bool {
   live > 0 &&
   (match self.replay {
@@ -175,7 +175,7 @@ pub fn OrderedSubmissionPlan::replay_collectives(
 }
 
 ///|
-pub fn OrderedSubmissionPlan::interval_queue_offset(self : Self) -> Int {
+pub fn OrderedSubmissionPlan::interval_queue_offset(self : Self) -> Int32 {
   if self.replay is CaptureWindowedCollectives(_, _) {
     1 + self.collective_window_count(1)
   } else if self.replay is CaptureExactCollectives(_) {
@@ -190,8 +190,8 @@ pub fn OrderedSubmissionPlan::interval_queue_offset(self : Self) -> Int {
 ///|
 pub fn OrderedSubmissionPlan::collective_bucket(
   self : Self,
-  live : Int,
-) -> Int {
+  live : Int32,
+) -> Int32 {
   if self.replay
     is (CaptureBucketedCollectives
     | CaptureExactCollectives(_)

@@ -28,6 +28,9 @@ pub(all) suberror PageAllocatorError {
   ReferenceUnderflow(PageId, PageReferenceKind)
   InvariantViolation(PageAllocatorInvariantRule)
 } derive(Eq, @debug.Debug)
+pub fn PageAllocatorError::equal(Self, Self) -> Bool
+pub fn PageAllocatorError::not_equal(Self, Self) -> Bool
+pub fn PageAllocatorError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct PageAllocationCheckpoint(PageAllocator, UInt64)
@@ -59,6 +62,9 @@ pub(all) enum PageAllocatorIdentity {
   AllocationCheckpointEpochIdentity
   PageGenerationIdentity
 } derive(Eq, @debug.Debug)
+pub fn PageAllocatorIdentity::equal(Self, Self) -> Bool
+pub fn PageAllocatorIdentity::not_equal(Self, Self) -> Bool
+pub fn PageAllocatorIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PageAllocatorInvariantRule {
   CountPartition
@@ -71,6 +77,9 @@ pub(all) enum PageAllocatorInvariantRule {
   RetiredReferences
   GenerationRange
 } derive(Eq, @debug.Debug)
+pub fn PageAllocatorInvariantRule::equal(Self, Self) -> Bool
+pub fn PageAllocatorInvariantRule::not_equal(Self, Self) -> Bool
+pub fn PageAllocatorInvariantRule::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PageAllocatorLimitRule {
   PageCapacity
@@ -80,6 +89,9 @@ pub(all) enum PageAllocatorLimitRule {
   CachedReferences
   Generation
 } derive(Eq, @debug.Debug)
+pub fn PageAllocatorLimitRule::equal(Self, Self) -> Bool
+pub fn PageAllocatorLimitRule::not_equal(Self, Self) -> Bool
+pub fn PageAllocatorLimitRule::to_repr(Self) -> @debug.Repr
 
 pub struct PageAllocatorLimits {
   page_capacity : Int
@@ -88,12 +100,15 @@ pub struct PageAllocatorLimits {
   max_cached_references_per_page : Int
   max_generation : Int
 } derive(Eq, @debug.Debug)
+pub fn PageAllocatorLimits::equal(Self, Self) -> Bool
 pub fn PageAllocatorLimits::max_active_references_per_page(Self) -> Int
 pub fn PageAllocatorLimits::max_cached_references_per_page(Self) -> Int
 pub fn PageAllocatorLimits::max_generation(Self) -> Int
 pub fn PageAllocatorLimits::max_run_pages(Self) -> Int
 pub fn PageAllocatorLimits::new(page_capacity~ : Int, max_run_pages~ : Int, max_active_references_per_page~ : Int, max_cached_references_per_page~ : Int, max_generation? : Int) -> Self raise PageAllocatorError
+pub fn PageAllocatorLimits::not_equal(Self, Self) -> Bool
 pub fn PageAllocatorLimits::page_capacity(Self) -> Int
+pub fn PageAllocatorLimits::to_repr(Self) -> @debug.Repr
 
 pub struct PageAllocatorSnapshot {
   free_pages : Int
@@ -102,14 +117,22 @@ pub struct PageAllocatorSnapshot {
   pages : ReadOnlyArray[PageSnapshot]
 } derive(Eq, @debug.Debug)
 pub fn PageAllocatorSnapshot::allocated_page_count(Self) -> Int
+pub fn PageAllocatorSnapshot::equal(Self, Self) -> Bool
 pub fn PageAllocatorSnapshot::free_page_count(Self) -> Int
+pub fn PageAllocatorSnapshot::not_equal(Self, Self) -> Bool
 pub fn PageAllocatorSnapshot::page_at(Self, Int) -> PageSnapshot raise PageAllocatorError
 pub fn PageAllocatorSnapshot::page_count(Self) -> Int
 pub fn PageAllocatorSnapshot::retired_page_count(Self) -> Int
+pub fn PageAllocatorSnapshot::to_repr(Self) -> @debug.Repr
 
 pub struct PageId(Int, Int) derive(Eq, Hash, @debug.Debug)
+pub fn PageId::equal(Self, Self) -> Bool
 pub fn PageId::generation(Self) -> Int
+pub fn PageId::hash(Self) -> Int
+pub fn PageId::hash_combine(Self, Hasher) -> Unit
 pub fn PageId::index(Self) -> Int
+pub fn PageId::not_equal(Self, Self) -> Bool
+pub fn PageId::to_repr(Self) -> @debug.Repr
 
 pub struct PageIdStorage {
   // private fields
@@ -125,12 +148,18 @@ pub(all) enum PageReferenceKind {
   Active
   Cached
 } derive(Eq, @debug.Debug)
+pub fn PageReferenceKind::equal(Self, Self) -> Bool
+pub fn PageReferenceKind::not_equal(Self, Self) -> Bool
+pub fn PageReferenceKind::to_repr(Self) -> @debug.Repr
 
 pub(all) enum PageResidency {
   Free
   Allocated
   Retired
 } derive(Eq, @debug.Debug)
+pub fn PageResidency::equal(Self, Self) -> Bool
+pub fn PageResidency::not_equal(Self, Self) -> Bool
+pub fn PageResidency::to_repr(Self) -> @debug.Repr
 
 pub struct PageRunBuffer {
   // private fields
@@ -148,8 +177,11 @@ pub struct PageSnapshot {
 } derive(Eq, @debug.Debug)
 pub fn PageSnapshot::active_references(Self) -> Int
 pub fn PageSnapshot::cached_references(Self) -> Int
+pub fn PageSnapshot::equal(Self, Self) -> Bool
 pub fn PageSnapshot::id(Self) -> PageId
+pub fn PageSnapshot::not_equal(Self, Self) -> Bool
 pub fn PageSnapshot::residency(Self) -> PageResidency
+pub fn PageSnapshot::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

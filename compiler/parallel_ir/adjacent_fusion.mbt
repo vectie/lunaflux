@@ -2,14 +2,14 @@
 /// Pure launch-coordinate rewrite. Replaces each adjacent pair by one launch;
 /// effects and fork boundaries must not lie inside a removed pair.
 pub struct AdjacentFusion {
-  priv count : Int
-  priv spans : ReadOnlyArray[(Int, Int)]
+  priv count : Int32
+  priv spans : ReadOnlyArray[(Int32, Int32)]
 }
 
 ///|
 pub fn AdjacentFusion::new(
-  kernel_count~ : Int,
-  pairs : ArrayView[Int],
+  kernel_count~ : Int32,
+  pairs : ArrayView[Int32],
 ) -> Self raise ParallelError {
   AdjacentFusion::spans(kernel_count~, pairs.map(first => (first, 2)))
 }
@@ -18,8 +18,8 @@ pub fn AdjacentFusion::new(
 /// Fuse contiguous effect-free spans. Boundaries inside a removed span are
 /// rejected rather than silently moved across a collective or fork edge.
 pub fn AdjacentFusion::spans(
-  kernel_count~ : Int,
-  spans : ArrayView[(Int, Int)],
+  kernel_count~ : Int32,
+  spans : ArrayView[(Int32, Int32)],
 ) -> Self raise ParallelError {
   guard kernel_count > 0 else { raise Capacity }
   let mut previous_end = 0
@@ -38,8 +38,8 @@ pub fn AdjacentFusion::spans(
 ///|
 pub fn AdjacentFusion::boundary(
   self : Self,
-  old : Int,
-) -> Int raise ParallelError {
+  old : Int32,
+) -> Int32 raise ParallelError {
   guard old >= 0 && old <= self.count else { raise Capacity }
   let mut removed = 0
   for (first, length) in self.spans {

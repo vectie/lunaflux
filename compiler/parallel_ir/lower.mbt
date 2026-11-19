@@ -1,5 +1,5 @@
 ///|
-fn lane(step : Step, policy : Policy) -> Int {
+fn lane(step : Step, policy : Policy) -> Int32 {
   match step.action {
     Communicate(_) if policy == ComputeCommunicationOverlap => 1
     _ => 0
@@ -12,7 +12,7 @@ fn lane(step : Step, policy : Policy) -> Int {
 pub fn Program::lower(self : Program, policy : Policy) -> Schedule {
   let waits = FixedArray::make(self.steps.length(), -1)
   let events = FixedArray::make(self.steps.length(), -1)
-  let producers : Array[Int] = []
+  let producers : Array[Int32] = []
   let required = FixedArray::make(2, -1)
   for index, step in self.steps {
     let selected_lane = lane(step, policy)

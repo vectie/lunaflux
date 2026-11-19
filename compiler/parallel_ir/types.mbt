@@ -1,11 +1,11 @@
 ///|
 pub(all) suberror ParallelError {
   Capacity
-  Buffer(Int)
-  Step(Int)
-  Dependency(Int)
-  Uninitialized(step~ : Int, buffer~ : Int)
-  CollectiveOrder(Int)
+  Buffer(Int32)
+  Step(Int32)
+  Dependency(Int32)
+  Uninitialized(step~ : Int32, buffer~ : Int32)
+  CollectiveOrder(Int32)
   Group
 }
 
@@ -46,20 +46,20 @@ pub struct Arena {
 
 ///|
 pub struct Buffer {
-  priv arena : Int
+  priv arena : Int32
   priv offset : Int64
   priv bytes : Int64
 }
 
 ///|
 pub struct Access {
-  priv buffer : Int
+  priv buffer : Int32
   priv mode : AccessMode
 }
 
 ///|
 pub struct Collective {
-  priv sequence : Int
+  priv sequence : Int32
   priv kind : CollectiveKind
   priv element : ElementType
   priv send_bytes : Int64
@@ -68,7 +68,7 @@ pub struct Collective {
 
 ///|
 pub(all) enum Action {
-  Compute(Int)
+  Compute(Int32)
   Communicate(Collective)
 }
 
@@ -76,24 +76,24 @@ pub(all) enum Action {
 pub struct Step {
   priv action : Action
   priv accesses : ReadOnlyArray[Access]
-  priv dependencies : ReadOnlyArray[Int]
+  priv dependencies : ReadOnlyArray[Int32]
 }
 
 ///|
 pub struct BufferLifetime {
-  priv users : ReadOnlyArray[Int]
+  priv users : ReadOnlyArray[Int32]
 }
 
 ///|
 /// Inert, immutable physical effect graph. Construction grants no execution authority.
 pub struct Program {
-  priv rank : Int
-  priv world_size : Int
+  priv rank : Int32
+  priv world_size : Int32
   priv arenas : ReadOnlyArray[Arena]
   priv buffers : ReadOnlyArray[Buffer]
   priv steps : ReadOnlyArray[Step]
   priv lifetimes : ReadOnlyArray[BufferLifetime]
-  priv collective_steps : ReadOnlyArray[Int]
+  priv collective_steps : ReadOnlyArray[Int32]
 }
 
 ///|
@@ -116,9 +116,9 @@ pub extend Lane with Eq::{equal, not_equal}
 
 ///|
 pub(all) enum Command {
-  Execute(step~ : Int)
-  Record(event~ : Int)
-  Wait(event~ : Int)
+  Execute(step~ : Int32)
+  Record(event~ : Int32)
+  Wait(event~ : Int32)
 } derive(Eq)
 
 ///|
@@ -130,8 +130,8 @@ pub struct Schedule {
   priv policy : Policy
   priv compute : ReadOnlyArray[Command]
   priv communication : ReadOnlyArray[Command]
-  priv event_producers : ReadOnlyArray[Int]
-  priv tails : ReadOnlyArray[Int]
+  priv event_producers : ReadOnlyArray[Int32]
+  priv tails : ReadOnlyArray[Int32]
 }
 
 ///|

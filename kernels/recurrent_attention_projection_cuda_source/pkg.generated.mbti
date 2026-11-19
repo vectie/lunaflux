@@ -18,6 +18,9 @@ pub(all) suberror RecurrentAttentionProjectionCudaSourceError {
   DimensionOverflow
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn RecurrentAttentionProjectionCudaSourceError::equal(Self, Self) -> Bool
+pub fn RecurrentAttentionProjectionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn RecurrentAttentionProjectionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct RecurrentAttentionProjectionCudaSource {
@@ -36,10 +39,16 @@ pub fn RecurrentAttentionProjectionCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum RecurrentAttentionProjectionNumericalContract {
   OrderedFloat32DenseBf16IntermediateSigmoidV1
 } derive(Eq, @debug.Debug)
+pub fn RecurrentAttentionProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn RecurrentAttentionProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn RecurrentAttentionProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum RecurrentAttentionProjectionOperation {
   QkvForgetAndInputGateBf16
 } derive(Eq, @debug.Debug)
+pub fn RecurrentAttentionProjectionOperation::equal(Self, Self) -> Bool
+pub fn RecurrentAttentionProjectionOperation::not_equal(Self, Self) -> Bool
+pub fn RecurrentAttentionProjectionOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

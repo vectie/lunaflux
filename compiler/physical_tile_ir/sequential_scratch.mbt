@@ -9,6 +9,12 @@ pub struct SequentialScratch {
 } derive(Debug, Eq)
 
 ///|
+pub extend SequentialScratch with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend SequentialScratch with Eq::{not_equal, equal}
+
+///|
 pub fn SequentialScratch::new(
   producer_bytes~ : Int64,
   consumer_bytes~ : Int64,

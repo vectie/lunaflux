@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/rms_norm_execution_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn rms_norm_source(@precision_ir.RmsNormPrecision, symbol~ : String) -> RmsNormCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct RmsNormCudaSource {
+  // private fields
+}
+pub fn RmsNormCudaSource::launch(Self) -> (Int, Int, Int)
+pub fn RmsNormCudaSource::parameter_count(Self) -> Int
+pub fn RmsNormCudaSource::plan(Self) -> @precision_ir.RmsNormPrecision
+pub fn RmsNormCudaSource::source_bytes(Self) -> Bytes
+pub fn RmsNormCudaSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

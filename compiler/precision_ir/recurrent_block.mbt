@@ -5,8 +5,8 @@
 pub struct RecurrentBlockPrecision {
   priv delta : RecurrentDeltaPrecision
   priv convolution : CausalConvolutionPrecision
-  priv hidden : Int
-  priv rank : Int
+  priv hidden : Int32
+  priv rank : Int32
   priv epsilon : Double
   priv frame_bytes : Int64
   priv projection_law : DenseDotLaw
@@ -17,15 +17,20 @@ pub struct RecurrentBlockPrecision {
 pub fn RecurrentBlockPrecision::new(
   delta : RecurrentDeltaPrecision,
   convolution : CausalConvolutionPrecision,
-  hidden_width~ : Int,
-  control_rank~ : Int,
+  hidden_width~ : Int32,
+  control_rank~ : Int32,
   output_normalization_epsilon~ : Double,
-  projection_law? : DenseDotLaw = ScalarFloat32,
-  publication? : ProjectionPublication = LocalBFloat16,
+  projection_law~ : DenseDotLaw = ScalarFloat32,
+  publication~ : ProjectionPublication = LocalBFloat16,
 ) -> Self raise PrecisionPlanError {
   let (heads, keys, values) = delta.geometry()
   let (channels, _) = convolution.geometry()
   guard hidden_width > 0 &&
+    delta.query_key_head_count() == heads &&
+    delta.decay_layout() is PerKeyComponent &&
+    delta.query_key_row_stride() == heads.to_int64() * keys.to_int64() &&
+    delta.value_row_stride() == heads.to_int64() * values.to_int64() &&
+    !delta.log_decay_lower_bound().is_inf() &&
     control_rank > 0 &&
     keys == values &&
     heads.to_int64() * keys.to_int64() == channels.to_int64() &&
@@ -118,7 +123,9 @@ pub fn RecurrentBlockPrecision::convolution(
 }
 
 ///|
-pub fn RecurrentBlockPrecision::projection_geometry(self : Self) -> (Int, Int) {
+pub fn RecurrentBlockPrecision::projection_geometry(
+  self : Self,
+) -> (Int32, Int32) {
   (self.hidden, self.rank)
 }
 

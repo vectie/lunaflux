@@ -13,19 +13,35 @@ pub(all) enum AttentionKeyValueReadView {
 } derive(Debug, Eq)
 
 ///|
+pub extend AttentionKeyValueReadView with @moonbitlang/core/debug.Debug::{
+  to_repr,
+}
+
+///|
+pub extend AttentionKeyValueReadView with Eq::{not_equal, equal}
+
+///|
 pub(all) enum AttentionKeyValueReadAddress {
-  CurrentRow(Int)
-  HistoricalPosition(Int)
+  CurrentRow(Int32)
+  HistoricalPosition(Int32)
 } derive(Debug, Eq)
+
+///|
+pub extend AttentionKeyValueReadAddress with @moonbitlang/core/debug.Debug::{
+  to_repr,
+}
+
+///|
+pub extend AttentionKeyValueReadAddress with Eq::{not_equal, equal}
 
 ///|
 /// Pure interval substitution. A backend must additionally check the actual
 /// current-row position when a producer permits non-contiguous positions.
 pub fn attention_key_value_read_address(
   view : AttentionKeyValueReadView,
-  position~ : Int,
-  current_begin~ : Int,
-  current_count~ : Int,
+  position~ : Int32,
+  current_begin~ : Int32,
+  current_count~ : Int32,
 ) -> AttentionKeyValueReadAddress? {
   if position < 0 ||
     current_begin < 0 ||

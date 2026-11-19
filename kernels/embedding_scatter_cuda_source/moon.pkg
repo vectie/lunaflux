@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/compiler/elementwise_physical_ir" @effects,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

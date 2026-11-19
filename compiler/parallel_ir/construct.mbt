@@ -11,7 +11,7 @@ pub fn Arena::new(
 
 ///|
 pub fn Buffer::new(
-  arena~ : Int,
+  arena~ : Int32,
   offset_bytes~ : Int64,
   byte_count~ : Int64,
 ) -> Buffer raise ParallelError {
@@ -26,7 +26,7 @@ pub fn Buffer::new(
 
 ///|
 pub fn Access::new(
-  buffer~ : Int,
+  buffer~ : Int32,
   mode~ : AccessMode,
 ) -> Access raise ParallelError {
   if buffer < 0 {
@@ -37,7 +37,7 @@ pub fn Access::new(
 
 ///|
 pub fn Collective::new(
-  sequence~ : Int,
+  sequence~ : Int32,
   kind~ : CollectiveKind,
   element~ : ElementType,
   send_bytes~ : Int64,
@@ -61,7 +61,7 @@ pub fn Collective::new(
 pub fn Step::new(
   action : Action,
   accesses : ArrayView[Access],
-  dependencies? : ArrayView[Int] = [],
+  dependencies~ : ArrayView[Int32] = [],
 ) -> Step {
   {
     action,
@@ -83,8 +83,8 @@ fn AccessMode::writes(self : AccessMode) -> Bool {
 ///|
 fn Collective::validate(
   self : Collective,
-  expected : Int,
-  world : Int,
+  expected : Int32,
+  world : Int32,
 ) -> Unit raise ParallelError {
   if self.sequence != expected {
     raise CollectiveOrder(expected)

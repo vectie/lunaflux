@@ -1,5 +1,10 @@
 # Luna CUDA attention tile source
 
+The paged ABI admits head widths 64, 128 and 256. Software regressions cover
+width-256 prefill/decode through existing scalar schedules; this does not extend
+every specialized matrix/fragment lowering to that width. Each lowering keeps
+its own legality constraints and needs target qualification.
+
 ## Composed prefill scheduling
 
 The split query-owned lowering consumes the portable `PagedTileEpochs` relation

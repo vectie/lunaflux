@@ -1,0 +1,23 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/model/hybrid_moe" @hybrid,
+  "vectie/lunaflux/integration/minicpm_v47_attention" @attention,
+  "vectie/lunaflux/integration/minicpm_v47_recurrent" @recurrent,
+  "vectie/lunaflux/integration/minicpm_v47_moe" @moe,
+  "vectie/lunaflux/kernels/rms_norm_execution_cuda_source" @norm,
+  "vectie/lunaflux/kernels/luna_cuda_pointwise_aot" @pointwise,
+  "vectie/lunaflux/compiler/physical_tile_ir" @physical,
+  "vectie/lunaflux/device",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "vectie/lunaflux/kernels/catalog",
+  "vectie/lunaflux/kernels/luna_attention_strategy" @strategy,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

@@ -23,7 +23,10 @@ pub struct MachineWork {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn MachineWork::counts(Self) -> (Int64, Int64, Int64?)
+pub fn MachineWork::equal(Self, Self) -> Bool
 pub fn MachineWork::new(instructions~ : Int64, local_bytes~ : Int64, barriers? : Int64?) -> Self?
+pub fn MachineWork::not_equal(Self, Self) -> Bool
+pub fn MachineWork::to_repr(Self) -> @debug.Repr
 
 pub struct Observation {
   // private fields

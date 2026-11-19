@@ -27,6 +27,32 @@ fn packed_plan(
 }
 
 ///|
+test "complete BF16 expert bank rounds canonical contribution sums after every add" {
+  let base = packed_plan(Bf16)
+  let plan = @precision_ir.ExpertMlpPrecision::new(
+    gate=base.weights()[0],
+    up=base.weights()[1],
+    down=base.weights()[2],
+    expert_count=4,
+    local_experts=[0, 1, 2, 3],
+    selected_experts=2,
+    maximum_rows=2,
+    combine_rounding=Bf16EachAdd,
+    memory_ceiling=100000L,
+  )
+  let source = @selected_expert_mlp_cuda_source.packed_expert_mlp_source(
+    plan,
+    symbol="bf16_adds",
+  )
+  let text = @utf8.decode(source.source_bytes()[:])
+  assert_eq(source.symbols().length(), 3)
+  assert_true(text.contains("expert>previous&&expert<next"))
+  assert_true(
+    text.contains("sum=__bfloat162float(__float2bfloat16_rn(__fadd_rn("),
+  )
+}
+
+///|
 test "export compact expert execution fixtures" {
   if @env.get_env_var("LUNA_EXPORT_PACKED_EXPERT") == Some("1") {
     println("LUNA_SOURCE_BEGIN packed-expert")

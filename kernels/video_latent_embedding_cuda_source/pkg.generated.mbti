@@ -27,6 +27,8 @@ pub(all) suberror EmbeddingError {
   InvalidGeometry
   InvalidSymbol
 } derive(Eq)
+pub fn EmbeddingError::equal(Self, Self) -> Bool
+pub fn EmbeddingError::not_equal(Self, Self) -> Bool
 
 // Types and methods
 pub struct EmbeddingSource {

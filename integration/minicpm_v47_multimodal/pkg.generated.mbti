@@ -1,0 +1,57 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_multimodal"
+
+import {
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minicpm_v47_attention",
+  "vectie/lunaflux/integration/minicpm_v47_text",
+  "vectie/lunaflux/integration/minicpm_v47_vision",
+  "vectie/lunaflux/kernels/embedding_scatter_cuda_source",
+  "vectie/lunaflux/model/minicpm_v47_processor",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn prepare_image_prompt(@vectie/lunaflux/model/minicpm_v47.Spec, @tokenizer.TokenizerSpec, String, ArrayView[Content], maximum_tokens~ : Int, system_present? : Bool) -> ImagePrompt raise
+
+pub fn prepare_image_tokens(@vectie/lunaflux/model/minicpm_v47.Spec, ArrayView[Int], ArrayView[@minicpm_v47_processor.Plan], maximum_tokens~ : Int) -> ImagePrompt raise
+
+// Errors
+
+// Types and methods
+pub(all) enum Content {
+  Text(String)
+  Image(@minicpm_v47_processor.Plan)
+}
+
+pub struct Frame {
+  // private fields
+}
+pub fn Frame::bind_prompt(Self, @device.Context, ImagePrompt, @minicpm_v47_vision.FeatureView) -> Unit raise
+pub fn Frame::clear_prompt(Self, @device.Context) -> Unit raise
+pub fn Frame::close(Self) -> Unit raise
+pub fn Frame::launches(Self, @minicpm_v47_attention.Phase) -> ArrayView[@device.OrderedKernelLaunch] raise
+pub fn Frame::new(Program) -> Self
+pub fn Frame::prepare(Self, @device.Context, aot~ : @device.Module, text_frame~ : @minicpm_v47_text.Frame, text_storage~ : @minicpm_v47_text.Storage, features~ : @device.Allocation, maximum_metadata_bytes~ : Int64) -> Unit raise
+
+pub struct ImagePrompt {
+  // private fields
+}
+pub fn ImagePrompt::feature_map(Self) -> ReadOnlyArray[Int]
+pub fn ImagePrompt::feature_rows(Self) -> Int
+pub fn ImagePrompt::image_plans(Self) -> ReadOnlyArray[@minicpm_v47_processor.Plan]
+pub fn ImagePrompt::prompt(Self) -> @vectie/lunaflux/integration/minicpm_v47.PreparedTextPrompt
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::launch_count(Self, @minicpm_v47_attention.Phase) -> Int
+pub fn Program::metadata_bytes(Self) -> Int64
+pub fn Program::new(@minicpm_v47_text.Program) -> Self raise
+pub fn Program::scatter_source(Self) -> @embedding_scatter_cuda_source.EmbeddingScatterSource
+pub fn Program::source_bytes(Self) -> Bytes
+pub fn Program::text_program(Self) -> @minicpm_v47_text.Program
+
+// Type aliases
+
+// Traits

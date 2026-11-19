@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/embedding_scatter_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/elementwise_physical_ir",
+}
+
+// Values
+pub fn embedding_scatter_source(@elementwise_physical_ir.EmbeddingScatterProgram, symbol~ : String) -> EmbeddingScatterSource raise
+
+// Errors
+
+// Types and methods
+pub struct EmbeddingScatterSource {
+  // private fields
+}
+pub fn EmbeddingScatterSource::launch(Self) -> (Int, Int, Int)
+pub fn EmbeddingScatterSource::parameter_count(Self) -> Int
+pub fn EmbeddingScatterSource::plan(Self) -> @elementwise_physical_ir.EmbeddingScatterProgram
+pub fn EmbeddingScatterSource::source_bytes(Self) -> Bytes
+pub fn EmbeddingScatterSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

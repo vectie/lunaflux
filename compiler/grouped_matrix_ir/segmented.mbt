@@ -4,8 +4,8 @@
 /// reductions or change intermediate rounding. Constructed only at startup.
 pub struct SegmentedMatrixPlan {
   priv segments : ReadOnlyArray[MatrixTilePlan]
-  priv offsets : ReadOnlyArray[Int]
-  priv tiles : Int
+  priv offsets : ReadOnlyArray[Int32]
+  priv tiles : Int32
 }
 
 ///|
@@ -46,12 +46,12 @@ pub fn SegmentedMatrixPlan::segments(self : Self) -> ArrayView[MatrixTilePlan] {
 }
 
 ///|
-pub fn SegmentedMatrixPlan::offsets(self : Self) -> ArrayView[Int] {
+pub fn SegmentedMatrixPlan::offsets(self : Self) -> ArrayView[Int32] {
   self.offsets[:]
 }
 
 ///|
-pub fn SegmentedMatrixPlan::tile_count(self : Self) -> Int {
+pub fn SegmentedMatrixPlan::tile_count(self : Self) -> Int32 {
   self.tiles
 }
 
@@ -60,7 +60,7 @@ pub fn SegmentedMatrixPlan::tile_count(self : Self) -> Int {
 /// is common to all segments, while allocation element sizes belong to lowering.
 pub fn SegmentedMatrixPlan::scratch_elements(
   self : Self,
-) -> (Int, Int, Int) {
+) -> (Int32, Int32, Int32) {
   let (m, n, k) = self.segments[0].tile()
   let slots = self.segments[0].operand_slots()
   (slots * m * k, slots * n * k, m * n)

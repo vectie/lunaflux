@@ -16,6 +16,9 @@ pub(all) suberror HyperConnectionMixCudaSourceError {
   InvalidFunctionSymbol
   DimensionOverflow
 } derive(Eq, @debug.Debug)
+pub fn HyperConnectionMixCudaSourceError::equal(Self, Self) -> Bool
+pub fn HyperConnectionMixCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn HyperConnectionMixCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct HyperConnectionMixCudaSource {
@@ -31,6 +34,9 @@ pub fn HyperConnectionMixCudaSource::stream_count(Self) -> Int
 pub(all) enum HyperConnectionMixNumericalContract {
   F32ControlsRoundedBf16OrderedMixV1
 } derive(Eq, @debug.Debug)
+pub fn HyperConnectionMixNumericalContract::equal(Self, Self) -> Bool
+pub fn HyperConnectionMixNumericalContract::not_equal(Self, Self) -> Bool
+pub fn HyperConnectionMixNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

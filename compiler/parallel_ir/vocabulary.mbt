@@ -3,22 +3,22 @@
 /// retains its complete input axis and numerical law. Greedy joins retain
 /// global IDs; candidate transport is rank-major and independent of input rows.
 pub struct VocabularyShard {
-  priv vocabulary : Int
-  priv rank : Int
-  priv world : Int
-  priv outputs : Int
-  priv first : Int
-  priv count : Int
+  priv vocabulary : Int32
+  priv rank : Int32
+  priv world : Int32
+  priv outputs : Int32
+  priv first : Int32
+  priv count : Int32
   priv publication : VocabularyPublication
 }
 
 ///|
 pub fn VocabularyShard::new(
-  vocabulary~ : Int,
-  rank~ : Int,
-  world~ : Int,
-  maximum_outputs~ : Int,
-  publication? : VocabularyPublication = GreedyCandidates,
+  vocabulary~ : Int32,
+  rank~ : Int32,
+  world~ : Int32,
+  maximum_outputs~ : Int32,
+  publication~ : VocabularyPublication = GreedyCandidates,
 ) -> Self raise ParallelError {
   guard vocabulary > 0 &&
     vocabulary <= 16777216 &&
@@ -53,21 +53,21 @@ pub fn VocabularyShard::new(
 }
 
 ///|
-pub fn VocabularyShard::columns(self : Self) -> (Int, Int) {
+pub fn VocabularyShard::columns(self : Self) -> (Int32, Int32) {
   (self.first, self.count)
 }
 
 ///|
-pub fn VocabularyShard::group(self : Self) -> (Int, Int) {
+pub fn VocabularyShard::group(self : Self) -> (Int32, Int32) {
   (self.rank, self.world)
 }
 
 ///|
-pub fn VocabularyShard::geometry(self : Self) -> (Int, Int) {
+pub fn VocabularyShard::geometry(self : Self) -> (Int32, Int32) {
   (self.vocabulary, self.outputs)
 }
 
 ///|
-pub fn VocabularyShard::candidate_width(self : Self) -> Int {
+pub fn VocabularyShard::candidate_width(self : Self) -> Int32 {
   self.outputs * 3
 }

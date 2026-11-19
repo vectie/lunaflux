@@ -62,3 +62,35 @@ pub(all) suberror PageAllocatorError {
   ReferenceUnderflow(PageId, PageReferenceKind)
   InvariantViolation(PageAllocatorInvariantRule)
 } derive(Debug, Eq)
+
+///|
+pub extend PageAllocatorLimitRule with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend PageAllocatorLimitRule with Eq::{not_equal, equal}
+
+///|
+pub extend PageReferenceKind with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend PageReferenceKind with Eq::{not_equal, equal}
+
+///|
+pub extend PageAllocatorIdentity with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend PageAllocatorIdentity with Eq::{not_equal, equal}
+
+///|
+pub extend PageAllocatorInvariantRule with @moonbitlang/core/debug.Debug::{
+  to_repr,
+}
+
+///|
+pub extend PageAllocatorInvariantRule with Eq::{not_equal, equal}
+
+///|
+pub extend PageAllocatorError with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend PageAllocatorError with Eq::{not_equal, equal}

@@ -35,6 +35,9 @@ pub(all) suberror CudaError {
   Unsupported(CudaOperation)
   InvalidOutput(CudaOperation)
 } derive(Eq, @debug.Debug)
+pub fn CudaError::equal(Self, Self) -> Bool
+pub fn CudaError::not_equal(Self, Self) -> Bool
+pub fn CudaError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 type Allocation
@@ -119,6 +122,9 @@ pub(all) enum CudaOperation {
   Bf16GemmPlanClose
   Bf16GemmRun
 } derive(Eq, @debug.Debug)
+pub fn CudaOperation::equal(Self, Self) -> Bool
+pub fn CudaOperation::not_equal(Self, Self) -> Bool
+pub fn CudaOperation::to_repr(Self) -> @debug.Repr
 
 type DeviceCopyBatch
 pub fn DeviceCopyBatch::close(Self) -> Unit raise CudaError
@@ -135,6 +141,9 @@ pub(all) enum DriverAvailability {
   NoDevices
   InventoryFailed
 } derive(Eq, @debug.Debug)
+pub fn DriverAvailability::equal(Self, Self) -> Bool
+pub fn DriverAvailability::not_equal(Self, Self) -> Bool
+pub fn DriverAvailability::to_repr(Self) -> @debug.Repr
 
 pub struct DriverInventory {
   availability : DriverAvailability
@@ -146,6 +155,9 @@ pub fn DriverInventory::availability(Self) -> DriverAvailability
 pub fn DriverInventory::cublas_lt_available(Self) -> Bool
 pub fn DriverInventory::device_count(Self) -> Int
 pub fn DriverInventory::driver_version(Self) -> Int
+pub fn DriverInventory::equal(Self, Self) -> Bool
+pub fn DriverInventory::not_equal(Self, Self) -> Bool
+pub fn DriverInventory::to_repr(Self) -> @debug.Repr
 
 type Event
 pub fn Event::close(Self) -> Unit raise CudaError
@@ -165,12 +177,18 @@ pub(all) enum OrderedExecutorMode {
   OrderedExecutorEager
   OrderedExecutorCaptured
 } derive(Eq, @debug.Debug)
+pub fn OrderedExecutorMode::equal(Self, Self) -> Bool
+pub fn OrderedExecutorMode::not_equal(Self, Self) -> Bool
+pub fn OrderedExecutorMode::to_repr(Self) -> @debug.Repr
 
 pub(all) enum OrderedExecutorPolicy {
   OrderedExecutorEagerOnly
   OrderedExecutorCaptureRequired
   OrderedExecutorCaptureWithEagerFallback
 } derive(Eq, @debug.Debug)
+pub fn OrderedExecutorPolicy::equal(Self, Self) -> Bool
+pub fn OrderedExecutorPolicy::not_equal(Self, Self) -> Bool
+pub fn OrderedExecutorPolicy::to_repr(Self) -> @debug.Repr
 
 type OrderedKernelExecutor
 pub fn OrderedKernelExecutor::abort(Self) -> Unit raise CudaError
@@ -199,9 +217,12 @@ pub struct RawDeviceInfo {
 pub fn RawDeviceInfo::compute_major(Self) -> Int
 pub fn RawDeviceInfo::compute_minor(Self) -> Int
 pub fn RawDeviceInfo::cublas_lt_available(Self) -> Bool
+pub fn RawDeviceInfo::equal(Self, Self) -> Bool
 pub fn RawDeviceInfo::name(Self) -> String
+pub fn RawDeviceInfo::not_equal(Self, Self) -> Bool
 pub fn RawDeviceInfo::pci(Self) -> String
 pub fn RawDeviceInfo::supports_bf16(Self) -> Bool
+pub fn RawDeviceInfo::to_repr(Self) -> @debug.Repr
 pub fn RawDeviceInfo::total_memory_bytes(Self) -> Int64
 pub fn RawDeviceInfo::uuid(Self) -> String
 

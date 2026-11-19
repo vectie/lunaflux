@@ -1,5 +1,8 @@
 ///|
-fn expert_operand(rows : Int, columns : Int) -> @precision_ir.OperandPlan raise {
+fn expert_operand(
+  rows : Int32,
+  columns : Int32,
+) -> @precision_ir.OperandPlan raise {
   @precision_ir.plan_operand(
     role=Weight,
     representation=@format.Representation::new(format=NvFp4, rows~, columns~),
@@ -8,6 +11,60 @@ fn expert_operand(rows : Int, columns : Int) -> @precision_ir.OperandPlan raise 
     accuracy=@precision_ir.Accuracy::new(absolute=0.02, relative=0.02),
     memory_ceiling=100000000L,
     tile_elements=32,
+  )
+}
+
+///|
+test "BF16 each-add expert combination preserves its round and rejects partial ownership" {
+  let make = fn(owned, publication) raise {
+    @precision_ir.ExpertMlpPrecision::new(
+      gate=expert_operand(32, 64),
+      up=expert_operand(32, 64),
+      down=expert_operand(64, 32),
+      expert_count=3,
+      local_experts=owned,
+      selected_experts=2,
+      maximum_rows=2,
+      down_publication=publication,
+      combine_rounding=Bf16EachAdd,
+      memory_ceiling=1000000L,
+    )
+  }
+  let plan = make([2, 0, 1], LocalBFloat16)
+  assert_true(
+    plan.expression(CombineUpdate).root()
+    is Convert(
+      Float32,
+      Convert(BFloat16, Binary(AddRN, Input(0), Convert(Float32, Input(1))))
+    ),
+  )
+  assert_true(
+    try make([0, 1], LocalBFloat16) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
+  assert_true(
+    try make([0, 1, 2], ReduceFloat32BeforeRound) catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
+  )
+  assert_true(
+    try
+      @precision_ir.ExpertTensorPartition::new(
+        plan,
+        rank=0,
+        world_size=2,
+        memory_ceiling=1000000L,
+      )
+    catch {
+      _ => true
+    } noraise {
+      _ => false
+    },
   )
 }
 

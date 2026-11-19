@@ -9,7 +9,7 @@ pub fn Arena::initially_initialized(self : Arena) -> Bool {
 }
 
 ///|
-pub fn Buffer::arena(self : Buffer) -> Int {
+pub fn Buffer::arena(self : Buffer) -> Int32 {
   self.arena
 }
 
@@ -24,7 +24,7 @@ pub fn Buffer::byte_count(self : Buffer) -> Int64 {
 }
 
 ///|
-pub fn Access::buffer(self : Access) -> Int {
+pub fn Access::buffer(self : Access) -> Int32 {
   self.buffer
 }
 
@@ -34,7 +34,7 @@ pub fn Access::mode(self : Access) -> AccessMode {
 }
 
 ///|
-pub fn Collective::sequence(self : Collective) -> Int {
+pub fn Collective::sequence(self : Collective) -> Int32 {
   self.sequence
 }
 
@@ -69,17 +69,17 @@ pub fn Step::accesses(self : Step) -> ReadOnlyArray[Access] {
 }
 
 ///|
-pub fn Step::dependencies(self : Step) -> ReadOnlyArray[Int] {
+pub fn Step::dependencies(self : Step) -> ReadOnlyArray[Int32] {
   self.dependencies
 }
 
 ///|
-pub fn Program::rank(self : Program) -> Int {
+pub fn Program::rank(self : Program) -> Int32 {
   self.rank
 }
 
 ///|
-pub fn Program::world_size(self : Program) -> Int {
+pub fn Program::world_size(self : Program) -> Int32 {
   self.world_size
 }
 
@@ -99,27 +99,27 @@ pub fn Program::steps(self : Program) -> ReadOnlyArray[Step] {
 }
 
 ///|
-pub fn Program::collective_steps(self : Program) -> ReadOnlyArray[Int] {
+pub fn Program::collective_steps(self : Program) -> ReadOnlyArray[Int32] {
   self.collective_steps
 }
 
 ///|
-pub fn Program::lifetime(self : Program, buffer : Int) -> BufferLifetime? {
+pub fn Program::lifetime(self : Program, buffer : Int32) -> BufferLifetime? {
   self.lifetimes.get(buffer)
 }
 
 ///|
-pub fn BufferLifetime::users(self : BufferLifetime) -> ReadOnlyArray[Int] {
+pub fn BufferLifetime::users(self : BufferLifetime) -> ReadOnlyArray[Int32] {
   self.users
 }
 
 ///|
-pub fn BufferLifetime::first_use(self : BufferLifetime) -> Int? {
+pub fn BufferLifetime::first_use(self : BufferLifetime) -> Int32? {
   self.users.get(0)
 }
 
 ///|
-pub fn BufferLifetime::last_use(self : BufferLifetime) -> Int? {
+pub fn BufferLifetime::last_use(self : BufferLifetime) -> Int32? {
   self.users.get(self.users.length() - 1)
 }
 
@@ -145,13 +145,13 @@ pub fn Schedule::commands(
 }
 
 ///|
-pub fn Schedule::event_producers(self : Schedule) -> ReadOnlyArray[Int] {
+pub fn Schedule::event_producers(self : Schedule) -> ReadOnlyArray[Int32] {
   self.event_producers
 }
 
 ///|
 /// All listed queue tails must complete before invocation retirement.
-pub fn Schedule::completion_steps(self : Schedule) -> ReadOnlyArray[Int] {
+pub fn Schedule::completion_steps(self : Schedule) -> ReadOnlyArray[Int32] {
   self.tails
 }
 

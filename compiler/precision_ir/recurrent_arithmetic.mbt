@@ -103,18 +103,21 @@ pub fn CausalConvolutionPrecision::projection_fold(
 pub fn CausalConvolutionPrecision::activation_expression(
   self : Self,
 ) -> NumericExpression raise PrecisionPlanError {
-  ignore(self)
+  let x = match self.projection_boundary() {
+    Float32BeforeSilu => Input(0)
+    Bf16BeforeSilu => Convert(Float32, Convert(BFloat16, Input(0)))
+  }
   numeric_expression(
     [Float32],
     Convert(
       BFloat16,
       Binary(
         DivideRN,
-        Input(0),
+        x,
         Binary(
           AddRN,
           Float32Bits(0x3f800000U),
-          Unary(NaturalExp, Unary(Negate, Input(0))),
+          Unary(NaturalExp, Unary(Negate, x)),
         ),
       ),
     ),

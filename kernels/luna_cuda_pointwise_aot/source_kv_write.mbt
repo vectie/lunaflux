@@ -4,6 +4,51 @@ fn kv_write_source(
   parameters : PointwiseParameters,
   program : @elementwise_physical_ir.KvWriteProgram,
 ) -> Bytes {
+  render_kv_write_source(
+    symbol,
+    program,
+    parameters.tokens_per_page,
+    parameters.total_page_count,
+    parameters.width,
+  )
+}
+
+///|
+/// Standalone source adapter for an already validated portable KV store program.
+/// This emits the existing nine-argument writer, not a manifest/admission claim.
+pub fn paged_kv_write_source(
+  program : @elementwise_physical_ir.KvWriteProgram,
+  symbol~ : String,
+  tokens_per_page~ : Int32,
+  physical_page_capacity~ : Int32,
+) -> Bytes raise PointwiseAotError {
+  let (query, kv, stride) = program.geometry()
+  guard tokens_per_page > 0 &&
+    physical_page_capacity > 0 &&
+    stride >= tokens_per_page.to_int64() * kv.to_int64() &&
+    !symbol.is_empty() &&
+    symbol.length() <= 128 &&
+    symbol[0] is ('a'..<='z' | 'A'..<='Z' | '_') &&
+    symbol.all(c => c is ('a'..<='z' | 'A'..<='Z' | '0'..<='9' | '_')) else {
+    raise Invalid(Shape)
+  }
+  render_kv_write_source(
+    symbol,
+    program,
+    tokens_per_page,
+    physical_page_capacity,
+    query + kv * 2,
+  )
+}
+
+///|
+fn render_kv_write_source(
+  symbol : String,
+  program : @elementwise_physical_ir.KvWriteProgram,
+  tokens_per_page : Int32,
+  total_page_count : Int32,
+  width : Int32,
+) -> Bytes {
   let (query_width, kv_width, page_stride_elements) = program.geometry()
   let (_, owners, _) = program.ownership().geometry()
   let stores = StringBuilder()
@@ -41,24 +86,24 @@ fn kv_write_source(
     "  if (row >= counts[2]) return;\n" +
     "  const int position = positions[token];\n  if (position < 0) return;\n" +
     "  const int logical_page = position / " +
-    parameters.tokens_per_page.to_string() +
+    tokens_per_page.to_string() +
     ";\n" +
     "  const int table_index = page_offsets[row] + logical_page;\n" +
     "  if (table_index < page_offsets[row] || table_index >= page_offsets[row + 1] || table_index >= counts[4]) return;\n" +
     "  const int physical_page = physical_pages[table_index];\n" +
     "  if (physical_page < 0 || physical_page >= " +
-    parameters.total_page_count.to_string() +
+    total_page_count.to_string() +
     ") return;\n" +
     "  const unsigned long long cache_index = (unsigned long long)physical_page * " +
     page_stride_elements.to_string() +
     "ULL + " +
     "(unsigned long long)(position % " +
-    parameters.tokens_per_page.to_string() +
+    tokens_per_page.to_string() +
     ") * " +
     kv_width.to_string() +
     "ULL + component;\n" +
     "  const unsigned long long input_base = (unsigned long long)token * " +
-    parameters.width.to_string() +
+    width.to_string() +
     "ULL;\n" +
     stores.to_string() +
     "}\n",

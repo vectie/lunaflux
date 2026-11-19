@@ -2,10 +2,16 @@
 /// Bounded, payload-safe failures from lexical JSON structure validation.
 pub(all) suberror JsonGuardError {
   InvalidDepthLimit
-  DepthLimitExceeded(limit~ : Int)
-  DuplicateObjectKey(depth~ : Int, index~ : Int)
+  DepthLimitExceeded(limit~ : Int32)
+  DuplicateObjectKey(depth~ : Int32, index~ : Int32)
   MalformedStructure
 } derive(Debug, Eq)
+
+///|
+pub extend JsonGuardError with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend JsonGuardError with Eq::{not_equal, equal}
 
 ///|
 /// Rejects duplicate JSON object keys before a map-backed JSON parser can
@@ -17,7 +23,7 @@ pub(all) suberror JsonGuardError {
 /// work and allocation are then bounded by that input and the depth limit.
 pub fn reject_duplicate_object_keys(
   input : StringView,
-  max_depth~ : Int,
+  max_depth~ : Int32,
 ) -> Unit raise JsonGuardError {
   if max_depth <= 0 {
     raise InvalidDepthLimit
@@ -34,12 +40,12 @@ pub fn reject_duplicate_object_keys(
 ///|
 priv struct Scanner {
   input : StringView
-  max_depth : Int
-  mut position : Int
+  max_depth : Int32
+  mut position : Int32
 }
 
 ///|
-fn Scanner::new(input : StringView, max_depth : Int) -> Scanner {
+fn Scanner::new(input : StringView, max_depth : Int32) -> Scanner {
   { input, max_depth, position: 0, }
 }
 
@@ -78,7 +84,7 @@ fn Scanner::skip_whitespace(self : Scanner) -> Unit {
 ///|
 fn Scanner::scan_value(
   self : Scanner,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise JsonGuardError {
   self.skip_whitespace()
   match self.peek() {
@@ -88,7 +94,7 @@ fn Scanner::scan_value(
     Some('t') => self.scan_literal("true")
     Some('f') => self.scan_literal("false")
     Some('n') => self.scan_literal("null")
-    Some('-' | '0'..='9') => self.scan_number()
+    Some('-' | '0'..<='9') => self.scan_number()
     _ => raise MalformedStructure
   }
 }
@@ -96,7 +102,7 @@ fn Scanner::scan_value(
 ///|
 fn Scanner::check_depth(
   self : Scanner,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise JsonGuardError {
   if depth > self.max_depth {
     raise DepthLimitExceeded(limit=self.max_depth)
@@ -106,7 +112,7 @@ fn Scanner::check_depth(
 ///|
 fn Scanner::scan_object(
   self : Scanner,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise JsonGuardError {
   self.check_depth(depth)
   ignore(self.advance())
@@ -146,7 +152,7 @@ fn Scanner::scan_object(
 ///|
 fn Scanner::scan_array(
   self : Scanner,
-  depth : Int,
+  depth : Int32,
 ) -> Unit raise JsonGuardError {
   self.check_depth(depth)
   ignore(self.advance())
@@ -181,7 +187,7 @@ fn Scanner::scan_literal(
 ///|
 fn Scanner::scan_number(self : Scanner) -> Unit raise JsonGuardError {
   let start = self.position
-  while self.peek() is Some('-' | '+' | '.' | '0'..='9' | 'e' | 'E') {
+  while self.peek() is Some('-' | '+' | '.' | '0'..<='9' | 'e' | 'E') {
     self.position += 1
   }
   if self.position == start {

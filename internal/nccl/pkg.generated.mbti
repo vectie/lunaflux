@@ -25,6 +25,9 @@ pub(all) suberror NcclError {
   SequenceMismatch(NcclOperation)
   Failed(NcclOperation)
 } derive(Eq, @debug.Debug)
+pub fn NcclError::equal(Self, Self) -> Bool
+pub fn NcclError::not_equal(Self, Self) -> Bool
+pub fn NcclError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum CollectiveElementType {
@@ -39,12 +42,18 @@ pub(all) enum NcclAvailability {
   AbiIncomplete
   VersionUnavailable
 } derive(Eq, @debug.Debug)
+pub fn NcclAvailability::equal(Self, Self) -> Bool
+pub fn NcclAvailability::not_equal(Self, Self) -> Bool
+pub fn NcclAvailability::to_repr(Self) -> @debug.Repr
 
 pub(all) enum NcclCollectiveOperation {
   AllReduce
   AllGather
   ReduceScatter
 } derive(Eq, @debug.Debug)
+pub fn NcclCollectiveOperation::equal(Self, Self) -> Bool
+pub fn NcclCollectiveOperation::not_equal(Self, Self) -> Bool
+pub fn NcclCollectiveOperation::to_repr(Self) -> @debug.Repr
 
 type NcclCommunicator
 pub fn NcclCommunicator::abort(Self) -> Unit raise NcclError
@@ -82,6 +91,9 @@ pub(all) enum NcclOperation {
   CommunicatorClose
   CommunicatorAbort
 } derive(Eq, @debug.Debug)
+pub fn NcclOperation::equal(Self, Self) -> Bool
+pub fn NcclOperation::not_equal(Self, Self) -> Bool
+pub fn NcclOperation::to_repr(Self) -> @debug.Repr
 
 pub struct NcclRuntimeAdmission {
   // private fields
@@ -95,6 +107,9 @@ pub struct NcclRuntimeInventory {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn NcclRuntimeInventory::availability(Self) -> NcclAvailability
+pub fn NcclRuntimeInventory::equal(Self, Self) -> Bool
+pub fn NcclRuntimeInventory::not_equal(Self, Self) -> Bool
+pub fn NcclRuntimeInventory::to_repr(Self) -> @debug.Repr
 pub fn NcclRuntimeInventory::version_code(Self) -> Int
 
 // Type aliases

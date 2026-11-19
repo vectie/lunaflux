@@ -1,0 +1,11 @@
+import {
+  "vectie/lunaflux/model/qwen3_lunachip" @layout,
+  "vectie/lunaflux/model/qwen3_weights" @weights,
+  "vectie/lunaflux/model/plan",
+  "vectie/lunaflux/device/lunachip" @device,
+  "vectie/lunaflux/compiler/lunachip_tile" @compiler,
+  "vectie/lunaflux/kernels/luna_tile_ir" @tile,
+  "moonbitlang/core/math",
+}
+
+supported_targets = "native"

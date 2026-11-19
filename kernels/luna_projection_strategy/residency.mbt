@@ -8,6 +8,14 @@ pub(all) enum ProjectionInputResidency {
 } derive(Debug, Eq)
 
 ///|
+pub extend ProjectionInputResidency with @moonbitlang/core/debug.Debug::{
+  to_repr,
+}
+
+///|
+pub extend ProjectionInputResidency with Eq::{not_equal, equal}
+
+///|
 pub fn ProjectionStrategy::input_residency(
   self : ProjectionStrategy,
 ) -> ProjectionInputResidency {
@@ -17,7 +25,7 @@ pub fn ProjectionStrategy::input_residency(
 ///|
 pub fn ProjectionStrategy::with_selected_row_residency(
   self : ProjectionStrategy,
-  stable_id~ : Int,
+  stable_id~ : Int32,
 ) -> ProjectionStrategy raise ProjectionStrategyError {
   if self.kernel_class != MatrixTile {
     raise InvalidProjectionStrategy(Candidate)

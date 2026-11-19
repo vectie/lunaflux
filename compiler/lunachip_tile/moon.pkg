@@ -1,0 +1,6 @@
+import {
+  "vectie/lunaflux/device/lunachip",
+  "vectie/lunaflux/kernels/luna_tile_ir" @tile,
+}
+
+supported_targets = "native"

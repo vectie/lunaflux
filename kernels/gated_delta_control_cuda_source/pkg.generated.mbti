@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/gated_delta_control_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn gated_delta_control_source(@precision_ir.GatedDeltaControlPrecision, symbol~ : String) -> GatedDeltaControlCudaSource raise
+
+// Errors
+
+// Types and methods
+pub struct GatedDeltaControlCudaSource {
+  // private fields
+}
+pub fn GatedDeltaControlCudaSource::launch(Self) -> (Int, Int, Int)
+pub fn GatedDeltaControlCudaSource::parameter_count(Self) -> Int
+pub fn GatedDeltaControlCudaSource::plan(Self) -> @precision_ir.GatedDeltaControlPrecision
+pub fn GatedDeltaControlCudaSource::source_bytes(Self) -> Bytes
+pub fn GatedDeltaControlCudaSource::symbol(Self) -> String
+
+// Type aliases
+
+// Traits

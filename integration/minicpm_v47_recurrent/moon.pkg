@@ -1,0 +1,19 @@
+import {
+  "vectie/lunaflux/model/minicpm_v47_operators" @operators,
+  "vectie/lunaflux/kernels/tiled_matrix_cuda_source" @matrix,
+  "vectie/lunaflux/kernels/causal_convolution_execution_cuda_source" @conv,
+  "vectie/lunaflux/kernels/recurrent_delta_execution_cuda_source" @delta,
+  "vectie/lunaflux/kernels/gated_delta_control_cuda_source" @controls,
+  "vectie/lunaflux/kernels/rms_norm_execution_cuda_source" @norm,
+  "vectie/lunaflux/device",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "vectie/lunaflux/model/minicpm_v47" @model,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+} for "test"
+
+supported_targets = "native"

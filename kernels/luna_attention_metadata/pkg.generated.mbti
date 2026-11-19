@@ -16,7 +16,10 @@ pub struct AttentionMetadataLayout {
 pub fn AttentionMetadataLayout::bucket(Self, Int) -> (Int, Int, Int)?
 pub fn AttentionMetadataLayout::bucket_offset(Self, Int) -> Int
 pub fn AttentionMetadataLayout::cell_count(Self) -> Int
+pub fn AttentionMetadataLayout::equal(Self, Self) -> Bool
 pub fn AttentionMetadataLayout::new(maximum_rows~ : Int, maximum_tokens~ : Int) -> Self?
+pub fn AttentionMetadataLayout::not_equal(Self, Self) -> Bool
+pub fn AttentionMetadataLayout::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

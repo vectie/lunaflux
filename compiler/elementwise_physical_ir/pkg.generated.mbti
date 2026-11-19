@@ -11,6 +11,13 @@ import {
 // Errors
 
 // Types and methods
+pub struct EmbeddingScatterProgram {
+  // private fields
+}
+pub fn EmbeddingScatterProgram::geometry(Self) -> (Int, Int, Int, Int)
+pub fn EmbeddingScatterProgram::new(width~ : Int, maximum_rows~ : Int, maximum_positions~ : Int, maximum_features~ : Int, owners~ : Int) -> Self?
+pub fn EmbeddingScatterProgram::ownership(Self) -> @physical_tile_ir.VectorOwnership
+
 pub struct FullVocabularySamplingProgram {
   // private fields
 }
@@ -166,8 +173,11 @@ pub struct StepRotaryCachePlan {
 } derive(Eq, @debug.Debug)
 pub fn StepRotaryCachePlan::byte_count(Self) -> Int64
 pub fn StepRotaryCachePlan::cell_offset(Self, Int, Int) -> Int64?
+pub fn StepRotaryCachePlan::equal(Self, Self) -> Bool
 pub fn StepRotaryCachePlan::geometry(Self) -> (Int, Int)
 pub fn StepRotaryCachePlan::new(maximum_tokens~ : Int, head_dimension~ : Int) -> Self?
+pub fn StepRotaryCachePlan::not_equal(Self, Self) -> Bool
+pub fn StepRotaryCachePlan::to_repr(Self) -> @debug.Repr
 
 pub(all) enum StochasticFinalStep {
   OrderedSoftmax

@@ -2,10 +2,10 @@
 /// Two byte-preserving row views share storage across disjoint consumer epochs.
 /// Routing/publication keep original job order; only operand storage is padded.
 pub struct PackedExpertRows {
-  priv rows : Int
+  priv rows : Int32
   priv base : Int64
-  priv payloads : (Int, Int)
-  priv scales : (Int, Int)
+  priv payloads : (Int32, Int32)
+  priv scales : (Int32, Int32)
   priv bytes : Int64
 }
 
@@ -13,8 +13,8 @@ pub struct PackedExpertRows {
 pub fn PackedExpertRows::new(
   grouping : ExpertGroupingPlan,
   after_bytes~ : Int64,
-  payload_bytes~ : (Int, Int),
-  scale_bytes~ : (Int, Int),
+  payload_bytes~ : (Int32, Int32),
+  scale_bytes~ : (Int32, Int32),
 ) -> Self raise @precision.PrecisionPlanError {
   guard after_bytes >= 0L &&
     payload_bytes.0 > 0 &&
@@ -55,14 +55,18 @@ pub fn PackedExpertRows::total_bytes(self : Self) -> Int64 {
 pub fn PackedExpertRows::plane(
   self : Self,
   product : Bool,
-) -> (Int, Int, Int64) {
+) -> (Int32, Int32, Int64) {
   let payload = if product { self.payloads.1 } else { self.payloads.0 }
   let scale = if product { self.scales.1 } else { self.scales.0 }
   (payload, scale, self.rows.to_int64() * payload.to_int64())
 }
 
 ///|
-pub fn PackedExpertRows::row(self : Self, group : Int, within : Int) -> Int? {
+pub fn PackedExpertRows::row(
+  self : Self,
+  group : Int32,
+  within : Int32,
+) -> Int32? {
   guard group >= 0 && group < self.rows / 16 && within >= 0 && within < 16 else {
     return None
   }

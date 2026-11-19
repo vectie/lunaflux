@@ -19,11 +19,17 @@ pub(all) suberror GlmHybridSparseAttentionCudaSourceError {
   InvalidFunctionSymbol
   SizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridSparseAttentionCudaSourceError::equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum GlmHybridSparseAttentionCudaOperation {
   SelectedIndexSparseAttentionBf16
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridSparseAttentionCudaOperation::equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionCudaOperation::not_equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct GlmHybridSparseAttentionCudaSource {
   // private fields
@@ -43,6 +49,9 @@ pub fn GlmHybridSparseAttentionCudaSource::value_dimension(Self) -> Int
 pub(all) enum GlmHybridSparseAttentionNumericalContract {
   SerialOrderedFloat32QkSoftmaxBf16ProbabilityPvBf16OutputV1
 } derive(Eq, @debug.Debug)
+pub fn GlmHybridSparseAttentionNumericalContract::equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn GlmHybridSparseAttentionNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -28,34 +28,36 @@ pub extend TextLogitsLaw with Eq::{equal, not_equal}
 /// Streams are replicated at ingress and averaged at egress. Normalization
 /// and logit rounding are explicit immutable laws selected by the model plan.
 pub struct TextIoPrecision {
-  priv vocabulary : Int
-  priv hidden : Int
-  priv streams : Int
-  priv rows : Int
-  priv outputs : Int
+  priv vocabulary : Int32
+  priv hidden : Int32
+  priv streams : Int32
+  priv rows : Int32
+  priv outputs : Int32
   priv epsilon : Double
   priv residual_bytes : Int64
   priv normalized_bytes : Int64
   priv logits_bytes : Int64
   priv table_bytes : Int64
   priv normalization_law : TextNormalizationLaw
+  priv normalization_weight_law : NormalizationWeightLaw
   priv logits_law : TextLogitsLaw
   priv head_law : DenseDotLaw
 }
 
 ///|
 pub fn TextIoPrecision::new(
-  vocabulary_size~ : Int,
-  hidden_width~ : Int,
-  stream_count~ : Int,
-  maximum_rows~ : Int,
-  maximum_output_rows~ : Int,
+  vocabulary_size~ : Int32,
+  hidden_width~ : Int32,
+  stream_count~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_output_rows~ : Int32,
   normalization_epsilon~ : Double,
   maximum_workspace_bytes~ : Int64,
-  boundary? : TextBoundary = Complete,
-  normalization_law? : TextNormalizationLaw = Bf16NormalizeThenWeight,
-  logits_law? : TextLogitsLaw = Bf16Round,
-  head_law? : DenseDotLaw = ScalarFloat32,
+  boundary~ : TextBoundary = Complete,
+  normalization_law~ : TextNormalizationLaw = Bf16NormalizeThenWeight,
+  normalization_weight_law~ : NormalizationWeightLaw = DirectGamma,
+  logits_law~ : TextLogitsLaw = Bf16Round,
+  head_law~ : DenseDotLaw = ScalarFloat32,
 ) -> Self raise PrecisionPlanError {
   guard vocabulary_size > 0 &&
     hidden_width > 0 &&
@@ -111,13 +113,16 @@ pub fn TextIoPrecision::new(
     logits_bytes,
     table_bytes,
     normalization_law,
+    normalization_weight_law,
     logits_law,
     head_law,
   }
 }
 
 ///|
-pub fn TextIoPrecision::geometry(self : Self) -> (Int, Int, Int, Int, Int) {
+pub fn TextIoPrecision::geometry(
+  self : Self,
+) -> (Int32, Int32, Int32, Int32, Int32) {
   (self.vocabulary, self.hidden, self.streams, self.rows, self.outputs)
 }
 
@@ -155,6 +160,13 @@ pub fn TextIoPrecision::workspace_bytes(self : Self) -> Int64 {
 ///|
 pub fn TextIoPrecision::normalization_law(self : Self) -> TextNormalizationLaw {
   self.normalization_law
+}
+
+///|
+pub fn TextIoPrecision::normalization_weight_law(
+  self : Self,
+) -> NormalizationWeightLaw {
+  self.normalization_weight_law
 }
 
 ///|

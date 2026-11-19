@@ -12,6 +12,12 @@ pub struct AttentionCostBreakdown {
 } derive(Debug, Eq)
 
 ///|
+pub extend AttentionCostBreakdown with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend AttentionCostBreakdown with Eq::{not_equal, equal}
+
+///|
 /// Explain the existing fallback model without changing candidate selection.
 /// Measurements remain the authoritative latency input. This is a compiler
 /// operation, not request-path telemetry.

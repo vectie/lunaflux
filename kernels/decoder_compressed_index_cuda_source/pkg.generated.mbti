@@ -15,11 +15,17 @@ pub(all) suberror DecoderCompressedIndexCudaSourceError {
   InvalidMaximumRows
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn DecoderCompressedIndexCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderCompressedIndexCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderCompressedIndexCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderCompressedIndexCudaOperation {
   CausalCompleteSlotsI32
 } derive(Eq, @debug.Debug)
+pub fn DecoderCompressedIndexCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderCompressedIndexCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderCompressedIndexCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderCompressedIndexCudaSource {
   // private fields
@@ -36,6 +42,9 @@ pub fn DecoderCompressedIndexCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum DecoderCompressedIndexNumericalContract {
   BitExactCausalCompleteSlotsI32V1
 } derive(Eq, @debug.Debug)
+pub fn DecoderCompressedIndexNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderCompressedIndexNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderCompressedIndexNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

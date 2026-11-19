@@ -183,8 +183,11 @@ pub struct SequentialScratch {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn SequentialScratch::allocation_bytes(Self) -> Int64
+pub fn SequentialScratch::equal(Self, Self) -> Bool
 pub fn SequentialScratch::new(producer_bytes~ : Int64, consumer_bytes~ : Int64, overlapping~ : Bool) -> Self?
+pub fn SequentialScratch::not_equal(Self, Self) -> Bool
 pub fn SequentialScratch::reuses_storage(Self) -> Bool
+pub fn SequentialScratch::to_repr(Self) -> @debug.Repr
 
 pub struct TiledPlane {
   // private fields

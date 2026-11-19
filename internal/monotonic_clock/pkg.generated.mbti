@@ -16,6 +16,9 @@ pub(all) suberror MonotonicClockNativeError {
   NativeUnavailable
   NativeOutOfRange
 } derive(Eq, @debug.Debug)
+pub fn MonotonicClockNativeError::equal(Self, Self) -> Bool
+pub fn MonotonicClockNativeError::not_equal(Self, Self) -> Bool
+pub fn MonotonicClockNativeError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 

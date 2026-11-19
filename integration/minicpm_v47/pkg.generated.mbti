@@ -1,0 +1,39 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47"
+
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/model/minicpm_v47_positions",
+  "vectie/lunaflux/service/openai_compat",
+  "vectie/lunaflux/tokenizer",
+}
+
+// Values
+pub fn chat_template(@inference.InferenceLimits, max_rendered_prompt_bytes~ : Int) -> @openai_compat.LunaOpenAIChatTemplate raise @openai_compat.LunaOpenAICompatError
+
+pub fn prepare_positioned_prompt(@vectie/lunaflux/model/minicpm_v47.Spec, ArrayView[Int], ArrayView[@minicpm_v47_positions.Modality], image_grids~ : ArrayView[@minicpm_v47_positions.Grid], video_grids~ : ArrayView[@minicpm_v47_positions.Grid], maximum_tokens~ : Int) -> PreparedTextPrompt raise
+
+pub fn prepare_text_prompt(@vectie/lunaflux/model/minicpm_v47.Spec, @tokenizer.TokenizerSpec, String, String, maximum_tokens~ : Int, system_present? : Bool) -> PreparedTextPrompt raise
+
+pub fn prepare_token_prompt(@vectie/lunaflux/model/minicpm_v47.Spec, ArrayView[Int], maximum_tokens~ : Int) -> PreparedTextPrompt raise
+
+pub fn prepare_tokenizer(@vectie/lunaflux/model/minicpm_v47.Spec, BytesView, @tokenizer.TokenizerDigest, @tokenizer.TokenizerLimits) -> @tokenizer.TokenizerSpec raise
+
+pub fn render_text_prompt(String, String, system_present? : Bool) -> String
+
+pub fn stop_token_ids() -> Array[Int]
+
+pub fn trim_message_content(String) -> String
+
+// Errors
+
+// Types and methods
+pub struct PreparedTextPrompt {
+  // private fields
+}
+pub fn PreparedTextPrompt::positions(Self) -> @minicpm_v47_positions.Sequence
+pub fn PreparedTextPrompt::tokens(Self) -> ReadOnlyArray[Int]
+
+// Type aliases
+
+// Traits

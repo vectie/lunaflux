@@ -14,6 +14,9 @@ pub fn next_execution_graph_bucket_start(Int) -> Int raise ExecutionGraphBucketE
 pub(all) suberror ExecutionGraphBucketError {
   InvalidExecutionGraphBucket(ExecutionGraphBucketRule)
 } derive(Eq, @debug.Debug)
+pub fn ExecutionGraphBucketError::equal(Self, Self) -> Bool
+pub fn ExecutionGraphBucketError::not_equal(Self, Self) -> Bool
+pub fn ExecutionGraphBucketError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ExecutionGraphBucket {
@@ -31,6 +34,9 @@ pub(all) enum ExecutionGraphBucketRule {
   Limit
   Capacity
 } derive(Eq, @debug.Debug)
+pub fn ExecutionGraphBucketRule::equal(Self, Self) -> Bool
+pub fn ExecutionGraphBucketRule::not_equal(Self, Self) -> Bool
+pub fn ExecutionGraphBucketRule::to_repr(Self) -> @debug.Repr
 
 pub struct ExecutionGraphBucketTable {
   // private fields
@@ -51,6 +57,9 @@ pub(all) enum ExecutionGraphPhase {
   DecodeGraph
   MixedGraph
 } derive(Eq, @debug.Debug)
+pub fn ExecutionGraphPhase::equal(Self, Self) -> Bool
+pub fn ExecutionGraphPhase::not_equal(Self, Self) -> Bool
+pub fn ExecutionGraphPhase::to_repr(Self) -> @debug.Repr
 
 pub struct ExecutionGraphRouteMeasurement {
   // private fields
@@ -65,8 +74,11 @@ pub fn ExecutionGraphShape::new(phase~ : ExecutionGraphPhase, batch_rows~ : Int,
 pub struct ExecutionGraphVariantBudget {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ExecutionGraphVariantBudget::equal(Self, Self) -> Bool
 pub fn ExecutionGraphVariantBudget::new(Int, Int) -> Self raise ExecutionGraphBucketError
+pub fn ExecutionGraphVariantBudget::not_equal(Self, Self) -> Bool
 pub fn ExecutionGraphVariantBudget::reserve(Self, Int) -> Self?
+pub fn ExecutionGraphVariantBudget::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

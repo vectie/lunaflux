@@ -8,6 +8,12 @@ pub struct ProjectionLocalStorage {
 } derive(Debug, Eq)
 
 ///|
+pub extend ProjectionLocalStorage with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend ProjectionLocalStorage with Eq::{not_equal, equal}
+
+///|
 pub fn ProjectionLocalStorage::accumulator_elements(
   self : ProjectionLocalStorage,
 ) -> Int64 {

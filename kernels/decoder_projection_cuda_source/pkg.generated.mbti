@@ -24,6 +24,9 @@ pub(all) suberror DecoderProjectionCudaSourceError {
   InvalidRowCount
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn DecoderProjectionCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderProjectionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderProjectionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderProjectionCudaOperation {
@@ -32,6 +35,9 @@ pub(all) enum DecoderProjectionCudaOperation {
   DenseProjectionF32BiasF32
   GroupedDenseProjectionBf16V1
 } derive(Eq, @debug.Debug)
+pub fn DecoderProjectionCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderProjectionCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderProjectionCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderProjectionCudaSource {
   // private fields
@@ -50,6 +56,9 @@ pub(all) enum DecoderProjectionNumericalContract {
   OrderedFloat32AccumulationF32OutputV1
   CompensatedFloat32AccumulationBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub struct FixedRowsDecoderProjectionCudaSource {
   // private fields

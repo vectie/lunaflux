@@ -54,3 +54,18 @@ SHA-256 values back to fresh typed lowerings, while
 files. The separate CUDA Driver probe compiles only these authenticated sources
 and compares live rows with an independent host referee. These fixtures are a
 reproducible test input, not evidence that the probe ran on physical hardware.
+
+## Standalone paged KV source
+
+`paged_kv_write_source` exposes the existing portable `KvWriteProgram` emitter
+to immutable integration programs without constructing a production manifest.
+It uses the same nine-argument ABI and split-plane page scatter as the admitted
+pointwise path. Geometry counts BF16 elements; provide a program constructed
+with two-byte elements. The caller supplies valid live counts, CSR rows, causal
+positions and uniquely owned writable pages. This source adapter does not claim
+artifact admission or physical qualification.
+
+`bf16_residual_source` similarly reuses the existing BF16 residual emitter with
+explicit vector ownership. Its four arguments are counts, left, right and
+output; output may alias either input exactly. The caller supplies valid live
+counts and sufficient spans. It introduces no new arithmetic program.

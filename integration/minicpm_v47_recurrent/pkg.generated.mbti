@@ -1,0 +1,108 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_recurrent"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/model/minicpm_v47_operators",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Frame {
+  // private fields
+}
+pub fn Frame::close(Self) -> Unit raise @device.DeviceError
+pub fn Frame::launches(Self) -> ArrayView[@device.OrderedKernelLaunch] raise @device.DeviceError
+pub fn Frame::new(Program) -> Self
+pub fn Frame::prepare(Self, @device.Context, @device.Module, metadata~ : Metadata, weights~ : Weights, states~ : States, input~ : @device.Allocation, output~ : @device.Allocation, workspace~ : @device.Allocation) -> Unit raise @device.DeviceError
+
+pub(all) struct Metadata {
+  counts : @device.Allocation
+  row_offsets : @device.Allocation
+  request_slots : @device.Allocation
+  reset : @device.Allocation
+}
+
+pub struct Program {
+  // private fields
+}
+pub fn Program::new(@minicpm_v47_operators.DecoderOperators) -> Self raise
+pub fn Program::region(Self, Slot) -> Region
+pub fn Program::regions(Self) -> ReadOnlyArray[Region]
+pub fn Program::source_bytes(Self) -> Bytes
+pub fn Program::stages(Self) -> ReadOnlyArray[Stage]
+pub fn Program::workspace_bytes(Self) -> Int64
+
+pub(all) struct Region {
+  slot : Slot
+  workspace_offset : Int64?
+  byte_count : Int64
+  alignment : Int64
+}
+
+pub(all) enum Slot {
+  Counts
+  RowOffsets
+  RequestSlots
+  Reset
+  Input
+  Output
+  QkvWeight
+  GateWeight
+  DecayWeight
+  BetaWeight
+  OutputWeight
+  ConvolutionWeight
+  NormWeight
+  ALog
+  DtBias
+  ConvolutionState
+  RecurrentState
+  RawQkv
+  Gate
+  Decay
+  Beta
+  ConvolvedQuery
+  ConvolvedKey
+  ConvolvedValue
+  LogDecay
+  BetaControl
+  DeltaOutput
+  GatedOutput
+} derive(Eq, @debug.Debug)
+pub fn Slot::equal(Self, Self) -> Bool
+pub fn Slot::name(Self) -> String
+pub fn Slot::not_equal(Self, Self) -> Bool
+pub fn Slot::to_repr(Self) -> @debug.Repr
+
+pub struct Stage {
+  // private fields
+}
+pub fn Stage::arguments(Self) -> ReadOnlyArray[Slot]
+pub fn Stage::launch(Self) -> (Int, Int, Int)
+pub fn Stage::symbol(Self) -> String
+
+pub struct States {
+  // private fields
+}
+pub fn States::new(@device.Allocation, @device.Allocation, convolution_offset? : Int64, recurrent_offset? : Int64) -> Self
+
+pub(all) struct Weights {
+  qkv : @device.Allocation
+  gate : @device.Allocation
+  decay : @device.Allocation
+  beta : @device.Allocation
+  output : @device.Allocation
+  convolution : @device.Allocation
+  norm : @device.Allocation
+  a_log : @device.Allocation
+  dt_bias : @device.Allocation
+}
+
+// Type aliases
+
+// Traits

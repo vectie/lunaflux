@@ -1,6 +1,6 @@
 ///|
 fn generic_cuda_tensor(
-  id : Int,
+  id : Int32,
   dtype : @luna_tile_ir.LunaTileDType,
   space : @luna_tile_ir.LunaTileAddressSpace,
   shape : ArrayView[Int64],
@@ -21,7 +21,7 @@ fn generic_cuda_tensor(
 
 ///|
 fn generic_cuda_region(
-  id : Int,
+  id : Int32,
   shape : ArrayView[Int64],
 ) -> @luna_tile_ir.LunaTileRegion raise {
   let origins = Array::makei(shape.length(), _ => {
@@ -35,13 +35,13 @@ fn generic_cuda_region(
 }
 
 ///|
-fn generic_cuda_id(id : Int) -> @luna_tile_ir.LunaTileTensorId raise {
+fn generic_cuda_id(id : Int32) -> @luna_tile_ir.LunaTileTensorId raise {
   @luna_tile_ir.LunaTileTensorId::from_stable_int(id)
 }
 
 ///|
 fn generic_cuda_program(
-  last_kind? : @luna_tile_ir.LunaTileElementwiseKind = Silu,
+  last_kind~ : @luna_tile_ir.LunaTileElementwiseKind = Silu,
 ) -> @luna_tile_ir.LunaTileProgram raise {
   let stage = @luna_tile_ir.LunaTileStageId::from_stable_int(1)
   let instructions : Array[@luna_tile_ir.LunaTileInstruction] = [
@@ -218,6 +218,22 @@ test "generic typed CUDA lowering covers the complete LunaTile operation set" {
   let canonical = @utf8.decode(first.canonical_bytes())
   assert_true(canonical.contains("compiler_authority=none"))
   assert_true(canonical.contains("runtime_authority=none"))
+}
+
+///|
+test "maximum reduction uses negative infinity as its identity" {
+  let program = generic_cuda_program()
+  let source = @utf8.decode(
+    @luna_tile_ir.lower_luna_tile_cuda_translation_unit(
+      program,
+      generic_cuda_planning(program),
+      @luna_tile_ir.LunaTileEntryPointId::from_stable_int(42),
+      @luna_tile_ir.LunaTileCudaLoweringLimits::new(max_source_bytes=65536),
+    ).source_bytes(),
+  )
+  // A finite sentinel incorrectly changes max([-Inf, -Inf]) into -FLT_MAX.
+  assert_true(source.contains("= -INFINITY;"))
+  assert_false(source.contains("-3.402823466e+38F"))
 }
 
 ///|

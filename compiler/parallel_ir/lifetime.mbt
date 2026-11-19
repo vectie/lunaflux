@@ -3,8 +3,8 @@
 /// query answers only dependencies guaranteed by the effect graph itself.
 pub fn Program::happens_before(
   self : Program,
-  earlier : Int,
-  later : Int,
+  earlier : Int32,
+  later : Int32,
 ) -> Bool {
   if earlier < 0 || later >= self.steps.length() || earlier >= later {
     return false
@@ -26,8 +26,8 @@ pub fn Program::happens_before(
 /// before a candidate step. A source-order last-use index alone is insufficient.
 pub fn Program::can_reuse_before(
   self : Program,
-  buffer : Int,
-  step : Int,
+  buffer : Int32,
+  step : Int32,
 ) -> Bool {
   guard self.buffers.get(buffer) is Some(target) else { return false }
   if step < 0 || step >= self.steps.length() {

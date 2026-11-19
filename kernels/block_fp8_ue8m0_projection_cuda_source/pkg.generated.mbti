@@ -16,6 +16,9 @@ pub(all) suberror BlockFp8Ue8M0ProjectionCudaSourceError {
   SizeOverflow
   UnsupportedArithmetic
 } derive(Eq, @debug.Debug)
+pub fn BlockFp8Ue8M0ProjectionCudaSourceError::equal(Self, Self) -> Bool
+pub fn BlockFp8Ue8M0ProjectionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn BlockFp8Ue8M0ProjectionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct BlockFp8Ue8M0ProjectionCudaSource {

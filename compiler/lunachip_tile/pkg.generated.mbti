@@ -1,0 +1,36 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/compiler/lunachip_tile"
+
+import {
+  "vectie/lunaflux/device/lunachip",
+  "vectie/lunaflux/kernels/luna_tile_ir",
+}
+
+// Values
+pub fn lower(@lunachip.DeviceContract, @luna_tile_ir.LunaTileProgram, ArrayView[GlobalBinding]) -> @lunachip.PreparedProgram raise LoweringError
+
+// Errors
+pub(all) suberror LoweringError {
+  UnsupportedProgram
+  UnsupportedTensor
+  UnsupportedInstruction
+  InvalidBinding
+  UninitializedRegister
+  Device(@lunachip.AdapterError)
+}
+
+// Types and methods
+pub(all) struct GlobalBinding {
+  tensor : @luna_tile_ir.LunaTileTensorId
+  address : UInt64
+}
+
+pub struct OrderedBf16Gemv {
+  // private fields
+}
+pub fn OrderedBf16Gemv::lower(Self, @lunachip.DeviceContract, ArrayView[GlobalBinding]) -> @lunachip.PreparedProgram raise LoweringError
+pub fn OrderedBf16Gemv::new(weights~ : @luna_tile_ir.LunaTileTensorView, activation~ : @luna_tile_ir.LunaTileTensorView, output~ : @luna_tile_ir.LunaTileTensorView) -> Self raise LoweringError
+
+// Type aliases
+
+// Traits

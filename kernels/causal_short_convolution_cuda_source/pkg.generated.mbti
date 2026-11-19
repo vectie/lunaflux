@@ -17,6 +17,9 @@ pub(all) suberror CausalShortConvolutionCudaSourceError {
   DimensionOverflow
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn CausalShortConvolutionCudaSourceError::equal(Self, Self) -> Bool
+pub fn CausalShortConvolutionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn CausalShortConvolutionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CausalShortConvolutionCudaSource {
@@ -34,10 +37,16 @@ pub fn CausalShortConvolutionCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum CausalShortConvolutionNumericalContract {
   OrderedFloat32AccumulationSiluBf16RoundV1
 } derive(Eq, @debug.Debug)
+pub fn CausalShortConvolutionNumericalContract::equal(Self, Self) -> Bool
+pub fn CausalShortConvolutionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn CausalShortConvolutionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CausalShortConvolutionOperation {
   DepthwiseCausalSiluBf16
 } derive(Eq, @debug.Debug)
+pub fn CausalShortConvolutionOperation::equal(Self, Self) -> Bool
+pub fn CausalShortConvolutionOperation::not_equal(Self, Self) -> Bool
+pub fn CausalShortConvolutionOperation::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

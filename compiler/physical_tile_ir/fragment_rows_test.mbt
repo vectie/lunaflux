@@ -1,7 +1,7 @@
 ///|
 test "prefix row domain retires whole groups and retains partial final groups" {
   for groups in [1, 2, 4, 8] {
-    let program = FragmentProgram::new(
+    let program = @physical_tile_ir.FragmentProgram::new(
       rows=groups,
       columns=2,
       extent=64,

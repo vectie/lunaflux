@@ -19,11 +19,17 @@ pub(all) suberror DecoderSelectedSparseAttentionCudaSourceError {
   InvalidFunctionSymbol
   SizeOverflow
 } derive(Eq, @debug.Debug)
+pub fn DecoderSelectedSparseAttentionCudaSourceError::equal(Self, Self) -> Bool
+pub fn DecoderSelectedSparseAttentionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn DecoderSelectedSparseAttentionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum DecoderSelectedSparseAttentionCudaOperation {
   SharedKeyValueSelectedAttentionBf16
 } derive(Eq, @debug.Debug)
+pub fn DecoderSelectedSparseAttentionCudaOperation::equal(Self, Self) -> Bool
+pub fn DecoderSelectedSparseAttentionCudaOperation::not_equal(Self, Self) -> Bool
+pub fn DecoderSelectedSparseAttentionCudaOperation::to_repr(Self) -> @debug.Repr
 
 pub struct DecoderSelectedSparseAttentionCudaSource {
   // private fields
@@ -42,6 +48,9 @@ pub fn DecoderSelectedSparseAttentionCudaSource::source_bytes(Self) -> Bytes
 pub(all) enum DecoderSelectedSparseAttentionNumericalContract {
   SerialOrderedF32SinkDenominatorBf16OutputV1
 } derive(Eq, @debug.Debug)
+pub fn DecoderSelectedSparseAttentionNumericalContract::equal(Self, Self) -> Bool
+pub fn DecoderSelectedSparseAttentionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn DecoderSelectedSparseAttentionNumericalContract::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -9,10 +9,16 @@ pub struct MachineWork {
 } derive(Eq, Debug)
 
 ///|
+pub extend MachineWork with @moonbitlang/core/debug.Debug::{to_repr}
+
+///|
+pub extend MachineWork with Eq::{not_equal, equal}
+
+///|
 pub fn MachineWork::new(
   instructions~ : Int64,
   local_bytes~ : Int64,
-  barriers? : Int64? = None,
+  barriers~ : Int64? = None,
 ) -> MachineWork? {
   if instructions < 0L ||
     local_bytes < 0L ||

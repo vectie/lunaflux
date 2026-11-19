@@ -1,0 +1,68 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/lunachip_qwen"
+
+import {
+  "vectie/lunaflux/compiler/lunachip_tile",
+  "vectie/lunaflux/device/lunachip",
+  "vectie/lunaflux/model/qwen3_lunachip",
+  "vectie/lunaflux/model/qwen3_weights",
+}
+
+// Values
+pub fn expand_bf16(BytesView, Array[Byte]) -> Unit raise TransferError
+
+pub fn prepare_decode_step(@lunachip.DeviceContract, @qwen3_lunachip.Layout, Int, resident? : Bool, indirect_bf16? : Bool) -> DecodeStep raise DecodeError
+
+pub fn prepare_projection(@lunachip.DeviceContract, @qwen3_lunachip.Layout, Int, Int, Int, UInt64, UInt64) -> @lunachip.PreparedProgram raise ProjectionError
+
+pub fn prepare_transfers(@qwen3_lunachip.Layout, @qwen3_weights.Qwen3WeightBindings) -> ReadOnlyArray[WeightTransfer] raise TransferError
+
+// Errors
+pub(all) suberror DecodeError {
+  InvalidPosition
+  InvalidLayout
+  Device(@lunachip.AdapterError)
+}
+
+pub(all) suberror ProjectionError {
+  InvalidProjection
+  InvalidWorkspace
+  Lowering(@lunachip_tile.LoweringError)
+}
+
+pub(all) suberror TransferError {
+  BindingMismatch
+  InvalidChunk
+}
+
+// Types and methods
+pub struct DecodeStep {
+  // private fields
+}
+pub fn DecodeStep::constants(Self) -> Bytes
+pub fn DecodeStep::constants_address(Self) -> UInt64
+pub fn DecodeStep::embedding_address(Self) -> UInt64
+pub fn DecodeStep::logits_address(Self) -> UInt64
+pub fn DecodeStep::position(Self) -> Int
+pub fn DecodeStep::program(Self, Int) -> @lunachip.PreparedProgram?
+pub fn DecodeStep::program_count(Self) -> Int
+pub fn DecodeStep::uses_indirect_bf16(Self) -> Bool
+
+pub(all) struct TransferChunk {
+  source_offset : Int64
+  source_bytes : Int
+  destination_address : UInt64
+}
+
+pub struct WeightTransfer {
+  ordinal : Int
+  source_offset : Int64
+  source_bytes : Int64
+  destination : @qwen3_lunachip.Region
+  expanded_norm : @qwen3_lunachip.Region?
+}
+pub fn WeightTransfer::chunk(Self, Int64, Int) -> TransferChunk? raise TransferError
+
+// Type aliases
+
+// Traits

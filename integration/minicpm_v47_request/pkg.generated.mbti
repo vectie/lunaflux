@@ -1,0 +1,92 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/integration/minicpm_v47_request"
+
+import {
+  "moonbitlang/core/debug",
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/device",
+  "vectie/lunaflux/integration/minicpm_v47",
+  "vectie/lunaflux/integration/minicpm_v47_attention",
+  "vectie/lunaflux/integration/minicpm_v47_text",
+}
+
+// Values
+
+// Errors
+pub suberror RequestError {
+  InvalidProfile
+  InvalidRequest
+  InvalidLifecycle
+  InvalidToken
+} derive(@debug.Debug)
+pub fn RequestError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct Host {
+  // private fields
+}
+pub fn Host::begin(Self, @minicpm_v47.PreparedTextPrompt, maximum_new_tokens~ : Int, stop_token_ids~ : ReadOnlyArray[Int], context_ceiling? : Int) -> Unit raise RequestError
+pub fn Host::cached_tokens(Self) -> Int
+pub fn Host::complete_step(Self, Int) -> Unit raise RequestError
+pub fn Host::emitted_tokens(Self) -> ArrayView[Int]
+pub fn Host::expects_token(Self) -> Bool raise RequestError
+pub fn Host::finish_reason(Self) -> @inference.FinishReason?
+pub fn Host::is_finished(Self) -> Bool
+pub fn Host::live_bytes(Self, Port) -> Int raise RequestError
+pub fn Host::mark_submitted(Self) -> Unit raise RequestError
+pub fn Host::new(Profile) -> Self
+pub fn Host::packet(Self, Port) -> FixedArray[Byte]
+pub fn Host::sampled_tokens(Self) -> Int
+pub fn Host::stage_next(Self) -> Bool raise
+pub fn Host::staged_phase(Self) -> @minicpm_v47_attention.Phase raise RequestError
+pub fn Host::stop_quiescent(Self, @inference.FinishReason) -> Unit
+
+pub(all) enum Port {
+  Counts
+  TokenIds
+  CanvasPositions
+  CausalPositions
+  RowOffsets
+  SequenceLength
+  PageOffsets
+  PhysicalPages
+  RequestSlots
+  Reset
+  OutputCount
+  SelectedRows
+  SampledToken
+} derive(Eq, @debug.Debug)
+pub fn Port::equal(Self, Self) -> Bool
+pub fn Port::not_equal(Self, Self) -> Bool
+pub fn Port::to_repr(Self) -> @debug.Repr
+
+pub struct Profile {
+  // private fields
+}
+pub fn Profile::context_tokens(Self) -> Int
+pub fn Profile::from_program(@minicpm_v47_text.Program) -> Self raise RequestError
+pub fn Profile::maximum_rows(Self) -> Int
+pub fn Profile::page_capacity(Self) -> Int
+
+pub struct Runner {
+  // private fields
+}
+pub fn Runner::begin(Self, @minicpm_v47.PreparedTextPrompt, maximum_new_tokens~ : Int, stop_token_ids~ : ReadOnlyArray[Int], context_ceiling? : Int) -> Unit raise RequestError
+pub fn Runner::cached_tokens(Self) -> Int
+pub fn Runner::cancel(Self) -> Unit raise
+pub fn Runner::close(Self) -> Unit raise
+pub fn Runner::emitted_tokens(Self) -> ArrayView[Int]
+pub fn Runner::finish_reason(Self) -> @inference.FinishReason?
+pub fn Runner::is_finished(Self) -> Bool
+pub fn Runner::new(@minicpm_v47_text.Program) -> Self raise RequestError
+pub fn Runner::poll(Self) -> Bool raise
+pub fn Runner::prepare(Self, @device.Context, @device.Stream, @minicpm_v47_text.Frame, @minicpm_v47_text.Storage, policy? : @device.OrderedKernelExecutionPolicy) -> Unit raise
+pub fn Runner::prepare_launches(Self, @device.Context, @device.Stream, @minicpm_v47_text.Storage, prefill~ : ArrayView[@device.OrderedKernelLaunch], decode~ : ArrayView[@device.OrderedKernelLaunch], policy? : @device.OrderedKernelExecutionPolicy) -> Unit raise
+pub fn Runner::sampled_tokens(Self) -> Int
+pub fn Runner::submit_next(Self) -> Bool raise
+pub fn Runner::wait(Self) -> Unit raise
+
+// Type aliases
+pub using @minicpm_v47_attention {type Phase}
+
+// Traits

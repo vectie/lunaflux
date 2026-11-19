@@ -35,6 +35,8 @@ pub fn scalar_expression(
           NaturalLogOnePlus => "log1pf"
           ReciprocalSqrt => "rsqrtf"
           SquareRoot => "sqrtf"
+          Sine => "sinf"
+          Cosine => "cosf"
           Negate => abort("handled above")
         }
         "\{name}(\{render(value)})"

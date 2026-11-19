@@ -4,8 +4,8 @@
 /// expressed by strides, not backend or model-family branching.
 pub struct HeadProjectionPlan {
   priv tile : MatrixTilePlan
-  priv heads : Int
-  priv weight_heads : Int
+  priv heads : Int32
+  priv weight_heads : Int32
   priv head_stride : Int64
   priv column_stride : Int64
   priv inner_stride : Int64
@@ -14,11 +14,11 @@ pub struct HeadProjectionPlan {
 
 ///|
 pub fn HeadProjectionPlan::new(
-  rows~ : Int,
-  heads~ : Int,
-  weight_heads~ : Int,
-  columns~ : Int,
-  inner~ : Int,
+  rows~ : Int32,
+  heads~ : Int32,
+  weight_heads~ : Int32,
+  columns~ : Int32,
+  inner~ : Int32,
   head_stride~ : Int64,
   column_stride~ : Int64,
   inner_stride~ : Int64,
@@ -69,7 +69,7 @@ pub fn HeadProjectionPlan::tile(self : Self) -> MatrixTilePlan {
 }
 
 ///|
-pub fn HeadProjectionPlan::heads(self : Self) -> (Int, Int) {
+pub fn HeadProjectionPlan::heads(self : Self) -> (Int32, Int32) {
   (self.heads, self.weight_heads)
 }
 
@@ -79,6 +79,6 @@ pub fn HeadProjectionPlan::strides(self : Self) -> (Int64, Int64, Int64, Int64) 
 }
 
 ///|
-pub fn HeadProjectionPlan::workgroups(self : Self) -> Int {
+pub fn HeadProjectionPlan::workgroups(self : Self) -> Int32 {
   self.tile.tile_count() * self.heads
 }

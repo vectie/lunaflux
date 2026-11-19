@@ -1,0 +1,7 @@
+import {
+  "vectie/lunaflux/contracts/inference",
+  "vectie/lunaflux/service/openai_compat",
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

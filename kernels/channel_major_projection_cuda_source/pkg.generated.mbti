@@ -25,6 +25,9 @@ pub(all) suberror ChannelMajorProjectionCudaSourceError {
   DimensionOverflow
   InvalidFunctionSymbol
 } derive(Eq, @debug.Debug)
+pub fn ChannelMajorProjectionCudaSourceError::equal(Self, Self) -> Bool
+pub fn ChannelMajorProjectionCudaSourceError::not_equal(Self, Self) -> Bool
+pub fn ChannelMajorProjectionCudaSourceError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct ChannelMajorProjectionCudaSource {
@@ -43,12 +46,15 @@ pub fn ChannelMajorProjectionCudaSource::time_count(Self) -> Int
 
 pub(all) enum ChannelMajorProjectionNumericalContract {
   OrderedF32BiasAccumulationF32OutputV1
+  AutocastPointwiseF32AccumulationV1(@precision_ir.AutocastFloat)
   OrderedF32PerOutputWeightNormConv1dV1
   OrderedF32PerOutputWeightNormBiasFreeConv1dV1
   OrderedF32PerOutputWeightNormDilatedConv1dV1
-  AutocastPointwiseF32AccumulationV1(@precision_ir.AutocastFloat)
   OrderedF32PerInputWeightNormConvTranspose1dV1
 } derive(Eq, @debug.Debug)
+pub fn ChannelMajorProjectionNumericalContract::equal(Self, Self) -> Bool
+pub fn ChannelMajorProjectionNumericalContract::not_equal(Self, Self) -> Bool
+pub fn ChannelMajorProjectionNumericalContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ChannelMajorProjectionOperation {
   F32PointwiseConv1d
@@ -56,6 +62,9 @@ pub(all) enum ChannelMajorProjectionOperation {
   F32WeightNormalizedDilatedConv1d
   F32WeightNormalizedConvTranspose1d
 } derive(Eq, @debug.Debug)
+pub fn ChannelMajorProjectionOperation::equal(Self, Self) -> Bool
+pub fn ChannelMajorProjectionOperation::not_equal(Self, Self) -> Bool
+pub fn ChannelMajorProjectionOperation::to_repr(Self) -> @debug.Repr
 
 pub struct WeightNormalizedConv1dCudaSource {
   // private fields

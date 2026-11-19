@@ -1,0 +1,17 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "vectie/lunaflux/kernels/packed_qkv_cuda_source"
+
+import {
+  "vectie/lunaflux/compiler/precision_ir",
+}
+
+// Values
+pub fn packed_qkv_source(@precision_ir.PackedQkvPrecision, symbol~ : String) -> Bytes raise
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

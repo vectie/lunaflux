@@ -332,8 +332,11 @@ pub struct ValueComponentOwnership {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn ValueComponentOwnership::component(Self, Int, Int) -> Int?
+pub fn ValueComponentOwnership::equal(Self, Self) -> Bool
 pub fn ValueComponentOwnership::fragment_width(Self) -> Int
 pub fn ValueComponentOwnership::new(dimensions~ : Int, owners~ : Int, maximum_fragment~ : Int) -> Self?
+pub fn ValueComponentOwnership::not_equal(Self, Self) -> Bool
+pub fn ValueComponentOwnership::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

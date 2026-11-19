@@ -1,25 +1,33 @@
 ///|
+pub(all) enum ConvolutionProjectionBoundary {
+  Float32BeforeSilu
+  Bf16BeforeSilu
+}
+
+///|
 /// Request-owned depthwise causal convolution. BF16 input, weights and history;
-/// ordered F32 accumulation, SiLU, one BF16 output rounding. History stores
+/// ordered F32 accumulation, explicit pre-SiLU boundary, BF16 output. History stores
 /// raw inputs, never activated outputs, oldest lag first.
 pub struct CausalConvolutionPrecision {
-  priv channels : Int
-  priv kernel : Int
-  priv rows : Int
-  priv sequences : Int
-  priv slots : Int
+  priv channels : Int32
+  priv kernel : Int32
+  priv rows : Int32
+  priv sequences : Int32
+  priv slots : Int32
   priv state_bytes : Int64
   priv frame_bytes : Int64
+  priv projection_boundary : ConvolutionProjectionBoundary
 }
 
 ///|
 pub fn CausalConvolutionPrecision::new(
-  channel_count~ : Int,
-  kernel_size~ : Int,
-  maximum_rows~ : Int,
-  maximum_sequences~ : Int,
-  cache_slots~ : Int,
+  channel_count~ : Int32,
+  kernel_size~ : Int32,
+  maximum_rows~ : Int32,
+  maximum_sequences~ : Int32,
+  cache_slots~ : Int32,
   maximum_state_bytes~ : Int64,
+  projection_boundary~ : ConvolutionProjectionBoundary = Float32BeforeSilu,
 ) -> Self raise PrecisionPlanError {
   guard channel_count > 0 &&
     kernel_size > 1 &&
@@ -55,16 +63,26 @@ pub fn CausalConvolutionPrecision::new(
     slots: cache_slots,
     state_bytes,
     frame_bytes,
+    projection_boundary,
   }
 }
 
 ///|
-pub fn CausalConvolutionPrecision::geometry(self : Self) -> (Int, Int) {
+pub fn CausalConvolutionPrecision::projection_boundary(
+  self : Self,
+) -> ConvolutionProjectionBoundary {
+  self.projection_boundary
+}
+
+///|
+pub fn CausalConvolutionPrecision::geometry(self : Self) -> (Int32, Int32) {
   (self.channels, self.kernel)
 }
 
 ///|
-pub fn CausalConvolutionPrecision::capacity(self : Self) -> (Int, Int, Int) {
+pub fn CausalConvolutionPrecision::capacity(
+  self : Self,
+) -> (Int32, Int32, Int32) {
   (self.rows, self.sequences, self.slots)
 }
 

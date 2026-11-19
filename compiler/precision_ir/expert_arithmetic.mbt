@@ -74,11 +74,16 @@ pub fn ExpertMlpPrecision::expression(
             )
         },
       )
-    CombineUpdate =>
+    CombineUpdate => {
+      let added = Binary(AddRN, x, Convert(Float32, y))
       numeric_expression(
         [Float32, BFloat16],
-        Binary(AddRN, x, Convert(Float32, y)),
+        match self.combine_rounding() {
+          Float32Combine => added
+          Bf16EachAdd => Convert(Float32, Convert(BFloat16, added))
+        },
       )
+    }
     DotUpdate =>
       numeric_expression(
         [Float32, Float32, Float32],
