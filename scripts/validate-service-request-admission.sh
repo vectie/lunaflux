@@ -102,7 +102,7 @@ if [ -d service/request_admission ]; then
       service/request_admission/pool_types.mbt ||
     ! rg -q --pcre2 -U \
       'progress_text_input_copy(?s).*write\.push_byte\(text\.utf8\(\)\[lane\.copy_index\]\)(?s).*lane\.copy_index \+= 1(?s).*return(?s).*write\.finish\(\)' \
-      service/request_admission/pool_progress.mbt ||
+      service/request_admission/pool_text_progress.mbt ||
     ! rg -q 'LunaTokenizerWorker::required_byte_cells' \
       service/request_admission/pool_storage.mbt ||
     ! rg -q --pcre2 -U \

@@ -169,10 +169,10 @@ fi
 if rg -n 'begin_bytes' service/request_admission/pool*.mbt ||
   ! rg -q --pcre2 -U \
     'progress_text_input_copy(?s).*if lane\.copy_index < text\.utf8_bytes\(\)(?s).*write\.push_byte\(text\.utf8\(\)\[lane\.copy_index\]\)(?s).*lane\.copy_index \+= 1(?s).*return(?s).*write\.finish\(\)' \
-    service/request_admission/pool_progress.mbt ||
+    service/request_admission/pool_text_progress.mbt ||
   ! rg -q --pcre2 -U \
     'SpecialTokenRejected\(token_id=_\) \|(?s).*OutputTooLong\(actual=_, maximum=_\)(?s).*lane\.tokenizer_work = None(?s).*raise Invalid\(Tokenization\)' \
-    service/request_admission/pool_progress.mbt; then
+    service/request_admission/pool_text_progress.mbt; then
   printf '%s\n' \
     'preparation-pool text ingress is not exact one-byte work with terminal cleanup' >&2
   exit 1
@@ -181,6 +181,8 @@ fi
 lane_constructor_source="service/request_admission/pool_lane_new.mbt"
 if rg -n '(^|[^A-Za-z])Array::|Map::|HashMap|@utf8\.encode|Bytes::make' \
     service/request_admission/pool_progress.mbt \
+    service/request_admission/pool_text_progress.mbt \
+    service/request_admission/pool_failure.mbt \
     service/request_admission/pool_semantic_progress.mbt \
     service/request_admission/pool_work.mbt ||
   rg -n '(^|[^A-Za-z])Array::|Map::|HashMap|@utf8\.encode|Bytes::make' \

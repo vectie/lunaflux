@@ -283,6 +283,8 @@ if rg -n \
     service/online_session/coordinator_ingress.mbt \
     service/online_session/coordinator_progress.mbt \
     service/online_session/coordinator_events.mbt \
+    service/online_session/coordinator_output_stall.mbt \
+    service/online_session/coordinator_event_offer.mbt \
     service/online_session/coordinator_lifecycle.mbt \
     service/online_session/framed_service_owner.mbt \
     service/online_session/framed_stream.mbt \

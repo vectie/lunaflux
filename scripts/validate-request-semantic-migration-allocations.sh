@@ -98,6 +98,8 @@ if rg -n \
     service/request_admission/admit.mbt \
     service/request_admission/pool.mbt \
     service/request_admission/pool_progress.mbt \
+    service/request_admission/pool_failure.mbt \
+    service/request_admission/pool_text_progress.mbt \
     service/request_admission/pool_semantic_progress.mbt \
     service/request_admission/semantic_import.mbt; then
   printf '%s\n' \
