@@ -8,6 +8,7 @@ runner=scripts/run-approved-model-current-source-physical.sh
 archiver=scripts/create-portable-source-archive.sh
 process_group=scripts/physical-campaign-process-group.sh
 evidence_helper=scripts/immutable-evidence-directory.sh
+canonical_helper=scripts/verify-current-source-evidence.mbtx
 failed=0
 
 fail() {
@@ -19,6 +20,11 @@ for script in "$runner" "$archiver" "$process_group" "$evidence_helper"; do
   [ -f "$script" ] || fail "current-source campaign script is missing: $script"
   bash -n "$script" || fail "current-source campaign script is invalid: $script"
 done
+
+[ -f "$canonical_helper" ] || fail 'current-source canonical evidence helper is missing'
+moon run "$canonical_helper" --self-test || fail 'canonical evidence hostile fixtures failed'
+grep -Fq 'moon run "$repo_root/scripts/verify-current-source-evidence.mbtx" "$@"' "$runner" ||
+  fail 'current-source campaign bypasses canonical evidence verification'
 
 for anchor in \
   'COPYFILE_DISABLE=1' \

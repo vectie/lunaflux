@@ -1,0 +1,208 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/process",
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+}
+
+///|
+struct BoundaryRule {
+  kind : String
+  args : Array[String]
+  guard_dir : String
+  message : String
+} derive(FromJson)
+
+///|
+fn production_imports(source : String) -> String raise {
+  let sections = source.split("import {").to_array()
+  let output = StringBuilder()
+  for section in sections[1:] {
+    let parts = section.split("}").to_array()
+    guard parts.length() >= 2 else { fail("malformed package import block") }
+    let scope = parts[1].trim_start()
+    if scope.has_prefix("for ") {
+      guard scope.has_prefix("for \"test\"") ||
+        scope.has_prefix("for \"wbtest\"") else {
+        fail("unknown package import scope")
+      }
+    } else {
+      output.write_string("import {" + parts[0].to_owned() + "}\n")
+    }
+  }
+  output.to_string()
+}
+
+///|
+async fn check_rule(rule : BoundaryRule, root : String) -> Unit {
+  if rule.guard_dir != "" {
+    let path = root + "/" + rule.guard_dir
+    if !@fs.exists(path) {
+      return
+    }
+    let file = @fs.open(path, mode=ReadOnly)
+    defer file.close()
+    if file.kind() != Directory {
+      return
+    }
+  }
+  if rule.kind == "size" {
+    guard rule.args[:] is [package_dir] else { fail("invalid size rule") }
+    let directory = @fs.opendir(root + "/" + package_dir)
+    defer directory.close()
+    while directory.next() is Some(entry) {
+      if entry.is_dir ||
+        !(entry.name.has_suffix(".mbt") || entry.name.has_suffix(".mbt.md")) {
+        continue
+      }
+      let path = root + "/" + package_dir + "/" + entry.name
+      let source = @fs.read_file(path).text()
+      let lines = source.split("\n").count() -
+        (if source.has_suffix("\n") { 1 } else { 0 })
+      guard lines < 500 else { fail(rule.message + ": " + path) }
+    }
+  } else {
+    guard rule.kind == "present" || rule.kind == "absent" else {
+      fail("unknown boundary rule")
+    }
+    let arguments = rule.args.copy()
+    let scratch = @fs.tmpdir(prefix="lunaflux-boundary-imports")
+    defer @fs.rmdir(scratch, recursive=true)
+    // Dependency direction is a production boundary. Test-only imports supply
+    // fixtures and do not give the runtime authority over another layer.
+    if rule.kind == "absent" {
+      for index, argument in arguments {
+        if argument.has_suffix("moon.pkg") &&
+          (index == 0 || arguments[index - 1] != "--glob") {
+          let imports = production_imports(
+            @fs.read_file(root + "/" + argument).text(),
+          )
+          let path = scratch + "/imports-" + index.to_string() + ".txt"
+          @fs.write_file(path, imports)
+          arguments[index] = path
+        }
+      }
+    }
+    let (status, _, diagnostics) = @process.collect_output(
+      "rg",
+      arguments,
+      cwd=root,
+    )
+    guard status == 0 || status == 1 else {
+      fail("boundary search failed: " + diagnostics.text())
+    }
+    guard (status == 0) == (rule.kind == "present") else { fail(rule.message) }
+  }
+}
+
+///|
+async fn expect_rejection(rule : BoundaryRule, root : String) -> Unit {
+  try check_rule(rule, root) catch {
+    _ => ()
+  } noraise {
+    _ => fail("boundary fixture was incorrectly admitted")
+  }
+}
+
+///|
+async fn self_test() -> Unit {
+  let root = @fs.tmpdir(prefix="lunaflux-advanced-boundary")
+  defer @fs.rmdir(root, recursive=true)
+  @fs.write_file(root + "/fixture.mbt", "pub fn retained() -> Unit { () }\n")
+  let present : BoundaryRule = {
+    kind: "present",
+    args: ["-F", "pub fn retained", "fixture.mbt"],
+    guard_dir: "",
+    message: "missing fixture symbol",
+  }
+  check_rule(present, root)
+  let absent : BoundaryRule = {
+    kind: "absent",
+    args: ["-n", "forbidden/(runtime|device)", "fixture.mbt"],
+    guard_dir: "",
+    message: "forbidden dependency",
+  }
+  check_rule(absent, root)
+  @fs.write_file(root + "/fixture.mbt", "import forbidden/device\n")
+  expect_rejection(present, root)
+  expect_rejection(absent, root)
+  expect_rejection({ ..present, args: ["-F", "x", "missing.mbt"], }, root)
+  let imports : BoundaryRule = {
+    ..absent,
+    args: ["-n", "forbidden/(runtime|device)", "moon.pkg"],
+  }
+  @fs.write_file(root + "/moon.pkg", "import {\n \"forbidden/device\",\n}\n")
+  expect_rejection(imports, root)
+  @fs.write_file(
+    root + "/moon.pkg",
+    "import {\n \"forbidden/device\",\n} for \"test\"\n",
+  )
+  check_rule(imports, root)
+  let size : BoundaryRule = {
+    kind: "size",
+    args: ["."],
+    guard_dir: "",
+    message: "oversized fixture",
+  }
+  @fs.write_file(root + "/fixture.mbt", "/// bounded\n".repeat(499))
+  check_rule(size, root)
+  @fs.write_file(root + "/fixture.mbt", "/// bounded\n".repeat(500))
+  expect_rejection(size, root)
+  @fs.write_file(
+    root + "/fixture.mbt",
+    "/// bounded\n".repeat(499) + "/// last",
+  )
+  expect_rejection(size, root)
+  println("Advanced model-family boundary hostile fixtures: ok")
+}
+
+///|
+async fn main {
+  if @env.args()[1:] is ["--self-test"] {
+    self_test()
+    return
+  }
+  let static_only = @env.args()[1:] is ["--static-only"]
+  guard static_only || @env.args()[1:].is_empty() else {
+    fail(
+      "usage: validate-advanced-model-family-boundary.mbtx [--static-only|--self-test]",
+    )
+  }
+  let root = @fs.realpath(".")
+  let rules = @fs.read_file("scripts/boundaries/advanced_model_rules.jsonl").text()
+  let mut count = 0
+  for line in rules.split("\n") {
+    if line.trim() == "" {
+      continue
+    }
+    let rule : BoundaryRule = @json.from_json(@json.parse(line))
+    check_rule(rule, root)
+    count += 1
+  }
+  guard count == 588 else {
+    fail("advanced boundary rule inventory is incomplete")
+  }
+  if !static_only {
+    let packages : Array[String] = @json.from_json(
+      @json.parse(
+        @fs.read_file("scripts/boundaries/advanced_model_packages.json").text(),
+      ),
+    )
+    guard packages.length() == 107 else {
+      fail("advanced validation package inventory is incomplete")
+    }
+    for
+      arguments in [
+        ["fmt", "--check"],
+        ["check", "--target", "native", "--deny-warn", "--warn-list", "+73"],
+        ["test", "--target", "native", "--deny-warn", "--warn-list", "+73"],
+      ] {
+      guard @process.run("moon", arguments + packages, cwd=root) == 0 else {
+        fail("advanced model native validation failed")
+      }
+    }
+  }
+  println("Advanced model-family modularity boundary: ok (588 predicates)")
+}

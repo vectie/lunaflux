@@ -78,11 +78,11 @@ for anchor in \
 done
 
 for anchor in \
-  'CONTEXT_CHURN_FIRST_CEILING : Int = 8' \
-  'CONTEXT_CHURN_SECOND_CEILING : Int = 32' \
-  'CONTEXT_CHURN_THIRD_CEILING : Int = CAMPAIGN_CONTEXT_TOKENS' \
-  'CONTEXT_CHURN_REQUESTS_PER_CHILD : Int = 3' \
-  'CONTEXT_CHURN_FRESH_CHILD_CYCLES : Int = 3' \
+  'CONTEXT_CHURN_FIRST_CEILING : Int32 = 8' \
+  'CONTEXT_CHURN_SECOND_CEILING : Int32 = 32' \
+  'CONTEXT_CHURN_THIRD_CEILING : Int32 = CAMPAIGN_CONTEXT_TOKENS' \
+  'CONTEXT_CHURN_REQUESTS_PER_CHILD : Int32 = 3' \
+  'CONTEXT_CHURN_FRESH_CHILD_CYCLES : Int32 = 3' \
   'input=@inference.Input::from_token_ids([1], limits)' \
   'cache=@inference.CachePolicy::new(' \
   'Disabled,'; do

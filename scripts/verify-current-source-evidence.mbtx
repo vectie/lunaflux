@@ -1,0 +1,95 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/string",
+  "moonbitlang/x@0.4.48/crypto",
+}
+
+///|
+// Offline campaign evidence only. This does not run on startup or token paths.
+fn verify_record(
+  text : String,
+  key : String,
+  expected_lines : Int32,
+  label : String,
+) -> Unit raise {
+  let prefix = key + "="
+  let lines = text.split("\n").to_array()
+  let authorities = lines.filter(line => line.has_prefix(prefix))
+  guard authorities[:] is [authority] else {
+    fail(label + " published duplicate or missing digest authority")
+  }
+  let digest = authority[prefix.length():]
+  guard digest.length() == 64 &&
+    digest.iter().all(value => value is ('0'..<='9' | 'a'..<='f')) else {
+    fail(label + " published an invalid digest")
+  }
+  let nonempty = lines.filter(line => line != "")
+  guard nonempty.last() == Some(authority) else {
+    fail(label + " published data after its canonical digest")
+  }
+  guard nonempty.length() == expected_lines else {
+    fail(label + " evidence shape does not match its source contract")
+  }
+  let payload = StringBuilder()
+  for line in lines {
+    if line.has_prefix(prefix) {
+      break
+    }
+    payload.write_string(line.to_owned() + "\n")
+  }
+  let calculated = @crypto.bytes_to_hex_string(
+    @crypto.sha256(@utf8.encode(payload.to_string())),
+  )
+  guard calculated == digest.to_owned() else {
+    fail(label + " canonical digest does not verify")
+  }
+}
+
+///|
+fn expect_rejected(text : String, expected_lines : Int32) -> Unit raise {
+  try verify_record(text, "digest", expected_lines, "fixture") catch {
+    _ => ()
+  } noraise {
+    _ => fail("invalid campaign evidence was accepted")
+  }
+}
+
+///|
+fn self_test() -> Unit raise {
+  let payload = "schema=fixture\nresult=pass\n"
+  let digest = @crypto.bytes_to_hex_string(
+    @crypto.sha256(@utf8.encode(payload)),
+  )
+  let valid = payload + "digest=" + digest + "\n"
+  verify_record(valid, "digest", 3, "fixture")
+  verify_record(valid + "\n", "digest", 3, "fixture")
+  expect_rejected(payload, 3)
+  expect_rejected(valid + "digest=" + digest + "\n", 4)
+  expect_rejected(payload + "digest=" + "A".repeat(64) + "\n", 3)
+  expect_rejected(valid + "result=changed\n", 4)
+  expect_rejected(valid, 4)
+  expect_rejected("schema=changed\nresult=pass\ndigest=" + digest + "\n", 3)
+  println("Current-source canonical evidence hostile fixtures: ok")
+}
+
+///|
+async fn main {
+  match @env.args()[1:] {
+    ["--self-test"] => self_test()
+    [path, key, count, label] =>
+      verify_record(
+        @fs.read_file(path).text(),
+        key,
+        @string.parse_int(count),
+        label,
+      )
+    _ =>
+      fail(
+        "usage: verify-current-source-evidence.mbtx FILE DIGEST_KEY NONEMPTY_LINES LABEL",
+      )
+  }
+}

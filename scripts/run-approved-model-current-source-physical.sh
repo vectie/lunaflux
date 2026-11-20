@@ -26,31 +26,7 @@ sha256_file() {
 }
 
 verify_canonical_evidence() {
-  local evidence_file=$1
-  shift
-  local digest_key=$1
-  shift
-  local expected_nonempty_lines=$1
-  shift
-  local label=$1
-  local digest digest_count last_nonempty nonempty_lines payload calculated
-  digest=$(sed -n "s/^${digest_key}=//p" "$evidence_file")
-  digest_count=$(grep -c "^${digest_key}=" "$evidence_file" || true)
-  [ "$digest_count" -eq 1 ] || fail "$label published duplicate digest authority"
-  case "$digest" in ''|*[!0-9a-f]*) fail "$label published an invalid digest" ;; esac
-  [ "${#digest}" -eq 64 ] || fail "$label published an invalid digest"
-  last_nonempty=$(grep -v '^$' "$evidence_file" | tail -n 1)
-  [ "$last_nonempty" = "$digest_key=$digest" ] ||
-    fail "$label published data after its canonical digest"
-  nonempty_lines=$(grep -c . "$evidence_file" || true)
-  [ "$nonempty_lines" -eq "$expected_nonempty_lines" ] ||
-    fail "$label evidence shape does not match its source contract"
-  payload=$(mktemp) || fail "$label could not allocate digest scratch space"
-  scratch_files+=("$payload")
-  sed "/^${digest_key}=/,\$d" "$evidence_file" >"$payload" ||
-    fail "$label canonical payload extraction failed"
-  calculated=$(sha256_file "$payload") || fail "$label payload hashing failed"
-  [ "$calculated" = "$digest" ] || fail "$label canonical digest does not verify"
+  moon run "$repo_root/scripts/verify-current-source-evidence.mbtx" "$@"
 }
 
 make_sorted_path_list() {
