@@ -1,0 +1,2 @@
+Warning: Duplicate import of package `moonbitlang/async/internal/c_buffer` in `import`.
+Preserved 510 declaration blocks across 34 source splits; both extracted phases retain the original statements; renamed CUDA vocabulary and vendored header are byte-identical.

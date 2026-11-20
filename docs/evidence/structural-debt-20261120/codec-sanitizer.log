@@ -1,0 +1,3 @@
+Warning: `exclude` in `/Users/kq/.moon/cache/deps/v1/sources/moonbitlang/async/0.20.2/moon.mod` is deprecated; use `.gitignore` or `.moonignore` to control which files are packaged instead. `.moonignore` overrides `.gitignore` in the same directory.
+Warning: Duplicate import of package `moonbitlang/async/internal/c_buffer` in `import`.
+RGB8 PNG/JPEG: colors/alpha/grayscale, baseline/progressive and buffered-entropy regression, precision/size rejection and all truncated prefixes passed; codec allocation count balanced

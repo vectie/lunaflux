@@ -1,0 +1,282 @@
+{
+  "format": "lunaflux.structural-debt-validation.v1",
+  "recorded_date": "2026-11-20",
+  "baseline_revision": "e98c612ab152e2b667b751318367380ae4fd7c02",
+  "validated_code_revision": "96e13642b0495b887973f3602c584ead2a35d2d8",
+  "code_commits": [
+    "f79eca07750ca1d96a2409d423e428105780f100",
+    "1ac5d8d20f92607856caed3bdb77b31fa663224f",
+    "09103e0f9aaac2230915f5929e47d06f6dba1c4e",
+    "5f5c7beb52d34dd8cfd4c759ef5dbc6283b68722",
+    "96e13642b0495b887973f3602c584ead2a35d2d8"
+  ],
+  "source_archive_sha256": "0712fc6cf32f3d7f44a68d2b7851aee497e9d9609d540f714d6da2f0078794cf",
+  "source_archive_scope": "Runtime, tests and tooling before closure documentation; later documentation changes no tested code.",
+  "policy_and_auditor_changed": false,
+  "policy_and_auditor_git_blobs": {
+    "docs/DEBT_POLICY.md": "96b9cd8879299ad10b2ad645286e5006a0398070",
+    "scripts/validate-debt-policy.sh": "09b136d3a2282593e4d515af8380d9f10dffafd3"
+  },
+  "audit_exclusions_added": false,
+  "public_interfaces_changed": false,
+  "warnings_disabled": false,
+  "tests_removed_or_disabled": false,
+  "assertion_tolerances_relaxed": false,
+  "initial_tracked_findings": {
+    "oversized_files": 39,
+    "upstream_header_markers": 3,
+    "vague_filename": 1
+  },
+  "initial_audit_log": {
+    "path": "structural-debt-20261120/initial-audit.log",
+    "sha256": "4266b8d16c5944e570b325f0155c7e53c94e1c665b6740665b09b22cd4dc39a4"
+  },
+  "initial_generated_findings": {
+    "oversized_files": 159,
+    "upstream_markers": 77
+  },
+  "declaration_preservation": {
+    "source_files_split": 34,
+    "byte_identical_declaration_blocks": 510,
+    "extracted_phases_reconstruct_original_statements": true
+  },
+  "vendored_header_git_blob": "4b072131749ebc9053072ae3c500d2cc0d05a899",
+  "vendor_whitespace_note": "The byte-identical relocated upstream header retains two pre-existing trailing-whitespace lines. Git's whitespace check reports them; no whitespace exception or policy relaxation was added.",
+  "native_tests": {
+    "total": 5546,
+    "passed": 5546,
+    "failed": 0,
+    "existing_optional_asset_notices": 10,
+    "new_skip_conditions": 0
+  },
+  "advanced_boundary": {
+    "predicates": 588,
+    "native_validation_packages": 107,
+    "native_tests_passed": 824,
+    "production_and_test_import_scopes_distinguished": true
+  },
+  "canonical_record_oracle_cases": 12,
+  "generated_artifacts": {
+    "tracked_source_moved_to_artifact_archive": false,
+    "artifact_bytes_deleted_or_edited": false,
+    "compatibility_links_committed": false,
+    "archive": "../lunaflux-artifacts/structural-debt-20261120/",
+    "manifest": "relocations.json"
+  },
+  "native_environment": {
+    "platform": "Linux AArch64",
+    "moonc": "v0.10.15+943464bfa",
+    "network": "disabled",
+    "hardware_devices_passed_through": false,
+    "image_sha256": "5b1332bafb8e0bd31065cfd4a7ea2d57b81dd68f96c4cb6b4ebac477bf921b23"
+  },
+  "advanced_tooling_environment": {
+    "base_image_sha256": "5b1332bafb8e0bd31065cfd4a7ea2d57b81dd68f96c4cb6b4ebac477bf921b23",
+    "image_sha256": "193ede7f76fed1e758e09e1ae91bf9298d0b1ad5bec7731ec3dc7c908066c0a9",
+    "additional_tool": "Ubuntu ripgrep 14.1.0-1",
+    "network_during_validation": "disabled",
+    "compiler_and_dependencies": "same pinned toolchain and source dependencies",
+    "cache_note": "Removed copied AppleDouble resource-fork metadata from the agent-owned dependency cache; dependency code unchanged."
+  },
+  "checks": [
+    {
+      "id": "debt-local",
+      "command": "scripts/validate-debt-policy.sh",
+      "platform": "macOS working checkout",
+      "passed": true,
+      "expected_result": "LunaFlux technical-debt policy is valid.",
+      "log": "structural-debt-20261120/debt-local.log",
+      "log_sha256": "c5d07320002d5979eb4bdb0e228be12335462ebde7f40d9634936cd7157b2a23"
+    },
+    {
+      "id": "debt-linux",
+      "command": "scripts/validate-debt-policy.sh SOURCE",
+      "platform": "Linux source-only validation copy",
+      "passed": true,
+      "expected_result": "LunaFlux technical-debt policy is valid.",
+      "log": "structural-debt-20261120/debt-linux.log",
+      "log_sha256": "c5d07320002d5979eb4bdb0e228be12335462ebde7f40d9634936cd7157b2a23"
+    },
+    {
+      "id": "debt-hostile-fixtures",
+      "command": "scripts/test-validate-debt-policy.sh",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "LunaFlux technical-debt policy self-tests passed.",
+      "log": "structural-debt-20261120/debt-hostile-fixtures.log",
+      "log_sha256": "a3f2247452aef4decede1b7e1724378d8e0f1e7df3efae2332ce14b2e2745f5a"
+    },
+    {
+      "id": "native-check-macos",
+      "command": "moon check --target native --deny-warn --warn-list +73",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "Finished.",
+      "log": "structural-debt-20261120/native-check-macos.log",
+      "log_sha256": "057e58bed8a8c3c3f5eea37e3859fc73437fac66fc05b4e763f9cf153a329544"
+    },
+    {
+      "id": "native-check-linux",
+      "command": "moon check --target native --deny-warn --warn-list +73",
+      "platform": "Linux AArch64",
+      "passed": true,
+      "expected_result": "Finished.",
+      "log": "structural-debt-20261120/native-check-linux.log",
+      "log_sha256": "9c7a343916eba3573cacc53898663e0d44ea16fd752ea2abc61c5b7663331094"
+    },
+    {
+      "id": "native-tests-linux",
+      "command": "moon test --target native --deny-warn --warn-list +73 -j 8",
+      "platform": "Linux AArch64",
+      "passed": true,
+      "expected_result": "Total tests: 5546, passed: 5546, failed: 0.",
+      "log": "structural-debt-20261120/native-tests-linux.log",
+      "log_sha256": "97e2ff0c6a7694df1c3130e07ce6fae7b622eea703e13ba42178cc5b26aa5f06"
+    },
+    {
+      "id": "advanced-validator-default",
+      "command": "moon run scripts/validate-advanced-model-family-boundary.mbtx",
+      "platform": "Linux AArch64; same toolchain plus ripgrep",
+      "passed": true,
+      "expected_result": "Total tests: 824, passed: 824, failed: 0.\nAdvanced model-family modularity boundary: ok (588 predicates)",
+      "log": "structural-debt-20261120/advanced-validator-default.log",
+      "log_sha256": "ed017286e62d406b60e5863acec486f51c2e6f1155e4de167eb13803ecf86e08"
+    },
+    {
+      "id": "advanced-hostile-fixtures",
+      "command": "moon run scripts/validate-advanced-model-family-boundary.mbtx --self-test",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "Advanced model-family boundary hostile fixtures: ok",
+      "log": "structural-debt-20261120/advanced-hostile-fixtures.log",
+      "log_sha256": "0bd045ca8534d37d93701d5c147744313d8782a1448b48a9c404d1aabba757f4"
+    },
+    {
+      "id": "canonical-hostile-fixtures",
+      "command": "moon run scripts/verify-current-source-evidence.mbtx --self-test",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "Current-source canonical evidence hostile fixtures: ok",
+      "log": "structural-debt-20261120/canonical-hostile-fixtures.log",
+      "log_sha256": "852595479b15fa75788dd5320e12d675caea3faed23ea35a7bd7fd656d6a7593"
+    },
+    {
+      "id": "canonical-oracle-equivalence",
+      "command": "MoonBit harness compares original Bash verifier and new verifier on twelve canonical-record fixtures",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "12 canonical-record fixtures preserve the original Bash oracle's admission and rejection.",
+      "log": "structural-debt-20261120/canonical-oracle-equivalence.log",
+      "log_sha256": "ba2d68cc25ca7d5b5d69b3065c380fb0c9883380f6bf9af68f6649e85e48ea18"
+    },
+    {
+      "id": "declaration-preservation",
+      "command": "Compare e98c612a declaration blocks, inlined extracted phases, renamed vocabulary and vendor blob against refactored source",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "Preserved 510 declaration blocks across 34 source splits; both extracted phases retain the original statements; renamed CUDA vocabulary and vendored header are byte-identical.",
+      "log": "structural-debt-20261120/declaration-preservation.log",
+      "log_sha256": "6c716340a226a8e27fc0eabfb74406e1f135da5707326979cdee0fc367d2f9f5"
+    },
+    {
+      "id": "codec-sanitizer",
+      "command": "moon run scripts/test-rgb8-native.mbtx REPO NEW_OUTPUT",
+      "platform": "macOS ASan/UBSan",
+      "passed": true,
+      "expected_result": "codec allocation count balanced",
+      "log": "structural-debt-20261120/codec-sanitizer.log",
+      "log_sha256": "4ecd6041e4a3d61e80f6b500b3a508d8a852c8b240e4a34ae42fdea7c65bdf98"
+    },
+    {
+      "id": "token-step-boundary",
+      "command": "moon run scripts/validate-token-step-performance-boundaries.mbtx",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "LunaFlux token-step scan/copy/readback boundary gate passed (no checksum scan).",
+      "log": "structural-debt-20261120/token-step-boundary.log",
+      "log_sha256": "f02637c0fe5ec05511152730bc8024ff74d7c11fa6fa19d0557e3c4d61fb2793"
+    },
+    {
+      "id": "checkpoint-no-hashing",
+      "command": "moon run scripts/check-checkpoint-runner-no-hashing.mbtx",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "checkpoint runner no-hashing regression passed: 34 scripts, 22 execution packages",
+      "log": "structural-debt-20261120/checkpoint-no-hashing.log",
+      "log_sha256": "c02772d29667e098c437bc637e01383e2c02310b7fc1081e70725b9a2d602e66"
+    },
+    {
+      "id": "physical-transport-boundary",
+      "command": "scripts/validate-worker-service-physical-transport.sh",
+      "platform": "macOS software boundary",
+      "passed": true,
+      "expected_result": "LunaFlux worker-service physical transport boundary passed.",
+      "log": "structural-debt-20261120/physical-transport-boundary.log",
+      "log_sha256": "cfbd66ed0664870799f70f941365003718c26f5b9d743ef19101bb614508c1b8"
+    },
+    {
+      "id": "process-abi-boundary",
+      "command": "scripts/validate-process-abi.sh",
+      "platform": "macOS software boundary",
+      "passed": true,
+      "expected_result": "LunaFlux worker process ABI boundary is valid.",
+      "log": "structural-debt-20261120/process-abi-boundary.log",
+      "log_sha256": "6e9089d122d354767946f5f7b44f33dfd354907e97a5b7ef60317e50e32243cd"
+    },
+    {
+      "id": "current-source-campaign-boundary",
+      "command": "scripts/validate-approved-model-current-source-physical.sh",
+      "platform": "macOS software boundary; no physical campaign",
+      "passed": true,
+      "expected_result": "Approved-model current-source physical campaign boundary passed.",
+      "log": "structural-debt-20261120/current-source-campaign-boundary.log",
+      "log_sha256": "5ffc527d08f7237142946997197bf10683222f711393065a03aa474e23553ddd"
+    },
+    {
+      "id": "annotation-boundary",
+      "command": "scripts/validate-moonbit-annotations.sh",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "LunaFlux MoonBit annotation boundary is valid.",
+      "log": "structural-debt-20261120/annotation-boundary.log",
+      "log_sha256": "0d8f2e6ea833cff701bbad8dea72240cd9bdbb38341c25f4716fe2b631422acd"
+    },
+    {
+      "id": "interfaces",
+      "command": "moon info",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "Finished.",
+      "log": "structural-debt-20261120/interfaces.log",
+      "log_sha256": "8a144440e002c2b49df1fc90619d4f61ce0b9f7d5934a8870dc01c0540143699"
+    },
+    {
+      "id": "format",
+      "command": "moon fmt",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "Finished.",
+      "log": "structural-debt-20261120/format.log",
+      "log_sha256": "2a5101233b91073eff676f29f7b9b95fd3164530ed101ce01281a351a9f8f827"
+    },
+    {
+      "id": "format-check",
+      "command": "moon fmt --check",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "Finished.",
+      "log": "structural-debt-20261120/format-check.log",
+      "log_sha256": "2a5101233b91073eff676f29f7b9b95fd3164530ed101ce01281a351a9f8f827"
+    },
+    {
+      "id": "script-format-check",
+      "command": "moon fmt --check scripts/validate-advanced-model-family-boundary.mbtx scripts/verify-current-source-evidence.mbtx",
+      "platform": "macOS",
+      "passed": true,
+      "expected_result": "",
+      "log": "structural-debt-20261120/script-format-check.log",
+      "log_sha256": "275ae5c33b9ef0ea777ae3b5c2c768e688b92a4e44f02d971fc546db2897db09"
+    }
+  ],
+  "scope": "Structural organization and native software qualification, without a new physical GPU or powered robot claim."
+}

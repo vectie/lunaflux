@@ -67,6 +67,10 @@ physical GPU, FPGA, NCCL or full-model numerical claim.
 
 ## Separate debt audit
 
+Follow-up: [the structural debt closure](STRUCTURAL_DEBT_CLOSURE_20261120.md)
+now passes the unchanged debt audit and its rejection tests. The paragraph
+below records the earlier state before that refactor.
+
 The supplementary whole-checkout debt audit remains non-clean. It scans local
 generated/vendor artifacts and also finds pre-existing oversized tracked
 files. For example, `cmd/deepseek_checkpoint/rank.mbt` was already 512 lines

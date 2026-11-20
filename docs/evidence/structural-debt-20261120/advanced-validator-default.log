@@ -1,0 +1,5 @@
+Warning: Duplicate import of package `moonbitlang/async/internal/c_buffer` in `import`.
+Finished. moon: ran 1350 tasks, now up to date
+Finished. moon: no work to do
+Total tests: 824, passed: 824, failed: 0.
+Advanced model-family modularity boundary: ok (588 predicates)
