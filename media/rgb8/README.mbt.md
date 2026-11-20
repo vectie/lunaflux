@@ -14,6 +14,12 @@ path. Only PNG/JPEG memory decoding is enabled; no Python,
 filesystem API or runtime library download is required. Dimensions/pixel count
 are admitted before full decoding. Encoded and decoded sizes remain bounded.
 
+The upstream implementation lives in `third_party/stb/stb_image.h`; the small
+`stb_image.h` compatibility include preserves existing build/probe include
+paths. The maintained native ownership boundary is `decode.c`. Relocation
+preserves the complete vendored header, including its license and JPEG fix,
+byte for byte; it does not exempt LunaFlux's wrapper from the debt audit.
+
 PNG alpha is discarded, matching an explicit RGB conversion rather than
 background compositing. Grayscale becomes three equal channels. This first
 profile accepts 8-bit PNG/JPEG; 16-bit PNG is rejected. `decode` retains stored

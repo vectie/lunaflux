@@ -1,5 +1,5 @@
 /_build/
-/target/
+/target
 /.mooncakes/
 **/_build/
 **/.mooncakes/
@@ -18,8 +18,8 @@
 /state/
 /models/
 /kernels/cache/
-/benchmarks/results/
-/benchmarks/qwen3_comparison/results/
+/benchmarks/results
+/benchmarks/qwen3_comparison/results
 /profiles/
 /trace.json
 /profile.json
