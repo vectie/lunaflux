@@ -1,0 +1,408 @@
+///|
+fn pa_decode_split_profile(
+  max_page_table_entries : Int32,
+) -> @launch_contract.PagedKernelProfile raise {
+  @launch_contract.PagedKernelProfile::new(
+    id=@launch_contract.KernelProfileId::from_stable_int(9),
+    max_query_rows=2,
+    max_query_tokens=3,
+    max_page_table_entries~,
+  )
+}
+
+///|
+fn pa_decode_split_operands(
+  max_page_table_entries : Int32,
+) -> Array[@launch_contract.AotOperand] raise {
+  let layer = @plan.KvLayerId::new(0)
+  [
+    pa_operand(RuntimeInput(StepCounts), 20L, 4L),
+    pa_operand(RuntimeInput(QueryPositions), 12L, 4L),
+    pa_operand(RuntimeInput(QueryRowOffsets), 12L, 4L),
+    pa_operand(RuntimeInput(SequenceLengths), 8L, 4L),
+    pa_operand(RuntimeInput(PageTableOffsets), 12L, 4L),
+    pa_operand(
+      RuntimeInput(PageTablePageIndices),
+      max_page_table_entries.to_int64() * 4L,
+      4L,
+    ),
+    pa_operand(ActivationInput(@plan.ActivationRef::new(1)), 48L, 16L),
+    pa_operand(ActivationOutput(@plan.ActivationRef::new(2)), 24L, 16L),
+    pa_operand(PersistentKvComponent(layer, Key), 1024L, 256L),
+    pa_operand(PersistentKvComponent(layer, Value), 1024L, 256L),
+  ]
+}
+
+///|
+fn pa_decode_split_lowering(
+  max_page_table_entries~ : Int32 = 3,
+  maximum_key_value_splits~ : Int32 = 8,
+  maximum_workspace_bytes~ : Int64 = 1048576L,
+  compiler_readonly~ : Bool = false,
+) -> @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle raise {
+  let profile = pa_decode_split_profile(max_page_table_entries)
+  @luna_cuda_paged_attention_aot.lower_paged_attention_decode_split_cuda_aot_candidate(
+    pa_plan().operations()[2],
+    profile,
+    pa_layout(),
+    @catalog.AotKernelEntryPointId::from_stable_int(41),
+    @catalog.AotKernelEntryPointId::from_stable_int(42),
+    pa_target(),
+    pa_compiler(),
+    pa_decode_split_operands(max_page_table_entries),
+    maximum_key_value_splits,
+    maximum_workspace_bytes,
+    pa_limits(),
+    compiler_readonly~,
+  )
+}
+
+///|
+test "compiler decode split rejects unsupported tiny head instead of relabeling legacy code" {
+  try
+    pa_decode_split_lowering(
+      max_page_table_entries=4096,
+      compiler_readonly=true,
+    )
+  catch {
+    _ => ()
+  } noraise {
+    _ => fail("unsupported head must be rejected")
+  }
+}
+
+///|
+test "decode split candidate is deterministic and one split covers the ordinary interval" {
+  let first = pa_decode_split_lowering()
+  let second = pa_decode_split_lowering()
+  assert_eq(first, second)
+  assert_false(first.manifest_bindable())
+  assert_eq(first.workspace_plan().split_count(), 1)
+  assert_eq(first.workspace_plan().partitions()[0].token_range(), (0, 6))
+  assert_eq(first.workspace_plan().total_bytes(), 64L)
+  let (partial, merge) = first.launch_dimensions()
+  assert_eq((partial.grid_x(), partial.grid_y(), partial.grid_z()), (2, 2, 1))
+  assert_eq((merge.grid_x(), merge.grid_y(), merge.grid_z()), (2, 2, 1))
+  let source = @utf8.decode(first.source_bytes())
+  assert_true(source.contains("decode_split_partial_v1_ep_41"))
+  assert_true(source.contains("decode_split_merge_v1_ep_42"))
+  assert_true(source.contains("for (int split = 0; split < 1; ++split)"))
+  assert_true(source.contains("accumulator[item] / denominator"))
+  let recipe = @utf8.decode(first.recipe_bytes())
+  assert_true(recipe.contains("manifest_bindable=false\n"))
+  assert_true(recipe.contains("partition_mode=live-page-balanced\n"))
+  assert_true(recipe.contains("maximum_partition_envelope=0:0-6\n"))
+  assert_true(recipe.contains("workspace_total_bytes=64\n"))
+}
+
+///|
+test "decode split candidate uses bounded partial workspace and ascending merge" {
+  let lowering = pa_decode_split_lowering(
+    max_page_table_entries=1024,
+    maximum_key_value_splits=8,
+  )
+  let workspace = lowering.workspace_plan()
+  assert_eq(workspace.split_count(), 2)
+  assert_eq(workspace.partitions()[0].token_range(), (0, 1024))
+  assert_eq(workspace.partitions()[1].token_range(), (1024, 2048))
+  assert_eq(workspace.total_bytes(), 128L)
+  let (partial, merge) = lowering.launch_dimensions()
+  assert_eq(partial.grid_z(), 2)
+  assert_eq(merge.grid_z(), 1)
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_true(
+    source.contains("const int live_page_count = page_end - page_start"),
+  )
+  assert_true(source.contains("live_page_count / 2"))
+  assert_true(source.contains("for (int split = 0; split < 2; ++split)"))
+  assert_true(source.contains("part_denominator * new_scale"))
+  assert_true(source.contains("partial_numerator[partial * 2ULL + d]"))
+  assert_true(source.contains("!isfinite(part_denominator)"))
+  assert_true(source.contains("current_physical_page"))
+  let recipe = @utf8.decode(lowering.recipe_bytes())
+  assert_true(recipe.contains("merge_order=ascending-split-index\n"))
+  assert_true(
+    recipe.contains("maximum_partition_envelope=0:0-1024,1:1024-2048\n"),
+  )
+}
+
+///|
+test "decode split source preserves uneven page-balanced partitions" {
+  let lowering = pa_decode_split_lowering(
+    max_page_table_entries=2049,
+    maximum_key_value_splits=8,
+  )
+  let workspace = lowering.workspace_plan()
+  assert_eq(workspace.split_count(), 4)
+  assert_eq(workspace.partitions()[0].token_range(), (0, 1026))
+  assert_eq(workspace.partitions()[1].token_range(), (1026, 2050))
+  assert_eq(workspace.partitions()[2].token_range(), (2050, 3074))
+  assert_eq(workspace.partitions()[3].token_range(), (3074, 4098))
+  let source = @utf8.decode(lowering.source_bytes())
+  assert_true(source.contains("live_page_count / 4"))
+  assert_true(source.contains("live_page_count % 4"))
+  assert_true(source.contains("split < larger_split_count ? split"))
+  assert_true(source.contains("split < larger_split_count ? 1 : 0"))
+  let recipe = @utf8.decode(lowering.recipe_bytes())
+  assert_true(
+    recipe.contains(
+      "maximum_partition_envelope=0:0-1026,1:1026-2050,2:2050-3074,3:3074-4098\n",
+    ),
+  )
+}
+
+///|
+test "decode split candidate fails closed on workspace and entry geometry" {
+  try pa_decode_split_lowering(maximum_workspace_bytes=16L) catch {
+    @luna_cuda_paged_attention_aot.Unsupported(Profile) => ()
+    _ => fail("unexpected workspace rejection")
+  } noraise {
+    _ => fail("expected workspace rejection")
+  }
+  let profile = pa_decode_split_profile(3)
+  try
+    @luna_cuda_paged_attention_aot.lower_paged_attention_decode_split_cuda_aot_candidate(
+      pa_plan().operations()[2],
+      profile,
+      pa_layout(),
+      @catalog.AotKernelEntryPointId::from_stable_int(41),
+      @catalog.AotKernelEntryPointId::from_stable_int(41),
+      pa_target(),
+      pa_compiler(),
+      pa_decode_split_operands(3),
+      8,
+      1048576L,
+      pa_limits(),
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Invalid(Operation) => ()
+    _ => fail("unexpected entry rejection")
+  } noraise {
+    _ => fail("expected entry rejection")
+  }
+}
+
+///|
+fn pa_decode_split_multilaunch_contract(
+  candidate : @luna_cuda_paged_attention_aot.PagedAttentionDecodeSplitCudaBundle,
+  module_digest~ : String = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  partial_symbol~ : String = "",
+  partial_entry_id~ : Int32 = 41,
+  workspace_partial_count~ : Int64 = 0L,
+) -> @luna_attention_multilaunch_contract.AttentionDecodeMultiLaunchContract raise {
+  let limits = @luna_attention_multilaunch_contract.AttentionMultiLaunchLimits::new(
+    maximum_workspace_bytes=1048576L,
+    maximum_symbol_bytes=256,
+    maximum_operands_per_launch=16,
+  )
+  let candidate_workspace = candidate.workspace_plan()
+  let candidate_partial_count = candidate_workspace.partial_count()
+  let partial_count = if workspace_partial_count == 0L {
+    candidate_partial_count
+  } else {
+    workspace_partial_count
+  }
+  let scalar_bytes = partial_count * 4L
+  let total_bytes = if partial_count == candidate_partial_count {
+    candidate_workspace.total_bytes()
+  } else {
+    scalar_bytes * 2L +
+    partial_count * candidate.head_dimension().to_int64() * 4L
+  }
+  let workspace = @luna_attention_multilaunch_contract.AttentionDecodeWorkspaceContract::new(
+    scalar=F32,
+    split_count=candidate_workspace.split_count(),
+    partial_count~,
+    maximum_offset_bytes=0L,
+    denominator_offset_bytes=scalar_bytes,
+    numerator_offset_bytes=scalar_bytes * 2L,
+    total_bytes~,
+    alignment=16L,
+    limits~,
+  )
+  let source_operands = candidate.operands()
+  let workspace_operand = pa_operand(
+    Workspace,
+    workspace.total_bytes(),
+    workspace.alignment(),
+  )
+  let partial_operands = [
+    source_operands[0],
+    source_operands[1],
+    source_operands[2],
+    source_operands[3],
+    source_operands[4],
+    source_operands[5],
+    source_operands[6],
+    source_operands[8],
+    source_operands[9],
+    workspace_operand,
+  ]
+  let merge_operands = [
+    source_operands[0],
+    source_operands[2],
+    workspace_operand,
+    source_operands[7],
+  ]
+  let family = @catalog.AotKernelFamily::new(
+    module_digest=@catalog.AotArtifactDigest::from_sha256(module_digest),
+    family_id=@catalog.AotKernelFamilyId::from_stable_int(91),
+  )
+  let (candidate_partial_symbol, merge_symbol) = candidate.function_symbols()
+  let (partial_dimensions, merge_dimensions) = candidate.launch_dimensions()
+  @luna_attention_multilaunch_contract.admit_attention_decode_multilaunch_contract(
+    operation_id=candidate.operation_id(),
+    profile=candidate.profile(),
+    target=candidate.target(),
+    workspace~,
+    partial=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
+      stage=Partial,
+      entry_point=@catalog.AotKernelEntryPoint::new(
+        family~,
+        entry_point_id=@catalog.AotKernelEntryPointId::from_stable_int(
+          partial_entry_id,
+        ),
+      ),
+      function_symbol=if partial_symbol.is_empty() {
+        candidate_partial_symbol
+      } else {
+        partial_symbol
+      },
+      dimensions=partial_dimensions,
+      operands=partial_operands,
+    ),
+    merge=@luna_attention_multilaunch_contract.AttentionOrderedLaunchInput::new(
+      stage=Merge,
+      entry_point=@catalog.AotKernelEntryPoint::new(
+        family~,
+        entry_point_id=@catalog.AotKernelEntryPointId::from_stable_int(42),
+      ),
+      function_symbol=merge_symbol,
+      dimensions=merge_dimensions,
+      operands=merge_operands,
+    ),
+    limits~,
+  )
+}
+
+///|
+test "decode split production binding retains labels and two ordered launches" {
+  let candidate = pa_decode_split_lowering(max_page_table_entries=1024)
+  let module_bytes = @utf8.encode("compiled-split-module")
+  // A deliberately non-content label: startup must not rehash this payload.
+  let module_digest = "a".repeat(64)
+  let contract = pa_decode_split_multilaunch_contract(candidate, module_digest~)
+  let binding = @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+    candidate,
+    pa_plan().operations()[2],
+    contract,
+    module_bytes,
+  )
+  assert_true(binding.manifest_bindable())
+  assert_eq(binding.candidate(), candidate)
+  assert_eq(binding.contract(), contract)
+  let launches = binding.contract().launches()
+  assert_eq(launches.length(), 2)
+  assert_eq(launches[0].stage(), Partial)
+  assert_eq(launches[1].stage(), Merge)
+  assert_eq(launches[0].module_digest().sha256(), module_digest)
+  assert_eq(binding.module_bytes(), module_bytes)
+  let record = @utf8.decode(binding.binding_record_bytes())
+  assert_true(record.contains("launch_count=2\n"))
+  assert_true(record.contains("launch_order=partial,merge\n"))
+  assert_true(record.contains("workspace_scalar=f32\n"))
+  assert_true(record.contains("workspace=128/16\n"))
+  assert_true(record.contains("manifest_bindable=true\n"))
+}
+
+///|
+test "reusable decode split runtime binds operation without payload hashing" {
+  let operation = pa_plan().operations()[2]
+  let profile = pa_decode_split_profile(1024)
+  let module_bytes = @utf8.encode("reusable-readonly-plus-split-module")
+  let module_digest = "b".repeat(64)
+  let binding = @luna_cuda_paged_attention_aot.bind_reusable_paged_attention_decode_split_cuda_aot(
+    operation,
+    profile,
+    pa_layout(),
+    pa_target(),
+    pa_decode_split_operands(1024),
+    module_bytes,
+    module_digest,
+    @catalog.AotKernelEntryPointId::from_stable_int(41),
+    @catalog.AotKernelEntryPointId::from_stable_int(42),
+    8,
+    1048576L,
+  )
+  assert_true(binding.manifest_bindable())
+  assert_eq(binding.operation_id(), operation.id())
+  assert_eq(binding.profile(), profile)
+  assert_eq(binding.device_kv_layout(), pa_layout())
+  assert_eq(binding.target(), pa_target())
+  assert_eq(binding.module_bytes(), module_bytes)
+  let launches = binding.contract().launches()
+  assert_eq(launches.length(), 2)
+  assert_eq(launches[0].stage(), Partial)
+  assert_eq(launches[1].stage(), Merge)
+  assert_eq(launches[0].dimensions().grid_z(), 2)
+  assert_eq(launches[1].dimensions().grid_z(), 1)
+  assert_eq(launches[0].module_digest().sha256(), module_digest)
+}
+
+///|
+test "decode split production binding rejects symbol entry and workspace drift" {
+  let candidate = pa_decode_split_lowering(max_page_table_entries=1024)
+  let module_bytes = @utf8.encode("compiled-split-module")
+  let module_digest = @crypto.bytes_to_hex_string(@crypto.sha256(module_bytes))
+  try
+    @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+      candidate,
+      pa_plan().operations()[2],
+      pa_decode_split_multilaunch_contract(
+        candidate,
+        module_digest~,
+        partial_symbol="foreign_partial",
+      ),
+      module_bytes,
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
+    _ => fail("unexpected symbol rejection")
+  } noraise {
+    _ => fail("foreign symbol was bound")
+  }
+  try
+    @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+      candidate,
+      pa_plan().operations()[2],
+      pa_decode_split_multilaunch_contract(
+        candidate,
+        module_digest~,
+        partial_entry_id=43,
+      ),
+      module_bytes,
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
+    _ => fail("unexpected entry rejection")
+  } noraise {
+    _ => fail("foreign entry point was bound")
+  }
+  try
+    @luna_cuda_paged_attention_aot.bind_manifest_paged_attention_decode_split_cuda_aot(
+      candidate,
+      pa_plan().operations()[2],
+      pa_decode_split_multilaunch_contract(
+        candidate,
+        module_digest~,
+        workspace_partial_count=16L,
+      ),
+      module_bytes,
+    )
+  catch {
+    @luna_cuda_paged_attention_aot.Mismatch(Contract) => ()
+    _ => fail("unexpected workspace rejection")
+  } noraise {
+    _ => fail("foreign workspace was bound")
+  }
+}

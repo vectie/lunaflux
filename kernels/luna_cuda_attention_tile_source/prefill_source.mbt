@@ -1,0 +1,458 @@
+///|
+/// Emits the first production-shaped matrix-tiled prefill kernel from the
+/// functional schedule. K/V tiles are loaded once and reused by a complete
+/// query tile; online softmax and PV accumulation remain fused.
+fn emit_cuda_prefill_attention_tile_source(
+  lowering : @luna_cuda_attention_tile_lowering.CudaAttentionTileLowering,
+  abi : CudaPagedAttentionTileAbi,
+  symbol : String,
+  maximum_source_bytes : Int32,
+) -> CudaAttentionTileSource raise CudaAttentionTileSourceError {
+  let physical = cuda_shared_score_program(lowering)
+  if abi.query_metadata {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  if !valid_cuda_symbol(symbol) {
+    raise InvalidCudaAttentionTileSource(InvalidSymbol)
+  }
+  if maximum_source_bytes <= 0 || maximum_source_bytes > 16777216 {
+    raise InvalidCudaAttentionTileSource(SourceLimit)
+  }
+  let compute = lowering.compute()
+  let transfer_mode = cuda_score_transfer_mode(lowering)
+  let asynchronous = transfer_mode == LookaheadTransfer
+  let direct_staging = transfer_mode == ImmediateTransfer
+  let key_value_partitions = lowering.key_value_partitions()
+  if !(compute == CudaMatrixMultiplyAccumulate ||
+    compute == CudaMatrixQkPvMultiplyAccumulate) ||
+    !(lowering.copy() == CudaCooperativeSharedLoad || asynchronous) {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let (query_tile, key_value_tile, head_dimension) = lowering.tile()
+  let (_, _, block_threads, shared_memory_bytes) = lowering.launch()
+  let (pipeline_stages, vector_bytes) = lowering.pipeline()
+  let (query_heads, key_value_heads, abi_head_dimension, tokens_per_page) = abi.shape()
+  let (input_row_width, page_stride_values, _) = abi.layout()
+  let (maximum_query_rows, maximum_query_tokens, maximum_page_entries) = abi.limits()
+  if query_tile < 16 ||
+    query_tile > 64 ||
+    query_tile % 16 != 0 ||
+    key_value_tile < 16 ||
+    key_value_tile > 128 ||
+    key_value_tile % 16 != 0 ||
+    head_dimension != abi_head_dimension ||
+    head_dimension % 16 != 0 ||
+    block_threads < key_value_tile / 16 * 32 ||
+    block_threads > 1024 ||
+    pipeline_stages < 1 ||
+    pipeline_stages > 4 ||
+    vector_bytes != 16 {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  if (asynchronous || direct_staging) && page_stride_values % 8L != 0L {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let query_width = query_heads * head_dimension
+  let factor_shared_key = if physical.factor_shared_key() { 1 } else { 0 }
+  let group_size = query_heads / key_value_heads
+  let values_per_vector = vector_bytes / 2
+  let vectors_per_key = head_dimension / values_per_vector
+  if vectors_per_key <= 0 || vectors_per_key > 32 || 32 % vectors_per_key != 0 {
+    raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+  }
+  let paged_key_value_load = if lowering.reads_dense_current_key_value() {
+    cuda_prefill_view_sync_load(abi)
+  } else {
+    emit_prefill_paged_key_value_load(
+      abi,
+      lowering.hoists_paged_key_value_page_lookup(),
+    )
+  }
+  let probability_type = if physical.matrix_probability() {
+    "__nv_bfloat16"
+  } else {
+    "float"
+  }
+  let probability_store = if physical.matrix_probability() {
+    "        weights[lf_operand_index(query, key, LF_KEY_VALUE_TILE)] = __float2bfloat16_rn(weight);\n"
+  } else {
+    "        weights[query * LF_KEY_VALUE_TILE + key] = weight;\n"
+  }
+  let reuse_tile_storage = physical.resident_statistics()
+  let shared_layout = if reuse_tile_storage {
+    cuda_attention_storage_declarations(lowering)
+  } else {
+    "  unsigned char *shared_cursor = shared_arena;\n" +
+    "  __nv_bfloat16 *query_tile = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);\n" +
+    "  __nv_bfloat16 *key_tiles = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);\n" +
+    "  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);\n" +
+    "  __nv_bfloat16 *value_tiles = reinterpret_cast<__nv_bfloat16 *>(shared_cursor);\n" +
+    "  shared_cursor += LF_PIPELINE_STAGES * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION * sizeof(__nv_bfloat16);\n" +
+    "  float *scores = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(float);\n" +
+    "  " +
+    probability_type +
+    " *weights = reinterpret_cast<" +
+    probability_type +
+    " *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_KEY_VALUE_TILE * sizeof(" +
+    probability_type +
+    ");\n" +
+    "  float *accumulator = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * LF_HEAD_DIMENSION * sizeof(float);\n" +
+    "  float *running_maximum = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
+    "  float *running_denominator = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
+    "  float *previous_scales = reinterpret_cast<float *>(shared_cursor);\n" +
+    "  shared_cursor += LF_QUERY_TILE * sizeof(float);\n" +
+    "  int &tile_valid = *reinterpret_cast<int *>(shared_cursor);\n"
+  }
+  let query_fold_offsets = physical.query_offsets()
+  let fold_state_declaration = if reuse_tile_storage {
+    cuda_query_fold_declaration(query_fold_offsets)
+  } else {
+    ""
+  }
+  let shared_state_initialization = if reuse_tile_storage {
+    ""
+  } else {
+    "  if (thread < LF_QUERY_TILE) {\n" +
+    "    running_maximum[thread] = -CUDART_INF_F;\n" +
+    "    running_denominator[thread] = 0.0f;\n" +
+    "  }\n"
+  }
+  let output_and_cache_parameters = if key_value_partitions == 1 {
+    "    __nv_bfloat16 *output, const __nv_bfloat16 *key_cache,\n" +
+    "    const __nv_bfloat16 *value_cache)"
+  } else {
+    "    const __nv_bfloat16 *key_cache, const __nv_bfloat16 *value_cache,\n" +
+    "    float *workspace)"
+  }
+  let partition_guard = if key_value_partitions == 1 {
+    ""
+  } else {
+    "  const int split = (int)blockIdx.z;\n" +
+    "  if (split >= LF_KEY_VALUE_PARTITIONS) return;\n"
+  }
+  let partition_bounds = if key_value_partitions == 1 {
+    "  const int partition_begin = 0;\n" +
+    "  const int partition_end = maximum_query_position + 1;\n"
+  } else {
+    "  const int live_key_count = maximum_query_position + 1;\n" +
+    "  const int base_keys_per_partition = live_key_count / LF_KEY_VALUE_PARTITIONS;\n" +
+    "  const int larger_partition_count = live_key_count % LF_KEY_VALUE_PARTITIONS;\n" +
+    "  const int partition_begin = split * base_keys_per_partition +\n" +
+    "      (split < larger_partition_count ? split : larger_partition_count);\n" +
+    "  const int partition_key_count = base_keys_per_partition +\n" +
+    "      (split < larger_partition_count ? 1 : 0);\n" +
+    "  const int partition_end = partition_begin + partition_key_count;\n"
+  }
+  let terminal_store = if key_value_partitions == 1 {
+    "  for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "       linear += LF_BLOCK_THREADS) {\n" +
+    "    const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "    const int component = linear % LF_HEAD_DIMENSION;\n" +
+    "    const float denominator = running_denominator[query];\n" +
+    "    const int output_index = (token_base + query) * " +
+    query_width.to_string() +
+    " +\n" +
+    "        query_head * LF_HEAD_DIMENSION + component;\n" +
+    "    output[output_index] = __float2bfloat16_rn(\n" +
+    "        denominator > 0.0f ? accumulator[lf_float_index(query, component, LF_HEAD_DIMENSION)] / denominator : CUDART_NAN_F);\n" +
+    "  }\n"
+  } else {
+    "  for (int query = thread; query < active_queries; query += LF_BLOCK_THREADS) {\n" +
+    "    const unsigned long long state =\n" +
+    "        (((unsigned long long)(token_base + query) * " +
+    query_heads.to_string() +
+    "ULL + query_head) * LF_KEY_VALUE_PARTITIONS + split);\n" +
+    "    workspace[state] = running_maximum[query];\n" +
+    "    workspace[LF_PARTIAL_STATE_COUNT + state] = running_denominator[query];\n" +
+    "  }\n" +
+    "  for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "       linear += LF_BLOCK_THREADS) {\n" +
+    "    const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "    const int component = linear % LF_HEAD_DIMENSION;\n" +
+    "    const unsigned long long state =\n" +
+    "        (((unsigned long long)(token_base + query) * " +
+    query_heads.to_string() +
+    "ULL + query_head) * LF_KEY_VALUE_PARTITIONS + split);\n" +
+    "    workspace[2ULL * LF_PARTIAL_STATE_COUNT +\n" +
+    "        state * LF_HEAD_DIMENSION + component] = accumulator[lf_float_index(query, component, LF_HEAD_DIMENSION)];\n" +
+    "  }\n"
+  }
+  let resident_output = physical.resident_output()
+  let terminal_plan = physical.terminal()
+  let float_load = if !resident_output &&
+    compute == CudaMatrixQkPvMultiplyAccumulate {
+    cuda_attention_matrix_float_load()
+  } else {
+    ""
+  }
+  let warp_count_declaration = if reuse_tile_storage {
+    ""
+  } else {
+    "  const int warp_count = LF_BLOCK_THREADS >> 5;"
+  }
+  let resident_store = cuda_score_terminal_effects(
+    terminal_plan,
+    MaterializeScoreOutput,
+    query_fold_offsets,
+  )
+  let initial_accumulator = if resident_output {
+    "(float)(linear / LF_HEAD_DIMENSION)"
+  } else {
+    "0.0f"
+  }
+  let value_accumulation = if resident_output {
+    cuda_resident_output_fold_step()
+  } else {
+    cuda_prefill_value_accumulation(physical)
+  }
+  let rescale_shared_output = if resident_output {
+    ""
+  } else {
+    "    for (int linear = thread; linear < active_queries * LF_HEAD_DIMENSION;\n" +
+    "         linear += LF_BLOCK_THREADS) {\n" +
+    "      const int query = linear / LF_HEAD_DIMENSION;\n" +
+    "      accumulator[lf_float_index(query, linear % LF_HEAD_DIMENSION, LF_HEAD_DIMENSION)] *= previous_scales[query];\n" +
+    "    }\n"
+  }
+  let resident_softmax_update = if reuse_tile_storage {
+    let score_offsets = @luna_attention_tile_schedule.scalarize_attention_score_map(
+      key_value_tile, 32,
+    ) catch {
+      _ => raise InvalidCudaAttentionTileSource(UnsupportedLowering)
+    }
+    cuda_query_fold_update(query_fold_offsets, score_offsets, probability_store)
+  } else {
+    ""
+  }
+  let shared_maximum_update = "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      const int query_position = query_positions[token_base + query];\n" +
+    "      float local_maximum = -CUDART_INF_F;\n" +
+    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32)\n" +
+    "        local_maximum = fmaxf(local_maximum, lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale));\n" +
+    "      const float tile_maximum = lf_warp_max(local_maximum);\n" +
+    "      const float previous_maximum = running_maximum[query];\n" +
+    "      const float next_maximum = fmaxf(previous_maximum, tile_maximum);\n" +
+    "      const float previous_scale = isinf(previous_maximum)\n" +
+    "          ? 0.0f : expf(previous_maximum - next_maximum);\n" +
+    "      if (lane == 0) {\n" +
+    "        running_maximum[query] = next_maximum;\n" +
+    "        previous_scales[query] = previous_scale;\n" +
+    "      }\n" +
+    "    }\n"
+  let shared_probability_update = "    for (int query = warp; query < active_queries; query += warp_count) {\n" +
+    "      const int query_position = query_positions[token_base + query];\n" +
+    "      const float previous_scale = previous_scales[query];\n" +
+    "      const float maximum = running_maximum[query];\n" +
+    "      float local_sum = 0.0f;\n" +
+    "      for (int key = lane; key < LF_KEY_VALUE_TILE; key += 32) {\n" +
+    "        const float weight = isinf(maximum) ? 0.0f :\n" +
+    "            expf(lf_transformed_score(scores, query, key, key_base, partition_end, query_position, scale) - maximum);\n" +
+    probability_store +
+    "        local_sum += weight;\n" +
+    "      }\n" +
+    "      const float tile_sum = lf_warp_sum(local_sum);\n" +
+    "      if (lane == 0)\n" +
+    "        running_denominator[query] =\n" +
+    "            running_denominator[query] * previous_scale + tile_sum;\n" +
+    "    }\n"
+  let online_softmax_update = physical
+    .fold_steps()
+    .map(step => {
+      match step {
+        PublishProducedScores => "    __syncthreads();\n\n"
+        UpdateResidentStatisticsAndProbabilities => resident_softmax_update
+        UpdateSharedMaximumAndScale => shared_maximum_update
+        RescaleSharedOutput => rescale_shared_output
+        UpdateSharedProbabilitiesAndDenominator => shared_probability_update
+        PublishScoreFold => "    __syncthreads();\n"
+      }
+    })
+    .join("")
+  let terminal_fold_state = cuda_score_terminal_effects(
+    terminal_plan,
+    MaterializeScoreStatistics,
+    query_fold_offsets,
+  )
+  let async_prefill = if asynchronous { 1 } else { 0 }
+  let direct_prefill = if direct_staging { 1 } else { 0 }
+  let operand_layout = cuda_attention_operand_layout(
+    query_tile, key_value_tile, head_dimension,
+  )
+  let async_stage = if asynchronous || direct_staging {
+    if lowering.reads_dense_current_key_value() {
+      cuda_prefill_view_async_stage(abi, transfer_mode)
+    } else {
+      emit_prefill_async_stage(
+        abi,
+        lowering.hoists_paged_key_value_page_lookup(),
+        transfer_mode,
+      )
+    }
+  } else {
+    ""
+  }
+  let source =
+    $|#include <cuda_bf16.h>
+    $|#include <math_constants.h>
+    $|#include <mma.h>
+    $|#define LF_QUERY_TILE \{query_tile}
+    $|#define LF_FACTOR_SHARED_KEY \{factor_shared_key}
+    $|#define LF_KEY_VALUE_TILE \{key_value_tile}
+    $|#define LF_HEAD_DIMENSION \{head_dimension}
+    $|#define LF_BLOCK_THREADS \{block_threads}
+    $|#define LF_SHARED_MEMORY_BYTES \{shared_memory_bytes}
+    $|#define LF_PIPELINE_STAGES \{pipeline_stages}
+    $|#define LF_ASYNC_PREFILL \{async_prefill}
+    $|#define LF_DIRECT_PREFILL \{direct_prefill}
+    $|#define LF_VALUES_PER_VECTOR \{values_per_vector}
+    $|#define LF_KEY_VALUE_PARTITIONS \{key_value_partitions}
+    $|#define LF_QUERY_STATE_SLOTS ((LF_QUERY_TILE + (LF_BLOCK_THREADS / 32) - 1) / (LF_BLOCK_THREADS / 32))
+    $|#define LF_PARTIAL_STATE_COUNT \{maximum_query_tokens.to_int64() * query_heads.to_int64() * key_value_partitions.to_int64()}ULL
+    $|\{operand_layout}
+    $|\{cuda_attention_matrix_fragments()}
+    $|\{float_load}
+    $|
+    $|\{cuda_attention_score_transform()}
+    $|
+    $|static __device__ __forceinline__ float lf_warp_sum(float value) {
+    $|  for (int offset = 16; offset > 0; offset >>= 1)
+    $|    value += __shfl_down_sync(0xffffffffU, value, offset);
+    $|  return __shfl_sync(0xffffffffU, value, 0);
+    $|}
+    $|
+    $|static __device__ __forceinline__ float lf_warp_max(float value) {
+    $|  for (int offset = 16; offset > 0; offset >>= 1)
+    $|    value = fmaxf(value, __shfl_down_sync(0xffffffffU, value, offset));
+    $|  return __shfl_sync(0xffffffffU, value, 0);
+    $|}
+    $|
+    $|extern "C" __global__ void \{symbol}(
+    $|    const int *counts, const int *query_positions,
+    $|    const int *query_row_offsets, const int *sequence_lengths,
+    $|    const int *page_table_offsets, const int *page_table_page_indices,
+    $|    const __nv_bfloat16 *rotated_qkv_rows,
+    $|\{output_and_cache_parameters} {
+    $|  const int thread = (int)threadIdx.x;
+    $|  const int lane = thread & 31;
+    $|  const int warp = thread >> 5;
+    $|\{warp_count_declaration}
+    $|  const int query_head = (int)blockIdx.y;
+    $|  if (blockDim.x != LF_BLOCK_THREADS || query_head >= \{query_heads}) return;
+    $|\{partition_guard}
+    $|
+    $|  const int prefill_count = counts[0];
+    $|  const int decode_count = counts[1];
+    $|  const int row_count = counts[2];
+    $|  const int token_count = counts[3];
+    $|  const int page_entry_count = counts[4];
+    $|  if (prefill_count < 0 || decode_count < 0 ||
+    $|      prefill_count + decode_count <= 0 ||
+    $|      row_count != prefill_count + decode_count ||
+    $|      row_count > \{maximum_query_rows} || token_count <= 0 ||
+    $|      token_count > \{maximum_query_tokens} || page_entry_count <= 0 ||
+    $|      page_entry_count > \{maximum_page_entries}) return;
+    $|
+    $|  for (int tile_ordinal = (int)blockIdx.x; ;
+    $|       tile_ordinal += (int)gridDim.x) {
+    $|  int row = -1, token_base = 0, tile_prefix = 0;
+    $|  for (int candidate_row = 0; candidate_row < row_count; ++candidate_row) {
+    $|    const int begin = query_row_offsets[candidate_row];
+    $|    const int end = query_row_offsets[candidate_row + 1];
+    $|    const int row_tiles = end > begin ? (end - begin + LF_QUERY_TILE - 1) / LF_QUERY_TILE : 0;
+    $|    if (tile_ordinal < tile_prefix + row_tiles) {
+    $|      row = candidate_row;
+    $|      token_base = begin + (tile_ordinal - tile_prefix) * LF_QUERY_TILE;
+    $|      break;
+    $|    }
+    $|    tile_prefix += row_tiles;
+    $|  }
+    $|  if (row < 0) return;
+    $|
+    $|  const int row_start = query_row_offsets[row];
+    $|  const int row_end = query_row_offsets[row + 1];
+    $|  const int active_queries = min(LF_QUERY_TILE, row_end - token_base);
+    $|  const int page_start = page_table_offsets[row];
+    $|  const int page_end = page_table_offsets[row + 1];
+    $|  const int sequence_length = sequence_lengths[row];
+    $|  if (row_start < 0 || row_start >= row_end || row_end > token_count ||
+    $|      active_queries <= 0 || page_start < 0 || page_start >= page_end ||
+    $|      page_end > page_entry_count || sequence_length <= 0 ||
+    $|      page_end - page_start != (sequence_length + \{tokens_per_page - 1}) / \{tokens_per_page})
+    $|    return;
+    $|
+    $|  extern __shared__ __align__(16) unsigned char shared_arena[];
+    $|\{shared_layout}
+    $|
+    $|\{cuda_score_bootstrap(InitializeScoreAccumulators, physical, initial_accumulator, input_row_width, shared_state_initialization)}
+    $|
+    $|\{cuda_score_bootstrap(InitializeScoreOperands, physical, initial_accumulator, input_row_width, shared_state_initialization)}
+    $|
+    $|\{cuda_score_bootstrap(ValidateScoreOperands, physical, initial_accumulator, input_row_width, shared_state_initialization)}
+    $|\{partition_bounds}
+    $|
+    $|  const int key_value_vector_count = LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION / LF_VALUES_PER_VECTOR;
+    $|  const int key_value_head = query_head / \{group_size};
+    $|  const float scale = rsqrtf((float)LF_HEAD_DIMENSION);
+    $|\{fold_state_declaration}
+    $|\{async_stage}
+    $|  for (int key_base = partition_begin, tile_index = 0; key_base < partition_end;
+    $|       key_base += LF_KEY_VALUE_TILE, ++tile_index) {
+    $|    const int stage = tile_index % LF_PIPELINE_STAGES;
+    $|#if LF_ASYNC_PREFILL
+    $|    // Wait only at the next tile's first consumer, not at its issue site.
+    $|\{cuda_score_transfer_effects(LookaheadTransfer, AcquireScoreTile, "")}
+    $|#elif LF_DIRECT_PREFILL
+    $|\{cuda_score_transfer_effects(ImmediateTransfer, AcquireScoreTile, "")}
+    $|#else
+    $|\{cuda_score_transfer_effects(CooperativeTransfer, AcquireScoreTile, cuda_score_cooperative_transfer(paged_key_value_load))}
+    $|#endif
+    $|#if LF_FACTOR_SHARED_KEY
+    $|\{cuda_attention_shared_key_dot()}
+    $|#else
+    $|    if (warp < LF_KEY_VALUE_TILE / 16) {
+    $|      const int key_column = warp * 16;
+    $|      #pragma unroll
+    $|      for (int query_base = 0; query_base < LF_QUERY_TILE; query_base += 16) {
+    $|        LfMatrixAccumulator score_fragment = {};
+    $|        #pragma unroll
+    $|        for (int reduction = 0; reduction < LF_HEAD_DIMENSION; reduction += 16) {
+    $|          const auto query_fragment = lf_matrix_load(query_tile, query_base, reduction, LF_HEAD_DIMENSION);
+    $|          const auto key_fragment = lf_matrix_load(key_tiles + stage * LF_KEY_VALUE_TILE * LF_HEAD_DIMENSION, key_column, reduction, LF_HEAD_DIMENSION);
+    $|          lf_matrix_mma(score_fragment, query_fragment, key_fragment);
+    $|        }
+    $|        lf_matrix_store_float(scores, query_base, key_column, LF_KEY_VALUE_TILE, score_fragment);
+    $|      }
+    $|    }
+    $|#endif
+    $|\{online_softmax_update}
+    $|
+    $|\{value_accumulation}
+    $|\{cuda_score_transfer_effects(transfer_mode, ReleaseScoreTile, "")}
+    $|  }
+    $|
+    $|\{resident_store}
+    $|\{terminal_fold_state}
+    $|\{terminal_store}
+    $|\{cuda_score_terminal_effects(terminal_plan, ReleaseScoreArena, query_fold_offsets)}
+    $|  }
+    $|}
+  let bytes = @utf8.encode(source)
+  if bytes.length() > maximum_source_bytes {
+    raise InvalidCudaAttentionTileSource(SourceLimit)
+  }
+  {
+    lowering_digest: lowering.digest(),
+    abi,
+    symbol,
+    bytes,
+    digest: CudaAttentionTileSourceDigest(
+      @crypto.bytes_to_hex_string(@crypto.sha256(bytes)),
+    ),
+  }
+}
