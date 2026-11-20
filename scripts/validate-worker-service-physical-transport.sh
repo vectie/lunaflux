@@ -6,15 +6,16 @@ cd "$repo_root"
 
 package="engine/worker_service"
 transport="$package/physical_transport.mbt"
+transport_recovery="$package/physical_transport_recovery.mbt"
 
 if [ ! -f "$transport" ]; then
   printf '%s\n' 'worker-service physical transport adapter is missing' >&2
   exit 1
 fi
 
-if ! rg -q '^priv enum WorkerPhysicalTransport \{' "$transport" ||
+if ! rg -q '^priv enum WorkerPhysicalTransport \{' "$transport_recovery" ||
   rg -q '^pub.*(enum|struct) WorkerPhysicalTransport \{|^pub fn WorkerPhysicalTransport::' \
-    "$transport" "$package/types.mbt"; then
+    "$transport" "$transport_recovery" "$package/types.mbt"; then
   printf '%s\n' 'worker-service physical transport is not package-private' >&2
   exit 1
 fi
@@ -113,10 +114,10 @@ if rg -n '\bdefer\b' "$package/recovery.mbt" >/dev/null; then
   exit 1
 fi
 if ! rg -U -q \
-    'shutdown_clean\(\) catch \{[[:space:]]*error => \{[[:space:]]*self\.lifecycle = ServiceRecovering[[:space:]]*raise error' \
+    'shutdown_clean\(\),[\s\S]*match shutdown_result \{[[:space:]]*Err\(error\) => \{[[:space:]]*self\.lifecycle = ServiceRecovering[[:space:]]*raise error' \
     "$package/recovery.mbt" ||
   ! rg -U -q \
-    'close\(\) catch \{[[:space:]]*error => \{[[:space:]]*self\.lifecycle = ServiceClosingFailed[[:space:]]*raise error' \
+    'close\(\),[\s\S]*match close_result \{[[:space:]]*Err\(error\) => \{[[:space:]]*self\.lifecycle = ServiceClosingFailed[[:space:]]*raise error' \
     "$package/recovery.mbt"; then
   printf '%s\n' \
     'worker-service recovery cleanup lost its explicit retry lifecycle' >&2

@@ -70,10 +70,10 @@ async fn main {
   let rank = @fs.read_file("engine/rank_group_process/exchange.mbt").text()
   reject_text(rank, "frame.copy_to(")
   require_text(rank, "seal_rank_group_wire_embedded_payload(")
-  for name in ["paged_executor_greedy_sampling", "paged_executor_completion", "paged_executor_wire_completion"] {
+  for name in ["paged_greedy_readback", "paged_executor_completion", "paged_executor_wire_completion"] {
     let source = @fs.read_file("engine/device_step/" + name + ".mbt").text()
     assert_eq(occurrences(source, "copy_paged_cuda_greedy_results("), 1)
-    if name == "paged_executor_greedy_sampling" {
+    if name == "paged_greedy_readback" {
       assert_eq(occurrences(function_body(source, "fn copy_paged_cuda_greedy_results("), "copy_to_fixed_host("), 1)
     }
   }

@@ -97,9 +97,9 @@ for cross_version_guard in \
   'engine/device_executor/blueprint.mbt:static_plan.catalog_version() != @catalog.CatalogVersion::v1()' \
   'engine/device_executor/blueprint.mbt:contracts.catalog_version() != @catalog.CatalogVersion::v1()' \
   'engine/device_executor/blueprint.mbt:artifacts.catalog_version() != @catalog.CatalogVersion::v1()' \
-  'engine/device_step/blueprint_admit.mbt:let catalog = @catalog.CatalogVersion::v3()' \
-  'engine/device_step/blueprint_admit.mbt:contracts.catalog_version() != catalog' \
-  'engine/device_step/blueprint_admit.mbt:artifacts.catalog_version() != catalog' \
+  'engine/device_step/blueprint_contracts.mbt:let catalog = @catalog.CatalogVersion::v3()' \
+  'engine/device_step/blueprint_contracts.mbt:contracts.catalog_version() != catalog' \
+  'engine/device_step/blueprint_contracts.mbt:artifacts.catalog_version() != catalog' \
   'engine/device_step/bootstrap_admit.mbt:blueprint.catalog_version() != @catalog.CatalogVersion::v3()' \
   'engine/device_step/bootstrap_admit.mbt:artifacts.catalog_version() != blueprint.catalog_version()' \
   'kernels/artifact/reauthenticate.mbt:self.catalog_version != @catalog.CatalogVersion::v3()' \

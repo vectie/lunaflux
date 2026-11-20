@@ -41,16 +41,18 @@ rg -Fq 'copy_paged_cuda_greedy_results' \
   "$repo_root/engine/device_step/paged_executor_completion.mbt"
 rg -Fq 'sampling_policy~' "$repo_root/engine/device_worker/prepare.mbt"
 rg -Fq 'module_.module_bytes() == artifact.module_bytes()' \
-  "$repo_root/engine/device_step/paged_executor_greedy_sampling.mbt"
+  "$repo_root/engine/device_step/paged_sampling_policy.mbt"
 rg -Fq 'PAGED_GREEDY_RESULT_ROW_BYTES : Int64 = 8L' \
-  "$repo_root/engine/device_step/paged_executor_greedy_sampling.mbt"
+  "$repo_root/engine/device_step/paged_sampling_policy.mbt"
 rg -Fq '@sampling.greedy(' \
   "$repo_root/engine/device_step/paged_executor_completion.mbt"
 rg -Fq '@sampling.stochastic_sample_at(' \
   "$repo_root/engine/device_step/paged_executor_completion.mbt"
 if rg -n 'nvrtc|PyTorch|python|runtime JIT' \
   "$package_dir"/*.mbt \
-  "$repo_root/engine/device_step/paged_executor_greedy_sampling.mbt"; then
+  "$repo_root/engine/device_step/paged_executor_greedy_sampling.mbt" \
+  "$repo_root/engine/device_step/paged_sampling_policy.mbt" \
+  "$repo_root/engine/device_step/paged_greedy_readback.mbt"; then
   echo "sampling fast path introduced a forbidden runtime dependency" >&2
   exit 1
 fi

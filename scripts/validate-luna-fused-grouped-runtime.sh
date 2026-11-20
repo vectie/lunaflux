@@ -116,6 +116,8 @@ fi
 moon fmt --check "$package"/fused_grouped_*.mbt \
   "$package"/execution_diagnostics*.mbt \
   "$package/paged_executor_prepare.mbt" \
+  "$package/paged_executor_admission.mbt" \
+  "$package/paged_module_loading.mbt" \
   "$package/paged_executor_run.mbt" \
   kernels/luna_cuda_fused_parallel_aot \
   kernels/luna_fused_artifact_admission release/luna_fused_physical_evidence

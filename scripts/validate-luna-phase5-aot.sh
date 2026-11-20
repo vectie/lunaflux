@@ -156,6 +156,8 @@ for file in \
   engine/device_step/luna_authorization.mbt \
   engine/device_step/bootstrap_admit.mbt \
   engine/device_step/paged_executor_prepare.mbt \
+  engine/device_step/paged_executor_admission.mbt \
+  engine/device_step/paged_module_loading.mbt \
   engine/worker_wire/bootstrap_source_codec.mbt \
   engine/worker_wire/bootstrap_source_types.mbt \
   engine/worker_wire/bootstrap_source_validate.mbt; do

@@ -12,7 +12,7 @@ rg -Fq 'embedded_greedy_sampling_cuda_source' "$projection/source_mlp.mbt"
 rg -Fq 'parameters.family == LanguageModelHead' "$projection/lower.mbt"
 rg -Fq 'embedded_sampling=greedy_bf16_rows_v1' "$projection/recipe.mbt"
 rg -Fq 'admit_paged_embedded_cuda_greedy_sampling' \
-  "$step/paged_executor_greedy_sampling.mbt"
+  "$step/paged_sampling_policy.mbt"
 rg -Fq 'stage_frame_with_sampling_mode' \
   "$step/paged_executor_run.mbt"
 rg -Fq 'stage_with_sampling_mode' "$step/paged_executor_run.mbt"
@@ -25,7 +25,9 @@ rg -Fq 'priv sampling_policy : @device_step.PagedSamplingExecutionPolicy' \
 [ "$(rg -c 'sampling_policy=plan.sampling_policy' "$worker/prepare.mbt")" -eq 2 ]
 
 if rg -n '@crypto|@approved_fs|@fs\.|@release|read_file|sha256\(' \
-  "$step/paged_executor_greedy_sampling.mbt"; then
+  "$step/paged_executor_greedy_sampling.mbt" \
+  "$step/paged_sampling_policy.mbt" \
+  "$step/paged_greedy_readback.mbt"; then
   echo 'device-greedy runtime path performs startup evidence or filesystem work' >&2
   exit 1
 fi

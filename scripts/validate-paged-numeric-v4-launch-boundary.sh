@@ -176,7 +176,7 @@ for check in \
   'kernels/launch_contract/paged_admit.mbt:WeightScaleInput(_, _) =>' \
   'engine/device_executor/blueprint.mbt:WeightScaleInput(_, _) => None' \
   'engine/device_executor/blueprint.mbt:contracts.catalog_version() != @catalog.CatalogVersion::v1()' \
-  'engine/device_step/blueprint_admit.mbt:WeightScaleInput(_, _) =>' \
+  'engine/device_step/blueprint_operand_bindings.mbt:WeightScaleInput(_, _) =>' \
   'engine/device_step/bootstrap_encode.mbt:WeightScaleInput(_, _) => raise InvalidBootstrap(Blueprint)' \
   'kernels/luna_artifact_admission/phase5_execution_fixture_test.mbt:@catalog.CatalogEntry::new_paged_v3(' \
   'kernels/luna_artifact_admission/phase5_execution_fixture_test.mbt:@catalog.KernelCatalog::new(version=@catalog.CatalogVersion::v3(), entries~).resolve_paged(' \

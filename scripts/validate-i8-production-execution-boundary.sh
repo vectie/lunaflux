@@ -217,7 +217,7 @@ for legacy in \
   'engine/execution_manifest_file/reader.mbt:schema_version == 2' \
   'engine/execution_manifest_file/reader.mbt:schema_version == 3' \
   'engine/execution_manifest_file/reader.mbt:@catalog.CatalogVersion::v3().as_int()' \
-  'engine/device_step/blueprint_admit.mbt:let catalog = @catalog.CatalogVersion::v3()' \
+  'engine/device_step/blueprint_contracts.mbt:let catalog = @catalog.CatalogVersion::v3()' \
   'engine/device_step/bootstrap_encode.mbt:WeightScaleInput(_, _) => raise InvalidBootstrap(Blueprint)'; do
   legacy_file=${legacy%%:*}
   legacy_value=${legacy#*:}

@@ -15,7 +15,7 @@ if rg -n 'fork\s*\(' internal/process --glob '*.c' \
     --glob '!process_approved_spawn.c' ||
   ! rg -q '^#if defined\(__linux__\)$' \
     internal/process/process_approved_spawn.c ||
-  ! rg -q 'fexecve\(5, argv, sanitized_environment\)' \
+  ! rg -q 'fexecve\(5, argv, runtime_environment\)' \
     internal/process/process_approved_spawn.c ||
   ! rg -q 'syscall\(SYS_close_range, 6u, UINT_MAX, 0u\)' \
     internal/process/process_approved_spawn.c ||
@@ -160,6 +160,10 @@ if ! rg -q 'fn ChildProcess::write_source_conflicts_active_read' \
     internal/process/process.mbt ||
   ! rg -q 'read_buffer_conflicts_active_write' \
     internal/process/process.mbt ||
+  ! rg -q 'write_source_conflicts_active_read' \
+    internal/process/inherited_frame_io.mbt ||
+  ! rg -q 'read_buffer_conflicts_active_write' \
+    internal/process/inherited_frame_io.mbt ||
   ! rg -q 'write_source_conflicts_active_read' \
     internal/process/process_spawn.mbt ||
   ! rg -q 'read_buffer_conflicts_active_write' \
